@@ -20,14 +20,16 @@ namespace url_pattern {
 namespace {
 
 String MaybeStripPrefix(const String& value, StringView prefix) {
-  if (value.StartsWith(prefix))
-    return value.Substring(1, value.length() - 1);
+  if (value.starts_with(prefix)) {
+    return value.substr(1, value.length() - 1);
+  }
   return value;
 }
 
 String MaybeStripSuffix(const String& value, StringView suffix) {
-  if (value.EndsWith(suffix))
-    return value.Substring(0, value.length() - 1);
+  if (value.ends_with(suffix)) {
+    return value.substr(0, value.length() - 1);
+  }
   return value;
 }
 

@@ -676,7 +676,7 @@ WebGLRenderingContextBase::CreateContextProviderInternal(
   }
   gpu::gles2::GLES2Interface* gl = context_provider->ContextGL();
   if (!String(gl->GetString(GL_EXTENSIONS))
-           .Contains("GL_OES_packed_depth_stencil")) {
+           .contains("GL_OES_packed_depth_stencil")) {
     host->HostDispatchEvent(WebGLContextEvent::Create(
         event_type_names::kWebglcontextcreationerror,
         "OES_packed_depth_stencil support is required."));
@@ -837,22 +837,21 @@ scoped_refptr<StaticBitmapImage> WebGLRenderingContextBase::GetImage() {
   gfx::Size size = GetDrawingBuffer()->Size();
   // We are grabbing a snapshot that is generally not for compositing, so use a
   // custom resource provider to specify only the minimal required set of
-  // usages, resulting in as lightweight a backing of the created SharedImage as
-  // possible. This SharedImage will be the destination of a copy of the drawing
-  // buffer's contents made via the raster interface. In addition, we tag the
-  // SharedImage with display usage since there are uncommon paths which may use
-  // this snapshot for compositing.
-  auto shared_image_usages = gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
+  // usages, resulting in as lightweight a backing of the created SharedImage
+  // as possible. This SharedImage will be the destination of a copy of the
+  // drawing buffer's contents made via the raster interface. It also may be
+  // read back via the raster interface. In addition, we tag the SharedImage
+  // with display usage since there are uncommon paths which may use this
+  // snapshot for compositing.
+  auto shared_image_usages = gpu::SHARED_IMAGE_USAGE_RASTER_READ |
+                             gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
                              gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
-  constexpr auto kShouldInitialize =
-      CanvasResourceProvider::ShouldInitialize::kNo;
 
   std::unique_ptr<CanvasNon2DResourceProviderSharedImage> resource_provider;
   if (SharedGpuContext::IsGpuCompositingEnabled()) {
     resource_provider = CanvasNon2DResourceProviderSharedImage::Create(
         size, GetSharedImageFormat(), GetAlphaType(), GetColorSpace(),
-        kShouldInitialize, SharedGpuContext::ContextProviderWrapper(),
-        shared_image_usages);
+        SharedGpuContext::ContextProviderWrapper(), shared_image_usages);
 
     if (!resource_provider || !resource_provider->IsValid()) {
       return nullptr;
@@ -1306,19 +1305,7 @@ scoped_refptr<DrawingBuffer> WebGLRenderingContextBase::CreateDrawingBuffer(
                                                       ? DrawingBuffer::kPreserve
                                                       : DrawingBuffer::kDiscard;
 
-  // On Mac OS, DrawingBuffer is using an IOSurface as its backing storage, this
-  // allows WebGL-rendered canvases to be composited by the OS rather than
-  // Chrome.
-  // IOSurfaces are only compatible with the GL_TEXTURE_RECTANGLE_ARB binding
-  // target. So to avoid the knowledge of GL_TEXTURE_RECTANGLE_ARB type textures
-  // being introduced into more areas of the code, we use the code path of
-  // non-WebGLImageChromium for OffscreenCanvas.
-  // See detailed discussion in crbug.com/649668.
-  DrawingBuffer::ChromiumImageUsage chromium_image_usage =
-      SharedGpuContext::MaySupportImageChromium() &&
-              !Host()->IsOffscreenCanvas()
-          ? DrawingBuffer::kAllowChromiumImage
-          : DrawingBuffer::kDisallowChromiumImage;
+  const bool is_offscreen_canvas = Host()->IsOffscreenCanvas();
 
   gl::GpuPreference gpu_preference =
       PowerPreferenceToGpuPreference(attrs.power_preference);
@@ -1328,7 +1315,7 @@ scoped_refptr<DrawingBuffer> WebGLRenderingContextBase::CreateDrawingBuffer(
       std::move(context_provider), context_info, this, ClampedCanvasSize(),
       premultiplied_alpha, want_alpha_channel, want_depth_buffer,
       want_stencil_buffer, want_antialiasing, desynchronized, preserve,
-      context_type_, chromium_image_usage, drawing_buffer_color_space_,
+      context_type_, is_offscreen_canvas, drawing_buffer_color_space_,
       gpu_preference);
 }
 
@@ -1436,7 +1423,7 @@ void WebGLRenderingContextBase::InitializeNewContext() {
 
   // This limits the count of threads if the extension is yet to be requested.
   if (String(ContextGL()->GetString(GL_EXTENSIONS))
-          .Contains("GL_KHR_parallel_shader_compile")) {
+          .contains("GL_KHR_parallel_shader_compile")) {
     ContextGL()->MaxShaderCompilerThreadsKHR(2);
   }
   is_web_gl2_formats_types_added_ = false;
@@ -1982,28 +1969,25 @@ WebGLRenderingContextBase::GetSharedImageResourceProvider() {
   const SkAlphaType alpha_type = GetAlphaType();
   const viz::SharedImageFormat format = GetSharedImageFormat();
   const gfx::ColorSpace color_space = GetColorSpace();
-  // Do not initialize the CRP using Skia. The CRP can have bottom left
-  // origin in which case Skia Graphite won't be able to render into it, and
-  // WebGL is responsible for clearing the CRP when it renders anyway and we
-  // have clear rect tracking in the shared image system to enforce this.
-  constexpr auto kShouldInitialize =
-      CanvasResourceProvider::ShouldInitialize::kNo;
+  // Note: We must not initialize the CRP using Skia. The CRP can have bottom
+  // left origin in which case Skia Graphite won't be able to render into it,
+  // and WebGL is responsible for clearing the CRP when it renders anyway and
+  // we have clear rect tracking in the shared image system to enforce this.
   if (SharedGpuContext::IsGpuCompositingEnabled()) {
     gpu::SharedImageUsageSet shared_image_usage_flags =
         gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
 
-    if (SharedGpuContext::MaySupportImageChromium() &&
-        RuntimeEnabledFeatures::WebGLImageChromiumEnabled()) {
+    if (SharedGpuContext::UseOverlaysForWebGL()) {
       shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
     }
     resource_provider_ = CanvasNon2DResourceProviderSharedImage::Create(
-        Host()->Size(), format, alpha_type, color_space, kShouldInitialize,
+        Host()->Size(), format, alpha_type, color_space,
         SharedGpuContext::ContextProviderWrapper(), shared_image_usage_flags,
         Host());
   } else {
     resource_provider_ =
         CanvasNon2DResourceProviderSharedImage::CreateForSoftwareCompositor(
-            Host()->Size(), format, alpha_type, color_space, kShouldInitialize,
+            Host()->Size(), format, alpha_type, color_space,
             SharedGpuContext::SharedImageInterfaceProvider(), Host());
   }
   Host()->UpdateMemoryUsage();
@@ -4407,8 +4391,9 @@ ScriptValue WebGLRenderingContextBase::getUniform(
       return ScriptValue::CreateNull(script_state->GetIsolate());
     String name(name_impl->Substring(0, name_length));
     // Strip "[0]" from the name if it's an array.
-    if (size > 1 && name.EndsWith("[0]"))
+    if (size > 1 && name.ends_with("[0]")) {
       name = name.Left(name.length() - 3);
+    }
     // If it's an array, we need to iterate through each element, appending
     // "[index]" to the name.
     StringBuilder name_builder;
@@ -4627,13 +4612,15 @@ WebGLUniformLocation* WebGLRenderingContextBase::getUniformLocation(
     return nullptr;
   if (!ValidateString("getUniformLocation", name))
     return nullptr;
-  if (IsPrefixReserved(name))
-    return nullptr;
   if (!program->LinkStatus(this)) {
     SynthesizeGLError(GL_INVALID_OPERATION, "getUniformLocation",
                       "program not linked");
     return nullptr;
   }
+  if (IsPrefixReserved(name)) {
+    return nullptr;
+  }
+
   GLint uniform_location = ContextGL()->GetUniformLocation(
       ObjectOrZero(program), name.Utf8().c_str());
   if (uniform_location == -1)
@@ -5258,7 +5245,7 @@ void WebGLRenderingContextBase::shaderSource(WebGLShader* shader,
     return;
   String ascii_string = ReplaceNonASCII(string).Result();
   shader->SetSource(string);
-  DCHECK(ascii_string.Is8Bit() && ascii_string.ContainsOnlyASCIIOrEmpty());
+  DCHECK(ascii_string.Is8Bit() && ascii_string.ContainsOnlyAsciiOrEmpty());
   const GLchar* shader_data = base::as_chars(ascii_string.Span8()).data();
   const GLint shader_length = ascii_string.length();
   ContextGL()->ShaderSource(ObjectOrZero(shader), 1, &shader_data,
@@ -6295,6 +6282,17 @@ void WebGLRenderingContextBase::TexImageHelperVideoFrame(
                                 nullptr);
 }
 
+#if BUILDFLAG(IS_ANDROID)
+// Killswitch guarding GPU upload being allowed for kTexSubImage2D on Android.
+BASE_FEATURE(kAllowGpuUploadForTexSubImageOnAndroid,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
+// Killswitch guarding WebGL not caching the SkSurface used for
+// VideoFrame->StaticBitmapImage software draws.
+BASE_FEATURE(kWebGLVideoFrameDrawCacheSkSurface,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
     TexImageParams params,
     WebGLTexture* texture,
@@ -6420,16 +6418,20 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
   // unmultiply has been requested or we need to never premultiply for Image
   // creation from a VideoFrame.
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID)
   // TODO(crbug.com/1175907): Only TexImage2D seems to work with the GPU path on
   // Android M -- appears to work fine on R, but to avoid regressions in <video>
   // limit to TexImage2D only for now. Fails conformance test on Nexus 5X:
   // conformance/textures/misc/texture-corner-case-videos.html
-  //
+  const bool function_supports_gpu_teximage =
+      params.function_id == kTexImage2D ||
+      (params.function_id == kTexSubImage2D &&
+       base::FeatureList::IsEnabled(kAllowGpuUploadForTexSubImageOnAndroid));
+#elif BUILDFLAG(IS_LINUX)
   // TODO(crbug.com/1181562): TexSubImage2D via the GPU path performs poorly on
-  // Linux when used with ShMem GpuMemoryBuffer backed frames. We don't have a
-  // way to differentiate between true texture backed frames and ShMem GMBs, so
-  // for now limit GPU texturing to TexImage2D.
+  // Linux when used with frames backed by SharedImages holding shared memory.
+  // We don't have a way to differentiate this case from that of true texture
+  // backed frames, so for now limit GPU texturing to TexImage2D.
   const bool function_supports_gpu_teximage = params.function_id == kTexImage2D;
 #else
   const bool function_supports_gpu_teximage =
@@ -6457,13 +6459,31 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
 
   auto info = CreateSnapshotProviderInfoForVideoFrame(
       *media_video_frame, dest_rect.size(), reinterpret_video_as_srgb);
+  auto* snapshot_provider = image_cache.GetCanvasSnapshotProvider(info);
+  if (!snapshot_provider) {
+    return;
+  }
 
   // Since TexImageStaticBitmapImage() and TexImageGPU() don't know how to
   // handle tagged orientation, we set |prefer_tagged_orientation| to false.
-  scoped_refptr<StaticBitmapImage> image = CreateImageFromVideoFrame(
-      std::move(media_video_frame), image_cache.GetCanvasSnapshotProvider(info),
-      video_renderer, /*prefer_tagged_orientation=*/false,
-      reinterpret_video_as_srgb);
+  const bool kPreferTaggedOrientation = false;
+  scoped_refptr<StaticBitmapImage> image;
+  if (snapshot_provider->IsExternalBitmapProvider()) {
+    sk_sp<SkSurface> draw_surface =
+        base::FeatureList::IsEnabled(kWebGLVideoFrameDrawCacheSkSurface)
+            ? static_cast<CanvasNon2DSnapshotProviderBitmap*>(snapshot_provider)
+                  ->GetCachedSurface()
+            : nullptr;
+    image = CreateUnacceleratedImageFromVideoFrame(
+        std::move(media_video_frame), info, draw_surface, video_renderer,
+        kPreferTaggedOrientation, reinterpret_video_as_srgb);
+  } else {
+    image = CreateAcceleratedImageFromVideoFrame(
+        std::move(media_video_frame),
+        static_cast<CanvasNon2DResourceProviderSharedImage*>(snapshot_provider),
+        video_renderer, kPreferTaggedOrientation, reinterpret_video_as_srgb);
+  }
+
   if (!image) {
     return;
   }
@@ -7901,9 +7921,10 @@ bool WebGLRenderingContextBase::ValidateString(const char* function_name,
 }
 
 bool WebGLRenderingContextBase::IsPrefixReserved(const String& name) {
-  if (name.StartsWith("gl_") || name.StartsWith("webgl_") ||
-      name.StartsWith("_webgl_"))
+  if (name.starts_with("gl_") || name.starts_with("webgl_") ||
+      name.starts_with("_webgl_")) {
     return true;
+  }
   return false;
 }
 
@@ -8888,14 +8909,23 @@ CanvasSnapshotProvider* WebGLRenderingContextBase::
     return snapshot_provider;
   }
 
-  std::unique_ptr<CanvasSnapshotProvider> temp;
+  bool create_accelerated_provider = false;
   if (type_ == CacheType::kVideo) {
     viz::RasterContextProvider* raster_context_provider = nullptr;
     if (auto wrapper = SharedGpuContext::ContextProviderWrapper()) {
       raster_context_provider =
           wrapper->ContextProvider().RasterContextProvider();
     }
-    temp = CreateSnapshotProviderForVideo(info, raster_context_provider);
+    create_accelerated_provider =
+        ShouldCreateAcceleratedImages(raster_context_provider);
+  }
+
+  std::unique_ptr<CanvasSnapshotProvider> temp;
+  if (create_accelerated_provider) {
+    temp = CanvasNon2DResourceProviderSharedImage::Create(
+        info.size, info.format, info.alpha_type, info.color_space,
+        SharedGpuContext::ContextProviderWrapper(),
+        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);
   } else {
     temp = CanvasNon2DSnapshotProviderBitmap::Create(info);
   }

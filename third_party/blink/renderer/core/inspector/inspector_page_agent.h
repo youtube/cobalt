@@ -34,9 +34,10 @@
 #include <optional>
 
 #include "third_party/blink/public/mojom/loader/same_document_navigation_type.mojom-blink.h"
+#include "third_party/blink/renderer/core/ad_tracker/ad_tracker.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/frame/ad_tracker.h"
 #include "third_party/blink/renderer/core/inspector/inspector_base_agent.h"
+#include "third_party/blink/renderer/core/inspector/protocol/network.h"
 #include "third_party/blink/renderer/core/inspector/protocol/page.h"
 #include "third_party/blink/renderer/core/loader/frame_loader_types.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
@@ -146,7 +147,7 @@ class CORE_EXPORT InspectorPageAgent final
                           std::unique_ptr<GetResourceContentCallback>) override;
   protocol::Response getAdScriptAncestry(
       const String& frame_id,
-      std::unique_ptr<protocol::Page::AdScriptAncestry>* out_ad_script_ancestry)
+      std::unique_ptr<protocol::Network::AdAncestry>* out_ad_script_ancestry)
       override;
   void searchInResource(const String& frame_id,
                         const String& url,
@@ -323,9 +324,6 @@ class CORE_EXPORT InspectorPageAgent final
 
   HeapHashMap<WeakMember<LocalFrame>, Vector<IsolatedWorldRequest>>
       pending_isolated_worlds_;
-  using FrameIsolatedWorlds = GCedHeapHashMap<String, Member<DOMWrapperWorld>>;
-  HeapHashMap<WeakMember<LocalFrame>, Member<FrameIsolatedWorlds>>
-      isolated_worlds_;
   HashMap<String, AdTracker::AdScriptAncestry> frame_ad_script_ancestry_;
   v8_inspector::V8InspectorSession* v8_session_;
   Client* client_;

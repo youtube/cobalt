@@ -18,6 +18,7 @@
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_id_helper.h"
 #include "base/trace_event/typed_macros.h"
+#include "build/buildflag.h"
 #include "cc/base/features.h"
 #include "cc/metrics/ukm_dropped_frames_data.h"
 #include "chrome/browser/browser_process.h"
@@ -27,6 +28,7 @@
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/no_state_prefetch_manager_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
+#include "chrome/browser/ui/waap/waap_utils.h"
 #include "chrome/common/pref_names.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
 #include "components/content_settings/core/common/features.h"
@@ -207,6 +209,21 @@ UkmPageLoadMetricsObserver::UkmPageLoadMetricsObserver(
 }
 
 UkmPageLoadMetricsObserver::~UkmPageLoadMetricsObserver() = default;
+
+const char* UkmPageLoadMetricsObserver::GetObserverName() const {
+  static constexpr std::string_view kName = "UkmPageLoadMetricsObserver";
+  return kName.data();
+}
+
+page_load_metrics::PageLoadMetricsObserver::ObservePolicy
+UkmPageLoadMetricsObserver::ShouldObserveScheme(const GURL& url) const {
+#if !BUILDFLAG(IS_ANDROID)
+  if (waap::IsForInitialWebUI(url)) {
+    return CONTINUE_OBSERVING;
+  }
+#endif
+  return page_load_metrics::PageLoadMetricsObserver::ShouldObserveScheme(url);
+}
 
 UkmPageLoadMetricsObserver::ObservePolicy UkmPageLoadMetricsObserver::OnStart(
     content::NavigationHandle* navigation_handle,
@@ -646,21 +663,28 @@ void UkmPageLoadMetricsObserver::RecordSoftNavigationMetrics(
     return;
   }
   ukm::builders::SoftNavigation builder(ukm_source_id);
-  builder.SetNavigationId(soft_navigation_metrics.navigation_id);
 
   builder.SetStartTime(soft_navigation_metrics.start_time.InMillisecondsF());
   PAGE_LOAD_HISTOGRAM("PageLoad.SoftNavigation.StartTime",
                       soft_navigation_metrics.start_time);
+  builder.SetNavigationType(
+      static_cast<int>(soft_navigation_metrics.navigation_type));
 
+  // All loading performance timings within the soft LCP object are relative to
+  // the (hard) navigation start. Therefore, when we record the metric values
+  // for the soft navigation's LCP below, we need to subtract the soft
+  // navigation's start time (which is also relative to the (hard) navigation
+  // start) from these values.
   auto largest_contentful_paint = GetSoftNavigationLargestContentfulPaint();
 
   if (largest_contentful_paint.ContainsValidTime() &&
       WasStartedInForegroundOptionalEventInForeground(
           largest_contentful_paint.Time(), GetDelegate())) {
-    builder.SetPaintTiming_LargestContentfulPaint(
-        largest_contentful_paint.Time().value().InMilliseconds());
+    base::TimeDelta soft_lcp = (largest_contentful_paint.Time().value() -
+                                soft_navigation_metrics.start_time);
+    builder.SetPaintTiming_LargestContentfulPaint(soft_lcp.InMilliseconds());
     PAGE_LOAD_HISTOGRAM("PageLoad.SoftNavigation.LargestContentfulPaint",
-                        largest_contentful_paint.Time().value());
+                        soft_lcp);
 
     builder.SetPaintTiming_LargestContentfulPaintType(
         LargestContentfulPaintTypeToUKMFlags(largest_contentful_paint.Type()));
@@ -679,19 +703,23 @@ void UkmPageLoadMetricsObserver::RecordSoftNavigationMetrics(
 
       if (largest_contentful_paint.ImageDiscoveryTime().has_value()) {
         builder.SetPaintTiming_LargestContentfulPaintImageDiscoveryTime(
-            largest_contentful_paint.ImageDiscoveryTime()
-                .value()
+            (largest_contentful_paint.ImageDiscoveryTime().value() -
+             soft_navigation_metrics.start_time)
                 .InMilliseconds());
       }
 
       if (largest_contentful_paint.ImageLoadStart().has_value()) {
         builder.SetPaintTiming_LargestContentfulPaintImageLoadStart(
-            largest_contentful_paint.ImageLoadStart().value().InMilliseconds());
+            (largest_contentful_paint.ImageLoadStart().value() -
+             soft_navigation_metrics.start_time)
+                .InMilliseconds());
       }
 
       if (largest_contentful_paint.ImageLoadEnd().has_value()) {
         builder.SetPaintTiming_LargestContentfulPaintImageLoadEnd(
-            largest_contentful_paint.ImageLoadEnd().value().InMilliseconds());
+            (largest_contentful_paint.ImageLoadEnd().value() -
+             soft_navigation_metrics.start_time)
+                .InMilliseconds());
       }
     }
   }
@@ -830,21 +858,18 @@ void UkmPageLoadMetricsObserver::
   builder.Record(ukm::UkmRecorder::Get());
 }
 
-void UkmPageLoadMetricsObserver::OnSoftNavigationUpdated(
-    const page_load_metrics::mojom::SoftNavigationMetrics&
-        new_soft_navigation_metrics) {
-  auto current_soft_navigation_metrics =
-      GetDelegate().GetSoftNavigationMetrics().Clone();
+void UkmPageLoadMetricsObserver::OnSoftNavigation() {
+  const auto& current_soft_navigation_metrics =
+      GetDelegate().GetSoftNavigationMetrics();
 
   // When the 1st soft navigation comes in, we record the
   // soft_navigation_interval_responsiveness_metrics_normalization_ as INP
   // before soft nav.
-  if (current_soft_navigation_metrics->count == 0) {
+  if (current_soft_navigation_metrics.soft_navigation_offset == 0) {
     RecordLargestContentfulPaintBeforeSoftNavigation();
     RecordResponsivenessMetricsBeforeSoftNavigationForMainFrame();
     RecordLayoutShiftBeforeSoftNavigationForMainFrame();
-  } else if (current_soft_navigation_metrics->count !=
-             new_soft_navigation_metrics.count) {
+  } else if (current_soft_navigation_metrics.soft_navigation_offset > 0) {
     // We only want to record metrics once for each soft navigation. So we flush
     // the current soft navigation metrics when the next soft navigation starts.
     // So the first soft navigation metrics are recorded when the second soft
@@ -854,15 +879,14 @@ void UkmPageLoadMetricsObserver::OnSoftNavigationUpdated(
     // load.
     RecordSoftNavigationMetrics(
         GetDelegate().GetUkmSourceIdForSameDocumentNavigation(
-            *current_soft_navigation_metrics->same_document_metrics_token),
-        *current_soft_navigation_metrics);
+            current_soft_navigation_metrics.same_document_metrics_token),
+        current_soft_navigation_metrics);
   }
 }
 
 const page_load_metrics::ContentfulPaintTimingInfo&
 UkmPageLoadMetricsObserver::GetSoftNavigationLargestContentfulPaint() const {
   return GetDelegate()
-      .GetLargestContentfulPaintHandler()
       .GetSoftNavigationLargestContentfulPaint();
 }
 
@@ -1053,21 +1077,22 @@ void UkmPageLoadMetricsObserver::RecordLastSoftNavigation() {
 
   const auto& soft_navigation_metrics =
       GetDelegate().GetSoftNavigationMetrics();
-  builder.SetSoftNavigationCount(soft_navigation_metrics.count);
+  builder.SetSoftNavigationCount(
+      soft_navigation_metrics.soft_navigation_offset);
 
-  // Record last soft navigation metrics; note that 0 is the absent navigation
-  // id, see third_party/blink/renderer/core/timing/navigation_id_generator.h.
-  if (soft_navigation_metrics.count && soft_navigation_metrics.navigation_id) {
+  // Record last soft navigation metrics. The smallest count that would be set
+  // for an actual soft navigation metric is 1.
+  if (soft_navigation_metrics.soft_navigation_offset) {
     RecordSoftNavigationMetrics(
         GetDelegate().GetUkmSourceIdForSameDocumentNavigation(
-            *soft_navigation_metrics.same_document_metrics_token),
+            soft_navigation_metrics.same_document_metrics_token),
         soft_navigation_metrics);
   }
   builder.Record(ukm::UkmRecorder::Get());
 
   // Record soft navigation count histogram to UMA.
   base::UmaHistogramCounts100(kHistogramSoftNavigationCount,
-                              soft_navigation_metrics.count);
+                              soft_navigation_metrics.soft_navigation_offset);
 }
 
 void UkmPageLoadMetricsObserver::RecordInternalTimingMetrics(

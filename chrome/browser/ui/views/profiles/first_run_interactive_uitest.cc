@@ -26,6 +26,7 @@
 #include "chrome/browser/signin/dice_tab_helper.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/process_dice_header_delegate_impl.h"
+#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/mock_hats_service.h"
@@ -37,6 +38,7 @@
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
 #include "chrome/browser/ui/views/profiles/profile_management_flow_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_interactive_uitest_base.h"
+#include "chrome/browser/ui/views/profiles/profile_picker_sign_in_toolbar.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_view.h"
 #include "chrome/browser/ui/webui/intro/intro_ui.h"
 #include "chrome/browser/ui/webui/signin/signin_ui_error.h"
@@ -59,6 +61,9 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/sync/base/features.h"
+#include "components/sync/base/user_selectable_type.h"
+#include "components/sync/service/sync_service.h"
+#include "components/sync/test/test_sync_service.h"
 #include "components/user_education/views/help_bubble_view.h"
 #include "components/variations/variations_switches.h"
 #include "content/public/test/browser_test.h"
@@ -99,16 +104,28 @@ enum class SyncButtonsFeatureConfig : int {
   kButtonsStillLoading = 4,
 };
 
-const DeepQuery& GetSignInButtonQuery() {
-  static const base::NoDestructor<DeepQuery> kSignInButton(
-      {"intro-app", "sign-in-promo", "#acceptSignInButton"});
-  return *kSignInButton;
+const DeepQuery& GetSignInButtonQuery(bool use_refreshed_view = false) {
+  if (use_refreshed_view) {
+    static const base::NoDestructor<DeepQuery> kSignInButtonRefreshed(
+        {"sign-in-promo-refresh", "#acceptSignInButton"});
+    return *kSignInButtonRefreshed;
+  } else {
+    static const base::NoDestructor<DeepQuery> kSignInButton(
+        {"intro-app", "sign-in-promo", "#acceptSignInButton"});
+    return *kSignInButton;
+  }
 }
 
-const DeepQuery& GetDontSignInButtonQuery() {
-  static const base::NoDestructor<DeepQuery> kDontSignInButton(
-      {"intro-app", "sign-in-promo", "#declineSignInButton"});
-  return *kDontSignInButton;
+const DeepQuery& GetDontSignInButtonQuery(bool use_refreshed_view = false) {
+  if (use_refreshed_view) {
+    static const base::NoDestructor<DeepQuery> kDontSignInButtonRefreshed(
+        {"sign-in-promo-refresh", "#declineSignInButton"});
+    return *kDontSignInButtonRefreshed;
+  } else {
+    static const base::NoDestructor<DeepQuery> kDontSignInButton(
+        {"intro-app", "sign-in-promo", "#declineSignInButton"});
+    return *kDontSignInButton;
+  }
 }
 
 const DeepQuery& GetAcceptManagementButtonQuery() {
@@ -165,11 +182,17 @@ const DeepQuery& GetDontSyncHistoryButtonQuery() {
   return *kDontSyncHistoryButton;
 }
 
+std::unique_ptr<KeyedService> CreateTestSyncService(
+    content::BrowserContext* context) {
+  return std::make_unique<syncer::TestSyncService>();
+}
+
 struct TestParam {
   std::string test_suffix;
   SyncButtonsFeatureConfig sync_buttons_feature_config =
       SyncButtonsFeatureConfig::kAsyncNotEqualButtons;
   std::optional<bool> with_supervision = std::nullopt;
+  bool with_sync_engine_ready = true;
 };
 
 std::string SupervisionToString(
@@ -198,6 +221,17 @@ std::optional<::signin_metrics::SyncButtonsType> ExpectedButtonShownMetric(
   }
 }
 
+void ConfigureTestSyncService(
+    syncer::SyncService* sync_service,
+    syncer::SyncService::TransportState sync_transport_state) {
+  auto* test_sync_service = static_cast<syncer::TestSyncService*>(sync_service);
+  CHECK(test_sync_service);
+  test_sync_service->GetUserSettings()->SetSelectedTypes(
+      /*sync_everything=*/false, {});
+  test_sync_service->SetMaxTransportState(sync_transport_state);
+  test_sync_service->FireStateChanged();
+}
+
 std::string ParamToTestSuffix(const ::testing::TestParamInfo<TestParam>& info) {
   return info.param.test_suffix + SupervisionToString(info);
 }
@@ -217,6 +251,8 @@ const TestParam kTestParams[] = {
     {.test_suffix = "AsyncCapabilitiesPending",
      .sync_buttons_feature_config =
          SyncButtonsFeatureConfig::kButtonsStillLoading},
+    {.test_suffix = "DefaultWithSyncEngineAwaiting",
+     .with_sync_engine_ready = false},
 };
 
 }  // namespace
@@ -329,9 +365,10 @@ class FirstRunInteractiveUiTest
 
   // Waits for the intro buttons to be shown and presses to proceed according
   // to the value of `sign_in`.
-  auto CompleteIntroStep(bool sign_in) {
+  auto CompleteIntroStep(bool sign_in, bool use_refreshed_view = false) {
     const DeepQuery& button =
-        sign_in ? GetSignInButtonQuery() : GetDontSignInButtonQuery();
+        sign_in ? GetSignInButtonQuery(use_refreshed_view)
+                : GetDontSignInButtonQuery(use_refreshed_view);
     return Steps(
         WaitForWebContentsReady(kWebContentsId,
                                 GURL(chrome::kChromeUIIntroURL)),
@@ -474,6 +511,17 @@ class FirstRunInteractiveUiTest
   base::ScopedClosureRunner enable_disclaimer_on_primary_account_change_resetter_;
 };
 
+class FirstRunInteractiveUiTestWithSyncService
+    : public FirstRunInteractiveUiTest {
+ protected:
+  void SetUpBrowserContextKeyedServices(
+      content::BrowserContext* context) override {
+    FirstRunServiceBrowserTestBase::SetUpBrowserContextKeyedServices(context);
+    SyncServiceFactory::GetInstance()->SetTestingFactory(
+        context, base::BindRepeating(&CreateTestSyncService));
+  }
+};
+
 // TODO(crbug.com/366119368): Re-enable this test
 #if BUILDFLAG(IS_WIN)
 #define MAYBE_SignIn DISABLED_SignIn
@@ -483,7 +531,7 @@ class FirstRunInteractiveUiTest
 // Simplified version of the Signin flow in the FRE, without the Search Engine
 // Choice and Default Browser screen showing. For the full flow, check
 // `FirstRunParameterizedInteractiveUiTest_SignInAndSync` test below.
-IN_PROC_BROWSER_TEST_F(FirstRunInteractiveUiTest, MAYBE_SignIn) {
+IN_PROC_BROWSER_TEST_F(FirstRunInteractiveUiTestWithSyncService, MAYBE_SignIn) {
   ASSERT_TRUE(IsProfileNameDefault());
 
   base::test::TestFuture<bool> proceed_future;
@@ -501,6 +549,8 @@ IN_PROC_BROWSER_TEST_F(FirstRunInteractiveUiTest, MAYBE_SignIn) {
       WaitForWebContentsNavigation(kWebContentsId,
                                    GetSigninChromeSyncDiceUrl()));
 
+  ConfigureTestSyncService(SyncServiceFactory::GetForProfile(profile()),
+                           syncer::SyncService::TransportState::ACTIVE);
   // Pulled out of the test sequence because it waits using `RunLoop`s.
   SimulateSignIn(kTestEmail, kTestGivenName);
 
@@ -724,14 +774,49 @@ class FirstRunParameterizedInteractiveUiTest
         PressJsButton(kWebContentsId, GetConfirmDefaultBrowserButtonQuery()));
   }
 
+  // Custom url tracker. This is used for tracking navigation before proceeding
+  // to the history sync optin screen. The navigation might go through a spinner
+  // screen which is provided today by a different url from the `target_url`.
+  // TODO(crbug.com/445926827): Once the spinners are incorporated in the
+  // history sync dialog, we can use `WaitForWebContentsNavigation`.
+  InteractiveBrowserTestApi::StateChange PageWithUrl(
+      const std::string& target_url) {
+    DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(kStateChange);
+    InteractiveBrowserTestApi::StateChange expected_url_change;
+    expected_url_change.type =
+        InteractiveBrowserTestApi::StateChange::Type::kConditionTrue;
+    expected_url_change.event = kStateChange;
+    expected_url_change.test_function =
+        "() => window.location.href === '" + target_url + "'";
+    // Important for not stopping the tracking through redirections.
+    expected_url_change.continue_across_navigation = true;
+    return expected_url_change;
+  }
+
  private:
   base::UserActionTester user_action_tester_;
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<base::AutoReset<bool>> scoped_chrome_build_override_;
 };
 
+class FirstRunParameterizedInteractiveUiTestWithSyncService
+    : public FirstRunParameterizedInteractiveUiTest {
+ protected:
+  void SetUpBrowserContextKeyedServices(
+      content::BrowserContext* context) override {
+    FirstRunInteractiveUiTest::SetUpBrowserContextKeyedServices(context);
+    SyncServiceFactory::GetInstance()->SetTestingFactory(
+        context, base::BindRepeating(&CreateTestSyncService));
+  }
+};
+
 INSTANTIATE_TEST_SUITE_P(,
                          FirstRunParameterizedInteractiveUiTest,
+                         testing::ValuesIn(kTestParams),
+                         &ParamToTestSuffix);
+
+INSTANTIATE_TEST_SUITE_P(,
+                         FirstRunParameterizedInteractiveUiTestWithSyncService,
                          testing::ValuesIn(kTestParams),
                          &ParamToTestSuffix);
 
@@ -806,7 +891,8 @@ IN_PROC_BROWSER_TEST_P(FirstRunParameterizedInteractiveUiTest,
 }
 #endif
 
-IN_PROC_BROWSER_TEST_P(FirstRunParameterizedInteractiveUiTest, SignInAndSync) {
+IN_PROC_BROWSER_TEST_P(FirstRunParameterizedInteractiveUiTestWithSyncService,
+                       SignInAndSync) {
   bool should_skip_test = false;
 #if BUILDFLAG(IS_WIN)
   // TODO(crbug.com/363254870, crbug.com/366082752): Re-enable this test
@@ -865,6 +951,12 @@ IN_PROC_BROWSER_TEST_P(FirstRunParameterizedInteractiveUiTest, SignInAndSync) {
             1);
       }));
 
+  auto sync_transport_state =
+      GetParam().with_sync_engine_ready
+          ? syncer::SyncService::TransportState::ACTIVE
+          : syncer::SyncService::TransportState::INITIALIZING;
+  ConfigureTestSyncService(SyncServiceFactory::GetForProfile(profile()),
+                           sync_transport_state);
   // Pulled out of the test sequence because it waits using `RunLoop`s.
   SimulateSignIn(kTestEmail, kTestGivenName);
 
@@ -880,7 +972,9 @@ IN_PROC_BROWSER_TEST_P(FirstRunParameterizedInteractiveUiTest, SignInAndSync) {
     RunTestSequenceInContext(
         views::ElementTrackerViews::GetContextForView(view()),
         // Web Contents already instrumented in the previous sequence.
-        WaitForWebContentsNavigation(kWebContentsId, history_page_url), Do([&] {
+        WaitForStateChange(kWebContentsId,
+                           PageWithUrl(history_page_url.spec())),
+        Do([&] {
           histogram_tester().ExpectUniqueSample(
               "Signin.HistorySyncOptIn.Started",
               signin_metrics::AccessPoint::kForYouFre, 1);
@@ -900,8 +994,8 @@ IN_PROC_BROWSER_TEST_P(FirstRunParameterizedInteractiveUiTest, SignInAndSync) {
     RunTestSequenceInContext(
         views::ElementTrackerViews::GetContextForView(view()),
         // Web Contents already instrumented in the previous sequence.
-        WaitForWebContentsNavigation(kWebContentsId, sync_page_url),
-
+        WaitForStateChange(kWebContentsId,
+                           PageWithUrl(sync_page_url.spec())),
         Do([&] {
           histogram_tester().ExpectUniqueSample(
               "Signin.SyncOptIn.Started",
@@ -995,7 +1089,8 @@ IN_PROC_BROWSER_TEST_P(FirstRunParameterizedInteractiveUiTest, SignInAndSync) {
              user_education::HelpBubbleView::kHelpBubbleElementIdForTesting))));
 }
 
-IN_PROC_BROWSER_TEST_P(FirstRunParameterizedInteractiveUiTest, DeclineSync) {
+IN_PROC_BROWSER_TEST_P(FirstRunParameterizedInteractiveUiTestWithSyncService,
+                       DeclineSync) {
   bool should_skip_test = false;
 #if BUILDFLAG(IS_WIN)
   // TODO(crbug.com/366082752): Re-enable this test
@@ -1029,6 +1124,12 @@ IN_PROC_BROWSER_TEST_P(FirstRunParameterizedInteractiveUiTest, DeclineSync) {
       WaitForWebContentsNavigation(kWebContentsId,
                                    GetSigninChromeSyncDiceUrl()));
 
+  auto sync_transport_state =
+      GetParam().with_sync_engine_ready
+          ? syncer::SyncService::TransportState::ACTIVE
+          : syncer::SyncService::TransportState::INITIALIZING;
+  ConfigureTestSyncService(SyncServiceFactory::GetForProfile(profile()),
+                           sync_transport_state);
   // Pulled out of the test sequence because it waits using `RunLoop`s.
   SimulateSignIn(kTestEmail, kTestGivenName);
 
@@ -1037,8 +1138,9 @@ IN_PROC_BROWSER_TEST_P(FirstRunParameterizedInteractiveUiTest, DeclineSync) {
     GURL history_page_url = GetHistorySyncOptinURL();
     RunTestSequenceInContext(
         views::ElementTrackerViews::GetContextForView(view()),
-        WaitForWebContentsNavigation(kWebContentsId, history_page_url),
-
+        // Web Contents already instrumented in the previous sequence.
+        WaitForStateChange(kWebContentsId,
+                           PageWithUrl(history_page_url.spec())),
         // Button is visible once capabilities are loaded or defaulted.
         WaitForButtonVisible(kWebContentsId, GetDontSyncHistoryButtonQuery()),
 
@@ -1049,12 +1151,12 @@ IN_PROC_BROWSER_TEST_P(FirstRunParameterizedInteractiveUiTest, DeclineSync) {
   } else {
     RunTestSequenceInContext(
         views::ElementTrackerViews::GetContextForView(view()),
-        WaitForWebContentsNavigation(kWebContentsId,
-                                     AppendSyncConfirmationQueryParams(
+        // Web Contents already instrumented in the previous sequence.
+        WaitForStateChange(kWebContentsId,
+                           PageWithUrl(AppendSyncConfirmationQueryParams(
                                          GURL("chrome://sync-confirmation/"),
                                          SyncConfirmationStyle::kWindow,
-                                         /*is_sync_promo=*/true)),
-
+                                         /*is_sync_promo=*/true).spec())),
         // Button is visible once capabilities are loaded or defaulted.
         WaitForButtonVisible(kWebContentsId, GetDontSyncButtonQuery()),
 
@@ -1439,13 +1541,25 @@ class FirstRunWithHatsInteractiveUiTest : public FirstRunInteractiveUiTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+class FirstRunWithHatsInteractiveUiTestWithSyncService
+    : public FirstRunWithHatsInteractiveUiTest {
+ protected:
+  void SetUpBrowserContextKeyedServices(
+      content::BrowserContext* context) override {
+    FirstRunServiceBrowserTestBase::SetUpBrowserContextKeyedServices(context);
+    SyncServiceFactory::GetInstance()->SetTestingFactory(
+        context, base::BindRepeating(&CreateTestSyncService));
+  }
+};
+
 // TODO(crbug.com/366082752): Re-enable this test once the issue is fixed.
 #if BUILDFLAG(IS_WIN)
 #define MAYBE_LaunchHats DISABLED_LaunchHats
 #else
 #define MAYBE_LaunchHats LaunchHats
 #endif
-IN_PROC_BROWSER_TEST_F(FirstRunWithHatsInteractiveUiTest, MAYBE_LaunchHats) {
+IN_PROC_BROWSER_TEST_F(FirstRunWithHatsInteractiveUiTestWithSyncService,
+                       MAYBE_LaunchHats) {
   ASSERT_TRUE(IsProfileNameDefault());
   ASSERT_TRUE(fre_service()->ShouldOpenFirstRun());
 
@@ -1471,6 +1585,8 @@ IN_PROC_BROWSER_TEST_F(FirstRunWithHatsInteractiveUiTest, MAYBE_LaunchHats) {
       WaitForWebContentsNavigation(kWebContentsId,
                                    GetSigninChromeSyncDiceUrl()));
 
+  ConfigureTestSyncService(SyncServiceFactory::GetForProfile(profile()),
+                           syncer::SyncService::TransportState::ACTIVE);
   SimulateSignIn(kTestEmail, kTestGivenName);
 
   RunTestSequenceInContext(
@@ -1524,7 +1640,7 @@ IN_PROC_BROWSER_TEST_F(FirstRunWithHatsInteractiveUiTest,
 #else
 #define MAYBE_DoNotLaunchHatsIfEnterpriseUser DoNotLaunchHatsIfEnterpriseUser
 #endif
-IN_PROC_BROWSER_TEST_F(FirstRunWithHatsInteractiveUiTest,
+IN_PROC_BROWSER_TEST_F(FirstRunWithHatsInteractiveUiTestWithSyncService,
                        MAYBE_DoNotLaunchHatsIfEnterpriseUser) {
   ASSERT_TRUE(IsProfileNameDefault());
   ASSERT_TRUE(fre_service()->ShouldOpenFirstRun());
@@ -1549,6 +1665,8 @@ IN_PROC_BROWSER_TEST_F(FirstRunWithHatsInteractiveUiTest,
       WaitForWebContentsNavigation(kWebContentsId,
                                    GetSigninChromeSyncDiceUrl()));
 
+  ConfigureTestSyncService(SyncServiceFactory::GetForProfile(profile()),
+                           syncer::SyncService::TransportState::ACTIVE);
   SimulateSignIn(kTestEnterpriseEmail, kTestGivenName,
                  /*with_extended_info=*/false);
 
@@ -1615,4 +1733,68 @@ IN_PROC_BROWSER_TEST_F(FirstRunWithHatsInteractiveUiTest,
   EXPECT_TRUE(proceed_future.Get());
   EXPECT_TRUE(GetFirstRunFinishedPrefValue());
   ExpectStepHistograms(Step::kIntro, /*shown=*/true, /*with_exit=*/true);
+}
+
+class FirstRunDontSignInOnGaiaPageInteractiveUiTest
+    : public FirstRunWithHatsInteractiveUiTest {
+ public:
+  FirstRunDontSignInOnGaiaPageInteractiveUiTest() {
+    scoped_feature_list_override_.InitWithFeaturesAndParameters(
+        {
+            {switches::kFirstRunDesktopRefresh,
+             {{switches::kFirstRunDesktopSignInPromoVariation.name,
+               "dont-sign-in-on-gaia-page"}}},
+        },
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_override_;
+};
+
+// TODO(crbug.com/366119368): Re-enable this test
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_DeclineSignInFromNativeToolbar \
+  DISABLED_DeclineSignInFromNativeToolbar
+#else
+#define MAYBE_DeclineSignInFromNativeToolbar DeclineSignInFromNativeToolbar
+#endif
+IN_PROC_BROWSER_TEST_F(FirstRunDontSignInOnGaiaPageInteractiveUiTest,
+                       MAYBE_DeclineSignInFromNativeToolbar) {
+  ASSERT_TRUE(fre_service()->ShouldOpenFirstRun());
+
+  base::test::TestFuture<bool> proceed_future;
+  OpenFirstRun(proceed_future.GetCallback());
+  RunTestSequenceInContext(
+      views::ElementTrackerViews::GetContextForView(view()),
+      WaitForShow(kProfilePickerViewId),
+      InstrumentNonTabWebView(kWebContentsId, web_view()),
+      CompleteIntroStep(/*sign_in=*/true, /*use_refreshed_view=*/true),
+      WaitForWebContentsNavigation(kWebContentsId,
+                                   GetSigninChromeSyncDiceUrl()),
+      WaitForShow(kProfilePickerSignInToolbarDontSignInButtonElementId),
+      PressButton(kProfilePickerSignInToolbarDontSignInButtonElementId));
+
+  WaitForPickerClosed();
+  EXPECT_TRUE(proceed_future.Get());
+
+  histogram_tester().ExpectUniqueSample(
+      /*name=*/"Signin.SignIn.Offered",
+      /*sample=*/signin_metrics::AccessPoint::kForYouFre,
+      /*expected_bucket_count=*/1);
+  histogram_tester().ExpectUniqueSample(
+      /*name=*/"Signin.SignIn.Started",
+      /*sample=*/signin_metrics::AccessPoint::kForYouFre,
+      /*expected_bucket_count=*/1);
+  histogram_tester().ExpectUniqueSample(
+      /*name=*/"ProfilePicker.FirstRun.ExitStatus",
+      /*sample=*/ProfilePicker::FirstRunExitStatus::kCompleted,
+      /*expected_bucket_count=*/1);
+
+  ExpectStepHistograms(Step::kIntro, /*shown=*/true);
+  ExpectStepHistograms(Step::kAccountSelection, /*shown=*/true);
+  ExpectStepHistograms(Step::kFinishFlow, /*shown=*/true, /*with_exit=*/true);
+  // Sign-in was never completed - step hasn't been attempted.
+  ExpectStepHistograms(Step::kPostSignInFlow, /*shown=*/false,
+                       /*with_exit=*/false, /*count=*/0);
 }

@@ -50,6 +50,11 @@
   /* V8 side owner: irezvov */                                                 \
   V(fp16, "fp16", false)                                                       \
                                                                                \
+  /* Wide Arithmetic proposal */                                               \
+  /* https://github.com/WebAssembly/wide-arithmetic */                         \
+  /* V8 side owner: ryandiaz */                                                \
+  V(wide_arithmetic, "wide arithmetic", false)                                 \
+                                                                               \
   /* Memory Control proposal */                                                \
   /* https://github.com/WebAssembly/memory-control */                          \
   /* V8 side owner: ahaas */                                                   \
@@ -66,7 +71,12 @@
   V(compilation_hints, "compilation hints", false)                             \
                                                                                \
   /* V8 side owner: thibaudm */                                                \
-  V(growable_stacks, "growable stacks for jspi", false)
+  V(growable_stacks, "growable stacks for jspi", false)                        \
+                                                                               \
+  /* Compact Import Section proposal. */                                       \
+  /* https://github.com/WebAssembly/compact-import-section */                  \
+  /* V8 side owner: ryandiaz */                                                \
+  V(compact_imports, "compact import section", false)
 
 // #############################################################################
 // Pre-staged features (disabled by default, but enabled via
@@ -115,19 +125,6 @@
   /* Staged in v8.9 */                                                         \
   /* Shipped in v9.5 */                                                        \
   V(legacy_eh, "legacy exception handling opcodes", true)                      \
-                                                                               \
-  /* Branch Hinting proposal. */                                               \
-  /* https://github.com/WebAssembly/branch-hinting */                          \
-  /* V8 side owner: jkummerow */                                               \
-  /* Staged in v13.6. */                                                       \
-  /* Shipped in v13.7. */                                                      \
-  V(branch_hinting, "branch hinting", true)                                    \
-                                                                               \
-  /* Exnref */                                                                 \
-  /* This flag enables the new exception handling proposal */                  \
-  /* V8 side owner: thibaudm */                                                \
-  /* Shipped in v13.7 */                                                       \
-  V(exnref, "exnref", true)                                                    \
                                                                                \
   /* Resizable buffer integration */                                           \
   /* https://github.com/WebAssembly/spec/issues/1292 */                        \

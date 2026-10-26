@@ -266,13 +266,9 @@ QuicTime::Delta QuicReceivedPacketManager::GetMaxAckDelay(
   return std::max(ack_delay, kAlarmGranularity);
 }
 
-void QuicReceivedPacketManager::MaybeUpdateAckFrequency(
+void QuicReceivedPacketManager::MaybeEnableAckDecimation(
     QuicPacketNumber last_received_packet_number) {
-  if (AckFrequencyFrameReceived()) {
-    // Skip Ack Decimation below after receiving an AckFrequencyFrame from the
-    // other end point.
-    return;
-  }
+  QUICHE_DCHECK(!AckFrequencyFrameReceived());
   if (last_received_packet_number <
       PeerFirstSendingPacketNumber() + min_received_before_ack_decimation_) {
     return;
@@ -298,7 +294,7 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
 
   if (ack_now_) {
     // An IMMEDIATE_ACK frame arrived. Send an ack immediately.
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 2, 2);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 2, 7);
     ack_timeout_ = now;
     return;
   }
@@ -310,6 +306,9 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
         last_sent_largest_acked_ >= QuicPacketNumber(reordering_threshold_) &&
         (last_received_packet_number <=
          last_sent_largest_acked_ - reordering_threshold_)) {
+      if (reordering_threshold_ > 1) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 7, 7);
+      }
       // Ack immediately if the received packet number is less than or equal to
       // largest acked - reordering threshold.
       ack_timeout_ = now;
@@ -338,7 +337,9 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
 
   ++num_retransmittable_packets_received_since_last_ack_sent_;
 
-  MaybeUpdateAckFrequency(last_received_packet_number);
+  if (!AckFrequencyFrameReceived()) {
+    MaybeEnableAckDecimation(last_received_packet_number);
+  }
   if (num_retransmittable_packets_received_since_last_ack_sent_ >=
       ack_frequency_) {
     ack_timeout_ = now;
@@ -357,10 +358,14 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
          last_sent_largest_acked_ < ack_frame_.packets.begin()->max() - 1)) {
       // If the lowest ACK range has not yet been reported, and might be trimmed
       // on the next packet arrival, send an ACK.
+      // This is an extreme case; it would be unsurprising if it never happened
+      // in production.
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 6, 7);
       ack_timeout_ = now;
       return;
     }
     if (ReorderingExceedsThreshold()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 5, 7);
       ack_timeout_ = now;
       return;
     }
@@ -405,6 +410,8 @@ bool QuicReceivedPacketManager::ReorderingExceedsThreshold() const {
                                      // threshold.
     return false;
   }
+  // Cannot get here unless an ACK_FREQUENCY frame was received.
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 4, 7);
   if (!HasMissingPackets() ||
       GetLargestObserved() < QuicPacketNumber(reordering_threshold_)) {
     return false;

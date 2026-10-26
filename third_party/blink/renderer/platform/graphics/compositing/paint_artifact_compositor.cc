@@ -105,6 +105,22 @@ void PaintArtifactCompositor::SetTracksRasterInvalidations(bool should_track) {
   }
 }
 
+bool PaintArtifactCompositor::HasCanvasChildPaintRecord(
+    DOMNodeId child_id) const {
+  return canvas_child_layer_map_.Contains(child_id);
+}
+
+std::optional<CanvasChildPaintRecord>
+PaintArtifactCompositor::GetCanvasChildPaintRecord(DOMNodeId child_id) const {
+  auto it = canvas_child_layer_map_.find(child_id);
+  if (it == canvas_child_layer_map_.end()) {
+    return std::nullopt;
+  }
+  auto& pending_layer =
+      pending_layers_[canvas_child_layer_map_.find(child_id)->value];
+  return pending_layer.GetCanvasChildPaintRecord();
+}
+
 void PaintArtifactCompositor::WillBeRemovedFromFrame() {
   root_layer_->RemoveAllChildren();
 }
@@ -203,6 +219,11 @@ bool PaintArtifactCompositor::NeedsCompositedScrolling(
     // have an opaque background and composited, not compositing the negative
     // z-index contents won't cause any problem because they (with possible
     // wrong rendering) are obscured by the opaque background.
+    if (RuntimeEnabledFeatures::CanvasDrawElementEnabled() &&
+        scroll_translation.ScrollNode()->GetCompositedScrollingPreference() ==
+            CompositedScrollingPreference::kNotPreferred) {
+      return false;
+    }
     return lcd_text_preference_ != LCDTextPreference::kStronglyPreferred;
   }
   return it->value.is_composited;
@@ -357,7 +378,20 @@ PendingLayer::CompositingType PaintArtifactCompositor::ChunkCompositingType(
       if (const auto* scroll_translation = scrollbar->ScrollTranslation()) {
         if (RuntimeEnabledFeatures::RasterInducingScrollEnabled() ||
             NeedsCompositedScrolling(*scroll_translation)) {
-          return PendingLayer::kScrollbarLayer;
+          // Disable composited scrollbar layers under canvas.
+          // TODO(crbug.com/448174609): Pass `in_canvas_child` down during
+          // layerization, rather than iterating up the tree.
+          bool in_canvas_child = false;
+          for (const auto* effect = &chunk.properties.Effect().Unalias();
+               effect; effect = effect->UnaliasedParent()) {
+            if (effect->RequiresCompositingForCanvasChild()) {
+              in_canvas_child = true;
+              break;
+            }
+          }
+          if (!in_canvas_child) {
+            return PendingLayer::kScrollbarLayer;
+          }
         }
       }
     }
@@ -377,29 +411,53 @@ cc::Layer* ForeignLayer(const PaintChunk& chunk,
   return foreign_layer ? foreign_layer->GetLayer() : nullptr;
 }
 
+std::string DescribePaintPropertyNode(const PaintPropertyNode& node,
+                                      const PaintPropertyNode* parent) {
+  return String::Format(
+             "Parent %p : (%s) \n Self %p : (%s)", parent,
+             parent ? parent->ToJSON()->ToJSONString().Utf8().c_str() : "",
+             &node, node.ToJSON()->ToJSONString().Utf8().c_str())
+      .Utf8();
+}
+
 void DumpWithDifferingPaintPropertiesIncluded(const PaintChunk& previous,
                                               const PaintChunk& repainted) {
+  // Report the full property tree state, including pointers and parents to give
+  // full context for debugging. This dump occurs when the paint property tree
+  // has been modified but that modification hasn't dirtied an object's
+  // PaintLayer, allowing a cached subsequence to be improperly reused. This can
+  // occur when the insertion or deletion of a node is obscured by a child node.
   SCOPED_CRASH_KEY_STRING1024(
-      "PrevTransform", "json",
-      previous.properties.Transform().ToJSON()->ToJSONString().Utf8());
+      "PrevTransform", "prev_tf_property_state",
+      DescribePaintPropertyNode(
+          previous.properties.Transform(),
+          previous.properties.Transform().UnaliasedParent()));
   SCOPED_CRASH_KEY_STRING1024(
       "PrevClip", "json",
-      previous.properties.Clip().ToJSON()->ToJSONString().Utf8());
+      DescribePaintPropertyNode(previous.properties.Clip(),
+                                previous.properties.Clip().UnaliasedParent()));
   SCOPED_CRASH_KEY_STRING1024(
       "PrevEffect", "json",
-      previous.properties.Effect().ToJSON()->ToJSONString().Utf8());
+      DescribePaintPropertyNode(
+          previous.properties.Effect(),
+          previous.properties.Effect().UnaliasedParent()));
   SCOPED_CRASH_KEY_STRING1024(
       "RepaintTransform", "json",
-      repainted.properties.Transform().ToJSON()->ToJSONString().Utf8());
+      DescribePaintPropertyNode(
+          repainted.properties.Transform(),
+          repainted.properties.Transform().UnaliasedParent()));
   SCOPED_CRASH_KEY_STRING1024(
       "RepaintClip", "json",
-      repainted.properties.Clip().ToJSON()->ToJSONString().Utf8());
+      DescribePaintPropertyNode(repainted.properties.Clip(),
+                                repainted.properties.Clip().UnaliasedParent()));
   SCOPED_CRASH_KEY_STRING1024(
       "RepaintEffect", "json",
-      repainted.properties.Effect().ToJSON()->ToJSONString().Utf8());
+      DescribePaintPropertyNode(
+          repainted.properties.Effect(),
+          repainted.properties.Effect().UnaliasedParent()));
 
-  // This id is not useful on its own, but can be correlated to objects
-  // in a heap dump.
+  // Use the display item type to find where this chunk was painted. The client
+  // id is not so useful on its own, but can be correlated with a heap dump.
   SCOPED_CRASH_KEY_STRING32("ChunkId", "id", previous.id.ToString().Utf8());
 
   base::debug::DumpWithoutCrashing();
@@ -510,6 +568,18 @@ bool NeedsFullUpdateAfterPaintingChunk(
   }
 
   return false;
+}
+
+// When a child element of <canvas> is rendered via drawElementImage, its paint
+// must be recorded using the canvas element's content clip and effect state.
+PropertyTreeState GetPropertyTreeStateForPaint(
+    const PropertyTreeState& layer_state) {
+  PropertyTreeState result = layer_state;
+  if (layer_state.Effect().HasCanvasChildState()) {
+    result.SetClip(layer_state.Effect().CanvasChildContentClip());
+    result.SetEffect(layer_state.Effect().CanvasChildContentEffect());
+  }
+  return result;
 }
 
 }  // namespace
@@ -1026,6 +1096,7 @@ void PaintArtifactCompositor::Update(
 
   wtf_size_t old_size = pending_layers_.size();
   OldPendingLayerMatcher old_pending_layer_matcher(std::move(pending_layers_));
+  canvas_child_layer_map_.clear();
   CHECK(painted_scroll_translations_.empty());
 
   // Make compositing decisions, storing the result in |pending_layers_|.
@@ -1063,13 +1134,19 @@ void PaintArtifactCompositor::Update(
 
   cc::LayerSelection layer_selection;
   HashSet<int> layers_having_text;
-  for (auto& pending_layer : pending_layers_) {
+  HashSet<int> layers_having_video;
+  for (wtf_size_t i = 0; i < pending_layers_.size(); i++) {
+    auto& pending_layer = pending_layers_[i];
+    const auto& property_state = pending_layer.GetPropertyTreeState();
+    PropertyTreeState property_state_for_paint =
+        GetPropertyTreeStateForPaint(property_state);
+
     pending_layer.UpdateCompositedLayer(
-        old_pending_layer_matcher.Find(pending_layer), layer_selection,
-        tracks_raster_invalidations_, root_layer_->layer_tree_host());
+        old_pending_layer_matcher.Find(pending_layer), property_state_for_paint,
+        layer_selection, tracks_raster_invalidations_,
+        root_layer_->layer_tree_host());
 
     cc::Layer& layer = pending_layer.CcLayer();
-    const auto& property_state = pending_layer.GetPropertyTreeState();
     const auto& transform = property_state.Transform();
     const auto& clip = property_state.Clip();
     const auto& effect = property_state.Effect();
@@ -1097,6 +1174,11 @@ void PaintArtifactCompositor::Update(
       if (!parent_node->backdrop_filters.IsEmpty()) {
         parent_node->backdrop_mask_element_id = effect.GetCompositorElementId();
       }
+    } else if (pending_layer.GetContentLayerClient() &&
+               !effect.RequiresCompositingForBackdropFilterMask() &&
+               static_cast<cc::PictureLayer&>(layer)
+                   .is_backdrop_filter_mask()) {
+      static_cast<cc::PictureLayer&>(layer).SetIsBackdropFilterMask(false);
     }
 
     int scroll_id =
@@ -1107,6 +1189,9 @@ void PaintArtifactCompositor::Update(
     if (pending_layer.HasText()) {
       layers_having_text.insert(layer.id());
     }
+    if (pending_layer.HasVideo()) {
+      layers_having_video.insert(layer.id());
+    }
 
     layer.set_property_tree_sequence_number(
         root_layer_->property_tree_sequence_number());
@@ -1116,7 +1201,11 @@ void PaintArtifactCompositor::Update(
     layer.SetEffectTreeIndex(effect_id);
     bool backface_hidden = transform.IsBackfaceHidden();
     layer.SetShouldCheckBackfaceVisibility(backface_hidden);
-    layer.SetCanvasChildId(effect.CanvasChildId());
+    if (effect.CanvasChildId()) {
+      canvas_child_layer_map_.Set(effect.CanvasChildId(), i);
+      layer.SetCanvasChildId(
+          CompositorElementIdFromDOMNodeId(effect.CanvasChildId()));
+    }
 
     if (layer.subtree_property_changed())
       root_layer_->SetNeedsCommit();
@@ -1140,7 +1229,7 @@ void PaintArtifactCompositor::Update(
 
   auto layers = layer_list_builder.Finalize();
   property_tree_manager.UpdateConditionalRenderSurfaceReasons(
-      layers, layers_having_text);
+      layers, layers_having_text, layers_having_video);
   root_layer_->SetChildLayerList(std::move(layers));
 
   // In rare cases, we can have painted anchored elements with unpainted
@@ -1204,8 +1293,10 @@ bool PaintArtifactCompositor::TryFastPathUpdate(
     case UpdateType::kRepaint: {
       cc::LayerSelection layer_selection;
       for (auto& pending_layer : pending_layers_) {
-        pending_layer.UpdateCompositedLayerForRepaint(repainted_artifact,
-                                                      layer_selection);
+        PropertyTreeState property_state_for_paint =
+            GetPropertyTreeStateForPaint(pending_layer.GetPropertyTreeState());
+        pending_layer.UpdateCompositedLayerForRepaint(
+            repainted_artifact, property_state_for_paint, layer_selection);
       }
       root_layer_->layer_tree_host()->RegisterSelection(layer_selection);
       UpdateDebugInfo();

@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">Kör laddningstest</translation>
 <translation id="1622402072367425417">lysande bubblor</translation>
 <translation id="1626590945318984973">Kortkommandot är inte tillgängligt. Tryck på ett nytt kortkommando utan att använda funktions- och <ph name="META_KEY" />tangenterna.</translation>
+<translation id="163774412591892664">Administratören har inaktiverat enheten och kan se dess plats.</translation>
 <translation id="1639239467298939599">Profilen läses in</translation>
 <translation id="1641857168437328880">Dokumentmatare (ensidig)</translation>
 <translation id="1642396894598555413">cyklar</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814">Nedladdning av transkriptionsmodell för <ph name="LANGUAGE_NAME" /> har slutförts</translation>
 <translation id="42126664696688958">Exportera</translation>
 <translation id="4213104098953699324">USB-tangentbord</translation>
+<translation id="4217571870635786043">Diktering</translation>
 <translation id="4227825898293920515">Lösenordet upphör att gälla om <ph name="TIME" /></translation>
 <translation id="4238516577297848345">Inga utskriftsjobb pågår</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1274,7 +1276,7 @@
 <translation id="6596816719288285829">IP-adress</translation>
 <translation id="6599673642868607614">Tack för din feedback! Din feedback hjälper oss att förbättra Chromebook-upplevelsen och granskas av vårt team. Vi får många rapporter och därför kan vi inte svara på dem.</translation>
 <translation id="6608043585557830684">Transkription är inaktiverad. Aktivera i inställningarna eller i menyn <ph name="THREE_DOTS_MENU_ICON" />.</translation>
-<translation id="660846213831377756">Musknappar</translation>
+<translation id="660846213831377756">Mustangenter</translation>
 <translation id="6618744767048954150">Körs</translation>
 <translation id="6620487321149975369">Utskriftsjobb visas i historiken såvida de inte tas bort manuellt</translation>
 <translation id="6624819909909965616">Det går inte att ladda upp en fil som är större än 10 MB</translation>
@@ -1685,6 +1687,7 @@ Ladda ned transkriptionsmodellen (upp till 100 MB) för att få transkriptioner
 <translation id="8420955526972171689">Kör tester och felsök vid problem med hårdvara</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">ned</translation>
+<translation id="8427213022735114808">Med diktering skickas det du säger till Google så att du kan tala in text i vilket textfält som helst.</translation>
 <translation id="8428213095426709021">Inställningar</translation>
 <translation id="8431300646573772016">Nyheter i ChromeOS</translation>
 <translation id="8433186206711564395">Nätverksinställningar</translation>
@@ -1723,6 +1726,7 @@ Ladda ned transkriptionsmodellen (upp till 100 MB) för att få transkriptioner
 <translation id="8584654835905316966">En omstart krävs för att slutföra firmwareinstallationen för <ph name="DEVICE_NAME" /> till version <ph name="VERSION" />. Det kan verka som om datorn startas om flera gånger. Detta beteende är förväntat.</translation>
 <translation id="8593058461203131755">pausa media</translation>
 <translation id="8620617069779373398">Dirigeringsstatus</translation>
+<translation id="8624524972189162859">Administratören för <ph name="DOMAIN_NAME" /> har inaktiverat enheten och kan se dess plats.</translation>
 <translation id="8626489604350149811">Fler åtgärder för <ph name="APN_NAME" /></translation>
 <translation id="86356131183441916">Ljuslila</translation>
 <translation id="8647595191512746911">Ljudtranskription</translation>

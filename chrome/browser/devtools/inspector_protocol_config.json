@@ -28,14 +28,14 @@
             },
             {
                 "domain": "Emulation",
-                "include": ["disable", "setAutomationOverride", "getScreenInfos", "addScreen", "removeScreen"]
+                "include": ["disable", "setAutomationOverride", "getScreenInfos", "addScreen", "removeScreen", "updateScreen", "setPrimaryScreen"]
             },
             {
                 "domain": "WindowManager"
             },
             {
                 "domain": "Extensions",
-                "include": [ "triggerAction", "loadUnpacked", "getStorageItems", "setStorageItems", "removeStorageItems", "clearStorageItems", "uninstall" ],
+                "include": [ "triggerAction", "loadUnpacked", "getStorageItems", "setStorageItems", "removeStorageItems", "clearStorageItems", "uninstall", "getExtensions" ],
                 "async": [ "loadUnpacked", "getStorageItems", "setStorageItems", "removeStorageItems", "clearStorageItems", "uninstall" ]
             },
             {

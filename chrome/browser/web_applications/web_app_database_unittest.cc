@@ -52,7 +52,6 @@
 #include "chrome/browser/web_applications/web_app_registry_update.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
-#include "chrome/common/chrome_features.h"
 #include "components/services/app_service/public/cpp/file_handler.h"
 #include "components/services/app_service/public/cpp/protocol_handler_info.h"
 #include "components/services/app_service/public/cpp/share_target.h"
@@ -64,11 +63,9 @@
 #include "components/web_package/signed_web_bundles/signed_web_bundle_signature_stack_entry.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "components/webapps/isolated_web_apps/types/update_channel.h"
-#include "services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h"
-#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
-#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -110,7 +107,7 @@ class WebAppDatabaseTest : public WebAppTest {
   }
 
   Registry WriteWebApps(uint32_t num_apps,
-                        bool only_non_external_management_types = false) {
+                        bool exclude_fields_with_side_effects = false) {
     Registry registry;
 
     auto write_batch = database_factory().GetStore()->CreateWriteBatch();
@@ -118,8 +115,8 @@ class WebAppDatabaseTest : public WebAppTest {
     for (uint32_t i = 0; i < num_apps; ++i) {
       test::CreateRandomWebAppParams params;
       params.seed = i;
-      params.only_non_external_management_types =
-          only_non_external_management_types;
+      params.exclude_fields_with_side_effects =
+          exclude_fields_with_side_effects;
       std::unique_ptr<WebApp> app = test::CreateRandomWebApp(params);
       std::unique_ptr<proto::WebApp> proto = WebAppToProto(*app);
       const webapps::AppId app_id = app->app_id();
@@ -168,6 +165,10 @@ class WebAppDatabaseTest : public WebAppTest {
       update->DeleteApp(app_id);
     }
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_{
+      blink::features::kWebAppMigrationApi};
 };
 
 TEST_F(WebAppDatabaseTest, WriteAndReadRegistry) {
@@ -273,11 +274,9 @@ TEST_F(WebAppDatabaseTest, OpenDatabaseAndReadRegistry) {
 #endif  // BUILDFLAG(IS_CHROMEOS)
   base::HistogramTester histogram_tester;
   Registry registry =
-      WriteWebApps(kNumApps, /*only_non_external_management_types=*/true);
+      WriteWebApps(kNumApps, /*exclude_fields_with_side_effects=*/true);
   test::AwaitStartWebAppProviderAndSubsystems(profile());
   histogram_tester.ExpectBucketCount("WebApp.Database.ValidProto", true,
-                                     kNumApps);
-  histogram_tester.ExpectBucketCount("WebApp.Database.AppIdMatch", true,
                                      kNumApps);
   fake_provider().command_manager().AwaitAllCommandsCompleteForTesting();
   EXPECT_TRUE(IsRegistryEqual(mutable_registrar().registry(), registry,

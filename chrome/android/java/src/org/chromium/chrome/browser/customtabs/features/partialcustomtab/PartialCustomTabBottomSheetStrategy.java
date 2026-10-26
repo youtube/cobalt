@@ -52,11 +52,11 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
-import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.CustomTabProfileType;
 import org.chromium.chrome.browser.customtabs.features.partialcustomtab.ContentGestureListener.GestureState;
 import org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbar;
 import org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsCoordinator;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.flags.CustomTabProfileType;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenOptions;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
@@ -216,6 +216,11 @@ public class PartialCustomTabBottomSheetStrategy extends PartialCustomTabBaseStr
         assert mContentScrollMayResizeTab && mGestureHandler != null && mGestureDetector != null;
         mGestureDetector.onTouchEvent(e);
         return mGestureHandler.getState() == GestureState.DRAG_TAB;
+    }
+
+    @Override
+    public boolean mayInterceptTouchSequenceInWebContents() {
+        return true;
     }
 
     @Override

@@ -15,9 +15,7 @@
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
 
-using ActuationError = ActuationTool::ActuationError;
 using ActuationResult = ActuationTool::ActuationResult;
-using ActuationErrorCode = ActuationTool::ActuationErrorCode;
 
 class ActuationServiceTest : public PlatformTest {
  public:

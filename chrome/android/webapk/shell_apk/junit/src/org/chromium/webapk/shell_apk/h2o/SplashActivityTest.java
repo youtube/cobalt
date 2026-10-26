@@ -25,23 +25,21 @@ import android.os.Bundle;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
-import org.robolectric.RobolectricTestRunner;
 import org.robolectric.Shadows;
 import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
-import org.robolectric.annotation.Implementation;
-import org.robolectric.annotation.Implements;
-import org.robolectric.annotation.LooperMode;
 import org.robolectric.shadows.ShadowActivityManager;
 import org.robolectric.shadows.ShadowApplication;
 import org.robolectric.shadows.ShadowPackageManager;
 
+import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.components.webapk.lib.common.WebApkMetaDataKeys;
-import org.chromium.webapk.shell_apk.CustomAndroidOsShadowAsyncTask;
 import org.chromium.webapk.shell_apk.HostBrowserUtils.PackageNameAndComponentName;
 import org.chromium.webapk.shell_apk.LaunchHostBrowserSelector;
 import org.chromium.webapk.test.WebApkTestHelper;
@@ -49,49 +47,15 @@ import org.chromium.webapk.test.WebApkTestHelper;
 import java.util.Arrays;
 
 /** Tests for {@link SplashActivity}. */
-@RunWith(RobolectricTestRunner.class)
-@Config(
-        manifest = Config.NONE,
-        shadows = {
-            SplashActivityTest.MockLaunchHostBrowserSelector.class,
-            CustomAndroidOsShadowAsyncTask.class
-        })
-@LooperMode(LooperMode.Mode.LEGACY)
+@RunWith(BaseRobolectricTestRunner.class)
+@Config(manifest = Config.NONE)
 public final class SplashActivityTest {
     public static final String BROWSER_PACKAGE_NAME = "com.google.android.apps.chrome";
 
     private static final int MODERN_BROWSER_VERSION = 10000;
 
-    /** Mock {@link LaunchHostBrowserSelector} which enables calling the callback manually. */
-    @Implements(LaunchHostBrowserSelector.class)
-    public static class MockLaunchHostBrowserSelector {
-        private static LaunchHostBrowserSelector.Callback sCallback;
-        private static boolean sDialogNeeded;
-
-        public void __constructor__(Activity parentActivity) {}
-
-        @Implementation
-        public void selectHostBrowser(LaunchHostBrowserSelector.Callback callback) {
-            if (!sDialogNeeded) {
-                callback.onBrowserSelected(
-                        new PackageNameAndComponentName(BROWSER_PACKAGE_NAME),
-                        /* dialogShown= */ false);
-                return;
-            }
-            sCallback = callback;
-        }
-
-        public static void setNeedsToShowDialog(boolean dialogNeeded) {
-            sDialogNeeded = dialogNeeded;
-        }
-
-        public static void dialogDismissed() {
-            assertNotNull(sCallback);
-            sCallback.onBrowserSelected(
-                    new PackageNameAndComponentName(BROWSER_PACKAGE_NAME), /* dialogShown= */ true);
-            sCallback = null;
-        }
-    }
+    private LaunchHostBrowserSelector.Callback mLaunchHostBrowserSelectorCallback;
+    private boolean mLaunchHostBrowserSelectorDialogNeeded;
 
     private ShadowActivityManager mShadowActivityManager;
     private ShadowApplication mShadowApplication;
@@ -106,7 +70,17 @@ public final class SplashActivityTest {
         mShadowApplication = shadowOf((Application) ApplicationProvider.getApplicationContext());
         mShadowPackageManager = Shadows.shadowOf(appContext.getPackageManager());
 
-        MockLaunchHostBrowserSelector.setNeedsToShowDialog(false);
+        mLaunchHostBrowserSelectorDialogNeeded = false;
+        LaunchHostBrowserSelector.setMockForTesting(
+                (callback) -> {
+                    if (!mLaunchHostBrowserSelectorDialogNeeded) {
+                        callback.onBrowserSelected(
+                                new PackageNameAndComponentName(BROWSER_PACKAGE_NAME),
+                                /* dialogShown= */ false);
+                        return;
+                    }
+                    mLaunchHostBrowserSelectorCallback = callback;
+                });
 
         Bundle metadata = new Bundle();
         metadata.putString(WebApkMetaDataKeys.START_URL, "https://pwa.rocks/");
@@ -116,6 +90,11 @@ public final class SplashActivityTest {
         // Install browser.
         mShadowPackageManager.addPackage(
                 newPackageInfo(BROWSER_PACKAGE_NAME, MODERN_BROWSER_VERSION));
+    }
+
+    @After
+    public void tearDown() {
+        LaunchHostBrowserSelector.setMockForTesting(null);
     }
 
     // Test common cases that SplashActivity:
@@ -130,11 +109,13 @@ public final class SplashActivityTest {
 
         // ActivityController#visible() attaches the activity to the window.
         splashActivityController.create(null).visible().resume();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertNotNull(mShadowApplication.getNextStartedActivity());
         assertFalse(splashActivityController.get().isFinishing());
 
         splashActivityController.get().onActivityResult(0, 0, null);
         splashActivityController.pause().resume();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertTrue(splashActivityController.get().isFinishing());
     }
 
@@ -153,6 +134,7 @@ public final class SplashActivityTest {
         splashActivityController.create(new Bundle()).visible();
         splashActivityController.get().onActivityResult(0, 0, null);
         splashActivityController.resume();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertNull(mShadowApplication.getNextStartedActivity());
         assertTrue(splashActivityController.get().isFinishing());
     }
@@ -168,12 +150,17 @@ public final class SplashActivityTest {
                 Robolectric.buildActivity(SplashActivity.class, new Intent());
         setAppTaskTopActivity(
                 splashActivityController.get().getTaskId(), splashActivityController.get());
-        MockLaunchHostBrowserSelector.setNeedsToShowDialog(true);
+        mLaunchHostBrowserSelectorDialogNeeded = true;
 
         splashActivityController.create(new Bundle()).visible();
         // Dialog shown, LaunchHostBrowserSelector callback called after Activity#onResume()
         splashActivityController.resume();
-        MockLaunchHostBrowserSelector.dialogDismissed();
+        RobolectricUtil.runAllBackgroundAndUi();
+        assertNotNull(mLaunchHostBrowserSelectorCallback);
+        mLaunchHostBrowserSelectorCallback.onBrowserSelected(
+                new PackageNameAndComponentName(BROWSER_PACKAGE_NAME), /* dialogShown= */ true);
+        mLaunchHostBrowserSelectorCallback = null;
+        RobolectricUtil.runAllBackgroundAndUi();
         assertNotNull(mShadowApplication.getNextStartedActivity());
         assertFalse(splashActivityController.get().isFinishing());
     }
@@ -192,6 +179,7 @@ public final class SplashActivityTest {
         setAppTaskTopActivity(splashActivityController.get().getTaskId(), new Activity());
 
         splashActivityController.create(new Bundle()).visible().resume();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertNull(mShadowApplication.getNextStartedActivity());
         assertFalse(splashActivityController.get().isFinishing());
     }
@@ -211,6 +199,7 @@ public final class SplashActivityTest {
         splashActivityController.newIntent(new Intent());
         splashActivityController.get().onActivityResult(0, 0, null);
         splashActivityController.resume();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         assertNotNull(mShadowApplication.getNextStartedActivity());
         assertFalse(splashActivityController.get().isFinishing());
@@ -230,6 +219,7 @@ public final class SplashActivityTest {
         splashActivityController.get().onActivityResult(0, 0, null);
         splashActivityController.newIntent(new Intent());
         splashActivityController.resume();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         assertNotNull(mShadowApplication.getNextStartedActivity());
         assertFalse(splashActivityController.get().isFinishing());

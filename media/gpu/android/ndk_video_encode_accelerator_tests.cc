@@ -532,9 +532,8 @@ class NdkVideoEncoderAcceleratorTest
         base::MakeRefCounted<gl::GLShareGroup>(), gl_surface_, gl_context_,
         /*use_virtualized_gl_contexts=*/false, base::DoNothing(),
         gpu::GrContextType::kGL);
-    ASSERT_TRUE(context_state_->InitializeGL(
-        gpu_preferences, base::MakeRefCounted<gpu::gles2::FeatureInfo>(
-                             gpu_workarounds, gpu_feature_info)));
+    ASSERT_TRUE(context_state_->InitializeGL(gpu_preferences, gpu_workarounds,
+                                             gpu_feature_info));
 
     backing_factory_ =
         std::make_unique<gpu::AHardwareBufferImageBackingFactory>(
@@ -821,6 +820,64 @@ TEST_P(NdkVideoEncoderAcceleratorTest, ResizeOnEncode) {
   ValidateStream(stream);
 }
 
+TEST_P(NdkVideoEncoderAcceleratorTest, EncodeWithTemporalLayers) {
+  if (codec_ != VideoCodec::kH264 && codec_ != VideoCodec::kVP9 &&
+      codec_ != VideoCodec::kAV1) {
+    GTEST_SKIP() << "SVC is only supported for H.264, VP9 and AV1.";
+  }
+
+  auto config = GetDefaultConfig();
+  // Set 2 temporal layers
+  config.spatial_layers.emplace_back();
+  config.spatial_layers[0].width = config.input_visible_size.width();
+  config.spatial_layers[0].height = config.input_visible_size.height();
+  config.spatial_layers[0].bitrate_bps = config.bitrate.target_bps();
+  config.spatial_layers[0].framerate = config.framerate;
+  config.spatial_layers[0].max_qp = 30;
+  config.spatial_layers[0].num_of_temporal_layers = 2;
+
+  const size_t total_frames_count = 10;
+  accelerator_ = MakeNdkAccelerator();
+  EXPECT_CALL(*this, OnRequireBuffer()).WillOnce(Return(false));
+  EXPECT_CALL(*this, OnBufferReady()).WillRepeatedly([this]() {
+    return outputs_.size() < total_frames_count;
+  });
+
+  auto status = accelerator_->Initialize(config, this, NullLog());
+  ASSERT_TRUE(status.is_ok())
+      << EncoderStatusCodeToString(status.code()) << " " << status.message();
+  SetCommandBufferHelper();
+  Run();
+
+  auto duration = base::Milliseconds(16);
+  for (auto frame_index = 0u; frame_index < total_frames_count; frame_index++) {
+    auto timestamp = frame_index * duration;
+    uint32_t color = random_color_.Rand() & 0x00FFFFFF;
+    auto frame =
+        CreateFrame(config.input_visible_size, pixel_format_, timestamp, color);
+    if (GetParam().use_shared_image) {
+      frame = WrapInSharedImageFrame(frame);
+    }
+    bool key_frame = (frame_index == 0);
+    accelerator_->Encode(frame, key_frame);
+  }
+
+  Run();
+  EXPECT_FALSE(error_status_.has_value());
+  EXPECT_GE(outputs_.size(), total_frames_count);
+
+  std::vector<uint8_t> stream;
+  for (auto& output : outputs_) {
+    auto& mapping = id_to_buffer_[output.id]->GetMapping();
+    EXPECT_GE(mapping.size(), output.md.payload_size_bytes);
+    EXPECT_GT(output.md.payload_size_bytes, 0u);
+    auto span =
+        mapping.GetMemoryAsSpan<uint8_t>().first(output.md.payload_size_bytes);
+    stream.insert(stream.end(), span.begin(), span.end());
+  }
+  ValidateStream(stream);
+}
+
 TEST_P(NdkVideoEncoderAcceleratorE2ETest, EncodeAndDecode) {
   auto config = GetDefaultConfig();
   const int total_frames_count = 10;
@@ -1060,6 +1117,32 @@ INSTANTIATE_TEST_SUITE_P(E2ENdkEncoderTests,
                          NdkVideoEncoderAcceleratorE2ETest,
                          ::testing::ValuesIn(GenerateVariants(kE2EParams)),
                          PrintTestParams);
+
+TEST(NdkVideoEncoderLayersTest, SvcBitrateRatios) {
+  // Test 2 layers (0.6, 0.4).
+  std::vector<double> ratios2 =
+      NdkVideoEncodeAccelerator::GetDefaultSvcBitrateRatios(2);
+  ASSERT_EQ(ratios2.size(), 2u);
+  EXPECT_DOUBLE_EQ(ratios2[0], 0.6);
+  EXPECT_DOUBLE_EQ(ratios2[1], 0.4);
+  EXPECT_EQ(NdkVideoEncodeAccelerator::GetSvcBitrateRatiosString(ratios2),
+            "0.6");
+
+  // Test 3 layers (0.5, 0.2, 0.3).
+  std::vector<double> ratios3 =
+      NdkVideoEncodeAccelerator::GetDefaultSvcBitrateRatios(3);
+  ASSERT_EQ(ratios3.size(), 3u);
+  EXPECT_DOUBLE_EQ(ratios3[0], 0.5);
+  EXPECT_DOUBLE_EQ(ratios3[1], 0.2);
+  EXPECT_DOUBLE_EQ(ratios3[2], 0.3);
+  EXPECT_EQ(NdkVideoEncodeAccelerator::GetSvcBitrateRatiosString(ratios3),
+            "0.5;0.7");
+
+  // Test edge cases.
+  EXPECT_TRUE(NdkVideoEncodeAccelerator::GetDefaultSvcBitrateRatios(1).empty());
+  EXPECT_EQ(NdkVideoEncodeAccelerator::GetSvcBitrateRatiosString({}), "");
+  EXPECT_EQ(NdkVideoEncodeAccelerator::GetSvcBitrateRatiosString({0.5}), "");
+}
 
 }  // namespace media
 #pragma clang attribute pop

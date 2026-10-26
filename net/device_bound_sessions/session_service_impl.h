@@ -211,7 +211,8 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   void UnblockDeferredRequests(
       const SessionKey& session_key,
       RefreshResult result,
-      std::optional<SessionError::ErrorType> fetch_error = std::nullopt,
+      std::optional<net::device_bound_sessions::SessionError> fetch_error =
+          std::nullopt,
       std::optional<SessionDisplay> new_session_display = std::nullopt,
       std::optional<bool> is_proactive_refresh_candidate = std::nullopt,
       std::optional<base::TimeDelta> minimum_proactive_refresh_threshold =
@@ -390,7 +391,7 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   // Per-site session refresh quota. In order to be robust across
   // session parameter changes, we enforce refresh quota for a site.
   // This functionality is being replaced with `signing_times_`.
-  std::map<net::SchemefulSite, std::vector<base::TimeTicks>> refresh_times_;
+  std::map<net::SchemefulSite, std::vector<base::Time>> refresh_times_;
 
   // Per-site record of the most recent refresh result. This is used
   // for histograms.
@@ -399,7 +400,12 @@ class NET_EXPORT SessionServiceImpl : public SessionService {
   // Per-site session signing quota. In order to be robust across
   // session parameter changes, we enforce signing quota for a site.
   // This is updated whenever a site triggers signing.
-  std::map<net::SchemefulSite, std::vector<base::TimeTicks>> signing_times_;
+  //
+  // NOTE: We use `base::Time` instead of `base::TimeTicks` because
+  // `base::TimeTicks` pauses during system sleep on macOS
+  // (crbug.com/489704854), which would prevent the quota from decaying
+  // overnight.
+  std::map<net::SchemefulSite, std::vector<base::Time>> signing_times_;
 
   // The latest signed challenges per session.
   LatestSignedRefreshChallengesMap latest_signed_refresh_challenges_;

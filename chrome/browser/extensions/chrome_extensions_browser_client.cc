@@ -32,7 +32,9 @@
 #include "chrome/browser/extensions/api/preference/privacy_sandbox_transformer.h"
 #include "chrome/browser/extensions/api/preference/protected_content_enabled_transformer.h"
 #include "chrome/browser/extensions/api/proxy/proxy_pref_transformer.h"
+#include "chrome/browser/extensions/api/proxy_override_rules/proxy_override_rules_transformer.h"
 #include "chrome/browser/extensions/api/runtime/chrome_runtime_api_delegate.h"
+#include "chrome/browser/extensions/blocklist_factory.h"
 #include "chrome/browser/extensions/chrome_component_extension_resource_manager.h"
 #include "chrome/browser/extensions/chrome_content_browser_client_extensions_part.h"
 #include "chrome/browser/extensions/chrome_extension_host_delegate.h"
@@ -48,9 +50,13 @@
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/favicon/favicon_util.h"
+#include "chrome/browser/extensions/forced_extensions/install_stage_tracker_factory.h"
+#include "chrome/browser/extensions/install_tracker_factory.h"
 #include "chrome/browser/extensions/pref_mapping.h"
+#include "chrome/browser/extensions/shared_module_service_factory.h"
 #include "chrome/browser/extensions/tab_helper.h"
 #include "chrome/browser/extensions/updater/chrome_update_client_config.h"
+#include "chrome/browser/extensions/updater/extension_updater.h"
 #include "chrome/browser/extensions/user_script_listener.h"
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
 #include "chrome/browser/media/webrtc/media_device_salt_service_factory.h"
@@ -205,6 +211,11 @@ bool RegisterTransformers() {
       std::make_unique<CookieControlsModeTransformer>());
   pref_mapping->RegisterPrefTransformer(
       proxy_config::prefs::kProxy, std::make_unique<ProxyPrefTransformer>());
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  pref_mapping->RegisterPrefTransformer(
+      proxy_config::prefs::kProxyOverrideRules,
+      std::make_unique<ProxyOverrideRulesTransformer>());
+#endif  // ENABLE_EXTENSIONS
   pref_mapping->RegisterPrefTransformer(
       prefetch::prefs::kNetworkPredictionOptions,
       std::make_unique<NetworkPredictionTransformer>());
@@ -667,6 +678,12 @@ bool ChromeExtensionsBrowserClient::IsActivityLoggingEnabled(
   return activity_log && activity_log->is_active();
 }
 
+bool ChromeExtensionsBrowserClient::IsTelemetryLoggingEnabled(
+    content::BrowserContext* context) {
+  ActivityLog* activity_log = ActivityLog::GetInstance(context);
+  return activity_log && activity_log->IsTelemetryLoggingActive();
+}
+
 void ChromeExtensionsBrowserClient::GetTabAndWindowIdForWebContents(
     content::WebContents* web_contents,
     int* tab_id,
@@ -1118,6 +1135,34 @@ ExtensionAssetsManager* ChromeExtensionsBrowserClient::GetAssetsManager() {
   // If not Chrome OS, use trivial implementation that doesn't share anything.
   return ExtensionsBrowserClient::GetAssetsManager();
 #endif  // BUILDFLAG(IS_CHROMEOS)
+}
+
+Blocklist* ChromeExtensionsBrowserClient::GetBlocklist(
+    content::BrowserContext* context) {
+  return BlocklistFactory::GetForBrowserContext(context);
+}
+
+InstallStageTracker* ChromeExtensionsBrowserClient::GetInstallStageTracker(
+    content::BrowserContext* context) {
+  return InstallStageTrackerFactory::GetForBrowserContext(context);
+}
+
+InstallTracker* ChromeExtensionsBrowserClient::GetInstallTracker(
+    content::BrowserContext* context) {
+  return InstallTrackerFactory::GetForBrowserContext(context);
+}
+
+SharedModuleService* ChromeExtensionsBrowserClient::GetSharedModuleService(
+    content::BrowserContext* context) {
+  return SharedModuleServiceFactory::GetForBrowserContext(context);
+}
+
+void ChromeExtensionsBrowserClient::UpdateCheckIfEnabled(
+    content::BrowserContext* context) {
+  auto* extension_updater = ExtensionUpdater::Get(context);
+  if (extension_updater->enabled()) {
+    extension_updater->CheckSoon();
+  }
 }
 
 }  // namespace extensions

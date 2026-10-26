@@ -13,6 +13,9 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/events/test/event_generator.h"
+#include "ui/events/types/event_type.h"
+#include "ui/views/controls/button/label_button.h"
 #include "ui/views/test/views_test_base.h"
 #include "ui/views/widget/widget.h"
 
@@ -26,10 +29,21 @@ class MockDelegate : public VerticalTabGroupHeaderView::Delegate {
               (override));
   MOCK_METHOD(views::Widget*, ShowGroupEditorBubble, (bool), (override));
   MOCK_METHOD(std::u16string, GetGroupContentString, (), (const, override));
-  MOCK_METHOD(void, InitHeaderDrag, (const ui::MouseEvent&), (override));
-  MOCK_METHOD(bool, ContinueHeaderDrag, (const ui::MouseEvent&), (override));
+  MOCK_METHOD(void, InitHeaderDrag, (const ui::LocatedEvent&), (override));
+  MOCK_METHOD(bool, ContinueHeaderDrag, (const ui::LocatedEvent&), (override));
   MOCK_METHOD(void, CancelHeaderDrag, (), (override));
+  MOCK_METHOD(void, HideHoverCard, (), (const, override));
+  MOCK_METHOD(void, ShiftGroupUp, (), (override));
+  MOCK_METHOD(void, ShiftGroupDown, (), (override));
 };
+
+int GetPlatformDependentAccelerator() {
+#if BUILDFLAG(IS_MAC)
+  return ui::EF_COMMAND_DOWN;
+#else
+  return ui::EF_CONTROL_DOWN;
+#endif
+}
 
 }  // namespace
 
@@ -51,7 +65,7 @@ TEST_F(VerticalTabGroupHeaderViewTest, TooltipText) {
                                                              &visual_data);
 
   // Initialize with data
-  header->OnDataChanged(&visual_data, false, false);
+  header->OnDataChanged(&visual_data, false);
 
   std::u16string expected_tooltip = l10n_util::GetStringFUTF16(
       IDS_TAB_GROUPS_NAMED_GROUP_TOOLTIP, u"Group Title", u"3 tabs");
@@ -61,10 +75,101 @@ TEST_F(VerticalTabGroupHeaderViewTest, TooltipText) {
   // Test unnamed group
   tab_groups::TabGroupVisualData unnamed_visual_data(
       u"", tab_groups::TabGroupColorId::kRed, false);
-  header->OnDataChanged(&unnamed_visual_data, false, false);
+  header->OnDataChanged(&unnamed_visual_data, false);
 
   expected_tooltip = l10n_util::GetStringFUTF16(
       IDS_TAB_GROUPS_UNNAMED_GROUP_TOOLTIP, u"3 tabs");
 
   EXPECT_EQ(header->GetTooltipText(), expected_tooltip);
+}
+
+TEST_F(VerticalTabGroupHeaderViewTest, HideHoverCardOnMouseEnter) {
+  MockDelegate delegate;
+  tab_groups::TabGroupVisualData visual_data(
+      u"Group Title", tab_groups::TabGroupColorId::kBlue, false);
+
+  std::unique_ptr<views::Widget> widget =
+      CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
+  auto* header =
+      widget->SetContentsView(std::make_unique<VerticalTabGroupHeaderView>(
+          delegate, nullptr, &visual_data));
+  widget->Show();
+
+  EXPECT_CALL(delegate, HideHoverCard());
+
+  ui::test::EventGenerator generator(GetContext(), widget->GetNativeWindow());
+  generator.MoveMouseTo(header->GetBoundsInScreen().CenterPoint());
+}
+
+TEST_F(VerticalTabGroupHeaderViewTest, EditorBubbleButtonVisibilityOnHover) {
+  MockDelegate delegate;
+  tab_groups::TabGroupVisualData visual_data(
+      u"Group Title", tab_groups::TabGroupColorId::kBlue, false);
+
+  std::unique_ptr<views::Widget> widget =
+      CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
+  auto* header =
+      widget->SetContentsView(std::make_unique<VerticalTabGroupHeaderView>(
+          delegate, nullptr, &visual_data));
+  widget->Show();
+
+  ui::test::EventGenerator generator(GetContext(), widget->GetNativeWindow());
+
+  auto move_mouse_to = [&](bool inside_view) {
+    if (inside_view) {
+      generator.MoveMouseTo(header->GetBoundsInScreen().CenterPoint());
+    } else {
+      generator.MoveMouseTo(header->GetBoundsInScreen().bottom_right() +
+                            gfx::Vector2d(10, 10));
+    }
+  };
+
+  auto check_editor_bubble_button_visible = [&](bool expected_visibility) {
+    EXPECT_EQ(expected_visibility,
+              header->editor_bubble_button()->GetVisible());
+  };
+
+  // Move mouse outside the header.
+  move_mouse_to(false);
+  check_editor_bubble_button_visible(false);
+
+  // Move mouse over the header.
+  move_mouse_to(true);
+  check_editor_bubble_button_visible(true);
+
+  // Move mouse outside the header again.
+  move_mouse_to(false);
+  check_editor_bubble_button_visible(false);
+}
+
+TEST_F(VerticalTabGroupHeaderViewTest, OnKeyPress_ShiftUp) {
+  MockDelegate delegate;
+  tab_groups::TabGroupVisualData visual_data(
+      u"Group Title", tab_groups::TabGroupColorId::kBlue, false);
+
+  auto header = std::make_unique<VerticalTabGroupHeaderView>(delegate, nullptr,
+                                                             &visual_data);
+
+  ui::KeyEvent event(ui::EventType::kKeyPressed, ui::VKEY_UP,
+                     GetPlatformDependentAccelerator());
+
+  EXPECT_CALL(delegate, ShiftGroupUp()).Times(1);
+
+  EXPECT_TRUE(header->OnKeyPressed(event));
+}
+
+TEST_F(VerticalTabGroupHeaderViewTest, OnKeyPress_ShiftDown) {
+  MockDelegate delegate;
+  tab_groups::TabGroupVisualData visual_data(
+      u"Group Title", tab_groups::TabGroupColorId::kBlue, false);
+
+  auto header = std::make_unique<VerticalTabGroupHeaderView>(delegate, nullptr,
+                                                             &visual_data);
+
+  ui::KeyEvent event(ui::EventType::kKeyPressed, ui::VKEY_DOWN,
+                     GetPlatformDependentAccelerator());
+
+  EXPECT_CALL(delegate, ShiftGroupDown()).Times(1);
+
+  EXPECT_TRUE(header->OnKeyPressed(event));
 }

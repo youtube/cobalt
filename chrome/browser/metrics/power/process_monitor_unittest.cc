@@ -6,10 +6,13 @@
 
 #include <utility>
 
+#include "base/process/process_metrics.h"
 #include "content/public/browser/child_process_data.h"
+#include "content/public/test/browser_task_environment.h"
+#include "services/network/public/mojom/network_service.mojom.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#include "services/network/public/mojom/network_service.mojom.h"
 TEST(ProcessMonitorTest, MonitoredProcessType) {
   const std::pair<int, ProcessInfo::Key> kExpectations[] = {
       {content::PROCESS_TYPE_GPU, {MonitoredProcessType::kGpu, std::nullopt}},
@@ -45,4 +48,54 @@ TEST(ProcessMonitorTest, MonitoredProcessType) {
   EXPECT_EQ(
       GetMonitoredProcessInfoKeyForNonRendererChildProcessForTesting(data),
       expected_key);
+}
+
+TEST(ProcessMonitorTest, UtilityProcessesRecordedTogether) {
+  content::BrowserTaskEnvironment task_environment;
+
+  ProcessMonitor pm;
+  pm.AddChildProcessInfoForTesting(
+      1, ProcessInfo::Key(MonitoredProcessType::kUtility, "Foo"),
+      base::ProcessMetrics::CreateCurrentProcessMetrics());
+  pm.AddChildProcessInfoForTesting(
+      2, ProcessInfo::Key(MonitoredProcessType::kUtility, "Bar"),
+      base::ProcessMetrics::CreateCurrentProcessMetrics());
+
+  class Observer : public ProcessMonitor::Observer {
+   public:
+    MOCK_METHOD(void,
+                OnMetricsSampled,
+                (ProcessInfo::Key key, const ProcessMonitor::Metrics& metrics),
+                (override));
+  };
+
+  Observer obs;
+  // OnMetricsSampled is called once per process type, so check that it's called
+  // once for each non-utility process.
+  EXPECT_CALL(
+      obs, OnMetricsSampled(testing::Ne(ProcessInfo::Key(
+                                MonitoredProcessType::kUtility, std::nullopt)),
+                            testing::_))
+      .Times(7);
+
+  // For utility processes, it should be called once for the combination of all
+  // of them, and once for each subtype.
+  EXPECT_CALL(obs, OnMetricsSampled(
+                       ProcessInfo::Key(MonitoredProcessType::kUtility, "Foo"),
+                       testing::_))
+      .Times(1);
+  EXPECT_CALL(obs, OnMetricsSampled(
+                       ProcessInfo::Key(MonitoredProcessType::kUtility, "Bar"),
+                       testing::_))
+      .Times(1);
+
+  // Exactly one call should be for the utility process type without a subtype,
+  // combining both processes of different subtypes.
+  EXPECT_CALL(
+      obs, OnMetricsSampled(
+               ProcessInfo::Key(MonitoredProcessType::kUtility, std::nullopt),
+               testing::_))
+      .Times(1);
+
+  pm.SampleAllProcesses(&obs);
 }

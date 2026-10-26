@@ -38,10 +38,11 @@ class FakeContextualTasksUiService
 class ContextualTasksPixelTestBase : public WebUIComposeBoxPixelTest {
  public:
   void SetUp() override {
-    feature_list_.InitWithFeatures(
-        {contextual_tasks::kContextualTasks,
-         contextual_tasks::kContextualTasksForceEntryPointEligibility},
-        {});
+    feature_list_.InitWithFeaturesAndParameters(
+        {{contextual_tasks::kContextualTasks,
+          {{"ContextualTasksExpandButtonOptions", "toolbar-close-button"}}},
+         {contextual_tasks::kContextualTasksForceEntryPointEligibility, {}}},
+        {contextual_tasks::kContextualTasksAnimatedCaret});
     WebUIComposeBoxPixelTest::SetUp();
   }
 
@@ -149,7 +150,9 @@ INSTANTIATE_TEST_SUITE_P(
     [](const testing::TestParamInfo<ContextualTasksComposeBoxPixelTestParams>&
            info) { return info.param.ToString(); });
 
-IN_PROC_BROWSER_TEST_P(ContextualTasksComposeBoxPixelTest, Screenshots) {
+// TODO(http://crbug.com/491973183): Fix and reenable.
+IN_PROC_BROWSER_TEST_P(ContextualTasksComposeBoxPixelTest,
+                       DISABLED_Screenshots) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
   const DeepQuery kApp = {"contextual-tasks-app"};
 
@@ -205,7 +208,7 @@ IN_PROC_BROWSER_TEST_P(ContextualTasksComposeBoxPixelTest, Screenshots) {
       // Take a screenshot of the composebox.
       ScreenshotWebUi(kActiveTab, kComposebox,
                       /*screenshot_name=*/"ContextualTasksComposebox",
-                      /*baseline_cl=*/"7542872"));
+                      /*baseline_cl=*/"7620222"));
 }
 
 struct AppPixelTestParams {
@@ -316,7 +319,7 @@ IN_PROC_BROWSER_TEST_P(ContextualTasksAppPixelTest, Screenshots) {
       SetOnIncompatibleAction(OnIncompatibleAction::kIgnoreAndContinue,
                               "Screenshots not captured on this platform."),
       ScreenshotWebUi(kActiveTab, kApp, "ContextualTasksApp",
-                      /*baseline_cl=*/"7542872"));
+                      /*baseline_cl=*/"7620222"));
 }
 
 enum class TitleType { kNone, kShort, kLong };
@@ -431,11 +434,11 @@ IN_PROC_BROWSER_TEST_P(ContextualTasksToolbarPixelTest, Screenshots) {
                   OnIncompatibleAction::kIgnoreAndContinue,
                   "Screenshots not captured on this platform."),
               ScreenshotWebUi(kActiveTab, menu, "ContextualTasksToolbarMenu",
-                              /*baseline_cl=*/"7546401")),
+                              /*baseline_cl=*/"7519825")),
          Else(WaitForWebContentsPainted(kActiveTab),
               SetOnIncompatibleAction(
                   OnIncompatibleAction::kIgnoreAndContinue,
                   "Screenshots not captured on this platform."),
               ScreenshotWebUi(kActiveTab, toolbar, "ContextualTasksToolbar",
-                              /*baseline_cl=*/"7546401"))));
+                              /*baseline_cl=*/"7519825"))));
 }

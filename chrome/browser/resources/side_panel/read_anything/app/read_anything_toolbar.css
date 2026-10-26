@@ -18,6 +18,13 @@
   color: var(--color-side-panel-entry-icon);
 }
 
+.immersive-toolbar-container #play-pause,
+.immersive-toolbar-container #previousGranularity,
+.immersive-toolbar-container #nextGranularity {
+  --cr-icon-button-focus-outline-color:
+    var(--on-audio-player-focus-outline-color);
+}
+
 @media (forced-colors: active) {
     #play-pause {
     --cr-icon-button-fill-color: CanvasText;
@@ -42,7 +49,7 @@
 
 .audio-background-immersive-enabled {
   --audio-controls-background: var(--audio-player-background-color);
-  --audio-controls-right-margin: 6px;
+  --audio-controls-right-margin: 8px;
   --audio-controls-right-padding: 4px;
 }
 
@@ -59,6 +66,7 @@
 
 #audio-controls.audio-background-immersive-enabled {
   border-radius: 100px;
+  padding: 0 6px;
 }
 
 .audio-controls {
@@ -68,6 +76,11 @@
 #audio-controls cr-icon-button {
   --cr-icon-button-fill-color: var(--audio-controls-icon-color-internal);
 }
+
+#audio-controls.audio-background-immersive-enabled cr-icon-button {
+  margin: 4px 2px;
+}
+
 /* Separate CSS classes are needed instead of setting the style directly so
  * that when forced colors are active, the color menu isn't reshown through
  * the code used to manage toolbar overflows. */
@@ -131,7 +144,7 @@
   align-items: center;
   justify-content: end;
   overflow: visible;
-  padding: 6px 8px;
+  padding: 16px;
   flex-wrap: var(--toolbar-flex-wrap);
   font-family: var(--immersive-menu-font);
   font-size: var(--immersive-menu-font-size);
@@ -140,6 +153,14 @@
   line-height: var(--immersive-menu-font-line-height);
   outline: none;
   border: none;
+}
+
+.immersive-toolbar-container cr-icon-button {
+  --cr-icon-button-icon-size: 20px;
+  --cr-icon-button-size: 28px;
+  --cr-icon-button-hover-background-color:
+      var(--toolbar-icon-hover-background-color);
+  --cr-icon-button-focus-outline-color: var(--toolbar-focus-outline-color);
 }
 
 .announce-block {
@@ -169,6 +190,13 @@
   min-width: 0;
   padding: 0;
   width: 24px;
+}
+
+.immersive-toolbar-container #rate {
+  --cr-focus-outline-color: var(--on-audio-player-focus-outline-color);
+  height: 28px;
+  width: 28px;
+  margin: 4px 2px;
 }
 
 .separator {

@@ -75,6 +75,7 @@ int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b) {
   auto *a_impl = FromOpaque(a);
   auto *b_impl = FromOpaque(b);
   return a_impl->ameth != nullptr && a_impl->ameth->pub_equal != nullptr &&
+         a_impl->pkey != nullptr && b_impl->pkey != nullptr &&
          a_impl->ameth->pub_equal(a_impl, b_impl);
 }
 
@@ -119,10 +120,18 @@ int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from) {
 
 int EVP_PKEY_missing_parameters(const EVP_PKEY *pkey) {
   auto *impl = FromOpaque(pkey);
-  if (impl->ameth && impl->ameth->param_missing) {
+  if (impl->ameth == nullptr) {
+    return 0;  // EVP_PKEY_NONE is not parameterized, so nothing is missing.
+  }
+  if (impl->pkey == nullptr) {
+    // This is an invalid, half-empty object. Report something is missing to
+    // stop other parameter-based functions.
+    return 1;
+  }
+  if (impl->ameth->param_missing) {
     return impl->ameth->param_missing(impl);
   }
-  return 0;
+  return 0;  // Not parameterized, so nothing is missing.
 }
 
 int EVP_PKEY_size(const EVP_PKEY *pkey) {
@@ -340,11 +349,12 @@ int EVP_PKEY_CTX_get_signature_md(EVP_PKEY_CTX *ctx, const EVP_MD **out_md) {
 }
 
 int EVP_PKEY_CTX_set1_signature_context_string(EVP_PKEY_CTX *ctx,
-                                               uint8_t *context,
+                                               const uint8_t *context,
                                                size_t context_len) {
+  Span<const uint8_t> context_string(context, context_len);
   return EVP_PKEY_CTX_ctrl(ctx, -1, EVP_PKEY_OP_TYPE_SIG,
-                           EVP_PKEY_CTRL_SIGNATURE_CONTEXT_STRING, context_len,
-                           context);
+                           EVP_PKEY_CTRL_SIGNATURE_CONTEXT_STRING, 0,
+                           &context_string);
 }
 
 void *EVP_PKEY_get0(const EVP_PKEY *pkey) {
@@ -398,8 +408,7 @@ int EVP_PKEY_base_id(const EVP_PKEY *pkey) {
 
 int EVP_PKEY_has_public(const EVP_PKEY *pkey) {
   auto *impl = FromOpaque(pkey);
-
-  if (impl == nullptr || impl->ameth == nullptr ||
+  if (impl == nullptr || impl->ameth == nullptr || impl->pkey == nullptr ||
       impl->ameth->pub_present == nullptr) {
     return 0;
   }
@@ -408,8 +417,7 @@ int EVP_PKEY_has_public(const EVP_PKEY *pkey) {
 
 int EVP_PKEY_has_private(const EVP_PKEY *pkey) {
   auto *impl = FromOpaque(pkey);
-
-  if (impl == nullptr || impl->ameth == nullptr ||
+  if (impl == nullptr || impl->ameth == nullptr || impl->pkey == nullptr ||
       impl->ameth->priv_present == nullptr) {
     return 0;
   }

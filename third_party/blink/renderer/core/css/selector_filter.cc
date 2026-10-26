@@ -64,10 +64,10 @@ inline void CollectElementIdentifierHashes(const Element& element,
                                      Element::kExcludeStandardAttributesOnly)) {
       continue;
     }
-    if (attribute_name.IsLowerASCII()) {
+    if (attribute_name.ContainsNoAsciiUpper()) {
       func(attribute_name.Hash() * kAttributeSalt);
     } else {
-      func(attribute_name.LowerASCII().Hash() * kAttributeSalt);
+      func(attribute_name.ToAsciiLower().Hash() * kAttributeSalt);
     }
   }
 }
@@ -108,9 +108,7 @@ inline void CollectDescendantSelectorIdentifierHashes(
         break;
       }
       const AtomicString& attribute_name = selector.Attribute().LocalName();
-      auto lower_name = attribute_name.IsLowerASCII()
-                            ? attribute_name
-                            : attribute_name.LowerASCII();
+      auto lower_name = attribute_name.ToAsciiLower();
       hashes.push_back(lower_name.Hash() * kAttributeSalt);
     } break;
     case CSSSelector::kPseudoClass:

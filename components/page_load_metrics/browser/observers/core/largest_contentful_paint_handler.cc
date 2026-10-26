@@ -78,15 +78,6 @@ void MergeForSubframesWithAdjustedTime(
       merged_candidate.ImageLoadEnd());
 }
 
-void Reset(ContentfulPaintTimingInfo& timing) {
-  timing.Reset(std::nullopt, 0u, blink::LargestContentfulPaintType::kNone,
-               /*image_bpp=*/0.0,
-               /*image_request_priority=*/std::nullopt,
-               /*image_discovery_time=*/std::nullopt,
-               /*image_load_start=*/std::nullopt,
-               /*image_load_end=*/std::nullopt);
-}
-
 bool IsSameSite(const GURL& url1, const GURL& url2) {
   // We can't use SiteInstance::IsSameSiteWithURL() because both mainframe and
   // subframe are under default SiteInstance on low-end Android environment, and
@@ -206,6 +197,15 @@ void ContentfulPaintTimingInfo::Reset(
   image_load_end_ = image_load_end;
 }
 
+void ContentfulPaintTimingInfo::Clear() {
+  Reset(std::nullopt, 0u, blink::LargestContentfulPaintType::kNone,
+        /*image_bpp=*/0.0,
+        /*image_request_priority=*/std::nullopt,
+        /*image_discovery_time=*/std::nullopt,
+        /*image_load_start=*/std::nullopt,
+        /*image_load_end=*/std::nullopt);
+}
+
 ContentfulPaint::ContentfulPaint(bool in_main_frame,
                                  blink::LargestContentfulPaintType type)
     : text_(ContentfulPaintTimingInfo::LargestContentTextOrImage::kText,
@@ -218,6 +218,11 @@ ContentfulPaint::ContentfulPaint(bool in_main_frame,
 const ContentfulPaintTimingInfo& ContentfulPaint::MergeTextAndImageTiming()
     const {
   return MergeTimingsBySizeAndTime(text_, image_);
+}
+
+void ContentfulPaint::Clear() {
+  Text().Clear();
+  Image().Clear();
 }
 
 // static
@@ -261,9 +266,6 @@ LargestContentfulPaintHandler::LargestContentfulPaintHandler()
                                  blink::LargestContentfulPaintType::kNone),
       cross_site_subframe_contentful_paint_(
           false /*in_main_frame*/,
-          blink::LargestContentfulPaintType::kNone),
-      soft_navigation_contentful_paint_candidate_(
-          false,
           blink::LargestContentfulPaintType::kNone) {}
 
 LargestContentfulPaintHandler::~LargestContentfulPaintHandler() = default;
@@ -275,36 +277,6 @@ LargestContentfulPaintHandler::MergeMainFrameAndSubframes() const {
   const ContentfulPaintTimingInfo& subframe_timing =
       subframe_contentful_paint_.MergeTextAndImageTiming();
   return MergeTimingsBySizeAndTime(main_frame_timing, subframe_timing);
-}
-
-void LargestContentfulPaintHandler::UpdateSoftNavigationLargestContentfulPaint(
-    const page_load_metrics::mojom::LargestContentfulPaintTiming&
-        largest_contentful_paint) {
-  if (largest_contentful_paint.largest_text_paint.has_value()) {
-    // Image load start/end are not applicable to text LCP elements.
-    soft_navigation_contentful_paint_candidate_.Text().Reset(
-        largest_contentful_paint.largest_text_paint,
-        largest_contentful_paint.largest_text_paint_size,
-        static_cast<blink::LargestContentfulPaintType>(
-            largest_contentful_paint.type),
-        /*image_bpp=*/0.0,
-        /*image_request_priority=*/std::nullopt,
-        /*image_discovery_time=*/std::nullopt,
-        /*image_load_start=*/std::nullopt,
-        /*image_load_end=*/std::nullopt);
-  }
-  if (largest_contentful_paint.largest_image_paint.has_value()) {
-    soft_navigation_contentful_paint_candidate_.Image().Reset(
-        largest_contentful_paint.largest_image_paint,
-        largest_contentful_paint.largest_image_paint_size,
-        static_cast<blink::LargestContentfulPaintType>(
-            largest_contentful_paint.type),
-        largest_contentful_paint.image_bpp,
-        GetImageRequestPriority(largest_contentful_paint),
-        largest_contentful_paint.resource_load_timings->discovery_time,
-        largest_contentful_paint.resource_load_timings->load_start,
-        largest_contentful_paint.resource_load_timings->load_end);
-  }
 }
 
 void LargestContentfulPaintHandler::RecordMainFrameTiming(
@@ -445,17 +417,17 @@ void LargestContentfulPaintHandler::UpdateFirstInputOrScrollNotified(
     // consistently the case when a click on the main frame produces a new
     // iframe which contains the largest content so far.
     if (!IsValid(main_frame_contentful_paint_.Text().Time()))
-      Reset(main_frame_contentful_paint_.Text());
+      main_frame_contentful_paint_.Text().Clear();
     if (!IsValid(main_frame_contentful_paint_.Image().Time()))
-      Reset(main_frame_contentful_paint_.Image());
+      main_frame_contentful_paint_.Image().Clear();
     if (!IsValid(subframe_contentful_paint_.Text().Time()))
-      Reset(subframe_contentful_paint_.Text());
+      subframe_contentful_paint_.Text().Clear();
     if (!IsValid(subframe_contentful_paint_.Image().Time()))
-      Reset(subframe_contentful_paint_.Image());
+      subframe_contentful_paint_.Image().Clear();
     if (!IsValid(cross_site_subframe_contentful_paint_.Text().Time()))
-      Reset(cross_site_subframe_contentful_paint_.Text());
+      cross_site_subframe_contentful_paint_.Text().Clear();
     if (!IsValid(cross_site_subframe_contentful_paint_.Image().Time()))
-      Reset(cross_site_subframe_contentful_paint_.Image());
+      cross_site_subframe_contentful_paint_.Image().Clear();
   }
 }
 

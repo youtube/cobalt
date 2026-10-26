@@ -37,6 +37,7 @@
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
 #import "ios/chrome/browser/shared/public/commands/browser_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/picture_in_picture_commands.h"
 #import "ios/chrome/browser/shared/public/commands/popup_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
@@ -142,6 +143,8 @@ class SettingsTableViewControllerTest
     // exist during tests, so if the tests call any commands they will fail.
     id mock_application_handler = OCMProtocolMock(@protocol(SceneCommands));
     id mock_settings_handler = OCMProtocolMock(@protocol(SettingsCommands));
+    id mock_browser_handler = OCMProtocolMock(@protocol(BrowserCommands));
+    id mock_pip_handler = OCMProtocolMock(@protocol(PictureInPictureCommands));
     id mock_snackbar_handler = OCMProtocolMock(@protocol(SnackbarCommands));
     mock_popup_menu_handler_ = OCMProtocolMock(@protocol(PopupMenuCommands));
 
@@ -150,8 +153,10 @@ class SettingsTableViewControllerTest
                              forProtocol:@protocol(SceneCommands)];
     [dispatcher startDispatchingToTarget:mock_settings_handler
                              forProtocol:@protocol(SettingsCommands)];
-    [dispatcher startDispatchingToTarget:mock_settings_handler
+    [dispatcher startDispatchingToTarget:mock_browser_handler
                              forProtocol:@protocol(BrowserCommands)];
+    [dispatcher startDispatchingToTarget:mock_pip_handler
+                             forProtocol:@protocol(PictureInPictureCommands)];
     [dispatcher startDispatchingToTarget:mock_snackbar_handler
                              forProtocol:@protocol(SnackbarCommands)];
     [dispatcher startDispatchingToTarget:mock_popup_menu_handler_

@@ -113,7 +113,6 @@
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 #include "ui/gfx/animation/keyframe/timing_function.h"
-#include "ui/gfx/color_utils.h"
 
 namespace blink {
 
@@ -1643,8 +1642,7 @@ CSSIdentifierValue* ConsumeIdentRange(CSSParserTokenStream& stream,
 
 // https://drafts.csswg.org/css-values-5/#ident
 CSSFunctionValue* ConsumeIdentFunction(CSSParserTokenStream& stream,
-                                       const CSSParserContext& context,
-                                       CSSParserLocalContext& local_context) {
+                                       const CSSParserContext& context) {
   CHECK(RuntimeEnabledFeatures::CSSIdentFunctionEnabled());
   if (stream.Peek().FunctionId() != CSSValueID::kIdent) {
     return nullptr;
@@ -1655,6 +1653,8 @@ CSSFunctionValue* ConsumeIdentFunction(CSSParserTokenStream& stream,
 
   HeapVector<Member<const CSSValue>, 4> values;
 
+  CSSParserLocalContext local_context =
+      CSSParserLocalContext::CreateWithoutPropertyForIdent();
   while (!stream.AtEnd()) {
     if (CSSValue* custom_ident =
             ConsumeCustomIdent(stream, context, local_context)) {
@@ -1669,6 +1669,10 @@ CSSFunctionValue* ConsumeIdentFunction(CSSParserTokenStream& stream,
             stream, context, local_context,
             /*minimum_value=*/-std::numeric_limits<double>::max(),
             /*is_percentage_allowed=*/false)) {
+      // TODO(crbug.com/488111037): Add support for random() inside ident().
+      if (integer_value->HasRandomFunctions()) {
+        return nullptr;
+      }
       values.push_back(integer_value);
       continue;
     }
@@ -1690,8 +1694,7 @@ CSSCustomIdentValue* ConsumeCustomIdent(CSSParserTokenStream& stream,
                                         const CSSParserContext& context,
                                         CSSParserLocalContext& local_context) {
   if (RuntimeEnabledFeatures::CSSIdentFunctionEnabled()) {
-    if (auto* ident_function =
-            ConsumeIdentFunction(stream, context, local_context)) {
+    if (auto* ident_function = ConsumeIdentFunction(stream, context)) {
       return MakeGarbageCollected<CSSCustomIdentValue>(*ident_function);
     }
   }
@@ -1821,35 +1824,29 @@ cssvalue::CSSURIValue* ConsumeUrl(CSSParserTokenStream& stream,
   return MakeGarbageCollected<cssvalue::CSSURIValue>(
       *CollectUrlData(url.Value(), context));
 }
+
+// https://drafts.csswg.org/css-navigation-1/#funcdef-url-pattern
 CSSURLPatternValue* ConsumeUrlPattern(CSSParserTokenStream& stream,
                                       const CSSParserContext& context) {
-  wtf_size_t value_start_offset = stream.LookAheadOffset();
-  stream.EnsureLookAhead();
-
-  CSSParserToken token = stream.Peek();
-  if (token.GetType() != kFunctionToken ||
-      token.FunctionId() != CSSValueID::kUrlPattern) {
+  // url-pattern( <string> )
+  if (stream.Peek().FunctionId() != CSSValueID::kUrlPattern) {
     return nullptr;
   }
 
-  {
-    CSSParserTokenStream::RestoringBlockGuard guard(stream);
-    stream.ConsumeWhitespace();
-    token = stream.ConsumeIncludingWhitespace();
-    if (token.GetType() == kBadStringToken || !stream.AtEnd()) {
-      return nullptr;
-    }
-    guard.Release();
+  CSSParserTokenStream::RestoringBlockGuard guard(stream);
+  stream.ConsumeWhitespace();
+  if (stream.Peek().GetType() != kStringToken) {
+    return nullptr;
   }
-  DCHECK_EQ(token.GetType(), kStringToken);
+  AtomicString value =
+      stream.ConsumeIncludingWhitespace().Value().ToAtomicString();
+  if (!guard.Release()) {
+    // Trailing junk after <string>.
+    return nullptr;
+  }
   stream.ConsumeWhitespace();
 
-  wtf_size_t value_end_offset = stream.LookAheadOffset();
-  if (stream.IsAttrTainted(value_start_offset, value_end_offset)) {
-    return nullptr;
-  }
-
-  return MakeGarbageCollected<CSSURLPatternValue>(AtomicString(token.Value()));
+  return MakeGarbageCollected<CSSURLPatternValue>(value);
 }
 
 struct ColorInterpolationSpace {
@@ -2000,8 +1997,10 @@ bool IsAllowedValueInParserContext(
     const CSSValue* value,
     const ColorParserContext& color_parser_context) {
   if (auto* primitive_value = DynamicTo<CSSPrimitiveValue>(value)) {
-    return color_parser_context.InElementContext() ||
-           !primitive_value->IsElementDependent();
+    return (color_parser_context.InElementContext() ||
+            !primitive_value->IsElementDependent()) &&
+           (color_parser_context.InPropertyContext() ||
+            !primitive_value->HasRandomFunctions());
   }
   return true;
 }
@@ -2128,6 +2127,8 @@ CSSValue* ConsumeContrastColorFunction(
   if (!color || !stream.AtEnd()) {
     return nullptr;
   }
+
+  context.Count(WebDXFeature::kContrastColor);
 
   guard.Release();
   stream.ConsumeWhitespace();
@@ -2278,13 +2279,13 @@ CSSValue* ConsumeAbsoluteColor(CSSParserTokenStream& stream,
                               ColorParserContext::AbsoluteColorContext());
 }
 
-CSSValue* ConsumeColorWithoutElementContext(
+CSSValue* ConsumeColorWithoutElementAndPropertyContext(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) {
   return ConsumeColorInternal(stream, context, local_context,
                               false /* accept_quirky_colors */,
-                              ColorParserContext::NoElementContext());
+                              ColorParserContext::NoElementNoPropertyContext());
 }
 
 CSSValue* ConsumeLineWidth(CSSParserTokenStream& stream,
@@ -2634,6 +2635,8 @@ static CSSValue* ConsumeDeprecatedGradientStopColor(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) {
+  CSSParserLocalContext::FunctionLocalContext function_context(
+      CSSValueID::kColorStop, local_context);
   if (stream.Peek().Id() == CSSValueID::kCurrentcolor) {
     return nullptr;
   }
@@ -2684,6 +2687,8 @@ static CSSValue* ConsumeDeprecatedGradient(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) {
+  CSSParserLocalContext::FunctionLocalContext function_context(
+      CSSValueID::kWebkitGradient, local_context);
   CSSValueID id = stream.Peek().Id();
   if (id != CSSValueID::kRadial && id != CSSValueID::kLinear) {
     return nullptr;
@@ -2858,6 +2863,8 @@ static CSSValue* ConsumeDeprecatedRadialGradient(
     const CSSParserContext& context,
     CSSParserLocalContext& local_context,
     cssvalue::CSSGradientRepeat repeating) {
+  CSSParserLocalContext::FunctionLocalContext function_context(
+      CSSValueID::kWebkitRadialGradient, local_context);
   CSSValue* center_x = nullptr;
   CSSValue* center_y = nullptr;
   ConsumeOneOrTwoValuedPosition(stream, context, local_context,
@@ -3251,6 +3258,8 @@ static CSSValue* ConsumeDeprecatedWebkitCrossFade(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) {
+  CSSParserLocalContext::FunctionLocalContext function_context(
+      CSSValueID::kWebkitCrossFade, local_context);
   CSSValue* from_image_value =
       ConsumeImageOrNone(stream, context, local_context);
   if (!from_image_value || !ConsumeCommaIncludingWhitespace(stream)) {
@@ -3710,7 +3719,7 @@ void AddProperty(CSSPropertyID resolved_property,
   bool set_from_shorthand = false;
 
   if (IsValidCSSPropertyID(current_shorthand)) {
-    Vector<StylePropertyShorthand, 4> shorthands;
+    MatchingShorthandsVector shorthands;
     getMatchingShorthandsForLonghand(resolved_property, &shorthands);
     set_from_shorthand = true;
     if (shorthands.size() > 1) {
@@ -3927,9 +3936,9 @@ bool ConsumeShorthandVia2Longhands(
   const StylePropertyShorthand::Properties& longhands = shorthand.properties();
   DCHECK_EQ(longhands.size(), 2u);
 
-  auto local_context =
-      CSSParserLocalContext(CSSPropertyName(longhands[0]->PropertyID()))
-          .WithCurrentShorthand(shorthand.id());
+  auto local_context = CSSParserLocalContext(
+      CSSPropertyName(longhands[0]->PropertyID()), shorthand.id(),
+      /*custom_function_name=*/g_null_atom);
 
   const CSSValue* start =
       ParseLonghand(longhands[0]->PropertyID(), context, local_context, stream);
@@ -3967,9 +3976,9 @@ bool ConsumeShorthandVia4Longhands(
   const StylePropertyShorthand::Properties& longhands = shorthand.properties();
   DCHECK_EQ(longhands.size(), 4u);
 
-  auto local_context =
-      CSSParserLocalContext(CSSPropertyName(longhands[0]->PropertyID()))
-          .WithCurrentShorthand(shorthand.id());
+  auto local_context = CSSParserLocalContext(
+      CSSPropertyName(longhands[0]->PropertyID()), shorthand.id(),
+      /*custom_function_name=*/g_null_atom);
 
   const CSSValue* top =
       ParseLonghand(longhands[0]->PropertyID(), context, local_context, stream);
@@ -4034,8 +4043,9 @@ bool ConsumeShorthandGreedilyViaLonghands(
       shorthand.properties();
   bool found_any = false;
   bool found_longhand;
-  auto local_context = CSSParserLocalContext(CSSPropertyName(shorthand.id()))
-                           .WithCurrentShorthand(shorthand.id());
+  auto local_context =
+      CSSParserLocalContext(CSSPropertyName(shorthand.id()), shorthand.id(),
+                            /*custom_function_name=*/g_null_atom);
   do {
     found_longhand = false;
     for (size_t i = 0; i < shorthand.length(); ++i) {
@@ -4127,31 +4137,41 @@ bool IsCSSWideKeyword(CSSValueID id) {
 
 // https://drafts.csswg.org/css-values-4/#css-wide-keywords
 bool IsCSSWideKeyword(StringView keyword) {
-  return EqualIgnoringASCIICase(keyword, "initial") ||
-         EqualIgnoringASCIICase(keyword, "inherit") ||
-         EqualIgnoringASCIICase(keyword, "unset") ||
-         EqualIgnoringASCIICase(keyword, "revert") ||
-         EqualIgnoringASCIICase(keyword, "revert-layer") ||
-         (EqualIgnoringASCIICase(keyword, "revert-rule") &&
+  return EqualIgnoringAsciiCase(keyword, "initial") ||
+         EqualIgnoringAsciiCase(keyword, "inherit") ||
+         EqualIgnoringAsciiCase(keyword, "unset") ||
+         EqualIgnoringAsciiCase(keyword, "revert") ||
+         EqualIgnoringAsciiCase(keyword, "revert-layer") ||
+         (EqualIgnoringAsciiCase(keyword, "revert-rule") &&
           RuntimeEnabledFeatures::CSSRevertRuleEnabled());
   // This function should match the overload before it.
 }
 
-bool IsInvalidFontFamily(const AtomicString& string) {
+bool FontFamilyNeedsQuoting(const AtomicString& string) {
+  // Returns true if the font family name must be quoted when serialized.
+  // Names that are CSS-wide keywords, 'default', generic families, or not
+  // valid CSS identifiers need quoting.
+  // When CSSFontFamilySerialization is enabled, use the ident-sequence
+  // check so that multi-word family names like "Twisty Tie" serialize as
+  // unquoted space-separated idents per w3c/csswg-drafts#5846.
+  bool can_serialize_unquoted =
+      RuntimeEnabledFeatures::CSSFontFamilySerializationEnabled()
+          ? IsCSSTokenizerIdentSequence(string)
+          : IsCSSTokenizerIdentifier(string);
   return (IsCSSWideKeyword(string) || IsDefaultKeyword(string) ||
           FontFamily::InferredTypeFor(string) ==
               FontFamily::Type::kGenericFamily ||
-          !IsCSSTokenizerIdentifier(string));
+          !can_serialize_unquoted);
 }
 
 // https://drafts.csswg.org/css-cascade/#default
 bool IsRevertKeyword(StringView keyword) {
-  return EqualIgnoringASCIICase(keyword, "revert");
+  return EqualIgnoringAsciiCase(keyword, "revert");
 }
 
 // https://drafts.csswg.org/css-values-4/#identifier-value
 bool IsDefaultKeyword(StringView keyword) {
-  return EqualIgnoringASCIICase(keyword, "default");
+  return EqualIgnoringAsciiCase(keyword, "default");
 }
 
 // https://drafts.csswg.org/css-syntax/#typedef-hash-token
@@ -4285,9 +4305,9 @@ CSSValue* ConsumeAnimationIterationCount(CSSParserTokenStream& stream,
 }
 
 bool IsValidIdentAnimationName(const AtomicString& name) {
-  return !EqualIgnoringASCIICase(name, "") &&
-         !EqualIgnoringASCIICase(name, "none") &&
-         !EqualIgnoringASCIICase(name, "default") && !IsCSSWideKeyword(name);
+  return !EqualIgnoringAsciiCase(name, "") &&
+         !EqualIgnoringAsciiCase(name, "none") &&
+         !EqualIgnoringAsciiCase(name, "default") && !IsCSSWideKeyword(name);
 }
 
 CSSValue* ConsumeAnimationName(CSSParserTokenStream& stream,
@@ -4369,6 +4389,9 @@ CSSValue* ConsumeViewFunction(CSSParserTokenStream& stream,
   if (stream.Peek().FunctionId() != CSSValueID::kView) {
     return nullptr;
   }
+
+  CSSParserLocalContext::FunctionLocalContext function_context(
+      CSSValueID::kView, local_context);
 
   CSSIdentifierValue* axis = nullptr;
   CSSValue* inset = nullptr;
@@ -6392,7 +6415,7 @@ CSSValue* ParseFontLanguageOverrideString(CSSParserTokenStream& stream) {
   while (end >= 0 && IsCSSSpace(language_override[end])) {
     --end;
   }
-  language_override = language_override.Substring(0, end + 1);
+  language_override = language_override.substr(0, end + 1);
 
   // "All tags are four-character strings composed of a limited set of ASCII
   // characters" per
@@ -6401,7 +6424,7 @@ CSSValue* ParseFontLanguageOverrideString(CSSParserTokenStream& stream) {
   // even though they allow tags shorter than four characters. This apparent
   // inconsistency is documented and justified here
   // https://bugzilla.mozilla.org/show_bug.cgi?id=1814408
-  if (!language_override.ContainsOnlyASCIIOrEmpty()) {
+  if (!language_override.ContainsOnlyAsciiOrEmpty()) {
     return nullptr;
   }
 
@@ -7660,9 +7683,8 @@ bool ConsumeGapDecorationsRuleEdgeInteriorInsetShorthand(
   rule_end_inset = nullptr;
 
   // Consume the first <length-percentage> value (required).
-  rule_start_inset = ConsumeLengthOrPercent(
-      stream, context, local_context, CSSPrimitiveValue::ValueRange::kAll);
-  if (!rule_start_inset) {
+  if (!ConsumeGapDecorationsRuleInsetStartEndShorthand(
+          important, context, local_context, stream, rule_start_inset)) {
     return false;
   }
 
@@ -7674,14 +7696,23 @@ bool ConsumeGapDecorationsRuleEdgeInteriorInsetShorthand(
   }
 
   // Consume the optional second <length-percentage> value.
-  rule_end_inset = ConsumeLengthOrPercent(stream, context, local_context,
-                                          CSSPrimitiveValue::ValueRange::kAll);
+  return ConsumeGapDecorationsRuleInsetStartEndShorthand(
+      important, context, local_context, stream, rule_end_inset);
+}
 
-  if (!rule_end_inset) {
-    return false;
-  }
+// Consuming the `*-rule-inset-start` and `*-rule-inset-end` shorthands
+// with syntax <length-percentage>
+bool ConsumeGapDecorationsRuleInsetStartEndShorthand(
+    bool important,
+    const CSSParserContext& context,
+    CSSParserLocalContext& local_context,
+    CSSParserTokenStream& stream,
+    CSSValue*& rule_inset_value) {
+  CHECK(RuntimeEnabledFeatures::CSSGapDecorationEnabled());
 
-  return true;
+  rule_inset_value = ConsumeLengthOrPercent(
+      stream, context, local_context, CSSPrimitiveValue::ValueRange::kAll);
+  return rule_inset_value != nullptr;
 }
 
 // Consuming the `rule-inset`, `column-rule-inset`, `row-rule-inset`
@@ -8437,6 +8468,9 @@ CSSValue* ConsumeRay(CSSParserTokenStream& stream,
   if (stream.Peek().FunctionId() != CSSValueID::kRay) {
     return nullptr;
   }
+
+  CSSParserLocalContext::FunctionLocalContext function_context(CSSValueID::kRay,
+                                                               local_context);
 
   CSSValue* value;
   {
@@ -9220,13 +9254,13 @@ CSSValue* ConsumeSingleContainerName(CSSParserTokenStream& stream,
     if (stream.Peek().Id() == CSSValueID::kNone) {
       return nullptr;
     }
-    if (EqualIgnoringASCIICase(stream.Peek().Value(), "not")) {
+    if (EqualIgnoringAsciiCase(stream.Peek().Value(), "not")) {
       return nullptr;
     }
-    if (EqualIgnoringASCIICase(stream.Peek().Value(), "and")) {
+    if (EqualIgnoringAsciiCase(stream.Peek().Value(), "and")) {
       return nullptr;
     }
-    if (EqualIgnoringASCIICase(stream.Peek().Value(), "or")) {
+    if (EqualIgnoringAsciiCase(stream.Peek().Value(), "or")) {
       return nullptr;
     }
   }
@@ -9277,8 +9311,7 @@ CSSValue* ConsumeContainerType(CSSParserTokenStream& stream,
         continue;
       }
     }
-    if (!anchored_value &&
-        RuntimeEnabledFeatures::CSSFallbackContainerQueriesEnabled()) {
+    if (!anchored_value) {
       anchored_value = ConsumeIdent<CSSValueID::kAnchored>(stream);
       if (anchored_value) {
         // TODO(https://crbug.com/417621241): Add use counter.
@@ -9344,11 +9377,11 @@ bool ShouldLowerCaseCounterStyleNameOnParse(const AtomicString& name,
                                             const CSSParserContext& context) {
   if (context.Mode() == kUASheetMode) {
     // Names in UA sheet should be already in lower case.
-    DCHECK_EQ(name, name.LowerASCII());
+    DCHECK_EQ(name, name.ToAsciiLower());
     return false;
   }
   return CounterStyleMap::GetUACounterStyleMap()->FindCounterStyleAcrossScopes(
-      name.LowerASCII());
+      name.ToAsciiLower());
 }
 
 CSSCustomIdentValue* ConsumeCounterStyleName(CSSParserTokenStream& stream,
@@ -9364,7 +9397,7 @@ CSSCustomIdentValue* ConsumeCounterStyleName(CSSParserTokenStream& stream,
 
   AtomicString name(name_token.Value().ToString());
   if (ShouldLowerCaseCounterStyleNameOnParse(name, context)) {
-    name = name.LowerASCII();
+    name = name.ToAsciiLower();
   }
   return MakeGarbageCollected<CSSCustomIdentValue>(name);
 }
@@ -9392,7 +9425,7 @@ AtomicString ConsumeCounterStyleNameInPrelude(CSSParserTokenStream& stream,
 
   AtomicString name(name_token.Value().ToString());
   if (ShouldLowerCaseCounterStyleNameOnParse(name, context)) {
-    name = name.LowerASCII();
+    name = name.ToAsciiLower();
   }
   stream.ConsumeIncludingWhitespace();
   return name;
@@ -9662,46 +9695,6 @@ struct PositionAreaKeyword {
 
 namespace {
 
-std::optional<PositionAreaKeyword> ConsumeLegacyPositionAreaKeyword(
-    CSSParserTokenStream& stream) {
-  CHECK(RuntimeEnabledFeatures::PositionAreaXYSelfEnabled());
-  PositionAreaKeyword::Type type = PositionAreaKeyword::kHorizontal;
-  CSSValueID value_id = stream.ConsumeIncludingWhitespace().Id();
-  switch (value_id) {
-    case CSSValueID::kXSelfStart:
-      value_id = CSSValueID::kSelfXStart;
-      break;
-    case CSSValueID::kXSelfEnd:
-      value_id = CSSValueID::kSelfXEnd;
-      break;
-    case CSSValueID::kSpanXSelfStart:
-      value_id = CSSValueID::kSpanSelfXStart;
-      break;
-    case CSSValueID::kSpanXSelfEnd:
-      value_id = CSSValueID::kSpanSelfXEnd;
-      break;
-    case CSSValueID::kYSelfStart:
-      value_id = CSSValueID::kSelfYStart;
-      type = PositionAreaKeyword::kVertical;
-      break;
-    case CSSValueID::kYSelfEnd:
-      value_id = CSSValueID::kSelfYEnd;
-      type = PositionAreaKeyword::kVertical;
-      break;
-    case CSSValueID::kSpanYSelfStart:
-      value_id = CSSValueID::kSpanSelfYStart;
-      type = PositionAreaKeyword::kVertical;
-      break;
-    case CSSValueID::kSpanYSelfEnd:
-      value_id = CSSValueID::kSpanSelfYEnd;
-      type = PositionAreaKeyword::kVertical;
-      break;
-    default:
-      NOTREACHED();
-  }
-  return PositionAreaKeyword(CSSIdentifierValue::Create(value_id), type);
-}
-
 }  // namespace
 
 std::optional<PositionAreaKeyword> ConsumePositionAreaKeyword(
@@ -9782,18 +9775,6 @@ std::optional<PositionAreaKeyword> ConsumePositionAreaKeyword(
     case CSSValueID::kSpanSelfEnd:
       type = PositionAreaKeyword::kSelfStartEnd;
       break;
-    case CSSValueID::kXSelfStart:
-    case CSSValueID::kXSelfEnd:
-    case CSSValueID::kSpanXSelfStart:
-    case CSSValueID::kSpanXSelfEnd:
-    case CSSValueID::kYSelfStart:
-    case CSSValueID::kYSelfEnd:
-    case CSSValueID::kSpanYSelfStart:
-    case CSSValueID::kSpanYSelfEnd:
-      if (RuntimeEnabledFeatures::PositionAreaXYSelfEnabled()) {
-        return ConsumeLegacyPositionAreaKeyword(stream);
-      }
-      return std::nullopt;
     default:
       return std::nullopt;
   }
@@ -9914,7 +9895,7 @@ bool MaybeConsumeImportant(CSSParserTokenStream& stream,
 
   // important
   if (stream.Peek().GetType() != kIdentToken ||
-      !EqualIgnoringASCIICase(stream.Peek().Value(), "important")) {
+      !EqualIgnoringAsciiCase(stream.Peek().Value(), "important")) {
     return false;
   }
   stream.ConsumeIncludingWhitespace();

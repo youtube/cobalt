@@ -33,6 +33,7 @@ import org.mockito.junit.MockitoRule;
 import org.chromium.base.Token;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.flags.ActivityType;
+import org.chromium.chrome.browser.flags.CustomTabProfileType;
 import org.chromium.chrome.browser.price_tracking.PriceTrackingFeatures;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.MockTab;
@@ -41,8 +42,6 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabLaunchType;
-import org.chromium.chrome.browser.tab.TabStateStorageService;
-import org.chromium.chrome.browser.tab.TabStateStorageServiceFactory;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
 import org.chromium.components.visited_url_ranking.url_grouping.TabSelectionCause;
@@ -76,10 +75,9 @@ public class TabCollectionTabModelImplUnitTest {
     @Mock private AsyncTabParamsManager mAsyncTabParamsManager;
     @Mock private TabRemover mTabRemover;
     @Mock private TabUngrouper mTabUngrouper;
+    @Mock private ScopedStorageBatch mScopedStorageBatch;
     @Mock private TabModelObserver mTabModelObserver;
     @Mock private PendingTabClosureManager mPendingTabClosureManager;
-    @Mock private TabStateStorageService mTabStateStorageService;
-    @Mock private ScopedStorageBatch mScopedStorageBatch;
 
     private TabCollectionTabModelImpl mTabModel;
 
@@ -99,6 +97,7 @@ public class TabCollectionTabModelImplUnitTest {
                         any(TabModelJniBridge.class),
                         eq(mProfile),
                         eq(ActivityType.TABBED),
+                        eq(null),
                         eq(TabModelType.STANDARD)))
                 .thenReturn(TAB_MODEL_JNI_BRIDGE_PTR);
 
@@ -106,13 +105,11 @@ public class TabCollectionTabModelImplUnitTest {
         when(mTabCollectionTabModelImplJni.init(any(), eq(mProfile)))
                 .thenReturn(TAB_COLLECTION_TAB_MODEL_IMPL_PTR);
 
-        TabStateStorageServiceFactory.setForTesting(mTabStateStorageService);
-        when(mTabStateStorageService.createBatch()).thenReturn(mScopedStorageBatch);
-
         mTabModel =
                 new TabCollectionTabModelImpl(
                         mProfile,
                         ActivityType.TABBED,
+                        /* customTabProfileType= */ null,
                         TabModelType.STANDARD,
                         mRegularTabCreator,
                         mIncognitoTabCreator,
@@ -123,6 +120,7 @@ public class TabCollectionTabModelImplUnitTest {
                         mAsyncTabParamsManager,
                         mTabRemover,
                         mTabUngrouper,
+                        () -> mScopedStorageBatch,
                         /* supportUndo= */ false);
         mTabModel.addObserver(mTabModelObserver);
 
@@ -210,7 +208,6 @@ public class TabCollectionTabModelImplUnitTest {
                                 /* index= */ 1,
                                 TabLaunchType.FROM_CHROME_UI,
                                 TabCreationState.LIVE_IN_FOREGROUND));
-        verify(mTabStateStorageService, atLeastOnce()).createBatch();
         verify(mScopedStorageBatch, atLeastOnce()).close();
     }
 
@@ -355,7 +352,8 @@ public class TabCollectionTabModelImplUnitTest {
         doReturn(false).when(mProfile).isOffTheRecord();
         doReturn(false).when(mProfile).isIncognitoBranded();
 
-        TabCollectionTabModelImpl model = getModel(mProfile, mTabModelDelegate);
+        TabCollectionTabModelImpl model =
+                getModel(mProfile, mTabModelDelegate, mScopedStorageBatch);
 
         model.setIndex(0, TabSelectionCause.FROM_USER);
         verify(mTabModelDelegate).selectModel(/* incognito= */ false);
@@ -366,7 +364,8 @@ public class TabCollectionTabModelImplUnitTest {
         doReturn(true).when(mProfile).isIncognitoBranded();
         reset(mTabModelDelegate);
 
-        TabCollectionTabModelImpl incognitoModel = getModel(mProfile, mTabModelDelegate);
+        TabCollectionTabModelImpl incognitoModel =
+                getModel(mProfile, mTabModelDelegate, mScopedStorageBatch);
 
         incognitoModel.setIndex(0, TabSelectionCause.FROM_USER);
         verify(mTabModelDelegate).selectModel(/* incognito= */ true);
@@ -377,7 +376,8 @@ public class TabCollectionTabModelImplUnitTest {
         doReturn(false).when(mProfile).isIncognitoBranded();
         reset(mTabModelDelegate);
 
-        TabCollectionTabModelImpl ephemeralModel = getModel(mProfile, mTabModelDelegate);
+        TabCollectionTabModelImpl ephemeralModel =
+                getModel(mProfile, mTabModelDelegate, mScopedStorageBatch);
 
         ephemeralModel.setIndex(0, TabSelectionCause.FROM_USER);
         verify(mTabModelDelegate).selectModel(/* incognito= */ true);
@@ -394,6 +394,7 @@ public class TabCollectionTabModelImplUnitTest {
                 new TabCollectionTabModelImpl(
                         mOtrProfile,
                         ActivityType.TABBED,
+                        /* customTabProfileType= */ null,
                         TabModelType.STANDARD,
                         mRegularTabCreator,
                         mIncognitoTabCreator,
@@ -404,6 +405,7 @@ public class TabCollectionTabModelImplUnitTest {
                         mAsyncTabParamsManager,
                         mTabRemover,
                         mTabUngrouper,
+                        () -> mScopedStorageBatch,
                         /* supportUndo= */ true);
 
         assertFalse(incognitoModel.supportsPendingClosures());
@@ -421,6 +423,7 @@ public class TabCollectionTabModelImplUnitTest {
                 new TabCollectionTabModelImpl(
                         mOtrProfile,
                         ActivityType.TABBED,
+                        /* customTabProfileType= */ null,
                         TabModelType.STANDARD,
                         mRegularTabCreator,
                         mIncognitoTabCreator,
@@ -431,6 +434,7 @@ public class TabCollectionTabModelImplUnitTest {
                         mAsyncTabParamsManager,
                         mTabRemover,
                         mTabUngrouper,
+                        () -> mScopedStorageBatch,
                         false);
 
         MockTab tab = createMockTab(123, mOtrProfile);
@@ -476,6 +480,7 @@ public class TabCollectionTabModelImplUnitTest {
                 new TabCollectionTabModelImpl(
                         mOtrProfile,
                         ActivityType.TABBED,
+                        /* customTabProfileType= */ null,
                         TabModelType.STANDARD,
                         mRegularTabCreator,
                         mIncognitoTabCreator,
@@ -486,6 +491,7 @@ public class TabCollectionTabModelImplUnitTest {
                         mAsyncTabParamsManager,
                         mTabRemover,
                         mTabUngrouper,
+                        () -> mScopedStorageBatch,
                         false);
 
         assertEquals(mIncognitoTabCreator, incognitoModel.getTabCreator());
@@ -599,11 +605,8 @@ public class TabCollectionTabModelImplUnitTest {
     }
 
     private void verifyBatchedAndReset() {
-        verify(mTabStateStorageService).createBatch();
         verify(mScopedStorageBatch).close();
-
-        reset(mTabStateStorageService, mScopedStorageBatch);
-        when(mTabStateStorageService.createBatch()).thenReturn(mScopedStorageBatch);
+        reset(mScopedStorageBatch);
     }
 
     private MockTab createMockTab(int tabId, Profile profile) {
@@ -613,10 +616,11 @@ public class TabCollectionTabModelImplUnitTest {
     }
 
     private static TabCollectionTabModelImpl getModel(
-            Profile profile, TabModelDelegate tabModelDelegate) {
+            Profile profile, TabModelDelegate tabModelDelegate, ScopedStorageBatch batch) {
         return new TabCollectionTabModelImpl(
                 profile,
                 ActivityType.CUSTOM_TAB,
+                CustomTabProfileType.REGULAR,
                 TabModelType.STANDARD,
                 null,
                 null,
@@ -627,6 +631,7 @@ public class TabCollectionTabModelImplUnitTest {
                 null,
                 null,
                 null,
+                () -> batch,
                 false);
     }
 }

@@ -2,15 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/gpu/vp8_decoder.h"
 
 #include <stddef.h>
 
+#include "base/containers/span.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/numerics/safe_conversions.h"
 #include "media/base/decoder_buffer.h"
@@ -18,6 +14,7 @@
 #include "media/base/video_codecs.h"
 #include "media/base/video_types.h"
 #include "media/gpu/vp8_picture.h"
+#include "testing/libfuzzer/libfuzzer_base_wrappers.h"
 
 namespace {
 
@@ -46,15 +43,15 @@ class FakeVP8Accelerator : public media::VP8Decoder::VP8Accelerator {
 
 }  // namespace
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  if (!size) {
+DEFINE_LLVM_FUZZER_TEST_ONE_INPUT_SPAN(
+    const base::span<const uint8_t> data_span) {
+  if (data_span.empty()) {
     return 0;
   }
 
   media::VP8Decoder decoder(std::make_unique<FakeVP8Accelerator>());
   auto external_memory =
-      std::make_unique<media::ExternalMemoryAdapterForTesting>(
-          base::span(data, size));
+      std::make_unique<media::ExternalMemoryAdapterForTesting>(data_span);
   scoped_refptr<media::DecoderBuffer> decoder_buffer =
       media::DecoderBuffer::FromExternalMemory(std::move(external_memory));
   decoder.SetStream(1, decoder_buffer);

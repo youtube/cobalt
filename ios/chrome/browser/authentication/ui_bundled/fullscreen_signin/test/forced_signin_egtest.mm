@@ -25,8 +25,8 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/policy/model/policy_earl_grey_utils.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
+#import "ios/chrome/browser/settings/google_services/manage_accounts/public/manage_accounts_table_view_controller_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/google_services_settings_constants.h"
-#import "ios/chrome/browser/settings/ui_bundled/google_services/manage_accounts/manage_accounts_table_view_controller_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_sync_settings_constants.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -117,8 +117,7 @@ void WaitForForcedSigninScreenAndSignin(FakeSystemIdentity* fakeIdentity) {
 
 // Opens account settings and signs out from them.
 void OpenAccountSettingsAndSignOut() {
-  [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI tapSettingsMenuButton:SettingsAccountButton()];
+  [SigninEarlGreyUI openSyncSettings];
   // We're now in the "manage sync" view, and the signout button is at the very
   // bottom. Scroll there.
   id<GREYMatcher> scrollViewMatcher =
@@ -469,8 +468,7 @@ void CompleteSigninFlow() {
       performAction:grey_tap()];
 
   // Open account settings and verify the content of the sign-out footer.
-  [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI tapSettingsMenuButton:SettingsAccountButton()];
+  [SigninEarlGreyUI openSyncSettings];
   [[EarlGrey
       selectElementWithMatcher:
           grey_allOf(

@@ -108,6 +108,7 @@
 #include "third_party/blink/renderer/core/html/html_image_element.h"
 #include "third_party/blink/renderer/core/html/html_slot_element.h"
 #include "third_party/blink/renderer/core/html/shadow/shadow_element_names.h"
+#include "third_party/blink/renderer/core/html/shadow/shadow_element_utils.h"
 #include "third_party/blink/renderer/core/html/track/text_track.h"
 #include "third_party/blink/renderer/core/html/track/text_track_cue.h"
 #include "third_party/blink/renderer/core/html/track/vtt/vtt_cue.h"
@@ -158,6 +159,12 @@ bool IsPseudoElementWithUAStyle(PseudoId pseudo_id) {
     case kPseudoIdScrollButtonBlockEnd:
     case kPseudoIdScrollMarker:
     case kPseudoIdOverscrollAreaParent:
+    case kPseudoIdViewTransition:
+    case kPseudoIdViewTransitionGroup:
+    case kPseudoIdViewTransitionGroupChildren:
+    case kPseudoIdViewTransitionImagePair:
+    case kPseudoIdViewTransitionOld:
+    case kPseudoIdViewTransitionNew:
       return true;
     default:
       return false;
@@ -661,11 +668,9 @@ namespace {
 
 inline ScopedStyleResolver* ScopedResolverFor(const Element& element) {
   TreeScope* tree_scope = &element.GetTreeScope();
-  if (RuntimeEnabledFeatures::Svg2CascadeEnabled()) {
-    if (const auto* svg_element = DynamicTo<SVGElement>(element)) {
-      if (SVGElement* corresponding = svg_element->CorrespondingElement()) {
-        tree_scope = &corresponding->GetTreeScope();
-      }
+  if (const auto* svg_element = DynamicTo<SVGElement>(element)) {
+    if (SVGElement* corresponding = svg_element->CorrespondingElement()) {
+      tree_scope = &corresponding->GetTreeScope();
     }
   }
   if (ScopedStyleResolver* resolver = tree_scope->GetScopedStyleResolver()) {
@@ -707,12 +712,12 @@ inline UAShadowPseudoResult UAShadowPseudoCascading(const Element& element) {
   // this (developer-expected) behavior to those existing
   // pseudo-elements.  (It's possible that we could, but it would
   // require a good bit of compatibility analysis.)
-  DCHECK(shadow_pseudo_id.empty() || !shadow_pseudo_id.StartsWith("-") ||
-         shadow_pseudo_id.StartsWith("-webkit-") ||
-         shadow_pseudo_id.StartsWith("-internal-"))
+  DCHECK(shadow_pseudo_id.empty() || !shadow_pseudo_id.starts_with("-") ||
+         shadow_pseudo_id.starts_with("-webkit-") ||
+         shadow_pseudo_id.starts_with("-internal-"))
       << "shadow pseudo IDs should either begin with -webkit- or -internal- "
          "or not begin with a -";
-  return {true, shadow_pseudo_id.StartsWith("-")};
+  return {true, shadow_pseudo_id.starts_with("-")};
 }
 
 // Matches :host and :host-context rules if the element is a shadow host.
@@ -740,15 +745,16 @@ void MatchSlottedRules(const Element&,
 void MatchSlottedRulesForUAHost(const Element& element,
                                 ElementRuleCollector& collector,
                                 StyleRuleUsageTracker* tracker) {
-  if (element.ShadowPseudoId() !=
-      shadow_element_names::kPseudoInputPlaceholder) {
+  if (shadow_element_utils::PseudoIdForShadowElementName(
+          element.ShadowPseudoId()) == kPseudoIdNone) {
     return;
   }
 
-  // We allow ::placeholder pseudo-element after ::slotted(). Since we are
-  // matching such pseudo-elements starting from inside the UA shadow DOM of
-  // the element having the placeholder, we need to match ::slotted rules from
-  // the scopes to which the placeholder's host element may be slotted.
+  // We allow UA shadow pseudo-elements such as ::placeholder after ::slotted().
+  // Since we are matching such pseudo-elements starting from inside the UA
+  // shadow DOM of the element having the placeholder, we need to match
+  // ::slotted rules from the scopes to which the placeholder's host element may
+  // be slotted.
   //
   // Example:
   //
@@ -1129,10 +1135,10 @@ void StyleResolver::ForEachUARulesForElement(const Element& element,
       default_style_sheets.DefaultPseudoElementStyleOrNull()) {
     func(default_style_sheets.DefaultPseudoElementStyleOrNull(),
          kPseudoElementUASheet);
-  } else if (IsTransitionPseudoElement(pseudo_id)) {
+  }
+  if (IsTransitionPseudoElement(pseudo_id)) {
     if (auto* rule_set =
-            GetDocument().GetStyleEngine().DefaultViewTransitionStyle(
-                element)) {
+            GetDocument().GetStyleEngine().ActiveViewTransitionStyle(element)) {
       func(rule_set, kViewTransitionUASheet);
     }
   }
@@ -1292,18 +1298,16 @@ void StyleResolver::MatchAllRules(StyleResolverState& state,
     // Now check SMIL animation override style.
     auto* svg_element = DynamicTo<SVGElement>(element);
     if (include_smil_properties && svg_element) {
-      if (RuntimeEnabledFeatures::Svg2CascadeEnabled()) {
-        if (SVGElement* corresponding = svg_element->CorrespondingElement()) {
-          // According to the spec[1], animations that are cloned into the <use>
-          // shadow tree, should run in that tree, while animations applied to
-          // the referenced element which are not cloned should have an instance
-          // in the <use> tree as if it was cloned.
-          //
-          // We apply the animations from the referenced subtree for now.
-          //
-          // [1] https://svgwg.org/svg2-draft/struct.html#UseAnimations
-          svg_element = corresponding;
-        }
+      if (SVGElement* corresponding = svg_element->CorrespondingElement()) {
+        // According to the spec[1], animations that are cloned into the <use>
+        // shadow tree, should run in that tree, while animations applied to
+        // the referenced element which are not cloned should have an instance
+        // in the <use> tree as if it was cloned.
+        //
+        // We apply the animations from the referenced subtree for now.
+        //
+        // [1] https://svgwg.org/svg2-draft/struct.html#UseAnimations
+        svg_element = corresponding;
       }
       collector.AddElementStyleProperties(
           svg_element->AnimatedSMILStyleProperties(), CascadeOrigin::kAuthor,
@@ -1753,7 +1757,8 @@ void StyleResolver::ApplyBaseStyleNoCache(
           {.origin = CascadeOrigin::kUserAgent});
     }
 
-    if (RuntimeEnabledFeatures::OverlayPropertyEnabled()) {
+    if (RuntimeEnabledFeatures::OverlayPropertyEnabled() &&
+        !RuntimeEnabledFeatures::OverlayGlobalRuleRemovalEnabled()) {
       // UA rule: * { overlay: none !important }
       // Implemented here because DCHECKs ensures we don't add universal rules
       // to the UA sheets. Note that this is a universal rule in any namespace.
@@ -1822,7 +1827,7 @@ void StyleResolver::ApplyBaseStyleNoCache(
         style_request.matching_behavior != kMatchAllRulesExcludingSMIL);
   }
 
-  const MatchResult& match_result = collector.MatchedResult();
+  const MatchResult& match_result = cascade.GetMatchResult();
 
   if (IsForPseudoElement(*element, style_request)) {
     if (!match_result.HasMatchedProperties()) {
@@ -1830,8 +1835,8 @@ void StyleResolver::ApplyBaseStyleNoCache(
     }
   }
 
-  const MatchResult& result = cascade.GetMatchResult();
-  CacheSuccess cache_success = ApplyMatchedCache(state, style_request, result);
+  CacheSuccess cache_success =
+      ApplyMatchedCache(state, style_request, match_result);
   ComputedStyleBuilder& builder = state.StyleBuilder();
 
   if (style_recalc_context.is_ensuring_style &&
@@ -2572,7 +2577,7 @@ bool StyleResolver::ApplyAnimatedStyle(
   if (!IsAnimationStyleChange(*animating_element) ||
       !state.StyleBuilder().BaseData()) {
     state.StyleBuilder().SetBaseData(StyleBaseData::Create(
-        state.StyleBuilder().CloneStyle(), cascade.GetImportantSet()));
+        state.StyleBuilder().CloneStyle(), cascade.ReleaseImportantSet()));
   }
 
   CSSAnimations::CalculateAnimationUpdate(
@@ -2618,6 +2623,15 @@ bool StyleResolver::ApplyAnimatedStyle(
     DCHECK(!state.GetFontBuilder().FontDirty());
   }
 
+  if (ElementAnimations* animations =
+          animating_element->GetElementAnimations()) {
+    if (StyleBaseData* base_data = state.StyleBuilder().BaseData()) {
+      if (const CSSBitset* important_set = base_data->GetBaseImportantSet()) {
+        animations->CancelCompositedAnimationsAffectingProperties(
+            *important_set);
+      }
+    }
+  }
   CSSAnimations::CalculateCompositorAnimationUpdate(
       state.AnimationUpdate(), *animating_element, element,
       *state.StyleBuilder().GetBaseComputedStyle(), state.ParentStyle(),
@@ -3004,7 +3018,7 @@ const ComputedStyle* StyleResolver::StyleForInterpolations(
 
   ApplyBaseStyle(&element, style_recalc_context, style_request, state, cascade);
   state.StyleBuilder().SetBaseData(StyleBaseData::Create(
-      state.StyleBuilder().CloneStyle(), cascade.GetImportantSet()));
+      state.StyleBuilder().CloneStyle(), cascade.ReleaseImportantSet()));
 
   ApplyInterpolations(state, cascade, interpolations);
   return state.TakeStyle();
@@ -3185,7 +3199,7 @@ void StyleResolver::UpdateMediaType() {
   if (LocalFrameView* view = GetDocument().View()) {
     bool was_print = print_media_type_;
     print_media_type_ =
-        EqualIgnoringASCIICase(view->MediaType(), media_type_names::kPrint);
+        EqualIgnoringAsciiCase(view->MediaType(), media_type_names::kPrint);
     if (was_print != print_media_type_) {
       matched_properties_cache_.ClearViewportDependent();
     }

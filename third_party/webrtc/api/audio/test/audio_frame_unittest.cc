@@ -88,7 +88,7 @@ TEST(AudioFrameTest, UnmutedFrameIsInitiallyZeroed) {
 TEST(AudioFrameTest, MutedFrameBufferIsZeroed) {
   AudioFrame frame;
   int16_t* frame_data =
-      frame.mutable_data(kSamplesPerChannel, kNumChannelsMono).begin();
+      frame.mutable_data(kSamplesPerChannel, kNumChannelsMono).data().data();
   EXPECT_FALSE(frame.muted());
   // Fill the reserved buffer with non-zero data.
   for (size_t i = 0; i < frame.max_16bit_samples(); i++) {

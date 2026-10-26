@@ -8,11 +8,13 @@
 #include <memory>
 #include <utility>
 
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/proto/web_app_os_integration_state.pb.h"
+#include "chrome/browser/web_applications/test/fake_web_app_origin_association_manager.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
@@ -26,10 +28,10 @@
 #include "chrome/browser/web_applications/web_app_management_type.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
-#include "chrome/common/chrome_features.h"
 #include "components/sync/base/time.h"
 #include "components/webapps/browser/install_result_code.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "url/gurl.h"
@@ -57,8 +59,14 @@ class InstallAppLocallyCommandTest : public WebAppTest {
     auto os_integration_manager = std::make_unique<OsIntegrationManager>(
         profile(), std::move(file_handler_manager),
         std::move(protocol_handler_manager));
-
     fake_provider().SetOsIntegrationManager(std::move(os_integration_manager));
+
+    auto origin_association_manager =
+        std::make_unique<FakeWebAppOriginAssociationManager>();
+    origin_association_manager->set_pass_through(true);
+    fake_provider().SetOriginAssociationManager(
+        std::move(origin_association_manager));
+
     test::AwaitStartWebAppProviderAndSubsystems(profile());
   }
 
@@ -83,9 +91,9 @@ class InstallAppLocallyCommandTest : public WebAppTest {
     info->user_display_mode = mojom::UserDisplayMode::kStandalone;
     info->icon_bitmaps.any = std::move(icon_map);
     if (install_state == proto::InstallState::SUGGESTED_FROM_MIGRATION) {
-      web_app::proto::WebAppMigrationSource source;
-      source.set_manifest_id("https://migration.example.com/start.html");
-      info->migration_sources.push_back(std::move(source));
+      info->migration_sources.emplace_back(
+          webapps::ManifestId(GURL("https://migration.example.com/start.html")),
+          MigrationBehavior::kSuggest);
     }
     base::test::TestFuture<const webapps::AppId&, webapps::InstallResultCode>
         result;
@@ -167,6 +175,9 @@ class InstallAppLocallyCommandTest : public WebAppTest {
  private:
   std::unique_ptr<OsIntegrationTestOverrideImpl::BlockingRegistration>
       test_override_;
+
+  base::test::ScopedFeatureList scoped_feature_list_{
+      blink::features::kWebAppMigrationApi};
 };
 
 TEST_F(InstallAppLocallyCommandTest, BasicBehavior) {

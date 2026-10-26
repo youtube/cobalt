@@ -12,8 +12,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
-#include "api/array_view.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
 #include "rtc_base/checks.h"
 
@@ -24,7 +24,7 @@ constexpr uint8_t kRtpVersion = 2;
 constexpr size_t kMinRtpPacketLen = 12;
 constexpr size_t kMinRtcpPacketLen = 4;
 
-bool HasCorrectRtpVersion(ArrayView<const uint8_t> packet) {
+bool HasCorrectRtpVersion(std::span<const uint8_t> packet) {
   return packet[0] >> 6 == kRtpVersion;
 }
 
@@ -35,27 +35,27 @@ bool PayloadTypeIsReservedForRtcp(uint8_t payload_type) {
 
 }  // namespace
 
-bool IsRtpPacket(ArrayView<const uint8_t> packet) {
+bool IsRtpPacket(std::span<const uint8_t> packet) {
   return packet.size() >= kMinRtpPacketLen && HasCorrectRtpVersion(packet) &&
          !PayloadTypeIsReservedForRtcp(packet[1] & 0x7F);
 }
 
-bool IsRtcpPacket(ArrayView<const uint8_t> packet) {
+bool IsRtcpPacket(std::span<const uint8_t> packet) {
   return packet.size() >= kMinRtcpPacketLen && HasCorrectRtpVersion(packet) &&
          PayloadTypeIsReservedForRtcp(packet[1] & 0x7F);
 }
 
-int ParseRtpPayloadType(ArrayView<const uint8_t> rtp_packet) {
+int ParseRtpPayloadType(std::span<const uint8_t> rtp_packet) {
   RTC_DCHECK(IsRtpPacket(rtp_packet));
   return rtp_packet[1] & 0x7F;
 }
 
-uint16_t ParseRtpSequenceNumber(ArrayView<const uint8_t> rtp_packet) {
+uint16_t ParseRtpSequenceNumber(std::span<const uint8_t> rtp_packet) {
   RTC_DCHECK(IsRtpPacket(rtp_packet));
   return ByteReader<uint16_t>::ReadBigEndian(rtp_packet.data() + 2);
 }
 
-uint32_t ParseRtpSsrc(ArrayView<const uint8_t> rtp_packet) {
+uint32_t ParseRtpSsrc(std::span<const uint8_t> rtp_packet) {
   RTC_DCHECK(IsRtpPacket(rtp_packet));
   return ByteReader<uint32_t>::ReadBigEndian(rtp_packet.data() + 8);
 }

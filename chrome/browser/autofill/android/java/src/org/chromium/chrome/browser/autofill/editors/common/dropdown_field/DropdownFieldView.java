@@ -60,6 +60,8 @@ public class DropdownFieldView implements FieldView {
     /**
      * Builds a dropdown view.
      *
+     * <p>TODO: crbug.com/489405975 - Remove PropertyModel references.
+     *
      * @param context The application context to use when creating widgets.
      * @param root The object that provides a set of LayoutParams values for the view.
      * @param fieldModel The data model of the dropdown.
@@ -126,7 +128,12 @@ public class DropdownFieldView implements FieldView {
     }
 
     public void setLabel(String label, boolean isRequired) {
-        mLabel.setText(isRequired ? label + FieldView.REQUIRED_FIELD_INDICATOR : label);
+        if (TextUtils.isEmpty(label)) {
+            mLabel.setVisibility(View.GONE);
+        } else {
+            mLabel.setVisibility(View.VISIBLE);
+            mLabel.setText(isRequired ? label + FieldView.REQUIRED_FIELD_INDICATOR : label);
+        }
     }
 
     public void setDropdownValues(List<String> values, @Nullable String hint) {

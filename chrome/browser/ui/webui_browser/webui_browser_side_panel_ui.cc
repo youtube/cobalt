@@ -7,10 +7,11 @@
 #include <optional>
 
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_waiter.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_waiter.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
+#include "chrome/browser/ui/side_panel/side_panel_registry.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_helper.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_web_ui_view.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
 #include "content/public/browser/web_contents.h"
@@ -34,8 +35,8 @@ WebUIBrowserSidePanelUI::WebUIBrowserSidePanelUI(Browser* browser)
   // coordinators are constructed prior to this call. For the remaining
   // global entries, we should either move construction to
   // BrowserWindowFeatures::Init() or else explicitly disable support.
-  SidePanelUtil::PopulateGlobalEntries(browser,
-                                       SidePanelRegistry::From(browser));
+  SidePanelHelper::PopulateGlobalEntries(browser,
+                                         SidePanelRegistry::From(browser));
 }
 
 WebUIBrowserSidePanelUI::~WebUIBrowserSidePanelUI() = default;
@@ -86,10 +87,10 @@ content::WebContents* WebUIBrowserSidePanelUI::GetWebContentsForId(
 
 void WebUIBrowserSidePanelUI::Show(
     const UniqueKey& input,
-    std::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger,
+    std::optional<SidePanelOpenTrigger> open_trigger,
     bool suppress_animations) {
   // Side panel is not supported for non-normal browsers.
-  if (!browser()->is_type_normal()) {
+  if (browser()->GetType() != Browser::Type::TYPE_NORMAL) {
     return;
   }
 
@@ -119,7 +120,7 @@ void WebUIBrowserSidePanelUI::Show(
 void WebUIBrowserSidePanelUI::PopulateSidePanel(
     bool suppress_animations,
     const UniqueKey& unique_key,
-    std::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger,
+    std::optional<SidePanelOpenTrigger> open_trigger,
     SidePanelEntry* entry,
     std::optional<std::unique_ptr<views::View>> content_view) {
   if (IsSidePanelShowing(entry->type())) {
@@ -178,7 +179,7 @@ void WebUIBrowserSidePanelUI::MaybeShowEntryOnTabStripModelChanged(
   }
 
   if (unique_key.has_value()) {
-    Show(*unique_key, SidePanelUtil::SidePanelOpenTrigger::kTabChanged,
+    Show(*unique_key, SidePanelOpenTrigger::kTabChanged,
          /*suppress_animations=*/true);
     return;
   }
@@ -192,7 +193,7 @@ void WebUIBrowserSidePanelUI::MaybeShowEntryOnTabStripModelChanged(
       current_key(panel_type)->tab_handle) {
     auto* active_entry =
         old_contextual_registry->GetActiveEntryFor(panel_type).value();
-    active_entry->CacheView(std::move(std::move(current_side_panel_view_)));
+    active_entry->CacheView(std::move(current_side_panel_view_));
     current_side_panel_view_.reset();
   }
 
@@ -229,5 +230,5 @@ void WebUIBrowserSidePanelUI::OnSidePanelClosed(
 }
 
 WebUIBrowserWindow* WebUIBrowserSidePanelUI::GetWebUIBrowserWindow() {
-  return static_cast<WebUIBrowserWindow*>(browser()->window());
+  return WebUIBrowserWindow::FromBrowser(browser());
 }

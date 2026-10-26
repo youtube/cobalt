@@ -29,7 +29,6 @@
 #include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
-#include "chrome/browser/ui/tabs/organization/tab_declutter_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/tab_group_sync_service_initialized_observer.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
@@ -45,6 +44,7 @@
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/test_browser_window.h"
 #include "chrome/test/base/testing_profile_manager.h"
+#include "components/os_crypt/async/browser/test_utils.h"
 #include "components/sessions/core/tab_restore_service_impl.h"
 #include "components/split_tabs/split_tab_id.h"
 #include "components/split_tabs/split_tab_visual_data.h"
@@ -93,18 +93,6 @@ constexpr char kTabName4[] = "Tab 4";
 constexpr char kTabName5[] = "Tab 5";
 constexpr char kTabName6[] = "Tab 6";
 
-class MockTabDeclutterController : public tabs::TabDeclutterController {
- public:
-  explicit MockTabDeclutterController(BrowserWindowInterface* browser)
-      : TabDeclutterController(browser) {}
-
-  MOCK_METHOD(std::vector<tabs::TabInterface*>, GetStaleTabs, (), (override));
-  MOCK_METHOD((std::map<GURL, std::vector<tabs::TabInterface*>>),
-              GetDuplicateTabs,
-              (),
-              (override));
-};
-
 class MockPage : public tab_search::mojom::Page {
  public:
   MockPage() = default;
@@ -116,25 +104,10 @@ class MockPage : public tab_search::mojom::Page {
   }
   mojo::Receiver<tab_search::mojom::Page> receiver_{this};
 
-  MOCK_METHOD(void,
-              TabOrganizationSessionUpdated,
-              (tab_search::mojom::TabOrganizationSessionPtr));
-  MOCK_METHOD(void,
-              TabOrganizationModelStrategyUpdated,
-              (tab_search::mojom::TabOrganizationModelStrategy));
   MOCK_METHOD(void, HostWindowChanged, ());
   MOCK_METHOD(void, TabsChanged, (tab_search::mojom::ProfileDataPtr));
   MOCK_METHOD(void, TabUpdated, (tab_search::mojom::TabUpdateInfoPtr));
   MOCK_METHOD(void, TabsRemoved, (tab_search::mojom::TabsRemovedInfoPtr));
-  MOCK_METHOD(void,
-              TabSearchSectionChanged,
-              (tab_search::mojom::TabSearchSection));
-  MOCK_METHOD(void,
-              TabOrganizationFeatureChanged,
-              (tab_search::mojom::TabOrganizationFeature));
-  MOCK_METHOD(void, ShowFREChanged, (bool));
-  MOCK_METHOD(void, TabOrganizationEnabledChanged, (bool));
-  MOCK_METHOD(void, UnusedTabsChanged, (tab_search::mojom::UnusedTabInfoPtr));
   MOCK_METHOD(void, TabUnsplit, ());
 };
 
@@ -215,17 +188,20 @@ class TabSearchPageHandlerTest : public BrowserWithTestWindowTest {
     browser1()->DidBecomeActive();
     webui_controller_ = std::make_unique<TabSearchUI>(web_ui());
 
-    // Handle any mock calls that might occur during the instantiation of the
-    // TabSearchPageHandler. Tests are able to override these calls with more
-    // specific EXPECT_CALLS.
-    EXPECT_CALL(page_, UnusedTabsChanged(testing::_))
-        .WillRepeatedly(testing::Return());
-
     handler_ = std::make_unique<TestTabSearchPageHandler>(
         page_.BindAndGetRemote(), web_ui(), webui_controller_.get());
     EXPECT_CALL(page_, HostWindowChanged()).Times(1);
-    feature_list_.InitWithFeatures(
-        {features::kTabstripDeclutter, features::kTabstripDedupe}, {});
+
+    os_crypt_async_ = os_crypt_async::GetTestOSCryptAsyncForTesting(true);
+
+    TabRestoreServiceFactory::GetInstance()->SetTestingFactory(
+        profile(),
+        base::BindRepeating(&TabSearchPageHandlerTest::GetTabRestoreService,
+                            os_crypt_async_.get()));
+    TabRestoreServiceFactory::GetInstance()->SetTestingFactory(
+        profile2(),
+        base::BindRepeating(&TabSearchPageHandlerTest::GetTabRestoreService,
+                            os_crypt_async_.get()));
 
     // Wait for the TabGroupSyncService to properly initialize before making any
     // changes to tab groups.
@@ -233,12 +209,12 @@ class TabSearchPageHandlerTest : public BrowserWithTestWindowTest {
   }
 
   void TearDown() override {
+    handler_.reset();
     browser1()->tab_strip_model()->CloseAllTabs();
     browser2()->tab_strip_model()->CloseAllTabs();
     browser3()->tab_strip_model()->CloseAllTabs();
     browser4()->tab_strip_model()->CloseAllTabs();
     browser5()->tab_strip_model()->CloseAllTabs();
-    handler_.reset();
     webui_controller_.reset();
     browser5_.reset();
     browser4_.reset();
@@ -272,11 +248,12 @@ class TabSearchPageHandlerTest : public BrowserWithTestWindowTest {
   bool IsTimerRunning() { return handler_->mock_debounce_timer()->IsRunning(); }
 
   static std::unique_ptr<KeyedService> GetTabRestoreService(
+      os_crypt_async::OSCryptAsync* os_crypt_async,
       content::BrowserContext* browser_context) {
     return std::make_unique<sessions::TabRestoreServiceImpl>(
         std::make_unique<ChromeTabRestoreServiceClient>(
             Profile::FromBrowserContext(browser_context)),
-        nullptr, nullptr);
+        nullptr, nullptr, os_crypt_async);
   }
 
   void WaitForTabGroupSyncServiceInitialized() {
@@ -311,6 +288,7 @@ class TabSearchPageHandlerTest : public BrowserWithTestWindowTest {
   }
 
   testing::StrictMock<MockPage> page_;
+  std::unique_ptr<os_crypt_async::OSCryptAsync> os_crypt_async_;
 
  private:
   std::unique_ptr<Browser> CreateTestBrowser(Profile* profile, bool popup) {
@@ -342,7 +320,7 @@ TEST_F(TabSearchPageHandlerTest, GetTabs) {
 
   EXPECT_CALL(page_, TabsChanged(_)).Times(1);
   EXPECT_CALL(page_, TabUpdated(_)).Times(2);
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(2);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(0);
   handler()->mock_debounce_timer()->Fire();
 
   int32_t tab_id2 = 0;
@@ -407,7 +385,7 @@ TEST_F(TabSearchPageHandlerTest, GetTabs) {
 
 TEST_F(TabSearchPageHandlerTest, TabActivationChangedByInteraction) {
   EXPECT_CALL(page_, TabUpdated(_)).Times(1);
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(1);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(0);
 
   AddTabWithTitle(browser1(), GURL(kTabUrl1), kTabName1);
   AddTabWithTitle(browser1(), GURL(kTabUrl2), kTabName2);
@@ -453,10 +431,6 @@ TEST_F(TabSearchPageHandlerTest, TabActivationChangedByInteraction) {
 
 TEST_F(TabSearchPageHandlerTest, TabsAndGroups) {
   ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
-
-  TabRestoreServiceFactory::GetInstance()->SetTestingFactory(
-      profile(),
-      base::BindRepeating(&TabSearchPageHandlerTest::GetTabRestoreService));
 
   // Add tabs to a browser.
   AddTabWithTitle(browser1(), GURL(kTabUrl1), kTabName1);
@@ -520,7 +494,7 @@ TEST_F(TabSearchPageHandlerTest, TabsAndGroups) {
   handler()->GetProfileData(std::move(callback2));
 
   EXPECT_CALL(page_, TabUpdated(_)).Times(1);
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(2);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(1);
 }
 
 TEST_F(TabSearchPageHandlerTest, MediaTabsTest) {
@@ -543,16 +517,11 @@ TEST_F(TabSearchPageHandlerTest, MediaTabsTest) {
           });
   handler()->GetProfileData(std::move(callback));
 
-  // Tab will be removed on tear down.
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(1);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(0);
 }
 
 TEST_F(TabSearchPageHandlerTest, RecentlyClosedTabGroup) {
   ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
-
-  TabRestoreServiceFactory::GetInstance()->SetTestingFactory(
-      profile(),
-      base::BindRepeating(&TabSearchPageHandlerTest::GetTabRestoreService));
 
   // Add tabs to a browser.
   AddTabWithTitle(browser1(), GURL(kTabUrl1), kTabName1);
@@ -602,15 +571,11 @@ TEST_F(TabSearchPageHandlerTest, RecentlyClosedTabGroup) {
   handler()->GetProfileData(std::move(callback));
 
   EXPECT_CALL(page_, TabUpdated(_)).Times(1);
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(2);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(1);
 }
 
 TEST_F(TabSearchPageHandlerTest, RecentlyClosedWindowWithGroupTabs) {
   ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
-
-  TabRestoreServiceFactory::GetInstance()->SetTestingFactory(
-      profile(),
-      base::BindRepeating(&TabSearchPageHandlerTest::GetTabRestoreService));
 
   // Add tabs to browser windows.
   AddTabWithTitle(browser1(), GURL(kTabUrl1), kTabName1);
@@ -656,7 +621,7 @@ TEST_F(TabSearchPageHandlerTest, RecentlyClosedWindowWithGroupTabs) {
   handler()->GetProfileData(std::move(callback));
 
   EXPECT_CALL(page_, TabUpdated(_)).Times(2);
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(2);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(1);
 }
 
 // Ensure that repeated tab model changes do not result in repeated calls to
@@ -665,7 +630,7 @@ TEST_F(TabSearchPageHandlerTest, RecentlyClosedWindowWithGroupTabs) {
 TEST_F(TabSearchPageHandlerTest, TabsChanged) {
   EXPECT_CALL(page_, TabsChanged(_)).Times(3);
   EXPECT_CALL(page_, TabUpdated(_)).Times(1);
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(3);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(1);
   FireTimer();  // Will call TabsChanged().
 
   // Add 2 tabs in browser1.
@@ -740,7 +705,7 @@ bool VerifyTabUpdated(
 TEST_F(TabSearchPageHandlerTest, TabUpdated) {
   EXPECT_CALL(page_, TabsChanged(_)).Times(1);
   EXPECT_CALL(page_, TabUpdated(Truly(VerifyTabUpdated))).Times(1);
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(1);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(0);
   AddTabWithTitle(browser1(), GURL(kTabUrl1), kTabName1);
   // Adding the following tab will trigger TabUpdated() to the first tab
   // since the tab index will change from 0 to 1
@@ -758,16 +723,13 @@ TEST_F(TabSearchPageHandlerTest, CloseTab) {
   const int tab_id =
       browser2()->tab_strip_model()->GetTabAtIndex(0)->GetHandle().raw_value();
   EXPECT_CALL(page_, TabUpdated(_)).Times(1);
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(3);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(1);
   handler()->CloseTab(tab_id);
   ASSERT_EQ(1, browser1()->tab_strip_model()->count());
   ASSERT_EQ(1, browser2()->tab_strip_model()->count());
 }
 
 TEST_F(TabSearchPageHandlerTest, RecentlyClosedTab) {
-  TabRestoreServiceFactory::GetInstance()->SetTestingFactory(
-      profile(),
-      base::BindRepeating(&TabSearchPageHandlerTest::GetTabRestoreService));
   AddTabWithTitle(browser1(), GURL(kTabUrl1), kTabName1);
   AddTabWithTitle(browser1(), GURL(kTabUrl2), kTabName2);
   AddTabWithTitle(browser2(), GURL(kTabUrl3), kTabName3);
@@ -778,6 +740,7 @@ TEST_F(TabSearchPageHandlerTest, RecentlyClosedTab) {
       browser1()->tab_strip_model()->GetTabAtIndex(0)->GetHandle().raw_value();
   handler()->CloseTab(tab_id);
   browser2()->tab_strip_model()->CloseAllTabs();
+  // Browser 3 is incognito so does not show up in TabsRemoved.
   browser3()->tab_strip_model()->CloseAllTabs();
   tab_search::mojom::PageHandler::GetProfileDataCallback callback =
       base::BindLambdaForTesting(
@@ -790,13 +753,10 @@ TEST_F(TabSearchPageHandlerTest, RecentlyClosedTab) {
           });
   handler()->GetProfileData(std::move(callback));
   EXPECT_CALL(page_, TabUpdated(_)).Times(2);
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(3);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(2);
 }
 
 TEST_F(TabSearchPageHandlerTest, OpenRecentlyClosedTab) {
-  TabRestoreServiceFactory::GetInstance()->SetTestingFactory(
-      profile(),
-      base::BindRepeating(&TabSearchPageHandlerTest::GetTabRestoreService));
   AddTabWithTitle(browser1(), GURL(kTabUrl1), kTabName1);
   AddTabWithTitle(browser1(), GURL(kTabUrl2), kTabName2);
 
@@ -829,14 +789,10 @@ TEST_F(TabSearchPageHandlerTest, OpenRecentlyClosedTab) {
           });
   handler()->GetProfileData(std::move(callback2));
   EXPECT_CALL(page_, TabUpdated(_)).Times(1);
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(2);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(1);
 }
 
 TEST_F(TabSearchPageHandlerTest, RecentlyClosedTabsHaveNoRepeatedURLEntry) {
-  TabRestoreServiceFactory::GetInstance()->SetTestingFactory(
-      profile(),
-      base::BindRepeating(&TabSearchPageHandlerTest::GetTabRestoreService));
-
   AddTabWithTitle(browser1(), GURL(kTabUrl1), kTabName1);
   AddTabWithTitle(browser1(), GURL(kTabUrl1), kTabName1);
   browser1()->tab_strip_model()->CloseAllTabs();
@@ -857,10 +813,6 @@ TEST_F(TabSearchPageHandlerTest, RecentlyClosedTabsHaveNoRepeatedURLEntry) {
 TEST_F(TabSearchPageHandlerTest,
        RecentlyClosedTabGroupsHaveNoRepeatedURLEntries) {
   ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
-
-  TabRestoreServiceFactory::GetInstance()->SetTestingFactory(
-      profile(),
-      base::BindRepeating(&TabSearchPageHandlerTest::GetTabRestoreService));
 
   // Add tabs to a browser.
   AddTabWithTitle(browser1(), GURL(kTabUrl1), kTabName1);
@@ -898,10 +850,6 @@ TEST_F(TabSearchPageHandlerTest,
 }
 
 TEST_F(TabSearchPageHandlerTest, RecentlyClosedTabEntriesFilterOpenTabUrls) {
-  TabRestoreServiceFactory::GetInstance()->SetTestingFactory(
-      profile(),
-      base::BindRepeating(&TabSearchPageHandlerTest::GetTabRestoreService));
-
   AddTabWithTitle(browser1(), GURL(kTabUrl1), kTabName1);
   AddTabWithTitle(browser1(), GURL(kTabUrl1), kTabName1);
 
@@ -909,7 +857,7 @@ TEST_F(TabSearchPageHandlerTest, RecentlyClosedTabEntriesFilterOpenTabUrls) {
       browser1()->tab_strip_model()->GetTabAtIndex(0)->GetHandle().raw_value();
   handler()->CloseTab(tab_id);
 
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(2);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(1);
   EXPECT_CALL(page_, TabUpdated(_)).Times(1);
 
   tab_search::mojom::PageHandler::GetProfileDataCallback callback1 =
@@ -925,10 +873,6 @@ TEST_F(TabSearchPageHandlerTest, RecentlyClosedTabEntriesFilterOpenTabUrls) {
 }
 
 TEST_F(TabSearchPageHandlerTest, RecentlyClosedSectionExpandedUserPref) {
-  TabRestoreServiceFactory::GetInstance()->SetTestingFactory(
-      profile(),
-      base::BindRepeating(&TabSearchPageHandlerTest::GetTabRestoreService));
-
   AddTabWithTitle(browser1(), GURL(kTabUrl1), kTabName1);
   AddTabWithTitle(browser1(), GURL(kTabUrl2), kTabName2);
 
@@ -936,7 +880,7 @@ TEST_F(TabSearchPageHandlerTest, RecentlyClosedSectionExpandedUserPref) {
       browser1()->tab_strip_model()->GetTabAtIndex(0)->GetHandle().raw_value();
   handler()->CloseTab(tab_id);
 
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(2);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(1);
   EXPECT_CALL(page_, TabUpdated(_)).Times(1);
 
   tab_search::mojom::PageHandler::GetProfileDataCallback callback1 =
@@ -958,402 +902,6 @@ TEST_F(TabSearchPageHandlerTest, RecentlyClosedSectionExpandedUserPref) {
             ASSERT_FALSE(profile_tabs->recently_closed_section_expanded);
           });
   handler()->GetProfileData(std::move(callback2));
-}
-
-TEST_F(TabSearchPageHandlerTest, TabDataToMojo) {
-  AddTabWithTitle(browser1(), GURL(kTabUrl1), kTabName1);
-  std::unique_ptr<TabData> tab_data = std::make_unique<TabData>(
-      browser1()->tab_strip_model()->GetTabAtIndex(0));
-  tab_search::mojom::TabPtr mojo_tab_ptr =
-      handler()->GetMojoForTabData(tab_data.get());
-
-  EXPECT_EQ(mojo_tab_ptr->url,
-            tab_data->tab()->GetContents()->GetLastCommittedURL());
-  const int tab_id =
-      browser1()->tab_strip_model()->GetTabAtIndex(0)->GetHandle().raw_value();
-  handler()->CloseTab(tab_id);
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(1);
-}
-
-TEST_F(TabSearchPageHandlerTest, TabOrganizationToMojo) {
-  std::unique_ptr<TabOrganization> organization =
-      std::make_unique<TabOrganization>(
-          std::vector<std::unique_ptr<TabData>>{},
-          std::vector<std::u16string>{u"default_name"});
-  tab_search::mojom::TabOrganizationPtr mojo_tab_org_ptr =
-      handler()->GetMojoForTabOrganization(organization.get());
-
-  EXPECT_EQ(mojo_tab_org_ptr->name, organization->GetDisplayName());
-  EXPECT_EQ(mojo_tab_org_ptr->organization_id, organization->organization_id());
-}
-
-TEST_F(TabSearchPageHandlerTest, TabOrganizationSessionToMojo) {
-  std::unique_ptr<TabOrganizationSession> session =
-      std::make_unique<TabOrganizationSession>();
-  tab_search::mojom::TabOrganizationSessionPtr mojo_session_ptr =
-      handler()->GetMojoForTabOrganizationSession(session.get());
-
-  EXPECT_EQ(mojo_session_ptr->session_id, session->session_id());
-}
-
-TEST_F(TabSearchPageHandlerTest, TabOrganizationSessionObservation) {
-  std::unique_ptr<TabOrganizationSession> session =
-      std::make_unique<TabOrganizationSession>();
-  EXPECT_CALL(page_, TabOrganizationSessionUpdated(_)).Times(3);
-  // Register it with the page handler under the same profile
-  handler()->OnSessionCreated(browser1(), session.get());
-
-  // Updating should notify the page.
-  handler()->OnTabOrganizationSessionUpdated(session.get());
-
-  // Destroying should notify the page.
-  session.reset();
-}
-
-TEST_F(TabSearchPageHandlerTest,
-       TabOrganizationSessionObservationWrongProfile) {
-  std::unique_ptr<TabOrganizationSession> session =
-      std::make_unique<TabOrganizationSession>();
-  EXPECT_CALL(page_, TabOrganizationSessionUpdated(_)).Times(0);
-  // Registering with the page handler in the wrong profile should not notify.
-  handler()->OnSessionCreated(browser4(), session.get());
-
-  // Updating should not notify the page.
-  handler()->OnTabOrganizationSessionUpdated(session.get());
-
-  // Destroying should not notify the page.
-  session.reset();
-}
-
-class TabSearchPageHandlerDeclutterTest : public TabSearchPageHandlerTest {
- public:
-  TabSearchPageHandlerDeclutterTest() = default;
-  ~TabSearchPageHandlerDeclutterTest() override = default;
-
-  void SetUp() override {
-    TabSearchPageHandlerTest::SetUp();
-
-    testing_profile_ = std::make_unique<TestingProfile>();
-    tab_strip_model_delegate_ =
-        std::make_unique<TabSearchTabStripModelDelegate>();
-    tab_strip_model_ = std::make_unique<TabStripModel>(
-        tab_strip_model_delegate_.get(), testing_profile_.get());
-
-    browser_window_interface_ = std::make_unique<MockBrowserWindowInterface>();
-    ON_CALL(*browser_window_interface_, GetUnownedUserDataHost())
-        .WillByDefault(::testing::ReturnRef(user_data_host_));
-    ON_CALL(*browser_window_interface_, GetTabStripModel())
-        .WillByDefault(::testing::Return(tab_strip_model_.get()));
-
-    tab_declutter_controller_ = std::make_unique<MockTabDeclutterController>(
-        browser_window_interface_.get());
-    tab_declutter_controller_->DidBecomeActive(browser_window_interface_.get());
-    handler()->SetTabDeclutterControllerForTesting(
-        tab_declutter_controller_.get());
-  }
-
-  void TearDown() override {
-    // Remove the tab declutter observation first.
-    handler()->SetTabDeclutterControllerForTesting(nullptr);
-
-    tab_declutter_controller_.reset();
-    tab_strip_model_.reset();
-    tab_strip_model_delegate_.reset();
-    testing_profile_.reset();
-    TabSearchPageHandlerTest::TearDown();
-  }
-
-  MockTabDeclutterController* tab_declutter_controller() {
-    return tab_declutter_controller_.get();
-  }
-  TabStripModel* fake_tab_strip_model() { return tab_strip_model_.get(); }
-  Profile* testing_profile() { return testing_profile_.get(); }
-
-  void CloseTab(int index) {
-    fake_tab_strip_model()->CloseWebContentsAt(index,
-                                               TabCloseTypes::CLOSE_NONE);
-  }
-
-  tabs::TabInterface* AppendBackgroundTab() {
-    std::unique_ptr<tabs::TabModel> tab_model =
-        std::make_unique<tabs::TabModel>(
-            content::WebContents::Create(
-                content::WebContents::CreateParams(testing_profile())),
-            fake_tab_strip_model());
-    tabs::TabFeatures* const tab_features = tab_model->GetTabFeatures();
-    tabs::TabInterface* const tab_interface = tab_model.get();
-    std::unique_ptr<TabUIHelper> tab_ui_helper =
-        tabs::TabFeatures::GetUserDataFactoryForTesting()
-            .CreateInstance<TabUIHelper>(*tab_interface, *tab_interface);
-    tab_features->SetTabUIHelperForTesting(std::move(tab_ui_helper));
-    std::unique_ptr<tabs::TabAlertController> tab_alert_controller =
-        tabs::TabFeatures::GetUserDataFactoryForTesting()
-            .CreateInstance<tabs::TabAlertController>(*tab_interface,
-                                                      *tab_interface);
-    tab_features->SetTabAlertControllerForTesting(
-        std::move(tab_alert_controller));
-    fake_tab_strip_model()->AppendTab(std::move(tab_model), false);
-    return tab_interface;
-  }
-
- private:
-  ui::UnownedUserDataHost user_data_host_;
-  std::unique_ptr<TestingProfile> testing_profile_;
-  std::unique_ptr<TabSearchTabStripModelDelegate> tab_strip_model_delegate_;
-  std::unique_ptr<TabStripModel> tab_strip_model_;
-  std::unique_ptr<MockTabDeclutterController> tab_declutter_controller_;
-  std::unique_ptr<MockBrowserWindowInterface> browser_window_interface_;
-  const tabs::TabModel::PreventFeatureInitializationForTesting prevent_;
-};
-
-TEST_F(TabSearchPageHandlerDeclutterTest, TabDeclutterFindUnusedTabs) {
-  EXPECT_CALL(page_, UnusedTabsChanged(_)).Times(1);
-
-  // Create stale tabs.
-  std::vector<tabs::TabInterface*> stale_tabs_raw_ptr;
-  for (int i = 0; i < 4; ++i) {
-    stale_tabs_raw_ptr.push_back(AppendBackgroundTab());
-  }
-
-  // Create duplicate tabs.
-  std::map<GURL, std::vector<tabs::TabInterface*>> duplicate_tabs;
-  GURL duplicate_tabs_url("https://duplicate_url.com");
-  for (int i = 0; i < 2; ++i) {
-    duplicate_tabs[duplicate_tabs_url].push_back(AppendBackgroundTab());
-  }
-
-  EXPECT_CALL(*tab_declutter_controller(), GetStaleTabs())
-      .WillOnce(testing::Return(stale_tabs_raw_ptr));
-
-  EXPECT_CALL(*tab_declutter_controller(), GetDuplicateTabs())
-      .WillOnce(testing::Return(duplicate_tabs));
-
-  tab_search::mojom::PageHandler::GetUnusedTabsCallback callback =
-      base::BindLambdaForTesting(
-          [&](tab_search::mojom::UnusedTabInfoPtr unused_tabs) {
-            // Verify stale tabs.
-            EXPECT_EQ(4u, unused_tabs->stale_tabs.size());
-
-            // Verify duplicate tabs.
-            auto it =
-                unused_tabs->duplicate_tabs.find(duplicate_tabs_url.spec());
-            ASSERT_NE(it, unused_tabs->duplicate_tabs.end());
-            EXPECT_EQ(2u, it->second.size());
-          });
-
-  handler()->GetUnusedTabs(std::move(callback));
-}
-
-TEST_F(TabSearchPageHandlerDeclutterTest, TabDeclutterExcludeTabs) {
-  EXPECT_CALL(page_, UnusedTabsChanged(_)).Times(2);
-
-  // Create stale tabs.
-  std::vector<tabs::TabInterface*> stale_tabs_raw_ptr;
-  for (int i = 0; i < 4; ++i) {
-    stale_tabs_raw_ptr.push_back(AppendBackgroundTab());
-  }
-
-  // Create duplicate tabs.
-  std::map<GURL, std::vector<tabs::TabInterface*>> duplicate_tabs;
-  GURL duplicate_tabs_url("https://duplicate_url.com");
-  for (int i = 0; i < 2; ++i) {
-    tabs::TabInterface* const tab_interface = AppendBackgroundTab();
-    auto navigation_simulator =
-        content::NavigationSimulator::CreateBrowserInitiated(
-            duplicate_tabs_url, tab_interface->GetContents());
-    navigation_simulator->Commit();
-    duplicate_tabs[duplicate_tabs_url].push_back(tab_interface);
-  }
-
-  EXPECT_CALL(*tab_declutter_controller(), GetStaleTabs())
-      .WillOnce(testing::Return(stale_tabs_raw_ptr));
-
-  EXPECT_CALL(*tab_declutter_controller(), GetDuplicateTabs())
-      .WillOnce(testing::Return(duplicate_tabs));
-
-  tab_search::mojom::PageHandler::GetUnusedTabsCallback callback =
-      base::BindLambdaForTesting(
-          [&](tab_search::mojom::UnusedTabInfoPtr unused_tabs) {
-            // Verify stale tabs.
-            EXPECT_EQ(4u, unused_tabs->stale_tabs.size());
-
-            // Verify duplicate tabs.
-            auto it =
-                unused_tabs->duplicate_tabs.find(duplicate_tabs_url.spec());
-            ASSERT_NE(it, unused_tabs->duplicate_tabs.end());
-            EXPECT_EQ(2u, it->second.size());
-          });
-
-  handler()->GetUnusedTabs(std::move(callback));
-
-  handler()->ExcludeFromDuplicateTabs(duplicate_tabs_url.GetWithoutRef());
-  EXPECT_TRUE(handler()->duplicate_tabs_for_testing().empty());
-}
-
-TEST_F(TabSearchPageHandlerDeclutterTest, TabDeclutterObserverTest) {
-  EXPECT_CALL(page_, UnusedTabsChanged(_)).Times(2);
-  std::vector<tabs::TabInterface*> stale_tabs_raw_ptr;
-
-  for (int i = 0; i < 4; ++i) {
-    stale_tabs_raw_ptr.push_back(AppendBackgroundTab());
-  }
-
-  std::map<GURL, std::vector<tabs::TabInterface*>> duplicate_tabs;
-  GURL duplicate_tabs_url("https://duplicate_url.com");
-  for (int i = 0; i < 2; ++i) {
-    duplicate_tabs[duplicate_tabs_url].push_back(AppendBackgroundTab());
-  }
-
-  EXPECT_CALL(*tab_declutter_controller(), GetStaleTabs())
-      .WillRepeatedly(testing::Return(stale_tabs_raw_ptr));
-
-  EXPECT_CALL(*tab_declutter_controller(), GetDuplicateTabs())
-      .WillRepeatedly(testing::Return(duplicate_tabs));
-
-  auto task_runner = base::MakeRefCounted<base::TestMockTimeTaskRunner>();
-  base::TestMockTimeTaskRunner::ScopedContext scoped_context(task_runner);
-  tab_declutter_controller()->SetTimerForTesting(
-      task_runner->GetMockTickClock(), task_runner);
-
-  task_runner->FastForwardBy(
-      tab_declutter_controller()->declutter_timer_interval());
-}
-
-TEST_F(TabSearchPageHandlerDeclutterTest, TabDeclutterUnusedTabChanges) {
-  EXPECT_CALL(page_, UnusedTabsChanged(_)).Times(::testing::AtLeast(1));
-  std::vector<tabs::TabInterface*> stale_tabs_raw_ptr;
-
-  // Create 10 stale tabs.
-  for (int i = 0; i < 10; ++i) {
-    stale_tabs_raw_ptr.push_back(AppendBackgroundTab());
-  }
-
-  // Create duplicate tabs.
-  std::map<GURL, std::vector<tabs::TabInterface*>> duplicate_tabs;
-  GURL duplicate_tabs_url("https://duplicate_url.com");
-  for (int i = 0; i < 5; ++i) {
-    tabs::TabInterface* const tab_interface = AppendBackgroundTab();
-    auto navigation_simulator =
-        content::NavigationSimulator::CreateBrowserInitiated(
-            duplicate_tabs_url, tab_interface->GetContents());
-    navigation_simulator->Commit();
-    duplicate_tabs[duplicate_tabs_url].push_back(tab_interface);
-  }
-
-  EXPECT_CALL(*tab_declutter_controller(), GetStaleTabs())
-      .WillRepeatedly(testing::Return(stale_tabs_raw_ptr));
-
-  EXPECT_CALL(*tab_declutter_controller(), GetDuplicateTabs())
-      .WillOnce(testing::Return(duplicate_tabs));
-
-  tab_search::mojom::PageHandler::GetUnusedTabsCallback callback =
-      base::BindLambdaForTesting(
-          [&](tab_search::mojom::UnusedTabInfoPtr unused_tabs) {
-            // Verify stale tabs.
-            EXPECT_EQ(10u, unused_tabs->stale_tabs.size());
-
-            // Verify duplicate tabs.
-            auto it =
-                unused_tabs->duplicate_tabs.find(duplicate_tabs_url.spec());
-            ASSERT_NE(it, unused_tabs->duplicate_tabs.end());
-            EXPECT_EQ(5u, it->second.size());
-          });
-
-  handler()->GetUnusedTabs(std::move(callback));
-
-  // Make a stale tab a part of a group. It should remove it from the internal
-  // stale tab list.
-  fake_tab_strip_model()->AddToNewGroup({1});
-  EXPECT_EQ(handler()->stale_tabs_for_testing().size(), 9u);
-
-  // Make a stale tab pinned. It should remove it from the internal stale tab
-  // list.
-  fake_tab_strip_model()->SetTabPinned(2, true);
-  EXPECT_EQ(handler()->stale_tabs_for_testing().size(), 8u);
-
-  // Activate a stale tab. It should remove it from the internal stale tab list.
-  fake_tab_strip_model()->ActivateTabAt(3);
-  EXPECT_EQ(handler()->stale_tabs_for_testing().size(), 7u);
-
-  // Detach a stale tab. It should remove it from the internal stale tab list.
-  CloseTab(4);
-  EXPECT_EQ(handler()->stale_tabs_for_testing().size(), 6u);
-
-  fake_tab_strip_model()->AddToNewGroup({fake_tab_strip_model()->count() - 1});
-  EXPECT_EQ(handler()->duplicate_tabs_for_testing()[duplicate_tabs_url].size(),
-            4u);
-
-  fake_tab_strip_model()->SetTabPinned(fake_tab_strip_model()->count() - 2,
-                                       true);
-  EXPECT_EQ(handler()->duplicate_tabs_for_testing()[duplicate_tabs_url].size(),
-            3u);
-
-  CloseTab(fake_tab_strip_model()->count() - 2);
-  EXPECT_EQ(handler()->duplicate_tabs_for_testing()[duplicate_tabs_url].size(),
-            2u);
-}
-
-TEST_F(TabSearchPageHandlerDeclutterTest, TabDuplicateURLChanges) {
-  EXPECT_CALL(page_, UnusedTabsChanged(_)).Times(::testing::AtLeast(1));
-  std::vector<tabs::TabInterface*> stale_tabs_raw_ptr;
-
-  // Create 10 stale tabs.
-  for (int i = 0; i < 10; ++i) {
-    stale_tabs_raw_ptr.push_back(AppendBackgroundTab());
-  }
-
-  // Create duplicate tabs.
-  std::map<GURL, std::vector<tabs::TabInterface*>> duplicate_tabs;
-  GURL duplicate_tabs_url("https://duplicate_url.com");
-  for (int i = 0; i < 5; ++i) {
-    tabs::TabInterface* const tab_interface = AppendBackgroundTab();
-
-    auto navigation_simulator =
-        content::NavigationSimulator::CreateBrowserInitiated(
-            duplicate_tabs_url, tab_interface->GetContents());
-    navigation_simulator->Commit();
-    duplicate_tabs[duplicate_tabs_url].push_back(tab_interface);
-  }
-
-  EXPECT_CALL(*tab_declutter_controller(), GetStaleTabs())
-      .WillRepeatedly(testing::Return(stale_tabs_raw_ptr));
-
-  EXPECT_CALL(*tab_declutter_controller(), GetDuplicateTabs())
-      .WillOnce(testing::Return(duplicate_tabs));
-
-  tab_search::mojom::PageHandler::GetUnusedTabsCallback callback =
-      base::BindLambdaForTesting(
-          [&](tab_search::mojom::UnusedTabInfoPtr unused_tabs) {
-            // Verify stale tabs.
-            EXPECT_EQ(10u, unused_tabs->stale_tabs.size());
-
-            // Verify duplicate tabs.
-            auto it =
-                unused_tabs->duplicate_tabs.find(duplicate_tabs_url.spec());
-            ASSERT_NE(it, unused_tabs->duplicate_tabs.end());
-            EXPECT_EQ(5u, it->second.size());
-          });
-
-  handler()->GetUnusedTabs(std::move(callback));
-
-  GURL new_url("https://duplicate_url_two.com");
-
-  auto navigation_simulator =
-      content::NavigationSimulator::CreateBrowserInitiated(
-          new_url, fake_tab_strip_model()
-                       ->GetTabAtIndex(fake_tab_strip_model()->count() - 1)
-                       ->GetContents());
-  navigation_simulator->Commit();
-
-  EXPECT_EQ(handler()->duplicate_tabs_for_testing()[duplicate_tabs_url].size(),
-            4u);
-
-  fake_tab_strip_model()->DiscardWebContentsAt(
-      fake_tab_strip_model()->count() - 2,
-      content::WebContents::Create(
-          content::WebContents::CreateParams(testing_profile())));
-  EXPECT_EQ(handler()->duplicate_tabs_for_testing()[duplicate_tabs_url].size(),
-            3u);
 }
 
 TEST_F(TabSearchPageHandlerTest, ReplaceActiveSplitTab) {
@@ -1391,7 +939,7 @@ TEST_F(TabSearchPageHandlerTest, ReplaceActiveSplitTab) {
             tabs_in_split_after_replacement[1]->GetContents()->GetURL().spec());
 
   EXPECT_CALL(page_, TabUpdated(_)).Times(3);
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(2);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(1);
 }
 
 TEST_F(TabSearchPageHandlerTest, TabSearchUsedPref) {
@@ -1421,9 +969,6 @@ TEST_F(TabSearchPageHandlerTest, TabSearchUsedPref) {
 
   // OpenRecentlyClosedEntry should set the pref.
   // We need to add an entry to the tab restore service first.
-  TabRestoreServiceFactory::GetInstance()->SetTestingFactory(
-      profile(),
-      base::BindRepeating(&TabSearchPageHandlerTest::GetTabRestoreService));
   AddTabWithTitle(browser1(), GURL(kTabUrl3), kTabName3);
   const int32_t tab_id3 =
       browser1()->tab_strip_model()->GetTabAtIndex(0)->GetHandle().raw_value();
@@ -1436,7 +981,7 @@ TEST_F(TabSearchPageHandlerTest, TabSearchUsedPref) {
   EXPECT_TRUE(prefs->GetBoolean(tab_search_prefs::kTabSearchUsed));
 
   EXPECT_CALL(page_, TabUpdated(_)).Times(2);
-  EXPECT_CALL(page_, TabsRemoved(_)).Times(3);
+  EXPECT_CALL(page_, TabsRemoved(_)).Times(2);
 }
 
 }  // namespace

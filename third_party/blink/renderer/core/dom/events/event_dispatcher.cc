@@ -36,6 +36,7 @@
 #include "third_party/blink/public/common/input/web_keyboard_event.h"
 #include "third_party/blink/public/web/web_local_frame_client.h"
 #include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
+#include "third_party/blink/renderer/core/ad_tracker/ad_tracker.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/events/event_dispatch_forbidden_scope.h"
 #include "third_party/blink/renderer/core/dom/events/event_dispatch_result.h"
@@ -51,7 +52,6 @@
 #include "third_party/blink/renderer/core/events/simulated_event_util.h"
 #include "third_party/blink/renderer/core/events/text_event.h"
 #include "third_party/blink/renderer/core/execution_context/agent.h"
-#include "third_party/blink/renderer/core/frame/ad_tracker.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
@@ -191,17 +191,11 @@ DispatchEventResult EventDispatcher::Dispatch() {
     // path.
     return DispatchEventResult::kNotCanceled;
   }
-  std::optional<EventTiming> eventTiming;
+
   auto& document = node_->GetDocument();
   LocalFrame* frame = document.GetFrame();
-  LocalDOMWindow* window = nullptr;
-  if (frame) {
-    window = frame->DomWindow();
-  }
 
-  if (frame && window) {
-    eventTiming = EventTiming::TryCreate(window, *event_, event_->RawTarget());
-  }
+  UIEventTiming event_timing(frame, *event_);
 
   if (event_->type() == event_type_names::kChange && event_->isTrusted() &&
       view_) {
@@ -211,14 +205,6 @@ DispatchEventResult EventDispatcher::Dispatch() {
 
   const bool is_click =
       event_->IsMouseEvent() && event_->type() == event_type_names::kClick;
-
-  std::optional<SoftNavigationHeuristics::EventScope> soft_navigation_scope;
-  if (window) {
-    if (auto* heuristics = window->GetSoftNavigationHeuristics()) {
-      soft_navigation_scope =
-          heuristics->MaybeCreateEventScopeForInputEvent(*event_);
-    }
-  }
 
   if (is_click && event_->isTrusted() && frame) {
     // A genuine mouse click cannot be triggered by script so we don't expect
@@ -249,7 +235,13 @@ DispatchEventResult EventDispatcher::Dispatch() {
   // activationTarget to parent.
   if (is_activation_event && !activation_target && event_->bubbles()) {
     wtf_size_t size = event_->GetEventPath().size();
-    for (wtf_size_t i = 1; i < size; ++i) {
+    // When node_ is a pseudo-element, CalculatePath() replaces it with its
+    // UltimateOriginatingElement() at path index 0 (pseudos are not exposed
+    // in the event path). That means path[0] is the originating element, not
+    // node_ itself, so we must start the search at i=0 to avoid skipping the
+    // originating element (e.g., <summary> whose ::marker was clicked).
+    const wtf_size_t start = node_->IsPseudoElement() ? 0 : 1;
+    for (wtf_size_t i = start; i < size; ++i) {
       Node& target = event_->GetEventPath()[i].GetNode();
       if (target.HasActivationBehavior()) {
         activation_target = &target;
@@ -455,7 +447,12 @@ inline void EventDispatcher::DispatchEventPostProcess(
     if (!event_->DefaultHandled() && !event_->defaultPrevented() &&
         event_->bubbles()) {
       wtf_size_t size = event_->GetEventPath().size();
-      for (wtf_size_t i = 1; i < size; ++i) {
+      // When node_ is a pseudo-element, CalculatePath() replaces it at path
+      // index 0 with its UltimateOriginatingElement() (pseudos are not exposed
+      // in the event path). Start at i=0 so the originating element's
+      // DefaultEventHandler is also invoked (e.g., <summary> for ::marker).
+      const wtf_size_t start = node_->IsPseudoElement() ? 0 : 1;
+      for (wtf_size_t i = start; i < size; ++i) {
         event_->GetEventPath()[i].GetNode().DefaultEventHandler(*event_);
         if (event_->DefaultHandled() || event_->defaultPrevented()) {
           break;

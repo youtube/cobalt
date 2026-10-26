@@ -66,6 +66,7 @@
 #include "content/public/browser/prerender_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
@@ -1007,6 +1008,11 @@ class HostedAppProcessModelTest : public HostedOrWebAppTest {
         embedded_test_server()->GetURL("cross.domain.com", "/title1.html");
   }
 
+  void TearDownOnMainThread() override {
+    process_map_ = nullptr;
+    HostedOrWebAppTest::TearDownOnMainThread();
+  }
+
   // Opens a popup from |rfh| to |url|, verifies whether it should stay in the
   // same process as |rfh| and whether it should be in an app process, and then
   // closes the popup.
@@ -1029,7 +1035,7 @@ class HostedAppProcessModelTest : public HostedOrWebAppTest {
               process_map_->Contains(new_rfh->GetProcess()->GetDeprecatedID()))
         << " for " << url << " from " << rfh->GetLastCommittedURL();
     EXPECT_EQ(expect_app_process,
-              new_rfh->GetSiteInstance()->GetSiteURL().SchemeIs(
+              new_rfh->GetSiteInstance()->GetSecurityPrincipal().SchemeIs(
                   extensions::kExtensionScheme))
         << " for " << url << " from " << rfh->GetLastCommittedURL();
 
@@ -1081,7 +1087,7 @@ class HostedAppProcessModelTest : public HostedOrWebAppTest {
       // When SiteInstanceGroups are enabled, same-process subframes may be in a
       // different SiteInstance from their parent.
       EXPECT_EQ(expect_app_process,
-                subframe->GetSiteInstance()->GetSiteURL().SchemeIs(
+                subframe->GetSiteInstance()->GetSecurityPrincipal().SchemeIs(
                     extensions::kExtensionScheme))
           << " for " << url << " from " << parent_rfh->GetLastCommittedURL();
     } else if (subframe->GetLastCommittedURL().SchemeIs(url::kDataScheme)) {
@@ -1103,7 +1109,7 @@ class HostedAppProcessModelTest : public HostedOrWebAppTest {
  protected:
   bool should_swap_for_cross_site_;
 
-  raw_ptr<extensions::ProcessMap, DanglingUntriaged> process_map_;
+  raw_ptr<extensions::ProcessMap> process_map_ = nullptr;
 
   GURL same_dir_url_;
   GURL diff_dir_url_;
@@ -1386,13 +1392,7 @@ IN_PROC_BROWSER_TEST_P(HostedAppProcessModelTest, PopupsInsideHostedApp) {
 // This test was flaky on Win7 because it was bumping up against a 45 second
 // timeout. If it starts flaking on Windows 10+, it should be broken up into
 // smaller tests. See https://crbug.com/40560649.
-// TODO(crbug.com/335469702): Flaky on Linux ChromiumOS MSAN.
-#if BUILDFLAG(IS_CHROMEOS) && defined(MEMORY_SANITIZER)
-#define MAYBE_FromOutsideHostedApp DISABLED_FromOutsideHostedApp
-#else
-#define MAYBE_FromOutsideHostedApp FromOutsideHostedApp
-#endif
-IN_PROC_BROWSER_TEST_P(HostedAppProcessModelTest, MAYBE_FromOutsideHostedApp) {
+IN_PROC_BROWSER_TEST_P(HostedAppProcessModelTest, FromOutsideHostedApp) {
   // Set up and launch the hosted app.
   GURL app_url =
       embedded_test_server()->GetURL("app.site.test", "/frame_tree/simple.htm");
@@ -1411,7 +1411,7 @@ IN_PROC_BROWSER_TEST_P(HostedAppProcessModelTest, MAYBE_FromOutsideHostedApp) {
     SCOPED_TRACE("... from diff_dir");
     ASSERT_TRUE(ui_test_utils::NavigateToURL(app_browser_, diff_dir_url_));
     RenderFrameHost* main_frame = web_contents->GetPrimaryMainFrame();
-    EXPECT_FALSE(main_frame->GetSiteInstance()->GetSiteURL().SchemeIs(
+    EXPECT_FALSE(main_frame->GetSiteInstance()->GetSecurityPrincipal().SchemeIs(
         extensions::kExtensionScheme));
     TestPopupProcess(main_frame, app_url, false, true);
     // Subframes in the app should not swap.
@@ -1427,7 +1427,7 @@ IN_PROC_BROWSER_TEST_P(HostedAppProcessModelTest, MAYBE_FromOutsideHostedApp) {
     SCOPED_TRACE("... from same_site");
     ASSERT_TRUE(ui_test_utils::NavigateToURL(app_browser_, same_site_url_));
     RenderFrameHost* main_frame = web_contents->GetPrimaryMainFrame();
-    EXPECT_FALSE(main_frame->GetSiteInstance()->GetSiteURL().SchemeIs(
+    EXPECT_FALSE(main_frame->GetSiteInstance()->GetSecurityPrincipal().SchemeIs(
         extensions::kExtensionScheme));
     TestPopupProcess(main_frame, app_url, false, true);
     // Subframes in the app should not swap.
@@ -1444,7 +1444,7 @@ IN_PROC_BROWSER_TEST_P(HostedAppProcessModelTest, MAYBE_FromOutsideHostedApp) {
     ASSERT_TRUE(
         ui_test_utils::NavigateToURL(app_browser_, isolated_url_outside_app_));
     RenderFrameHost* main_frame = web_contents->GetPrimaryMainFrame();
-    EXPECT_FALSE(main_frame->GetSiteInstance()->GetSiteURL().SchemeIs(
+    EXPECT_FALSE(main_frame->GetSiteInstance()->GetSecurityPrincipal().SchemeIs(
         extensions::kExtensionScheme));
     TestPopupProcess(main_frame, app_url, false, true);
     // Subframes in the app should swap process.
@@ -1460,7 +1460,7 @@ IN_PROC_BROWSER_TEST_P(HostedAppProcessModelTest, MAYBE_FromOutsideHostedApp) {
     SCOPED_TRACE("... from cross_site");
     ASSERT_TRUE(ui_test_utils::NavigateToURL(app_browser_, cross_site_url_));
     RenderFrameHost* main_frame = web_contents->GetPrimaryMainFrame();
-    EXPECT_FALSE(main_frame->GetSiteInstance()->GetSiteURL().SchemeIs(
+    EXPECT_FALSE(main_frame->GetSiteInstance()->GetSecurityPrincipal().SchemeIs(
         extensions::kExtensionScheme));
     TestPopupProcess(main_frame, app_url, false, true);
     // Subframes in the app should swap if the process model needs it.
@@ -1530,7 +1530,7 @@ IN_PROC_BROWSER_TEST_P(HostedAppProcessModelTest,
   EXPECT_TRUE(
       process_map_->Contains(main_frame->GetProcess()->GetDeprecatedID()));
   EXPECT_FALSE(main_frame->GetSiteInstance()->GetSiteURL().is_empty());
-  EXPECT_TRUE(main_frame->GetSiteInstance()->GetSiteURL().SchemeIs(
+  EXPECT_TRUE(main_frame->GetSiteInstance()->GetSecurityPrincipal().SchemeIs(
       extensions::kExtensionScheme));
   EXPECT_EQ(main_frame->GetSiteInstance()->GetSiteURL().GetHost(), app_id_);
 }
@@ -2096,8 +2096,8 @@ class HostedAppJitTestBase : public HostedAppProcessModelTest {
     EXPECT_EQ(jit_disabled_app_url, web_contents->GetLastCommittedURL());
     scoped_refptr<content::SiteInstance> site_instance =
         web_contents->GetPrimaryMainFrame()->GetSiteInstance();
-    EXPECT_TRUE(
-        site_instance->GetSiteURL().SchemeIs(extensions::kExtensionScheme));
+    EXPECT_TRUE(site_instance->GetSecurityPrincipal().SchemeIs(
+        extensions::kExtensionScheme));
     EXPECT_TRUE(site_instance->GetProcess()->IsJitDisabled());
 
     // Navigate main window to a jit-enabled.com app URL.
@@ -2107,8 +2107,8 @@ class HostedAppJitTestBase : public HostedAppProcessModelTest {
     web_contents = browser()->tab_strip_model()->GetActiveWebContents();
     EXPECT_EQ(jit_enabled_app_url, web_contents->GetLastCommittedURL());
     site_instance = web_contents->GetPrimaryMainFrame()->GetSiteInstance();
-    EXPECT_TRUE(
-        site_instance->GetSiteURL().SchemeIs(extensions::kExtensionScheme));
+    EXPECT_TRUE(site_instance->GetSecurityPrincipal().SchemeIs(
+        extensions::kExtensionScheme));
     EXPECT_FALSE(site_instance->GetProcess()->IsJitDisabled());
   }
 

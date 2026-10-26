@@ -41,7 +41,7 @@ class CloudPolicyInvalidator : public PolicyInvalidator {
   // |scope| indicates the invalidation scope that this invalidator
   // is responsible for.
   // |invalidation_listener| provides invalidations and is observed during the
-  // whole invaldiator's lifetime. Must remain valid until the invalidator is
+  // whole invalidator's lifetime. Must remain valid until the invalidator is
   // destroyed.
   // |core| is the cloud policy core which connects the various policy objects.
   // It must remain valid until Shutdown is called.
@@ -84,9 +84,6 @@ class CloudPolicyInvalidator : public PolicyInvalidator {
         PolicyInvalidationScope scope) override;
     const char* GetPolicyInvalidationMetricName(
         PolicyInvalidationScope scope) override;
-
-    // Returns the cloud policy store that is handled by this invalidator.
-    CloudPolicyStore* GetCloudPolicyStore() const override;
   };
 };
 

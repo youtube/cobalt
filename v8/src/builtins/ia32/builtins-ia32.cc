@@ -9,6 +9,7 @@
 #include "src/base/iterator.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
+#include "src/builtins/superspread.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
@@ -620,31 +621,29 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ j(equal, &prepare_step_in_suspended_generator);
   __ bind(&stepping_prepared);
 
-  // Check the stack for overflow. We are not trying to catch interruptions
-  // (i.e. debug break and preemption) here, so check the "real stack limit".
-  Label stack_overflow;
-  __ CompareStackLimit(esp, StackLimitKind::kRealStackLimit);
-  __ j(below, &stack_overflow);
+  // Copy the function arguments from the generator object's register file.
+  // TODO(olivf, 40931165): Load the parameter count from the JSDispatchTable.
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ movzx_w(
+      ecx, FieldOperand(ecx, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ dec(ecx);  // Exclude receiver.
 
-  // Pop return address.
-  __ PopReturnAddressTo(eax);
+  Label stack_overflow;
+  __ StackOverflowCheck(ecx, edi /* scratch */, &stack_overflow, true);
 
   // ----------- S t a t e -------------
   //  -- eax    : return address
   //  -- edx    : the JSGeneratorObject to resume
-  //  -- edi    : generator function
   //  -- esi    : generator context
+  //  -- ecx    : parameter count
   // -----------------------------------
+
+  // Pop return address.
+  __ PopReturnAddressTo(eax);
 
   {
     __ movd(xmm0, ebx);
 
-    // Copy the function arguments from the generator object's register file.
-    // TODO(olivf, 40931165): Load the parameter count from the JSDispatchTable.
-    __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-    __ movzx_w(ecx, FieldOperand(
-                        ecx, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ dec(ecx);  // Exclude receiver.
     __ mov(ebx,
            FieldOperand(edx, JSGeneratorObject::kParametersAndRegistersOffset));
     {
@@ -2463,8 +2462,30 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ TailCallBuiltin(target_builtin);
 
   __ bind(&stack_overflow);
+  // Rewrite the stack frame to capture target, arguments list and length
+  // Pop return address
+  __ pop(edx);
+  // - receiver already on the stack.
+  static_assert(SuperSpreadArgs::kReceiverOffsetFromEnd == 4);
+  // - target
+  static_assert(SuperSpreadArgs::kTargetOffsetFromEnd == 3);
+  __ movd(edi, xmm1);  // Restore target.
+  __ push(edi);
+  // - arguments list
+  static_assert(SuperSpreadArgs::kArglistOffsetFromEnd == 2);
+  __ push(kArgumentsList);
+  // - len of arguments list
+  static_assert(SuperSpreadArgs::kArglistLengthOffsetFromEnd == 1);
+  __ SmiTag(ecx);
+  __ push(ecx);
+  // - return address
+  __ Push(edx);
+  // - adjust arg count
+  __ add(eax, Immediate(SuperSpreadArgs::kNumExtraArgs - 1));
+
   __ movd(esi, xmm3);  // Restore the context.
-  __ TailCallRuntime(Runtime::kThrowStackOverflow);
+  __ movd(edx, xmm0);  // Restore new.target.
+  __ TailCallRuntime(Runtime::kVarargStackOverflow);
 }
 
 // static
@@ -3251,7 +3272,8 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
   }
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    bool is_return = fn == ExternalReference::wasm_return_stack();
+    bool is_return = fn == ExternalReference::wasm_return_jspi_stack() ||
+                     fn == ExternalReference::wasm_return_wasmfx_stack();
     int num_args = is_return ? 2 : maybe_suspender.is_valid() ? 6 : 5;
     DCHECK(!AreAliased(eax, old_stack, maybe_suspender));
     __ PrepareCallCFunction(num_args, eax);
@@ -3287,8 +3309,8 @@ void ReloadParentStack(MacroAssembler* masm, Register promise,
   __ mov(parent, Operand(active_stack, wasm::kStackParentOffset));
 
   // Switch stack!
-  SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
-               no_reg, {promise, return_value, context, parent});
+  SwitchStacks(masm, ExternalReference::wasm_return_jspi_stack(), parent,
+               nullptr, no_reg, {promise, return_value, context, parent});
   LoadJumpBuffer(masm, parent, false);
 }
 
@@ -3994,8 +4016,8 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ Pop(arg_buffer);
 
   Label ok;
-  __ cmp(target_stack, Immediate(0));
-  __ j(not_equal, &ok);
+  __ test(target_stack, target_stack);
+  __ j(not_zero, &ok);
   // No handler found.
   __ CallRuntime(Runtime::kThrowWasmFXSuspendError);
 
@@ -4017,8 +4039,8 @@ void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
   Register parent = edx;
   DCHECK_NE(arg_buffer, parent);
   __ Move(parent, MemOperand(active_stack, wasm::kStackParentOffset));
-  SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
-               no_reg, {parent, arg_buffer});
+  SwitchStacks(masm, ExternalReference::wasm_return_wasmfx_stack(), parent,
+               nullptr, no_reg, {parent, arg_buffer});
   LoadJumpBuffer(masm, parent, true);
   __ Trap();
 }

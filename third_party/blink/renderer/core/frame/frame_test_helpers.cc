@@ -81,6 +81,7 @@
 #include "third_party/blink/renderer/core/testing/fake_web_plugin.h"
 #include "third_party/blink/renderer/core/testing/mock_policy_container_host.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/loader/fetch/policy_container_utils.h"
 #include "third_party/blink/renderer/platform/network/http_parsers.h"
 #include "third_party/blink/renderer/platform/scheduler/public/main_thread_scheduler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread.h"
@@ -269,8 +270,9 @@ void PumpPendingRequestsForFrameToLoad(WebLocalFrame* frame) {
 void FillNavigationParamsResponse(WebNavigationParams* params) {
   KURL kurl(params->url);
   // Empty documents and srcdoc will be handled by DocumentLoader.
-  if (DocumentLoader::WillLoadUrlAsEmpty(kurl) || kurl.IsAboutSrcdocURL())
+  if (DocumentLoader::WillLoadUrlAsEmpty(kurl) || kurl.IsAboutSrcdocUrl()) {
     return;
+  }
   URLLoaderMockFactory::GetSingletonInstance()->FillNavigationParamsResponse(
       params);
 
@@ -283,7 +285,7 @@ void FillNavigationParamsResponse(WebNavigationParams* params) {
            params->response.ResponseUrl())) {
     params->policy_container->policies.sandbox_flags |= csp->sandbox;
     params->policy_container->policies.content_security_policies.emplace_back(
-        ConvertToPublic(std::move(csp)));
+        ToWebContentSecurityPolicy(*csp));
   }
 }
 
@@ -315,7 +317,9 @@ WebLocalFrameImpl* CreateLocalChild(
   auto* frame = To<WebLocalFrameImpl>(
       parent.CreateLocalChild(scope, client, nullptr, LocalFrameToken()));
   client->Bind(frame, std::move(owned_client));
-  finish_creation(frame, DocumentToken(), mojo::NullRemote());
+  finish_creation(frame, DocumentToken(), mojo::NullRemote(),
+                  std::make_unique<base::UnguessableToken>(
+                      base::UnguessableToken::Create()));
   return frame;
 }
 
@@ -333,7 +337,9 @@ WebLocalFrameImpl* CreateLocalChild(
   auto* frame = To<WebLocalFrameImpl>(
       parent.CreateLocalChild(scope, client, nullptr, LocalFrameToken()));
   client->Bind(frame, std::move(self_owned));
-  finish_creation(frame, DocumentToken(), mojo::NullRemote());
+  finish_creation(frame, DocumentToken(), mojo::NullRemote(),
+                  std::make_unique<base::UnguessableToken>(
+                      base::UnguessableToken::Create()));
   return frame;
 }
 
@@ -843,7 +849,9 @@ WebLocalFrame* TestWebFrameClient::CreateChildFrame(
   client->sandbox_flags_ = frame_policy.sandbox_flags;
   TestWebFrameClient* client_ptr = client.get();
   client_ptr->Bind(frame, std::move(client));
-  finish_creation(frame, DocumentToken(), mojo::NullRemote());
+  finish_creation(frame, DocumentToken(), mojo::NullRemote(),
+                  std::make_unique<base::UnguessableToken>(
+                      base::UnguessableToken::Create()));
   return frame;
 }
 
@@ -895,7 +903,7 @@ void TestWebFrameClient::CommitNavigation(
   auto params = WebNavigationParams::CreateFromInfo(*info);
 
   KURL url = info->url_request.Url();
-  if (url.IsAboutSrcdocURL()) {
+  if (url.IsAboutSrcdocUrl()) {
     params->fallback_base_url = info->requestor_base_url;
     TestWebFrameHelper::FillStaticResponseForSrcdocNavigation(frame_,
                                                               params.get());
@@ -914,6 +922,12 @@ void TestWebFrameClient::CommitNavigation(
   // and the included sandbox flags to commit, and then passed on within the
   // WebNavigationParams.
   params->policy_container->policies.sandbox_flags |= sandbox_flags();
+  if ((params->policy_container->policies.sandbox_flags &
+       network::mojom::blink::WebSandboxFlags::kOrigin) !=
+      network::mojom::blink::WebSandboxFlags::kNone) {
+    params->origin_to_commit = SecurityOrigin::Create(info->url_request.Url())
+                                   ->DeriveNewOpaqueOrigin();
+  }
   frame_->CommitNavigation(std::move(params), nullptr /* extra_data */);
 }
 

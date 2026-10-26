@@ -56,6 +56,7 @@
 #include "third_party/blink/renderer/core/dom/focusgroup_flags.h"
 #include "third_party/blink/renderer/core/dom/layout_tree_builder_traversal.h"
 #include "third_party/blink/renderer/core/dom/node_traversal.h"
+#include "third_party/blink/renderer/core/dom/popover_data.h"
 #include "third_party/blink/renderer/core/dom/pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/qualified_name.h"
 #include "third_party/blink/renderer/core/dom/range.h"
@@ -77,9 +78,7 @@
 #include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/html/canvas/image_data.h"
 #include "third_party/blink/renderer/core/html/custom/element_internals.h"
-#include "third_party/blink/renderer/core/html/fenced_frame/html_fenced_frame_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_button_element.h"
-#include "third_party/blink/renderer/core/html/forms/html_data_list_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_field_set_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
@@ -1154,6 +1153,9 @@ AXObjectInclusion AXNodeObject::ShouldIncludeBasedOnSemantics(
           ax::mojom::blink::Role::kMathMLUnderOver,
           ax::mojom::blink::Role::kMeter,
           ax::mojom::blink::Role::kMenuBar,
+          ax::mojom::blink::Role::kMenuItem,
+          ax::mojom::blink::Role::kMenuItemCheckBox,
+          ax::mojom::blink::Role::kMenuItemRadio,
           ax::mojom::blink::Role::kMenuListOption,
           ax::mojom::blink::Role::kMenuListPopup,
           ax::mojom::blink::Role::kNavigation,
@@ -1716,12 +1718,14 @@ ax::mojom::blink::Role AXNodeObject::DetermineTableCellRole() const {
 
   const AtomicString& scope =
       GetElement()->FastGetAttribute(html_names::kScopeAttr);
-  if (EqualIgnoringASCIICase(scope, "row") ||
-      EqualIgnoringASCIICase(scope, "rowgroup"))
+  if (EqualIgnoringAsciiCase(scope, "row") ||
+      EqualIgnoringAsciiCase(scope, "rowgroup")) {
     return ax::mojom::blink::Role::kRowHeader;
-  if (EqualIgnoringASCIICase(scope, "col") ||
-      EqualIgnoringASCIICase(scope, "colgroup"))
+  }
+  if (EqualIgnoringAsciiCase(scope, "col") ||
+      EqualIgnoringAsciiCase(scope, "colgroup")) {
     return ax::mojom::blink::Role::kColumnHeader;
+  }
 
   return DecideRoleFromSiblings(GetElement());
 }
@@ -1832,13 +1836,13 @@ ax::mojom::blink::SortDirection AXNodeObject::GetSortDirection() const {
 
   if (const AtomicString& aria_sort =
           AriaTokenAttribute(html_names::kAriaSortAttr)) {
-    if (EqualIgnoringASCIICase(aria_sort, "none")) {
+    if (EqualIgnoringAsciiCase(aria_sort, "none")) {
       return ax::mojom::blink::SortDirection::kNone;
     }
-    if (EqualIgnoringASCIICase(aria_sort, "ascending")) {
+    if (EqualIgnoringAsciiCase(aria_sort, "ascending")) {
       return ax::mojom::blink::SortDirection::kAscending;
     }
-    if (EqualIgnoringASCIICase(aria_sort, "descending")) {
+    if (EqualIgnoringAsciiCase(aria_sort, "descending")) {
       return ax::mojom::blink::SortDirection::kDescending;
     }
     // Technically, illegal values should be exposed as is, but this does
@@ -2324,14 +2328,6 @@ ax::mojom::blink::Role AXNodeObject::RoleFromLayoutObjectOrNode() const {
     return ax::mojom::blink::Role::kButton;
   }
 
-  if (IsA<HTMLMenuBarElement>(node)) {
-    return ax::mojom::blink::Role::kMenuBar;
-  }
-
-  if (IsA<HTMLMenuListElement>(node)) {
-    return ax::mojom::blink::Role::kMenu;
-  }
-
   // Anything that needs to be exposed but doesn't have a more specific role
   // should be considered a generic container. Examples are layout blocks with
   // no node, in-page link targets, and plain elements such as a <span> with
@@ -2551,12 +2547,20 @@ ax::mojom::blink::Role AXNodeObject::NativeRoleIgnoringAria() const {
       const AtomicString& checkable_type =
           menu_item->NearestAncestorFieldSet()->FastGetAttribute(
               html_names::kCheckableAttr);
-      if (EqualIgnoringASCIICase(checkable_type, keywords::kSingle)) {
+      if (EqualIgnoringAsciiCase(checkable_type, keywords::kSingle)) {
         return ax::mojom::blink::Role::kMenuItemRadio;
       }
       return ax::mojom::blink::Role::kMenuItemCheckBox;
     }
     return ax::mojom::blink::Role::kMenuItem;
+  }
+
+  if (IsA<HTMLMenuBarElement>(GetNode())) {
+    return ax::mojom::blink::Role::kMenuBar;
+  }
+
+  if (IsA<HTMLMenuListElement>(GetNode())) {
+    return ax::mojom::blink::Role::kMenu;
   }
 
   if (IsA<HTMLOptGroupElement>(GetNode())) {
@@ -2858,8 +2862,9 @@ static Element* SiblingWithAriaRole(String role, Node* node) {
       continue;
     const AtomicString& sibling_aria_role =
         blink::AXObject::AriaAttribute(*element, html_names::kRoleAttr);
-    if (EqualIgnoringASCIICase(sibling_aria_role, role))
+    if (EqualIgnoringAsciiCase(sibling_aria_role, role)) {
       return element;
+    }
   }
 
   return nullptr;
@@ -3012,7 +3017,7 @@ bool AXNodeObject::IsLineBreakingObject() const {
   if (const LayoutText* layout_text = DynamicTo<LayoutText>(layout_object)) {
     const ComputedStyle& style = layout_object->StyleRef();
     if (layout_text->HasNonCollapsedText() && style.ShouldPreserveBreaks() &&
-        layout_text->PlainText().find('\n') != kNotFound) {
+        layout_text->PlainText().contains('\n')) {
       return true;
     }
   }
@@ -3632,7 +3637,7 @@ String AXNodeObject::AutoComplete() const {
     // Illegal values must be passed through, according to CORE-AAM.
     if (aria_auto_complete) {
       return aria_auto_complete == "none" ? String()
-                                          : aria_auto_complete.LowerASCII();
+                                          : aria_auto_complete.ToAsciiLower();
       ;
     }
   }
@@ -3893,10 +3898,10 @@ AccessibilityOrientation AXNodeObject::Orientation() const {
       RoleValue() == ax::mojom::blink::Role::kTextFieldWithComboBox) {
     const AtomicString& aria_orientation =
         AriaTokenAttribute(html_names::kAriaOrientationAttr);
-    if (EqualIgnoringASCIICase(aria_orientation, "horizontal")) {
+    if (EqualIgnoringAsciiCase(aria_orientation, "horizontal")) {
       return kAccessibilityOrientationHorizontal;
     }
-    if (EqualIgnoringASCIICase(aria_orientation, "vertical")) {
+    if (EqualIgnoringAsciiCase(aria_orientation, "vertical")) {
       return kAccessibilityOrientationVertical;
     }
   }
@@ -3909,19 +3914,19 @@ AccessibilityOrientation AXNodeObject::Orientation() const {
   // If there's a valid value, use it.
   const AtomicString& aria_orientation =
       AriaTokenAttribute(html_names::kAriaOrientationAttr);
-  if (EqualIgnoringASCIICase(aria_orientation, "horizontal")) {
+  if (EqualIgnoringAsciiCase(aria_orientation, "horizontal")) {
     return kAccessibilityOrientationHorizontal;
   }
-  if (EqualIgnoringASCIICase(aria_orientation, "vertical")) {
+  if (EqualIgnoringAsciiCase(aria_orientation, "vertical")) {
     return kAccessibilityOrientationVertical;
   }
 
   // Fall back on the implicit value, should one exist.
   const String& implicit_orientation = GetImplicitAriaOrientation(RoleValue());
-  if (EqualIgnoringASCIICase(implicit_orientation, "horizontal")) {
+  if (EqualIgnoringAsciiCase(implicit_orientation, "horizontal")) {
     return kAccessibilityOrientationHorizontal;
   }
-  if (EqualIgnoringASCIICase(implicit_orientation, "vertical")) {
+  if (EqualIgnoringAsciiCase(implicit_orientation, "vertical")) {
     return kAccessibilityOrientationVertical;
   }
 
@@ -4276,8 +4281,9 @@ RGBA32 AXNodeObject::ColorValue() const {
     return AXObject::ColorValue();
 
   const AtomicString& type = input->getAttribute(kTypeAttr);
-  if (!EqualIgnoringASCIICase(type, "color"))
+  if (!EqualIgnoringAsciiCase(type, "color")) {
     return AXObject::ColorValue();
+  }
 
   // HTMLInputElement::Value always returns a string parseable by Color.
   Color color;
@@ -4395,22 +4401,22 @@ ax::mojom::blink::AriaCurrentState AXNodeObject::GetAriaCurrentState() const {
     }
     return ax::mojom::blink::AriaCurrentState::kNone;
   }
-  if (EqualIgnoringASCIICase(attribute_value, "false")) {
+  if (EqualIgnoringAsciiCase(attribute_value, "false")) {
     return ax::mojom::blink::AriaCurrentState::kFalse;
   }
-  if (EqualIgnoringASCIICase(attribute_value, "page")) {
+  if (EqualIgnoringAsciiCase(attribute_value, "page")) {
     return ax::mojom::blink::AriaCurrentState::kPage;
   }
-  if (EqualIgnoringASCIICase(attribute_value, "step")) {
+  if (EqualIgnoringAsciiCase(attribute_value, "step")) {
     return ax::mojom::blink::AriaCurrentState::kStep;
   }
-  if (EqualIgnoringASCIICase(attribute_value, "location")) {
+  if (EqualIgnoringAsciiCase(attribute_value, "location")) {
     return ax::mojom::blink::AriaCurrentState::kLocation;
   }
-  if (EqualIgnoringASCIICase(attribute_value, "date")) {
+  if (EqualIgnoringAsciiCase(attribute_value, "date")) {
     return ax::mojom::blink::AriaCurrentState::kDate;
   }
-  if (EqualIgnoringASCIICase(attribute_value, "time")) {
+  if (EqualIgnoringAsciiCase(attribute_value, "time")) {
     return ax::mojom::blink::AriaCurrentState::kTime;
   }
 
@@ -4423,7 +4429,7 @@ ax::mojom::blink::InvalidState AXNodeObject::GetInvalidState() const {
   if (const AtomicString& attribute_value =
           AriaTokenAttribute(html_names::kAriaInvalidAttr)) {
     // aria-invalid="false".
-    if (EqualIgnoringASCIICase(attribute_value, "false")) {
+    if (EqualIgnoringAsciiCase(attribute_value, "false")) {
       return ax::mojom::blink::InvalidState::kFalse;
     }
     // In most cases, aria-invalid="spelling"| "grammar" are used on inline text
@@ -4432,8 +4438,8 @@ ax::mojom::blink::InvalidState AXNodeObject::GetInvalidState() const {
     // exposing the state twice, and to prevent superfluous "invalid"
     // announcements in some screen readers.
     // On text fields, they are simply exposed as if aria-invalid="true".
-    if (EqualIgnoringASCIICase(attribute_value, "spelling") ||
-        EqualIgnoringASCIICase(attribute_value, "grammar")) {
+    if (EqualIgnoringAsciiCase(attribute_value, "spelling") ||
+        EqualIgnoringAsciiCase(attribute_value, "grammar")) {
       return RoleValue() == ax::mojom::blink::Role::kTextField
                  ? ax::mojom::blink::InvalidState::kTrue
                  : ax::mojom::blink::InvalidState::kNone;
@@ -7046,6 +7052,33 @@ String AXNodeObject::NativeTextAlternative(
 
   String text_alternative;
   AXRelatedObjectVector local_related_objects;
+
+  if (auto* menulist = DynamicTo<HTMLMenuListElement>(GetNode());
+      menulist && menulist->GetPopoverData()) {
+    if (Element* invoker = menulist->GetPopoverData()->invoker()) {
+      if (AXObject* ax_invoker = AXObjectCache().Get(invoker)) {
+        name_from = ax::mojom::blink::NameFrom::kRelatedElement;
+        text_alternative = RecursiveTextAlternative(
+            *ax_invoker, /*aria_label_or_description_root=*/nullptr, visited);
+        if (!text_alternative.empty()) {
+          if (related_objects) {
+            local_related_objects.push_back(
+                MakeGarbageCollected<NameSourceRelatedObject>(
+                    ax_invoker, text_alternative));
+            *related_objects = local_related_objects;
+          }
+          if (name_sources) {
+            name_sources->push_back(NameSource(*found_text_alternative));
+            name_sources->back().type = name_from;
+            name_sources->back().related_objects = local_related_objects;
+            name_sources->back().text = text_alternative;
+            *found_text_alternative = true;
+          }
+          return text_alternative;
+        }
+      }
+    }
+  }
 
   if (auto* option_element = DynamicTo<HTMLOptionElement>(GetNode())) {
     if (option_element->HasOneTextChild()) {

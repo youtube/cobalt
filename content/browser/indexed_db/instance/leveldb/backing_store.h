@@ -281,7 +281,7 @@ class CONTENT_EXPORT BackingStore : public indexed_db::BackingStore,
     base::WeakPtr<BackingStore> backing_store_;
     base::WeakPtr<Database> database_;
 
-    scoped_refptr<TransactionalLevelDBTransaction> transaction_;
+    std::unique_ptr<TransactionalLevelDBTransaction> transaction_;
 
     std::map<std::string, std::unique_ptr<IndexedDBExternalObjectChangeRecord>>
         external_object_change_map_;
@@ -479,6 +479,7 @@ class CONTENT_EXPORT BackingStore : public indexed_db::BackingStore,
   void OnForceClosing() override;
   void StartPreCloseTasks(base::OnceClosure on_done) override;
   void StopPreCloseTasks() override;
+  void RunIdleTasks() override { /*Not used by LevelDB*/ }
   StatusOr<std::unique_ptr<indexed_db::BackingStore::Database>>
   CreateOrOpenDatabase(const std::u16string& name) override;
   uintptr_t GetIdentifierForMemoryDump() override;
@@ -536,7 +537,8 @@ class CONTENT_EXPORT BackingStore : public indexed_db::BackingStore,
                 base::FilePath blob_path,
                 PartitionedLockManager* lock_manager,
                 bool is_first_attempt,
-                bool create_if_missing);
+                bool create_if_missing,
+                bool skip_create_on_data_loss);
 
   static uint64_t ReadSizeFromDisk(const base::FilePath& database_path,
                                    const base::FilePath& blob_path);
@@ -574,7 +576,8 @@ class CONTENT_EXPORT BackingStore : public indexed_db::BackingStore,
                   base::FilePath blob_path,
                   PartitionedLockManager* lock_manager,
                   bool is_first_attempt,
-                  bool create_if_missing);
+                  bool create_if_missing,
+                  bool skip_create_on_data_loss);
 
   // Fills in metadata for the database specified by `metadata->name` by reading
   // from disk. If no database is found, `metadata->id` will remain null.

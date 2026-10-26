@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google Inc.
+ * Copyright 2021 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -17,14 +17,18 @@
 namespace skgpu::graphite {
 class MtlSharedContext;
 
-class MtlBuffer : public Buffer {
+class MtlBuffer final : public Buffer {
 public:
-    static sk_sp<Buffer> Make(const MtlSharedContext*, size_t size, BufferType type, AccessPattern);
+    static sk_sp<Buffer> Make(const MtlSharedContext*,
+                              size_t,
+                              BufferType,
+                              AccessPattern,
+                              std::string_view label);
 
     id<MTLBuffer> mtlBuffer() const { return fBuffer.get(); }
 
 private:
-    MtlBuffer(const MtlSharedContext*, size_t size, sk_cfp<id<MTLBuffer>>);
+    MtlBuffer(const MtlSharedContext*, size_t, sk_cfp<id<MTLBuffer>>, std::string_view label);
 
     void onMap() override;
     void onUnmap() override;

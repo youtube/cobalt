@@ -21,9 +21,9 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 
-#include "api/array_view.h"
 #include "api/audio/audio_device_defines.h"
 #include "api/environment/environment.h"
 #include "api/scoped_refptr.h"
@@ -430,9 +430,9 @@ void OpenSLESPlayer::EnqueuePlayoutData(bool silence) {
     // OpenSL ES. Use hardcoded delay estimate since OpenSL ES does not support
     // delay estimation.
     fine_audio_buffer_->GetPlayoutData(
-        webrtc::ArrayView<int16_t>(audio_buffers_[buffer_index_].get(),
-                                   audio_parameters_.frames_per_buffer() *
-                                       audio_parameters_.channels()),
+        std::span<int16_t>(audio_buffers_[buffer_index_].get(),
+                           audio_parameters_.frames_per_buffer() *
+                               audio_parameters_.channels()),
         25);
   }
   // Enqueue the decoded audio buffer for playback.

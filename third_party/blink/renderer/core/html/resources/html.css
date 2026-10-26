@@ -35,6 +35,10 @@ html {
     view-transition-name: root;
 }
 
+:active-view-transition:not(:root) {
+  view-transition-group: contain;
+}
+
 /* generic block-level elements */
 
 body {
@@ -456,10 +460,8 @@ input, textarea, select, button {
    * these styles can apply to textarea, select, and button as well. */
   input {
     margin: -internal-auto-base(0__qem, unset);
-    font: -internal-auto-base(-webkit-small-control, unset);
     /* FIXME: Remove text-rendering:auto when tabs work with optimizeLegibility. */
     text-rendering: -internal-auto-base(auto, unset);
-    color: -internal-auto-base(FieldText, unset);
     letter-spacing: -internal-auto-base(normal, unset);
     word-spacing: -internal-auto-base(normal, unset);
     line-height: -internal-auto-base(normal, unset);
@@ -468,20 +470,36 @@ input, textarea, select, button {
      * initial. Since the auto appearance is also using the initial values, we
      * don't need to use -internal-auto-base() on them. */
   }
+
+  input, textarea {
+    color: -internal-auto-base(FieldText, inherit);
+    font: -internal-auto-base(-webkit-small-control, inherit);
+    box-sizing: -internal-auto-base(content-box, border-box);
+  }
 }
 
 textarea {
-  appearance: auto;
-  border: 1px solid light-dark(#767676, #858585);
-  column-count: initial !important;
-  -webkit-rtl-ordering: logical;
-  resize: -internal-textarea-auto;
-  cursor: text;
-  padding: 2px;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  background-color: Field;
-  font-family: monospace;
+    appearance: auto;
+    column-count: initial !important;
+    -webkit-rtl-ordering: logical;
+    cursor: text;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: monospace;
+
+    @supports not blink-feature(AppearanceBase) {
+        border: 1px solid light-dark(#767676, #858585);
+        background-color: Field;
+        resize: -internal-textarea-auto;
+        padding: 2px;
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        border: 1px solid -internal-auto-base(light-dark(#767676, #858585), currentColor);
+        background-color: -internal-auto-base(Field, transparent);
+        resize: -internal-auto-base(-internal-textarea-auto, none);
+        padding: -internal-auto-base(2px, unset);
+    }
 }
 
 input {
@@ -491,7 +509,7 @@ input {
         padding: -internal-auto-base(1px 0, unset);
         border: -internal-auto-base(2px inset light-dark(#767676, #858585), 1px solid);
         -webkit-rtl-ordering: -internal-auto-base(logical, unset);
-        background-color: -internal-auto-base(Field, unset);
+        background-color: -internal-auto-base(Field, transparent);
     }
     @supports not blink-feature(AppearanceBase) {
         padding: 1px 0;
@@ -545,15 +563,16 @@ input[type="search" i]::-webkit-search-cancel-button {
     opacity: 0;
     pointer-events: none;
     user-select: none !important;
+
+    @supports blink-feature(AppearanceBase) {
+        /** This pseudo element doesn't exist in the standard layout. */
+        display: -internal-auto-base(revert-rule, none) !important;
+    }
 }
 
 input[type="search" i]:enabled:read-write:-webkit-any(:focus,:hover)::-webkit-search-cancel-button {
     opacity: 1;
     pointer-events: auto;
-}
-
-input[type="search" i]::-webkit-search-results-decoration {
-  margin: auto 3px auto 2px;
 }
 
 /* Specifying all of the type attributes in the selector below does not seem
@@ -593,6 +612,11 @@ input::-webkit-inner-spin-button {
     -webkit-user-modify: read-only !important;
     opacity: 0;
     pointer-events: none;
+
+    @supports blink-feature(AppearanceBase) {
+        /** This pseudo element doesn't exist in the standard layout. */
+        display: -internal-auto-base(revert-rule, none) !important;
+    }
 }
 
 input:enabled:read-write:-webkit-any(:focus,:hover)::-webkit-inner-spin-button {
@@ -701,15 +725,72 @@ input[type="image" i] {
 
 input[type="radio" i],
 input[type="checkbox" i] {
-    margin:3px 3px 3px 4px;
-    padding: initial;
-    background-color: initial;
-    border: initial;
-    cursor: default;
+    @supports not blink-feature(AppearanceBase) {
+        padding: initial;
+        background-color: initial;
+        border: initial;
+        cursor: default;
+    }
+    @supports blink-feature(AppearanceBase) {
+        padding: -internal-auto-base(initial, unset);
+        background-color: -internal-auto-base(initial, transparent);
+        border: -internal-auto-base(initial, 1px solid currentColor);
+        cursor: -internal-auto-base(default, unset);
+
+        block-size: -internal-auto-base(unset, 1em);
+        inline-size: -internal-auto-base(unset, 1em);
+        font-size: -internal-auto-base(unset, max(1em, 24px));
+        display: -internal-auto-base(inline-block, inline-flex);
+        align-items: -internal-auto-base(unset, center);
+        justify-content: -internal-auto-base(unset, center);
+    }
+}
+
+input[type="checkbox" i] {
+    @supports not blink-feature(AppearanceBase) {
+        margin: 3px 3px 3px 4px;
+    }
+    @supports blink-feature(AppearanceBase) {
+        margin: -internal-auto-base(3px 3px 3px 4px, unset);
+    }
 }
 
 input[type="radio" i] {
-  margin:3px 3px 0 5px;
+    @supports not blink-feature(AppearanceBase) {
+        margin:3px 3px 0 5px;
+    }
+    @supports blink-feature(AppearanceBase) {
+        margin: -internal-auto-base(3px 3px 0 5px, unset);
+        border-radius: -internal-auto-base(unset, 50%);
+        padding: -internal-auto-base(initial, 0.15em);
+    }
+}
+
+@supports blink-feature(AppearanceBase) {
+    input[type="checkbox" i]::checkmark {
+        content: -internal-auto-base(unset, '\2713' / '');
+    }
+
+    input[type="radio" i]::checkmark  {
+        content: -internal-auto-base(unset, '');
+    }
+
+    input[type="checkbox" i]:not(:checked, :indeterminate)::checkmark,
+    input[type="radio" i]:not(:checked)::checkmark {
+        visibility: hidden;
+    }
+
+    input[type="checkbox" i]:indeterminate::checkmark {
+        content: -internal-auto-base(unset, '\2500' / '');
+    }
+
+    input[type="radio" i]:checked::checkmark {
+        background-color: currentColor;
+        display: inline-block;
+        border-radius: inherit;
+        height: 100%;
+        width: 100%;
+    }
 }
 
 input[type="button" i], input[type="submit" i], input[type="reset" i] {
@@ -804,12 +885,24 @@ input[type="range" i]:disabled {
 input[type="button" i]:disabled,
 input[type="submit" i]:disabled,
 input[type="reset" i]:disabled,
-input[type="color" i]:disabled,
 input[type="file" i]:disabled::-webkit-file-upload-button,
 button:disabled {
   background-color: light-dark(rgba(239, 239, 239, 0.3), rgba(19, 1, 1, 0.3));
   border-color: light-dark(rgba(118, 118, 118, 0.3), rgba(195, 195, 195, 0.3));
   color: light-dark(rgba(16, 16, 16, 0.3), rgba(255, 255, 255, 0.3));
+}
+
+input[type="color" i]:disabled {
+    @supports blink-feature(AppearanceBase) {
+        background-color: -internal-auto-base(light-dark(rgba(239, 239, 239, 0.3), rgba(19, 1, 1, 0.3)), transparent);
+        border-color: -internal-auto-base(light-dark(rgba(118, 118, 118, 0.3), rgba(195, 195, 195, 0.3)), currentColor);
+        color: -internal-auto-base(light-dark(rgba(16, 16, 16, 0.3), rgba(255, 255, 255, 0.3)), color-mix(currentColor 50%, transparent));
+    }
+    @supports not blink-feature(AppearanceBase) {
+        background-color: light-dark(rgba(239, 239, 239, 0.3), rgba(19, 1, 1, 0.3));
+        border-color: light-dark(rgba(118, 118, 118, 0.3), rgba(195, 195, 195, 0.3));
+        color: light-dark(rgba(16, 16, 16, 0.3), rgba(255, 255, 255, 0.3));
+    }
 }
 
 input[type="button" i]:active, input[type="submit" i]:active, input[type="reset" i]:active, input[type="file" i]:active::-webkit-file-upload-button, button:active {
@@ -822,8 +915,16 @@ input[type="button" i]:active:disabled, input[type="submit" i]:active:disabled, 
 
 input:disabled, textarea:disabled {
     cursor: default;
-    background-color: light-dark(rgba(239, 239, 239, 0.3), rgba(59, 59, 59, 0.3));
-    color: light-dark(#545454, #aaaaaa);
+
+    @supports not blink-feature(AppearanceBase) {
+        background-color: light-dark(rgba(239, 239, 239, 0.3), rgba(59, 59, 59, 0.3));
+        color: light-dark(#545454, #aaaaaa);
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        background-color: -internal-auto-base(light-dark(rgba(239, 239, 239, 0.3), rgba(59, 59, 59, 0.3)), unset);
+        color: -internal-auto-base(light-dark(#545454, #aaaaaa), color-mix(currentColor 50%, transparent));
+    }
 }
 
 option:-internal-spatial-navigation-focus {
@@ -865,19 +966,56 @@ input[type="radio" i] {
 
 input[type="color" i] {
     appearance: auto;
-    inline-size: 50px;
-      block-size: 27px;
-    /* Same as native_theme_base. */
-    border: 1px solid ButtonBorder;
-    padding: 1px 2px;
-    cursor: default;
     box-sizing: border-box;
-    background-color: ButtonFace;
-    color: ButtonText;
+
+    @supports not blink-feature(AppearanceBase) {
+        inline-size: 50px;
+        block-size: 27px;
+        /* Same as native_theme_base. */
+        border: 1px solid ButtonBorder;
+        padding: 1px 2px;
+        cursor: default;
+        background-color: ButtonFace;
+        color: ButtonText;
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        inline-size: -internal-auto-base(50px, auto);
+        block-size: -internal-auto-base(27px, auto);
+        /* Same as native_theme_base when auto. */
+        border: 1px solid -internal-auto-base(ButtonBorder, currentColor);
+        padding: -internal-auto-base(1px 2px, 0.25em 0.5em);
+        cursor: -internal-auto-base(default, inherit);
+        background-color: -internal-auto-base(ButtonFace, transparent);
+        color: -internal-auto-base(ButtonText, inherit);
+
+        min-inline-size: -internal-auto-base(unset, 24px);
+        min-block-size: -internal-auto-base(unset, max(24px, 1lh));
+        user-select: -internal-auto-base(unset, none);
+        display: -internal-auto-base(inline-block, inline-flex);
+        gap: -internal-auto-base(unset, 0.5em);
+        border-radius: -internal-auto-base(unset, 0.5em);
+    }
+}
+
+@supports blink-feature(AppearanceBase) {
+    input[type="color" i]:enabled:hover {
+        background-color: -internal-auto-base(ButtonFace, color-mix(currentColor 10%, transparent));
+    }
+
+    input[type="color" i]:enabled:active {
+        background-color: -internal-auto-base(ButtonFace, color-mix(currentColor 20%, transparent));
+    }
 }
 
 input[type="color" i]::-webkit-color-swatch-wrapper {
-    display: flex;
+    @supports blink-feature(AppearanceBase) {
+        display: -internal-auto-base(flex, contents);
+    }
+    @supports not blink-feature(AppearanceBase) {
+        display: flex;
+    }
+
     padding: 4px 2px;
     box-sizing: border-box;
     -webkit-user-modify: read-only !important;
@@ -889,10 +1027,19 @@ input[type="color" i]::-webkit-color-swatch {
     /* The swatch should not be affected by color scheme. */
     color-scheme: only light;
     background-color: #000000;
-    border: 1px solid #777777;
     flex: 1;
-    min-width: 0;
     -webkit-user-modify: read-only !important;
+    @supports not blink-feature(AppearanceBase) {
+        border: 1px solid #777777;
+        min-width: 0;
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        border: 1px solid -internal-auto-base(#777777, currentColor);
+        min-width: -internal-auto-base(0, initial);
+        inline-size: -internal-auto-base(unset, 2em);
+        box-sizing: -internal-auto-base(unset, border-box);
+    }
 }
 
 input::-webkit-calendar-picker-indicator {
@@ -1012,23 +1159,20 @@ select:-internal-list-box optgroup option {
     }
 }
 
-/* TODO(crbug.com/357649033): This line-height rule can't be undone for
- * customizable select multiple because we can't put !important inside
- * -internal-auto-base(). */
 select:-internal-list-box option,
 select:-internal-list-box optgroup {
-    line-height: initial !important;
+    line-height: -internal-auto-base(initial, revert-rule) !important;
 }
 
 /* option selected, list-box focused.
  * Sites are relying on the !important here: http://crbug.com/415953695 */
 select:-internal-list-box:focus option:checked,
 select:-internal-list-box:focus option:checked:hover {
-    background-color: SelectedItem !important;
-    color: SelectedItemText !important;
+    background-color: -internal-auto-base(SelectedItem, revert-rule) !important;
+    color: -internal-auto-base(SelectedItemText, revert-rule) !important;
 }
 select:-internal-list-box:focus option:checked:disabled {
-    background-color: -internal-inactive-list-box-selection !important;
+    background-color: -internal-auto-base(-internal-inactive-list-box-selection, revert-rule) !important;
 }
 
 /* option selected, list-box not focused */
@@ -1042,13 +1186,13 @@ select:-internal-list-box:focus option:checked:disabled {
     select:-internal-list-box:not(:focus) option:checked:enabled:active {
         background-color: -internal-auto-base(
             light-dark(#cecece, #545454),
-            color-mix(in lab, currentColor 10%, transparent));
+            color-mix(currentColor 10%, transparent));
     }
     select:-internal-list-box option:checked:disabled:hover,
     select:-internal-list-box option:checked:disabled:active {
         background-color: -internal-auto-base(
             light-dark(#cecece, #545454),
-            color-mix(in lab, currentColor 50%, transparent));
+            color-mix(currentColor 50%, transparent));
     }
 }
 @supports not blink-feature(CustomizableSelectListbox) {
@@ -1063,7 +1207,7 @@ select:-internal-list-box:disabled option:checked,
 select:-internal-list-box option:checked:disabled,
 select:-internal-list-box option:checked:disabled:hover {
     @supports blink-feature(CustomizableSelectListbox) {
-        color: -internal-auto-base(light-dark(gray, #aaa), color-mix(in lab, currentColor 50%, transparent));
+        color: -internal-auto-base(light-dark(gray, #aaa), color-mix(currentColor 50%, transparent));
     }
     @supports not blink-feature(CustomizableSelectListbox) {
         color: light-dark(gray, #aaa);
@@ -1095,7 +1239,7 @@ select:-internal-list-box:focus-visible option:-internal-multi-select-focus {
 
 @supports blink-feature(CustomizableSelectListbox) {
     select option:enabled:hover {
-        background-color: -internal-auto-base(initial, color-mix(in lab, currentColor 10%, transparent));
+        background-color: -internal-auto-base(initial, color-mix(currentColor 10%, transparent));
     }
 }
 @supports not blink-feature(CustomizableSelectListbox) {
@@ -1157,7 +1301,12 @@ select:-internal-autofill-selected {
 
 input:disabled,
 textarea:disabled {
-  border-color: rgba(118, 118, 118, 0.3);
+  @supports not blink-feature(AppearanceBase) {
+     border-color: rgba(118, 118, 118, 0.3);
+  }
+  @supports blink-feature(AppearanceBase) {
+    border-color: -internal-auto-base(rgba(118, 118, 118, 0.3), currentColor);
+  }
 }
 select:disabled {
   @supports blink-feature(CustomizableSelectListbox) {
@@ -1175,7 +1324,7 @@ select[disabled]>option {
     @supports blink-feature(CustomizableSelectListbox) {
         color: -internal-auto-base(
             light-dark(GrayText, #aaa),
-            color-mix(in lab, currentColor 50%, transparent));
+            color-mix(currentColor 50%, transparent));
     }
     @supports not blink-feature(CustomizableSelectListbox) {
         color: light-dark(GrayText, #aaa);
@@ -1276,10 +1425,24 @@ background: light-dark(#d83b01, #e98f6d);
 progress {
     appearance: auto;
     box-sizing: border-box;
-    display: inline-block;
-    block-size: 1em;
-    inline-size: 10em;
-    vertical-align: -0.2em;
+
+    @supports not blink-feature(AppearanceBase) {
+        display: inline-block;
+        block-size: 1em;
+        inline-size: 10em;
+        vertical-align: -0.2em;
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        display: -internal-auto-base(inline-block, unset);
+        block-size: -internal-auto-base(1em, unset);
+        inline-size: -internal-auto-base(10em, 100%);
+        vertical-align: -internal-auto-base(-0.2em, unset);
+
+        color: -internal-auto-base(unset, inherit);
+        font: -internal-auto-base(unset, inherit);
+        background-color: -internal-auto-base(unset, transparent);
+    }
 }
 
 progress::-webkit-progress-inner-element {
@@ -1287,22 +1450,51 @@ progress::-webkit-progress-inner-element {
     -webkit-user-modify: read-only;
     block-size: 100%;
     inline-size: 100%;
+
+    @supports blink-feature(AppearanceBase) {
+        /** This pseudo element doesn't exist in the standard layout. */
+        display: -internal-auto-base(revert-rule, contents) !important;
+    }
 }
 
 progress::-webkit-progress-bar {
-    background-color: gray;
-    block-size: 100%;
-    inline-size: 100%;
     -webkit-user-modify: read-only !important;
-    box-sizing: border-box;
+
+    @supports not blink-feature(AppearanceBase) {
+        background-color: gray;
+        block-size: 100%;
+        inline-size: 100%;
+        box-sizing: border-box;
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        /* TODO(crbug.com/450139531): These styles are for progress::slider-track,
+         * for now use the webkit pseudo elements. */
+        background-color: -internal-auto-base(gray, transparent);
+        block-size: -internal-auto-base(100%, 1em);
+        inline-size: -internal-auto-base(100%, unset);
+        box-sizing: -internal-auto-base(border-box, unset);
+
+        border: -internal-auto-base(unset, 1px solid currentColor);
+    }
 }
 
 progress::-webkit-progress-value {
-    background-color: green;
     block-size: 100%;
     inline-size: 50%; /* should be removed later */
     -webkit-user-modify: read-only !important;
-    box-sizing: border-box;
+
+    @supports not blink-feature(AppearanceBase) {
+        background-color: green;
+        box-sizing: border-box;
+    }
+
+    @supports blink-feature(AppearanceBase) {
+        /* TODO(crbug.com/450139531): These styles are for progress::slider-fill,
+         * for now use the webkit pseudo elements. */
+        background-color: -internal-auto-base(green, currentColor);
+        box-sizing: -internal-auto-base(border-box, unset);
+    }
 }
 
 /* inline elements */
@@ -1686,6 +1878,13 @@ dialog:-internal-dialog-in-top-layer::backdrop {
 }
 
 @supports blink-feature(OverlayProperty) {
+  @supports blink-feature(OverlayGlobalRuleRemoval) {
+    /* This is needed as a replacement for the *{overlay:none!important} rule
+     * which is removed by the OverlayGlobalRuleRemoval flag. */
+    dialog, [popover] {
+      overlay: none !important;
+    }
+  }
   /* The `overlay:auto` UA rule goes away as soon as the modal is requested to
      close, or popover.hidePopover() is called. However, it can stay in the top
      layer after this point, if developer CSS animates the `overlay` property. */
@@ -1699,14 +1898,6 @@ dialog:-internal-dialog-in-top-layer::backdrop {
      * rule above when we remove this flag. */
     menulist:not(:popover-open) {
       display: none;
-    }
-}
-
-@supports blink-feature(HTMLAnchorAttribute) {
-    /* Popovers using anchor positioning get their inset properties reset, to make
-    * it easier to position them. */
-    [popover][anchor] {
-        inset:auto;
     }
 }
 
@@ -1826,91 +2017,47 @@ dialog:where(:modal) {
 
 /* noscript is handled internally, as it depends on settings. */
 
-@supports not blink-feature(SelectMobileDesktopParity) {
-  select:not(:-internal-list-box):not([multiple]) {
-    font: -internal-auto-base(-webkit-small-control, inherit);
-    text-shadow: -internal-auto-base(none, inherit);
-    text-transform: -internal-auto-base(none, initial);
-    text-rendering: -internal-auto-base(auto, inherit);
-    letter-spacing: -internal-auto-base(normal, inherit);
-    word-spacing: -internal-auto-base(normal, inherit);
-    text-align: -internal-auto-base(start, initial);
-    text-indent: -internal-auto-base(0px, initial);
-    -webkit-rtl-ordering: -internal-auto-base(logical, inherit);
-    cursor: -internal-auto-base(default, inherit);
-    white-space: -internal-auto-base(pre, inherit);
-    /* This text-autospace rule won't work because it is set with !important
-     * earlier in the UA stylesheet. After merging with the rest of the UA
-     * style rules when removing the CustomizableSelect flag, it should start
-     * to work. */
-    text-autospace: -internal-auto-base(no-autospace !important, inherit);
-    color: -internal-auto-base(FieldText, inherit);
-    background-color: -internal-auto-base(Field, transparent);
-    border: 1px solid -internal-auto-base(light-dark(#767676, #858585), currentColor);
-    padding-block: -internal-auto-base(0, 0.25em);
-    padding-inline: -internal-auto-base(0, 0.5em);
+/* These styles are identical to the not blink-feature block above, except
+ * that the :not([multiple]) part is removed. */
+select:not(:-internal-list-box) {
+  font: -internal-auto-base(-webkit-small-control, inherit);
+  text-shadow: -internal-auto-base(none, inherit);
+  text-transform: -internal-auto-base(none, initial);
+  text-rendering: -internal-auto-base(auto, inherit);
+  letter-spacing: -internal-auto-base(normal, inherit);
+  word-spacing: -internal-auto-base(normal, inherit);
+  text-align: -internal-auto-base(start, initial);
+  text-indent: -internal-auto-base(0px, initial);
+  -webkit-rtl-ordering: -internal-auto-base(logical, inherit);
+  cursor: -internal-auto-base(default, inherit);
+  white-space: -internal-auto-base(pre, inherit);
+  /* This text-autospace rule won't work because it is set with !important
+   * earlier in the UA stylesheet. After merging with the rest of the UA
+   * style rules when removing the CustomizableSelect flag, it should start
+   * to work. */
+  text-autospace: -internal-auto-base(no-autospace !important, inherit);
+  color: -internal-auto-base(FieldText, inherit);
+  background-color: -internal-auto-base(Field, transparent);
+  border: 1px solid -internal-auto-base(light-dark(#767676, #858585), currentColor);
+  padding-block: -internal-auto-base(0, 0.25em);
+  padding-inline: -internal-auto-base(0, 0.5em);
 
-    /* min-size rules ensure that we meet accessibility guidelines for minimum target size.
-     * https://github.com/openui/open-ui/issues/1026
-     * https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html */
-    /* TODO(crbug.com/1511354): This might be able to be combined with the
-     * default select option rules at some point. This should be re-evaluated
-     * before StylableSelect is shipped. */
-    min-inline-size: -internal-auto-base(auto, calc-size(auto, max(size, 24px)));
-    /* The 1lh here makes sure that options with no text still make the button
-     * have the same height as options with text. */
-    min-block-size: -internal-auto-base(auto, calc-size(auto, max(size, 24px, 1lh)));
+  /* min-size rules ensure that we meet accessibility guidelines for minimum target size.
+   * https://github.com/openui/open-ui/issues/1026
+   * https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html */
+  /* TODO(crbug.com/41483940): This might be able to be combined with the
+   * default select option rules at some point. This should be re-evaluated
+   * before StylableSelect is shipped. */
+  min-inline-size: -internal-auto-base(auto, calc-size(auto, max(size, 24px)));
+  /* The 1lh here makes sure that options with no text still make the button
+   * have the same height as options with text. */
+  min-block-size: -internal-auto-base(auto, calc-size(auto, max(size, 24px, 1lh)));
 
-    gap: -internal-auto-base(initial, 0.5em);
-    border-radius: -internal-auto-base(0, 0.5em);
-    align-items: -internal-auto-base(center, unset);
-    /* https://github.com/whatwg/html/issues/10876 */
-    user-select: -internal-auto-base(auto, none);
-  }
-}
-@supports blink-feature(SelectMobileDesktopParity) {
-  /* These styles are identical to the not blink-feature block above, except
-   * that the :not([multiple]) part is removed. */
-  select:not(:-internal-list-box) {
-    font: -internal-auto-base(-webkit-small-control, inherit);
-    text-shadow: -internal-auto-base(none, inherit);
-    text-transform: -internal-auto-base(none, initial);
-    text-rendering: -internal-auto-base(auto, inherit);
-    letter-spacing: -internal-auto-base(normal, inherit);
-    word-spacing: -internal-auto-base(normal, inherit);
-    text-align: -internal-auto-base(start, initial);
-    text-indent: -internal-auto-base(0px, initial);
-    -webkit-rtl-ordering: -internal-auto-base(logical, inherit);
-    cursor: -internal-auto-base(default, inherit);
-    white-space: -internal-auto-base(pre, inherit);
-    /* This text-autospace rule won't work because it is set with !important
-     * earlier in the UA stylesheet. After merging with the rest of the UA
-     * style rules when removing the CustomizableSelect flag, it should start
-     * to work. */
-    text-autospace: -internal-auto-base(no-autospace !important, inherit);
-    color: -internal-auto-base(FieldText, inherit);
-    background-color: -internal-auto-base(Field, transparent);
-    border: 1px solid -internal-auto-base(light-dark(#767676, #858585), currentColor);
-    padding-block: -internal-auto-base(0, 0.25em);
-    padding-inline: -internal-auto-base(0, 0.5em);
-
-    /* min-size rules ensure that we meet accessibility guidelines for minimum target size.
-     * https://github.com/openui/open-ui/issues/1026
-     * https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html */
-    /* TODO(crbug.com/1511354): This might be able to be combined with the
-     * default select option rules at some point. This should be re-evaluated
-     * before StylableSelect is shipped. */
-    min-inline-size: -internal-auto-base(auto, calc-size(auto, max(size, 24px)));
-    /* The 1lh here makes sure that options with no text still make the button
-     * have the same height as options with text. */
-    min-block-size: -internal-auto-base(auto, calc-size(auto, max(size, 24px, 1lh)));
-
-    gap: -internal-auto-base(initial, 0.5em);
-    border-radius: -internal-auto-base(0, 0.5em);
-    align-items: -internal-auto-base(center, unset);
-    /* https://github.com/whatwg/html/issues/10876 */
-    user-select: -internal-auto-base(auto, none);
-  }
+  gap: -internal-auto-base(initial, 0.5em);
+  border-radius: -internal-auto-base(0, 0.5em);
+  align-items: -internal-auto-base(center, unset);
+  /* https://github.com/whatwg/html/issues/10876 */
+  user-select: -internal-auto-base(auto, none);
 }
 @supports blink-feature(CustomizableSelectListbox) {
   select {
@@ -1965,27 +2112,27 @@ dialog:where(:modal) {
 
 @supports not blink-feature(CustomizableSelectMultiplePopup) {
   select:not(:-internal-list-box):not([multiple]):enabled:hover {
-    background-color: -internal-auto-base(Field, color-mix(in lab, currentColor 10%, transparent));
+    background-color: -internal-auto-base(Field, color-mix(currentColor 10%, transparent));
   }
   select:not(:-internal-list-box):not([multiple]):enabled:active {
-    background-color: -internal-auto-base(Field, color-mix(in lab, currentColor 20%, transparent));
+    background-color: -internal-auto-base(Field, color-mix(currentColor 20%, transparent));
   }
   select:not(:-internal-list-box):not([multiple]):disabled {
     opacity: -internal-auto-base(0.7, unset);
-    color: -internal-auto-base(light-dark(GrayText, #aaa), color-mix(in srgb, currentColor 50%, transparent));
+    color: -internal-auto-base(light-dark(GrayText, #aaa), color-mix(currentColor 50%, transparent));
     border-color: -internal-auto-base(rgba(118, 118, 118, 0.3), inherit);
   }
 }
 @supports blink-feature(CustomizableSelectMultiplePopup) {
   select:not(:-internal-list-box):enabled:hover {
-    background-color: -internal-auto-base(Field, color-mix(in lab, currentColor 10%, transparent));
+    background-color: -internal-auto-base(Field, color-mix(currentColor 10%, transparent));
   }
   select:not(:-internal-list-box):enabled:active {
-    background-color: -internal-auto-base(Field, color-mix(in lab, currentColor 20%, transparent));
+    background-color: -internal-auto-base(Field, color-mix(currentColor 20%, transparent));
   }
   select:not(:-internal-list-box):disabled {
     opacity: -internal-auto-base(0.7, unset);
-    color: -internal-auto-base(light-dark(GrayText, #aaa), color-mix(in srgb, currentColor 50%, transparent));
+    color: -internal-auto-base(light-dark(GrayText, #aaa), color-mix(currentColor 50%, transparent));
     border-color: -internal-auto-base(rgba(118, 118, 118, 0.3), inherit);
   }
 }
@@ -2004,184 +2151,113 @@ dialog:where(:modal) {
   }
 }
 
-@supports not blink-feature(SelectMobileDesktopParity) {
-  select:not(:-internal-list-box):not([multiple])::picker(select) {
-    box-sizing: border-box;
-    border: 1px solid;
-    padding: 0;
-    color: -internal-auto-base(inherit, CanvasText);
-    background-color: Canvas;
-    margin: 0;
-    inset: auto;
-    min-inline-size: anchor-size(self-inline);
-    /* TODO(crbug.com/409942762): Consider removing -internal-auto-base() here
-     * if underlying performance issues with lh units are fixed. */
-    min-block-size: -internal-auto-base(0, 1lh);
-    /* Go to the edge of the viewport, and add scrollbars if needed. */
-    max-block-size: stretch;
-    overflow: auto;
-    /* Below and span-right, by default. */
-    position-area: block-end span-inline-end;
-    position-try-order: most-block-size;
-    position-try-fallbacks:
-        block-start span-inline-end,   /* First try above and span-right. */
-        block-end span-inline-start,   /* Then below but span-left. */
-        block-start span-inline-start; /* Then above and span-left. */
-  }
-}
-@supports blink-feature(SelectMobileDesktopParity) {
-  select:not(:-internal-list-box)::picker(select) {
-    box-sizing: border-box;
-    border: 1px solid -internal-auto-base(light-dark(#767676, #858585), currentColor);
-    border-radius: -internal-auto-base(2px, 0);
-    padding: 0;
-    color: -internal-auto-base(inherit, CanvasText);
-    background-color: Canvas;
-    margin: 0;
-    inset: auto;
-    min-inline-size: anchor-size(self-inline);
-    /* TODO(crbug.com/409942762): Consider removing -internal-auto-base() here
-     * if underlying performance issues with lh units are fixed. */
-    min-block-size: -internal-auto-base(0, 1lh);
-    /* Go to the edge of the viewport, and add scrollbars if needed. */
-    max-block-size: stretch;
-    overflow: auto;
-    /* Below and span-right, by default. */
-    position-area: block-end span-inline-end;
-    position-try-order: most-block-size;
-    position-try-fallbacks:
-      block-start span-inline-end,
-      block-end span-inline-start,
-      block-start span-inline-start;
-  }
+select:not(:-internal-list-box)::picker(select) {
+  box-sizing: border-box;
+  border: 1px solid -internal-auto-base(light-dark(#767676, #858585), currentColor);
+  border-radius: -internal-auto-base(2px, 0);
+  padding: 0;
+  color: -internal-auto-base(inherit, CanvasText);
+  background-color: Canvas;
+  margin: 0;
+  inset: auto;
+  min-inline-size: anchor-size(self-inline);
+  /* TODO(crbug.com/409942762): Consider removing -internal-auto-base() here
+   * if underlying performance issues with lh units are fixed. */
+  min-block-size: -internal-auto-base(0, 1lh);
+  /* Go to the edge of the viewport, and add scrollbars if needed. */
+  max-block-size: stretch;
+  overflow: auto;
+  /* Below and span-right, by default. */
+  position-area: block-end span-inline-end;
+  position-try-order: most-block-size;
+  position-try-fallbacks:
+    block-start span-inline-end,
+    block-end span-inline-start,
+    block-start span-inline-start;
 }
 
-@supports not blink-feature(SelectMobileDesktopParity) {
-  select:not(:-internal-list-box):not([multiple]) option {
-    /* min-size rules ensure that we meet accessibility guidelines for minimum target size.
-     * https://github.com/openui/open-ui/issues/1026
-     * https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html */
-    /* TODO(crbug.com/1511354): This might be able to be combined with the
-     * default select option rules at some point. This should be re-evaluted
-     * before CustomizableSelect is shipped. */
-    min-inline-size: 24px;
-    /* TODO(crbug.com/409942762): Consider removing -internal-auto-base() here
-     * if underlying performance issues with lh units are fixed. */
-    min-block-size: -internal-auto-base(24px, max(24px, 1lh));
-    font-weight: -internal-auto-base(normal, inherit);
-    padding-inline: -internal-auto-base(2px, 0.5em);
-    padding-block-end: -internal-auto-base(1px, 0);
-    display: -internal-auto-base(block, flex);
-    align-items: center;
-    gap: 0.5em;
-  }
+select:not(:-internal-list-box) option {
+  /* min-size rules ensure that we meet accessibility guidelines for minimum target size.
+   * https://github.com/openui/open-ui/issues/1026
+   * https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html */
+  /* TODO(crbug.com/41483940): This might be able to be combined with the
+   * default select option rules at some point. This should be re-evaluted
+   * before CustomizableSelect is shipped. */
+  min-inline-size: 24px;
+  /* TODO(crbug.com/409942762): Consider removing -internal-auto-base() here
+   * if underlying performance issues with lh units are fixed. */
+  min-block-size: -internal-auto-base(24px, max(24px, 1lh));
+  font-weight: -internal-auto-base(normal, inherit);
+  align-items: center;
+  gap: 0.5em;
 }
-@supports blink-feature(SelectMobileDesktopParity) {
-  select:not(:-internal-list-box) option {
-    /* min-size rules ensure that we meet accessibility guidelines for minimum target size.
-     * https://github.com/openui/open-ui/issues/1026
-     * https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html */
-    /* TODO(crbug.com/41483940): This might be able to be combined with the
-     * default select option rules at some point. This should be re-evaluted
-     * before CustomizableSelect is shipped. */
-    min-inline-size: 24px;
-    /* TODO(crbug.com/409942762): Consider removing -internal-auto-base() here
-     * if underlying performance issues with lh units are fixed. */
-    min-block-size: -internal-auto-base(24px, max(24px, 1lh));
-    font-weight: -internal-auto-base(normal, inherit);
-    align-items: center;
-    gap: 0.5em;
-  }
-  select:not(:-internal-list-box):not([multiple]) option {
-    padding-inline: -internal-auto-base(2px, 0.5em);
-    padding-block-end: -internal-auto-base(1px, 0);
-    display: -internal-auto-base(block, flex);
-  }
-  /* In the multiple case, we want to use the same styles as base appearance
-   * because the picker is rendered as a popover. */
-  select:not(:-internal-list-box)[multiple] option {
-    padding-inline: 0.5em;
-    padding-block-end: 0;
-    display: flex;
-  }
+select:not(:-internal-list-box):not([multiple]) option {
+  padding-inline: -internal-auto-base(2px, 0.5em);
+  padding-block-end: -internal-auto-base(1px, 0);
+  display: -internal-auto-base(block, flex);
+}
+/* In the multiple case, we want to use the same styles as base appearance
+ * because the picker is rendered as a popover. */
+select:not(:-internal-list-box)[multiple] option {
+  padding-inline: 0.5em;
+  padding-block-end: 0;
+  display: flex;
 }
 
-@supports not blink-feature(SelectMobileDesktopParity) {
-  select:not(:-internal-list-box):not([multiple]) option:enabled:hover {
-    background-color: color-mix(in lab, currentColor 10%, transparent);
-  }
-  select:not(:-internal-list-box):not([multiple]) option:enabled:active {
-    background-color: color-mix(in lab, currentColor 20%, transparent);
-  }
-  select:not(:-internal-list-box):not([multiple]) option:disabled {
-    color: -internal-auto-base(inherit, color-mix(in lab, currentColor 50%, transparent));
-  }
+select:not(:-internal-list-box) option:enabled:hover {
+  background-color: color-mix(currentColor 10%, transparent);
 }
-@supports blink-feature(SelectMobileDesktopParity) {
-  select:not(:-internal-list-box) option:enabled:hover {
-    background-color: color-mix(in lab, currentColor 10%, transparent);
-  }
-  select:not(:-internal-list-box) option:enabled:active {
-    background-color: color-mix(in lab, currentColor 20%, transparent);
-  }
-  select:not(:-internal-list-box) option:disabled {
-    color: -internal-auto-base(inherit, color-mix(in lab, currentColor 50%, transparent));
-  }
-  select:not(:-internal-list-box)[multiple] option:disabled {
-  /* This rule applies appearance:base styles to the appearance:auto
-   * <select multiple size=1>. Without it, disabled options would not appear disabled. */
-    color: color-mix(in lab, currentColor 50%, transparent);
-  }
+select:not(:-internal-list-box) option:enabled:active {
+  background-color: color-mix(currentColor 20%, transparent);
+}
+select:not(:-internal-list-box) option:disabled {
+  color: -internal-auto-base(inherit, color-mix(currentColor 50%, transparent));
+}
+select:not(:-internal-list-box)[multiple] option:disabled {
+/* This rule applies appearance:base styles to the appearance:auto
+ * <select multiple size=1>. Without it, disabled options would not appear disabled. */
+  color: color-mix(currentColor 50%, transparent);
 }
 @supports blink-feature(CustomizableSelectListbox) {
   /* :-internal-list-box is needed here in order to get precedence over this
    * selector: select:-internal-list-box option:enabled:hover */
   select:-internal-list-box option:enabled:active {
-    background-color: color-mix(in lab, currentColor 20%, transparent);
+    background-color: color-mix(currentColor 20%, transparent);
   }
 }
 
 @supports not blink-feature(CustomizableSelectListbox) {
   select:not(:-internal-list-box):not([multiple]) option::checkmark {
-    content: '\2713';
+    content: '\2713' / '';
   }
 }
 @supports blink-feature(CustomizableSelectListbox) {
   select option::checkmark {
-    content: '\2713';
+    content: '\2713' / '';
   }
 }
 
-@supports blink-feature(SelectMobileDesktopParity) {
-  /* The svg data urls in the below ::checkmark rules are built to match the
-   * checkbox rendering in NativeThemeBase. */
-  select[multiple] option::checkmark {
-    /* The svg is 13px by 13px. Without this height rule, the svg would not be
-     * vertically centered within the ::checkmark. */
-    height: -internal-auto-base(13px, initial);
-    content: -internal-auto-base(url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2213%22%20height%3D%2213%22%20viewBox%3D%220%200%2013%2013%22%20fill%3D%22none%22%3E%3Crect%20x%3D%220.5%22%20y%3D%220.5%22%20width%3D%2212%22%20height%3D%2212%22%20rx%3D%222%22%20fill%3D%22%23ffffff%22%20stroke%3D%22%23767676%22%20stroke-width%3D%221%22%2F%3E%3C%2Fsvg%3E), '\2713');
-  }
-  select[multiple] option:checked::checkmark {
-    content: -internal-auto-base(url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2213%22%20height%3D%2213%22%20viewBox%3D%220%200%2013%2013%22%20fill%3D%22none%22%3E%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%2213%22%20height%3D%2213%22%20rx%3D%222%22%20fill%3D%22%230075FF%22%2F%3E%3Cpath%20d%3D%22M2.6%207%20l2.6%202.5%20L10.4%202.6%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E), '\2713');
-  }
-  select[multiple] option:disabled::checkmark {
-    content: -internal-auto-base(url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2213%22%20height%3D%2213%22%20viewBox%3D%220%200%2013%2013%22%20fill%3D%22none%22%3E%3Crect%20x%3D%220.5%22%20y%3D%220.5%22%20width%3D%2212%22%20height%3D%2212%22%20rx%3D%222%22%20fill%3D%22%23ffffff%22%20stroke%3D%22%23767676%22%20stroke-opacity%3D%2260%25%22%20fill-opacity%3D%2260%25%22%20stroke-width%3D%221%22%2F%3E%3C%2Fsvg%3E), '\2713');
-  }
-  select[multiple] option:checked:disabled::checkmark {
-    content: -internal-auto-base(url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2213%22%20height%3D%2213%22%20viewBox%3D%220%200%2013%2013%22%20fill%3D%22none%22%3E%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%2213%22%20height%3D%2213%22%20rx%3D%222%22%20fill%3D%22%23767676%22%20fill-opacity%3D%2260%25%22%2F%3E%3Cpath%20d%3D%22M2.6%207%20l2.6%202.5%20L10.4%202.6%22%20stroke%3D%22%23ffffff%22%20stroke-opacity%3D%2260%25%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E), '\2713');
-  }
+/* The svg data urls in the below ::checkmark rules are built to match the
+ * checkbox rendering in NativeThemeBase. */
+select[multiple] option::checkmark {
+  /* The svg is 13px by 13px. Without this height rule, the svg would not be
+   * vertically centered within the ::checkmark. */
+  height: -internal-auto-base(13px, initial);
+  content: -internal-auto-base(url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2213%22%20height%3D%2213%22%20viewBox%3D%220%200%2013%2013%22%20fill%3D%22none%22%3E%3Crect%20x%3D%220.5%22%20y%3D%220.5%22%20width%3D%2212%22%20height%3D%2212%22%20rx%3D%222%22%20fill%3D%22%23ffffff%22%20stroke%3D%22%23767676%22%20stroke-width%3D%221%22%2F%3E%3C%2Fsvg%3E), '\2713' / '');
+}
+select[multiple] option:checked::checkmark {
+  content: -internal-auto-base(url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2213%22%20height%3D%2213%22%20viewBox%3D%220%200%2013%2013%22%20fill%3D%22none%22%3E%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%2213%22%20height%3D%2213%22%20rx%3D%222%22%20fill%3D%22%230075FF%22%2F%3E%3Cpath%20d%3D%22M2.6%207%20l2.6%202.5%20L10.4%202.6%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E), '\2713' / '');
+}
+select[multiple] option:disabled::checkmark {
+  content: -internal-auto-base(url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2213%22%20height%3D%2213%22%20viewBox%3D%220%200%2013%2013%22%20fill%3D%22none%22%3E%3Crect%20x%3D%220.5%22%20y%3D%220.5%22%20width%3D%2212%22%20height%3D%2212%22%20rx%3D%222%22%20fill%3D%22%23ffffff%22%20stroke%3D%22%23767676%22%20stroke-opacity%3D%2260%25%22%20fill-opacity%3D%2260%25%22%20stroke-width%3D%221%22%2F%3E%3C%2Fsvg%3E), '\2713' / '');
+}
+select[multiple] option:checked:disabled::checkmark {
+  content: -internal-auto-base(url(data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2213%22%20height%3D%2213%22%20viewBox%3D%220%200%2013%2013%22%20fill%3D%22none%22%3E%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%2213%22%20height%3D%2213%22%20rx%3D%222%22%20fill%3D%22%23767676%22%20fill-opacity%3D%2260%25%22%2F%3E%3Cpath%20d%3D%22M2.6%207%20l2.6%202.5%20L10.4%202.6%22%20stroke%3D%22%23ffffff%22%20stroke-opacity%3D%2260%25%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E), '\2713' / '');
 }
 
-@supports blink-feature(SelectMobileDesktopParity) {
-  select option:not(:checked)::checkmark {
-    /* appearance:auto renders an unchecked box instead of empty space. */
-    visibility: -internal-auto-base(visible, hidden);
-  }
-}
-@supports not blink-feature(SelectMobileDesktopParity) {
-  select option:not(:checked)::checkmark {
-    visibility: hidden;
-  }
+select option:not(:checked)::checkmark {
+  /* appearance:auto renders an unchecked box instead of empty space. */
+  visibility: -internal-auto-base(visible, hidden);
 }
 
 select:-internal-autofill-selected,
@@ -2263,19 +2339,18 @@ select::-internal-select-autofill-preview-text {
     font-weight: normal;
   }
 }
-@supports blink-feature(SelectMobileDesktopParity) {
-  /* This rule applies appearance:base styles to the appearance:auto
-   * <select multiple size=1> optgroups. Without it, the padding would look too
-   * small. */
-  select:not(:-internal-list-box)[multiple] optgroup::-internal-optgroup-label,
-  select:not(:-internal-list-box)[multiple] optgroup legend {
-    padding-inline: 0.5em;
-    padding-block: 0;
-  }
-  select:not(:-internal-list-box)[multiple] optgroup option {
-    padding-inline-start: -internal-auto-base(1em, 0.5em);
-    font-weight: normal;
-  }
+
+/* This rule applies appearance:base styles to the appearance:auto
+ * <select multiple size=1> optgroups. Without it, the padding would look too
+ * small. */
+select:not(:-internal-list-box)[multiple] optgroup::-internal-optgroup-label,
+select:not(:-internal-list-box)[multiple] optgroup legend {
+  padding-inline: 0.5em;
+  padding-block: 0;
+}
+select:not(:-internal-list-box)[multiple] optgroup option {
+  padding-inline-start: -internal-auto-base(1em, 0.5em);
+  font-weight: normal;
 }
 
 /* These style rules control whether the select's MenuListInnerElement or
@@ -2406,7 +2481,7 @@ select:-internal-select-has-slotted-button::-internal-select-button-slot {
   }
 
   menuitem::checkmark {
-    content: '\2713';
+    content: '\2713' / '';
   }
 
   menuitem:not(:checked)::checkmark {
@@ -2441,10 +2516,10 @@ select:-internal-select-has-slotted-button::-internal-select-button-slot {
     }
 
     menuitem:enabled:hover {
-      background-color: color-mix(in lab, currentColor 10%, transparent);
+      background-color: color-mix(currentColor 10%, transparent);
     }
     menuitem:disabled {
-      color: color-mix(in lab, currentColor 50%, transparent);
+      color: color-mix(currentColor 50%, transparent);
     }
   }
 }
@@ -2452,7 +2527,9 @@ select:-internal-select-has-slotted-button::-internal-select-button-slot {
 [overscrollcontainer] {
   -internal-overscroll-area: auto;
 }
-
+[overscrollcontainer="overlay"] {
+  -internal-overscroll-area: overlay;
+}
 :-internal-overscroll-target {
   -internal-overscroll-position: auto;
 }
@@ -2471,11 +2548,11 @@ select:-internal-select-has-slotted-button::-internal-select-button-slot {
 }
 
 @supports blink-feature(CustomizableCombobox) {
-  /* This should be set as an inline style in DataListIndicatorElement, but
-   * -internal-auto-base() can only be used in the UA stylesheet. The series of
-   * :not() selectors are here in order to match the text input type, which can
-   * be type=text or any other invalid type attribute. */
-  input:not([type="date" i]):not([type="datetime-local" i]):not([type="month" i]):not([type="week" i]):not([type="time" i])::-webkit-calendar-picker-indicator {
+  /* This would be set as an inline style in DataListIndicatorElement, but
+   * -internal-auto-base() can only be used in the UA stylesheet.
+   * :-internal-text-field is needed for this because many attribute selectors
+   * would not be performant enough. */
+  input:-internal-text-field::-webkit-calendar-picker-indicator {
     display: -internal-auto-base(list-item, none);
   }
 
@@ -2529,7 +2606,21 @@ select:-internal-select-has-slotted-button::-internal-select-button-slot {
     padding-block-end: -internal-auto-base(1px, 0);
   }
 
+  /* These are redundant with the style rules in the FilterableSelect block.
+   * They should be removed when the FilterableSelect flag is removed. */
   datalist option:active-option {
     outline: black auto 1px;
+  }
+  option:filtered {
+    display: none;
+  }
+}
+
+@supports blink-feature(FilterableSelect) {
+  option:active-option {
+    outline: black auto 1px;
+  }
+  option:filtered {
+    display: none;
   }
 }

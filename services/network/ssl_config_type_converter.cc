@@ -55,10 +55,6 @@ net::SSLContextConfig MojoSSLConfigToSSLContextConfig(
       };
       break;
   }
-  if (!mojo_config->post_quantum_key_agreement_enabled) {
-    std::erase_if(net_config.supported_named_groups,
-                  std::mem_fn(&net::SSLNamedGroupInfo::IsPostQuantum));
-  }
 
   for (const auto& tai : mojo_config->trust_anchor_ids) {
     net_config.trust_anchor_ids.insert(tai);
@@ -78,8 +74,6 @@ net::CertVerifier::Config MojoSSLConfigToCertVerifierConfig(
   net_config.enable_rev_checking = mojo_config->rev_checking_enabled;
   net_config.require_rev_checking_local_anchors =
       mojo_config->rev_checking_required_local_anchors;
-  net_config.enable_sha1_local_anchors =
-      mojo_config->sha1_local_anchors_enabled;
 
   return net_config;
 }

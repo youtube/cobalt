@@ -1,8 +1,11 @@
 include_rules = [
+  "+components/autofill/core/browser",
+  "+components/autofill/core/common",
   "+components/history",
   "+components/infobars",
   "+components/keyed_service/core",
   "+components/prefs",
+  "+components/shared_highlighting/core/common",
   "+components/signin/public/base",
   "+components/signin/public/identity_manager",
   "+components/strings",

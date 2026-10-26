@@ -15,13 +15,19 @@
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "components/contextual_tasks/public/ai_thread_data_type_controller.h"
 #include "components/supervised_user/core/common/buildflags.h"
 #include "components/sync/base/data_type.h"
 
+class AimEligibilityService;
 class GoogleGroupsManager;
 class PrefService;
 class SharingMessageBridge;
 class TemplateURLService;
+
+namespace accessibility_annotator {
+class AccessibilityAnnotatorBackend;
+}  // namespace accessibility_annotator
 
 namespace autofill {
 class AddressDataManager;
@@ -36,10 +42,6 @@ class BookmarkModel;
 namespace collaboration {
 class CollaborationService;
 }  // namespace collaboration
-
-namespace commerce {
-class ProductSpecificationsService;
-}  // namespace commerce
 
 namespace contextual_tasks {
 class ContextualTasksService;
@@ -143,6 +145,9 @@ class CommonControllerBuilder {
 
   // Setters to inject dependencies. Each of these setters must be invoked
   // before invoking `Build()`. In some cases it is allowed to inject nullptr.
+  void SetAccessibilityAnnotatorBackend(
+      accessibility_annotator::AccessibilityAnnotatorBackend*
+          accessibility_annotator_backend);
   void SetAccountSettingService(
       autofill::AccountSettingService* account_setting_service);
   void SetAddressDataManagerGetter(
@@ -154,6 +159,7 @@ class CommonControllerBuilder {
           web_data_service_on_disk,
       const scoped_refptr<autofill::AutofillWebDataService>&
           web_data_service_in_memory);
+  void SetAimEligibilityService(AimEligibilityService* aim_eligibility_service);
   void SetBookmarkModel(bookmarks::BookmarkModel* bookmark_model);
   void SetBookmarkSyncService(
       sync_bookmarks::BookmarkSyncService*
@@ -200,8 +206,6 @@ class CommonControllerBuilder {
   void SetPrefService(PrefService* pref_service);
   void SetPrefServiceSyncable(
       sync_preferences::PrefServiceSyncable* pref_service_syncable);
-  void SetProductSpecificationsService(
-      commerce::ProductSpecificationsService* product_specifications_service);
   void SetDualReadingListModel(
       reading_list::DualReadingListModel* dual_reading_list_model);
   void SetSendTabToSelfSyncService(send_tab_to_self::SendTabToSelfSyncService*
@@ -267,6 +271,8 @@ class CommonControllerBuilder {
 
   // For all above, nullopt indicates the corresponding setter wasn't invoked.
   // nullptr indicates the setter was invoked with nullptr.
+  SafeOptional<raw_ptr<accessibility_annotator::AccessibilityAnnotatorBackend>>
+      accessibility_annotator_backend_;
   SafeOptional<raw_ptr<autofill::AccountSettingService>>
       account_setting_service_;
   base::RepeatingCallback<autofill::AddressDataManager*()>
@@ -300,6 +306,7 @@ class CommonControllerBuilder {
       profile_autofill_web_data_service_;
   SafeOptional<scoped_refptr<autofill::AutofillWebDataService>>
       account_autofill_web_data_service_;
+  SafeOptional<raw_ptr<AimEligibilityService>> aim_eligibility_service_;
   SafeOptional<scoped_refptr<password_manager::PasswordStoreInterface>>
       profile_password_store_;
   SafeOptional<scoped_refptr<password_manager::PasswordStoreInterface>>
@@ -315,8 +322,6 @@ class CommonControllerBuilder {
       plus_address_setting_service_;
   SafeOptional<scoped_refptr<plus_addresses::PlusAddressWebDataService>>
       plus_address_webdata_service_;
-  SafeOptional<raw_ptr<commerce::ProductSpecificationsService>>
-      product_specifications_service_;
   SafeOptional<raw_ptr<collaboration::CollaborationService>>
       collaboration_service_;
   SafeOptional<raw_ptr<contextual_tasks::ContextualTasksService>>

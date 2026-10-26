@@ -75,8 +75,8 @@ class StateProvider {
   virtual std::optional<SkColor> GetHighlightTextColor(
       const ui::ColorProvider& color_provider) const;
 
-  // Returns the avatar icon.
-  virtual ui::ImageModel GetAvatarIcon(
+  // Returns the avatar icon and its type.
+  virtual std::pair<ui::ImageModel, AvatarIconType> GetAvatarIcon(
       int icon_size,
       SkColor /*icon_color*/,
       const ui::ColorProvider& color_provider) const;
@@ -218,6 +218,10 @@ class AvatarToolbarButtonStateManager
   // WARNING: Check `AvatarToolbarButton::ForceShowingPromoForTesting()` before
   // using.
   void ForceShowingPromoForTesting();
+
+  // Returns whether the delay timer was running or not.
+  // Stops the timer if it is running.
+  bool GetStateAndFireSignedOutTriggerDelayTimerForTesting();
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
  private:

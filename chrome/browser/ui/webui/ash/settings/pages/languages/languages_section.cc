@@ -7,6 +7,7 @@
 #include <array>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/url_constants.h"
 #include "ash/webui/settings/public/constants/routes.mojom-forward.h"
 #include "base/containers/span.h"
 #include "base/strings/utf_string_conversions.h"
@@ -16,7 +17,6 @@
 #include "chrome/browser/ui/webui/ash/settings/os_settings_features_util.h"
 #include "chrome/browser/ui/webui/ash/settings/search/search_tag_registry.h"
 #include "chrome/browser/ui/webui/settings/languages_handler.h"
-#include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/components/quick_answers/public/cpp/quick_answers_state.h"
 #include "chromeos/constants/chromeos_features.h"
@@ -136,12 +136,12 @@ void AddLanguagesPageStringsV2(content::WebUIDataSource* html_source) {
       "languagesPreferenceDescription",
       l10n_util::GetStringFUTF16(
           IDS_OS_SETTINGS_LANGUAGES_LANGUAGES_PREFERENCE_DESCRIPTION,
-          chrome::kLanguageSettingsLearnMoreUrl));
+          ash::external_urls::kLanguageSettingsLearnMoreUrl));
   html_source->AddString(
       "websiteLanguagesDescription",
       l10n_util::GetStringFUTF16(
           IDS_OS_SETTINGS_LANGUAGES_WEBSITE_LANGUAGES_DESCRIPTION,
-          chrome::kLanguageSettingsLearnMoreUrl));
+          ash::external_urls::kLanguageSettingsLearnMoreUrl));
   html_source->AddString(
       "translateTargetLabel",
       l10n_util::GetStringUTF16(
@@ -153,12 +153,13 @@ void AddLanguagesPageStringsV2(content::WebUIDataSource* html_source) {
       "changeDeviceLanguageDialogDescription",
       l10n_util::GetStringFUTF16(
           IDS_OS_SETTINGS_LANGUAGES_CHANGE_DEVICE_LANGUAGE_DIALOG_DESCRIPTION,
-          chrome::kLanguageSettingsLearnMoreUrl));
+          ash::external_urls::kLanguageSettingsLearnMoreUrl));
 
   html_source->AddString(
       "googleAccountLanguagesURL",
-      net::AppendQueryParameter(GURL(chrome::kGoogleAccountLanguagesURL),
-                                "utm_source", "chrome-settings")
+      net::AppendQueryParameter(
+          GURL(ash::external_urls::kGoogleAccountLanguagesURL), "utm_source",
+          "chrome-settings")
           .spec());
 }
 

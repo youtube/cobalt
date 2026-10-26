@@ -9,7 +9,6 @@ import android.os.Build;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
-import android.view.View;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -27,7 +26,9 @@ import org.chromium.ui.widget.ChromeImageButton;
 @NullMarked
 public class ListMenuButton extends ChromeImageButton {
     private final ListMenuHost mListMenuHost;
-    private boolean mIsAttachedToWindow;
+    private boolean mIsActive;
+
+    private boolean mIsAttachedToWindowForTesting;
 
     /**
      * Creates a new {@link ListMenuButton}.
@@ -37,7 +38,7 @@ public class ListMenuButton extends ChromeImageButton {
      */
     public ListMenuButton(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
-        mListMenuHost = new ListMenuHost(this, attrs);
+        mListMenuHost = new ListMenuHost(this, attrs, this::setIsPressed);
     }
 
     /**
@@ -79,18 +80,6 @@ public class ListMenuButton extends ChromeImageButton {
     }
 
     /**
-     * Set the root view for {@link AnchoredPopupWindow} to use. This is necessary when the root
-     * view of {@link mView} does not match the root view of the application, for example when the
-     * {@link mView} is inside another {@link AnchoredPopupWindow}. This must be called before the
-     * popup window is shown.
-     *
-     * @param rootView The {@link View} to use to get window tokens.
-     */
-    public void setRootView(View rootView) {
-        mListMenuHost.setRootView(rootView);
-    }
-
-    /**
      * @returns The {@link ListMenuHost} of the menu.
      */
     public ListMenuHost getHost() {
@@ -104,8 +93,19 @@ public class ListMenuButton extends ChromeImageButton {
 
     /** Shows a popupWindow built by ListMenuButton */
     public void showMenu() {
-        if (!mIsAttachedToWindow) return;
+        if (!isAttachedToWindow()) return;
         mListMenuHost.showMenu();
+    }
+
+    /** Store the active state to set 'pressed' style to the button when the menu is open. */
+    public void setIsPressed(boolean active) {
+        mIsActive = active;
+        setPressed(active);
+    }
+
+    @Override
+    public void setPressed(boolean pressed) {
+        super.setPressed(mIsActive || pressed);
     }
 
     /**
@@ -159,14 +159,17 @@ public class ListMenuButton extends ChromeImageButton {
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        mIsAttachedToWindow = true;
     }
 
     @Override
     protected void onDetachedFromWindow() {
         dismiss();
-        mIsAttachedToWindow = false;
         super.onDetachedFromWindow();
+    }
+
+    @Override
+    public boolean isAttachedToWindow() {
+        return mIsAttachedToWindowForTesting || super.isAttachedToWindow();
     }
 
     @Override
@@ -181,6 +184,6 @@ public class ListMenuButton extends ChromeImageButton {
     }
 
     public void setAttachedToWindowForTesting() {
-        mIsAttachedToWindow = true;
+        mIsAttachedToWindowForTesting = true;
     }
 }

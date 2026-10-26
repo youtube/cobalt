@@ -108,9 +108,17 @@ class WebstorePrivateBeginInstallWithManifest3Function
 
   // Handles the result of GetWebstoreExtensionInstallStatus.
   void OnInstallStatusCheckDone(
-      extensions::ExtensionInstallStatus install_status);
+      extensions::ExtensionInstallStatus install_status,
+      std::u16string blocked_message);
 
   void RequestExtensionApproval(content::WebContents* web_contents);
+
+#if BUILDFLAG(IS_ANDROID)
+  // Called when the parent access flow on Android desktop completes to show the
+  // browser parent approval permission dialog.
+  void OnParentAuthenticationDone(content::WebContents* web_contents,
+                                  SupervisedExtensionApprovalResult result);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   // Handles the result of the extension approval flow.
   void OnExtensionApprovalDone(SupervisedExtensionApprovalResult result);
@@ -368,7 +376,8 @@ class WebstorePrivateGetExtensionStatusFunction : public ExtensionFunction {
       const ExtensionId& extension_id);
   void OnManifestParsed(const ExtensionId& extension_id,
                         data_decoder::DataDecoder::ValueOrError result);
-  void OnInstallStatusCheckDone(ExtensionInstallStatus status);
+  void OnInstallStatusCheckDone(ExtensionInstallStatus status,
+                                std::u16string blocked_message);
 
   // ExtensionFunction:
   ExtensionFunction::ResponseAction Run() override;

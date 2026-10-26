@@ -31,9 +31,9 @@
 #include "chrome/browser/ui/lens/lens_search_feature_flag_utils.h"
 #include "chrome/browser/ui/lens/lens_searchbox_controller.h"
 #include "chrome/browser/ui/lens/lens_session_metrics_logger.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/webui/util/image_util.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/grit/branded_strings.h"
@@ -229,6 +229,9 @@ void LensSearchController::OpenLensOverlay(
   if (IsOff()) {
     // Setup all state necessary for this Lens session.
     StartLensSession(invocation_source);
+  } else {
+    // Update the invocation source if the session is already active.
+    invocation_source_ = invocation_source;
   }
 
   should_show_csb_ = should_show_csb;
@@ -396,7 +399,7 @@ void LensSearchController::CloseLensAsync(
   // moved. It needs to be reset here to avoid a crash when the query router is
   // eventually destroyed.
   if (query_router_) {
-    query_router_->reset_file_upload_status_observation();
+    query_router_->reset_context_upload_status_observation();
   }
 
   // Close the side panel if it is showing. This provides a smooth closing
@@ -638,6 +641,16 @@ LensSearchController::invocation_source() {
   return invocation_source_;
 }
 
+void LensSearchController::SetInvocationSource(
+    lens::LensOverlayInvocationSource invocation_source) {
+  invocation_source_ = invocation_source;
+
+  // Inform the UI of the state change with the new invocation source.
+  if (results_panel_router_ && results_panel_router_->IsEntryShowing()) {
+    results_panel_router_->OnOverlayShown();
+  }
+}
+
 std::unique_ptr<LensOverlayController>
 LensSearchController::CreateLensOverlayController(
     tabs::TabInterface* tab,
@@ -794,7 +807,7 @@ bool LensSearchController::RunLensEligibilityChecks(
   // If the user hasn't granted permission, request user permission before
   // showing the UI.
   if (!lens::CanSharePageScreenshotWithLensOverlay(pref_service_) ||
-      (lens::IsLensOverlayContextualSearchboxEnabled() &&
+      (lens::IsLensOverlayContextualSearchboxEnabled(GetProfile()) &&
        !lens::CanSharePageContentWithLensOverlay(pref_service_))) {
     if (!lens_permission_bubble_controller_) {
       lens_permission_bubble_controller_ =
@@ -854,6 +867,10 @@ void LensSearchController::CloseLensPart2(
   // Let the controllers know to cleanup.
   // TODO(crbug.com/404941800): Move logging to a shared location to not be
   // dependent on the overlay controller.
+  if (query_router_) {
+    query_router_->RemoveContextualSearchContextIfNecessary(
+        lens_overlay_controller_->HasRegionSelection());
+  }
   lens_overlay_controller_->CloseUI();
   lens_searchbox_controller_->CloseUI();
   lens_composebox_controller_->CloseUI();
@@ -1121,3 +1138,6 @@ void LensSearchController::OnPageContextUpdatedForZeroStateRequest(
   }
 }
 
+Profile* LensSearchController::GetProfile() {
+  return Profile::FromBrowserContext(tab_->GetContents()->GetBrowserContext());
+}

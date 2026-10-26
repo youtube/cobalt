@@ -78,6 +78,7 @@
 #include "third_party/blink/renderer/core/layout/forms/layout_fieldset.h"
 #include "third_party/blink/renderer/core/layout/forms/layout_text_control.h"
 #include "third_party/blink/renderer/core/layout/fragmentation_utils.h"
+#include "third_party/blink/renderer/core/layout/gap/gap_geometry.h"
 #include "third_party/blink/renderer/core/layout/geometry/box_strut.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 #include "third_party/blink/renderer/core/layout/hit_test_result.h"
@@ -479,6 +480,7 @@ LayoutBoxRareData::LayoutBoxRareData()
 
 void LayoutBoxRareData::Trace(Visitor* visitor) const {
   visitor->Trace(layout_child_);
+  visitor->Trace(previous_gap_geometries_);
 }
 
 LayoutBox::LayoutBox(ContainerNode* node) : LayoutBoxModelObject(node) {
@@ -499,7 +501,11 @@ LayoutBox::~LayoutBox() = default;
 
 PaintLayerType LayoutBox::LayerTypeRequired() const {
   NOT_DESTROYED();
-  if (IsStacked() || HasHiddenBackface()) {
+  if (IsStacked() || HasHiddenBackface() ||
+      // A normal flow replaced stacking context is not stacked by itself,
+      // but needs a PaintLayer to manage stacked children.
+      (RuntimeEnabledFeatures::StackingContextIsNotStackedEnabled() &&
+       IsReplacedNormalFlowStackingContext(StyleRef()))) {
     return kNormalPaintLayer;
   }
 
@@ -507,7 +513,7 @@ PaintLayerType LayoutBox::LayerTypeRequired() const {
     return kOverflowClipPaintLayer;
   }
 
-  if (Style()->IsInternalOverscrollAreaAuto()) {
+  if (IsOverscrollContainer()) {
     return kForcedPaintLayer;
   }
 
@@ -532,9 +538,7 @@ void LayoutBox::WillBeDestroyed() {
 
   ShapeOutsideInfo::RemoveInfo(*this);
 
-  if (!DocumentBeingDestroyed()) {
-    DisassociatePhysicalFragments();
-  }
+  DisassociatePhysicalFragments();
 
   if (!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled()) {
     if (Style() && StyleRef().HasOutOfFlowPosition()) {
@@ -738,6 +742,15 @@ void LayoutBox::StyleDidChange(StyleDifference diff,
           (HasControlClip() && !old_style->PaddingEqual(new_style))) {
         SetNeedsPaintPropertyUpdate();
       }
+    }
+
+    // When box-shadow changes while border-shape is active, force a paint
+    // property update to ensure the InnerBorderShapeClip overflow hierarchy is
+    // re-evaluated consistently with the visual overflow recomputation.
+    if (!base::ValuesEquivalent(old_style->BoxShadow(),
+                                new_style.BoxShadow()) &&
+        (new_style.HasBorderShape() || old_style->HasBorderShape())) {
+      SetNeedsPaintPropertyUpdate();
     }
 
     if (old_style->OverscrollBehaviorX() != new_style.OverscrollBehaviorX() ||
@@ -1250,8 +1263,11 @@ void LayoutBox::UpdateAfterLayout() {
   if (IsPositioned())
     GetFrame()->GetInputMethodController().DidLayoutSubtree(*this);
 
-  if (StyleRef().HasColumnRule() && IsFragmentationContextRoot()) {
+  if (StyleRef().HasColumnRule() && IsFragmentationContextRoot() &&
+      !RuntimeEnabledFeatures::CSSGapDecorationEnabled()) {
     // Issue full invalidation, in case the number of column rules have changed.
+    // When CSSGapDecoration is enabled, gap decoration invalidation is handled
+    // by BoxPaintInvalidator.
     ClearNeedsLayoutWithFullPaintInvalidation();
   } else {
     ClearNeedsLayout();
@@ -3284,12 +3300,10 @@ PhysicalBoxStrut LayoutBox::ComputeVisualEffectOverflowOutsets() {
         border_shape_rects ? border_shape_rects->outer : border_rect;
     const PhysicalRect inner_reference_rect =
         border_shape_rects ? border_shape_rects->inner : border_rect;
-    if (std::optional<PhysicalBoxStrut> border_shape_outsets =
-            BorderShapePainter::VisualOutsets(style, border_rect,
-                                              outer_reference_rect,
-                                              inner_reference_rect)) {
-      outsets.Unite(*border_shape_outsets);
-    }
+    // VisualOutsets() returns the complete border-shape overflow: both the
+    // border path's visual extent and the precise box-shadow extent.
+    outsets.Unite(BorderShapePainter::VisualOutsets(
+        style, border_rect, outer_reference_rect, inner_reference_rect));
   }
 
   if (style.HasOutline()) {
@@ -4035,6 +4049,23 @@ void LayoutBox::MutableForPainting::SavePreviousOverflowData() {
       GetLayoutBox().VisualOverflowRect();
   previous_overflow->previous_self_visual_overflow_rect =
       GetLayoutBox().SelfVisualOverflowRect();
+}
+
+void LayoutBox::MutableForPainting::SavePreviousGapGeometries() {
+  auto* previous_gap_geometries =
+      MakeGarbageCollected<GCedHeapVector<Member<const GapGeometry>>>();
+  for (const PhysicalBoxFragment& fragment :
+       GetLayoutBox().PhysicalFragments()) {
+    previous_gap_geometries->push_back(fragment.GetGapGeometry());
+  }
+  GetLayoutBox().EnsureRareData().previous_gap_geometries_ =
+      previous_gap_geometries;
+}
+
+void LayoutBox::MutableForPainting::ClearPreviousGapGeometries() {
+  if (auto* rare_data = GetLayoutBox().rare_data_.Get()) {
+    rare_data->previous_gap_geometries_ = nullptr;
+  }
 }
 
 void LayoutBox::MutableForPainting::SetPreviousGeometryForLayoutShiftTracking(

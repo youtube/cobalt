@@ -9,8 +9,11 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/hash/hash.h"
 #include "base/notreached.h"
 #include "base/scoped_observation.h"
+#include "content/common/buildflags.h"
+#include "content/common/memory_coordinator/constants.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_process_host_observer.h"
 #include "mojo/public/cpp/bindings/message.h"
@@ -115,13 +118,42 @@ void ChildMemoryConsumerRegistryHost::BindCoordinator(
   coordinator_remote_.set_disconnect_handler(
       base::BindOnce(&ChildMemoryConsumerRegistryHost::RunDisconnectHandler,
                      base::Unretained(this)));
+
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+  // If diagnostics were enabled before BindCoordinator, now we can bind the
+  // diagnostic interface.
+  if (diagnostics_enabled_) {
+    EnableReportingImpl();
+  }
+#endif
 }
 
 void ChildMemoryConsumerRegistryHost::Register(
-    const std::string& consumer_id,
-    base::MemoryConsumerTraits traits) {
+    uint32_t consumer_id,
+    const std::string& consumer_name,
+    std::optional<base::MemoryConsumerTraits> traits) {
   if (!coordinator_remote_.is_bound()) {
     mojo::ReportBadMessage("Register called before BindCoordinator");
+    return;
+  }
+
+  // Ensure a child process cannot flood the browser with too many memory
+  // consumers.
+  if (consumers_.size() >= kMaxMemoryConsumersPerProcess) {
+    mojo::ReportBadMessage("Too many memory consumers registered");
+    return;
+  }
+
+  // Ensure a child process cannot send overly large strings to the browser
+  // process.
+  if (consumer_name.length() > kMaxMemoryConsumerNameLength) {
+    mojo::ReportBadMessage("Memory consumer name is too long");
+    return;
+  }
+
+  if (consumer_id != base::PersistentHash(consumer_name)) {
+    mojo::ReportBadMessage(
+        "consumer_id does not match the hash of consumer_name");
     return;
   }
 
@@ -131,12 +163,11 @@ void ChildMemoryConsumerRegistryHost::Register(
     return;
   }
 
-  controller_->OnConsumerGroupAdded(consumer_id, traits, process_type_,
-                                    child_process_id_);
+  controller_->OnConsumerGroupAdded(consumer_id, consumer_name, traits,
+                                    process_type_, child_process_id_);
 }
 
-void ChildMemoryConsumerRegistryHost::Unregister(
-    const std::string& consumer_id) {
+void ChildMemoryConsumerRegistryHost::Unregister(uint32_t consumer_id) {
   auto it = consumers_.find(consumer_id);
   if (it == consumers_.end()) {
     mojo::ReportBadMessage("Unregister called for a non-existing consumer_id");
@@ -147,14 +178,66 @@ void ChildMemoryConsumerRegistryHost::Unregister(
   consumers_.erase(it);
 }
 
+void ChildMemoryConsumerRegistryHost::UpdateConsumers(
+    std::vector<MemoryConsumerUpdate> updates) {
+  coordinator_remote_->UpdateConsumers(std::move(updates));
+}
+
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+void ChildMemoryConsumerRegistryHost::OnMemoryLimitChanged(
+    uint32_t consumer_id,
+    int32_t memory_limit) {
+  if (memory_limit < 0) {
+    mojo::ReportBadMessage("OnMemoryLimitChanged: out of range");
+    return;
+  }
+
+  // Ensure a child process can only report diagnostics for registered
+  // consumers.
+  if (consumers_.find(consumer_id) == consumers_.end()) {
+    mojo::ReportBadMessage("OnMemoryLimitChanged: unknown consumer_id");
+    return;
+  }
+
+  controller_->OnMemoryLimitChanged(consumer_id, child_process_id_,
+                                    memory_limit);
+}
+
+void ChildMemoryConsumerRegistryHost::EnableDiagnosticsReporting() {
+  CHECK(!diagnostics_enabled_);
+  diagnostics_enabled_ = true;
+
+  if (coordinator_remote_.is_bound()) {
+    EnableReportingImpl();
+  }
+}
+
+void ChildMemoryConsumerRegistryHost::DisableDiagnosticsReporting() {
+  CHECK(diagnostics_enabled_);
+  diagnostics_enabled_ = false;
+
+  diagnostics_host_receiver_.reset();
+}
+#endif  // BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+
 void ChildMemoryConsumerRegistryHost::RunDisconnectHandler() {
   // Calling `disconnect_handler_` will delete `this`.
   std::move(disconnect_handler_).Run();
 }
 
-void ChildMemoryConsumerRegistryHost::UpdateConsumers(
-    std::vector<MemoryConsumerUpdate> updates) {
-  coordinator_remote_->UpdateConsumers(std::move(updates));
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+void ChildMemoryConsumerRegistryHost::EnableReportingImpl() {
+  CHECK(diagnostics_enabled_);
+  CHECK(coordinator_remote_.is_bound());
+  CHECK(!diagnostics_host_receiver_.is_bound());
+  coordinator_remote_->EnableDiagnosticsReporting(
+      diagnostics_host_receiver_.BindNewPipeAndPassRemote());
+  // The use of Unretained is safe here because `this` owns the remote and
+  // will always outlive it.
+  diagnostics_host_receiver_.set_disconnect_handler(
+      base::BindOnce(&ChildMemoryConsumerRegistryHost::RunDisconnectHandler,
+                     base::Unretained(this)));
 }
+#endif  // BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
 
 }  // namespace content

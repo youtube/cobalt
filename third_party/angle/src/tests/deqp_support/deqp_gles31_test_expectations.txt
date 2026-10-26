@@ -8,10 +8,6 @@
 //// Desktop expectations
 ////
 
-// Invalid tests
-484215148 : dEQP-GLES31.functional.debug.negative_coverage.get_error.state.get_nuniformiv = SKIP
-484215148 : dEQP-GLES31.functional.debug.negative_coverage.get_error.state.get_nuniformuiv = SKIP
-
 // Crashing Tests
 42260436 OPENGL : dEQP-GLES31.functional.program_interface_query.transform_feedback_varying.resource_list.vertex_fragment.builtin_gl_position = SKIP
 
@@ -245,6 +241,15 @@ b/224537784 PIXEL4ORXL VULKAN : dEQP-GLES31.functional.debug.error_groups.case_9
 42265173 UBSAN : dEQP-GLES31.functional.texture.multisample.samples_*.sample_mask_non_effective_bits = SKIP
 42265173 UBSAN : dEQP-GLES31.functional.shaders.builtin_functions.common.abs.* = SKIP
 42265173 UBSAN : dEQP-GLES31.functional.shaders.builtin_functions.integer.bitfieldinsert.* = SKIP
+
+// Pixel 10
+485920226 PIXEL10 VULKAN : dEQP-GLES31.functional.copy_image.mixed.viewclass_128_bits_mixed.* = FAIL
+485920226 PIXEL10 VULKAN : dEQP-GLES31.functional.copy_image.mixed.viewclass_64_bits_mixed.* = FAIL
+485920226 PIXEL10 VULKAN : dEQP-GLES31.functional.copy_image.non_compressed.viewclass_16_bits.* = FAIL
+485920226 PIXEL10 VULKAN : dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.* = FAIL
+485920226 PIXEL10 VULKAN : dEQP-GLES31.functional.copy_image.non_compressed.viewclass_48_bits.* = FAIL
+485920226 PIXEL10 VULKAN : dEQP-GLES31.functional.copy_image.non_compressed.viewclass_64_bits.* = FAIL
+485920226 PIXEL10 VULKAN : dEQP-GLES31.functional.copy_image.non_compressed.viewclass_96_bits.* = FAIL
 
 // Samsung Galaxy S22 (Xclipse)
 b/267953710 GALAXYS22 VULKAN : dEQP-GLES31.functional.blend_equation_advanced.msaa.darken = SKIP

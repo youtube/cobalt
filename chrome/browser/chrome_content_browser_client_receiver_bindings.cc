@@ -42,6 +42,7 @@
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/service_worker_version_base_info.h"
 #include "content/public/common/buildflags.h"
 #include "media/mojo/buildflags.h"
@@ -60,9 +61,6 @@
 #include "chromeos/ash/components/mojo_service_manager/utility_process_bridge.h"
 #include "chromeos/components/cdm_factory_daemon/cdm_factory_daemon_proxy_ash.h"
 #include "components/performance_manager/public/performance_manager.h"
-#if defined(ARCH_CPU_X86_64)
-#include "chrome/browser/performance_manager/mechanisms/userspace_swap_chromeos.h"
-#endif  // defined(ARCH_CPU_X86_64)
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -274,19 +272,6 @@ void ChromeContentBrowserClient::ExposeInterfacesToRenderer(
       ui_task_runner);
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_X86_64)
-  if (performance_manager::mechanism::userspace_swap::
-          UserspaceSwapInitializationImpl::UserspaceSwapSupportedAndEnabled()) {
-    registry
-        ->AddInterface<::userspace_swap::mojom::UserspaceSwapInitialization>(
-            base::BindRepeating(
-                &performance_manager::mechanism::userspace_swap::
-                    UserspaceSwapInitializationImpl::Create,
-                render_process_host->GetDeprecatedID()),
-            ui_task_runner);
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_X86_64)
-
   for (auto& ep : extra_parts_) {
     ep->ExposeInterfacesToRenderer(registry, associated_registry,
                                    render_process_host);
@@ -338,10 +323,12 @@ void ChromeContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
   chrome::internal::PopulateChromeWebUIFrameBinders(map, render_frame_host);
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  const GURL& site = render_frame_host->GetSiteInstance()->GetSiteURL();
-  if (!site.SchemeIs(extensions::kExtensionScheme))
+  if (!render_frame_host->GetSiteInstance()->GetSecurityPrincipal().SchemeIs(
+          extensions::kExtensionScheme)) {
     return;
+  }
 
+  const GURL& site = render_frame_host->GetSiteInstance()->GetSiteURL();
   content::BrowserContext* browser_context =
       render_frame_host->GetProcess()->GetBrowserContext();
   auto* extension = extensions::ExtensionRegistry::Get(browser_context)

@@ -38,8 +38,7 @@ BSSL_NAMESPACE_BEGIN
 // that it needs to asynchronously fetch session information.
 static const char g_pending_session_magic = 0;
 
-static CRYPTO_EX_DATA_CLASS g_ex_data_class =
-    CRYPTO_EX_DATA_CLASS_INIT_WITH_APP_DATA;
+static ExDataClass g_ex_data_class(/*with_app_data=*/true);
 
 static void SSL_SESSION_list_remove(SSL_CTX *ctx, SSL_SESSION *session);
 static void SSL_SESSION_list_add(SSL_CTX *ctx, SSL_SESSION *session);
@@ -600,7 +599,8 @@ enum ssl_hs_wait_t ssl_get_prev_session(SSL_HANDSHAKE *hs,
   if (tickets_supported && CBS_len(&ticket) != 0) {
     switch (ssl_process_ticket(
         hs, &session, &renew_ticket, ticket,
-        Span(client_hello->session_id, client_hello->session_id_len))) {
+        Span(client_hello->session_id, client_hello->session_id_len),
+        /*save_ticket=*/false)) {
       case ssl_ticket_aead_success:
         break;
       case ssl_ticket_aead_ignore_ticket:
@@ -633,7 +633,7 @@ static bool remove_session(SSL_CTX *ctx, SSL_SESSION *session, bool lock) {
   }
 
   if (lock) {
-    CRYPTO_MUTEX_lock_write(&ctx->lock);
+    ctx->lock.LockWrite();
   }
 
   SSL_SESSION *found_session = lh_SSL_SESSION_retrieve(ctx->sessions, session);
@@ -644,7 +644,7 @@ static bool remove_session(SSL_CTX *ctx, SSL_SESSION *session, bool lock) {
   }
 
   if (lock) {
-    CRYPTO_MUTEX_unlock_write(&ctx->lock);
+    ctx->lock.UnlockWrite();
   }
 
   if (found) {

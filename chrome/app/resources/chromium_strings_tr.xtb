@@ -8,6 +8,7 @@
 <translation id="1051793555070215510">Bu 1 dakikalık ankete katılarak Gizli mod'u daha iyi hale getirmemize yardımcı olun.</translation>
 <translation id="1065672644894730302">Tercihleriniz okunamıyor. Bazı özellikler kullanılamayabilir. Tercihlerde yapılan değişiklikler kaydedilmeyecektir.</translation>
 <translation id="1083934481477628225">Ebeveyniniz, Chromium'a yönelik "Siteler, uygulamalar ve uzantılar için izinler"i kapattı.</translation>
+<translation id="1090946077924227754">Belirli bir Chromium özelliğinde veya uzantısında arama yapmak için ilgili kısayolu adres çubuğuna yazdıktan sonra seçtiğiniz klavye tuşuna basın</translation>
 <translation id="1104942323762546749">Chromium, şifrelerinizi dışa aktarmak istiyor. Buna izin vermek için Windows şifrenizi yazın.</translation>
 <translation id="112640046208448578">Nesneleri veya yerleri tanımlayın ve metni kopyalayın ya da çevirin. Görsel Arama'yı kullandığınızda sayfanın ekran görüntüsü sunucuya gönderilir. <ph name="LEARN_MORE" /></translation>
 <translation id="113122355610423240">Chromium varsayılan tarayıcınız</translation>
@@ -25,8 +26,10 @@
 <translation id="1262876892872089030">Bu sekme etkin değilken Chromium'un hızlı çalışmaya devam etmesi için bellekte yer açıldı. Bu siteyi, etkin olmayan sitelerden her zaman hariç tutabilirsiniz.</translation>
 <translation id="1265577313130862557">Dosya tehlikeli olduğu için Chromium bu indirme işlemini engelledi</translation>
 <translation id="126567311906253476"><ph name="USER_EMAIL" /> ile Gmail veya YouTube gibi Google hizmetlerinde oturum açarken aynı hesapla Chromium'da otomatik olarak oturum açabilirsiniz</translation>
+<translation id="1287534462498555020">Telefonunuza Chromium'u indirin</translation>
 <translation id="1290883685122687410">Kurulum hatası: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Yeni Chromium profilinizi oluşturun</translation>
+<translation id="132092532143527429">Chromium'da Gemini ile deneyin</translation>
 <translation id="1324107359134968521">Chromium'un Bluetooth cihazları keşfedebilmesi için Bluetooth'a erişmesi gerekiyor. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Dili algıla</translation>
 <translation id="1330742950061766891">Chromium'un önerdiği tarayıcı ayarlarını kullanın</translation>
@@ -236,7 +239,9 @@
 <translation id="3509308970982693815">Lütfen tüm Chromium pencerelerini kapatıp tekrar deneyin.</translation>
 <translation id="3522404737534491619">Pencerenizi paylaşmak için Sistem Tercihleri'nde Chromium'un ekranı kaydetmesine izin verin.</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> zaten oturum açmış durumda.  Göz atma işlemlerinizi ayrı tutmak için Chromium'da kendi profilinizde <ph name="USER_EMAIL_ADDRESS" /> olarak oturum açın.</translation>
+<translation id="3531741627422851418">Chromium tarayıcıyı mobil cihazlara indirmek için QR kodu</translation>
 <translation id="3561853857681580870">Ekranınızı paylaşmak için Sistem Ayarları'nda Chromium'un ekranı kaydetmesine izin verin.</translation>
+<translation id="3588112919289558122">Gelişmiş koruma, Chromium'un tanımadığı siteler için JavaScript optimizasyonunu devre dışı bırakır</translation>
 <translation id="3597003331831379823">Kurulum, üst düzey ayrıcalıklarla çalıştırılamadı. <ph name="METAINSTALLER_ERROR" /></translation>
 <translation id="3600428265489994557">Chromium'da oturum aç</translation>
 <translation id="3639635944603682591">Bu kullanıcının tarama verileri bu cihazdan silinecektir. Verileri kurtarmak için Chromium'da <ph name="USER_EMAIL" /> olarak oturum açın.</translation>
@@ -370,11 +375,11 @@
 <translation id="5174969993834422967">Genelde bildirimleri engelliyorsunuz. Bu sitenin size bildirim göndermesine izin vermek için konum çubuğunuzun sağ köşesindeki bildirim simgesini tıklayın.</translation>
 <translation id="5174983315706567306">Yeterli disk alanı yok.</translation>
 <translation id="5187123684706427865">Chromium hesabı için yeniden kimlik doğrulama gerekiyor</translation>
-<translation id="5219681158518957165">Önerilen tarayıcı ayarlarını kullanın</translation>
 <translation id="5224391634244552924">Kaydedilen şifre yok. Chromium, kaydetmeniz halinde şifrelerinizi kontrol edebilir.</translation>
 <translation id="5231355151045086930">Chromium oturumunu kapatın</translation>
 <translation id="5234764350956374838">Kapat</translation>
 <translation id="5254739261293693943">Bu video hakkında soru sorun</translation>
+<translation id="5276305953263010518">Hareket halindeyken şifreleri kaydetmek için Chromium uygulamasını indirin</translation>
 <translation id="5277894862589591112">Yaptığınız değişiklikleri uygulamak için Chromium'u yeniden başlatın</translation>
 <translation id="5286907366254680517">Algılandı</translation>
 <translation id="5289287148052354622">Chromium uygulamasını indirin</translation>
@@ -581,9 +586,13 @@ Chromium ayarlarınızı kurtaramıyor.</translation>
 <translation id="7352651011704765696">Bir hata oluştu</translation>
 <translation id="7368826207863345663">Gelecekteki Chromium güncellemelerini almak için macOS 13 veya sonraki bir sürümün yüklü olması gerekir. Bu bilgisayar macOS 12 kullanıyor.</translation>
 <translation id="7376384068949534168">Son zamanlarda ziyaret etmediniz. Chromium; <ph name="PERMISSION_1" /> ve <ph name="PERMISSION_2" /> iznini kaldırdı.</translation>
+<translation id="73786666777299047">Chrome Web Mağazası'nı açın</translation>
 <translation id="7384121030444253939">Bu uzantı artık desteklenmiyor. Chromium bunu kaldırmanızı öneriyor.</translation>
 <translation id="7413153308467572558">Kaldığınız yerden devam edin: Chromium tarayıcısını kapatıp yeniden açtığınız her seferinde sekmeleriniz geri yüklenir. Bu özelliği devre dışı bırakmak için şuraya gidin:</translation>
 <translation id="7427879960656355200">Şifreleri Chromium'a Aktar</translation>
+<translation id="744815265653811511">1. Aşağıdaki <ph name="BUTTON_LABEL" /> düğmesini tıklayın.
+2. Windows ayarlarınızda <ph name="BUTTON_2" /> düğmesini tıklayın.
+3. Hızlı erişim için Chromium'u görev çubuğunuza sabitlemek isterseniz Windows bildiriminde <ph name="BUTTON_3" /> düğmesini tıklayın.</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - Chromium Dev</translation>
 <translation id="7450541714075000668">Metin kopyalandı</translation>
 <translation id="7451052299415159299">Chromium'un bu sitede kameranıza erişmesi için izin gerekiyor</translation>
@@ -599,7 +608,9 @@ Chromium ayarlarınızı kurtaramıyor.</translation>
 <translation id="761356813943268536">Chromium kameranızı ve mikrofonunuzu kullanıyor.</translation>
 <translation id="7617377681829253106">Chromium daha da iyi bir hale geldi</translation>
 <translation id="7622753900276619808">Artık Chromium'da daha fazla özellik kullanabilirsiniz</translation>
+<translation id="7624307931717240213">Bilgileri bu hizmeti geliştirmek için kullanırız. Gizlilik Politikası ve Hizmet Şartları'na göz atın.</translation>
 <translation id="7649070708921625228">Yardım</translation>
+<translation id="7650134251917003571">Chromium uygulamasını indirin</translation>
 <translation id="7656340475565475526">Chromium'un sizin için göz atmasına izin verin</translation>
 <translation id="7658239707568436148">İptal</translation>
 <translation id="7686590090926151193">Chromium varsayılan tarayıcınız değil</translation>
@@ -683,6 +694,7 @@ Chromium ayarlarınızı kurtaramıyor.</translation>
 <translation id="8522801943730206384">Chromium, kaydetmeniz halinde şifrelerinizi kontrol edebilir</translation>
 <translation id="8548787790260785208">Chromium, şifrelerinizden birinin herkese açık veri ihlalinde yer aldığını tespit ederse uyarı alın</translation>
 <translation id="8555465886620020932">Hizmet hatası: <ph name="SERVICE_ERROR" />.</translation>
+<translation id="8556055872671007529">Bazı Chromium özellikleri ve uzantıları kısayollar içerir. Dilerseniz bunları tekrar etkinleştirebilirsiniz.</translation>
 <translation id="8556420416730706394">Daha kolay erişmek için yan panelin üst kısmındaki Sabitle düğmesini tıklayarak Görsel Arama'yı sabitleyebilirsiniz</translation>
 <translation id="856656450041460113">Arama dili listesi</translation>
 <translation id="8568283329061645092">Chromium, Google Hesabınızla oturum açtığınızda şifrelerinizi kontrol edebilir</translation>
@@ -718,6 +730,7 @@ Chromium ayarlarınızı kurtaramıyor.</translation>
 <translation id="8988036198400390003">Chromium profillerini yönetin</translation>
 <translation id="9019929317751753759">Chromium'u daha güvenli bir hale getirmek için <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> altında listelenmeyen ve bilginiz dışında eklenmiş olabilecek aşağıdaki uzantıyı devre dışı bıraktık.</translation>
 <translation id="904366664621834601">Arşiv dosyası, kötü amaçlı yazılımın gizlenmiş olabileceği başka dosyalar içerdiği için Chromium bu indirme işlemini engelledi</translation>
+<translation id="9053882453960391422">Şifreleriniz, yer işaretleriniz ve geçmişinizi cihazlar arasında mükemmel şekilde senkronize edin. Varsayılan tarayıcınızı Chromium'a güncelleyerek sevdiğiniz ve bildiğiniz özelliklere kolayca erişin. Chromium, hızlı erişim için görev çubuğunuza sabitlenir.</translation>
 <translation id="9062666675513499497">Diğer Google hizmetlerinde oturum açtığınızda Chromium'da oturum açın</translation>
 <translation id="9078733879136747090">Chromium otomatik olarak kapatıldı</translation>
 <translation id="9089354809943900324">Chromium sürümü eski</translation>

@@ -18,12 +18,12 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/customize_chrome/side_panel_controller.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
+#include "chrome/browser/ui/side_panel/side_panel_registry.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/webui/customize_buttons/customize_buttons_handler.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/pref_names.h"
@@ -34,6 +34,7 @@
 #include "chrome/test/user_education/interactive_feature_promo_test.h"
 #include "components/prefs/pref_service.h"
 #include "components/search/ntp_features.h"
+#include "components/user_education/views/help_bubble_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -47,6 +48,12 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
 #endif
+
+namespace {
+DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewTabPageElementId);
+const WebContentsInteractionTestUtil::DeepQuery kCustomizeChromeIPH{
+    "ntp-app", "ntp-customize-buttons", "help-bubble"};
+}  // namespace
 
 class MockPage : public new_tab_page::mojom::Page {
  public:
@@ -95,11 +102,8 @@ class NewTabPageHandlerBaseBrowserTest : public InProcessBrowserTest {
   void CloseSidePanel() {
     BrowserWindowInterface* const browser_window_interface =
         webui::GetBrowserWindowInterface(web_contents());
-    SidePanelRegistry* const side_panel_registry =
-        browser_window_interface->GetTabStripModel()
-            ->GetActiveTab()
-            ->GetTabFeatures()
-            ->side_panel_registry();
+    SidePanelRegistry* const side_panel_registry = SidePanelRegistry::From(
+        browser_window_interface->GetActiveTabInterface());
     SidePanelEntry::PanelType panel_type =
         side_panel_registry
             ->GetEntryForKey(
@@ -329,11 +333,14 @@ IN_PROC_BROWSER_TEST_F(NewTabPageHandlerWithCustomizeChromeTutorialBrowserTest,
   OpenNewTabPageInForeground();
 
   RunTestSequence(
+      InstrumentTab(kNewTabPageElementId),
       InAnyContext(WaitForShow(
           CustomizeButtonsHandler::kCustomizeChromeButtonElementId)),
       CheckPromoRequested(
           feature_engagement::kIPHDesktopCustomizeChromeExperimentFeature,
-          true));
+          true),
+      WaitForShow(
+          user_education::HelpBubbleView::kHelpBubbleElementIdForTesting));
   EXPECT_FALSE(IsCustomizeChromeEntryShowing());
 
   histogram_tester_.ExpectBucketCount(
@@ -357,12 +364,13 @@ IN_PROC_BROWSER_TEST_F(
     NewTabPageHandlerWithCustomizeChromeIPHAutoOpenTest,
     PRE_ShouldShowSidePanelForTheSecondTimeIndependentlyOfIPH) {
   OpenNewTabPageInForeground();
-  // TODO(crbug.com/454919411): Explicitly check whether an IPH is shown.
   RunTestSequence(
+      InstrumentTab(kNewTabPageElementId),
       InAnyContext(WaitForShow(
           CustomizeButtonsHandler::kCustomizeChromeButtonElementId)),
       CheckPromoRequested(
           feature_engagement::kIPHDesktopCustomizeChromeAutoOpenFeature),
+      WaitForElementVisible(kNewTabPageElementId, kCustomizeChromeIPH),
       WaitForShow(kSidePanelElementId));
 
   EXPECT_TRUE(IsCustomizeChromeEntryShowing());
@@ -383,12 +391,12 @@ IN_PROC_BROWSER_TEST_F(NewTabPageHandlerWithCustomizeChromeIPHAutoOpenTest,
                        ShouldShowSidePanelForTheSecondTimeIndependentlyOfIPH) {
   OpenNewTabPageInForeground();
   RunTestSequence(
+      InstrumentTab(kNewTabPageElementId),
       InAnyContext(WaitForShow(
           CustomizeButtonsHandler::kCustomizeChromeButtonElementId)),
-      // Promo was requested, but not necessarily shown. When fixing
-      // crbug.com/454919411, that could be properly checked.
       CheckPromoRequested(
           feature_engagement::kIPHDesktopCustomizeChromeAutoOpenFeature, true),
+      WaitForElementVisible(kNewTabPageElementId, kCustomizeChromeIPH),
       WaitForShow(kSidePanelElementId));
 
   EXPECT_TRUE(IsCustomizeChromeEntryShowing());
@@ -411,8 +419,7 @@ class NewTabPageHandlerManagedTest : public NewTabPageHandlerBaseBrowserTest,
  public:
   NewTabPageHandlerManagedTest() {
     feature_list_.InitWithFeatures(
-        /*enabled_features=*/{ntp_features::kNtpFooter,
-                              features::kEnterpriseBadgingForNtpFooter},
+        /*enabled_features=*/{ntp_features::kNtpFooter},
         /*disabled_features=*/{});
   }
 

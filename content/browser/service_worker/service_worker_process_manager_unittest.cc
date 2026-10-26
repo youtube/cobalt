@@ -50,8 +50,9 @@ class SiteInstanceRenderProcessHostFactory : public RenderProcessHostFactory {
       BrowserContext* browser_context,
       SiteInstance* site_instance) override {
     processes_.push_back(std::make_unique<MockRenderProcessHost>(
-        browser_context, site_instance->GetStoragePartitionConfig(),
-        site_instance->IsGuest()));
+        browser_context,
+        site_instance->GetSecurityPrincipal().GetStoragePartitionConfig(),
+        site_instance->GetSecurityPrincipal().IsGuest()));
 
     // A spare RenderProcessHost is created with a null SiteInstance.
     if (site_instance)
@@ -94,10 +95,14 @@ class ServiceWorkerProcessManagerTest : public testing::Test {
   ServiceWorkerProcessManagerTest& operator=(
       const ServiceWorkerProcessManagerTest&) = delete;
 
+  void SetStoragePartition(StoragePartitionImpl* storage_partition) {
+    process_manager_->set_storage_partition(storage_partition);
+  }
+
   void SetUp() override {
     browser_context_ = std::make_unique<TestBrowserContext>();
     process_manager_ = std::make_unique<ServiceWorkerProcessManager>();
-    process_manager_->set_storage_partition(static_cast<StoragePartitionImpl*>(
+    SetStoragePartition(static_cast<StoragePartitionImpl*>(
         browser_context_->GetDefaultStoragePartition()));
     script_url_ = GURL("http://www.example.com/sw.js");
     render_process_host_factory_ =
@@ -262,8 +267,9 @@ TEST_F(ServiceWorkerProcessManagerTest,
     EXPECT_EQ(
         GURL("http://example.com"),
         render_process_host_factory_->last_site_instance_used()->GetSiteURL());
-    EXPECT_FALSE(
-        render_process_host_factory_->last_site_instance_used()->IsGuest());
+    EXPECT_FALSE(render_process_host_factory_->last_site_instance_used()
+                     ->GetSecurityPrincipal()
+                     .IsGuest());
     auto* rph = RenderProcessHost::FromID(process_info.process_id);
     ASSERT_TRUE(rph);
     auto* storage_partition =
@@ -284,11 +290,11 @@ TEST_F(ServiceWorkerProcessManagerTest,
   scoped_refptr<SiteInstanceImpl> guest_site_instance =
       SiteInstanceImpl::CreateForGuest(browser_context_.get(),
                                        kGuestPartitionConfig);
-  EXPECT_TRUE(guest_site_instance->IsGuest());
+  EXPECT_TRUE(guest_site_instance->GetSecurityPrincipal().IsGuest());
   StoragePartitionImpl* storage_partition = static_cast<StoragePartitionImpl*>(
       browser_context_->GetStoragePartition(kGuestPartitionConfig));
   storage_partition->set_is_guest();
-  process_manager_->set_storage_partition(storage_partition);
+  SetStoragePartition(storage_partition);
 
   // Allocate a process to a worker. It should be in the guest's
   // StoragePartition.
@@ -302,11 +308,14 @@ TEST_F(ServiceWorkerProcessManagerTest,
             true /* can_use_existing_process */,
             AncestorFrameType::kNormalFrame, &process_info);
     EXPECT_EQ(blink::ServiceWorkerStatusCode::kOk, status);
-    EXPECT_EQ(guest_site_instance->GetStoragePartitionConfig(),
-              render_process_host_factory_->last_site_instance_used()
-                  ->GetStoragePartitionConfig());
-    EXPECT_TRUE(
-        render_process_host_factory_->last_site_instance_used()->IsGuest());
+    EXPECT_EQ(
+        guest_site_instance->GetSecurityPrincipal().GetStoragePartitionConfig(),
+        render_process_host_factory_->last_site_instance_used()
+            ->GetSecurityPrincipal()
+            .GetStoragePartitionConfig());
+    EXPECT_TRUE(render_process_host_factory_->last_site_instance_used()
+                    ->GetSecurityPrincipal()
+                    .IsGuest());
     auto* rph = RenderProcessHost::FromID(process_info.process_id);
     ASSERT_TRUE(rph);
     EXPECT_EQ(rph->GetStoragePartition(), storage_partition);

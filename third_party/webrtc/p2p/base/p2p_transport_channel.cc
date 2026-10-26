@@ -19,6 +19,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -29,7 +30,6 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/async_dns_resolver.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
@@ -333,7 +333,7 @@ void P2PTransportChannel::AddConnection(Connection* connection) {
 }
 
 void P2PTransportChannel::ForgetLearnedStateForConnections(
-    ArrayView<const Connection* const> connections) {
+    std::span<const Connection* const> connections) {
   for (const Connection* con : connections) {
     FromIceController(con)->ForgetLearnedState();
   }
@@ -1705,9 +1705,9 @@ DiffServCodePoint P2PTransportChannel::DefaultDscpValue() const {
   return static_cast<DiffServCodePoint>(it->second);
 }
 
-ArrayView<Connection* const> P2PTransportChannel::connections() const {
+std::span<Connection* const> P2PTransportChannel::connections() const {
   RTC_DCHECK_RUN_ON(&network_thread_);
-  return ArrayView<Connection* const>(connections_.data(), connections_.size());
+  return std::span<Connection* const>(connections_.data(), connections_.size());
 }
 
 void P2PTransportChannel::RemoveConnectionForTest(Connection* connection) {
@@ -1806,7 +1806,7 @@ bool P2PTransportChannel::AllowedToPruneConnections() const {
 }
 
 bool P2PTransportChannel::PruneConnections(
-    ArrayView<const Connection* const> connections) {
+    std::span<const Connection* const> connections) {
   RTC_DCHECK_RUN_ON(&network_thread_);
   if (!AllowedToPruneConnections()) {
     RTC_LOG(LS_WARNING) << "Not allowed to prune connections";

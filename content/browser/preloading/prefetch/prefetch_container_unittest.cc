@@ -12,7 +12,6 @@
 #include "base/test/scoped_feature_list.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "components/variations/net/variations_http_headers.h"
-#include "components/variations/scoped_variations_ids_provider.h"
 #include "components/variations/variations_ids_provider.h"
 #include "content/browser/preloading/prefetch/prefetch_document_manager.h"
 #include "content/browser/preloading/prefetch/prefetch_features.h"
@@ -61,10 +60,6 @@ class PrefetchContainerTestBase : public PrefetchingMetricsTestBase,
   void TearDown() override {
     scoped_feature_list_.Reset();
     PrefetchingMetricsTestBase::TearDown();
-  }
-
-  RenderFrameHostImpl* main_rfhi() {
-    return static_cast<RenderFrameHostImpl*>(main_rfh());
   }
 
   struct SpeculationRulesPrefetchContainerOptions {
@@ -164,34 +159,11 @@ class PrefetchContainerTestBase : public PrefetchingMetricsTestBase,
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-namespace {
-
-// Add a redirect hop with dummy redirect info that should be good enough in
-// most cases.
-void AddRedirectHop(PrefetchContainer* container, const GURL& url) {
-  net::RedirectInfo redirect_info;
-  redirect_info.status_code = 302;
-  redirect_info.new_method = "GET";
-  redirect_info.new_url = url;
-  redirect_info.new_site_for_cookies = net::SiteForCookies::FromUrl(url);
-  container->AddRedirectHop(redirect_info);
-  auto [updates_for_resource_request, updates_for_follow_redirect] =
-      container->PrepareUpdateHeaders(redirect_info.new_url);
-  container->UpdateResourceRequest(redirect_info,
-                                   std::move(updates_for_resource_request));
-}
-
-}  // namespace
-
 class PrefetchContainerTest
     : public PrefetchContainerTestBase,
       public ::testing::WithParamInterface<PrefetchRearchParam> {
  public:
   PrefetchContainerTest() : PrefetchContainerTestBase(GetParam()) {}
-
- private:
-  variations::test::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
-      variations::VariationsIdsProvider::Mode::kIgnoreSignedInState};
 };
 
 class PrefetchContainerXClientDataHeaderTest
@@ -202,10 +174,6 @@ class PrefetchContainerXClientDataHeaderTest
  public:
   PrefetchContainerXClientDataHeaderTest()
       : PrefetchContainerTestBase(std::get<0>(GetParam())) {}
-
- private:
-  variations::test::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
-      variations::VariationsIdsProvider::Mode::kIgnoreSignedInState};
 
  protected:
   bool IsIncognito() const { return std::get<1>(GetParam()); }
@@ -259,13 +227,14 @@ TEST_P(PrefetchContainerXClientDataHeaderTest,
   variations::VariationsIdsProvider::GetInstance()->ForceVariationIdsForTesting(
       {"1"}, {"2"});
 
-  prefetch_container->MakeInitialResourceRequest();
+  prefetch_container->SimulatePrefetchEligibleForTest();
+  prefetch_container->SimulatePrefetchStartedForTest();
   auto* request = prefetch_container->GetResourceRequest();
   // Don't ever add the header.
   EXPECT_FALSE(
       request->cors_exempt_headers.HasHeader(variations::kClientDataHeader));
 
-  AddRedirectHop(prefetch_container.get(), kTestEligibleUrl);
+  prefetch_container->SimulatePrefetchRedirectedForTest(kTestEligibleUrl);
   EXPECT_EQ(
       request->cors_exempt_headers.HasHeader(variations::kClientDataHeader),
       !IsIncognito());
@@ -281,13 +250,14 @@ TEST_P(PrefetchContainerXClientDataHeaderTest,
   variations::VariationsIdsProvider::GetInstance()->ForceVariationIdsForTesting(
       {"1"}, {"2"});
 
-  prefetch_container->MakeInitialResourceRequest();
+  prefetch_container->SimulatePrefetchEligibleForTest();
+  prefetch_container->SimulatePrefetchStartedForTest();
   auto* request = prefetch_container->GetResourceRequest();
   // Don't ever add the header.
   EXPECT_FALSE(
       request->cors_exempt_headers.HasHeader(variations::kClientDataHeader));
 
-  AddRedirectHop(prefetch_container.get(), kTestNonEligibleUrl2);
+  prefetch_container->SimulatePrefetchRedirectedForTest(kTestNonEligibleUrl2);
   EXPECT_FALSE(
       request->cors_exempt_headers.HasHeader(variations::kClientDataHeader));
 }
@@ -340,12 +310,15 @@ TEST_P(PrefetchContainerTest, CreatePrefetchContainer) {
             PrefetchType(PreloadingTriggerType::kSpeculationRule,
                          /*use_prefetch_proxy=*/true,
                          blink::mojom::SpeculationEagerness::kImmediate));
-  EXPECT_TRUE(
-      prefetch_container->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
-
   EXPECT_EQ(prefetch_container->key(),
             PrefetchKey(document_token, GURL("https://test.com")));
   EXPECT_FALSE(prefetch_container->GetNonRedirectHead());
+
+  prefetch_container->SimulatePrefetchEligibleForTest();
+  // `IsIsolatedNetworkContextRequiredForCurrentPrefetch()` should be called
+  // after passing eligibility check, which adds a redirect hop.
+  EXPECT_TRUE(
+      prefetch_container->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
 }
 
 TEST_P(PrefetchContainerTest, CreatePrefetchContainer_Embedder) {
@@ -358,14 +331,15 @@ TEST_P(PrefetchContainerTest, CreatePrefetchContainer_Embedder) {
   EXPECT_EQ(prefetch_container->request().prefetch_type(),
             PrefetchType(PreloadingTriggerType::kEmbedder,
                          /*use_prefetch_proxy=*/false));
-  EXPECT_FALSE(
-      prefetch_container->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
-
   EXPECT_EQ(prefetch_container->key(),
             PrefetchKey(std::nullopt, GURL("https://test.com")));
   EXPECT_FALSE(prefetch_container->GetNonRedirectHead());
   // Embedder-initiated prefetch shouldn't include any tag.
   EXPECT_FALSE(prefetch_container->request().speculation_rules_tags());
+
+  prefetch_container->SimulatePrefetchEligibleForTest();
+  EXPECT_FALSE(
+      prefetch_container->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
 }
 
 TEST_P(PrefetchContainerTest, PrefetchStatus) {
@@ -396,16 +370,19 @@ TEST_P(PrefetchContainerTest, Servable) {
       CreateSpeculationRulesPrefetchContainer(GURL("https://test.com"));
 
   prefetch_container->SimulatePrefetchEligibleForTest();
-  MakeServableStreamingURLLoaderForTest(prefetch_container.get(),
-                                        network::mojom::URLResponseHead::New(),
-                                        "test body");
+  MakeServableStreamingURLLoaderForTest(
+      prefetch_container.get(), SuccessfulPrefetchResponseHeadForTesting(),
+      "test body");
 
-  task_environment()->FastForwardBy(base::Minutes(2));
+  task_environment()->FastForwardBy(PrefetchCacheableDuration() -
+                                    base::Seconds(10));
+  EXPECT_EQ(prefetch_container->GetMatchResolverAction().ToServableState(),
+            PrefetchServableState::kServable);
+  // PrefetchCacheableDuration() + base::Seconds(10)
+  task_environment()->FastForwardBy(base::Seconds(20));
+  EXPECT_NE(prefetch_container->GetMatchResolverAction().ToServableState(),
+            PrefetchServableState::kServable);
 
-  EXPECT_NE(prefetch_container->GetServableStateForTesting(base::Minutes(1)),
-            PrefetchServableState::kServable);
-  EXPECT_EQ(prefetch_container->GetServableStateForTesting(base::Minutes(3)),
-            PrefetchServableState::kServable);
   EXPECT_TRUE(prefetch_container->GetNonRedirectHead());
 }
 
@@ -416,27 +393,16 @@ TEST_P(PrefetchContainerTest, CookieListener) {
 
   auto prefetch_container = CreateSpeculationRulesPrefetchContainer(kTestUrl1);
 
-  prefetch_container->MakeInitialResourceRequest();
-  prefetch_container->RegisterCookieListener();
-
-  // Add redirect hops, and register its own cookie listener for each hop.
-  AddRedirectHop(prefetch_container.get(), kTestUrl2);
-  prefetch_container->RegisterCookieListener();
-  AddRedirectHop(prefetch_container.get(), kTestUrl3);
-  prefetch_container->RegisterCookieListener();
+  // Cookie listeners for each redirect hop are registered inside
+  // `SimulatePrefetchEligibleForTest()`/`SimulatePrefetchRedirectedForTest()`.
+  prefetch_container->SimulatePrefetchEligibleForTest();
+  prefetch_container->SimulatePrefetchStartedForTest();
+  prefetch_container->SimulatePrefetchRedirectedForTest(kTestUrl2);
+  prefetch_container->SimulatePrefetchRedirectedForTest(kTestUrl3);
 
   // Check the cookies for `kTestUrl1`, `kTestUrl2` and `kTestUrl3`,
   // respectively. AdvanceCurrentURLToServe() is used to set the current hop to
   // check the cookies.
-  {
-    auto serving_handle = prefetch_container->CreateServingHandle();
-    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
-    serving_handle.AdvanceCurrentURLToServe();
-    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
-    serving_handle.AdvanceCurrentURLToServe();
-    EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
-  }
-
   {
     auto serving_handle = prefetch_container->CreateServingHandle();
     EXPECT_FALSE(serving_handle.HaveDefaultContextCookiesChanged());
@@ -486,15 +452,17 @@ TEST_P(PrefetchContainerTest, CookieCopy) {
   base::HistogramTester histogram_tester;
   auto prefetch_container = CreateSpeculationRulesPrefetchContainer(kTestUrl);
 
-  prefetch_container->RegisterCookieListener();
+  // This registers a cookie listener.
+  prefetch_container->SimulatePrefetchEligibleForTest();
+  prefetch_container->SimulatePrefetchStartedForTest();
 
   auto serving_handle = prefetch_container->CreateServingHandle();
 
-  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
 
   serving_handle.OnIsolatedCookieCopyStartForTesting();
 
-  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
 
   // Once the cookie copy process has started, we should stop the cookie
   // listener.
@@ -508,17 +476,17 @@ TEST_P(PrefetchContainerTest, CookieCopy) {
   // The URL interceptor checks on the cookie copy status when trying to serve a
   // prefetch. If its still in progress, it registers a callback to be called
   // once the copy is complete.
-  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
-  serving_handle.OnInterceptorCheckCookieCopy();
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
+  serving_handle.OnInterceptorCheckCookieCopyForTesting();
   task_environment()->FastForwardBy(base::Milliseconds(40));
   bool callback_called = false;
-  serving_handle.SetOnCookieCopyCompleteCallback(
+  serving_handle.SetOnCookieCopyCompleteCallbackForTesting(
       base::BindOnce([](bool* callback_called) { *callback_called = true; },
                      &callback_called));
 
   serving_handle.OnIsolatedCookieCopyCompleteForTesting();
 
-  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
   EXPECT_TRUE(callback_called);
 
   histogram_tester.ExpectUniqueTimeSample(
@@ -541,22 +509,21 @@ TEST_P(PrefetchContainerTest, CookieCopyWithRedirects) {
   const GURL kRedirectUrl2 = GURL("https://redirect2.com");
   base::HistogramTester histogram_tester;
   auto prefetch_container = CreateSpeculationRulesPrefetchContainer(kTestUrl);
-  prefetch_container->MakeInitialResourceRequest();
-  prefetch_container->RegisterCookieListener();
 
-  AddRedirectHop(prefetch_container.get(), kRedirectUrl1);
-  prefetch_container->RegisterCookieListener();
-
-  AddRedirectHop(prefetch_container.get(), kRedirectUrl2);
-  prefetch_container->RegisterCookieListener();
+  // Cookie listeners for each redirect hop are registered inside
+  // `SimulatePrefetchEligibleForTest()`/`SimulatePrefetchRedirectedForTest()`.
+  prefetch_container->SimulatePrefetchEligibleForTest();
+  prefetch_container->SimulatePrefetchStartedForTest();
+  prefetch_container->SimulatePrefetchRedirectedForTest(kRedirectUrl1);
+  prefetch_container->SimulatePrefetchRedirectedForTest(kRedirectUrl2);
 
   auto serving_handle = prefetch_container->CreateServingHandle();
 
   EXPECT_EQ(serving_handle.GetCurrentURLToServe(), kTestUrl);
 
-  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
   serving_handle.OnIsolatedCookieCopyStartForTesting();
-  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
 
   // Once the cookie copy process has started, all cookie listeners are stopped.
   ASSERT_TRUE(SetCookie(kTestUrl, "test-cookie"));
@@ -582,67 +549,67 @@ TEST_P(PrefetchContainerTest, CookieCopyWithRedirects) {
   // The URL interceptor checks on the cookie copy status when trying to serve a
   // prefetch. If its still in progress, it registers a callback to be called
   // once the copy is complete.
-  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
-  serving_handle.OnInterceptorCheckCookieCopy();
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
+  serving_handle.OnInterceptorCheckCookieCopyForTesting();
   task_environment()->FastForwardBy(base::Milliseconds(40));
   bool callback_called = false;
-  serving_handle.SetOnCookieCopyCompleteCallback(
+  serving_handle.SetOnCookieCopyCompleteCallbackForTesting(
       base::BindOnce([](bool* callback_called) { *callback_called = true; },
                      &callback_called));
 
   serving_handle.OnIsolatedCookieCopyCompleteForTesting();
 
-  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
   EXPECT_TRUE(callback_called);
 
   // Simulate copying cookies for the next redirect hop.
   serving_handle.AdvanceCurrentURLToServe();
   EXPECT_EQ(serving_handle.GetCurrentURLToServe(), kRedirectUrl1);
-  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
 
   serving_handle.OnIsolatedCookieCopyStartForTesting();
-  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
   task_environment()->FastForwardBy(base::Milliseconds(10));
 
   serving_handle.OnIsolatedCookiesReadCompleteAndWriteStartForTesting();
   task_environment()->FastForwardBy(base::Milliseconds(20));
-  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
 
-  serving_handle.OnInterceptorCheckCookieCopy();
+  serving_handle.OnInterceptorCheckCookieCopyForTesting();
   task_environment()->FastForwardBy(base::Milliseconds(40));
 
   callback_called = false;
-  serving_handle.SetOnCookieCopyCompleteCallback(
+  serving_handle.SetOnCookieCopyCompleteCallbackForTesting(
       base::BindOnce([](bool* callback_called) { *callback_called = true; },
                      &callback_called));
 
   serving_handle.OnIsolatedCookieCopyCompleteForTesting();
-  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
   EXPECT_TRUE(callback_called);
 
   // Simulate copying cookies for the last redirect hop.
   serving_handle.AdvanceCurrentURLToServe();
   EXPECT_EQ(serving_handle.GetCurrentURLToServe(), kRedirectUrl2);
-  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
 
   serving_handle.OnIsolatedCookieCopyStartForTesting();
-  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
   task_environment()->FastForwardBy(base::Milliseconds(10));
 
   serving_handle.OnIsolatedCookiesReadCompleteAndWriteStartForTesting();
   task_environment()->FastForwardBy(base::Milliseconds(20));
-  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgress());
+  EXPECT_TRUE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
 
-  serving_handle.OnInterceptorCheckCookieCopy();
+  serving_handle.OnInterceptorCheckCookieCopyForTesting();
   task_environment()->FastForwardBy(base::Milliseconds(40));
 
   callback_called = false;
-  serving_handle.SetOnCookieCopyCompleteCallback(
+  serving_handle.SetOnCookieCopyCompleteCallbackForTesting(
       base::BindOnce([](bool* callback_called) { *callback_called = true; },
                      &callback_called));
 
   serving_handle.OnIsolatedCookieCopyCompleteForTesting();
-  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgress());
+  EXPECT_FALSE(serving_handle.IsIsolatedCookieCopyInProgressForTesting());
   EXPECT_TRUE(callback_called);
 
   histogram_tester.ExpectUniqueTimeSample(
@@ -671,7 +638,7 @@ TEST_P(PrefetchContainerTest, PrefetchProxyPrefetchedResourceUkm) {
       base::TimeTicks() + base::Milliseconds(200);
 
   network::mojom::URLResponseHeadPtr head =
-      network::mojom::URLResponseHead::New();
+      SuccessfulPrefetchResponseHeadForTesting();
   head->load_timing.request_start = base::TimeTicks();
 
   MakeServableStreamingURLLoaderForTest(prefetch_container.get(),
@@ -845,21 +812,15 @@ TEST_P(PrefetchContainerTest, EligibilityCheck) {
   auto prefetch_container = CreateSpeculationRulesPrefetchContainer(
       kTestUrl1,
       {.prefetch_document_manager = prefetch_document_manager->GetWeakPtr()});
-
-  prefetch_container->MakeInitialResourceRequest();
-
-  // Mark initial prefetch as eligible
-  prefetch_container->OnEligibilityCheckComplete(
-      PreloadingEligibility::kEligible);
+  prefetch_container->SimulatePrefetchEligibleForTest();
+  prefetch_container->SimulatePrefetchStartedForTest();
 
   EXPECT_EQ(prefetch_document_manager->GetReferringPageMetrics()
                 .prefetch_eligible_count,
             1);
 
   // Add a redirect, register a callback for it, and then mark it as eligible.
-  AddRedirectHop(prefetch_container.get(), kTestUrl2);
-  prefetch_container->OnEligibilityCheckComplete(
-      PreloadingEligibility::kEligible);
+  prefetch_container->SimulatePrefetchRedirectedForTest(kTestUrl2);
 
   // Referring page metrics is only incremented for the original prefetch URL
   // and not any redirects.
@@ -881,21 +842,16 @@ TEST_P(PrefetchContainerTest, IneligibleRedirect) {
   auto prefetch_container = CreateSpeculationRulesPrefetchContainer(
       kTestUrl1,
       {.prefetch_document_manager = prefetch_document_manager->GetWeakPtr()});
-
-  prefetch_container->MakeInitialResourceRequest();
-
-  // Mark initial prefetch as eligible
-  prefetch_container->OnEligibilityCheckComplete(
-      PreloadingEligibility::kEligible);
+  prefetch_container->SimulatePrefetchEligibleForTest();
+  prefetch_container->SimulatePrefetchStartedForTest();
 
   EXPECT_EQ(prefetch_document_manager->GetReferringPageMetrics()
                 .prefetch_eligible_count,
             1);
 
-  // Add a redirect, register a callback for it, and then mark it as ineligible.
-  AddRedirectHop(prefetch_container.get(), kTestUrl2);
-  prefetch_container->OnEligibilityCheckComplete(
-      PreloadingEligibility::kUserHasCookies);
+  // Receives an ineligible redirect.
+  prefetch_container->SimulatePrefetchRedirectedForTest(
+      kTestUrl2, PreloadingEligibility::kUserHasCookies);
 
   // Ineligible redirects are treated as failed prefetches, and not ineligible
   // prefetches.
@@ -1253,19 +1209,12 @@ TEST_P(PrefetchContainerTest, RecordRedirectChainSize) {
 
   auto prefetch_container =
       CreateSpeculationRulesPrefetchContainer(GURL("https://test.com"));
-  prefetch_container->MakeInitialResourceRequest();
-
   prefetch_container->SimulatePrefetchEligibleForTest();
-  prefetch_container->SimulatePrefetchStartedForTest();
-
-  AddRedirectHop(prefetch_container.get(), GURL("https://redirect1.com"));
-  AddRedirectHop(prefetch_container.get(), GURL("https://redirect2.com"));
-  prefetch_container->OnDeterminedHead(/*is_successful_determined_head=*/true);
-  prefetch_container->OnPrefetchComplete(/*is_success=*/true,
-                                         network::URLLoaderCompletionStatus());
-
+  MakeServableStreamingURLLoaderWithRedirectForTest(
+      prefetch_container.get(), GURL("https://test.com"),
+      GURL("https://redirect1.com"));
   histogram_tester.ExpectUniqueSample(
-      "PrefetchProxy.Prefetch.RedirectChainSize", 3, 1);
+      "PrefetchProxy.Prefetch.RedirectChainSize", 2, 1);
 }
 
 TEST_P(PrefetchContainerTest, IsIsolatedNetworkRequired) {
@@ -1273,7 +1222,8 @@ TEST_P(PrefetchContainerTest, IsIsolatedNetworkRequired) {
       web_contents(), GURL("https://test.com/referrer"));
   auto prefetch_container_same_origin = CreateSpeculationRulesPrefetchContainer(
       GURL("https://test.com/prefetch"));
-  prefetch_container_same_origin->MakeInitialResourceRequest();
+  prefetch_container_same_origin->SimulatePrefetchEligibleForTest();
+  prefetch_container_same_origin->SimulatePrefetchStartedForTest();
   EXPECT_FALSE(prefetch_container_same_origin
                    ->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
 
@@ -1282,7 +1232,8 @@ TEST_P(PrefetchContainerTest, IsIsolatedNetworkRequired) {
   auto prefetch_container_cross_origin =
       CreateSpeculationRulesPrefetchContainer(
           GURL("https://test.com/prefetch"));
-  prefetch_container_cross_origin->MakeInitialResourceRequest();
+  prefetch_container_cross_origin->SimulatePrefetchEligibleForTest();
+  prefetch_container_cross_origin->SimulatePrefetchStartedForTest();
   EXPECT_TRUE(prefetch_container_cross_origin
                   ->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
 }
@@ -1290,21 +1241,24 @@ TEST_P(PrefetchContainerTest, IsIsolatedNetworkRequired) {
 TEST_P(PrefetchContainerTest, IsIsolatedNetworkRequired_Embedder) {
   auto prefetch_container_default = CreateEmbedderPrefetchContainer(
       GURL("https://test.com/prefetch"), std::nullopt);
-  prefetch_container_default->MakeInitialResourceRequest();
+  prefetch_container_default->SimulatePrefetchEligibleForTest();
+  prefetch_container_default->SimulatePrefetchStartedForTest();
   EXPECT_FALSE(prefetch_container_default
                    ->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
 
   auto prefetch_container_same_origin = CreateEmbedderPrefetchContainer(
       GURL("https://test.com/prefetch"),
       url::Origin::Create(GURL("https://test.com/referrer")));
-  prefetch_container_same_origin->MakeInitialResourceRequest();
+  prefetch_container_same_origin->SimulatePrefetchEligibleForTest();
+  prefetch_container_same_origin->SimulatePrefetchStartedForTest();
   EXPECT_FALSE(prefetch_container_same_origin
                    ->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
 
   auto prefetch_container_cross_origin = CreateEmbedderPrefetchContainer(
       GURL("https://test.com/prefetch"),
       url::Origin::Create(GURL("https://other.com/referrer")));
-  prefetch_container_cross_origin->MakeInitialResourceRequest();
+  prefetch_container_cross_origin->SimulatePrefetchEligibleForTest();
+  prefetch_container_cross_origin->SimulatePrefetchStartedForTest();
   EXPECT_TRUE(prefetch_container_cross_origin
                   ->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
 }
@@ -1315,34 +1269,38 @@ TEST_P(PrefetchContainerTest, IsIsolatedNetworkRequiredWithRedirect) {
 
   auto prefetch_container = CreateSpeculationRulesPrefetchContainer(
       GURL("https://test.com/prefetch"));
-
-  prefetch_container->MakeInitialResourceRequest();
-
-  EXPECT_FALSE(
-      prefetch_container->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
-
-  AddRedirectHop(prefetch_container.get(), GURL("https://test.com/redirect"));
+  prefetch_container->SimulatePrefetchEligibleForTest();
+  prefetch_container->SimulatePrefetchStartedForTest();
 
   EXPECT_FALSE(
       prefetch_container->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
-  EXPECT_FALSE(prefetch_container
-                   ->IsIsolatedNetworkContextRequiredForPreviousRedirectHop());
 
-  AddRedirectHop(prefetch_container.get(), GURL("https://m.test.com/redirect"));
+  prefetch_container->SimulatePrefetchRedirectedForTest(
+      GURL("https://test.com/redirect"));
 
   EXPECT_FALSE(
       prefetch_container->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
   EXPECT_FALSE(prefetch_container
                    ->IsIsolatedNetworkContextRequiredForPreviousRedirectHop());
 
-  AddRedirectHop(prefetch_container.get(), GURL("https://other.com/redirect1"));
+  prefetch_container->SimulatePrefetchRedirectedForTest(
+      GURL("https://m.test.com/redirect"));
+
+  EXPECT_FALSE(
+      prefetch_container->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
+  EXPECT_FALSE(prefetch_container
+                   ->IsIsolatedNetworkContextRequiredForPreviousRedirectHop());
+
+  prefetch_container->SimulatePrefetchRedirectedForTest(
+      GURL("https://other.com/redirect1"));
 
   EXPECT_TRUE(
       prefetch_container->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
   EXPECT_FALSE(prefetch_container
                    ->IsIsolatedNetworkContextRequiredForPreviousRedirectHop());
 
-  AddRedirectHop(prefetch_container.get(), GURL("https://other.com/redirect2"));
+  prefetch_container->SimulatePrefetchRedirectedForTest(
+      GURL("https://other.com/redirect2"));
 
   EXPECT_TRUE(
       prefetch_container->IsIsolatedNetworkContextRequiredForCurrentPrefetch());
@@ -1358,21 +1316,17 @@ TEST_P(PrefetchContainerTest, MultipleStreamingURLLoaders) {
 
   auto prefetch_container = CreateSpeculationRulesPrefetchContainer(kTestUrl1);
 
-  prefetch_container->MakeInitialResourceRequest();
-
   EXPECT_FALSE(prefetch_container->GetStreamingURLLoader());
 
-  EXPECT_NE(
-      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
-      PrefetchServableState::kServable);
+  EXPECT_NE(prefetch_container->GetMatchResolverAction().ToServableState(),
+            PrefetchServableState::kServable);
   EXPECT_FALSE(prefetch_container->GetNonRedirectHead());
 
   prefetch_container->SimulatePrefetchEligibleForTest();
   MakeServableStreamingURLLoadersWithNetworkTransitionRedirectForTest(
       prefetch_container.get(), kTestUrl1, kTestUrl2);
-  EXPECT_EQ(
-      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
-      PrefetchServableState::kServable);
+  EXPECT_EQ(prefetch_container->GetMatchResolverAction().ToServableState(),
+            PrefetchServableState::kServable);
   EXPECT_TRUE(prefetch_container->GetNonRedirectHead());
 
   // As the prefetch is already completed, the streaming loader is deleted
@@ -1397,9 +1351,8 @@ TEST_P(PrefetchContainerTest, MultipleStreamingURLLoaders) {
 
   // `CreateRequestHandler()` itself doesn't make the PrefetchContainer
   // non-servable.
-  EXPECT_EQ(
-      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
-      PrefetchServableState::kServable);
+  EXPECT_EQ(prefetch_container->GetMatchResolverAction().ToServableState(),
+            PrefetchServableState::kServable);
   EXPECT_TRUE(prefetch_container->GetNonRedirectHead());
 
   std::unique_ptr<PrefetchTestURLLoaderClient> first_serving_url_loader_client =
@@ -1453,9 +1406,6 @@ TEST_P(PrefetchContainerTest, CancelAndClearStreamingLoader) {
   base::HistogramTester histogram_tester;
 
   auto prefetch_container = CreateSpeculationRulesPrefetchContainer(kTestUrl1);
-
-  prefetch_container->MakeInitialResourceRequest();
-
   prefetch_container->SimulatePrefetchEligibleForTest();
   auto pending_request =
       MakeManuallyServableStreamingURLLoaderForTest(prefetch_container.get());
@@ -1465,7 +1415,7 @@ TEST_P(PrefetchContainerTest, CancelAndClearStreamingLoader) {
   CHECK_EQ(mojo::CreateDataPipe(1024, producer_handle, consumer_handle),
            MOJO_RESULT_OK);
   pending_request.client->OnReceiveResponse(
-      network::mojom::URLResponseHead::New(), std::move(consumer_handle),
+      SuccessfulPrefetchResponseHeadForTesting(), std::move(consumer_handle),
       std::nullopt);
   task_environment()->RunUntilIdle();
 
@@ -1473,27 +1423,24 @@ TEST_P(PrefetchContainerTest, CancelAndClearStreamingLoader) {
   ASSERT_TRUE(prefetch_container->GetStreamingURLLoader());
   base::WeakPtr<PrefetchStreamingURLLoader> streaming_loader =
       prefetch_container->GetStreamingURLLoader();
-  EXPECT_EQ(
-      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
-      PrefetchServableState::kServable);
+  EXPECT_EQ(prefetch_container->GetMatchResolverAction().ToServableState(),
+            PrefetchServableState::kServable);
 
   prefetch_container->CancelStreamingURLLoaderIfNotServing();
 
-  // `streaming_loader` is still alive and working.
+  // `streaming_loader` and its prefetch loader is cancelled and
+  // `PrefetchContainer` is notified of a failure (prefetch cancellation).
   EXPECT_FALSE(prefetch_container->GetStreamingURLLoader());
   EXPECT_TRUE(streaming_loader);
-  EXPECT_EQ(
-      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
-      PrefetchServableState::kServable);
+  EXPECT_EQ(prefetch_container->GetMatchResolverAction().ToServableState(),
+            PrefetchServableState::kNotServable);
 
   task_environment()->RunUntilIdle();
 
-  // `streaming_loader` is deleted asynchronously and its prefetching URL loader
-  // is canceled. This itself doesn't make PrefetchContainer non-servable.
+  // `streaming_loader` itself is destroyed asynchronously.
   EXPECT_FALSE(streaming_loader);
-  EXPECT_EQ(
-      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
-      PrefetchServableState::kServable);
+  EXPECT_EQ(prefetch_container->GetMatchResolverAction().ToServableState(),
+            PrefetchServableState::kNotServable);
 }
 
 // To test lifetime and ownership issues, all possible event orderings for
@@ -1628,19 +1575,17 @@ TEST_P(PrefetchContainerLifetimeTest, Lifetime) {
                             std::move(producer), &producer_completed));
   }
 
-  EXPECT_NE(
-      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
-      PrefetchServableState::kServable);
+  EXPECT_NE(prefetch_container->GetMatchResolverAction().ToServableState(),
+            PrefetchServableState::kServable);
   EXPECT_FALSE(prefetch_container->GetNonRedirectHead());
 
   pending_request.client->OnReceiveResponse(
-      network::mojom::URLResponseHead::New(), std::move(consumer_handle),
+      SuccessfulPrefetchResponseHeadForTesting(), std::move(consumer_handle),
       std::nullopt);
   task_environment()->RunUntilIdle();
 
-  EXPECT_EQ(
-      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
-      PrefetchServableState::kServable);
+  EXPECT_EQ(prefetch_container->GetMatchResolverAction().ToServableState(),
+            PrefetchServableState::kServable);
   EXPECT_TRUE(prefetch_container->GetNonRedirectHead());
 
   PrefetchServingHandle serving_handle =
@@ -1679,9 +1624,9 @@ TEST_P(PrefetchContainerLifetimeTest, Lifetime) {
       case Event::kCreateRequestHandler:
         ASSERT_FALSE(request_handler);
         ASSERT_TRUE(prefetch_container);
-        EXPECT_EQ(prefetch_container->GetServableStateForTesting(
-                      base::TimeDelta::Max()),
-                  PrefetchServableState::kServable);
+        EXPECT_EQ(
+            prefetch_container->GetMatchResolverAction().ToServableState(),
+            PrefetchServableState::kServable);
         request_handler = serving_handle.CreateRequestHandler().first;
         ASSERT_TRUE(request_handler);
         break;
@@ -1728,9 +1673,9 @@ TEST_P(PrefetchContainerLifetimeTest, Lifetime) {
 
       case Event::kSecondClient:
         ASSERT_TRUE(prefetch_container);
-        EXPECT_EQ(prefetch_container->GetServableStateForTesting(
-                      base::TimeDelta::Max()),
-                  PrefetchServableState::kServable);
+        EXPECT_EQ(
+            prefetch_container->GetMatchResolverAction().ToServableState(),
+            PrefetchServableState::kServable);
 
         // The second request is servable if the body data pipe is finished and
         // the whole body fits within the data pipe tee size limit.
@@ -1829,7 +1774,7 @@ TEST_P(PrefetchContainerTest, CrossSitePrefetchContainerNoSpeculationTag) {
       GURL("https://test.com"),
       {.speculation_rules_tags = SpeculationRulesTags({"tag1", "tag2"})});
 
-  EXPECT_TRUE(prefetch_container->IsCrossOriginRequest(
+  EXPECT_TRUE(prefetch_container->request().IsCrossOriginRequest(
       url::Origin::Create(prefetch_container->GetURL())));
   // Cross-site Speculation rules prefetch should not contain tag in the header.
   prefetch_container->MakeInitialResourceRequest();
@@ -1875,8 +1820,7 @@ class TestPrefetchContainerObserver final : public PrefetchContainer::Observer {
   void OnDeterminedHead(const PrefetchContainer& prefetch_container) override {}
   void OnPrefetchCompletedOrFailed(
       const PrefetchContainer& prefetch_container,
-      const network::URLLoaderCompletionStatus& completion_status,
-      const std::optional<int>& response_code) override {}
+      const network::URLLoaderCompletionStatus& completion_status) override {}
 
   base::OnceClosure callback_;
 };

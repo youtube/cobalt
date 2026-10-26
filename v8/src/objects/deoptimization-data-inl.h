@@ -55,8 +55,10 @@ void DeoptimizationData::SetBytecodeOffset(int i, BytecodeOffset value) {
   SetBytecodeOffsetRaw(i, Smi::FromInt(value.ToInt()));
 }
 
-int DeoptimizationData::DeoptCount() const {
-  return (length() - kFirstDeoptEntryIndex) / kDeoptEntrySize;
+uint32_t DeoptimizationData::DeoptCount() const {
+  uint32_t len = ulength().value();
+  DCHECK_GE(len, kFirstDeoptEntryIndex);
+  return (len - kFirstDeoptEntryIndex) / kDeoptEntrySize;
 }
 
 inline Tagged<Object> DeoptimizationLiteralArray::get(int index) const {
@@ -102,7 +104,7 @@ inline void DeoptimizationLiteralArray::set(int index, Tagged<Object> value) {
     maybe = data->wrapper();
 #endif
   } else if (Code::IsWeakObjectInDeoptimizationLiteralArray(value)) {
-    maybe = MakeWeak(maybe);
+    maybe = MakeWeak(Cast<HeapObject>(maybe));
   }
   TrustedWeakFixedArray::set(index, maybe);
 }

@@ -234,7 +234,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .DefineNamedOwnProperty(reg, name, define_named_own_slot.ToInt())
       .DefineKeyedOwnProperty(reg, reg, DefineKeyedOwnPropertyFlag::kNoFlags,
                               define_named_own_slot.ToInt())
-      .StoreInArrayLiteral(reg, reg, store_array_element_slot.ToInt());
+      .StoreInArrayLiteral(reg, reg, store_array_element_slot.ToInt())
+      .GetPrivateField(reg, 0, 0, reg, 0)
+      .SetPrivateField(reg, 0, 0, reg, 0);
 
   // Emit Iterator-protocol operations
   builder.GetIterator(reg, load_slot.ToInt(), call_slot.ToInt());
@@ -670,7 +672,7 @@ TEST_F(BytecodeArrayBuilderTest, Constants) {
   ast_factory.Internalize(isolate());
   DirectHandle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   // Should only have one entry for each identical constant.
-  EXPECT_EQ(4, array->constant_pool()->length());
+  EXPECT_EQ(4u, array->constant_pool()->length().value());
 }
 
 TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {

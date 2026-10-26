@@ -21,6 +21,7 @@ import java.util.Locale;
  * <p>Usage documentation: {@code //docs/android_logging.md}.
  */
 @NullMarked
+@SuppressWarnings("NoAndroidLog")
 public class Log {
     /** Convenience property, same as {@link android.util.Log#ASSERT}. */
     public static final int ASSERT = android.util.Log.ASSERT;
@@ -927,6 +928,21 @@ public class Log {
                 String.format(
                         Locale.US, messageTemplate, param1, param2, param3, param4, param5, param6),
                 t);
+    }
+
+    /**
+     * Low-level logging call.
+     *
+     * @see android.util.Log#println(int, String, String)
+     *
+     * @param priority The priority/type of this log message (e.g. {@link #DEBUG}, {@link #INFO}).
+     * @param tag Used to identify the source of a log message. Might be modified in the output
+     *     (see {@link #normalizeTag(String)})
+     * @param message The message you would like logged.
+     */
+    @AlwaysInline
+    public static void println(int priority, String tag, String message) {
+        android.util.Log.println(priority, normalizeTag(tag), message);
     }
 
     /** Handy function to get a loggable stack trace from a Throwable. */

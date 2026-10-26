@@ -135,12 +135,6 @@ double CalculateWordOverlapSimilarity(std::string dom_text,
   return total_ocr_words == 0 ? 0.0 : overlap_count / total_ocr_words;
 }
 
-bool IsProtectedPageFeatureEnabled() {
-  return lens::features::IsLensSearchProtectedPageEnabled() &&
-         lens::IsLensOverlayContextualSearchboxEnabled() &&
-         lens::features::UseApcAsContext();
-}
-
 }  // namespace
 
 namespace lens {
@@ -167,7 +161,8 @@ void LensSearchContextualizationController::StartContextualization(
 void LensSearchContextualizationController::GetPageContextualization(
     PageContentRetrievedCallback callback) {
   // If the contextual searchbox is disabled, exit early.
-  if (!lens::IsLensOverlayContextualSearchboxEnabled()) {
+  if (!lens::IsLensOverlayContextualSearchboxEnabled(
+          lens_search_controller_->GetProfile())) {
     std::move(callback).Run(/*page_contents=*/{}, lens::MimeType::kUnknown,
                             std::nullopt);
     return;
@@ -279,6 +274,7 @@ void LensSearchContextualizationController::ResetState() {
   // Reset the page context eligibility API state.
   page_context_eligibility_callback_.Reset();
   pending_context_eligibility_params_.reset();
+  weak_ptr_factory_.InvalidateWeakPtrs();
   state_ = State::kOff;
 }
 
@@ -383,7 +379,8 @@ void LensSearchContextualizationController::UpdatePageContextualization(
     return;
   }
 
-  if (!lens::IsLensOverlayContextualSearchboxEnabled()) {
+  if (!lens::IsLensOverlayContextualSearchboxEnabled(
+          lens_search_controller_->GetProfile())) {
     std::move(on_page_context_updated_callback_).Run();
     return;
   }
@@ -1135,6 +1132,13 @@ LensSearchContextualizationController::GetSearchboxController() {
       lens_search_controller_->lens_searchbox_controller();
   CHECK(searchbox_controller);
   return searchbox_controller;
+}
+
+bool LensSearchContextualizationController::IsProtectedPageFeatureEnabled() {
+  return lens::features::IsLensSearchProtectedPageEnabled() &&
+         lens::IsLensOverlayContextualSearchboxEnabled(
+             lens_search_controller_->GetProfile()) &&
+         lens::features::UseApcAsContext();
 }
 
 }  // namespace lens

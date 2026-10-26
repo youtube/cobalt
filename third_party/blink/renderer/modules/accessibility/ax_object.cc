@@ -28,7 +28,8 @@
 
 #include "third_party/blink/renderer/modules/accessibility/ax_object.h"
 
-#include <algorithm>
+#include <math.h>
+
 #include <ostream>
 
 #include "base/auto_reset.h"
@@ -38,10 +39,10 @@
 #include "build/build_config.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/input/web_keyboard_event.h"
-#include "third_party/blink/public/common/input/web_menu_source_type.h"
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom-blink.h"
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink.h"
+#include "third_party/blink/renderer/bindings/core/v8/frozen_array.h"
 #include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
 #include "third_party/blink/renderer/core/accessibility/ax_utilities_generated.h"
 #include "third_party/blink/renderer/core/accessibility/axid.h"
@@ -154,6 +155,7 @@
 #include "ui/accessibility/ax_role_properties.h"
 #include "ui/accessibility/ax_tree_id.h"
 #include "ui/accessibility/ax_tree_source.h"
+#include "ui/base/mojom/menu_source_type.mojom-blink.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
 #include "ui/gfx/geometry/transform.h"
@@ -959,8 +961,8 @@ const AtomicString& AXObject::AriaAttribute(
 bool AXObject::IsAriaAttributeTrue(const Element& element,
                                    const QualifiedName& attribute) {
   const AtomicString& value = AriaAttribute(element, attribute);
-  return !value.empty() && !EqualIgnoringASCIICase(value, "undefined") &&
-         !EqualIgnoringASCIICase(value, "false");
+  return !value.empty() && !EqualIgnoringAsciiCase(value, "undefined") &&
+         !EqualIgnoringAsciiCase(value, "false");
 }
 
 // ARIA attributes are true if they are not empty, "false" or "undefined".
@@ -973,14 +975,14 @@ bool AXObject::AriaBooleanAttribute(const Element& element,
                                     bool* out_value) {
   const AtomicString& value = AriaAttribute(element, attribute);
   if (value == g_null_atom || value.empty() ||
-      EqualIgnoringASCIICase(value, "undefined")) {
+      EqualIgnoringAsciiCase(value, "undefined")) {
     if (out_value) {
       *out_value = false;
     }
     return false;
   }
   if (out_value) {
-    *out_value = !EqualIgnoringASCIICase(value, "false");
+    *out_value = !EqualIgnoringAsciiCase(value, "false");
   }
   return true;
 }
@@ -1477,7 +1479,7 @@ void AXObject::SerializeHTMLTagAndClass(ui::AXNodeData* node_data) const {
 
   TruncateAndAddStringAttribute(node_data,
                                 ax::mojom::blink::StringAttribute::kHtmlTag,
-                                element->tagName().LowerASCII());
+                                element->tagName().ToAsciiLower());
 
   if (const AtomicString& class_name = element->GetClassAttribute()) {
     TruncateAndAddStringAttribute(
@@ -1505,7 +1507,7 @@ void AXObject::SerializeHTMLAttributesForSnapshot(
       // Attribute already in kHtmlId or kClassName.
       continue;
     }
-    std::string name = attr_name.LocalName().LowerASCII().Utf8();
+    std::string name = attr_name.LocalName().ToAsciiLower().Utf8();
     std::string value = attr.Value().Utf8();
     node_data->html_attributes.push_back(std::make_pair(name, value));
   }
@@ -2941,10 +2943,6 @@ bool AXObject::IsProgressIndicator() const {
   return false;
 }
 
-bool AXObject::IsAXRadioInput() const {
-  return false;
-}
-
 bool AXObject::IsSlider() const {
   return false;
 }
@@ -2959,8 +2957,15 @@ ax::mojom::blink::Role AXObject::ComputeFinalRoleForSerialization() const {
   //  * Parent is a focusgroup owner whose role was implied (parent has no
   //    explicit role attribute and was generic before inference).
   //  * Current element has no explicit ARIA role (aria_role_ still kUnknown).
-  //  * Current element's native role is generic container (to avoid overriding
-  //    richer native semantics like <button>, <a>, <input>, etc.).
+  //  * Current element's native role is generic container, button, or popup
+  //    button (to avoid overriding richer native semantics like <a>, <input>,
+  //    etc.). Button and popup button are included because they are the most
+  //    common interactive elements used inside focusgroup patterns (e.g. tabs,
+  //    menu items, submenu triggers) and authors expect their roles to be
+  //    inferred from the focusgroup behavior. Toggle button (kToggleButton,
+  //    from aria-pressed) is intentionally excluded: aria-pressed declares
+  //    explicit stateful semantics that should not be overridden by implied
+  //    role inference.
   //  * The focusgroup owner's behavior maps to a child role (e.g. tablist->tab,
   //    radiogroup->radio, etc.).
   // TODO(crbug.com/40074157): Investigate why we need to check
@@ -2975,7 +2980,9 @@ ax::mojom::blink::Role AXObject::ComputeFinalRoleForSerialization() const {
       RuntimeEnabledFeatures::FocusgroupEnabled(
           element->GetExecutionContext()) &&
       (role_ == ax::mojom::blink::Role::kGenericContainer ||
-       role_ == ax::mojom::blink::Role::kUnknown)) {
+       role_ == ax::mojom::blink::Role::kUnknown ||
+       role_ == ax::mojom::blink::Role::kButton ||
+       role_ == ax::mojom::blink::Role::kPopUpButton)) {
     // Avoid calling GetFocusgroupOwnerOfItem here to prevent
     // unnecessary style recalcs, and state-associated CHECKS.
     // Calling IsKeyboardFocusableSlow is safe here because we are passing the
@@ -3209,10 +3216,6 @@ bool AXObject::IsImageMapLink() const {
   return false;
 }
 
-bool AXObject::IsMenu() const {
-  return RoleValue() == ax::mojom::blink::Role::kMenu;
-}
-
 bool AXObject::IsCheckable() const {
   switch (RoleValue()) {
     case ax::mojom::blink::Role::kCheckBox:
@@ -3276,7 +3279,7 @@ ax::mojom::blink::CheckedState AXObject::CheckedState() const {
                                   : html_names::kAriaCheckedAttr;
   const AtomicString& checked_attribute = AriaTokenAttribute(prop);
   if (checked_attribute) {
-    if (EqualIgnoringASCIICase(checked_attribute, "mixed")) {
+    if (EqualIgnoringAsciiCase(checked_attribute, "mixed")) {
       if (role == ax::mojom::blink::Role::kCheckBox ||
           role == ax::mojom::blink::Role::kMenuItemCheckBox ||
           role == ax::mojom::blink::Role::kListBoxOption ||
@@ -3293,7 +3296,7 @@ ax::mojom::blink::CheckedState AXObject::CheckedState() const {
     }
 
     // Anything other than "false" should be treated as "true".
-    return EqualIgnoringASCIICase(checked_attribute, "false")
+    return EqualIgnoringAsciiCase(checked_attribute, "false")
                ? ax::mojom::blink::CheckedState::kFalse
                : ax::mojom::blink::CheckedState::kTrue;
   }
@@ -3327,14 +3330,6 @@ bool AXObject::IsNativeCheckboxInMixedState(const Node* node) {
   if (inputType != input_type_names::kCheckbox)
     return false;
   return input->ShouldAppearIndeterminate();
-}
-
-bool AXObject::IsMenuRelated() const {
-  return ui::IsMenuRelated(RoleValue());
-}
-
-bool AXObject::IsMeter() const {
-  return RoleValue() == ax::mojom::blink::Role::kMeter;
 }
 
 bool AXObject::IsNativeImage() const {
@@ -3407,10 +3402,6 @@ bool AXObject::IsRangeValueSupported() const {
   return ui::IsRangeValueSupported(RoleValue());
 }
 
-bool AXObject::IsScrollbar() const {
-  return RoleValue() == ax::mojom::blink::Role::kScrollBar;
-}
-
 bool AXObject::IsNativeSlider() const {
   return false;
 }
@@ -3421,10 +3412,6 @@ bool AXObject::IsSpinButton() const {
 
 bool AXObject::IsTabItem() const {
   return RoleValue() == ax::mojom::blink::Role::kTab;
-}
-
-bool AXObject::IsTabList() const {
-  return RoleValue() == ax::mojom::blink::Role::kTabList;
 }
 
 bool AXObject::IsTextField() const {
@@ -5473,10 +5460,12 @@ AXObject::GetAriaSpellingOrGrammarMarker() const {
 
   if (iter == UnignoredAncestorsEnd())
     return std::nullopt;
-  if (EqualIgnoringASCIICase(aria_invalid_value, "spelling"))
+  if (EqualIgnoringAsciiCase(aria_invalid_value, "spelling")) {
     return DocumentMarker::kSpelling;
-  if (EqualIgnoringASCIICase(aria_invalid_value, "grammar"))
+  }
+  if (EqualIgnoringAsciiCase(aria_invalid_value, "grammar")) {
     return DocumentMarker::kGrammar;
+  }
   return std::nullopt;
 }
 
@@ -5639,7 +5628,7 @@ bool AXObject::ElementHasAnyAriaAttribute(
   for (const Attribute& attr : attributes) {
     // Attributes cache their uppercase names.
     auto name = attr.GetName().LocalNameUpper();
-    if (name.StartsWith("ARIA-")) {
+    if (name.starts_with("ARIA-")) {
       if (!does_undo_role_presentation || DoesUndoRolePresentation(name))
         return true;
     }
@@ -5739,7 +5728,7 @@ bool AXObject::IsLiveRegionRoot() const {
 
 bool AXObject::IsActiveLiveRegionRoot() const {
   const AtomicString& live_region = LiveRegionStatus();
-  return !live_region.empty() && !EqualIgnoringASCIICase(live_region, "off");
+  return !live_region.empty() && !EqualIgnoringAsciiCase(live_region, "off");
 }
 
 const AtomicString& AXObject::LiveRegionStatus() const {
@@ -5974,31 +5963,31 @@ std::optional<ax::mojom::blink::HasPopup> AXObject::HasPopupFromAttribute(
     return std::nullopt;
   }
 
-  if (EqualIgnoringASCIICase(has_popup, "false")) {
+  if (EqualIgnoringAsciiCase(has_popup, "false")) {
     return ax::mojom::blink::HasPopup::kFalse;
   }
 
-  if (EqualIgnoringASCIICase(has_popup, "listbox")) {
+  if (EqualIgnoringAsciiCase(has_popup, "listbox")) {
     return ax::mojom::blink::HasPopup::kListbox;
   }
 
-  if (EqualIgnoringASCIICase(has_popup, "tree")) {
+  if (EqualIgnoringAsciiCase(has_popup, "tree")) {
     return ax::mojom::blink::HasPopup::kTree;
   }
 
-  if (EqualIgnoringASCIICase(has_popup, "grid")) {
+  if (EqualIgnoringAsciiCase(has_popup, "grid")) {
     return ax::mojom::blink::HasPopup::kGrid;
   }
 
-  if (EqualIgnoringASCIICase(has_popup, "dialog")) {
+  if (EqualIgnoringAsciiCase(has_popup, "dialog")) {
     return ax::mojom::blink::HasPopup::kDialog;
   }
 
   // To provide backward compatibility with ARIA 1.0 content,
   // user agents MUST treat an aria-haspopup value of true
   // as equivalent to a value of menu.
-  if (EqualIgnoringASCIICase(has_popup, "true") ||
-      EqualIgnoringASCIICase(has_popup, "menu")) {
+  if (EqualIgnoringAsciiCase(has_popup, "true") ||
+      EqualIgnoringAsciiCase(has_popup, "menu")) {
     return ax::mojom::blink::HasPopup::kMenu;
   }
 
@@ -6951,7 +6940,7 @@ AtomicString AXObject::Language() const {
   // This is not part of what the HTML5 Standard suggests but it still
   // appears to be necessary.
   if (const String languages = document->ContentLanguage()) {
-    String first_language = languages.Substring(0, languages.find(","));
+    String first_language = languages.substr(0, languages.find(','));
     if (!first_language.empty()) {
       return AtomicString(first_language.StripWhiteSpace());
     }
@@ -6959,8 +6948,8 @@ AtomicString AXObject::Language() const {
 
   // Use the first accept language preference if present.
   if (Page* page = document->GetPage()) {
-    const String languages = page->GetChromeClient().AcceptLanguages();
-    String first_language = languages.Substring(0, languages.find(","));
+    const String languages = page->GetSettings().GetAcceptLanguages();
+    String first_language = languages.substr(0, languages.find(','));
     if (!first_language.empty()) {
       return AtomicString(first_language.StripWhiteSpace());
     }
@@ -7217,7 +7206,7 @@ AXObject::AXObjectVector AXObject::TableRowChildren() const {
     if (child->IsTableRowLikeRole())
       result.push_back(child);
     else if (child->RoleValue() == ax::mojom::blink::Role::kRowGroup)
-      result.AppendVector(child->TableRowChildren());
+      result.append_range(child->TableRowChildren());
   }
   return result;
 }
@@ -7228,7 +7217,7 @@ AXObject::AXObjectVector AXObject::TableCellChildren() const {
     if (child->IsTableCellLikeRole())
       result.push_back(child);
     else if (child->RoleValue() == ax::mojom::blink::Role::kGenericContainer)
-      result.AppendVector(child->TableCellChildren());
+      result.append_range(child->TableCellChildren());
   }
   return result;
 }
@@ -7865,7 +7854,7 @@ bool AXObject::OnNativeShowContextMenuAction() {
   ContextMenuAllowedScope scope;
   WebInputEventResult result =
       document->GetFrame()->GetEventHandler().ShowNonLocatedContextMenu(
-          element, kMenuSourceKeyboard);
+          element, ui::mojom::blink::MenuSourceType::kKeyboard);
 
   // The node may have ceased to exist due to the event handler actions, so we
   // check its detached state. We also check the result of the contextMenu
@@ -7926,7 +7915,7 @@ ax::mojom::blink::Role AXObject::FirstValidRoleInRoleString(
       value.SimplifyWhiteSpace().SplitSkippingEmpty(' ');
   for (const auto& child : role_vector) {
     ax::mojom::blink::Role role =
-        AriaRoleToInternalRole(AtomicString(child.LowerASCII()));
+        AriaRoleToInternalRole(AtomicString(child.ToAsciiLower()));
     if (role == ax::mojom::blink::Role::kUnknown ||
         (ignore_form_and_region && (role == ax::mojom::blink::Role::kForm ||
                                     role == ax::mojom::blink::Role::kRegion))) {
@@ -8349,7 +8338,7 @@ String AXObject::GetNodeString(Node* node) {
   }
 
   StringBuilder string_builder;
-  string_builder << "<" << element->tagName().LowerASCII();
+  string_builder << "<" << element->tagName().ToAsciiLower();
   // Cannot safely get @class from SVG elements.
   if (!element->IsSVGElement() &&
       element->FastHasAttribute(html_names::kClassAttr)) {

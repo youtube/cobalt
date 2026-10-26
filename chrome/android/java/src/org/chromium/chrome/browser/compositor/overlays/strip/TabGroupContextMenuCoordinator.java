@@ -61,12 +61,12 @@ import org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupUtils;
 import org.chromium.chrome.browser.tabmodel.TabList;
 import org.chromium.chrome.browser.tabmodel.TabModel;
-import org.chromium.chrome.browser.tasks.tab_management.ColorPickerCoordinator;
-import org.chromium.chrome.browser.tasks.tab_management.ColorPickerCoordinator.ColorPickerLayoutType;
-import org.chromium.chrome.browser.tasks.tab_management.ColorPickerType;
 import org.chromium.chrome.browser.tasks.tab_management.TabShareUtils;
 import org.chromium.chrome.browser.tasks.tab_management.TabStripReorderingHelper;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiUtils;
+import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerCoordinator;
+import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerCoordinator.ColorPickerLayoutType;
+import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerType;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
 import org.chromium.chrome.tab_ui.R;
@@ -268,8 +268,11 @@ public class TabGroupContextMenuCoordinator extends TabStripReorderingHelper<Tok
                                 assumeNonNull(tabModel.getTabAt(tabModel.index())).getId(),
                                 TabShareUtils.isCollaborationIdValid(collaborationId));
                 if (tabGroupMetadata != null) {
-                    multiInstanceManager.moveTabGroupToOtherWindow(
-                            tabGroupMetadata, NewWindowAppSource.MENU);
+                    moveAndCleanupSource(
+                            multiInstanceManager,
+                            () ->
+                                    multiInstanceManager.moveTabGroupToOtherWindow(
+                                            tabGroupMetadata, NewWindowAppSource.MENU));
                 }
             } else if (menuId == R.id.share_group) {
                 // Create the group share flow and display the share bottom sheet.
@@ -391,7 +394,8 @@ public class TabGroupContextMenuCoordinator extends TabStripReorderingHelper<Tok
                 createReorderItems(
                         id,
                         assumeNonNull(mContext).getString(R.string.move_tab_group_left),
-                        mContext.getString(R.string.move_tab_group_right));
+                        mContext.getString(R.string.move_tab_group_right),
+                        isIncognito);
         // Need to check list is non-empty before calling addAll; otherwise we get assertion error.
         if (!reorderItems.isEmpty()) itemList.addAll(reorderItems);
 
@@ -535,7 +539,11 @@ public class TabGroupContextMenuCoordinator extends TabStripReorderingHelper<Tok
         @Nullable TabGroupMetadata tabGroupMetadata = getTabGroupMetadata(groupId);
         if (tabGroupMetadata == null) return;
         RecordUserAction.record("MobileToolbarTabGroupMenu.MoveGroupToNewWindow");
-        mMultiInstanceManager.moveTabGroupToNewWindow(tabGroupMetadata, NewWindowAppSource.MENU);
+        moveAndCleanupSource(
+                mMultiInstanceManager,
+                () ->
+                        mMultiInstanceManager.moveTabGroupToNewWindow(
+                                tabGroupMetadata, NewWindowAppSource.MENU));
     }
 
     @Override
@@ -544,8 +552,13 @@ public class TabGroupContextMenuCoordinator extends TabStripReorderingHelper<Tok
         @Nullable TabGroupMetadata tabGroupMetadata = getTabGroupMetadata(groupId);
         if (tabGroupMetadata == null) return;
         RecordUserAction.record("MobileToolbarTabGroupMenu.MoveGroupToAnotherWindow");
-        mMultiInstanceManager.moveTabGroupToWindowByIdChecked(
-                instanceInfo.instanceId, tabGroupMetadata, TabList.INVALID_TAB_INDEX);
+        moveAndCleanupSource(
+                mMultiInstanceManager,
+                () ->
+                        mMultiInstanceManager.moveTabGroupToWindowByIdChecked(
+                                instanceInfo.instanceId,
+                                tabGroupMetadata,
+                                TabList.INVALID_TAB_INDEX));
     }
 
     @Override

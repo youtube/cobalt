@@ -370,6 +370,9 @@ class QUICHE_EXPORT ProofSourceHandleCallback {
   // Get the TLS ciphersuite negotiated during the handshake, or nullopt if the
   // handshake has not selected one yet.
   virtual std::optional<uint16_t> GetCiphersuite() const = 0;
+
+  // Get the ID of the NamedGroup negotiated during the handshake.
+  virtual uint16_t GetNegotiatedCurve() const = 0;
 };
 
 // ProofSourceHandle is an interface by which a TlsServerHandshaker can obtain
@@ -418,7 +421,8 @@ class QUICHE_EXPORT ProofSourceHandle {
       std::optional<std::string> alps,
       const std::vector<uint8_t>& quic_transport_params,
       const std::optional<std::vector<uint8_t>>& early_data_context,
-      const QuicSSLConfig& ssl_config) = 0;
+      const QuicSSLConfig& ssl_config,
+      bool disable_alps_explicit_codepoint) = 0;
 
   // Starts a compute signature operation. If the operation is not cancelled
   // when it completes, callback()->OnComputeSignatureDone will be invoked.

@@ -8,9 +8,7 @@
 #include "base/callback_list.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/observer_list.h"
 #include "chrome/browser/ui/media_router/cast_dialog_controller.h"
-#include "chrome/browser/ui/views/global_media_controls/media_item_ui_footer_view.h"
 #include "chrome/browser/ui/views/global_media_controls/media_notification_device_entry_ui.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "components/global_media_controls/public/constants.h"
@@ -23,9 +21,6 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 
 namespace {
-class ExpandDeviceSelectorLabel;
-class ExpandDeviceSelectorButton;
-
 inline constexpr char kAudioDevicesCountHistogramName[] =
     "Media.GlobalMediaControls.NumberOfAvailableAudioDevices";
 inline constexpr char kCastDeviceCountHistogramName[] =
@@ -41,18 +36,15 @@ class MediaItemUIView;
 }  // namespace global_media_controls
 
 class MediaItemUIDeviceSelectorDelegate;
-class MediaItemUIDeviceSelectorObserver;
 
+// A device selector view for Chrome OS only.
 class MediaItemUIDeviceSelectorView
     : public global_media_controls::MediaItemUIDeviceSelector,
       public IconLabelBubbleView::Delegate,
-      public MediaItemUIFooterView::Delegate,
       public global_media_controls::mojom::DeviceListClient {
   METADATA_HEADER(MediaItemUIDeviceSelectorView,
                   global_media_controls::MediaItemUIDeviceSelector)
  public:
-  // media_color_theme is only set when this device selector view is used on
-  // Chrome OS ash.
   MediaItemUIDeviceSelectorView(
       const std::string& item_id,
       MediaItemUIDeviceSelectorDelegate* delegate,
@@ -62,9 +54,8 @@ class MediaItemUIDeviceSelectorView
           receiver,
       bool has_audio_output,
       global_media_controls::GlobalMediaControlsEntryPoint entry_point,
-      bool show_devices = false,
-      std::optional<media_message_center::MediaColorTheme> media_color_theme =
-          std::nullopt);
+      media_message_center::MediaColorTheme media_color_theme,
+      bool show_devices = false);
   ~MediaItemUIDeviceSelectorView() override;
 
   // Called when audio output devices are discovered.
@@ -93,23 +84,15 @@ class MediaItemUIDeviceSelectorView
       std::vector<global_media_controls::mojom::DevicePtr> devices) override;
   void OnPermissionRejected() override {}
 
-  // MediaItemUIFooterView::Delegate
-  void OnDeviceSelected(int tag) override;
-  void OnDropdownButtonClicked() override;
-
   // views::View
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
   bool OnMousePressed(const ui::MouseEvent& event) override;
 
-  void AddObserver(MediaItemUIDeviceSelectorObserver* observer);
-
-  views::Label* GetExpandDeviceSelectorLabelForTesting();
-  views::Button* GetDropdownButtonForTesting();
   std::string GetEntryLabelForTesting(views::View* entry_view);
   bool GetEntryIsHighlightedForTesting(views::View* entry_view);
   bool GetDeviceEntryViewVisibilityForTesting();
-  std::vector<CastDeviceEntryView*> GetCastDeviceEntryViewsForTesting();
+  std::vector<CastDeviceEntryViewAsh*> GetCastDeviceEntryViewsForTesting();
 
  private:
   friend class MediaItemUIDeviceSelectorViewTest;
@@ -120,14 +103,13 @@ class MediaItemUIDeviceSelectorView
 
   void UpdateVisibility();
   bool ShouldBeVisible() const;
-  void CreateExpandButtonStrip(bool show_expand_button);
   void ShowOrHideDeviceList();
   void RemoveDevicesOfType(DeviceEntryUIType type);
   void OnCastDeviceSelected(const std::string& device_id);
   DeviceEntryUI* GetDeviceEntryUI(views::View* view) const;
   void RegisterAudioDeviceCallbacks();
 
-  bool has_expand_button_been_shown_ = false;
+  bool has_view_been_shown_ = false;
   bool have_devices_been_shown_ = false;
 
   bool is_expanded_ = false;
@@ -140,14 +122,11 @@ class MediaItemUIDeviceSelectorView
   SkColor foreground_color_ = global_media_controls::kDefaultForegroundColor;
   SkColor background_color_ = global_media_controls::kDefaultBackgroundColor;
   global_media_controls::GlobalMediaControlsEntryPoint const entry_point_;
-  std::optional<media_message_center::MediaColorTheme> media_color_theme_;
+  media_message_center::MediaColorTheme media_color_theme_;
 
   // Child views
   raw_ptr<AudioDeviceEntryView, DanglingUntriaged>
       current_audio_device_entry_view_ = nullptr;
-  raw_ptr<views::View> expand_button_strip_ = nullptr;
-  raw_ptr<ExpandDeviceSelectorLabel> expand_label_ = nullptr;
-  raw_ptr<ExpandDeviceSelectorButton> dropdown_button_ = nullptr;
   raw_ptr<views::View> device_entry_views_container_ = nullptr;
   raw_ptr<views::View> permission_error_view_container_ = nullptr;
 
@@ -155,8 +134,6 @@ class MediaItemUIDeviceSelectorView
   base::CallbackListSubscription is_device_switching_enabled_subscription_;
 
   raw_ptr<global_media_controls::MediaItemUIView> media_item_ui_ = nullptr;
-
-  base::ObserverList<MediaItemUIDeviceSelectorObserver> observers_;
 
   // Each button has a unique tag, which is used to look up DeviceEntryUI* in
   // |device_entry_ui_map_|.

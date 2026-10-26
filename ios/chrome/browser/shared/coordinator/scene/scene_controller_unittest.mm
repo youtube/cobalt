@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/shared/coordinator/scene/scene_controller.h"
 
+#import "base/test/scoped_feature_list.h"
 #import "base/test/task_environment.h"
 #import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/identity_test_utils.h"
@@ -17,6 +18,7 @@
 #import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_large_icon_service_factory.h"
 #import "ios/chrome/browser/history/model/history_service_factory.h"
+#import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_scene_agent.h"
 #import "ios/chrome/browser/intents/model/intents_constants.h"
 #import "ios/chrome/browser/intents/model/user_activity_browser_agent.h"
 #import "ios/chrome/browser/main/ui_bundled/browser_lifecycle_manager.h"
@@ -32,11 +34,16 @@
 #import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
+#import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
+#import "ios/chrome/browser/shared/public/commands/settings_commands.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/model/identity_test_environment_browser_state_adaptor.h"
 #import "ios/chrome/browser/sync/model/send_tab_to_self_sync_service_factory.h"
+#import "ios/chrome/common/ui/reauthentication/reauthentication_module.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/public/provider/chrome/browser/user_feedback/user_feedback_data.h"
 #import "ios/testing/scoped_block_swizzler.h"
@@ -74,10 +81,6 @@
                                         completion:(ProceduralBlock)completion {
   _applicationMode = targetMode;
 }
-
-- (BOOL)URLIsOpenedInRegularMode:(const GURL&)URL {
-  return NO;
-}
 @end
 
 namespace {
@@ -85,6 +88,10 @@ namespace {
 class SceneControllerTest : public PlatformTest {
  protected:
   SceneControllerTest() {
+    ResetEnableNewStartupFlowEnabledForTesting();
+    scoped_feature_list_.InitAndDisableFeature(kEnableNewStartupFlow);
+    SaveEnableNewStartupFlowForNextStart();
+
     base_view_controller_ = [[UIViewController alloc] init];
 
     fake_scene_ = FakeSceneWithIdentifier([[NSUUID UUID] UUIDString]);
@@ -140,11 +147,23 @@ class SceneControllerTest : public PlatformTest {
         base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
             &test_loader_factory_));
 
-    scene_controller_.browserLifecycleManager =
-        [[BrowserLifecycleManager alloc] initWithProfile:profile_.get()
-                                              sceneState:scene_state_
-                                     applicationEndpoint:nil
-                                        settingsEndpoint:nil];
+    mock_scene_handler_ = OCMProtocolMock(@protocol(SceneCommands));
+    mock_settings_handler_ = OCMProtocolMock(@protocol(SettingsCommands));
+    CommandDispatcher* dispatcher = browser_->GetCommandDispatcher();
+    [dispatcher startDispatchingToTarget:mock_scene_handler_
+                             forProtocol:@protocol(SceneCommands)];
+    [dispatcher startDispatchingToTarget:mock_settings_handler_
+                             forProtocol:@protocol(SettingsCommands)];
+
+    IncognitoReauthSceneAgent* reauth_agent = [[IncognitoReauthSceneAgent alloc]
+        initWithReauthModule:[[ReauthenticationModule alloc] init]];
+    [scene_state_ addAgent:reauth_agent];
+
+    scene_controller_.browserLifecycleManager = [[BrowserLifecycleManager alloc]
+         initWithProfile:profile_.get()
+              sceneState:scene_state_
+           sceneEndpoint:mock_scene_handler_
+        settingsEndpoint:mock_settings_handler_];
     [scene_controller_
             .browserLifecycleManager createMainCoordinatorAndInterface];
 
@@ -154,7 +173,10 @@ class SceneControllerTest : public PlatformTest {
     connection_information_ = scene_state_.controller;
   }
 
-  ~SceneControllerTest() override { [scene_controller_ teardownUI]; }
+  ~SceneControllerTest() override {
+    [scene_controller_ teardownUI];
+    ResetEnableNewStartupFlowEnabledForTesting();
+  }
 
   // Mock & stub a ProfileState object with an arbitrary `init_stage` property.
   ProfileState* CreateMockProfileState(ProfileInitStage init_stage) {
@@ -202,10 +224,13 @@ class SceneControllerTest : public PlatformTest {
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   variations::test::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
       variations::VariationsIdsProvider::Mode::kUseSignedInState};
+  base::test::ScopedFeatureList scoped_feature_list_;
 
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<Browser> browser_;
   InternalFakeSceneController* scene_controller_;
+  id mock_scene_handler_;
+  id mock_settings_handler_;
   SceneState* scene_state_;
   ProfileState* profile_state_;
   id fake_scene_;
@@ -218,17 +243,6 @@ class SceneControllerTest : public PlatformTest {
 // fresh open in new window coming from ios dock. 'Dock' is considered the
 // default when the new window opening request is external to chrome and
 // unknown.
-
-// Tests that scene controller updates scene state's incognitoContentVisible
-// when the relevant scene commands is called.
-TEST_F(SceneControllerTest, UpdatesIncognitoContentVisibility) {
-  [scene_controller_ setIncognitoContentVisible:NO];
-  EXPECT_FALSE(scene_state_.incognitoState.incognitoContentVisible);
-  [scene_controller_ setIncognitoContentVisible:YES];
-  EXPECT_TRUE(scene_state_.incognitoState.incognitoContentVisible);
-  [scene_controller_ setIncognitoContentVisible:NO];
-  EXPECT_FALSE(scene_state_.incognitoState.incognitoContentVisible);
-}
 
 // Tests that scene controller correctly handles an external intent to
 // OpenIncognitoSearch.

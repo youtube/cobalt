@@ -2,27 +2,122 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+
+#include "base/base64.h"
+#include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "build/build_config.h"
 #include "chrome/browser/ui/waap/waap_utils.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "chrome/browser/ui/webui/webui_toolbar/adapters/navigation_controls_state_fetcher_impl.h"
+#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/common/webui_url_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chrome/test/base/ui_test_utils.h"
+#include "chrome/browser/page_load_metrics/page_load_metrics_initialize.h"
+#include "components/metrics/content/subprocess_metrics_provider.h"
+#include "components/metrics/mapping/metrics_mapping_features.h"
+#include "components/metrics/mapping/metrics_name_mapping.pb.h"
+#include "components/ukm/test_ukm_recorder.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
 #include "content/public/test/web_ui_browsertest_util.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
+#include "services/metrics/public/cpp/ukm_source.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
 
 namespace waap {
+namespace {
 
-class InitialWebUINavigationBrowserTest : public InProcessBrowserTest {
+constexpr char kTestMetricName[] =
+    "Navigation.DocumentLoader.DidCommitNavigation";
+constexpr char kTestMetricNameRenamed[] =
+    "Webium.Navigation.DocumentLoader.DidCommitNavigation";
+
+}  // namespace
+
+// Initializes a web ui controller after navigation. Note that this is probably
+// an indication that these tests require too much insight into the state of
+// inner implementation details, or there is some deficiency in the testing
+// framework. Perhaps these tests should be promoted to ui tests.
+class WebUIControllerInitalizer : protected content::WebContentsObserver {
  public:
-  InitialWebUINavigationBrowserTest() {
+  ~WebUIControllerInitalizer() override = default;
+
+  virtual void Init(content::WebUIController* web_ui_controller) = 0;
+  void Watch(content::WebContents* web_contents) {
+    content::WebContentsObserver::Observe(web_contents);
+  }
+
+ protected:
+  void DidFinishNavigation(content::NavigationHandle* handle) override {
+    auto* controller = handle->GetWebContents()->GetWebUI()->GetController();
+    Init(controller);
+    content::WebContentsObserver::Observe(nullptr);
+  }
+};
+
+class ToolbarDependencyProvider : public WebUIToolbarUI::DependencyProvider {
+ public:
+  ToolbarDependencyProvider() = default;
+  ~ToolbarDependencyProvider() = default;
+
+  // This might blow up in the future. We are implicitly assuming that the
+  // delegate isn't going to be used in this test.
+  browser_controls_api::BrowserControlsService::BrowserControlsServiceDelegate*
+  GetBrowserControlsDelegate() override {
+    return nullptr;
+  }
+
+  toolbar_ui_api::ToolbarUIService::ToolbarUIServiceDelegate*
+  GetToolbarUIServiceDelegate() override {
+    return nullptr;
+  }
+
+  std::unique_ptr<toolbar_ui_api::NavigationControlsStateFetcher>
+  GetNavigationControlsStateFetcher() override {
+    return std::make_unique<toolbar_ui_api::NavigationControlsStateFetcherImpl>(
+        base::BindLambdaForTesting([]() {
+          auto back_forward_state =
+              toolbar_ui_api::mojom::BackForwardControlState::New();
+          back_forward_state->back_button_state =
+              toolbar_ui_api::mojom::ButtonState::New();
+          back_forward_state->forward_button_state =
+              toolbar_ui_api::mojom::ButtonState::New();
+          return toolbar_ui_api::mojom::NavigationControlsState::New(
+              toolbar_ui_api::mojom::ReloadControlState::New(),
+              toolbar_ui_api::mojom::SplitTabsControlState::New(),
+              std::move(back_forward_state),
+              /*layout_constants_version=*/0);
+        }));
+  }
+};
+
+class WebUIToolbarInitializer : public WebUIControllerInitalizer {
+ public:
+  WebUIToolbarInitializer() = default;
+  ~WebUIToolbarInitializer() override = default;
+
+  void Init(content::WebUIController* controller) override {
+    auto* toolbar_controller = controller->GetAs<WebUIToolbarUI>();
+    toolbar_controller->Init(&injector_);
+  }
+
+ private:
+  ToolbarDependencyProvider injector_;
+};
+
+class InitialWebUIBrowserTestBase : public InProcessBrowserTest {
+ public:
+  InitialWebUIBrowserTestBase() {
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {{features::kInitialWebUI, {{"use_separate_process", "true"}}},
          {features::kWebUIReloadButton, {}},
@@ -32,9 +127,17 @@ class InitialWebUINavigationBrowserTest : public InProcessBrowserTest {
         {});
   }
 
- protected:
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    ukm_recorder_ = std::make_unique<ukm::TestAutoSetUkmRecorder>();
+  }
+
+  protected:
+  ukm::TestAutoSetUkmRecorder& ukm_recorder() { return *ukm_recorder_; }
+
   std::unique_ptr<content::WebContents> CreateAndNavigateWebContents(
-      const GURL& url) {
+      const GURL& url,
+      WebUIControllerInitalizer* initializer) {
     // Create a new WebContents, since initial WebUI navigations are only
     // allowed to happen as the first navigation in a new WebContents.
     content::BrowserContext* browser_context = browser()
@@ -46,15 +149,24 @@ class InitialWebUINavigationBrowserTest : public InProcessBrowserTest {
         content::SiteInstance::CreateForURL(browser_context, url));
     std::unique_ptr<content::WebContents> new_web_contents(
         content::WebContents::Create(new_contents_params));
+    if (initializer) {
+      initializer->Watch(new_web_contents.get());
+    }
     webui::SetBrowserWindowInterface(new_web_contents.get(), browser());
+    // UKM PageLoad metrics for Initial WebUI are recorded by
+    // `UkmPageLoadMetricsObserver`, which is attached to the WebContents via
+    // `MetricsWebContentsObserver`. For "bare" WebContents created manually in
+    // tests, we must explicitly call this to ensure the observer is attached.
+    InitializePageLoadMetricsForWebContents(new_web_contents.get());
 
     // Navigate to `url`.
     content::NavigationController& controller =
         new_web_contents->GetController();
     content::TestNavigationObserver navigation_observer(url);
     navigation_observer.WatchExistingWebContents();
-    controller.LoadURLWithParams(
+    auto handle = controller.LoadURLWithParams(
         content::NavigationController::LoadURLParams(url));
+
     navigation_observer.Wait();
 
     // Ensure the navigation successfully commits.
@@ -66,96 +178,329 @@ class InitialWebUINavigationBrowserTest : public InProcessBrowserTest {
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
+  std::unique_ptr<ukm::TestAutoSetUkmRecorder> ukm_recorder_;
 };
 
-// Initial WebUI flag should be correctly set even if a non-initial WebUI is
+class InitialWebUINavigationBrowserTest : public InitialWebUIBrowserTestBase {};
+
+// TopChrome WebUI flag should be correctly set even if a non-TopChrome WebUI is
 // created first.
 IN_PROC_BROWSER_TEST_F(InitialWebUINavigationBrowserTest,
-                       Flag_NonInitialTopChromeCommittedFirst) {
-  // 1) Navigate to non-initial WebUI topchrome in a new WebContents.
-  GURL url(chrome::kChromeUITabSearchURL);
-  EXPECT_TRUE(IsTopChromeWebUIURL(url));
+                       Flag_NonTopChromeCommittedFirst) {
+  // 1) Navigate to non-TopChrome WebUI in a new WebContents.
+  GURL url(chrome::kChromeUIVersionURL);
+  EXPECT_FALSE(IsTopChromeWebUIURL(url));
   EXPECT_FALSE(IsForInitialWebUI(url));
   std::unique_ptr<content::WebContents> non_initial_webui_web_contents =
-      CreateAndNavigateWebContents(url);
-  // Ensure that the process doesn't have the initial WebUI flag set.
+      CreateAndNavigateWebContents(url, nullptr);
+  // Ensure that the process doesn't have the TopChrome WebUI flag set.
   EXPECT_FALSE(non_initial_webui_web_contents->GetPrimaryMainFrame()
                    ->GetProcess()
-                   ->IsForInitialWebUI());
+                   ->IsForTopChromeWebUI());
 
   // 2) Navigate to initial WebUI in a new WebContents.
   GURL url2(chrome::kChromeUIWebUIToolbarURL);
   EXPECT_TRUE(IsTopChromeWebUIURL(url2));
   EXPECT_TRUE(IsForInitialWebUI(url2));
+  WebUIToolbarInitializer initializer;
   std::unique_ptr<content::WebContents> initial_webui_web_contents =
-      CreateAndNavigateWebContents(url2);
-  // Ensure that the process has the initial WebUI flag set.
+      CreateAndNavigateWebContents(url2, &initializer);
+  // Ensure that the process has the TopChrome WebUI flag set.
   EXPECT_TRUE(initial_webui_web_contents->GetPrimaryMainFrame()
                   ->GetProcess()
-                  ->IsForInitialWebUI());
+                  ->IsForTopChromeWebUI());
 }
 
-// Initial WebUI process shoudl not be shared with non-initial WebUI.
+// Initial WebUI process should not be shared with non-Initial WebUI per
+// https://crrev.com/c/7508984.
+// However, both should have the TopChrome WebUI flag set.
 IN_PROC_BROWSER_TEST_F(InitialWebUINavigationBrowserTest,
                        InitialWebUIProcessSharing) {
   // 1) Navigate to initial WebUI in a new WebContents.
   GURL url(chrome::kChromeUIWebUIToolbarURL);
   EXPECT_TRUE(IsTopChromeWebUIURL(url));
-  EXPECT_TRUE(IsForInitialWebUI(url));
+  WebUIToolbarInitializer initializer;
   std::unique_ptr<content::WebContents> initial_webui_web_contents =
-      CreateAndNavigateWebContents(url);
+      CreateAndNavigateWebContents(url, &initializer);
 
-  // Ensure that the process has the initial WebUI flag set.
+  // Ensure that the process has the TopChrome WebUI flag set.
   EXPECT_TRUE(initial_webui_web_contents->GetPrimaryMainFrame()
                   ->GetProcess()
-                  ->IsForInitialWebUI());
+                  ->IsForTopChromeWebUI());
 
-  // 2) Navigate to non-initial WebUI topchrome in a new WebContents.
+  // 2) Navigate to another TopChrome WebUI (but not Initial WebUI) in a new
+  // WebContents.
   GURL url2(chrome::kChromeUITabSearchURL);
   EXPECT_TRUE(IsTopChromeWebUIURL(url2));
-  EXPECT_FALSE(IsForInitialWebUI(url2));
   std::unique_ptr<content::WebContents> non_initial_webui_web_contents =
-      CreateAndNavigateWebContents(url2);
+      CreateAndNavigateWebContents(url2, nullptr);
 
-  // Ensure that the process doesn't have the initial WebUI flag set.
-  EXPECT_FALSE(non_initial_webui_web_contents->GetPrimaryMainFrame()
-                   ->GetProcess()
-                   ->IsForInitialWebUI());
-  // Initial WebUI and non-initial WebUI should use different processes.
+  // It also has the TopChrome WebUI flag set.
+  EXPECT_TRUE(non_initial_webui_web_contents->GetPrimaryMainFrame()
+                  ->GetProcess()
+                  ->IsForTopChromeWebUI());
+  // Initial WebUI and other TopChrome WebUI should use different processes
+  // because Initial WebUI is explicitly isolated.
   EXPECT_NE(
       initial_webui_web_contents->GetPrimaryMainFrame()->GetProcess(),
       non_initial_webui_web_contents->GetPrimaryMainFrame()->GetProcess());
 
   // 3) Navigate to initial WebUI again in a new WebContents.
   std::unique_ptr<content::WebContents> initial_webui_web_contents2 =
-      CreateAndNavigateWebContents(url);
+      CreateAndNavigateWebContents(url, &initializer);
 
-  // Initial WebUI should share process with the other initial WebUI
-  // WebContents, but not the non-initial WebUI topchrome one.
+  // Initial WebUI should share process with the other Initial WebUI
+  // WebContents, but not the non-Initial TopChrome WebUI one.
   EXPECT_EQ(initial_webui_web_contents->GetPrimaryMainFrame()->GetProcess(),
             initial_webui_web_contents2->GetPrimaryMainFrame()->GetProcess());
   EXPECT_NE(
       initial_webui_web_contents2->GetPrimaryMainFrame()->GetProcess(),
       non_initial_webui_web_contents->GetPrimaryMainFrame()->GetProcess());
 
-  // 4) Navigate to another non-initial WebUI topchrome in a new WebContents.
+  // 4) Navigate to another non-Initial TopChrome WebUI in a new WebContents.
   GURL url3(chrome::kChromeUIReadLaterURL);
   EXPECT_TRUE(IsTopChromeWebUIURL(url3));
-  EXPECT_FALSE(IsForInitialWebUI(url3));
   std::unique_ptr<content::WebContents> non_initial_webui_web_contents2 =
-      CreateAndNavigateWebContents(url3);
+      CreateAndNavigateWebContents(url3, nullptr);
 
-  // Non-initial topchrome WebUI should share process with the other initial
-  // WebUI WebContents, but not the initial WebUI topchrome one.
+  // Non-Initial TopChrome WebUIs share a process with EACH OTHER,
+  // but not with the Initial WebUI.
   EXPECT_EQ(
       non_initial_webui_web_contents->GetPrimaryMainFrame()->GetProcess(),
       non_initial_webui_web_contents2->GetPrimaryMainFrame()->GetProcess());
   EXPECT_NE(
       non_initial_webui_web_contents2->GetPrimaryMainFrame()->GetProcess(),
       initial_webui_web_contents->GetPrimaryMainFrame()->GetProcess());
-  EXPECT_NE(
-      non_initial_webui_web_contents2->GetPrimaryMainFrame()->GetProcess(),
-      initial_webui_web_contents2->GetPrimaryMainFrame()->GetProcess());
+}
+
+// Verifies that UKM PageLoad metrics are correctly recorded for an Initial
+// WebUI navigation. This test checks that:
+// 1. The UKM recorder is active and receives entries.
+// 2. `MetricsWebContentsObserver` is correctly attached to the WebContents.
+// 3. The UKM flush (triggered by WebContents destruction) correctly records
+//    the buffered PageLoad metrics.
+IN_PROC_BROWSER_TEST_F(InitialWebUINavigationBrowserTest, RecordPageLoadUKM) {
+  using PageLoad = ukm::builders::PageLoad;
+
+  // 1) Navigate to initial WebUI.
+  GURL url(chrome::kChromeUIWebUIToolbarURL);
+  WebUIToolbarInitializer initializer;
+  std::unique_ptr<content::WebContents> initial_webui_web_contents =
+      CreateAndNavigateWebContents(url, &initializer);
+
+  // 2) Set up a RunLoop to wait for the UKM entry.
+  base::RunLoop ukm_loop;
+  ukm_recorder().SetOnAddEntryCallback(PageLoad::kEntryName,
+                                       ukm_loop.QuitClosure());
+
+  // 3) Close the WebContents to trigger the UKM flush.
+  initial_webui_web_contents.reset();
+
+  // 4) Wait for the UKM entry to be recorded.
+  if (ukm_recorder().GetEntriesByName(PageLoad::kEntryName).empty()) {
+    ukm_loop.Run();
+  }
+
+  // 5) Verify UKM recording.
+  auto entries = ukm_recorder().GetEntriesByName(PageLoad::kEntryName);
+  EXPECT_FALSE(entries.empty());
+}
+
+class InitialWebUIMetricsMappingBrowserTest
+    : public InitialWebUIBrowserTestBase {
+ public:
+  InitialWebUIMetricsMappingBrowserTest() {
+    metrics::MetricsNameMappingConfiguration config;
+    metrics::MetricsNameMapping* mapping = config.add_rules();
+    mapping->set_metric_name(kTestMetricName);
+    mapping->set_new_metric_name(kTestMetricNameRenamed);
+
+    std::string serialized_config;
+    config.SerializeToString(&serialized_config);
+    std::string base64_config = base::Base64Encode(serialized_config);
+
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{metrics::features::kWebiumMetricsMapping,
+          {{metrics::features::kWebiumMetricsMappingConfig.name,
+            base64_config}}}},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(InitialWebUIMetricsMappingBrowserTest,
+                       WebiumRendererMetricsAreMapped) {
+  base::HistogramTester histogram_tester;
+
+  // Navigate to an initial WebUI page.
+  GURL url(chrome::kChromeUIWebUIToolbarURL);
+  WebUIToolbarInitializer initializer;
+  std::unique_ptr<content::WebContents> initial_webui_web_contents =
+      CreateAndNavigateWebContents(url, &initializer);
+
+  // Fetch the histograms from the Webium renderer and merge them into the
+  // browser's StatisticsRecorder.
+  content::FetchHistogramsFromChildProcesses();
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+
+  // The Navigation.DocumentLoader.DidCommitNavigation metric is emitted
+  // unconditionally by the renderer upon navigation commit.
+  // The base metric should have been renamed by the synchronizer.
+  // We check that the Webium-prefixed metric successfully captured
+  // the sample by checking the count.
+  int total_webium_count = 0;
+  for (const base::Bucket& bucket :
+       histogram_tester.GetAllSamples(kTestMetricNameRenamed)) {
+    total_webium_count += bucket.count;
+  }
+  EXPECT_GE(total_webium_count, 1);
+}
+
+// TODO(crbug.com/491012584): Flaky on ChromeOS MSan.
+#if BUILDFLAG(IS_CHROMEOS) && defined(MEMORY_SANITIZER)
+#define MAYBE_NormalRendererMetricsAreNotMapped \
+  DISABLED_NormalRendererMetricsAreNotMapped
+#else
+#define MAYBE_NormalRendererMetricsAreNotMapped \
+  NormalRendererMetricsAreNotMapped
+#endif
+IN_PROC_BROWSER_TEST_F(InitialWebUIMetricsMappingBrowserTest,
+                       MAYBE_NormalRendererMetricsAreNotMapped) {
+  base::HistogramTester histogram_tester;
+
+  // Navigate to a regular WebUI page (NOT TopChrome WebUI).
+  GURL url(chrome::kChromeUIVersionURL);
+  std::unique_ptr<content::WebContents> non_initial_webui_web_contents =
+      CreateAndNavigateWebContents(url, nullptr);
+
+  // Fetch histograms and merge them.
+  content::FetchHistogramsFromChildProcesses();
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+
+  // Because this is NOT a Webium renderer, the metric should NOT be prefixed.
+  histogram_tester.ExpectTotalCount(kTestMetricNameRenamed, 0);
+
+  int total_normal_count = 0;
+  for (const base::Bucket& bucket :
+       histogram_tester.GetAllSamples(kTestMetricName)) {
+    total_normal_count += bucket.count;
+  }
+  EXPECT_GE(total_normal_count, 1);
+}
+
+class InitialWebUIMetricsAllowlistBrowserTest
+    : public InitialWebUIBrowserTestBase {
+ public:
+  InitialWebUIMetricsAllowlistBrowserTest() {
+    metrics::MetricsNameMappingConfiguration config;
+    metrics::MetricsNameMapping* mapping = config.add_rules();
+    mapping->set_metric_name(kTestMetricName);
+    // No new_metric_name set, so it should be allowed without renaming.
+
+    std::string serialized_config;
+    config.SerializeToString(&serialized_config);
+    std::string base64_config = base::Base64Encode(serialized_config);
+
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{metrics::features::kWebiumMetricsMapping,
+          {{metrics::features::kWebiumMetricsMappingConfig.name,
+            base64_config}}}},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(InitialWebUIMetricsAllowlistBrowserTest,
+                       WebiumRendererMetricsAllowedWithoutRenaming) {
+  base::HistogramTester histogram_tester;
+
+  // Navigate to an initial WebUI page.
+  GURL url(chrome::kChromeUIWebUIToolbarURL);
+  WebUIToolbarInitializer initializer;
+  std::unique_ptr<content::WebContents> initial_webui_web_contents =
+      CreateAndNavigateWebContents(url, &initializer);
+
+  // Fetch the histograms from the Webium renderer and merge them into the
+  // browser's StatisticsRecorder.
+  content::FetchHistogramsFromChildProcesses();
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+
+  // The Navigation.DocumentLoader.DidCommitNavigation metric is emitted
+  // unconditionally by the renderer upon navigation commit.
+  // The configuration allows this metric but does NOT provide a rename.
+  // We check that the original name is used and NO prefixed version exists.
+
+  // 1. Verify prefixed metric does NOT exist.
+  histogram_tester.ExpectTotalCount(kTestMetricNameRenamed, 0);
+
+  // 2. Verify original metric DOES exist.
+  int total_count = 0;
+  for (const base::Bucket& bucket :
+       histogram_tester.GetAllSamples(kTestMetricName)) {
+    total_count += bucket.count;
+  }
+  EXPECT_GE(total_count, 1);
+}
+
+class InitialWebUIMetricsDropBrowserTest : public InitialWebUIBrowserTestBase {
+ public:
+  InitialWebUIMetricsDropBrowserTest() {
+    // Enable the feature with an empty configuration.
+    // This implies that NO metrics are mapped or allowed, so all Webium
+    // renderer metrics should be dropped.
+    metrics::MetricsNameMappingConfiguration config;
+    std::string serialized_config;
+    config.SerializeToString(&serialized_config);
+    std::string base64_config = base::Base64Encode(serialized_config);
+
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{metrics::features::kWebiumMetricsMapping,
+          {{metrics::features::kWebiumMetricsMappingConfig.name,
+            base64_config}}}},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// TODO(crbug.com/491012584): Flaky on ChromeOS MSan.
+#if BUILDFLAG(IS_CHROMEOS) && defined(MEMORY_SANITIZER)
+#define MAYBE_WebiumRendererMetricsDroppedIfNoRule \
+  DISABLED_WebiumRendererMetricsDroppedIfNoRule
+#else
+#define MAYBE_WebiumRendererMetricsDroppedIfNoRule \
+  WebiumRendererMetricsDroppedIfNoRule
+#endif
+IN_PROC_BROWSER_TEST_F(InitialWebUIMetricsDropBrowserTest,
+                       MAYBE_WebiumRendererMetricsDroppedIfNoRule) {
+  base::HistogramTester histogram_tester;
+
+  // Navigate to an initial WebUI page.
+  GURL url(chrome::kChromeUIWebUIToolbarURL);
+  WebUIToolbarInitializer initializer;
+  std::unique_ptr<content::WebContents> initial_webui_web_contents =
+      CreateAndNavigateWebContents(url, &initializer);
+
+  // Fetch the histograms from the Webium renderer and merge them into the
+  // browser's StatisticsRecorder.
+  content::FetchHistogramsFromChildProcesses();
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+
+  // The Navigation.DocumentLoader.DidCommitNavigation metric is emitted
+  // unconditionally by the renderer upon navigation commit.
+  // The configuration is empty, so this metric should be DROPPED.
+
+  // 1. Verify prefixed metric does NOT exist.
+  histogram_tester.ExpectTotalCount(kTestMetricNameRenamed, 0);
+
+  // 2. Verify original metric does NOT exist (it was dropped, not emitted
+  // as-is).
+  histogram_tester.ExpectTotalCount(kTestMetricName, 0);
 }
 
 }  // namespace waap

@@ -38,6 +38,8 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_base_view.h"
+#include "chrome/browser/ui/views/autofill/popup/popup_bnpl_footnote_view.h"
+#include "chrome/browser/ui/views/autofill/popup/popup_loading_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_no_suggestions_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_row_factory_utils.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_row_view.h"
@@ -88,6 +90,7 @@
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_border_arrow_utils.h"
 #include "ui/views/controls/scroll_view.h"
+#include "ui/views/controls/tabbed_pane/tabbed_pane.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/layout/flex_layout.h"
@@ -106,8 +109,6 @@ namespace {
 // (see crbug.com/1434330).
 constexpr int kAutofillPopupMinWidth = 156;
 static_assert(kAutofillPopupMinWidth > 128);
-// TODO(crbug.com/41382463): move handling the max width to the base class.
-constexpr int kAutofillPopupMaxWidth = 456;
 
 constexpr int kMaxPopupWithSearchBarHeight = 400;
 
@@ -226,7 +227,8 @@ PopupViewViews::PopupViewViews(
 
 PopupViewViews::PopupViewViews(
     base::WeakPtr<AutofillPopupController> controller,
-    std::optional<const AutofillPopupView::SearchBarConfig> search_bar_config)
+    std::optional<const AutofillPopupView::SearchBarConfig> search_bar_config,
+    std::optional<const AutofillPopupView::TabbedPaneConfig> tabbed_pane_config)
     : PopupBaseView(controller,
                     views::Widget::GetTopLevelWidgetForNativeView(
                         controller->container_view()),
@@ -234,7 +236,8 @@ PopupViewViews::PopupViewViews(
                         ? views::Widget::InitParams::Activatable::kYes
                         : views::Widget::InitParams::Activatable::kDefault),
       controller_(controller),
-      search_bar_config_(std::move(search_bar_config)) {
+      search_bar_config_(std::move(search_bar_config)),
+      tabbed_pane_config_(std::move(tabbed_pane_config)) {
   InitViews();
 
   GetViewAccessibility().SetRole(ax::mojom::Role::kListBox);
@@ -276,7 +279,7 @@ bool PopupViewViews::Show(
     search_bar_->Focus();
   }
 
-  if (autoselect_first_suggestion) {
+  if (autoselect_first_suggestion && controller_->GetLineCount() > 0) {
     // Selecting first selectable row.
     // TODO(crbug.com/327931044): Remove the if condition and make the else as
     // the default as part of cleanup.
@@ -388,6 +391,10 @@ bool PopupViewViews::HandleKeyPressEvent(
 
   if (controller_->GetMainFillingProduct() == FillingProduct::kCompose) {
     return HandleKeyPressEventForCompose(event);
+  }
+
+  if (controller_->GetMainFillingProduct() == FillingProduct::kAtMemory) {
+    return HandleKeyPressEventForAtMemory(event);
   }
 
   const bool kHasShiftModifier =
@@ -566,6 +573,48 @@ bool PopupViewViews::HandleKeyPressEventForCompose(
       }
       return false;
     }
+    default:
+      return false;
+  }
+}
+
+bool PopupViewViews::HandleKeyPressEventForAtMemory(
+    const input::NativeWebKeyboardEvent& event) {
+  CHECK_EQ(controller_->GetMainFillingProduct(), FillingProduct::kAtMemory);
+
+  switch (event.windows_key_code) {
+    case ui::VKEY_ESCAPE:
+      controller_->Hide(SuggestionHidingReason::kUserAborted);
+      return true;
+    case ui::VKEY_RETURN: {
+      if (GetSelectedCell()) {
+        return AcceptSelectedContentOrCreditCardCell(
+            AutofillMetrics::SuggestionAcceptedMethod::kKeyboard);
+      }
+      if (search_bar_) {
+        controller_->SetFilter(
+            AutofillPopupController::StringFilter(search_bar_->GetText()));
+        return true;
+      }
+      return false;
+    }
+    case ui::VKEY_UP:
+      if (GetSelectedCell()) {
+        SelectPreviousRow();
+        return true;
+      }
+      return false;
+    case ui::VKEY_DOWN:
+      if (GetSelectedCell()) {
+        SelectNextRow(PopupCellSelectionSource::kKeyboard);
+        return true;
+      }
+      if (HasSelectablePopupRowViewAt(0)) {
+        SetSelectedCell(CellIndex(0, PopupRowView::CellType::kContent),
+                        PopupCellSelectionSource::kKeyboard);
+        return true;
+      }
+      return false;
     default:
       return false;
   }
@@ -757,7 +806,7 @@ void PopupViewViews::SearchBarOnInputChanged(std::u16string_view query) {
   if (controller_) {
     controller_->SetFilter(
         query.empty() ? std::nullopt
-                      : std::optional(AutofillPopupController::SuggestionFilter(
+                      : std::optional(AutofillPopupController::StringFilter(
                             std::u16string(query))));
   }
 }
@@ -788,6 +837,10 @@ bool PopupViewViews::SearchBarHandleKeyPressed(const ui::KeyEvent& event) {
   // the search bar) enables keyboard navigation when the search bar input
   // field is focused.
   return controller_->HandleKeyPressEvent(input::NativeWebKeyboardEvent(event));
+}
+
+void PopupViewViews::TabSelectedAt(int index) {
+  controller_->SetFilter(SuggestionTabIndex(index));
 }
 
 void PopupViewViews::SetSelectedCell(
@@ -925,6 +978,10 @@ void PopupViewViews::InitViews() {
     AddChildView(std::make_unique<PopupSeparatorView>(/*vertical_padding=*/0));
   }
 
+  if (tabbed_pane_config_) {
+    CreateTabbedPaneView();
+  }
+
   suggestions_container_ =
       AddChildView(views::Builder<views::BoxLayoutView>()
                        .SetOrientation(views::BoxLayout::Orientation::kVertical)
@@ -965,16 +1022,8 @@ void PopupViewViews::CreateSuggestionViews() {
   rows_.reserve(suggestions.size());
   size_t current_line_number = 0u;
 
-  // No suggestions (or only footer ones, which are not filterable) with
-  // a non-empty filter query means that there are no results matching
-  // the query. Show a corresponding message.
-  if ((suggestions.empty() ||
-       std::ranges::all_of(suggestions,
-                           [](const Suggestion& suggestion) {
-                             return suggestion.filtration_policy ==
-                                    Suggestion::FiltrationPolicy::kStatic;
-                           })) &&
-      search_bar_ && controller_->HasFilteredOutSuggestions()) {
+  // Show the "no results" message if the controller identifies this state.
+  if (search_bar_ && controller_->ShouldShowNoSuggestionsMessage()) {
     suggestions_container_->AddChildView(
         std::make_unique<PopupNoSuggestionsView>(
             search_bar_config_->no_results_message));
@@ -1008,6 +1057,13 @@ void PopupViewViews::CreateSuggestionViews() {
               body_container->AddChildView(std::make_unique<PopupWarningView>(
                   suggestions[current_line_number])));
           break;
+        case SuggestionType::kLoadingThrobber: {
+          rows_.push_back(
+              body_container->AddChildView(std::make_unique<PopupLoadingView>(
+                  suggestions[current_line_number]
+                      .expected_number_of_suggestions.value_or(1))));
+          break;
+        }
         // The default section contains all selectable rows and includes
         // autocomplete, address, credit cards and passwords.
         default:
@@ -1148,6 +1204,10 @@ void PopupViewViews::CreateSuggestionViews() {
     if (suggestions[current_line_number].type == SuggestionType::kSeparator) {
       rows_.push_back(footer_container_->AddChildView(
           std::make_unique<PopupSeparatorView>(kInterItemsPadding)));
+    } else if (suggestions[current_line_number].type ==
+               SuggestionType::kBnplFootnote) {
+      rows_.push_back(footer_container_->AddChildView(
+          std::make_unique<PopupBnplFootnoteView>(controller())));
     } else {
       rows_.push_back(footer_container_->AddChildView(CreatePopupRowView(
           controller(), /*a11y_selection_delegate=*/*this,
@@ -1178,6 +1238,11 @@ gfx::Size PopupViewViews::CalculatePreferredSize(
     size.set_width(kAutofillPopupMaxWidth);
   }
 
+  if (controller_ &&
+      controller_->GetMainFillingProduct() == FillingProduct::kAtMemory) {
+    size.set_width(std::max(size.width(), kAutofillPopupMaxWidth));
+  }
+
   // This popup height limiting for popups with a search bar addresses a minor
   // UX concern when a potentially long list makes the search bar appear far
   // away from the field and thus less obvious what the search bar belongs to.
@@ -1186,6 +1251,40 @@ gfx::Size PopupViewViews::CalculatePreferredSize(
   }
 
   return size;
+}
+
+void PopupViewViews::CreateTabbedPaneView() {
+  auto tabbed_pane = std::make_unique<views::TabbedPane>();
+
+  auto create_empty_pane = []() {
+    auto pane = std::make_unique<views::View>();
+    pane->SetBorder(
+        views::CreateEmptyBorder(ChromeLayoutProvider::Get()->GetInsetsMetric(
+            views::INSETS_DIALOG_SUBSECTION)));
+    return pane;
+  };
+
+  const int kCustomTabHeight = 52;
+  for (const auto& tab_config : tabbed_pane_config_->tabs) {
+    tabbed_pane->AddTab(tab_config.title, create_empty_pane());
+
+    views::TabbedPaneTab* tab_view =
+        tabbed_pane->GetTabAt(tabbed_pane->GetTabCount() - 1);
+    tab_view->SetHeight(kCustomTabHeight);
+  }
+
+  // TODO(crbug.com/477689220): Investigate better approaches (e.g., layout
+  // management) for sizing the tabbed pane so it doesn't overlap the
+  // suggestions container.
+  // Calculate and set the preferred size for the tabbed pane based on its
+  // contents.
+  tabbed_pane->SetPreferredSize(tabbed_pane->GetPreferredSize());
+  tabbed_pane->SetListener(this);
+
+  // Filter suggestions for the default tab.
+  controller_->SetFilter(kDefaultSuggestionTabIndex);
+
+  tabbed_pane_ = AddChildView(std::move(tabbed_pane));
 }
 
 bool PopupViewViews::DoUpdateBoundsAndRedrawPopup() {
@@ -1234,7 +1333,8 @@ bool PopupViewViews::DoUpdateBoundsAndRedrawPopup(bool prefer_prev_arrow_side) {
       gfx::Insets::VH(/*vertical=*/-kElementBorderPadding, /*horizontal=*/0));
 
   if ((!body_container_ || body_container_->children().empty()) &&
-      (!footer_container_ || footer_container_->children().empty())) {
+      (!footer_container_ || footer_container_->children().empty()) &&
+      !search_bar_) {
     controller_->Hide(SuggestionHidingReason::kNoSuggestions);
     return false;
   }
@@ -1285,6 +1385,15 @@ bool PopupViewViews::DoUpdateBoundsAndRedrawPopup(bool prefer_prev_arrow_side) {
                                              controller_->GetWebContents())) {
     controller_->Hide(SuggestionHidingReason::kOverlappingWithAnotherPrompt);
     return false;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillPopupCheckHtmlFormPopupOverlap)) {
+    if (BoundsOverlapWithHtmlFormPopup(popup_bounds,
+                                       controller_->GetWebContents())) {
+      controller_->Hide(SuggestionHidingReason::kOverlappingWithAnotherPrompt);
+      return false;
+    }
   }
 
   // The pip surface is given the most preference while rendering. So, the
@@ -1472,7 +1581,9 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(
 // static
 base::WeakPtr<AutofillPopupView> AutofillPopupView::Create(
     base::WeakPtr<AutofillSuggestionController> controller,
-    std::optional<const AutofillPopupView::SearchBarConfig> search_bar_config) {
+    std::optional<const AutofillPopupView::SearchBarConfig> search_bar_config,
+    std::optional<const AutofillPopupView::TabbedPaneConfig>
+        tabbed_pane_config) {
   if (!controller || !CanShowRootPopup(*controller)) {
     return nullptr;
   }
@@ -1480,7 +1591,7 @@ base::WeakPtr<AutofillPopupView> AutofillPopupView::Create(
   // On Desktop, all controllers are `AutofillPopupController`s.
   return (new PopupViewViews(
               static_cast<AutofillPopupController&>(*controller).GetWeakPtr(),
-              std::move(search_bar_config)))
+              std::move(search_bar_config), std::move(tabbed_pane_config)))
       ->GetWeakPtr();
 }
 

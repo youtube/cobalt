@@ -456,7 +456,7 @@ static CSSNestingType ConsumeUntilCommaAndFindNestingType(
     }
     if (previous_token.GetType() == kColonToken &&
         token.GetType() == kIdentToken &&
-        EqualIgnoringASCIICase(token.Value(), "scope")) {
+        EqualIgnoringAsciiCase(token.Value(), "scope")) {
       nesting_type = CSSNestingType::kScope;
     }
 
@@ -939,10 +939,10 @@ CSSSelector::PseudoType CSSSelectorParser::ParsePseudoType(
     return pseudo_type;
   }
 
-  if (name.StartsWith("-webkit-")) {
+  if (name.starts_with("-webkit-")) {
     return CSSSelector::PseudoType::kPseudoWebKitCustomElement;
   }
-  if (name.StartsWith("-internal-")) {
+  if (name.starts_with("-internal-")) {
     return CSSSelector::PseudoType::kPseudoBlinkInternalElement;
   }
 
@@ -971,7 +971,7 @@ PseudoId CSSSelectorParser::ParsePseudoElement(const String& selector_string,
     CSSParserToken selector_name_token = stream.Peek();
     if (selector_name_token.GetType() == kIdentToken) {
       stream.Consume();
-      if (!selector_name_token.Value().ContainsOnlyASCIIOrEmpty()) {
+      if (!selector_name_token.Value().ContainsOnlyAsciiOrEmpty()) {
         return kPseudoIdInvalid;
       }
       if (stream.Peek().GetType() != kEOFToken) {
@@ -981,7 +981,7 @@ PseudoId CSSSelectorParser::ParsePseudoElement(const String& selector_string,
       // Lowercase for case-insensitive matching. CSS pseudo-elements are
       // case-insensitive, and escape sequences like `:bef\oRE` may produce
       // mixed-case names after tokenization.
-      AtomicString selector_name = AtomicString::LowerASCII(
+      AtomicString selector_name = AtomicString::ToAsciiLower(
           selector_name_token.Value().ToAtomicString());
       CSSSelector::PseudoType pseudo_type = ParsePseudoType(
           selector_name,
@@ -1181,6 +1181,12 @@ bool IsPseudoClassValidAfterPseudoElement(
     case CSSSelector::kPseudoScrollButton:
       return pseudo_class == CSSSelector::kPseudoDisabled ||
              pseudo_class == CSSSelector::kPseudoEnabled;
+    case CSSSelector::kPseudoAfter:
+    case CSSSelector::kPseudoBefore:
+    case CSSSelector::kPseudoMarker: {
+      return pseudo_class == CSSSelector::kPseudoHover &&
+             RuntimeEnabledFeatures::PseudoElementsHoverableEnabled();
+    }
     default:
       return false;
   }
@@ -1270,7 +1276,7 @@ base::span<CSSSelector> CSSSelectorParser::ConsumeCompoundSelector(
   AtomicString element_name;
   const bool has_q_name = ConsumeName(stream, element_name, namespace_prefix);
   if (context_->IsHTMLDocument()) {
-    element_name = element_name.LowerASCII();
+    element_name = element_name.ToAsciiLower();
   }
 
   // A tag name is not valid following a pseudo-element. This can happen for
@@ -1493,7 +1499,7 @@ bool CSSSelectorParser::ConsumeAttribute(CSSParserTokenStream& stream) {
   stream.ConsumeWhitespace();
 
   if (context_->IsHTMLDocument()) {
-    attribute_name = attribute_name.LowerASCII();
+    attribute_name = attribute_name.ToAsciiLower();
   }
 
   AtomicString namespace_uri = DetermineNamespace(namespace_prefix);
@@ -2103,9 +2109,9 @@ CSSSelector::AttributeMatchType CSSSelectorParser::ConsumeAttributeFlags(
     return CSSSelector::AttributeMatchType::kCaseSensitive;
   }
   const CSSParserToken& flag = stream.ConsumeIncludingWhitespace();
-  if (EqualIgnoringASCIICase(flag.Value(), "i")) {
+  if (EqualIgnoringAsciiCase(flag.Value(), "i")) {
     return CSSSelector::AttributeMatchType::kCaseInsensitive;
-  } else if (EqualIgnoringASCIICase(flag.Value(), "s") &&
+  } else if (EqualIgnoringAsciiCase(flag.Value(), "s") &&
              RuntimeEnabledFeatures::CSSCaseSensitiveSelectorEnabled()) {
     return CSSSelector::AttributeMatchType::kCaseSensitiveAlways;
   }
@@ -2130,11 +2136,11 @@ bool CSSSelectorParser::ConsumeANPlusB(CSSParserTokenStream& stream,
     return true;
   }
   if (token.GetType() == kIdentToken) {
-    if (EqualIgnoringASCIICase(token.Value(), "odd")) {
+    if (EqualIgnoringAsciiCase(token.Value(), "odd")) {
       result = std::make_pair(2, 1);
       return true;
     }
-    if (EqualIgnoringASCIICase(token.Value(), "even")) {
+    if (EqualIgnoringAsciiCase(token.Value(), "even")) {
       result = std::make_pair(2, 0);
       return true;
     }
@@ -2155,7 +2161,7 @@ bool CSSSelectorParser::ConsumeANPlusB(CSSParserTokenStream& stream,
   } else if (token.GetType() == kIdentToken) {
     if (token.Value()[0] == '-') {
       result.first = -1;
-      n_string = token.Value().ToString().Substring(1);
+      n_string = token.Value().ToString().substr(1);
     } else {
       result.first = 1;
       n_string = token.Value().ToString();
@@ -2172,7 +2178,7 @@ bool CSSSelectorParser::ConsumeANPlusB(CSSParserTokenStream& stream,
   }
 
   if (n_string.length() > 2) {
-    auto parsed = StringToIntStrict(n_string.Substring(1));
+    auto parsed = StringToIntStrict(n_string.subview(1));
     result.second = parsed.value_or(0);
     return parsed.has_value();
   }

@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 #include "media/audio/apple/audio_low_latency_input.h"
 
 #include <CoreServices/CoreServices.h>
@@ -19,6 +15,7 @@
 #include "base/apple/osstatus_logging.h"
 #include "base/apple/scoped_cftyperef.h"
 #include "base/apple/scoped_mach_port.h"
+#include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -90,7 +87,7 @@ static std::string FourCharFormatCodeToString(UInt32 code) {
   char code_string[5];
   // Converts a 32-bit integer from the host’s native byte order to big-endian.
   UInt32 code_id = CFSwapInt32HostToBig(code);
-  bcopy(&code_id, code_string, 4);
+  UNSAFE_TODO(bcopy(&code_id, code_string, 4));
   code_string[4] = '\0';
   return std::string(code_string);
 }
@@ -157,8 +154,8 @@ AUAudioInputStream::AUAudioInputStream(
         __FUNCTION__,
         "Can't apply voice processing, echo cancellation not supported");
   } else {
-    const bool got_default_device =
-        AudioManagerMac::GetDefaultOutputDevice(&output_device_id_for_aec_);
+    const bool got_default_device = AudioManagerMac::GetDefaultOutputDevice(
+        &output_device_id_for_aec_, log_callback_);
     if (got_default_device) {
       use_voice_processing_ = true;
       LogMessageEverywhere(
@@ -248,7 +245,7 @@ AudioInputStream::OpenOutcome AUAudioInputStream::Open() {
 
     // The hardware latency is fixed and will not change during the call.
 #if BUILDFLAG(IS_MAC)
-  hardware_latency_ = core_audio_mac::GetHardwareLatency(
+  hardware_latency_ = CoreAudioUtilMac::GetHardwareLatency(
       audio_unit_, input_device_id_, kAudioDevicePropertyScopeInput,
       format_.mSampleRate, /*is_input=*/true);
 #else
@@ -874,7 +871,7 @@ void AUAudioInputStream::SetOutputDeviceForAec(
     return;
   }
 
-  if (core_audio_mac::GetDeviceTransportType(audio_device_id) !=
+  if (CoreAudioUtilMac(log_callback_).GetDeviceTransportType(audio_device_id) !=
       kAudioDeviceTransportTypeAggregate) {
     output_device_id_for_aec_ = audio_device_id;
   } else {
@@ -933,7 +930,7 @@ bool AUAudioInputStream::IsEchoCancellationSupported(
   }
 
   std::optional<uint32_t> device_transport_type =
-      core_audio_mac::GetDeviceTransportType(audio_device_id);
+      CoreAudioUtilMac().GetDeviceTransportType(audio_device_id);
   if (!device_transport_type) {
     VLOG(1) << "Failed to get device transport type for device 0x" << std::hex
             << audio_device_id;
@@ -1319,9 +1316,9 @@ void AUAudioInputStream::UpmixMonoToStereoInPlace(AudioBuffer* audio_buffer,
     int in_offset = (bytes_per_sample * i);
     int out_offset = (channels * bytes_per_sample * i);
     for (int b = 0; b < bytes_per_sample; ++b) {
-      const char byte = byte_ptr[in_offset + b];
-      byte_ptr[out_offset + b] = byte;
-      byte_ptr[out_offset + bytes_per_sample + b] = byte;
+      const char byte = UNSAFE_TODO(byte_ptr[in_offset + b]);
+      UNSAFE_TODO(byte_ptr[out_offset + b]) = byte;
+      UNSAFE_TODO(byte_ptr[out_offset + bytes_per_sample + b]) = byte;
     }
   }
 }

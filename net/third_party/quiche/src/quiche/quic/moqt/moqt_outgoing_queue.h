@@ -27,6 +27,7 @@
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_mem_slice.h"
 
@@ -57,7 +58,8 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   // MoqtTrackPublisher implementation.
   const FullTrackName& GetTrackName() const override { return track_; }
   std::optional<PublishedObject> GetCachedObject(
-      uint64_t group, uint64_t subgroup, uint64_t min_object) const override;
+      uint64_t group, std::optional<uint64_t> subgroup,
+      uint64_t min_object) const override;
   void AddObjectListener(MoqtObjectListener* listener) override {
     listeners_.insert(listener);
     listener->OnSubscribeAccepted();
@@ -73,12 +75,11 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   const TrackExtensions& extensions() const override { return extensions_; }
 
   std::unique_ptr<MoqtFetchTask> StandaloneFetch(
-      Location start, Location end,
-      std::optional<MoqtDeliveryOrder> order) override;
+      Location start, Location end, MoqtDeliveryOrder order) override;
   std::unique_ptr<MoqtFetchTask> RelativeFetch(
-      uint64_t group_diff, std::optional<MoqtDeliveryOrder> order) override;
+      uint64_t group_diff, MoqtDeliveryOrder order) override;
   std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
-      uint64_t group, std::optional<MoqtDeliveryOrder> order) override;
+      uint64_t group, MoqtDeliveryOrder order) override;
 
   bool HasSubscribers() const { return !listeners_.empty(); }
 
@@ -135,10 +136,11 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
         return;
       }
       MoqtFetchOk ok;
-      ok.group_order = MoqtDeliveryOrder::kAscending;
       ok.end_location = *(objects_.crbegin());
       if (objects_.size() > 1 && *(objects_.cbegin()) > ok.end_location) {
-        ok.group_order = MoqtDeliveryOrder::kDescending;
+        ok.extensions = TrackExtensions(
+            std::nullopt, std::nullopt, std::nullopt,
+            MoqtDeliveryOrder::kDescending, std::nullopt, std::nullopt);
         ok.end_location = *(objects_.cbegin());
       }
       ok.end_of_track =

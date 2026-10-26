@@ -181,6 +181,12 @@ struct TrustedUrlRequestParams {
   // TODO(crbug.com/447039330): This is temporary for the SyntheticResponse
   // experiment and will be removed after standardization.
   HttpResponseHeaders? expected_response_headers_for_synthetic_response;
+
+  // If true, `Content-Type: message/ad-auction-trusted-signals-request` will
+  // be treated as a CORS-safelisted Content-Type, so it will not trigger a CORS
+  // preflight. No new consumers should use this. It will be removed once the
+  // deprecated Protected Audiences code is deleted.
+  bool is_ad_auction_trusted_signals_request = false;
 };
 
 // Options that may only be set on URLRequests which are related to WebBundle.
@@ -433,6 +439,10 @@ struct URLRequest {
   // about this.
   int32 transition_type;
 
+  // Whether this navigation is a reload (e.g., location.reload(), F5).
+  // Used to populate Request.isReloadNavigation for Service Workers.
+  bool is_reload_navigation;
+
   // Whether or not to request a Preview version of the resource or let the
   // browser decide.
   // Note: this is an enum of type PreviewsState.
@@ -570,7 +580,7 @@ struct URLRequest {
 
   // The target address space to which a given fetch operation is expected to
   // connect. See more:
-  // https://wicg.github.io/private-network-access/#permission-prompt.
+  // https://wicg.github.io/local-network-access/#permission-prompt.
   // If the actual address space and the expected address space don't match, a
   // network error will be returned.
   network.mojom.IPAddressSpace required_ip_address_space;
@@ -624,10 +634,10 @@ struct URLRequest {
   // embedder.
   SocketTag socket_tag;
 
-  // Whether this request is allowed to register new device bound
-  // sessions or process challenges for existing device bound sessions
-  // (e.g. due to an Origin Trial).
-  bool allows_device_bound_session_registration;
+  // Whether this request is allowed to belong to a device bound session. This
+  // includes registering a new session, accepting challenges, or deferring the
+  // request until a session is refreshed.
+  bool allows_device_bound_sessions = true;
 
   // Permissions Policy of the request.
   // If it's nullopt then the request's initiator didn't set the permissions

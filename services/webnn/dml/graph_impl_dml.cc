@@ -4,11 +4,6 @@
 
 #include "services/webnn/dml/graph_impl_dml.h"
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/349653202): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include <winerror.h>
 
 #include <algorithm>
@@ -20,6 +15,7 @@
 
 #include "base/bits.h"
 #include "base/check.h"
+#include "base/compiler_specific.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
@@ -326,9 +322,9 @@ UploadAndCreateConstantBufferBinding(
     // Copy the input data to the upload heap with byte offset
     const auto& d3d12_range =
         aligned_byte_length.key_to_d3d12_range_map.at(operand_id);
-    auto mapped_buffer_span =
+    auto mapped_buffer_span = UNSAFE_TODO(
         base::span(static_cast<uint8_t*>(mapped_buffer) + d3d12_range.Begin,
-                   constant_operand->descriptor().PackedByteLength());
+                   constant_operand->descriptor().PackedByteLength()));
     mapped_buffer_span.copy_from(constant_operand->ByteSpan());
     // Create the buffer binding for each constant/input and push back into the
     // DML_BUFFER_BINDING array.
@@ -2178,9 +2174,8 @@ CreateOperatorNodeForDequantizeOrQuantizeLinear(
               .Has(DmlDataTypeToOperand(input_tensor_desc.GetDataType())));
     CHECK(context_properties.data_type_limits.dequantize_linear_scale.data_types
               .Has(DmlDataTypeToOperand(scale_tensor_desc.GetDataType())));
-    CHECK(context_properties.data_type_limits.dequantize_linear_zero_point
-              .data_types.Has(
-                  DmlDataTypeToOperand(zero_point_tensor_desc.GetDataType())));
+    CHECK(context_properties.data_type_limits.dequantize_linear_input.data_types
+              .Has(DmlDataTypeToOperand(zero_point_tensor_desc.GetDataType())));
   } else /* `DequantizeOrQuantizeLinearPtr` is `mojom::QuantizeLinearPtr` */ {
     CHECK(context_properties.data_type_limits.quantize_linear_input.data_types
               .Has(DmlDataTypeToOperand(input_tensor_desc.GetDataType())));
@@ -5986,7 +5981,7 @@ GraphImplDml::AllocateGraphResources(Adapter* adapter,
 GraphImplDml::GraphImplDml(
     mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
     scoped_refptr<Adapter> adapter,
-    base::WeakPtr<WebNNContextImpl> context,
+    WebNNContextImpl& context,
     std::unique_ptr<CommandRecorder> command_recorder,
     scoped_refptr<PersistentResource> persistent_resource,
     ComPtr<IDMLCompiledOperator> compiled_operator,
@@ -5995,7 +5990,7 @@ GraphImplDml::GraphImplDml(
     std::unique_ptr<GraphResources> graph_resources,
     std::vector<mojom::Device> devices)
     : WebNNGraphImpl(std::move(receiver),
-                     std::move(context),
+                     context,
                      std::move(compute_resource_info),
                      std::move(devices)),
       persistent_resource_(std::move(persistent_resource)),
@@ -6037,7 +6032,8 @@ void GraphImplDml::OnCompilationComplete(
     ComputeResourceInfo compute_resource_info,
     base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
         constant_operands,
-    base::flat_map<OperandId, WebNNTensorImpl*> constant_tensor_operands,
+    base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
+        constant_tensor_operands,
     base::expected<ComPtr<IDMLCompiledOperator>, HRESULT> compilation_result) {
   TRACE_EVENT0("gpu", "dml::GraphImplDml::OnCompilationComplete");
 
@@ -6186,7 +6182,7 @@ void GraphImplDml::OnCompilationComplete(
   // and not during execution.
   for (auto& [constant_id, constant_tensor] : constant_tensor_operands) {
     TensorImplDml* constant_tensor_impl =
-        static_cast<TensorImplDml*>(constant_tensor);
+        static_cast<TensorImplDml*>(constant_tensor.get());
     // Get the graph input index with the constant id.
     const auto graph_input_index_iterator =
         constant_id_to_input_index_map.find(constant_id);
@@ -6350,7 +6346,7 @@ void GraphImplDml::CreateWebNNGraphImpl(
 
   // The receiver bound to GraphImplDml.
   std::move(callback).Run(base::MakeRefCounted<GraphImplDml>(
-      std::move(receiver), std::move(adapter), context->AsWeakPtr(),
+      std::move(receiver), std::move(adapter), *context,
       std::move(command_recorder_for_dispatch), std::move(persistent_resource),
       std::move(compiled_operator), std::move(compute_resource_info),
       std::move(graph_buffer_binding_info), std::move(graph_resources),
@@ -6399,7 +6395,8 @@ base::expected<void, mojom::ErrorPtr> GraphImplDml::CreateAndBuildInternal(
     mojom::GraphInfoPtr& graph_info,
     base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>&
         constant_operands,
-    const base::flat_map<OperandId, WebNNTensorImpl*>& constant_tensor_operands,
+    const base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>&
+        constant_tensor_operands,
     GraphBuilderDml& graph_builder,
     absl::flat_hash_map<OperandId, uint32_t>& constant_id_to_input_index_map,
     GraphBufferBindingInfo& graph_buffer_binding_info) {
@@ -6873,7 +6870,8 @@ void GraphImplDml::CreateAndBuild(
     ComputeResourceInfo compute_resource_info,
     base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
         constant_operands,
-    base::flat_map<OperandId, WebNNTensorImpl*> constant_tensor_operands,
+    base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
+        constant_tensor_operands,
     WebNNContextImpl::CreateGraphImplCallback callback,
     const bool disable_dml_meta_commands_for_gpu) {
   TRACE_EVENT0("gpu", "dml::GraphImplDml::CreateAndBuild");
@@ -6931,9 +6929,8 @@ void GraphImplDml::HandleDispatchFailure(std::string_view error_message,
   // only invoked while the context is alive. A CHECK is appropriate here
   // because DML does not currently support background tasks that outlive the
   // context.
-  CHECK(context_);
-  static_cast<ContextImplDml*>(context_.get())
-      ->HandleContextLostOrCrash(error_message, hr);
+  static_cast<ContextImplDml&>(context_.get())
+      .HandleContextLostOrCrash(error_message, hr);
 }
 
 GraphImplDml::IoBindings::IoBindings(

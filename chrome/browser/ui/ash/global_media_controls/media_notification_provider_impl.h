@@ -17,7 +17,7 @@
 #include "components/global_media_controls/public/media_item_ui_observer.h"
 #include "components/global_media_controls/public/media_item_ui_observer_set.h"
 #include "components/global_media_controls/public/supplemental_device_picker_producer.h"
-#include "components/media_message_center/media_notification_view_impl.h"
+#include "components/media_message_center/notification_theme.h"
 
 class CastMediaNotificationProducerKeyedService;
 class Profile;
@@ -60,8 +60,6 @@ class ASH_EXPORT MediaNotificationProviderImpl
       global_media_controls::GlobalMediaControlsEntryPoint entry_point,
       const std::string& show_devices_for_item_id) override;
   void OnBubbleClosing() override;
-  void SetColorTheme(
-      const media_message_center::NotificationTheme& color_theme) override;
   global_media_controls::MediaItemManager* GetMediaItemManager() override;
   void OnPrimaryUserSessionStarted() override;
   void AddMediaItemManagerToCastService(
@@ -131,9 +129,7 @@ class ASH_EXPORT MediaNotificationProviderImpl
   std::unique_ptr<global_media_controls::SupplementalDevicePickerProducer>
       supplemental_device_picker_producer_;
 
-  std::optional<media_message_center::NotificationTheme> color_theme_;
-
-  std::optional<media_message_center::MediaColorTheme> media_color_theme_;
+  media_message_center::MediaColorTheme media_color_theme_;
 
   global_media_controls::MediaItemUIObserverSet item_ui_observer_set_{this};
 

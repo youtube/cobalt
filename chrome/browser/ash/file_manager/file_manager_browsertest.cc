@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "ash/constants/ash_pref_names.h"
 #include "ash/public/cpp/keyboard/keyboard_switches.h"
 #include "base/check_op.h"
 #include "base/files/file_path.h"
@@ -23,6 +24,7 @@
 #include "base/test/mock_callback.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
+#include "build/branding_buildflags.h"
 #include "build/config/coverage/buildflags.h"
 #include "chrome/browser/ash/file_manager/file_manager_browsertest_base.h"
 #include "chrome/browser/ash/file_manager/file_manager_browsertest_utils.h"
@@ -34,9 +36,7 @@
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/fake_gaia_mixin.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/ash/components/policy/device_policy/cached_device_policy_updater.h"
@@ -200,7 +200,7 @@ class ExtendedFilesAppBrowserTest : public FilesAppBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_P(ExtendedFilesAppBrowserTest, PRE_Test) {
-  profile()->GetPrefs()->SetBoolean(prefs::kNetworkFileSharesAllowed,
+  profile()->GetPrefs()->SetBoolean(ash::prefs::kNetworkFileSharesAllowed,
                                     GetOptions().native_smb);
 }
 

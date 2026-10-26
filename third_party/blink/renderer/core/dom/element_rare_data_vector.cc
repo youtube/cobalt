@@ -28,13 +28,11 @@
 #include "third_party/blink/renderer/core/dom/named_node_map.h"
 #include "third_party/blink/renderer/core/dom/names_map.h"
 #include "third_party/blink/renderer/core/dom/node_lists_node_data.h"
-#include "third_party/blink/renderer/core/dom/part.h"
 #include "third_party/blink/renderer/core/dom/popover_data.h"
 #include "third_party/blink/renderer/core/dom/scroll_marker_group_data.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/dom/space_split_string.h"
 #include "third_party/blink/renderer/core/editing/ime/edit_context.h"
-#include "third_party/blink/renderer/core/html/anchor_element_observer.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element_definition.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
 #include "third_party/blink/renderer/core/html/custom/element_internals.h"
@@ -42,6 +40,7 @@
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/intersection_observer/element_intersection_observer_data.h"
 #include "third_party/blink/renderer/core/layout/anchor_position_scroll_data.h"
+#include "third_party/blink/renderer/core/layout/anchor_position_visibility_observer.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/overscroll/overscroll_area_tracker.h"
 #include "third_party/blink/renderer/core/page/page.h"
@@ -371,13 +370,6 @@ DOMTokenList* ElementRareDataVector::GetPart() const {
   return static_cast<DOMTokenList*>(GetField(FieldId::kPart));
 }
 
-ElementRareDataVector* ElementRareDataVector::SetMarker(DOMTokenList* marker) {
-  return SetField(FieldId::kMarker, marker);
-}
-DOMTokenList* ElementRareDataVector::GetMarker() const {
-  return static_cast<DOMTokenList*>(GetField(FieldId::kMarker));
-}
-
 ElementRareDataVector* ElementRareDataVector::SetPartNamesMap(
     const AtomicString part_names) {
   auto [names_map, vec] = EnsureField<NamesMap>(FieldId::kPartNamesMap);
@@ -619,9 +611,16 @@ AnchorPositionScrollData* ElementRareDataVector::GetAnchorPositionScrollData()
   return static_cast<AnchorPositionScrollData*>(
       GetField(FieldId::kAnchorPositionScrollData));
 }
+
 void ElementRareDataVector::RemoveAnchorPositionScrollData() {
+  if (auto* scroll_data = GetAnchorPositionScrollData()) {
+    if (auto* observer = scroll_data->GetAnchorPositionVisibilityObserver()) {
+      observer->MonitorAnchor(nullptr);
+    }
+  }
   SetFieldToNullIfExists(FieldId::kAnchorPositionScrollData);
 }
+
 std::pair<std::reference_wrapper<AnchorPositionScrollData>,
           ElementRareDataVector*>
 ElementRareDataVector::EnsureAnchorPositionScrollData(
@@ -643,21 +642,6 @@ std::pair<std::reference_wrapper<ExplicitlySetAttrElementsMap>,
 ElementRareDataVector::EnsureExplicitlySetElementsForAttr() {
   return EnsureField<ExplicitlySetAttrElementsMap>(
       FieldId::kExplicitlySetElementsForAttr);
-}
-
-std::pair<std::reference_wrapper<AnchorElementObserver>, ElementRareDataVector*>
-ElementRareDataVector::EnsureAnchorElementObserver(
-    Element* new_source_element) {
-  DCHECK(!GetAnchorElementObserver() ||
-         GetAnchorElementObserver()->GetSourceElement() == new_source_element);
-  CHECK(RuntimeEnabledFeatures::HTMLAnchorAttributeEnabled());
-  return EnsureField<AnchorElementObserver>(FieldId::kAnchorElementObserver,
-                                            new_source_element);
-}
-
-AnchorElementObserver* ElementRareDataVector::GetAnchorElementObserver() const {
-  return static_cast<AnchorElementObserver*>(
-      GetField(FieldId::kAnchorElementObserver));
 }
 
 bool ElementRareDataVector::HasCustomElementRegistrySet() const {
@@ -716,9 +700,11 @@ DisplayAdElementMonitor* ElementRareDataVector::GetDisplayAdElementMonitor()
 
 std::pair<std::reference_wrapper<DisplayAdElementMonitor>,
           ElementRareDataVector*>
-ElementRareDataVector::EnsureDisplayAdElementMonitor(Element* element) {
-  return EnsureField<DisplayAdElementMonitor>(FieldId::kDisplayAdElementMonitor,
-                                              element);
+ElementRareDataVector::EnsureDisplayAdElementMonitor(
+    Element* element,
+    AdProvenance ad_provenance) {
+  return EnsureField<DisplayAdElementMonitor>(
+      FieldId::kDisplayAdElementMonitor, element, std::move(ad_provenance));
 }
 
 ElementRareDataVector* ElementRareDataVector::SetFocusgroupLastFocused(
@@ -794,11 +780,6 @@ void ScrollTimelineHashSet::Trace(Visitor* visitor) const {
   visitor->Trace(set_);
 }
 
-void NodePartsListData::Trace(Visitor* visitor) const {
-  ElementRareDataField::Trace(visitor);
-  visitor->Trace(parts_list_);
-}
-
 void NodeMutationObserverData::AddTransientRegistration(
     MutationObserverRegistration* registration) {
   transient_registry_.insert(registration);
@@ -834,50 +815,6 @@ ElementRareDataVector* ElementRareDataVector::UnregisterScrollTimeline(
       EnsureField<ScrollTimelineHashSet>(FieldId::kScrollTimelines);
   timeline_set.get().set_.erase(timeline);
   return vec;
-}
-
-ElementRareDataVector* ElementRareDataVector::AddDOMPart(Part& part) {
-  DCHECK(!RuntimeEnabledFeatures::DOMPartsAPIMinimalEnabled());
-  auto [dom_parts_ptr, vec] =
-      EnsureField<NodePartsListData>(FieldId::kDomParts);
-  auto& dom_parts = dom_parts_ptr.get().parts_list_;
-  DCHECK(!std::ranges::contains(dom_parts, &part));
-  dom_parts.push_back(&part);
-  return vec;
-}
-
-void ElementRareDataVector::RemoveDOMPart(Part& part) {
-  DCHECK(!RuntimeEnabledFeatures::DOMPartsAPIMinimalEnabled());
-  NodePartsListData* parts_data =
-      static_cast<NodePartsListData*>(GetField(FieldId::kDomParts));
-  DCHECK(parts_data);
-  PartsList& dom_parts = parts_data->parts_list_;
-  DCHECK(std::ranges::contains(dom_parts, &part));
-  // Common case is that one node has one part:
-  if (dom_parts.size() == 1) {
-    DCHECK_EQ(dom_parts.front(), &part);
-    dom_parts.clear();
-  } else {
-    // This is the very slow case - multiple parts for a single node.
-    TemporaryPartsList new_list;
-    for (auto p : dom_parts) {
-      if (p != &part) {
-        new_list.push_back(p);
-      }
-    }
-    dom_parts.Swap(new_list);
-  }
-  if (dom_parts.empty()) {
-    SetFieldToNullIfExists(FieldId::kDomParts);
-  }
-}
-
-PartsList* ElementRareDataVector::GetDOMParts() const {
-  DCHECK(!HasField(FieldId::kDomParts) ||
-         !RuntimeEnabledFeatures::DOMPartsAPIMinimalEnabled());
-  NodePartsListData* parts_data =
-      static_cast<NodePartsListData*>(GetField(FieldId::kDomParts));
-  return parts_data ? &parts_data->parts_list_ : nullptr;
 }
 
 void ElementRareDataVector::IncrementConnectedSubframeCount() {

@@ -14,6 +14,7 @@
 #import "components/favicon/ios/web_favicon_driver.h"
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/optimization_guide/proto/features/common_quality_data.pb.h"
+#import "components/signin/public/identity_manager/primary_account_change_event.h"
 #import "ios/chrome/browser/favicon/model/favicon_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
@@ -163,15 +164,26 @@ class GeminiBrowserAgentTest : public PlatformTest {
     return gemini_browser_agent_->last_shown_view_state_;
   }
 
+  // Returns true if the conversation ID preference is empty.
+  bool IsConversationIdPrefCleared() {
+    return profile_->GetPrefs()
+        ->GetString(prefs::kGeminiConversationId)
+        .empty();
+  }
+
   // Setter for `is_floaty_invoked_`.
   void SetIsFloatyInvoked(bool is_invoked) {
     gemini_browser_agent_->is_floaty_invoked_ = is_invoked;
   }
 
+  // Clear `active_hiding_sources_`.
+  void ClearActiveHidingSources() {
+    gemini_browser_agent_->active_hiding_sources_.clear();
+  }
+
   // Setter for `is_floaty_temporarily_hidden_`.
-  void SetIsFloatyTemporarilyHidden(bool is_temporarily_hidden) {
-    gemini_browser_agent_->is_floaty_temporarily_hidden_ =
-        is_temporarily_hidden;
+  void SetIsFloatyTemporarilyHidden(bool is_hidden) {
+    gemini_browser_agent_->is_floaty_temporarily_hidden_ = is_hidden;
   }
 
   // Setter for `floaty_hidden_timestamp_`.
@@ -208,6 +220,7 @@ TEST_F(GeminiBrowserAgentTest, TestGeminiBrowserAgentStartGeminiFlow) {
 
   // Set a valid URL.
   web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->SetContentsMimeType("text/html");
 
   // Add a fake JS result for page context extraction.
   base::DictValue result;
@@ -244,35 +257,15 @@ TEST_F(GeminiBrowserAgentTest, TestGeminiBrowserAgentStartGeminiFlow) {
   // Ensure the WebState is visible so PageContextWrapper attempts a snapshot.
   web_state_->WasShown();
 
-  gemini_browser_agent_->StartGeminiFlow(base_view_controller, nil,
-                                         gemini::EntryPoint::Promo);
+  gemini_browser_agent_->StartGeminiFlow(
+      base_view_controller, [[GeminiStartupState alloc]
+                                initWithEntryPoint:gemini::EntryPoint::Promo]);
 
   // Wait for the delegate method to be called.
   ASSERT_TRUE(
       base::test::RunUntil([delegate_called]() { return *delegate_called; }));
 
   [mock_delegate verify];
-
-  // Assert the BWG tab helper was set as foregrounded.
-  ASSERT_FALSE(bwg_tab_helper_->GetIsBwgSessionActiveInBackground());
-}
-
-// Tests the presentation of the floaty and state of tab helper side
-// effects.
-TEST_F(GeminiBrowserAgentTest,
-       TestGeminiBrowserAgentPresentFloatyWithPageContext) {
-  UIViewController* base_view_controller = [[UIViewController alloc] init];
-  std::unique_ptr<optimization_guide::proto::PageContext> page_context =
-      std::make_unique<optimization_guide::proto::PageContext>();
-  PageContextWrapperCallbackResponse response =
-      base::ok(std::move(page_context));
-
-  // Set the BWG tab helper as backgrounded and assert.
-  bwg_tab_helper_->PrepareBwgFreBackgrounding();
-  ASSERT_TRUE(bwg_tab_helper_->GetIsBwgSessionActiveInBackground());
-
-  gemini_browser_agent_->PresentFloatyWithPageContext(
-      base_view_controller, std::move(response), gemini::EntryPoint::Promo);
 
   // Assert the BWG tab helper was set as foregrounded.
   ASSERT_FALSE(bwg_tab_helper_->GetIsBwgSessionActiveInBackground());
@@ -289,7 +282,9 @@ TEST_F(GeminiBrowserAgentTest,
   ASSERT_TRUE(bwg_tab_helper_->GetIsBwgSessionActiveInBackground());
 
   gemini_browser_agent_->PresentFloatyWithPendingContext(
-      base_view_controller, std::move(page_context), gemini::EntryPoint::Promo);
+      base_view_controller, std::move(page_context),
+      [[GeminiStartupState alloc]
+          initWithEntryPoint:gemini::EntryPoint::Promo]);
 
   // Assert the BWG tab helper was set as foregrounded.
   ASSERT_FALSE(bwg_tab_helper_->GetIsBwgSessionActiveInBackground());
@@ -345,6 +340,7 @@ TEST_F(GeminiBrowserAgentTest, TestActiveWebStateChanged) {
 TEST_F(GeminiBrowserAgentTest, TestOnGeminiViewStateExpanded) {
   // Set a valid URL.
   web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->SetContentsMimeType("text/html");
 
   // Add a fake JS result for page context extraction.
   base::DictValue result;
@@ -383,12 +379,12 @@ TEST_F(GeminiBrowserAgentTest, TestOnGeminiViewStateExpanded) {
 
 TEST_F(GeminiBrowserAgentTest, TestPageContextGenerationTimeout) {
   base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(kGeminiImmediateOverlay);
   // Simulate FRE completion.
   profile_->GetPrefs()->SetBoolean(prefs::kIOSBwgConsent, true);
 
   UIViewController* base_view_controller = [[UIViewController alloc] init];
   web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->SetContentsMimeType("text/html");
   web_state_->SetLoading(true);
 
   // Add a fake JS result for page context extraction.
@@ -405,8 +401,9 @@ TEST_F(GeminiBrowserAgentTest, TestPageContextGenerationTimeout) {
   OCMStub([mock_delegate canTakeSnapshotWithWebStateInfo:[OCMArg any]])
       .andReturn(YES);
 
-  gemini_browser_agent_->StartGeminiFlow(base_view_controller, nil,
-                                         gemini::EntryPoint::Promo);
+  gemini_browser_agent_->StartGeminiFlow(
+      base_view_controller, [[GeminiStartupState alloc]
+                                initWithEntryPoint:gemini::EntryPoint::Promo]);
 
   // At this point, the page is loading and we are waiting for context.
   // The timer should be running. Verify that JS has NOT been called yet.
@@ -493,10 +490,6 @@ TEST_F(GeminiBrowserAgentTest, TestShowFloatyIfInvokedWithWebNavigation) {
   gemini_browser_agent_->SetLastShownViewState(
       ios::provider::GeminiViewState::kExpanded);
 
-  // Set the hidden timestamp to represent a quick timestamp update such as when
-  // an old WebState is hidden followed quickly by a new WebState being shown.
-  SetFloatyHiddenTimestamp(base::TimeTicks::Now());
-
   gemini_browser_agent_->ShowFloatyIfInvoked(
       /*animated=*/true, /*source=*/gemini::FloatyUpdateSource::WebNavigation);
 
@@ -529,12 +522,47 @@ TEST_F(GeminiBrowserAgentTest,
   EXPECT_EQ(ios::provider::GeminiViewState::kExpanded, GetLastShownViewState());
 }
 
+// Tests that the floaty remains hidden if the keyboard dismisses but a view
+// controller is still presenting.
+TEST_F(GeminiBrowserAgentTest,
+       TestFloatyRemainsHiddenWhenKeyboardDismissedIfViewPresent) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      kGeminiCopresence, {{kGeminiCopresenceTrackSources, "true"}});
+  SetIsFloatyInvoked(true);
+  gemini_browser_agent_->HideFloatyIfInvoked(
+      /*animated=*/true, /*source=*/gemini::FloatyUpdateSource::ViewTransition);
+  gemini_browser_agent_->HideFloatyIfInvoked(
+      /*animated=*/true, /*source=*/gemini::FloatyUpdateSource::Keyboard);
+  gemini_browser_agent_->SetLastShownViewState(
+      ios::provider::GeminiViewState::kExpanded);
+
+  // Emulate a user typing for some time.
+  SetFloatyHiddenTimestamp(base::TimeTicks::Now() - base::Seconds(5));
+
+  // Emulate keyboard dismissing.
+  gemini_browser_agent_->ShowFloatyIfInvoked(
+      /*animated=*/true, /*source=*/gemini::FloatyUpdateSource::Keyboard);
+
+  // The floaty should still be considered temporarily hidden.
+  EXPECT_TRUE(IsFloatyTemporarilyHidden());
+
+  // Emulate view controller dismissing.
+  gemini_browser_agent_->ShowFloatyIfInvoked(
+      /*animated=*/true, /*source=*/gemini::FloatyUpdateSource::ViewTransition);
+
+  // The floaty should now be shown.
+  EXPECT_FALSE(IsFloatyTemporarilyHidden());
+  EXPECT_EQ(ios::provider::GeminiViewState::kExpanded, GetLastShownViewState());
+}
+
 // Tests that the floaty is not dismissed when `DismissFloaty` is called to
 // clean up properties but a user has not interacted with floaty UI to properly
 // dismiss it.
 TEST_F(GeminiBrowserAgentTest, TestDismissFloatyWhenTemporarilyHidden) {
   SetIsFloatyInvoked(true);
-  SetIsFloatyTemporarilyHidden(true);
+  gemini_browser_agent_->HideFloatyIfInvoked(
+      /*animated=*/true, /*source=*/gemini::FloatyUpdateSource::ViewTransition);
 
   gemini_browser_agent_->DismissFloaty();
 
@@ -547,7 +575,7 @@ TEST_F(GeminiBrowserAgentTest, TestDismissFloatyWhenTemporarilyHidden) {
 // floaty i.e. when the floaty is shown.
 TEST_F(GeminiBrowserAgentTest, TestDismissFloatyWhenFloatyIsShown) {
   SetIsFloatyInvoked(true);
-  SetIsFloatyTemporarilyHidden(false);
+  ClearActiveHidingSources();
   gemini_browser_agent_->DismissFloaty();
 
   EXPECT_FALSE(IsFloatyInvoked());
@@ -592,4 +620,49 @@ TEST_F(GeminiBrowserAgentTest, TestDismissGeminiFromOtherWindows) {
   run_loop.Run();
   [mock_second_handler verify];
   browser_list->RemoveBrowser(second_browser.get());
+}
+
+// Tests that the floaty is dismissed when the primary account changes.
+TEST_F(GeminiBrowserAgentTest, TestDismissedOnPrimaryAccountChanged) {
+  SetIsFloatyInvoked(true);
+  ClearActiveHidingSources();
+
+  signin::PrimaryAccountChangeEvent::State previous_state;
+  CoreAccountInfo account_info;
+  account_info.account_id = CoreAccountId::FromGaiaId(GaiaId("gaia_id"));
+  account_info.gaia = GaiaId("gaia_id");
+  account_info.email = "test@test.com";
+  signin::PrimaryAccountChangeEvent::State current_state(
+      account_info, signin::ConsentLevel::kSignin);
+
+  signin::PrimaryAccountChangeEvent event(
+      previous_state, current_state, signin_metrics::AccessPoint::kSettings);
+
+  gemini_browser_agent_->OnPrimaryAccountChanged(event);
+
+  EXPECT_FALSE(IsFloatyInvoked());
+  EXPECT_TRUE(IsConversationIdPrefCleared());
+}
+
+// Tests that the floaty is dismissed even if it is temporarily hidden.
+TEST_F(GeminiBrowserAgentTest, TestForceDismissedWhenTemporarilyHidden) {
+  SetIsFloatyInvoked(true);
+  SetIsFloatyTemporarilyHidden(true);
+
+  signin::PrimaryAccountChangeEvent::State previous_state;
+  CoreAccountInfo account_info;
+  account_info.account_id = CoreAccountId::FromGaiaId(GaiaId("gaia_id"));
+  account_info.gaia = GaiaId("gaia_id");
+  account_info.email = "test@test.com";
+  signin::PrimaryAccountChangeEvent::State current_state(
+      account_info, signin::ConsentLevel::kSignin);
+
+  signin::PrimaryAccountChangeEvent event(
+      previous_state, current_state, signin_metrics::AccessPoint::kSettings);
+
+  gemini_browser_agent_->OnPrimaryAccountChanged(event);
+
+  EXPECT_FALSE(IsFloatyInvoked());
+  EXPECT_FALSE(IsFloatyTemporarilyHidden());
+  EXPECT_TRUE(IsConversationIdPrefCleared());
 }

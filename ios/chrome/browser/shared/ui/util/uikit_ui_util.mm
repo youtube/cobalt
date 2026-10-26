@@ -22,7 +22,6 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
-#import "ios/chrome/browser/shared/ui/util/dynamic_type_util.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
 #import "ui/base/device_form_factor.h"
@@ -226,6 +225,23 @@ UIImage* CircularImageFromImage(UIImage* image, CGFloat width) {
         [image
             drawInRect:CGRectMake(0, 0, image.size.width, image.size.height)];
       }];
+}
+
+UIImage* ImageWithCornerRadius(UIImage* image, CGFloat cornerRadius) {
+  CGRect rect = CGRectMake(0, 0, image.size.width, image.size.height);
+
+  UIGraphicsImageRenderer* renderer =
+      [[UIGraphicsImageRenderer alloc] initWithSize:rect.size];
+
+  UIImage* roundedImage = [renderer
+      imageWithActions:^(UIGraphicsImageRendererContext* rendererContext) {
+        UIBezierPath* path =
+            [UIBezierPath bezierPathWithRoundedRect:rect
+                                       cornerRadius:cornerRadius];
+        [path addClip];
+        [image drawInRect:rect];
+      }];
+  return roundedImage;
 }
 
 bool IsPortrait(UIWindow* window) {

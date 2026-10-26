@@ -35,6 +35,82 @@ namespace blink {
 
 namespace {
 
+scoped_refptr<StaticBitmapImage> CreateImageFromVideoFrame(
+    scoped_refptr<media::VideoFrame> frame,
+    CanvasNon2DResourceProviderSharedImage* snapshot_provider,
+    std::optional<CanvasSnapshotProvider::Info> sw_draw_info,
+    sk_sp<SkSurface> cached_sw_draw_surface,
+    media::PaintCanvasVideoRenderer* video_renderer,
+    bool prefer_tagged_orientation,
+    bool reinterpret_video_as_srgb) {
+  CHECK(sw_draw_info || snapshot_provider);
+  CHECK(!sw_draw_info || !snapshot_provider);
+
+  auto raster_context_provider = GetRasterContextProvider();
+  bool is_accelerated = snapshot_provider && snapshot_provider->IsAccelerated();
+  if (is_accelerated) {
+    prefer_tagged_orientation = false;
+  }
+
+  const auto transform =
+      frame->metadata().transformation.value_or(media::kNoTransformation);
+
+  // If not doing an accelerated draw, avoid GPU round trips to upload frame
+  // data from MappableSI-backed frames.
+  if (frame->HasMappableSharedImage() && !is_accelerated) {
+    frame = media::ConvertToMemoryMappedFrame(std::move(frame));
+    if (!frame) {
+      DLOG(ERROR) << "Failed to map VideoFrame.";
+      return nullptr;
+    }
+  }
+
+  if (frame->HasSharedImage()) {
+    if (!raster_context_provider) {
+      DLOG(ERROR) << "Unable to process a texture backed VideoFrame w/o a "
+                     "RasterContextProvider.";
+      return nullptr;  // Unable to get/create a shared main thread context.
+    }
+  }
+
+  cc::PaintFlags media_flags;
+  media_flags.setAlphaf(1.0f);
+  media_flags.setFilterQuality(cc::PaintFlags::FilterQuality::kLow);
+  media_flags.setBlendMode(SkBlendMode::kSrc);
+
+  std::unique_ptr<media::PaintCanvasVideoRenderer> local_video_renderer;
+  if (!video_renderer) {
+    local_video_renderer = std::make_unique<media::PaintCanvasVideoRenderer>();
+    video_renderer = local_video_renderer.get();
+  }
+
+  media::PaintCanvasVideoRenderer::PaintParams params;
+  params.dest_rect = gfx::RectF(snapshot_provider ? snapshot_provider->Size()
+                                                  : sw_draw_info->size);
+  params.transformation =
+      prefer_tagged_orientation
+          ? media::kNoTransformation
+          : frame->metadata().transformation.value_or(media::kNoTransformation);
+  params.reinterpret_as_srgb = reinterpret_video_as_srgb;
+  auto draw_callback = [&](cc::PaintCanvas& canvas) {
+    video_renderer->Paint(frame.get(), &canvas, media_flags, params,
+                          raster_context_provider.get());
+  };
+  auto orientation = prefer_tagged_orientation
+                         ? VideoTransformationToImageOrientation(transform)
+                         : ImageOrientationEnum::kDefault;
+  if (sw_draw_info) {
+    return CanvasNon2DSnapshotProviderBitmap::DoExternalDrawAndSnapshot(
+        sw_draw_info.value(), draw_callback, orientation,
+        cached_sw_draw_surface);
+  }
+
+  return static_cast<CanvasNon2DResourceProviderSharedImage*>(snapshot_provider)
+      ->DoExternalDrawAndSnapshot(draw_callback, orientation);
+}
+
+}  // namespace
+
 bool ShouldCreateAcceleratedImages(
     viz::RasterContextProvider* raster_context_provider) {
   if (!raster_context_provider) {
@@ -52,8 +128,6 @@ bool ShouldCreateAcceleratedImages(
 
   return true;
 }
-
-}  // namespace
 
 ImageOrientationEnum VideoTransformationToImageOrientation(
     media::VideoTransformation transform) {
@@ -112,78 +186,30 @@ bool WillCreateAcceleratedImagesFromVideoFrame() {
   return ShouldCreateAcceleratedImages(GetRasterContextProvider().get());
 }
 
-scoped_refptr<StaticBitmapImage> CreateImageFromVideoFrame(
+scoped_refptr<StaticBitmapImage> CreateAcceleratedImageFromVideoFrame(
     scoped_refptr<media::VideoFrame> frame,
-    CanvasSnapshotProvider* snapshot_provider,
+    CanvasNon2DResourceProviderSharedImage* snapshot_provider,
     media::PaintCanvasVideoRenderer* video_renderer,
     bool prefer_tagged_orientation,
     bool reinterpret_video_as_srgb) {
-  DCHECK(frame);
-  if (!snapshot_provider) {
-    DLOG(ERROR) << "An external CanvasSnapshotProvider must be provided";
-    return nullptr;
-  }
+  CHECK(snapshot_provider);
+  return CreateImageFromVideoFrame(
+      std::move(frame), snapshot_provider, /*sw_draw_info=*/std::nullopt,
+      /*cached_sw_draw_surface=*/nullptr, video_renderer,
+      prefer_tagged_orientation, reinterpret_video_as_srgb);
+}
 
-  auto raster_context_provider = GetRasterContextProvider();
-  if (snapshot_provider->IsAccelerated()) {
-    prefer_tagged_orientation = false;
-  }
-
-  const auto transform =
-      frame->metadata().transformation.value_or(media::kNoTransformation);
-
-  // If the provider isn't accelerated, avoid GPU round trips to upload frame
-  // data from MappableSI-backed frames.
-  if (frame->HasMappableSharedImage() && !snapshot_provider->IsAccelerated()) {
-    frame = media::ConvertToMemoryMappedFrame(std::move(frame));
-    if (!frame) {
-      DLOG(ERROR) << "Failed to map VideoFrame.";
-      return nullptr;
-    }
-  }
-
-  if (frame->HasSharedImage()) {
-    if (!raster_context_provider) {
-      DLOG(ERROR) << "Unable to process a texture backed VideoFrame w/o a "
-                     "RasterContextProvider.";
-      return nullptr;  // Unable to get/create a shared main thread context.
-    }
-  }
-
-  cc::PaintFlags media_flags;
-  media_flags.setAlphaf(1.0f);
-  media_flags.setFilterQuality(cc::PaintFlags::FilterQuality::kLow);
-  media_flags.setBlendMode(SkBlendMode::kSrc);
-
-  std::unique_ptr<media::PaintCanvasVideoRenderer> local_video_renderer;
-  if (!video_renderer) {
-    local_video_renderer = std::make_unique<media::PaintCanvasVideoRenderer>();
-    video_renderer = local_video_renderer.get();
-  }
-
-  media::PaintCanvasVideoRenderer::PaintParams params;
-  params.dest_rect = gfx::RectF(snapshot_provider->Size());
-  params.transformation =
-      prefer_tagged_orientation
-          ? media::kNoTransformation
-          : frame->metadata().transformation.value_or(media::kNoTransformation);
-  params.reinterpret_as_srgb = reinterpret_video_as_srgb;
-  auto draw_callback = [&](cc::PaintCanvas& canvas) {
-    video_renderer->Paint(frame.get(), &canvas, media_flags, params,
-                          raster_context_provider.get());
-  };
-  auto orientation = prefer_tagged_orientation
-                         ? VideoTransformationToImageOrientation(transform)
-                         : ImageOrientationEnum::kDefault;
-  if (snapshot_provider->IsExternalBitmapProvider()) {
-    CanvasNon2DSnapshotProviderBitmap* snapshot_provider_bitmap =
-        static_cast<CanvasNon2DSnapshotProviderBitmap*>(snapshot_provider);
-    return CanvasNon2DSnapshotProviderBitmap::DoExternalDrawAndSnapshot(
-        snapshot_provider_bitmap->Info(), draw_callback, orientation);
-  }
-
-  return static_cast<CanvasNon2DResourceProviderSharedImage*>(snapshot_provider)
-      ->DoExternalDrawAndSnapshot(draw_callback, orientation);
+scoped_refptr<StaticBitmapImage> CreateUnacceleratedImageFromVideoFrame(
+    scoped_refptr<media::VideoFrame> frame,
+    const CanvasSnapshotProvider::Info& draw_info,
+    sk_sp<SkSurface> cached_draw_surface,
+    media::PaintCanvasVideoRenderer* video_renderer,
+    bool prefer_tagged_orientation,
+    bool reinterpret_video_as_srgb) {
+  return CreateImageFromVideoFrame(
+      std::move(frame), /*snapshot_provider=*/nullptr, draw_info,
+      cached_draw_surface, video_renderer, prefer_tagged_orientation,
+      reinterpret_video_as_srgb);
 }
 
 void DrawVideoFrameIntoCanvas(scoped_refptr<media::VideoFrame> frame,
@@ -230,21 +256,6 @@ CanvasSnapshotProvider::Info CreateSnapshotProviderInfoForVideoFrame(
       .format = GetN32FormatForCanvas(),
       .size = scaled_size.value_or(frame.natural_size()),
   };
-}
-
-std::unique_ptr<CanvasSnapshotProvider> CreateSnapshotProviderForVideo(
-    const CanvasSnapshotProvider::Info& info,
-    viz::RasterContextProvider* raster_context_provider) {
-  constexpr auto kShouldInitialize =
-      CanvasResourceProvider::ShouldInitialize::kNo;
-  if (!ShouldCreateAcceleratedImages(raster_context_provider)) {
-    return CanvasNon2DSnapshotProviderBitmap::Create(info);
-  }
-
-  return CanvasNon2DResourceProviderSharedImage::Create(
-      info.size, info.format, info.alpha_type, info.color_space,
-      kShouldInitialize, SharedGpuContext::ContextProviderWrapper(),
-      gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);
 }
 
 }  // namespace blink

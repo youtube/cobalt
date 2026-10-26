@@ -4,10 +4,11 @@
 
 #import "components/webauthn/ios/fake_ios_passkey_client.h"
 
+#include "base/functional/callback.h"
+
 namespace webauthn {
 
-FakeIOSPasskeyClient::FakeIOSPasskeyClient(web::WebState* web_state)
-    : delegate_(web_state) {}
+FakeIOSPasskeyClient::FakeIOSPasskeyClient() {}
 
 FakeIOSPasskeyClient::~FakeIOSPasskeyClient() = default;
 
@@ -34,13 +35,12 @@ void FakeIOSPasskeyClient::ShowCreationBottomSheet(RequestInfo request_info) {
   show_creation_bottom_sheet_called_ = true;
 }
 
-void FakeIOSPasskeyClient::AllowPasskeyCreationInfobar(bool allowed) {}
-
-password_manager::WebAuthnCredentialsDelegate*
-FakeIOSPasskeyClient::GetWebAuthnCredentialsDelegateForDriver(
-    IOSPasswordManagerDriver* driver) {
-  return &delegate_;
+void FakeIOSPasskeyClient::ShowInterstitial(InterstitialCallback callback) {
+  show_interstitial_called_ = true;
+  std::move(callback).Run(interstitial_proceeds_);
 }
+
+void FakeIOSPasskeyClient::AllowPasskeyCreationInfobar(bool allowed) {}
 
 bool FakeIOSPasskeyClient::DidShowSuggestionBottomSheet() const {
   return show_suggestion_bottom_sheet_called_;
@@ -54,8 +54,12 @@ bool FakeIOSPasskeyClient::DidFetchKeys() const {
   return fetch_keys_called_;
 }
 
-IOSWebAuthnCredentialsDelegate* FakeIOSPasskeyClient::delegate() {
-  return &delegate_;
+bool FakeIOSPasskeyClient::DidShowInterstitial() const {
+  return show_interstitial_called_;
+}
+
+void FakeIOSPasskeyClient::SetInterstitialProceeds(bool proceeds) {
+  interstitial_proceeds_ = proceeds;
 }
 
 }  // namespace webauthn

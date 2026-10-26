@@ -330,10 +330,9 @@ SkAdvancedTypefaceMetrics::FontType SkPDFFont::FontType(const SkPDFStrike& pdfSt
     if (SkToBool(metrics.fFlags & SkAdvancedTypefaceMetrics::kVariable_FontFlag) ||
         // PDF is actually interested in the encoding of the data, not just the logical format.
         // If the TrueType is actually wOFF or wOF2 then it should not be directly embedded in PDF.
-        // For now export these as Type3 until the subsetter can handle table based fonts.
-        // See https://github.com/harfbuzz/harfbuzz/issues/3609 and
-        // https://skia-review.googlesource.com/c/skia/+/543485
-        SkToBool(metrics.fFlags & SkAdvancedTypefaceMetrics::kAltDataFormat_FontFlag) ||
+        // Export these as Type3 if the subsetter cannot handle table based fonts.
+        (SkToBool(metrics.fFlags & SkAdvancedTypefaceMetrics::kAltDataFormat_FontFlag)
+            && !SkPDFCanSubsetTableBasedFonts()) ||
         SkToBool(metrics.fFlags & SkAdvancedTypefaceMetrics::kNotEmbeddable_FontFlag) ||
         // Something like 45eeeddb00741493 and 7c86e7641b348ca7b0 to output OpenType should work,
         // but requires PDF 1.6 which is still not supported by all printers. One could fix this by
@@ -768,7 +767,7 @@ static void emit_subset_type3(const SkPDFFont& pdfFont, SkPDFDocument* doc) {
             canvas.translate(-glyphBBox.fLeft, -glyphBBox.fTop);
             canvas.drawDrawable(drawable);
             SkPDFIndirectReference xobject = SkPDFMakeFormXObject(
-                    doc, glyphDevice->content(),
+                    doc, glyphDevice->content(), SkPDFParentTreeKey(),
                     SkPDFMakeArray(0, 0, glyphBBox.width(), glyphBBox.height()),
                     glyphDevice->makeResourceDict(),
                     SkMatrix::Translate(glyphBBox.fLeft, glyphBBox.fTop), nullptr);
@@ -854,7 +853,7 @@ static void emit_subset_type3(const SkPDFFont& pdfFont, SkPDFDocument* doc) {
                 SkCanvas canvas(glyphDevice);
                 canvas.drawImage(pimg.fImage, 0, 0);
                 SkPDFIndirectReference sMask = SkPDFMakeFormXObject(
-                        doc, glyphDevice->content(),
+                        doc, glyphDevice->content(), SkPDFParentTreeKey(),
                         SkPDFMakeArray(0, 0, pimg.fImage->width(), pimg.fImage->height()),
                         glyphDevice->makeResourceDict(),
                         SkMatrix(), "DeviceGray");

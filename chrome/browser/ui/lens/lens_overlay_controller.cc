@@ -36,6 +36,8 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/desktop_to_mobile_promos/ios_promo_trigger_service.h"
+#include "chrome/browser/ui/desktop_to_mobile_promos/ios_promo_trigger_service_factory.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
@@ -58,19 +60,16 @@
 #include "chrome/browser/ui/lens/lens_searchbox_controller.h"
 #include "chrome/browser/ui/lens/lens_session_metrics_logger.h"
 #include "chrome/browser/ui/lens/page_content_type_conversions.h"
-#include "chrome/browser/ui/promos/ios_promo_trigger_service.h"
-#include "chrome/browser/ui/promos/ios_promo_trigger_service_factory.h"
 #include "chrome/browser/ui/search/omnibox_utils.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
 #include "chrome/common/pref_names.h"
@@ -264,8 +263,10 @@ void LensOverlayController::CloseUI() {
   // Update the entrypoints now that the controller is closed.
   UpdateEntryPointsState();
 
+  Profile* profile =
+      Profile::FromBrowserContext(tab_->GetContents()->GetBrowserContext());
   if (lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled() &&
-      !lens::DidUserGrantLensOverlayNeededPermissions(pref_service_) &&
+      !lens::DidUserGrantLensOverlayNeededPermissions(profile) &&
       !user_interacted_without_accepting_privacy_notice) {
     lens::RecordNonBlockingPrivacyNoticeAccepted(
         lens::LensOverlayNonBlockingPrivacyNoticeUserAction::
@@ -707,8 +708,10 @@ void LensOverlayController::ShowUI(
     return;
   }
 
+  Profile* profile =
+      Profile::FromBrowserContext(tab_->GetContents()->GetBrowserContext());
   if (lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled() &&
-      !lens::DidUserGrantLensOverlayNeededPermissions(pref_service_)) {
+      !lens::DidUserGrantLensOverlayNeededPermissions(profile)) {
     lens::RecordNonBlockingPrivacyNoticeToBeShown(invocation_source);
   }
 
@@ -726,8 +729,6 @@ void LensOverlayController::ShowUI(
   // Store reference for later use.
   invocation_source_ = invocation_source;
 
-  Profile* profile =
-      Profile::FromBrowserContext(tab_->GetContents()->GetBrowserContext());
   // Create the languages controller.
   languages_controller_ =
       std::make_unique<lens::LensOverlayLanguagesController>(profile);
@@ -956,13 +957,10 @@ void LensOverlayController::IssueLensRequest(
     initialization_data_->selected_region_bitmap_.reset();
   }
 
-  if (GetContextualizationController()->GetCurrentPageContextEligibility()) {
-    GetLensQueryFlowRouter()->SendRegionSearch(
-        query_start_time, region.Clone(), selection_type,
-        initialization_data_->additional_search_query_params_, region_bytes,
-        invocation_source_);
-  }
-
+  GetLensQueryFlowRouter()->SendRegionSearch(
+      query_start_time, region.Clone(), selection_type,
+      initialization_data_->additional_search_query_params_, region_bytes,
+      invocation_source_);
   MaybeOpenSidePanel();
   GetLensSessionMetricsLogger()->RecordTimeToFirstInteraction(
       lens::LensOverlayFirstInteractionType::kRegionSelect);
@@ -985,12 +983,10 @@ void LensOverlayController::IssueMultimodalRequest(
     const std::string& text_query,
     lens::LensOverlaySelectionType selection_type,
     std::optional<SkBitmap> region_bitmap) {
-  if (GetContextualizationController()->GetCurrentPageContextEligibility()) {
-    GetLensQueryFlowRouter()->SendMultimodalRequest(
-        query_start_time, std::move(region), text_query, selection_type,
-        initialization_data_->additional_search_query_params_, region_bitmap,
-        invocation_source_);
-  }
+  GetLensQueryFlowRouter()->SendMultimodalRequest(
+      query_start_time, std::move(region), text_query, selection_type,
+      initialization_data_->additional_search_query_params_, region_bitmap,
+      invocation_source_);
 }
 
 void LensOverlayController::IssueSearchBoxRequest(
@@ -1012,7 +1008,9 @@ void LensOverlayController::IssueSearchBoxRequest(
   // on each query is disabled, if the live page is not being displayed, or if
   // the user is not in the contextual search flow (aka, issues an image request
   // already).
-  if (!lens::IsLensOverlayContextualSearchboxEnabled() ||
+  if (!lens::IsLensOverlayContextualSearchboxEnabled(
+          Profile::FromBrowserContext(
+              tab_->GetContents()->GetBrowserContext())) ||
       !lens::features::ShouldLensOverlayRecontextualizeOnQuery() ||
       state() != State::kHidden || !IsContextualSearchbox()) {
     IssueSearchBoxRequestPart2(query_start_time, search_box_text, match_type,
@@ -1034,13 +1032,11 @@ void LensOverlayController::IssueContextualTextRequest(
     base::Time query_start_time,
     const std::string& text_query,
     lens::LensOverlaySelectionType selection_type) {
-  if (GetContextualizationController()->GetCurrentPageContextEligibility()) {
-    lens_selection_type_ = selection_type;
-    GetLensQueryFlowRouter()->SendContextualTextQuery(
-        query_start_time, text_query, selection_type,
-        initialization_data_->additional_search_query_params_,
-        invocation_source_);
-  }
+  lens_selection_type_ = selection_type;
+  GetLensQueryFlowRouter()->SendContextualTextQuery(
+      query_start_time, text_query, selection_type,
+      initialization_data_->additional_search_query_params_,
+      invocation_source_);
 }
 
 void LensOverlayController::AddOverlayStateToSearchQuery(
@@ -1489,7 +1485,8 @@ void LensOverlayController::FinishedWaitingForReflow(
 }
 
 void LensOverlayController::NotifyTabForegrounded() {
-  if (lens::IsLensOverlayContextualSearchboxEnabled()) {
+  if (lens::IsLensOverlayContextualSearchboxEnabled(Profile::FromBrowserContext(
+          tab_->GetContents()->GetBrowserContext()))) {
     SuppressGhostLoader();
   }
   UpdateEntryPointsState();
@@ -1497,6 +1494,17 @@ void LensOverlayController::NotifyTabForegrounded() {
 
 void LensOverlayController::NotifyTabWillEnterBackground() {
   UpdateEntryPointsState();
+  if (auto* interface = BrowserUserEducationInterface::From(
+          tab_->GetBrowserWindowInterface())) {
+    interface->AbortFeaturePromo(
+        feature_engagement::kIPHiOSLensPromoDesktopFeature);
+  }
+}
+
+bool LensOverlayController::IsOverlayViewShared() const {
+  // The view that host's Lens's WebUI is a direct child of the BrowserView,
+  // which means it can be shared across different tabs.
+  return true;
 }
 
 void LensOverlayController::ActivityRequestedByOverlay(
@@ -1690,10 +1698,8 @@ void LensOverlayController::IssueSearchBoxRequestPart2(
   lens::LensOverlayInvocationSource final_source =
       invocation_source.value_or(invocation_source_);
 
-  if (!GetContextualizationController()->GetCurrentPageContextEligibility()) {
-    // Do not send any requests if the page is not context eligible.
-  } else if (initialization_data_->selected_region_.is_null() &&
-             IsContextualSearchbox()) {
+  if (initialization_data_->selected_region_.is_null() &&
+      IsContextualSearchbox()) {
     GetLensQueryFlowRouter()->SendContextualTextQuery(
         query_start_time, search_box_text, lens_selection_type_,
         initialization_data_->additional_search_query_params_, final_source);
@@ -2226,13 +2232,15 @@ void LensOverlayController::MaybeGrantLensOverlayPermissionsForSession(
     std::optional<lens::LensOverlayInvocationSource> invocation_source) {
   lens::LensOverlayInvocationSource effective_invocation_source =
       invocation_source.value_or(invocation_source_);
+  Profile* profile =
+      Profile::FromBrowserContext(tab_->GetContents()->GetBrowserContext());
   // The Omnibox contextual query flow does not require the user to accept the
   // Lens privacy notice. This can be removed once the non-blocking privacy
   // notice is launched as it will be handled in the case below.
   if (effective_invocation_source ==
           lens::LensOverlayInvocationSource::kOmniboxContextualQuery &&
       !lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled() &&
-      !lens::DidUserGrantLensOverlayNeededPermissions(pref_service_)) {
+      !lens::DidUserGrantLensOverlayNeededPermissions(profile)) {
     GetLensOverlayQueryController()->GrantPermissionForSession();
     GetLensQueryFlowRouter()->MaybeResumeQueryFlow();
     user_interacted_without_accepting_privacy_notice = true;
@@ -2240,7 +2248,7 @@ void LensOverlayController::MaybeGrantLensOverlayPermissionsForSession(
   }
 
   if (lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled() &&
-      !lens::DidUserGrantLensOverlayNeededPermissions(pref_service_)) {
+      !lens::DidUserGrantLensOverlayNeededPermissions(profile)) {
     GetLensOverlayQueryController()->GrantPermissionForSession();
     GetLensQueryFlowRouter()->MaybeResumeQueryFlow();
     user_interacted_without_accepting_privacy_notice = true;
@@ -2253,7 +2261,9 @@ void LensOverlayController::MaybeGrantLensOverlayPermissionsForSession(
 void LensOverlayController::AcceptPrivacyNotice() {
   // Permanently grant permissions, then restart the query flow and upload page
   // content for contextualization.
-  lens::GrantLensOverlayNeededPermissions(pref_service_);
+  Profile* profile =
+      Profile::FromBrowserContext(tab_->GetContents()->GetBrowserContext());
+  lens::GrantLensOverlayNeededPermissions(profile);
   lens::RecordNonBlockingPrivacyNoticeAccepted(
       lens::LensOverlayNonBlockingPrivacyNoticeUserAction::kAccepted,
       invocation_source_);

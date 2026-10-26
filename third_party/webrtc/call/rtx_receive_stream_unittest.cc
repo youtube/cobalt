@@ -124,7 +124,7 @@ std::map<int, int> PayloadTypeMapping() {
 
 template <typename T>
 ArrayView<T> Truncate(ArrayView<T> a, size_t drop) {
-  return a.subview(0, a.size() - drop);
+  return a.subspan(0, a.size() - drop);
 }
 
 }  // namespace

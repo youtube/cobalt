@@ -14,6 +14,7 @@
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
@@ -26,6 +27,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/version_info/version_info.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "chrome/app/chrome_command_ids.h"
@@ -736,9 +738,6 @@ class StartupBrowserCreatorChromeAppShortcutTest
   }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-
-  enum class ExpectedLaunchBehavior{kLaunchAnywaysInTab, kLaunchAnywaysInWindow,
-                                    kNoLaunch};
   void ExpectBlockLaunchWithLaunchBehavior(const std::string& app_id,
                                            bool force_install_dialog) {
     EXPECT_EQ(2u, chrome::GetBrowserCount(browser()->profile()));
@@ -1953,9 +1952,29 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserWithListAppsFeature,
     base::ScopedAllowBlockingForTesting allow_blocking;
     std::string file_contents;
     ASSERT_TRUE(base::ReadFileToString(output_path, &file_contents));
-    // Normalize Windows line endings to Linux line endings used by golden data.
-    base::ReplaceSubstringsAfterOffset(&file_contents, 0, "\r\n", "\n");
-    ASSERT_EQ(expected_info, file_contents);
+    // Parse both expected and actual as JSON and compare structurally to avoid
+    // flakiness from non-deterministic profile ordering.
+    std::optional<base::Value> expected_value =
+        base::JSONReader::Read(expected_info, base::JSON_PARSE_RFC);
+    ASSERT_TRUE(expected_value.has_value()) << "Failed to parse expected JSON";
+    std::optional<base::Value> actual_value =
+        base::JSONReader::Read(file_contents, base::JSON_PARSE_RFC);
+    ASSERT_TRUE(actual_value.has_value()) << "Failed to parse actual JSON";
+    // Sort profile lists by profile_id for order-independent comparison.
+    auto sort_by_profile_id = [](base::Value& root) {
+      for (const char* key : {"installed_web_apps", "open_web_apps"}) {
+        base::ListValue* list = root.GetDict().FindList(key);
+        if (list) {
+          std::ranges::sort(*list, std::ranges::less{},
+                            [](const base::Value& v) {
+                              return *v.GetDict().FindString("profile_id");
+                            });
+        }
+      }
+    };
+    sort_by_profile_id(*expected_value);
+    sort_by_profile_id(*actual_value);
+    EXPECT_EQ(*expected_value, *actual_value);
   }
 }
 
@@ -4082,12 +4101,6 @@ class StartupBrowserCreatorPickerUnknownEmailCreateProfileIfNotExists
   // browser will be relaunched by the main test.
   upgrade_util::ScopedRelaunchChromeBrowserOverride relaunch_chrome_override_{
       base::BindRepeating([](const base::CommandLine&) { return true; })};
-
-  // The `kCreateProfileEmailIfNotExists` switch requires the
-  // `kCreateProfileIfNoneExists` feature to be enabled.
-  // TODO: Remove once enabled by default
-  base::test::ScopedFeatureList scoped_feature_list_{
-      features::kCreateProfileIfNoneExists};
 };
 
 IN_PROC_BROWSER_TEST_F(
@@ -4388,10 +4401,6 @@ class StartupBrowserCreatorOpenUrlsInNextProfileCreatedTest
     command_line->AppendSwitch(switches::kCreateProfileEmailIfNotExists);
     command_line->AppendArg("https://www.google.com");
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_{
-      features::kCreateProfileIfNoneExists};
 };
 
 IN_PROC_BROWSER_TEST_F(StartupBrowserCreatorOpenUrlsInNextProfileCreatedTest,

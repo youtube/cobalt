@@ -150,7 +150,7 @@ class LanguageDetectorCreateTask
           kSupportedLanguages, options_->expectedInputLanguages());
       if (!expected_input_languages.has_value()) {
         GetResolver()->Reject(MakeGarbageCollected<DOMException>(
-            DOMExceptionCode::kUnknownError, "Language not available"));
+            DOMExceptionCode::kNotSupportedError, "Language not available"));
         return;
       }
     }
@@ -159,7 +159,7 @@ class LanguageDetectorCreateTask
       switch (maybe_model.error()) {
         case DetectLanguageError::kUnavailable:
           GetResolver()->Reject(MakeGarbageCollected<DOMException>(
-              DOMExceptionCode::kUnknownError, "Model not available"));
+              DOMExceptionCode::kNotSupportedError, "Model not available"));
           break;
       }
       return;
@@ -361,11 +361,6 @@ ScriptPromise<IDLSequence<LanguageDetectionResult>> LanguageDetector::detect(
     return EmptyPromise();
   }
 
-  if (!language_detection_model_) {
-    ThrowSessionDestroyedException(exception_state);
-    return EmptyPromise();
-  }
-
   AbortSignal* composite_signal = CreateCompositeSignal(script_state, options);
   if (HandleAbortSignal(composite_signal, script_state, exception_state)) {
     return EmptyPromise();
@@ -534,7 +529,8 @@ void LanguageDetector::OnDetectComplete(
   } else {
     switch (result.error()) {
       case DetectLanguageError::kUnavailable:
-        resolver->Reject("Model not available");
+        resolver->Reject(MakeGarbageCollected<DOMException>(
+            DOMExceptionCode::kNotSupportedError, "Model not available"));
     }
   }
 }

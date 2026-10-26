@@ -18,7 +18,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/bubble/ui_bundled/gesture_iph/gesture_in_product_help_view.h"
 #import "ios/chrome/browser/bubble/ui_bundled/gesture_iph/gesture_in_product_help_view_delegate.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
 #import "ios/chrome/browser/menu/ui_bundled/action_factory.h"
 #import "ios/chrome/browser/shared/model/web_state_list/tab_utils.h"
@@ -370,14 +370,15 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
   [self.topToolbar.pageControl setSelectedPage:self.currentPage animated:NO];
   [self configureViewControllerForCurrentSizeClassesAndPage];
 
-  // The toolbars should be hidden (alpha 0.0) before the tab appears, so that
-  // they can be animated in. They can't be set to 0.0 here, because if
-  // `animated` is YES, this method is being called inside the animation block.
-  if (animated && self.transitionCoordinator) {
-    [self animateToolbarsForAppearance];
-  } else {
-    // The new tab grid transitions don't hide the toolbars, so no need to show.
-    if (!IsNewTabGridTransitionsEnabled()) {
+  // The new tab grid transitions don't hide the toolbars, so no need to show.
+  if (!IsNewTabGridTransitionsEnabled()) {
+    // The toolbars should be hidden (alpha 0.0) before the tab appears, so that
+    // they can be animated in. They can't be set to 0.0 here, because if
+    // `animated` is YES, this method is being called inside the animation
+    // block.
+    if (animated && self.transitionCoordinator) {
+      [self animateToolbarsForAppearance];
+    } else {
       [self showToolbars];
     }
   }
@@ -403,13 +404,13 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
   [self.swipeToIncognitoIPH
       dismissWithReason:IPHDismissalReasonType::kTappedOutsideIPHAndAnchorView];
 
-  // When the view disappears, the toolbar alpha should be set to 0; either as
-  // part of the animation, or directly with -hideToolbars.
-  if (animated && self.transitionCoordinator) {
-    [self animateToolbarsForDisappearance];
-  } else {
-    // The new tab grid transitions don't hide the toolbars.
-    if (!IsNewTabGridTransitionsEnabled()) {
+  // The new tab grid transitions don't hide the toolbars.
+  if (!IsNewTabGridTransitionsEnabled()) {
+    // When the view disappears, the toolbar alpha should be set to 0; either as
+    // part of the animation, or directly with -hideToolbars.
+    if (animated && self.transitionCoordinator) {
+      [self animateToolbarsForDisappearance];
+    } else {
       [self hideToolbars];
     }
   }
@@ -1307,6 +1308,9 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
         constraintEqualToAnchor:self.topToolbar.bottomAnchor],
     self.swipeToIncognitoIPHBottomConstraint
   ]];
+  [self.geminiHandler
+      hideFloatyIfInvokedAnimated:NO
+                       fromSource:gemini::FloatyUpdateSource::GestureIph];
   [self.swipeToIncognitoIPH startAnimation];
 }
 
@@ -2061,6 +2065,10 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
 - (void)gestureInProductHelpView:(GestureInProductHelpView*)view
             didDismissWithReason:(IPHDismissalReasonType)reason {
   [self.delegate tabGridDidDismissSwipeToIncognitoIPHWithReason:reason];
+  [self.geminiHandler
+      updateFloatyVisibilityIfEligibleAnimated:NO
+                                    fromSource:gemini::FloatyUpdateSource::
+                                                   GestureIph];
 }
 
 - (void)gestureInProductHelpView:(GestureInProductHelpView*)view

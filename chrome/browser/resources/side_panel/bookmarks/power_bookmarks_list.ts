@@ -343,8 +343,6 @@ export class PowerBookmarksListElement extends PolymerElement implements
   private recordCountMetricsOnNextUpdate_: boolean = false;
   declare private updatedElementIds_: string[];
   declare private bookmarksTreeViewEnabled_: boolean;
-  private isBookmarksInTransportModeEnabled: boolean =
-      loadTimeData.getBoolean('isBookmarksInTransportModeEnabled');
   private rebuildNavigationElementsDebouncer_: Debouncer|null = null;
 
   constructor() {
@@ -404,10 +402,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
     this.keyArrowNavigationService_.startListening();
 
     this.addEventListener(BOOKMARK_ROW_LOAD_EVENT, () => {
-      this.rebuildNavigationElementsDebouncer_ = Debouncer.debounce(
-          this.rebuildNavigationElementsDebouncer_, timeOut.after(1), () => {
-            this.keyArrowNavigationService_.rebuildNavigationElements();
-          });
+      this.rebuildNavigationElements_();
     });
   }
 
@@ -512,6 +507,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
     // If the new parent folder is visible, notify to ensure its displayed
     // child count is updated.
     this.notifyPathIfVisible_(newParent.id, 'children');
+    this.notifyPathIfVisible_(oldParent.id, 'children');
     // If compact and tree view is active, we must resize open folders
     if (this.bookmarksTreeViewEnabled_ && this.compact_) {
       this.notifyBookmarksListResize_();
@@ -540,13 +536,14 @@ export class PowerBookmarksListElement extends PolymerElement implements
     this.updatedElementIds_ = [bookmark.parentId];
     this.set(`trackedProductInfos_.${bookmark.id}`, null);
     this.availableProductInfos_.delete(bookmark.id);
+    if (this.selectedBookmarks_[bookmark.id]) {
+      this.set(`selectedBookmarks_.${bookmark.id}`, false);
+    }
 
     // If the parent folder is visible, notify to ensure its displayed
     // child count is updated.
     this.notifyPathIfVisible_(bookmark.parentId, 'children');
-    afterNextRender(this, () => {
-      this.keyArrowNavigationService_.rebuildNavigationElements();
-    });
+    this.rebuildNavigationElements_();
   }
 
   getTrackedProductInfos(): {[key: string]: BookmarkProductInfo} {
@@ -634,6 +631,12 @@ export class PowerBookmarksListElement extends PolymerElement implements
 
   getDragManagerForTesting() {
     return this.bookmarksDragManager_;
+  }
+
+  flushNavigationElementsDebouncerForTesting() {
+    if (this.rebuildNavigationElementsDebouncer_) {
+      this.rebuildNavigationElementsDebouncer_.flush();
+    }
   }
 
   private notifyPathIfVisible_(id: string, key: string) {
@@ -797,7 +800,6 @@ export class PowerBookmarksListElement extends PolymerElement implements
 
     if (this.recordCountMetricsOnNextUpdate_) {
       this.recordBookmarkCountMetrics_();
-      this.recordCountMetricsOnNextUpdate_ = false;
     }
 
     // After the lists are updated and all children updates are complete,
@@ -812,7 +814,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
 
               // Make sure the keyboard navigation tree is rebuilt whenever the
               // iron-list is updated.
-              this.keyArrowNavigationService_.rebuildNavigationElements();
+              this.rebuildNavigationElements_();
             });
       }
     });
@@ -857,7 +859,28 @@ export class PowerBookmarksListElement extends PolymerElement implements
     this.recordCountMetricsOnNextUpdate_ = true;
   }
 
+  private rebuildNavigationElements_() {
+    this.rebuildNavigationElementsDebouncer_ = Debouncer.debounce(
+        this.rebuildNavigationElementsDebouncer_, timeOut.after(1), () => {
+          this.keyArrowNavigationService_.rebuildNavigationElements();
+          if (this.recordCountMetricsOnNextUpdate_) {
+            this.recordBookmarkCountMetricsInternal_();
+            this.recordCountMetricsOnNextUpdate_ = false;
+          }
+        });
+  }
+
   private recordBookmarkCountMetrics_() {
+    if (this.bookmarksTreeViewEnabled_) {
+      this.recordCountMetricsOnNextUpdate_ = true;
+      this.rebuildNavigationElements_();
+    } else {
+      this.recordBookmarkCountMetricsInternal_();
+      this.recordCountMetricsOnNextUpdate_ = false;
+    }
+  }
+
+  private recordBookmarkCountMetricsInternal_() {
     const count = this.bookmarksTreeViewEnabled_ ?
         this.keyArrowNavigationService_.getElementCount() :
         this.displayLists_.reduce((prev, curr) => prev + curr.length, 0);
@@ -890,7 +913,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
     event: MouseEvent,
   }>) {
     this.notifyBookmarksListResize_();
-    afterNextRender(this, () => this.recordBookmarkCountMetrics_());
+    this.recordBookmarkCountMetrics_();
   }
   /**
    * Invoked when the user clicks a power bookmarks row. This will either
@@ -1006,8 +1029,12 @@ export class PowerBookmarksListElement extends PolymerElement implements
 
   private notifyBookmarksListResize_() {
     for (let i = 0; i < this.displayLists_.length; i++) {
-      if (this.displayLists_[i].length > 0) {
-        this.getDisplayListElement_(i)!.notifyResize();
+      const displayListElement = this.getDisplayListElement_(i);
+      // When switching between filtered and non-filtered views, the list of
+      // display elements might become briefly out of sync with
+      // `this.displayLists_` so check that it exists.
+      if (displayListElement) {
+        displayListElement.notifyResize();
       }
     }
   }
@@ -1029,8 +1056,9 @@ export class PowerBookmarksListElement extends PolymerElement implements
     const selectedEntries = Object.entries(this.selectedBookmarks_)
                                 .filter(([_id, selected]) => selected);
     const selectedIds = selectedEntries.map(([id, _selected]) => id);
-    return selectedIds.map(
-        (id) => this.bookmarksService_.findBookmarkWithId(id)!);
+    return selectedIds
+        .map((id) => this.bookmarksService_.findBookmarkWithId(id)!)
+        .filter(b => !!b);
   }
 
   private getSelectedBookmarksLength_(): number {
@@ -1240,7 +1268,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
   }
 
   private showEditDialog_(bookmarks: BookmarksTreeNode[], moveOnly: boolean) {
-    if (!this.isBookmarksInTransportModeEnabled) {
+    if (!loadTimeData.getBoolean('isBookmarksMigrationUiChanges')) {
       this.$.editDialog.showDialog(
           this.activeFolderPath_, this.bookmarksService_.getTopLevelBookmarks(),
           bookmarks, moveOnly);

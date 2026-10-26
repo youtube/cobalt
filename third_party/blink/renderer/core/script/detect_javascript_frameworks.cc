@@ -82,7 +82,7 @@ inline void CheckAttributeMatches(const Element& element,
     result.detected_versions[JavaScriptFramework::kReact] =
         kNoFrameworkVersionDetected;
   }
-  if (element.GetClassAttribute().StartsWith(kSvelte)) {
+  if (element.GetClassAttribute().starts_with(kSvelte)) {
     result.detected_versions[JavaScriptFramework::kSvelte] =
         kNoFrameworkVersionDetected;
   }
@@ -129,8 +129,8 @@ inline void CheckPropertyMatches(Element& element,
     } else if (key_value == reactRootContainer_string) {
       result.detected_versions[JavaScriptFramework::kReact] =
           kNoFrameworkVersionDetected;
-    } else if (key_value.StartsWith(reactListening_string) ||
-               key_value.StartsWith(reactFiber_string)) {
+    } else if (key_value.starts_with(reactListening_string) ||
+               key_value.starts_with(reactFiber_string)) {
       result.detected_versions[JavaScriptFramework::kReact] =
           kNoFrameworkVersionDetected;
     }
@@ -290,7 +290,7 @@ void DetectFrameworkVersions(Document& document,
   if (document.head()) {
     for (HTMLMetaElement& meta_element :
          Traversal<HTMLMetaElement>::DescendantsOf(*document.head())) {
-      if (EqualIgnoringASCIICase(meta_element.GetName(), "generator")) {
+      if (EqualIgnoringAsciiCase(meta_element.GetName(), "generator")) {
         generator_meta = &meta_element;
         break;
       }
@@ -300,35 +300,33 @@ void DetectFrameworkVersions(Document& document,
   if (generator_meta) {
     const AtomicString& content = generator_meta->Content();
     if (!content.empty()) {
-      if (content.StartsWith("Wix")) {
+      if (content.starts_with("Wix")) {
         result.detected_versions[JavaScriptFramework::kWix] =
             kNoFrameworkVersionDetected;
-      } else if (content.StartsWith("Joomla")) {
+      } else if (content.starts_with("Joomla")) {
         result.detected_versions[JavaScriptFramework::kJoomla] =
             kNoFrameworkVersionDetected;
       } else {
-        constexpr char wordpress_prefix[] = "WordPress ";
-        constexpr size_t wordpress_prefix_length =
-            std::char_traits<char>::length(wordpress_prefix);
+        constexpr char kWordpressPrefix[] = "WordPress ";
+        constexpr size_t kWordpressPrefixLength =
+            std::char_traits<char>::length(kWordpressPrefix);
 
-        if (content.StartsWith(wordpress_prefix)) {
-          String version_string =
-              String(content).Substring(wordpress_prefix_length);
+        if (content.starts_with(kWordpressPrefix)) {
+          StringView version_string = content;
+          version_string.remove_prefix(kWordpressPrefixLength);
           result.detected_versions[JavaScriptFramework::kWordPress] =
               ExtractVersion(version_regexp, context,
                              V8String(isolate, version_string));
         }
 
-        constexpr char drupal_prefix[] = "Drupal ";
-        constexpr size_t drupal_prefix_length =
-            std::char_traits<char>::length(drupal_prefix);
+        constexpr char kDrupalPrefix[] = "Drupal ";
+        constexpr size_t kDrupalPrefixLength =
+            std::char_traits<char>::length(kDrupalPrefix);
 
-        if (content.StartsWith(drupal_prefix)) {
-          String version_string =
-              String(content).Substring(drupal_prefix_length);
-          String trimmed =
-              version_string.Substring(0, version_string.find(" "));
-          std::optional<int> version = StringToIntLoose(trimmed);
+        if (content.starts_with(kDrupalPrefix)) {
+          StringView version_string(content, kDrupalPrefixLength);
+          version_string = version_string.substr(0, version_string.find(' '));
+          std::optional<int> version = StringToIntLoose(version_string);
           result.detected_versions[JavaScriptFramework::kDrupal] =
               version.has_value() ? ((*version & 0xff) << 8)
                                   : kNoFrameworkVersionDetected;
@@ -366,8 +364,8 @@ void TraverseTreeForFrameworks(Document& document,
 void DetectJavascriptFrameworksOnLoad(Document& document) {
   LocalFrame* const frame = document.GetFrame();
   if (!frame || !frame->IsOutermostMainFrame() ||
-      !document.Url().ProtocolIsInHTTPFamily() ||
-      !document.BaseURL().ProtocolIsInHTTPFamily()) {
+      !document.Url().ProtocolIsInHttpFamily() ||
+      !document.BaseURL().ProtocolIsInHttpFamily()) {
     return;
   }
 

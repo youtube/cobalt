@@ -623,6 +623,10 @@ void RenderThreadImpl::Shutdown() {
 
   blink::LogStatsDuringShutdown();
 
+  // Flush any buffered content.
+  fflush(stdout);
+  fflush(stderr);
+
   // In a single-process mode, we cannot call _exit(0) in Shutdown() because
   // it will exit the process before the browser side is ready to exit.
   if (!IsSingleProcess())
@@ -669,7 +673,8 @@ bool RenderThreadImpl::GenerateFrameRoutingID(
     int32_t& routing_id,
     blink::LocalFrameToken& frame_token,
     base::UnguessableToken& devtools_frame_token,
-    blink::DocumentToken& document_token) {
+    blink::DocumentToken& document_token,
+    std::unique_ptr<base::UnguessableToken>& sandbox_origin_token) {
   if (!use_cached_routing_table_) {
     mojom::FrameRoutingInfoPtr info;
     if (!render_message_filter()->GenerateSingleFrameRoutingInfo(&info)) {
@@ -679,6 +684,8 @@ bool RenderThreadImpl::GenerateFrameRoutingID(
     frame_token = info->frame_token;
     devtools_frame_token = info->devtools_frame_token;
     document_token = info->document_token;
+    sandbox_origin_token =
+        std::make_unique<base::UnguessableToken>(info->sandbox_origin_token);
     return true;
   }
 
@@ -698,6 +705,8 @@ bool RenderThreadImpl::GenerateFrameRoutingID(
   frame_token = front->frame_token;
   devtools_frame_token = front->devtools_frame_token;
   document_token = front->document_token;
+  sandbox_origin_token =
+      std::make_unique<base::UnguessableToken>(front->sandbox_origin_token);
   cached_frame_routing_.pop_front();
 
   // If the table drops to 2 or less, request an asynchronous populate.
@@ -820,22 +829,11 @@ void RenderThreadImpl::RegisterSchemes() {
       chrome_scheme);
   WebSecurityPolicy::RegisterURLSchemeAsWebUI(chrome_scheme);
 
-  // Service workers for chrome://
-  if (base::FeatureList::IsEnabled(
-          features::kEnableServiceWorkersForChromeScheme)) {
-    WebSecurityPolicy::RegisterURLSchemeAsAllowingServiceWorkers(chrome_scheme);
-  }
 
   WebString chrome_untrusted_scheme(
       WebString::FromASCII(kChromeUIUntrustedScheme));
 
   // chrome-untrusted:
-  // Service workers for chrome-untrusted://
-  if (base::FeatureList::IsEnabled(
-          features::kEnableServiceWorkersForChromeUntrusted)) {
-    WebSecurityPolicy::RegisterURLSchemeAsAllowingServiceWorkers(
-        chrome_untrusted_scheme);
-  }
   WebSecurityPolicy::RegisterURLSchemeAsNotAllowingJavascriptURLs(
       chrome_untrusted_scheme);
   WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
@@ -1473,12 +1471,11 @@ RenderThreadImpl::GetMediaSequencedTaskRunner() {
   DCHECK(main_thread_runner()->BelongsToCurrentThread());
   if (base::FeatureList::IsEnabled(kUseThreadPoolForMediaTaskRunner)) {
     if (!media_task_runner_) {
-      // TODO(crbug.com/470337728): ensure the sequenced task runner is executed
-      // in the right priority when blink::features::kWebRtcUseMediaThreadTypes
-      // is enabled.
-      media_task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
-          base::TaskTraits{base::TaskPriority::USER_VISIBLE,
-                           base::WithBaseSyncPrimitives(), base::MayBlock()});
+      media_task_runner_ =
+          base::ThreadPool::CreateSequencedTaskRunner(base::TaskTraits{
+              base::WithBaseSyncPrimitives(), base::MayBlock(),
+              base::InheritThreadType(),
+              base::MaxThreadType(base::ThreadType::kPresentation)});
     }
     return media_task_runner_;
   }

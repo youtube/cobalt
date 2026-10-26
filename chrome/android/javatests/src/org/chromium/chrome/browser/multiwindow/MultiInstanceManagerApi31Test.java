@@ -19,7 +19,6 @@ import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.lifecycle.Stage;
 
-import org.chromium.base.test.util.DisabledTest;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -37,6 +36,7 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisableIf;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -53,8 +53,8 @@ import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowApp
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.ntp.RecentlyClosedEntry;
 import org.chromium.chrome.browser.ntp.RecentlyClosedWindow;
-import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+import org.chromium.chrome.browser.preferences.MultiInstancePreferenceKeys;
+import org.chromium.chrome.browser.preferences.MultiInstanceSharedPreferences;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
@@ -112,10 +112,12 @@ public class MultiInstanceManagerApi31Test {
 
     @After
     public void teardown() throws InterruptedException {
-        ChromeSharedPreferences.getInstance()
-                .removeKey(ChromePreferenceKeys.MULTI_INSTANCE_RESTORATION_MESSAGE_SHOWN);
-        ChromeSharedPreferences.getInstance()
-                .removeKey(ChromePreferenceKeys.MULTI_INSTANCE_INSTANCE_LIMIT_DOWNGRADE_TRIGGERED);
+        MultiInstanceSharedPreferences.getInstance()
+                .removeKey(MultiInstancePreferenceKeys.MULTI_INSTANCE_RESTORATION_MESSAGE_SHOWN);
+        MultiInstanceSharedPreferences.getInstance()
+                .removeKey(
+                        MultiInstancePreferenceKeys
+                                .MULTI_INSTANCE_INSTANCE_LIMIT_DOWNGRADE_TRIGGERED);
         for (ChromeTabbedActivity activity : mExtraActivities) {
             ThreadUtils.runOnUiThreadBlocking(
                     () ->
@@ -145,12 +147,13 @@ public class MultiInstanceManagerApi31Test {
                 "Regular tab count should be written to persistent store after tab state"
                         + " initialization.",
                 1,
-                MultiInstancePersistentStore.readNormalTabCount(activity.getWindowIdForTesting()));
+                ChromeMultiInstancePersistentStore.readNormalTabCount(
+                        activity.getWindowIdForTesting()));
         Assert.assertEquals(
                 "Incognito tab count should be written to persistent store after tab state"
                         + " initialization.",
                 0,
-                MultiInstancePersistentStore.readIncognitoTabCount(
+                ChromeMultiInstancePersistentStore.readIncognitoTabCount(
                         activity.getWindowIdForTesting()));
 
         // Restore the original value of |mCreatedTabOnStartup|.
@@ -873,8 +876,7 @@ public class MultiInstanceManagerApi31Test {
                         instanceId,
                         /* preferNew= */ true,
                         /* openAdjacently= */ false,
-                        /* addTrustedIntentExtras= */ true,
-                        NewWindowAppSource.OTHER);
+                        NewWindowAppSource.UNKNOWN);
         if (addIncognitoExtras) {
             intent.putExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_TAB, true);
             intent.putExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, true);
@@ -916,13 +918,13 @@ public class MultiInstanceManagerApi31Test {
                 () -> {
                     Criteria.checkThat(
                             "Active instance count is incorrect.",
-                            MultiInstanceManagerApi31.getPersistedInstanceIds(
-                                            PersistedInstanceType.ACTIVE)
+                            MultiWindowUtils.getPersistedInstanceIds(PersistedInstanceType.ACTIVE)
                                     .size(),
                             is(expectedActiveInstances));
                     Criteria.checkThat(
                             "Persisted instance count is incorrect.",
-                            MultiInstanceManagerApi31.getAllPersistedInstanceIds().size(),
+                            MultiWindowUtils.getPersistedInstanceIds(PersistedInstanceType.ANY)
+                                    .size(),
                             is(expectedTotalInstances));
                 });
     }

@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/web_app_id_constants.h"
 #include "ash/public/cpp/new_window_delegate.h"
 #include "base/command_line.h"
@@ -17,7 +18,6 @@
 #include "base/task/thread_pool.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
 #include "chrome/browser/ash/drive/drive_integration_service_factory.h"
 #include "chrome/browser/ash/file_manager/file_tasks.h"
@@ -27,7 +27,6 @@
 #include "chrome/browser/ui/webui/ash/cloud_upload/cloud_upload_util.h"
 #include "chrome/browser/ui/webui/ash/cloud_upload/hats_office_trigger.h"
 #include "chrome/common/chrome_content_client.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
 #include "chromeos/ash/components/drivefs/drivefs_util.h"
@@ -37,6 +36,7 @@
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/app_types.h"
+#include "components/services/app_service/public/cpp/launch_result.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/browser/api/file_handlers/mime_util.h"
 #include "net/base/filename_util.h"
@@ -180,7 +180,7 @@ bool OpenHostedFileInNewTabOrApp(Profile* profile,
     std::move(callback).Run(std::nullopt);
     return OpenNewTab(hosted_url);
   } else if (base::FeatureList::IsEnabled(
-                 ::features::kHappinessTrackingOffice) &&
+                 ash::features::kHappinessTrackingOffice) &&
              file_tasks::IsOfficeFile(file_path)) {
     ash::cloud_upload::HatsOfficeTrigger::Get().ShowSurveyAfterAppInactive(
         app_id.value(), ash::cloud_upload::HatsOfficeLaunchingApp::kDrive);
@@ -201,11 +201,11 @@ bool OpenHostedFileInNewTabOrApp(Profile* profile,
   }
 
   auto chained_callback =
-      base::BindOnce([](apps::LaunchResult&& result) {
-        LOG_IF(ERROR, result.state != apps::LaunchResult::State::kSuccess)
+      base::BindOnce([](apps::LaunchResult result) {
+        LOG_IF(ERROR, result != apps::LaunchResult::kSuccess)
             << "Failed to launch hosted file via app despite "
                "it being ready";
-        return result.state;
+        return result;
       }).Then(std::move(callback));
 
   app_service->LaunchAppWithUrl(app_id.value(), ui::EF_NONE, hosted_url,
@@ -232,12 +232,12 @@ bool OpenFileWithAppOrBrowser(Profile* profile,
         integration_service->GetRelativeDrivePath(file_path, &path)) {
       integration_service->GetDriveFsInterface()->GetMetadata(
           path, base::BindOnce(&OpenEncryptedDriveFsFile, file_path));
-      std::move(callback).Run({apps::LaunchResult::State::kSuccess});
+      std::move(callback).Run({apps::LaunchResult::kSuccess});
       return true;
     }
     LOG(WARNING) << "Failed to open file (extension): " << file_path.Extension()
                  << ": no connection to integration service";
-    std::move(callback).Run({apps::LaunchResult::State::kFailed});
+    std::move(callback).Run({apps::LaunchResult::kFailed});
     return false;
   }
 
@@ -272,7 +272,7 @@ bool OpenFileWithAppOrBrowser(Profile* profile,
     // Failed to open the file of unknown type.
     LOG(WARNING) << "Unknown file type (extension): " << file_path.Extension()
                  << " action: " << action_id;
-    std::move(callback).Run({apps::LaunchResult::State::kFailed});
+    std::move(callback).Run({apps::LaunchResult::kFailed});
     return false;
   }
 
@@ -298,12 +298,12 @@ bool OpenFileWithAppOrBrowser(Profile* profile,
             page_url = net::FilePathToFileURL(file_path);
           }
           OpenNewTab(page_url);
-          std::move(callback).Run({apps::LaunchResult::State::kSuccess});
+          std::move(callback).Run({apps::LaunchResult::kSuccess});
           return;
         }
         LOG(WARNING) << "Not viewable in browser: MIME: " << mime
                      << " action: " << action_id;
-        std::move(callback).Run({apps::LaunchResult::State::kFailed});
+        std::move(callback).Run({apps::LaunchResult::kFailed});
       },
       std::move(callback), file_path, file_system_url, action_id,
       base::Owned(mime_type_collector));

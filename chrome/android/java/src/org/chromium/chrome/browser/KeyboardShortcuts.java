@@ -80,7 +80,7 @@ public class KeyboardShortcuts {
         KeyboardShortcutsSemanticMeaning.MOVE_TO_TAB_RIGHT,
         KeyboardShortcutsSemanticMeaning.MOVE_TO_SPECIFIC_TAB,
         KeyboardShortcutsSemanticMeaning.MOVE_TO_LAST_TAB,
-        KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_TAB_SEARCH,
+        KeyboardShortcutsSemanticMeaning.TAB_SEARCH,
         KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_TOGGLE_MULTITASK_MENU,
         KeyboardShortcutsSemanticMeaning.CLOSE_TAB,
         KeyboardShortcutsSemanticMeaning.CLOSE_WINDOW,
@@ -155,7 +155,7 @@ public class KeyboardShortcuts {
         int MOVE_TO_TAB_RIGHT = 9;
         int MOVE_TO_SPECIFIC_TAB = 10;
         int MOVE_TO_LAST_TAB = 11;
-        int NOT_IMPLEMENTED_TAB_SEARCH = 12;
+        int TAB_SEARCH = 12;
         int NOT_IMPLEMENTED_TOGGLE_MULTITASK_MENU = 13;
 
         // Closing.
@@ -465,6 +465,13 @@ public class KeyboardShortcuts {
                     new KeyCombo(KeyEvent.KEYCODE_BUTTON_B, NO_MODIFIER),
                 });
 
+        // Tab search.
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.TAB_SEARCH,
+                new KeyCombo(KeyEvent.KEYCODE_A, (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON)),
+                R.string.keyboard_shortcut_tab_search,
+                R.string.keyboard_shortcut_tab_group_header);
+
         // Navigation shortcuts (keyboard_shortcut_tab_navigation_group_header).
         new KeyboardShortcutDefinition(
                 KeyboardShortcutsSemanticMeaning.MOVE_TO_TAB_RIGHT,
@@ -686,13 +693,7 @@ public class KeyboardShortcuts {
                 R.string.keyboard_shortcut_webpage_group_header,
                 new KeyCombo[] {
                     new KeyCombo(KeyEvent.KEYCODE_ZOOM_IN, NO_MODIFIER),
-                    new KeyCombo(KeyEvent.KEYCODE_EQUALS, KeyEvent.META_CTRL_ON),
-                    new KeyCombo(
-                            KeyEvent.KEYCODE_PLUS,
-                            (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON)),
-                    new KeyCombo(
-                            KeyEvent.KEYCODE_EQUALS,
-                            (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON))
+                    new KeyCombo(KeyEvent.KEYCODE_EQUALS, KeyEvent.META_CTRL_ON)
                 });
         new KeyboardShortcutDefinition(
                 KeyboardShortcutsSemanticMeaning.ZOOM_OUT,
@@ -741,9 +742,6 @@ public class KeyboardShortcuts {
 
         // Unimplemented shortcuts.
         // TODO(crbug.com/402775002): Figure out what shortcut does TOGGLE_MULTITASK_MENU.
-        new KeyboardShortcutDefinition(
-                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_TAB_SEARCH,
-                new KeyCombo(KeyEvent.KEYCODE_A, (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON)));
         new KeyboardShortcutDefinition(
                 KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_FOCUS_WEB_CONTENTS_PANE,
                 new KeyCombo(KeyEvent.KEYCODE_F6, KeyEvent.META_CTRL_ON));
@@ -1089,6 +1087,9 @@ public class KeyboardShortcuts {
 
         if (isCurrentTabVisible) {
             switch (semanticMeaning) {
+                case KeyboardShortcutsSemanticMeaning.TAB_SEARCH:
+                    menuOrKeyboardActionController.onMenuOrKeyboardAction(R.id.tab_search, false);
+                    return true;
                 case KeyboardShortcutsSemanticMeaning.MOVE_TO_SPECIFIC_TAB:
                     if (tabSwitchingEnabled) {
                         int numCode =
@@ -1193,10 +1194,10 @@ public class KeyboardShortcuts {
                     menuOrKeyboardActionController.onMenuOrKeyboardAction(R.id.print_id, false);
                     return true;
                 case KeyboardShortcutsSemanticMeaning.ZOOM_IN:
-                    ZoomController.zoomIn(currentWebContents);
+                    ZoomController.zoomInPage(currentWebContents);
                     return true;
                 case KeyboardShortcutsSemanticMeaning.ZOOM_OUT:
-                    ZoomController.zoomOut(currentWebContents);
+                    ZoomController.zoomOutPage(currentWebContents);
                     return true;
                 case KeyboardShortcutsSemanticMeaning.ZOOM_IN_LEGACY:
                     ZoomController.zoomInVisual(currentWebContents);
@@ -1205,7 +1206,7 @@ public class KeyboardShortcuts {
                     ZoomController.zoomOutVisual(currentWebContents);
                     return true;
                 case KeyboardShortcutsSemanticMeaning.ZOOM_RESET:
-                    ZoomController.zoomReset(currentWebContents, browserContextHandle);
+                    ZoomController.zoomResetPage(currentWebContents, browserContextHandle);
                     return true;
                 case KeyboardShortcutsSemanticMeaning.RELOAD_TAB:
                     if (currentTab != null) {

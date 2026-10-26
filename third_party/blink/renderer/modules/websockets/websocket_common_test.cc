@@ -33,11 +33,11 @@ TEST(WebSocketCommonTest, IsValidSubprotocolString) {
       "abcdefghijklmnopqrstuvwxyz|~");
   for (wtf_size_t i = 0; i < valid_characters.length(); ++i) {
     EXPECT_TRUE(WebSocketCommon::IsValidSubprotocolString(
-        valid_characters.Substring(i, 1u)));
+        valid_characters.substr(i, 1u)));
   }
   for (size_t i = 0; i < 256; ++i) {
     LChar to_check = static_cast<LChar>(i);
-    if (valid_characters.find(to_check) != kNotFound) {
+    if (valid_characters.contains(to_check)) {
       continue;
     }
     String s(base::span_from_ref(to_check));

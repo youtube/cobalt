@@ -89,6 +89,8 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
   static bool IsDryRunModeEnabledForTesting();
 
  private:
+  friend class ServiceWorkerSyntheticResponseManagerTest;
+
   class SyntheticResponseURLLoaderClient;
 
   void StartRequest(int request_id,
@@ -107,7 +109,8 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
   void MaybeSetResponseHead(
       const network::mojom::URLResponseHead& response_head);
 
-  void TransferResponseBody(mojo::ScopedDataPipeConsumerHandle body);
+  void TransferResponseBody(mojo::ScopedDataPipeConsumerHandle consumer,
+                            mojo::ScopedDataPipeProducerHandle producer);
 
   // Read response data from the data pipe which has the actual response from
   // the network, and keep it in buffer.
@@ -123,7 +126,7 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
 
   // Notify the browser to reload the page by passing the <meta> tag to the
   // response body stream.
-  void NotifyReloading();
+  void NotifyReloading(mojo::ScopedDataPipeProducerHandle producer);
 
   // Callback executed after copying data in `simple_buffer_manager_` or
   // `data_pipe_connector_`. This calls `stream_callback_->OnCompleted()`.
@@ -145,6 +148,11 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
   OnReceiveRedirectCallback redirect_callback_;
   OnCompleteCallback complete_callback_;
   std::optional<RaceNetworkRequestWriteBufferManager> write_buffer_manager_;
+  // This is used to store the producer handle when it is passed to the network
+  // service in the network service delegation mode.
+  // Storing it here allows us to reclaim the handle and write a fallback body
+  // if the request is intercepted by an embedder.
+  scoped_refptr<network::SharedDataPipeProducerHandle> shared_producer_;
   mojo::Remote<blink::mojom::ServiceWorkerStreamCallback> stream_callback_;
   // TODO(crbug.com/447039330): Remove this after confirming
   // `ServiceWorkerSyntheticResponseDataPipeConnector` performs better.
@@ -152,6 +160,10 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
   std::optional<ServiceWorkerSyntheticResponseDataPipeConnector>
       data_pipe_connector_;
   bool did_start_synthetic_response_ = false;
+  bool is_initiated_by_prefetch_ = false;
+  bool is_guest_ = false;
+  size_t factory_interceptor_count_ = 0;
+  bool bypass_redirect_checks_ = false;
 
   base::TimeTicks request_start_time_;
   base::TimeTicks response_received_time_;

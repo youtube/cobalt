@@ -16,12 +16,14 @@
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/with_feature_override.h"
 #include "base/threading/thread.h"
 #include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/uuid.h"
 #include "components/services/storage/dom_storage/async_dom_storage_database.h"
+#include "components/services/storage/dom_storage/db_status.h"
 #include "components/services/storage/dom_storage/features.h"
 #include "components/services/storage/dom_storage/session_storage_data_map.h"
 #include "components/services/storage/dom_storage/session_storage_metadata.h"
@@ -30,7 +32,6 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "storage/common/database/db_status.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -66,11 +67,17 @@ class SessionStorageAreaImplTest : public base::test::WithFeatureOverride,
         test_namespace_id1_(base::Uuid::GenerateRandomV4().AsLowercaseString()),
         test_namespace_id2_(
             base::Uuid::GenerateRandomV4().AsLowercaseString()) {
-    // Create an in-memory database.
-    database_ = AsyncDomStorageDatabase::Open(
-        StorageType::kSessionStorage,
-        /*database_path=*/base::FilePath(),
-        /*memory_dump_id=*/std::nullopt, base::DoNothing());
+    // Match the state of `kDomStorageSqliteInMemory` to the top level
+    // kDomStorageSqlite. That way in-memory databases will use the backend
+    // expected by the param state.
+    if (GetParam()) {
+      feature_list_.InitAndEnableFeature(kDomStorageSqliteInMemory);
+    } else {
+      feature_list_.InitAndDisableFeature(kDomStorageSqliteInMemory);
+    }
+    // Create an in-memory database and wait for it to open.
+    OpenAsyncDomStorageDatabaseInMemorySync(StorageType::kSessionStorage,
+                                            &database_);
 
     // Create a map with one key/value pair in the database.
     scoped_refptr<DomStorageDatabase::SharedMapLocator> map_locator =
@@ -96,6 +103,7 @@ class SessionStorageAreaImplTest : public base::test::WithFeatureOverride,
   }
 
  protected:
+  base::test::ScopedFeatureList feature_list_;
   base::test::TaskEnvironment task_environment_;
   const std::string test_namespace_id1_;
   const std::string test_namespace_id2_;
@@ -239,7 +247,8 @@ TEST_P(SessionStorageAreaImplTest, Cloning) {
   EXPECT_CALL(listener_, OnCommitResult(OKStatus()))
       .Times(testing::AnyNumber());
   EXPECT_TRUE(test::PutSync(storage_area2.get(), StdStringToUint8Vector("key2"),
-                            StdStringToUint8Vector("data2"), std::nullopt, ""));
+                            StdStringToUint8Vector("data2"), std::nullopt,
+                            test::MakeStorageAreaSource()));
 
   // The maps were forked on the above put.
   EXPECT_NE(session_storage_area1->data_map(),
@@ -291,7 +300,7 @@ TEST_P(SessionStorageAreaImplTest, NotifyAllDeleted) {
   storage_area1.FlushForTesting();
 
   base::RunLoop loop;
-  EXPECT_CALL(mock_observer, AllDeleted(true, "\n"))
+  EXPECT_CALL(mock_observer, AllDeleted(true, testing::_))
       .WillOnce(base::test::RunClosure(loop.QuitClosure()));
   session_storage_area1->NotifyObserversAllDeleted();
   loop.Run();
@@ -343,7 +352,7 @@ TEST_P(SessionStorageAreaImplTest, DeleteAllOnShared) {
   // There should be no commits, as we don't actually have to change any data.
   // |session_storage_area1| should just switch to a new, empty map.
   EXPECT_CALL(listener_, OnCommitResult(OKStatus())).Times(0);
-  test::DeleteAllSync(storage_area1.get(), "source");
+  test::DeleteAllSync(storage_area1.get(), test::MakeStorageAreaSource());
 
   // The maps were forked on the above call.
   EXPECT_NE(session_storage_area1->data_map(),
@@ -371,7 +380,8 @@ TEST_P(SessionStorageAreaImplTest, DeleteAllWithoutBinding) {
   base::RunLoop loop;
   EXPECT_CALL(listener_, OnCommitResult(OKStatus()))
       .WillOnce(base::test::RunClosure(loop.QuitClosure()));
-  test::DeleteAllSync(session_storage_area1.get(), "source");
+  test::DeleteAllSync(session_storage_area1.get(),
+                      test::MakeStorageAreaSource());
   session_storage_area1->data_map()->storage_area()->ScheduleImmediateCommit();
   loop.Run();
 
@@ -413,7 +423,8 @@ TEST_P(SessionStorageAreaImplTest, DeleteAllWithoutBindingOnShared) {
   // There should be no commits, as we don't actually have to change any data.
   // |session_storage_area1| should just switch to a new, empty map.
   EXPECT_CALL(listener_, OnCommitResult(OKStatus())).Times(0);
-  test::DeleteAllSync(session_storage_area1.get(), "source");
+  test::DeleteAllSync(session_storage_area1.get(),
+                      test::MakeStorageAreaSource());
 
   // The maps were forked on the above call.
   EXPECT_NE(session_storage_area1->data_map(),

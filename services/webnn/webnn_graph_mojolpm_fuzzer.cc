@@ -106,17 +106,18 @@ class WebnnGraphLPMFuzzer {
  private:
   mojo_base::BigBuffer GenerateBytes(size_t byte_size) {
     mojo_base::BigBuffer buffer(byte_size);
-    auto [head, tail] = base::span(buffer).split_at(
-        (byte_size / sizeof(uint64_t)) * sizeof(uint64_t));
     // SAFETY: Generating a uint64_t view over an existing buffer where we hold
-    // the only pointer.
-    base::span<uint64_t> uint64_head =
-        UNSAFE_BUFFERS(base::span(reinterpret_cast<uint64_t*>(head.data()),
-                                  head.size() / sizeof(uint64_t)));
-    std::ranges::generate(uint64_head,
-                          [this]() { return input_generator_.RandUint64(); });
-    std::ranges::generate(tail,
-                          [this]() { return input_generator_.RandUint32(); });
+    // the only pointer. Unsafe buffer access patterns are used to avoid the
+    // overhead of bounds checks when the code is heavily instrumented for
+    // fuzzing.
+    uint64_t* buffer_ptr = reinterpret_cast<uint64_t*>(buffer.data());
+    for (size_t i = 0; i < byte_size / sizeof(uint64_t); ++i) {
+      UNSAFE_BUFFERS(buffer_ptr[i]) = input_generator_.RandUint64();
+    }
+    for (size_t i = byte_size / sizeof(uint64_t) * sizeof(uint64_t);
+         i < byte_size; ++i) {
+      UNSAFE_BUFFERS(buffer.data()[i]) = input_generator_.RandUint32();
+    }
     return buffer;
   }
 
@@ -167,23 +168,23 @@ class WebnnGraphLPMFuzzer {
     auto graph_info = webnn::mojom::GraphInfo::New();
     mojolpm::FromProto(graph_info_proto, graph_info);
 
+    size_t total_tensor_length = 0;
     for (uint32_t id = 0; id < graph_info->operands.size(); ++id) {
       const auto& operand = graph_info->operands[id];
-      if (operand->kind == webnn::mojom::Operand::Kind::kConstant) {
-        size_t tensor_length = operand->descriptor.PackedByteLength();
-        if (tensor_length > base::GiB(3).InBytes()) {
-          // Serialization of this Mojo call will fail if the tensor data is
-          // too big. We intentionally don't use ValidateTensor to ensure that
-          // the checks in the implementation of CreatePendingConstant are
-          // still exercised. The value is chosen to be larger than most
-          // context implementations support.
-          //
-          // This check can be removed if streaming constant uploads are
-          // implemented as the value will no longer be sent in a single
-          // message.
-          return;
-        }
 
+      // Limit the total size of tensors in the graph to avoid running out of
+      // memory or timing out from computing extremely large graphs. Ideally we
+      // would be able to exercise larger graphs but the tradeoff is that the
+      // fuzzer will not explore as many graphs when it spends too much time
+      // with these large examples.
+      constexpr size_t kMaxTensorBytes = base::GiB(1).InBytes();
+      const size_t tensor_length = operand->descriptor.PackedByteLength();
+      if (kMaxTensorBytes - total_tensor_length < tensor_length) {
+        return;
+      }
+      total_tensor_length += tensor_length;
+
+      if (operand->kind == webnn::mojom::Operand::Kind::kConstant) {
         const blink::WebNNPendingConstantToken token;
         webnn_graph_builder_remote->CreatePendingConstant(
             token, operand->descriptor.data_type(),

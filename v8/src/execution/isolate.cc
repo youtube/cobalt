@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "include/v8-callbacks.h"
+#include "include/v8-function.h"
 #include "include/v8-template.h"
 #include "src/api/api-arguments-inl.h"
 #include "src/api/api-inl.h"
@@ -866,7 +867,7 @@ int GetGeneratorBytecodeOffset(
 
 class CallSiteBuilder {
  public:
-  CallSiteBuilder(Isolate* isolate, FrameSkipMode mode, int limit,
+  CallSiteBuilder(Isolate* isolate, FrameSkipMode mode, uint32_t limit,
                   Handle<Object> caller)
       : isolate_(isolate),
         mode_(mode),
@@ -878,7 +879,7 @@ class CallSiteBuilder {
     // framework and library code, and stack depth tends to be more than
     // a dozen frames, so we over-allocate a bit here to avoid growing
     // the elements array in the common case.
-    elements_ = isolate->factory()->NewFixedArray(std::min(64, limit));
+    elements_ = isolate->factory()->NewFixedArray(std::min(64u, limit));
   }
 
   void SetPrevFrameAsConstructCall() {
@@ -1132,8 +1133,8 @@ class CallSiteBuilder {
 
   Isolate* isolate_;
   const FrameSkipMode mode_;
-  int index_ = 0;
-  const int limit_;
+  uint32_t index_ = 0;
+  const uint32_t limit_;
   const Handle<Object> caller_;
   bool skip_next_frame_;
   bool skipped_prev_frame_ = false;
@@ -1422,7 +1423,7 @@ Handle<FixedArray> CaptureSimpleStackTrace(Isolate* isolate, int limit,
   wasm::WasmCodeRefScope code_ref_scope;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  CallSiteBuilder builder(isolate, mode, limit, caller);
+  CallSiteBuilder builder(isolate, mode, static_cast<uint32_t>(limit), caller);
   VisitStack(isolate, &builder);
 
   // If --async-stack-traces are enabled and the "current microtask" is a
@@ -1640,8 +1641,8 @@ class StackFrameBuilder {
  private:
   Isolate* isolate_;
   Handle<FixedArray> frames_;
-  int index_;
-  int limit_;
+  uint32_t index_;
+  uint32_t limit_;
 };
 
 }  // namespace
@@ -1650,7 +1651,7 @@ DirectHandle<StackTraceInfo> Isolate::CaptureDetailedStackTrace(
     int limit, StackTrace::StackTraceOptions options) {
   TRACE_EVENT_BEGIN1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
                      "maxFrameCount", limit);
-  StackFrameBuilder builder(this, limit);
+  StackFrameBuilder builder(this, static_cast<uint32_t>(limit));
   VisitStack(this, &builder, options);
   auto frames = builder.Build();
   TRACE_EVENT_END1(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__,
@@ -1742,10 +1743,7 @@ class CurrentScriptIdsAndContextsStackVisitor {
     // Frames that are subject to debugging always have a valid script object. A
     // valid script object should have a valid id.
     auto script_handle = Cast<Script>(summary.script());
-    int script_id = script_handle->id();
-    if (script_handle->has_eval_from_shared()) {
-      script_id = GetRootScriptId(*script_handle);
-    }
+    int script_id = GetRootScriptId(*script_handle);
 
     Handle<NativeContext> context =
         handle(summary.native_context()->native_context(), isolate_);
@@ -1774,8 +1772,63 @@ class CurrentScriptIdsAndContextsStackVisitor {
     }
     return cur->id();
   }
+
   Isolate* const isolate_;
   v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data_;
+  size_t cur_frame_ = 0;
+};
+
+class CurrentScriptDataStackVisitor {
+ public:
+  CurrentScriptDataStackVisitor(
+      Isolate* isolate, v8::MemorySpan<StackTrace::ScriptData> frame_data)
+      : isolate_(isolate), frame_data_(frame_data) {
+    DCHECK_LT(0, frame_data.size());
+  }
+
+  void SetPrevFrameAsConstructCall() {
+    // Nothing to do.
+  }
+
+  bool Visit(FrameSummary& summary) {
+    if (!summary.IsJavaScript()) return true;
+    if (!summary.is_subject_to_debugging()) return true;
+
+    auto script_handle = Cast<Script>(summary.script());
+    int script_id = GetRootScriptId(*script_handle);
+
+    DirectHandle<NativeContext> context =
+        handle(summary.native_context()->native_context(), isolate_);
+    if (context.is_null() || script_id <= 0) return true;
+
+    frame_data_[cur_frame_].function =
+        Utils::ToLocal(summary.AsJavaScript().function());
+    frame_data_[cur_frame_].context = Utils::ToLocal(context).As<v8::Context>();
+    frame_data_[cur_frame_].id = script_id;
+
+    cur_frame_ += 1;
+
+    return cur_frame_ < frame_data_.size();
+  }
+
+  size_t FrameCount() const { return cur_frame_; }
+
+ private:
+  int GetRootScriptId(Tagged<Script> script) {
+    Tagged<Script> cur = script;
+    while (cur->has_eval_from_shared()) {
+      Tagged<Object> maybe_sfi = cur->eval_from_shared();
+      if (!IsSharedFunctionInfo(maybe_sfi)) break;
+      Tagged<Object> maybe_script =
+          Cast<SharedFunctionInfo>(maybe_sfi)->script();
+      if (!IsScript(maybe_script)) break;
+      cur = Cast<Script>(maybe_script);
+    }
+    return cur->id();
+  }
+
+  Isolate* const isolate_;
+  v8::MemorySpan<StackTrace::ScriptData> frame_data_;
   size_t cur_frame_ = 0;
 };
 
@@ -1825,6 +1878,17 @@ size_t Isolate::CurrentScriptIdsAndContexts(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
   CurrentScriptIdsAndContextsStackVisitor visitor(this, frame_data);
   VisitStack(this, &visitor);
+  return visitor.FrameCount();
+}
+
+size_t Isolate::CurrentScriptData(
+    v8::MemorySpan<StackTrace::ScriptData> frame_data) {
+  if (frame_data.size() == 0) return 0;
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
+
+  CurrentScriptDataStackVisitor visitor(this, frame_data);
+  // CurrentScriptData should only expose frames from the same origin.
+  VisitStack(this, &visitor, StackTrace::kDetailed, true);
   return visitor.FrameCount();
 }
 
@@ -3043,7 +3107,7 @@ HandlerTable::CatchPrediction PredictExceptionFromBytecode(
   HandlerTable table(bytecode);
   int handler_index = table.LookupHandlerIndexForRange(code_offset);
   if (handler_index < 0) return HandlerTable::UNCAUGHT;
-  return table.GetRangePrediction(handler_index);
+  return table.GetRangePrediction(static_cast<uint32_t>(handler_index));
 }
 
 HandlerTable::CatchPrediction PredictException(const FrameSummary& summary,
@@ -3167,8 +3231,9 @@ Tagged<Object> Isolate::ThrowIllegalOperation() {
 void Isolate::PrintCurrentStackTrace(
     std::ostream& out,
     PrintCurrentStackTraceFilterCallback should_include_frame_callback) {
-  DirectHandle<FixedArray> frames = CaptureSimpleStackTrace(
-      this, FixedArray::kMaxLength, SKIP_NONE, factory()->undefined_value());
+  DirectHandle<FixedArray> frames =
+      CaptureSimpleStackTrace(this, static_cast<int>(FixedArray::kMaxLength),
+                              SKIP_NONE, factory()->undefined_value());
 
   IncrementalStringBuilder builder(this);
   uint32_t frames_len = frames->ulength().value();
@@ -4038,17 +4103,25 @@ char* Isolate::RestoreThread(char* from) {
 
 void Isolate::ReleaseSharedPtrs() {
   base::MutexGuard lock(&managed_ptr_destructors_mutex_);
-  while (managed_ptr_destructors_head_) {
-    ManagedPtrDestructor* l = managed_ptr_destructors_head_;
-    ManagedPtrDestructor* n = nullptr;
-    managed_ptr_destructors_head_ = nullptr;
-    for (; l != nullptr; l = n) {
-      l->external_memory_accounter_.Decrease(
-          reinterpret_cast<v8::Isolate*>(this), l->estimated_size_);
-      l->destructor_(l->shared_ptr_ptr_);
-      n = l->next_;
-      delete l;
+
+  auto delete_pointers = [this](ManagedPtrDestructor** list) {
+    while (*list) {
+      ManagedPtrDestructor* l = *list;
+      ManagedPtrDestructor* n = nullptr;
+      *list = nullptr;
+      for (; l != nullptr; l = n) {
+        l->external_memory_accounter_.Decrease(
+            reinterpret_cast<v8::Isolate*>(this), l->estimated_size_);
+        l->destructor_(l->shared_ptr_ptr_);
+        n = l->next_;
+        delete l;
+      }
     }
+  };
+
+  delete_pointers(&managed_ptr_destructors_head_);
+  if (is_shared_space_isolate()) {
+    delete_pointers(&shared_managed_ptr_destructors_head_);
   }
 }
 
@@ -4062,23 +4135,39 @@ bool Isolate::IsBuiltinTableHandleLocation(Address* handle_location) {
 }
 
 void Isolate::RegisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
+  if (destructor->shared_ && !is_shared_space_isolate()) {
+    shared_space_isolate()->RegisterManagedPtrDestructor(destructor);
+    return;
+  }
+
   base::MutexGuard lock(&managed_ptr_destructors_mutex_);
   DCHECK_NULL(destructor->prev_);
   DCHECK_NULL(destructor->next_);
-  if (managed_ptr_destructors_head_) {
-    managed_ptr_destructors_head_->prev_ = destructor;
+  ManagedPtrDestructor** list = destructor->shared_
+                                    ? &shared_managed_ptr_destructors_head_
+                                    : &managed_ptr_destructors_head_;
+  if (*list) {
+    (*list)->prev_ = destructor;
   }
-  destructor->next_ = managed_ptr_destructors_head_;
-  managed_ptr_destructors_head_ = destructor;
+  destructor->next_ = *list;
+  *list = destructor;
 }
 
 void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
+  if (destructor->shared_ && !is_shared_space_isolate()) {
+    shared_space_isolate()->UnregisterManagedPtrDestructor(destructor);
+    return;
+  }
+
   base::MutexGuard lock(&managed_ptr_destructors_mutex_);
   if (destructor->prev_) {
     destructor->prev_->next_ = destructor->next_;
   } else {
-    DCHECK_EQ(destructor, managed_ptr_destructors_head_);
-    managed_ptr_destructors_head_ = destructor->next_;
+    ManagedPtrDestructor** list = destructor->shared_
+                                      ? &shared_managed_ptr_destructors_head_
+                                      : &managed_ptr_destructors_head_;
+    DCHECK_EQ(destructor, *list);
+    *list = destructor->next_;
   }
   if (destructor->next_) destructor->next_->prev_ = destructor->prev_;
   destructor->prev_ = nullptr;
@@ -4221,6 +4310,11 @@ Isolate::SwitchStacks<wasm::JumpBuffer::Retired, wasm::JumpBuffer::Inactive>(
     Address pc);
 
 void Isolate::RetireWasmStack(wasm::StackMemory* stack) {
+  if (!stack->stack_obj().is_null()) {
+    // Clear the owning {WasmStackObject}'s external pointer to prevent a UAF.
+    stack->stack_obj()->set_stack(this, nullptr);
+    stack->set_stack_obj({});
+  }
   size_t index = stack->index();
   // We can only return from a stack that was still in the global list.
   DCHECK_LT(index, wasm_stacks().size());
@@ -5109,7 +5203,7 @@ void Isolate::NotifyExceptionPropagationCallback() {
                 ext_callback_scope->callback_info());
 
         DirectHandle<Object> holder =
-            Utils::OpenDirectHandle(*callback_info->HolderV2());
+            Utils::OpenDirectHandle(*callback_info->Holder());
         DCHECK(IsJSReceiver(*holder));
 
         using PCA = PropertyCallbackArguments;
@@ -6792,6 +6886,7 @@ MaybeDirectHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
   v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
 
   switch (phase) {
+    case ModuleImportPhase::kDefer:
     case ModuleImportPhase::kEvaluation:
       if (host_import_module_dynamically_callback_ == nullptr &&
           host_import_module_with_phase_dynamically_callback_ == nullptr) {
@@ -6807,8 +6902,6 @@ MaybeDirectHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
         return NewRejectedPromise(this, api_context, exception);
       }
       break;
-    case ModuleImportPhase::kDefer:
-      UNREACHABLE();
   }
 
   DirectHandle<String> specifier_str;
@@ -6870,8 +6963,9 @@ MaybeDirectHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
             MaybeDirectHandle<JSPromise>());
       }
       break;
+    case ModuleImportPhase::kDefer:
     case ModuleImportPhase::kSource:
-      CHECK(v8_flags.js_source_phase_imports);
+      CHECK(v8_flags.js_source_phase_imports || v8_flags.js_defer_import_eval);
       CHECK_NOT_NULL(host_import_module_with_phase_dynamically_callback_);
       API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           this, promise,

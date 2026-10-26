@@ -201,6 +201,8 @@ class BrowserToPageConnector {
       connector_->AgentHostClosed(agent_host);
     }
 
+    bool MayAccessAllCookies() override { return true; }
+
     bool AllowUnsafeOperations() override {
       return permissions_.allow_unsafe_operations;
     }
@@ -605,6 +607,8 @@ class TargetHandler::Session : public DevToolsAgentHostClient {
     DCHECK(agent_host == agent_host_.get());
     Detach(true);
   }
+
+  bool MayAccessAllCookies() override { return true; }
 
   bool MayAttachToURL(const GURL& url, bool is_webui) override {
     return GetRootClient()->MayAttachToURL(url, is_webui);
@@ -1257,21 +1261,25 @@ void TargetHandler::ExposeDevToolsProtocol(
     std::unique_ptr<ExposeDevToolsProtocolCallback> callback) {
   if (access_mode_ != AccessMode::kBrowser) {
     callback->sendFailure(Response::InvalidParams(kNotAllowedError));
+    return;
   }
   scoped_refptr<DevToolsAgentHost> agent_host =
       DevToolsAgentHost::GetForId(target_id);
   if (!agent_host) {
     callback->sendFailure(Response::InvalidParams(kTargetNotFound));
+    return;
   }
 
   if (BrowserToPageConnector::GetInstanceMap()[agent_host.get()]) {
     callback->sendFailure(Response::ServerError(base::StringPrintf(
         "Target with id %s is already granted remote debugging bindings.",
         target_id.c_str())));
+    return;
   }
   if (!agent_host->GetWebContents()) {
     callback->sendFailure(Response::ServerError(
         "RemoteDebuggingBinding can be granted only to page targets"));
+    return;
   }
 
   BrowserConnectorHostClientPermissions permissions;

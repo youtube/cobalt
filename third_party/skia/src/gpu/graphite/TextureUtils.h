@@ -34,17 +34,18 @@ class Caps;
 class Context;
 class DrawContext;
 class Image;
+class Image_Base;
 class Recorder;
 class TextureProxyView;
 
-// Create TextureProxyView and SkColorType pair using pixel data in SkBitmap,
-// adding any necessary copy commands to Recorder
-std::tuple<TextureProxyView, SkColorType> MakeBitmapProxyView(Recorder*,
-                                                              const SkBitmap&,
-                                                              sk_sp<SkMipmap>,
-                                                              Mipmapped,
-                                                              skgpu::Budgeted,
-                                                              std::string_view label);
+// Create TextureProxyView using pixel data in SkBitmap, adding any necessary copy commands to
+// Recorder. This will fail if the color type does not have a supported texture format.
+TextureProxyView MakeBitmapProxyView(Recorder*,
+                                     const SkBitmap&,
+                                     sk_sp<SkMipmap>,
+                                     Mipmapped,
+                                     skgpu::Budgeted,
+                                     std::string_view label);
 
 sk_sp<TextureProxy> MakePromiseImageLazyProxy(const Caps*,
                                               SkISize dimensions,
@@ -55,14 +56,6 @@ sk_sp<TextureProxy> MakePromiseImageLazyProxy(const Caps*,
                                               SkImages::GraphitePromiseTextureFulfillContext,
                                               SkImages::GraphitePromiseTextureReleaseProc,
                                               std::string_view label);
-
-sk_sp<SkImage> MakeFromBitmap(Recorder*,
-                              const SkColorInfo&,
-                              const SkBitmap&,
-                              sk_sp<SkMipmap>,
-                              skgpu::Budgeted,
-                              SkImage::RequiredProperties,
-                              std::string_view label);
 
 // NOTE: This estimates a GPU size assuming the texture is not actually memoryless.
 size_t ComputeSize(SkISize dimensions, const TextureInfo&);
@@ -77,14 +70,14 @@ sk_sp<Image> CopyAsDraw(Recorder*,
                         SkBackingFit,
                         std::string_view label);
 
-sk_sp<SkImage> RescaleImage(Recorder*,
-                            const SkImage* srcImage,
-                            SkIRect srcIRect,
-                            const SkImageInfo& dstInfo,
-                            SkImage::RescaleGamma rescaleGamma,
-                            SkImage::RescaleMode rescaleMode);
+sk_sp<Image> RescaleImage(Recorder*,
+                          const Image_Base* srcImage,
+                          SkIRect srcIRect,
+                          const SkImageInfo& dstInfo,
+                          SkImage::RescaleGamma rescaleGamma,
+                          SkImage::RescaleMode rescaleMode);
 
-bool GenerateMipmaps(Recorder*, DrawContext*, sk_sp<TextureProxy>, const SkColorInfo&);
+bool GenerateMipmaps(Recorder*, DrawContext*, sk_sp<TextureProxy>);
 
 // Returns the underlying TextureProxyView if it's a non-YUVA Graphite-backed image.
 TextureProxyView AsView(const SkImage*);

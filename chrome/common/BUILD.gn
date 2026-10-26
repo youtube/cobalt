@@ -55,7 +55,6 @@ buildflag_header("buildflags") {
     "ENABLE_BACKGROUND_CONTENTS=$enable_background_contents",
     "ENABLE_CHROME_NOTIFICATIONS=$enable_chrome_notifications",
     "ENABLE_DOWNGRADE_PROCESSING=$enable_downgrade_processing",
-    "ENABLE_GLIC=$enable_glic",
     "ENABLE_HANGOUT_SERVICES_EXTENSION=$enable_hangout_services_extension",
     "ENABLE_PDF_SAVE_TO_DRIVE=$enable_pdf_save_to_drive",
     "ENABLE_SERVICE_DISCOVERY=$enable_service_discovery",
@@ -502,7 +501,10 @@ component("chrome_features") {
 }
 
 static_library("url_constants") {
-  visibility = [ "//chrome/common/*" ]
+  visibility = [
+    "//chrome/browser/contextual_tasks/*",
+    "//chrome/common/*",
+  ]
   sources = [
     "url_constants.h",
     "webui_url_constants.cc",
@@ -731,14 +733,6 @@ mojom("mojo_bindings") {
 
   enabled_features = []
 
-  if (enable_glic) {
-    enabled_features += [ "enable_glic" ]
-  }
-
-  if (enable_glic) {
-    enabled_features += [ "enable_glic" ]
-  }
-
   if (skip_android_unmigrated_actor_files) {
     enabled_features += [ "skip_android_unmigrated_actor_files" ]
   }
@@ -762,6 +756,10 @@ mojom("mojo_bindings") {
       "//chrome/services/mac_notifications/public/mojom",
       "//components/remote_cocoa/common:mojo",
     ]
+  }
+
+  if (!is_android) {
+    sources += [ "indigo/indigo.mojom" ]
   }
 
   if (safe_browsing_mode == 1) {

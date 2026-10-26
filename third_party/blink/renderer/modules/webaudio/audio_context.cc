@@ -110,7 +110,8 @@ void RecordMediaPlaybackInterruptionType(AudioContextInterruptionType type) {
       "WebAudio.AudioContext.MediaPlaybackWhileNotVisible.InterruptionType",
       type);
 }
-const char* LatencyCategoryToString(
+
+StringView LatencyCategoryToString(
     WebAudioLatencyHint::AudioContextLatencyCategory category) {
   switch (category) {
     case WebAudioLatencyHint::kCategoryInteractive:
@@ -123,14 +124,17 @@ const char* LatencyCategoryToString(
       return "exact";
     case WebAudioLatencyHint::kLastValue:
       return "invalid";
+    default:
+      NOTREACHED();
   }
 }
 
 String GetAudioContextLogString(const WebAudioLatencyHint& latency_hint,
                                 std::optional<float> sample_rate) {
   StringBuilder builder;
-  UNSAFE_TODO(builder.AppendFormat(
-      "({latency_hint=%s}", LatencyCategoryToString(latency_hint.Category())));
+  builder.Append("({latency_hint=");
+  builder.Append(LatencyCategoryToString(latency_hint.Category()));
+  builder.Append("}");
   if (latency_hint.Category() == WebAudioLatencyHint::kCategoryExact) {
     builder.AppendFormat(", {seconds=%.3f}", latency_hint.Seconds());
   }
@@ -506,6 +510,14 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
   AudioContext* audio_context = MakeGarbageCollected<AudioContext>(
       window, latency_hint, sample_rate, sink_descriptor,
       update_echo_cancellation_on_first_start, render_quantum_frames);
+
+  if (audio_context->HasAllocationFailed()) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kNotSupportedError,
+        "The context could not be created due to memory limitation.");
+    return nullptr;
+  }
+
   ++hardware_context_count;
   audio_context->UpdateStateIfNeeded();
 

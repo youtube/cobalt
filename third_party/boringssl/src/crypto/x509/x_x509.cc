@@ -35,7 +35,7 @@
 
 using namespace bssl;
 
-static CRYPTO_EX_DATA_CLASS g_ex_data_class = CRYPTO_EX_DATA_CLASS_INIT;
+static ExDataClass g_ex_data_class;
 
 static constexpr CBS_ASN1_TAG kVersionTag =
     CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 0;
@@ -55,10 +55,9 @@ X509Impl::X509Impl() : RefCounted(CheckSubClass()) {
   x509_algor_init(&sig_alg);
   asn1_string_init(&signature, V_ASN1_BIT_STRING);
   CRYPTO_new_ex_data(&ex_data);
-  CRYPTO_MUTEX_init(&lock);
 }
 
-X509 *X509_new() { return NewZeroed<X509Impl>(); }
+X509 *X509_new() { return New<X509Impl>(); }
 
 X509Impl::~X509Impl() {
   CRYPTO_free_ex_data(&g_ex_data_class, &ex_data);
@@ -82,7 +81,6 @@ X509Impl::~X509Impl() {
   GENERAL_NAMES_free(altname);
   NAME_CONSTRAINTS_free(nc);
   X509_CERT_AUX_free(aux);
-  CRYPTO_MUTEX_cleanup(&lock);
 }
 
 void X509_free(X509 *x509) {

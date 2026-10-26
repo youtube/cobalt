@@ -78,6 +78,7 @@ source_set("core_keyed_service_factories") {
   deps = [
     "//components/guest_view/buildflags",
     "//extensions/browser:browser_sources",
+    "//extensions/browser:crx_installer",
     "//extensions/browser/updater",
     "//extensions/buildflags",
   ]
@@ -241,6 +242,8 @@ source_set("browser_sources") {
     "content_hash_reader.h",
     "content_hash_tree.cc",
     "content_hash_tree.h",
+    "content_settings_extension_install_time_permission_provider.cc",
+    "content_settings_extension_install_time_permission_provider.h",
     "content_verifier/content_hash.cc",
     "content_verifier/content_hash.h",
     "content_verifier/content_verifier.cc",
@@ -534,6 +537,8 @@ source_set("browser_sources") {
     "service_worker/worker_id_set.h",
     "service_worker_manager.cc",
     "service_worker_manager.h",
+    "shared_module_service.cc",
+    "shared_module_service.h",
     "state_store.cc",
     "state_store.h",
     "state_store_test_observer.cc",
@@ -791,8 +796,6 @@ source_set("browser_sources") {
     sources += [
       "api/device_permissions_manager.cc",
       "api/device_permissions_manager.h",
-      "api/device_permissions_prompt.cc",
-      "api/device_permissions_prompt.h",
       "api/hid/hid_api.cc",
       "api/hid/hid_api.h",
       "api/hid/hid_connection_resource.cc",
@@ -805,6 +808,8 @@ source_set("browser_sources") {
       "api/usb/usb_device_manager.h",
       "api/usb/usb_device_resource.cc",
       "api/usb/usb_device_resource.h",
+      "api/usb_device_permissions_prompt.cc",
+      "api/usb_device_permissions_prompt.h",
     ]
 
     deps += [ "//services/device/public/cpp/hid" ]
@@ -838,6 +843,30 @@ source_set("keepalive") {
     "scoped_extension_keep_alive.cc",
     "scoped_extension_keep_alive.h",
   ]
+}
+
+source_set("crx_installer") {
+  sources = [
+    "crx_installer.cc",
+    "crx_installer.h",
+  ]
+
+  deps = [
+    ":browser_sources",
+    "//build:chromeos_buildflags",
+    "//components/keyed_service/content",
+    "//components/sync/model",
+    "//content/public/browser",
+    "//extensions/browser:keepalive",
+    "//extensions/browser/forced_extensions",
+    "//extensions/buildflags",
+    "//extensions/common",
+    "//extensions/strings",
+  ]
+
+  if (is_chromeos) {
+    deps += [ "//components/user_manager" ]
+  }
 }
 
 source_set("test_support") {
@@ -992,6 +1021,7 @@ source_set("unit_tests") {
     "computed_hashes_unittest.cc",
     "content_hash_fetcher_unittest.cc",
     "content_hash_tree_unittest.cc",
+    "content_settings_extension_install_time_permission_provider_unittest.cc",
     "content_verifier/content_hash_unittest.cc",
     "content_verifier/content_verifier_unittest.cc",
     "content_verifier/content_verifier_utils_unittest.cc",

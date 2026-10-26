@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "components/startup_metric_utils/browser/startup_metric_utils.h"
 
 #include <stddef.h>
@@ -19,6 +14,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/dcheck_is_on.h"
 #include "base/location.h"
 #include "base/metrics/histogram_functions.h"
@@ -147,6 +143,31 @@ void BrowserStartupMetricRecorder::EmitHistogramWithTemperatureAndTraceEvent(
   GetCommon().EmitTraceEvent(histogram_basename, begin_ticks, end_ticks);
 }
 
+void BrowserStartupMetricRecorder::EmitBrowserWindowDisplayHistogram() {
+  if (is_browser_window_display_metric_emitted_) {
+    return;
+  }
+
+  // The metric requires the message loop to have started so that the startup
+  // temperature evaluation has run.
+  if (browser_window_display_ticks_.is_null() ||
+      message_loop_start_ticks_.is_null()) {
+    return;
+  }
+
+  // Skip logging if the main window startup was interrupted, e.g., by
+  // --silent-launch, profile picker, or bad flags prompt.
+  if (!ShouldLogStartupHistogram()) {
+    return;
+  }
+
+  is_browser_window_display_metric_emitted_ = true;
+
+  EmitHistogramWithTemperatureAndTraceEvent(
+      &base::UmaHistogramLongTimes, "Startup.BrowserWindowDisplay",
+      GetCommon().application_start_ticks_, browser_window_display_ticks_);
+}
+
 BrowserStartupMetricRecorder& GetBrowser() {
   // If this ceases to be true, Get{Common,Browser} need to be changed to use
   // base::NoDestructor.
@@ -220,7 +241,8 @@ BrowserStartupMetricRecorder::GetHardFaultCountForCurrentProcess() {
   while (index < buffer.size()) {
     DCHECK_LE(index + sizeof(SYSTEM_PROCESS_INFORMATION_EX), buffer.size());
     SYSTEM_PROCESS_INFORMATION_EX* proc_info =
-        reinterpret_cast<SYSTEM_PROCESS_INFORMATION_EX*>(buffer.data() + index);
+        UNSAFE_TODO(reinterpret_cast<SYSTEM_PROCESS_INFORMATION_EX*>(
+            buffer.data() + index));
     if (base::win::HandleToUint32(proc_info->UniqueProcessId) == proc_id) {
       return proc_info->HardFaultCount;
     }
@@ -247,6 +269,7 @@ void BrowserStartupMetricRecorder::ResetSessionForTesting() {
   is_privacy_sandbox_attestations_component_ready_recorded_ = false;
   is_privacy_sandbox_attestations_first_check_recorded_ = false;
   is_first_run_ = false;
+  is_browser_window_display_metric_emitted_ = false;
 }
 
 bool BrowserStartupMetricRecorder::WasMainWindowStartupInterrupted() const {
@@ -301,11 +324,7 @@ void BrowserStartupMetricRecorder::RecordBrowserMainMessageLoopStart(
   GetCommon().AddStartupEventsForTelemetry();
 
   // Record values stored prior to startup temperature evaluation.
-  if (ShouldLogStartupHistogram() && !browser_window_display_ticks_.is_null()) {
-    EmitHistogramWithTemperatureAndTraceEvent(
-        &base::UmaHistogramLongTimes, "Startup.BrowserWindowDisplay",
-        GetCommon().application_start_ticks_, browser_window_display_ticks_);
-  }
+  EmitBrowserWindowDisplayHistogram();
 
   // Process creation to application start. See comment above
   // RecordApplicationStart().
@@ -352,6 +371,7 @@ void BrowserStartupMetricRecorder::RecordBrowserWindowDisplay(
     base::TimeTicks ticks) {
   DCHECK(!ticks.is_null());
 
+  // Return if it has already been recorded.
   if (!browser_window_display_ticks_.is_null()) {
     return;
   }
@@ -364,6 +384,8 @@ void BrowserStartupMetricRecorder::RecordBrowserWindowDisplay(
   // these cases, the value will not be recorded, which is the desired behavior
   // for a non-conventional launch.
   browser_window_display_ticks_ = ticks;
+
+  EmitBrowserWindowDisplayHistogram();
 }
 
 void BrowserStartupMetricRecorder::RecordBrowserWindowFirstPaintTicks(

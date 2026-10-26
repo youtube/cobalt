@@ -344,7 +344,7 @@ AudioEncoder::EncodedInfo AudioEncoderMultiChannelOpusImpl::EncodeImpl(
   if (input_buffer_.empty())
     first_timestamp_in_buffer_ = rtp_timestamp;
 
-  input_buffer_.insert(input_buffer_.end(), audio.cbegin(), audio.cend());
+  input_buffer_.insert(input_buffer_.end(), audio.begin(), audio.end());
   if (input_buffer_.size() <
       (Num10msFramesPerPacket() * SamplesPer10msFrame())) {
     return EncodedInfo();

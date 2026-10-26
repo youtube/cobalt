@@ -108,7 +108,9 @@ class TestManager : public InfoBarManager {
   ~TestManager() override = default;
 
   int GetActiveEntryID() override { return 0; }
-  void OpenURL(const GURL&, WindowOpenDisposition) override {}
+  void OpenURL(const GURL&,
+               WindowOpenDisposition,
+               const std::string&) override {}
 
   using InfoBarManager::AddInfoBar;
   using InfoBarManager::RemoveInfoBar;
@@ -537,6 +539,9 @@ TEST_F(InfoBarContainerWithPriorityTest, UmaStarvedCountRecorded) {
 
   histogram_tester_.ExpectUniqueSample("InfoBar.Prioritization.StarvedCount", 3,
                                        1);
+  histogram_tester_.ExpectBucketCount(
+      "InfoBar.Prioritization.Starved",
+      InfoBarDelegate::ALTERNATE_NAV_INFOBAR_DELEGATE, 3);
 }
 
 TEST_F(InfoBarContainerWithPriorityTest, NoAnimationOnManagerChange) {

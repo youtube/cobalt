@@ -20,6 +20,7 @@ static_library("safe_browsing") {
 
   public_deps = [
     "//chrome/browser:browser_public_dependencies",
+    "//chrome/browser/metrics",
     "//chrome/browser/notifications",
   ]
 
@@ -33,6 +34,7 @@ static_library("safe_browsing") {
     "//chrome/browser/history",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/password_manager/factories",
+    "//chrome/browser/preloading/prefetch/no_state_prefetch",
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles:profile_io_data",
@@ -43,6 +45,7 @@ static_library("safe_browsing") {
     "//chrome/common",
     "//chrome/common:constants",
     "//components/browser_sync",
+    "//components/content_settings/browser/ui",
     "//components/enterprise",
     "//components/enterprise/buildflags",
     "//components/enterprise/common:strings",
@@ -158,10 +161,14 @@ static_library("safe_browsing") {
       "client_side_detection_intelligent_scan_delegate_util.h",
       "client_side_detection_service_factory.cc",
       "client_side_detection_service_factory.h",
+      "cloud_content_scanning/cloud_binary_upload_service.cc",
+      "cloud_content_scanning/cloud_binary_upload_service.h",
+      "cloud_content_scanning/cloud_binary_upload_service_factory.cc",
+      "cloud_content_scanning/cloud_binary_upload_service_factory.h",
+      "cloud_content_scanning/deep_scanning_utils.cc",
+      "cloud_content_scanning/deep_scanning_utils.h",
       "cloud_content_scanning/file_analysis_request.cc",
       "cloud_content_scanning/file_analysis_request.h",
-      "cloud_content_scanning/file_opening_job.cc",
-      "cloud_content_scanning/file_opening_job.h",
       "delayed_warning_navigation_throttle.cc",
       "delayed_warning_navigation_throttle.h",
       "download_protection/check_client_download_request.cc",
@@ -172,6 +179,8 @@ static_library("safe_browsing") {
       "download_protection/check_file_system_access_write_request.h",
       "download_protection/deep_scanning_metadata.cc",
       "download_protection/deep_scanning_metadata.h",
+      "download_protection/deep_scanning_request.cc",
+      "download_protection/deep_scanning_request.h",
       "download_protection/download_item_metadata.cc",
       "download_protection/download_item_metadata.h",
       "download_protection/download_protection_delegate.cc",
@@ -208,9 +217,6 @@ static_library("safe_browsing") {
       "notification_telemetry/notification_telemetry_service.h",
       "notification_telemetry/notification_telemetry_service_factory.cc",
       "notification_telemetry/notification_telemetry_service_factory.h",
-      "notification_telemetry/notification_telemetry_store.cc",
-      "notification_telemetry/notification_telemetry_store.h",
-      "notification_telemetry/notification_telemetry_store_interface.h",
       "phishy_interaction_tracker.cc",
       "phishy_interaction_tracker.h",
       "safe_browsing_navigation_observer_manager_factory.cc",
@@ -264,6 +270,7 @@ static_library("safe_browsing") {
       "//chrome/browser/profiles",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/search_engines",
+      "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/safety_hub",
       "//chrome/common/safe_browsing:archive_analyzer_results",
       "//chrome/common/safe_browsing:binary_feature_extractor",
@@ -321,6 +328,8 @@ static_library("safe_browsing") {
       "//services/preferences/public/mojom",
     ]
 
+    public_deps += [ "//chrome/browser/security_events" ]
+
     allow_circular_includes_from += [ "//chrome/browser/ui/safety_hub" ]
     if (safe_browsing_mode == 1) {
       # "Safe Browsing Full" files in addition to the "basic" ones to use for
@@ -328,14 +337,6 @@ static_library("safe_browsing") {
       sources += [
         "chrome_safe_browsing_hats_delegate.cc",
         "chrome_safe_browsing_hats_delegate.h",
-        "cloud_content_scanning/cloud_binary_upload_service.cc",
-        "cloud_content_scanning/cloud_binary_upload_service.h",
-        "cloud_content_scanning/cloud_binary_upload_service_factory.cc",
-        "cloud_content_scanning/cloud_binary_upload_service_factory.h",
-        "cloud_content_scanning/deep_scanning_utils.cc",
-        "cloud_content_scanning/deep_scanning_utils.h",
-        "download_protection/deep_scanning_request.cc",
-        "download_protection/deep_scanning_request.h",
         "download_protection/download_feedback.cc",
         "download_protection/download_feedback.h",
         "download_protection/download_feedback_service.cc",
@@ -344,6 +345,8 @@ static_library("safe_browsing") {
         "download_protection/download_protection_delegate_desktop.h",
         "download_protection/path_sanitizer.cc",
         "download_protection/path_sanitizer.h",
+        "extension_telemetry/activity_log_ingester.cc",
+        "extension_telemetry/activity_log_ingester.h",
         "extension_telemetry/cookies_get_all_signal.cc",
         "extension_telemetry/cookies_get_all_signal.h",
         "extension_telemetry/cookies_get_all_signal_processor.cc",
@@ -360,6 +363,10 @@ static_library("safe_browsing") {
         "extension_telemetry/declarative_net_request_signal.h",
         "extension_telemetry/declarative_net_request_signal_processor.cc",
         "extension_telemetry/declarative_net_request_signal_processor.h",
+        "extension_telemetry/dom_access_signal.cc",
+        "extension_telemetry/dom_access_signal.h",
+        "extension_telemetry/dom_access_signal_processor.cc",
+        "extension_telemetry/dom_access_signal_processor.h",
         "extension_telemetry/extension_js_callstacks.cc",
         "extension_telemetry/extension_js_callstacks.h",
         "extension_telemetry/extension_signal.h",
@@ -388,6 +395,10 @@ static_library("safe_browsing") {
         "extension_telemetry/remote_host_contacted_signal.h",
         "extension_telemetry/remote_host_contacted_signal_processor.cc",
         "extension_telemetry/remote_host_contacted_signal_processor.h",
+        "extension_telemetry/script_injection_signal.cc",
+        "extension_telemetry/script_injection_signal.h",
+        "extension_telemetry/script_injection_signal_processor.cc",
+        "extension_telemetry/script_injection_signal_processor.h",
         "extension_telemetry/search_hijacking_detector.cc",
         "extension_telemetry/search_hijacking_detector.h",
         "extension_telemetry/tabs_api_signal.cc",
@@ -460,6 +471,7 @@ static_library("safe_browsing") {
           "incident_reporting/module_integrity_verifier_win.h",
           "incident_reporting/platform_state_store_win.cc",
         ]
+        deps += [ "//chrome/browser/install_verification" ]
       }
 
       deps += [
@@ -470,6 +482,7 @@ static_library("safe_browsing") {
         "//chrome/app/vector_icons",
         "//chrome/browser/ui/hats",
         "//chrome/common",
+        "//chrome/common/extensions",
         "//chrome/services/file_util/public/cpp",
         "//components/content_settings/core/browser",
         "//components/enterprise/connectors/core:cloud_content_scanning",
@@ -660,12 +673,17 @@ source_set("unit_tests") {
 
   deps = [
     ":safe_browsing",
+    "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/safe_browsing:advanced_protection",
+    "//chrome/browser/site_protection:utils",
     "//chrome/test:test_support",
+    "//components/content_settings/core/browser",
+    "//components/content_settings/core/common",
     "//components/safe_browsing/core/common",
     "//components/safe_browsing/core/common:safe_browsing_prefs",
     "//components/signin/public/identity_manager:test_support",
     "//components/sync_preferences:test_support",
+    "//content/public/common",
     "//content/test:test_support",
     "//testing/gtest",
   ]

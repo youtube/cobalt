@@ -52,16 +52,16 @@ suite('<history-item> unit test', function() {
     assertEquals(1, selectionCount);
 
     // Non-interactive text should trigger selection.
-    item.$['time-accessed'].click();
+    item.$.timeAccessed.click();
     assertEquals(2, selectionCount);
 
     // Menu button should not trigger selection.
-    item.$['menu-button'].click();
+    item.$.menuButton.click();
     assertEquals(2, selectionCount);
   });
 
   test('title changes with item', async function() {
-    const time = item.$['time-accessed'];
+    const time = item.$.timeAccessed;
     assertEquals('', time.title);
 
     time.dispatchEvent(new CustomEvent('mouseover'));
@@ -110,17 +110,16 @@ suite('<history-item> integration test', function() {
     assertFalse(items[5]!.hasTimeGap);
   });
 
-  test('separator insertion for search', function() {
+  test('separator insertion for search', async function() {
     element.addNewResults(SEARCH_HISTORY_RESULTS, false, true);
     element.searchedTerm = 'search';
 
-    return microtasksFinished().then(function() {
-      const items = element.shadowRoot.querySelectorAll('history-item');
+    await microtasksFinished();
+    const items = element.shadowRoot.querySelectorAll('history-item');
 
-      assertTrue(items[0]!.hasTimeGap, '0');
-      assertFalse(items[1]!.hasTimeGap, '1');
-      assertFalse(items[2]!.hasTimeGap, '2');
-    });
+    assertTrue(items[0]!.hasTimeGap, '0');
+    assertFalse(items[1]!.hasTimeGap, '1');
+    assertFalse(items[2]!.hasTimeGap, '2');
   });
 
   test('separator insertion after deletion', async function() {
@@ -195,21 +194,5 @@ suite('<history-item> integration test', function() {
         items[5]!.shadowRoot.querySelector<HTMLElement>('#bookmark-star')));
   });
 
-  // TODO(b/441040053): Clean up once kBrowsingHistoryActorIntegrationM1 is
-  // launched.
-  test('actor-initiated visit annotation disabled', async function() {
-    loadTimeData.overrideValues(
-        {enableBrowsingHistoryActorIntegrationM1: false});
 
-    const newResults = [...TEST_HISTORY_RESULTS];
-    // Actor initiated history visit.
-    newResults[0]!.isActorVisit = true;
-    element.addNewResults(newResults, false, true);
-    await microtasksFinished();
-
-    const items = element.shadowRoot.querySelectorAll('history-item');
-    assertEquals(TEST_HISTORY_RESULTS.length, items.length);
-    assertFalse(isVisible(
-        items[0]!.shadowRoot.querySelector<HTMLElement>('#actor-icon')));
-  });
 });

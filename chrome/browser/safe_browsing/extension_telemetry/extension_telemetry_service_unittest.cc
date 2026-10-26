@@ -19,7 +19,9 @@
 #include "chrome/browser/extensions/test_extension_system.h"
 #include "chrome/browser/policy/dm_token_utils.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/cookies_get_signal.h"
+#include "chrome/browser/safe_browsing/extension_telemetry/dom_access_signal.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/extension_telemetry_uploader.h"
+#include "chrome/browser/safe_browsing/extension_telemetry/script_injection_signal.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/search_hijacking_detector.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/tabs_execute_script_signal.h"
 #include "chrome/browser/safe_browsing/test_extension_event_observer.h"
@@ -49,6 +51,7 @@
 #include "extensions/browser/pref_names.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
+#include "extensions/common/extension_features.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/switches.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
@@ -181,6 +184,10 @@ class ExtensionTelemetryServiceTest : public ::testing::Test {
 
   std::unique_ptr<ExtensionInfo> GetExtensionInfo(const Extension& extension) {
     return telemetry_service_->GetExtensionInfoForReport(extension);
+  }
+
+  bool HasActivityLogIngester() {
+    return telemetry_service_->activity_log_ingester_ != nullptr;
   }
 
   // Create telemetry service instance.
@@ -399,6 +406,48 @@ TEST_F(ExtensionTelemetryServiceTest, CheckEnableConditionsForEnterprise) {
   EXPECT_FALSE(IsTelemetryServiceEnabledForEnterprise());
 }
 
+TEST_F(ExtensionTelemetryServiceTest, CheckDOMActivityLoggingState) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      extensions_features::kEnterpriseExtensionDOMActivityTelemetry);
+
+  // Start with enterprise disabled.
+  EXPECT_FALSE(HasActivityLogIngester());
+
+  // Enable overall enterprise policy.
+  enterprise_connectors::test::SetOnSecurityEventReporting(
+      /*prefs=*/prefs(),
+      /*enabled=*/true,
+      /*enabled_event_names=*/{},
+      /*enabled_opt_in_events=*/
+      {{enterprise_connectors::kExtensionTelemetryEvent, {"*"}}});
+  EXPECT_TRUE(IsTelemetryServiceEnabledForEnterprise());
+
+  // Ingester shouldn't be active yet because the DOM pref is false by default.
+  EXPECT_FALSE(HasActivityLogIngester());
+
+  // Enable DOM activity logging pref.
+  prefs()->SetBoolean(prefs::kExtensionDOMActivityLoggingEnabled, true);
+
+  // Now it should be created.
+  EXPECT_TRUE(HasActivityLogIngester());
+
+  // Disable the pref.
+  prefs()->SetBoolean(prefs::kExtensionDOMActivityLoggingEnabled, false);
+  EXPECT_FALSE(HasActivityLogIngester());
+
+  // Re-enable pref, but disable enterprise overall.
+  prefs()->SetBoolean(prefs::kExtensionDOMActivityLoggingEnabled, true);
+  EXPECT_TRUE(HasActivityLogIngester());
+
+  enterprise_connectors::test::SetOnSecurityEventReporting(
+      /*prefs=*/prefs(),
+      /*enabled=*/false,
+      /*enabled_event_names=*/{},
+      /*enabled_opt_in_events=*/{});
+  EXPECT_FALSE(HasActivityLogIngester());
+}
+
 TEST_F(ExtensionTelemetryServiceTest, ProcessesSignal) {
   PrimeTelemetryServiceWithSignal();
   // Verify that the registered extension information is saved in the
@@ -433,6 +482,70 @@ TEST_F(ExtensionTelemetryServiceTest, ProcessesSignalForEnterprise) {
   EXPECT_EQ(info->install_timestamp_msec(),
             GetLastUpdateTime(extension_prefs_, kExtensionId[0])
                 .InMillisecondsSinceUnixEpoch());
+}
+
+TEST_F(ExtensionTelemetryServiceTest, ProcessesDOMAccessSignalForEnterprise) {
+  // Enable enterprise telemetry.
+  enterprise_connectors::test::SetOnSecurityEventReporting(
+      /*prefs=*/prefs(),
+      /*enabled=*/true,
+      /*enabled_event_names=*/{},
+      /*enabled_opt_in_events=*/
+      {{enterprise_connectors::kExtensionTelemetryEvent, {"*"}}});
+
+  // Re-create telemetry service so it initializes the enterprise processors.
+  telemetry_service_ = CreateTelemetryService(&profile_);
+
+  // Add a DOM access signal.
+  auto signal = std::make_unique<DOMAccessSignal>(
+      kExtensionId[0], "Document.cookie", "http://www.example.com",
+      DOMAccessSignal::DOMAccess::READ, base::Time::Now());
+  telemetry_service_->AddSignal(std::move(signal));
+
+  // Verify that the signal is correctly recorded in the enterprise report.
+  std::unique_ptr<TelemetryReport> report = GetTelemetryReportForEnterprise();
+  ASSERT_NE(report, nullptr);
+  ASSERT_EQ(report->reports_size(), 1);
+  const auto& extension_report = report->reports(0);
+  ASSERT_EQ(extension_report.signals_size(), 1);
+  const auto& signal_info = extension_report.signals(0);
+  ASSERT_TRUE(signal_info.has_dom_access_info());
+  EXPECT_EQ(signal_info.dom_access_info().dom_accesses_size(), 1);
+  EXPECT_EQ(signal_info.dom_access_info().dom_accesses(0).api_name(),
+            "Document.cookie");
+}
+
+TEST_F(ExtensionTelemetryServiceTest,
+       ProcessesScriptInjectionSignalForEnterprise) {
+  // Enable enterprise telemetry.
+  enterprise_connectors::test::SetOnSecurityEventReporting(
+      /*prefs=*/prefs(),
+      /*enabled=*/true,
+      /*enabled_event_names=*/{},
+      /*enabled_opt_in_events=*/
+      {{enterprise_connectors::kExtensionTelemetryEvent, {"*"}}});
+
+  // Re-create telemetry service so it initializes the enterprise processors.
+  telemetry_service_ = CreateTelemetryService(&profile_);
+
+  // Add a script injection signal.
+  auto signal = std::make_unique<ScriptInjectionSignal>(
+      kExtensionId[0], "blinkSetAttribute", "http://www.example.com",
+      std::vector<std::string>{"src", "<arg_url>"}, "http://evil.com/js",
+      base::Time::Now());
+  telemetry_service_->AddSignal(std::move(signal));
+
+  // Verify that the signal is correctly recorded in the enterprise report.
+  std::unique_ptr<TelemetryReport> report = GetTelemetryReportForEnterprise();
+  ASSERT_NE(report, nullptr);
+  ASSERT_EQ(report->reports_size(), 1);
+  const auto& extension_report = report->reports(0);
+  ASSERT_EQ(extension_report.signals_size(), 1);
+  const auto& signal_info = extension_report.signals(0);
+  ASSERT_TRUE(signal_info.has_script_injection_info());
+  EXPECT_EQ(signal_info.script_injection_info().script_injections_size(), 1);
+  EXPECT_EQ(signal_info.script_injection_info().script_injections(0).api_name(),
+            "blinkSetAttribute");
 }
 
 TEST_F(ExtensionTelemetryServiceTest, DiscardsInvalidSignal) {

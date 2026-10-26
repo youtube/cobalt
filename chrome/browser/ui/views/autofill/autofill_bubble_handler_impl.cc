@@ -15,7 +15,7 @@
 #include "chrome/browser/ui/autofill/payments/save_card_ui.h"
 #include "chrome/browser/ui/autofill/payments/save_iban_ui.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/page_action/page_action_icon_type.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/autofill/address_sign_in_promo_view.h"
 #include "chrome/browser/ui/views/autofill/autofill_ai/autofill_ai_import_data_bubble_view.h"
@@ -26,7 +26,6 @@
 #include "chrome/browser/ui/views/autofill/payments/mandatory_reauth_confirmation_bubble_view.h"
 #include "chrome/browser/ui/views/autofill/payments/mandatory_reauth_opt_in_bubble_view.h"
 #include "chrome/browser/ui/views/autofill/payments/offer_notification_bubble_views.h"
-#include "chrome/browser/ui/views/autofill/payments/offer_notification_icon_view.h"
 #include "chrome/browser/ui/views/autofill/payments/save_card_bubble_views.h"
 #include "chrome/browser/ui/views/autofill/payments/save_card_manage_cards_bubble_views.h"
 #include "chrome/browser/ui/views/autofill/payments/save_card_offer_bubble_views.h"
@@ -36,9 +35,8 @@
 #include "chrome/browser/ui/views/autofill/payments/virtual_card_enroll_icon_view.h"
 #include "chrome/browser/ui/views/autofill/save_address_profile_view.h"
 #include "chrome/browser/ui/views/autofill/update_address_profile_view.h"
+#include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
-#include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
-#include "chrome/browser/ui/views/page_action/page_action_view.h"
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/content/browser/content_autofill_driver_factory.h"
@@ -47,6 +45,7 @@
 #include "components/autofill/core/browser/ui/payments/virtual_card_enroll_bubble_controller.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/constrained_window/constrained_window_views.h"
+#include "ui/base/interaction/element_identifier.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 
 namespace autofill {
@@ -57,27 +56,16 @@ template <typename View, typename... Args>
   requires(std::derived_from<View, AutofillLocationBarBubble>)
 View* ShowBubble(ToolbarButtonProvider* toolbar_button_provider,
                  std::optional<actions::ActionId> action_id,
-                 PageActionIconType page_action_icon_type,
+                 ui::ElementIdentifier highlight_element,
                  bool is_user_gesture,
                  Args&&... args) {
   views::BubbleAnchor const anchor_view =
       toolbar_button_provider->GetBubbleAnchor(action_id);
   auto bubble =
       std::make_unique<View>(anchor_view, std::forward<Args>(args)...);
-  // Handle view-based anchors for icon highlighting.
-  auto* view = std::get_if<views::View*>(&anchor_view);
-  if (view && !views::Button::AsButton(*view)) {
-    views::Button* icon_view;
-    if (IsPageActionMigrated(page_action_icon_type)) {
-      CHECK(action_id.has_value());
-      icon_view = toolbar_button_provider->GetPageActionView(action_id.value());
-    } else {
-      icon_view =
-          toolbar_button_provider->GetPageActionIconView(page_action_icon_type);
-    }
-
-    CHECK(icon_view);
-    bubble->SetHighlightedButton(icon_view);
+  // Handle anchors for icon highlighting.
+  if (!bubble_anchor_util::IsHighlightable(anchor_view)) {
+    bubble->SetHighlightedElement(highlight_element);
   }
 
   View* const bubble_ptr = bubble.get();
@@ -102,7 +90,7 @@ View* ShowAddressProfileBubble(ToolbarButtonProvider* toolbar_button_provider,
                                Args&&... args) {
   return ShowBubble<View>(toolbar_button_provider,
                           kActionShowAddressesBubbleOrPage,
-                          PageActionIconType::kAutofillAddress, is_user_gesture,
+                          kAutofillAddressPageActionElementId, is_user_gesture,
                           std::forward<Args>(args)...);
 }
 
@@ -126,13 +114,13 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowSaveCreditCardBubble(
     case PaymentsBubbleType::kUploadInProgress:
       return ShowBubble<SaveCardOfferBubbleViews>(
           toolbar_button_provider_, kActionShowPaymentsBubbleOrPage,
-          PageActionIconType::kSaveCard, is_user_gesture, web_contents,
-          controller);
+          kAutofillSavePaymentsPageActionElementId, is_user_gesture,
+          web_contents, controller);
     case PaymentsBubbleType::kManageCards:
       return ShowBubble<SaveCardManageCardsBubbleViews>(
           toolbar_button_provider_, kActionShowPaymentsBubbleOrPage,
-          PageActionIconType::kSaveCard, is_user_gesture, web_contents,
-          controller);
+          kAutofillSavePaymentsPageActionElementId, is_user_gesture,
+          web_contents, controller);
     case PaymentsBubbleType::kUploadComplete:
     case PaymentsBubbleType::kInactive:
       break;
@@ -151,13 +139,13 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowIbanBubble(
     case IbanBubbleType::kUploadInProgress:
       return ShowBubble<SaveIbanBubbleView>(
           toolbar_button_provider_, kActionShowPaymentsBubbleOrPage,
-          PageActionIconType::kSaveIban, is_user_gesture, web_contents,
-          controller);
+          kAutofillSavePaymentsPageActionElementId, is_user_gesture,
+          web_contents, controller);
     case IbanBubbleType::kManageSavedIban:
       return ShowBubble<ManageSavedIbanBubbleView>(
           toolbar_button_provider_, kActionShowPaymentsBubbleOrPage,
-          PageActionIconType::kSaveIban, is_user_gesture, web_contents,
-          controller);
+          kAutofillSavePaymentsPageActionElementId, is_user_gesture,
+          web_contents, controller);
     case IbanBubbleType::kUploadCompleted:
     case IbanBubbleType::kInactive:
       break;
@@ -171,8 +159,8 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowOfferNotificationBubble(
     bool is_user_gesture) {
   return ShowBubble<OfferNotificationBubbleViews>(
       toolbar_button_provider_, kActionOffersAndRewardsForPage,
-      PageActionIconType::kPaymentsOfferNotification, is_user_gesture,
-      web_contents, controller);
+      kOfferNotificationChipElementId, is_user_gesture, web_contents,
+      controller);
 }
 
 AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowSaveAddressProfileBubble(
@@ -188,16 +176,12 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowSaveAddressProfileBubble(
 AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowAddressSignInPromo(
     content::WebContents* web_contents,
     const AutofillProfile& autofill_profile) {
-  views::View* anchor_view =
-      toolbar_button_provider_->GetAnchorView(kActionShowAddressesBubbleOrPage);
+  views::BubbleAnchor anchor = toolbar_button_provider_->GetBubbleAnchor(
+      kActionShowAddressesBubbleOrPage);
   AddressSignInPromoView* bubble =
-      new AddressSignInPromoView(anchor_view, web_contents, autofill_profile);
-  if (!views::Button::AsButton(anchor_view)) {
-    IconLabelBubbleView* icon_view =
-        toolbar_button_provider_->GetPageActionView(
-            kActionShowAddressesBubbleOrPage);
-    CHECK(icon_view);
-    bubble->SetHighlightedButton(icon_view);
+      new AddressSignInPromoView(anchor, web_contents, autofill_profile);
+  if (!bubble_anchor_util::IsHighlightable(anchor)) {
+    bubble->SetHighlightedElement(kAutofillAddressPageActionElementId);
   }
 
   views::BubbleDialogDelegateView::CreateBubble(bubble);
@@ -211,7 +195,7 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowSaveAutofillAiDataBubble(
     AutofillAiImportDataController* controller) {
   return ShowBubble<AutofillAiImportDataBubbleView>(
       toolbar_button_provider_, kActionShowAddressesBubbleOrPage,
-      PageActionIconType::kAutofillAddress, /*is_user_gesture=*/false,
+      kAutofillAddressPageActionElementId, /*is_user_gesture=*/false,
       web_contents, controller);
 }
 
@@ -221,7 +205,7 @@ AutofillBubbleHandlerImpl::ShowAutofillAiLocalSaveNotification(
     AutofillAiImportDataController* controller) {
   return ShowBubble<AutofillAiLocalSaveNotificationView>(
       toolbar_button_provider_, kActionShowAddressesBubbleOrPage,
-      PageActionIconType::kAutofillAddress, /*is_user_gesture=*/false,
+      kAutofillAddressPageActionElementId, /*is_user_gesture=*/false,
       web_contents, controller);
 }
 
@@ -240,18 +224,18 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowFilledCardInformationBubble(
     bool is_user_gesture) {
   return ShowBubble<FilledCardInformationBubbleViews>(
       toolbar_button_provider_, kActionFilledCardInformation,
-      PageActionIconType::kFilledCardInformation, is_user_gesture, web_contents,
-      controller);
+      kAutofillFilledCardInformationPageActionElementId, is_user_gesture,
+      web_contents, controller);
 }
 
 AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowVirtualCardEnrollBubble(
     content::WebContents* web_contents,
     VirtualCardEnrollBubbleController* controller,
     bool is_user_gesture) {
-  views::View* anchor_view =
-      toolbar_button_provider_->GetAnchorView(kActionVirtualCardEnroll);
+  views::BubbleAnchor anchor =
+      toolbar_button_provider_->GetBubbleAnchor(kActionVirtualCardEnroll);
   VirtualCardEnrollBubbleViews* bubble =
-      new VirtualCardEnrollBubbleViews(anchor_view, web_contents, controller);
+      new VirtualCardEnrollBubbleViews(anchor, web_contents, controller);
 
   views::BubbleDialogDelegateView::CreateBubble(bubble);
 
@@ -265,12 +249,9 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowVirtualCardEnrollBubble(
   bubble->ShowForReason(is_user_gesture
                             ? VirtualCardEnrollBubbleViews::USER_GESTURE
                             : VirtualCardEnrollBubbleViews::AUTOMATIC);
-  if (!views::Button::AsButton(anchor_view)) {
-    IconLabelBubbleView* icon_view =
-        toolbar_button_provider_->GetPageActionView(kActionVirtualCardEnroll);
-    if (icon_view) {
-      bubble->SetHighlightedButton(icon_view);
-    }
+  if (!bubble_anchor_util::IsHighlightable(anchor)) {
+    bubble->SetHighlightedElement(
+        kAutofillVirtualCardEnrollPageActionElementId);
   }
 
   return bubble;
@@ -280,17 +261,16 @@ AutofillBubbleBase*
 AutofillBubbleHandlerImpl::ShowVirtualCardEnrollConfirmationBubble(
     content::WebContents* web_contents,
     VirtualCardEnrollBubbleController* controller) {
-  views::View* anchor_view =
-      toolbar_button_provider_->GetAnchorView(kActionVirtualCardEnroll);
+  views::BubbleAnchor anchor =
+      toolbar_button_provider_->GetBubbleAnchor(kActionVirtualCardEnroll);
   base::OnceCallback<void(PaymentsUiClosedReason)> callback =
       controller->GetOnBubbleClosedCallback();
-  IconLabelBubbleView* icon_view =
-      toolbar_button_provider_->GetPageActionView(kActionVirtualCardEnroll);
   const SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams& ui_params =
       controller->GetConfirmationUiParams();
 
   return ShowSaveCardAndVirtualCardEnrollConfirmationBubble(
-      anchor_view, web_contents, std::move(callback), icon_view, ui_params);
+      anchor, web_contents, std::move(callback),
+      kAutofillVirtualCardEnrollPageActionElementId, ui_params);
 }
 
 AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowMandatoryReauthBubble(
@@ -298,9 +278,6 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowMandatoryReauthBubble(
     MandatoryReauthBubbleController* controller,
     bool is_user_gesture,
     MandatoryReauthBubbleType bubble_type) {
-  IconLabelBubbleView* icon_view = toolbar_button_provider_->GetPageActionView(
-      kActionAutofillMandatoryReauth);
-
   auto anchor =
       toolbar_button_provider_->GetBubbleAnchor(kActionAutofillMandatoryReauth);
 
@@ -308,7 +285,8 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowMandatoryReauthBubble(
     case MandatoryReauthBubbleType::kOptIn: {
       MandatoryReauthOptInBubbleView* bubble =
           new MandatoryReauthOptInBubbleView(anchor, web_contents, controller);
-      bubble->SetHighlightedButton(icon_view);
+      bubble->SetHighlightedElement(
+          kAutofillMandatoryReauthPageActionElementId);
       views::BubbleDialogDelegateView::CreateBubble(bubble);
       bubble->Show(is_user_gesture ? LocationBarBubbleDelegateView::USER_GESTURE
                                    : LocationBarBubbleDelegateView::AUTOMATIC);
@@ -318,7 +296,8 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowMandatoryReauthBubble(
       MandatoryReauthConfirmationBubbleView* bubble =
           new MandatoryReauthConfirmationBubbleView(anchor, web_contents,
                                                     controller);
-      bubble->SetHighlightedButton(icon_view);
+      bubble->SetHighlightedElement(
+          kAutofillMandatoryReauthPageActionElementId);
       views::BubbleDialogDelegateView::CreateBubble(bubble);
       bubble->Show(is_user_gesture ? LocationBarBubbleDelegateView::USER_GESTURE
                                    : LocationBarBubbleDelegateView::AUTOMATIC);
@@ -332,63 +311,47 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowMandatoryReauthBubble(
 AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowSaveCardConfirmationBubble(
     content::WebContents* web_contents,
     SaveCardBubbleController* controller) {
-  views::View* anchor_view =
-      toolbar_button_provider_->GetAnchorView(kActionShowPaymentsBubbleOrPage);
+  views::BubbleAnchor anchor = toolbar_button_provider_->GetBubbleAnchor(
+      kActionShowPaymentsBubbleOrPage);
   base::OnceCallback<void(PaymentsUiClosedReason)> callback =
       controller->GetOnBubbleClosedCallback();
-
-  IconLabelBubbleView* icon_view;
-  if (IsPageActionMigrated(PageActionIconType::kSaveCard)) {
-    icon_view = toolbar_button_provider_->GetPageActionView(
-        kActionShowPaymentsBubbleOrPage);
-  } else {
-    icon_view = toolbar_button_provider_->GetPageActionIconView(
-        PageActionIconType::kSaveCard);
-  }
 
   const SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams& ui_params =
       controller->GetConfirmationUiParams();
 
   return ShowSaveCardAndVirtualCardEnrollConfirmationBubble(
-      anchor_view, web_contents, std::move(callback), icon_view, ui_params);
+      anchor, web_contents, std::move(callback),
+      kAutofillSavePaymentsPageActionElementId, ui_params);
 }
 
 AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowSaveIbanConfirmationBubble(
     content::WebContents* web_contents,
     IbanBubbleController* controller) {
-  views::View* anchor_view =
-      toolbar_button_provider_->GetAnchorView(kActionShowPaymentsBubbleOrPage);
+  views::BubbleAnchor anchor = toolbar_button_provider_->GetBubbleAnchor(
+      kActionShowPaymentsBubbleOrPage);
   base::OnceCallback<void(PaymentsUiClosedReason)> callback =
       controller->GetOnBubbleClosedCallback();
 
-  IconLabelBubbleView* icon_view;
-  if (IsPageActionMigrated(PageActionIconType::kSaveIban)) {
-    icon_view = toolbar_button_provider_->GetPageActionView(
-        kActionShowPaymentsBubbleOrPage);
-  } else {
-    icon_view = toolbar_button_provider_->GetPageActionIconView(
-        PageActionIconType::kSaveIban);
-  }
-
   return ShowSaveCardAndVirtualCardEnrollConfirmationBubble(
-      anchor_view, web_contents, std::move(callback), icon_view,
+      anchor, web_contents, std::move(callback),
+      kAutofillSavePaymentsPageActionElementId,
       controller->GetConfirmationUiParams());
 }
 
 AutofillBubbleBase*
 AutofillBubbleHandlerImpl::ShowSaveCardAndVirtualCardEnrollConfirmationBubble(
-    views::View* anchor_view,
+    views::BubbleAnchor anchor,
     content::WebContents* web_contents,
     base::OnceCallback<void(PaymentsUiClosedReason)> controller_hide_callback,
-    views::Button* icon_view,
+    ui::ElementIdentifier highlight_element,
     SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams ui_params) {
   SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews* bubble =
       new SavePaymentMethodAndVirtualCardEnrollConfirmationBubbleViews(
-          anchor_view, web_contents, std::move(controller_hide_callback),
+          anchor, web_contents, std::move(controller_hide_callback),
           std::move(ui_params));
 
-  if (!views::Button::AsButton(anchor_view)) {
-    bubble->SetHighlightedButton(icon_view);
+  if (!bubble_anchor_util::IsHighlightable(anchor)) {
+    bubble->SetHighlightedElement(highlight_element);
   }
   views::BubbleDialogDelegateView::CreateBubble(bubble);
   bubble->ShowForReason(LocationBarBubbleDelegateView::AUTOMATIC);

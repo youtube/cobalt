@@ -237,9 +237,9 @@ void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
       "WebRTC.Video.GenericDecoder.DecodeDelay",
       timing_frame_info.decode_finish_ms - timing_frame_info.decode_start_ms);
   timing_->SetTimingFrameInfo(timing_frame_info);
-
   decodedImage.set_timestamp_us(
       frame_info->render_time ? frame_info->render_time->us() : -1);
+  decodedImage.set_content_type(frame_info->content_type);
   receive_callback_->OnFrameToRender({.video_frame = decodedImage,
                                       .qp = qp,
                                       .decode_time = decode_time,

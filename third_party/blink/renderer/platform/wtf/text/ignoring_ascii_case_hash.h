@@ -17,7 +17,7 @@ struct IgnoringAsciiCaseHash {
   STATIC_ONLY(IgnoringAsciiCaseHash);
 
   static unsigned GetHash(const String& string) {
-    if (string.ContainsOnlyASCIIOrEmpty() && string.IsLowerASCII()) {
+    if (string.ContainsOnlyAsciiOrEmpty() && string.ContainsNoAsciiUpper()) {
       return HashTraits<String>::GetHash(string);
     }
     base::span<const char> bytes = base::as_chars(string.RawByteSpan());
@@ -39,11 +39,11 @@ struct IgnoringAsciiCaseHash {
   }
 
   static bool Equal(const String& a, const String& b) {
-    return EqualIgnoringASCIICase(a, b);
+    return EqualIgnoringAsciiCase(a, b);
   }
 
   static bool Equal(const AtomicString& a, const AtomicString& b) {
-    return EqualIgnoringASCIICase(a, b);
+    return EqualIgnoringAsciiCase(a, b);
   }
 
   static const bool kSafeToCompareToEmptyOrDeleted = false;
@@ -86,11 +86,11 @@ struct IgnoringAsciiCaseHashTranslator {
   }
 
   static bool Equal(const String& a, StringView b) {
-    return EqualIgnoringASCIICase(a, b);
+    return EqualIgnoringAsciiCase(a, b);
   }
 
   static bool Equal(const AtomicString& a, StringView b) {
-    return EqualIgnoringASCIICase(a, b);
+    return EqualIgnoringAsciiCase(a, b);
   }
 };
 

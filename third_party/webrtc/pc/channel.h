@@ -95,7 +95,7 @@ class BaseChannel : public ChannelInterface,
 
   TaskQueueBase* worker_thread() const { return worker_thread_; }
   Thread* network_thread() const { return network_thread_; }
-  const std::string& mid() const override { return demuxer_criteria_.mid(); }
+  const std::string& mid() const override { return mid_; }
   // TODO(deadbeef): This is redundant; remove this.
   absl::string_view transport_name() const override {
     RTC_DCHECK_RUN_ON(network_thread());
@@ -136,7 +136,8 @@ class BaseChannel : public ChannelInterface,
   // This method will also remove any existing streams that were bound to this
   // channel on the basis of payload type, since one of these streams might
   // actually belong to a new channel. See: crbug.com/webrtc/11477
-  bool SetPayloadTypeDemuxingEnabled(bool enabled) override;
+  bool SetPayloadTypeDemuxingEnabled(bool enabled) override
+      RTC_RUN_ON(network_thread());
 
   void Enable(bool enable) override;
 
@@ -148,12 +149,13 @@ class BaseChannel : public ChannelInterface,
   }
 
   // Used for latency measurements.
-  void SetFirstPacketReceivedCallback(
-      absl::AnyInvocable<void() &&> callback) override;
-  void SetFirstPacketSentCallback(
+  void SetFirstPacketReceivedCallback_n(
+      absl::AnyInvocable<void(const RtpPacketReceived&) &&> callback) override;
+  void SetFirstPacketSentCallback_n(
       absl::AnyInvocable<void() &&> callback) override;
 
-  void SetPacketReceivedCallback_n(absl::AnyInvocable<void()> callback) override
+  void SetPacketReceivedCallback_n(
+      absl::AnyInvocable<void(const RtpPacketReceived&)> callback) override
       RTC_RUN_ON(network_thread());
 
   // From RtpTransport - public for testing only
@@ -248,9 +250,6 @@ class BaseChannel : public ChannelInterface,
   void ChannelWritable_n() RTC_RUN_ON(network_thread());
   void ChannelNotWritable_n() RTC_RUN_ON(network_thread());
 
-  bool SetPayloadTypeDemuxingEnabled_w(bool enabled)
-      RTC_RUN_ON(worker_thread());
-
   // Should be called whenever the conditions for
   // IsReadyToReceiveMedia/IsReadyToSendMedia are satisfied (or unsatisfied).
   // Updates the send/recv state of the media channel.
@@ -279,30 +278,30 @@ class BaseChannel : public ChannelInterface,
   RtpHeaderExtensions GetDeduplicatedRtpHeaderExtensions(
       const RtpHeaderExtensions& extensions);
 
-  // Add `payload_type` to `demuxer_criteria_` if payload type demuxing is
-  // enabled.
-  // Returns true if the demuxer payload type changed and a re-registration
-  // is needed.
-  bool MaybeAddHandledPayloadType(int payload_type) RTC_RUN_ON(worker_thread());
+  // Checks that the provided RTP header extensions are valid.
+  // This verifies that all extension IDs are within the valid range,
+  // that there are no duplicate IDs, and that no existing extension ID
+  // has been reassigned to a different URI.
+  bool CheckRtpExtensionValidity(const RtpHeaderExtensions& extensions,
+                                 std::string& error_desc) const
+      RTC_RUN_ON(worker_thread());
 
-  // Returns true if the demuxer payload type criteria was non-empty before
-  // clearing.
-  bool ClearHandledPayloadTypes() RTC_RUN_ON(worker_thread());
-
-  // Hops to the network thread to update the transport if an update is
-  // requested. If `update_demuxer` is false and `extensions` is not set, the
-  // function simply returns. If either of these is set, the function updates
-  // the transport with either or both of the demuxer criteria and the supplied
-  // rtp header extensions.
   // Returns `true` if either an update wasn't needed or one was successfully
   // applied. If the return value is `false`, then updating the demuxer criteria
   // failed, which needs to be treated as an error.
   bool MaybeUpdateDemuxerAndRtpExtensions_w(
       bool update_demuxer,
-      std::optional<RtpHeaderExtensions> extensions,
+      std::optional<flat_set<uint8_t>> payload_types,
+      const RtpHeaderExtensions& extensions,
+      std::optional<flat_set<uint32_t>> ssrcs,
       std::string& error_desc) RTC_RUN_ON(worker_thread());
 
-  bool RegisterRtpDemuxerSink_w() RTC_RUN_ON(worker_thread());
+  // Registers a demuxer criteria with the transport, on the network thread.
+  // This function will fail if there's no transport of if a sink is already
+  // registered for this channel's demuxer_critera().
+  bool RegisterRtpDemuxerSink_w(bool clear_payload_types,
+                                std::optional<flat_set<uint32_t>> ssrcs)
+      RTC_RUN_ON(worker_thread());
 
   // Return description of media channel to facilitate logging
   std::string ToString() const;
@@ -315,6 +314,8 @@ class BaseChannel : public ChannelInterface,
       RTC_RUN_ON(network_thread());
   void DisconnectFromRtpTransport_n() RTC_RUN_ON(network_thread());
   void SignalSentPacket_n(const SentPacketInfo& sent_packet);
+  // Only called on the network thread.
+  RtpDemuxerCriteria demuxer_criteria() const RTC_RUN_ON(network_thread());
 
   TaskQueueBase* const worker_thread_;
   Thread* const network_thread_;
@@ -322,13 +323,13 @@ class BaseChannel : public ChannelInterface,
   scoped_refptr<PendingTaskSafetyFlag> alive_;
 
   // The functions are deleted after they have been called.
-  absl::AnyInvocable<void() &&> on_first_packet_received_
-      RTC_GUARDED_BY(network_thread());
+  absl::AnyInvocable<void(const RtpPacketReceived&) &&>
+      on_first_packet_received_ RTC_GUARDED_BY(network_thread());
   absl::AnyInvocable<void() &&> on_first_packet_sent_
       RTC_GUARDED_BY(network_thread());
 
   // Used to unmute.
-  absl::AnyInvocable<void()> on_packet_received_n_
+  absl::AnyInvocable<void(const RtpPacketReceived&)> on_packet_received_n_
       RTC_GUARDED_BY(network_thread());
 
   RtpTransportInternal* rtp_transport_ RTC_GUARDED_BY(network_thread()) =
@@ -352,7 +353,7 @@ class BaseChannel : public ChannelInterface,
   // call to the worker thread, so it should be safe.
   bool enabled_ RTC_GUARDED_BY(worker_thread()) = false;
   bool enabled_s_ RTC_GUARDED_BY(signaling_thread()) = false;
-  bool payload_type_demuxing_enabled_ RTC_GUARDED_BY(worker_thread()) = true;
+  bool payload_type_demuxing_enabled_ RTC_GUARDED_BY(network_thread()) = true;
   std::vector<StreamParams> local_streams_ RTC_GUARDED_BY(worker_thread());
   std::vector<StreamParams> remote_streams_ RTC_GUARDED_BY(worker_thread());
   RtpTransceiverDirection local_content_direction_
@@ -361,12 +362,17 @@ class BaseChannel : public ChannelInterface,
       RTC_GUARDED_BY(worker_thread()) = RtpTransceiverDirection::kInactive;
 
   // Cached list of payload types, used if payload type demuxing is re-enabled.
-  flat_set<uint8_t> payload_types_ RTC_GUARDED_BY(worker_thread());
+  flat_set<uint8_t> payload_types_ RTC_GUARDED_BY(network_thread());
   // A stored copy of the rtp header extensions as applied to the transport.
   RtpHeaderExtensions rtp_header_extensions_ RTC_GUARDED_BY(worker_thread());
-  // TODO(bugs.webrtc.org/12239): Modified on worker thread, accessed
-  // on network thread in RegisterRtpDemuxerSink_n (called from Init_w)
-  RtpDemuxerCriteria demuxer_criteria_;
+
+  // Set of all historic RTP header extensions mapped, keyed by URI,
+  // to ensure no ID-URI reassignment occurs per RFC 8285.
+  RtpHeaderExtensions historical_rtp_header_extensions_
+      RTC_GUARDED_BY(worker_thread());
+
+  const std::string mid_;
+  flat_set<uint32_t> ssrcs_ RTC_GUARDED_BY(network_thread());
   // This generator is used to generate SSRCs for local streams.
   // This is needed in cases where SSRCs are not negotiated or set explicitly
   // like in Simulcast.

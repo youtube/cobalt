@@ -33,7 +33,7 @@ BASE_FEATURE(kEnableReaderModeOmniboxEntryPointInUS,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableReaderModeTranslationWithInfobar,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableReadabilityHeuristic, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -42,6 +42,9 @@ BASE_FEATURE(kEnableReaderModeOptimizationGuideEligibility,
 
 BASE_FEATURE(kEnableContentSettingsOptionForLinks,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kReaderModeIgnoreBadgeThreshold,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsReaderModeAvailable() {
   if (IsUSCountryCode() &&
@@ -66,4 +69,8 @@ bool IsReaderModeOptimizationGuideEligibilityAvailable() {
 
 bool IsReaderModeContentSettingsForLinkEnabled() {
   return base::FeatureList::IsEnabled(kEnableContentSettingsOptionForLinks);
+}
+
+bool ShouldIgnoreReaderModeBadgeThreshold() {
+  return base::FeatureList::IsEnabled(kReaderModeIgnoreBadgeThreshold);
 }

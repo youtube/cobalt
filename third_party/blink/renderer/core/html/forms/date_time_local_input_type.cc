@@ -39,6 +39,7 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/text/date_components.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
+#include "third_party/blink/renderer/platform/wtf/text/character_names.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "ui/strings/grit/ax_strings.h"
 
@@ -130,17 +131,20 @@ String DateTimeLocalInputType::FormatDateTimeFieldsState(
     // from the milliseconds field.
     auto milliseconds =
         String::Format("%03u", date_time_fields_state.Millisecond());
-    while (milliseconds.length() &&
-           milliseconds[milliseconds.length() - 1] == '0') {
-      milliseconds.Truncate(milliseconds.length() - 1);
+    StringView milliseconds_view(milliseconds);
+    while (milliseconds_view.ends_with('0')) {
+      milliseconds_view.remove_suffix(1);
     }
-    return String::Format(
-        "%04u-%02u-%02uT%02u:%02u:%02u.%s", date_time_fields_state.Year(),
-        date_time_fields_state.Month(), date_time_fields_state.DayOfMonth(),
-        date_time_fields_state.Hour24(), date_time_fields_state.Minute(),
-        date_time_fields_state.HasSecond() ? date_time_fields_state.Second()
-                                           : 0,
-        milliseconds.Ascii().c_str());
+    return StrCat({String::Format("%04u-%02u-%02uT%02u:%02u:%02u.",
+                                  date_time_fields_state.Year(),
+                                  date_time_fields_state.Month(),
+                                  date_time_fields_state.DayOfMonth(),
+                                  date_time_fields_state.Hour24(),
+                                  date_time_fields_state.Minute(),
+                                  date_time_fields_state.HasSecond()
+                                      ? date_time_fields_state.Second()
+                                      : 0),
+                   milliseconds_view});
   }
 
   if (date_time_fields_state.HasSecond() && date_time_fields_state.Second()) {
@@ -169,6 +173,16 @@ void DateTimeLocalInputType::SetupLayoutParameters(
         layout_parameters.locale.DateTimeFormatWithoutSeconds();
     layout_parameters.fallback_date_time_format = "yyyy-MM-dd'T'HH:mm";
   }
+
+  // Workaround for an Arabic date-time format issue.
+  // TODO(crbug.com/40153320): Support ARABIC COMMA.
+  if (RuntimeEnabledFeatures::DateTimeLocalArabicCommaWorkaroundEnabled() &&
+      layout_parameters.locale.IsRTL()) {
+    layout_parameters.date_time_format =
+        layout_parameters.date_time_format.RemoveCharacters(
+            [](UChar ch) -> bool { return ch == uchar::kArabicComma; });
+  }
+
   if (!ParseToDateComponents(
           GetElement().FastGetAttribute(html_names::kMinAttr),
           &layout_parameters.minimum))

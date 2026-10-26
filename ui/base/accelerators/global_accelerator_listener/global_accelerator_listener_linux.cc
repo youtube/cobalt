@@ -51,6 +51,19 @@ std::string GetShortcutPrefix(const std::string& accelerator_group_id,
 
 }  // namespace
 
+GlobalAcceleratorListenerLinux::BoundCommand::BoundCommand() = default;
+GlobalAcceleratorListenerLinux::BoundCommand::~BoundCommand() = default;
+GlobalAcceleratorListenerLinux::BoundCommand::BoundCommand(
+    const BoundCommand&) = default;
+GlobalAcceleratorListenerLinux::BoundCommand&
+GlobalAcceleratorListenerLinux::BoundCommand::operator=(const BoundCommand&) =
+    default;
+GlobalAcceleratorListenerLinux::BoundCommand::BoundCommand(BoundCommand&&) =
+    default;
+GlobalAcceleratorListenerLinux::BoundCommand&
+GlobalAcceleratorListenerLinux::BoundCommand::operator=(BoundCommand&&) =
+    default;
+
 GlobalAcceleratorListenerLinux::GlobalAcceleratorListenerLinux(
     scoped_refptr<dbus::Bus> bus,
     const std::string& session_token)
@@ -80,7 +93,7 @@ void GlobalAcceleratorListenerLinux::OnServiceStarted(uint32_t version) {
   global_shortcuts_proxy_ = bus_->GetObjectProxy(
       kPortalServiceName, dbus::ObjectPath(kPortalObjectPath));
 
-  dbus_utils::ConnectToSignal<"ost">(
+  dbus_utils::ConnectToSignal<"osta{sv}">(
       global_shortcuts_proxy_, kGlobalShortcutsInterface, kSignalActivated,
       base::BindRepeating(&GlobalAcceleratorListenerLinux::OnActivatedSignal,
                           weak_ptr_factory_.GetWeakPtr()),
@@ -132,7 +145,8 @@ void GlobalAcceleratorListenerLinux::OnCommandsChanged(
     const std::string& profile_id,
     const ui::CommandMap& commands,
     gfx::AcceleratedWidget widget,
-    Observer* observer) {
+    base::RepeatingCallback<void(const std::string&, const std::string&)>
+        execute_command) {
   // If starting the service failed, there's no need to add the command list.
   if (!service_started_.value_or(true)) {
     return;
@@ -142,13 +156,38 @@ void GlobalAcceleratorListenerLinux::OnCommandsChanged(
 
   const std::string prefix =
       GetShortcutPrefix(accelerator_group_id, profile_id);
+  const std::string id_prefix = prefix + "-";
+
+  // Build incoming IDs so we can drop stale entries for this prefix.
+  std::vector<std::string> incoming_command_ids;
+  incoming_command_ids.reserve(commands.size());
   for (const auto& [_, command] : commands) {
-    std::string id = prefix + "-" + command.command_name();
-    bound_commands_[id] = {command, accelerator_group_id, observer};
+    incoming_command_ids.push_back(id_prefix + command.command_name());
+  }
+
+  base::flat_set<std::string> incoming_command_id_set(
+      std::move(incoming_command_ids));
+
+  // Replace the command set for this prefix instead of only inserting. This
+  // avoids retaining stale commands after command updates.
+  std::erase_if(bound_commands_, [&](const auto& pair) {
+    return pair.first.starts_with(id_prefix) &&
+           !incoming_command_id_set.contains(pair.first);
+  });
+
+  for (const auto& [_, command] : commands) {
+    std::string id = id_prefix + command.command_name();
+    auto& bc = bound_commands_[id];
+    bc.command = command;
+    bc.accelerator_group_id = accelerator_group_id;
+    bc.execute_command = execute_command;
   }
 
   // Only proceed if there is at least one global command.
   if (!HasGlobalShortcuts()) {
+    if (session_proxy_) {
+      CloseSession();
+    }
     return;
   }
 
@@ -303,13 +342,14 @@ void GlobalAcceleratorListenerLinux::OnBindShortcuts(
 }
 
 void GlobalAcceleratorListenerLinux::OnActivatedSignal(
-    dbus_utils::ConnectToSignalResultSig<"ost"> result) {
+    dbus_utils::ConnectToSignalResultSig<"osta{sv}"> result) {
   if (!result.has_value()) {
     LOG(ERROR) << "Failed to parse Activated signal.";
     return;
   }
 
-  auto [session_handle, shortcut_id, timestamp] = std::move(result.value());
+  auto [session_handle, shortcut_id, timestamp, options] =
+      std::move(result.value());
 
   // Only process the signal if it comes from our current session.
   if (!session_proxy_ || session_proxy_->object_path() != session_handle) {
@@ -322,8 +362,7 @@ void GlobalAcceleratorListenerLinux::OnActivatedSignal(
   }
 
   const auto& cmd = it->second;
-  it->second.observer->ExecuteCommand(cmd.accelerator_group_id,
-                                      cmd.command.command_name());
+  cmd.execute_command.Run(cmd.accelerator_group_id, cmd.command.command_name());
 }
 
 void GlobalAcceleratorListenerLinux::OnSignalConnected(
@@ -334,6 +373,12 @@ void GlobalAcceleratorListenerLinux::OnSignalConnected(
     LOG(ERROR) << "Failed to connect to signal: " << interface_name << "."
                << signal_name;
   }
+}
+
+void GlobalAcceleratorListenerLinux::PruneStaleCommands() {
+  std::erase_if(bound_commands_, [](const auto& pair) {
+    return pair.second.execute_command.IsCancelled();
+  });
 }
 
 bool GlobalAcceleratorListenerLinux::HasGlobalShortcuts() const {

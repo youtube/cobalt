@@ -26,20 +26,22 @@
 namespace {
 
 // Baseline Gerrit CL number of the most recent CL that modified the UI.
-constexpr char kScreenshotBaselineCL[] = "7475474";
+constexpr char kScreenshotNoPinningBaselineCL[] = "7475474";
+constexpr char kScreenshotWithPinningBaselineCL[] = "7597208";
 
 }  // namespace
 
 class DefaultBrowserBubbleDialogInteractiveTest
     : public InteractiveBrowserTest {
  public:
-  void ShowUi() {
+  void ShowUi(bool can_pin_to_taskbar = false) {
     BrowserView* browser_view =
         BrowserView::GetBrowserViewForBrowser(browser());
     views::View* anchor_view =
         browser_view->toolbar_button_provider()->GetAppMenuButton();
     dialog_widget_ = default_browser::ShowDefaultBrowserBubbleDialog(
-        anchor_view, on_accept_.GetCallback(), on_dismiss_.GetCallback());
+        anchor_view, can_pin_to_taskbar, on_accept_.GetCallback(),
+        on_dismiss_.GetCallback());
   }
 
   void TearDownOnMainThread() override { dialog_widget_.reset(); }
@@ -56,13 +58,28 @@ IN_PROC_BROWSER_TEST_F(DefaultBrowserBubbleDialogInteractiveTest, ShowDialog) {
       SetOnIncompatibleAction(
           OnIncompatibleAction::kIgnoreAndContinue,
           "Screenshots not supported in all testing environments."),
-      Do([this]() { ShowUi(); }),
+      Do([this]() { ShowUi(/*can_pin_to_taskbar=*/false); }),
       WaitForShow(default_browser::kBubbleDialogOpenSettingsButtonId),
       WaitForShow(default_browser::kBubbleDialogSetLaterButtonId),
       WaitForShow(default_browser::kBubbleDialogId),
       ScreenshotSurface(default_browser::kBubbleDialogId,
                         /*screenshot_name=*/"DefaultBrowserBubbleDialog",
-                        kScreenshotBaselineCL));
+                        kScreenshotNoPinningBaselineCL));
+}
+
+IN_PROC_BROWSER_TEST_F(DefaultBrowserBubbleDialogInteractiveTest,
+                       ShowDialogWithPinning) {
+  RunTestSequence(
+      SetOnIncompatibleAction(
+          OnIncompatibleAction::kIgnoreAndContinue,
+          "Screenshots not supported in all testing environments."),
+      Do([this]() { ShowUi(/*can_pin_to_taskbar=*/true); }),
+      WaitForShow(default_browser::kBubbleDialogOpenSettingsButtonId),
+      WaitForShow(default_browser::kBubbleDialogSetLaterButtonId),
+      WaitForShow(default_browser::kBubbleDialogId),
+      ScreenshotSurface(default_browser::kBubbleDialogId,
+                        /*screenshot_name=*/"DefaultBrowserBubbleDialog",
+                        kScreenshotWithPinningBaselineCL));
 }
 
 IN_PROC_BROWSER_TEST_F(DefaultBrowserBubbleDialogInteractiveTest,
@@ -88,11 +105,7 @@ class DefaultBrowserDialogManagerInteractiveTest
  protected:
   void ShowDialogManager() {
     manager_ = std::make_unique<DefaultBrowserBubbleDialogManager>();
-    manager_->Show(
-        std::make_unique<default_browser::DefaultBrowserController>(
-            std::make_unique<default_browser::FakeDefaultBrowserSetter>(),
-            default_browser::DefaultBrowserEntrypointType::kBubbleDialog),
-        /*can_pin_to_taskbar=*/false);
+    manager_->Show(/*can_pin_to_taskbar=*/false);
   }
 
   void CloseDialogs() { manager_->CloseAll(); }

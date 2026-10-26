@@ -55,15 +55,18 @@ class GlicNetLogBrowserTest : public InProcessBrowserTest {
 };
 
 // Tests that opening the UI logs a request to the Glic FRE.
-IN_PROC_BROWSER_TEST_F(GlicNetLogBrowserTest, LogGlicFreRequestOnOpenUI) {
+// TODO(b/489172662): This does not work with GlicMultiInstance.
+// chrome/browser/glic/fre/glic_fre_ui.cc is not used with unified FRE,
+// so we will end up getting the glic_web_ui annotation instead.
+IN_PROC_BROWSER_TEST_F(GlicNetLogBrowserTest,
+                       DISABLED_LogGlicFreRequestOnOpenUI) {
   Profile* profile = browser()->profile();
 
   ASSERT_TRUE(GlicEnabling::IsEnabledForProfile(profile));
 
   auto* glic_service =
       GlicKeyedServiceFactory::GetGlicKeyedService(browser()->profile());
-  glic_service->OpenFreDialogInNewTab(
-      browser(), mojom::InvocationSource::kTopChromeButton);
+  glic_service->ToggleUI(nullptr, false, mojom::InvocationSource::kOsHotkey);
 
   std::vector<net::NetLogEntry> entries = net_log_observer().GetEntries();
   auto it = std::ranges::find_if(entries, [&](const auto& entry) {

@@ -8,10 +8,16 @@
 #include "build/config/coverage/buildflags.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
+#include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/test_support/glic_test_environment.h"
+#include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/preloading/preloading_features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/subscription_eligibility/subscription_eligibility_prefs.h"
+#include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
+#include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/settings/on_device_ai_settings_handler.h"
 #include "chrome/common/chrome_features.h"
@@ -43,18 +49,6 @@
 #include "third_party/blink/public/common/features_generated.h"
 #include "ui/compositor/compositor_switches.h"
 
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/glic_pref_names.h"
-#include "chrome/browser/glic/test_support/glic_test_environment.h"
-#include "chrome/browser/glic/test_support/glic_test_util.h"
-#include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/subscription_eligibility/subscription_eligibility_prefs.h"
-#include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
-#include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
-#include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
-#include "components/signin/public/identity_manager/identity_test_utils.h"
-#endif
-
 #if !BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ui/toasts/toast_features.h"  // nogncheck
 #endif
@@ -77,19 +71,13 @@ class SettingsBrowserTest : public WebUIMochaBrowserTest {
 #endif
         },
         /*disabled_features=*/
-        {
-#if BUILDFLAG(ENABLE_GLIC)
-            features::kGlicDefaultTabContextSetting
-#endif
-        });
+        {features::kGlicDefaultTabContextSetting});
     set_test_loader_host(chrome::kChromeUISettingsHost);
   }
 
  private:
-#if BUILDFLAG(ENABLE_GLIC)
   glic::GlicTestEnvironment glic_test_environment_{
       {.force_signin_and_glic_capability = false }};
-#endif
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
@@ -343,6 +331,12 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, PasskeysSubpage) {
 }
 #endif
 
+#if BUILDFLAG(IS_MAC)
+IN_PROC_BROWSER_TEST_F(SettingsTest, PasskeyEditDialog) {
+  RunTest("settings/passkey_edit_dialog_test.js", "mocha.run()");
+}
+#endif
+
 IN_PROC_BROWSER_TEST_F(SettingsTest, PaymentsSection) {
   RunTest("settings/payments_section_test.js", "mocha.run()");
 }
@@ -429,7 +423,6 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, SecurityPageFeatureRow) {
   RunTest("settings/security_page_feature_row_test.js", "mocha.run()");
 }
 
-#if BUILDFLAG(ENABLE_GLIC)
 IN_PROC_BROWSER_TEST_F(SettingsTest, GlicPage) {
   RunTest("settings/glic_page_test.js", "runMochaSuite('GlicPage Default')");
 }
@@ -437,6 +430,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, GlicPage) {
 IN_PROC_BROWSER_TEST_F(SettingsTest, GlicSubpage) {
   RunTest("settings/glic_subpage_test.js",
           "runMochaSuite('GlicSubpage Default')");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, GlicLoginPermissionsPage) {
+  RunTest("settings/glic_login_permissions_page_test.js", "mocha.run()");
 }
 
 class SettingsGlicSubpageLearnMoreTest : public SettingsBrowserTest {
@@ -928,7 +925,6 @@ IN_PROC_BROWSER_TEST_F(
       "settings/glic_subpage_test.js",
       "runMochaSuite('GlicSubpage DataProtection_UserStatusCheckDisabled')");
 }
-#endif
 
 // Timeout on Linux dbg bots: https://crbug.com/1394737
 #if !(BUILDFLAG(IS_LINUX) && !defined(NDEBUG))
@@ -1232,40 +1228,7 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, PrivacyGuidePromoVisibility) {
   RunTest("settings/privacy_guide_promo_visibility_test.js", "mocha.run()");
 }
 
-using SettingsClearBrowsingDataTest = SettingsBrowserTest;
-
-IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataTest,
-                       ClearBrowsingDataAllPlatforms) {
-  RunTest("settings/clear_browsing_data_test.js",
-          "runMochaSuite('ClearBrowsingDataAllPlatforms')");
-}
-
-#if !BUILDFLAG(IS_CHROMEOS)
-IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataTest,
-                       ClearBrowsingDataDesktop) {
-  RunTest("settings/clear_browsing_data_test.js",
-          "runMochaSuite('ClearBrowsingDataDesktop')");
-}
-#endif
-
-IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataTest,
-                       ClearBrowsingDataForSupervisedUsers) {
-  RunTest("settings/clear_browsing_data_test.js",
-          "runMochaSuite('ClearBrowsingDataForSupervisedUsers')");
-}
-
-class SettingsClearBrowsingDataV2Test : public SettingsBrowserTest {
- protected:
-  SettingsClearBrowsingDataV2Test() {
-    scoped_feature_list_.InitWithFeatures(
-        {browsing_data::features::kDbdRevampDesktop,
-         history::kBrowsingHistoryActorIntegrationM1},
-        /*disabled_features=*/{});
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
+using SettingsClearBrowsingDataV2Test = SettingsBrowserTest;
 
 #if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(SettingsClearBrowsingDataV2Test,
@@ -1555,8 +1518,6 @@ class SettingsPrivacyPageTest : public SettingsBrowserTest {
 #if BUILDFLAG(IS_CHROMEOS)
             blink::features::kWebPrinting,
 #endif
-            browsing_data::features::kDbdRevampDesktop,
-            permissions::features::kPermissionSiteSettingsRadioButton,
             safe_browsing::kBundledSecuritySettings,
         },
         {});
@@ -1600,27 +1561,11 @@ IN_PROC_BROWSER_TEST_F(SettingsPrivacyPageTest,
           "runMochaSuite('HappinessTrackingSurveys')");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsPrivacyPageTest,
-                       DeleteBrowsingDataRevampDisabled) {
-  RunTest("settings/privacy_page_test.js",
-          "runMochaSuite('DeleteBrowsingDataRevampDisabled')");
-}
-
-class SettingsNotificationsPageTest : public SettingsBrowserTest {
- private:
-  base::test::ScopedFeatureList scoped_feature_list_{
-      permissions::features::kPermissionSiteSettingsRadioButton};
-};
+class SettingsNotificationsPageTest : public SettingsBrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(SettingsNotificationsPageTest, NotificationsPage) {
   RunTest("settings/notifications_page_test.js",
           "runMochaSuite('NotificationsPage')");
-}
-
-IN_PROC_BROWSER_TEST_F(SettingsNotificationsPageTest,
-                       NotificationsPageWithNestedRadioButton) {
-  RunTest("settings/notifications_page_test.js",
-          "runMochaSuite('NotificationsPageWithNestedRadioButton')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsNotificationsPageTest,
@@ -1629,11 +1574,7 @@ IN_PROC_BROWSER_TEST_F(SettingsNotificationsPageTest,
           "runMochaSuite('NotificationPermissionReview')");
 }
 
-class SettingsGeolocationPageTest : public SettingsBrowserTest {
- private:
-  base::test::ScopedFeatureList scoped_feature_list_{
-      permissions::features::kPermissionSiteSettingsRadioButton};
-};
+class SettingsGeolocationPageTest : public SettingsBrowserTest {};
 
 IN_PROC_BROWSER_TEST_F(SettingsGeolocationPageTest, GeolocationPage) {
   RunTest("settings/geolocation_page_test.js",
@@ -1678,12 +1619,6 @@ IN_PROC_BROWSER_TEST_F(
     JavascriptOptimizerPage) {
   RunTest("settings/v8_page_test.js",
           "runMochaSuite('V8Page_BlockOnUnfamiliarSitesFeatureDisabled')");
-}
-
-IN_PROC_BROWSER_TEST_F(SettingsGeolocationPageTest,
-                       GeolocationPageWithNestedRadioButton) {
-  RunTest("settings/geolocation_page_test.js",
-          "runMochaSuite('GeolocationPageWithNestedRadioButton')");
 }
 
 class SettingsPrivacySandboxPageTest : public SettingsBrowserTest {};
@@ -1870,6 +1805,16 @@ IN_PROC_BROWSER_TEST_F(SettingsSecurityPageV2Test,
           "SecureDnsLegacy')");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsSecurityPageV2Test, ManagedEnvironment) {
+  RunTest("settings/security_page_v2_test.js",
+          "runMochaSuite('ManagedEnvironment')");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsSecurityPageV2Test, SecureDnsBundling) {
+  RunTest("settings/security_page_v2_test.js",
+          "runMochaSuite('SecureDnsBundling')");
+}
+
 #if !BUILDFLAG(IS_CHROMEOS)
 using SettingsSpellCheckPageTest = SettingsBrowserTest;
 
@@ -1997,12 +1942,6 @@ IN_PROC_BROWSER_TEST_F(SettingsSiteSettingsPageTest,
 // default.
 class SettingsSiteSettingsPageTestWithoutWebPrinting
     : public SettingsBrowserTest {};
-
-IN_PROC_BROWSER_TEST_F(SettingsSiteSettingsPageTestWithoutWebPrinting,
-                       WebPrintingNotShown) {
-  RunTest("settings/site_settings_page_test.js",
-          "runMochaSuite('WebPrintingNotShown')");
-}
 
 IN_PROC_BROWSER_TEST_F(SettingsSiteSettingsPageTest, SoundPage) {
   RunTest("settings/sound_page_test.js", "runMochaSuite('SoundPage')");

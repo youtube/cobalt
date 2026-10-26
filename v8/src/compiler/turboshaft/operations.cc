@@ -24,6 +24,7 @@
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/opmasks.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/objects/code-inl.h"
@@ -32,12 +33,6 @@
 // For InWritableSharedSpace
 #include "src/objects/objects-inl.h"
 #endif
-
-namespace v8::internal {
-std::ostream& operator<<(std::ostream& os, AbortReason reason) {
-  return os << GetAbortReason(reason);
-}
-}  // namespace v8::internal
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -742,6 +737,7 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   if (kind.with_trap_handler) os << ", protected";
   os << ", " << stored_rep;
   os << ", " << write_barrier;
+  if (kind.is_atomic) os << ", atomic with memory order " << memory_order_;
   if (element_size_log2 != 0)
     os << ", element size: 2^" << int{element_size_log2};
   if (offset != 0) os << ", offset: " << offset;
@@ -1200,7 +1196,10 @@ std::ostream& operator<<(std::ostream& os, EffectHandler h) {
 std::ostream& operator<<(std::ostream& os, base::Vector<EffectHandler> hs) {
   os << "effect handlers: ";
   for (auto& h : hs) {
-    os << h.tag_index << ":" << h.block << (&h == &hs.last() ? "" : " ");
+    if (h.is_switch())
+      os << h.tag_index() << "[switch]" << (&h == &hs.last() ? "" : " ");
+    else
+      os << h.tag_index() << ":" << h.block << (&h == &hs.last() ? "" : " ");
   }
   return os;
 }
@@ -1444,6 +1443,8 @@ std::ostream& operator<<(
       return os << "Boolean";
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kSmi:
       return os << "Smi";
+    case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kSmiOrHole:
+      return os << "SmiOrHole";
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrHole:
       return os << "NumberOrHole";
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball:
@@ -1519,6 +1520,8 @@ std::ostream& operator<<(
   switch (input_assumptions) {
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kBigInt:
       return os << "BigInt";
+    case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kSmiOrHole:
+      return os << "SmiOrHole";
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball:
       return os << "NumberOrOddball";
     case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::
@@ -2131,7 +2134,7 @@ void StructSetOp::PrintOptions(std::ostream& os) const {
   } else {
     os << "non-atomic";
   }
-  os << ']';
+  os << ", " << write_barrier << ']';
 }
 
 void ArrayGetOp::PrintOptions(std::ostream& os) const {
@@ -2153,7 +2156,7 @@ void ArraySetOp::PrintOptions(std::ostream& os) const {
   } else {
     os << "non-atomic";
   }
-  os << ']';
+  os << ", " << write_barrier << ']';
 }
 
 #endif  // V8_ENABLE_WEBASSEBMLY
@@ -2351,6 +2354,9 @@ bool IsUnlikelySuccessor(const Block* block, const Block* successor,
     case Opcode::kTailCall:
     case Opcode::kUnreachable:
     case Opcode::kReturn:
+#if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kWasmTrap:
+#endif
       UNREACHABLE();
 
 #define NON_TERMINATOR_CASE(op) case Opcode::k##op:
@@ -2363,9 +2369,10 @@ bool IsUnlikelySuccessor(const Block* block, const Block* successor,
 bool Operation::IsOnlyUserOf(const Operation& value, const Graph& graph) const {
   DCHECK_GE(std::count(inputs().begin(), inputs().end(), graph.Index(value)),
             1);
-  if (value.saturated_use_count.IsOne()) return true;
-  return std::count(inputs().begin(), inputs().end(), graph.Index(value)) ==
-         value.saturated_use_count.Get();
+  if (value.saturated_use_count.Is(1)) return true;
+  size_t use_count_in_this =
+      std::count(inputs().begin(), inputs().end(), graph.Index(value));
+  return value.saturated_use_count.Is(static_cast<int>(use_count_in_this));
 }
 
 #if V8_ENABLE_WEBASSEMBLY

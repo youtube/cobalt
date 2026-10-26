@@ -32,7 +32,6 @@
 <translation id="1086486568852410168">Cerca con Google Lens</translation>
 <translation id="1096992026380844478">Le impostazioni di sincronizzazione verranno ripristinate in base all'ultimo backup. <ph name="BEGIN_LINK" />Scopri cosa puoi sincronizzare<ph name="END_LINK" /></translation>
 <translation id="1103523840287552314">Traduci sempre <ph name="LANGUAGE" /></translation>
-<translation id="110491332089958282">Condividi i contenuti della pagina con Gemini per ricevere risposte più pertinenti. Quando condividi una pagina con Gemini, i contenuti completi e l'URL della pagina vengono inviati a Google. <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
 <translation id="1110772719190051587">Sblocca con Face ID</translation>
 <translation id="1112015203684611006">Stampa non riuscita.</translation>
 <translation id="1118569444314402022">Ti diamo il bentornato <ph name="USER_NAME" /></translation>
@@ -59,6 +58,7 @@
 <translation id="1204075260022434100">{count,plural, =1{Preferito salvato in "{title}" nel tuo account, {email}}other{{count} preferiti salvati in "{title}" nel tuo account, {email}}}</translation>
 <translation id="1207493287814084192">17:30</translation>
 <translation id="1217294226280635614">Visualizzazione divisa</translation>
+<translation id="1218730690561976633">Attiva/disattiva la verifica dell'utente per la compilazione automatica avanzata</translation>
 <translation id="1219674500290482172">Impossibile connettersi a Internet.</translation>
 <translation id="1223498995510244364">Riassumi</translation>
 <translation id="1227113644794103810">Schede non attive</translation>
@@ -96,6 +96,7 @@
 <translation id="1335767868357998043">Scegli la posizione della barra degli indirizzi</translation>
 <translation id="1347468774581902829">Gestisci attività</translation>
 <translation id="1348596747084433075">https://www.amazon.com/Regali-Moglie/s?k=Regali+per+Moglie</translation>
+<translation id="1350281503816551185">Verifica la tua identità quando inserisci informazioni sensibili</translation>
 <translation id="1355337783640312381">Per passare da un account all'altro, tocca l'icona del tuo account</translation>
 <translation id="1358106883354237005">Account gestito</translation>
 <translation id="1358214951266274152">Visita il link che hai copiato</translation>
@@ -152,7 +153,6 @@
 <translation id="1521774566618522728">Attivo oggi</translation>
 <translation id="1523567067736644845">Sblocca per mostrare la password</translation>
 <translation id="1524563461097350801">No, grazie</translation>
-<translation id="1528290585275339320">Attiva la condivisione dei contenuti della pagina</translation>
 <translation id="1531038290222364269">Mostra schede</translation>
 <translation id="1536390784834419204">Traduci pagina</translation>
 <translation id="1540800554400757039">Indirizzo 1</translation>
@@ -165,7 +165,7 @@
 <translation id="1558391695376153246">Chiudi schede in incognito</translation>
 <translation id="1565371473877914088">Nuova scheda Incognito</translation>
 <translation id="1567960978791353852">Mostra modalità Lettura</translation>
-<translation id="1571780780926010134">Schede di navigazione in incognito</translation>
+<translation id="1571780780926010134">Schede Incognito</translation>
 <translation id="1580715474678097352">Proteggiti dai siti web pericolosi</translation>
 <translation id="1580783302095112590">Messaggio inviato.</translation>
 <translation id="1582732959743469162">Verrà interrotto l'avanzamento del tuo download attuale.</translation>
@@ -194,6 +194,7 @@
 <translation id="1657011748321897393">Condivisione non riuscita perché non sei collegato alla rete.</translation>
 <translation id="1668001730617725852">Apri in un nuovo gruppo di schede</translation>
 <translation id="1674504678466460478">Da <ph name="SOURCE_LANGUAGE" /> a <ph name="TARGET_LANGUAGE" /></translation>
+<translation id="1678855624321223424">In base alle policy della tua organizzazione, questo file potrebbe contenere informazioni sensibili</translation>
 <translation id="168389590065701766">Ora puoi aprire Google Lens dalla barra degli indirizzi ed eseguire ricerche su ciò che vedi</translation>
 <translation id="1689333818294560261">Nickname</translation>
 <translation id="169048873465870056">Rimuovere scheda ed eliminare gruppo?</translation>
@@ -244,6 +245,7 @@
 <translation id="1845230888742614096">Mantieni gruppo</translation>
 <translation id="1853692000353488670">Nuova scheda in incognito</translation>
 <translation id="1854463785401910334">Esegui una ricerca nelle schede aperte</translation>
+<translation id="1860609647735325606">Spiega con Gemini</translation>
 <translation id="1861067954551502701">{count,plural, =1{{position} di {count} password}other{{position} di {count} password}}</translation>
 <translation id="1861262398884155592">Questa cartella è vuota</translation>
 <translation id="1864266050569350424">Su un sito in cui hai salvato una password, tocca il campo della password di accesso.</translation>
@@ -257,6 +259,7 @@
 <translation id="1890237935065108104">Questa impostazione non è disponibile.</translation>
 <translation id="1894023287452300670">Monitora qui il prezzo</translation>
 <translation id="189531189292803889">Il tuo iPad è stato ripristinato di recente e questo potrebbe aver modificato il tuo browser predefinito.</translation>
+<translation id="1898804291554630487">Chiedi info su questa pagina</translation>
 <translation id="1901366738768303267">Come faccio a utilizzare questa funzionalità?</translation>
 <translation id="1901600657316773839">Mantieni selezione</translation>
 <translation id="1902277226107477495">Rilevamento dell'indirizzo disattivato. Riattivalo in Impostazioni.</translation>
@@ -295,7 +298,6 @@
 <translation id="2012723204723845092">Siamo felici di rivederti.</translation>
 <translation id="2015722694326466240">Per visualizzare le password, per prima cosa imposta un passcode sul tuo dispositivo.</translation>
 <translation id="201759455285471444">Espandi il gruppo di schede.</translation>
-<translation id="202070562065520783">Spiegami questo testo</translation>
 <translation id="2044394949148788042">Apri la griglia delle schede</translation>
 <translation id="2044681667265133332">L'account <ph name="USER_EMAIL" /> è gestito da <ph name="HOSTED_DOMAIN" />, che potrebbe essere in grado di visualizzare alcune informazioni. <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">nuovo elemento</translation>
@@ -316,7 +318,7 @@
 <translation id="2096716221239095980">Elimina tutti i dati</translation>
 <translation id="2104436223719117661">Ricerche di tendenza</translation>
 <translation id="21133533946938348">Fissa scheda</translation>
-<translation id="2117650889962717098">Mantieni privata la navigazione passando alla modalità di navigazione in incognito</translation>
+<translation id="2117650889962717098">Mantieni privata la navigazione passando alla modalità Incognito</translation>
 <translation id="2119636449201577317">Apri in…</translation>
 <translation id="2119962645034852864">Alcuni servizi non sono disponibili per il tuo account</translation>
 <translation id="2120553909046681540">La tua organizzazione ha disattivato la navigazione privata.</translation>
@@ -367,6 +369,7 @@
 <translation id="2268044343513325586">Perfeziona</translation>
 <translation id="2271452184061378400">I tuoi gruppi di schede vengono salvati qui</translation>
 <translation id="2273327106802955778">Menu Altro</translation>
+<translation id="2283599456633275070">Viaggi</translation>
 <translation id="2287614783861766820">{count,plural, =1{Questo indirizzo verrà eliminato da questo dispositivo.}other{Questi indirizzi verranno eliminati da questo dispositivo.}}</translation>
 <translation id="2295236662082735391">Tieni premuta un'immagine sul web per modificarla con Gemini</translation>
 <translation id="2297989278479054870">Quando esci, i preferiti, le password e altri dati nel tuo Account Google verranno rimossi da questo dispositivo.</translation>
@@ -374,7 +377,6 @@
 <translation id="2306265833370324042">Mostra dettagli <ph name="SEARCH_ENGINE_NAME" /></translation>
 <translation id="2309265394777270359">Chiudi scheda</translation>
 <translation id="2311077293164383652">Chiudi scheda fissata</translation>
-<translation id="2313392466694008052">Modifica immagine con Gemini</translation>
 <translation id="2316129865977710310">No, grazie</translation>
 <translation id="2320166752086256636">Nascondi tastiera</translation>
 <translation id="2321086116217818302">Preparazione delle password…</translation>
@@ -392,6 +394,7 @@
 <translation id="2360196772093551345">Richiedi sito per dispositivi mobili</translation>
 <translation id="2362083820973145409">Accesso eseguito come <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Consente di aprire le impostazioni.</translation>
 <translation id="2371084566192454134">Schede e gruppi di schede</translation>
+<translation id="2371303771137626249">Nuovo</translation>
 <translation id="2381405137052800939">Opzioni di base</translation>
 <translation id="2384692388811649784">Nascondi le schede Incognito</translation>
 <translation id="2386793615875593361">Una selezionata</translation>
@@ -435,6 +438,7 @@
 <translation id="2529021024822217800">Apri tutto</translation>
 <translation id="2536991091671391962">Puoi usare le password salvate su qualsiasi dispositivo. Sono salvate in Gestore delle password di Google per <ph name="EMAIL" />.</translation>
 <translation id="2538103551183528357">Nascosta, password</translation>
+<translation id="2538705697765638552">Salva le tue informazioni e velocizza le attività, ad esempio la compilazione dei moduli nei prodotti Google. Puoi gestire le tue informazioni in Google Wallet per <ph name="USER_EMAIL" />.</translation>
 <translation id="2539748786028143624">Attiva la Protezione avanzata…</translation>
 <translation id="2540111494300686866">Elimina finestre di dialogo</translation>
 <translation id="2542268842667970959">Nascondi "Controllo di sicurezza"</translation>
@@ -501,6 +505,7 @@
 <translation id="2789552044937754463">{COUNT,plural, =1{Password salvata nel tuo Account Google: {EMAIL}}other{Password salvate nel tuo Account Google: {EMAIL}}}</translation>
 <translation id="2791174088547598693">Aggiungi password…</translation>
 <translation id="2793703503584038325">Seleziona una password e tocca l'icona "Condividi"</translation>
+<translation id="2793804887899597849">Informazioni salvate solo sul dispositivo</translation>
 <translation id="2797029671965852011">Mostra la cronologia</translation>
 <translation id="2797302972324086597">Codice paese</translation>
 <translation id="2798263827270599246">Tema predefinito</translation>
@@ -522,6 +527,7 @@
 <translation id="286382692684806520">{COUNT,plural, =1{1 sito (altro sui dispositivi sincronizzati)}other{# siti (altro sui dispositivi sincronizzati)}}</translation>
 <translation id="2870560284913253234">Sito</translation>
 <translation id="2876369937070532032">Invia a Google gli URL di alcune pagine che visiti quando la tua sicurezza è a rischio</translation>
+<translation id="2877733045396505765">In questo modo le informazioni selezionate salvate su questo dispositivo e nel tuo Account Google <ph name="USER_EMAIL" /> verranno eliminate.</translation>
 <translation id="2883151425485251736">Visualizza e modifica gli argomenti che hai nascosto dal tuo account</translation>
 <translation id="288655811176831528">Chiudi scheda</translation>
 <translation id="2888631381369839306">Notifiche per il monitoraggio del prezzo attivate</translation>
@@ -535,7 +541,7 @@
 <translation id="291754862089661335">Posiziona il codice a barre o QR all'interno di quest'area</translation>
 <translation id="2918688092312652908">Segna come da leggere</translation>
 <translation id="2922210239002704889">Vai alla home page o alla tastiera</translation>
-<translation id="2924940770243654951">Apri in nuova scheda di navigazione in incognito</translation>
+<translation id="2924940770243654951">Apri in nuova scheda Incognito</translation>
 <translation id="2952278131021475699">Ricerca con la fotocamera di Lens</translation>
 <translation id="2962516096219646456">Visualizza tutti i dati di compilazione automatica</translation>
 <translation id="2965594942405840553">Questa operazione non può essere annullata</translation>
@@ -579,13 +585,13 @@
 <translation id="3124568093781685165">Condividi le password con la tua famiglia</translation>
 <translation id="3130863904455712965">Cronologia e altro ancora</translation>
 <translation id="3132584647087998639">Importa i dati</translation>
-<translation id="313283613037595347">Crea nuova scheda di navigazione in incognito.</translation>
+<translation id="313283613037595347">Crea nuova scheda Incognito.</translation>
 <translation id="3136739222562075778">Questa scheda mostra i cali di prezzo dei prodotti nelle schede aperte</translation>
 <translation id="3138611310073113613">Ignora la selezione</translation>
 <translation id="3140825265190223781">Password e passkey salvate</translation>
 <translation id="3143515551205905069">Annulla sincronizzazione</translation>
 <translation id="3144126448740580210">FINE</translation>
-<translation id="3147521114983561406">Le passkey vengono salvate nel tuo gestore delle password. Sono accessibili nelle schede di navigazione in incognito e quelle normali.</translation>
+<translation id="3147521114983561406">Le passkey vengono salvate nel tuo gestore delle password. Sono accessibili nelle schede Incognito e quelle normali.</translation>
 <translation id="3148052723910099040">Griglia schede normali</translation>
 <translation id="3148237711805373460">Vai</translation>
 <translation id="3157387275655328056">Aggiungi all'elenco di lettura</translation>
@@ -596,6 +602,7 @@
 <translation id="3174662312949010067">Puoi usare le password salvate anche sugli altri tuoi dispositivi.</translation>
 <translation id="3177338796769255211">Accedi per avere a disposizione i tuoi preferiti e altri dati su tutti i dispositivi</translation>
 <translation id="3181954750937456830">Navigazione sicura (protegge te e il tuo dispositivo da siti pericolosi)</translation>
+<translation id="3183362380688692618">Nuovo gruppo di schede...</translation>
 <translation id="3186796054637504691">Cancella dati siti web e cronologia</translation>
 <translation id="3190736958609431397">Annulla monitoraggio</translation>
 <translation id="3208260410153224535">La tua organizzazione ha disattivato l'accesso. I nuovi preferiti, le nuove password e altri dati verranno salvati solo su questo dispositivo.</translation>
@@ -630,6 +637,7 @@
 <translation id="3324193307694657476">Indirizzo 2</translation>
 <translation id="3328801116991980348">Informazioni sito</translation>
 <translation id="333229797575847124">Come attivare questa funzionalità</translation>
+<translation id="334004756946755423">Spiegami questo testo:</translation>
 <translation id="3344233834747405775">Nome del titolare della carta non valido</translation>
 <translation id="3344485292736684439">{count,plural, =1{Preferito salvato nella cartella "{title}" nel tuo account {email}}other{Preferiti salvati nella cartella "{title}" nel tuo account {email}}}</translation>
 <translation id="334690320928261823">Schede recenti</translation>
@@ -640,7 +648,7 @@
 <translation id="3371831930909698441">Traduttore disponibile. Opzioni disponibili nella parte inferiore dello schermo.</translation>
 <translation id="3377063233124932127">Ora i tuoi preferiti, le password e altri dati salvati sono visualizzati in alto.</translation>
 <translation id="3378214228000661758">Crea una passkey per</translation>
-<translation id="3380352560400387991">Questo sito sta tentando di aprire un'applicazione. Uscirai dalla modalità di navigazione in incognito.</translation>
+<translation id="3380352560400387991">Questo sito sta tentando di aprire un'applicazione. Uscirai dalla modalità Incognito.</translation>
 <translation id="3385742921291399323">Trova le password, le schede, i preferiti e altri dati salvati.</translation>
 <translation id="3391765987934722383">Non perderti un calo di prezzo</translation>
 <translation id="3392923070107623576">Mantieni l'organizzazione creando gruppi di schede</translation>
@@ -663,8 +671,9 @@
 <translation id="3474048842645761983">{COUNT,plural, =1{per {COUNT} sito o app}other{per {COUNT} siti e app}}</translation>
 <translation id="3474624961160222204">Continua come <ph name="NAME" /></translation>
 <translation id="3476450923187944815">Accedi alle tue password su altre app.</translation>
-<translation id="3485558910355485767">Nuova finestra di navigazione in incognito</translation>
+<translation id="3485558910355485767">Nuova finestra Incognito</translation>
 <translation id="3488501490964659223">Le schede sono state chiuse e i dati di navigazione sono stati eliminati. Il tuo account è stato disconnesso</translation>
+<translation id="3490396108106323715">Condividi scheda corrente</translation>
 <translation id="3493531032208478708"><ph name="BEGIN_LINK" />Ulteriori informazioni<ph name="END_LINK" /> sui contenuti suggeriti</translation>
 <translation id="349446645805573740">Scegli dove salvare "<ph name="BEGIN_BOLD" /><ph name="FILENAME" /><ph name="END_BOLD" />"</translation>
 <translation id="3504377992102007712">Impostazioni</translation>
@@ -682,6 +691,7 @@
 <translation id="3530206579861815432">Trova rapidamente le schede aperte e chiuse di recente su tutti i tuoi dispositivi sincronizzati.</translation>
 <translation id="3530767473765895035">Gestisci gli account su questo dispositivo…</translation>
 <translation id="3533436815740441613">Nuova scheda</translation>
+<translation id="3534738261102690620">Chiedi a Gemini</translation>
 <translation id="3540141921715814660">Aggiungi ai preferiti</translation>
 <translation id="3546122170015471515">Anteprime di Maps su Google.com</translation>
 <translation id="3547356470684043247">Leggi le valutazioni dei clienti su prodotti, servizi o esperienze per prendere decisioni più consapevoli con le recensioni</translation>
@@ -691,10 +701,12 @@
 <translation id="3565012355885596568">Impossibile caricare le immagini</translation>
 <translation id="3565930036634619844">Scheda. <ph name="TAB_INDEX" /> di <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">Salva in altro modo</translation>
+<translation id="3572503683475187385">La scheda corrente viene condivisa con Gemini quando avvii una nuova chat. Quando condividi una scheda con Gemini, i relativi contenuti e l'URL vengono inviati a Google. <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">Nel tuo Account Google</translation>
 <translation id="3575234738189584619">Cerca con Lens</translation>
 <translation id="3575426792457739946">Questo elenco contiene tutti i profili caricati.</translation>
 <translation id="3578866308944526475"><ph name="EMAIL" />, gestito dalla tua organizzazione.</translation>
+<translation id="3580448612293054698">Aggiornare <ph name="ENTITY_TYPE" />?</translation>
 <translation id="3581564640715911333">Proponi di tradurre le pagine in altre lingue</translation>
 <translation id="3587482841069643663">Tutti</translation>
 <translation id="3587885837929752825">La tua organizzazione limita ciò che puoi salvare nel tuo Account Google.</translation>
@@ -729,10 +741,11 @@
 <translation id="372676576864368480">Compila automaticamente il numero della carta che termina con <ph name="LAST_DIGITS" /></translation>
 <translation id="3738428049780661523">Data creazione: <ph name="DATE" /></translation>
 <translation id="3742498336182910186">Rullino</translation>
-<translation id="3750225824417196283">Pagina Nuova scheda di navigazione in incognito</translation>
+<translation id="3750225824417196283">Pagina Nuova scheda Incognito</translation>
 <translation id="3751873026576444885">Interrompi la ricerca sullo schermo con Google Lens</translation>
 <translation id="3753408171347588045">Stai monitorando i prezzi</translation>
 <translation id="3753618528540214374">Tema verde veronese</translation>
+<translation id="3759491607478608474">Condividi i contenuti della scheda corrente con Gemini per ricevere risposte più pertinenti</translation>
 <translation id="3762232513783804601">Realizzato per il tuo iPad</translation>
 <translation id="3768725474733206671">Riapri l'ultima scheda chiusa</translation>
 <translation id="3779810277399252432">Nessuna connessione a Internet.</translation>
@@ -759,6 +772,7 @@
 <translation id="3853873210696342070">Importa</translation>
 <translation id="3857113360369572832">Apri <ph name="BEGIN_BOLD" />Impostazioni di Safari<ph name="END_BOLD" /></translation>
 <translation id="3858860766373142691">Nome</translation>
+<translation id="386224966259596343">Avrai la possibilità di salvare queste informazioni in Wallet la prossima volta che compilerai un modulo pertinente.</translation>
 <translation id="3868495844258915202">Mostra URL completo</translation>
 <translation id="3875783148670536197">Mostrami come fare</translation>
 <translation id="3878657761594430423">Pinza per fogli</translation>
@@ -825,6 +839,7 @@
 <translation id="4092655288299341041">Mostra la Guida</translation>
 <translation id="4095483462103784441">Crea un nuovo gruppo di schede</translation>
 <translation id="4099756562043439968">Imposta un promemoria</translation>
+<translation id="4101867642407836771">In Google Wallet per <ph name="USER_EMAIL" />.</translation>
 <translation id="4108998448622696017">Rileva e ti avvisa quando si verificano eventi pericolosi.</translation>
 <translation id="4111985840824673503">Segna tutti come già letti</translation>
 <translation id="411254640334432676">Download non riuscito.</translation>
@@ -833,6 +848,7 @@
 <translation id="4113957097611235433">Cambia le password</translation>
 <translation id="4120936477286528673">Questo sito sta cercando ripetutamente di aprire un'altra applicazione.</translation>
 <translation id="4121993058175073134">Per inviare dati net-export, configura il tuo account email nell'app Impostazioni.</translation>
+<translation id="4129768137228347731">Salvare <ph name="ENTITY_TYPE" />?</translation>
 <translation id="4133139945030148655">Hai già completato la configurazione</translation>
 <translation id="4133265950310064865">Protezione avanzata</translation>
 <translation id="4145507240503767005"><ph name="SEARCH_ENGINE_NAME" />, <ph name="SEARCH_ENGINE_DOMAIN" /></translation>
@@ -912,6 +928,7 @@
 <translation id="4405320213589929829">Usa gli indirizzi nelle pagine web per ricevere informazioni locali e indicazioni stradali.</translation>
 <translation id="441218095371040430">Usa la tastiera</translation>
 <translation id="4415276339145661267">Gestisci il tuo Account Google</translation>
+<translation id="4416582610654027550">Digita un URL valido</translation>
 <translation id="4420409367264901497">Modifica il preferito</translation>
 <translation id="4425365312778464779">Questo account è gestito</translation>
 <translation id="4430277756566635951">Selezione attuale: <ph name="EMAIL" />. Scegli un account.</translation>
@@ -937,14 +954,15 @@
 <translation id="4508750114462689118">Chiudi promo accesso</translation>
 <translation id="4509345063551561634">Percorso:</translation>
 <translation id="4517684186578051919">Informazioni del dispositivo</translation>
-<translation id="4520798012560649652">Scopri di più sulla modalità di navigazione in incognito</translation>
+<translation id="4520798012560649652">Scopri di più sulla modalità Incognito</translation>
 <translation id="452503091941773389">{count,plural, =1{{count} preferito}other{{count} preferiti}}</translation>
 <translation id="4525629404718770519">Mostra anteprime link</translation>
 <translation id="452750746583162491">Verifica i tuoi dati sincronizzati</translation>
 <translation id="4532845899244822526">Scegli cartella</translation>
-<translation id="454217142158335225">Puoi riaprire gli elementi chiusi dalle sezioni Schede recenti o Gruppi di schede. Le schede bloccate non verranno chiuse.</translation>
+<translation id="454217142158335225">Puoi riaprire gli elementi chiusi dalle sezioni Schede recenti o Gruppi di schede. Le schede fissate non verranno chiuse.</translation>
 <translation id="4547181496285029457">Torna alla scheda recente</translation>
 <translation id="4552042254369397518">Copia in corso…</translation>
+<translation id="4553044860350038560">Altre passkey</translation>
 <translation id="4564893319561643483">Nascondi "<ph name="TITLE" />"</translation>
 <translation id="4565377596337484307">Nascondi password</translation>
 <translation id="4568230126482344545">Nascondi schede recenti</translation>
@@ -961,6 +979,7 @@
 <translation id="4607887340472970274">Monitoraggio del prezzo</translation>
 <translation id="4619564267100705184">Verifica la tua identità</translation>
 <translation id="4621768135601674446">Apri le opzioni della modalità Lettura</translation>
+<translation id="4623894491222334521">Documenti di identità</translation>
 <translation id="4627107755957573804">Consenti a siti e app di eseguire l'upgrade degli account esistenti per utilizzare le passkey</translation>
 <translation id="4629065796475200039">La tua password non è stata importata</translation>
 <translation id="4630212057753624203">Fumetto di esempio</translation>
@@ -975,10 +994,11 @@
 <translation id="4650125387981512669">Continua come <ph name="FIRST_RUN_ACCOUNT_NAME" /></translation>
 <translation id="4651927776207937667">{count,plural, =1{Nascondi dopo 1 minuto}other{Nascondi dopo {count} minuti}}</translation>
 <translation id="4652817563047461855">Assicurati che le tue password siano al sicuro, scopri se sono state compromesse e ricevi consigli per proteggerti online. <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
+<translation id="4653053602672040238">Attiva la condivisione della scheda</translation>
 <translation id="4658335131052370646">Salva</translation>
 <translation id="466307903888586355">La tua organizzazione ha bloccato il salvataggio dei file</translation>
 <translation id="4668929960204016307">,</translation>
-<translation id="4669618761237477717">La tua organizzazione ti richiede di navigare in privato. I gruppi di schede non vengono sincronizzati in modalità di navigazione in incognito.
+<translation id="4669618761237477717">La tua organizzazione ti richiede di navigare in privato. I gruppi di schede non vengono sincronizzati in modalità Incognito.
 <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
 <translation id="467189612236587057">Comunica con un'attività commerciale avviando una telefonata</translation>
 <translation id="4673565891421389203">L'accesso con l'account gestito ti aiuta a mantenere separata la navigazione relativa alla tua organizzazione (tra cui schede, cronologia e password) dall'altra navigazione.
@@ -988,7 +1008,6 @@
 <translation id="4676647168422678078">Applicare le preferenze della pagina Nuova scheda?</translation>
 <translation id="4682496302933121474">Vuoi tradurre la pagina?</translation>
 <translation id="4682686630151240767">1. Apri le Impostazioni dell'iPhone</translation>
-<translation id="4691892551491778176">Quando usi questa funzionalità, i contenuti e gli URL della pagina vengono inviati a Google, ma non saranno usati per migliorare i modelli di AI generativa. Puoi disattivare questa opzione nelle impostazioni in qualsiasi momento.</translation>
 <translation id="4697240968720007067">Le migliori app Google in un tocco</translation>
 <translation id="4699172675775169585">Immagini e file memorizzati nella cache</translation>
 <translation id="4709570498586527752">Le funzionalità più pertinenti per te in momenti diversi</translation>
@@ -1012,7 +1031,7 @@
 <translation id="4769198578611055647">Ti consente di accedere alle passkey salvate su qualsiasi dispositivo</translation>
 <translation id="4782952780741793211">Codice di conferma:</translation>
 <translation id="4787847736989526091"><ph name="VALUE" />, <ph name="ADDITIONAL_INFO" /></translation>
-<translation id="478808905805139173">Aprire in modalità di navigazione in incognito?</translation>
+<translation id="478808905805139173">Aprire in modalità Incognito?</translation>
 <translation id="479208892659046780">I tuoi siti principali</translation>
 <translation id="4792385443586519711">Nome dell'azienda</translation>
 <translation id="479628432297359449">Interrompere il download?</translation>
@@ -1036,6 +1055,7 @@
 <translation id="484462545196658690">Automatico</translation>
 <translation id="4850886885716139402">Visualizza</translation>
 <translation id="4854068532375923088">Consenti a "Gemini" di usare la fotocamera</translation>
+<translation id="4860114370595561279">Le informazioni salvate vengono archiviate sul tuo dispositivo</translation>
 <translation id="4860895144060829044">Chiama</translation>
 <translation id="4861953997778766866">Tutti possono apportare modifiche ai tuoi gruppi di schede condivisi</translation>
 <translation id="4865063548323785458">Salva e compila automaticamente le password per accedere facilmente a siti e app</translation>
@@ -1048,7 +1068,7 @@
 <translation id="4876665338492917862">Ultima apertura: <ph name="LAST_OPENING_DATE" /></translation>
 <translation id="4877597489778380935">Ricordamelo più tardi</translation>
 <translation id="4881695831933465202">Apri</translation>
-<translation id="4883766694719903356">Griglia schede di navigazione in incognito</translation>
+<translation id="4883766694719903356">Griglia schede Incognito</translation>
 <translation id="4884937942297374058">La Protezione avanzata è disattivata</translation>
 <translation id="488785315393301722">Mostra dettagli</translation>
 <translation id="4889521386764567563">Profilo corrente</translation>
@@ -1071,6 +1091,7 @@
 <translation id="4944543191714094452">Trova nella pagina…</translation>
 <translation id="4945756290001680296">Accedi alle impostazioni della password</translation>
 <translation id="4949302115427722371">Gestisci impostazioni…</translation>
+<translation id="4952050521954075618">Le foto del rullino non verranno sincronizzate su tutti i tuoi dispositivi</translation>
 <translation id="4958444002117714549">Espandi elenco</translation>
 <translation id="496392417432935267">Aperta altrove</translation>
 <translation id="4970724460420203313">L'utilizzo di Chrome con l'account gestito ti aiuta a mantenere separata la navigazione relativa alla tua organizzazione (tra cui schede, cronologia e password) dall'altra navigazione</translation>
@@ -1103,6 +1124,7 @@
 <translation id="507187271399539513">{count,plural, =1{{position} di {count} metodo di pagamento}other{{position} di {count} metodi di pagamento}}</translation>
 <translation id="5075939510584558547">Salva senza crittografia</translation>
 <translation id="5076534614343816664">Monitoraggio del prezzo</translation>
+<translation id="507762438756999615">Impossibile condividere il file a causa delle policy della tua organizzazione</translation>
 <translation id="5078303485429639424">Attiva le notifiche per <ph name="FEATURE_NAME" /></translation>
 <translation id="5079950360618752063">Utilizza la password suggerita</translation>
 <translation id="5083464117946352670">Impossibile stabilire le dimensioni del file.</translation>
@@ -1138,6 +1160,7 @@
 <translation id="5186185447130319458">Privata</translation>
 <translation id="5189431381114029336">Salva la tua prima passkey</translation>
 <translation id="518997337573684769">Invio report sugli arresti anomali in corso…</translation>
+<translation id="519528950056409240">Consenti a Wallet di condividere i dati</translation>
 <translation id="519530786644929958">Download non riuscito. Impossibile riprovare.</translation>
 <translation id="5197255632782567636">Internet</translation>
 <translation id="5200894869889836319">Opzioni per impostare le autorizzazioni</translation>
@@ -1236,6 +1259,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="5559567453458728487">Converti le unità di misura trovate sul web</translation>
 <translation id="556042886152191864">Pulsante</translation>
 <translation id="5565871407246142825">Carte di credito</translation>
+<translation id="5566623128829375608">Salva sul dispositivo.</translation>
 <translation id="5567439033041178034">ULTERIORI INFORMAZIONI</translation>
 <translation id="5578795271662203820">Cerca questa immagine su <ph name="SEARCH_ENGINE" /></translation>
 <translation id="5579012242779565775">Nascondi elenco di lettura</translation>
@@ -1267,6 +1291,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="5647702255748985085">Lasciare il gruppo?</translation>
 <translation id="5648166631817621825">Ultima settimana</translation>
 <translation id="5652623411397330904">I prodotti monitorati verranno visualizzati qui.</translation>
+<translation id="5653100054596780862">Tutte le schede</translation>
 <translation id="5656431592348714536">Calendario migliorato</translation>
 <translation id="5659593005791499971">Email</translation>
 <translation id="5665739277590037307">Si applicano i <ph name="GOOGLE_TERMS" /> e l‘<ph name="GEMINI_APPS_PRIVACY" />. Gemini può fare errori, quindi verifica le sue risposte.</translation>
@@ -1286,6 +1311,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="5718049162805123412">Dovresti cambiarle subito</translation>
 <translation id="5721040778297053709">Posiziona la carta di credito all'interno di quest'area</translation>
 <translation id="572328651809341494">Schede recenti</translation>
+<translation id="5724590854763964497">Per impostazione predefinita, la scheda corrente viene condivisa quando avvii una nuova chat. Quando le schede vengono condivise, i relativi contenuti e URL vengono inviati a Google, ma non saranno usati per migliorare i modelli di AI generativa. Puoi modificare questa impostazione in qualsiasi momento.</translation>
 <translation id="5724941645893276623">Per navigare sul Web in privato, aggiungi una nuova scheda</translation>
 <translation id="5728072125198221967">Servizi Google collegati</translation>
 <translation id="5728700505257787410">Spiacenti, problema durante l'accesso all'account.</translation>
@@ -1313,7 +1339,6 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="5803566855766646066">Vuoi eliminare questa nuova carta?</translation>
 <translation id="5804241973901381774">Autorizzazioni</translation>
 <translation id="58081802114142635">La tua attività migliora Google AI</translation>
-<translation id="5813223718099710537">Quando usi questa funzionalità, i contenuti e gli URL della pagina vengono inviati a Google. Puoi disattivare questa opzione nelle impostazioni in qualsiasi momento.</translation>
 <translation id="5817176759448082654">Controllo password</translation>
 <translation id="5818161931099046557">Modifica nell'Account Google</translation>
 <translation id="5819208479324046259">Gestito da <ph name="MANAGER" />. <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
@@ -1339,6 +1364,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="5899314093904173337">Per condividere i contenuti con le persone qui vicino, chiedi loro di scansionare questo codice QR con la fotocamera o con un'app scanner QR</translation>
 <translation id="5902752768726620872">{count,plural, =1{{count} nuova scheda}other{{count} nuove schede}}</translation>
 <translation id="5911030830365207728">Google Traduttore</translation>
+<translation id="5912796581727968237">Apri Google Wallet</translation>
 <translation id="5922999516621365983">Trascina qui la scheda per bloccarla.</translation>
 <translation id="5930982343430790032">{COUNT,plural, =1{Aggiungi fino a 1 file, scheda o immagine}other{Aggiungi fino a {COUNT} file, schede o immagini}}</translation>
 <translation id="5936006948844852401">Gestisci spazio di archiviazione</translation>
@@ -1405,8 +1431,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="6140948187512243695">Mostra dettagli</translation>
 <translation id="6144589619057374135">Apri ${url} in incognito</translation>
 <translation id="6146563240635539929">Video</translation>
-<translation id="6147279996212084542">Spiega</translation>
-<translation id="6151006591088192882">Sblocca le schede di navigazione in incognito con <ph name="BIOMETRIC_AUTHENITCATION_TYPE" /></translation>
+<translation id="6151006591088192882">Sblocca le schede Incognito con <ph name="BIOMETRIC_AUTHENITCATION_TYPE" /></translation>
 <translation id="6152340033632117531">Inattive</translation>
 <translation id="6152406514676263192">Sincronizza i contenuti più pertinenti in base ai tuoi interessi.</translation>
 <translation id="6159839020698489198">facoltativo</translation>
@@ -1488,7 +1513,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="6404422529625928907">Apri su Google Drive</translation>
 <translation id="6404511346730675251">Modifica preferito</translation>
 <translation id="6406506848690869874">Sincronizzazione</translation>
-<translation id="6410390304316730527">La Navigazione sicura ti protegge da utenti malintenzionati che potrebbero indurti con l'inganno a effettuare operazioni pericolose, come installare software dannosi o rivelare informazioni personali (ad esempio password, numeri di telefono o carte di credito). Se la disattivi, fai attenzione quando navighi in siti sconosciuti o sospetti.</translation>
+<translation id="6410390304316730527">La Navigazione sicura ti protegge da attaccanti che potrebbero indurti con l'inganno a effettuare operazioni pericolose, come installare software dannosi o rivelare informazioni personali (ad esempio password, numeri di telefono o carte di credito). Se la disattivi, fai attenzione quando navighi in siti sconosciuti o sospetti.</translation>
 <translation id="6410883413783534063">Apri più schede per visitare pagine diverse contemporaneamente</translation>
 <translation id="6418346271604475326">Preparazione del PDF</translation>
 <translation id="6420292512900923139">Si è verificato un problema durante l'importazione dei dati</translation>
@@ -1523,7 +1548,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="6518861084553706202">Le schede verranno chiuse ed è possibile che vengano eliminati dati quali password, cronologia di navigazione, cookie e altro ancora.</translation>
 <translation id="6523575793810663688">Mostrami come fare</translation>
 <translation id="6524082013156754186">Salva nell'account</translation>
-<translation id="6524918542306337007">Modalità di navigazione in incognito non disponibile</translation>
+<translation id="6524918542306337007">Modalità Incognito non disponibile</translation>
 <translation id="6527208859483186860">sfondo {position} di {total}</translation>
 <translation id="6527303717912515753">Condividi</translation>
 <translation id="6532106788206463496">Salva modifiche</translation>
@@ -1559,7 +1584,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="6627583120233659107">Modifica cartella</translation>
 <translation id="6629759408545977279">Da: <ph name="ORIGINATING_HOST" /></translation>
 <translation id="66306952800092318">Aggiungi un ulteriore livello di protezione contro le minacce online.</translation>
-<translation id="6634432609054530164">La tua organizzazione ha disattivato la modalità di navigazione in incognito</translation>
+<translation id="6634432609054530164">La tua organizzazione ha disattivato la modalità Incognito</translation>
 <translation id="6637478299472506933">Download non riuscito</translation>
 <translation id="6638511529934826365">Zoom del testo…</translation>
 <translation id="6640268266988685324">Scheda aperta</translation>
@@ -1582,17 +1607,19 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="6684262542644248484">Accedi a un sito web</translation>
 <translation id="6685259053455152195">Scorciatoie per modificare rapidamente le impostazioni e utilizzare le funzionalità dalla barra degli indirizzi.</translation>
 <translation id="6689342293888598653">Colore sfondo bianco</translation>
-<translation id="6689685206615181381">Disponibile solo la modalità di navigazione in incognito</translation>
+<translation id="6689685206615181381">Disponibile solo la modalità Incognito</translation>
 <translation id="6708501134077648845">Opzioni password</translation>
 <translation id="6709964700841491574">Modalità di blocco</translation>
 <translation id="6710079714193676716">Gestito dalla tua organizzazione. Alcune funzionalità potrebbero non essere disponibili. <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
 <translation id="6713676799463473249">Ultima modifica: <ph name="LAST_MODIFICATION_DATE" /></translation>
 <translation id="6722623263381062480">Schede ricevute</translation>
+<translation id="6722638373100589752">Per compilare automaticamente le tue informazioni, attiva "Utilizza le tessere su Google" nelle impostazioni di Wallet</translation>
 <translation id="6723740634201835758">Nel tuo Account Google</translation>
 <translation id="6724024423419410528">Colori</translation>
 <translation id="672735642903863329">Trova i preferiti, le password e altri dati su tutti i dispositivi.</translation>
 <translation id="6729493062119577923">Attività del gruppo di schede condiviso</translation>
 <translation id="6732087373923685049">fotocamera</translation>
+<translation id="6736243959894955139">Indirizzo</translation>
 <translation id="6746338529702829275">Rivedi i dati dell'account</translation>
 <translation id="6750456911389438250">{count,plural, =1{{count} elemento della cronologia importato}other{{count} elementi della cronologia importati}}</translation>
 <translation id="6755200887046212842">Gestisci account</translation>
@@ -1652,7 +1679,6 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="6964300328304469089">Selezione attuale: <ph name="NAME" />, <ph name="EMAIL" />. Scegli un account.</translation>
 <translation id="6964760285928603117">Rimuovi dal gruppo</translation>
 <translation id="6965382102122355670">Ok</translation>
-<translation id="6967355534157677591">Crea immagine Pro</translation>
 <translation id="6973630695168034713">Cartelle</translation>
 <translation id="6979158407327259162">Google Drive</translation>
 <translation id="6979737339423435258">Dall'inizio</translation>
@@ -1716,11 +1742,12 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="722339453342442311">Controlla ora</translation>
 <translation id="7227235818314667565">Gestisci condivisione</translation>
 <translation id="7233006041370588369">Seleziona una password da inserire.</translation>
-<translation id="7241135764990439166">Modalità di navigazione in incognito non disponibile</translation>
+<translation id="7241135764990439166">Modalità Incognito non disponibile</translation>
 <translation id="7248046129087111453">La <ph name="BEGIN_LINK" />cronologia delle ricerche<ph name="END_LINK" /> e <ph name="BEGIN_LINK" />altri tipi di attività<ph name="END_LINK" /> potrebbero essere salvati nel tuo Account Google.</translation>
 <translation id="7253951228444156601">Controllo delle password…</translation>
 <translation id="7261217796641151584">Condividi gruppo</translation>
 <translation id="7266578100016339897">In questo modo, è più semplice organizzarsi. Puoi modificare questa opzione nelle impostazioni in qualsiasi momento.</translation>
+<translation id="7268294318904284516">Se condividi questo dispositivo, usa il blocco schermo per verificare la tua identità quando usi informazioni sensibili come i passaporti</translation>
 <translation id="7272437679830969316">Impossibile verificare la tua identità. Password non copiata.</translation>
 <translation id="728025568708172005">Avvia il tour</translation>
 <translation id="7280980607183752256">Impossibile importare questo file</translation>
@@ -1729,7 +1756,8 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="7293429513719260019">Seleziona lingua</translation>
 <translation id="7300448350764260141">Aggiungi un ulteriore livello di protezione dalle minacce online.</translation>
 <translation id="7311244614769792472">Nessun risultato trovato</translation>
-<translation id="7313347584264171202">Qui troverai le tue schede di navigazione in incognito</translation>
+<translation id="7313347584264171202">Qui troverai le tue schede Incognito</translation>
+<translation id="7322186060879266048">{count,plural, =1{{count} opzione di compilazione automatica disponibile sopra la tastiera.}other{{count} opzioni di compilazione automatica disponibili sopra la tastiera.}}</translation>
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" />% scaricato</translation>
 <translation id="7345061034321640811">Importazione non consentita</translation>
@@ -1785,8 +1813,9 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="7500244509706269886">Compila automaticamente il modulo</translation>
 <translation id="750493650310597496">0 selezionati</translation>
 <translation id="7506817096924591340"><ph name="FILENAME" /> (<ph name="FILESIZE" />).</translation>
-<translation id="7508728395076009983">Per bloccare le schede di navigazione in incognito, configura Touch ID, Face ID o un passcode.</translation>
+<translation id="7508728395076009983">Per bloccare le schede Incognito, configura Touch ID, Face ID o un passcode.</translation>
 <translation id="750886945254958667">Mantieni questo gruppo per aggiungere schede in un secondo momento o esci se non vuoi più accedervi</translation>
+<translation id="7511727374778217603">{COUNT,plural, =1{Aggiungi fino a 1 scheda}other{Aggiungi fino a {COUNT} schede}}</translation>
 <translation id="7512909159512473473">Inserisci passphrase…</translation>
 <translation id="7514365320538308">Scarica</translation>
 <translation id="7514530647142300459">Continua a usare le password nel tuo Account Google <ph name="EMAIL" /></translation>
@@ -1798,7 +1827,6 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="7537586195939242955">Spiacenti, il tuo pass non può essere installato in Passbook in questo momento.</translation>
 <translation id="754655535278952384">Ultimo controllo: <ph name="TIME" /></translation>
 <translation id="7554645225856321710">Chiudi tutte</translation>
-<translation id="7554791636758816595">Nuova scheda</translation>
 <translation id="7557508262441527045">Account disconnesso</translation>
 <translation id="7561196759112975576">Sempre</translation>
 <translation id="7561982940498449837">Chiudi menu</translation>
@@ -1807,7 +1835,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="7577900504646297215">Gestisci interessi</translation>
 <translation id="7582666837709186351">Traduci con la fotocamera il testo nelle foto o nell'ambiente circostante.</translation>
 <translation id="7582857256643797524">Questa impostazione è attiva sul tuo dispositivo</translation>
-<translation id="7583004045319035904">Utilizza <ph name="BIOMETRIC_AUTHENITCATION_TYPE" /> per sbloccare le schede di navigazione in incognito.</translation>
+<translation id="7583004045319035904">Utilizza <ph name="BIOMETRIC_AUTHENITCATION_TYPE" /> per sbloccare le schede Incognito.</translation>
 <translation id="7588149553568293500">Scopri di più sulle opzioni a tua disposizione.</translation>
 <translation id="7596103009408415410">{COUNT,plural, =1{Chiudere {COUNT} scheda non attiva?}other{Chiudere {COUNT} schede non attive?}}</translation>
 <translation id="7598439272585186139">Ottieni maggiore sicurezza</translation>
@@ -1857,6 +1885,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="775755486779745798">Compila automaticamente il mese di scadenza <ph name="MONTH" /></translation>
 <translation id="7758789811447313947">Tema viola</translation>
 <translation id="7759809451544302770">Facoltativo</translation>
+<translation id="7763878244904387570">Questa azione elimina le informazioni selezionate salvate su questo dispositivo.</translation>
 <translation id="7765158879357617694">Sposta</translation>
 <translation id="7772032839648071052">Conferma passphrase</translation>
 <translation id="7772948288262733182">Ti diamo il bentornato</translation>
@@ -1930,7 +1959,6 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="798991908416757345">I gruppi di schede non sono disponibili</translation>
 <translation id="7993170188789685695">Tocca due volte per chiudere questa notifica.</translation>
 <translation id="7996239959906074962">Configura…</translation>
-<translation id="8001561107130904792">Condivisione dei contenuti della pagina</translation>
 <translation id="800361585186029508">Consente di aprire gli URL inseriti in Google Chrome.</translation>
 <translation id="8005666035647241369">In Gestore delle password di Google su questo dispositivo</translation>
 <translation id="8010488806779226127">Esplora le funzionalità che possono aiutarti a fare di più mentre navighi</translation>
@@ -1953,6 +1981,8 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="8059533439631660104">Viene compressa la sezione.</translation>
 <translation id="8061584726507121204">Cronologia</translation>
 <translation id="8064946459644399612">Preferenze della pagina Nuova scheda applicate</translation>
+<translation id="8065136076319366194">Salvataggio non consigliato</translation>
+<translation id="8065556469005366939">Ricevi risposte più pertinenti condividendo le tue schede</translation>
 <translation id="8069394452933076548">Scegli quando spostare nella sezione Schede non attive le schede che non sono state utilizzate di recente.</translation>
 <translation id="8073670137947914548">Download terminato</translation>
 <translation id="8076492880354921740">Schede</translation>
@@ -1974,6 +2004,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="8131740175452115882">Conferma</translation>
 <translation id="8132598642024322408">Il prezzo attuale è <ph name="PRICE" />, mentre il prezzo precedente era <ph name="PREVIOUS_PRICE" />.</translation>
 <translation id="813370552429173916">Usa una password univoca per ogni sito o app. Se qualcuno scopre una password riutilizzata, potrebbe usarla per accedere ai tuoi altri account. Fai clic per aprire il sito web e modifica le password ora.</translation>
+<translation id="8133810265969517544">Condivisione non consigliata</translation>
 <translation id="8135556271852808840">{count,plural, =1{{count} scheda chiusa}other{{count} schede chiuse}}</translation>
 <translation id="8135643032449715400">{COUNT,plural, =1{1 altro}other{# altri}}</translation>
 <translation id="8150167929304790980">Nome e cognome</translation>
@@ -2011,7 +2042,6 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="826614135184049678">Il tuo account <ph name="USER_NAME" /> è stato disconnesso durante il ripristino dell'iPad. Per accedere di nuovo, tocca "Continua" di seguito.</translation>
 <translation id="8273982424131314219">Inserirai i dati su <ph name="URL" /></translation>
 <translation id="8275068909952022340">Altro…</translation>
-<translation id="8277328362018795342">I contenuti della tua pagina vengono condivisi per ricevere risposte più pertinenti</translation>
 <translation id="8281781826761538115">Predefinita - <ph name="DEFAULT_LOCALE" /></translation>
 <translation id="8281886186245836920">Salta</translation>
 <translation id="8282657446819506217">Apri in gruppo di schede</translation>
@@ -2060,6 +2090,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="8439758443371991593">Nascondi Aggiungi all'elenco di lettura</translation>
 <translation id="8443986842926457191">L'URL contiene più di 2048 caratteri</translation>
 <translation id="8449869326050867919">Password condivisa</translation>
+<translation id="8473815223723723001">Modifica immagine con Gemini</translation>
 <translation id="8473863474539038330">Indirizzi e altro</translation>
 <translation id="8474378002946546633">Consenti notifiche</translation>
 <translation id="8477178913400731244">Elimina dati</translation>
@@ -2072,7 +2103,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="8501469528283376592">Eliminazione automatica dei download</translation>
 <translation id="8503813439785031346">Nome utente</translation>
 <translation id="8505361906966222822">Salva in…</translation>
-<translation id="850600235656508448">Apri in modalità di navigazione in incognito</translation>
+<translation id="850600235656508448">Apri in modalità Incognito</translation>
 <translation id="8515534223594179607">Esporta dati di navigazione</translation>
 <translation id="8522147671363140027">{count,plural, =1{{count} password e altri elementi vengono salvati solo su questo dispositivo. Per usarli su altri dispositivi, salvali nel tuo Account Google {email}.}other{{count} password e altri elementi vengono salvati solo su questo dispositivo. Per usarli su altri dispositivi, salvali nel tuo Account Google {email}.}}</translation>
 <translation id="8524799873541103884">Schede <ph name="INCOGNITO" /> dalla <ph name="FIRST_VISIBLE_TAB" /> alla <ph name="LAST_VISIBLE_TAB" /> di <ph name="NUMBER_OF_OPEN_TABS" /></translation>
@@ -2110,18 +2141,18 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="8614671330774943747">Vai al Selettore di schede</translation>
 <translation id="862367213447108001">Mostra sempre i popup su questo sito</translation>
 <translation id="8625706492572042370">Modifica la schermata Home</translation>
-<translation id="8631370184731241854">Schede di navigazione in incognito bloccate</translation>
+<translation id="8631370184731241854">Schede Incognito bloccate</translation>
 <translation id="8633025649649592204">Attività recente</translation>
 <translation id="8636825310635137004">Attiva la sincronizzazione per recuperare le tue schede dagli altri dispositivi.</translation>
 <translation id="8637431369725868556">Ricevi protezione da siti pericolosi.</translation>
 <translation id="8638151046944329622">{COUNT,plural, =0{Nessuna password compromessa}=1{{COUNT} password compromessa}other{{COUNT} password compromesse}}</translation>
 <translation id="8643403533759285912">Elimina gruppo</translation>
-<translation id="8645245178269185266">Condividi i contenuti della pagina con Gemini per ricevere risposte più pertinenti</translation>
 <translation id="8647280737650867362">Impossibile interrompere il monitoraggio del prezzo.</translation>
 <translation id="8654802032646794042">Annulla</translation>
 <translation id="8660600697590740984">Immagine copiata da Lens</translation>
 <translation id="866266761389616183">Uffa!</translation>
 <translation id="8663764600409216912">Stai utilizzando password che sembrano difficili da indovinare</translation>
+<translation id="8664992138761940052">Per impostazione predefinita, la scheda corrente viene condivisa quando avvii una nuova chat. Quando le schede vengono condivise, i relativi contenuti e URL vengono inviati a Google. Puoi modificare questa impostazione in qualsiasi momento.</translation>
 <translation id="8668210798914567634">Questa pagina è stata salvata nel tuo Elenco di lettura.</translation>
 <translation id="8672642291731179042">Traduci pagine</translation>
 <translation id="8672733398999596205">Attiva tutto</translation>
@@ -2178,6 +2209,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="8829809207373502270">Questa passkey non funziona più. È stata eliminata da <ph name="WEBSITE" /> e verrà eliminata anche da qui a breve. <ph name="BEGIN_LINK" />Informazioni sulle passkey<ph name="END_LINK" /></translation>
 <translation id="8831208860914609320">Chiudi tutte le schede non attive</translation>
 <translation id="8837654851594567190">Ordina per publisher</translation>
+<translation id="884351711508006491">Le tue informazioni sono salvate sul dispositivo.</translation>
 <translation id="8844136307393039959">Calo di prezzo sul prodotto monitorato</translation>
 <translation id="8848286253339013170">Salvataggio immagine in Google Foto per <ph name="USER_EMAIL" /> in corso…</translation>
 <translation id="8849001918648564819">Nascosto</translation>
@@ -2185,7 +2217,6 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="8856643812068084733">Archivi</translation>
 <translation id="8863067612494559785">Invio a <ph name="DEVICE_NAME" /> in corso…</translation>
 <translation id="8863431381414769983">Ricevi indicazioni stradali e informazioni locali da Google Maps</translation>
-<translation id="8867879594900082274">Le modifiche verranno applicate solo ai siti fissati su questo dispositivo.</translation>
 <translation id="8871974300055371298">Impostazioni contenuti</translation>
 <translation id="8877788021141246043">Imposta un promemoria</translation>
 <translation id="8879604564928138696">Tocca due volte per provare</translation>
@@ -2223,10 +2254,10 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="8976414606286374109">Le carte di credito vengono salvate nel tuo Account Google.</translation>
 <translation id="8981454092730389528">Gestione attività di Google</translation>
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, sito fissato</translation>
+<translation id="8990960056509724223">Impossibile salvare il file a causa delle policy della tua organizzazione</translation>
 <translation id="8998289560386111590">Non disponibile sul tuo dispositivo</translation>
-<translation id="9000532564152265066">Tutte le schede</translation>
 <translation id="9003677638446136377">Controlla</translation>
-<translation id="9006453925669499173">Menu → Nuova scheda di navigazione in incognito</translation>
+<translation id="9006453925669499173">Menu → Nuova scheda Incognito</translation>
 <translation id="9008201768610948239">Ignora</translation>
 <translation id="9012585441087414258">Protezione da siti, download ed estensioni noti per essere pericolosi. Se una pagina esegue operazioni sospette, vengono inviati URL e frammenti dei contenuti delle pagine a Google Navigazione sicura</translation>
 <translation id="9013605037177245304">Attiva le notifiche</translation>
@@ -2246,7 +2277,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="9081058212938299310">Aggiornare la password per <ph name="USERNAME" />?</translation>
 <translation id="9083838294503912307">Attiva la sincronizzazione per sincronizzare e personalizzare tutti i dispositivi.</translation>
 <translation id="9084367296493549256">{count,plural, =1{Hai {count} password inefficace che potrebbe mettere a rischio la tua sicurezza. Sistemala subito per rimanere al sicuro.}other{Hai {count} password inefficaci che potrebbero mettere a rischio la tua sicurezza. Sistemale subito per rimanere al sicuro.}}</translation>
-<translation id="9084369964545892485">Nuova scheda di navigazione in incognito nel gruppo</translation>
+<translation id="9084369964545892485">Nuova scheda Incognito nel gruppo</translation>
 <translation id="9087339162317338348">Se possibile, utilizza HTTPS e ricevi un avviso prima di caricare i siti che non lo supportano.</translation>
 <translation id="9090979472668095374">Pronuncia le risposte</translation>
 <translation id="9094033019050270033">Aggiorna password</translation>
@@ -2280,7 +2311,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="9200875785104711666"><ph name="TIME" /> g fa</translation>
 <translation id="9203116392574189331">Handoff</translation>
 <translation id="9203951165704618409">Sposta la barra degli indirizzi dall'alto verso il basso per un'esperienza di navigazione personalizzata.</translation>
-<translation id="9205189991633470489">Blocco delle schede di navigazione in incognito</translation>
+<translation id="9205189991633470489">Blocco delle schede Incognito</translation>
 <translation id="9206887540681440657">Velocità</translation>
 <translation id="9219103736887031265">Immagini</translation>
 <translation id="9219154867334666734">Cerca tra le schede…</translation>
@@ -2311,7 +2342,7 @@ La funzione Handoff deve anche essere attivata nella sezione Generali di Imposta
 <translation id="973788791897303708">Questo gruppo di schede è al completo</translation>
 <translation id="981498610235328462">La tua organizzazione ti consente di accedere solo con determinati account. Gli account non consentiti vengono nascosti.</translation>
 <translation id="984275831282074731">Metodi di pagamento</translation>
-<translation id="985379595344853742">Chiudi tutte le schede di navigazione in incognito</translation>
+<translation id="985379595344853742">Chiudi tutte le schede Incognito</translation>
 <translation id="988141524645182168">Altri dispositivi</translation>
 <translation id="995174784802614337">{count,plural, =1{{count} passkey importata}other{{count} passkey importate}}</translation>
 <translation id="999768147936949692">Al momento puoi condividere le password solo con i membri del gruppo Famiglia. <ph name="BEGIN_LINK" />Invita membri del gruppo Famiglia<ph name="END_LINK" /> a unirsi al tuo gruppo e usa al meglio i tuoi prodotti e abbonamenti su Google.</translation>

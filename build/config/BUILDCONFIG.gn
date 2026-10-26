@@ -399,6 +399,7 @@ default_compiler_configs = [
   "//build/config/compiler:no_unresolved_symbols",
   "//build/config/compiler:runtime_library",
   "//build/config/compiler:sanitize_c_array_bounds",
+  "//build/config/compiler:sanitize_return",
   "//build/config/compiler:thin_archive",
   "//build/config/compiler:thinlto_optimize_default",
   "//build/config/compiler:tot_warnings",
@@ -424,6 +425,7 @@ if (is_win) {
     "//build/config/win:nominmax",
     "//build/config/win:unicode",
     "//build/config/win:winver",
+    "//build/config/win:wincrypt_use_symbol_prefix",
   ]
 }
 

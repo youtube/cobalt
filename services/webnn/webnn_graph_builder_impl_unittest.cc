@@ -54,10 +54,10 @@ class FakeWebNNGraphImpl final : public WebNNGraphImpl {
  public:
   FakeWebNNGraphImpl(
       mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
-      base::WeakPtr<WebNNContextImpl> context,
+      WebNNContextImpl& context,
       ComputeResourceInfo compute_resource_info)
       : WebNNGraphImpl(std::move(receiver),
-                       std::move(context),
+                       context,
                        std::move(compute_resource_info),
                        /*devices=*/{}) {}
 
@@ -86,6 +86,8 @@ class FakeWebNNContextImpl final : public WebNNContextImpl {
       scoped_refptr<base::SingleThreadTaskRunner> main_task_runner)
       : WebNNContextImpl(std::move(receiver),
                          std::move(context_provider),
+                         // The backend type is ignored for testing.
+                         ContextBackendUma::kNotSupported,
                          GetContextPropertiesForTesting(),
                          mojom::CreateContextOptions::New(),
                          mojo::ScopedDataPipeConsumerHandle(),
@@ -111,14 +113,13 @@ class FakeWebNNContextImpl final : public WebNNContextImpl {
       WebNNGraphImpl::ComputeResourceInfo compute_resource_info,
       base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
       /*constant_operands*/,
-      base::flat_map<OperandId, WebNNTensorImpl*>
+      base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
       /*constant_tensor_operands*/,
       CreateGraphImplCallback callback) override {
     // Asynchronously resolve `callback` so there's an opportunity for
     // subsequent messages to be (illegally) sent from the `WebNNGraphBuilder`
     // remote before it's disconnected.
-    scheduler_task_runner()->PostTask(
-        FROM_HERE,
+    gpu_sequence()->ScheduleGpuTask(
         base::BindOnce(
             [](mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
                base::WeakPtr<WebNNContextImpl> context,
@@ -126,7 +127,7 @@ class FakeWebNNContextImpl final : public WebNNContextImpl {
                CreateGraphImplCallback callback) {
               CHECK(context);
               std::move(callback).Run(base::MakeRefCounted<FakeWebNNGraphImpl>(
-                  std::move(receiver), std::move(context),
+                  std::move(receiver), *context,
                   std::move(compute_resource_info)));
             },
             std::move(receiver), AsWeakPtr(), std::move(compute_resource_info),

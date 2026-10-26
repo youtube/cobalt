@@ -15,14 +15,12 @@ import {ParentTrustedDocumentProxy} from '../microsoft_auth_frame_connector.js';
 import {ModuleDescriptor} from '../module_descriptor.js';
 import type {MenuItem, ModuleHeaderElement} from '../module_header.js';
 
-import type {CalendarElement} from './calendar.js';
 import {getHtml} from './outlook_calendar_module.html.js';
 import {OutlookCalendarProxyImpl} from './outlook_calendar_proxy.js';
 
 export interface OutlookCalendarModuleElement {
   $: {
-    calendar: CalendarElement,
-    moduleHeaderElementV2: ModuleHeaderElement,
+    moduleHeader: ModuleHeaderElement,
   };
 }
 
@@ -110,17 +108,13 @@ export class OutlookCalendarModuleElement extends
 
   protected onDismissButtonClick_() {
     this.handler_.dismissModule();
-    this.dispatchEvent(new CustomEvent('dismiss-module-instance', {
-      bubbles: true,
-      composed: true,
-      detail: {
-        message: this.i18n('modulesOutlookCalendarDismissToastMessage'),
-        restoreCallback: () => this.handler_.restoreModule(),
-      },
-    }));
+    this.fire('dismiss-module-instance', {
+      message: this.i18n('modulesOutlookCalendarDismissToastMessage'),
+      restoreCallback: () => this.handler_.restoreModule(),
+    });
   }
 
-  protected onSignOutButtonClick_() {
+  protected onSignoutButtonClick_() {
     ParentTrustedDocumentProxy.getInstance()?.getChildDocument().signOut();
   }
 }

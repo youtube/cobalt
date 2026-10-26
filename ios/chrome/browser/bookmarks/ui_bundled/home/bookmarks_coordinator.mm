@@ -424,12 +424,6 @@ enum class PresentedState {
   }
 }
 
-- (void)showAccountSettings {
-  id<SettingsCommands> settingsHandler = HandlerForProtocol(
-      self.browser->GetCommandDispatcher(), SettingsCommands);
-  [settingsHandler showSyncSettingsFromViewController:self.baseViewController];
-}
-
 #pragma mark - BookmarksEditorCoordinatorDelegate
 
 - (void)bookmarksEditorCoordinatorShouldStop:
@@ -539,8 +533,7 @@ enum class PresentedState {
 
 - (void)bookmarkHomeViewController:(BookmarksHomeViewController*)controller
     wantsToShowSetTabReminderUIForNode:(const bookmarks::BookmarkNode*)node {
-  CHECK(
-      send_tab_to_self::IsSendTabIOSPushNotificationsEnabledWithTabReminders());
+  CHECK(send_tab_to_self::AreIOSTabRemindersEnabled());
   CHECK(node && node->is_url());
   CHECK(self.bookmarkNavigationController);
 

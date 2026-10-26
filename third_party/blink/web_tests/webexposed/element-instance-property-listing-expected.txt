@@ -28,10 +28,13 @@ namespace http://www.w3.org/1999/xhtml
     property activeViewTransition
     property addEventListener
     property after
-    property anchorElement
+    property afterHTML
+    property afterHTMLUnsafe
     property animate
     property append
     property appendChild
+    property appendHTML
+    property appendHTMLUnsafe
     property ariaActiveDescendantElement
     property ariaAtomic
     property ariaAutoComplete
@@ -94,6 +97,8 @@ namespace http://www.w3.org/1999/xhtml
     property autofocus
     property baseURI
     property before
+    property beforeHTML
+    property beforeHTMLUnsafe
     property blur
     property checkVisibility
     property childElementCount
@@ -208,6 +213,7 @@ namespace http://www.w3.org/1999/xhtml
     property onclick
     property onclose
     property oncommand
+    property oncomplete
     property oncontentvisibilityautostatechange
     property oncontextlost
     property oncontextmenu
@@ -250,7 +256,10 @@ namespace http://www.w3.org/1999/xhtml
     property onmouseover
     property onmouseup
     property onmousewheel
-    property onoverscroll
+    property onoverscrollcancel
+    property onoverscrollchanging
+    property onoverscrollend
+    property onoverscrollstart
     property onpaste
     property onpause
     property onplay
@@ -311,6 +320,8 @@ namespace http://www.w3.org/1999/xhtml
     property popover
     property prefix
     property prepend
+    property prependHTML
+    property prependHTMLUnsafe
     property previousElementSibling
     property previousSibling
     property pseudo
@@ -326,6 +337,8 @@ namespace http://www.w3.org/1999/xhtml
     property replaceChild
     property replaceChildren
     property replaceWith
+    property replaceWithHTML
+    property replaceWithHTMLUnsafe
     property requestFullscreen
     property requestPointerLock
     property role
@@ -351,7 +364,9 @@ namespace http://www.w3.org/1999/xhtml
     property slot
     property spellcheck
     property startViewTransition
+    property streamAppendHTML
     property streamAppendHTMLUnsafe
+    property streamHTML
     property streamHTMLUnsafe
     property style
     property tabIndex
@@ -455,6 +470,7 @@ html element audio
     property error
     property latencyHint
     property load
+    property loading
     property loop
     property mediaKeys
     property muted
@@ -552,6 +568,8 @@ html element canvas
     property getElementTransform
     property height
     property layoutSubtree
+    property onpaint
+    property requestPaint
     property toBlob
     property toDataURL
     property transferControlToOffscreen
@@ -576,6 +594,13 @@ html element colgroup
     property vAlign
     property width
 html element credential
+    property clientId
+    property configURL
+    property domainHint
+    property fields
+    property loginHint
+    property params
+    property type
 html element data
     property value
 html element datalist
@@ -796,6 +821,7 @@ html element input
     property autocomplete
     property checkValidity
     property checked
+    property createValueRange
     property defaultChecked
     property defaultValue
     property dirName
@@ -898,6 +924,7 @@ html element link
 html element listing
     property width
 html element login
+    property credential
 html element main
 html element map
     property areas
@@ -1153,7 +1180,6 @@ html element td
     property width
 html element template
     property content
-    property parseparts
     property shadowRootClonable
     property shadowRootCustomElementRegistry
     property shadowRootDelegatesFocus
@@ -1163,6 +1189,7 @@ html element textarea
     property autocomplete
     property checkValidity
     property cols
+    property createValueRange
     property defaultValue
     property dirName
     property disabled
@@ -1260,8 +1287,10 @@ html element usermedia
     property isValid
     property onpromptaction
     property onpromptdismiss
+    property onstream
     property onvalidationstatuschange
     property permissionStatus
+    property setConstraints
     property type
 html element var
 html element video
@@ -1297,6 +1326,7 @@ html element video
     property height
     property latencyHint
     property load
+    property loading
     property loop
     property mediaKeys
     property muted
@@ -1362,10 +1392,13 @@ namespace http://www.w3.org/2000/svg
     property activeViewTransition
     property addEventListener
     property after
-    property anchorElement
+    property afterHTML
+    property afterHTMLUnsafe
     property animate
     property append
     property appendChild
+    property appendHTML
+    property appendHTMLUnsafe
     property ariaActiveDescendantElement
     property ariaAtomic
     property ariaAutoComplete
@@ -1426,6 +1459,8 @@ namespace http://www.w3.org/2000/svg
     property autofocus
     property baseURI
     property before
+    property beforeHTML
+    property beforeHTMLUnsafe
     property blur
     property checkVisibility
     property childElementCount
@@ -1522,6 +1557,7 @@ namespace http://www.w3.org/2000/svg
     property onclick
     property onclose
     property oncommand
+    property oncomplete
     property oncontentvisibilityautostatechange
     property oncontextlost
     property oncontextmenu
@@ -1564,7 +1600,10 @@ namespace http://www.w3.org/2000/svg
     property onmouseover
     property onmouseup
     property onmousewheel
-    property onoverscroll
+    property onoverscrollcancel
+    property onoverscrollchanging
+    property onoverscrollend
+    property onoverscrollstart
     property onpaste
     property onpause
     property onplay
@@ -1624,6 +1663,8 @@ namespace http://www.w3.org/2000/svg
     property part
     property prefix
     property prepend
+    property prependHTML
+    property prependHTMLUnsafe
     property previousElementSibling
     property previousSibling
     property pseudo
@@ -1639,6 +1680,8 @@ namespace http://www.w3.org/2000/svg
     property replaceChild
     property replaceChildren
     property replaceWith
+    property replaceWithHTML
+    property replaceWithHTMLUnsafe
     property requestFullscreen
     property requestPointerLock
     property role
@@ -1661,7 +1704,9 @@ namespace http://www.w3.org/2000/svg
     property shadowRoot
     property slot
     property startViewTransition
+    property streamAppendHTML
     property streamAppendHTMLUnsafe
+    property streamHTML
     property streamHTMLUnsafe
     property style
     property tabIndex

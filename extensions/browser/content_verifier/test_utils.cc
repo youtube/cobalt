@@ -42,7 +42,7 @@ TestContentVerifySingleJobObserver::WaitForJobFinished() {
   return client_->WaitForJobFinished();
 }
 
-ContentHashReader::InitStatus
+std::optional<ContentHashReaderInitStatus>
 TestContentVerifySingleJobObserver::WaitForOnHashesReady() {
   return client_->WaitForOnHashesReady();
 }
@@ -79,25 +79,22 @@ void TestContentVerifySingleJobObserver::ObserverClient::JobFinished(
 void TestContentVerifySingleJobObserver::ObserverClient::OnHashesReady(
     const ExtensionId& extension_id,
     const base::FilePath& relative_path,
-    const ContentHashReader& hash_reader) {
-  if (content::BrowserThread::CurrentlyOn(creation_thread_))
-    OnHashesReadyOnCreationThread(extension_id, relative_path,
-                                  hash_reader.status());
-  else {
-    content::BrowserThread::GetTaskRunnerForThread(creation_thread_)
-        ->PostTask(
-            FROM_HERE,
-            base::BindOnce(&TestContentVerifySingleJobObserver::ObserverClient::
-                               OnHashesReadyOnCreationThread,
-                           this, extension_id, relative_path,
-                           hash_reader.status()));
-  }
+    const base::expected<ContentHashData, ContentHashReaderInitStatus>&
+        hashes) {
+  content::GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(&TestContentVerifySingleJobObserver::ObserverClient::
+                         OnHashesReadyOnCreationThread,
+                     this, extension_id, relative_path,
+                     hashes.has_value() ? std::nullopt
+                                        : std::make_optional(hashes.error())));
 }
 
 void TestContentVerifySingleJobObserver::ObserverClient::
-    OnHashesReadyOnCreationThread(const ExtensionId& extension_id,
-                                  const base::FilePath& relative_path,
-                                  ContentHashReader::InitStatus hashes_status) {
+    OnHashesReadyOnCreationThread(
+        const ExtensionId& extension_id,
+        const base::FilePath& relative_path,
+        std::optional<ContentHashReaderInitStatus> hashes_status) {
   if (extension_id != extension_id_ || relative_path != relative_path_)
     return;
   EXPECT_FALSE(seen_on_hashes_ready_);
@@ -114,7 +111,7 @@ TestContentVerifySingleJobObserver::ObserverClient::WaitForJobFinished() {
   return failure_reason_.value_or(ContentVerifyJob::FAILURE_REASON_MAX);
 }
 
-ContentHashReader::InitStatus
+std::optional<ContentHashReaderInitStatus>
 TestContentVerifySingleJobObserver::ObserverClient::WaitForOnHashesReady() {
   // Run() returns immediately if Quit() has already been called.
   on_hashes_ready_run_loop_.Run();
@@ -384,7 +381,7 @@ void TestExtensionBuilder::AddResource(base::FilePath::StringType relative_path,
 }
 
 void TestExtensionBuilder::WriteComputedHashes() {
-  int block_size = extension_misc::kContentVerificationDefaultBlockSize;
+  size_t block_size = extension_misc::kContentVerificationDefaultBlockSize;
   ComputedHashes::Data computed_hashes_data;
 
   for (const auto& resource : extension_resources_) {
@@ -456,7 +453,7 @@ std::vector<uint8_t> TestExtensionBuilder::GetTestContentVerifierPublicKey()
 
 std::unique_ptr<base::Value>
 TestExtensionBuilder::CreateVerifiedContentsPayload() const {
-  int block_size = extension_misc::kContentVerificationDefaultBlockSize;
+  size_t block_size = extension_misc::kContentVerificationDefaultBlockSize;
 
   base::ListValue files;
   for (const auto& resource : extension_resources_) {
@@ -477,11 +474,12 @@ TestExtensionBuilder::CreateVerifiedContentsPayload() const {
           .Set("item_id", extension_id_)
           .Set("item_version", "1.0")
           .Set("content_hashes",
-               base::ListValue().Append(base::DictValue()
-                                            .Set("format", "treehash")
-                                            .Set("block_size", block_size)
-                                            .Set("hash_block_size", block_size)
-                                            .Set("files", std::move(files))));
+               base::ListValue().Append(
+                   base::DictValue()
+                       .Set("format", "treehash")
+                       .Set("block_size", static_cast<int>(block_size))
+                       .Set("hash_block_size", static_cast<int>(block_size))
+                       .Set("files", std::move(files))));
 
   return std::make_unique<base::Value>(std::move(result));
 }

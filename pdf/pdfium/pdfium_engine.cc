@@ -609,6 +609,22 @@ class ScopedPageObjectDeactivator {
 
 #endif
 
+void CheckBitmapProperties(const SkBitmap& sk_bitmap, FPDF_BITMAP fpdf_bitmap) {
+  CHECK_EQ(sk_bitmap.colorType(), SkColorType::kBGRA_8888_SkColorType);
+  switch (FPDFBitmap_GetFormat(fpdf_bitmap)) {
+    case FPDFBitmap_BGRA_Premul:
+      CHECK_EQ(sk_bitmap.alphaType(), SkAlphaType::kPremul_SkAlphaType);
+      break;
+    case FPDFBitmap_BGRA:
+      CHECK_EQ(sk_bitmap.alphaType(), SkAlphaType::kUnpremul_SkAlphaType);
+      break;
+    case FPDFBitmap_BGRx:
+      break;  // Any alphaType is okay as long as the colorType is good
+    default:
+      NOTREACHED();
+  }
+}
+
 }  // namespace
 
 void InitializeSDK(bool enable_v8,
@@ -1534,8 +1550,11 @@ std::unique_ptr<AccessibilityStructureElement> PDFiumEngine::GetStructureTree()
   auto structure_tree_root = std::make_unique<AccessibilityStructureElement>();
   structure_tree_root->type = PdfTagType::kDocument;
   structure_tree_root->children.reserve(pages_.size());
-  // TODO(crbug.com/40707542): Get the /Lang string from
-  // AccessibilityStructureElement.
+  structure_tree_root->language =
+      base::UTF16ToUTF8(CallPDFiumWideStringBufferApi(
+          base::BindRepeating(&FPDFCatalog_GetLanguage, doc()),
+          /*check_expected_size=*/true));
+
   for (const std::unique_ptr<PDFiumPage>& page : pages_) {
     auto page_structure = page->GetStructureTree();
     if (page_structure) {
@@ -3553,7 +3572,13 @@ bool PDFiumEngine::ContinuePaint(size_t progressive_index,
   CHECK(PageIndexInBounds(paint.page_index()));
   FPDF_PAGE page = pages_[paint.page_index()]->GetPage();
   if (paint.bitmap()) {
-    return FPDF_RenderPage_Continue(page, this) != FPDF_RENDER_TOBECONTINUED;
+    if (FPDF_RenderPage_Continue(page, this) == FPDF_RENDER_TOBECONTINUED) {
+      // Don't CheckBitmapProperties() because pdfium converts unpremul to
+      // premul in the middle stages of rendering in skia mode.
+      return false;
+    }
+    CheckBitmapProperties(image_data, paint.bitmap());
+    return true;
   }
 
   const gfx::Rect& dirty = paint.rect();
@@ -3571,11 +3596,17 @@ bool PDFiumEngine::ContinuePaint(size_t progressive_index,
   FPDFBitmap_FillRect(new_bitmap_ptr, pdfium_rect.x(), pdfium_rect.y(),
                       pdfium_rect.width(), pdfium_rect.height(), fill_color);
 
-  return FPDF_RenderPageBitmap_Start(
-             new_bitmap_ptr, page, pdfium_rect.x(), pdfium_rect.y(),
-             pdfium_rect.width(), pdfium_rect.height(),
-             GetClockwiseRotationSteps(GetCurrentOrientation()),
-             GetRenderingFlags(), this) != FPDF_RENDER_TOBECONTINUED;
+  if (FPDF_RenderPageBitmap_Start(
+          new_bitmap_ptr, page, pdfium_rect.x(), pdfium_rect.y(),
+          pdfium_rect.width(), pdfium_rect.height(),
+          GetClockwiseRotationSteps(GetCurrentOrientation()),
+          GetRenderingFlags(), this) == FPDF_RENDER_TOBECONTINUED) {
+    // Don't CheckBitmapProperties() because pdfium converts unpremul to
+    // premul in the middle stages of rendering in skia mode.
+    return false;
+  }
+  CheckBitmapProperties(image_data, paint.bitmap());
+  return true;
 }
 
 void PDFiumEngine::FinishPaint(size_t progressive_index, SkBitmap& image_data) {
@@ -3603,6 +3634,7 @@ void PDFiumEngine::FinishPaint(size_t progressive_index, SkBitmap& image_data) {
   form_highlights_.clear();
 
   FPDF_RenderPage_Close(pages_[page_index]->GetPage());
+  CheckBitmapProperties(image_data, bitmap);
   progressive_paints_.erase(progressive_paints_.begin() + progressive_index);
 
   MaybeRequestPendingThumbnail(page_index);
@@ -5240,6 +5272,7 @@ PDFiumEngine::ProgressivePaint::~ProgressivePaint() = default;
 void PDFiumEngine::ProgressivePaint::SetBitmapAndImageData(
     ScopedFPDFBitmap bitmap,
     SkBitmap image_data) {
+  CheckBitmapProperties(image_data, bitmap.get());
   bitmap_ = std::move(bitmap);
   image_data_ = std::move(image_data);
 }

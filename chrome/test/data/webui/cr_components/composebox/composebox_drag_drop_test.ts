@@ -16,7 +16,7 @@ import {DragAndDropHandler} from 'chrome://resources/cr_components/search/drag_d
 import type {DragAndDropHost} from 'chrome://resources/cr_components/search/drag_drop_host.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
-import {InputType} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
+import {InputType, ToolMode as ComposeboxToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import type {TestMock} from 'chrome://webui-test/test_mock.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
@@ -244,6 +244,13 @@ suite('ComposeboxDragAndDrop', () => {
 
     windowProxy = installMock(WindowProxy);
     windowProxy.setResultFor('setTimeout', 0);
+    windowProxy.setResultMapperFor('matchMedia', () => ({
+                                                   addListener() {},
+                                                   addEventListener() {},
+                                                   removeListener() {},
+                                                   removeEventListener() {},
+                                                 }));
+
 
     loadTimeData.overrideValues({
       'composeboxContextDragAndDropEnabled': true,
@@ -312,7 +319,7 @@ suite('ComposeboxDragAndDrop', () => {
     // Same token for auto inject (mac) and manual (linux/windows)
     const sharedToken = '12345678-1234-1234-1234-123456789abc';
     searchboxHandler.setResultFor(
-        ADD_FILE_CONTEXT_FN, Promise.resolve({token: sharedToken}));
+        ADD_FILE_CONTEXT_FN, Promise.resolve(sharedToken));
 
     const file = new File(['content'], 'foo.pdf', {type: 'application/pdf'});
     // Automatically add file (Mac)
@@ -322,7 +329,6 @@ suite('ComposeboxDragAndDrop', () => {
     assertEquals(1, searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN));
     assertFalse(composeboxElement.hasAttribute('is-dragging-file'));
 
-    const context = composeboxElement.$.context;
     // Mock backend response: manually add file to frontend to render it in the
     // frontend
     const mockAddedFile: ComposeboxFile = {
@@ -330,19 +336,23 @@ suite('ComposeboxDragAndDrop', () => {
       name: 'foo.pdf',
       status: 0,
       type: 'application/pdf',
+      inputType: InputType.kLensFile,
       isDeletable: true,
       objectUrl: null,
       dataUrl: null,
       url: null,
       tabId: null,
+      iconName: null,
+      supportsUnimodal: true,
     };
-    context.onFileContextAdded(mockAddedFile);
+    composeboxElement.addFileContextForTesting(mockAddedFile);
     await microtasksFinished();
-    await context.updateComplete;
+    await composeboxElement.updateComplete;
     await microtasksFinished();
 
     const carousel: ComposeboxFileCarouselElement|null =
-        context.shadowRoot.querySelector('cr-composebox-file-carousel');
+        composeboxElement.shadowRoot.querySelector(
+            'cr-composebox-file-carousel');
 
     assertTrue(!!carousel, 'Carousel should render');
 
@@ -383,7 +393,7 @@ suite('ComposeboxDragAndDrop', () => {
     await microtasksFinished();
     const sharedToken = '12345678-1234-1234-1234-123456789abc';
     searchboxHandler.setResultFor(
-        ADD_FILE_CONTEXT_FN, Promise.resolve({token: sharedToken}));
+        ADD_FILE_CONTEXT_FN, Promise.resolve(sharedToken));
 
     const file1 = new File(['a'], 'a.pdf', {type: 'application/pdf'});
     const file2 = new File(['b'], 'b.pdf', {type: 'application/pdf'});
@@ -395,30 +405,160 @@ suite('ComposeboxDragAndDrop', () => {
     assertEquals(1, searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN));
 
     // Mock adding file in frontend from backend
-    const context = composeboxElement.$.context;
     const mockAddedFile: ComposeboxFile = {
       uuid: sharedToken,
       name: 'a.pdf',
       status: 0,
       type: 'application/pdf',
+      inputType: InputType.kLensFile,
       isDeletable: true,
       objectUrl: null,
       dataUrl: null,
       url: null,
       tabId: null,
+      iconName: null,
+      supportsUnimodal: true,
     };
-    context.onFileContextAdded(mockAddedFile);
+    composeboxElement.addFileContextForTesting(mockAddedFile);
     await microtasksFinished();
-    await context.updateComplete;
+    await composeboxElement.updateComplete;
     await microtasksFinished();
 
     const carousel: ComposeboxFileCarouselElement|null =
-        context.shadowRoot.querySelector('cr-composebox-file-carousel');
+        composeboxElement.shadowRoot.querySelector(
+            'cr-composebox-file-carousel');
 
     assertTrue(!!carousel, 'Carousel should render');
 
     const carouselFiles = carousel.files;
     assertEquals(1, carouselFiles.length);
     assertEquals('a.pdf', carouselFiles[0]?.name);
+  });
+
+  test('Deep Search mode blocks all uploads', async () => {
+    await createComposeboxElement();
+    await microtasksFinished();
+
+    const contextEntrypoint =
+        composeboxElement.shadowRoot.querySelector('#contextEntrypoint');
+    assertTrue(!!contextEntrypoint);
+    contextEntrypoint.dispatchEvent(
+        new CustomEvent('tool-click', {
+          detail: {tool: ComposeboxToolMode.kDeepSearch},
+        }));
+    await microtasksFinished();
+
+    const imageFile = new File([''], 'test.png', {type: 'image/png'});
+    await dispatchDragAndDropEvent(composeboxElement, [imageFile]);
+    assertEquals(0, searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN));
+  });
+
+  test('Image Gen mode allows images but blocks PDFs', async () => {
+    loadTimeData.overrideValues({
+      'composeboxImageFileTypes': 'image/*',
+      'composeboxAttachmentFileTypes': 'application/pdf',
+    });
+    searchboxHandler.setResultFor('getInputState', Promise.resolve({
+      state: {
+        allowedModels: [],
+        allowedTools: [],
+        allowedInputTypes: [],
+        activeModel: 0,
+        activeTool: 0,
+        disabledModels: [],
+        disabledTools: [],
+        disabledInputTypes: [InputType.kLensFile],
+        inputTypeConfigs: [],
+        toolConfigs: [],
+        modelConfigs: [],
+        toolsSectionConfig: null,
+        modelSectionConfig: null,
+        hintText: '',
+        maxInstances: {[InputType.kLensImage]: 1, [InputType.kLensFile]: 1},
+        maxTotalInputs: 2,
+      },
+    }));
+
+    await createComposeboxElement();
+    await microtasksFinished();
+
+    const contextEntrypoint =
+        composeboxElement.shadowRoot.querySelector('#contextEntrypoint');
+    assertTrue(!!contextEntrypoint);
+    contextEntrypoint.dispatchEvent(
+        new CustomEvent('tool-click', {
+          detail: {tool: ComposeboxToolMode.kImageGen},
+        }));
+    await microtasksFinished();
+
+    // 1. Drop a PDF (should be blocked).
+    const pdfFile = new File([''], 'test.pdf', {type: 'application/pdf'});
+    await dispatchDragAndDropEvent(composeboxElement, [pdfFile]);
+    assertEquals(0, searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN));
+
+    // 2. Drop an image (should be allowed).
+    searchboxHandler.setResultFor(
+        ADD_FILE_CONTEXT_FN, Promise.resolve('image-token'));
+    const imageFile = new File(['content'], 'test.png', {type: 'image/png'});
+    await dispatchDragAndDropEvent(composeboxElement, [imageFile]);
+    await searchboxHandler.whenCalled(ADD_FILE_CONTEXT_FN);
+    assertEquals(1, searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN));
+  });
+
+  test('Canvas mode allows both images and PDFs', async () => {
+    loadTimeData.overrideValues({
+      'composeboxImageFileTypes': 'image/*',
+      'composeboxAttachmentFileTypes': 'application/pdf',
+    });
+    searchboxHandler.setResultFor('getInputState', Promise.resolve({
+      state: {
+        allowedModels: [],
+        allowedTools: [],
+        allowedInputTypes: [],
+        activeModel: 0,
+        activeTool: 0,
+        disabledModels: [],
+        disabledTools: [],
+        disabledInputTypes: [],
+        inputTypeConfigs: [],
+        toolConfigs: [],
+        modelConfigs: [],
+        toolsSectionConfig: null,
+        modelSectionConfig: null,
+        hintText: '',
+        maxInstances: {[InputType.kLensImage]: 1, [InputType.kLensFile]: 1},
+        maxTotalInputs: 2,
+      },
+    }));
+
+    await createComposeboxElement();
+    await microtasksFinished();
+
+    const contextEntrypoint =
+        composeboxElement.shadowRoot.querySelector('#contextEntrypoint');
+    assertTrue(!!contextEntrypoint);
+    contextEntrypoint.dispatchEvent(
+        new CustomEvent('tool-click', {
+          detail: {tool: ComposeboxToolMode.kCanvas},
+        }));
+    await microtasksFinished();
+
+    // 1. Drop an image.
+    searchboxHandler.setResultFor(
+        ADD_FILE_CONTEXT_FN, Promise.resolve('image-token'));
+    const imageFile = new File(['content'], 'test.png', {type: 'image/png'});
+    await dispatchDragAndDropEvent(composeboxElement, [imageFile]);
+    await searchboxHandler.whenCalled(ADD_FILE_CONTEXT_FN);
+    assertEquals(1, searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN));
+
+    // 2. Drop a PDF.
+    searchboxHandler.reset();
+    searchboxHandler.setResultFor(
+        ADD_FILE_CONTEXT_FN, Promise.resolve('pdf-token'));
+    const pdfFile =
+        new File(['content'], 'test.pdf', {type: 'application/pdf'});
+    await dispatchDragAndDropEvent(composeboxElement, [pdfFile]);
+    await searchboxHandler.whenCalled(ADD_FILE_CONTEXT_FN);
+    assertEquals(1, searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN));
   });
 });

@@ -8,6 +8,7 @@ import("//components/on_device_translation/buildflags/features.gni")
 import("//components/safe_browsing/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//pdf/features.gni")
+import("//rlz/buildflags/buildflags.gni")
 
 assert(is_win || is_mac || is_linux || is_chromeos || is_android)
 
@@ -62,13 +63,20 @@ source_set("impl") {
     "//chrome/browser:browser_process",
     "//chrome/browser:flags",
     "//chrome/browser/autocomplete:aim_eligibility_service",
+    "//chrome/browser/background/glic",
     "//chrome/browser/contextual_cueing",
     "//chrome/browser/devtools",
+    "//chrome/browser/engagement",
+    "//chrome/browser/external_protocol",
     "//chrome/browser/gcm",
+    "//chrome/browser/glic",
+    "//chrome/browser/gpu",
     "//chrome/browser/media/prefs",
     "//chrome/browser/media/router:media_router_feature",
     "//chrome/browser/media/router/discovery/access_code:access_code_cast_feature",
     "//chrome/browser/media/webrtc",
+    "//chrome/browser/memory",
+    "//chrome/browser/metrics",
     "//chrome/browser/permissions",
     "//chrome/browser/platform_experience:prefs",
     "//chrome/browser/preloading:prefs",
@@ -79,15 +87,18 @@ source_set("impl") {
     "//chrome/browser/search",
     "//chrome/browser/search/background",
     "//chrome/browser/serial",
+    "//chrome/browser/signin",
     "//chrome/browser/signin:signin_promo",
     "//chrome/browser/subscription_eligibility",
     "//chrome/browser/sync",
     "//chrome/browser/task_manager",
+    "//chrome/browser/tracing",
     "//chrome/browser/ui/hats",
     "//chrome/browser/ui/prefs",
     "//chrome/browser/ui/profiles",
     "//chrome/browser/ui/safety_hub",
     "//chrome/browser/ui/search_engines",
+    "//chrome/browser/ui/side_panel",
     "//chrome/browser/ui/side_search",
     "//chrome/browser/ui/startup",
     "//chrome/browser/ui/startup:startup_tab",
@@ -131,6 +142,7 @@ source_set("impl") {
     "//components/performance_manager",
     "//components/permissions",
     "//components/plus_addresses/core/common:prefs",
+    "//components/policy/resources/webui/mojom:mojo_bindings",
     "//components/pref_registry",
     "//components/privacy_sandbox:privacy_sandbox_prefs",
     "//components/proxy_config",
@@ -171,6 +183,10 @@ source_set("impl") {
 
   if (enable_background_mode) {
     deps += [ "//chrome/browser/background/extensions" ]
+  }
+
+  if (enable_rlz) {
+    deps += [ "//chrome/browser/rlz" ]
   }
 
   if (is_chromeos) {
@@ -300,6 +316,7 @@ source_set("impl") {
 
   if (is_android) {
     deps += [
+      "//chrome/browser/auxiliary_search",
       "//chrome/browser/notifications",
       "//chrome/browser/notifications:notifications_java_enum_srcjar",
       "//chrome/browser/partnerbookmarks:android",
@@ -310,8 +327,8 @@ source_set("impl") {
   } else {
     deps += [
       "//chrome/browser/actor/ui",
+      "//chrome/browser/desktop_to_mobile_promos:utils",
       "//chrome/browser/device_identity",
-      "//chrome/browser/promos:utils",
       "//chrome/browser/screen_ai:prefs",
       "//chrome/browser/search_engine_choice",
       "//chrome/browser/search_engines",
@@ -320,6 +337,7 @@ source_set("impl") {
       "//chrome/browser/ui/extensions",
       "//chrome/browser/ui/performance_controls",
       "//chrome/browser/ui/send_tab_to_self",
+      "//chrome/browser/ui/side_panel",
       "//chrome/browser/ui/tabs",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/tabs/organization",
@@ -370,13 +388,6 @@ source_set("impl") {
 
   if (is_mac) {
     deps += [ "//chrome/browser/web_applications" ]
-  }
-
-  if (enable_glic) {
-    deps += [
-      "//chrome/browser/background/glic",
-      "//chrome/browser/glic",
-    ]
   }
 
   if (!is_android && !is_chromeos) {
@@ -529,5 +540,9 @@ if (!is_android) {
       "//testing/gmock",
       "//ui/gfx/geometry",
     ]
+
+    if (is_win) {
+      deps += [ "//chrome/browser/win:isolated_browser_support" ]
+    }
   }
 }

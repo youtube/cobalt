@@ -270,10 +270,15 @@ class MaglevReducer {
     DCHECK(new_nodes_at_end_.empty());
   }
 
-  static enum CheckType GetCheckType(NodeType type) {
-    return NodeTypeIs(type, NodeType::kAnyHeapObject)
-               ? CheckType::kOmitHeapObjectCheck
-               : CheckType::kCheckHeapObject;
+  static enum CheckType GetCheckType(NodeType type, ValueNode* target) {
+    if (NodeTypeIs(type, NodeType::kAnyHeapObject)) {
+      if (target && target->Is<Phi>()) {
+        target->Cast<Phi>()->SetUseRequiresHeapObject();
+      }
+      return CheckType::kOmitHeapObjectCheck;
+    } else {
+      return CheckType::kCheckHeapObject;
+    }
   }
 
   // Add a new node with a dynamic set of inputs which are initialized by the
@@ -339,8 +344,9 @@ class MaglevReducer {
   MaybeReduceResult TryFoldCheckMaps(ValueNode* object, ValueNode* object_map,
                                      const MapContainer& maps,
                                      KnownMapsMerger<MapContainer>& merger);
-
-  ReduceResult BuildSmiUntag(ValueNode* node);
+  ReduceResult BuildSmiUntag(
+      ValueNode* node, AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
+                           AllowWideningSmiToInt32::kDontAllow);
 
   ReduceResult BuildNumberOrOddballToFloat64OrHoleyFloat64(
       ValueNode* node, UseRepresentation use_rep, NodeType allowed_input_type);
@@ -596,11 +602,14 @@ class MaglevReducer {
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
     return known_node_aspects().EnsureType(broker(), node, type, old);
   }
-  NodeType GetType(ValueNode* node) {
+  NodeType GetType(ValueNode* node,
+                   AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
+                       AllowWideningSmiToInt32::kAllow) {
     NodeType type = known_node_aspects().GetTypeUnchecked(broker(), node);
     if (v8_flags.maglev_assert_types && type != NodeType::kUnknown)
         [[unlikely]] {
-      ReduceResult result = AddNewNode<CheckMaglevType>({node}, type);
+      ReduceResult result = AddNewNode<CheckMaglevType>(
+          {node}, type, allow_widening_smi_to_int32);
       USE(result);
     }
     return type;

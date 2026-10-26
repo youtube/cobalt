@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2026 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="?android:attr/listPreferredItemHeightSmall"
+    android:gravity="center_vertical"
+    android:paddingStart="?android:attr/listPreferredItemPaddingStart"
+    android:paddingEnd="?android:attr/listPreferredItemPaddingEnd"
+    android:paddingTop="@dimen/card_with_button_pref_horizontal_padding"
+    android:paddingBottom="@dimen/card_with_button_pref_horizontal_padding"
+    android:orientation="vertical">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+        <org.chromium.ui.widget.ChromeImageView
+            android:id="@android:id/icon"
+            android:layout_width="@dimen/pref_icon_frame_min_width"
+            android:layout_height="wrap_content"
+            android:scaleType="center"
+            android:visibility="gone" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+            <TextView
+                android:id="@android:id/title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                style="@style/PreferenceTitle"/>
+            <org.chromium.ui.widget.TextViewWithClickableSpans
+                android:id="@android:id/summary"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/pref_summary_margin_top"
+                style="@style/PreferenceSummary" />
+        </LinearLayout>
+        <org.chromium.ui.widget.CheckableImageView
+            android:id="@+id/expandable_switch_expand_icon"
+            android:layout_width="@dimen/pref_checkable_image_size"
+            android:layout_height="@dimen/pref_checkable_image_size"
+            android:scaleType="center"
+            android:layout_marginEnd="@dimen/card_with_button_pref_icon_margin_right"
+            android:background="?android:attr/selectableItemBackgroundBorderless"/>
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@android:id/switch_widget"
+            style="@style/Widget.BrowserUI.Switch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:focusable="true"
+            android:clickable="true"
+            android:background="@null"/>
+    </LinearLayout>
+    <ViewStub
+        android:id="@+id/expandable_switch_expanded_area_stub"
+        android:inflatedId="@+id/expandable_switch_expanded_area"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+</LinearLayout>

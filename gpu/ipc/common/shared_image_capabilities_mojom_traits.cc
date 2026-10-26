@@ -21,15 +21,17 @@ bool StructTraits<gpu::mojom::SharedImageCapabilitiesDataView,
   out->supports_luminance_shared_images =
       data.supports_luminance_shared_images();
   out->supports_r16_shared_images = data.supports_r16_shared_images();
-  out->supports_native_nv12_mappable_shared_images =
-      data.supports_native_nv12_mappable_shared_images();
+  out->supports_ycbcr_nv12_sampling = data.supports_ycbcr_nv12_sampling();
+  out->supports_ycbcr_p010_sampling = data.supports_ycbcr_p010_sampling();
   out->is_r16f_supported = data.is_r16f_supported();
   out->disable_r8_shared_images = data.disable_r8_shared_images();
   out->disable_webgpu_shared_images = data.disable_webgpu_shared_images();
   out->disable_one_component_textures = data.disable_one_component_textures();
 
   out->shared_image_d3d = data.shared_image_d3d();
+#if BUILDFLAG(IS_WIN)
   out->shared_image_swap_chain = data.shared_image_swap_chain();
+#endif
 
 #if BUILDFLAG(IS_MAC)
   out->texture_target_for_io_surfaces = data.texture_target_for_io_surfaces();

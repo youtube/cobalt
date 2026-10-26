@@ -425,11 +425,11 @@ bool CheckEvalAndReportViolation(
     policy->LogToConsole(suffix_console_message);
   }
   String content_for_sample =
-      content.Substring(0, ContentSecurityPolicy::kMaxSampleLength);
+      content.substr(0, ContentSecurityPolicy::kMaxSampleLength);
   ReportEvalViolation(
       csp, policy, raw_directive, CSPDirectiveName::ScriptSrc,
       StrCat({console_message, "\"", raw_directive, "\".", suffix, "\n"}),
-      KURL(), exception_status,
+      NullUrl(), exception_status,
       directive.source_list->report_sample ? content_for_sample
                                            : g_empty_string,
       hash);
@@ -462,7 +462,7 @@ bool CheckWasmEvalAndReportViolation(
       GetRawDirectiveForMessage(csp.raw_directives, directive.type);
   ReportWasmEvalViolation(
       csp, policy, raw_directive, CSPDirectiveName::ScriptSrc,
-      StrCat({console_message, "\"", raw_directive, "\".", suffix}), KURL(),
+      StrCat({console_message, "\"", raw_directive, "\".", suffix}), NullUrl(),
       exception_status,
       directive.source_list->report_sample ? content : g_empty_string);
   if (!CSPDirectiveListIsReportOnly(csp)) {
@@ -551,7 +551,7 @@ bool CheckInlineAndReportViolation(
       StrCat({console_message,
               " violates the following Content Security Policy directive '",
               raw_directive, "'.", suffix}),
-      KURL(), context_url, context_line, element,
+      NullUrl(), context_url, context_line, element,
       directive.source_list->report_sample ? source : g_empty_string);
 
   if (!CSPDirectiveListIsReportOnly(csp)) {
@@ -748,7 +748,7 @@ bool CSPDirectiveListAllowTrustedTypeAssignmentFailure(
       csp, policy,
       ContentSecurityPolicy::GetDirectiveName(
           CSPDirectiveName::RequireTrustedTypesFor),
-      CSPDirectiveName::RequireTrustedTypesFor, message, KURL(),
+      CSPDirectiveName::RequireTrustedTypesFor, message, NullUrl(),
       ContentSecurityPolicyViolationType::kTrustedTypesSinkViolation, sample,
       sample_prefix, issue_id);
   return CSPDirectiveListIsReportOnly(csp);
@@ -978,8 +978,8 @@ String JoinPath(const Vector<StringView>& tokens) {
 String GetRelativeScriptUrl(const KURL& document_url, const KURL& script_url) {
   // TODO: Make this behave more like
   // https://html.spec.whatwg.org/multipage/semantics.html#the-base-element
-  if (!document_url.ProtocolIsInHTTPFamily() ||
-      !script_url.ProtocolIsInHTTPFamily() ||
+  if (!document_url.ProtocolIsInHttpFamily() ||
+      !script_url.ProtocolIsInHttpFamily() ||
       !SecurityOrigin::AreSameOrigin(document_url, script_url)) {
     return String();
   }
@@ -1052,9 +1052,20 @@ bool CheckURLHash(const KURL& document_url,
     return true;
   }
   String relative_url = GetRelativeScriptUrl(document_url, url);
-  return !relative_url.empty() &&
-         URLHashMatchesSourceList(relative_url, hash_algorithms_used,
-                                  source_list);
+  if (relative_url.empty()) {
+    return false;
+  }
+  // For relative URLs, first check for the hash of the url without a leading
+  // '/', then with one, and allow it if either matches.
+  if (URLHashMatchesSourceList(relative_url, hash_algorithms_used,
+                               source_list)) {
+    return true;
+  }
+  StringBuilder sb;
+  sb.Append("/");
+  sb.Append(relative_url);
+  return (URLHashMatchesSourceList(sb.ReleaseString(), hash_algorithms_used,
+                                   source_list));
 }
 
 CSPCheckResult CSPDirectiveListAllowFromSource(
@@ -1162,7 +1173,8 @@ bool CSPDirectiveListAllowTrustedTypePolicy(
                     raw_directive, "\"."});
   ReportViolation(
       csp, policy, "trusted-types", CSPDirectiveName::TrustedTypes, message,
-      KURL(), ContentSecurityPolicyViolationType::kTrustedTypesPolicyViolation,
+      NullUrl(),
+      ContentSecurityPolicyViolationType::kTrustedTypesPolicyViolation,
       policy_name, String(), issue_id);
 
   return CSPDirectiveListIsReportOnly(csp);

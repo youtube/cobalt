@@ -281,10 +281,16 @@ void CompositorFrameSinkSupport::SetAllowThrottling(bool allowed) {
   throttler_.SetAllowThrottling(allowed);
 }
 
+void CompositorFrameSinkSupport::SetThrottledDueToInteraction(bool throttled) {
+  throttler_.SetThrottledDueToInteraction(throttled);
+}
+
 void CompositorFrameSinkSupport::SetIsHandlingInteraction(
     bool is_handling_interaction) {
   if (is_handling_interaction_ != is_handling_interaction) {
     is_handling_interaction_ = is_handling_interaction;
+    frame_sink_manager_->OnFrameSinkInteractionChanged(frame_sink_id_,
+                                                       is_handling_interaction);
   }
 
   if (is_handling_interaction_) {

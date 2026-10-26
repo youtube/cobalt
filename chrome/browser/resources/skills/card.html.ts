@@ -16,6 +16,10 @@ export function getHtml(this: SkillCardElement) {
     <div id="infoContainer">
       <div id="icon">${this.skill.icon}</div>
       <div id="name">${this.skill.name}</div>
+      <cr-tooltip for="infoContainer" position="bottom" offset="0"
+          fit-to-visible-bounds>
+        ${this.skill.name}
+      </cr-tooltip>
     </div>
     <!-- Only show the menu button for user-created skills. -->
     ${this.isDiscoverCard_() ? html`` : html`
@@ -41,7 +45,8 @@ export function getHtml(this: SkillCardElement) {
       </cr-action-menu>
     `}
   </div>
-  <div id="cardBody">${this.getCardBodyText_()}</div>
+  <div id="${this.cardType}Body" class="card-body">${this.getCardBodyText_()}
+  </div>
   <div id="cardFooter">
     <!-- Show add for discoverable skills and edit for user skills. -->
     ${this.isDiscoverCard_() ? html`
@@ -54,7 +59,7 @@ export function getHtml(this: SkillCardElement) {
     ` : html`
       <cr-button id="editButton" @click="${this.onEditButtonClick_}"
           aria-label="${this.ariaLabelForSkill_('edit')}">
-        <cr-icon icon="cr:create" slot="prefix-icon"></cr-icon>
+        <cr-icon id="editIcon" icon="skills:create" slot="prefix-icon"></cr-icon>
         $i18n{edit}
       </cr-button>
     `}

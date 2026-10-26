@@ -165,6 +165,7 @@ static_library("login") {
     "//chrome/browser/ash/profiles",
     "//chrome/browser/ash/settings",
     "//chrome/browser/ash/system",
+    "//chrome/browser/enterprise/browser_management:management_identity",
     "//chrome/browser/notifications:system_notification_helper",
     "//chrome/browser/password_manager/factories",
     "//chrome/browser/profiles",
@@ -206,6 +207,7 @@ static_library("login") {
     "//chromeos/strings",
     "//chromeos/ui/vector_icons",
     "//chromeos/version",
+    "//components/application_locale_storage",
     "//components/google/core/common",
     "//components/keyed_service/content",
     "//components/metrics",
@@ -422,6 +424,7 @@ source_set("browser_tests") {
     "//chrome/browser/ash/input_method",
     "//chrome/browser/ash/login/app_mode/test:test_support",
     "//chrome/browser/ash/login/auth",
+    "//chrome/browser/ash/login/auth_factors_policy",
     "//chrome/browser/ash/login/demo_mode",
     "//chrome/browser/ash/login/demo_mode:test_support",
     "//chrome/browser/ash/login/enrollment",
@@ -529,6 +532,7 @@ source_set("browser_tests") {
 
     # Tests from subdirectories:
     "app_mode:browser_tests",
+    "auth_factors_policy:browser_tests",
     "demo_mode:browser_tests",
     "enrollment:browser_tests",
     "extensions:browser_tests",

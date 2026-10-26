@@ -38,6 +38,7 @@
 #include "chrome/installer/util/util_constants.h"
 #include "chrome/windows_services/service_program/get_calling_process.h"
 #include "chrome/windows_services/service_program/scoped_client_impersonation.h"
+#include "content/public/common/content_switches.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -184,6 +185,8 @@ HRESULT Elevator::DecryptData(const BSTR ciphertext,
   base::win::ScopedLocalAlloc intermediate_freer(intermediate.pbData);
 
   std::string plaintext_str;
+  bool should_reencrypt = false;
+
   if (ScopedClientImpersonation impersonate; impersonate.is_valid()) {
     DATA_BLOB output = {};
     // Decrypt using the user store.
@@ -216,11 +219,13 @@ HRESULT Elevator::DecryptData(const BSTR ciphertext,
       *last_error = ::GetLastError();
       return validation_result;
     }
+    if (validation_result == kSuccessShouldReencrypt) {
+      should_reencrypt = true;
+    }
     plaintext_str = PopFromStringFront(mutable_plaintext);
   } else {
     return impersonate.result();
   }
-  bool should_reencrypt = false;
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   InternalFlags flags;
   auto post_process_result = PostProcessData(plaintext_str, &flags);
@@ -318,17 +323,64 @@ HRESULT Elevator::RunIsolatedChrome(DWORD flags,
 
     trusted_command_line.emplace(chrome_exe);
   }
-  const auto other_args = untrusted_command_line.GetArgs();
 
   const char* const kAllowedSwitches[] = {
       // Allow selection of profile.
-      ::switches::kProfileDirectory, ::switches::kUserDataDir};
+      ::switches::kProfileDirectory,
+      // Restarting browser.
+      ::switches::kRestart,
+      // Guest and incognito.
+      ::switches::kGuest,
+      ::switches::kIncognito,
+      // Restore last session.
+      ::switches::kRestoreLastSession,
+      // Window control.
+      ::switches::kOpenInNewWindow,
+      // For rendez-vous metrics.
+      ::switches::kSourceShortcut,
+      ::switches::kSourceAppId,
+      // Switches for launching apps and PWAs.
+      ::switches::kAppId,
+      ::switches::kApp,
+      ::switches::kPwaLauncherVersion,
+      ::switches::kAppRunOnOsLoginMode,
+      // Jumplist action.
+      ::switches::kWinJumplistAction,
+      // Do not de-elevate.
+      ::switches::kDoNotDeElevateOnLaunch,
+      // For notifications from the action center.
+      ::switches::kNotificationLaunchId,
+      ::switches::kNotificationInlineReply,
+      // Launch methods.
+      ::switches::kFromBrowserSwitcher,
+      ::switches::kFromInstaller,
+      // Icon related.
+      ::switches::kShowIcons,
+      ::switches::kHideIcons,
+      // Startup related.
+      ::switches::kStartupForegroundLaunch,
+      // Uninstall related.
+      ::switches::kUninstall,
+      ::switches::kUninstallAppId,
+      // Logging.
+      ::switches::kLoggingLevel,
+      ::switches::kLogFile,
+  };
 
-  trusted_command_line->CopySwitchesFrom(untrusted_command_line,
-                                         kAllowedSwitches);
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kAllowUntrustedSwitchesForTesting)) {
+    for (const auto& untrusted_switch : untrusted_command_line.GetSwitches()) {
+      trusted_command_line->AppendSwitchNative(untrusted_switch.first,
+                                               untrusted_switch.second);
+    }
+  } else {
+    trusted_command_line->CopySwitchesFrom(untrusted_command_line,
+                                           kAllowedSwitches);
+  }
 
   trusted_command_line->AppendSwitch(::switches::kIsolated);
-  for (const auto& arg : other_args) {
+
+  for (const auto& arg : untrusted_command_line.GetArgs()) {
     // Safety check.
     if (arg[0] == L'-') {
       continue;

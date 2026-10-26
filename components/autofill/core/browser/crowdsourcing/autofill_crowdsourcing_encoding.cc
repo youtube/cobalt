@@ -23,6 +23,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/optional_ref.h"
 #include "base/types/zip.h"
+#include "components/autofill/core/browser/autofill_format_string.h"
 #include "components/autofill/core/browser/crowdsourcing/randomized_encoder.h"
 #include "components/autofill/core/browser/crowdsourcing/server_prediction_overrides.h"
 #include "components/autofill/core/browser/data_quality/validation.h"
@@ -799,9 +800,7 @@ void MaybeMergeServerPredictions(
         return ToSafeFieldType(pred.type(), UNKNOWN_TYPE);
       });
 
-  if (server_types.contains_all({EMAIL_ADDRESS, LOYALTY_MEMBERSHIP_ID}) &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillEnableEmailOrLoyaltyCardsFilling)) {
+  if (server_types.contains_all({EMAIL_ADDRESS, LOYALTY_MEMBERSHIP_ID})) {
     // Remove email and loyalty card predictions.
     std::erase_if(server_predictions, [](const FieldPrediction& x) {
       return x.type() == EMAIL_ADDRESS || x.type() == LOYALTY_MEMBERSHIP_ID;

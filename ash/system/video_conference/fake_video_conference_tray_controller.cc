@@ -98,7 +98,7 @@ void FakeVideoConferenceTrayController::ReturnToApp(
 }
 
 void FakeVideoConferenceTrayController::HandleDeviceUsedWhileDisabled(
-    crosapi::mojom::VideoConferenceMediaDevice device,
+    VideoConferenceMediaDevice device,
     const std::u16string& app_name) {
   VideoConferenceTrayController::HandleDeviceUsedWhileDisabled(device,
                                                                app_name);
@@ -106,7 +106,7 @@ void FakeVideoConferenceTrayController::HandleDeviceUsedWhileDisabled(
 }
 
 void FakeVideoConferenceTrayController::HandleClientUpdate(
-    crosapi::mojom::VideoConferenceClientUpdatePtr update) {
+    VideoConferenceClientUpdate update) {
   last_client_update_ = std::move(update);
 }
 

@@ -95,10 +95,12 @@ void LensPreselectionBubble::Init() {
   label_->SetMultiLine(false);
   label_->SetHorizontalAlignment(gfx::ALIGN_LEFT);
   label_->SetAllowCharacterBreak(false);
-  if (lens::IsLensOverlayContextualSearchboxEnabled()) {
+  if (lens::IsLensOverlayContextualSearchboxEnabled(
+          tab_handle_.Get()->GetBrowserWindowInterface()->GetProfile())) {
     auto button = views::CreateVectorImageButtonWithNativeTheme(
         base::RepeatingClosure(), kHelpMenuIcon, 20,
-        kColorLensOverlayToastForeground, kColorLensOverlayToastForeground);
+        kColorLensOverlayToastForeground, kColorLensOverlayToastForeground,
+        kColorLensOverlayToastForeground);
     views::HighlightPathGenerator::Install(
         button.get(),
         std::make_unique<views::CircleHighlightPathGenerator>(gfx::Insets()));

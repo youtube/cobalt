@@ -145,11 +145,8 @@ void AddFiles(PlatformClipboard::Data data, OSExchangeDataProvider* provider) {
       continue;
     }
 
-    url::RawCanonOutputT<char16_t> unescaped;
-    url::DecodeURLEscapeSequences(
-        url.path(), url::DecodeURLMode::kUTF8OrIsomorphic, &unescaped);
-
-    const base::FilePath path(base::UTF16ToUTF8(unescaped.view()));
+    const base::FilePath path(url::DecodeUrlEscapeSequences(
+        url.path(), url::DecodeUrlMode::kUtf8OrIsomorphic));
     filenames.emplace_back(path, path.BaseName());
   }
   if (filenames.empty())
@@ -355,8 +352,7 @@ bool WaylandExchangeDataProvider::ExtractData(const std::string& mime_type,
       HasCustomFormat(ui::ClipboardFormatType::DataTransferCustomType())) {
     std::optional<base::Pickle> pickle =
         GetPickledData(ui::ClipboardFormatType::DataTransferCustomType());
-    *out_content = std::string(reinterpret_cast<const char*>(pickle->data()),
-                               pickle->size());
+    *out_content = std::string(pickle->AsStringView());
     return true;
   }
 #if BUILDFLAG(IS_LINUX)

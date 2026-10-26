@@ -38,11 +38,6 @@ class ObjectAccess : public AllStatic {
     return ToTagged(FixedUInt32Array::OffsetOfElementAt(index));
   }
 
-  // Get the offset into a fixed address array for a given {index}.
-  static constexpr int ElementOffsetInTaggedFixedAddressArray(int index) {
-    return ToTagged(FixedAddressArray::OffsetOfElementAt(index));
-  }
-
   // Get the offset into a trusted fixed address array for a given {index}.
   static constexpr int ElementOffsetInTaggedTrustedFixedAddressArray(
       int index) {
@@ -52,6 +47,12 @@ class ObjectAccess : public AllStatic {
   // Get the offset into a ProtectedFixedArray for a given {index}.
   static constexpr int ElementOffsetInProtectedFixedArray(int index) {
     return ToTagged(ProtectedFixedArray::OffsetOfElementAt(index));
+  }
+
+  // Get the offset into a trusted pod array array for a given {index}.
+  template <typename T>
+  static constexpr int ElementOffsetInTaggedTrustedPodArray(int index) {
+    return ToTagged(TrustedPodArray<T>::OffsetOfElementAt(index));
   }
 
   // Get the offset of the context stored in a {JSFunction} object.

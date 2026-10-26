@@ -11,6 +11,7 @@
 #include "components/url_formatter/elide_url.h"
 #include "content/public/browser/webid/identity_credential_source.h"
 #include "content/public/browser/webid/identity_request_dialog_controller.h"
+#include "content/public/common/content_features.h"
 #include "url/gurl.h"
 
 namespace actor_login {
@@ -19,12 +20,6 @@ namespace {
 constexpr char kSupportedIdentityProvider[] =
     "https://accounts.google.com/gsi/fedcm.json";
 }  // namespace
-
-std::optional<ActorLoginError>
-ActorLoginFederatedCredentialsFetcher::FederatedFetcherStatus::GetGlobalError()
-    const {
-  return std::nullopt;
-}
 
 ActorLoginFederatedCredentialsFetcher::ActorLoginFederatedCredentialsFetcher(
     const url::Origin& request_origin,
@@ -39,12 +34,11 @@ void ActorLoginFederatedCredentialsFetcher::Fetch(
     FetchResultCallback callback) {
   callback_ = std::move(callback);
 
-  if (!base::FeatureList::IsEnabled(
-          password_manager::features::kActorLoginFederatedLoginSupport)) {
+  if (!base::FeatureList::IsEnabled(features::kFedCmEmbedderInitiatedLogin)) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(std::move(callback_), std::vector<Credential>(),
-                       std::make_unique<FederatedFetcherStatus>()));
+                       ActorLoginCredentialsFetcher::Status::kSuccess));
     return;
   }
 
@@ -53,15 +47,26 @@ void ActorLoginFederatedCredentialsFetcher::Fetch(
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(std::move(callback_), std::vector<Credential>(),
-                       std::make_unique<FederatedFetcherStatus>()));
+                       ActorLoginCredentialsFetcher::Status::kSuccess));
     return;
   }
 
+  if (metrics_helper_) {
+    metrics_helper_->RecordFederatedHangingFedCmRequestExists(
+        source->HasPendingRequest());
+  }
+
   std::vector<GURL> supported_idps = {GURL(kSupportedIdentityProvider)};
+
   source->GetIdentityCredentialSuggestions(
       supported_idps, base::BindOnce(&ActorLoginFederatedCredentialsFetcher::
                                          OnGetIdentityCredentialSuggestions,
                                      weak_ptr_factory_.GetWeakPtr()));
+}
+
+void ActorLoginFederatedCredentialsFetcher::SetMetricsHelper(
+    ActorLoginMetricsHelper* metrics_helper) {
+  metrics_helper_ = metrics_helper;
 }
 
 void ActorLoginFederatedCredentialsFetcher::OnGetIdentityCredentialSuggestions(
@@ -72,19 +77,18 @@ void ActorLoginFederatedCredentialsFetcher::OnGetIdentityCredentialSuggestions(
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(std::move(callback_), std::vector<Credential>(),
-                       std::make_unique<FederatedFetcherStatus>()));
+                       ActorLoginCredentialsFetcher::Status::kSuccess));
     return;
   }
   std::vector<Credential> result;
   for (const auto& account : *accounts) {
-    // TODO(crbug.com/479069886): Go over all displayed fields and check their
-    // use in credential picker.
     Credential credential;
     credential.type = CredentialType::kFederated;
-    // TODO(crbug.com/479069886): properly format the username
-    credential.username =
-        base::UTF8ToUTF16(account->display_name + " " +
-                          account->identity_provider->idp_for_display);
+    // At this point, the only IdP(s) we support for actor login use email as an
+    // identifier. We'll fallback to the `display_identifier` in anticipation of
+    // generalizing to other IdPs.
+    credential.username = base::UTF8ToUTF16(
+        !account->email.empty() ? account->email : account->display_identifier);
     credential.source_site_or_app =
         base::UTF8ToUTF16(account->identity_provider->idp_for_display);
     credential.request_origin = request_origin_;
@@ -93,16 +97,22 @@ void ActorLoginFederatedCredentialsFetcher::OnGetIdentityCredentialSuggestions(
     credential.display_origin = url_formatter::FormatOriginForSecurityDisplay(
         request_origin_, url_formatter::SchemeDisplay::OMIT_HTTP_AND_HTTPS);
 
-    credential.federation_detail = FederationDetail{
-        .idp_origin = url::Origin::Create(
-            account->identity_provider->idp_metadata.config_url),
-        .account_id = account->id};
+    FederationDetail& federation_detail =
+        credential.federation_detail.emplace();
+    federation_detail.idp_origin = url::Origin::Create(
+        account->identity_provider->idp_metadata.config_url);
+    federation_detail.account_id = account->id;
+    federation_detail.account_picture = account->decoded_picture;
+    federation_detail.brand_icon =
+        account->identity_provider->idp_metadata.brand_decoded_icon;
+
     credential.immediatelyAvailableToLogin = true;
     result.push_back(std::move(credential));
   }
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback_), std::move(result),
-                                std::make_unique<FederatedFetcherStatus>()));
+      FROM_HERE,
+      base::BindOnce(std::move(callback_), std::move(result),
+                     ActorLoginCredentialsFetcher::Status::kSuccess));
 }
 
 }  // namespace actor_login

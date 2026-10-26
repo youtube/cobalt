@@ -16,6 +16,25 @@ BASE_DECLARE_FEATURE(kAimEnabled);
 // If enabled, uses the server response for AIM eligibility for all locales.
 BASE_DECLARE_FEATURE(kAimServerEligibilityEnabled);
 
+// If enabled, requires the AIM Eligibility Service to provide a positive answer
+// to whether Co-Browse eligibility is enabled.
+BASE_DECLARE_FEATURE(kAimCoBrowseEligibilityCheckEnabled);
+
+// If enabled, uses the server response for AIM Fusebox eligibility.
+BASE_DECLARE_FEATURE(kAimFuseboxEligibilityCheckEnabled);
+
+// If enabled, creates the navigation throttle that fetches AIM eligibility
+// responses on AIM URL navigations.
+BASE_DECLARE_FEATURE(kAimUrlNavigationFetchEnabled);
+
+// If enabled, adds the User-Agent header suffix for Co-Browse to all AIM
+// Eligibility Service requests.
+BASE_DECLARE_FEATURE(kAimServerEligibilitySendCoBrowseUserAgentSuffixEnabled);
+
+// If enabled, adds the Sec-CH-UA-Full-Version-List header to all AIM
+// Eligibility Service requests.
+BASE_DECLARE_FEATURE(kAimServerEligibilitySendFullVersionListEnabled);
+
 // If enabled, uses a custom retry policy for the server request.
 BASE_DECLARE_FEATURE(kAimServerEligibilityCustomRetryPolicyEnabled);
 
@@ -51,6 +70,26 @@ enum class AimServerEligibilityIncludeClientLocaleMode {
 
 extern const base::FeatureParam<AimServerEligibilityIncludeClientLocaleMode>
     kAimServerEligibilityIncludeClientLocaleMode;
+
+// If enabled, the AimEligibilityService will omit cookies and fetch OAuth
+// tokens for server requests.
+BASE_DECLARE_FEATURE(kAimEligibilityServiceIdentityImprovements);
+// If true, enables OAuth for the AimEligibilityService.
+extern const base::FeatureParam<bool> kAimIdentityOauthEnabled;
+// If true, refreshes server eligibility when changes to the first valid account
+// in the cookie jar are detected iff in cookie fallback mode.
+extern const base::FeatureParam<bool> kAimIdentityRefreshOnCookieChanges;
+// If true, refreshes server eligibility when changes to the primary account
+// are detected.
+extern const base::FeatureParam<bool> kAimIdentityRefreshOnAccountChanges;
+// If true, drops the request if the accounts in the cookie jar are not fresh.
+extern const base::FeatureParam<bool> kAimIdentityDropRequestIfCookiesStale;
+
+// If enabled, debounces server requests by a short duration to prevent
+// duplicate requests.
+BASE_DECLARE_FEATURE(kAimEligibilityServiceDebounce);
+extern const base::FeatureParam<base::TimeDelta>
+    kAimEligibilityServiceDebounceDelay;
 
 }  // namespace omnibox
 

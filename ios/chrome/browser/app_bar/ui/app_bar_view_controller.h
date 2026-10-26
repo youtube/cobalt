@@ -8,6 +8,7 @@
 #import <UIKit/UIKit.h>
 
 #import "ios/chrome/browser/app_bar/ui/app_bar_consumer.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_element.h"
 
 @protocol AppBarMutator;
 @class LayoutGuideCenter;
@@ -15,7 +16,11 @@
 @protocol TabGridCommands;
 
 // View controller for the app bar.
-@interface AppBarViewController : UIViewController <AppBarConsumer>
+@interface AppBarViewController
+    : UIViewController <AppBarConsumer, FullscreenUIElement>
+
+// Unhides the spotlight anchor view if `shouldShow`.
+- (void)toggleSpotlightView:(BOOL)shouldShow;
 
 // The mutator.
 @property(nonatomic, weak) id<AppBarMutator> mutator;
@@ -25,6 +30,9 @@
 @property(nonatomic, weak) id<SceneCommands> sceneHandler;
 // Tab Grid handler.
 @property(nonatomic, weak) id<TabGridCommands> tabGridHandler;
+
+// Updates the App Bar's subviews for a given rotation angle.
+- (void)updateForAngle:(CGFloat)angle;
 
 @end
 

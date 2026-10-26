@@ -9,16 +9,39 @@
  * #css_wrapper_metadata_end */
 
 :host {
-  --text-max-width: 350px;
+  --bg-bottom-url: url(images/default_browser_bg_bottom_light.png);
+  --bg-right-url: url(images/default_browser_bg_right_light.png);
+  --child-max-height: 31.25rem;
+  --child-max-width: 31.25rem;
+  --content-gap: 1.5rem;
+  --content-width: calc(2 * var(--child-max-width) + var(--content-gap));
+  --header-height: 3.25rem;
+  --showcase-text-gap: 1.5rem;
+  --showcase-text-padding-top: 1.5rem;
+  --subtitle-font-size: 1rem;
+  --text-max-width: 21.875rem;
+  --title-font-size: 1.5rem;
+  --title-height: 4rem;
   color: var(--cr-primary-text-color);
   display: flex;
   flex-direction: column;
   height: 100%;
 }
 
+@media screen and ((max-width: 840px) or (max-height: 620px)) {
+  .background-shape {
+    display: none;
+  }
+}
+
 #header {
-  height: 52px;
-  padding: 0 24px 24px 16px;
+  height: var(--header-height);
+  padding: 0 1.5rem 1.5rem 1rem;
+}
+
+#product-logo {
+  height: 2.5rem;
+  width: 2.5rem;
 }
 
 #content-div {
@@ -26,15 +49,29 @@
   display: flex;
   flex: 1;
   flex-direction: row;
-  gap: 40px;
+  gap: var(--content-gap);
   justify-content: center;
+  margin: 0 1rem 0;
+}
+
+@media screen and ((max-width: 780px) or (max-height: 600px)) {
+  :host {
+    --showcase-text-gap: 0.75rem;
+    --showcase-text-padding-top: 0.75rem;
+    --subtitle-font-size: 0.875rem;
+    --text-max-width: 18.125rem;
+    --title-font-size: 1.25rem;
+  }
 }
 
 .content-child {
   align-items: center;
   display: flex;
   flex: 1;
-  height: 500px;
+  height: 60%;
+  max-height: var(--child-max-height);
+  max-width: var(--child-max-width);
+  width: 60%;
 }
 
 #showcase-illustration {
@@ -44,13 +81,12 @@
 }
 
 #illustration {
-  border-radius: 24px;
+  border-radius: 1.5rem;
   content: url(images/refresh_showcase_illustration.png);
-  height: 100%;
-  max-height: 500px;
-  max-width: 500px;
+  max-height: 100%;
+  max-width: 100%;
   object-fit: contain;
-  width: 100%;
+  object-position: right center;
 }
 
 #showcase-description {
@@ -60,32 +96,71 @@
 }
 
 #showcase-text {
-  padding-top: 48px;
-  gap: 24px;
   display: flex;
   flex-direction: column;
+  gap: var(--showcase-text-gap);
+  padding-top: var(--showcase-text-padding-top);
 }
 
 .title {
   font-weight: 500;
-  height: 64px;
+  height: var(--title-height);
   letter-spacing: 0;
-  line-height: 32px;
+  line-height: 2rem;
+  font-size: var(--title-font-size);
   max-width: var(--text-max-width);
   margin: 0;
 }
 
 .subtitle {
-  font-size: 16px;
+  font-size: var(--subtitle-font-size);
   font-weight: 400;
-  line-height: 24px;
+  line-height: 1.5rem;
   margin: 0;
   max-width: var(--text-max-width);
 }
 
 #button-container {
   display: flex;
+<if expr="not is_win">
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+</if>
+<if expr="is_win">
   flex-direction: row;
-  gap: 8px;
   justify-content: flex-start;
+</if>
+  gap: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :host {
+    --bg-bottom-url: url(images/default_browser_bg_bottom_dark.png);
+    --bg-right-url: url(images/default_browser_bg_right_dark.png);
+  }
+}
+
+#background-right {
+  content: var(--bg-right-url);
+  height: 33%;
+  position: fixed;
+  right: 0;
+  top: 50%;
+  /* The image starts shrinking when space between the image and content is
+  equal to 25% of image's width. It pushes away the image 1px for every 2px of
+  smaller screen size. Part "max(0px, calc(...))" prevents the image from being
+  driven away to the left from the right edge */
+  transform: translate(max(0px, calc(25% - (50vw - var(--content-width) / 2) / 2)), -50%);
+  z-index: -1;
+}
+
+#background-bottom {
+  bottom: 0;
+  content: var(--bg-bottom-url);
+  left: 75%;
+  position: fixed;
+  /* Same as above, but start point is 10% as we have more space vertically */
+  transform: translate(-50%, max(0px, calc(10% - (50vh - (var(--child-max-height) / 2 + var(--header-height))) / 2)));
+  width: 17%;
+  z-index: -1;
 }

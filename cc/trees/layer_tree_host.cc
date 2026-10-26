@@ -151,7 +151,7 @@ LayerTreeHost::LayerTreeHost(InitParams params, CompositorMode mode)
       scheduling_client_(params.scheduling_client),
       rendering_stats_instrumentation_(RenderingStatsInstrumentation::Create()),
       pending_commit_state_(std::make_unique<CommitState>()),
-      thread_unsafe_commit_state_(params.mutator_host, *this),
+      thread_unsafe_commit_state_(params.mutator_host),
       settings_(*params.settings),
       id_(s_layer_tree_host_sequence_number.GetNext() + 1),
       task_graph_runner_(params.task_graph_runner),
@@ -372,6 +372,14 @@ void LayerTreeHost::WillBeginMainFrame() {
   client_->WillBeginMainFrame();
 }
 
+void LayerTreeHost::WillBeginImplCommit() {
+  if (client_) {
+    base::AutoReset<bool> in_will_begin_impl_commit(
+        &inside_will_begin_impl_commit_, true);
+    client_->WillBeginImplCommit();
+  }
+}
+
 void LayerTreeHost::DidBeginMainFrame() {
   DCHECK(IsMainThread());
   inside_main_frame_ = false;
@@ -456,6 +464,7 @@ std::unique_ptr<CommitState> LayerTreeHost::ActivateCommitState() {
   // Snapshot PropertyTrees change tracking state prior to resetting it.
   property_trees()->GetChangeState(
       pending_commit_state()->property_trees_change_state);
+  pending_commit_state()->property_trees = *property_trees();
   property_trees()->ResetAllChangeTracking();
 
   auto active_commit_state = std::move(pending_commit_state_);
@@ -471,6 +480,9 @@ void LayerTreeHost::WaitForProtectedSequenceCompletion() const {
 
 void LayerTreeHost::WaitForCommitCompletion(bool for_protected_sequence) const {
   DCHECK(IsMainThread());
+  // We should not be running code that modifies commit state just prior to the
+  // impl commit.
+  CHECK(!inside_will_begin_impl_commit_);
   if (commit_completion_event_) {
     TRACE_EVENT0("cc", "LayerTreeHost::WaitForCommitCompletion");
     commit_completion_event_->Wait();
@@ -1253,8 +1265,10 @@ void LayerTreeHost::AnimateLayers(base::TimeTicks monotonic_time) {
   std::unique_ptr<MutatorEvents> events = mutator_host()->CreateEvents();
 
   if (mutator_host()->TickAnimations(monotonic_time,
-                                     property_trees()->scroll_tree(), true))
+                                     property_trees()->scroll_tree(), true,
+                                     events.get())) {
     mutator_host()->UpdateAnimationState(true, events.get());
+  }
 
   if (!events->IsEmpty()) {
     property_tree_delegate_->OnAnimateLayers();
@@ -1894,6 +1908,7 @@ void LayerTreeHost::SetElementIdsForTesting() {
 
 void LayerTreeHost::BuildPropertyTreesForTesting() {
   PropertyTreeBuilder::BuildPropertyTrees(this);
+  pending_commit_state()->property_trees = *property_trees();
 }
 
 bool LayerTreeHost::IsElementInPropertyTrees(ElementId element_id,
@@ -2045,7 +2060,7 @@ LayerListReverseConstIterator LayerTreeHost::rend() const {
 
 void LayerTreeHost::SetPropertyTreesForTesting(
     const PropertyTrees* property_trees) {
-  thread_unsafe_commit_state().property_trees = *property_trees;
+  property_trees_ = *property_trees;
 }
 
 void LayerTreeHost::SetNeedsDisplayOnAllLayers() {

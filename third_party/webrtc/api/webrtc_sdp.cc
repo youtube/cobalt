@@ -1117,12 +1117,21 @@ void AddOrReplaceCodec(MediaContentDescription* content_desc,
 
 void BuildRtpmap(const MediaContentDescription* media_desc,
                  const MediaType media_type,
+                 bool use_wildcard,
                  std::string* message) {
   RTC_DCHECK(message != nullptr);
   RTC_DCHECK(media_desc != nullptr);
   StringBuilder os;
   if (media_type == MediaType::VIDEO) {
-    for (const Codec& codec : media_desc->codecs()) {
+    for (Codec codec : media_desc->codecs()) {
+      // Include transport-wide codec parameters.
+      // TODO: issues.webrtc.org/489794442 - Remove when wildcards are
+      // OK to send.
+      if (!use_wildcard) {
+        if (media_desc->rtcp_fb_ack_ccfb()) {
+          codec.feedback_params.Add({"ack", "ccfb"});
+        }
+      }
       // RFC 4566
       // a=rtpmap:<payload type> <encoding name>/<clock rate>
       // [/<encodingparameters>]
@@ -1140,8 +1149,16 @@ void BuildRtpmap(const MediaContentDescription* media_desc,
     std::vector<int> ptimes;
     std::vector<int> maxptimes;
     int max_minptime = 0;
-    for (const Codec& codec : media_desc->codecs()) {
+    for (Codec codec : media_desc->codecs()) {
       RTC_DCHECK(!codec.name.empty());
+      // Include transport-wide codec parameters.
+      // TODO: issues.webrtc.org/489794442 - Remove when wildcards are
+      // OK to send.
+      if (!use_wildcard) {
+        if (media_desc->rtcp_fb_ack_ccfb()) {
+          codec.feedback_params.Add({"ack", "ccfb"});
+        }
+      }
       // RFC 4566
       // a=rtpmap:<payload type> <encoding name>/<clock rate>
       // [/<encodingparameters>]
@@ -1183,18 +1200,21 @@ void BuildRtpmap(const MediaContentDescription* media_desc,
       AddAttributeLine(kCodecParamPTime, ptime, message);
     }
   }
-  if (media_desc->rtcp_fb_ack_ccfb()) {
-    // RFC 8888 section 6
-    InitAttrLine(kAttributeRtcpFb, &os);
-    os << kSdpDelimiterColon;
-    os << "* ack ccfb";
-    AddLine(os.str(), message);
+  if (use_wildcard) {
+    if (media_desc->rtcp_fb_ack_ccfb()) {
+      // RFC 8888 section 6
+      InitAttrLine(kAttributeRtcpFb, &os);
+      os << kSdpDelimiterColon;
+      os << "* ack ccfb";
+      AddLine(os.str(), message);
+    }
   }
 }
 
 void BuildRtpContentAttributes(const MediaContentDescription* media_desc,
                                const MediaType media_type,
                                int msid_signaling,
+                               bool use_wildcard,
                                std::string* message) {
   SimulcastSdpSerializer serializer;
   StringBuilder os;
@@ -1289,7 +1309,7 @@ void BuildRtpContentAttributes(const MediaContentDescription* media_desc,
   // RFC 4566
   // a=rtpmap:<payload type> <encoding name>/<clock rate>
   // [/<encodingparameters>]
-  BuildRtpmap(media_desc, media_type, message);
+  BuildRtpmap(media_desc, media_type, use_wildcard, message);
 
   for (const StreamParams& track : media_desc->streams()) {
     // Build the ssrc-group lines.
@@ -1449,7 +1469,9 @@ void BuildMediaDescription(const ContentInfo* content_info,
   if (IsDtlsSctp(media_desc->protocol())) {
     BuildSctpContentAttributes(media_desc, message);
   } else if (IsRtpProtocol(media_desc->protocol())) {
-    BuildRtpContentAttributes(media_desc, media_type, msid_signaling, message);
+    // TODO: issues.webrtc.org/48979442 - Make this field trial controlled
+    BuildRtpContentAttributes(media_desc, media_type, msid_signaling,
+                              /* use_wildcard= */ false, message);
   }
 }
 
@@ -2437,11 +2459,26 @@ void UpdateFromWildcardCodecs(MediaContentDescription* desc) {
   for (auto& codec : codecs) {
     AddFeedbackParameters(wildcard_codec->feedback_params, &codec);
   }
-  // Special treatment for transport-wide feedback params.
-  if (wildcard_codec->feedback_params.Has({"ack", "ccfb"})) {
+  desc->set_codecs(codecs);
+}
+
+// Update settings that are only valid if media-section-wide, but
+// are represented as per-codecs settings.
+// Note that this is done after UpdateFromWildcardCodecs, so settings
+// that are set with wildcard will also be picked up here.
+void UpdateFromMediaSectionWideSettings(MediaContentDescription* desc) {
+  if (desc->codecs().empty()) {
+    return;
+  }
+  bool all_codecs_have_ack_ccfb = true;
+  for (const auto& codec : desc->codecs()) {
+    if (!codec.feedback_params.Has({"ack", "ccfb"})) {
+      all_codecs_have_ack_ccfb = false;
+    }
+  }
+  if (all_codecs_have_ack_ccfb) {
     desc->set_rtcp_fb_ack_ccfb(true);
   }
-  desc->set_codecs(codecs);
 }
 
 void AddAudioAttribute(const std::string& name,
@@ -2862,6 +2899,7 @@ bool ParseContent(absl::string_view message,
   }
 
   UpdateFromWildcardCodecs(media_desc);
+  UpdateFromMediaSectionWideSettings(media_desc);
   // Codec has not been populated correctly unless the name has been set. This
   // can happen if an SDP has an fmtp or rtcp-fb with a payload type but doesn't
   // have a corresponding "rtpmap" line. This should lead to a parse error.

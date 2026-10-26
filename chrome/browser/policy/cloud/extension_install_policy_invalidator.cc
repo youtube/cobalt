@@ -18,11 +18,11 @@ namespace policy {
 namespace {
 
 constexpr char kDevicePolicyInvalidatorTypeName[] =
-    "EXTENSION_INSTALL_POLICY_FETCH";
+    "EXTENSION_INSTALL_CLOUD_POLICY_FETCH";
 constexpr char kBrowserPolicyInvalidatorTypeName[] =
-    "EXTENSION_INSTALL_POLICY_FETCH";
+    "EXTENSION_INSTALL_CLOUD_POLICY_FETCH";
 constexpr char kUserPolicyInvalidatorTypeName[] =
-    "EXTENSION_INSTALL_POLICY_FETCH";
+    "EXTENSION_INSTALL_CLOUD_POLICY_FETCH";
 
 }  // namespace
 
@@ -113,11 +113,6 @@ ExtensionInstallPolicyInvalidator::ExtensionInstallPolicyInvalidationHandler::
 
 ExtensionInstallPolicyInvalidator::ExtensionInstallPolicyInvalidationHandler::
     ~ExtensionInstallPolicyInvalidationHandler() = default;
-
-CloudPolicyStore* ExtensionInstallPolicyInvalidator::
-    ExtensionInstallPolicyInvalidationHandler::GetCloudPolicyStore() const {
-  return core()->extension_install_store();
-}
 
 const char* ExtensionInstallPolicyInvalidator::
     ExtensionInstallPolicyInvalidationHandler::GetPolicyRefreshMetricName(

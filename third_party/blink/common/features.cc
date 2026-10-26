@@ -68,11 +68,21 @@ BASE_FEATURE(kAndroidDesktopUAPlatform, base::FEATURE_DISABLED_BY_DEFAULT);
 // Avoids copying ResourceRequest::TrustedParams when possible.
 BASE_FEATURE(kAvoidTrustedParamsCopies, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Async touchmoves after scroll.
-// TODO(https://crbug.com/468997811): Cleanup feature flag.
-BASE_FEATURE(kAsyncTouchMovesImmediatelyAfterScroll,
-             base::FEATURE_ENABLED_BY_DEFAULT
-);
+BASE_FEATURE(kUnthrottleAsyncTouchMoves, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<AsyncTouchMoveThrottlingPolicy>::Option
+    async_touch_move_throttling_policies[] = {
+        {AsyncTouchMoveThrottlingPolicy::kUnthrottledWhenGsuUnconsumed,
+         "unthrottled_when_gsu_unconsumed"},
+        {AsyncTouchMoveThrottlingPolicy::kUnthrottledAlways,
+         "unthrottled_always"}};
+BASE_FEATURE_ENUM_PARAM(
+    AsyncTouchMoveThrottlingPolicy,
+    kAsyncTouchMoveThrottlingPolicyParam,
+    &kUnthrottleAsyncTouchMoves,
+    "policy",
+    AsyncTouchMoveThrottlingPolicy::kUnthrottledWhenGsuUnconsumed,
+    &async_touch_move_throttling_policies);
 
 // Block all MIDI access with the MIDI_SYSEX permission
 BASE_FEATURE(kBlockMidiByDefault, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -122,11 +132,6 @@ BASE_FEATURE(kAudioWorkletThreadRealtimePeriodMac,
 // A thread pool system for effective usage of RealtimeAudioWorkletThread
 // instances.
 BASE_FEATURE(kAudioWorkletThreadPool, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// If enabled, synthetic select metrics are logged.
-// See go/analyzing-synthetic-selects for more details.
-BASE_FEATURE(kAutofillEnableSyntheticSelectMetricsLogging,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, WebFormElement applies the same special case to nested forms
 // as it does for the outermost form. The fix is relevant only to Autofill.
@@ -428,6 +433,15 @@ BASE_FEATURE(kCobaltPreserveTrivial3DTransform,
              "CobaltPreserveTrivial3DTransform",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Skips HTMLMediaElement work that only exists to support native media
+// controls, which Cobalt never shows (ShouldShowControls() is always false).
+// This includes creating MediaControlsImpl (shadow DOM, observers, and media
+// event listeners) and calling UpdateLayoutObject() from
+// ProgressEventTimerFired().
+BASE_FEATURE(kCobaltSkipHiddenMediaControlsWork,
+             "CobaltSkipHiddenMediaControlsWork",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables full memory cache eviction on critical memory pressure in Cobalt.
 BASE_FEATURE(kEvictMemoryCacheOnCriticalMemoryPressure,
              "EvictMemoryCacheOnCriticalMemoryPressure",
@@ -440,11 +454,14 @@ BASE_FEATURE(kClientHintsViewportWidth_DEPRECATED,
 
 BASE_FEATURE(kCompositedAnimationsForceMainFrames,
              base::FEATURE_ENABLED_BY_DEFAULT);
+// TODO(paint-dev): crbug.com/470127855#comment32. Enabling this parameter
+// causes a significant regression in power consumption. We need to make the
+// behavior more selective before re-enabling it.
 BASE_FEATURE_PARAM(bool,
                    kForceMainFramesForIntersectionObserver,
                    &kCompositedAnimationsForceMainFrames,
                    "intersection-observer",
-                   true);
+                   false);
 BASE_FEATURE_PARAM(bool,
                    kForceMainFramesForAnchorTransform,
                    &kCompositedAnimationsForceMainFrames,
@@ -510,6 +527,16 @@ BASE_FEATURE_PARAM(int,
 // Enables the constant streaming in the ContentCapture task.
 BASE_FEATURE(kContentCaptureConstantStreaming,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If enabled, content:// URLs are considered local, and won't be allowed
+// to be downloaded.
+BASE_FEATURE(kContentSchemeIsLocal,
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 // When enabled, add a new option, {imageOrientation: 'none'}, to
 // createImageBitmap, which ignores the image orientation metadata of the source
@@ -664,11 +691,7 @@ BASE_FEATURE_PARAM(bool,
                    true);
 
 BASE_FEATURE(kDelayLayerTreeViewDeletionOnLocalSwap,
-#if BUILDFLAG(IS_ANDROID)
              base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
 );
 
 BASE_FEATURE_PARAM(base::TimeDelta,
@@ -681,6 +704,8 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 // DevTools Console.
 // See http://crbug.com/124534.
 BASE_FEATURE(kDevToolsImprovedNetworkError, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kDevToolsWebMCPSupport, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDirectCompositorThreadIpc,
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
@@ -710,7 +735,7 @@ BASE_FEATURE(kEnableDevtoolsDeepLinkViaExtensibilityApi,
 // Whether to respect loading=lazy attribute for images when they are on
 // invisible pages.
 BASE_FEATURE(kEnableLazyLoadImageForInvisiblePage,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<EnableLazyLoadImageForInvisiblePageType>::Option
     enable_lazy_load_image_for_invisible_page_types[] = {
         {EnableLazyLoadImageForInvisiblePageType::kAllInvisiblePage,
@@ -761,10 +786,12 @@ BASE_FEATURE_PARAM(int,
                    512);
 
 BASE_FEATURE(kFadeInScrollbarWhenMouseWheelMayBegin,
-#if BUILDFLAG(IS_MAC)
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#else
+// Do not forward may-begin/began/cancelled wheel event to main thread
+// to avoid unnecessary performance impact on android. See crbug.com/479549167.
+#if BUILDFLAG(IS_ANDROID)
              base::FEATURE_DISABLED_BY_DEFAULT);
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 // Enable the <fencedframe> element; see crbug.com/1123606. Note that enabling
@@ -1069,6 +1096,8 @@ BASE_FEATURE(kIgnoreInputWhileHidden,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kImageLoadingPrioritizationFix, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kImageReplacement, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kInitialWebUIWithoutExtensions, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1614,27 +1643,17 @@ BASE_FEATURE(kLoadingTasksUnfreezable, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kLogUnexpectedIPCPostedToBackForwardCachedDocuments,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_ANDROID)
 // Allow low latency canvas 2D to be in overlay (generally meaning scanned out
-// directly to display), even if regular canvas are not in overlay
-// (Canvas2DImageChromium is disabled).
-BASE_FEATURE(kLowLatencyCanvas2dImageChromium,
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-);
+// directly to display), even if regular canvases are not in overlay.
+BASE_FEATURE(kLowLatencyUsageSupportedForCanvas2D,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Allow low latency WebGL to be in overlay (generally meaning scanned out
-// directly to display), even if regular canvas are not in overlay
-// (WebGLImageChromium is disabled).
-BASE_FEATURE(kLowLatencyWebGLImageChromium,
-#if BUILDFLAG(IS_ANDROID)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
+// directly to display), even if regular canvases are not in overlay.
+BASE_FEATURE(kLowLatencyUsageSupportedForWebGL,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
-);
 
 BASE_FEATURE(kLowPriorityAsyncScriptExecution,
 // TODO(crbug/429069717): Fix the high power consumption on ChromeOS.
@@ -1863,12 +1882,23 @@ BASE_FEATURE_PARAM(int,
                    kMemoryCacheStrongReferenceTotalSizeThresholdParam,
                    &kMemoryCacheStrongReference,
                    "memory_cache_strong_ref_total_size_threshold",
-                   15 * 1024 * 1024);
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+                   200 * 1024 * 1024
+#else
+                   15 * 1024 * 1024
+#endif
+);
+
 BASE_FEATURE_PARAM(int,
                    kMemoryCacheStrongReferenceResourceSizeThresholdParam,
                    &kMemoryCacheStrongReference,
                    "memory_cache_strong_ref_resource_size_threshold",
-                   3 * 1024 * 1024);
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+                   100 * 1024 * 1024
+#else
+                   3 * 1024 * 1024
+#endif
+);
 
 BASE_FEATURE(kMemoryPurgeOnFreeze,
 #if BUILDFLAG(IS_ANDROID)
@@ -1971,9 +2001,14 @@ BASE_FEATURE_PARAM(int,
 
 // Fix for https://crbug.com/454354290.
 BASE_FEATURE(kUpdatedDeviceMemoryLimitsFor2026,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUseAncestorRenderFrameForWorker,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enable deriving sandboxed frame origins from browser-generated tokens
+// instead of renderer-calculated opaque origins.
+BASE_FEATURE(kUseSandboxTokenForOriginDerivation,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPrecompileInlineScripts, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2070,10 +2105,6 @@ BASE_FEATURE(kPreloadingModerateViewportHeuristics,
 #endif
 );
 
-// Firing pagehide events for intended prerender cancellation. See
-// crbug.com/353628449 for more details.
-BASE_FEATURE(kPageHideEventForPrerender2, base::FEATURE_ENABLED_BY_DEFAULT);
-
 const char kPrerender2MaxNumOfRunningSpeculationRules[] =
     "max_num_of_running_speculation_rules";
 
@@ -2157,11 +2188,21 @@ BASE_FEATURE(kReducedReferrerGranularity, base::FEATURE_ENABLED_BY_DEFAULT);
 // Whether `blink::MemoryCache` and `blink::ResourceFetcher` release their
 // strong references to resources on memory pressure.
 BASE_FEATURE(kReleaseResourceStrongReferencesOnMemoryPressure,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
 // Whether `blink::Resource` deletes its decoded data on memory pressure.
 BASE_FEATURE(kReleaseResourceDecodedDataOnMemoryPressure,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
 // Flag guard for removing usage of the CommitNavigationParams.redirects
 // array of URLs in the renderer process.
@@ -2170,6 +2211,10 @@ BASE_FEATURE(kRemoveCommitRedirectUrlsArray, base::FEATURE_ENABLED_BY_DEFAULT);
 // Disables sending the Purpose: "prefetch" header for prefetches and
 // prerenders.
 BASE_FEATURE(kRemovePurposeHeaderForPrefetch, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Allows same-document available-image reuse for no-store images.
+BASE_FEATURE(kReuseNoStoreImageOnSameSrcReassignment,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kRenderBlockingFonts, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -2191,6 +2236,11 @@ BASE_FEATURE(kRenderSizeInScoreAdBrowserSignals,
 BASE_FEATURE(kResamplingInputEvents, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kResamplingScrollEvents, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kScrollPredictorMaxResampleTime,
+                   &kResamplingScrollEvents,
+                   "max_resample_time",
+                   base::Milliseconds(20));
 
 BASE_FEATURE(kRestrictLinkHeaderOnSubresource,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2215,6 +2265,8 @@ BASE_FEATURE_PARAM(bool,
                    "disable_resource_load",
                    false);
 
+BASE_FEATURE(kRustyBmpFeature, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kUnrestrictSpellingAndGrammarForTesting,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -2237,6 +2289,15 @@ BASE_FEATURE(kScriptStreamingForNonHTTP,
              base::FEATURE_ENABLED_BY_DEFAULT
 #endif
 );
+
+BASE_FEATURE(kScrollPredictorFilteringBypassOnSynthetic,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kScrollPredictorRefinedHasPrediction,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kScrollPredictorSyntheticKalman,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables sending Sec-Purpose: "prefetch" header for
 // NoStatePrefetchURLLoaderThrottle.
@@ -2425,14 +2486,6 @@ BASE_FEATURE_PARAM(bool,
                    &kBoostRenderProcessForLoading,
                    "prioritize_restore",
                    false);
-
-// Bypasses the enforcement of fetch() requests that set HTTP forbidden headers
-// (https://developer.mozilla.org/en-US/docs/Glossary/Forbidden_request_header)
-// when the context has origin access to the fetch() target.
-// TODO(crbug.com/418811955): This only controls the renderer side now. Expand
-// to also have this control the browser side.
-BASE_FEATURE(kBypassRequestForbiddenHeadersCheck,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Freeze scheduler task queues in background after allowed grace time.
 // "stop" is a legacy name.
@@ -2639,7 +2692,7 @@ BASE_FEATURE(kWebAppEnableScopeExtensionsForIsolatedWebApps,
 // Controls parsing and usage of localized fields in web app manifests.
 // See spec for more information:
 // https://www.w3.org/TR/appmanifest/#x_localized-members
-BASE_FEATURE(kWebAppManifestLocalization, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebAppManifestLocalization, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls parsing of the "lock_screen" dictionary field and its "start_url"
 // entry in web app manifests.  See explainer for more information:
@@ -2740,6 +2793,21 @@ bool DisplayWarningDeprecateURNIframesUseFencedFrames() {
 
 bool IsFencedFramesEnabled() {
   return base::FeatureList::IsEnabled(blink::features::kFencedFrames);
+}
+
+// Purge on renderer backgrounding is disabled on Android. On mobile Android,
+// it's redundant with the purge that occurs on page freezing (unlike on
+// desktop, freezing is applied to most background pages on mobile Android). A
+// field trial confirmed that an additional purge is not necessary. See
+// https://bugs.chromium.org/p/chromium/issues/detail?id=1335069#c3.
+bool IsMemoryPurgeOnBackgroundingEnabled() {
+  return
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)
+      false
+#else
+      true
+#endif
+      ;
 }
 
 bool IsParkableStringsToDiskEnabled() {

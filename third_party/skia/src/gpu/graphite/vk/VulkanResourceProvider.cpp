@@ -111,7 +111,8 @@ VulkanSharedContext* VulkanResourceProvider::nonConstVulkanSharedContext() {
     return static_cast<VulkanSharedContext*>(fSharedContext);
 }
 
-sk_sp<Texture> VulkanResourceProvider::onCreateWrappedTexture(const BackendTexture& texture) {
+sk_sp<Texture> VulkanResourceProvider::onCreateWrappedTexture(const BackendTexture& texture,
+                                                              std::string_view label) {
     sk_sp<VulkanYcbcrConversion> ycbcrConversion;
     const auto& vkInfo = TextureInfoPriv::Get<VulkanTextureInfo>(texture.info());
     if (vkInfo.fYcbcrConversionInfo.isValid()) {
@@ -127,7 +128,8 @@ sk_sp<Texture> VulkanResourceProvider::onCreateWrappedTexture(const BackendTextu
                                       BackendTextures::GetMutableState(texture),
                                       BackendTextures::GetVkImage(texture),
                                       /*alloc=*/{} /*Skia does not own wrapped texture memory*/,
-                                      std::move(ycbcrConversion));
+                                      std::move(ycbcrConversion),
+                                      label);
 }
 
 sk_sp<ComputePipeline> VulkanResourceProvider::createComputePipeline(const ComputePipelineDesc&) {
@@ -135,7 +137,8 @@ sk_sp<ComputePipeline> VulkanResourceProvider::createComputePipeline(const Compu
 }
 
 sk_sp<Texture> VulkanResourceProvider::createTexture(SkISize size,
-                                                     const TextureInfo& info) {
+                                                     const TextureInfo& info,
+                                                     std::string_view label) {
     sk_sp<VulkanYcbcrConversion> ycbcrConversion;
     const auto& vkInfo = TextureInfoPriv::Get<VulkanTextureInfo>(info);
     if (vkInfo.fYcbcrConversionInfo.isValid()) {
@@ -148,13 +151,15 @@ sk_sp<Texture> VulkanResourceProvider::createTexture(SkISize size,
     return VulkanTexture::Make(this->vulkanSharedContext(),
                                size,
                                info,
-                               std::move(ycbcrConversion));
+                               std::move(ycbcrConversion),
+                               label);
 }
 
 sk_sp<Buffer> VulkanResourceProvider::createBuffer(size_t size,
                                                    BufferType type,
-                                                   AccessPattern accessPattern) {
-    return VulkanBuffer::Make(this->vulkanSharedContext(), size, type, accessPattern);
+                                                   AccessPattern accessPattern,
+                                                   std::string_view label) {
+    return VulkanBuffer::Make(this->vulkanSharedContext(), size, type, accessPattern, label);
 }
 
 sk_sp<Sampler> VulkanResourceProvider::createSampler(const SamplerDesc& samplerDesc) {
@@ -250,9 +255,8 @@ sk_sp<VulkanDescriptorSet> VulkanResourceProvider::findOrCreateDescriptorSet(
 
     // Search for available descriptor sets by assembling a key based upon the set's structure.
     GraphiteResourceKey key = build_desc_set_key(requestedDescriptors);
-    if (auto descSet = fResourceCache->findAndRefResource(
-                key, skgpu::Budgeted::kYes, Shareable::kNo)) {
-        // A non-null resource pointer indicates we have found an available descriptor set.
+    if (auto descSet =
+            fResourceCache->findAndRefResource(key, skgpu::Budgeted::kYes, Shareable::kNo)) {
         return sk_sp<VulkanDescriptorSet>(static_cast<VulkanDescriptorSet*>(descSet));
     }
 
@@ -265,7 +269,25 @@ sk_sp<VulkanDescriptorSet> VulkanResourceProvider::findOrCreateDescriptorSet(
     if (!layout) {
         return nullptr;
     }
-    auto pool = VulkanDescriptorPool::Make(context, requestedDescriptors, layout);
+
+    static constexpr uint32_t kStartNumSets = 16;
+    static constexpr uint32_t kMaxNumSets = 512;
+
+    uint32_t numSets = kStartNumSets;
+    for (int i = 0; i < fCurrentPoolSizes.size(); i++) {
+        if (key == fCurrentPoolSizes.at(i).first) {
+            uint32_t& poolSize = fCurrentPoolSizes.at(i).second;
+            numSets = poolSize + ((poolSize + 1) >> 1);
+            numSets = std::min(numSets, kMaxNumSets);
+            poolSize = numSets;
+            break;
+        }
+    }
+    if (numSets == kStartNumSets) {
+        fCurrentPoolSizes.push_back(std::make_pair(key, numSets));
+    }
+
+    auto pool = VulkanDescriptorPool::Make(context, requestedDescriptors, layout, numSets);
     if (!pool) {
         VULKAN_CALL(context->interface(), DestroyDescriptorSetLayout(context->device(),
                                                                      layout,
@@ -285,12 +307,12 @@ sk_sp<VulkanDescriptorSet> VulkanResourceProvider::findOrCreateDescriptorSet(
 
     // Continue to allocate & cache the maximum number of sets so they can be easily accessed as
     // they're needed.
-    for (int i = 1; i < VulkanDescriptorPool::kMaxNumSets ; i++) {
+    for (uint32_t i = 1; i < numSets ; i++) {
         auto descSet =
                 add_new_desc_set_to_cache(context, pool, key, fResourceCache.get());
         if (!descSet) {
-            SKGPU_LOG_W("Descriptor set allocation %d of %d was unsuccessful; no more sets will be"
-                        "allocated from this pool.", i, VulkanDescriptorPool::kMaxNumSets);
+            SKGPU_LOG_W("Descriptor set allocation %u of %u was unsuccessful; no more sets will be"
+                        "allocated from this pool.", i, numSets);
             break;
         }
     }
@@ -646,10 +668,10 @@ BackendTexture VulkanResourceProvider::onCreateBackendTexture(AHardwareBuffer* h
         return {};
     }
 
-    // Import as external if the AHardwareBuffer has an undefined format or if graphite does not
-    // support the provided VkFormat.
+    // Import as external if the AHardwareBuffer has an undefined format or if the VkFormat does not
+    // map back to a TextureFormat.
     bool importAsExternalFormat = hwbFormatProps.format == VK_FORMAT_UNDEFINED ||
-                                  !vkCaps.isFormatSupported(hwbFormatProps.format);
+            VkFormatToTextureFormat(hwbFormatProps.format) == TextureFormat::kUnsupported;
 #if defined(SK_DEBUG)
     if (importAsExternalFormat && hwbFormatProps.format != VK_FORMAT_UNDEFINED) {
         SKGPU_LOG_D("Ignoring AHardwareBuffer VkFormat(%d) because it is not supported by graphite."
@@ -668,7 +690,10 @@ BackendTexture VulkanResourceProvider::onCreateBackendTexture(AHardwareBuffer* h
     VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT;
     // When importing as an external format the image usage can only be VK_IMAGE_USAGE_SAMPLED_BIT.
     if (!importAsExternalFormat) {
-        usageFlags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        usageFlags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        if (!isProtectedContent) {
+            usageFlags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        }
         if (isRenderable) {
             // Renderable attachments can be used as input attachments if we are loading from MSAA.
             usageFlags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
@@ -693,15 +718,19 @@ BackendTexture VulkanResourceProvider::onCreateBackendTexture(AHardwareBuffer* h
             VK_IMAGE_ASPECT_COLOR_BIT,
             VulkanYcbcrConversionInfo() };
 
-    if (isRenderable && (importAsExternalFormat || !vkCaps.isRenderable(vkTexInfo))) {
+    // Wrap in TextureInfo for Caps checks, although it will be invalidated if we modify vkTexInfo
+    // later on as a result of those checks.
+    TextureInfo texInfo = TextureInfos::MakeVulkan(vkTexInfo);
+    if (isRenderable && (importAsExternalFormat || !vkCaps.isRenderable(texInfo))) {
         SKGPU_LOG_W("Renderable texture requested from an AHardwareBuffer which uses a VkFormat "
                     "that Skia cannot render to (VkFormat: %d).\n",  hwbFormatProps.format);
         return {};
     }
 
-    if (!importAsExternalFormat && (!vkCaps.isTransferSrc(vkTexInfo) ||
-                                    !vkCaps.isTransferDst(vkTexInfo) ||
-                                    !vkCaps.isTexturable(vkTexInfo))) {
+    // We don't require copyable-src if it's protected content
+    if (!importAsExternalFormat && (!(vkCaps.isCopyableSrc(texInfo) || isProtectedContent) ||
+                                    !vkCaps.isCopyableDst(texInfo) ||
+                                    !vkCaps.isTexturable(texInfo))) {
         if (isRenderable) {
             SKGPU_LOG_W("VkFormat %d does not support the necessary format features. Because a "
                         "renderable texture was requested, we cannot fall back to importing with "

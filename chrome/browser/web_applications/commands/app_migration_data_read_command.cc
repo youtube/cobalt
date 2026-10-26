@@ -13,13 +13,13 @@
 #include "chrome/browser/web_applications/icons/icon_masker.h"
 #include "chrome/browser/web_applications/locks/app_lock.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
-#include "chrome/browser/web_applications/proto/web_app.to_value.h"
 #include "chrome/browser/web_applications/ui_manager/update_dialog_types.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "components/webapps/browser/image_visual_diff.h"
 #include "components/webapps/common/web_app_id.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -29,6 +29,7 @@ namespace web_app {
 AppMigrationDataReadCommand::AppMigrationDataReadCommand(
     const webapps::AppId& old_app_id,
     const webapps::AppId& new_app_id,
+    bool is_forced_migration_on_startup,
     base::OnceCallback<void(UpdateMetadata)> completed_callback)
     : WebAppCommand<AppLock, UpdateMetadata>(
           "AppMigrationDataReadCommand",
@@ -38,6 +39,8 @@ AppMigrationDataReadCommand::AppMigrationDataReadCommand(
           std::make_tuple(std::nullopt)),
       old_app_id_(old_app_id),
       new_app_id_(new_app_id) {
+  update_.is_forced_migration = is_forced_migration_on_startup;
+
   GetMutableDebugValue().Set("old_app_id", old_app_id);
   GetMutableDebugValue().Set("new_app_id", new_app_id);
 }
@@ -58,12 +61,12 @@ void AppMigrationDataReadCommand::StartWithLock(std::unique_ptr<AppLock> lock) {
   auto* old_web_app = registrar.GetAppById(old_app_id_);
   CHECK(old_web_app->pending_migration_info().has_value());
 
-  pending_migration_info_ = *old_web_app->pending_migration_info();
-  GetMutableDebugValue().Set("pending_migration_info",
-                             proto::ToValue(pending_migration_info_));
+  GetMutableDebugValue().Set(
+      "pending_migration_info",
+      old_web_app->pending_migration_info()->AsDebugValue());
 
   const auto barrier_closure = base::BarrierClosure(
-      /*num_closures=*/2,
+      /*num_closures=*/update_.is_forced_migration ? 1 : 2,
       base::BindOnce(
           &AppMigrationDataReadCommand::OnIconsProcessedCreateIdentity,
           weak_factory_.GetWeakPtr()));
@@ -73,11 +76,16 @@ void AppMigrationDataReadCommand::StartWithLock(std::unique_ptr<AppLock> lock) {
       base::BindOnce(&AppMigrationDataReadCommand::SetOldIconForIdentityUpdate,
                      weak_factory_.GetWeakPtr())
           .Then(barrier_closure));
-  ReadSingleIcon(
-      new_app_id_,
-      base::BindOnce(&AppMigrationDataReadCommand::SetNewIconForIdentityUpdate,
-                     weak_factory_.GetWeakPtr())
-          .Then(barrier_closure));
+
+  // If this is a forced migration, icon changes are ignored
+  if (!update_.is_forced_migration) {
+    ReadSingleIcon(
+        new_app_id_,
+        base::BindOnce(
+            &AppMigrationDataReadCommand::SetNewIconForIdentityUpdate,
+            weak_factory_.GetWeakPtr())
+            .Then(barrier_closure));
+  }
 }
 
 void AppMigrationDataReadCommand::ReadSingleIcon(
@@ -128,16 +136,37 @@ void AppMigrationDataReadCommand::OnIconsProcessedCreateIdentity() {
   CHECK(old_web_app);
   CHECK(new_web_app);
 
-  if (old_web_app->untranslated_name() != new_web_app->untranslated_name()) {
-    update_.old_title = base::UTF8ToUTF16(old_web_app->untranslated_name());
+  // Name changes are ignored for forced migration.
+  update_.old_title = base::UTF8ToUTF16(old_web_app->untranslated_name());
+  if (old_web_app->untranslated_name() != new_web_app->untranslated_name() &&
+      !update_.is_forced_migration) {
     update_.new_title = base::UTF8ToUTF16(new_web_app->untranslated_name());
     GetMutableDebugValue().Set("new_name", update_.new_title.has_value());
   }
   update_.old_start_url = old_web_app->start_url();
   update_.new_start_url = new_web_app->start_url();
 
-  // TODO(japhet): Figure out how to handle the case where the icon hasn't
-  // changed.
+  if (update_.new_icon.has_value()) {
+    SkBitmap old_bitmap = update_.old_icon.AsBitmap();
+    SkBitmap new_bitmap = update_.new_icon->AsBitmap();
+    CheckImageDiffMoreThanTenPercent(
+        std::move(old_bitmap), std::move(new_bitmap),
+        base::BindOnce(
+            &AppMigrationDataReadCommand::OnImageDiffComputedUpdateIdentity,
+            weak_factory_.GetWeakPtr()));
+    return;
+  }
+
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          &AppMigrationDataReadCommand::OnImageDiffComputedUpdateIdentity,
+          weak_factory_.GetWeakPtr(), /*more_than_ten_percent_diff=*/true));
+}
+
+void AppMigrationDataReadCommand::OnImageDiffComputedUpdateIdentity(
+    bool more_than_ten_percent_diff) {
+  update_.icon_diff_is_insignificant = !more_than_ten_percent_diff;
   CompleteAndSelfDestruct(CommandResult::kSuccess, std::make_optional(update_));
 }
 

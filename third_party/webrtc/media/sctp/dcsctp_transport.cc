@@ -17,12 +17,12 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/data_channel_interface.h"
 #include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
@@ -440,7 +440,7 @@ void DcSctpTransport::SetBufferedAmountLowThreshold(int sid, size_t bytes) {
 }
 
 SendPacketStatus DcSctpTransport::SendPacketWithStatus(
-    ArrayView<const uint8_t> data) {
+    std::span<const uint8_t> data) {
   RTC_DCHECK_RUN_ON(network_thread_);
   RTC_DCHECK(socket_);
 
@@ -591,7 +591,7 @@ void DcSctpTransport::OnConnectionRestarted() {
 }
 
 void DcSctpTransport::OnStreamsResetFailed(
-    ArrayView<const dcsctp::StreamID> outgoing_streams,
+    std::span<const dcsctp::StreamID> outgoing_streams,
     absl::string_view reason) {
   // TODO(orphis): Need a test to check for correct behavior
   for (auto& stream_id : outgoing_streams) {
@@ -603,7 +603,7 @@ void DcSctpTransport::OnStreamsResetFailed(
 }
 
 void DcSctpTransport::OnStreamsResetPerformed(
-    ArrayView<const dcsctp::StreamID> outgoing_streams) {
+    std::span<const dcsctp::StreamID> outgoing_streams) {
   RTC_DCHECK_RUN_ON(network_thread_);
   for (auto& stream_id : outgoing_streams) {
     RTC_LOG(LS_INFO) << debug_name_
@@ -631,7 +631,7 @@ void DcSctpTransport::OnStreamsResetPerformed(
 }
 
 void DcSctpTransport::OnIncomingStreamsReset(
-    ArrayView<const dcsctp::StreamID> incoming_streams) {
+    std::span<const dcsctp::StreamID> incoming_streams) {
   RTC_DCHECK_RUN_ON(network_thread_);
   for (auto& stream_id : incoming_streams) {
     RTC_LOG(LS_INFO) << debug_name_

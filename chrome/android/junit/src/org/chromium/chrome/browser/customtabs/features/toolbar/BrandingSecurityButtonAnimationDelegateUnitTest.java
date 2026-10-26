@@ -31,8 +31,6 @@ import org.mockito.Mockito;
 import org.mockito.Spy;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
-import org.robolectric.annotation.LooperMode;
-import org.robolectric.annotation.LooperMode.Mode;
 import org.robolectric.shadows.ShadowDrawable;
 import org.robolectric.shadows.ShadowLooper;
 
@@ -43,10 +41,9 @@ import org.chromium.ui.base.TestActivity;
 
 import java.util.concurrent.TimeUnit;
 
-/** Unit test for {@link CustomTabToolbarAnimationDelegate}. */
+/** Unit test for {@link BrandingSecurityButtonAnimationDelegate}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(shadows = {ShadowLooper.class, ShadowDrawable.class})
-@LooperMode(Mode.PAUSED)
 public class BrandingSecurityButtonAnimationDelegateUnitTest {
     private static final @DrawableRes int ICON_16_DP =
             R.drawable.focused_outline_overlay_corners_16dp;

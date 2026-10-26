@@ -51,6 +51,7 @@ using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::InSequence;
 using ::testing::Invoke;
+using ::testing::IsEmpty;
 using ::testing::Return;
 using ::testing::StrictMock;
 using ::testing::UnorderedElementsAre;
@@ -163,9 +164,10 @@ class RefreshTracker {
 class SessionServiceImplTest : public ::testing::Test,
                                public WithTaskEnvironment {
  public:
-  SessionServiceImplTest()
-      : WithTaskEnvironment(
-            base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
+  explicit SessionServiceImplTest(
+      base::test::TaskEnvironment::TimeSource time_source =
+          base::test::TaskEnvironment::TimeSource::MOCK_TIME)
+      : WithTaskEnvironment(time_source) {
     auto context_builder = CreateTestURLRequestContextBuilder();
     auto network_delegate = std::make_unique<TestNetworkDelegate>();
     network_delegate_ = network_delegate.get();
@@ -536,6 +538,51 @@ TEST_F(SessionServiceImplTest, EventObserverOnRegistrationFailure) {
       NetLogWithSource(), /*original_request_initiator=*/std::nullopt);
 }
 
+TEST_F(SessionServiceImplTest,
+       EventObserverOnRegistrationCapturedFailedRequest) {
+  base::MockCallback<SessionService::OnEventCallback> event_callback;
+  base::CallbackListSubscription subscription =
+      service().AddEventObserver(event_callback.Get());
+  EXPECT_CALL(event_callback, Run(_)).WillOnce([](const SessionEvent& event) {
+    EXPECT_FALSE(event.succeeded);
+    ASSERT_TRUE(
+        std::holds_alternative<CreationEventDetails>(event.event_type_details));
+    const auto& details =
+        std::get<CreationEventDetails>(event.event_type_details);
+    EXPECT_EQ(details.fetch_error, SessionError::kPersistentHttpError);
+    ASSERT_TRUE(details.failed_request.has_value());
+    EXPECT_EQ(details.failed_request->request_url, kTestUrl);
+    EXPECT_EQ(details.failed_request->net_error, OK);
+    EXPECT_EQ(details.failed_request->response_error, 404);
+    EXPECT_EQ(details.failed_request->response_error_body, "Not Found");
+  });
+
+  SessionError error(SessionError::kPersistentHttpError);
+  FailedRequest failed_request;
+  failed_request.request_url = kTestUrl;
+  failed_request.net_error = OK;
+  failed_request.response_error = 404;
+  failed_request.response_error_body = "Not Found";
+  error.failed_request = std::move(failed_request);
+
+  auto fetch_param = RegistrationFetcherParam::CreateInstanceForTesting(
+      kTestUrl, {crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256},
+      "challenge", /*authorization=*/std::nullopt);
+  auto scoped_test_fetcher = ScopedTestRegistrationFetcher(base::BindRepeating(
+      [](std::optional<FailedRequest> failed_request,
+         SessionError::ErrorType error_type,
+         RegistrationFetcher::RegistrationCompleteCallback callback) {
+        SessionError error(error_type);
+        error.failed_request = std::move(failed_request);
+        std::move(callback).Run(nullptr, RegistrationResult(std::move(error)));
+      },
+      error.failed_request, error.type));
+  service().RegisterBoundSession(
+      base::DoNothing(), std::move(fetch_param),
+      IsolationInfo::CreateTransient(/*nonce=*/std::nullopt),
+      NetLogWithSource(), /*original_request_initiator=*/std::nullopt);
+}
+
 TEST_F(SessionServiceImplTest, EventObserverOnAddSession) {
   base::MockCallback<SessionService::OnEventCallback> event_callback;
   base::CallbackListSubscription subscription =
@@ -789,6 +836,61 @@ TEST_F(SessionServiceImplTest, EventObserverOnRefreshTransientError) {
   base::test::TestFuture<RefreshResult> future;
   auto scoped_fetcher = ScopedTestRegistrationFetcher::CreateWithFailure(
       SessionError::kTransientHttpError, kRefreshUrlString);
+  service().DeferRequestForRefresh(
+      dbsc_request, SessionService::DeferralParams(Session::Id(kSessionId)),
+      future.GetCallback());
+}
+
+TEST_F(SessionServiceImplTest, EventObserverOnRefreshCapturedFailedRequest) {
+  // Register a session with kSessionId.
+  AddSessionsForTesting({{kSessionId, kRefreshUrlString, kOrigin}});
+
+  auto site = SchemefulSite(kTestUrl);
+  ASSERT_TRUE(service().GetSession({site, Session::Id(kSessionId)}));
+
+  // Create a request and defer it.
+  net::TestDelegate delegate;
+  std::unique_ptr<URLRequest> request =
+      context()->CreateRequest(kTestUrl, IDLE, &delegate, kDummyAnnotation);
+  request->set_site_for_cookies(SiteForCookies::FromUrl(kTestUrl));
+  DbscRequest dbsc_request(request.get());
+
+  base::MockCallback<SessionService::OnEventCallback> event_callback;
+  base::CallbackListSubscription subscription =
+      service().AddEventObserver(event_callback.Get());
+  EXPECT_CALL(event_callback, Run(_)).WillOnce([](const SessionEvent& event) {
+    EXPECT_FALSE(event.succeeded);
+    ASSERT_TRUE(
+        std::holds_alternative<RefreshEventDetails>(event.event_type_details));
+    const auto& details =
+        std::get<RefreshEventDetails>(event.event_type_details);
+    EXPECT_EQ(details.fetch_error, SessionError::kTransientHttpError);
+    ASSERT_TRUE(details.failed_request.has_value());
+    EXPECT_EQ(details.failed_request->request_url, kTestRefreshUrl);
+    EXPECT_EQ(details.failed_request->net_error, OK);
+    EXPECT_EQ(details.failed_request->response_error, 500);
+    EXPECT_EQ(details.failed_request->response_error_body,
+              "Internal Server Error");
+  });
+
+  SessionError error(SessionError::kTransientHttpError);
+  FailedRequest failed_request;
+  failed_request.request_url = kTestRefreshUrl;
+  failed_request.net_error = OK;
+  failed_request.response_error = 500;
+  failed_request.response_error_body = "Internal Server Error";
+  error.failed_request = std::move(failed_request);
+
+  base::test::TestFuture<RefreshResult> future;
+  auto scoped_test_fetcher = ScopedTestRegistrationFetcher(base::BindRepeating(
+      [](std::optional<FailedRequest> failed_request,
+         SessionError::ErrorType error_type,
+         RegistrationFetcher::RegistrationCompleteCallback callback) {
+        SessionError error(error_type);
+        error.failed_request = std::move(failed_request);
+        std::move(callback).Run(nullptr, RegistrationResult(std::move(error)));
+      },
+      error.failed_request, error.type));
   service().DeferRequestForRefresh(
       dbsc_request, SessionService::DeferralParams(Session::Id(kSessionId)),
       future.GetCallback());
@@ -1664,6 +1766,34 @@ TEST_F(SessionServiceImplTest, SessionSigningQuota) {
   EXPECT_FALSE(service().SigningQuotaExceeded(session_key.site));
 }
 
+class SessionServiceImplSystemTimeTest : public SessionServiceImplTest {
+ public:
+  // NOTE: We can't use MOCK_TIME here, since the task environment does not
+  // support going back in time.
+  SessionServiceImplSystemTimeTest()
+      : SessionServiceImplTest(
+            base::test::TaskEnvironment::TimeSource::SYSTEM_TIME) {}
+};
+
+TEST_F(SessionServiceImplSystemTimeTest, PrunesFutureSignings) {
+  base::test::ScopedFeatureList feature_list(
+      features::kDeviceBoundSessionSigningQuotaAndCaching);
+  SessionKey session_key{SchemefulSite(GURL(kTestUrl)),
+                         Session::Id(kSessionId)};
+
+  // Add signings in the future
+  {
+    base::subtle::ScopedTimeClockOverrides time_override(
+        [] { return base::Time::Max(); }, nullptr, nullptr);
+    for (size_t i = 0; i < 10; ++i) {
+      service().AddSigningOccurrence(session_key.site);
+    }
+  }
+
+  // Back to present time, verify these future signings are discarded.
+  EXPECT_FALSE(service().SigningQuotaExceeded(session_key.site));
+}
+
 TEST_F(SessionServiceImplTest, LatestSignedRefreshChallenges) {
   SessionKey session_key1{SchemefulSite(GURL(kRefreshUrlString)),
                           Session::Id(kSessionId)};
@@ -2260,6 +2390,76 @@ TEST_F(SessionServiceImplTest, SessionUsage) {
             SessionUsage::kDeferred);
 }
 
+TEST_F(SessionServiceImplTest, ShouldDeferRespectsAllowsDeviceBoundSessions) {
+  AddSessionsForTesting({{kSessionId, kRefreshUrlString, kOrigin}});
+
+  net::TestDelegate delegate;
+  std::unique_ptr<URLRequest> request =
+      context()->CreateRequest(kTestUrl, IDLE, &delegate, kDummyAnnotation);
+  request->set_site_for_cookies(SiteForCookies::FromUrl(kTestUrl));
+  request->set_allows_device_bound_sessions(false);
+
+  HttpRequestHeaders extra_headers;
+  DbscRequest dbsc_request(request.get());
+  std::optional<SessionService::DeferralParams> deferral =
+      service().ShouldDefer(dbsc_request, &extra_headers,
+                            FirstPartySetMetadata());
+
+  EXPECT_FALSE(deferral.has_value());
+}
+
+TEST_F(SessionServiceImplTest,
+       HandleRegistrationHeaderRespectsAllowsDeviceBoundSessions) {
+  net::TestDelegate delegate;
+  std::unique_ptr<URLRequest> request =
+      context()->CreateRequest(kTestUrl, IDLE, &delegate, kDummyAnnotation);
+  request->set_allows_device_bound_sessions(false);
+
+  auto headers = base::MakeRefCounted<HttpResponseHeaders>("HTTP/1.1 200 OK\n");
+  headers->AddHeader("Secure-Session-Registration",
+                     "(ES256);path=\"register\";challenge=\"challenge\"");
+
+  // Let registration succeed if request is made.
+  auto scoped_test_fetcher = ScopedTestRegistrationFetcher::CreateWithSuccess(
+      kSessionId, kRefreshUrlString, kOrigin);
+
+  DbscRequest dbsc_request(request.get());
+  service().HandleResponseHeaders(dbsc_request, headers.get(),
+                                  FirstPartySetMetadata());
+
+  // Registration should NOT be triggered.
+  base::test::TestFuture<std::vector<SessionKey>> future;
+  service().GetAllSessionsAsync(
+      future.GetCallback<const std::vector<SessionKey>&>());
+  EXPECT_THAT(future.Get(), IsEmpty());
+}
+
+TEST_F(SessionServiceImplTest,
+       HandleChallengeHeaderRespectsAllowsDeviceBoundSessions) {
+  AddSessionsForTesting({{kSessionId, kRefreshUrlString, kOrigin}});
+  SessionKey session_key{SchemefulSite(GURL(kOrigin)), Session::Id(kSessionId)};
+  Session* session = service().GetSession(session_key);
+  ASSERT_TRUE(session);
+  EXPECT_FALSE(session->cached_challenge().has_value());
+
+  net::TestDelegate delegate;
+  std::unique_ptr<URLRequest> request =
+      context()->CreateRequest(kTestUrl, IDLE, &delegate, kDummyAnnotation);
+  request->set_site_for_cookies(SiteForCookies::FromUrl(kTestUrl));
+  request->set_allows_device_bound_sessions(false);
+
+  auto headers = base::MakeRefCounted<HttpResponseHeaders>("HTTP/1.1 200 OK\n");
+  headers->AddHeader("Secure-Session-Challenge",
+                     "\"challenge\";id=\"" + std::string(kSessionId) + "\"");
+
+  DbscRequest dbsc_request(request.get());
+  service().HandleResponseHeaders(dbsc_request, headers.get(),
+                                  FirstPartySetMetadata());
+
+  // Challenge should NOT be stored.
+  EXPECT_FALSE(session->cached_challenge().has_value());
+}
+
 }  // namespace
 
 class SessionServiceImplWithStoreTest : public TestWithTaskEnvironment {
@@ -2527,105 +2727,6 @@ TEST_F(SessionServiceImplWithStoreTest, NoSessionUsageDuringInitialization) {
                             FirstPartySetMetadata());
 
   EXPECT_EQ(request->device_bound_session_usage().size(), 0);
-}
-
-TEST_F(SessionServiceImplWithStoreTest, GarbageCollectsStaleKeys) {
-  base::HistogramTester histograms;
-  base::test::ScopedFeatureList feature_list(
-      unexportable_keys::kUnexportableKeyDeletion);
-  unexportable_keys::MockUnexportableKeyProvider& mock_key_provider =
-      SwitchToMockKeyProvider().mock();
-
-  EXPECT_CALL(store(), LoadSessions).Times(1);
-  service().LoadSessionsAsync();
-
-  // The first two keys are known to the service, but the third key is stale.
-  const std::vector<uint8_t> kWrappedKey1 = {1, 2, 3};
-  const std::vector<uint8_t> kWrappedKey2 = {4, 5, 6};
-  const std::vector<uint8_t> kStaleWrappedKey = {7, 8, 9};
-
-  EXPECT_CALL(mock_key_provider, GetAllSigningKeysSlowly).WillRepeatedly([=] {
-    auto key1 = std::make_unique<unexportable_keys::MockUnexportableKey>();
-    auto key2 = std::make_unique<unexportable_keys::MockUnexportableKey>();
-    auto stale_key = std::make_unique<unexportable_keys::MockUnexportableKey>();
-
-    ON_CALL(*key1, GetWrappedKey).WillByDefault(Return(kWrappedKey1));
-    ON_CALL(*key2, GetWrappedKey).WillByDefault(Return(kWrappedKey2));
-    ON_CALL(*stale_key, GetWrappedKey).WillByDefault(Return(kStaleWrappedKey));
-
-    return base::ToVector<std::unique_ptr<crypto::UnexportableSigningKey>>({
-        std::move(key1),
-        std::move(key2),
-        std::move(stale_key),
-    });
-  });
-
-  // Obtain the corresponding key ids.
-  base::test::TestFuture<unexportable_keys::ServiceErrorOr<
-      std::vector<unexportable_keys::UnexportableKeyId>>>
-      get_all_keys_future;
-  key_service()->GetAllSigningKeysForGarbageCollectionSlowlyAsync(
-      unexportable_keys::BackgroundTaskPriority::kBestEffort,
-      get_all_keys_future.GetCallback());
-  ASSERT_OK_AND_ASSIGN(
-      std::vector<unexportable_keys::UnexportableKeyId> all_keys_ids,
-      get_all_keys_future.Take());
-
-  // Create a session map with two sessions, each associated with a known key.
-  auto session1 =
-      Session::CreateFromProto(CreateSessionProto(kSessionId, kUrlString));
-  session1->set_unexportable_key_id(all_keys_ids[0]);
-  auto session2 =
-      Session::CreateFromProto(CreateSessionProto(kSessionId2, kUrlString2));
-  session2->set_unexportable_key_id(all_keys_ids[1]);
-  SessionStore::SessionsMap session_map;
-  session_map[SessionKey{SchemefulSite(kTestUrl), Session::Id(kSessionId)}] =
-      std::move(session1);
-  session_map[SessionKey{SchemefulSite(kTestUrl2), Session::Id(kSessionId2)}] =
-      std::move(session2);
-
-  // Finish loading the sessions, and wait for the stale key to be deleted.
-  EXPECT_CALL(mock_key_provider, DeleteSigningKeysSlowly)
-      .WillOnce([&](auto keys) {
-        auto wrapped_keys = base::ToVector(
-            keys, [](auto* key) { return key->GetWrappedKey(); });
-        EXPECT_THAT(wrapped_keys, ElementsAre(kStaleWrappedKey));
-        return wrapped_keys.size();
-      });
-
-  FinishLoadingSessions(std::move(session_map));
-  // Advance time to allow StartGarbageCollection to run.
-  FastForwardUntilNoTasksRemain();
-
-  histograms.ExpectUniqueSample(
-      "Crypto.UnexportableKeys.GarbageCollection.DeviceBoundSessions."
-      "TotalKeyCount",
-      3, 1);
-  histograms.ExpectUniqueSample(
-      "Crypto.UnexportableKeys.GarbageCollection.DeviceBoundSessions."
-      "UsedKeyCount",
-      2, 1);
-  histograms.ExpectUniqueSample(
-      "Crypto.UnexportableKeys.GarbageCollection.DeviceBoundSessions."
-      "ObsoleteKeyCount",
-      1, 1);
-  histograms.ExpectUniqueSample(
-      "Crypto.UnexportableKeys.GarbageCollection.DeviceBoundSessions."
-      "ObsoleteKeyDeletionCount",
-      1, 1);
-}
-
-TEST_F(SessionServiceImplWithStoreTest,
-       GarbageCollectionDoesNotTriggerIfFeatureDisabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(
-      unexportable_keys::kUnexportableKeyDeletion);
-  unexportable_keys::MockUnexportableKeyProvider& mock_key_provider =
-      SwitchToMockKeyProvider().mock();
-
-  EXPECT_CALL(mock_key_provider, GetAllSigningKeysSlowly).Times(0);
-  EXPECT_CALL(mock_key_provider, DeleteAllSigningKeysSlowly).Times(0);
-  FinishLoadingSessions({});
 }
 
 TEST_F(SessionServiceImplWithStoreTest,

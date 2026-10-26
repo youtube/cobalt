@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/nearby/nearby_dependencies_provider.h"
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/network_config_service.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
@@ -16,7 +17,6 @@
 #include "chrome/browser/ash/nearby/nearby_dependencies_provider_factory.h"
 #include "chrome/browser/ash/nearby/presence/credential_storage/credential_storage_initializer.h"
 #include "chrome/browser/nearby_sharing/common/nearby_share_features.h"
-#include "chrome/browser/nearby_sharing/common/nearby_share_switches.h"
 #include "chrome/browser/nearby_sharing/firewall_hole/nearby_connections_firewall_hole_factory.h"
 #include "chrome/browser/nearby_sharing/mdns/nearby_connections_mdns_manager.h"
 #include "chrome/browser/nearby_sharing/sharing_mojo_service.h"
@@ -189,7 +189,7 @@ NearbyDependenciesProvider::GetDependencies() {
   dependencies->wifidirect_dependencies = GetWifiDirectDependencies();
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kNearbyShareVerboseLogging)) {
+  if (command_line->HasSwitch(ash::switches::kNearbyShareVerboseLogging)) {
     dependencies->min_log_severity =
         ::nearby::api::LogMessage::Severity::kVerbose;
   }
@@ -294,18 +294,14 @@ NearbyDependenciesProvider::GetWifiLanDependencies() {
       std::move(tcp_socket_factory.receiver));
 
   MojoPipe<::sharing::mojom::MdnsManager> mdns_manager;
-  if (::features::IsNearbyMdnsEnabled()) {
-    mojo::MakeSelfOwnedReceiver(
-        std::make_unique<::nearby::sharing::NearbyConnectionsMdnsManager>(),
-        std::move(mdns_manager.receiver));
-  }
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<::nearby::sharing::NearbyConnectionsMdnsManager>(),
+      std::move(mdns_manager.receiver));
 
   return ::sharing::mojom::WifiLanDependencies::New(
       std::move(cros_network_config.remote),
       std::move(firewall_hole_factory.remote),
-      std::move(tcp_socket_factory.remote),
-      (::features::IsNearbyMdnsEnabled() ? std::move(mdns_manager.remote)
-                                         : mojo::NullRemote()));
+      std::move(tcp_socket_factory.remote), std::move(mdns_manager.remote));
 }
 
 sharing::mojom::WifiDirectDependenciesPtr

@@ -601,10 +601,8 @@ TEST(ElementTrackerTest, AddClassCustomEventCallback) {
 }
 
 TEST(ElementTrackerTest, MultipleCustomEventCallbacks) {
-  // We will test that custom events work with multiple event types, including
-  // in the edge case that the event type is the same as an element identifier
-  // (this should never happen, but should also never break).
-  const CustomElementEventType kCustomEventType2 = kElementIdentifier1;
+  // We will test that custom events work with multiple event types.
+  DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(kCustomEventType2);
   UNCALLED_MOCK_CALLBACK(ElementTracker::Callback, callback);
   UNCALLED_MOCK_CALLBACK(ElementTracker::Callback, callback2);
   auto subscription =
@@ -1037,7 +1035,9 @@ TEST(SafeElementReferenceTest, CopyOperator) {
 
 class ElementTrackerIdentifierTest : public testing::Test {
  public:
-  void SetUp() override { ElementIdentifier::GetKnownIdentifiers().clear(); }
+  void SetUp() override {
+    internal::UniqueIdentifier::ClearKnownIdentifiersForTesting();
+  }
 };
 
 TEST_F(ElementTrackerIdentifierTest, ShowElementRegistersIdentifier) {

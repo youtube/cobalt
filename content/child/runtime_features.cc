@@ -75,31 +75,6 @@ void SetRuntimeFeatureDefaultsForPlatform(
   WebRuntimeFeatures::EnableCompositedSelectionUpdate(true);
 #endif
 
-#if BUILDFLAG(IS_APPLE)
-  const bool enable_canvas_2d_image_chromium =
-      command_line.HasSwitch(
-          blink::switches::kEnableGpuMemoryBufferCompositorResources) &&
-      !command_line.HasSwitch(switches::kDisable2dCanvasImageChromium) &&
-      !command_line.HasSwitch(switches::kDisableGpu) &&
-      base::FeatureList::IsEnabled(features::kCanvas2DImageChromium);
-#else
-  constexpr bool enable_canvas_2d_image_chromium = false;
-#endif
-  WebRuntimeFeatures::EnableCanvas2dImageChromium(
-      enable_canvas_2d_image_chromium);
-
-#if BUILDFLAG(IS_APPLE)
-  const bool enable_web_gl_image_chromium =
-      command_line.HasSwitch(
-          blink::switches::kEnableGpuMemoryBufferCompositorResources) &&
-      !command_line.HasSwitch(switches::kDisableWebGLImageChromium) &&
-      !command_line.HasSwitch(switches::kDisableGpu);
-#else
-  const bool enable_web_gl_image_chromium =
-      command_line.HasSwitch(switches::kEnableWebGLImageChromium);
-#endif
-  WebRuntimeFeatures::EnableWebGLImageChromium(enable_web_gl_image_chromium);
-
 #if BUILDFLAG(IS_ANDROID)
   if (command_line.HasSwitch(switches::kDisableMediaSessionAPI)) {
     WebRuntimeFeatures::EnableMediaSession(false);
@@ -219,8 +194,12 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(features::kFedCmIdPRegistration), kDefault},
           {wf::EnableFedCmLightweightMode,
            raw_ref(features::kFedCmLightweightMode), kDefault},
+          // We want to enable interception when either of these two flags is
+          // enabled because interception can happen with either flag.
           {wf::EnableFedCmNavigationInterception,
            raw_ref(features::kFedCmNavigationInterception), kDefault},
+          {wf::EnableFedCmNavigationInterception,
+           raw_ref(features::kFedCmEmbedderInitiatedLogin), kDefault},
           {wf::EnableFedCmErrorAttribute,
            raw_ref(features::kFedCmErrorAttribute), kDefault},
           {wf::EnableFedCmNonStringToken,
@@ -317,8 +296,6 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(device::features::kWebXRIncubations)},
 #endif
           {wf::EnableXSLT, raw_ref(blink::features::kXSLT)},
-          {wf::EnablePermissions, raw_ref(features::kWebPermissionsApi),
-           kSetOnlyIfOverridden},
       };
   for (const auto& mapping : blinkFeatureToBaseFeatureMapping) {
     SetRuntimeFeatureFromChromiumFeature(
@@ -412,9 +389,6 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(webnn::mojom::features::
                        kExperimentalWebMachineLearningNeuralNetwork),
            kSetOnlyIfOverridden},
-#if BUILDFLAG(IS_ANDROID)
-          {"WebAppLaunchQueue", raw_ref(features::kAndroidWebAppLaunchHandler)},
-#endif
           {"LocalNetworkAccessPermissionPolicy",
            raw_ref(network::features::kLocalNetworkAccessChecks)},
           {"LocalNetworkAccessSplitPermissions",

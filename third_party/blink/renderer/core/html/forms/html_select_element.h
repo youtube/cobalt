@@ -117,21 +117,27 @@ class CORE_EXPORT HTMLSelectElement final
   void remove(int index);
 
   String Value() const;
-  void SetValue(const String&,
-                bool send_events = false,
-                WebAutofillState = WebAutofillState::kNotFilled);
+  void SelectOptionByValue(const String&,
+                           bool send_events = false,
+                           WebAutofillState = WebAutofillState::kNotFilled);
   String valueForBinding() const { return Value(); }
   void setValueForBinding(const String&);
+
+  void SelectOptionByElement(HTMLOptionElement* option,
+                             bool send_events,
+                             WebAutofillState autofill_state);
 
   // It is possible to pass WebAutofillState::kNotFilled here in case we need
   // to simulate a reset of a <select> element.
   void SetAutofillValue(const String& value, WebAutofillState);
+  void SetAutofillOption(HTMLOptionElement* option, WebAutofillState);
 
   String SuggestedValue() const;
   // Sets the suggested value and puts the element into
   // WebAutofillState::kPreviewed state if the value exists, or
   // WebAutofillState::kNotFilled otherwise.
   void SetSuggestedValue(const String&);
+  void SetSuggestedOption(HTMLOptionElement*);
 
   // |options| and |selectedOptions| are not safe to be used in in
   // HTMLOptionElement::removedFrom() and insertedInto() because their cache
@@ -220,15 +226,17 @@ class CORE_EXPORT HTMLSelectElement final
   void SelectOptionByPopup(int list_index);
   void SelectOptionByPopup(HTMLOptionElement* option);
   void SelectMultipleOptions(const Vector<int>& list_indices);
-  // SelectOptionFromPopoverPickerOrBaseListbox is called when an option element
+  // SelectOptionFromPopoverPickerOrListbox is called when an option element
   // is clicked in the following modes:
   // - When UsesPopoverPickerElement() returns true
   // - When ListBoxSelectType is being used and appearance:base-select is
-  // applied
+  //   applied
+  // - When this element is a listbox and is being controlled by a filtering
+  //   input for the FilterableSelect feature.
   // TODO(crbug.com/357649033): This method has a lot of duplicated logic with
   // HTMLSelectElement::SelectOption. These two methods should probably be
   // merged.
-  void SelectOptionFromPopoverPickerOrBaseListbox(HTMLOptionElement* option);
+  void SelectOptionFromPopoverPickerOrListbox(HTMLOptionElement* option);
   // A popup is canceled when the popup was hidden without selecting an item.
   void PopupDidCancel();
   // Provisional selection is a selection made using arrow keys or type ahead.
@@ -332,8 +340,6 @@ class CORE_EXPORT HTMLSelectElement final
       HTMLSelectedContentElement* selectedcontent);
   void SelectedContentElementInserted(
       HTMLSelectedContentElement* selectedcontent);
-  void UpdateDescendantSelectedcontentsForInsertion(
-      HTMLSelectedContentElement* selectedcontent);
   void SelectedContentElementRemoved(
       HTMLSelectedContentElement* selectedcontent);
 
@@ -359,6 +365,25 @@ class CORE_EXPORT HTMLSelectElement final
   // traversals which look for option elements inside of a select, such as <hr>
   // and <datalist> elements.
   static bool ShouldIgnoreDescendantsForOptionTraversals(Element* element);
+
+  HTMLOptionElement* ActiveOption() { return active_option_; }
+  // Called when an input element targeting a select for filtering is focused,
+  // which makes an option start matching :active-option if possible.
+  void StartFiltering();
+  // Called when an input element targeting a select element is blurred, which
+  // makes the options stop matching :active-option.
+  void StopFiltering();
+  // Called when the user presses the down arrow in the input element while
+  // filtering a select element to move the :active-option forwards in the list
+  // of options.
+  void MoveActiveOptionForwards();
+  // Called when the user presses the up arrow in the input element while
+  // filtering a select element to move the :active-option backwards in the list
+  // of options.
+  void MoveActiveOptionBackwards();
+  // Called when the user presses the enter key in the input element while
+  // filtering a select element to toggle the selectedness of the active option.
+  void ToggleActiveOption(Event&);
 
  private:
   mojom::blink::FormControlType FormControlType() const override;
@@ -429,7 +454,6 @@ class CORE_EXPORT HTMLSelectElement final
                                    wtf_size_t list_index_start,
                                    wtf_size_t list_index_end) const;
   void SetIndexToSelectOnCancel(int list_index);
-  void SetSuggestedOption(HTMLOptionElement*);
 
   // Returns nullptr if listIndex is out of bounds, or it doesn't point an
   // HTMLOptionElement.
@@ -462,7 +486,14 @@ class CORE_EXPORT HTMLSelectElement final
   // element to see which one is selected. When this element has the multiple
   // attribute, last_on_change_option_ is not used.
   Member<HTMLOptionElement> last_on_change_option_;
+
+  // Option to display in the select element without actually changing its
+  // `last_on_change_option_`. This is introduced to be able to display
+  // information on an element without leaking it to JavaScript. Reasons for
+  // that could be previewing a value to be filled before getting explicit user
+  // consent for going ahead and filling.
   Member<HTMLOptionElement> suggested_option_;
+
   Member<SelectType> select_type_;
   Member<SelectMutationObserver> descendants_observer_;
   TreeOrderedList<HTMLSelectedContentElement> descendant_selectedcontents_;
@@ -482,6 +513,8 @@ class CORE_EXPORT HTMLSelectElement final
   bool uses_menu_list_ = true;
   bool is_multiple_ = false;
   mutable bool should_recalc_list_items_ = false;
+
+  Member<HTMLOptionElement> active_option_;
 
   friend class ListBoxSelectType;
   friend class MenuListSelectType;

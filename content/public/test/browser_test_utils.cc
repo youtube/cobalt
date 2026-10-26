@@ -8,14 +8,18 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <set>
+#include <string>
 #include <string_view>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 #include "base/command_line.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/memory/raw_ptr.h"
@@ -139,13 +143,16 @@
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/clipboard/test/clipboard_test_util.h"
 #include "ui/base/clipboard/test/test_clipboard.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/compositor/test/draw_waiter_for_test.h"
 #include "ui/events/base_event_utils.h"
+#include "ui/events/event_constants.h"
 #include "ui/events/gesture_detection/gesture_configuration.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
+#include "ui/events/keycodes/keyboard_code_conversion.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/latency/latency_info.h"
@@ -2609,8 +2616,7 @@ RenderProcessHostWatcher::RenderProcessHostWatcher(
     : type_(type),
       did_exit_normally_(true),
       allow_renderer_crashes_(
-          std::make_unique<ScopedAllowRendererCrashes>(render_process_host)),
-      quit_closure_(run_loop_.QuitClosure()) {
+          std::make_unique<ScopedAllowRendererCrashes>(render_process_host)) {
   observation_.Observe(render_process_host);
 }
 
@@ -2621,24 +2627,24 @@ RenderProcessHostWatcher::RenderProcessHostWatcher(WebContents* web_contents,
           type) {}
 RenderProcessHostWatcher::~RenderProcessHostWatcher() = default;
 
-void RenderProcessHostWatcher::Wait() {
-  run_loop_.Run();
+bool RenderProcessHostWatcher::Wait() {
+  bool result = waiter_helper_.Wait();
 
   DCHECK(allow_renderer_crashes_)
       << "RenderProcessHostWatcher::Wait() may only be called once";
   allow_renderer_crashes_.reset();
   // Call this here just in case something else quits the RunLoop.
   observation_.Reset();
+  return result;
 }
-
-void RenderProcessHostWatcher::QuitRunLoop() {
-  std::move(quit_closure_).Run();
+void RenderProcessHostWatcher::OnEvent() {
+  waiter_helper_.OnEvent();
   observation_.Reset();
 }
 
 void RenderProcessHostWatcher::RenderProcessReady(RenderProcessHost* host) {
   if (type_ == WATCH_FOR_PROCESS_READY) {
-    QuitRunLoop();
+    OnEvent();
   }
 }
 
@@ -2648,14 +2654,14 @@ void RenderProcessHostWatcher::RenderProcessExited(
   did_exit_normally_ =
       info.status == base::TERMINATION_STATUS_NORMAL_TERMINATION;
   if (type_ == WATCH_FOR_PROCESS_EXIT) {
-    QuitRunLoop();
+    OnEvent();
   }
 }
 
 void RenderProcessHostWatcher::RenderProcessHostDestroyed(
     RenderProcessHost* host) {
   if (type_ == WATCH_FOR_HOST_DESTRUCTION) {
-    QuitRunLoop();
+    OnEvent();
   }
 }
 
@@ -2957,10 +2963,24 @@ RenderFrameSubmissionObserver::~RenderFrameSubmissionObserver() {
   }
 }
 
+void RenderFrameSubmissionObserver::SetWaitForNextFrame() {
+  wait_for_render_frame_count_ = (render_frame_count_ + 1);
+  LOG(ERROR) << "SetWaitForNextFrame";
+}
+
 void RenderFrameSubmissionObserver::WaitForAnyFrameSubmission() {
-  break_on_any_frame_ = true;
+  CHECK(!wait_for_render_frame_count_.has_value());
+  wait_for_render_frame_count_ = render_frame_count_;
   Wait();
-  break_on_any_frame_ = false;
+  wait_for_render_frame_count_.reset();
+}
+
+void RenderFrameSubmissionObserver::WaitForNextFrameSubmission() {
+  CHECK(wait_for_render_frame_count_.has_value());
+  while (render_frame_count_ < wait_for_render_frame_count_.value()) {
+    Wait();
+  }
+  wait_for_render_frame_count_.reset();
 }
 
 void RenderFrameSubmissionObserver::WaitForMetadataChange() {
@@ -3051,7 +3071,7 @@ void RenderFrameSubmissionObserver::OnRenderFrameMetadataChangedAfterActivation(
 
 void RenderFrameSubmissionObserver::OnRenderFrameSubmission() {
   render_frame_count_++;
-  if (break_on_any_frame_) {
+  if (wait_for_render_frame_count_.has_value()) {
     Quit();
   }
 }
@@ -3224,8 +3244,9 @@ void BrowserTestClipboardScope::SetText(const std::string& text) {
 }
 
 void BrowserTestClipboardScope::GetText(std::string* result) {
-  ui::Clipboard::GetForCurrentThread()->ReadAsciiText(
-      ui::ClipboardBuffer::kCopyPaste, /* data_dst = */ nullptr, result);
+  *result = ui::clipboard_test_util::ReadAsciiText(
+      ui::Clipboard::GetForCurrentThread(), ui::ClipboardBuffer::kCopyPaste,
+      /* data_dst = */ nullptr);
 }
 
 class FrameFocusedObserver::FrameTreeNodeObserverImpl
@@ -4309,7 +4330,7 @@ int LoadBasicRequest(network::mojom::NetworkContext* network_context,
   network::mojom::URLLoaderFactoryParamsPtr url_loader_factory_params =
       network::mojom::URLLoaderFactoryParams::New();
   url_loader_factory_params->process_id =
-      network::OriginatingProcess::browser();
+      network::OriginatingProcessId::browser();
   url_loader_factory_params->is_orb_enabled = false;
   url::Origin origin = url::Origin::Create(url);
   url_loader_factory_params->isolation_info =
@@ -4510,30 +4531,30 @@ bool CompareWebContentsOutputToReference(
     base::RunLoop run_loop;
     rwh->GetView()->CopyFromSurface(
         gfx::Rect(), gfx::Size(), base::TimeDelta(),
-        base::BindLambdaForTesting([&](const content::CopyFromSurfaceResult&
-                                           result) {
-          ASSERT_TRUE(result.has_value());
-          const SkBitmap& bitmap = result->bitmap;
-          base::ScopedAllowBlockingForTesting allow_blocking;
+        base::BindLambdaForTesting(
+            [&](const content::CopyFromSurfaceResult& result) {
+              ASSERT_TRUE(result.has_value());
+              const SkBitmap& bitmap = result->bitmap;
+              base::ScopedAllowBlockingForTesting allow_blocking;
 
-          SkBitmap clipped_bitmap;
-          bitmap.extractSubset(
-              &clipped_bitmap,
-              SkIRect::MakeWH(snapshot_size.width(), snapshot_size.height()));
+              SkBitmap clipped_bitmap;
+              bitmap.extractSubset(&clipped_bitmap,
+                                   SkIRect::MakeWH(snapshot_size.width(),
+                                                   snapshot_size.height()));
 
-          snapshot_matches =
-              cc::MatchesPNGFile(clipped_bitmap, expected_path, comparator);
+              snapshot_matches =
+                  cc::MatchesPNGFile(clipped_bitmap, expected_path, comparator);
 
-          // When rebaselining the pixel test, the test may fail. However, the
-          // reference file will still be overwritten.
-          if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-                  switches::kRebaselinePixelTests)) {
-            ASSERT_TRUE(cc::WritePNGFile(clipped_bitmap, expected_path,
-                                         /*discard_transparency=*/false));
-          }
+              // When rebaselining the pixel test, the test may fail. However,
+              // the reference file will still be overwritten.
+              if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+                      switches::kRebaselinePixelTests)) {
+                ASSERT_TRUE(cc::WritePNGFile(clipped_bitmap, expected_path,
+                                             /*discard_transparency=*/false));
+              }
 
-          run_loop.Quit();
-        }));
+              run_loop.Quit();
+            }));
     run_loop.Run();
   }
 
@@ -4609,60 +4630,65 @@ bool HistoryGoForward(WebContents* wc) {
 }
 
 CreateAndLoadWebContentsObserver::CreateAndLoadWebContentsObserver(
-    int num_expected_contents)
+    size_t num_expected_contents,
+    base::RepeatingCallback<bool(WebContents*)> filter)
     : creation_subscription_(
           RegisterWebContentsCreationCallback(base::BindRepeating(
               &CreateAndLoadWebContentsObserver::OnWebContentsCreated,
               base::Unretained(this)))),
-      num_expected_contents_(num_expected_contents) {
-  EXPECT_GE(num_expected_contents, 1);
-}
+      num_expected_contents_(num_expected_contents),
+      filter_(std::move(filter)) {}
 
 CreateAndLoadWebContentsObserver::~CreateAndLoadWebContentsObserver() = default;
 
+WebContents* CreateAndLoadWebContentsObserver::Wait() {
+  while (true) {
+    // Wait for any still-loading `WebContents` to load before checking whether
+    // they pass `filter_`. Don't use for-range loop as `load_stop_observers_`'s
+    // size may change during the `Wait()`s.
+    for (size_t i = 0; i < load_stop_observers_.size(); i++) {
+      load_stop_observers_[i]->Wait();
+    }
+    auto filtered_web_contents = GetFilteredWebContents();
+    // Check too many `WebContents` weren't created.
+    EXPECT_LE(filtered_web_contents.size(), num_expected_contents_)
+        << "Unexpected WebContents creation";
+    // If the expected number of `WebContents` were created; finish waiting.
+    if (filtered_web_contents.size() >= num_expected_contents_) {
+      return filtered_web_contents[0];
+    }
+    // If insufficient `WebContents` were created, wait for another to be
+    // created.
+    if (filtered_web_contents.size() < num_expected_contents_) {
+      base::RunLoop run_loop;
+      contents_creation_quit_closure_ = run_loop.QuitClosure();
+      run_loop.Run();
+    }
+  }
+}
+
 void CreateAndLoadWebContentsObserver::OnWebContentsCreated(
     WebContents* web_contents) {
-  ++num_new_contents_seen_;
-  if (num_new_contents_seen_ < num_expected_contents_) {
-    return;
-  }
-
-  // If there is already a WebContents, then this will fail the test later.
-  if (num_new_contents_seen_ > num_expected_contents_) {
-    ADD_FAILURE() << "Unexpected WebContents creation";
-    // If we're called before Wait(), then `contents_creation_quit_closure_`
-    // has not been set. If we're called after, then we'll clear this when
-    // we see the creation of the expected contents and it won't be set again.
-    EXPECT_FALSE(contents_creation_quit_closure_);
-    return;
-  }
-
-  web_contents_ = web_contents;
-  load_stop_observer_.emplace(web_contents_);
-
+  load_stop_observers_.push_back(
+      std::make_unique<LoadStopObserver>(web_contents));
+  // If `Wait()` is waiting for another `WebContents`, awaken it.
   if (contents_creation_quit_closure_) {
     std::move(contents_creation_quit_closure_).Run();
   }
 }
 
-WebContents* CreateAndLoadWebContentsObserver::Wait() {
-  // Wait for a new WebContents if we haven't gotten one yet.
-  if (!load_stop_observer_) {
-    base::RunLoop run_loop;
-    contents_creation_quit_closure_ = run_loop.QuitClosure();
-    run_loop.Run();
+std::vector<WebContents*>
+CreateAndLoadWebContentsObserver::GetFilteredWebContents() {
+  std::vector<WebContents*> filtered_web_contents;
+  for (const auto& load_stop_observer : load_stop_observers_) {
+    WebContents* web_contents = load_stop_observer->web_contents();
+    // `web_contents()` will return null if the `WebContents` has been
+    // destroyed.
+    if (web_contents && filter_.Run(web_contents)) {
+      filtered_web_contents.push_back(web_contents);
+    }
   }
-
-  load_stop_observer_->Wait();
-
-  // Do this after waiting for load to complete, since only the specified number
-  // of WebContents should be created before Wait() returns. If an additional
-  // one is created while the expected contents is loading, then we still fail
-  // the test.
-  EXPECT_EQ(num_expected_contents_, num_new_contents_seen_);
-  creation_subscription_ = base::CallbackListSubscription();
-
-  return web_contents_;
+  return filtered_web_contents;
 }
 
 CookieChangeObserver::CookieChangeObserver(WebContents* web_contents,
@@ -5147,5 +5173,50 @@ RequestCloseWidgetInterceptor::GetForwardingInterface() {
 }
 
 void RequestCloseWidgetInterceptor::RequestClosePopup() {}
+
+void SimulateCharTyped(WebContents* web_contents, char16_t character) {
+  ui::DomKey dom_key;
+  ui::DomCode dom_code;
+  ui::KeyboardCode key_code;
+
+  if (character == '\t') {
+    dom_key = ui::DomKey::TAB;
+    dom_code = ui::DomCode::TAB;
+    key_code = ui::VKEY_TAB;
+  } else if (character == '\b') {
+    dom_key = ui::DomKey::BACKSPACE;
+    dom_code = ui::DomCode::BACKSPACE;
+    key_code = ui::VKEY_BACK;
+  } else if (character == '\n') {
+    dom_key = ui::DomKey::ENTER;
+    dom_code = ui::DomCode::ENTER;
+    key_code = ui::VKEY_RETURN;
+  } else {
+    dom_key = ui::DomKey::FromCharacter(character);
+    dom_code = ui::UsLayoutDomKeyToDomCode(dom_key);
+    key_code = ui::DomCodeToUsLayoutKeyboardCode(dom_code);
+  }
+
+  CHECK_NE(dom_code, ui::DomCode::NONE)
+      << "Unsupported character: " << static_cast<int>(character);
+
+  bool shift =
+      (character != ui::DomCodeToUsLayoutCharacter(dom_code, ui::EF_NONE));
+
+  SimulateKeyPress(web_contents, dom_key, dom_code, key_code,
+                   /*control=*/false, shift, /*alt=*/false,
+                   /*command=*/false);
+}
+
+[[nodiscard]] bool CrashFrameProcess(const ToRenderFrameHost& adapter) {
+  RenderFrameHost* rfh = adapter.render_frame_host();
+  auto* process = rfh->GetProcess();
+  content::ScopedAllowRendererCrashes allow_renderer_crashes(process);
+
+  RenderProcessHostWatcher watcher(
+      process, RenderProcessHostWatcher::WATCH_FOR_PROCESS_EXIT);
+  process->Shutdown(content::RESULT_CODE_KILLED);
+  return watcher.Wait();
+}
 
 }  // namespace content

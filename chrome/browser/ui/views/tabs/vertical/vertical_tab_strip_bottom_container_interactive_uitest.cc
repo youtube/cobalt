@@ -10,18 +10,30 @@
 #include "chrome/browser/ui/views/bookmarks/saved_tab_groups/saved_tab_group_everything_menu.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
+#include "chrome/browser/ui/views/tabs/new_tab_button.h"
 #include "chrome/browser/ui/views/test/vertical_tabs_interactive_test_mixin.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/interaction_test_util.h"
+#include "ui/gfx/animation/animation.h"
+#include "ui/gfx/animation/animation_test_api.h"
 #include "ui/views/controls/menu/menu_item_view.h"
+#include "ui/views/view_utils.h"
 
 namespace base::test {
 
 class VerticalTabStripBottomContainerInteractiveUiTest
-    : public VerticalTabsInteractiveTestMixin<InteractiveBrowserTest> {};
+    : public VerticalTabsInteractiveTestMixin<InteractiveBrowserTest> {
+ public:
+  using VerticalTabsInteractiveTestMixin::VerticalTabsInteractiveTestMixin;
+
+ private:
+  const gfx::AnimationTestApi::RenderModeResetter disable_rich_animations_ =
+      gfx::AnimationTestApi::SetRichAnimationRenderMode(
+          gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
+};
 
 // This test checks that we can click the new tab button in the bottom container
 // of the vertical tab strip
@@ -64,6 +76,8 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripBottomContainerInteractiveUiTest,
       EnsurePresent(tab_groups::STGEverythingMenu::kCreateNewTabGroup),
       SelectMenuItem(tab_groups::STGEverythingMenu::kCreateNewTabGroup),
       WaitForShow(kTabGroupHeaderElementId),
+      WaitForShow(kTabGroupEditorBubbleId),
+      WaitForShow(kTabGroupEditorBubbleButtonElementId),
       CheckResult([this]() { return browser()->tab_strip_model()->count(); },
                   2));
 }
@@ -99,7 +113,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripBottomContainerInteractiveUiTest,
           [&new_tab_button_center,
            &point_above_new_tab_button](views::View* region_view) {
             auto* vt_region_view =
-                static_cast<VerticalTabStripRegionView*>(region_view);
+                views::AsViewClass<VerticalTabStripRegionView>(region_view);
 
             gfx::Point pt_center = new_tab_button_center;
             views::View::ConvertPointFromScreen(vt_region_view, &pt_center);
@@ -107,10 +121,46 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripBottomContainerInteractiveUiTest,
             gfx::Point pt_above = point_above_new_tab_button;
             views::View::ConvertPointFromScreen(vt_region_view, &pt_above);
 
+            LOG(ERROR)
+                << "<<<<<<<<<<<<<<<<<< " << __func__
+                << " vt_region_view->IsPositionInWindowCaption(pt_center)="
+                << vt_region_view->IsPositionInWindowCaption(pt_center);
+            LOG(ERROR)
+                << "<<<<<<<<<<<<<<<<<< " << __func__
+                << " vt_region_view->IsPositionInWindowCaption(pt_above)="
+                << vt_region_view->IsPositionInWindowCaption(pt_above);
             return !vt_region_view->IsPositionInWindowCaption(pt_center) &&
                    !vt_region_view->IsPositionInWindowCaption(pt_above);
           },
           "Check that clicking new tab does not expose caption space"));
+}
+
+class NewTabButtonContextMenuInteractiveUITest
+    : public VerticalTabStripBottomContainerInteractiveUiTest {
+ public:
+  NewTabButtonContextMenuInteractiveUITest() = default;
+  ~NewTabButtonContextMenuInteractiveUITest() override = default;
+
+  void SetUpInProcessBrowserTestFixture() override {
+    VerticalTabStripBottomContainerInteractiveUiTest::
+        SetUpInProcessBrowserTestFixture();
+    feature_list_.InitAndEnableFeature(features::kTabGroupMenuMoreEntryPoints);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(NewTabButtonContextMenuInteractiveUITest,
+                       VerifyNewTabButtonContextMenu) {
+  RunTestSequence(
+      WaitForShow(kNewTabButtonElementId), MoveMouseTo(kNewTabButtonElementId),
+      MayInvolveNativeContextMenu(
+          ClickMouse(ui_controls::RIGHT),
+          WaitForShow(NewTabButtonMenuModel::kNewTab),
+          SelectMenuItem(NewTabButtonMenuModel::kNewTab),
+          CheckResult(
+              [this]() { return browser()->tab_strip_model()->count(); }, 2)));
 }
 
 }  // namespace base::test

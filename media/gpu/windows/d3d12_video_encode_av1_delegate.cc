@@ -13,7 +13,6 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
-#include "media/base/media_switches.h"
 #include "media/base/video_encoder.h"
 #include "media/gpu/windows/d3d12_video_helpers.h"
 #include "media/gpu/windows/format_utils.h"
@@ -111,7 +110,7 @@ AV1BitstreamBuilder::SequenceHeader FillAV1BuilderSequenceHeader(
   return sequence_header;
 }
 
-AV1BitstreamBuilder::FrameHeader FillAV1BuilderFrameHeader(
+std::optional<AV1BitstreamBuilder::FrameHeader> FillAV1BuilderFrameHeader(
     const D3D12VideoEncodeAV1Delegate::PictureControlFlags& picture_ctrl,
     const D3D12_VIDEO_ENCODER_AV1_PICTURE_CONTROL_CODEC_DATA& pic_params,
     const AV1BitstreamBuilder::SequenceHeader& sequence_header) {
@@ -210,7 +209,7 @@ AV1BitstreamBuilder::FrameHeader FillAV1BuilderFrameHeader(
         lr_unit_shift = 0;
         break;
       default:
-        NOTREACHED();
+        return std::nullopt;
     }
     // Check if either restoration_u_tile_size or resotration_v_tile_size is
     // equal to resotration_y_tile_size, if so, lr_uv_shift is 0; otherwise,
@@ -919,14 +918,7 @@ void D3D12VideoEncodeAV1Delegate::FillPictureControlParams(
     software_brc_->ComputeQP(frame_params);
     qindex = software_brc_->GetQP();
   } else if (options.quantizer.has_value()) {
-    int q_val = options.quantizer.value();
-    if (base::FeatureList::IsEnabled(kStandardizeVP9AndAV1Quantizer)) {
-      qindex = q_val;
-    } else {
-      qindex = QuantizerToQIndex(
-          VideoCodec::kAV1, std::clamp(static_cast<uint8_t>(q_val),
-                                       kAV1MinQuantizer, kAV1MaxQuantizer));
-    }
+    qindex = options.quantizer.value();
   }
   const int base_q_idx = std::clamp(
       qindex.value_or(QuantizerToQIndex(VideoCodec::kAV1, kAV1MaxQuantizer)), 0,
@@ -1219,8 +1211,14 @@ EncoderStatus::Or<size_t> D3D12VideoEncodeAV1Delegate::ReadbackBitstream(
 
   DVLOG(4) << PrintPostEncodeValues(post_encode_values);
 
-  auto frame_header = FillAV1BuilderFrameHeader(picture_ctrl_, picture_params_,
-                                                sequence_header_);
+  auto frame_header_or_error = FillAV1BuilderFrameHeader(
+      picture_ctrl_, picture_params_, sequence_header_);
+  if (!frame_header_or_error.has_value()) {
+    return {EncoderStatus::Codes::kEncoderHardwareDriverError,
+            "D3D12VideoEncodeAV1Delegate: invalid restoration tile size."};
+  }
+  AV1BitstreamBuilder::FrameHeader frame_header =
+      std::move(frame_header_or_error).value();
   if (!UpdateFrameHeaderPostEncode(enc_caps_.post_value_flags,
                                    post_encode_values, frame_header)) {
     return {EncoderStatus::Codes::kEncoderHardwareDriverError,

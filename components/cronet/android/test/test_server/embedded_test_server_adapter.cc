@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "components/cronet/android/test/test_server/embedded_test_server_adapter.h"
 
 #include <memory>
@@ -220,7 +215,8 @@ std::unique_ptr<net::test_server::HttpResponse> UseEncodingInResponse(
   // Each of these is a compression of the string "The quick brown fox jumps
   // over the lazy dog\n".
   std::string_view encoding =
-      std::string_view(request.relative_url).substr(strlen(kUseEncodingPath));
+      std::string_view(request.relative_url)
+          .substr(UNSAFE_TODO(strlen(kUseEncodingPath)));
   auto http_response = std::make_unique<net::test_server::BasicHttpResponse>();
   if (encoding == "brotli") {
     static const uint8_t kCompressed[] = {
@@ -270,7 +266,8 @@ std::unique_ptr<net::test_server::HttpResponse> SetAndEchoCookieInResponse(
   std::string cookie_line;
   DCHECK(base::StartsWith(request.relative_url, kSetCookiePath,
                           base::CompareCase::INSENSITIVE_ASCII));
-  cookie_line = request.relative_url.substr(strlen(kSetCookiePath));
+  cookie_line =
+      request.relative_url.substr(UNSAFE_TODO(strlen(kSetCookiePath)));
   auto http_response = std::make_unique<net::test_server::BasicHttpResponse>();
   http_response->set_code(net::HTTP_OK);
   http_response->set_content(cookie_line);
@@ -344,8 +341,8 @@ std::unique_ptr<net::test_server::HttpResponse> CronetTestRequestHandler(
 namespace cronet {
 
 static long JNI_NativeTestServer_Create(JNIEnv* env,
-                                        std::string& test_files_root,
-                                        std::string& test_data_dir,
+                                        const std::string& test_files_root,
+                                        const std::string& test_data_dir,
                                         net::EmbeddedTestServer::Type type) {
   base::InitAndroidTestPaths(base::FilePath(test_data_dir));
   return reinterpret_cast<long>(
@@ -378,7 +375,7 @@ EmbeddedTestServerAdapter::~EmbeddedTestServerAdapter() = default;
 
 void EmbeddedTestServerAdapter::EnableConnectProxy(
     JNIEnv* env,
-    std::vector<std::string>& urls) {
+    const std::vector<std::string>& urls) {
   std::vector<net::HostPortPair> destinations;
   for (auto& url : urls) {
     destinations.push_back(net::HostPortPair::FromURL(GURL(url)));
@@ -452,7 +449,7 @@ std::string EmbeddedTestServerAdapter::GetFileURL(
 
 void EmbeddedTestServerAdapter::RegisterRequestHandler(
     JNIEnv* env,
-    std::unique_ptr<NativeTestServerHandleRequestCallback>& callback) {
+    std::unique_ptr<NativeTestServerHandleRequestCallback>&& callback) {
   test_server.RegisterRequestHandler(
       base::BindRepeating(&NativeTestServerHandleRequestCallback::operator(),
                           base::Owned(std::move(callback))));

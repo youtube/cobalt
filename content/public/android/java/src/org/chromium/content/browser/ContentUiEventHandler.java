@@ -4,6 +4,7 @@
 
 package org.chromium.content.browser;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.os.SystemClock;
@@ -21,6 +22,7 @@ import org.jni_zero.NativeMethods;
 import org.chromium.base.UserData;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content.browser.webcontents.WebContentsImpl;
 import org.chromium.content_public.browser.ViewEventSink.InternalAccessDelegate;
@@ -52,9 +54,24 @@ public class ContentUiEventHandler implements UserData {
         return ret;
     }
 
-    public ContentUiEventHandler(WebContents webContents) {
+    @CalledByNative
+    private static @Nullable ContentUiEventHandler getFromWebContents(
+            @JniType("WebContents*") WebContents webContents) {
+        if (webContents == null) return null;
+        return webContents.getOrSetUserData(
+                ContentUiEventHandler.class, /* userDataFactory= */ null);
+    }
+
+    private ContentUiEventHandler(WebContents webContents) {
         mWebContents = (WebContentsImpl) webContents;
-        mNativeContentUiEventHandler = ContentUiEventHandlerJni.get().init(this, webContents);
+        mNativeContentUiEventHandler = ContentUiEventHandlerJni.get().init(webContents);
+    }
+
+    @CalledByNative
+    public static void destroyForWebContents(@JniType("WebContents*") WebContents webContents) {
+        if (webContents != null && !webContents.isDestroyed()) {
+            webContents.removeUserData(ContentUiEventHandler.class);
+        }
     }
 
     static ContentUiEventHandler createForTesting(
@@ -142,7 +159,10 @@ public class ContentUiEventHandler implements UserData {
             return mEventDelegate.super_dispatchKeyEvent(event);
         }
 
-        if (ImeAdapterImpl.fromWebContents(mWebContents).dispatchKeyEvent(event)) return true;
+        ImeAdapterImpl adapter = assertNonNull(ImeAdapterImpl.fromWebContents(mWebContents));
+
+        // Gracefully handle a null adapter in non-debug builds.
+        if (adapter != null && adapter.dispatchKeyEvent(event)) return true;
 
         return mEventDelegate.super_dispatchKeyEvent(event);
     }
@@ -215,7 +235,7 @@ public class ContentUiEventHandler implements UserData {
 
     @NativeMethods
     interface Natives {
-        long init(ContentUiEventHandler self, WebContents webContents);
+        long init(@JniType("content::WebContents*") WebContents webContents);
 
         void sendMouseWheelEvent(long nativeContentUiEventHandler, MotionEvent event, long timeNs);
 

@@ -10,7 +10,7 @@
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_session_delegate.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
@@ -79,6 +79,8 @@ IOSGeminiFirstPromptSubmissionMethod ConvertBWGInputTypeToHistogramEnum(
     case BWGInputTypeNanoBananaMakeThisImageLookLikeInstantFilm:
       return IOSGeminiFirstPromptSubmissionMethod::
           kNanoBananaMakeThisImageLookLikeInstantFilm;
+    case BWGInputTypeEditMenuPrompt:
+      return IOSGeminiFirstPromptSubmissionMethod::kEditMenuPrompt;
   }
 }
 
@@ -275,6 +277,10 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
   }
   BwgTabHelper* BWGTabHelper = BwgTabHelper::FromWebState(webState);
   BWGTabHelper->DeleteBwgSessionInStorage();
+  // Ensure page context is attached for a new chat.
+  ios::provider::UpdatePageAttachmentState(
+      ios::provider::GeminiPageContextAttachmentState::kAttached);
+  BWGTabHelper->NotifyPageContextUpdated(webState);
   // Record the new chat metric.
   RecordGeminiNewChatButtonTapped();
 }

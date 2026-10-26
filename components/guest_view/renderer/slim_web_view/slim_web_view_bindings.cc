@@ -21,6 +21,7 @@
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
+#include "third_party/blink/public/web/web_custom_element.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "v8/include/v8-context.h"
 #include "v8/include/v8-function.h"
@@ -132,7 +133,7 @@ v8::Local<v8::Value> GetViewFromId(v8::Isolate* isolate, int view_instance_id) {
 }
 
 void AttachIframeGuest(v8::Isolate* isolate,
-                       int element_instance_id,
+                       int container_id,
                        int guest_instance_id,
                        v8::Local<v8::Value> params,
                        v8::Local<v8::Object> content_window,
@@ -148,13 +149,13 @@ void AttachIframeGuest(v8::Isolate* isolate,
       content::RenderFrame::FromWebFrame(parent_frame->ToWebLocalFrame());
 
   auto* guest_view_container =
-      guest_view::GuestViewContainer::FromID(element_instance_id);
+      guest_view::GuestViewContainer::FromID(container_id);
   // This is the first time we hear about the |element_instance_id|.
   DCHECK(!guest_view_container);
-  // TODO(crbug.com/460804848): Make the <webview> element's GC take ownership
-  // of |guest_view_container|.
-  guest_view_container = new guest_view::GuestViewContainer(
-      embedder_parent_frame, element_instance_id);
+  // The <webview> element's GC takes ownership of |guest_view_container|
+  // in the client code.
+  guest_view_container =
+      new guest_view::GuestViewContainer(embedder_parent_frame, container_id);
   // We track the status of the RenderFrame via an observer in case it is
   // deleted during user code execution while getting the params.
   RenderFrameStatus render_frame_status(render_frame);
@@ -166,6 +167,28 @@ void AttachIframeGuest(v8::Isolate* isolate,
       guest_view_container, render_frame, guest_instance_id,
       std::move(params_value->GetDict()), callback, isolate);
   guest_view_container->IssueRequest(std::move(request));
+}
+
+void AllowGuestViewElementDefinition(v8::Isolate* isolate,
+                                     v8::Local<v8::Function> callback) {
+  auto context = isolate->GetCurrentContext();
+  blink::WebCustomElement::EmbedderNamesAllowedScope embedder_names_scope;
+  v8::TryCatch try_catch(isolate);
+  auto result = callback->Call(context, context->Global(), 0, nullptr);
+
+  if (result.IsEmpty()) {
+    v8::String::Utf8Value exception(isolate, try_catch.Exception());
+    NOTREACHED() << "AllowGuestViewElementDefinition failed: " << *exception;
+  }
+}
+
+void DestroyContainer(int container_id) {
+  auto* guest_view_container =
+      guest_view::GuestViewContainer::FromID(container_id);
+  if (!guest_view_container) {
+    return;
+  }
+  guest_view_container->Destroy(/*embedder_frame_destroyed=*/false);
 }
 
 }  // namespace
@@ -196,11 +219,15 @@ void SlimWebViewBindings::MaybeInstall(content::RenderFrame& render_frame) {
                   .ToLocalChecked())
         .Check();
   };
+  blink::WebCustomElement::AddEmbedderCustomElementName(
+      blink::WebString("webview"));
 
   bind("getNextId", &GetNextId);
   bind("registerView", &RegisterView);
   bind("getViewFromId", &GetViewFromId);
   bind("attachIframeGuest", &AttachIframeGuest);
+  bind("allowGuestViewElementDefinition", &AllowGuestViewElementDefinition);
+  bind("destroyContainer", &DestroyContainer);
 }
 
 }  // namespace guest_view

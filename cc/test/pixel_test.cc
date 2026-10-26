@@ -74,13 +74,14 @@ PixelTest::PixelTest(GraphicsBackend backend)
     auto* command_line = base::CommandLine::ForCurrentProcess();
     bool use_gpu = command_line->HasSwitch(::switches::kUseGpuInTests);
     // Force the use of Graphite even if disallowed for other reasons e.g.
-    // ANGLE Metal is not enabled on Mac. Use dawn-swiftshader backend if
+    // ANGLE Metal is not enabled on Mac. Use swiftshader backend if
     // kUseGpuInTests is not set.
     command_line->AppendSwitch(::switches::kEnableSkiaGraphite);
-    command_line->AppendSwitchASCII(
-        ::switches::kSkiaGraphiteBackend,
-        use_gpu ? ::switches::kSkiaGraphiteBackendDawn
-                : ::switches::kSkiaGraphiteBackendDawnSwiftshader);
+    if (!use_gpu) {
+      command_line->AppendSwitchASCII(
+          ::switches::kSkiaGraphiteDawnBackend,
+          ::switches::kSkiaGraphiteDawnBackendSwiftshader);
+    }
     init_dawn = true;
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     init_vulkan = true;
@@ -207,15 +208,8 @@ bool PixelTest::RunPixelTest(viz::AggregatedRenderPassList* pass_list,
       SkImageInfo::MakeN32Premul(result_bitmap_->width(),
                                  result_bitmap_->height()),
       ref_pixels->data(), result_bitmap_->width() * sizeof(SkColor));
-  bool result = comparator.Compare(*result_bitmap_, ref_pixels_bitmap);
-  if (!result) {
-    std::string res_bmp_data_url = GetPNGDataUrl(*result_bitmap_);
-    std::string ref_bmp_data_url = GetPNGDataUrl(ref_pixels_bitmap);
-    LOG(ERROR) << "Pixels do not match!";
-    LOG(ERROR) << "Actual: " << res_bmp_data_url;
-    LOG(ERROR) << "Expected: " << ref_bmp_data_url;
-  }
-  return result;
+
+  return MatchesBitmap(*result_bitmap_, ref_pixels_bitmap, comparator);
 }
 
 bool PixelTest::RunPixelTest(viz::AggregatedRenderPassList* pass_list,
@@ -224,15 +218,7 @@ bool PixelTest::RunPixelTest(viz::AggregatedRenderPassList* pass_list,
   RenderReadbackTargetAndAreaToResultBitmap(pass_list, pass_list->back().get(),
                                             nullptr);
 
-  bool result = comparator.Compare(*result_bitmap_, ref_bitmap);
-  if (!result) {
-    std::string res_bmp_data_url = GetPNGDataUrl(*result_bitmap_);
-    std::string ref_bmp_data_url = GetPNGDataUrl(ref_bitmap);
-    LOG(ERROR) << "Pixels do not match!";
-    LOG(ERROR) << "Actual: " << res_bmp_data_url;
-    LOG(ERROR) << "Expected: " << ref_bmp_data_url;
-  }
-  return result;
+  return MatchesBitmap(*result_bitmap_, ref_bitmap, comparator);
 }
 
 bool PixelTest::RunPixelTest(viz::AggregatedRenderPassList* pass_list,

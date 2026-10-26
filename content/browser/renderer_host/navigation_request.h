@@ -386,6 +386,7 @@ class CONTENT_EXPORT NavigationRequest
   bool IsInOutermostMainFrame() const override;
   bool IsInPrerenderedMainFrame() const override;
   bool IsPrerenderedPageActivation() const override;
+  PrerenderHostId GetPrerenderHostId() const override;
   bool IsInFencedFrameTree() const override;
   bool IsGuestViewMainFrame() const override;
   FrameType GetNavigatingFrameType() const override;
@@ -509,6 +510,7 @@ class CONTENT_EXPORT NavigationRequest
   std::optional<url::Origin> GetOriginToCommit() override;
   bool NeedsUrlLoader() override;
   bool IsInitialWebUISyncNavigation() override;
+  bool IsInitialWebUINavigation() override;
   // End of NavigationHandle implementation.
 
   // mojom::NavigationRendererCancellationListener implementation:
@@ -1266,7 +1268,8 @@ class CONTENT_EXPORT NavigationRequest
   // Note: This method has another
   // version, `GetMutableRuntimeFeatureStateContext()`, accessible via
   // NavigationHandle and will return a mutable reference to the RFSC.
-  const blink::RuntimeFeatureStateContext& GetRuntimeFeatureStateContext();
+  const blink::RuntimeFeatureStateContext& GetRuntimeFeatureStateContext()
+      const;
 
   BrowsingContextGroupSwap browsing_context_group_swap() const {
     return browsing_context_group_swap_;
@@ -1716,11 +1719,6 @@ class CONTENT_EXPORT NavigationRequest
       NavigationThrottleEvent event,
       NavigationThrottle::ThrottleCheckResult result);
 
-  // Returns the PrerenderHostId driving the navigation. If the navigation
-  // is not derived from a prerendered page, the default-consturcted null
-  // value will be returned.
-  PrerenderHostId GetPrerenderHostId() const;
-
   const std::optional<base::UnguessableToken>& network_restrictions_id() const {
     return network_restrictions_id_;
   }
@@ -1761,11 +1759,6 @@ class CONTENT_EXPORT NavigationRequest
   // Checks whether cookies for the navigation target changed since the
   // navigation started.
   bool DidCookiesChangeAfterStart(bool exclude_http_only) const;
-
-  // Different from `IsInitialWebUISyncNavigation()`, this also returns true if
-  // the navigation doesn't go from start -> commit synchronously (i.e. when the
-  // kInitialWebUISyncNavStartToCommit flag is disabled).
-  bool IsInitialWebUINavigation();
 
   void set_remove_extra_headers_on_cross_origin_redirect(bool value) {
     remove_extra_headers_on_cross_origin_redirect_ = value;
@@ -1980,8 +1973,12 @@ class CONTENT_EXPORT NavigationRequest
   void CommitPageActivation();
 
   // Checks whether this navigation is allowed based on the connection
-  // allowlist header, if present.
-  bool IsAllowedByConnectionAllowlist();
+  // allowlist header, if present. This method can have two side effects:
+  // - If a CA is configured to send reports and the request violates the CA,
+  //   a report will be sent.
+  // - If CA is checked, the navigation request's
+  //  connection_allowlists_blocks_redirect_ will be set accordingly.
+  bool IsAllowedByConnectionAllowlist(bool is_redirect);
 
   // Checks if the specified CSP context's relevant CSP directive
   // allows the navigation. This is called to perform the frame-src check.
@@ -3453,6 +3450,11 @@ class CONTENT_EXPORT NavigationRequest
   // Set if there has been any cross-origin redirects in the lifetime of this
   // request.
   bool did_encounter_cross_origin_redirect_ = false;
+
+  // This field is checked to see if server-side redirects should be blocked.
+  // It is only used if Connection allowlists were consulted when this
+  // navigation started.
+  bool connection_allowlists_blocks_redirect_ = false;
 
   // A scoped reference on the ViewTransition resources generated for this
   // navigation. This is set after we received the cached results from the old

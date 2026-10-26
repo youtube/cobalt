@@ -11,15 +11,16 @@
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
-#include "base/test/scoped_feature_list.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/simple_test_clock.h"
 #include "base/test/task_environment.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
-#include "components/send_tab_to_self/features.h"
+#include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/pref_names.h"
 #include "components/send_tab_to_self/proto/send_tab_to_self.pb.h"
+#include "components/send_tab_to_self/proto_conversions.h"
 #include "components/send_tab_to_self/target_device_info.h"
 #include "components/sync/model/entity_change.h"
 #include "components/sync/model/in_memory_metadata_change_list.h"
@@ -32,6 +33,7 @@
 #include "components/sync/test/test_matchers.h"
 #include "components/sync_device_info/device_info.h"
 #include "components/sync_device_info/device_info_util.h"
+#include "components/sync_device_info/device_name_util.h"
 #include "components/sync_device_info/fake_device_info_tracker.h"
 #include "components/sync_sessions/fake_open_tabs_ui_delegate.h"
 #include "components/sync_sessions/open_tabs_ui_delegate.h"
@@ -85,6 +87,7 @@ std::unique_ptr<syncer::DeviceInfo> CreateDevice(
     const std::string& guid,
     const std::string& name,
     base::Time last_updated_timestamp,
+    const std::string& model = "model",
     bool send_tab_to_self_receiving_enabled = true,
     sync_pb::SyncEnums_SendTabReceivingType send_tab_to_self_receiving_type = sync_pb::
         SyncEnums_SendTabReceivingType_SEND_TAB_RECEIVING_TYPE_CHROME_OR_UNSPECIFIED) {
@@ -93,7 +96,7 @@ std::unique_ptr<syncer::DeviceInfo> CreateDevice(
       sync_pb::SyncEnums_DeviceType_TYPE_LINUX,
       syncer::DeviceInfo::OsType::kLinux,
       syncer::DeviceInfo::FormFactor::kDesktop, "scoped_id", "manufacturer",
-      "model", "full_hardware_class", last_updated_timestamp,
+      model, "full_hardware_class", last_updated_timestamp,
       syncer::DeviceInfoUtil::GetPulseInterval(),
       send_tab_to_self_receiving_enabled, send_tab_to_self_receiving_type,
       /*sharing_info=*/std::nullopt,
@@ -168,7 +171,7 @@ class SendTabToSelfBridgeTest : public testing::Test {
     }
 
     SetLocalDeviceCacheGuid(kLocalDeviceCacheGuid);
-    local_device_ = CreateDevice(kLocalDeviceCacheGuid, "device",
+    local_device_ = CreateDevice(kLocalDeviceCacheGuid, kLocalDeviceName,
                                  clock()->Now() - base::Days(1));
     AddTestDevice(local_device_.get(), /*local=*/true);
   }
@@ -240,10 +243,14 @@ class SendTabToSelfBridgeTest : public testing::Test {
   // For Model Tests.
   void AddSampleEntries() {
     // Adds timer to avoid having two entries with the same shared timestamp.
-    bridge_->AddEntry(GURL("http://a.com"), "a", kLocalDeviceCacheGuid);
-    bridge_->AddEntry(GURL("http://b.com"), "b", kLocalDeviceCacheGuid);
-    bridge_->AddEntry(GURL("http://c.com"), "c", kLocalDeviceCacheGuid);
-    bridge_->AddEntry(GURL("http://d.com"), "d", kLocalDeviceCacheGuid);
+    bridge_->AddEntry(GURL("http://a.com"), "a", kLocalDeviceCacheGuid,
+                      PageContext());
+    bridge_->AddEntry(GURL("http://b.com"), "b", kLocalDeviceCacheGuid,
+                      PageContext());
+    bridge_->AddEntry(GURL("http://c.com"), "c", kLocalDeviceCacheGuid,
+                      PageContext());
+    bridge_->AddEntry(GURL("http://d.com"), "d", kLocalDeviceCacheGuid,
+                      PageContext());
   }
 
   void SetLocalDeviceCacheGuid(const std::string& cache_guid) {
@@ -315,8 +322,8 @@ TEST_F(SendTabToSelfBridgeTest, SyncAddOneEntry) {
   syncer::EntityChangeList remote_input;
 
   SendTabToSelfEntry entry("guid1", GURL("http://www.example.com/"), "title",
-                           AdvanceAndGetTime(), "device",
-                           kLocalDeviceCacheGuid);
+                           AdvanceAndGetTime(), "device", kLocalDeviceCacheGuid,
+                           PageContext());
 
   remote_input.push_back(
       syncer::EntityChange::CreateAdd("guid1", MakeEntityData(entry)));
@@ -350,8 +357,8 @@ TEST_F(SendTabToSelfBridgeTest, ApplyIncrementalSyncChangesOneAdd) {
   InitializeBridge();
 
   SendTabToSelfEntry entry("guid1", GURL("http://www.example.com/"), "title",
-                           AdvanceAndGetTime(), "device",
-                           kLocalDeviceCacheGuid);
+                           AdvanceAndGetTime(), "device", kLocalDeviceCacheGuid,
+                           PageContext());
 
   syncer::EntityChangeList add_changes;
 
@@ -371,8 +378,8 @@ TEST_F(SendTabToSelfBridgeTest, ApplyIncrementalSyncChangesOneDeletion) {
   InitializeBridge();
 
   SendTabToSelfEntry entry("guid1", GURL("http://www.example.com/"), "title",
-                           AdvanceAndGetTime(), "device",
-                           kLocalDeviceCacheGuid);
+                           AdvanceAndGetTime(), "device", kLocalDeviceCacheGuid,
+                           PageContext());
 
   syncer::EntityChangeList add_changes;
 
@@ -398,15 +405,15 @@ TEST_F(SendTabToSelfBridgeTest, LocalHistoryDeletion) {
   InitializeBridge();
   SendTabToSelfEntry entry1("guid1", GURL("http://www.example.com/"), "title",
                             AdvanceAndGetTime(), "device",
-                            kLocalDeviceCacheGuid);
+                            kLocalDeviceCacheGuid, PageContext());
 
   SendTabToSelfEntry entry2("guid2", GURL("http://www.example2.com/"), "title2",
                             AdvanceAndGetTime(), "device2",
-                            kLocalDeviceCacheGuid);
+                            kLocalDeviceCacheGuid, PageContext());
 
   SendTabToSelfEntry entry3("guid3", GURL("http://www.example3.com/"), "title3",
                             AdvanceAndGetTime(), "device3",
-                            kLocalDeviceCacheGuid);
+                            kLocalDeviceCacheGuid, PageContext());
 
   syncer::EntityChangeList add_changes;
 
@@ -522,7 +529,8 @@ TEST_F(SendTabToSelfBridgeTest, MarkEntryOpenedInformsServer) {
   InitializeBridge();
 
   SendTabToSelfEntry entry("guid", GURL("http://g.com/"), "title",
-                           AdvanceAndGetTime(), "remote", "remote");
+                           AdvanceAndGetTime(), "remote", "remote",
+                           PageContext());
   syncer::EntityChangeList remote_data;
   remote_data.push_back(
       syncer::EntityChange::CreateAdd("guid", MakeEntityData(entry)));
@@ -541,7 +549,8 @@ TEST_F(SendTabToSelfBridgeTest, DismissEntryInformsServer) {
   InitializeBridge();
 
   SendTabToSelfEntry entry("guid", GURL("http://g.com/"), "title",
-                           AdvanceAndGetTime(), "remote", "remote");
+                           AdvanceAndGetTime(), "remote", "remote",
+                           PageContext());
   syncer::EntityChangeList remote_data;
   remote_data.push_back(
       syncer::EntityChange::CreateAdd("guid", MakeEntityData(entry)));
@@ -654,15 +663,16 @@ TEST_F(SendTabToSelfBridgeTest, AddInvalidEntries) {
   // Add Entry should succeed in this case.
   EXPECT_CALL(*processor(), Put(_, _, _));
   EXPECT_NE(nullptr, bridge()->AddEntry(GURL("http://www.example.com/"), "d",
-                                        kLocalDeviceCacheGuid));
+                                        kLocalDeviceCacheGuid, PageContext()));
 
   // Add Entry should fail on invalid URLs.
   EXPECT_CALL(*processor(), Put(_, _, _)).Times(0);
-  EXPECT_EQ(nullptr, bridge()->AddEntry(GURL(), "d", kLocalDeviceCacheGuid));
+  EXPECT_EQ(nullptr, bridge()->AddEntry(GURL(), "d", kLocalDeviceCacheGuid,
+                                        PageContext()));
   EXPECT_EQ(nullptr, bridge()->AddEntry(GURL("http://?k=v"), "d",
-                                        kLocalDeviceCacheGuid));
+                                        kLocalDeviceCacheGuid, PageContext()));
   EXPECT_EQ(nullptr, bridge()->AddEntry(GURL("http//google.com"), "d",
-                                        kLocalDeviceCacheGuid));
+                                        kLocalDeviceCacheGuid, PageContext()));
 }
 
 TEST_F(SendTabToSelfBridgeTest, IsBridgeReady) {
@@ -681,16 +691,20 @@ TEST_F(SendTabToSelfBridgeTest, AddDuplicateEntries) {
   // The de-duplication code does not use the title as a comparator.
   // So they are intentionally different here.
   EXPECT_CALL(*processor(), Put(_, _, _)).Times(1);
-  bridge()->AddEntry(GURL("http://a.com"), "a", kLocalDeviceCacheGuid);
-  bridge()->AddEntry(GURL("http://a.com"), "b", kLocalDeviceCacheGuid);
+  bridge()->AddEntry(GURL("http://a.com"), "a", kLocalDeviceCacheGuid,
+                     PageContext());
+  bridge()->AddEntry(GURL("http://a.com"), "b", kLocalDeviceCacheGuid,
+                     PageContext());
   EXPECT_EQ(1ul, bridge()->GetAllGuids().size());
 
   // Wait for more than the current dedupe time (5 seconds).
   AdvanceAndGetTime(base::Seconds(6));
 
   EXPECT_CALL(*processor(), Put(_, _, _)).Times(2);
-  bridge()->AddEntry(GURL("http://a.com"), "a", kLocalDeviceCacheGuid);
-  bridge()->AddEntry(GURL("http://b.com"), "b", kLocalDeviceCacheGuid);
+  bridge()->AddEntry(GURL("http://a.com"), "a", kLocalDeviceCacheGuid,
+                     PageContext());
+  bridge()->AddEntry(GURL("http://b.com"), "b", kLocalDeviceCacheGuid,
+                     PageContext());
   EXPECT_EQ(3ul, bridge()->GetAllGuids().size());
 }
 
@@ -702,9 +716,10 @@ TEST_F(SendTabToSelfBridgeTest, NotifyRemoteSendTabToSelfEntryAdded) {
   syncer::EntityChangeList remote_input;
   SendTabToSelfEntry entry1("guid1", GURL("http://www.example.com/"), "title",
                             AdvanceAndGetTime(), "device",
-                            kLocalDeviceCacheGuid);
+                            kLocalDeviceCacheGuid, PageContext());
   SendTabToSelfEntry entry2("guid2", GURL("http://www.example.com/"), "title",
-                            AdvanceAndGetTime(), "device", kRemoteGuid);
+                            AdvanceAndGetTime(), "device", kRemoteGuid,
+                            PageContext());
   remote_input.push_back(
       syncer::EntityChange::CreateAdd("guid1", MakeEntityData(entry1)));
   remote_input.push_back(
@@ -745,9 +760,8 @@ TEST_F(SendTabToSelfBridgeTest,
   AddTestDevice(older_device.get());
 
   TargetDeviceInfo target_device_info(
-      recent_device->client_name(), recent_device->client_name(),
-      recent_device->guid(), recent_device->form_factor(),
-      recent_device->last_updated_timestamp());
+      recent_device->client_name(), recent_device->guid(),
+      recent_device->form_factor(), recent_device->last_updated_timestamp());
 
   EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(),
               ElementsAre(target_device_info));
@@ -765,13 +779,12 @@ TEST_F(SendTabToSelfBridgeTest,
 
   std::unique_ptr<syncer::DeviceInfo> disabled_device =
       CreateDevice("disabled_guid", "disabled_device_name", clock()->Now(),
-                   /*send_tab_to_self_receiving_enabled=*/false);
+                   "model", /*send_tab_to_self_receiving_enabled=*/false);
   AddTestDevice(disabled_device.get());
 
   TargetDeviceInfo target_device_info(
-      enabled_device->client_name(), enabled_device->client_name(),
-      enabled_device->guid(), enabled_device->form_factor(),
-      enabled_device->last_updated_timestamp());
+      enabled_device->client_name(), enabled_device->guid(),
+      enabled_device->form_factor(), enabled_device->last_updated_timestamp());
 
   EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(),
               ElementsAre(target_device_info));
@@ -791,9 +804,8 @@ TEST_F(SendTabToSelfBridgeTest,
   AddTestDevice(valid_device.get());
 
   TargetDeviceInfo target_device_info(
-      valid_device->client_name(), valid_device->client_name(),
-      valid_device->guid(), valid_device->form_factor(),
-      valid_device->last_updated_timestamp());
+      valid_device->client_name(), valid_device->guid(),
+      valid_device->form_factor(), valid_device->last_updated_timestamp());
 
   EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(),
               ElementsAre(target_device_info));
@@ -802,7 +814,6 @@ TEST_F(SendTabToSelfBridgeTest,
 // Tests that the local device is not returned.
 TEST_F(SendTabToSelfBridgeTest, GetTargetDeviceInfoSortedList_NoLocalDevice) {
   InitializeBridge();
-  bridge()->SetLocalDeviceNameForTest(kLocalDeviceName);
 
   std::unique_ptr<syncer::DeviceInfo> local_device =
       CreateDevice(kLocalDeviceCacheGuid, kLocalDeviceName, clock()->Now());
@@ -817,9 +828,8 @@ TEST_F(SendTabToSelfBridgeTest, GetTargetDeviceInfoSortedList_NoLocalDevice) {
   AddTestDevice(other_device.get());
 
   TargetDeviceInfo target_device_info(
-      other_device->client_name(), other_device->client_name(),
-      other_device->guid(), other_device->form_factor(),
-      other_device->last_updated_timestamp());
+      other_device->client_name(), other_device->guid(),
+      other_device->form_factor(), other_device->last_updated_timestamp());
 
   EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(),
               ElementsAre(target_device_info));
@@ -840,13 +850,11 @@ TEST_F(SendTabToSelfBridgeTest,
   AddTestDevice(recent_device.get());
 
   TargetDeviceInfo older_device_info(
-      older_device->client_name(), older_device->client_name(),
-      older_device->guid(), older_device->form_factor(),
-      older_device->last_updated_timestamp());
+      older_device->client_name(), older_device->guid(),
+      older_device->form_factor(), older_device->last_updated_timestamp());
   TargetDeviceInfo recent_device_info(
-      recent_device->client_name(), recent_device->client_name(),
-      recent_device->guid(), recent_device->form_factor(),
-      recent_device->last_updated_timestamp());
+      recent_device->client_name(), recent_device->guid(),
+      recent_device->form_factor(), recent_device->last_updated_timestamp());
 
   // Make sure the list has the 2 devices.
   EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(),
@@ -871,8 +879,8 @@ TEST_F(SendTabToSelfBridgeTest,
   AddTestDevice(device.get());
 
   // Make sure the list has the device.
-  TargetDeviceInfo device_info(device->client_name(), device->client_name(),
-                               device->guid(), device->form_factor(),
+  TargetDeviceInfo device_info(device->client_name(), device->guid(),
+                               device->form_factor(),
                                device->last_updated_timestamp());
 
   EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(),
@@ -885,8 +893,8 @@ TEST_F(SendTabToSelfBridgeTest,
 
   // Make sure both devices are in the list.
   TargetDeviceInfo new_device_info(
-      new_device->client_name(), new_device->client_name(), new_device->guid(),
-      new_device->form_factor(), new_device->last_updated_timestamp());
+      new_device->client_name(), new_device->guid(), new_device->form_factor(),
+      new_device->last_updated_timestamp());
 
   EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(),
               ElementsAre(device_info, new_device_info));
@@ -908,11 +916,10 @@ TEST_F(SendTabToSelfBridgeTest,
   EXPECT_THAT(
       bridge()->GetTargetDeviceInfoSortedList(),
       ElementsAre(
-          TargetDeviceInfo(device1->client_name(), device1->client_name(),
-                           device1->guid(), device1->form_factor(),
+          TargetDeviceInfo(device1->client_name(), device1->guid(),
+                           device1->form_factor(),
                            device1->last_updated_timestamp()),
-          TargetDeviceInfo(device2_old->client_name(),
-                           device2_old->client_name(), device2_old->guid(),
+          TargetDeviceInfo(device2_old->client_name(), device2_old->guid(),
                            device2_old->form_factor(),
                            device2_old->last_updated_timestamp())));
 
@@ -925,12 +932,11 @@ TEST_F(SendTabToSelfBridgeTest,
   EXPECT_THAT(
       bridge()->GetTargetDeviceInfoSortedList(),
       ElementsAre(
-          TargetDeviceInfo(device2_new->client_name(),
-                           device2_new->client_name(), device2_new->guid(),
+          TargetDeviceInfo(device2_new->client_name(), device2_new->guid(),
                            device2_new->form_factor(),
                            device2_new->last_updated_timestamp()),
-          TargetDeviceInfo(device1->client_name(), device1->client_name(),
-                           device1->guid(), device1->form_factor(),
+          TargetDeviceInfo(device1->client_name(), device1->guid(),
+                           device1->form_factor(),
                            device1->last_updated_timestamp())));
 }
 
@@ -941,9 +947,11 @@ TEST_F(SendTabToSelfBridgeTest, NotifyRemoteSendTabToSelfEntryOpened) {
   // Add on entry targeting this device and another targeting another device.
   syncer::EntityChangeList remote_input;
   SendTabToSelfEntry entry1("guid1", GURL("http://www.example.com/"), "title",
-                            AdvanceAndGetTime(), "device", "Device1");
+                            AdvanceAndGetTime(), "device", "Device1",
+                            PageContext());
   SendTabToSelfEntry entry2("guid2", GURL("http://www.example.com/"), "title",
-                            AdvanceAndGetTime(), "device", "Device2");
+                            AdvanceAndGetTime(), "device", "Device2",
+                            PageContext());
   remote_input.push_back(
       syncer::EntityChange::CreateAdd("guid1", MakeEntityData(entry1)));
   remote_input.push_back(
@@ -968,22 +976,15 @@ TEST_F(SendTabToSelfBridgeTest, NotifyRemoteSendTabToSelfEntryOpened) {
 
 #if BUILDFLAG(IS_IOS)
 TEST_F(SendTabToSelfBridgeTest, WriteToLastTabReceivedPref) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeaturesAndParameters(
-      {{send_tab_to_self::kSendTabToSelfIOSPushNotifications,
-        {{send_tab_to_self::kSendTabIOSPushNotificationsWithMagicStackCardParam,
-          "true"}}}},
-      {});
-
   InitializeBridge();
 
   // Add two remote entries.
   SendTabToSelfEntry entry("guid1", GURL("http://www.example.com/"), "title",
-                           AdvanceAndGetTime(), "device",
-                           kLocalDeviceCacheGuid);
+                           AdvanceAndGetTime(), "device", kLocalDeviceCacheGuid,
+                           PageContext());
   SendTabToSelfEntry entry2("guid2", GURL("http://www.example2.com/"), "title",
                             AdvanceAndGetTime(), "device",
-                            kLocalDeviceCacheGuid);
+                            kLocalDeviceCacheGuid, PageContext());
   syncer::EntityChangeList add_changes;
   add_changes.push_back(
       syncer::EntityChange::CreateAdd("guid1", MakeEntityData(entry)));
@@ -1011,7 +1012,8 @@ TEST_F(SendTabToSelfBridgeTest, SendTabToSelfEntryOpened_QueueUnknownGuid) {
   // Add an entry targeting this device.
   syncer::EntityChangeList remote_input;
   SendTabToSelfEntry entry1("guid1", GURL("http://www.example.com/"), "title",
-                            AdvanceAndGetTime(), "device", "Device1");
+                            AdvanceAndGetTime(), "device", "Device1",
+                            PageContext());
   remote_input.push_back(
       syncer::EntityChange::CreateAdd("guid1", MakeEntityData(entry1)));
 
@@ -1040,12 +1042,12 @@ TEST_F(SendTabToSelfBridgeTest,
 TEST_F(SendTabToSelfBridgeTest, CollapseWhitespacesOfEntryTitle) {
   InitializeBridge();
 
-  const SendTabToSelfEntry* result =
-      bridge()->AddEntry(GURL("http://a.com"), " a  b ", kLocalDeviceCacheGuid);
+  const SendTabToSelfEntry* result = bridge()->AddEntry(
+      GURL("http://a.com"), " a  b ", kLocalDeviceCacheGuid, PageContext());
   EXPECT_EQ("a b", result->GetTitle());
 
-  result =
-      bridge()->AddEntry(GURL("http://b.com"), "입", kLocalDeviceCacheGuid);
+  result = bridge()->AddEntry(GURL("http://b.com"), "입", kLocalDeviceCacheGuid,
+                              PageContext());
   EXPECT_EQ("입", result->GetTitle());
 }
 
@@ -1068,8 +1070,7 @@ TEST_F(SendTabToSelfBridgeTest,
 
   open_tabs_ui_delegate()->SetForeignSessions({&session});
 
-  TargetDeviceInfo expected_device_info(device->client_name(),
-                                        device->client_name(), device->guid(),
+  TargetDeviceInfo expected_device_info(device->client_name(), device->guid(),
                                         device->form_factor(), session_time);
 
   EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(),
@@ -1097,8 +1098,7 @@ TEST_F(SendTabToSelfBridgeTest,
 
   open_tabs_ui_delegate()->SetForeignSessions({&session});
 
-  TargetDeviceInfo expected_device_info(device->client_name(),
-                                        device->client_name(), device->guid(),
+  TargetDeviceInfo expected_device_info(device->client_name(), device->guid(),
                                         device->form_factor(), device_time);
 
   EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(),
@@ -1130,7 +1130,8 @@ TEST_F(SendTabToSelfBridgeTest,
       /*interested_data_types=*/syncer::DataTypeSet(),
       /*auto_sign_out_last_signin_timestamp=*/std::nullopt,
       /*desktop_to_ios_promo_receiving_enabled=*/false);
-  SharingDeviceNames names1 = GetSharingDeviceNames(device1.get());
+  syncer::DeviceDisplayNames names1 =
+      syncer::GetDeviceDisplayNames(device1.get());
   ASSERT_EQ("Manufacturer Phone model1", names1.full_name);
   ASSERT_EQ("Manufacturer Phone", names1.short_name);
   AddTestDevice(device1.get());
@@ -1151,7 +1152,8 @@ TEST_F(SendTabToSelfBridgeTest,
       /*interested_data_types=*/syncer::DataTypeSet(),
       /*auto_sign_out_last_signin_timestamp=*/std::nullopt,
       /*desktop_to_ios_promo_receiving_enabled=*/false);
-  SharingDeviceNames names2 = GetSharingDeviceNames(device2.get());
+  syncer::DeviceDisplayNames names2 =
+      syncer::GetDeviceDisplayNames(device2.get());
   ASSERT_EQ("Manufacturer Phone model2", names2.full_name);
   ASSERT_EQ("Manufacturer Phone", names2.short_name);
   AddTestDevice(device2.get());
@@ -1244,7 +1246,7 @@ TEST_F(SendTabToSelfBridgeTest,
   // If we filter before deduplicating, we pick the enabled one.
 
   std::unique_ptr<syncer::DeviceInfo> device_recent_disabled =
-      CreateDevice("guid_recent", "A", clock()->Now(),
+      CreateDevice("guid_recent", "A", clock()->Now(), "model",
                    /*send_tab_to_self_receiving_enabled=*/false);
   std::unique_ptr<syncer::DeviceInfo> device_older_enabled =
       CreateDevice("guid_older", "A", clock()->Now() - base::Days(1));
@@ -1332,6 +1334,96 @@ TEST_F(SendTabToSelfBridgeTest, GetTargetDeviceInfoSortedList_FormFactors) {
                                  syncer::DeviceInfo::FormFactor::kDesktop),
                   testing::Field(&TargetDeviceInfo::form_factor,
                                  syncer::DeviceInfo::FormFactor::kPhone)));
+}
+
+// Tests that the local device is not returned even if its full name matches
+// another device.
+TEST_F(SendTabToSelfBridgeTest,
+       GetTargetDeviceInfoSortedList_ExcludeLocalDeviceByFullName) {
+  const std::string kMyLocalGuid = "unique_local_guid";
+  const std::string kMyDuplicateGuid = "unique_duplicate_guid";
+
+  // Initialize bridge.
+  InitializeBridgeWithoutDevice();
+
+  // Set local cache GUID.
+  SetLocalDeviceCacheGuid(kMyLocalGuid);
+
+  // Add a local device where GetDeviceDisplayNames returns a specific full
+  // name. Using a specific model ensures the complex naming logic is used.
+  std::unique_ptr<syncer::DeviceInfo> local_device =
+      CreateDevice(kMyLocalGuid, "local_name", clock()->Now(), "local_model");
+
+  device_info_tracker()->Add(std::move(local_device));
+  device_info_tracker()->SetLocalCacheGuid(kMyLocalGuid);
+
+  // Add another device with the same full name but different GUID.
+  std::unique_ptr<syncer::DeviceInfo> duplicate_device = CreateDevice(
+      kMyDuplicateGuid, "local_name", clock()->Now(), "local_model");
+  device_info_tracker()->Add(std::move(duplicate_device));
+
+  // The duplicate device should be excluded because its full name matches the
+  // local device's full name.
+  EXPECT_THAT(bridge()->GetTargetDeviceInfoSortedList(), IsEmpty());
+}
+
+// Tests that AddEntry uses the full name of the local device.
+TEST_F(SendTabToSelfBridgeTest, AddEntry_UsesFullName) {
+  const std::string kMyLocalGuid = "unique_local_guid_2";
+  InitializeBridgeWithoutDevice();
+
+  SetLocalDeviceCacheGuid(kMyLocalGuid);
+  std::unique_ptr<syncer::DeviceInfo> local_device =
+      CreateDevice(kMyLocalGuid, "local_name", clock()->Now(), "local_model");
+  const std::string full_name =
+      syncer::GetDeviceDisplayNames(local_device.get()).full_name;
+
+  device_info_tracker()->Add(std::move(local_device));
+  device_info_tracker()->SetLocalCacheGuid(kMyLocalGuid);
+
+  const SendTabToSelfEntry* result = bridge()->AddEntry(
+      GURL("http://www.example.com/"), "title", "target", PageContext());
+
+  ASSERT_NE(nullptr, result);
+  EXPECT_EQ(full_name, result->GetDeviceName());
+}
+
+TEST_F(SendTabToSelfBridgeTest, AddEntry_RecordsPageContextSize) {
+  InitializeBridge();
+
+  base::HistogramTester histogram_tester;
+
+  PageContext context;
+  context.scroll_position.text_fragment.text_start = "fragment";
+
+  bridge()->AddEntry(GURL("http://www.example.com/"), "title",
+                     kLocalDeviceCacheGuid, context);
+
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.PageContextSize",
+      PageContextToProto(context).ByteSizeLong(), 1);
+}
+
+TEST_F(SendTabToSelfBridgeTest, AddEntry_RecordsPageContextSize_ExceedsLimit) {
+  InitializeBridge();
+
+  base::HistogramTester histogram_tester;
+
+  PageContext context;
+  // Create a context that exceeds kMaxPageContextSizeBytes (4096 bytes).
+  constexpr size_t kLargeSize = 5000;
+  static_assert(kLargeSize > kMaxPageContextSizeBytes);
+  context.scroll_position.text_fragment.text_start =
+      std::string(kLargeSize, 'a');
+
+  bridge()->AddEntry(GURL("http://www.example.com/"), "title",
+                     kLocalDeviceCacheGuid, context);
+
+  size_t size = PageContextToProto(context).ByteSizeLong();
+  ASSERT_GT(size, kMaxPageContextSizeBytes);
+
+  histogram_tester.ExpectUniqueSample("Sharing.SendTabToSelf.PageContextSize",
+                                      size, 1);
 }
 
 }  // namespace

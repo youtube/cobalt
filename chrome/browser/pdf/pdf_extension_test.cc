@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <variant>
 #include <vector>
@@ -122,6 +123,7 @@
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/clipboard_monitor.h"
 #include "ui/base/clipboard/clipboard_observer.h"
+#include "ui/base/clipboard/test/clipboard_test_util.h"
 #include "ui/base/clipboard/test/test_clipboard.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
@@ -1362,22 +1364,14 @@ IN_PROC_BROWSER_TEST_P(PDFExtensionScrollTest, WithSpace) {
 
   // Press Space to scroll down.
   ScrollEventWaiter scroll_waiter(extension_host);
-  content::SimulateKeyPress(GetActiveWebContents(),
-                            ui::DomKey::FromCharacter(' '), ui::DomCode::SPACE,
-                            ui::VKEY_SPACE,
-                            /*control=*/false, /*shift=*/false, /*alt=*/false,
-                            /*command=*/false);
+  content::SimulateCharTyped(GetActiveWebContents(), ' ');
   ASSERT_NO_FATAL_FAILURE(scroll_waiter.Wait());
   EXPECT_NEAR(scroll_height, GetViewportScrollPositionY(extension_host),
               kScrollPositionEpsilon);
 
   // Press Space to scroll down again.
   scroll_waiter.Reset();
-  content::SimulateKeyPress(GetActiveWebContents(),
-                            ui::DomKey::FromCharacter(' '), ui::DomCode::SPACE,
-                            ui::VKEY_SPACE,
-                            /*control=*/false, /*shift=*/false, /*alt=*/false,
-                            /*command=*/false);
+  content::SimulateCharTyped(GetActiveWebContents(), ' ');
   ASSERT_NO_FATAL_FAILURE(scroll_waiter.Wait());
   EXPECT_NEAR(scroll_height * 2, GetViewportScrollPositionY(extension_host),
               kScrollPositionEpsilon);
@@ -2176,30 +2170,12 @@ class PDFExtensionComboBoxTest : public PDFExtensionTest {
   }
 
   void TypeHello(content::RenderFrameHost* extension_host) {
-    struct KeyData {
-      char ch;
-      ui::DomCode code;
-      ui::KeyboardCode key_code;
-    };
-
-    constexpr KeyData kData[] = {
-        {'H', ui::DomCode::US_H, ui::VKEY_H},
-        {'E', ui::DomCode::US_E, ui::VKEY_E},
-        {'L', ui::DomCode::US_L, ui::VKEY_L},
-        {'L', ui::DomCode::US_L, ui::VKEY_L},
-        {'O', ui::DomCode::US_O, ui::VKEY_O},
-    };
-
     content::RenderFrameHost* plugin_frame =
         pdf_frame_util::FindPdfChildFrame(extension_host);
     // Make sure that the plugin frame of guest has focus.
     ASSERT_EQ(GetActiveWebContents()->GetFocusedFrame(), plugin_frame);
-    for (const auto& data : kData) {
-      content::SimulateKeyPress(GetEmbedderWebContents(),
-                                ui::DomKey::FromCharacter(data.ch), data.code,
-                                data.key_code, /*control=*/false,
-                                /*shift=*/false, /*alt=*/false,
-                                /*command=*/false);
+    for (char ch : std::string_view("HELLO")) {
+      content::SimulateCharTyped(GetEmbedderWebContents(), ch);
       content::InputEventAckWaiter key_waiter(
           plugin_frame->GetRenderWidgetHost(),
           blink::WebInputEvent::Type::kKeyUp);
@@ -2487,9 +2463,8 @@ class PDFExtensionClipboardTest : public PDFExtensionComboBoxTest,
     ui::ClipboardMonitor::GetInstance()->RemoveObserver(this);
 
     auto* clipboard = ui::Clipboard::GetForCurrentThread();
-    std::string clipboard_data;
-    clipboard->ReadAsciiText(clipboard_buffer, /* data_dst=*/nullptr,
-                             &clipboard_data);
+    std::string clipboard_data = ui::clipboard_test_util::ReadAsciiText(
+        clipboard, clipboard_buffer, /* data_dst=*/nullptr);
     EXPECT_EQ(expected, clipboard_data);
   }
 

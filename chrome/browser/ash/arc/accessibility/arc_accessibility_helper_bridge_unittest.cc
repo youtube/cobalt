@@ -18,7 +18,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "chrome/common/extensions/api/accessibility_private.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "chromeos/ash/experiences/arc/arc_util.h"
@@ -145,7 +144,7 @@ class ArcAccessibilityHelperBridgeTest : public ChromeViewsTestBase {
    private:
     std::map<std::string, raw_ptr<ArcNotificationSurface, CtnExperimental>>
         surfaces_;
-    base::ObserverList<Observer>::UncheckedAndDanglingUntriaged observers_;
+    base::ObserverList<Observer> observers_;
   };
 
   ArcAccessibilityHelperBridgeTest() = default;
@@ -454,7 +453,7 @@ TEST_F(ArcAccessibilityHelperBridgeTest,
 
   // Prepare widget to hold it.
   std::unique_ptr<views::Widget> widget =
-      CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
+      CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
   widget->widget_delegate()->SetCanActivate(false);
   widget->Deactivate();
   widget->SetContentsView(std::move(notification_view));
@@ -519,7 +518,7 @@ TEST_F(ArcAccessibilityHelperBridgeTest, TextSelectionChangedFocusContentView) {
 
   // Prepare a widget to hold them.
   std::unique_ptr<views::Widget> widget =
-      CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
+      CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
   ArcNotificationView* notification_view =
       widget->GetRootView()->AddChildView(std::move(owning_notification_view));
   views::View* focus_stealer =

@@ -18,6 +18,7 @@
 #import "base/functional/callback.h"
 #import "base/memory/raw_ptr.h"
 #import "base/test/gmock_callback_support.h"
+#import "base/test/metrics/histogram_tester.h"
 #import "base/test/task_environment.h"
 #import "base/test/test_future.h"
 #import "base/time/time.h"
@@ -25,7 +26,8 @@
 #import "components/enterprise/client_certificates/core/mock_certificate_provisioning_service.h"
 #import "components/enterprise/client_certificates/core/mock_private_key.h"
 #import "components/enterprise/client_certificates/ios/client_identity_ios.h"
-#import "crypto/evp.h"
+#import "components/enterprise/client_certificates/ios/client_identity_ios_error.h"
+#import "crypto/apple/test_helpers.h"
 #import "net/cert/x509_certificate.h"
 #import "net/cert/x509_util.h"
 #import "net/test/cert_test_util.h"
@@ -33,12 +35,6 @@
 #import "testing/gmock/include/gmock/gmock.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
-#import "third_party/boringssl/src/include/openssl/base.h"
-#import "third_party/boringssl/src/include/openssl/bytestring.h"
-#import "third_party/boringssl/src/include/openssl/ec_key.h"
-#import "third_party/boringssl/src/include/openssl/evp.h"
-#import "third_party/boringssl/src/include/openssl/rsa.h"
-#import "third_party/boringssl/src/include/openssl/ssl.h"
 
 using base::test::RunOnceCallback;
 using base::test::RunOnceCallbackRepeatedly;
@@ -56,65 +52,12 @@ scoped_refptr<net::X509Certificate> LoadTestCert() {
                                  kTestCertFileName);
 }
 
-base::apple::ScopedCFTypeRef<SecKeyRef> SecKeyFromPKCS8(
-    base::span<const uint8_t> pkcs8) {
-  bssl::UniquePtr<EVP_PKEY> openssl_key =
-      crypto::evp::PrivateKeyFromBytes(pkcs8);
-  if (!openssl_key) {
-    return base::apple::ScopedCFTypeRef<SecKeyRef>();
-  }
-
-  // `SecKeyCreateWithData` expects PKCS#1 for RSA keys, and a concatenated
-  // format for EC keys. See `SecKeyCopyExternalRepresentation` for details.
-  CFStringRef key_type;
-  bssl::ScopedCBB cbb;
-  if (!CBB_init(cbb.get(), 0)) {
-    return base::apple::ScopedCFTypeRef<SecKeyRef>();
-  }
-  if (EVP_PKEY_id(openssl_key.get()) == EVP_PKEY_RSA) {
-    key_type = kSecAttrKeyTypeRSA;
-    if (!RSA_marshal_private_key(cbb.get(),
-                                 EVP_PKEY_get0_RSA(openssl_key.get()))) {
-      return base::apple::ScopedCFTypeRef<SecKeyRef>();
-    }
-  } else if (EVP_PKEY_id(openssl_key.get()) == EVP_PKEY_EC) {
-    key_type = kSecAttrKeyTypeECSECPrimeRandom;
-    const EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(openssl_key.get());
-    size_t priv_len = EC_KEY_priv2oct(ec_key, nullptr, 0);
-    uint8_t* out;
-    if (priv_len == 0 ||
-        !EC_POINT_point2cbb(cbb.get(), EC_KEY_get0_group(ec_key),
-                            EC_KEY_get0_public_key(ec_key),
-                            POINT_CONVERSION_UNCOMPRESSED, nullptr) ||
-        !CBB_add_space(cbb.get(), &out, priv_len) ||
-        EC_KEY_priv2oct(ec_key, out, priv_len) != priv_len) {
-      return base::apple::ScopedCFTypeRef<SecKeyRef>();
-    }
-  } else {
-    return base::apple::ScopedCFTypeRef<SecKeyRef>();
-  }
-
-  base::apple::ScopedCFTypeRef<CFMutableDictionaryRef> attrs(
-      CFDictionaryCreateMutable(kCFAllocatorDefault, 0,
-                                &kCFTypeDictionaryKeyCallBacks,
-                                &kCFTypeDictionaryValueCallBacks));
-  CFDictionarySetValue(attrs.get(), kSecAttrKeyClass, kSecAttrKeyClassPrivate);
-  CFDictionarySetValue(attrs.get(), kSecAttrKeyType, key_type);
-
-  base::apple::ScopedCFTypeRef<CFDataRef> data(
-      CFDataCreate(kCFAllocatorDefault, CBB_data(cbb.get()),
-                   base::checked_cast<CFIndex>(CBB_len(cbb.get()))));
-
-  return base::apple::ScopedCFTypeRef<SecKeyRef>(
-      SecKeyCreateWithData(data.get(), attrs.get(), nullptr));
-}
-
 base::apple::ScopedCFTypeRef<SecKeyRef> LoadTestKey() {
   static constexpr char kTestKeyFileName[] = "client_1.pk8";
   base::FilePath pkcs8_path =
       net::GetTestCertsDirectory().AppendASCII(kTestKeyFileName);
   std::optional<std::vector<uint8_t>> pkcs8 = base::ReadFileToBytes(pkcs8_path);
-  return SecKeyFromPKCS8(*pkcs8);
+  return crypto::apple::SecKeyFromPKCS8(*pkcs8);
 }
 
 }  // namespace
@@ -129,6 +72,8 @@ class CertificateProvisioningServiceIOSTest : public PlatformTest {
     auto mock_core_service =
         std::make_unique<StrictMock<MockCertificateProvisioningService>>();
     mock_core_service_ = mock_core_service.get();
+    EXPECT_CALL(*mock_core_service_, GetLoggingContext())
+        .WillRepeatedly(Return("Test"));
     service_ =
         CertificateProvisioningServiceIOS::Create(std::move(mock_core_service));
   }
@@ -161,9 +106,9 @@ TEST_F(CertificateProvisioningServiceIOSTest, GetIdentityIOS_Success) {
 
   ASSERT_TRUE(ios_identity.has_value());
   EXPECT_TRUE(ios_identity->is_valid());
-  EXPECT_EQ(ios_identity->identity.name, "test");
-  EXPECT_EQ(ios_identity->identity.private_key, private_key);
-  EXPECT_EQ(ios_identity->identity.certificate, certificate);
+  EXPECT_EQ(ios_identity->name(), "test");
+  EXPECT_EQ(ios_identity->private_key(), private_key);
+  EXPECT_EQ(ios_identity->certificate(), certificate);
   EXPECT_NE(ios_identity->identity_ref.get(), nullptr);
 }
 
@@ -249,11 +194,9 @@ TEST_F(CertificateProvisioningServiceIOSTest,
   base::test::TestFuture<std::optional<ClientIdentityIOS>> second_future;
   service_->GetManagedIdentityIOS(second_future.GetCallback());
   auto second_identity = second_future.Get();
-
   ASSERT_TRUE(second_identity.has_value());
-  EXPECT_NE(first_identity->identity.private_key,
-            second_identity->identity.private_key);
-  EXPECT_EQ(second_identity->identity.private_key, mocked_private_key_2);
+  EXPECT_NE(first_identity->private_key(), second_identity->private_key());
+  EXPECT_EQ(second_identity->private_key(), mocked_private_key_2);
 }
 
 // Tests that if creating the SecIdentityRef fails (e.g., bad private key),
@@ -339,7 +282,31 @@ TEST_F(CertificateProvisioningServiceIOSTest,
   ASSERT_TRUE(second_identity.has_value());
   EXPECT_NE(first_identity->identity_ref.get(),
             second_identity->identity_ref.get());
-  EXPECT_EQ(second_identity->identity.private_key, mocked_private_key_2);
+  EXPECT_EQ(second_identity->private_key(), mocked_private_key_2);
+}
+
+// Tests that if creating the SecIdentityRef fails, the terminal error is
+// recorded to UMA.
+TEST_F(CertificateProvisioningServiceIOSTest,
+       GetIdentityIOS_RecordsMetricsOnFailure) {
+  base::HistogramTester histogram_tester;
+  // Use a private key mock that does not return a valid SecKeyRef.
+  auto private_key = base::MakeRefCounted<StrictMock<MockPrivateKey>>();
+  EXPECT_CALL(*private_key, GetSecKeyRef()).WillOnce(Return(nullptr));
+  auto certificate = LoadTestCert();
+  ClientIdentity core_identity("test", private_key, certificate);
+
+  EXPECT_CALL(*mock_core_service_, GetManagedIdentity(_))
+      .WillOnce(RunOnceCallback<0>(core_identity));
+
+  base::test::TestFuture<std::optional<ClientIdentityIOS>> test_future;
+  service_->GetManagedIdentityIOS(test_future.GetCallback());
+
+  ASSERT_FALSE(test_future.Get().has_value());
+
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.ClientCertificate.Test.IOS.ClientIdentityError",
+      ClientIdentityIOSError::kPrivateKeyConversionFailed, 1);
 }
 
 }  // namespace client_certificates

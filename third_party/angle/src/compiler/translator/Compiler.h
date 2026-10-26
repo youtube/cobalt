@@ -18,7 +18,6 @@
 
 #include "common/PackedEnums.h"
 #include "common/span.h"
-#include "compiler/translator/BuiltInFunctionEmulator.h"
 #include "compiler/translator/CallDAG.h"
 #include "compiler/translator/Diagnostics.h"
 #include "compiler/translator/ExtensionBehavior.h"
@@ -186,10 +185,10 @@ class TCompiler : public TShHandleBase
 
     AdvancedBlendEquations getAdvancedBlendEquations() const { return mAdvancedBlendEquations; }
 
-    bool hasPixelLocalStorageUniforms() const { return !mPixelLocalStorageFormats.empty(); }
-    const std::vector<ShPixelLocalStorageFormat> &getPixelLocalStorageFormats() const
+    bool hasPixelLocalStorageUniforms() const { return !mPixelLocalStorageLayouts.empty(); }
+    const std::vector<ShPixelLocalStorageLayout> &getPixelLocalStorageLayouts() const
     {
-        return mPixelLocalStorageFormats;
+        return mPixelLocalStorageLayouts;
     }
 
     ShPixelLocalStorageType getPixelLocalStorageType() const { return mCompileOptions.pls.type; }
@@ -236,10 +235,6 @@ class TCompiler : public TShHandleBase
     const TExtensionBehavior &getExtensionBehavior() const;
 
   protected:
-    // Add emulated functions to the built-in function emulator.
-    virtual void initBuiltInFunctionEmulator(BuiltInFunctionEmulator *emu,
-                                             const ShCompileOptions &compileOptions)
-    {}
     // Translate to object code. May generate performance warnings through the diagnostics.
     [[nodiscard]] virtual bool translate(TIntermBlock *root,
                                          const ShCompileOptions &compileOptions,
@@ -247,8 +242,6 @@ class TCompiler : public TShHandleBase
     const char *getSourcePath() const;
     // Relies on collectVariables having been called.
     bool isVaryingDefined(const char *varyingName);
-
-    const BuiltInFunctionEmulator &getBuiltInFunctionEmulator() const;
 
     virtual bool shouldFlattenPragmaStdglInvariantAll() = 0;
 
@@ -334,8 +327,6 @@ class TCompiler : public TShHandleBase
     // Built-in extensions with default behavior.
     TExtensionBehavior mExtensionBehavior;
 
-    BuiltInFunctionEmulator mBuiltInFunctionEmulator;
-
     // Results of compilation.
     int mShaderVersion;
     TInfoSink mInfoSink;  // Output sink.
@@ -379,7 +370,7 @@ class TCompiler : public TShHandleBase
 
     // ANGLE_shader_pixel_local_storage: A mapping from binding index to the PLS uniform format at
     // that index.
-    std::vector<ShPixelLocalStorageFormat> mPixelLocalStorageFormats;
+    std::vector<ShPixelLocalStorageLayout> mPixelLocalStorageLayouts;
 
     // Fragment shader uses screen-space derivatives
     bool mUsesDerivatives;

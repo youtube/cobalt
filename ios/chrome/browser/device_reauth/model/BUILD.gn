@@ -8,10 +8,16 @@ source_set("model") {
     "ios_device_authenticator.mm",
     "ios_device_authenticator_factory.h",
     "ios_device_authenticator_factory.mm",
+    "reauthentication_service.h",
+    "reauthentication_service.mm",
+    "reauthentication_service_factory.h",
+    "reauthentication_service_factory.mm",
   ]
 
   deps = [
     "//components/device_reauth",
+    "//components/keyed_service/core",
+    "//ios/chrome/app:tests_hook",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/profile:profile_keyed_service_factory",
     "//ios/chrome/common/ui/reauthentication",
@@ -28,5 +34,19 @@ source_set("unit_tests") {
     "//ios/chrome/browser/device_reauth/model",
     "//ios/chrome/common/ui/reauthentication:mock_reauthentication_module",
     "//testing/gtest",
+  ]
+}
+
+source_set("fake_reauthentication_service") {
+  testonly = true
+  sources = [
+    "fake_reauthentication_service_util.h",
+    "fake_reauthentication_service_util.mm",
+  ]
+  deps = [
+    ":model",
+    "//components/keyed_service/core",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/common/ui/reauthentication:mock_reauthentication_module",
   ]
 }

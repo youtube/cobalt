@@ -37,6 +37,8 @@ static_library("printing") {
     "fake_cups_print_job_manager.h",
     "ipp_client_info_calculator.cc",
     "ipp_client_info_calculator.h",
+    "local_printer.cc",
+    "local_printer.h",
     "ppd_provider_factory.cc",
     "ppd_provider_factory.h",
     "ppd_resolution_state.cc",
@@ -93,7 +95,6 @@ static_library("printing") {
       "cups_print_job_manager_impl.cc",
       "cups_print_job_manager_utils.cc",
       "cups_print_job_manager_utils.h",
-      "local_printer.h",
       "local_printer_impl.cc",
       "local_printer_impl.h",
       "printer_info_cups.cc",
@@ -130,6 +131,7 @@ static_library("printing") {
     "//chromeos/ash/components/dbus/dlcservice",
     "//chromeos/ash/components/dbus/printscanmgr",
     "//chromeos/ash/components/settings",
+    "//chromeos/ash/experiences/settings_ui",
     "//chromeos/printing",
     "//chromeos/services/network_config/public/cpp",
     "//components/device_event_log",
@@ -248,8 +250,13 @@ source_set("unit_tests") {
   ]
 
   if (use_cups) {
-    sources += [ "cups_print_job_manager_utils_unittest.cc" ]
+    sources += [
+      "cups_print_job_manager_utils_unittest.cc",
+      "local_printer_impl_unittest.cc",
+    ]
     deps += [
+      "//components/account_id:test_support",
+      "//components/session_manager/test:test_support",
       "//printing:printing_base",
       "//printing/backend",
     ]

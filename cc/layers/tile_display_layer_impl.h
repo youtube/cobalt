@@ -58,9 +58,9 @@ class CC_EXPORT TileDisplayLayerTile {
 
   TileDrawInfo::Mode draw_mode() {
     CHECK(IsReadyToDraw());
-    if (solid_color()) {
+    if (GetSolidColor()) {
       return TileDrawInfo::SOLID_COLOR_MODE;
-    } else if (is_oom()) {
+    } else if (IsOOM()) {
       return TileDrawInfo::OOM_MODE;
     } else {
       CHECK(resource());
@@ -70,7 +70,7 @@ class CC_EXPORT TileDisplayLayerTile {
 
   const TileDisplayLayerTileContents& contents() const { return contents_; }
 
-  std::optional<SkColor4f> solid_color() const {
+  std::optional<SkColor4f> GetSolidColor() const {
     if (std::holds_alternative<SkColor4f>(contents_)) {
       return std::get<SkColor4f>(contents_);
     }
@@ -84,7 +84,7 @@ class CC_EXPORT TileDisplayLayerTile {
     return std::nullopt;
   }
 
-  bool is_oom() const {
+  bool IsOOM() const {
     if (std::holds_alternative<TileDisplayLayerNoContents>(contents_)) {
       return std::get<TileDisplayLayerNoContents>(contents_).reason ==
              mojom::MissingTileReason::kOutOfMemory;
@@ -94,7 +94,14 @@ class CC_EXPORT TileDisplayLayerTile {
 
   bool IsReadyToDraw() const {
     return !std::holds_alternative<TileDisplayLayerNoContents>(contents_) ||
-           is_oom();
+           IsOOM();
+  }
+
+  std::optional<viz::ResourceId> GetResourceId() const {
+    if (auto res = resource()) {
+      return res->resource_id;
+    }
+    return std::nullopt;
   }
 
  private:
@@ -171,6 +178,7 @@ class CC_EXPORT TileDisplayLayerImpl
   }
   void SetRecordedBounds(const gfx::Rect& bounds) { recorded_bounds_ = bounds; }
   bool IsDirectlyCompositedImage() const override;
+  gfx::Rect RecordedBounds() const override;
   void SetProposedTilingScalesForDeletion(
       std::vector<float> proposed_tiling_scales) {
     proposed_tiling_scales_for_deletion_ = std::move(proposed_tiling_scales);
@@ -182,7 +190,7 @@ class CC_EXPORT TileDisplayLayerImpl
       const {
     return proposed_tiling_scales_for_deletion_;
   }
-  bool nearest_neighbor() const { return nearest_neighbor_; }
+  bool GetNearestNeighbor() const override;
 
   // LayerImpl overrides:
   mojom::LayerType GetLayerType() const override;
@@ -217,13 +225,6 @@ class CC_EXPORT TileDisplayLayerImpl
 
  private:
   // TileBasedLayerImpl:
-  int AppendQuadsSpecialization(const AppendQuadsContext& context,
-                                viz::CompositorRenderPass* render_pass,
-                                AppendQuadsData* append_quads_data,
-                                viz::SharedQuadState* shared_quad_state,
-                                const Occlusion& scaled_occlusion,
-                                const gfx::Vector2d& quad_offset,
-                                float max_contents_scale) override;
   float GetMaximumContentsScaleForUseInAppendQuads() const override;
   float GetIdealContentsScaleKey() const override;
   void AppendQuadsForResourcelessSoftwareDraw(
@@ -238,15 +239,7 @@ class CC_EXPORT TileDisplayLayerImpl
       float ideal_contents_scale) override;
   TilingResolution GetTilingResolutionForDebugBorders(
       const TileDisplayLayerTiling* tiling) const override;
-
-  void AppendQuadForTile(TilingSetCoverageIterator<TileDisplayLayerTiling> iter,
-                         const AppendQuadsContext& context,
-                         viz::CompositorRenderPass* render_pass,
-                         AppendQuadsData* append_quads_data,
-                         viz::SharedQuadState* shared_quad_state,
-                         const Occlusion& scaled_occlusion,
-                         const gfx::Vector2d& quad_offset,
-                         float max_contents_scale);
+  bool ComputeCheckerboardedNeedsRecord() override;
 
   bool is_directly_composited_image_ = false;
   bool nearest_neighbor_ = false;

@@ -8,17 +8,20 @@
 #include "chrome/browser/autocomplete/chrome_aim_eligibility_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_panel_controller.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui_interface.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_button.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
+#include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_close_tab_button.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
@@ -51,11 +54,29 @@ class TestingAimEligibilityService : public ChromeAimEligibilityService {
                                     template_url_service,
                                     /*url_loader_factory=*/nullptr,
                                     /*identity_manager=*/nullptr,
-                                    /*is_off_the_record=*/false) {}
+                                    /*configuration=*/{}) {}
 
   ~TestingAimEligibilityService() override = default;
 
   bool IsAimEligible() const override { return true; }
+  bool IsCobrowseEligible() const override { return is_cobrowse_eligible_; }
+
+  void SetIsCobrowseEligible(bool eligible) {
+    if (is_cobrowse_eligible_ == eligible) {
+      return;
+    }
+    is_cobrowse_eligible_ = eligible;
+    callbacks_.Notify();
+  }
+
+  base::CallbackListSubscription RegisterEligibilityChangedCallback(
+      base::RepeatingClosure callback) override {
+    return callbacks_.Add(std::move(callback));
+  }
+
+ private:
+  bool is_cobrowse_eligible_ = true;
+  base::RepeatingClosureList callbacks_;
 };
 
 class TestingContextualTasksUiService
@@ -183,6 +204,14 @@ class ContextualTasksButtonInteractiveTestBase : public InteractiveBrowserTest {
   contextual_tasks::ContextualTasksUiService* GetUiService() {
     return contextual_tasks::ContextualTasksUiServiceFactory::
         GetForBrowserContext(browser()->profile());
+  }
+
+  auto SetIsCobrowseEligible(bool eligible) {
+    return Do([&, eligible]() {
+      auto* service = static_cast<TestingAimEligibilityService*>(
+          AimEligibilityServiceFactory::GetForProfile(browser()->profile()));
+      service->SetIsCobrowseEligible(eligible);
+    });
   }
 
  private:
@@ -316,7 +345,8 @@ class ContextualTasksEphemeralButtonInteractiveTest
   void SetUp() override {
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {{contextual_tasks::kContextualTasks,
-          {{"ContextualTasksEntryPoint", "toolbar-revisit"}}}},
+          {{"ContextualTasksEntryPoint", "toolbar-revisit"},
+           {"ContextualTasksExpandButtonOptions", "toolbar-close-button"}}}},
         {});
     InteractiveBrowserTest::SetUp();
   }
@@ -383,6 +413,16 @@ class ContextualTasksEphemeralButtonInteractiveTest
     });
   }
 
+  auto SimulateNavigateToAiPage() {
+    return Do([&]() {
+      content::WebContents* side_panel_contents =
+          contextual_tasks::ContextualTasksPanelController::From(browser())
+              ->GetActiveWebContents();
+      contextual_tasks::GetWebUiInterface(side_panel_contents)
+          ->SetIsAiPage(true);
+    });
+  }
+
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
@@ -431,6 +471,22 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksEphemeralButtonInteractiveTest,
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksEphemeralButtonInteractiveTest,
+                       ButtonVisibilityIsTiedToAimCobrowseEligibility) {
+  RunTestSequence(
+      SignIntoEligibleAccount(), InstrumentTab(kFirstTab),
+      AddInstrumentedTab(kSecondTab, GetTestURL()),
+      SelectTab(kTabStripElementId, 0),
+      EnsureNotPresent(ContextualTasksButton::kContextualTasksToolbarButton),
+      CreateTaskForTab(0), SimulateOpeningContextualTaskSidePanel(),
+      SimulateClosingContextualTaskSidePanel(),
+      WaitForShow(ContextualTasksButton::kContextualTasksToolbarButton),
+      SetIsCobrowseEligible(false),
+      WaitForHide(ContextualTasksButton::kContextualTasksToolbarButton),
+      SetIsCobrowseEligible(true),
+      WaitForShow(ContextualTasksButton::kContextualTasksToolbarButton));
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksEphemeralButtonInteractiveTest,
                        ButtonVisibilityIsPreservedAsSidePanelToggles) {
   RunTestSequence(
       SignIntoEligibleAccount(), InstrumentTab(kFirstTab),
@@ -444,7 +500,14 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksEphemeralButtonInteractiveTest,
       PressButton(ContextualTasksButton::kContextualTasksToolbarButton),
       WaitForShow(kSidePanelElementId),
       EnsurePresent(ContextualTasksButton::kContextualTasksToolbarButton),
+      EnsureNotPresent(
+          ContextualTasksCloseTabButton::kContextualTasksCloseTabButton),
+      SimulateNavigateToAiPage(),
+      EnsurePresent(
+          ContextualTasksCloseTabButton::kContextualTasksCloseTabButton),
       PressButton(ContextualTasksButton::kContextualTasksToolbarButton),
       WaitForHide(kSidePanelElementId),
-      EnsurePresent(ContextualTasksButton::kContextualTasksToolbarButton));
+      EnsurePresent(ContextualTasksButton::kContextualTasksToolbarButton),
+      EnsureNotPresent(
+          ContextualTasksCloseTabButton::kContextualTasksCloseTabButton));
 }

@@ -26,7 +26,6 @@
 class LocationBarView;
 class OmniboxController;
 class OmniboxHeaderView;
-class OmniboxPopupViewWebUI;
 class OmniboxResultView;
 class OmniboxRowGroupedView;
 class OmniboxRowView;
@@ -74,7 +73,7 @@ class OmniboxPopupViewViews : public views::View,
   void GetPopupAccessibleNodeData(ui::AXNodeData* node_data) const override;
   std::u16string_view GetAccessibleButtonTextForResult(
       size_t line) const override;
-  raw_ptr<OmniboxPopupViewWebUI> GetOmniboxPopupViewWebUI() override;
+  bool IsSelectionPopupControlled() const override;
 
   // views::View:
   bool OnMouseDragged(const ui::MouseEvent& event) override;
@@ -203,6 +202,13 @@ class OmniboxPopupViewViews : public views::View,
   // Used to observe `OmniboxEditModel`.
   base::ScopedObservation<OmniboxEditModel, OmniboxEditModel::Observer>
       edit_model_observation_{this};
+
+  // Whether the first paint of this popup has been recorded. This is used to
+  // ensure that we only record metrics for the first time the popup is shown in
+  // its lifetime, which is 1 per window.
+  bool recorded_first_paint_ = false;
+
+  base::WeakPtrFactory<OmniboxPopupViewViews> weak_ptr_factory_{this};
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_OMNIBOX_OMNIBOX_POPUP_VIEW_VIEWS_H_

@@ -13,11 +13,68 @@ android_library("java") {
   sources = [
     "android/java/src/org/chromium/chrome/browser/ui/side_panel_container/SidePanelContainerCoordinatorFactory.java",
     "android/java/src/org/chromium/chrome/browser/ui/side_panel_container/SidePanelContainerCoordinatorImpl.java",
+    "android/java/src/org/chromium/chrome/browser/ui/side_panel_container/dev/SidePanelDevFeatureContent.java",
+    "android/java/src/org/chromium/chrome/browser/ui/side_panel_container/dev/SidePanelDevFeatureFactory.java",
+    "android/java/src/org/chromium/chrome/browser/ui/side_panel_container/dev/SidePanelDevFeatureImpl.java",
   ]
 
   deps = [
+    ":java_resources",
+    "//base:supplier_java",
+    "//base:tasks_java",
+    "//base/version_info/android:version_constants_java",
     "//build/android:build_java",
+    "//chrome/browser/android/content:java",
+    "//chrome/browser/flags:java",
+    "//chrome/browser/profiles/android:java",
+    "//chrome/browser/ui/side_panel_container/public:java",
+    "//chrome/browser/ui/side_ui/public:java",
+    "//components/embedder_support/android:content_view_java",
+    "//components/embedder_support/android:web_contents_delegate_java",
+    "//components/thin_webview:factory_java",
+    "//components/thin_webview:java",
+    "//content/public/android:content_java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
+    "//ui/android:ui_java",
+    "//ui/android:ui_no_recycler_view_java",
+  ]
+  resources_package = "org.chromium.chrome.browser.ui.side_panel_container"
+}
+
+android_resources("java_resources") {
+  sources = [ "android/java/res/layout/side_panel_container.xml" ]
+}
+
+android_library("javatests") {
+  testonly = true
+  sources = [
+    "android/java/src/org/chromium/chrome/browser/ui/side_panel_container/SidePanelContainerCoordinatorIntegrationTest.java",
+    "android/java/src/org/chromium/chrome/browser/ui/side_panel_container/dev/SidePanelDevFeatureIntegrationTest.java",
+  ]
+  deps = [
+    ":java",
+    "//base:base_java",
+    "//base:base_java_test_support",
+    "//chrome/android:chrome_java",
     "//chrome/browser/flags:java",
     "//chrome/browser/ui/side_panel_container/public:java",
+    "//chrome/test/android:chrome_java_transit",
+    "//chrome/test/android:chrome_java_unit_test_support",
+    "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/androidx:androidx_test_runner_java",
+    "//third_party/junit",
+    "//ui/android:ui_no_recycler_view_java",
+  ]
+  resources_package = "org.chromium.chrome.browser.ui.side_panel_container"
+}
+
+robolectric_library("junit") {
+  sources = [ "android/java/src/org/chromium/chrome/browser/ui/side_panel_container/SidePanelContainerCoordinatorImplUnitTest.java" ]
+  deps = [
+    ":java",
+    "//base:base_junit_test_support",
+    "//chrome/browser/ui/side_ui/public:java",
+    "//third_party/junit",
+    "//third_party/mockito:mockito_java",
   ]
 }

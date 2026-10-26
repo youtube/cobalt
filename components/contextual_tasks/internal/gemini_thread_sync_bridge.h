@@ -8,6 +8,9 @@
 #include <optional>
 
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
+#include "base/observer_list_types.h"
+#include "components/contextual_tasks/public/contextual_task.h"
 #include "components/sync/model/data_batch.h"
 #include "components/sync/model/data_type_local_change_processor.h"
 #include "components/sync/model/data_type_store.h"
@@ -16,12 +19,27 @@
 #include "components/sync/model/metadata_batch.h"
 #include "components/sync/model/metadata_change_list.h"
 #include "components/sync/model/model_error.h"
+#include "components/sync/protocol/gemini_thread_specifics.pb.h"
 
 namespace contextual_tasks {
 
 // Sync bridge implementation for Gemini thread data type.
 class GeminiThreadSyncBridge : public syncer::DataTypeSyncBridge {
  public:
+  class Observer : public base::CheckedObserver {
+   public:
+    Observer() = default;
+    ~Observer() override = default;
+
+    // Invoked when the store containing the Gemini Threads is loaded.
+    virtual void OnGeminiThreadDataStoreLoaded() = 0;
+    // Invoked when a Gemini Thread is created or updated.
+    virtual void OnGeminiThreadAddedOrUpdatedRemotely(
+        const std::vector<sync_pb::GeminiThreadSpecifics>& specifics) = 0;
+    // Invoked when a Gemini thread is removed.
+    virtual void OnGeminiThreadRemovedRemotely(
+        const std::vector<base::Uuid>& thread_ids) = 0;
+  };
   GeminiThreadSyncBridge(
       std::unique_ptr<syncer::DataTypeLocalChangeProcessor> change_processor,
       syncer::OnceDataTypeStoreFactory store_factory);
@@ -52,6 +70,22 @@ class GeminiThreadSyncBridge : public syncer::DataTypeSyncBridge {
   void ApplyDisableSyncChanges(std::unique_ptr<syncer::MetadataChangeList>
                                    delete_metadata_change_list) override;
   bool IsEntityDataValid(const syncer::EntityData& entity_data) const override;
+  sync_pb::EntitySpecifics TrimAllSupportedFieldsFromRemoteSpecifics(
+      const sync_pb::EntitySpecifics& entity_specifics) const override;
+
+  // Returns all threads.
+  virtual std::vector<Thread> GetThreads() const;
+
+  // Delete the thread.
+  void DeleteThread(const Thread& thread);
+
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
+
+  std::unordered_map<std::string, sync_pb::GeminiThreadSpecifics>&
+  gemini_thread_specifics_for_testing() {
+    return gemini_thread_specifics_;
+  }
 
  private:
   void OnDataTypeStoreCreated(const std::optional<syncer::ModelError>& error,
@@ -64,7 +98,14 @@ class GeminiThreadSyncBridge : public syncer::DataTypeSyncBridge {
   void OnReadAllMetadata(const std::optional<syncer::ModelError>& error,
                          std::unique_ptr<syncer::MetadataBatch> metadata_batch);
 
+  void OnDataTypeStoreCommit(const std::optional<syncer::ModelError>& error);
+
   std::unique_ptr<syncer::DataTypeStore> data_type_store_;
+
+  std::unordered_map<std::string, sync_pb::GeminiThreadSpecifics>
+      gemini_thread_specifics_;
+
+  base::ObserverList<Observer> observers_;
 
   base::WeakPtrFactory<GeminiThreadSyncBridge> weak_ptr_factory_{this};
 };

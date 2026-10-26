@@ -50,7 +50,6 @@ import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tab_ui.TabContentManagerThumbnailProvider;
 import org.chromium.chrome.browser.tabmodel.TabGroupColorUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
-import org.chromium.chrome.browser.tasks.tab_management.ColorPickerCoordinator.ColorPickerLayoutType;
 import org.chromium.chrome.browser.tasks.tab_management.TabGridDialogMediator.AnimationSourceViewProvider;
 import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListMode;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator.CreationMode;
@@ -59,6 +58,9 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.GridCard
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageType;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiMetricsHelper.TabGroupColorChangeActionType;
+import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerCoordinator;
+import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerCoordinator.ColorPickerLayoutType;
+import org.chromium.chrome.browser.tasks.tab_management.color_picker.ColorPickerType;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarThrottle;
 import org.chromium.chrome.tab_ui.R;
@@ -269,7 +271,7 @@ public class TabGridDialogCoordinator implements TabGridDialogMediator.DialogCon
                             /* undoBarExplicitTrigger= */ null,
                             mSnackbarManager,
                             TabListEditorCoordinator.UNLIMITED_SELECTION,
-                            false);
+                            /* isSingleContextMode= */ false);
             mTabListCoordinator.setOnLongPressTabItemEventListener(mMediator);
             mTabListCoordinator.registerItemType(
                     UiType.COLLABORATION_ACTIVITY_MESSAGE,
@@ -287,14 +289,14 @@ public class TabGridDialogCoordinator implements TabGridDialogMediator.DialogCon
             recyclerView.addOnScrollListener(mTabListOnScrollListener);
 
             @LayoutRes
-            int toolbar_res_id =
+            int toolbarResId =
                     isDataSharingAndroidEnabled
                             ? R.layout.tab_grid_dialog_toolbar_two_row
                             : R.layout.tab_grid_dialog_toolbar;
             TabGridDialogToolbarView toolbarView =
                     (TabGridDialogToolbarView)
                             LayoutInflater.from(activity)
-                                    .inflate(toolbar_res_id, recyclerView, false);
+                                    .inflate(toolbarResId, recyclerView, false);
             if (isDataSharingAndroidEnabled) {
                 FrameLayout imageTilesContainer =
                         toolbarView.findViewById(R.id.image_tiles_container);
@@ -380,10 +382,11 @@ public class TabGridDialogCoordinator implements TabGridDialogMediator.DialogCon
                             /* desktopWindowStateManager= */ null,
                             /* edgeToEdgeSupplier= */ null,
                             CreationMode.DIALOG,
+                            /* itemPickerSelectionHandler= */ null,
                             /* undoBarExplicitTrigger= */ null,
                             /* componentName= */ null,
                             TabListEditorCoordinator.UNLIMITED_SELECTION,
-                            false);
+                            /* isSingleContextMode= */ false);
         }
 
         return mTabListEditorCoordinator.getController();

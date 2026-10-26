@@ -5,7 +5,11 @@
 #include "ui/base/accelerators/global_accelerator_listener/global_accelerator_listener.h"
 
 #include <memory>
+#include <set>
+#include <string>
 
+#include "base/functional/callback_helpers.h"
+#include "base/memory/ref_counted.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/accelerators/accelerator.h"
@@ -40,13 +44,16 @@ class BaseGlobalAcceleratorListenerForTesting final
     registered_accelerators_.erase(accelerator);
   }
 
+  using ui::GlobalAcceleratorListener::accelerator_map_size;
+
   MOCK_CONST_METHOD0(IsRegistrationHandledExternally, bool());
   MOCK_METHOD5(OnCommandsChanged,
                void(const std::string&,
                     const std::string&,
                     const ui::CommandMap&,
                     gfx::AcceleratedWidget,
-                    Observer*));
+                    base::RepeatingCallback<void(const std::string&,
+                                                 const std::string&)>));
 
  private:
   std::set<ui::Accelerator> registered_accelerators_;
@@ -58,6 +65,21 @@ class TestObserver final : public GlobalAcceleratorListener::Observer {
 
   void ExecuteCommand(const std::string& accelerator_group_id,
                       const std::string& command_id) override {}
+};
+
+class CallbackTarget {
+ public:
+  explicit CallbackTarget(scoped_refptr<base::RefCountedData<int>> call_count)
+      : call_count_(std::move(call_count)) {}
+
+  void Execute(const std::string&, const std::string&) { ++call_count_->data; }
+  base::WeakPtr<CallbackTarget> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+ private:
+  scoped_refptr<base::RefCountedData<int>> call_count_;
+  base::WeakPtrFactory<CallbackTarget> weak_ptr_factory_{this};
 };
 
 class GlobalAcceleratorListenerTest : public testing::Test {
@@ -78,6 +100,8 @@ class GlobalAcceleratorListenerTest : public testing::Test {
     observer_ = nullptr;
     ui_listener_ = nullptr;
   }
+
+  size_t accelerator_map_size() { return ui_listener_->accelerator_map_size(); }
 
   GlobalAcceleratorListener::Observer* GetObserver() { return observer_.get(); }
 
@@ -124,6 +148,22 @@ TEST_F(GlobalAcceleratorListenerTest, SuspendsShortcutHandling) {
   listener->UnregisterAccelerator(accelerator_b, GetObserver());
 }
 
+TEST_F(GlobalAcceleratorListenerTest, SuspendsShortcutHandlingUnregister) {
+  GlobalAcceleratorListener* listener = GetUIListener();
+  const ui::Accelerator accelerator_b(ui::VKEY_B, ui::EF_NONE);
+
+  EXPECT_TRUE(listener->RegisterAccelerator(accelerator_b, GetObserver()));
+
+  listener->SetShortcutHandlingSuspended(true);
+  EXPECT_TRUE(listener->IsShortcutHandlingSuspended());
+  EXPECT_EQ(accelerator_map_size(), 1u);
+
+  listener->UnregisterAccelerator(accelerator_b, GetObserver());
+  EXPECT_EQ(accelerator_map_size(), 0u);
+
+  listener->SetShortcutHandlingSuspended(false);
+}
+
 TEST_F(GlobalAcceleratorListenerTest, IsRegistrationHandledExternally) {
   GlobalAcceleratorListener* listener = GetUIListener();
   BaseGlobalAcceleratorListenerForTesting* ui_listener = GetUIListener();
@@ -144,7 +184,7 @@ TEST_F(GlobalAcceleratorListenerTest, OnCommandsChanged) {
               OnCommandsChanged(kAcceleratorGroupId, kProfileId, testing::_,
                                 testing::_, testing::_));
   listener->OnCommandsChanged(kAcceleratorGroupId, kProfileId, kCommands,
-                              gfx::kNullAcceleratedWidget, GetObserver());
+                              gfx::kNullAcceleratedWidget, base::DoNothing());
 }
 
 #if !BUILDFLAG(IS_WIN)
@@ -160,9 +200,48 @@ TEST_F(GlobalAcceleratorListenerTest, OnCommandsChangedWithWidget) {
   EXPECT_CALL(*ui_listener, OnCommandsChanged(kAcceleratorGroupId, kProfileId,
                                               testing::_, kWidget, testing::_));
   listener->OnCommandsChanged(kAcceleratorGroupId, kProfileId, kCommands,
-                              kWidget, GetObserver());
+                              kWidget, base::DoNothing());
 }
 #endif
+
+// Tests that execute_command passed to OnCommandsChanged becomes a no-op after
+// WeakPtr invalidation.
+TEST_F(GlobalAcceleratorListenerTest, OnCommandsChangedCallbackBecomesNoOp) {
+  GlobalAcceleratorListener* listener = GetUIListener();
+  BaseGlobalAcceleratorListenerForTesting* ui_listener = GetUIListener();
+
+  const std::string kAcceleratorGroupId = "group_id";
+  const std::string kProfileId = "profile_id";
+  const ui::CommandMap kCommands;
+
+  base::RepeatingCallback<void(const std::string&, const std::string&)>
+      captured_callback;
+  EXPECT_CALL(*ui_listener,
+              OnCommandsChanged(kAcceleratorGroupId, kProfileId, testing::_,
+                                testing::_, testing::_))
+      .WillOnce([&](const std::string&, const std::string&,
+                    const ui::CommandMap&, gfx::AcceleratedWidget,
+                    base::RepeatingCallback<void(const std::string&,
+                                                 const std::string&)> cb) {
+        captured_callback = std::move(cb);
+      });
+
+  auto call_count = base::MakeRefCounted<base::RefCountedData<int>>(0);
+  auto target = std::make_unique<CallbackTarget>(call_count);
+  listener->OnCommandsChanged(
+      kAcceleratorGroupId, kProfileId, kCommands, gfx::kNullAcceleratedWidget,
+      base::BindRepeating(&CallbackTarget::Execute, target->AsWeakPtr()));
+
+  ASSERT_FALSE(captured_callback.is_null());
+  captured_callback.Run(kAcceleratorGroupId, "cmd");
+  EXPECT_EQ(call_count->data, 1);
+
+  target.reset();
+  EXPECT_TRUE(captured_callback.IsCancelled());
+
+  captured_callback.Run(kAcceleratorGroupId, "cmd");
+  EXPECT_EQ(call_count->data, 1);
+}
 
 }  // namespace
 }  // namespace ui

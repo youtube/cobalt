@@ -111,6 +111,7 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmStruct)              \
   IF_WASM(V, WasmSuspendingObject)    \
   IF_WASM(V, WasmContinuationObject)  \
+  IF_WASM(V, WasmStackObject)         \
   IF_WASM(V, WasmTableObject)         \
   IF_WASM(V, WasmTagObject)           \
   IF_WASM(V, WasmTypeInfo)            \
@@ -250,10 +251,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // [inobject_properties_start_or_constructor_function_index]:
   // Provides access to the inobject properties start offset in words in case of
   // JSObject maps, or the constructor function index in case of primitive maps.
-  DECL_INT_ACCESSORS(inobject_properties_start_or_constructor_function_index)
+  DECL_UINT8_ACCESSORS(inobject_properties_start_or_constructor_function_index)
 
   // Get/set the in-object property area start offset in words in the object.
-  inline int GetInObjectPropertiesStartInWords() const;
+  inline uint8_t GetInObjectPropertiesStartInWords() const;
+  inline void SetInObjectPropertiesStartInWords(uint8_t value);
   inline void SetInObjectPropertiesStartInWords(int value);
   // Count of properties allocated in the object (JSObject only).
   inline int GetInObjectProperties() const;
@@ -914,8 +916,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   V8_EXPORT_PRIVATE static Handle<Map> Create(Isolate* isolate,
                                               int inobject_properties);
 
-  // Returns the next free property index (only valid for FAST MODE).
-  int NextFreePropertyIndex() const;
+  // Returns the next free property offset (only valid for FAST MODE).
+  FieldStorageLocation NextFreeFieldStorageLocation() const;
 
   // Returns the number of enumerable properties.
   int NumberOfEnumerableProperties() const;
@@ -976,9 +978,11 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   void DictionaryMapVerify(Isolate* isolate);
 #endif
 #if defined(DEBUG) || defined(VERIFY_HEAP)
-  void VerifyDescriptorInObjectBits(Isolate* isolate,
-                                    Tagged<DescriptorArray> descriptors,
-                                    int number_of_own_descriptors);
+  V8_EXPORT_PRIVATE void VerifyDescriptorInObjectBits(
+      Isolate* isolate, Tagged<DescriptorArray> descriptors,
+      int number_of_own_descriptors);
+  V8_EXPORT_PRIVATE void VerifyPropertyDetailsInObjectBits(
+      PropertyDetails details);
 #endif
 
   DECL_PRIMITIVE_ACCESSORS(visitor_id, VisitorId)
@@ -1171,7 +1175,7 @@ class NormalizedMapCache : public WeakFixedArray {
   friend bool IsNormalizedMapCache(Tagged<HeapObject> obj,
                                    PtrComprCageBase cage_base);
 
-  static const int kEntries = 64;
+  static const uint32_t kEntries = 64;
 
   static inline int GetIndex(Isolate* isolate, Tagged<Map> map,
                              Tagged<HeapObject> prototype);

@@ -32,6 +32,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_TIMING_PERFORMANCE_ENTRY_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_TIMING_PERFORMANCE_ENTRY_H_
 
+#include "build/build_config.h"
 #include "third_party/blink/public/mojom/timing/performance_mark_or_measure.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
@@ -84,6 +85,9 @@ class CORE_EXPORT PerformanceEntry : public ScriptWrappable {
     kScript = 1 << 16,
     kContainer = 1 << 17,
     kInteractionContentfulPaint = 1 << 18,
+#if BUILDFLAG(IS_COBALT)
+    kCobaltFrame = 1 << 19,
+#endif
   };
 
   const AtomicString& name() const { return name_; }
@@ -161,6 +165,11 @@ class CORE_EXPORT PerformanceEntry : public ScriptWrappable {
   // would not be exposed by WebIDL.
   DOMHighResTimeStamp paintTime() const;
   std::optional<DOMHighResTimeStamp> presentationTime() const;
+
+  const DOMPaintTimingInfo& GetPaintTimingInfo() const {
+    CHECK(paint_timing_info_.has_value());
+    return paint_timing_info_.value();
+  }
 
   void Trace(Visitor*) const override;
 

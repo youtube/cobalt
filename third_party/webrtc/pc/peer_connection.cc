@@ -744,9 +744,6 @@ JsepTransportController* PeerConnection::InitializeNetworkThread(
   config.transport_observer = this;
   config.rtcp_handler = InitializeRtcpCallback();
   config.un_demuxable_packet_handler = InitializeUnDemuxablePacketHandler();
-#if defined(ENABLE_EXTERNAL_AUTH)
-  config.enable_external_auth = true;
-#endif
 
   // DTLS has to be enabled to use SCTP.
   if (dtls_enabled_) {
@@ -1383,6 +1380,7 @@ void PeerConnection::GetStats(
   if (selector) {
     for (const auto& proxy_transceiver :
          rtp_manager()->transceivers()->List()) {
+      RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
       for (const auto& proxy_sender :
            proxy_transceiver->internal()->senders()) {
         if (proxy_sender == selector) {
@@ -1390,6 +1388,7 @@ void PeerConnection::GetStats(
           break;
         }
       }
+      RTC_ALLOW_PLAN_B_DEPRECATION_END()
       if (internal_sender)
         break;
     }
@@ -1413,6 +1412,7 @@ void PeerConnection::GetStats(
   if (selector) {
     for (const auto& proxy_transceiver :
          rtp_manager()->transceivers()->List()) {
+      RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
       for (const auto& proxy_receiver :
            proxy_transceiver->internal()->receivers()) {
         if (proxy_receiver == selector) {
@@ -1420,6 +1420,7 @@ void PeerConnection::GetStats(
           break;
         }
       }
+      RTC_ALLOW_PLAN_B_DEPRECATION_END()
       if (internal_receiver)
         break;
     }
@@ -1537,12 +1538,15 @@ void PeerConnection::CreateAnswer(CreateSessionDescriptionObserver* observer,
 void PeerConnection::SetLocalDescription(
     SetSessionDescriptionObserver* observer,
     SessionDescriptionInterface* desc) {
-  if (!CheckValidSetDescription(observer, desc, signaling_thread()))
+  auto desc_ptr = std::unique_ptr<SessionDescriptionInterface>(desc);
+  if (!CheckValidSetDescription(observer, desc_ptr, signaling_thread()))
     return;
 
-  RunOnSignalingThread([this, desc, observer]() mutable {
+  RunOnSignalingThread([this, desc = std::move(desc_ptr),
+                        observer = scoped_refptr<SetSessionDescriptionObserver>(
+                            observer)]() mutable {
     RTC_DCHECK_RUN_ON(signaling_thread());
-    sdp_handler_->SetLocalDescription(observer, desc);
+    sdp_handler_->SetLocalDescription(std::move(observer), std::move(desc));
   });
 }
 
@@ -1563,7 +1567,8 @@ void PeerConnection::SetLocalDescription(
 void PeerConnection::SetLocalDescription(
     SetSessionDescriptionObserver* observer) {
   RTC_DCHECK_RUN_ON(signaling_thread());
-  sdp_handler_->SetLocalDescription(observer);
+  sdp_handler_->SetLocalDescription(
+      scoped_refptr<SetSessionDescriptionObserver>(observer));
 }
 
 void PeerConnection::SetLocalDescription(
@@ -1575,12 +1580,15 @@ void PeerConnection::SetLocalDescription(
 void PeerConnection::SetRemoteDescription(
     SetSessionDescriptionObserver* observer,
     SessionDescriptionInterface* desc) {
-  if (!CheckValidSetDescription(observer, desc, signaling_thread()))
+  auto desc_ptr = std::unique_ptr<SessionDescriptionInterface>(desc);
+  if (!CheckValidSetDescription(observer, desc_ptr, signaling_thread()))
     return;
 
-  RunOnSignalingThread([this, desc, observer]() mutable {
+  RunOnSignalingThread([this, desc = std::move(desc_ptr),
+                        observer = scoped_refptr<SetSessionDescriptionObserver>(
+                            observer)]() mutable {
     RTC_DCHECK_RUN_ON(signaling_thread());
-    sdp_handler_->SetRemoteDescription(observer, desc);
+    sdp_handler_->SetRemoteDescription(std::move(observer), std::move(desc));
   });
 }
 
@@ -3173,16 +3181,14 @@ PeerConnection::InitializeRtcpCallback() {
 absl::AnyInvocable<void(const RtpPacketReceived& parsed_packet) const>
 PeerConnection::InitializeUnDemuxablePacketHandler() {
   return [this](const RtpPacketReceived& parsed_packet) {
-    worker_thread()->PostTask(
-        SafeTask(worker_thread_safety_, [this, parsed_packet]() {
-          // Deliver the packet anyway to Call to allow Call to do BWE.
-          // Even if there is no media receiver, the packet has still
-          // been received on the network and has been correcly parsed.
-          call_ptr_->Receiver()->DeliverRtpPacket(
-              MediaType::ANY, parsed_packet,
-              /*undemuxable_packet_handler=*/
-              [](const RtpPacketReceived& packet) { return false; });
-        }));
+    RTC_DCHECK_RUN_ON(network_thread());
+    // Deliver the packet anyway to Call to allow Call to do BWE.
+    // Even if there is no media receiver, the packet has still
+    // been received on the network and has been correctly parsed.
+    call_ptr_->Receiver()->DeliverRtpPacket(
+        MediaType::ANY, parsed_packet,
+        /*undemuxable_packet_handler=*/
+        [](const RtpPacketReceived& packet) { return false; });
   };
 }
 
@@ -3195,12 +3201,8 @@ void PeerConnection::RunOnSignalingThread(absl::AnyInvocable<void() &&> task) {
   if (signaling_thread()->IsCurrent()) {
     std::move(task)();
   } else {
-    // Consider if we can use PostTask instead in some situations:
-    //   signaling_thread()->PostTask(
-    //      SafeTask(signaling_thread_safety_.flag(), std::move(task)));
-    // Currently we use BlockingCall() to be compatible with how the
-    // api proxies work by default.
-    signaling_thread()->BlockingCall([&] { std::move(task)(); });
+    signaling_thread()->PostTask(
+        SafeTask(signaling_thread_safety_.flag(), std::move(task)));
   }
 }
 

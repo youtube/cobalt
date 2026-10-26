@@ -25,11 +25,11 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Promise;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
 import org.chromium.components.browser_ui.notifications.NotificationFeatureMap;
@@ -37,6 +37,7 @@ import org.chromium.components.browser_ui.notifications.NotificationManagerProxy
 import org.chromium.components.browser_ui.notifications.NotificationWrapper;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.sync.SyncService;
+import org.chromium.components.trusted_vault.TrustedVaultClient;
 import org.chromium.google_apis.gaia.GaiaId;
 
 /** Unit tests for {@link SyncErrorNotifier}. */
@@ -167,7 +168,7 @@ public class SyncErrorNotifierTest {
 
         // Return the intent (can be null as it's unused by the test).
         intentPromise.fulfill(null);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         // Notification must be shown now.
         verify(mNotificationManagerProxy).notify(mNotificationWrapperCaptor.capture());
@@ -213,7 +214,7 @@ public class SyncErrorNotifierTest {
         SyncErrorNotifier notifier =
                 new SyncErrorNotifier(mNotificationManagerProxy, mSyncService, mTrustedVaultClient);
         notifier.syncStateChanged();
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         // Strings must be different from testTrustedVaultNotificationForPasswords()
         verify(mNotificationManagerProxy, Mockito.times(0)).cancel(anyInt());
@@ -244,7 +245,7 @@ public class SyncErrorNotifierTest {
         SyncErrorNotifier notifier =
                 new SyncErrorNotifier(mNotificationManagerProxy, mSyncService, mTrustedVaultClient);
         notifier.syncStateChanged();
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         // There must've been no notify() calls - because the intent creation failed - and no
         // cancel() calls either - because there were no ongoing notifications to cancel.
@@ -326,7 +327,7 @@ public class SyncErrorNotifierTest {
 
         // Return the intent (can be null as it's unused by the test).
         intentPromise.fulfill(null);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         // Notification must be shown now.
         verify(mNotificationManagerProxy).notify(mNotificationWrapperCaptor.capture());
@@ -373,7 +374,7 @@ public class SyncErrorNotifierTest {
         SyncErrorNotifier notifier =
                 new SyncErrorNotifier(mNotificationManagerProxy, mSyncService, mTrustedVaultClient);
         notifier.syncStateChanged();
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         // Strings must be different from testTrustedVaultNotificationForPasswords().
         verify(mNotificationManagerProxy, Mockito.times(0)).cancel(anyInt());

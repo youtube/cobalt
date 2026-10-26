@@ -14,7 +14,7 @@ namespace internal {
 
 namespace {
 
-// ES#sec-canonicalnumericindexstring
+// https://tc39.es/ecma262/#sec-canonicalnumericindexstring
 // Returns true if the lookup_key represents a valid index string.
 bool CanonicalNumericIndexString(Isolate* isolate,
                                  const PropertyKey& lookup_key,
@@ -184,6 +184,7 @@ void JSTypedArray::MarkDetached(DirectHandle<JSTypedArray> typed_array,
       MapUpdater::InstanceTypeChange::kTypedArrayDetaching);
   JSObject::MigrateToMap(isolate, typed_array, new_map);
   typed_array->WriteBoundedSizeField(kRawLengthOffset, 0);
+  typed_array->WriteBoundedSizeField(kRawByteLengthOffset, 0);
   // TODO(olivf, 467645277): Set the buffer to a canonical detached ab value.
 }
 
@@ -235,6 +236,18 @@ void JSArrayBuffer::DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
   DCHECK(!array_buffer->is_shared());
   array_buffer->set_backing_store(isolate, EmptyBackingStoreBuffer());
   array_buffer->set_byte_length(0);
+}
+
+void JSArrayBuffer::MakeImmutable(Isolate* isolate) {
+  if (is_immutable()) return;
+  DCHECK(!was_detached());
+  set_is_immutable(true);
+  if (auto backing_store = GetBackingStore()) {
+    backing_store->set_is_immutable(true);
+  }
+  if (Protectors::IsArrayBufferMutableIntact(isolate)) {
+    Protectors::InvalidateArrayBufferMutable(isolate);
+  }
 }
 
 size_t JSArrayBuffer::GsabByteLength(Isolate* isolate,
@@ -374,7 +387,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
   return array_buffer;
 }
 
-// ES#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
+// https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
 // static
 Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
                                             DirectHandle<JSTypedArray> o,

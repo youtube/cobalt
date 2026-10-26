@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/core/paint/paint_layer_paint_order_iterator.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 
 namespace blink {
@@ -1127,6 +1128,32 @@ TEST_P(PaintLayerTest, SubsequenceCachingSVG) {
   EXPECT_TRUE(foreign_object->SupportsSubsequenceCaching());
 }
 
+TEST_P(PaintLayerTest, ReplacedNormalFlowStackingVideoControlsIsNotStacked) {
+  SetBodyInnerHTML(R"HTML(
+    <video id="videoWithoutControls"></video>
+    <video id="video" controls></video>
+  )HTML");
+  auto* video_without_controls =
+      GetLayoutObjectByElementId("videoWithoutControls");
+  EXPECT_FALSE(video_without_controls->IsStackingContext());
+  EXPECT_FALSE(video_without_controls->IsStacked());
+
+  PaintLayer* video_layer = GetPaintLayerByElementId("video");
+  EXPECT_TRUE(video_layer->GetLayoutObject().IsStackingContext());
+  EXPECT_FALSE(video_layer->GetLayoutObject().IsStacked());
+  EXPECT_TRUE(video_layer->IsReplacedNormalFlowStackingContext());
+
+  GetDocument()
+      .getElementById(AtomicString("video"))
+      ->setAttribute(html_names::kStyleAttr,
+                     AtomicString("position: relative"));
+  UpdateAllLifecyclePhasesForTest();
+
+  video_layer = GetPaintLayerByElementId("video");
+  EXPECT_FALSE(video_layer->IsReplacedNormalFlowStackingContext());
+  EXPECT_TRUE(video_layer->GetLayoutObject().IsStacked());
+}
+
 TEST_P(PaintLayerTest, SubsequenceCachingMuticol) {
   SetBodyInnerHTML(R"HTML(
     <div style='columns: 2'>
@@ -1956,13 +1983,18 @@ TEST_P(PaintLayerTest, HitTestPseudoElementWithContinuation) {
     <span id='target'></span>
   )HTML");
   Element* target = GetDocument().getElementById(AtomicString("target"));
+  PseudoElement* before = target->GetPseudoElement(kPseudoIdBefore);
+  ScopedPseudoElementsHitTestableForTest scoped_feature(true);
   HitTestRequest request(HitTestRequest::kReadOnly | HitTestRequest::kActive);
   HitTestLocation location(PhysicalOffset(10, 10));
   HitTestResult result(request, location);
   GetDocument().GetLayoutView()->HitTest(location, result);
+  // InnerNodeForHitTesting() always resolves to the originating element so
+  // that selection and editing work correctly. The raw pseudo is stored in
+  // inner_possibly_pseudo_node_ and accessed via InnerPossiblyPseudoNode().
   EXPECT_EQ(target, result.InnerNode());
-  EXPECT_EQ(target->GetPseudoElement(kPseudoIdBefore),
-            result.InnerPossiblyPseudoNode());
+  EXPECT_EQ(before, result.InnerPossiblyPseudoNode());
+  EXPECT_EQ(before, result.InnerPossiblyPseudoElement());
 }
 
 TEST_P(PaintLayerTest, HitTestFirstLetterPseudoElement) {
@@ -2302,6 +2334,22 @@ TEST_P(PaintLayerTest, HitTestInfiniteHitTestAreaSmallScaleTransform) {
   }
 }
 
+TEST_P(PaintLayerTest, ReplacedNormalFlowStackingForeignObjectIsNotStacked) {
+  SetBodyInnerHTML(R"HTML(
+    <svg width="200" height="200">
+      <foreignObject id="foreignObject" width="100" height="100"></foreignObject>
+    </svg>
+  )HTML");
+
+  PaintLayer* foreign_object = GetPaintLayerByElementId("foreignObject");
+  LayoutBoxModelObject& layout_object = foreign_object->GetLayoutObject();
+
+  EXPECT_TRUE(foreign_object->IsReplacedNormalFlowStackingContext());
+  EXPECT_TRUE(layout_object.IsStackingContext());
+  EXPECT_FALSE(layout_object.IsStacked());
+  EXPECT_TRUE(layout_object.HasLayer());
+}
+
 TEST_P(PaintLayerTest, AddLayerNeedsRepaintAndCullRectUpdate) {
   SetBodyInnerHTML(R"HTML(
     <div id="parent" style="opacity: 0.9">
@@ -2637,7 +2685,11 @@ TEST_P(PaintLayerTest, HitTestScrollMarkerPseudoElement) {
   HitTestLocation location(PhysicalOffset(25, 20));
   HitTestResult result(request, location);
   GetDocument().GetLayoutView()->HitTest(location, result);
-  EXPECT_EQ(second_scroll_marker, result.InnerNode());
+  // InnerNodeForHitTesting() always resolves to the originating element to
+  // maintain the non-pseudo invariant on inner_node_. The pseudo itself is
+  // accessible via InnerPossiblyPseudoNode() for hover/dispatch purposes.
+  EXPECT_EQ(second_div, result.InnerNode());
+  EXPECT_EQ(second_scroll_marker, result.InnerPossiblyPseudoNode());
 
   MouseEvent& event = *MouseEvent::Create();
   event.SetType(event_type_names::kClick);

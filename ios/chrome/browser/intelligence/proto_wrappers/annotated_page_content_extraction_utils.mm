@@ -26,6 +26,7 @@ constexpr char kTextContentKey[] = "textContent";
 constexpr char kTextStyleKey[] = "textStyle";
 constexpr char kHasEmphasisKey[] = "hasEmphasis";
 constexpr char kTextSizeKey[] = "textSize";
+constexpr char kColorKey[] = "color";
 constexpr char kAnchorDataKey[] = "anchorData";
 constexpr char kUrlKey[] = "url";
 constexpr char kRelKey[] = "rel";
@@ -33,13 +34,68 @@ constexpr char kImageInfoKey[] = "imageInfo";
 constexpr char kImageCaptionKey[] = "imageCaption";
 constexpr char kAnnotatedRolesKey[] = "annotatedRoles";
 constexpr char kIframeDataKey[] = "iframeData";
+constexpr char kTableDataKey[] = "tableData";
+constexpr char kTableNameKey[] = "tableName";
+constexpr char kTableRowDataKey[] = "tableRowData";
+constexpr char kRowTypeKey[] = "rowType";
+constexpr char kCanvasDataKey[] = "canvasData";
+constexpr char kVideoDataKey[] = "videoData";
+constexpr char kLayoutSizeKey[] = "layoutSize";
+constexpr char kWidthKey[] = "width";
+constexpr char kHeightKey[] = "height";
 constexpr char kFrameTokenKey[] = "frameToken";
 constexpr char kTokenValueKey[] = "value";
 constexpr char kContentKey[] = "content";
 constexpr char kLocalFrameDataKey[] = "localFrameData";
 constexpr char kSourceURLKey[] = "sourceUrl";
 constexpr char kTitleKey[] = "title";
+constexpr char kContainsPaidContentKey[] = "containsPaidContent";
 constexpr char kChildrenNodesKey[] = "childrenNodes";
+constexpr char kDomNodeIdKey[] = "domNodeId";
+constexpr char kFrameInteractionInfoKey[] = "frameInteractionInfo";
+constexpr char kSelectionKey[] = "selection";
+constexpr char kStartDomNodeIdKey[] = "startDomNodeId";
+constexpr char kStartOffsetKey[] = "startOffset";
+constexpr char kEndDomNodeIdKey[] = "endDomNodeId";
+constexpr char kEndOffsetKey[] = "endOffset";
+constexpr char kSelectedTextKey[] = "selectedText";
+constexpr char kFocusedDomNodeIdKey[] = "focusedDomNodeId";
+constexpr char kDocumentIdKey[] = "documentId";
+constexpr char kFormControlDataKey[] = "formControlData";
+constexpr char kFormControlTypeKey[] = "formControlType";
+constexpr char kFieldNameKey[] = "fieldName";
+constexpr char kFieldValueKey[] = "fieldValue";
+constexpr char kSelectOptionsKey[] = "selectOptions";
+constexpr char kOptionValueKey[] = "value";
+constexpr char kOptionTextKey[] = "text";
+constexpr char kIsSelectedKey[] = "isSelected";
+constexpr char kIsDisabledKey[] = "disabled";
+constexpr char kPlaceholderKey[] = "placeholder";
+constexpr char kIsCheckedKey[] = "isChecked";
+constexpr char kIsRequiredKey[] = "isRequired";
+constexpr char kIsReadonlyKey[] = "isReadonly";
+constexpr char kRedactionDecisionKey[] = "redactionDecision";
+constexpr char kFormDataKey[] = "formData";
+constexpr char kFormNameKey[] = "formName";
+constexpr char kFormActionUrlKey[] = "actionUrl";
+constexpr char kNodeInteractionInfoKey[] = "nodeInteractionInfo";
+constexpr char kScrollerInfoKey[] = "scrollerInfo";
+constexpr char kScrollingBoundsKey[] = "scrollingBounds";
+constexpr char kVisibleAreaKey[] = "visibleArea";
+constexpr char kUserScrollableHorizontalKey[] = "userScrollableHorizontal";
+constexpr char kUserScrollableVerticalKey[] = "userScrollableVertical";
+constexpr char kXKey[] = "x";
+constexpr char kYKey[] = "y";
+constexpr char kIsFocusableKey[] = "isFocusable";
+constexpr char kClickabilityReasonsKey[] = "clickabilityReasons";
+constexpr char kInteractionDisabledReasonsKey[] = "interactionDisabledReasons";
+constexpr char kIsDisabledInteractionKey[] = "isDisabled";
+constexpr char kMediaDataKey[] = "mediaData";
+constexpr char kMediaDataTypeKey[] = "mediaDataType";
+constexpr char kDurationMillisecondsKey[] = "durationMilliseconds";
+constexpr char kCurrentPositionMillisecondsKey[] =
+    "currentPositionMilliseconds";
+constexpr char kIsPlayingKey[] = "isPlaying";
 
 // Reads a JS number (double) from a `dict` stored under `key`.
 std::optional<int> ReadJsNumber(const base::DictValue& dict, const char* key) {
@@ -85,6 +141,13 @@ void PopulateTextData(
           ->set_text_size(
               static_cast<optimization_guide::proto::TextSize>(*text_size));
     }
+
+    if (std::optional<int> color = ReadJsNumber(*text_style, kColorKey)) {
+      destination_node->mutable_content_attributes()
+          ->mutable_text_data()
+          ->mutable_text_style()
+          ->set_color(static_cast<uint32_t>(*color));
+    }
   }
 }
 
@@ -125,6 +188,68 @@ void PopulateImageData(
   }
 }
 
+// Populates the canvas data of the `destination_node` from the
+// `canvas_data` content.
+void PopulateCanvasData(
+    const base::DictValue& canvas_data,
+    optimization_guide::proto::ContentNode* destination_node) {
+  if (const base::DictValue* layout_size =
+          canvas_data.FindDict(kLayoutSizeKey)) {
+    if (std::optional<int> width = ReadJsNumber(*layout_size, kWidthKey)) {
+      destination_node->mutable_content_attributes()
+          ->mutable_canvas_data()
+          ->set_layout_width(*width);
+    }
+    if (std::optional<int> height = ReadJsNumber(*layout_size, kHeightKey)) {
+      destination_node->mutable_content_attributes()
+          ->mutable_canvas_data()
+          ->set_layout_height(*height);
+    }
+  }
+}
+
+// Populates the video data of the `destination_node` from the
+// `video_data` content.
+void PopulateVideoData(
+    const base::DictValue& video_data,
+    optimization_guide::proto::ContentNode* destination_node) {
+  if (const std::string* url = video_data.FindString(kUrlKey)) {
+    destination_node->mutable_content_attributes()
+        ->mutable_video_data()
+        ->set_url(*url);
+  }
+}
+
+// Populates `destination_frame_data`'s media data from the `media_data`
+// content.
+void PopulateMediaData(
+    const base::DictValue& media_data,
+    optimization_guide::proto::FrameData* destination_frame_data) {
+  optimization_guide::proto::MediaData* media_data_proto =
+      destination_frame_data->mutable_media_data();
+
+  if (std::optional<int> media_type =
+          ReadJsNumber(media_data, kMediaDataTypeKey)) {
+    if (optimization_guide::proto::MediaDataType_IsValid(*media_type)) {
+      media_data_proto->set_media_data_type(
+          static_cast<optimization_guide::proto::MediaDataType>(*media_type));
+    }
+  }
+
+  if (std::optional<int> duration =
+          ReadJsNumber(media_data, kDurationMillisecondsKey)) {
+    media_data_proto->set_duration_milliseconds(*duration);
+  }
+
+  if (std::optional<int> position =
+          ReadJsNumber(media_data, kCurrentPositionMillisecondsKey)) {
+    media_data_proto->set_current_position_milliseconds(*position);
+  }
+
+  media_data_proto->set_is_playing(
+      media_data.FindBool(kIsPlayingKey).value_or(false));
+}
+
 // Populates `destination_frame_data` from the `local_frame_data` content.
 void PopulateFrameData(
     const base::DictValue& local_frame_data,
@@ -146,6 +271,62 @@ void PopulateFrameData(
   if (const std::string* title_ptr = local_frame_data.FindString(kTitleKey)) {
     destination_frame_data->set_title(*title_ptr);
   }
+
+  std::optional<bool> contains_paid_content =
+      local_frame_data.FindBool(kContainsPaidContentKey);
+  if (contains_paid_content && *contains_paid_content) {
+    destination_frame_data->mutable_paid_content_metadata()
+        ->set_contains_paid_content(true);
+  }
+
+  const base::DictValue* interaction_info_dict =
+      local_frame_data.FindDict(kFrameInteractionInfoKey);
+  if (interaction_info_dict) {
+    const base::DictValue* selection_dict =
+        interaction_info_dict->FindDict(kSelectionKey);
+    if (selection_dict) {
+      optimization_guide::proto::Selection* selection =
+          destination_frame_data->mutable_frame_interaction_info()
+              ->mutable_selection();
+
+      if (std::optional<int> start_node_id =
+              ReadJsNumber(*selection_dict, kStartDomNodeIdKey)) {
+        selection->set_start_node_id(*start_node_id);
+      }
+
+      if (std::optional<int> start_offset =
+              ReadJsNumber(*selection_dict, kStartOffsetKey)) {
+        selection->set_start_offset(*start_offset);
+      }
+
+      if (std::optional<int> end_node_id =
+              ReadJsNumber(*selection_dict, kEndDomNodeIdKey)) {
+        selection->set_end_node_id(*end_node_id);
+      }
+
+      if (std::optional<int> end_offset =
+              ReadJsNumber(*selection_dict, kEndOffsetKey)) {
+        selection->set_end_offset(*end_offset);
+      }
+
+      if (const std::string* selected_text =
+              selection_dict->FindString(kSelectedTextKey)) {
+        selection->set_selected_text(*selected_text);
+      }
+    }
+  }
+
+  const std::string* document_id_ptr =
+      local_frame_data.FindString(kDocumentIdKey);
+  if (document_id_ptr && !document_id_ptr->empty()) {
+    destination_frame_data->mutable_document_identifier()->set_serialized_token(
+        *document_id_ptr);
+  }
+
+  if (const base::DictValue* media_data =
+          local_frame_data.FindDict(kMediaDataKey)) {
+    PopulateMediaData(*media_data, destination_frame_data);
+  }
 }
 
 // Populates the iframe data of the `destination_node` from the
@@ -166,6 +347,211 @@ void PopulateIframeData(
   }
 }
 
+// Populates the table data of the `destination_node` from the
+// `table_data` content.
+void PopulateTableData(
+    const base::DictValue& table_data,
+    optimization_guide::proto::ContentNode* destination_node) {
+  if (const std::string* table_name = table_data.FindString(kTableNameKey)) {
+    destination_node->mutable_content_attributes()
+        ->mutable_table_data()
+        ->set_table_name(*table_name);
+  }
+}
+
+// Populates the table row data of the `destination_node` from the
+// `table_row_data` content.
+void PopulateTableRowData(
+    const base::DictValue& table_row_data,
+    optimization_guide::proto::ContentNode* destination_node) {
+  if (std::optional<int> row_type = ReadJsNumber(table_row_data, kRowTypeKey)) {
+    if (optimization_guide::proto::TableRowType_IsValid(*row_type)) {
+      destination_node->mutable_content_attributes()
+          ->mutable_table_row_data()
+          ->set_type(
+              static_cast<optimization_guide::proto::TableRowType>(*row_type));
+    }
+  }
+}
+
+// Populates the form control data of the `destination_node` from the
+// `form_control_data` content.
+void PopulateFormControlData(
+    const base::DictValue& form_control_data,
+    optimization_guide::proto::ContentNode* destination_node) {
+  optimization_guide::proto::FormControlData* proto_form_control_data =
+      destination_node->mutable_content_attributes()
+          ->mutable_form_control_data();
+
+  if (std::optional<int> form_control_type =
+          ReadJsNumber(form_control_data, kFormControlTypeKey)) {
+    if (optimization_guide::proto::FormControlType_IsValid(
+            *form_control_type)) {
+      proto_form_control_data->set_form_control_type(
+          static_cast<optimization_guide::proto::FormControlType>(
+              *form_control_type));
+    }
+  }
+
+  if (const std::string* field_name =
+          form_control_data.FindString(kFieldNameKey)) {
+    proto_form_control_data->set_field_name(*field_name);
+  }
+
+  if (const std::string* field_value =
+          form_control_data.FindString(kFieldValueKey)) {
+    proto_form_control_data->set_field_value(*field_value);
+  }
+
+  if (const std::string* placeholder =
+          form_control_data.FindString(kPlaceholderKey)) {
+    proto_form_control_data->set_placeholder(*placeholder);
+  }
+
+  proto_form_control_data->set_is_checked(
+      form_control_data.FindBool(kIsCheckedKey).value_or(false));
+
+  proto_form_control_data->set_is_required(
+      form_control_data.FindBool(kIsRequiredKey).value_or(false));
+
+  if (form_control_data.FindBool(kIsReadonlyKey).value_or(false)) {
+    // Temporarily map readonly to disabled. This is a lossy workaround that
+    // preserves "do not edit" intent for consumers that only read proto data.
+    // TODO(crbug.com/481361478): Add readonly field to FormControlData proto.
+    destination_node->mutable_content_attributes()
+        ->mutable_interaction_info()
+        ->set_is_disabled(true);
+  }
+
+  if (std::optional<int> redaction_decision =
+          ReadJsNumber(form_control_data, kRedactionDecisionKey)) {
+    if (optimization_guide::proto::RedactionDecision_IsValid(
+            *redaction_decision)) {
+      proto_form_control_data->set_redaction_decision(
+          static_cast<optimization_guide::proto::RedactionDecision>(
+              *redaction_decision));
+    }
+  }
+
+  if (const base::ListValue* select_options =
+          form_control_data.FindList(kSelectOptionsKey)) {
+    for (const base::Value& option_value : *select_options) {
+      if (option_value.is_dict()) {
+        const base::DictValue* option_dict = &option_value.GetDict();
+        optimization_guide::proto::SelectOption* proto_select_option =
+            proto_form_control_data->add_select_options();
+
+        if (const std::string* value =
+                option_dict->FindString(kOptionValueKey)) {
+          proto_select_option->set_value(*value);
+        }
+        if (const std::string* text = option_dict->FindString(kOptionTextKey)) {
+          proto_select_option->set_text(*text);
+        }
+        proto_select_option->set_is_selected(
+            option_dict->FindBool(kIsSelectedKey).value_or(false));
+        proto_select_option->set_is_disabled(
+            option_dict->FindBool(kIsDisabledKey).value_or(false));
+      }
+    }
+  }
+}
+
+// Populates the form data of the `destination_node` from the `form_data`
+// content.
+void PopulateFormInfo(
+    const base::DictValue& form_data,
+    optimization_guide::proto::ContentNode* destination_node) {
+  optimization_guide::proto::FormInfo* proto_form_info =
+      destination_node->mutable_content_attributes()->mutable_form_data();
+
+  if (const std::string* form_name = form_data.FindString(kFormNameKey)) {
+    proto_form_info->set_form_name(*form_name);
+  }
+
+  if (const std::string* action_url = form_data.FindString(kFormActionUrlKey)) {
+    proto_form_info->set_action_url(*action_url);
+  }
+}
+
+// Populates the `destination_node` with the `node_interaction_data` content.
+void PopulateNodeInteractionInfo(
+    const base::DictValue& node_interaction_data,
+    optimization_guide::proto::ContentNode* destination_node) {
+  auto* info_proto = destination_node->mutable_content_attributes()
+                         ->mutable_interaction_info();
+
+  // Scroller Info.
+  if (const base::DictValue* scroller_info =
+          node_interaction_data.FindDict(kScrollerInfoKey)) {
+    auto* scroller_proto = info_proto->mutable_scroller_info();
+    if (const base::DictValue* bounds =
+            scroller_info->FindDict(kScrollingBoundsKey)) {
+      if (std::optional<int> width = ReadJsNumber(*bounds, kWidthKey)) {
+        scroller_proto->mutable_scrolling_bounds()->set_width(*width);
+      }
+      if (std::optional<int> height = ReadJsNumber(*bounds, kHeightKey)) {
+        scroller_proto->mutable_scrolling_bounds()->set_height(*height);
+      }
+    }
+    if (const base::DictValue* visible_area =
+            scroller_info->FindDict(kVisibleAreaKey)) {
+      auto* rect = scroller_proto->mutable_visible_area();
+      if (std::optional<int> x = ReadJsNumber(*visible_area, kXKey)) {
+        rect->set_x(*x);
+      }
+      if (std::optional<int> y = ReadJsNumber(*visible_area, kYKey)) {
+        rect->set_y(*y);
+      }
+      if (std::optional<int> width = ReadJsNumber(*visible_area, kWidthKey)) {
+        rect->set_width(*width);
+      }
+      if (std::optional<int> height = ReadJsNumber(*visible_area, kHeightKey)) {
+        rect->set_height(*height);
+      }
+    }
+    scroller_proto->set_user_scrollable_horizontal(
+        scroller_info->FindBool(kUserScrollableHorizontalKey).value_or(false));
+    scroller_proto->set_user_scrollable_vertical(
+        scroller_info->FindBool(kUserScrollableVerticalKey).value_or(false));
+  }
+
+  // Focusable.
+  info_proto->set_is_focusable(
+      node_interaction_data.FindBool(kIsFocusableKey).value_or(false));
+
+  // Clickability Reasons.
+  if (const base::ListValue* reasons =
+          node_interaction_data.FindList(kClickabilityReasonsKey)) {
+    for (const auto& reason : *reasons) {
+      if (std::optional<int> r = ReadJsNumber(reason)) {
+        if (optimization_guide::proto::ClickabilityReason_IsValid(*r)) {
+          info_proto->add_clickability_reasons(
+              static_cast<optimization_guide::proto::ClickabilityReason>(*r));
+        }
+      }
+    }
+  }
+
+  // Disabled.
+  info_proto->set_is_disabled(
+      node_interaction_data.FindBool(kIsDisabledInteractionKey)
+          .value_or(false));
+
+  // Disabled Reasons.
+  if (const base::ListValue* disabled_reasons =
+          node_interaction_data.FindList(kInteractionDisabledReasonsKey)) {
+    for (const auto& reason : *disabled_reasons) {
+      if (std::optional<int> r = ReadJsNumber(reason)) {
+        if (optimization_guide::proto::InteractionDisabledReason_IsValid(*r)) {
+          info_proto->add_interaction_disabled_reasons(
+              static_cast<optimization_guide::proto::InteractionDisabledReason>(
+                  *r));
+        }
+      }
+    }
+  }
+}
 }  // namespace
 
 void PopulateAPCNodeFromContentTree(
@@ -183,6 +569,13 @@ void PopulateAPCNodeFromContentTree(
   // A node must have content attribute to be populated.
   if (!content_attributes) {
     return;
+  }
+
+  // Handle DOM Node ID.
+  if (std::optional<int> dom_node_id =
+          ReadJsNumber(*content_attributes, kDomNodeIdKey)) {
+    destination_node->mutable_content_attributes()
+        ->set_common_ancestor_dom_node_id(*dom_node_id);
   }
 
   // Populate the attribute type.
@@ -226,11 +619,23 @@ void PopulateAPCNodeFromContentTree(
       }
       break;
     }
+    case optimization_guide::proto::CONTENT_ATTRIBUTE_CANVAS: {
+      if (const base::DictValue* canvas_data =
+              content_attributes->FindDict(kCanvasDataKey)) {
+        PopulateCanvasData(*canvas_data, destination_node);
+      }
+      break;
+    }
+    case optimization_guide::proto::CONTENT_ATTRIBUTE_VIDEO: {
+      if (const base::DictValue* video_data =
+              content_attributes->FindDict(kVideoDataKey)) {
+        PopulateVideoData(*video_data, destination_node);
+      }
+      break;
+    }
     case optimization_guide::proto::CONTENT_ATTRIBUTE_IFRAME: {
-      const base::DictValue* iframe_data =
-          content_attributes->FindDict(kIframeDataKey);
-
-      if (iframe_data) {
+      if (const base::DictValue* iframe_data =
+              content_attributes->FindDict(kIframeDataKey)) {
         // TODO(crbug.com/464473686): Record anomaly if there is a remote token
         // and children for an iframe node (which has content attribute of type
         // iframe and a number of children nodes > 0); those 2 should be
@@ -255,8 +660,47 @@ void PopulateAPCNodeFromContentTree(
       }
       break;
     }
+    case optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE: {
+      const base::DictValue* table_data =
+          content_attributes->FindDict(kTableDataKey);
+      if (table_data) {
+        PopulateTableData(*table_data, destination_node);
+      }
+      break;
+    }
+    case optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE_ROW: {
+      const base::DictValue* table_row_data =
+          content_attributes->FindDict(kTableRowDataKey);
+      if (table_row_data) {
+        PopulateTableRowData(*table_row_data, destination_node);
+      }
+      break;
+    }
+    case optimization_guide::proto::CONTENT_ATTRIBUTE_FORM: {
+      const base::DictValue* form_data =
+          content_attributes->FindDict(kFormDataKey);
+      if (form_data) {
+        PopulateFormInfo(*form_data, destination_node);
+      }
+      break;
+    }
+    case optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL: {
+      const base::DictValue* form_control_data =
+          content_attributes->FindDict(kFormControlDataKey);
+      if (form_control_data) {
+        PopulateFormControlData(*form_control_data, destination_node);
+      }
+      break;
+    }
     default:
       break;
+  }
+
+  // Handle Interaction Info.
+  const base::DictValue* interaction_info =
+      content_attributes->FindDict(kNodeInteractionInfoKey);
+  if (interaction_info) {
+    PopulateNodeInteractionInfo(*interaction_info, destination_node);
   }
 
   // Handle Annotated Role.
@@ -292,4 +736,41 @@ void PopulateFrameDataNode(
     optimization_guide::proto::FrameData* destination_frame_data_node) {
   CHECK(destination_frame_data_node);
   PopulateFrameData(frame_data_content, destination_frame_data_node, origin);
+}
+
+// Populates `page_interaction_info_node` from the
+// `page_interaction_info_content` content.
+void PopulatePageInteractionInfoNode(
+    const base::DictValue& page_interaction_info_content,
+    optimization_guide::proto::PageInteractionInfo*
+        destination_page_interaction_info_node) {
+  CHECK_EQ(destination_page_interaction_info_node->ByteSizeLong(), 0u);
+  if (std::optional<int> focused_node_id =
+          ReadJsNumber(page_interaction_info_content, kFocusedDomNodeIdKey)) {
+    destination_page_interaction_info_node->set_focused_node_id(
+        *focused_node_id);
+  }
+}
+
+void PopulateViewportGeometryNode(
+    const base::DictValue& viewport_geometry_content,
+    optimization_guide::proto::BoundingRect*
+        destination_viewport_geometry_node) {
+  // Check that the destination node is only populated once.
+  CHECK_EQ(destination_viewport_geometry_node->ByteSizeLong(), 0u);
+
+  if (std::optional<int> x = ReadJsNumber(viewport_geometry_content, kXKey)) {
+    destination_viewport_geometry_node->set_x(*x);
+  }
+  if (std::optional<int> y = ReadJsNumber(viewport_geometry_content, kYKey)) {
+    destination_viewport_geometry_node->set_y(*y);
+  }
+  if (std::optional<int> width =
+          ReadJsNumber(viewport_geometry_content, kWidthKey)) {
+    destination_viewport_geometry_node->set_width(*width);
+  }
+  if (std::optional<int> height =
+          ReadJsNumber(viewport_geometry_content, kHeightKey)) {
+    destination_viewport_geometry_node->set_height(*height);
+  }
 }

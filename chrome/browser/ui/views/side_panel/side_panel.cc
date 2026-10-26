@@ -14,17 +14,17 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
+#include "chrome/browser/ui/side_panel/side_panel_metrics.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/themed_background.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_animation_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_animation_ids.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_resize_area.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/lens/lens_features.h"
@@ -32,6 +32,7 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "third_party/skia/include/core/SkRRect.h"
+#include "ui/base/interaction/element_tracker.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/ui_base_features.h"
@@ -49,6 +50,7 @@
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/separator.h"
+#include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/layout_provider.h"
@@ -84,12 +86,10 @@ SidePanel::HorizontalAlignment GetHorizontalAlignment(
     bool use_default_horizontal_alignment) {
   bool is_right_aligned =
       pref_service->GetBoolean(prefs::kSidePanelHorizontalAlignment);
-  is_right_aligned = type == SidePanelEntry::PanelType::kToolbar
-                         ? !is_right_aligned
-                         : is_right_aligned;
-  return is_right_aligned == use_default_horizontal_alignment
-             ? SidePanel::HorizontalAlignment::kRight
-             : SidePanel::HorizontalAlignment::kLeft;
+  is_right_aligned =
+      use_default_horizontal_alignment ? is_right_aligned : !is_right_aligned;
+  return is_right_aligned ? SidePanel::HorizontalAlignment::kRight
+                          : SidePanel::HorizontalAlignment::kLeft;
 }
 
 // This border paints the toolbar color around the side panel content and draws
@@ -298,6 +298,14 @@ class ContentParentView : public views::View, public views::ViewObserver {
       views::AsViewClass<views::WebView>(child)->holder()->SetCornerRadii(
           GetRoundedCorners());
     }
+    // Try to detect if the child is a views::View wrapper of a WebView. If so,
+    // round its corners.
+    if (child->children().size() == 1 &&
+        views::IsViewClass<views::WebView>(child->children()[0])) {
+      views::AsViewClass<views::WebView>(child->children()[0])
+          ->holder()
+          ->SetCornerRadii(GetRoundedCorners());
+    }
     if (child->layer()) {
       child->layer()->SetIsFastRoundedCorner(true);
       child->layer()->SetRoundedCornerRadius(GetRoundedCorners());
@@ -328,6 +336,8 @@ BEGIN_METADATA(ContentParentView)
 END_METADATA
 
 }  // namespace
+
+DEFINE_CLASS_CUSTOM_ELEMENT_EVENT_TYPE(SidePanel, kOpenAnimationCompletedEvent);
 
 class SidePanel::BorderView : public views::View {
   METADATA_HEADER(BorderView, views::View)
@@ -679,9 +689,8 @@ double SidePanel::GetAnimationValue() const {
   return GetAnimationValueFor(kSidePanelBoundsAnimation);
 }
 
-void SidePanel::OnAnimationSequenceProgressed(
-    const SidePanelAnimationCoordinator::SidePanelAnimationId& animation_id,
-    double animation_value) {
+void SidePanel::OnAnimationSequenceProgressed(SidePanelAnimationId animation_id,
+                                              double animation_value) {
   if (animation_id == kSidePanelBoundsAnimation) {
     if (last_animation_values_[animation_id] != animation_value) {
       last_animation_values_[animation_id] = animation_value;
@@ -716,6 +725,8 @@ void SidePanel::OnAnimationTypeEnded(
       [[fallthrough]];
     case SidePanelAnimationCoordinator::AnimationType::kOpen:
       state_ = State::kOpen;
+      views::ElementTrackerViews::GetInstance()->NotifyCustomEvent(
+          kOpenAnimationCompletedEvent, this);
       break;
     case SidePanelAnimationCoordinator::AnimationType::kClose:
       state_ = State::kClosed;
@@ -787,7 +798,7 @@ void SidePanel::RecordMetricsIfResized() {
 
     int side_panel_contents_width = width() - GetBorderInsets().width();
     int browser_window_width = browser_view_->width();
-    SidePanelUtil::RecordSidePanelResizeMetrics(
+    SidePanelMetrics::RecordSidePanelResizeMetrics(
         type_, id.value(), side_panel_contents_width, browser_window_width);
     did_resize_ = false;
   }
@@ -903,8 +914,7 @@ void SidePanel::UpdateVisibility(bool should_be_open, bool animate_transition) {
 }
 
 double SidePanel::GetAnimationValueFor(
-    const SidePanelAnimationCoordinator::SidePanelAnimationId& animation_id)
-    const {
+    SidePanelAnimationId animation_id) const {
   if (ShouldShowAnimation()) {
     return animation_coordinator_->GetAnimationValueFor(animation_id);
   } else {
@@ -919,7 +929,8 @@ bool SidePanel::ShouldShowAnimation() const {
   // Don't show open/close animations for the toolbar height panel on Windows
   // due to jank. The "show from" animation should still run which is the only
   // time |content_starting_bounds_| has a value.
-  if (type_ == SidePanelEntry::PanelType::kToolbar) {
+  if (type_ == SidePanelEntry::PanelType::kToolbar &&
+      !features::UseSidePanelFlyoverAnimation()) {
     should_show_animations &= content_starting_bounds_.has_value();
   }
 #endif

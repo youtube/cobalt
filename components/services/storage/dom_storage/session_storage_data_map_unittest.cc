@@ -16,14 +16,15 @@
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_expected_support.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/with_feature_override.h"
 #include "base/trace_event/memory_allocator_dump_guid.h"
 #include "components/services/storage/dom_storage/async_dom_storage_database.h"
+#include "components/services/storage/dom_storage/db_status.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
 #include "components/services/storage/dom_storage/features.h"
 #include "components/services/storage/dom_storage/test_support/dom_storage_database_testing.h"
-#include "storage/common/database/db_status.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -86,6 +87,14 @@ class SessionStorageDataMapTest : public base::test::WithFeatureOverride,
  public:
   SessionStorageDataMapTest()
       : base::test::WithFeatureOverride(kDomStorageSqlite) {
+    // Match the state of `kDomStorageSqliteInMemory` to the top level
+    // kDomStorageSqlite. That way in-memory databases will use the backend
+    // expected by the param state.
+    if (GetParam()) {
+      feature_list_.InitAndEnableFeature(kDomStorageSqliteInMemory);
+    } else {
+      feature_list_.InitAndDisableFeature(kDomStorageSqliteInMemory);
+    }
     // Create an in-memory database.
     base::RunLoop loop;
     database_ = AsyncDomStorageDatabase::Open(
@@ -123,6 +132,7 @@ class SessionStorageDataMapTest : public base::test::WithFeatureOverride,
   }
 
  protected:
+  base::test::ScopedFeatureList feature_list_;
   const DomStorageDatabase::Key kKey1 = MakeBytes("key1");
   const DomStorageDatabase::Value kValue1 = MakeBytes("data1");
   const DomStorageDatabase::Value kValue3 = MakeBytes("data3");

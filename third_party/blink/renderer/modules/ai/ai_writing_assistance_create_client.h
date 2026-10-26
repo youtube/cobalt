@@ -158,6 +158,12 @@ class AIWritingAssistanceCreateClient
             kExceptionMessageUnsupportedLanguages);
         break;
       }
+      case AIManagerCreateClientError::kUnsupportedPerformancePreference: {
+        this->GetResolver()->RejectWithDOMException(
+            DOMExceptionCode::kNotSupportedError,
+            kExceptionMessageUnsupportedPerformancePreference);
+        break;
+      }
     }
   }
 
@@ -181,7 +187,7 @@ class AIWritingAssistanceCreateClient
     auto availability = ConvertModelAvailabilityCheckResult(result);
     if (availability == Availability::kUnavailable) {
       this->GetResolver()->RejectWithDOMException(
-          DOMExceptionCode::kNotAllowedError,
+          DOMExceptionCode::kNotSupportedError,
           ConvertModelAvailabilityCheckResultToDebugString(result));
       return;
     }

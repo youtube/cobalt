@@ -9,6 +9,7 @@
 #import "components/omnibox/browser/omnibox_pref_names.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_browser_agent.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
+#import "ios/chrome/browser/infobars/model/infobar_badge_tab_helper.h"
 #import "ios/chrome/browser/infobars/model/infobar_manager_impl.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent_observer.h"
@@ -43,6 +44,7 @@
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/fullscreen/toolbars_size_browser_agent.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/toolbar_type.h"
 #import "ios/chrome/browser/web/model/web_view_proxy/web_view_proxy_tab_helper.h"
+#import "ios/chrome/test/app/uikit_test_util.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/fakes/fake_navigation_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
@@ -232,13 +234,15 @@ TEST_F(ToolbarCoordinatorTest, SideSwipeSnapshotForToolbarNotInHierarchy) {
   InfoBarManagerImpl::CreateForWebState(web_state);
   OfflinePageTabHelper::CreateForWebState(
       web_state, ReadingListModelFactory::GetForProfile(profile_.get()));
+  InfobarBadgeTabHelper::CreateForWebState(web_state);
 
   browser_->GetWebStateList()->InsertWebState(
       std::move(test_web_state),
       WebStateList::InsertionParams::AtIndex(0).Activate());
 
   // Add the coordinator's view to a window to ensure it has a window property.
-  UIWindow* window = [[UIWindow alloc] init];
+  UIWindow* window = [[UIWindow alloc]
+      initWithWindowScene:chrome_test_util::GetAnyWindowScene()];
   [window addSubview:coordinator_.baseViewController.view];
 
   // Remove the primary toolbar from the view hierarchy to simulate the race

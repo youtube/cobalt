@@ -13,12 +13,11 @@
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_registry.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/common/extensions/api/side_panel.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
@@ -292,6 +291,11 @@ void ExtensionSidePanelCoordinator::OnEntryShown(SidePanelEntry* entry) {
   // Store the current `window_id_`. if the window later closes, the browser may
   // no longer be retrievable.
   window_id_ = ExtensionTabUtil::GetWindowId(GetBrowser());
+
+  // Focus on the host's view when the side panel is first shown.
+  if (host_ && host_->host_contents()) {
+    host_->host_contents()->Focus();
+  }
 }
 
 // There are three scenarios that trigger OnClosed():

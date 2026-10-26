@@ -16,14 +16,14 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 #include "modules/audio_processing/aec3/aec_state.h"
 #include "modules/audio_processing/aec3/block.h"
-#include "modules/audio_processing/aec3/moving_average.h"
+#include "modules/audio_processing/aec3/moving_average_spectrum.h"
 #include "modules/audio_processing/aec3/nearend_detector.h"
 #include "modules/audio_processing/aec3/render_signal_analyzer.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
@@ -42,13 +42,13 @@ class SuppressionGain {
   SuppressionGain& operator=(const SuppressionGain&) = delete;
 
   void GetGain(
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>> nearend_spectrum,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>> echo_spectrum,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>>
+      std::span<const std::array<float, kFftLengthBy2Plus1>> nearend_spectrum,
+      std::span<const std::array<float, kFftLengthBy2Plus1>> echo_spectrum,
+      std::span<const std::array<float, kFftLengthBy2Plus1>>
           residual_echo_spectrum,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>>
+      std::span<const std::array<float, kFftLengthBy2Plus1>>
           residual_echo_spectrum_unbounded,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>>
+      std::span<const std::array<float, kFftLengthBy2Plus1>>
           comfort_noise_spectrum,
       const RenderSignalAnalyzer& render_signal_analyzer,
       const AecState& aec_state,
@@ -67,8 +67,8 @@ class SuppressionGain {
  private:
   // Computes the gain to apply for the bands beyond the first band.
   float UpperBandsGain(
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>> echo_spectrum,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>>
+      std::span<const std::array<float, kFftLengthBy2Plus1>> echo_spectrum,
+      std::span<const std::array<float, kFftLengthBy2Plus1>>
           comfort_noise_spectrum,
       const std::optional<int>& narrow_peak_band,
       bool saturated_echo,
@@ -83,20 +83,20 @@ class SuppressionGain {
   void LowerBandGain(
       bool stationary_with_low_power,
       const AecState& aec_state,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>> suppressor_input,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>> residual_echo,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>> comfort_noise,
+      std::span<const std::array<float, kFftLengthBy2Plus1>> suppressor_input,
+      std::span<const std::array<float, kFftLengthBy2Plus1>> residual_echo,
+      std::span<const std::array<float, kFftLengthBy2Plus1>> comfort_noise,
       bool clock_drift,
       std::array<float, kFftLengthBy2Plus1>* gain);
 
-  void GetMinGain(ArrayView<const float> weighted_residual_echo,
-                  ArrayView<const float> last_nearend,
-                  ArrayView<const float> last_echo,
+  void GetMinGain(std::span<const float> weighted_residual_echo,
+                  std::span<const float> last_nearend,
+                  std::span<const float> last_echo,
                   bool low_noise_render,
                   bool saturated_echo,
-                  ArrayView<float> min_gain) const;
+                  std::span<float> min_gain) const;
 
-  void GetMaxGain(ArrayView<float> max_gain) const;
+  void GetMaxGain(std::span<float> max_gain) const;
 
   class LowNoiseRenderDetector {
    public:
@@ -130,7 +130,7 @@ class SuppressionGain {
   LowNoiseRenderDetector low_render_detector_;
   bool initial_state_ = true;
   int initial_state_change_counter_ = 0;
-  std::vector<aec3::MovingAverage> nearend_smoothers_;
+  std::vector<MovingAverageSpectrum> nearend_smoothers_;
   const GainParameters nearend_params_;
   const GainParameters normal_params_;
   // Determines if the dominant nearend detector uses the unbounded residual

@@ -46,15 +46,18 @@ void CreateAndAddProjectorHTMLSource(content::WebUI* web_ui,
   // needed to allow the post message api.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src 'self' chrome-untrusted://resources;");
+      "script-src 'self' chrome-untrusted://resources "
+      "chrome-untrusted://webui-test;");
   // Allow fonts.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::FontSrc,
       "font-src https://fonts.gstatic.com;");
-  // Allow styles to include inline styling needed for Polymer elements.
+  // Allow styles to include inline styling needed for Polymer elements and
+  // the material 3 dynamic palette.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::StyleSrc,
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;");
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com "
+      "chrome-untrusted://theme;");
   std::string mediaCSP =
       std::string("media-src 'self' https://*.drive.google.com ") +
       kChromeUIUntrustedProjectorPwaUrl + " blob:;";
@@ -70,11 +73,6 @@ void CreateAndAddProjectorHTMLSource(content::WebUI* web_ui,
       network::mojom::CSPDirectiveName::ConnectSrc,
       "connect-src 'self' https://www.googleapis.com "
       "https://drive.google.com;");
-  // Allow styles to include inline styling needed for Polymer elements and
-  // the material 3 dynamic palette.
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::StyleSrc,
-      "style-src 'self' 'unsafe-inline' chrome-untrusted://theme;");
 
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::TrustedTypes,

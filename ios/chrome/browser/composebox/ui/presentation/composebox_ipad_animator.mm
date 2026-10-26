@@ -5,6 +5,8 @@
 #import "ios/chrome/browser/composebox/ui/presentation/composebox_ipad_animator.h"
 
 #import "base/time/time.h"
+#import "ios/chrome/browser/composebox/coordinator/composebox_constants.h"
+#import "ios/chrome/browser/composebox/ui/composebox_ui_constants.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
 
@@ -41,32 +43,42 @@ base::TimeDelta kAnimationDuration = base::Seconds(0.3);
     CGRect finalFrame =
         [transitionContext finalFrameForViewController:toViewController];
     CGRect initialFrame = omniboxFrame;
+    if (self.shouldUseLargeLayout) {
+      initialFrame = CGRectMake(
+          omniboxFrame.origin.x - kComposeboxOmniboxLayoutGuideHorizontalMargin,
+          omniboxFrame.origin.y,
+          omniboxFrame.size.width + kInputPlateMargin * 2,
+          omniboxFrame.size.height);
+    }
+
     toViewController.view.frame = initialFrame;
 
-    [UIView animateWithDuration:[self transitionDuration:transitionContext]
+    BOOL showAIMode = self.showAIMode;
+    __weak ComposeboxiPadAnimator* weakSelf = self;
+    [UIView
+        animateKeyframesWithDuration:[self transitionDuration:transitionContext]
         delay:0
-        usingSpringWithDamping:0.8
-        initialSpringVelocity:0
-        options:UIViewAnimationOptionCurveEaseInOut
+        options:UIViewAnimationCurveEaseInOut
         animations:^{
           toViewController.view.alpha = 1;
           toViewController.view.frame = finalFrame;
+          if (showAIMode) {
+            [UIView addKeyframeWithRelativeStartTime:0.5
+                                    relativeDuration:0.5
+                                          animations:^{
+                                            [weakSelf.delegate
+                                                setComposeboxMode:
+                                                    ComposeboxMode::kAIM];
+                                          }];
+          }
         }
         completion:^(BOOL finished) {
           [transitionContext completeTransition:finished];
         }];
-
   } else {
-    LayoutGuideCenter* layoutGuideCenter = self.layoutGuideCenter;
-    UIView* topOmnibox =
-        [layoutGuideCenter referencedViewUnderName:kTopOmniboxGuide];
-    CGRect omniboxFrame = [topOmnibox convertRect:topOmnibox.bounds
-                                           toView:containerView];
-
     [UIView animateWithDuration:[self transitionDuration:transitionContext]
         animations:^{
           fromViewController.view.alpha = 0;
-          fromViewController.view.frame = omniboxFrame;
         }
         completion:^(BOOL finished) {
           [fromViewController.view removeFromSuperview];

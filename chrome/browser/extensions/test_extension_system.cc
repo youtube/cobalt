@@ -13,14 +13,12 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/blocklist_factory.h"
 #include "chrome/browser/extensions/chrome_extension_registrar_delegate.h"
-#include "chrome/browser/extensions/crx_installer.h"
 #include "chrome/browser/extensions/cws_info_service.h"
 #include "chrome/browser/extensions/cws_info_service_factory.h"
 #include "chrome/browser/extensions/extension_error_controller.h"
 #include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/external_provider_manager.h"
-#include "chrome/browser/extensions/shared_module_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_switches.h"
 #include "components/prefs/pref_service.h"
@@ -265,11 +263,6 @@ bool TestExtensionSystem::is_ready() const {
 
 ContentVerifier* TestExtensionSystem::content_verifier() {
   return content_verifier_.get();
-}
-
-std::unique_ptr<ExtensionSet> TestExtensionSystem::GetDependentExtensions(
-    const Extension* extension) {
-  return SharedModuleService::Get(profile_)->GetDependentExtensions(extension);
 }
 
 void TestExtensionSystem::InstallUpdate(

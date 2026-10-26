@@ -65,6 +65,7 @@ PASS oldChildWindow.navigator.maxTouchPoints is newChildWindow.navigator.maxTouc
 PASS oldChildWindow.navigator.mediaDevices.ondevicechange is newChildWindow.navigator.mediaDevices.ondevicechange
 PASS oldChildWindow.navigator.mediaSession.metadata is newChildWindow.navigator.mediaSession.metadata
 PASS oldChildWindow.navigator.mediaSession.playbackState is newChildWindow.navigator.mediaSession.playbackState
+PASS oldChildWindow.navigator.modelContextTesting.ontoolchange is newChildWindow.navigator.modelContextTesting.ontoolchange
 PASS oldChildWindow.navigator.onLine is newChildWindow.navigator.onLine
 PASS oldChildWindow.navigator.pdfViewerEnabled is newChildWindow.navigator.pdfViewerEnabled
 PASS oldChildWindow.navigator.platform is newChildWindow.navigator.platform
@@ -141,6 +142,7 @@ PASS oldChildWindow.onchange is newChildWindow.onchange
 PASS oldChildWindow.onclick is newChildWindow.onclick
 PASS oldChildWindow.onclose is newChildWindow.onclose
 PASS oldChildWindow.oncommand is newChildWindow.oncommand
+PASS oldChildWindow.oncomplete is newChildWindow.oncomplete
 PASS oldChildWindow.oncontentvisibilityautostatechange is newChildWindow.oncontentvisibilityautostatechange
 PASS oldChildWindow.oncontextlost is newChildWindow.oncontextlost
 PASS oldChildWindow.oncontextmenu is newChildWindow.oncontextmenu
@@ -192,7 +194,10 @@ PASS oldChildWindow.onmousewheel is newChildWindow.onmousewheel
 PASS oldChildWindow.onmove is newChildWindow.onmove
 PASS oldChildWindow.onoffline is newChildWindow.onoffline
 PASS oldChildWindow.ononline is newChildWindow.ononline
-PASS oldChildWindow.onoverscroll is newChildWindow.onoverscroll
+PASS oldChildWindow.onoverscrollcancel is newChildWindow.onoverscrollcancel
+PASS oldChildWindow.onoverscrollchanging is newChildWindow.onoverscrollchanging
+PASS oldChildWindow.onoverscrollend is newChildWindow.onoverscrollend
+PASS oldChildWindow.onoverscrollstart is newChildWindow.onoverscrollstart
 PASS oldChildWindow.onpagehide is newChildWindow.onpagehide
 PASS oldChildWindow.onpagereveal is newChildWindow.onpagereveal
 PASS oldChildWindow.onpageshow is newChildWindow.onpageshow

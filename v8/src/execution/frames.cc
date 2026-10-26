@@ -311,8 +311,7 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
 
 #if V8_ENABLE_WEBASSEMBLY
 void StackFrameIterator::Reset(ThreadLocalTop* top, wasm::StackMemory* stack) {
-  if (stack->jmpbuf()->sp == stack->base() ||
-      stack->jmpbuf()->state == wasm::JumpBuffer::Retired) {
+  if (!stack->has_frames()) {
     // The stack has not been started yet or has already retired.
     return;
   }
@@ -1608,89 +1607,40 @@ namespace {
 void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
                     FullObjectSlot spill_slot) {
 #ifdef V8_COMPRESS_POINTERS
-  PtrComprCageBase cage_base(isolate);
-  bool was_compressed = false;
-
   // Spill slots may contain compressed values in which case the upper
   // 32-bits will contain zeros. In order to simplify handling of such
-  // slots in GC we ensure that the slot always contains full value.
-
-  // The spill slot may actually contain weak references so we load/store
-  // values using spill_slot.location() in order to avoid dealing with
-  // FullMaybeObjectSlots here.
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    // When external code space is enabled the spill slot could contain both
-    // InstructionStream and non-InstructionStream references, which have
-    // different cage bases. So unconditional decompression of the value might
-    // corrupt InstructionStream pointers. However, given that 1) the
-    // InstructionStream pointers are never compressed by design (because
-    //    otherwise we wouldn't know which cage base to apply for
-    //    decompression, see respective DCHECKs in
-    //    RelocInfo::target_object()),
-    // 2) there's no need to update the upper part of the full pointer
-    //    because if it was there then it'll stay the same,
-    // we can avoid updating upper part of the spill slot if it already
-    // contains full value.
-    // TODO(v8:11880): Remove this special handling by enforcing builtins
-    // to use CodeTs instead of InstructionStream objects.
-    Address value = *spill_slot.location();
-    if (!HAS_SMI_TAG(value) && value <= 0xffffffff) {
-      // We don't need to update smi values or full pointers.
-      was_compressed = true;
-      *spill_slot.location() = V8HeapCompressionScheme::DecompressTagged(
-          static_cast<Tagged_t>(value));
-      if (DEBUG_BOOL) {
-        // Ensure that the spill slot contains correct heap object.
-        Tagged<HeapObject> raw =
-            Cast<HeapObject>(Tagged<Object>(*spill_slot.location()));
-        // Don't check holes, since the page can be unmapped.
-        if (!IsAnyHole(raw)) {
-          MapWord map_word = raw->map_word(cage_base, kRelaxedLoad);
-          Tagged<HeapObject> forwarded = map_word.IsForwardingAddress()
-                                             ? map_word.ToForwardingAddress(raw)
-                                             : raw;
-          bool is_self_forwarded =
-              HeapLayout::IsSelfForwarded(forwarded, cage_base);
-          if (is_self_forwarded) {
-            // The object might be in a self-forwarding state if it's located
-            // in new large object space. GC will fix this at a later stage.
-            const MemoryChunk* chunk = MemoryChunk::FromHeapObject(forwarded);
-            CHECK(chunk->InNewLargeObjectSpace() ||
-                  chunk->Metadata(isolate)->is_quarantined());
-          } else {
-            Tagged<HeapObject> forwarded_map = forwarded->map(cage_base);
-            // The map might be forwarded as well.
-            MapWord fwd_map_map_word =
-                forwarded_map->map_word(cage_base, kRelaxedLoad);
-            if (fwd_map_map_word.IsForwardingAddress()) {
-              forwarded_map =
-                  fwd_map_map_word.ToForwardingAddress(forwarded_map);
-            }
-            CHECK(IsMap(forwarded_map, cage_base));
-          }
-        }
-      }
-    }
-  } else {
-    Address slot_contents = *spill_slot.location();
-    Tagged_t compressed_value = static_cast<Tagged_t>(slot_contents);
-    if (!HAS_SMI_TAG(compressed_value)) {
-      was_compressed = slot_contents <= 0xFFFFFFFF;
-      // We don't need to update smi values.
-      *spill_slot.location() =
-          V8HeapCompressionScheme::DecompressTagged(compressed_value);
-    }
-  }
-#endif
-  v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);
-#if V8_COMPRESS_POINTERS
-  if (was_compressed) {
+  // slots in GC we decompress into a local variable, let the visitor
+  // update it, and then compress back into the stack slot.
+  //
+  // When external code space is enabled the spill slot could contain both
+  // InstructionStream and non-InstructionStream references, which have
+  // different cage bases. So unconditional decompression of the value might
+  // corrupt InstructionStream pointers. However, given that 1) the
+  // InstructionStream pointers are never compressed by design (because
+  //    otherwise we wouldn't know which cage base to apply for
+  //    decompression, see respective DCHECKs in
+  //    RelocInfo::target_object()),
+  // 2) there's no need to update the upper part of the full pointer
+  //    because if it was there then it'll stay the same,
+  // we can avoid updating upper part of the spill slot if it already
+  // contains full value.
+  // TODO(v8:11880): Remove this special handling by enforcing builtins
+  // to use CodeTs instead of InstructionStream objects.
+  Address value = *spill_slot.location();
+  Tagged_t compressed_value = static_cast<Tagged_t>(value);
+  if (!HAS_SMI_TAG(compressed_value) && value <= 0xFFFF'FFFF) {
+    Address decompressed =
+        V8HeapCompressionScheme::DecompressTagged(compressed_value);
+    FullObjectSlot local_slot(&decompressed);
+    v->VisitRootPointer(Root::kStackRoots, nullptr, local_slot);
     // Restore compression. Generated code should be able to trust that
     // compressed spill slots remain compressed.
     *spill_slot.location() =
-        V8HeapCompressionScheme::CompressObject(*spill_slot.location());
+        V8HeapCompressionScheme::CompressObject(decompressed);
+    return;
   }
 #endif
+  v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);
 }
 
 void VisitSpillSlots(Isolate* isolate, RootVisitor* v,
@@ -1838,7 +1788,9 @@ void WasmFrame::Iterate(RootVisitor* v) const {
     auto pair =
         wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(), pc());
     wasm::WasmCode* wasm_code = pair.first;
-    safepoint_entry.CopyFrom(pair.second);
+    if (pair.second.is_initialized()) {
+      safepoint_entry.CopyFrom(pair.second);
+    }
     DCHECK(wasm_code);
     interpreter_wasm_code = DrumBrakeWasmCode::Compiled(wasm_code);
   }
@@ -3169,7 +3121,12 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
     // summary which is a bit more aware of maglev behaviour and can e.g. handle
     // more compact safepointed frame information for both function entry and
     // loop stack checks.
-    if (code->is_maglevved()) {
+    //
+    // Isolate::BuildMinimalStack() can trigger this code path from a regular
+    // heap allocation site in Turbofan. Heap allocation sites do not have a
+    // DeoptimizationEntry in general. Instead of crashing we simply report here
+    // just one frame.
+    if (code->is_maglevved() || never_allocate) {
       DirectHandle<AbstractCode> abstract_code(
           Cast<AbstractCode>(function()->shared()->GetBytecodeArray(isolate())),
           isolate());
@@ -3204,14 +3161,18 @@ FrameSummaries OptimizedJSFrame::Summarize(bool never_allocate) const {
 
       // Get the correct function in the optimized frame.
       CHECK(!translated_values->IsMaterializedObject());
+      Tagged<Object> function_obj = translated_values->GetRawValue();
+      CHECK(IsJSFunction(function_obj));
       DirectHandle<JSFunction> function =
-          Cast<JSFunction>(translated_values->GetValue());
+          Cast<JSFunction>(direct_handle(function_obj, isolate()));
       translated_values++;
 
       // Get the correct receiver in the optimized frame.
       static_assert(TranslatedFrame::kReceiverIsFirstParameterInJSFrames);
       CHECK(!translated_values->IsMaterializedObject());
-      DirectHandle<Object> receiver = translated_values->GetValue();
+      Tagged<Object> receiver_obj = translated_values->GetRawValue();
+      CHECK_NE(receiver_obj, ReadOnlyRoots(isolate()).arguments_marker());
+      DirectHandle<Object> receiver = direct_handle(receiver_obj, isolate());
       translated_values++;
 
       // Determine the underlying code object and the position within it from
@@ -3402,10 +3363,11 @@ int UnoptimizedJSFrame::LookupExceptionHandlerInTable(
   HandlerTable table(GetBytecodeArray());
   int handler_index = table.LookupHandlerIndexForRange(GetBytecodeOffset());
   if (handler_index != HandlerTable::kNoHandlerFound) {
-    if (context_register) *context_register = table.GetRangeData(handler_index);
-    if (prediction) *prediction = table.GetRangePrediction(handler_index);
-    table.MarkHandlerUsed(handler_index);
-    return table.GetRangeHandler(handler_index);
+    uint32_t index = static_cast<uint32_t>(handler_index);
+    if (context_register) *context_register = table.GetRangeData(index);
+    if (prediction) *prediction = table.GetRangePrediction(index);
+    table.MarkHandlerUsed(index);
+    return table.GetRangeHandler(index);
   }
   return handler_index;
 }
@@ -4005,6 +3967,11 @@ FullObjectSlot WasmLiftoffSetupFrame::wasm_instance_data_slot() const {
       sp() + WasmLiftoffSetupFrameConstants::kWasmInstanceDataOffset));
 }
 
+Address WasmLiftoffSetupFrame::CallingPC() const {
+  return ReadPC(reinterpret_cast<Address*>(
+      fp() + WasmLiftoffSetupFrameConstants::kCallingPCOffset));
+}
+
 void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
   FullObjectSlot spilled_instance_slot(&Memory<Address>(
       fp() + WasmLiftoffSetupFrameConstants::kInstanceSpillOffset));
@@ -4057,7 +4024,8 @@ void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
   }
 
   // Next we scan the slots of stack parameters.
-  wasm::WasmCode* wasm_code = native_module->GetCode(func_index);
+  wasm::WasmCode* wasm_code =
+      wasm::GetWasmCodeManager()->LookupCode(isolate(), CallingPC());
   uint32_t first_tagged_stack_slot = wasm_code->first_tagged_parameter_slot();
   uint32_t num_tagged_stack_slots = wasm_code->num_tagged_parameter_slots();
 

@@ -105,6 +105,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Implementation of the interface {@link ImeAdapter} providing an interface in both ways native <->
@@ -258,17 +259,15 @@ public class ImeAdapterImpl
 
     /**
      * Get {@link ImeAdapter} object used for the give WebContents. {@link #create()} should precede
-     * any calls to this.
+     * any calls to this. Returns null if the web contents are not initialized or if UserDataHost
+     * can't be found.
      *
      * @param webContents {@link WebContents} object.
      * @return {@link ImeAdapter} object.
      */
-    public static ImeAdapterImpl fromWebContents(WebContents webContents) {
-        ImeAdapterImpl ret =
-                webContents.getOrSetUserData(
-                        ImeAdapterImpl.class, UserDataFactoryLazyHolder.INSTANCE);
-        assert ret != null;
-        return ret;
+    public static @Nullable ImeAdapterImpl fromWebContents(WebContents webContents) {
+        return webContents.getOrSetUserData(
+                ImeAdapterImpl.class, UserDataFactoryLazyHolder.INSTANCE);
     }
 
     /** Returns an instance of the default {@link InputMethodManagerWrapper} */
@@ -361,6 +360,12 @@ public class ImeAdapterImpl
                             SelectRangeGesture.class,
                             DeleteRangeGesture.class);
             outAttrs.setSupportedHandwritingGestures(supportedGestures);
+            outAttrs.setSupportedHandwritingGesturePreviews(
+                    Set.of(
+                            SelectGesture.class,
+                            DeleteGesture.class,
+                            SelectRangeGesture.class,
+                            DeleteRangeGesture.class));
         }
         // Update whether stylus handwriting should be enabled in editor info.
         // This prevents the stylus handwriting toolbar from appearing and ensures the
@@ -374,20 +379,33 @@ public class ImeAdapterImpl
         return inputConnection;
     }
 
-    void handleGesture(OngoingGesture request) {
-        mOngoingGestures.put(request.getId(), request);
-
-        // Offset the gesture rectangles to convert from screen coordinates to window coordinates.
+    // Offset the gesture rectangles to convert from screen coordinates to window coordinates.
+    private void adjustForWindowPosition(StylusWritingGestureData gestureData) {
         int[] screenLocation = new int[2];
         getContainerView().getLocationOnScreen(screenLocation);
-        StylusWritingGestureData gestureData = request.getGestureData();
         gestureData.startRect.x -= screenLocation[0];
         gestureData.startRect.y -= screenLocation[1];
         if (gestureData.endRect != null) {
             gestureData.endRect.x -= screenLocation[0];
             gestureData.endRect.y -= screenLocation[1];
         }
+    }
 
+    /**
+     * Sends preview gesture data to blink for handling
+     *
+     * @param gestureData Instance of StylusWritingGestureData that contains the data of the gesture
+     *     like coordinates
+     */
+    public void previewGesture(StylusWritingGestureData gestureData) {
+        adjustForWindowPosition(gestureData);
+        getStylusWritingImeCallback().handleStylusWritingGestureAction(-1, gestureData);
+    }
+
+    void handleGesture(OngoingGesture request) {
+        mOngoingGestures.put(request.getId(), request);
+        StylusWritingGestureData gestureData = request.getGestureData();
+        adjustForWindowPosition(gestureData);
         getStylusWritingImeCallback()
                 .handleStylusWritingGestureAction(request.getId(), gestureData);
     }
@@ -1579,18 +1597,9 @@ public class ImeAdapterImpl
                 immediateRequest, monitorRequest, getContainerView());
     }
 
-    /**
-     * Sends rich content into the current focused text field
-     *
-     * @param inputContentInfo information about the rich content to be inserted
-     * @return whether the insertion is successful.
-     */
-    boolean commitContent(String dataUrl) {
-        onImeEvent();
-        if (isValid()
-                && ImeAdapterImplJni.get().insertMediaFromURL(mNativeImeAdapterAndroid, dataUrl)) {
-            return true;
-        } else {
+    @CalledByNative
+    void onCommitContentResult(boolean success) {
+        if (!success) {
             try {
                 // If the rich content commit fails, display the failure message.
                 Toast.makeText(
@@ -1604,6 +1613,25 @@ public class ImeAdapterImpl
                         "Failed to display message toast to notify the rich content commit"
                                 + " failure.");
             }
+        }
+    }
+
+    /**
+     * Sends rich content into the current focused text field
+     *
+     * @param bytes binary data of therich content to be inserted
+     * @param extension the file extension of the rich content to be inserted
+     * @return whether the insertion is successful.
+     */
+    boolean commitContent(byte[] bytes, String extension) {
+        onImeEvent();
+        if (isValid()
+                && ImeAdapterImplJni.get()
+                        .insertMediaFromBytes(mNativeImeAdapterAndroid, bytes, extension)) {
+            return true;
+
+        } else {
+            onCommitContentResult(false);
             return false;
         }
     }
@@ -1712,10 +1740,13 @@ public class ImeAdapterImpl
      */
     void updateCursorAnchorInfo(InputCursorAnchorInfo cursorAnchorInfo) {
         View containerView = getContainerView();
-        mCursorAnchorInfoController.updateCursorAnchorInfoData(cursorAnchorInfo, containerView);
+        boolean isSelectionMove =
+                mCursorAnchorInfoController.updateCursorAnchorInfoData(
+                        cursorAnchorInfo, containerView);
 
         // Request view system keep caret on screen when moved.
-        if (cursorAnchorInfo.insertionMarker != null
+        if (isSelectionMove
+                && cursorAnchorInfo.insertionMarker != null
                 && ContentFeatureList.sAccessibilityMagnificationFollowsFocus.isEnabled()) {
             // Convert caret bounds from CSS pixels to device pixels relative to root view.
             var caretCss = cursorAnchorInfo.insertionMarker;
@@ -2022,7 +2053,7 @@ public class ImeAdapterImpl
                 String text,
                 int newCursorPosition);
 
-        boolean insertMediaFromURL(long nativeImeAdapterAndroid, String url);
+        boolean insertMediaFromBytes(long nativeImeAdapterAndroid, byte[] bytes, String extension);
 
         void finishComposingText(long nativeImeAdapterAndroid);
 

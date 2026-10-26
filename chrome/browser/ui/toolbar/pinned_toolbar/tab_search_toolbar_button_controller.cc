@@ -12,7 +12,6 @@
 #include "chrome/browser/ui/views/tab_search_bubble_host.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
-#include "chrome/common/chrome_features.h"
 
 TabSearchToolbarButtonController::TabSearchToolbarButtonController(
     BrowserView* browser_view)
@@ -53,6 +52,10 @@ void TabSearchToolbarButtonController::OnBubbleDestroying() {
       base::Seconds(1));
 }
 
+void TabSearchToolbarButtonController::OnHostDestroying() {
+  UpdateBubbleHost(nullptr);
+}
+
 void TabSearchToolbarButtonController::UpdateBubbleHost(
     TabSearchBubbleHost* new_tab_search_bubble_host) {
   tab_search_bubble_host_observation_.Reset();
@@ -62,6 +65,7 @@ void TabSearchToolbarButtonController::UpdateBubbleHost(
 
   auto scoped_update = action_item->BeginUpdate();
   if (new_tab_search_bubble_host) {
+    action_item->SetVisible(true);
     action_item->SetImage(
         ui::ImageModel::FromVectorIcon(kTabSearchToolbarIcon));
     action_item->SetProperty(

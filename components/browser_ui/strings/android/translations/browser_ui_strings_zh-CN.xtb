@@ -7,9 +7,10 @@
 <translation id="1070329623210597193">此网站可以查看或修改的文件</translation>
 <translation id="1073417869336441572">请告诉我们您允许使用第三方 Cookie 的原因，以帮助我们改进 Chrome<ph name="BEGIN_LINK" />发送反馈<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">您可以查看桌面版网站</translation>
-<translation id="1085696779717592361">默认使用 Chrome</translation>
+<translation id="1109482864356262001">需要使用移动传感器或光传感器的功能将无法正常运行</translation>
 <translation id="1126523729897810826">完成下方操作建议，充分利用 Chrome</translation>
 <translation id="113098737392899175">连接到键盘时，使用文本光标浏览网页</translation>
+<translation id="1148624853678088576">搞定了！</translation>
 <translation id="1149644372535087155">在 Chrome 中保存密码</translation>
 <translation id="1178015372320901893">“我的快捷方式”底部动作条</translation>
 <translation id="1178581264944972037">暂停</translation>
@@ -66,7 +67,6 @@
 <translation id="1677097821151855053">网站会使用 Cookie 和其他数据来记住您，以便帮您登录或向您展示个性化广告等。如需管理所有网站的 Cookie，请前往<ph name="BEGIN_LINK" />设置<ph name="END_LINK" />。</translation>
 <translation id="1679305402657584804">网站可以请求使用 NFC 设备</translation>
 <translation id="1686785653877010442">网站通常会发送通知，告知您重大新闻或聊天消息。</translation>
-<translation id="169515064810179024">禁止网站使用移动传感器</translation>
 <translation id="1703666494654169921">不允许网站使用虚拟现实设备或数据</translation>
 <translation id="1704230497453185209">不允许网站播放声音</translation>
 <translation id="1717218214683051432">移动传感器</translation>
@@ -104,7 +104,7 @@
 <translation id="2025115093177348061">增强现实</translation>
 <translation id="2028449514182362831">所有需要使用移动传感器的功能都将无法正常运行</translation>
 <translation id="2030769033451695672">点按即可返回到 <ph name="URL_OF_THE_CURRENT_TAB" /></translation>
-<translation id="2079545284768500474">撤消</translation>
+<translation id="2079545284768500474">撤销</translation>
 <translation id="2080070583977670716">更多设置</translation>
 <translation id="2091887806945687916">声音</translation>
 <translation id="2094208275686143364">主题颜色：浅色</translation>
@@ -125,10 +125,10 @@
 <translation id="2228071138934252756">若要允许 <ph name="APP_NAME" /> 使用您的摄像头，您还需在 <ph name="BEGIN_LINK" />Android 设置<ph name="END_LINK" />中开启摄像头。</translation>
 <translation id="2231160360698766265">网站可以播放受保护内容</translation>
 <translation id="2235344399760031203">已阻止第三方 Cookie</translation>
-<translation id="2238944249568001759">根据您上次浏览的标签页建议的搜索</translation>
 <translation id="2241587408274973373">“新标签页”页面卡片</translation>
 <translation id="2241634353105152135">仅一次</translation>
 <translation id="2253414712144136228">移除“<ph name="NAME_OF_LIST_ITEM" />”</translation>
+<translation id="227763434929139750">不允许网站使用移动传感器或光传感器</translation>
 <translation id="228293613124499805">您访问的大多数网站很可能会将数据保存到设备上，例如保存您的偏好设置或您与网站分享的信息，这通常是为了提升您的浏览体验。我们建议您保持此设置的开启状态。</translation>
 <translation id="2289270750774289114">在网站想发现附近的蓝牙设备时询问您（推荐）</translation>
 <translation id="2315043854645842844">操作系统不支持选择客户端证书。</translation>
@@ -193,12 +193,12 @@
 <translation id="2802908157808345702">不允许网站显示弹出式窗口和使用重定向</translation>
 <translation id="2814830417943086299">Chrome 现在会在设备的应用列表和搜索结果中显示您近期打开的标签页。您可以随时在 Chrome 设置中关闭此功能。</translation>
 <translation id="2822354292072154809">确定要重置<ph name="CHOSEN_OBJECT_NAME" />的所有网站权限吗？</translation>
+<translation id="2848335882304088250">现在即可在设备上充分体验 Chrome 的出色功能。</translation>
 <translation id="2850913818900871965">请求使用移动视图</translation>
 <translation id="2870560284913253234">网站</translation>
 <translation id="2874939134665556319">上一首</translation>
 <translation id="2891975107962658722">禁止某个网站将数据保存在您的设备上</translation>
 <translation id="2903493209154104877">地址</translation>
-<translation id="2910701580606108292">需先询问，得到许可后才允许网站播放受保护的内容</translation>
 <translation id="2918484639460781603">前往“设置”</translation>
 <translation id="2932883381142163287">举报滥用行为</translation>
 <translation id="2939338015096024043">开启此设置后，网站可以请求跟踪您的摄像头位置并了解您周围的环境。关闭此设置后，网站无法跟踪您的摄像头位置，也无法了解您周围的环境。</translation>
@@ -212,7 +212,7 @@
 <translation id="3065787901655140044">高级保护已开启</translation>
 <translation id="3069226013421428034">允许使用第三方账号登录特定网站。</translation>
 <translation id="310297983047869047">上一张幻灯片</translation>
-<translation id="3109724472072898302">已收起</translation>
+<translation id="3108122610701115301">设为默认</translation>
 <translation id="310979712355504754">全部删除</translation>
 <translation id="311394601889664316">不允许网站修改您设备上的文件或文件夹</translation>
 <translation id="3114012059975132928">视频播放器</translation>
@@ -234,7 +234,6 @@
 <translation id="3232293466644486101">删除浏览数据…</translation>
 <translation id="3242646949159196181">开启此设置后，网站可以播放声音。关闭此设置后，网站无法播放声音。</translation>
 <translation id="3273479183583863618">在标签页上显示降价通知</translation>
-<translation id="3277252321222022663">允许网站使用传感器（推荐）</translation>
 <translation id="3285500645985761267">允许关联网站查看您在该群组中的活动记录</translation>
 <translation id="3295019059349372795">第 11 章：奥兹国神奇的翡翠城</translation>
 <translation id="3295602654194328831">隐藏信息</translation>
@@ -261,13 +260,13 @@
 <translation id="3602290021589620013">预览</translation>
 <translation id="3611658447322220736">最近关闭的网站可以完成数据收发操作</translation>
 <translation id="3619294456800709762">网站可以自动进入画中画模式</translation>
-<translation id="3628308229821498208">建议的搜索</translation>
 <translation id="3632460243282703117">订阅</translation>
 <translation id="363748948745453283">正在使用大致位置信息</translation>
 <translation id="3641456520301071208">网站可以请求获取您的位置信息</translation>
 <translation id="3658847490588580244">默认浏览器底部动作条</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_OWNER" /> 的网站群组中有 <ph name="RWS_MEMBERS_COUNT" /> 个网站能查看您在该群组中的活动记录}other{<ph name="RWS_OWNER" /> 的网站群组中有 <ph name="RWS_MEMBERS_COUNT" /> 个网站能查看您在该群组中的活动记录}}</translation>
 <translation id="3676777756440746804">禁止网站向您请求使用其保存的与您相关的信息</translation>
+<translation id="3677897809642449131">网站可以请求使用移动传感器</translation>
 <translation id="3678318839615834650">“新标签页”页面卡片底部动作条已按最大高度显示</translation>
 <translation id="3697164069658504920">开启此设置后，网站可以请求使用 USB 设备。关闭此设置后，网站无法使用 USB 设备。</translation>
 <translation id="3703430731944883733">管理信息流</translation>
@@ -299,8 +298,8 @@
 <translation id="3922092564198021702">打开手机上的“设置”</translation>
 <translation id="3924858949939391676">在阅读模式开启后显示链接</translation>
 <translation id="3933121352599513978">收起不需要的请求（推荐）</translation>
+<translation id="393417216277380082">移动传感器和光传感器</translation>
 <translation id="3934905113567851655">双指张合即可调整大小</translation>
-<translation id="3955193568934677022">允许网站播放受保护的内容（推荐）</translation>
 <translation id="3955321697524543127">不允许网站连接到 USB 设备</translation>
 <translation id="3965467402665811906">网站可以请求使用其保存的与您相关的信息</translation>
 <translation id="3967822245660637423">下载完毕</translation>
@@ -371,7 +370,7 @@
 <translation id="4672315773691449562">点按“浏览器应用”，然后点按“Chrome”</translation>
 <translation id="4676059169848868271">若要允许 <ph name="APP_NAME" /> 使用手部跟踪功能，您还需在<ph name="BEGIN_LINK" />系统设置<ph name="END_LINK" />中开启手部跟踪功能。</translation>
 <translation id="4688045258817337666">管理您的卡</translation>
-<translation id="4751476147751820511">动态传感器或光传感器</translation>
+<translation id="4722332387043141878">网站通常会使用您设备的移动和光线传感器来实现虚拟现实或健身跟踪等功能</translation>
 <translation id="4755971844837804407">开启此设置后，网站可以向您展示任何广告。关闭此设置后，网站无法展示侵扰性或误导性广告。</translation>
 <translation id="4779083564647765204">缩放</translation>
 <translation id="4807122856660838973">开启安全浏览</translation>
@@ -398,7 +397,6 @@
 <translation id="5001526427543320409">第三方 Cookie</translation>
 <translation id="5007392906805964215">查看</translation>
 <translation id="5039804452771397117">允许</translation>
-<translation id="5048398596102334565">允许网站使用移动传感器（推荐）</translation>
 <translation id="5048841907079026162">管理浏览数据</translation>
 <translation id="5050380848339752099">该网站即将与某个并非处于无痕模式下的应用共享信息。</translation>
 <translation id="5063480226653192405">空间占用量</translation>
@@ -444,7 +442,6 @@
 <translation id="5515432237048785579">探索信息流底部动作条已按最大高度显示</translation>
 <translation id="5516455585884385570">打开通知设置</translation>
 <translation id="5527111080432883924">需先询问，得到许可后才允许网站读取剪贴板中的文字和图片（推荐）</translation>
-<translation id="5553374991681107062">最新</translation>
 <translation id="5555115555607204100">不使用 Chrome 的 V8 引擎加速网站，但 Chrome 的防攻击能力会略微增强</translation>
 <translation id="5556459405103347317">重新加载</translation>
 <translation id="5591840828808741583">已为 <ph name="SITE_NAME" /> 禁用此权限</translation>
@@ -490,6 +487,7 @@
 <translation id="5922853908706496913">正在共享您的屏幕</translation>
 <translation id="5922967540311291836">阻止第三方 Cookie：</translation>
 <translation id="5923512600150154850">此操作会删除网站存储的 <ph name="DATASIZE" /> 数据和 Cookie。</translation>
+<translation id="5930707844513754220">查看更多设置列表</translation>
 <translation id="5939518447894949180">重置</translation>
 <translation id="5948139900367969951">快速获取重要信息</translation>
 <translation id="5964247741333118902">嵌入式内容</translation>
@@ -498,6 +496,7 @@
 <translation id="5976059395673079613"><ph name="PERMISSION" /> - <ph name="WARNING_MESSAGE" /></translation>
 <translation id="5998071268779572583">开启探索信息流</translation>
 <translation id="6012967556075291653">固定的快捷方式</translation>
+<translation id="6013003831291591200">任务已完成</translation>
 <translation id="6015775454662021376">控制此网站对您的设备的访问权限</translation>
 <translation id="6022659036123304283">定制您的专属 Chrome</translation>
 <translation id="6040143037577758943">关闭</translation>
@@ -513,16 +512,15 @@
 <translation id="6171020522141473435">开启此设置后，网站可以请求使用蓝牙设备。关闭此设置后，网站无法使用蓝牙设备。</translation>
 <translation id="6177128806592000436">您与此网站之间建立的连接不安全</translation>
 <translation id="6181444274883918285">添加例外网站</translation>
-<translation id="6192792657125177640">例外</translation>
 <translation id="6194967801833346599">{DAYS,plural, =1{Chrome 将于明天再次屏蔽 Cookie}other{Chrome 将于 # 天后再次屏蔽 Cookie}}</translation>
 <translation id="6196640612572343990">阻止第三方 Cookie</translation>
 <translation id="6205314730813004066">广告隐私权设置</translation>
 <translation id="6207207788774442484">删除数据并重置权限</translation>
+<translation id="6211409961905616543">网站可以使用移动传感器和光传感器</translation>
 <translation id="6218508144653756827">紫红色主题</translation>
 <translation id="6231752747840485235">卸载“<ph name="APP_NAME" />”？</translation>
 <translation id="6234351944623978659">依次点按“浏览器应用”&gt;“Chrome”</translation>
 <translation id="6260830281887654268">“新标签页”页面外观主题集合底部动作条已按一半高度显示</translation>
-<translation id="6262191102408817757">基于您的上一个标签页</translation>
 <translation id="6262279340360821358">已禁用“<ph name="PERMISSION_1" />”权限和“<ph name="PERMISSION_2" />”权限</translation>
 <translation id="6270391203985052864">网站可以询问能否向您发送通知</translation>
 <translation id="6295158916970320988">所有网站</translation>
@@ -602,7 +600,6 @@
 <translation id="7180611975245234373">刷新</translation>
 <translation id="7188508872042490670">设备端网站数据</translation>
 <translation id="7201549776650881587">此操作会删除 <ph name="ORIGIN" /> 下属所有网站或其在主屏幕中安装的应用存储的全部数据和 Cookie</translation>
-<translation id="7203150201908454328">已展开</translation>
 <translation id="7213166370492037743">不允许网站连接到本地网络上的任何设备</translation>
 <translation id="7219254577985949841">删除网站数据？</translation>
 <translation id="723171743924126238">选择图片</translation>
@@ -636,7 +633,6 @@
 <translation id="7561196759112975576">永远</translation>
 <translation id="7573594921350120855">网站通常会使用您的摄像头以实现通信功能（例如视频聊天）</translation>
 <translation id="7574529565935733861">{NUM_MONTHS,plural, =1{<ph name="NUM_MONTHS_ONE" /> 个月前}other{<ph name="NUM_MONTHS_MANY" /> 个月前}}</translation>
-<translation id="757524316907819857">禁止网站播放受保护的内容</translation>
 <translation id="7586676035079382730">已拒绝授予通知权限</translation>
 <translation id="7594634374516752650">已连接到蓝牙设备</translation>
 <translation id="7617547684249261169">您可以删除部分或全部历史记录、Cookie、网站数据等</translation>
@@ -655,7 +651,7 @@
 <translation id="7771089277295008211">用于说明如何保存密码的底部动作条已关闭</translation>
 <translation id="7781829728241885113">昨天</translation>
 <translation id="7791543448312431591">添加</translation>
-<translation id="780301667611848630">不用了，谢谢</translation>
+<translation id="780301667611848630">不用了</translation>
 <translation id="7804248752222191302">有一个网站正在使用您的摄像头</translation>
 <translation id="7805832099057502789">“新标签页”页面外观底部动作条已按最大高度显示</translation>
 <translation id="7807060072011926525">由 Google 提供</translation>
@@ -677,7 +673,6 @@
 <translation id="8007176423574883786">已对此设备停用</translation>
 <translation id="802154636333426148">下载失败</translation>
 <translation id="8033047164036749181">订阅来自此网站的通知</translation>
-<translation id="8042586301629853791">排序方式：</translation>
 <translation id="8051193500142930381">所有需要使用摄像头的功能都将无法正常运行</translation>
 <translation id="8056330801132235235">Chrome 默认选项</translation>
 <translation id="8067883171444229417">播放视频</translation>
@@ -688,7 +683,6 @@
 <translation id="8088603949666785339">“<ph name="BANNER_TITLE" />”中的更多选项</translation>
 <translation id="8112925981674547014">查看应用列表中的标签页</translation>
 <translation id="8116925261070264013">已静音</translation>
-<translation id="8117244575099414087">开启此设置后，网站可以使用设备的传感器。关闭此设置后，网站无法使用传感器。</translation>
 <translation id="813082847718468539">查看网站信息</translation>
 <translation id="8131740175452115882">确认</translation>
 <translation id="8148160259207090265">只要您在 Android 设置中开启高级保护功能，此设置就会保持开启状态。</translation>
@@ -750,6 +744,7 @@
 <translation id="8707904142362025782">网站可以请求使用摄像头</translation>
 <translation id="8712637175834984815">知道了</translation>
 <translation id="8715862698998036666">从顶部拖动并从左侧或右侧边缘滑动即可退出全屏模式。</translation>
+<translation id="8716050156658570300">网站可以请求使用移动传感器和光传感器</translation>
 <translation id="8719283222052720129">在 <ph name="BEGIN_LINK" />Android 设置<ph name="END_LINK" />中为 <ph name="APP_NAME" /> 开启这项权限。</translation>
 <translation id="8721719390026067591">开启此设置后，网站可以请求搜寻蓝牙设备。关闭此设置后，网站无法搜寻蓝牙设备。</translation>
 <translation id="8725066075913043281">重试</translation>
@@ -764,7 +759,7 @@
 <translation id="8801657293260363985">V8 是 Chrome 的 JavaScript 和 WebAssembly 引擎，用于提升网站性能</translation>
 <translation id="8803526663383843427">开启时</translation>
 <translation id="8805385115381080995">由于网站要求您验证自己是真实用户的情况随之减少，浏览体验将变得更加流畅。</translation>
-<translation id="8816026460808729765">禁止网站使用传感器</translation>
+<translation id="881644524232657178">开启此设置后，网站可以使用设备的移动传感器和光传感器。关闭此设置后，网站无法使用传感器。</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">尝试暂时允许使用第三方 Cookie，这样浏览保护会降低，但网站功能更可能正常运行。</translation>
 <translation id="8889294078294184559">随着您继续浏览，所访问的网站可从 Chrome 中获取上一个网站提供的相关信息来验证您可能是真实的用户</translation>

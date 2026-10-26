@@ -16,12 +16,12 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "api/array_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
@@ -126,8 +126,8 @@ std::unique_ptr<ModuleRtpRtcpImpl2> CreateRtpRtcpModule(
     RtcpRttStats* rtt_stats,
     RtcpPacketTypeCounterObserver* rtcp_packet_type_counter_observer,
     RtcpCnameCallback* rtcp_cname_callback,
-    bool non_sender_rtt_measurement,
-    uint32_t local_ssrc) {
+    PacketRouter* packet_router,
+    bool non_sender_rtt_measurement) {
   RtpRtcpInterface::Configuration configuration;
   configuration.audio = false;
   configuration.receiver_only = true;
@@ -137,10 +137,17 @@ std::unique_ptr<ModuleRtpRtcpImpl2> CreateRtpRtcpModule(
   configuration.rtcp_packet_type_counter_observer =
       rtcp_packet_type_counter_observer;
   configuration.rtcp_cname_callback = rtcp_cname_callback;
-  configuration.local_media_ssrc = local_ssrc;
   configuration.non_sender_rtt_measurement = non_sender_rtt_measurement;
 
-  auto rtp_rtcp = ModuleRtpRtcpImpl2::CreateReceiveModule(env, configuration);
+  auto rtp_rtcp = ModuleRtpRtcpImpl2::CreateReceiveModule(
+      env, configuration, [packet_router]() {
+        if (packet_router) {
+          return packet_router->SsrcOfFirstSender().value_or(
+              kFallbackRtcpSsrcForVideo);
+        } else {  // This happens at least in some test configurations.
+          return kFallbackRtcpSsrcForVideo;
+        }
+      });
   rtp_rtcp->SetRTCPStatus(RtcpMode::kCompound);
 
   return rtp_rtcp;
@@ -310,8 +317,8 @@ RtpVideoStreamReceiver2::RtpVideoStreamReceiver2(
           rtt_stats,
           rtcp_packet_type_counter_observer,
           rtcp_cname_callback,
-          config_.rtp.rtcp_xr.receiver_reference_time_report,
-          config_.rtp.local_ssrc)),
+          packet_router,
+          config_.rtp.rtcp_xr.receiver_reference_time_report)),
       nack_periodic_processor_(nack_periodic_processor),
       complete_frame_callback_(complete_frame_callback),
       keyframe_request_method_(config_.rtp.keyframe_method),
@@ -341,9 +348,6 @@ RtpVideoStreamReceiver2::RtpVideoStreamReceiver2(
   RTC_DCHECK(config_.rtp.rtcp_mode != RtcpMode::kOff)
       << "A stream should not be configured with RTCP disabled. This value is "
          "reserved for internal usage.";
-  // TODO(pbos): What's an appropriate local_ssrc for receive-only streams?
-  RTC_DCHECK(config_.rtp.local_ssrc != 0);
-  RTC_DCHECK(config_.rtp.remote_ssrc != config_.rtp.local_ssrc);
 
   rtp_rtcp_->SetRTCPStatus(config_.rtp.rtcp_mode);
   rtp_rtcp_->SetRemoteSSRC(config_.rtp.remote_ssrc);
@@ -715,7 +719,7 @@ bool RtpVideoStreamReceiver2::OnReceivedPayloadData(
       !UseH26xPacketBuffer(packet->codec())) {
     video_coding::H264SpsPpsTracker::FixedBitstream fixed =
         tracker_.CopyAndFixBitstream(
-            MakeArrayView(codec_payload.cdata(), codec_payload.size()),
+            std::span(codec_payload.cdata(), codec_payload.size()),
             &packet->video_header);
 
     switch (fixed.action) {
@@ -824,7 +828,7 @@ void RtpVideoStreamReceiver2::OnInsertedPacket(
   int64_t min_recv_time;
   int64_t max_recv_time;
   std::optional<int64_t> absolute_capture_time_ms;
-  std::vector<ArrayView<const uint8_t>> payloads;
+  std::vector<std::span<const uint8_t>> payloads;
   RtpPacketInfos::vector_type packet_infos;
 
   bool skip_frame = false;
@@ -1039,11 +1043,6 @@ void RtpVideoStreamReceiver2::UpdateRtt(int64_t max_rtt_ms) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
   if (nack_module_)
     nack_module_->UpdateRtt(max_rtt_ms);
-}
-
-void RtpVideoStreamReceiver2::OnLocalSsrcChange(uint32_t local_ssrc) {
-  RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
-  rtp_rtcp_->SetLocalSsrc(local_ssrc);
 }
 
 void RtpVideoStreamReceiver2::SetRtcpMode(RtcpMode mode) {
@@ -1284,7 +1283,7 @@ void RtpVideoStreamReceiver2::NotifyReceiverOfEmptyPacket(
 }
 
 bool RtpVideoStreamReceiver2::DeliverRtcp(
-    ArrayView<const uint8_t> rtcp_packet) {
+    std::span<const uint8_t> rtcp_packet) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
 
   if (!receiving_) {

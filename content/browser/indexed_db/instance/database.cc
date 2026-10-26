@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
@@ -225,7 +226,7 @@ StatusOr<int64_t> Database::DeleteDatabase(std::vector<PartitionedLock> locks,
   Status s = LogStatus(backing_store_db_->DeleteDatabase(
                            std::move(locks), std::move(on_complete)),
                        "IndexedDB.BackingStore.DeleteDatabase",
-                       bucket_context_->in_memory());
+                       bucket_context_->GetHistogramSuffix());
   backing_store_db_.reset();
   if (!s.ok()) {
     return base::unexpected(s);
@@ -237,7 +238,7 @@ std::vector<PartitionedLockManager::PartitionedLockRequest>
 Database::BuildLockRequestsForTransaction(
     blink::mojom::IDBTransactionMode mode,
     const std::set<int64_t>& scope) const {
-  return bucket_context_->ShouldUseSqlite()
+  return bucket_context_->IsUsingSqlite()
              ? BuildLockRequestsForSqlite(name_, mode, scope)
              : BuildLockRequestsForLevelDb(name_, backing_store_db_.get(), mode,
                                            scope);
@@ -306,16 +307,15 @@ void Database::RegisterAndScheduleTransaction(Transaction* transaction) {
 
 Status Database::RunTasks() {
   // First execute any pending tasks in the connection coordinator.
-  ConnectionCoordinator::ExecuteTaskResult task_state;
-  Status status;
-  do {
-    std::tie(task_state, status) =
+  while (true) {
+    StatusOr<ConnectionCoordinator::ExecuteTaskResult> task_state =
         connection_coordinator_.ExecuteTask(!connections_.empty());
-  } while (task_state == ConnectionCoordinator::ExecuteTaskResult::kMoreTasks);
-
-  if (task_state == ConnectionCoordinator::ExecuteTaskResult::kError) {
-    CHECK(!status.ok());
-    return status;
+    if (!task_state.has_value()) {
+      return task_state.error();
+    }
+    if (task_state != ConnectionCoordinator::ExecuteTaskResult::kMoreTasks) {
+      break;
+    }
   }
 
   bool transactions_removed = true;
@@ -372,35 +372,19 @@ size_t Database::GetNumTransactionsAcrossAllConnections() const {
   return num_transactions;
 }
 
-Status Database::ForceClose(const std::string& message) && {
-  CHECK(!force_closing_);
-  force_closing_ = true;
+void Database::ForceCloseConnectionsAndCancelRequests(
+    const std::string& message) {
+  base::AutoReset closing(&closing_all_connections_, true);
   for (Connection* connection : connections_) {
     connection->CloseAndReportForceClose(message);
   }
   connections_.clear();
-  IDB_RETURN_IF_ERROR(connection_coordinator_.PruneTasksForForceClose(message));
-  connection_coordinator_.OnNoConnections();
-
-  // Execute any pending tasks in the connection coordinator.
-  ConnectionCoordinator::ExecuteTaskResult task_state;
-  Status status;
-  do {
-    std::tie(task_state, status) = connection_coordinator_.ExecuteTask(false);
-    CHECK(task_state !=
-          ConnectionCoordinator::ExecuteTaskResult::kPendingAsyncWork)
-        << "There are no more connections, so all tasks should be able to "
-           "complete synchronously.";
-  } while (task_state != ConnectionCoordinator::ExecuteTaskResult::kDone &&
-           task_state != ConnectionCoordinator::ExecuteTaskResult::kError);
-  CHECK(connections_.empty());
-  return status;
+  connection_coordinator_.CancelPendingRequests(message);
 }
 
 void Database::ScheduleOpenConnection(
     std::unique_ptr<PendingConnection> connection,
     base::TimeDelta synchronous_duration) {
-  CHECK(!force_closing_);
   connection_coordinator_.ScheduleOpenConnection(std::move(connection),
                                                  synchronous_duration);
 }
@@ -632,31 +616,51 @@ Database::GetAllResultSinkWrapper::~GetAllResultSinkWrapper() {
     // TODO(crbug.com/347047640): remove this workaround when 347047640 is
     // fixed.
     if (!transaction_->connection()->is_shutting_down()) {
-      DatabaseError error(blink::mojom::IDBException::kIgnorableAbortError,
-                          "Backend aborted error");
-      Get()->OnError(
-          blink::mojom::IDBError::New(error.code(), error.message()));
+      SendError(blink::mojom::IDBError::New(
+          blink::mojom::IDBException::kIgnorableAbortError,
+          u"Backend aborted error"));
     }
   } else {
-    // Make sure `callback_` is invoked because the Mojo client is waiting for a
-    // response.
-    Get();
+    // Make sure `callback_` is invoked because the Mojo client is waiting for
+    // a response.
+    std::move(callback_).Run(std::vector<blink::mojom::IDBRecordPtr>(),
+                             mojo::NullAssociatedReceiver());
   }
 }
 
-mojo::AssociatedRemote<blink::mojom::IDBDatabaseGetAllResultSink>&
-Database::GetAllResultSinkWrapper::Get() {
-  if (!result_sink_) {
-    mojo::PendingAssociatedReceiver<blink::mojom::IDBDatabaseGetAllResultSink>
-        pending_receiver;
-    if (use_dedicated_receiver_for_testing_) {
-      pending_receiver = result_sink_.BindNewEndpointAndPassDedicatedReceiver();
-    } else {
-      pending_receiver = result_sink_.BindNewEndpointAndPassReceiver();
-    }
-    std::move(callback_).Run(std::move(pending_receiver));
+void Database::GetAllResultSinkWrapper::SetUpSink(
+    std::vector<blink::mojom::IDBRecordPtr> initial_records) {
+  mojo::PendingAssociatedReceiver<blink::mojom::IDBDatabaseGetAllResultSink>
+      pending_receiver;
+  if (use_dedicated_receiver_for_testing_) {
+    pending_receiver = result_sink_.BindNewEndpointAndPassDedicatedReceiver();
+  } else {
+    pending_receiver = result_sink_.BindNewEndpointAndPassReceiver();
   }
-  return result_sink_;
+  std::move(callback_).Run(std::move(initial_records),
+                           std::move(pending_receiver));
+}
+
+void Database::GetAllResultSinkWrapper::SendResults(
+    std::vector<blink::mojom::IDBRecordPtr> records,
+    bool done) {
+  if (result_sink_) {
+    result_sink_->ReceiveResults(std::move(records), done);
+  } else if (done) {
+    std::move(callback_).Run(std::move(records),
+                             mojo::NullAssociatedReceiver());
+  } else {
+    SetUpSink(std::move(records));
+  }
+}
+
+void Database::GetAllResultSinkWrapper::SendError(
+    blink::mojom::IDBErrorPtr error) {
+  if (!result_sink_) {
+    SetUpSink(/*initial_records=*/{});
+  }
+
+  result_sink_->OnError(std::move(error));
 }
 
 Status Database::GetAllOperation(
@@ -705,7 +709,7 @@ Status Database::GetAllOperation(
   if (!cursor.has_value()) {
     DLOG(ERROR) << "Unable to open cursor operation: "
                 << cursor.error().ToString();
-    result_sink->Get()->OnError(CreateIDBErrorPtr(
+    result_sink->SendError(CreateIDBErrorPtr(
         blink::mojom::IDBException::kUnknownError,
         "Corruption detected, unable to continue", transaction));
     return cursor.error();
@@ -713,14 +717,9 @@ Status Database::GetAllOperation(
 
   std::vector<blink::mojom::IDBRecordPtr> found_records;
 
-  auto send_records = [&](bool done) {
-    result_sink->Get()->ReceiveResults(std::move(found_records), done);
-    found_records.clear();
-  };
-
   // No records found.
   if (!*cursor) {
-    send_records(/*done=*/true);
+    result_sink->SendResults(std::move(found_records), /*done=*/true);
     return Status::OK();
   }
 
@@ -743,13 +742,20 @@ Status Database::GetAllOperation(
       "BigBuffer may use shared memory with LevelDB backing store");
 
   const size_t max_values_before_sending = blink::mojom::kIDBGetAllChunkSize;
+
   for (uint32_t i = 0; i < max_count; ++i) {
+    // Periodically stream records if we have too many.
+    if (found_records.size() >= max_values_before_sending) {
+      result_sink->SendResults(std::move(found_records), /*done=*/false);
+      found_records.clear();
+    }
+
     // Cursor creation performs the first seek, returning a nullptr cursor when
     // invalid.
     if (i != 0) {
       StatusOr<bool> cursor_valid = (*cursor)->Continue();
       if (!cursor_valid.has_value()) {
-        result_sink->Get()->OnError(
+        result_sink->SendError(
             CreateIDBErrorPtr(blink::mojom::IDBException::kUnknownError,
                               "Seek failure, unable to continue", transaction));
         return cursor_valid.error();
@@ -793,13 +799,9 @@ Status Database::GetAllOperation(
     }
 
     found_records.emplace_back(std::move(return_record));
-
-    // Periodically stream records if we have too many.
-    if (found_records.size() >= max_values_before_sending) {
-      send_records(/*done=*/false);
-    }
   }
-  send_records(/*done=*/true);
+
+  result_sink->SendResults(std::move(found_records), /*done=*/true);
   return Status::OK();
 }
 
@@ -1016,7 +1018,7 @@ void Database::CallUpgradeTransactionStartedForTesting(int64_t old_version) {
 Status Database::OpenInternal() {
   auto result = LOG_RESULT(backing_store()->CreateOrOpenDatabase(name_),
                            "IndexedDB.BackingStore.CreateOrOpenDatabase",
-                           bucket_context_->in_memory());
+                           bucket_context_->GetHistogramSuffix());
   if (result.has_value()) {
     backing_store_db_ = std::move(result.value());
     return Status::OK();
@@ -1052,14 +1054,11 @@ void Database::VersionChangeIgnored() {
 }
 
 bool Database::HasNoConnections() const {
-  return force_closing_ || connections().empty();
+  return connections().empty();
 }
 
 void Database::SendVersionChangeToAllConnections(int64_t old_version,
                                                  int64_t new_version) {
-  if (force_closing_) {
-    return;
-  }
   for (auto* connection : connections()) {
     // Before invoking this method, the `ConnectionCoordinator` had
     // set the request state to `kPendingNoConnections`. Now the request will
@@ -1099,8 +1098,7 @@ void Database::SendVersionChangeToAllConnections(int64_t old_version,
 void Database::ConnectionClosed(base::OnceClosure forward_on_close,
                                 Connection& connection) {
   TRACE_EVENT0("IndexedDB", "Database::ConnectionClosed");
-  // Ignore connection closes during force close to prevent re-entry.
-  if (force_closing_) {
+  if (closing_all_connections_) {
     return;
   }
   CHECK(connections_.remove(&connection));

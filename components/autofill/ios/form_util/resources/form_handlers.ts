@@ -9,6 +9,7 @@
  */
 
 import {processChildFrameMessage} from '//components/autofill/ios/form_util/resources/child_frame_registration_lib.js';
+import {HAS_BEEN_PASSWORD_SYMBOL} from '//components/autofill/ios/form_util/resources/fill_constants.js';
 import {isAutofillableElement} from '//components/autofill/ios/form_util/resources/fill_element_inference_util.js';
 import * as fillUtil from '//components/autofill/ios/form_util/resources/fill_util.js';
 import {formSubmitted, reportFormSubmissionError, wasEditedByUser} from '//components/autofill/ios/form_util/resources/fill_web_form.js';
@@ -29,6 +30,14 @@ const NATIVE_MESSAGE_HANDLER = 'FormHandlersMessage';
 interface FormMsgBatchMetadata {
   // Number of messages that were dropped while messages were already scheduled.
   dropCount: number;
+}
+
+/**
+ * An HTMLInputElement that can be tracked with a Symbol property to indicate
+ * it has been a password field.
+ */
+interface PasswordTrackedElement extends HTMLInputElement {
+  [key: symbol]: boolean;
 }
 
 /**
@@ -87,6 +96,20 @@ function shouldListenToFormSubmissionEventsInCaptureMode(): boolean {
   // Interpolate the placeholder and parse its string content to the desired
   // boolean value. It is an error to not be able to parse the placeholder.
   return stringAsBool('{{PlaceholderFormSubmissionListenerCapture}}')!;
+}
+
+/**
+ * Returns true if autofill optimization form search is enabled.
+ */
+function isAutofillOptimizationFormSearchEnabled(): boolean {
+  return (window as any).gCrWebPlaceholderAutofillOptimizationFormSearch;
+}
+
+/**
+ * Returns true if the password fields tracking feature is enabled.
+ */
+function isTrackPasswordFieldsEnabled(): boolean {
+  return (window as any).gCrWebPlaceholderAutofillTrackPasswordFieldsIos;
 }
 
 /**
@@ -310,6 +333,17 @@ function attachListeners(): void {
   window.addEventListener('message', processInboundMessage);
 }
 
+/**
+ * Scan the page for password fields and set the HAS_BEEN_PASSWORD_SYMBOL on
+ * them.
+ */
+function markPasswordFields(): void {
+  const passwordFields = document.querySelectorAll('input[type="password"]');
+  for (const passwordField of passwordFields) {
+    (passwordField as PasswordTrackedElement)[HAS_BEEN_PASSWORD_SYMBOL] = true;
+  }
+}
+
 // Attach the listeners immediately to try to catch early actions of the user.
 attachListeners();
 
@@ -325,15 +359,41 @@ setTimeout(attachListeners, 1000);
  *     match.
  */
 function findAllFormElementsInNodes(nodeList: NodeList): Element[] {
-  return [...nodeList]
-             .filter(n => n.nodeType === Node.ELEMENT_NODE)
-             .map(n => [n, ...(n as Element).getElementsByTagName('*')])
-             .map(
-                 elems => elems.filter(
-                     e => (e as Element)
-                              .tagName.match(
-                                  /^(FORM|INPUT|SELECT|OPTION|TEXTAREA)$/)))
-             .flat() as Element[];
+  // The feature should give the same result in both case.
+  // The only difference should be performance.
+  if (isAutofillOptimizationFormSearchEnabled()) {
+    const elements: Element[] = [];
+    const tagNames = new Set(['FORM', 'INPUT', 'SELECT', 'OPTION', 'TEXTAREA']);
+
+    // Filter using a single for-loop instead of array functions
+    // to minimize intermediate memory allocations that affect performance.
+    for (const node of nodeList) {
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        continue;
+      }
+
+      const element = node as Element;
+      if (tagNames.has(element.tagName)) {
+        elements.push(element);
+      }
+      const descendants =
+          element.querySelectorAll('FORM, INPUT, SELECT, OPTION, TEXTAREA');
+      for (const descendant of descendants) {
+        elements.push(descendant);
+      }
+    }
+    return elements;
+  } else {
+    return [...nodeList]
+               .filter(n => n.nodeType === Node.ELEMENT_NODE)
+               .map(n => [n, ...(n as Element).getElementsByTagName('*')])
+               .map(
+                   elems => elems.filter(
+                       e => (e as Element)
+                                .tagName.match(
+                                    /^(FORM|INPUT|SELECT|OPTION|TEXTAREA)$/)))
+               .flat() as Element[];
+  }
 }
 
 /**
@@ -344,11 +404,19 @@ function findAllFormElementsInNodes(nodeList: NodeList): Element[] {
  * @return Renderer ids of the formless fields.
  */
 function findFormlessFieldsIds(elements: Element[]): string[] {
-  return elements
-      .filter(
-          e => isAutofillableElement(e) &&
-              !(e as HTMLInputElement).form)
-      .map(fillUtil.getUniqueID);
+  if (isAutofillOptimizationFormSearchEnabled()) {
+    const result: string[] = [];
+    for (const e of elements) {
+      if (isAutofillableElement(e) && !(e as HTMLInputElement).form) {
+        result.push(fillUtil.getUniqueID(e));
+      }
+    }
+    return result;
+  } else {
+    return elements
+        .filter(e => isAutofillableElement(e) && !(e as HTMLInputElement).form)
+        .map(fillUtil.getUniqueID);
+  }
 }
 
 /**
@@ -367,6 +435,10 @@ function trackFormMutations(delay: number): void {
 
   if (!delay) return;
 
+  if (isTrackPasswordFieldsEnabled()) {
+    markPasswordFields();
+  }
+
   formMutationObserver = new MutationObserver(function(mutations) {
     // Message for the first added form found in the mutations, if there is.
     let addedFormMessage: object|null = null;
@@ -374,97 +446,117 @@ function trackFormMutations(delay: number): void {
     let removedFormMessage: object|null = null;
 
     for (const mutation of mutations) {
-      // Only process mutations to the tree of nodes.
-      if (mutation.type !== 'childList') {
-        continue;
-      }
+      // Process mutations to the tree of nodes.
+      if (mutation.type === 'childList') {
+        const addedFormElements =
+            findAllFormElementsInNodes(mutation.addedNodes);
 
-      // Handle added nodes.
-      const formWasAdded =
-          findAllFormElementsInNodes(mutation.addedNodes).length > 0;
-      if (!addedFormMessage && formWasAdded) {
-        addedFormMessage = {
-          'command': 'form.activity',
-          'frameID': gCrWeb.getFrameId(),
-          'formName': '',
-          'formRendererID': '',
-          'fieldIdentifier': '',
-          'fieldRendererID': '',
-          'fieldType': '',
-          'type': 'form_changed',
-          'value': '',
-          'hasUserGesture': false,
-        };
-      } else if (formWasAdded) {
-        ++formMsgBatchMetadata.dropCount;
-      }
+        // For all password field in the added nodes, set
+        // HAS_BEEN_PASSWORD_SYMBOL.
+        if (isTrackPasswordFieldsEnabled()) {
+          for (const element of addedFormElements) {
+            if (element.tagName === 'INPUT' &&
+                (element as HTMLInputElement).type === 'password') {
+              (element as PasswordTrackedElement)[HAS_BEEN_PASSWORD_SYMBOL] =
+                  true;
+            }
+          }
+        }
 
-      // Handle removed nodes by starting from the specific removal cases down
-      // to the generic form modification case.
-
-      const removedFormElements =
-          findAllFormElementsInNodes(mutation.removedNodes);
-
-      if (removedFormElements.length === 0) {
-        continue;
-      }
-
-      const forms = removedFormElements.filter(e => e.tagName === 'FORM');
-
-      const removedFormlessFieldsIds =
-          findFormlessFieldsIds(removedFormElements);
-      const formlessFieldsWereRemoved = removedFormlessFieldsIds.length > 0;
-
-      // Send removed forms and unowned field id's in the same message.
-      if (forms.length > 0 || formlessFieldsWereRemoved) {
-        // Drop removed form message if there is one scheduled.
-        if (removedFormMessage) {
+        // Handle added nodes.
+        const formWasAdded = addedFormElements.length > 0;
+        if (!addedFormMessage && formWasAdded) {
+          addedFormMessage = {
+            'command': 'form.activity',
+            'frameID': gCrWeb.getFrameId(),
+            'formName': '',
+            'formRendererID': '',
+            'fieldIdentifier': '',
+            'fieldRendererID': '',
+            'fieldType': '',
+            'type': 'form_changed',
+            'value': '',
+            'hasUserGesture': false,
+          };
+        } else if (formWasAdded) {
           ++formMsgBatchMetadata.dropCount;
+        }
+
+        // Handle removed nodes by starting from the specific removal cases down
+        // to the generic form modification case.
+
+        const removedFormElements =
+            findAllFormElementsInNodes(mutation.removedNodes);
+
+        if (removedFormElements.length === 0) {
           continue;
-        } else {
-          // Send the removed forms identifiers to the browser.
-          const filteredFormIDs =
-              forms.map(form => fillUtil.getUniqueID(form));
+        }
+
+        const forms = removedFormElements.filter(e => e.tagName === 'FORM');
+
+        const removedFormlessFieldsIds =
+            findFormlessFieldsIds(removedFormElements);
+        const formlessFieldsWereRemoved = removedFormlessFieldsIds.length > 0;
+
+        // Send removed forms and unowned field id's in the same message.
+        if (forms.length > 0 || formlessFieldsWereRemoved) {
+          // Drop removed form message if there is one scheduled.
+          if (removedFormMessage) {
+            ++formMsgBatchMetadata.dropCount;
+            continue;
+          } else {
+            // Send the removed forms identifiers to the browser.
+            const filteredFormIDs =
+                forms.map(form => fillUtil.getUniqueID(form));
+            removedFormMessage = {
+              'command': 'form.removal',
+              'frameID': gCrWeb.getFrameId(),
+              'removedFormIDs': fillUtil.stringify(filteredFormIDs),
+              'removedFieldIDs': fillUtil.stringify(removedFormlessFieldsIds),
+            };
+            continue;
+          }
+        }
+
+        if (!removedFormMessage && formlessFieldsWereRemoved) {
+          // Handle the removed formless field case.
           removedFormMessage = {
             'command': 'form.removal',
             'frameID': gCrWeb.getFrameId(),
-            'removedFormIDs': fillUtil.stringify(filteredFormIDs),
             'removedFieldIDs': fillUtil.stringify(removedFormlessFieldsIds),
           };
           continue;
+        } else if (formlessFieldsWereRemoved) {
+          ++formMsgBatchMetadata.dropCount;
+          continue;
         }
-      }
 
-      if (!removedFormMessage && formlessFieldsWereRemoved) {
-        // Handle the removed formless field case.
-        removedFormMessage = {
-          'command': 'form.removal',
-          'frameID': gCrWeb.getFrameId(),
-          'removedFieldIDs': fillUtil.stringify(removedFormlessFieldsIds),
-        };
-        continue;
-      } else if (formlessFieldsWereRemoved) {
-        ++formMsgBatchMetadata.dropCount;
-        continue;
-      }
-
-      if (!addedFormMessage) {
-        // Handle the removed form control element case as a form changed
-        // mutation that is treated the same way as adding a new form.
-        addedFormMessage = {
-          'command': 'form.activity',
-          'frameID': gCrWeb.getFrameId(),
-          'formName': '',
-          'formRendererID': '',
-          'fieldIdentifier': '',
-          'fieldRendererID': '',
-          'fieldType': '',
-          'type': 'form_changed',
-          'value': '',
-          'hasUserGesture': false,
-        };
-      } else {
-        ++formMsgBatchMetadata.dropCount;
+        if (!addedFormMessage) {
+          // Handle the removed form control element case as a form changed
+          // mutation that is treated the same way as adding a new form.
+          addedFormMessage = {
+            'command': 'form.activity',
+            'frameID': gCrWeb.getFrameId(),
+            'formName': '',
+            'formRendererID': '',
+            'fieldIdentifier': '',
+            'fieldRendererID': '',
+            'fieldType': '',
+            'type': 'form_changed',
+            'value': '',
+            'hasUserGesture': false,
+          };
+        } else {
+          ++formMsgBatchMetadata.dropCount;
+        }
+      } else if (
+          // Monitors password fields that changes type during its lifetime.
+          isTrackPasswordFieldsEnabled() && mutation.type === 'attributes' &&
+          mutation.attributeName === 'type') {
+        const target = mutation.target as HTMLInputElement;
+        if (target.tagName === 'INPUT' && target.type === 'password') {
+          (target as PasswordTrackedElement)[HAS_BEEN_PASSWORD_SYMBOL] = true;
+        }
       }
     }
     const messagesToSend: object[] =
@@ -475,7 +567,19 @@ function trackFormMutations(delay: number): void {
       formMsgBatchMetadata.dropCount += messagesToSend.length;
     }
   });
-  formMutationObserver.observe(document, {childList: true, subtree: true});
+
+  // There is a small performance cost when adding attributes and
+  // attributesFilter.
+  if (isTrackPasswordFieldsEnabled()) {
+    formMutationObserver.observe(document, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['type'],
+    });
+  } else {
+    formMutationObserver.observe(document, {childList: true, subtree: true});
+  }
 }
 
 const formHandlersApi = new CrWebApi('formHandlers');

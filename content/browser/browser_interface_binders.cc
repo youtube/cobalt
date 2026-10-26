@@ -71,6 +71,7 @@
 #include "content/browser/renderer_host/media/media_devices_dispatcher_host.h"
 #include "content/browser/renderer_host/media/media_stream_dispatcher_host.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
+#include "content/browser/renderer_host/media/rtc_logging_dispatcher.h"
 #include "content/browser/renderer_host/media/video_capture_host.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
@@ -196,6 +197,7 @@
 #include "third_party/blink/public/mojom/presentation/presentation.mojom.h"
 #include "third_party/blink/public/mojom/push_messaging/push_messaging.mojom.h"
 #include "third_party/blink/public/mojom/quota/quota_manager_host.mojom.h"
+#include "third_party/blink/public/mojom/rtc_logging/rtc_logging.mojom.h"
 #include "third_party/blink/public/mojom/sensor/web_sensor_provider.mojom.h"
 #include "third_party/blink/public/mojom/serial/serial.mojom.h"
 #include "third_party/blink/public/mojom/sms/webotp_service.mojom.h"
@@ -402,10 +404,12 @@ void BindFileUtilitiesHost(
     mojo::PendingReceiver<blink::mojom::FileUtilitiesHost> receiver) {
   auto task_runner = base::ThreadPool::CreateSequencedTaskRunner(
       {base::MayBlock(), base::TaskPriority::USER_VISIBLE});
-  task_runner->PostTask(
-      FROM_HERE,
-      base::BindOnce(&FileUtilitiesHostImpl::Create, host->worker_process_id(),
-                     std::move(receiver)));
+  // TODO(crbug.com/379869738) Remove FromUnsafeValue.
+  task_runner->PostTask(FROM_HERE,
+                        base::BindOnce(&FileUtilitiesHostImpl::Create,
+                                       content::ChildProcessId::FromUnsafeValue(
+                                           host->worker_process_id()),
+                                       std::move(receiver)));
 }
 
 // The following two functions bind the RenderFrameHost ID, the storage key, and
@@ -924,7 +928,7 @@ void PopulateBinderMapWithContext(
 
   map->Add<blink::mojom::FileUtilitiesHost>(
       base::BindRepeating(&FileUtilitiesHostImpl::Create,
-                          host->GetProcess()->GetDeprecatedID()),
+                          host->GetProcess()->GetID()),
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE}));
 
@@ -984,6 +988,9 @@ void PopulateBinderMapWithContext(
                             base::Unretained(media_stream_manager)),
         GetIOThreadTaskRunner({}));
   }
+
+  map->Add<blink::mojom::RTCLoggingDispatcher>(
+      base::BindRepeating(&RTCLoggingDispatcherImpl::Create));
 
   map->Add<blink::mojom::RendererAudioInputStreamFactory>(
       &BindRenderFrameHostImpl<
@@ -1334,7 +1341,7 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
 
   map->Add<blink::mojom::FileUtilitiesHost>(
       base::BindRepeating(FileUtilitiesHostImpl::Create,
-                          host->GetProcessHost()->GetDeprecatedID()),
+                          host->GetProcessHost()->GetID()),
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE}));
 
@@ -1506,7 +1513,7 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
   // |SharedWorkerHost::broker_|.
   map->Add<blink::mojom::FileUtilitiesHost>(
       base::BindRepeating(FileUtilitiesHostImpl::Create,
-                          host->GetProcessHost()->GetDeprecatedID()),
+                          host->GetProcessHost()->GetID()),
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE}));
 

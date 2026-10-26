@@ -37,8 +37,11 @@ TEST_F(FamilyLinkSettingsDataTypeControllerTest,
       /*dump_stack=*/base::DoNothing(),
       /*store_factory=*/base::DoNothing(),
       /*syncable_service=*/nullptr, &pref_service_);
-  EXPECT_EQ(DataTypeController::PreconditionState::kPreconditionsMet,
-            controller.GetPreconditionState());
+  EXPECT_EQ(
+      DataTypeController::PreconditionState::kPreconditionsMet,
+      controller.GetPreconditionState(
+          syncer::DataTypeController::PreconditionContext(
+              signin::AccountManagedStatusFinderOutcome::kConsumerGmail)));
 }
 
 TEST_F(FamilyLinkSettingsDataTypeControllerTest,
@@ -47,12 +50,14 @@ TEST_F(FamilyLinkSettingsDataTypeControllerTest,
       /*dump_stack=*/base::DoNothing(),
       /*store_factory=*/base::DoNothing(),
       /*syncable_service=*/nullptr, &pref_service_);
-  EXPECT_EQ(DataTypeController::PreconditionState::kMustStopAndClearData,
-            controller.GetPreconditionState());
+  EXPECT_EQ(
+      DataTypeController::PreconditionState::kMustStopAndClearData,
+      controller.GetPreconditionState(
+          syncer::DataTypeController::PreconditionContext(
+              signin::AccountManagedStatusFinderOutcome::kConsumerGmail)));
 }
 
-TEST_F(FamilyLinkSettingsDataTypeControllerTest,
-       HasTransportModeDelegate) {
+TEST_F(FamilyLinkSettingsDataTypeControllerTest, HasTransportModeDelegate) {
   FamilyLinkSettingsDataTypeController controller(
       /*dump_stack=*/base::DoNothing(),
       /*store_factory=*/base::DoNothing(),

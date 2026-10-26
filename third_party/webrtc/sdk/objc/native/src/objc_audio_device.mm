@@ -11,6 +11,7 @@
 #include "objc_audio_device.h"
 
 #include <memory>
+#include <span>
 
 #import "components/audio/RTCAudioDevice.h"
 #import "helpers/AudioTimeStamp+Nanoseconds.h"
@@ -447,8 +448,8 @@ OSStatus ObjCAudioDeviceModule::OnDeliverRecordedData(
                audio_buffer->mNumberChannels == 2);
 
     record_fine_audio_buffer_->DeliverRecordedData(
-        webrtc::ArrayView<const int16_t>(
-            static_cast<int16_t*>(audio_buffer->mData), num_frames),
+        std::span<const int16_t>(static_cast<int16_t*>(audio_buffer->mData),
+                                 num_frames),
         cached_recording_delay_ms_.load(),
         AudioTimeStampGetNanoseconds(time_stamp));
     return noErr;
@@ -527,8 +528,8 @@ OSStatus ObjCAudioDeviceModule::OnGetPlayoutData(
   // Read decoded 16-bit PCM samples from WebRTC into the
   // `io_data` destination buffer.
   playout_fine_audio_buffer_->GetPlayoutData(
-      webrtc::ArrayView<int16_t>(static_cast<int16_t*>(audio_buffer->mData),
-                                 num_frames * audio_buffer->mNumberChannels),
+      std::span<int16_t>(static_cast<int16_t*>(audio_buffer->mData),
+                         num_frames * audio_buffer->mNumberChannels),
       cached_playout_delay_ms_.load());
 
   return noErr;

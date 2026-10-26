@@ -121,15 +121,12 @@ CSSValue* CSSValue::Create(const Length& value, float zoom) {
     case Length::kStretch:
     case Length::kFitContent:
     case Length::kContent:
-    case Length::kExtendToZoom:
       return CSSIdentifierValue::Create(value);
     case Length::kPercent:
     case Length::kFixed:
     case Length::kCalculated:
     case Length::kFlex:
       return CSSPrimitiveValue::CreateFromLength(value, zoom);
-    case Length::kDeviceWidth:
-    case Length::kDeviceHeight:
     case Length::kMinIntrinsic:
     case Length::kNone:
       NOTREACHED();
@@ -1151,6 +1148,8 @@ bool CSSValue::HasRandomFunctions() const {
       return To<cssvalue::CSSColorMixValue>(this)->HasRandomFunctions();
     case kRelativeColorClass:
       return To<cssvalue::CSSRelativeColorValue>(this)->HasRandomFunctions();
+    case kContrastColorClass:
+      return To<cssvalue::CSSContrastColorValue>(this)->HasRandomFunctions();
     case kPaletteMixClass:
       return To<cssvalue::CSSPaletteMixValue>(this)->HasRandomFunctions();
     case kCustomIdentClass:
@@ -1243,9 +1242,44 @@ bool CSSValue::HasRandomFunctions() const {
       return To<CSSShadowValue>(this)->HasRandomFunctions();
     case kRayClass:
       return To<cssvalue::CSSRayValue>(this)->HasRandomFunctions();
-    default:
+
+    case kInheritedClass:
+    case kInitialClass:
+    case kUnsetClass:
+    case kRevertClass:
+    case kRevertLayerClass:
+    case kRevertRuleClass:
+    case kURIClass:
+    case kURLPatternClass:
+    case kColorClass:
+    case kStringClass:
+    case kPathClass:
+    case kCSSContentDistributionClass:
+    case kUnparsedDeclarationClass:
+    case kImageClass:
+    case kCursorImageClass:
+    case kProgressClass:
+    case kLinearTimingFunctionClass:
+    case kCubicBezierTimingFunctionClass:
+    case kFontFaceSrcClass:
+    case kFontFamilyClass:
+    case kUnicodeRangeClass:
+    case kGridTemplateAreasClass:
+    case kPendingSubstitutionValueClass:
+    case kPendingSystemFontValueClass:
+    case kInvalidVariableValueClass:
+    case kCyclicVariableValueClass:
+    case kFlipRevertClass:
+    case kKeyframeShorthandClass:
+    case kInitialColorValueClass:
+    case kImageSetTypeClass:
+    case kGridAutoRepeatClass:
+    case kScopedKeywordClass:
+    case kNumericLiteralClass:
+    case kIdentifierClass:
       return false;
   }
+  NOTREACHED();
 }
 
 }  // namespace blink

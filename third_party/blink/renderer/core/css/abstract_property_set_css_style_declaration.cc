@@ -68,6 +68,11 @@ void AbstractPropertySetCSSStyleDeclaration::setCSSText(
   mutation_scope.EnqueueMutationRecord();
 }
 
+const CSSPropertyValueSet&
+AbstractPropertySetCSSStyleDeclaration::GetPropertyValueSet() const {
+  return PropertySet();
+}
+
 String AbstractPropertySetCSSStyleDeclaration::getPropertyValue(
     const String& property_name) {
   CSSPropertyID property_id =
@@ -139,7 +144,7 @@ void AbstractPropertySetCSSStyleDeclaration::setProperty(
     return;
   }
 
-  bool important = EqualIgnoringASCIICase(priority, "important");
+  bool important = EqualIgnoringAsciiCase(priority, "important");
   if (!important && !priority.empty()) {
     return;
   }

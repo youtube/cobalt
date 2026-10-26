@@ -14,9 +14,9 @@ enum class TabGroupColorId;
 // Defines a color palette for tab groups derived from a seed color.
 @interface TabGroupColorPalette : NSObject
 
-// Initializes from a group color to generate a color palette for the grid cell
-// and group views.
-- (instancetype)initWithSeedColorId:(tab_groups::TabGroupColorId)tabGroupColorId
+// Initializes from a tabGroupColorId to generate a color palette for the grid
+// cell and group views.
+- (instancetype)initWithColorId:(tab_groups::TabGroupColorId)tabGroupColorID
     NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 
@@ -35,6 +35,13 @@ enum class TabGroupColorId;
 // A variant of the seed color for the dot, the borders, and the NTP button
 // which is the same in light and dark theme.
 @property(nonatomic, readonly) UIColor* commonColor;
+
+// An array of colors for the gradient background in TabGroupView.
+@property(nonatomic, readonly) NSArray* backgroundGradientColors;
+
+// A static method that returns the commonColor without instantiating the whole
+// palette.
++ (UIColor*)commonColor:(tab_groups::TabGroupColorId)tabGroupColorID;
 
 @end
 

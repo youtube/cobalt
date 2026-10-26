@@ -108,7 +108,7 @@ class FrameSerializerTest
   }
 
   void RegisterErrorURL(const char* file, int status_code) {
-    ResourceError error = ResourceError::Failure(NullURL());
+    ResourceError error = ResourceError::Failure(NullUrl());
 
     WebURLResponse response;
     response.SetMimeType("text/html");
@@ -164,8 +164,9 @@ class FrameSerializerTest
     String mime(mime_type);
     for (const SerializedResource& resource : resources_) {
       if (resource.url == url && !resource.data->empty() &&
-          (mime.IsNull() || EqualIgnoringASCIICase(resource.mime_type, mime)))
+          (mime.IsNull() || EqualIgnoringAsciiCase(resource.mime_type, mime))) {
         return &resource;
+      }
     }
     return nullptr;
   }
@@ -368,11 +369,11 @@ TEST_F(FrameSerializerTest, IFrames) {
       "<meta http-equiv=\"Content-Type\" content=\"text/html; "
       "charset=EUC-KR\">";
   EXPECT_TRUE(GetSerializedData("encoded_iframe.html", "text/html")
-                  .Contains(expected_meta_charset));
+                  .contains(expected_meta_charset));
   EXPECT_TRUE(GetSerializedData("encoded_iframe.html", "text/html")
-                  .Contains("\xE4\xC5\xD1\xE2"));
+                  .contains("\xE4\xC5\xD1\xE2"));
   EXPECT_FALSE(GetSerializedData("encoded_iframe.html", "text/html")
-                   .Contains("\xE4\xC5\xE4\xC5"));
+                   .contains("\xE4\xC5\xE4\xC5"));
 }
 
 // Tests that when serializing a page with blank frames these are reported with
@@ -460,19 +461,19 @@ TEST_F(FrameSerializerTest, CSS) {
 
   // Ensure encodings are specified.
   EXPECT_TRUE(
-      GetSerializedData("link_styles.css", "text/css").StartsWith("@charset"));
+      GetSerializedData("link_styles.css", "text/css").starts_with("@charset"));
   EXPECT_TRUE(GetSerializedData("import_styles.css", "text/css")
-                  .StartsWith("@charset"));
+                  .starts_with("@charset"));
   EXPECT_TRUE(GetSerializedData("import_style_from_link.css", "text/css")
-                  .StartsWith("@charset"));
+                  .starts_with("@charset"));
   EXPECT_TRUE(GetSerializedData("encoding.css", "text/css")
-                  .StartsWith("@charset \"euc-kr\";"));
+                  .starts_with("@charset \"euc-kr\";"));
 
   // Ensure that stylesheet contents are not NFC-normalized before encoding.
   EXPECT_TRUE(GetSerializedData("encoding.css", "text/css")
-                  .Contains("\xE4\xC5\xD1\xE2"));
+                  .contains("\xE4\xC5\xD1\xE2"));
   EXPECT_FALSE(GetSerializedData("encoding.css", "text/css")
-                   .Contains("\xE4\xC5\xE4\xC5"));
+                   .contains("\xE4\xC5\xE4\xC5"));
 }
 
 TEST_F(FrameSerializerTest, CSSImport) {
@@ -499,7 +500,7 @@ TEST_F(FrameSerializerTest, XMLDeclaration) {
   Serialize("xmldecl.xml");
 
   String expected_start("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-  EXPECT_TRUE(GetSerializedData("xmldecl.xml").StartsWith(expected_start));
+  EXPECT_TRUE(GetSerializedData("xmldecl.xml").starts_with(expected_start));
 }
 
 TEST_F(FrameSerializerTest, DTD) {
@@ -509,7 +510,7 @@ TEST_F(FrameSerializerTest, DTD) {
   Serialize("html5.html");
 
   String expected_start("<!DOCTYPE html>");
-  EXPECT_TRUE(GetSerializedData("html5.html").StartsWith(expected_start));
+  EXPECT_TRUE(GetSerializedData("html5.html").starts_with(expected_start));
 }
 
 TEST_F(FrameSerializerTest, Font) {

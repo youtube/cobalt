@@ -24,7 +24,7 @@ function visibleLineCount(totalCount: number, oppositeCount: number): number {
 
 export interface ExtensionsCodeSectionElement {
   $: {
-    'scroll-container': HTMLElement,
+    scrollContainer: HTMLElement,
   };
 }
 
@@ -93,9 +93,7 @@ export class ExtensionsCodeSectionElement extends
   }
 
   private async onCodeChanged_() {
-    if (!this.code ||
-        (!this.code.beforeHighlight && !this.code.highlight &&
-         !this.code.afterHighlight)) {
+    if (!(this.code?.source)) {
       this.highlighted_ = '';
       this.highlightDescription_ = '';
       this.before_ = '';
@@ -104,9 +102,9 @@ export class ExtensionsCodeSectionElement extends
       return;
     }
 
-    const before = this.code.beforeHighlight;
-    const highlight = this.code.highlight;
-    const after = this.code.afterHighlight;
+    const before = this.code.source.beforeHighlight;
+    const highlight = this.code.source.highlight;
+    const after = this.code.source.afterHighlight;
 
     const linesBefore = before ? before.split('\n') : [];
     const linesAfter = after ? after.split('\n') : [];
@@ -168,7 +166,7 @@ export class ExtensionsCodeSectionElement extends
     // Find the position to show the highlight roughly in the middle.
     const targetTop = highlightTop - this.clientHeight * 0.5;
 
-    this.$['scroll-container'].scrollTo({top: targetTop});
+    this.$.scrollContainer.scrollTo({top: targetTop});
   }
 
   private getAccessibilityHighlightDescription_(

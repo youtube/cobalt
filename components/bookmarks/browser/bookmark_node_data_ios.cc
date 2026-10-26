@@ -9,7 +9,8 @@
 namespace bookmarks {
 
 // static
-bool BookmarkNodeData::ClipboardContainsBookmarks() {
+void BookmarkNodeData::ClipboardContainsBookmarks(
+    base::OnceCallback<void(bool)> callback) {
   NOTREACHED();
 }
 
@@ -17,7 +18,10 @@ void BookmarkNodeData::WriteToClipboard(bool is_off_the_record) {
   NOTREACHED();
 }
 
-bool BookmarkNodeData::ReadFromClipboard(ui::ClipboardBuffer buffer) {
+// static
+void BookmarkNodeData::ReadFromClipboard(
+    ui::ClipboardBuffer buffer,
+    base::OnceCallback<void(std::unique_ptr<BookmarkNodeData>)> callback) {
   NOTREACHED();
 }
 

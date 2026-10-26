@@ -12,13 +12,16 @@
 #include <utility>
 #include <vector>
 
+#include "base/check.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "chrome/common/read_anything/read_anything.mojom-shared.h"
 #include "chrome/common/read_anything/read_anything.mojom.h"
 #include "chrome/common/read_anything/read_anything_util.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_event_generator.h"
 #include "ui/accessibility/ax_node_id_forward.h"
 #include "ui/accessibility/ax_tree_id.h"
@@ -97,6 +100,37 @@ class ReadAnythingAppModel {
     // particular AXTree, namely is_pdf. Right now, this is set every time the
     // active ax tree id changes; instead, it should be set once when a new tree
     // is added.
+  };
+
+  // Stores the necessary information to determine if one link is different
+  // from another when interacting with a link from Readability distilled
+  // content.
+  struct AnchorData {
+    AnchorData();
+    ~AnchorData();
+    AnchorData(const AnchorData& other);
+    AnchorData& operator=(const AnchorData& other);
+
+    // The value of the HTML 'id' attribute (e.g., <a id="my-link">).
+    std::string html_id;
+
+    // The accessible name or visible text of the link, used by screen readers.
+    std::string name;
+
+    // The HTML 'target' attribute, indicating where to open the link (e.g.,
+    // "_blank").
+    std::string target;
+
+    // The text content of the node immediately following this link.
+    std::string text_after;
+
+    // The text content of the node immediately preceding this link.
+    std::string text_before;
+
+    // The HTML 'title' attribute, typically shown as a hover tooltip.
+    std::string title;
+
+    ui::AXNodeID id;
   };
 
   // Represents a grouping of AXTreeUpdates received in the same accessibility
@@ -234,6 +268,36 @@ class ReadAnythingAppModel {
   bool is_readability_next_distillation_method() const {
     return next_distillation_method() == DistillationMethod::kReadability;
   }
+  bool is_readability_current_distillation_method() const {
+    return current_content_distillation_method_ ==
+           DistillationMethod::kReadability;
+  }
+  bool should_apply_accessibility_updates_for_readability_links() const {
+    // Accessibility updates for Readability shouldn't be applied outside
+    // of the regular accessibility update process if Readability is disabled
+    // or ReadAnythingWithReadabilityAllowLinksEnabled is disabled, as these
+    // updates are only needed when links are supported.
+    if (!features::IsReadAnythingWithReadabilityEnabled() ||
+        !features::IsReadAnythingWithReadabilityAllowLinksEnabled()) {
+      return false;
+    }
+
+    if (is_readability_next_distillation_method() &&
+        distillation_state_ ==
+            read_anything::mojom::ReadAnythingDistillationState::
+                kDistillationInProgress) {
+      return true;
+    }
+
+    if (is_readability_current_distillation_method() &&
+        distillation_state_ ==
+            read_anything::mojom::ReadAnythingDistillationState::
+                kDistillationWithContent) {
+      return true;
+    }
+
+    return false;
+  }
 
   read_anything::mojom::LetterSpacing letter_spacing() const {
     return letter_spacing_;
@@ -270,16 +334,49 @@ class ReadAnythingAppModel {
   // Sometimes iframes can return selection objects that have a valid id but
   // aren't in the tree.
   bool has_selection() const {
-    return start_.is_valid() && GetAXNode(start_.id);
+    return start_.is_valid() && end_.is_valid() && GetAXNode(start_.id) &&
+           GetAXNode(end_.id);
   }
   ui::AXNodeID start_node_id() const { return start_.id; }
   ui::AXNodeID end_node_id() const { return end_.id; }
   int start_offset() const { return start_.offset; }
   int end_offset() const { return end_.offset; }
 
-  bool distillation_in_progress() const { return distillation_in_progress_; }
-  void set_distillation_in_progress(bool distillation_in_progress) {
-    distillation_in_progress_ = distillation_in_progress;
+  bool screen2x_distiller_running() const {
+    return screen2x_distiller_running_;
+  }
+  void set_screen2x_distiller_running(bool screen2x_distiller_running) {
+    screen2x_distiller_running_ = screen2x_distiller_running;
+  }
+
+  bool should_extract_anchors_from_tree_for_readability() const {
+    bool is_readability_with_links_enabled =
+        features::IsReadAnythingWithReadabilityAllowLinksEnabled();
+    DUMP_WILL_BE_CHECK(is_readability_with_links_enabled);
+
+    return is_readability_with_links_enabled
+               ? should_extract_anchors_from_tree_for_readability_
+               : false;
+  }
+  void set_should_extract_anchors_from_tree_for_readability(
+      bool should_extract_anchors_from_tree_for_readability) {
+    bool is_readability_with_links_enabled =
+        features::IsReadAnythingWithReadabilityAllowLinksEnabled();
+    DUMP_WILL_BE_CHECK(is_readability_with_links_enabled);
+    should_extract_anchors_from_tree_for_readability_ =
+        is_readability_with_links_enabled
+            ? should_extract_anchors_from_tree_for_readability
+            : false;
+  }
+
+  // Processes the tree anchors.
+  // Returns true indicating that the tree was successfully processed and we can
+  // notify the frontend that anchors are ready.
+  bool ProcessAXTreeAnchors();
+  void ResetAXTreeAnchors();
+  const std::map<std::string, std::vector<AnchorData>>& ax_tree_anchors()
+      const {
+    return ax_tree_anchors_;
   }
 
   // The following methods are used for the screen2x data collection pipeline.
@@ -514,6 +611,8 @@ class ReadAnythingAppModel {
 
   void SetFontSize(double font_size, int increment = 0);
   void SetUkmSourceId(ukm::SourceId ukm_source_id);
+  std::map<std::string, std::vector<AnchorData>> CollectAnchorsFromAXTree(
+      ui::AXSerializableTree* tree);
 
   // State.
   std::map<ui::AXTreeID, std::unique_ptr<AXTreeInfo>> tree_infos_;
@@ -548,7 +647,7 @@ class ReadAnythingAppModel {
   // Distillation is slow and happens out-of-process when Screen2x is running.
   // This boolean marks when distillation is in progress to avoid sending
   // new distillation requests during that time.
-  bool distillation_in_progress_ = false;
+  bool screen2x_distiller_running_ = false;
 
   // A mapping of a tree ID to a queue of pending updates on the active AXTree,
   // which will be unserialized once distillation completes.
@@ -636,6 +735,12 @@ class ReadAnythingAppModel {
   bool requires_tree_lang_ = false;
 
   bool will_hide_ = false;
+
+  // Whether we should traverse the tree to find all the anchors on it.
+  bool should_extract_anchors_from_tree_for_readability_;
+  // Holds a map of an URL string with all the AX Tree Nodes that are related
+  // to that specific URL.
+  std::map<std::string, std::vector<AnchorData>> ax_tree_anchors_;
 
   // The distillation method that will be used for the next content update.
   DistillationMethod next_distillation_method_;

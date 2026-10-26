@@ -109,11 +109,8 @@ MediaNotificationProviderImpl::GetMediaNotificationListView(
     global_media_controls::GlobalMediaControlsEntryPoint entry_point,
     const std::string& show_devices_for_item_id) {
   CHECK(item_manager_);
-  CHECK(color_theme_);
   auto media_item_ui_list_view =
       std::make_unique<global_media_controls::MediaItemUIListView>(
-          global_media_controls::MediaItemUIListView::SeparatorStyle(
-              color_theme_->separator_color, separator_thickness),
           should_clip_height);
   media_item_ui_list_view_ = media_item_ui_list_view->GetWeakPtr();
   entry_point_ = entry_point;
@@ -126,11 +123,6 @@ MediaNotificationProviderImpl::GetMediaNotificationListView(
 
 void MediaNotificationProviderImpl::OnBubbleClosing() {
   item_manager_->SetDialogDelegate(nullptr);
-}
-
-void MediaNotificationProviderImpl::SetColorTheme(
-    const media_message_center::NotificationTheme& color_theme) {
-  color_theme_ = color_theme;
 }
 
 global_media_controls::MediaItemManager*
@@ -188,7 +180,7 @@ MediaNotificationProviderImpl::BuildDeviceSelectorView(
 
   return BuildDeviceSelector(id, item, GetDeviceService(item),
                              &device_selector_delegate_, GetProfile(),
-                             entry_point, show_devices, media_color_theme_);
+                             entry_point, media_color_theme_, show_devices);
 }
 
 std::unique_ptr<global_media_controls::MediaItemUIFooter>
@@ -216,7 +208,7 @@ MediaNotificationProviderImpl::ShowMediaItem(
   auto item_ui = std::make_unique<global_media_controls::MediaItemUIView>(
       id, item, BuildFooterView(id, item),
       BuildDeviceSelectorView(id, item, entry_point_, show_devices),
-      color_theme_, media_color_theme_, media_display_page);
+      media_color_theme_, media_display_page);
   auto* item_ui_ptr = item_ui.get();
   item_ui_observer_set_.Observe(id, item_ui_ptr);
 

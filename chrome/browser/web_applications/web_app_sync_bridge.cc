@@ -46,7 +46,6 @@
 #include "chrome/browser/web_applications/web_app_registry_update.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/channel_info.h"
-#include "chrome/common/chrome_features.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/deletion_origin.h"
 #include "components/sync/base/report_unrecoverable_error.h"
@@ -454,7 +453,8 @@ void WebAppSyncBridge::UpdateRegistrar(
 
   for (std::unique_ptr<WebApp>& web_app : update_data->apps_to_create) {
     webapps::AppId app_id = web_app->app_id();
-    DCHECK(!registrar_->GetAppById(app_id));
+    DCHECK(!registrar_->GetAppById(app_id,
+                                   WebAppFilter::IsAppSurfaceableToUser()));
     registrar_->registry().emplace(std::move(app_id), std::move(web_app));
   }
 
@@ -601,7 +601,8 @@ ManifestIdParseResult WebAppSyncBridge::PrepareLocalUpdateFromSyncChange(
   // app_id is storage key.
   const webapps::AppId& app_id = change.storage_key();
 
-  const WebApp* existing_web_app = registrar_->GetAppById(app_id);
+  const WebApp* existing_web_app =
+      registrar_->GetAppById(app_id, WebAppFilter::IsAppSurfaceableToUser());
 
   // Handle deletion first.
   if (change.type() == syncer::EntityChange::ACTION_DELETE) {
@@ -883,6 +884,14 @@ std::string WebAppSyncBridge::GetClientTag(
 std::string WebAppSyncBridge::GetStorageKey(
     const syncer::EntityData& entity_data) const {
   return GetClientTag(entity_data);
+}
+
+sync_pb::EntitySpecifics
+WebAppSyncBridge::TrimAllSupportedFieldsFromRemoteSpecifics(
+    const sync_pb::EntitySpecifics& entity_specifics) const {
+  // Clears all fields by default to avoid the memory and I/O overhead of an
+  // additional copy of the data.
+  return sync_pb::EntitySpecifics();
 }
 
 bool WebAppSyncBridge::IsEntityDataValid(

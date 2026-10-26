@@ -4,7 +4,11 @@
 
 #include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
 
+#include "base/metrics/histogram_functions.h"
+#include "base/strings/strcat.h"
 #include "build/build_config.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks.mojom.h"
+#include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 
@@ -13,6 +17,45 @@
 #endif
 
 namespace contextual_tasks {
+
+std::unique_ptr<
+    contextual_search::ContextualSearchContextController::ConfigParams>
+CreateQueryControllerConfigParams() {
+  auto config_params = std::make_unique<
+      contextual_search::ContextualSearchContextController::ConfigParams>();
+  config_params->send_lns_surface = true;
+  config_params->enable_viewport_images = true;
+  config_params->attach_page_title_and_url_to_suggest_requests = false;
+  return config_params;
+}
+
+void ShowAndRecordErrorPage(mojo::Remote<contextual_tasks::mojom::Page>& page,
+                            contextual_search::ContextualSearchSource source) {
+  if (page) {
+    page->ShowErrorPage();
+  }
+  RecordErrorPageShown(source);
+}
+
+void RecordErrorPageShown(contextual_search::ContextualSearchSource source) {
+  base::UmaHistogramEnumeration(
+      base::StrCat({"ContextualSearch.ErrorPageShown", ".",
+                    contextual_search::ContextualSearchMetricsRecorder::
+                        ContextualSearchSourceToString(source)}),
+      contextual_search::ContextualSearchErrorPage::kPageContextNotEligible);
+}
+
+void RecordInnerFrameContentsHttpResponseCode(int http_status_code,
+                                              bool is_zero_state) {
+  base::UmaHistogramSparse(
+      "ContextualTasks.InnerFrameContents.HttpResponseCode", http_status_code);
+  if (!is_zero_state) {
+    base::UmaHistogramSparse(
+        "ContextualTasks.InnerFrameContents.HttpResponseCode."
+        "ExcludeZeroStateLoads",
+        http_status_code);
+  }
+}
 
 ContextualTasksUIInterface* GetWebUiInterface(
     content::WebContents* web_contents) {

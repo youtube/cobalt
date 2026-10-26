@@ -9,10 +9,13 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
+#include "third_party/blink/renderer/core/html/parser/fragment_parser_options.h"
 #include "third_party/blink/renderer/core/html/parser/html_document_parser.h"
 #include "third_party/blink/renderer/core/sanitizer/sanitizer_api.h"
 #include "third_party/blink/renderer/core/streams/underlying_sink_base.h"
 #include "third_party/blink/renderer/core/streams/writable_stream.h"
+#include "third_party/blink/renderer/core/trustedtypes/trusted_parser_options.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_type_policy.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_type_policy_factory.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_types_util.h"
@@ -30,8 +33,19 @@ namespace {
 class HTMLSink : public UnderlyingSinkBase {
  public:
   explicit HTMLSink(ContainerNode& new_target,
-                    const SetHTMLUnsafeOptions* new_options)
-      : target(new_target), options(new_options) {
+                    FragmentParserOptions new_options)
+      : target(new_target),
+
+        sanitizer(SanitizerAPI::CreateStreamingSanitizerInternal(
+            new_options,
+            &new_target,
+            ASSERT_NO_EXCEPTION)),
+        parser_content_policy(
+            new_options.run_scripts() ==
+                    FragmentParserOptions::RunScripts::kRunScripts
+                ? ParserContentPolicy::
+                      kAllowScriptingContentAndMarkAsParserInserted
+                : ParserContentPolicy::kAllowScriptingContent) {
     CHECK(target->IsElementNode() || target->IsShadowRoot());
   }
 
@@ -39,7 +53,7 @@ class HTMLSink : public UnderlyingSinkBase {
     UnderlyingSinkBase::Trace(visitor);
     visitor->Trace(target);
     visitor->Trace(parser);
-    visitor->Trace(options);
+    visitor->Trace(sanitizer);
   }
 
   ScriptPromise<IDLUndefined> start(ScriptState* script_state,
@@ -52,19 +66,13 @@ class HTMLSink : public UnderlyingSinkBase {
       }
     }
 
+    CustomElementRegistry* registry = context_element->customElementRegistry();
+
     // TODO(nrosenthal): support safe sanitizer.
-    StreamingSanitizer* sanitizer =
-        SanitizerAPI::CreateStreamingSanitizerUnsafeInternal(options, target,
-                                                             exception_state);
     // FIXME(nrosenthal): support more methods. This currently assumes "append".
-    // FIXME(nrosenthal): custom element registry support?
     parser = MakeGarbageCollected<HTMLDocumentParser>(
-        target, context_element,
-        options->runScripts()
-            ? ParserContentPolicy::
-                  kAllowScriptingContentAndDoNotMarkAlreadyStarted
-            : ParserContentPolicy::kAllowScriptingContent,
-        ParserPrefetchPolicy::kDisallowPrefetching, /*registry*/ nullptr,
+        target, context_element, parser_content_policy,
+        ParserPrefetchPolicy::kDisallowPrefetching, registry,
         /*sanitizer*/ sanitizer);
 
     return ToResolvedUndefinedPromise(script_state);
@@ -106,26 +114,30 @@ class HTMLSink : public UnderlyingSinkBase {
 
   Member<ContainerNode> target;
   Member<DocumentParser> parser;
-  Member<const SetHTMLUnsafeOptions> options;
+  Member<StreamingSanitizer> sanitizer;
+  ParserContentPolicy parser_content_policy;
 };
 }  // namespace
 
 // static
 WritableStream* HTMLStream::Create(ScriptState* script_state,
                                    ContainerNode* target,
-                                   const SetHTMLUnsafeOptions* options,
+                                   FragmentParserOptions options,
                                    const AtomicString& property_name,
                                    ExceptionState& exception_state) {
-  CHECK(RuntimeEnabledFeatures::DocumentPatchingEnabled());
-  options = TrustedTypesCheckForParserOptions(
-      options, target->GetExecutionContext(), target->InterfaceName(),
-      property_name, exception_state);
-  if (!options) {
-    CHECK(exception_state.HadException());
+  CHECK(RuntimeEnabledFeatures::NewHTMLSettingMethodsEnabled());
+
+  std::optional<FragmentParserOptions> trusted_options =
+      TrustedTypesCheckForParserOptions(
+          options, MarkupInsertionMode::kStream, target->GetExecutionContext(),
+          target->InterfaceName(), property_name, exception_state);
+
+  if (!trusted_options) {
     return nullptr;
   }
 
-  HTMLSink* sink = MakeGarbageCollected<HTMLSink>(*target, options);
+  HTMLSink* sink = MakeGarbageCollected<HTMLSink>(*target, *trusted_options);
   return WritableStream::CreateWithCountQueueingStrategy(script_state, sink, 1);
 }
+
 }  // namespace blink

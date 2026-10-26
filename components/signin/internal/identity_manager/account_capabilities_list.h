@@ -71,6 +71,12 @@ ACCOUNT_CAPABILITY(
     CAN_SHOW_HISTORY_SYNC_OPT_INS_WITHOUT_MINOR_MODE_RESTRICTIONS_CAPABILITY_NAME,
     "accountcapabilities/gi2tklldmfya")
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+ACCOUNT_CAPABILITY(kCanSubmitFeedbackInChromeCapabilityName,
+                   CAN_SUBMIT_FEEDBACK_IN_CHROME_CAPABILITY_NAME,
+                   "accountcapabilities/gizdqmrnmnqxa")
+#endif
+
 #if BUILDFLAG(IS_CHROMEOS)
 ACCOUNT_CAPABILITY(kCanToggleAutoUpdatesName,
                    CAN_TOGGLE_AUTO_UPDATES_NAME,
@@ -149,6 +155,28 @@ ACCOUNT_CAPABILITY(kIsSubjectToParentalControlsCapabilityName,
                    IS_SUBJECT_TO_PARENTAL_CONTROLS_CAPABILITY_NAME,
                    "accountcapabilities/guydolldmfya")
 
+#if BUILDFLAG(IS_IOS)
+ACCOUNT_CAPABILITY_F(
+    kCanContextuallyShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName,
+    CAN_CONTEXTUALLY_SHOW_HISTORY_SYNC_OPT_INS_WITHOUT_MINOR_MODE_RESTRICTIONS_CAPABILITY_NAME,
+    "accountcapabilities/giztknjnmnqxa",
+    switches::kReadContextualAccountCapabilities)
+#endif
+
+#if BUILDFLAG(IS_IOS)
+ACCOUNT_CAPABILITY_F(kCanContextuallyUseModelExecutionFeaturesName,
+                     CAN_CONTEXTUALLY_USE_MODEL_EXECUTION_FEATURES_NAME,
+                     "accountcapabilities/giztinznmnqxa",
+                     switches::kReadContextualAccountCapabilities)
+#endif
+
+#if BUILDFLAG(IS_IOS)
+ACCOUNT_CAPABILITY_F(kCanSignInToChromeCapabilityName,
+                     CAN_SIGN_IN_TO_CHROME_CAPABILITY_NAME,
+                     "accountcapabilities/giztambnmnqxa",
+                     switches::kEnforceCanSignInToChromeCapability)
+#endif
+
 #if !defined(NDEBUG)
 // This is a fake account capability, used for unit tests only.
 // To avoid additional fetches in production code, only define this in debug
@@ -156,7 +184,7 @@ ACCOUNT_CAPABILITY(kIsSubjectToParentalControlsCapabilityName,
 ACCOUNT_CAPABILITY_F(kFakeCapabilityForTestingName,
                      FAKE_CAPABILITY_FOR_TESTING_NAME,
                      "accountcapabilities/fakecapabilityfortesting",
-                     kEnableFakeCapabilityForTesting)
+                     switches::kEnableFakeCapabilityForTesting)
 #endif
 
 // keep-sorted end

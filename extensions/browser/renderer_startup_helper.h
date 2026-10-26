@@ -16,6 +16,7 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/render_process_host_creation_observer.h"
 #include "content/public/browser/render_process_host_observer.h"
+#include "content/public/common/child_process_id.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/mojom/renderer.mojom.h"
 #include "extensions/common/mojom/renderer_host.mojom.h"
@@ -84,6 +85,10 @@ class RendererStartupHelper : public KeyedService,
   void GetMessageBundle(const ExtensionId& extension_id,
                         GetMessageBundleCallback callback) override;
 
+  // Initializes the specified process, informing it of system state and loaded
+  // extensions.
+  void InitializeProcess(content::RenderProcessHost* process);
+
   // Sends a message to the specified `process` activating the given extension
   // once the process is initialized. OnExtensionLoaded should have already been
   // called for the extension.
@@ -123,11 +128,16 @@ class RendererStartupHelper : public KeyedService,
   mojom::Renderer* GetRenderer(content::RenderProcessHost* process);
 
   static void BindForRenderer(
-      int process_id,
+      content::ChildProcessId process_id,
       mojo::PendingAssociatedReceiver<mojom::RendererHost> receiver);
 
   // Flushes any pending Mojo calls for all tracked render processes.
   void FlushAllForTesting();
+
+  bool IsProcessInitializedForTesting(
+      content::RenderProcessHost* process) const {
+    return process_mojo_map_.contains(process);
+  }
 
  protected:
   // Provide ability for tests to override.
@@ -141,10 +151,6 @@ class RendererStartupHelper : public KeyedService,
   // Registers a render process for extension communication by creating a Mojo
   // remote and adding this instance as an observer.
   void RegisterProcess(content::RenderProcessHost* process);
-
-  // Initializes the specified process, informing it of system state and loaded
-  // extensions.
-  void InitializeProcess(content::RenderProcessHost* process);
 
   // Untracks the given process.
   void UntrackProcess(content::RenderProcessHost* process);
@@ -175,7 +181,8 @@ class RendererStartupHelper : public KeyedService,
       process_mojo_map_;
 
   // Associate each renderer with the RenderProcessHost id.
-  mojo::AssociatedReceiverSet<mojom::RendererHost, int> receivers_;
+  mojo::AssociatedReceiverSet<mojom::RendererHost, content::ChildProcessId>
+      receivers_;
 };
 
 // Factory for RendererStartupHelpers. Declared here because this header is

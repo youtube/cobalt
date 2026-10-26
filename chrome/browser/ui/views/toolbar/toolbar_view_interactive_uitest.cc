@@ -21,14 +21,18 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/tab_menu_model.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
+#include "chrome/browser/ui/views/test/vertical_tabs_interactive_test_mixin.h"
 #include "chrome/browser/ui/views/toolbar/reload_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 #include "chrome/browser/ui/waap/initial_web_ui_manager.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -47,6 +51,7 @@
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/base/test/ui_controls.h"
+#include "ui/base/ui_base_switches.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/test/widget_activation_waiter.h"
@@ -331,6 +336,8 @@ IN_PROC_BROWSER_TEST_P(ToolbarViewTest, ToolbarCycleFocusWithBookmarkBar) {
   RunToolbarCycleFocusTest(second_browser);
 }
 
+// TODO(crbug.com/470038385): Include WebUI version back forward buttons in this
+// test.
 IN_PROC_BROWSER_TEST_P(ToolbarViewTest, BackButtonUpdate) {
   ToolbarButtonProvider* toolbar_button_provider =
       BrowserView::GetBrowserViewForBrowser(browser())->toolbar();
@@ -351,6 +358,8 @@ IN_PROC_BROWSER_TEST_P(ToolbarViewTest, BackButtonUpdate) {
   EXPECT_FALSE(back_button->GetEnabled());
 }
 
+// TODO(crbug.com/470038385): Include WebUI version back forward buttons in this
+// test.
 IN_PROC_BROWSER_TEST_P(ToolbarViewTest, BackButtonHoverThenClick) {
   ToolbarButtonProvider* toolbar_button_provider =
       BrowserView::GetBrowserViewForBrowser(browser())->toolbar();
@@ -373,6 +382,8 @@ IN_PROC_BROWSER_TEST_P(ToolbarViewTest, BackButtonHoverThenClick) {
   EXPECT_FALSE(back_button->GetEnabled());
 }
 
+// TODO(crbug.com/470038385): Include WebUI version back forward buttons in this
+// test.
 // TODO(crbug.com/40252318): The ui test utils do not seem to adequately
 // simulate mouse hovering on Mac.
 #if BUILDFLAG(IS_MAC)
@@ -444,7 +455,7 @@ IN_PROC_BROWSER_TEST_P(ToolbarViewTest,
   Profile* guest = g_browser_process->profile_manager()->GetProfileByPath(
       ProfileManager::GetGuestProfilePath());
   ASSERT_TRUE(guest);
-  Browser* target_browser = chrome::FindAnyBrowser(guest, true);
+  BrowserWindowInterface* target_browser = chrome::FindAnyBrowser(guest, true);
   ASSERT_TRUE(target_browser);
   ExtensionsToolbarDesktop* extensions_container =
       BrowserView::GetBrowserViewForBrowser(target_browser)
@@ -453,8 +464,11 @@ IN_PROC_BROWSER_TEST_P(ToolbarViewTest,
   EXPECT_EQ(nullptr, extensions_container);
 }
 
-// Verifies that the identifiers for the pop-up menus are properly assigned so
-// that the menu can be located by tests when it is shown.
+// TODO(crbug.com/470038385): Include WebUI version back forward buttons in this
+// test.
+//
+// Verifies that the identifiers for the pop-up menus are properly
+// assigned so that the menu can be located by tests when it is shown.
 //
 // The back button is just one example for which the menu identifier is defined.
 IN_PROC_BROWSER_TEST_P(ToolbarViewTest, BackButtonMenu) {
@@ -520,7 +534,47 @@ IN_PROC_BROWSER_TEST_P(ToolbarViewTest, SecurityStateChanged) {
   EXPECT_TRUE(browser_view->UpdateToolbarSecurityState());
 }
 
+class ToolbarViewVerticalTabsRTLTest
+    : public VerticalTabsInteractiveTestMixin<ToolbarViewTest> {
+ public:
+  ToolbarViewVerticalTabsRTLTest() = default;
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    ToolbarViewTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitchASCII("force-ui-direction", "rtl");
+  }
+
+  void SetUp() override {
+    scoped_feature_list_.InitAndEnableFeature(tabs::kVerticalTabs);
+    ToolbarViewTest::SetUp();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// TODO(crbug.com/485291602): Re-enable this test.
+IN_PROC_BROWSER_TEST_P(ToolbarViewVerticalTabsRTLTest,
+                       DISABLED_ReloadButtonWorks) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kTabId);
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL url = embedded_test_server()->GetURL("/title1.html");
+
+  RunTestSequence(EnterVerticalTabsMode(),
+                  WaitForShow(kVerticalTabStripTopContainerElementId),
+                  InstrumentTab(kTabId), NavigateWebContents(kTabId, url),
+                  WaitForShow(kReloadButtonElementId),
+                  PressButton(kReloadButtonElementId),
+                  WaitForWebContentsNavigation(kTabId));
+}
+
 INSTANTIATE_TEST_SUITE_P(
     /* no prefix */,
     ToolbarViewTest,
     ::testing::Values(false, true));
+
+INSTANTIATE_TEST_SUITE_P(
+    /* no prefix */,
+    ToolbarViewVerticalTabsRTLTest,
+    ::testing::Values(false));

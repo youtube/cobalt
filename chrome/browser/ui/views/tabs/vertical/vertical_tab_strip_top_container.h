@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_TAB_STRIP_TOP_CONTAINER_H_
 
 #include "ui/views/layout/delegating_layout_manager.h"
+#include "ui/views/layout/layout_types.h"
 #include "ui/views/view.h"
 
 class TabStripComboButton;
@@ -38,6 +39,9 @@ class VerticalTabStripTopContainer : public views::View,
       BrowserWindowInterface* browser);
   ~VerticalTabStripTopContainer() override;
 
+  // View:
+  void Layout(PassKey) override;
+
   // LayoutDelegate:
   views::ProposedLayout CalculateProposedLayout(
       const views::SizeBounds& size_bounds) const override;
@@ -61,10 +65,13 @@ class VerticalTabStripTopContainer : public views::View,
   void SetCaptionButtonWidthForLayout(int caption_button_width);
 
  private:
-  void UpdateComboButtonVisibility();
+  // Calculates the width of the visible buttons and returns the sum along with
+  // the padding between them.
+  int GetPreferredWidth() const;
 
-  void OnCollapsedStateChanged(
-      tabs::VerticalTabStripStateController* controller);
+  // Returns the minimum height required for the top container to display all
+  // its buttons at their baseline positions.
+  int GetBaselineMinHeight() const;
 
   raw_ptr<tabs::VerticalTabStripStateController> state_controller_ = nullptr;
   raw_ptr<actions::ActionItem> root_action_item_ = nullptr;
@@ -73,7 +80,6 @@ class VerticalTabStripTopContainer : public views::View,
   raw_ptr<views::LabelButton> collapse_button_ = nullptr;
   raw_ptr<views::LabelButton> unfocus_button_ = nullptr;
 
-  base::CallbackListSubscription collapsed_state_changed_subscription_;
   std::unique_ptr<views::ActionViewController> action_view_controller_;
 
   // This represents the toolbar (element containing toolbar buttons, omnibox,
@@ -84,6 +90,10 @@ class VerticalTabStripTopContainer : public views::View,
   // rendered inside of it becaused that area is reserved for outside UI
   // elements.
   int caption_button_width_ = 0;
+
+  // This is updated during layout calculation and then applied during layout.
+  mutable views::LayoutOrientation combo_button_orientation_ =
+      views::LayoutOrientation::kHorizontal;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_TAB_STRIP_TOP_CONTAINER_H_

@@ -69,6 +69,7 @@
 #include "third_party/blink/renderer/core/css/css_keyframes_rule.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
 #include "third_party/blink/renderer/core/css/css_property_equality.h"
+#include "third_party/blink/renderer/core/css/css_unparsed_declaration_value.h"
 #include "third_party/blink/renderer/core/css/css_value_list.h"
 #include "third_party/blink/renderer/core/css/media_values.h"
 #include "third_party/blink/renderer/core/css/native_paint_image_generator.h"
@@ -1592,11 +1593,8 @@ TimelineTrigger* CSSAnimations::ComputeTimelineTrigger(
   AnimationTimeline* existing_timeline =
       (existing_trigger ? existing_trigger->GetTimelineInternal() : nullptr);
   AnimationTimeline* new_timeline =
-      animation_index < data->TimelineTriggerSourceList().size()
-          ? ComputeTimeline(element,
-                            data->GetTimelineTriggerSource(animation_index),
-                            update, existing_timeline)
-          : nullptr;
+      ComputeTimeline(element, data->GetTimelineTriggerSource(animation_index),
+                      update, existing_timeline);
   if (!new_timeline) {
     new_timeline = &element->GetDocument().Timeline();
   }
@@ -1694,6 +1692,22 @@ bool ComputedValuesEqual(const PropertyHandle& property,
     // parsed.
     return CSSPropertyEquality::PropertiesEqual(property, a, b);
   }
+}
+
+// Same as `ComputedValuesEqual`, but correctly handles unregistered custom
+// properties. For unregistered custom properties, `GetVariableValue` always
+// returns nullptr, so equality must be determined by comparing the raw token
+// data returned by `GetVariableData`.
+bool ComputedTransitionValuesEqual(const PropertyHandle& property,
+                                   bool is_unregistered_custom_property,
+                                   const ComputedStyle& a,
+                                   const ComputedStyle& b) {
+  if (is_unregistered_custom_property) {
+    const AtomicString& name = property.CustomPropertyName();
+    return base::ValuesEquivalent(a.GetVariableData(name),
+                                  b.GetVariableData(name));
+  }
+  return ComputedValuesEqual(property, a, b);
 }
 
 }  // namespace
@@ -2128,6 +2142,9 @@ void UpdateAnimationFlagsForEffect(const AnimationEffect& effect,
     builder.SetHasCurrentFilterAnimation(true);
   if (effect.Affects(PropertyHandle(GetCSSPropertyBackdropFilter())))
     builder.SetHasCurrentBackdropFilterAnimation(true);
+  if (effect.Affects(PropertyHandle(GetCSSPropertyClipPath()))) {
+    builder.SetHasCurrentClipPathAnimation(true);
+  }
   if (AffectsBackgroundColor(effect))
     builder.SetHasCurrentBackgroundColorAnimation(true);
 }
@@ -2544,6 +2561,11 @@ void CSSAnimations::CalculateTransitionUpdateForPropertyHandle(
 
   const ComputedStyle& after_change_style =
       CalculateAfterChangeStyle(state, &property);
+  const PropertyRegistry* registry =
+      state.animating_element.GetDocument().GetPropertyRegistry();
+  const bool is_unregistered_custom_property =
+      property.IsCSSCustomProperty() &&
+      (!registry || !registry->Registration(property.CustomPropertyName()));
 
   const RunningTransition* running_transition = nullptr;
   if (state.active_transitions) {
@@ -2551,8 +2573,9 @@ void CSSAnimations::CalculateTransitionUpdateForPropertyHandle(
         state.active_transitions->find(property);
     if (active_transition_iter != state.active_transitions->end()) {
       running_transition = active_transition_iter->value;
-      if (ComputedValuesEqual(property, after_change_style,
-                              *running_transition->to)) {
+      if (ComputedTransitionValuesEqual(
+              property, is_unregistered_custom_property, after_change_style,
+              *running_transition->to)) {
         return;
       }
       state.update.CancelTransition(property);
@@ -2568,18 +2591,10 @@ void CSSAnimations::CalculateTransitionUpdateForPropertyHandle(
     return;
   }
 
-  const PropertyRegistry* registry =
-      state.animating_element.GetDocument().GetPropertyRegistry();
-  if (property.IsCSSCustomProperty()) {
-    if (!registry || !registry->Registration(property.CustomPropertyName())) {
-      return;
-    }
-  }
-
   const ComputedStyle& before_change_style =
       CalculateBeforeChangeStyle(state, &property);
-
-  if (ComputedValuesEqual(property, before_change_style, after_change_style)) {
+  if (ComputedTransitionValuesEqual(property, is_unregistered_custom_property,
+                                    before_change_style, after_change_style)) {
     return;
   }
 
@@ -2639,6 +2654,22 @@ void CSSAnimations::CalculateTransitionUpdateForPropertyHandle(
         AnimationUtils::KeyframeValueFromComputedStyle(
             property, after_change_style, document,
             state.animating_element.GetLayoutObject());
+    if (is_unregistered_custom_property) {
+      bool missing_start = !start_css_value && end_css_value;
+      bool missing_end = start_css_value && !end_css_value;
+      // Use an empty CSSUnparsedDeclarationValue as a sentinel when one side
+      // is missing so the discrete flip works (e.g. "unset -> value").
+      if (missing_start || missing_end) {
+        auto* empty_value = MakeGarbageCollected<CSSUnparsedDeclarationValue>(
+            MakeGarbageCollected<CSSVariableData>(),
+            /*parser_context=*/nullptr);
+        if (missing_start) {
+          start_css_value = empty_value;
+        } else {
+          end_css_value = empty_value;
+        }
+      }
+    }
     if (!start_css_value || !end_css_value) {
       // TODO(crbug.com/1425925): Handle newly registered custom properties
       // correctly. If that bug is fixed, then this should never happen.

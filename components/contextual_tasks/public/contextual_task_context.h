@@ -27,7 +27,8 @@ enum class ContextualTaskContextSource {
   kFaviconService,
   kHistoryService,
   kTabStrip,
-  kPendingContextDecorator,
+  kUploadedContextDecorator,
+  kSubmittedContextDecorator,
 };
 
 class ContextualTask;
@@ -68,7 +69,8 @@ struct UrlAttachmentDecoratorData {
   };
   TabStripData tab_strip_data;
 
-  // Filled in by ContextualTaskContextSource::kPendingContextDecorator.
+  // Filled in by ContextualTaskContextSource::kUploadedContextDecorator and
+  // ContextualTaskContextSource::kSubmittedContextDecorator.
   struct ContextualSearchContextData {
     std::u16string title;
     // From SessionTabHelper.
@@ -147,6 +149,10 @@ struct ContextualTaskContext {
 
   // Returns the URL attachments for the task.
   const std::vector<UrlAttachment>& GetUrlAttachments() const;
+
+  // Returns a deduplicated list of URL attachments for the task.
+  // Meant to be used for context library.
+  std::vector<UrlAttachment> GetUniqueUrlAttachments() const;
 
   // Returns a mutable version of the URL attachments for the task.
   std::vector<UrlAttachment>& GetMutableUrlAttachmentsForTesting();

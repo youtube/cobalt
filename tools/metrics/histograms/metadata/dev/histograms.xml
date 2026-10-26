@@ -119,7 +119,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.ExperimentDisabled" enum="DevtoolsExperiments"
-    expires_after="2026-07-26">
+    expires_after="2027-03-01">
   <owner>yangguo@google.com</owner>
   <owner>changhaohan@google.com</owner>
   <summary>
@@ -128,7 +128,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.ExperimentDisabledAtLaunch"
-    enum="DevtoolsExperiments" expires_after="2026-03-01">
+    enum="DevtoolsExperiments" expires_after="2027-03-01">
   <owner>yangguo@google.com</owner>
   <owner>changhaohan@google.com</owner>
   <summary>
@@ -137,7 +137,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.ExperimentEnabled" enum="DevtoolsExperiments"
-    expires_after="2026-07-26">
+    expires_after="2027-03-01">
   <owner>yangguo@google.com</owner>
   <owner>changhaohan@google.com</owner>
   <summary>
@@ -146,11 +146,21 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.ExperimentEnabledAtLaunch" enum="DevtoolsExperiments"
-    expires_after="2026-07-26">
+    expires_after="2027-03-01">
   <owner>yangguo@google.com</owner>
   <owner>changhaohan@google.com</owner>
   <summary>
     Fires for each experiment that is enabled at the time of Devtools Launch.
+  </summary>
+</histogram>
+
+<histogram name="DevTools.ExtensionEvalTarget"
+    enum="DevToolsExtensionEvalTarget" expires_after="2026-09-11">
+  <owner>danilsomsikov@google.com</owner>
+  <owner>devtools-dev@chromium.org</owner>
+  <summary>
+    Tracks the target page type of chrome.devtools.inspectedWindow.eval calls.
+    Used to measure cross-extension debugging frequency for crbug.com/375959766.
   </summary>
 </histogram>
 
@@ -267,7 +277,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="DevTools.InspectElement" units="ms" expires_after="2026-06-21">
+<histogram name="DevTools.InspectElement" units="ms" expires_after="2026-08-23">
   <owner>yangguo@google.com</owner>
   <owner>bmeurer@google.com</owner>
   <summary>
@@ -299,7 +309,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.IssueCreated" enum="DevToolsIssueCreated"
-    expires_after="M150">
+    expires_after="2026-08-23">
   <owner>yangguo@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
   <component>1519296</component>
@@ -351,7 +361,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.KeyboardShortcutFired"
-    enum="DevToolsKeyboardShortcutAction" expires_after="M150">
+    enum="DevToolsKeyboardShortcutAction" expires_after="2026-09-06">
   <owner>bmeurer@google.com</owner>
   <owner>jalyn@microsoft.com</owner>
   <owner>leo.lee@microsoft.com</owner>
@@ -373,7 +383,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.Launch{DevToolsLaunchPanels}" units="ms"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>yangguo@google.com</owner>
   <owner>bmeurer@google.com</owner>
   <summary>
@@ -398,7 +408,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.NetworkPanelResponsePreviewOpened"
-    enum="DevToolsMediaType" expires_after="M150">
+    enum="DevToolsMediaType" expires_after="2026-08-16">
   <owner>bmeurer@google.com</owner>
   <owner>szuend@google.com</owner>
   <summary>
@@ -565,7 +575,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.VisualLogging.ProcessingTime" units="ms"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>danilsomsikov@google.com</owner>
   <owner>hablich@google.com</owner>
   <summary>

@@ -240,9 +240,9 @@ String StyledMarkupAccumulator::StringValueForRange(const Text& node) {
 
   String str = node.data();
   if (start_.GetText() == node)
-    str.Truncate(end_.Offset());
+    str = str.substr(0, end_.Offset());
   if (end_.GetText() == node)
-    str.Remove(0, start_.Offset());
+    str.erase(0, start_.Offset());
   return str;
 }
 

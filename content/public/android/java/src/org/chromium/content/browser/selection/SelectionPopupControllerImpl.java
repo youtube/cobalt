@@ -4,6 +4,7 @@
 
 package org.chromium.content.browser.selection;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.app.Activity;
@@ -37,6 +38,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ApiCompatibilityUtils;
@@ -265,7 +267,8 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
      *     #create()} is not called yet.
      */
     @CalledByNative
-    public static @Nullable SelectionPopupControllerImpl fromWebContents(WebContents webContents) {
+    public static @Nullable SelectionPopupControllerImpl fromWebContents(
+            @JniType("content::WebContents*") WebContents webContents) {
         return webContents.getOrSetUserData(
                 SelectionPopupControllerImpl.class, UserDataFactoryLazyHolder.INSTANCE);
     }
@@ -277,8 +280,9 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
      * @param webContents {@link WebContents} object.
      * @return {@link SelectionPopupController} object. {@code null} if not available.
      */
+    @CalledByNative
     public static @Nullable SelectionPopupControllerImpl fromWebContentsNoCreate(
-            WebContents webContents) {
+            @JniType("content::WebContents*") WebContents webContents) {
         return webContents.getOrSetUserData(SelectionPopupControllerImpl.class, null);
     }
 
@@ -357,7 +361,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
         }
         if (initializeNative) {
             mNativeSelectionPopupController =
-                    SelectionPopupControllerImplJni.get().init(this, mWebContents);
+                    SelectionPopupControllerImplJni.get().init(mWebContents);
             ImeAdapterImpl imeAdapter = ImeAdapterImpl.fromWebContents(mWebContents);
             if (imeAdapter != null) imeAdapter.addEventObserver(this);
         }
@@ -843,8 +847,13 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
         if (gainFocus) {
             restoreSelectionPopupsIfNecessary();
         } else {
-            ImeAdapterImpl.fromWebContents(mWebContents)
-                    .cancelRequestToScrollFocusedEditableNodeIntoView();
+            ImeAdapterImpl adapter = assertNonNull(ImeAdapterImpl.fromWebContents(mWebContents));
+
+            // Gracefully handle a null adapter in non-debug builds.
+            if (adapter != null) {
+                adapter.cancelRequestToScrollFocusedEditableNodeIntoView();
+            }
+
             if (getPreserveSelectionOnNextLossOfFocus()) {
                 setPreserveSelectionOnNextLossOfFocus(false);
                 hidePopupsAndPreserveSelection();
@@ -1970,7 +1979,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
     interface Natives {
         boolean isMagnifierWithSurfaceControlSupported();
 
-        long init(SelectionPopupControllerImpl self, WebContents webContents);
+        long init(@JniType("content::WebContents*") WebContents webContents);
 
         void setTextHandlesTemporarilyHidden(long nativeSelectionPopupController, boolean hidden);
 

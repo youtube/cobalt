@@ -17,10 +17,10 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/read_anything/read_anything_immersive_overlay_view.h"
+#include "chrome/browser/ui/sad_tab_helper.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
-#include "chrome/browser/ui/views/frame/contents_rounded_corner.h"
 #include "chrome/browser/ui/views/frame/contents_separator.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/custom_floating_corner.h"
@@ -44,10 +44,13 @@
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_type.h"
 #include "ui/events/types/event_type.h"
+#include "ui/gfx/geometry/outsets.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/scoped_canvas.h"
 #include "ui/ozone/public/ozone_platform.h"
+#include "ui/views/layout/flex_layout_types.h"
+#include "ui/views/layout/layout_types.h"
 #include "ui/views/layout/proposed_layout.h"
 #include "ui/views/view_class_properties.h"
 
@@ -126,13 +129,13 @@ MultiContentsView::MultiContentsView(
     auto* contents_view = contents_container_view->contents_view();
     view_map[contents_view->GetClassName()] = contents_view;
 
-    web_contents_focused_subscriptions_.push_back(
+    contents_focused_subscriptions_.push_back(
         contents_view->AddWebContentsFocusedCallback(base::BindRepeating(
             &MultiContentsView::OnWebContentsFocused, base::Unretained(this))));
 
     if (auto* footer = contents_container_view->new_tab_footer_view()) {
       view_map[footer->GetClassName()] = footer;
-      ntp_footer_focused_subscriptions_.push_back(
+      contents_focused_subscriptions_.push_back(
           footer->AddWebContentsFocusedCallback(base::BindRepeating(
               &MultiContentsView::OnNtpFooterFocused, base::Unretained(this))));
     }
@@ -140,7 +143,7 @@ MultiContentsView::MultiContentsView(
     if (auto* actor_overlay =
             contents_container_view->actor_overlay_web_view()) {
       view_map[actor_overlay->GetClassName()] = actor_overlay;
-      actor_overlay_focused_subscriptions_.push_back(
+      contents_focused_subscriptions_.push_back(
           actor_overlay->AddWebContentsFocusedCallback(
               base::BindRepeating(&MultiContentsView::OnActorOverlayFocused,
                                   base::Unretained(this))));
@@ -149,7 +152,7 @@ MultiContentsView::MultiContentsView(
     if (auto* read_anything_overlay =
             contents_container_view->read_anything_immersive_overlay_view()) {
       view_map[read_anything_overlay->GetClassName()] = read_anything_overlay;
-      read_anything_overlay_focused_subscriptions_.push_back(
+      contents_focused_subscriptions_.push_back(
           read_anything_overlay->AddWebViewFocusedCallback(base::BindRepeating(
               &MultiContentsView::OnReadAnythingOverlayFocused,
               base::Unretained(this), contents_container_view)));
@@ -244,6 +247,12 @@ void MultiContentsView::SetWebContentsAtIndex(
     resize_area_->SetVisible(true);
     UpdateContentsBorderAndOverlay();
   }
+
+  if (web_contents) {
+    if (auto* sad_tab_helper = SadTabHelper::FromWebContents(web_contents)) {
+      sad_tab_helper->ReinstallInWebView();
+    }
+  }
 }
 
 void MultiContentsView::ShowSplitView(double ratio) {
@@ -290,6 +299,12 @@ void MultiContentsView::CloseSplitView() {
   contents_container_views_[1]->SetVisible(false);
   resize_area_->SetVisible(false);
   UpdateContentsBorderAndOverlay();
+
+  if (auto* active_contents = GetActiveContentsView()->web_contents()) {
+    if (auto* sad_tab_helper = SadTabHelper::FromWebContents(active_contents)) {
+      sad_tab_helper->ReinstallInWebView();
+    }
+  }
 }
 
 void MultiContentsView::SetActiveIndex(int index) {
@@ -332,6 +347,16 @@ void MultiContentsView::ExecuteOnEachVisibleContentsView(
 void MultiContentsView::OnSwap() {
   CHECK(IsInSplitView());
   delegate_->ReverseWebContents();
+}
+
+void MultiContentsView::SetTargetContentBounds(
+    std::optional<TargetContentBounds> target_content_bounds) {
+  if (target_content_bounds_ == target_content_bounds) {
+    return;
+  }
+  target_content_bounds_ = target_content_bounds;
+
+  InvalidateLayout(/*avoid_propagate_during_layout=*/true);
 }
 
 std::vector<views::View*> MultiContentsView::GetAccessiblePanes() {
@@ -490,6 +515,66 @@ views::ProposedLayout MultiContentsView::CalculateProposedLayout(
 
   layouts.host_size = gfx::Size(width, height);
   return layouts;
+}
+
+void MultiContentsView::BeforeApplyLayout(const views::ProposedLayout& layout) {
+  if (!target_content_bounds_) {
+    for (auto* contents : contents_container_views_) {
+      contents->SetTargetContentBounds(std::nullopt);
+    }
+    return;
+  }
+
+  if (!IsInSplitView()) {
+    auto* const contents = GetActiveContentsContainerView();
+    contents->SetTargetContentBounds(
+        -target_content_bounds_->clipped_area.ToOutsets());
+
+    // Clear out the other contents just in case.
+    for (auto* other : contents_container_views_) {
+      if (other != contents) {
+        other->SetTargetContentBounds(std::nullopt);
+      }
+    }
+    return;
+  }
+
+  // Need to calculate what the layout *would* be at the actual size.
+  //
+  // This is a bit more expensive than a normal layout but only happens during
+  // animation when the target bounds are set.
+  const auto target_layout = CalculateProposedLayout(
+      views::SizeBounds(target_content_bounds_->actual_size));
+
+  const auto& default_clip = target_content_bounds_->clipped_area;
+
+  // Due to the way web contents resize, and the fact that both split views will
+  // grow or shrink as the animation progresses, always clip from the trailing
+  // edge for both split webviews. This reduces jumping/popping for very slow
+  // websites.
+
+  gfx::Outsets first_outsets = gfx::Outsets::TLBR(
+      default_clip.top(), 0, default_clip.bottom(), default_clip.left());
+  auto* const first = contents_container_views_[0];
+  auto* const first_current = layout.GetLayoutFor(first);
+  auto* const first_target = target_layout.GetLayoutFor(first);
+  if (first_current && first_target) {
+    first_outsets.set_right(std::max(
+        0, first_target->bounds.width() - first_current->bounds.width()));
+  }
+
+  gfx::Outsets second_outsets = gfx::Outsets::TLBR(
+      default_clip.top(), 0, default_clip.bottom(), default_clip.right());
+  auto* const second = contents_container_views_[1];
+  auto* const second_current = layout.GetLayoutFor(second);
+  auto* const second_target = target_layout.GetLayoutFor(second);
+  if (second_current && second_target) {
+    second_outsets.set_right(std::max(
+        0, second_target->bounds.width() - second_current->bounds.width()));
+  }
+
+  first->SetTargetContentBounds(first_outsets);
+  second->SetTargetContentBounds(second_outsets);
 }
 
 gfx::Rect MultiContentsView::CalculateDropTargetLayout(

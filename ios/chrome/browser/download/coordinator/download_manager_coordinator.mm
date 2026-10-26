@@ -41,6 +41,8 @@
 #import "ios/chrome/browser/drive/model/drive_service_factory.h"
 #import "ios/chrome/browser/drive/model/upload_task.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
+#import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/overlays/model/public/common/confirmation/confirmation_overlay_response.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_callback_manager.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_request_queue.h"
@@ -56,12 +58,15 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer.h"
 #import "ios/chrome/browser/shared/public/commands/auto_deletion_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
+#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/download_list_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/save_to_drive_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/signin/model/authentication_service.h"
+#import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/store_kit/model/store_kit_coordinator.h"
 #import "ios/chrome/browser/store_kit/model/store_kit_coordinator_delegate.h"
@@ -93,6 +98,8 @@
   // in progress.
   // Restart when the animation ends.
   BOOL _restartPending;
+  // Handler for Gemini commands.
+  __weak id<BWGCommands> _geminiHandler;
 }
 @end
 
@@ -110,6 +117,10 @@
 - (void)restart {
   DCHECK(self.presenter);
   DCHECK(self.browser);
+  if (IsGeminiCopresenceEnabled()) {
+    _geminiHandler =
+        HandlerForProtocol(self.browser->GetCommandDispatcher(), BWGCommands);
+  }
 
   if (_stopped && self.presenter.presentedViewController) {
     // Stopping animation is still in progress. Wait until it is done to
@@ -141,6 +152,8 @@
   _mediator.SetIdentityManager(IdentityManagerFactory::GetForProfile(profile));
   _mediator.SetDriveService(drive::DriveServiceFactory::GetForProfile(profile));
   _mediator.SetPrefService(profile->GetPrefs());
+  _mediator.SetAuthenticationService(
+      AuthenticationServiceFactory::GetForProfile(profile));
   if (IsDownloadListEnabled()) {
     _mediator.SetDownloadRecordService(
         DownloadRecordServiceFactory::GetForProfile(profile));
@@ -165,6 +178,7 @@
 
 - (void)stop {
   [self pause];
+  _geminiHandler = nil;
 }
 
 // Similar to stop, but the coordinator can be restarted later.
@@ -175,6 +189,7 @@
 
   _mediator.SetDriveService(nullptr);
   _mediator.SetPrefService(nullptr);
+  _mediator.SetAuthenticationService(nullptr);
   _mediator.SetIdentityManager(nullptr);
   if (IsDownloadListEnabled()) {
     _mediator.SetDownloadRecordService(nullptr);
@@ -320,6 +335,14 @@
 
 #pragma mark - ContainedPresenterDelegate
 
+- (void)containedPresenterWillPresent:(id<ContainedPresenter>)presenter {
+  if (IsGeminiCopresenceEnabled()) {
+    [_geminiHandler
+        hideFloatyIfInvokedAnimated:NO
+                         fromSource:gemini::FloatyUpdateSource::Banner];
+  }
+}
+
 - (void)containedPresenterDidPresent:(id<ContainedPresenter>)presenter {
   DCHECK(presenter == self.presenter);
 }
@@ -331,6 +354,13 @@
   if (_restartPending) {
     _restartPending = NO;
     [self start];
+  }
+
+  if (IsGeminiCopresenceEnabled()) {
+    [_geminiHandler
+        updateFloatyVisibilityIfEligibleAnimated:NO
+                                      fromSource:gemini::FloatyUpdateSource::
+                                                     Banner];
   }
 }
 

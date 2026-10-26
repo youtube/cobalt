@@ -123,7 +123,11 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
 
     @Override
     public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
-        mPageTitle.set(getString(R.string.autofill_payment_methods));
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID)) {
+            mPageTitle.set(getString(R.string.autofill_payments_title));
+        } else {
+            mPageTitle.set(getString(R.string.autofill_payment_methods));
+        }
         setHasOptionsMenu(true);
         PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(getStyledContext());
         // Suppresses unwanted animations while Preferences are removed from and re-added to the
@@ -491,21 +495,18 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
         refreshPaymentAppsPrefForAndroidPaymentApps(payment_apps_pref);
 
         // Add the link to manage loyalty cards.
-        if (shouldShowLoyaltyCardsPref()) {
-            Preference loyalty_cards_pref = new Preference(getStyledContext());
-            loyalty_cards_pref.setTitle(R.string.payment_methods_settings_loyalty_cards_title);
-            loyalty_cards_pref.setSummary(
-                    R.string.payment_methods_settings_loyalty_cards_description);
-            loyalty_cards_pref.setKey(PREF_LOYALTY_CARDS);
-            loyalty_cards_pref.setEnabled(!disabledSettings);
-            getPreferenceScreen().addPreference(loyalty_cards_pref);
-            loyalty_cards_pref.setOnPreferenceClickListener(
-                    (preference) -> {
-                        GoogleWalletLauncher.openGoogleWallet(
-                                getActivity(), getActivity().getPackageManager());
-                        return true;
-                    });
-        }
+        Preference loyalty_cards_pref = new Preference(getStyledContext());
+        loyalty_cards_pref.setTitle(R.string.payment_methods_settings_loyalty_cards_title);
+        loyalty_cards_pref.setSummary(R.string.payment_methods_settings_loyalty_cards_description);
+        loyalty_cards_pref.setKey(PREF_LOYALTY_CARDS);
+        loyalty_cards_pref.setEnabled(!disabledSettings);
+        getPreferenceScreen().addPreference(loyalty_cards_pref);
+        loyalty_cards_pref.setOnPreferenceClickListener(
+                (preference) -> {
+                    GoogleWalletLauncher.openGoogleWallet(
+                            getActivity(), getActivity().getPackageManager());
+                    return true;
+                });
         notifyPreferencesUpdated();
     }
 
@@ -909,10 +910,6 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
                 && manager.shouldShowAddIbanButtonOnSettingsPage();
     }
 
-    private static boolean shouldShowLoyaltyCardsPref() {
-        return ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_ENABLE_LOYALTY_CARDS_FILLING);
-    }
-
     public static final ChromeBaseSearchIndexProvider SEARCH_INDEX_DATA_PROVIDER =
             new ChromeBaseSearchIndexProvider(AutofillPaymentMethodsFragment.class.getName(), 0) {
 
@@ -1026,13 +1023,11 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
                     }
                     indexData.addEntryForKey(
                             frag, PREF_PAYMENT_APPS, R.string.payment_apps_title, 0);
-                    if (shouldShowLoyaltyCardsPref()) {
-                        indexData.addEntryForKey(
-                                frag,
-                                PREF_LOYALTY_CARDS,
-                                R.string.payment_methods_settings_loyalty_cards_title,
-                                R.string.payment_methods_settings_loyalty_cards_description);
-                    }
+                    indexData.addEntryForKey(
+                            frag,
+                            PREF_LOYALTY_CARDS,
+                            R.string.payment_methods_settings_loyalty_cards_title,
+                            R.string.payment_methods_settings_loyalty_cards_description);
                 }
             };
 }

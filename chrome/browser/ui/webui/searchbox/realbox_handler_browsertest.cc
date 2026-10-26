@@ -79,8 +79,8 @@ class RealboxSearchBrowserTestPage : public searchbox::mojom::Page {
                     bool is_deletable) override {}
   void OnContextualInputStatusChanged(
       const base::UnguessableToken& token,
-      contextual_search::FileUploadStatus status,
-      std::optional<contextual_search::FileUploadErrorType> error_type)
+      contextual_search::ContextUploadStatus status,
+      std::optional<contextual_search::ContextUploadErrorType> error_type)
       override {}
   void OnInputStateChanged(const omnibox::InputState& input_state) override {}
   void OnTabStripChanged() override {}
@@ -89,11 +89,16 @@ class RealboxSearchBrowserTestPage : public searchbox::mojom::Page {
       searchbox::mojom::SelectedFileInfoPtr file_info) override {}
   void UpdateAutoSuggestedTabContext(
       searchbox::mojom::TabInfoPtr tab_info) override {}
-  void OnShow() override {}
   MOCK_METHOD(void, SetKeywordSelected, (bool is_keyword_selected), (override));
   MOCK_METHOD(void, UpdateContentSharingPolicy, (bool enabled), (override));
   MOCK_METHOD(void, UpdateLensSearchEligibility, (bool eligible), (override));
   MOCK_METHOD(void, UpdateAimEligibility, (bool eligible), (override));
+  MOCK_METHOD(void,
+              StepSelection,
+              (searchbox::mojom::SelectionDirection,
+               searchbox::mojom::SelectionStep));
+  MOCK_METHOD(void, OpenCurrentSelection, (WindowOpenDisposition));
+  MOCK_METHOD(void, SetAimButtonVisible, (bool visible));
   void OnShowAiModePrefChanged(bool canShow) override {}
 
   mojo::PendingRemote<searchbox::mojom::Page> GetRemotePage() {

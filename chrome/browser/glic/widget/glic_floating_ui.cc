@@ -190,6 +190,10 @@ bool GlicFloatingUi::ActivateBrowser() {
   return false;
 }
 
+void GlicFloatingUi::Zoom(mojom::ZoomAction zoom_action) {
+  delegate_->host().Zoom(zoom_action);
+}
+
 void GlicFloatingUi::ShowTitleBarContextMenuAt(gfx::Point event_loc) {
 #if BUILDFLAG(IS_WIN)
   views::View::ConvertPointToScreen(GetGlicView(), &event_loc);
@@ -342,6 +346,16 @@ void GlicFloatingUi::OnReload() {
   }
 }
 
+void GlicFloatingUi::MaybeNotifyActivationChanged(bool window_active) {
+  bool active = window_active || (delegate_->host().microphone_status() ==
+                                  mojom::MicrophoneStatus::kListening);
+  delegate_->OnEmbedderWindowActivationChanged(active);
+}
+
+void GlicFloatingUi::OnMicrophoneStatusChanged(mojom::MicrophoneStatus status) {
+  MaybeNotifyActivationChanged(HasFocus());
+}
+
 void GlicFloatingUi::Focus() {
   if (!IsShowing()) {
     return;
@@ -354,7 +368,7 @@ void GlicFloatingUi::Focus() {
 
 void GlicFloatingUi::OnWidgetActivationChanged(views::Widget* widget,
                                                bool active) {
-  delegate_->OnEmbedderWindowActivationChanged(active);
+  MaybeNotifyActivationChanged(active);
 }
 
 void GlicFloatingUi::OnWidgetDestroyed(views::Widget* widget) {
@@ -441,12 +455,14 @@ std::unique_ptr<GlicUiEmbedder> GlicFloatingUi::CreateInactiveEmbedder() const {
   return GlicInactiveFloatingUi::From(*this);
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 base::WeakPtr<views::View> GlicFloatingUi::GetView() {
   if (auto* glic_view = GetGlicView()) {
     return glic_view->GetWeakPtr();
   }
   return nullptr;
 }
+#endif
 
 void GlicFloatingUi::SwitchConversation(
     glic::mojom::ConversationInfoPtr info,

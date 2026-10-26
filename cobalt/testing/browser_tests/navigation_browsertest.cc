@@ -8405,14 +8405,18 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, FixedStoragePartition) {
         shell->web_contents()->GetSiteInstance());
   };
 
-  EXPECT_EQ(GetSiteInstance(shell)->GetStoragePartitionConfig(),
+  EXPECT_EQ(GetSiteInstance(shell)
+                ->GetSecurityPrincipal()
+                .GetStoragePartitionConfig(),
             storage_partition_config);
   EXPECT_TRUE(GetSiteInstance(shell)->IsFixedStoragePartition());
 
   // Check navigation.
   ASSERT_TRUE(NavigateToURL(shell->web_contents(),
                             embedded_test_server()->GetURL("/title1.html")));
-  EXPECT_EQ(GetSiteInstance(shell)->GetStoragePartitionConfig(),
+  EXPECT_EQ(GetSiteInstance(shell)
+                ->GetSecurityPrincipal()
+                .GetStoragePartitionConfig(),
             storage_partition_config);
   EXPECT_TRUE(GetSiteInstance(shell)->IsFixedStoragePartition());
 
@@ -8428,7 +8432,9 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, FixedStoragePartition) {
     EXPECT_EQ(popup->web_contents()->GetLastCommittedURL(), destination);
     EXPECT_EQ(GetSiteInstance(popup)->GetBrowsingInstanceId(),
               GetSiteInstance(shell)->GetBrowsingInstanceId());
-    EXPECT_EQ(GetSiteInstance(popup)->GetStoragePartitionConfig(),
+    EXPECT_EQ(GetSiteInstance(popup)
+                  ->GetSecurityPrincipal()
+                  .GetStoragePartitionConfig(),
               storage_partition_config);
     EXPECT_TRUE(GetSiteInstance(popup)->IsFixedStoragePartition());
   }
@@ -8440,7 +8446,9 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, FixedStoragePartition) {
     EXPECT_TRUE(ExecJs(shell, "newWindow = window.open()",
                        EXECUTE_SCRIPT_NO_USER_GESTURE));
     auto* popup = observer.GetShell();
-    EXPECT_EQ(GetSiteInstance(popup)->GetStoragePartitionConfig(),
+    EXPECT_EQ(GetSiteInstance(popup)
+                  ->GetSecurityPrincipal()
+                  .GetStoragePartitionConfig(),
               storage_partition_config);
     EXPECT_TRUE(GetSiteInstance(popup)->IsFixedStoragePartition());
 
@@ -8452,7 +8460,9 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, FixedStoragePartition) {
     EXPECT_EQ(popup->web_contents()->GetLastCommittedURL(), destination);
     EXPECT_EQ(GetSiteInstance(popup)->GetBrowsingInstanceId(),
               GetSiteInstance(shell)->GetBrowsingInstanceId());
-    EXPECT_EQ(GetSiteInstance(popup)->GetStoragePartitionConfig(),
+    EXPECT_EQ(GetSiteInstance(popup)
+                  ->GetSecurityPrincipal()
+                  .GetStoragePartitionConfig(),
               storage_partition_config);
     EXPECT_TRUE(GetSiteInstance(popup)->IsFixedStoragePartition());
   }
@@ -8460,7 +8470,9 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, FixedStoragePartition) {
   // Check navigation again.
   ASSERT_TRUE(NavigateToURL(shell->web_contents(),
                             embedded_test_server()->GetURL("/title2.html")));
-  EXPECT_EQ(GetSiteInstance(shell)->GetStoragePartitionConfig(),
+  EXPECT_EQ(GetSiteInstance(shell)
+                ->GetSecurityPrincipal()
+                .GetStoragePartitionConfig(),
             storage_partition_config);
   EXPECT_TRUE(GetSiteInstance(shell)->IsFixedStoragePartition());
 
@@ -8471,7 +8483,9 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, FixedStoragePartition) {
       shell, embedded_test_server()->GetURL("c.com", "/title2.html")));
   EXPECT_NE(GetSiteInstance(shell)->GetBrowsingInstanceId(),
             browsing_instance_id);
-  EXPECT_EQ(GetSiteInstance(shell)->GetStoragePartitionConfig(),
+  EXPECT_EQ(GetSiteInstance(shell)
+                ->GetSecurityPrincipal()
+                .GetStoragePartitionConfig(),
             storage_partition_config);
   EXPECT_TRUE(GetSiteInstance(shell)->IsFixedStoragePartition());
 }

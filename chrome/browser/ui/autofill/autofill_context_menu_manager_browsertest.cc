@@ -1103,5 +1103,110 @@ IN_PROC_BROWSER_TEST_F(PlusAddressContextMenuManagerTest,
             1);
 }
 
+class AtMemoryContextMenuManagerTest
+    : public BaseAutofillContextMenuManagerTest {
+ public:
+  AtMemoryContextMenuManagerTest() {
+    scoped_feature_list_.InitAndEnableFeature(features::kAutofillAtMemory);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// Checks if the context menu model contains the @memory manual fallback entries
+// with correct UI strings. `arg` must be of type `ui::SimpleMenuModel`.
+testing::AssertionResult ContainsAtMemoryFallback(
+    const ui::SimpleMenuModel& arg) {
+  for (size_t i = 0; i < arg.GetItemCount(); i++) {
+    if (arg.GetCommandIdAt(i) ==
+        IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY) {
+      std::u16string actual = arg.GetLabelAt(i);
+      std::u16string expected = l10n_util::GetStringUTF16(
+          IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY);
+      if (actual != expected) {
+        return testing::AssertionFailure() << actual << " != " << expected;
+      }
+      return testing::AssertionSuccess();
+    }
+  }
+  return testing::AssertionFailure() << "No AtMemory entry found";
+}
+
+IN_PROC_BROWSER_TEST_F(AtMemoryContextMenuManagerTest, AddAtMemoryFallback) {
+  autofill_context_menu_manager()->AppendItems();
+  ASSERT_TRUE(ContainsAtMemoryFallback(*menu_model()));
+}
+
+// Checks if the context menu model contains ONLY @memory manual fallback entry.
+testing::AssertionResult ContainsOnlyAtMemoryFallback(
+    const ui::SimpleMenuModel& arg) {
+  if (arg.GetItemCount() != 2) {
+    return testing::AssertionFailure()
+           << "There should be exactly two entries; " << arg.GetItemCount()
+           << " found instead.";
+  }
+
+  if (arg.GetCommandIdAt(0) !=
+          IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY ||
+      arg.GetLabelAt(0) !=
+          l10n_util::GetStringUTF16(
+              IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY)) {
+    return testing::AssertionFailure()
+           << "First item is not '@memory' related.";
+  }
+  if (arg.GetTypeAt(1) != ui::MenuModel::ItemType::TYPE_SEPARATOR) {
+    return testing::AssertionFailure() << "";
+  }
+  return testing::AssertionSuccess();
+}
+
+IN_PROC_BROWSER_TEST_F(AtMemoryContextMenuManagerTest,
+                       AddAtMemoryFallback_ContentEditable) {
+  content::ContextMenuParams params = CreateContextMenuParams();
+  params.form_control_type = std::nullopt;
+  params.is_content_editable_for_autofill = true;
+  autofill_context_menu_manager()->set_params_for_testing(params);
+
+  autofill_context_menu_manager()->AppendItems();
+  ASSERT_TRUE(ContainsOnlyAtMemoryFallback(*menu_model()));
+}
+
+IN_PROC_BROWSER_TEST_F(AtMemoryContextMenuManagerTest,
+                       ExecuteAtMemoryFallbackCommand_ContentEditable) {
+  content::ContextMenuParams params = CreateContextMenuParams();
+  params.form_control_type = std::nullopt;
+  params.is_content_editable_for_autofill = true;
+  params.field_renderer_id = 123;
+  autofill_context_menu_manager()->set_params_for_testing(params);
+
+  autofill_context_menu_manager()->AppendItems();
+
+  EXPECT_CALL(
+      *driver(),
+      RendererShouldTriggerSuggestions(
+          FieldGlobalId{LocalFrameToken(main_rfh()->GetFrameToken().value()),
+                        FieldRendererId(123)},
+          AutofillSuggestionTriggerSource::kAtMemoryContextMenu));
+
+  autofill_context_menu_manager()->ExecuteCommand(
+      IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY);
+}
+
+IN_PROC_BROWSER_TEST_F(AtMemoryContextMenuManagerTest,
+                       ExecuteAtMemoryFallbackCommand) {
+  autofill_context_menu_manager()->AppendItems();
+
+  EXPECT_CALL(
+      *driver(),
+      RendererShouldTriggerSuggestions(
+          FieldGlobalId{LocalFrameToken(main_rfh()->GetFrameToken().value()),
+                        FieldRendererId(0)},
+          AutofillSuggestionTriggerSource::kAtMemoryContextMenu));
+
+  autofill_context_menu_manager()->ExecuteCommand(
+      IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY);
+}
+
 }  // namespace
 }  // namespace autofill

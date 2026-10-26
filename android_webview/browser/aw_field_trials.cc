@@ -85,7 +85,7 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   aw_feature_overrides.DisableFeature(ui::kAndroidHDR);
 
   // Disable launch_handler on WebView.
-  aw_feature_overrides.DisableFeature(::features::kAndroidWebAppLaunchHandler);
+  aw_feature_overrides.DisableFeature(blink::features::kWebAppLaunchQueue);
 
   // Disable Reducing User Agent minor version on WebView.
   aw_feature_overrides.DisableFeature(
@@ -103,9 +103,9 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // enable these optimizations in WebView though they are not fundamentally
   // impossible.
   aw_feature_overrides.DisableFeature(
-      blink::features::kLowLatencyCanvas2dImageChromium);
+      blink::features::kLowLatencyUsageSupportedForCanvas2D);
   aw_feature_overrides.DisableFeature(
-      blink::features::kLowLatencyWebGLImageChromium);
+      blink::features::kLowLatencyUsageSupportedForWebGL);
 
   // Disable Shared Storage on WebView.
   aw_feature_overrides.DisableFeature(network::features::kSharedStorageAPI);
@@ -141,6 +141,11 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // expose the PaymentRequest.securePaymentConfirmationAvailability API.
   aw_feature_overrides.DisableFeature(
       blink::features::kSecurePaymentConfirmationAvailabilityAPI);
+
+  // WebView does not support Secure Payment Confirmation, and thus should not
+  // expose the PaymentRequest.securePaymentConfirmationCapabilities API.
+  aw_feature_overrides.DisableFeature(
+      blink::features::kSecurePaymentConfirmationCapabilities);
 
   // WebView does not support handling payment links.
   aw_feature_overrides.DisableFeature(blink::features::kPaymentLinkDetection);
@@ -318,4 +323,13 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // Launched for WebView. Experimentation needed for Chrome on Android.
   aw_feature_overrides.EnableFeature(
       stylus_handwriting::android::kProbeStylusWritingInBackground);
+
+  // As WebSettings.setAllowContentAccess() allows this to be controlled by
+  // the WebView's host, we keep the old behavior for content:// URLs.
+  aw_feature_overrides.DisableFeature(blink::features::kContentSchemeIsLocal);
+
+  // TODO(crbug.com/489450060): Disable DirectReceiver on Viz for WebView until
+  // its Viz thread is updated to handle IO.
+  aw_feature_overrides.DisableFeature(
+      ::features::kVizDirectCompositorThreadIpcFrameSinkManager);
 }

@@ -27,7 +27,6 @@ const AccessPoint kAccessPointsThatSupportUserAction[] = {
     AccessPoint::kUserManager,
     AccessPoint::kFullscreenSigninPromo,
     AccessPoint::kRecentTabs,
-    AccessPoint::kUnknown,
     AccessPoint::kPasswordBubble,
     AccessPoint::kAutofillDropdown,
     AccessPoint::kResigninInfobar,
@@ -109,8 +108,6 @@ class SigninMetricsTest : public ::testing::Test {
         return "SigninPromo";
       case AccessPoint::kRecentTabs:
         return "RecentTabs";
-      case AccessPoint::kUnknown:
-        return "UnknownAccessPoint";
       case AccessPoint::kPasswordBubble:
         return "PasswordBubble";
       case AccessPoint::kAutofillDropdown:
@@ -235,6 +232,16 @@ class SigninMetricsTest : public ::testing::Test {
         return "SetSyncConsentFromSyncInternals";
       case AccessPoint::kIosChromeWebView:
         return "IosChromeWebView";
+      case AccessPoint::kAshChromeSessionManager:
+        return "AshChromeSessionManager";
+      case AccessPoint::kAshUserSessionManager:
+        return "AshUserSessionManager";
+      case AccessPoint::kAvatarPillExpandPromo:
+        return "AvatarPillExpandPromo";
+      case AccessPoint::kSearchAIModeBubble:
+        return "SearchAIModeBubble";
+      case AccessPoint::kIosAppBar:
+        return "IOSAppBar";
     }
   }
 };

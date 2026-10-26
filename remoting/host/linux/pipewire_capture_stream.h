@@ -46,11 +46,14 @@ class PipewireCaptureStream : public CaptureStream {
                          std::string_view mapping_id,
                          int pipewire_fd) override;
   void StartVideoCapture() override;
+  void StopVideoCapture() override;
   void SetCallback(
       base::WeakPtr<webrtc::DesktopCapturer::Callback> callback) override;
   void SetUseDamageRegion(bool use_damage_region) override;
   void SetResolution(const webrtc::DesktopSize& new_resolution) override;
   void SetMaxFrameRate(std::uint32_t frame_rate) override;
+  void SetSharedMemoryFactory(std::unique_ptr<webrtc::SharedMemoryFactory>
+                                  shared_memory_factory) override;
   std::unique_ptr<webrtc::MouseCursor> CaptureCursor() override;
   std::optional<webrtc::DesktopVector> CaptureCursorPosition() override;
   CursorObserver::Subscription AddCursorObserver(
@@ -90,6 +93,7 @@ class PipewireCaptureStream : public CaptureStream {
   std::uint32_t pipewire_node_ GUARDED_BY_CONTEXT(sequence_checker_);
 
   webrtc::DesktopSize resolution_ GUARDED_BY_CONTEXT(sequence_checker_);
+  bool video_capture_started_ GUARDED_BY_CONTEXT(sequence_checker_) = false;
   std::string mapping_id_ GUARDED_BY_CONTEXT(sequence_checker_);
   webrtc::ScreenId screen_id_ GUARDED_BY_CONTEXT(sequence_checker_) = -1;
   base::WeakPtr<webrtc::DesktopCapturer::Callback> callback_

@@ -24,6 +24,10 @@ typedef NS_ENUM(NSInteger, GeminiSettingsContext);
 
 using BWGEligibilityCallback = void (^)(BOOL eligible);
 
+namespace gemini {
+enum class EntryPoint;
+}
+
 namespace ios::provider {
 
 // Enum representing the location permission state of the Gemini experience.
@@ -66,10 +70,10 @@ enum class GeminiPageContextComputationState {
   kPending,
 };
 
-// Enum representing the page context attachment state of the BWG experience.
+// Enum representing the page context attachment state of the Gemini experience.
 // This needs to stay in sync with GCRGeminiPageContextAttachmentState (and its
 // SDK counterpart).
-enum class BWGPageContextAttachmentState {
+enum class GeminiPageContextAttachmentState {
   // The attach state is unknown.
   kUnknown,
   // Page context should be attached.
@@ -84,6 +88,7 @@ enum class BWGPageContextAttachmentState {
 
 // Enum representing the Gemini view state.
 // This needs to stay in sync with GCRGeminiViewState (and its SDK counterpart).
+// LINT.IfChange(GeminiViewState)
 enum class GeminiViewState {
   // The Gemini view state is unknown.
   kUnknown,
@@ -97,7 +102,9 @@ enum class GeminiViewState {
   kCollapsed,
   // The Gemini view is expanded.
   kExpanded,
+  kMaxValue = kExpanded,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:GeminiViewState)
 
 // Enum representing the UI element type for which a change is requested.
 // This needs to stay in sync with GCRGeminiUIElementType (and its SDK
@@ -109,6 +116,24 @@ enum class GeminiUIElementType {
   kContextAttachment,
   // The zero state element.
   kZeroState,
+};
+
+// Enum representing the Gemini client mode.
+// This needs to stay in sync with GCRGeminiClientMode (and its SDK
+// counterpart).
+enum class GeminiClientMode {
+  // The Gemini client is unknown.
+  kUnknown,
+  // The Gemini client is dormant.
+  kDormant,
+  // The Gemini client is listening.
+  kListening,
+  // The Gemini client is thinking.
+  kThinking,
+  // The Gemini client is responding.
+  kResponding,
+  // The Gemini client is loading the previous conversation.
+  kPreviousConversationLoading,
 };
 
 // Configures Gemini with the given startup configuration.
@@ -135,7 +160,11 @@ void ResetGemini();
 
 // Updates the page attachment state of the floaty if it's invoked.
 void UpdatePageAttachmentState(
-    BWGPageContextAttachmentState bwg_attachment_state);
+    GeminiPageContextAttachmentState gemini_attachment_state);
+
+// Updates the prompt action of the floaty if it's invoked.
+void UpdatePromptAction(gemini::EntryPoint entry_point,
+                        NSString* prepopulated_prompt);
 
 // Returns true if a URL is protected.
 bool IsProtectedUrl(std::string url);
@@ -172,6 +201,12 @@ void RequestUIChange(GeminiUIElementType ui_element_type);
 
 // Attaches an image to the Gemini floaty.
 void AttachImage(UIImage* image);
+
+// Returns the current `GeminiClientMode` of the floaty.
+GeminiClientMode GetCurrentClientMode();
+
+// Returns the current `GeminiPageContextAttachmentState` of the floaty.
+GeminiPageContextAttachmentState GetCurrentPageContextAttachmentState();
 
 }  // namespace ios::provider
 

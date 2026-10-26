@@ -35,6 +35,18 @@ BASE_DECLARE_FEATURE(kMetricsLogTrimming);
 BASE_DECLARE_FEATURE(kMetricsLogJobSchedulerUpload);
 #endif  // BUILDFLAG(IS_ANDROID)
 
+// Creates the ProfileMetricsService, which can be used to log per-profile UMA
+// histograms.
+// Enabled by default - intended as a kill-switch.
+BASE_DECLARE_FEATURE(kPerProfileMetrics);
+
+// Consolidates the application locale logic in MetricsServiceClient.
+BASE_DECLARE_FEATURE(kConsolidateMetricsServiceLocales);
+
+// Restructures the metrics privacy settings into a three-state model [kNone,
+// kBasic, kAdvanced].
+BASE_DECLARE_FEATURE(kRestructureMetricsConsentSettings);
+
 }  // namespace metrics::features
 
 #endif  // COMPONENTS_METRICS_METRICS_FEATURES_H_

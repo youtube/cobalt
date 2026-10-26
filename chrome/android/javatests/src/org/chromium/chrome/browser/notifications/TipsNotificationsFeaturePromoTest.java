@@ -30,10 +30,12 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.IntentHandler;
+import org.chromium.chrome.browser.browserservices.intents.WebappConstants;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lens.LensController;
 import org.chromium.chrome.browser.notifications.scheduler.TipsNotificationsFeatureType;
@@ -49,6 +51,8 @@ import org.chromium.chrome.test.transit.ntp.RegularNewTabPageStation;
 import org.chromium.chrome.test.transit.quick_delete.QuickDeleteDialogFacility;
 import org.chromium.chrome.test.transit.settings.SettingsStation;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
+import org.chromium.components.signin.SigninFeatures;
+import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.test.util.DeviceRestriction;
 import org.chromium.ui.test.util.RenderTestRule.Component;
 import org.chromium.ui.widget.ButtonCompat;
@@ -59,9 +63,13 @@ import java.util.List;
 // TODO(crbug.com/478907175): Remove casting when value returns the view type.
 /** Integration and render tests for the tips notifications feature promo. */
 @RunWith(ChromeJUnit4ClassRunner.class)
-@EnableFeatures({ChromeFeatureList.ANDROID_TIPS_NOTIFICATIONS})
+@EnableFeatures({
+    ChromeFeatureList.ANDROID_TIPS_NOTIFICATIONS,
+    SigninFeatures.ENABLE_SEAMLESS_SIGNIN,
+})
 @Batch(Batch.PER_CLASS)
 @Restriction(DeviceRestriction.RESTRICTION_TYPE_NON_AUTO)
+@DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/488115473
 public class TipsNotificationsFeaturePromoTest {
     @Rule
     public FreshCtaTransitTestRule mCtaTestRule =
@@ -70,7 +78,7 @@ public class TipsNotificationsFeaturePromoTest {
     @Rule
     public ChromeRenderTestRule mRenderTestRule =
             ChromeRenderTestRule.Builder.withPublicCorpus()
-                    .setRevision(2)
+                    .setRevision(3)
                     .setBugComponent(Component.UI_NOTIFICATIONS)
                     .build();
 
@@ -410,6 +418,7 @@ public class TipsNotificationsFeaturePromoTest {
         Intent intent = IntentHandler.createTrustedOpenNewTabIntent(mContext, false);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.putExtra(IntentHandler.EXTRA_TIPS_NOTIFICATION_FEATURE_TYPE, featureType);
+        intent.putExtra(WebappConstants.REUSE_URL_MATCHING_TAB_ELSE_NEW_TAB, true);
         IntentHandler.setTabLaunchType(intent, TabLaunchType.FROM_TIPS_NOTIFICATIONS);
 
         return new Pair<>(

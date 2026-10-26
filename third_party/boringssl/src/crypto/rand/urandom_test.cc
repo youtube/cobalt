@@ -24,13 +24,11 @@
 #include "../bcm_support.h"
 #include "../fipsmodule/rand/internal.h"
 #include "../internal.h"
-#include "getrandom_fillin.h"
 #include "internal.h"
 
 
-#if (defined(OPENSSL_X86_64) || defined(OPENSSL_AARCH64)) &&               \
-    !defined(BORINGSSL_SHARED_LIBRARY) && defined(OPENSSL_RAND_URANDOM) && \
-    defined(USE_NR_getrandom)
+#if (defined(OPENSSL_X86_64) || defined(OPENSSL_AARCH64)) && \
+    !defined(BORINGSSL_SHARED_LIBRARY) && defined(OPENSSL_RAND_URANDOM)
 
 #include <elf.h>
 #include <linux/random.h>
@@ -790,5 +788,4 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-#endif  // (X86_64 || AARCH64) && !SHARED_LIBRARY &&
-        // !UNSAFE_DETERMINISTIC_MODE && USE_NR_getrandom
+#endif  // (X86_64 || AARCH64) && !SHARED_LIBRARY && !UNSAFE_DETERMINISTIC_MODE

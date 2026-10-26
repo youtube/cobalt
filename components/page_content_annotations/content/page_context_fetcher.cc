@@ -51,27 +51,30 @@ namespace page_content_annotations {
 
 namespace {
 
-template <typename T, typename E>
-// Conditionally emits to a given timing histogram, given the start_time.
-base::expected<T, E> EmitTimingHistogram(const std::string& histogram_name,
-                                         base::ElapsedTimer timer,
-                                         base::expected<T, E> result) {
-  if (result.has_value()) {
-    base::UmaHistogramTimes(histogram_name, timer.Elapsed());
+gfx::Size GetScreenshotSize(
+    const gfx::Size& original_size,
+    const std::optional<ScreenshotOptions::ScreenshotCollectionOptions>&
+        screenshot_collection_options) {
+  if (original_size.IsEmpty()) {
+    return gfx::Size();
   }
-  return std::move(result);
-}
 
-gfx::Size GetScreenshotSize(const gfx::Size& original_size) {
   // By default, no scaling.
-  if (!base::FeatureList::IsEnabled(kGlicTabScreenshotExperiment)) {
+  if (!base::FeatureList::IsEnabled(kGlicTabScreenshotExperiment) &&
+      !screenshot_collection_options) {
     return gfx::Size();
   }
 
   // If either width or height is 0, or the view is empty, no scaling.
-  int max_width = kMaxScreenshotWidthParam.Get();
-  int max_height = kMaxScreenshotHeightParam.Get();
-  if (max_width == 0 || max_height == 0 || original_size.IsEmpty()) {
+  int max_width = (screenshot_collection_options &&
+                   screenshot_collection_options->max_width)
+                      ? screenshot_collection_options->max_width.value()
+                      : kMaxScreenshotWidthParam.Get();
+  int max_height = (screenshot_collection_options &&
+                    screenshot_collection_options->max_height)
+                       ? screenshot_collection_options->max_height.value()
+                       : kMaxScreenshotHeightParam.Get();
+  if (max_width == 0 || max_height == 0) {
     return gfx::Size();
   }
 
@@ -107,7 +110,23 @@ double GetScreenshotScaleFactor(const gfx::Size& original_size,
   return new_size.width() / original_size.width();
 }
 
-int GetScreenshotJpegQuality() {
+int GetScreenshotJpegQuality(
+    const std::optional<ScreenshotOptions::ScreenshotCollectionOptions>&
+        screenshot_collection_options) {
+  if (screenshot_collection_options &&
+      screenshot_collection_options->screenshot_compression_quality) {
+    switch (
+        screenshot_collection_options->screenshot_compression_quality.value()) {
+      case ScreenshotOptions::ScreenshotCompressionQuality::kLow:
+        return 20;
+      case ScreenshotOptions::ScreenshotCompressionQuality::kMedium:
+        return 40;
+      case ScreenshotOptions::ScreenshotCompressionQuality::kHigh:
+        return 60;
+      case ScreenshotOptions::ScreenshotCompressionQuality::kNone:
+        return 100;
+    }
+  }
   if (!base::FeatureList::IsEnabled(kGlicTabScreenshotExperiment)) {
     return 40;
   }
@@ -115,16 +134,28 @@ int GetScreenshotJpegQuality() {
   return std::max(0, std::min(100, kScreenshotQuality.Get()));
 }
 
-int GetScreenshotWebPQuality() {
-  return GetScreenshotJpegQuality();
+int GetScreenshotWebPQuality(
+    const std::optional<ScreenshotOptions::ScreenshotCollectionOptions>&
+        screenshot_collection_options) {
+  return GetScreenshotJpegQuality(screenshot_collection_options);
 }
 
-// Png only has two modes exposed, so we use the quality to determine if it is
-// low quality or not by checking if it is 50 or lower.
-bool ShouldPngScreenshotBeLowQuality() {
+// Png only has two modes exposed.
+bool ShouldPngScreenshotBeLowQuality(
+    const std::optional<ScreenshotOptions::ScreenshotCollectionOptions>&
+        screenshot_collection_options) {
+  // If low is configured, then we should use low quality for png screenshots.
+  if (screenshot_collection_options &&
+      screenshot_collection_options->screenshot_compression_quality) {
+    return screenshot_collection_options->screenshot_compression_quality
+               .value() ==
+           ScreenshotOptions::ScreenshotCompressionQuality::kLow;
+  }
   if (!base::FeatureList::IsEnabled(kGlicTabScreenshotExperiment)) {
     return false;
   }
+  // We use the quality to determine if it is low quality or not by checking if
+  // it is 50 or lower.
   return kScreenshotQuality.Get() < 50;
 }
 
@@ -142,7 +173,21 @@ enum class ScreenshotImageType {
 constexpr base::TimeDelta kScreenshotTimeoutBrowserAllowance =
     base::Milliseconds(500);
 
-ScreenshotImageType GetScreenshotImageType() {
+ScreenshotImageType GetScreenshotImageType(
+    const std::optional<ScreenshotOptions::ScreenshotCollectionOptions>&
+        screenshot_collection_options) {
+  if (screenshot_collection_options &&
+      screenshot_collection_options->screenshot_image_format) {
+    switch (screenshot_collection_options->screenshot_image_format.value()) {
+      case ScreenshotOptions::ScreenshotImageFormat::kJpeg:
+        return ScreenshotImageType::kJpeg;
+      case ScreenshotOptions::ScreenshotImageFormat::kPng:
+        return ScreenshotImageType::kPng;
+      case ScreenshotOptions::ScreenshotImageFormat::kWebp:
+        return ScreenshotImageType::kWebp;
+    }
+  }
+
   if (!base::FeatureList::IsEnabled(kGlicTabScreenshotExperiment)) {
     return ScreenshotImageType::kJpeg;
   }
@@ -184,9 +229,9 @@ base::expected<paint_preview::RedactionParams, std::string> GetRedactionParams(
 
 SkBitmap RedactScreenshotOnWorkerThread(
     const SkBitmap& bitmap,
-    std::vector<gfx::Rect> visible_bounding_boxes_for_password_redaction,
+    std::vector<gfx::Rect> visible_bounding_boxes_for_redaction,
     SkColor4f redaction_color) {
-  if (visible_bounding_boxes_for_password_redaction.empty()) {
+  if (visible_bounding_boxes_for_redaction.empty()) {
     return bitmap;
   }
 
@@ -197,7 +242,7 @@ SkBitmap RedactScreenshotOnWorkerThread(
   SkCanvas canvas(redacted_bitmap);
   SkPaint color;
   color.setColor(redaction_color);
-  for (const auto& rect : visible_bounding_boxes_for_password_redaction) {
+  for (const auto& rect : visible_bounding_boxes_for_redaction) {
     canvas.drawRect(RectToSkRect(rect), color);
   }
 
@@ -249,6 +294,36 @@ void RecordPdfRequestState(bool is_pdf_document, bool pdf_found) {
 #endif
 
 }  // namespace
+
+// static
+std::optional<std::vector<uint8_t>> EncodeScreenshot(
+    const SkBitmap& bitmap,
+    const std::optional<ScreenshotOptions::ScreenshotCollectionOptions>&
+        screenshot_collection_options) {
+  std::optional<std::vector<uint8_t>> encoded;
+  switch (GetScreenshotImageType(screenshot_collection_options)) {
+    case ScreenshotImageType::kJpeg:
+      encoded = gfx::JPEGCodec::Encode(
+          bitmap, GetScreenshotJpegQuality(screenshot_collection_options));
+      break;
+    case ScreenshotImageType::kPng:
+      if (ShouldPngScreenshotBeLowQuality(screenshot_collection_options)) {
+        encoded = gfx::PNGCodec::FastEncodeBGRASkBitmap(
+            bitmap, /*discard_transparency=*/true);
+      } else {
+        encoded = gfx::PNGCodec::EncodeBGRASkBitmap(
+            bitmap, /*discard_transparency=*/true);
+      }
+      break;
+    case ScreenshotImageType::kWebp:
+      encoded = gfx::WebpCodec::Encode(
+          bitmap, GetScreenshotWebPQuality(screenshot_collection_options));
+      break;
+    default:
+      break;
+  }
+  return encoded;
+}
 
 PageContextFetcher::PageContextFetcher(
     GetScreenshotServiceCallback get_screenshot_service_callback,
@@ -323,6 +398,10 @@ void PageContextFetcher::FetchStart(content::WebContents& aweb_contents,
         base::FeatureList::IsEnabled(kGlicScreenshotPasswordRedaction);
     screenshot_needs_password_redaction_ =
         ai_page_content_options->include_passwords_for_redaction;
+    ai_page_content_options->include_sensitive_payments_for_redaction =
+        base::FeatureList::IsEnabled(kGlicScreenshotSensitivePaymentRedaction);
+    screenshot_needs_sensitive_payment_redaction_ =
+        ai_page_content_options->include_sensitive_payments_for_redaction;
     optimization_guide::GetAIPageContent(
         web_contents(), std::move(ai_page_content_options),
         base::BindOnce(&PageContextFetcher::ReceivedAnnotatedPageContent,
@@ -378,6 +457,8 @@ void PageContextFetcher::GetTabScreenshot(
   }
 
   screenshot_redaction_color_ = screenshot_options.redaction_color();
+  screenshot_collection_options_ =
+      screenshot_options.screenshot_collection_options();
 
   gfx::Size view_size = view->GetViewBounds().size();
 
@@ -415,8 +496,9 @@ void PageContextFetcher::GetTabScreenshot(
     }
     PageContentScreenshotService::RequestParams request_params = {
         .clip_rect = clip_rect,
-        .scale_factor =
-            GetScreenshotScaleFactor(view_size, GetScreenshotSize(view_size)),
+        .scale_factor = GetScreenshotScaleFactor(
+            view_size,
+            GetScreenshotSize(view_size, screenshot_collection_options_)),
         .clip_x_coord_override = clip_coord_override,
         .clip_y_coord_override = clip_coord_override,
         .redaction_params = std::move(redaction_params),
@@ -425,19 +507,16 @@ void PageContextFetcher::GetTabScreenshot(
     };
     service->RequestScreenshot(
         &web_contents, std::move(request_params),
-        base::BindOnce(EmitTimingHistogram<const SkBitmap*, std::string>,
-                       "Glic.PageContextFetcher.GetScreenshot.TimeoutAgnostic",
-                       elapsed_timer_)
-            .Then(base::BindOnce(
-                &PageContextFetcher::ReceivedViewportBitmapOrError,
-                GetWeakPtr())));
+        base::BindOnce(&PageContextFetcher::ReceivedViewportBitmapOrError,
+                       GetWeakPtr()));
   } else {
     SetCaptureCountLock(web_contents);
     ScheduleScreenshotTimeout();
 
     view->CopyFromSurface(
         gfx::Rect(),  // Copy entire surface area.
-        GetScreenshotSize(view_size), kScreenshotTimeout.Get(),
+        GetScreenshotSize(view_size, screenshot_collection_options_),
+        kScreenshotTimeout.Get(),
         base::BindOnce(&PageContextFetcher::ReceivedViewportBitmap,
                        GetWeakPtr()));
   }
@@ -486,6 +565,9 @@ void PageContextFetcher::ReceivedViewportBitmapOrError(
     screenshot_capture_done_ = true;
     base::UmaHistogramTimes("Glic.PageContextFetcher.GetScreenshot",
                             elapsed_timer_.Elapsed());
+    if (progress_listener_) {
+      progress_listener_->ScreenshotCaptured(*bitmap);
+    }
     RedactAndEncodeScreenshotIfNeeded();
   } else {
     ReceivedEncodedScreenshot(base::unexpected(bitmap_result.error()));
@@ -493,58 +575,36 @@ void PageContextFetcher::ReceivedViewportBitmapOrError(
 }
 
 void PageContextFetcher::RedactAndEncodeScreenshot(
-    std::vector<gfx::Rect> visible_bounding_boxes_for_password_redaction) {
+    std::vector<gfx::Rect> visible_bounding_boxes_for_redaction) {
   CHECK(screenshot_bitmap_);
 
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
       base::BindOnce(
           [](const SkBitmap& bitmap,
-             std::vector<gfx::Rect>
-                 visible_bounding_boxes_for_password_redaction,
-             SkColor4f redaction_color) {
+             std::vector<gfx::Rect> visible_bounding_boxes_for_redaction,
+             SkColor4f redaction_color,
+             std::optional<ScreenshotOptions::ScreenshotCollectionOptions>
+                 screenshot_collection_options) {
             SkBitmap redacted_bitmap = RedactScreenshotOnWorkerThread(
-                bitmap, visible_bounding_boxes_for_password_redaction,
-                redaction_color);
-            std::optional<std::vector<uint8_t>> encoded;
-            switch (GetScreenshotImageType()) {
-              case ScreenshotImageType::kJpeg:
-                encoded = gfx::JPEGCodec::Encode(redacted_bitmap,
-                                                 GetScreenshotJpegQuality());
-                break;
-              case ScreenshotImageType::kPng:
-                if (ShouldPngScreenshotBeLowQuality()) {
-                  encoded = gfx::PNGCodec::FastEncodeBGRASkBitmap(
-                      redacted_bitmap, /*discard_transparency=*/true);
-                } else {
-                  encoded = gfx::PNGCodec::EncodeBGRASkBitmap(
-                      redacted_bitmap, /*discard_transparency=*/true);
-                }
-                break;
-              case ScreenshotImageType::kWebp:
-                encoded = gfx::WebpCodec::Encode(redacted_bitmap,
-                                                 GetScreenshotWebPQuality());
-                break;
-              default:
-                break;
-            }
-            base::expected<std::vector<uint8_t>, std::string> reply;
+                bitmap, visible_bounding_boxes_for_redaction, redaction_color);
+            std::optional<std::vector<uint8_t>> encoded =
+                EncodeScreenshot(redacted_bitmap, screenshot_collection_options);
+            base::expected<std::pair<std::vector<uint8_t>, SkBitmap>,
+                           std::string>
+                reply;
             if (encoded) {
-              reply.emplace(std::move(encoded.value()));
+              reply.emplace(
+                  std::make_pair(std::move(encoded.value()), redacted_bitmap));
             } else {
               reply = base::unexpected("JPEGCodec failed to encode");
             }
             return reply;
           },
-          *screenshot_bitmap_,
-          std::move(visible_bounding_boxes_for_password_redaction),
-          screenshot_redaction_color_),
-      base::BindOnce(
-          EmitTimingHistogram<std::vector<uint8_t>, std::string>,
-          "Glic.PageContextFetcher.GetEncodedScreenshot.TimeoutAgnostic",
-          elapsed_timer_)
-          .Then(base::BindOnce(&PageContextFetcher::ReceivedEncodedScreenshot,
-                               GetWeakPtr())));
+          *screenshot_bitmap_, std::move(visible_bounding_boxes_for_redaction),
+          screenshot_redaction_color_, screenshot_collection_options_),
+      base::BindOnce(&PageContextFetcher::ReceivedEncodedScreenshot,
+                     GetWeakPtr()));
   screenshot_bitmap_.reset();
 }
 
@@ -553,7 +613,8 @@ void PageContextFetcher::RedactAndEncodeScreenshotIfNeeded() {
     return;
   }
 
-  if (!screenshot_needs_password_redaction_) {
+  if (!screenshot_needs_password_redaction_ &&
+      !screenshot_needs_sensitive_payment_redaction_) {
     RedactAndEncodeScreenshot({});
     return;
   }
@@ -563,13 +624,22 @@ void PageContextFetcher::RedactAndEncodeScreenshotIfNeeded() {
     return;
   }
 
-  // If APC extraction is done and we've determined password redaction is
-  // needed, it implies we have a result with bounding boxes to redact.
+  // If APC extraction is done and we've determined password/sensitive payment
+  // redaction is needed, it implies we have a result with bounding boxes to
+  // redact.
   CHECK(pending_result_);
   CHECK(pending_result_->annotated_page_content_result.has_value());
-  RedactAndEncodeScreenshot(
+
+  std::vector<gfx::Rect> visible_bounding_boxes_for_redaction =
       pending_result_->annotated_page_content_result
-          ->visible_bounding_boxes_for_password_redaction);
+          ->visible_bounding_boxes_for_password_redaction;
+  visible_bounding_boxes_for_redaction.insert(
+      visible_bounding_boxes_for_redaction.end(),
+      pending_result_->annotated_page_content_result
+          ->visible_bounding_boxes_for_sensitive_payment_redaction.begin(),
+      pending_result_->annotated_page_content_result
+          ->visible_bounding_boxes_for_sensitive_payment_redaction.end());
+  RedactAndEncodeScreenshot(std::move(visible_bounding_boxes_for_redaction));
 }
 
 // content::WebContentsObserver impl.
@@ -579,8 +649,8 @@ void PageContextFetcher::PrimaryPageChanged(content::Page& page) {
 }
 
 void PageContextFetcher::OnScreenshotTimeout() {
-  // When password redaction is enabled, the screenshot must wait for APC to
-  // finish before it can be encoded.
+  // When password/sensitive payment redaction is enabled, the screenshot must
+  // wait for APC to finish before it can be encoded.
   //
   // The screenshot timer is intended to catch hangs during the initial bitmap
   // capture. If we have already received the bitmap, we should ignore this
@@ -599,7 +669,8 @@ void PageContextFetcher::OnScreenshotTimeout() {
 }
 
 void PageContextFetcher::ReceivedEncodedScreenshot(
-    base::expected<std::vector<uint8_t>, std::string> screenshot_data) {
+    base::expected<std::pair<std::vector<uint8_t>, SkBitmap>, std::string>
+        screenshot_data) {
   // This function can be called multiple times, for timeout behavior. Early
   // exit if it's already been called.
   if (screenshot_done_) {
@@ -610,8 +681,8 @@ void PageContextFetcher::ReceivedEncodedScreenshot(
   capture_count_lock_ = {};
   if (screenshot_data.has_value()) {
     pending_result_->screenshot_result.value().screenshot_data =
-        std::move(screenshot_data.value());
-    switch (GetScreenshotImageType()) {
+        std::move(screenshot_data.value().first);
+    switch (GetScreenshotImageType(screenshot_collection_options_)) {
       case ScreenshotImageType::kJpeg:
         pending_result_->screenshot_result.value().mime_type = "image/jpeg";
         break;
@@ -627,6 +698,7 @@ void PageContextFetcher::ReceivedEncodedScreenshot(
     base::UmaHistogramTimes("Glic.PageContextFetcher.GetEncodedScreenshot",
                             elapsed);
     if (progress_listener_) {
+      progress_listener_->ScreenshotRedacted(screenshot_data.value().second);
       progress_listener_->EndScreenshot(std::nullopt);
     }
   } else {
@@ -675,10 +747,14 @@ void PageContextFetcher::ReceivedAnnotatedPageContent(
     screenshot_needs_password_redaction_ =
         !pending_result_->annotated_page_content_result
              ->visible_bounding_boxes_for_password_redaction.empty();
+    screenshot_needs_sensitive_payment_redaction_ =
+        !pending_result_->annotated_page_content_result
+             ->visible_bounding_boxes_for_sensitive_payment_redaction.empty();
   } else {
     pending_result_->annotated_page_content_result =
         base::unexpected(content.error());
     screenshot_needs_password_redaction_ = false;
+    screenshot_needs_sensitive_payment_redaction_ = false;
   }
   annotated_page_content_done_ = true;
   base::UmaHistogramTimes("Glic.PageContextFetcher.GetAnnotatedPageContent",
@@ -712,8 +788,14 @@ void PageContextFetcher::RunCallbackIfComplete() {
   base::UmaHistogramTimes("Glic.PageContextFetcher.Total",
                           elapsed_timer_.Elapsed());
 
-  if (primary_page_changed_ || !web_contents() ||
-      !web_contents()->GetPrimaryMainFrame()) {
+  if (!web_contents() || !web_contents()->GetPrimaryMainFrame()) {
+    std::move(callback_).Run(base::unexpected(FetchPageContextErrorDetails{
+        FetchPageContextError::kWebContentsWentAway,
+        "web contents went away"}));
+    return;
+  }
+
+  if (primary_page_changed_) {
     std::move(callback_).Run(base::unexpected(FetchPageContextErrorDetails{
         FetchPageContextError::kWebContentsChanged, "web contents changed"}));
     return;
@@ -734,6 +816,8 @@ std::string ToString(FetchPageContextError error) {
       return "kWebContentsChanged";
     case FetchPageContextError::kPageContextNotEligible:
       return "kPageContextNotEligible";
+    case FetchPageContextError::kWebContentsWentAway:
+      return "kWebContentsWentAway";
   }
 }
 
@@ -741,6 +825,9 @@ BASE_FEATURE(kGlicTabScreenshotExperiment, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicScreenshotPasswordRedaction,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicScreenshotSensitivePaymentRedaction,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<int> kMaxScreenshotWidthParam{
     &kGlicTabScreenshotExperiment, "max_screenshot_width", 0};

@@ -35,7 +35,6 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
-import org.robolectric.annotation.LooperMode;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -46,8 +45,6 @@ import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni;
 import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.content_settings.ContentSettingsType;
-import org.chromium.components.embedder_support.util.UrlUtilities;
-import org.chromium.components.embedder_support.util.UrlUtilitiesJni;
 import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.permissions.PermissionsAndroidFeatureList;
@@ -58,7 +55,6 @@ import org.chromium.content_public.browser.WebContents;
 /** Robolectric tests for {@link GeolocationHeader}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@LooperMode(LooperMode.Mode.LEGACY)
 @EnableFeatures(PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_PERMISSION)
 public class GeolocationHeaderUnitTest {
     private static final String SEARCH_URL = "https://www.google.com/search?q=potatoes";
@@ -100,7 +96,6 @@ public class GeolocationHeaderUnitTest {
 
     public @Rule MockitoRule mMockitoRule = MockitoJUnit.rule();
 
-    @Mock UrlUtilities.Natives mUrlUtilitiesJniMock;
     @Mock WebsitePreferenceBridge.Natives mWebsitePreferenceBridgeJniMock;
     @Mock Profile mProfileMock;
     @Mock WebContents mWebContentsMock;
@@ -111,26 +106,19 @@ public class GeolocationHeaderUnitTest {
 
     @Before
     public void setUp() {
-        UrlUtilitiesJni.setInstanceForTesting(mUrlUtilitiesJniMock);
         WebsitePreferenceBridgeJni.setInstanceForTesting(mWebsitePreferenceBridgeJniMock);
         GeolocationTracker.setLocationForTesting(null, null);
         GeolocationTracker.setLocationAgeForTesting(null);
         GeolocationHeader.setAppPermissionsForTesting(/* hasCoarse= */ true, /* hasFine= */ true);
         // This is to reset `sCurrentLocationRequested`.
         GeolocationHeader.stopListeningForLocationUpdates();
-        when(mWebsitePreferenceBridgeJniMock.getPermissionSettingForOrigin(
-                        any(BrowserContextHandle.class), eq(ContentSettingsType.GEOLOCATION),
-                        anyString(), anyString()))
-                .thenReturn(ContentSetting.ALLOW);
         setSiteGeolocationPermissions(
                 /* approximate= */ ContentSetting.ALLOW, /* precise= */ ContentSetting.ALLOW);
-        when(mWebsitePreferenceBridgeJniMock.isDSEOrigin(
-                        any(BrowserContextHandle.class), anyString()))
+        when(mWebsitePreferenceBridgeJniMock.isDSEOrigin(any(BrowserContextHandle.class), any()))
                 .thenReturn(true);
-        when(mUrlUtilitiesJniMock.isGoogleSearchUrl(anyString())).thenReturn(true);
         when(mProfileMock.isOffTheRecord()).thenReturn(false);
         when(mTemplateUrlServiceMock.getUrlForSearchQuery(anyString()))
-                .thenReturn("https://example.com/");
+                .thenReturn("https://www.google.com/search?q=a");
         when(mTemplateUrlServiceMock.isDefaultSearchEngineGoogle()).thenReturn(true);
         mRefreshLastKnownLocationCount = 0;
         GeolocationTracker.setRefreshLastKnownLocationRunnableForTesting(
@@ -163,7 +151,9 @@ public class GeolocationHeaderUnitTest {
     public void testGetGeoHeaderOld() {
         checkOldLocation("X-Geo: w " + ENCODED_PROTO_LOCATION_PRECISE);
         GeolocationHeader.setAppPermissionsForTesting(/* hasCoarse= */ true, /* hasFine= */ false);
-        checkOldLocation("X-Geo: w " + ENCODED_PROTO_LOCATION_COARSE);
+        // Even if the app-level permission is coarse, the site has precise location so the X-Geo
+        // header will report a fine location permission.
+        checkOldLocation("X-Geo: w " + ENCODED_PROTO_LOCATION_PRECISE);
     }
 
     @Test
@@ -189,10 +179,6 @@ public class GeolocationHeaderUnitTest {
 
     @Test
     public void testPrimeLocationForGeoHeaderDseAutograntOff() {
-        when(mWebsitePreferenceBridgeJniMock.getPermissionSettingForOrigin(
-                        any(BrowserContextHandle.class), eq(ContentSettingsType.GEOLOCATION),
-                        anyString(), anyString()))
-                .thenReturn(ContentSetting.ASK);
         setSiteGeolocationPermissions(
                 /* approximate= */ ContentSetting.ASK, /* precise= */ ContentSetting.ASK);
         GeolocationHeader.primeLocationForGeoHeaderIfEnabled(mProfileMock, mTemplateUrlServiceMock);
@@ -219,11 +205,13 @@ public class GeolocationHeaderUnitTest {
         assertEquals(
                 OmniboxFeatures.sGeolocationRequestPriority.getValue(),
                 actualRequest.getPriority());
-        assertEquals(Granularity.GRANULARITY_FINE, actualRequest.getGranularity());
+        assertEquals(Granularity.GRANULARITY_PERMISSION_LEVEL, actualRequest.getGranularity());
 
         Location mockLocation = generateMockLocation("network", LOCATION_TIME);
         mLocationListenerCaptor.getValue().onLocationChanged(mockLocation);
-        assertEquals(mockLocation, GeolocationHeader.getLastKnownLocation(/* useFine= */ true));
+        assertEquals(
+                mockLocation,
+                GeolocationHeader.getLastKnownLocation(/* hasFineSitePermission= */ true));
         assertEquals(0, mRefreshLastKnownLocationCount);
 
         GeolocationHeader.stopListeningForLocationUpdates();
@@ -251,11 +239,13 @@ public class GeolocationHeaderUnitTest {
                         eq(null));
 
         LocationRequest actualRequest = mLocationRequestCaptor.getValue();
-        assertEquals(Granularity.GRANULARITY_FINE, actualRequest.getGranularity());
+        assertEquals(Granularity.GRANULARITY_PERMISSION_LEVEL, actualRequest.getGranularity());
 
         Location mockLocation = generateMockLocation("network", LOCATION_TIME);
         mLocationListenerCaptor.getValue().onLocationChanged(mockLocation);
-        assertEquals(mockLocation, GeolocationHeader.getLastKnownLocation(/* useFine= */ true));
+        assertEquals(
+                mockLocation,
+                GeolocationHeader.getLastKnownLocation(/* hasFineSitePermission= */ true));
         assertEquals(0, mRefreshLastKnownLocationCount);
     }
 
@@ -279,7 +269,9 @@ public class GeolocationHeaderUnitTest {
 
         Location mockLocation = generateMockLocation("network", LOCATION_TIME);
         mLocationListenerCaptor.getValue().onLocationChanged(mockLocation);
-        assertEquals(mockLocation, GeolocationHeader.getLastKnownLocation(/* useFine= */ false));
+        assertEquals(
+                mockLocation,
+                GeolocationHeader.getLastKnownLocation(/* hasFineSitePermission= */ false));
         assertEquals(0, mRefreshLastKnownLocationCount);
     }
 
@@ -317,12 +309,14 @@ public class GeolocationHeaderUnitTest {
 
         // The request should be coarse because the app permission is the most restrictive.
         LocationRequest actualRequest = mLocationRequestCaptor.getValue();
-        assertEquals(Granularity.GRANULARITY_COARSE, actualRequest.getGranularity());
+        assertEquals(Granularity.GRANULARITY_PERMISSION_LEVEL, actualRequest.getGranularity());
 
         // Verify that the location is treated as not fine.
         Location mockLocation = generateMockLocation("network", LOCATION_TIME);
         mLocationListenerCaptor.getValue().onLocationChanged(mockLocation);
-        assertEquals(mockLocation, GeolocationHeader.getLastKnownLocation(/* useFine= */ false));
+        assertEquals(
+                mockLocation,
+                GeolocationHeader.getLastKnownLocation(/* hasFineSitePermission= */ false));
         assertEquals(0, mRefreshLastKnownLocationCount);
     }
 

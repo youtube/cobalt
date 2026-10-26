@@ -7,6 +7,7 @@
 
 #include "content/browser/webid/identity_registry.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
 
 class GURL;
 
@@ -29,8 +30,7 @@ class MockIdentityRegistry : public IdentityRegistry {
               NotifyResolve,
               (const url::Origin&,
                const std::optional<std::string>&,
-               const std::optional<GURL>&,
-               const base::Value&),
+               blink::mojom::ResolveTokenParamsPtr),
               (override));
 };
 

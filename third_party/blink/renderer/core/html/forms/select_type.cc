@@ -535,6 +535,12 @@ bool MenuListSelectType::ShouldOpenPopupForKeyDownEvent(
   if (IsSpatialNavigationEnabled(select_->GetDocument().GetFrame()))
     return false;
 
+  if (PopupIsVisible()) {
+    // We shouldn't try to open the popup again if the popup is already open.
+    // This can cause focus issues: https://crbug.com/487577797
+    return false;
+  }
+
   // TODO(crbug.com/1511354): Reconsider making appearance:base-select affect
   // keyboard behavior after a resolution here:
   // https://github.com/openui/open-ui/issues/1087
@@ -679,19 +685,20 @@ bool MenuListSelectType::IsAppearanceBasePicker() const {
 }
 
 bool MenuListSelectType::PickerIsPopover() const {
-  if (select_->IsMultiple()) {
-    if (!RuntimeEnabledFeatures::SelectMobileDesktopParityEnabled()) {
-      return false;
-    }
-    if (IsAppearanceBasePicker()) {
-      return true;
-    }
-    // In appearance:auto/none mode, we use the native <select multiple> popup
-    // if available (only on Android right now). Otherwise, we keep using the
-    // popover.
-    return !LayoutTheme::GetTheme().DelegatesMenuListRendering();
+  if (IsAppearanceBasePicker()) {
+    return true;
   }
-  return IsAppearanceBasePicker();
+  if (select_->IsMultiple()) {
+    // In appearance:auto/none mode, we use the native <select multiple> popup
+    // if available (only on Android right now). In appearance:base mode, we
+    // keep using the popover.
+#if BUILDFLAG(IS_ANDROID)
+    return false;
+#else
+    return true;
+#endif
+  }
+  return false;
 }
 
 void MenuListSelectType::SetIsAppearanceBasePickerForDisplayNone(bool value) {
@@ -712,16 +719,6 @@ Element& MenuListSelectType::InnerElement() const {
 }
 
 void MenuListSelectType::ShowPopup(PopupMenu::ShowEventType type) {
-  if (LayoutTheme::GetTheme().DelegatesMenuListRendering() &&
-      select_->IsMultiple() &&
-      !select_->FastHasAttribute(html_names::kSizeAttr)) {
-    // If this UseCounter is low, then we could consider not delegating MenuList
-    // rendering for <select multiple> when no size attribute is present.
-    // https://issues.chromium.org/issues/357649033
-    UseCounter::Count(select_->GetDocument(),
-                      WebFeature::kSelectMultipleShowPopup);
-  }
-
   if (PopupIsVisible()) {
     return;
   }
@@ -1035,17 +1032,43 @@ String MenuListSelectType::UpdateTextStyleInternal() {
   // appearance:base-select and one for appearance:auto.
   if (!select_->IsAppearanceBase()) {
     Element& inner_element = select_->InnerElement();
+    std::optional<ComputedStyleBuilder> builder;
     const ComputedStyle* inner_style = inner_element.GetComputedStyle();
     if (inner_style && option_style &&
         ((option_style->Direction() != inner_style->Direction() ||
           option_style->GetUnicodeBidi() != inner_style->GetUnicodeBidi() ||
           option_style->GetTextAlign(true) !=
               inner_style->GetTextAlign(true)))) {
-      ComputedStyleBuilder builder(*inner_style);
-      builder.SetDirection(option_style->Direction());
-      builder.SetUnicodeBidi(option_style->GetUnicodeBidi());
-      builder.SetTextAlign(option_style->GetTextAlign(true));
-      const ComputedStyle* new_style = builder.TakeStyle();
+      builder = ComputedStyleBuilder(*inner_style);
+      builder->SetDirection(option_style->Direction());
+      builder->SetUnicodeBidi(option_style->GetUnicodeBidi());
+      builder->SetTextAlign(option_style->GetTextAlign(true));
+    }
+
+    if (inner_style &&
+        RuntimeEnabledFeatures::SelectRemoveOverflowHiddenEnabled()) {
+      if (auto* select_style = select_->GetComputedStyle()) {
+        if (select_style->TextOverflow() != inner_style->TextOverflow()) {
+          if (!builder) {
+            builder = ComputedStyleBuilder(*inner_style);
+          }
+          MenuListInnerElement::UpdateOverflowStyle(*builder, *select_style);
+        } else {
+          // If text-overflow matches, then overflow should always be set
+          // accordingly.
+          if (inner_style->TextOverflow().IsEllipsis()) {
+            DCHECK_EQ(inner_style->OverflowX(), EOverflow::kHidden);
+            DCHECK_EQ(inner_style->OverflowY(), EOverflow::kHidden);
+          } else {
+            DCHECK_EQ(inner_style->OverflowX(), EOverflow::kVisible);
+            DCHECK_EQ(inner_style->OverflowY(), EOverflow::kVisible);
+          }
+        }
+      }
+    }
+
+    if (builder) {
+      const ComputedStyle* new_style = builder->TakeStyle();
       if (auto* inner_layout = inner_element.GetLayoutObject()) {
         inner_layout->SetModifiedStyleOutsideStyleRecalc(
             new_style, LayoutObject::ApplyStyleChanges::kYes);

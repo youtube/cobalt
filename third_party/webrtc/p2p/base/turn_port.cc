@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -23,7 +24,6 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
@@ -1118,7 +1118,7 @@ void TurnPort::HandleChannelData(uint16_t channel_id,
   //   +-------------------------------+
 
   // Extract header fields from the message.
-  ArrayView<const uint8_t> payload = packet.payload();
+  std::span<const uint8_t> payload = packet.payload();
   uint16_t len = GetBE16(payload.subspan(2, 2));
   if (len > payload.size() - TURN_CHANNEL_HEADER_SIZE) {
     RTC_LOG(LS_WARNING) << ToString()
@@ -1867,7 +1867,7 @@ int TurnEntry::Send(const void* data,
     buf.WriteUInt16(channel_id_);
     buf.WriteUInt16(static_cast<uint16_t>(size));
     buf.Write(
-        ArrayView<const uint8_t>(reinterpret_cast<const uint8_t*>(data), size));
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(data), size));
   }
   AsyncSocketPacketOptions modified_options(options);
   modified_options.info_signaled_after_sent.turn_overhead_bytes =

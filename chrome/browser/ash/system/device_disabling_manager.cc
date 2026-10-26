@@ -28,29 +28,23 @@
 namespace ash {
 namespace system {
 
-namespace {
-
-policy::DeviceRestrictionScheduleController*
-DeviceRestrictionScheduleController() {
-  return g_browser_process->platform_part()
-      ->device_restriction_schedule_controller();
-}
-
-}  // namespace
-
 DeviceDisablingManager::Observer::~Observer() = default;
 
 DeviceDisablingManager::Delegate::~Delegate() = default;
 
 DeviceDisablingManager::DeviceDisablingManager(
-    PrefService* local_state,
+    const PrefService* local_state,
+    const policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
+    policy::DeviceRestrictionScheduleController*
+        device_restriction_schedule_controller,
     Delegate* delegate,
     CrosSettings* cros_settings,
     user_manager::UserManager* user_manager)
     : local_state_(CHECK_DEREF(local_state)),
+      browser_policy_connector_ash_(CHECK_DEREF(browser_policy_connector_ash)),
+      device_restriction_schedule_controller_(
+          CHECK_DEREF(device_restriction_schedule_controller)),
       delegate_(delegate),
-      browser_policy_connector_(
-          g_browser_process->platform_part()->browser_policy_connector_ash()),
       cros_settings_(cros_settings),
       user_manager_(user_manager),
       device_disabled_(false) {
@@ -58,9 +52,7 @@ DeviceDisablingManager::DeviceDisablingManager(
 }
 
 DeviceDisablingManager::~DeviceDisablingManager() {
-  if (DeviceRestrictionScheduleController()) {
-    DeviceRestrictionScheduleController()->RemoveObserver(this);
-  }
+  device_restriction_schedule_controller_->RemoveObserver(this);
 }
 
 void DeviceDisablingManager::AddObserver(Observer* observer) {
@@ -86,10 +78,12 @@ void DeviceDisablingManager::Init() {
       kDeviceDisabledMessage,
       base::BindRepeating(&DeviceDisablingManager::Update,
                           weak_factory_.GetWeakPtr()));
+  location_tracking_enabled_subscription_ = cros_settings_->AddSettingsObserver(
+      kDeviceDisabledLocationTrackingEnabled,
+      base::BindRepeating(&DeviceDisablingManager::Update,
+                          weak_factory_.GetWeakPtr()));
 
-  if (DeviceRestrictionScheduleController()) {
-    DeviceRestrictionScheduleController()->AddObserver(this);
-  }
+  device_restriction_schedule_controller_->AddObserver(this);
 
   Update();
 }
@@ -104,6 +98,16 @@ void DeviceDisablingManager::CacheDisabledMessageAndNotify(
     observer.OnDisabledMessageChanged(disabled_message_);
 }
 
+void DeviceDisablingManager::CacheLocationTrackingEnabledAndNotify(
+    bool location_tracking_enabled) {
+  if (location_tracking_enabled == location_tracking_enabled_)
+    return;
+
+  location_tracking_enabled_ = location_tracking_enabled;
+  for (auto& observer : observers_)
+    observer.OnLocationTrackingEnabledChanged(location_tracking_enabled_);
+}
+
 void DeviceDisablingManager::CheckWhetherDeviceDisabledDuringOOBE(
     DeviceDisabledCheckCallback callback) {
   if (policy::GetDeviceStateMode() != policy::RESTORE_MODE_DISABLED ||
@@ -115,18 +119,18 @@ void DeviceDisablingManager::CheckWhetherDeviceDisabledDuringOOBE(
     return;
   }
 
-  if (browser_policy_connector_->GetDeviceMode() ==
+  if (browser_policy_connector_ash_->GetDeviceMode() ==
       policy::DEVICE_MODE_PENDING) {
     // If the device mode is not known yet, request to be called back once it
     // becomes known.
-    browser_policy_connector_->GetInstallAttributes()->ReadImmutableAttributes(
-        base::BindOnce(
+    browser_policy_connector_ash_->GetInstallAttributes()
+        ->ReadImmutableAttributes(base::BindOnce(
             &DeviceDisablingManager::CheckWhetherDeviceDisabledDuringOOBE,
             weak_factory_.GetWeakPtr(), std::move(callback)));
     return;
   }
 
-  if (browser_policy_connector_->GetDeviceMode() !=
+  if (browser_policy_connector_ash_->GetDeviceMode() !=
       policy::DEVICE_MODE_NOT_SET) {
     // If the device is owned already, this method must have been called after
     // OOBE, which is an error. Indicate that the device is not disabled to
@@ -162,18 +166,31 @@ void DeviceDisablingManager::CheckWhetherDeviceDisabledDuringOOBE(
       maybe_disabled_message ? *maybe_disabled_message : std::string();
   CacheDisabledMessageAndNotify(disabled_message);
 
+  // Update the location tracking enabled state.
+  std::optional<bool> maybe_location_tracking_enabled =
+      local_state_->GetDict(prefs::kServerBackedDeviceState)
+          .FindBool(policy::kDeviceStateLocationTrackingEnabled);
+  bool location_tracking_enabled =
+      maybe_location_tracking_enabled.value_or(false);
+  CacheLocationTrackingEnabledAndNotify(location_tracking_enabled);
+
   // Indicate that the device is disabled.
   std::move(callback).Run(true);
 }
 
 // static
 bool DeviceDisablingManager::IsDeviceDisabledDuringNormalOperation() {
+  // TODO(crbug.com/404133899): Pass it from the caller.
+  auto* device_restriction_schedule_controller =
+      g_browser_process->platform_part()
+          ->device_restriction_schedule_controller();
+
   if (!HonorDeviceDisablingDuringNormalOperation()) {
     return false;
   }
 
-  if (DeviceRestrictionScheduleController() &&
-      DeviceRestrictionScheduleController()->RestrictionScheduleEnabled()) {
+  if (device_restriction_schedule_controller &&
+      device_restriction_schedule_controller->RestrictionScheduleEnabled()) {
     return true;
   }
 
@@ -186,9 +203,7 @@ bool DeviceDisablingManager::IsDeviceDisabledDuringNormalOperation() {
 bool DeviceDisablingManager::HonorDeviceDisablingDuringNormalOperation() {
   // Device disabling should be honored when the device is enterprise managed
   // and device disabling has not been turned off by flag.
-  return g_browser_process->platform_part()
-             ->browser_policy_connector_ash()
-             ->IsDeviceEnterpriseManaged() &&
+  return ash::InstallAttributes::Get()->IsEnterpriseManaged() &&
          !base::CommandLine::ForCurrentProcess()->HasSwitch(
              switches::kDisableDeviceDisabling);
 }
@@ -238,6 +253,12 @@ void DeviceDisablingManager::Update() {
   cros_settings_->GetString(kDeviceDisabledMessage, &disabled_message);
   CacheDisabledMessageAndNotify(disabled_message);
 
+  // Update the location tracking enabled state.
+  bool location_tracking_enabled = false;
+  cros_settings_->GetBoolean(kDeviceDisabledLocationTrackingEnabled,
+                             &location_tracking_enabled);
+  CacheLocationTrackingEnabledAndNotify(location_tracking_enabled);
+
   if (device_disabled_) {
     // If the device was disabled already, updating the disabled message is the
     // only action required.
@@ -259,7 +280,7 @@ void DeviceDisablingManager::Update() {
 
   // Cache the enrollment domain.
   enrollment_domain_ =
-      browser_policy_connector_->GetEnterpriseEnrollmentDomain();
+      browser_policy_connector_ash_->GetEnterpriseEnrollmentDomain();
 
   // Cache the device serial number.
   serial_number_ = std::string(

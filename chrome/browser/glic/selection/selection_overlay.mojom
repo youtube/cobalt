@@ -1,0 +1,71 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module glic.selection;
+
+import "ui/gfx/geometry/mojom/geometry.mojom";
+import "skia/public/mojom/bitmap.mojom";
+import "mojo/public/mojom/base/unguessable_token.mojom";
+
+struct SelectedRegion {
+  // Uniquely identifies this selected region.
+  mojo_base.mojom.UnguessableToken id;
+  // The selected rectangular region.
+  gfx.mojom.RectF region;
+  // TODO(b:452032491): Supports non-rect region selection.
+};
+
+enum DismissOverlayReason {
+  // The user clicks on the close button.
+  kCloseButton = 0,
+  // The user clicks on the background (only possible when the screenshot does
+  // not occupy) the entire viewport.
+  kBackgroundClick = 1,
+};
+
+// `chrome-untrusted://glic/selection-overlay/` WebUI calls this interface to
+// setup the mojo channel.
+interface SelectionOverlayPageHandlerFactory {
+  // Called when the WebUI page is initialized. Sets up the mojom channel.
+  CreatePageHandler(pending_receiver<SelectionOverlayPageHandler> handler,
+                    pending_remote<SelectionOverlayPage> page);
+};
+
+// C++ handler that receives requests from the
+// `chrome-untrusted://glic/selection-overlay/` WebUI.
+interface SelectionOverlayPageHandler {
+  // The WebUI informs the browser to dismiss the selection overlay with a
+  // specific reason.
+  DismissOverlay(DismissOverlayReason dismiss_reason);
+
+  // The user adjusts a selected region. A new region is cached on the browser
+  // if `adjusted.id` does not match; else, the existing region is updated.
+  AdjustRegion(SelectedRegion target);
+
+  // The user deletes a selected region. No-op if `id` does not match.
+  DeleteRegion(mojo_base.mojom.UnguessableToken id);
+
+  // When called, the C++ coordinator closes the preselection toast bubble.
+  ClosePreselectionBubble();
+
+  // When this method is called, the C++ coordinator will add a blur to the
+  // tab contents.
+  AddBackgroundBlur();
+
+  // Enables/disables the live blurring of the background
+  SetLiveBlur(bool enabled);
+};
+
+// `chrome-untrusted://glic/selection-overlay/` WebUI page handler that receives
+// requests from the browser.
+interface SelectionOverlayPage {
+  // Pass the screenshot from the browser to the WebUI. `screenshot` is captured
+  // against the current page and is not annotated. `screenshot` should not be
+  // used for anything else than the selection overlay.
+  ScreenshotReceived(
+      skia.mojom.BitmapMappedFromTrustedProcess screenshot);
+
+  // Sets post selection regions to be rendered as selected on the page.
+  SetPostRegionSelections(array<SelectedRegion> regions);
+};

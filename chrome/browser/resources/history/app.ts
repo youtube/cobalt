@@ -15,7 +15,7 @@ import './history_sync_promo.js';
 // </if>
 import './history_list.js';
 import './history_toolbar.js';
-import './filter_chips.js';
+import './history_filter_chips.js';
 import './query_manager.js';
 import './router.js';
 import './side_bar.js';
@@ -175,17 +175,15 @@ export class HistoryAppElement extends HistoryAppElementBase {
       historyEmbeddingsDisclaimerLinkClicked_: {type: Boolean},
       includeActorVisits_: {type: Boolean},
       includeUserVisits_: {type: Boolean},
-      isBrowsingHistoryActorIntegrationM3Enabled_: {
-        type: Boolean,
-      },
+      isBrowsingHistoryActorIntegrationM3Enabled_: {type: Boolean},
+      isGlicWebActuationAvailable_: {type: Boolean},
     };
   }
 
   accessor footerInfo: FooterInfo = {
     managed: loadTimeData.getBoolean('isManaged'),
     otherFormsOfHistory: false,
-    geminiAppsActivity: loadTimeData.getBoolean('isGlicEnabled') &&
-        loadTimeData.getBoolean('enableBrowsingHistoryActorIntegrationM1'),
+    geminiAppsActivity: loadTimeData.getBoolean('isGlicEnabled'),
   };
   protected accessor enableHistoryEmbeddings_: boolean =
       loadTimeData.getBoolean('enableHistoryEmbeddings');
@@ -244,6 +242,8 @@ export class HistoryAppElement extends HistoryAppElementBase {
   protected accessor includeUserVisits_: boolean = true;
   protected accessor isBrowsingHistoryActorIntegrationM3Enabled_: boolean =
       loadTimeData.getBoolean('isBrowsingHistoryActorIntegrationM3Enabled');
+  protected accessor isGlicWebActuationAvailable_: boolean =
+      loadTimeData.getBoolean('isGlicWebActuationAvailable');
 
   private browserService_: BrowserService = BrowserServiceImpl.getInstance();
   private callbackRouter_: PageCallbackRouter =
@@ -422,11 +422,6 @@ export class HistoryAppElement extends HistoryAppElementBase {
         this.enableHistoryEmbeddings_) {
       this.onHistoryEmbeddingsContainerShown_();
     }
-  }
-
-  private fire_(eventName: string, detail?: any) {
-    this.dispatchEvent(
-        new CustomEvent(eventName, {bubbles: true, composed: true, detail}));
   }
 
   protected historyClustersSelected_(): boolean {
@@ -663,7 +658,15 @@ export class HistoryAppElement extends HistoryAppElementBase {
     }
   }
 
-  protected updateScrollTarget_() {
+  protected onContentIronSelect_() {
+    this.updateScrollTarget_();
+  }
+
+  protected onTabsContentIronSelect_() {
+    this.updateScrollTarget_();
+  }
+
+  private updateScrollTarget_() {
     const topLevelIronPages = this.$.content;
     const topLevelHistoryPage = this.$.tabsContainer;
     if (topLevelIronPages.selectedItem &&
@@ -804,10 +807,14 @@ export class HistoryAppElement extends HistoryAppElementBase {
       afterString = convertDateToQueryValue(e.detail.value.timeRangeStart);
     }
 
-    this.fire_('change-query', {
+    this.fire('change-query', {
       search: this.queryState_.searchTerm,
       after: afterString,
     });
+  }
+
+  protected onHistoryEmbeddingsDisclaimerLinkAuxclick_() {
+    this.onHistoryEmbeddingsDisclaimerLinkClick_();
   }
 
   protected onHistoryEmbeddingsDisclaimerLinkClick_() {
@@ -817,12 +824,12 @@ export class HistoryAppElement extends HistoryAppElementBase {
   protected onHistoryEmbeddingsItemMoreFromSiteClick_(
       e: HistoryEmbeddingsMoreActionsClickEvent) {
     const historyEmbeddingsItem = e.detail;
-    this.fire_(
+    this.fire(
         'change-query',
         {search: 'host:' + new URL(historyEmbeddingsItem.url).hostname});
   }
 
-  protected onHistoryEmbeddingsItemRemoveClick_(
+  protected onHistoryEmbeddingsItemRemoveItemClick_(
       e: HistoryEmbeddingsMoreActionsClickEvent) {
     const historyEmbeddingsItem = e.detail;
     this.pageHandler_.removeVisits([{
@@ -857,7 +864,7 @@ export class HistoryAppElement extends HistoryAppElementBase {
     this.selectedPage_ = e.detail.value;
   }
 
-  protected onToolbarSearchInputNativeBeforeInput_(
+  protected onToolbarSearchTermNativeBeforeInput_(
       e: CustomEvent<{e: InputEvent}>) {
     // TODO(crbug.com/40673976): This needs to be cached on the `beforeinput`
     //   event since there is a bug where this data is not available in the
@@ -865,7 +872,7 @@ export class HistoryAppElement extends HistoryAppElementBase {
     this.dataFromNativeBeforeInput_ = e.detail.e.data;
   }
 
-  protected onToolbarSearchInputNativeInput_(
+  protected onToolbarSearchTermNativeInput_(
       e: CustomEvent<{e: InputEvent, inputValue: string}>) {
     const insertedText = this.dataFromNativeBeforeInput_;
     this.dataFromNativeBeforeInput_ = null;
@@ -883,12 +890,16 @@ export class HistoryAppElement extends HistoryAppElementBase {
     }
   }
 
-  protected onToolbarSearchCleared_() {
+  protected onToolbarSearchTermCleared_() {
     this.numCharsTypedInSearch_ = 0;
   }
 
   protected onListPendingDeleteChanged_(e: CustomEvent<{value: boolean}>) {
     this.pendingDelete_ = e.detail.value;
+  }
+
+  protected onTabsSelectedChanged_(e: CustomEvent<{value: number}>) {
+    this.onSelectedTabChanged_(e);
   }
 
   protected onSelectedTabChanged_(e: CustomEvent<{value: number}>) {
@@ -899,12 +910,12 @@ export class HistoryAppElement extends HistoryAppElementBase {
     this.historyClustersVisible_ = e.detail.value;
   }
 
-  protected onFilterChipsChanged_(
+  protected onFilterChanged_(
       e: CustomEvent<{userVisits: boolean, actorVisits: boolean}>) {
     this.includeUserVisits_ = e.detail.userVisits;
     this.includeActorVisits_ = e.detail.actorVisits;
 
-    this.fire_('change-query', {
+    this.fire('change-query', {
       search: this.queryState_.searchTerm,
       includeActorVisits: this.includeActorVisits_,
       includeUserVisits: this.includeUserVisits_,
@@ -913,7 +924,7 @@ export class HistoryAppElement extends HistoryAppElementBase {
 
   protected showFilterChips_(): boolean {
     return this.isBrowsingHistoryActorIntegrationM3Enabled_ &&
-        !this.getShowResultsByGroup_();
+        this.isGlicWebActuationAvailable_ && !this.getShowResultsByGroup_();
   }
 }
 

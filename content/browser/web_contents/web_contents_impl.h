@@ -298,6 +298,10 @@ class CONTENT_EXPORT WebContentsImpl
 
   void OnScreenOrientationChange();
 
+  ScreenOrientationProvider* GetScreenOrientationProvider() const {
+    return screen_orientation_provider_.get();
+  }
+
   ScreenOrientationProvider* GetScreenOrientationProviderForTesting() const {
     return screen_orientation_provider_.get();
   }
@@ -383,6 +387,9 @@ class CONTENT_EXPORT WebContentsImpl
   // WebContents ------------------------------------------------------
   WebContentsDelegate* GetDelegate() final;
   void SetDelegate(WebContentsDelegate* delegate) override;
+#if BUILDFLAG(ENABLE_SURFACE_EMBED)
+  SurfaceEmbedConnector* GetSurfaceEmbedConnector() const override;
+#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
   NavigationControllerImpl& GetController() override;
   const NavigationControllerImpl& GetController() const override;
   BrowserContext* GetBrowserContext() override;
@@ -406,6 +413,7 @@ class CONTENT_EXPORT WebContentsImpl
   RenderWidgetHostView* GetRenderWidgetHostView() override;
   RenderWidgetHostView* GetTopLevelRenderWidgetHostView() override;
   RenderWidgetHost* FindWidgetAtPoint(const gfx::PointF& point) override;
+  std::vector<RenderWidgetHostView*> GetPopupWidgets() override;
   void ClosePage() override;
   std::optional<SkColor> GetThemeColor() override;
   std::optional<SkColor> GetBackgroundColor() override;
@@ -886,6 +894,8 @@ class CONTENT_EXPORT WebContentsImpl
       IsClipboardPasteAllowedCallback callback) override;
   void OnTextCopiedToClipboard(RenderFrameHostImpl* render_frame_host,
                                const std::u16string& copied_text) override;
+  void TextSelectionChanged(RenderFrameHostImpl* render_frame_host,
+                            std::u16string_view selected_text) override;
   void IsClipboardPasteAllowedWrapperCallback(
       IsClipboardPasteAllowedCallback callback,
       std::optional<ClipboardPasteData> clipboard_paste_data);
@@ -1055,6 +1065,8 @@ class CONTENT_EXPORT WebContentsImpl
       NavigationHandle* navigation_handle) override;
   void DidNavigateMainFramePreCommit(NavigationHandle* navigation_handle,
                                      bool navigation_is_within_page) override;
+  void DidNavigateAnyFramePreCommit(NavigationHandle* navigation_handle,
+                                    bool navigation_is_within_page) override;
   void DidNavigateMainFramePostCommit(
       RenderFrameHostImpl* render_frame_host,
       const LoadCommittedDetails& details) override;
@@ -1202,7 +1214,7 @@ class CONTENT_EXPORT WebContentsImpl
       ui::Compositor* compositor) override;
   void OnInputIgnored(const blink::WebInputEvent& event) override;
 #if BUILDFLAG(IS_ANDROID)
-  float GetCurrentTouchSequenceYOffset() override;
+  gfx::PointF GetCurrentTouchSequenceOffset() override;
 #endif
 
   // RenderFrameHostManager::Delegate ------------------------------------------
@@ -1591,6 +1603,15 @@ class CONTENT_EXPORT WebContentsImpl
     return pointer_lock_widget_;
   }
 
+  const std::set<raw_ptr<RenderFrameHostImpl, SetExperimental>>&
+  fullscreen_frames_for_testing() const {
+    return fullscreen_frames_;
+  }
+
+  GlobalRenderFrameHostId current_fullscreen_frame_id_for_testing() const {
+    return current_fullscreen_frame_id_;
+  }
+
   ui::mojom::VirtualKeyboardMode GetVirtualKeyboardMode() const;
 
   const std::optional<base::Location>& ownership_location() const {
@@ -1641,8 +1662,6 @@ class CONTENT_EXPORT WebContentsImpl
                            NotifyFullscreenAcquired);
   FRIEND_TEST_ALL_PREFIXES(WebContentsImplBrowserTest,
                            NotifyFullscreenAcquired_Navigate);
-  FRIEND_TEST_ALL_PREFIXES(WebContentsImplBrowserTest,
-                           NotifyFullscreenAcquired_SameOrigin);
   FRIEND_TEST_ALL_PREFIXES(WebContentsImplBrowserTest,
                            PropagateFullscreenOptions);
   FRIEND_TEST_ALL_PREFIXES(WebContentsImplBrowserTest,
@@ -1819,13 +1838,22 @@ class CONTENT_EXPORT WebContentsImpl
 
     // Exposed to deal with IPC message handlers which need to stop iteration
     // early.
-    const base::ObserverList<WebContentsObserver>& observer_list() {
+    const base::ObserverList<
+        WebContentsObserver,
+        /*check_empty=*/false,
+        base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>&
+    observer_list() {
       return observers_;
     }
 
    private:
     bool is_notifying_observers_ = false;
-    base::ObserverList<WebContentsObserver> observers_;
+    // TODO(crbug.com/484371187): Investigate if reentrancy can be removed.
+    base::ObserverList<
+        WebContentsObserver,
+        /*check_empty=*/false,
+        base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>
+        observers_;
   };
 
   // See WebContents::Create for a description of these parameters.

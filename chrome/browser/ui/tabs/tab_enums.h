@@ -34,6 +34,8 @@ enum TabCloseTypes {
   // almost always want to set this.
   CLOSE_CREATE_HISTORICAL_TAB = 1 << 1,
 
+  // If true the side panel is expanded when the tab is closed.
+  CLOSE_EXPAND_SIDE_PANEL = 1 << 2,
 };
 
 // Constants used when adding tabs.
@@ -104,5 +106,15 @@ enum class TabActivationTypes {
 
   kMaxValue = kContextMenu,
 };
+
+// Enumerates the collapse state of the vertical tab strip.
+// KEEP IN SYNC WITH THE VerticalTabStripCollapseState ENUM IN enums.xml.
+// LINT.IfChange(VerticalTabStripCollapseState)
+enum class VerticalTabStripCollapseState {
+  kExpanded = 0,
+  kCollapsed = 1,
+  kMaxValue = kCollapsed,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/tab/enums.xml:VerticalTabStripCollapseState)
 
 #endif  // CHROME_BROWSER_UI_TABS_TAB_ENUMS_H_

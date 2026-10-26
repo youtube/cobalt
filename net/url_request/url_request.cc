@@ -285,8 +285,13 @@ int64_t URLRequest::GetRawBodyBytes() const {
     return bytes;
   }
 
-  // GetReceivedBodyBytes() is available only when the body was received from
-  // the network. Otherwise, returns prefilter_bytes_read() instead.
+  // GetReceivedBodyBytes() returns the pre-filter (encoded) byte count when
+  // the body was received from the network. For cached responses, it returns 0
+  // and we fall back to prefilter_bytes_read(), which reflects bytes read from
+  // the cache (post-content-decoding for shared dictionary responses).
+  // Note: For shared dictionary cached responses, the correct encoded body
+  // size is stored in HttpResponseInfo::encoded_body_size and should be used
+  // instead of this method when the total encoded size is needed.
   return job_->prefilter_bytes_read();
 }
 
@@ -1116,9 +1121,6 @@ void URLRequest::RetryWithStorageAccess() {
                storage_access_status().GetStatusForThirdPartyContext().value()),
            static_cast<int>(cookie_util::StorageAccessStatus::kActive));
   extra_request_headers_.SetHeader("Sec-Fetch-Storage-Access", "active");
-  base::UmaHistogramEnumeration(
-      "API.StorageAccessHeader.SecFetchStorageAccessOutcome",
-      cookie_util::SecFetchStorageAccessOutcome::kValueActive);
 
   if (!final_upload_progress_.position() && upload_data_stream_) {
     final_upload_progress_ = upload_data_stream_->GetUploadProgress();
@@ -1329,7 +1331,7 @@ void URLRequest::RecordReferrerGranularityMetrics(
 
 IsolationInfo URLRequest::CreateIsolationInfoFromNetworkAnonymizationKey(
     const NetworkAnonymizationKey& network_anonymization_key) {
-  if (!network_anonymization_key.IsFullyPopulated()) {
+  if (network_anonymization_key.IsEmpty()) {
     return IsolationInfo();
   }
 

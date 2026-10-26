@@ -60,60 +60,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Renderer.ContentProduction.CommitToUnhideDelay" units="ms"
-    expires_after="2026-03-08">
-  <owner>mustaq@chromium.org</owner>
-  <owner>blink-interactions-team@google.com</owner>
-  <summary>
-    Records the timespan between the widget host getting a navigation commit and
-    the renderer host becoming visible (unhidden) for the first time. Records a
-    zero if navigation commit is not tracked.
-  </summary>
-</histogram>
-
-<histogram name="Renderer.ContentProduction.DelayFromUnhide" units="ms"
-    expires_after="2026-03-08">
-  <owner>mustaq@chromium.org</owner>
-  <owner>blink-interactions-team@google.com</owner>
-  <summary>
-    Records the timespan between the renderer host becoming visible (unhidden)
-    for the first time and the host receiving the first metadata signal
-    indicating content push from the renderer. Records a zero if the first
-    metadata signal arrives before.
-  </summary>
-</histogram>
-
-<histogram name="Renderer.ContentProduction.LifespanFromCommit" units="ms"
-    expires_after="2026-07-12">
-  <owner>mustaq@chromium.org</owner>
-  <owner>blink-interactions-team@google.com</owner>
-  <summary>
-    Records the timespan between the widget host getting a navigation commit and
-    it getting destroyed. Records a zero if navigation commit is not tracked.
-  </summary>
-</histogram>
-
-<histogram name="Renderer.ContentProduction.LifespanFromUnhide" units="ms"
-    expires_after="2026-07-12">
-  <owner>mustaq@chromium.org</owner>
-  <owner>blink-interactions-team@google.com</owner>
-  <summary>
-    Records the timespan between the renderer host becoming visible (unhidden)
-    for the first time and the widget host getting destroyed.
-  </summary>
-</histogram>
-
-<histogram name="Renderer.ContentProduction.SignalReceived" enum="Boolean"
-    expires_after="2026-07-12">
-  <owner>mustaq@chromium.org</owner>
-  <owner>blink-interactions-team@google.com</owner>
-  <summary>
-    Records whether the renderer host has received the first metadata indicating
-    content push from the renderer at a correct time (i.e. after the host became
-    visible for the first time).
-  </summary>
-</histogram>
-
 <histogram
     name="Renderer.Core.Timing.Performance.SwapsPerPerformanceEntryInsertion"
     units="swaps" expires_after="2026-05-10">
@@ -129,7 +75,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.CriticalFonts.BlockingResourcesLoadTime" units="ms"
-    expires_after="2026-07-06">
+    expires_after="2026-09-06">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -142,7 +88,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.CriticalFonts.CriticalFontDelay" units="ms"
-    expires_after="2026-07-06">
+    expires_after="2026-09-06">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -156,7 +102,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.CriticalFonts.PreloadedFontsLoadTime" units="ms"
-    expires_after="2026-07-06">
+    expires_after="2026-09-06">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -292,7 +238,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.Font.PrimaryFont.DomContentLoaded.Style" units="ms"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>kojii@chromium.org</owner>
   <owner>tkent@chromium.org</owner>
   <owner>layout-dev@chromium.org</owner>
@@ -316,7 +262,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.Font.PrimaryFont.FCP.Style" units="ms"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>kojii@chromium.org</owner>
   <owner>tkent@chromium.org</owner>
   <owner>layout-dev@chromium.org</owner>
@@ -355,7 +301,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.HungRendererDialog.UserAction"
-    enum="HungRendererDialogUserAction" expires_after="2026-07-05">
+    enum="HungRendererDialogUserAction" expires_after="2026-09-06">
   <owner>kerenzhu@chromium.org</owner>
   <owner>chrome-views-alerts@google.com</owner>
   <summary>
@@ -503,7 +449,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.Preload.UnusedResource2{Trigger}" enum="ResourceType"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -521,7 +467,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.Preload.UnusedResourceCount" units="count"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -532,7 +478,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.ProcessLifetime3{RendererHostedContentType}"
-    units="ms" expires_after="2026-06-28">
+    units="ms" expires_after="2026-08-30">
   <owner>fdoray@chromium.org</owner>
   <owner>olivierli@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
@@ -541,28 +487,6 @@ chromium-metrics-reviews@google.com.
     Recorded for {RendererHostedContentType}.
   </summary>
   <token key="RendererHostedContentType" variants="RendererHostedContentType"/>
-</histogram>
-
-<histogram name="Renderer.ProcessReadyWaitRequired.{ProcessType}"
-    enum="Boolean" expires_after="2026-08-08">
-  <owner>toyoshim@chromium.org</owner>
-  <owner>wangsongjin@microsoft.com</owner>
-  <owner>lzhao@microsoft.com</owner>
-  <summary>
-    Whether the caller has to wait for the corresponding {ProcessType} to become
-    ready. Records true when security settings have not yet been applied to the
-    {ProcessType}, requiring a wait. Records false when the {ProcessType} is
-    already ready. Extension processes may require waiting more frequently than
-    regular processes.
-
-    Currently, this is used when service worker threads start and must wait for
-    the corresponding renderer process to become ready. This metric is emitted
-    right before the {ProcessType} starts a service worker thread.
-  </summary>
-  <token key="ProcessType">
-    <variant name="ExtensionProcess" summary="extension renderer process"/>
-    <variant name="RegularProcess" summary="non extension renderer process"/>
-  </token>
 </histogram>
 
 <histogram name="Renderer.ReduceSubresourceResponseIPC.DidNotifyBrowser"
@@ -589,7 +513,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.Unresponsive.Reason{WidgetVisibility}"
-    enum="RendererIsUnresponsiveReason" expires_after="2026-06-28">
+    enum="RendererIsUnresponsiveReason" expires_after="2026-08-30">
   <owner>pmonette@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -615,7 +539,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Renderer.Unresponsive.{UIElementVisible}.RenderProcessHostPriority"
-    enum="RenderProcessHostPriority" expires_after="2026-06-28">
+    enum="RenderProcessHostPriority" expires_after="2026-08-30">
   <owner>pmonette@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -629,31 +553,8 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Renderer.WaitTimeForProcessReady.{ProcessType}" units="ms"
-    expires_after="2026-08-08">
-  <owner>toyoshim@chromium.org</owner>
-  <owner>wangsongjin@microsoft.com</owner>
-  <owner>lzhao@microsoft.com</owner>
-  <summary>
-    The time taken for the corresponding {ProcessType} to become ready when a
-    wait is required. Records the duration from when the caller requests the
-    {ProcessType} to be ready until security settings are fully processed and
-    the {ProcessType} becomes ready. Extension processes are likely to show
-    longer wait times than regular processes.
-
-    Currently, this measures the time from when a service worker attempts to
-    start its thread until the corresponding renderer process becomes ready.
-    This metric is emitted right before the {ProcessType} starts a service
-    worker thread.
-  </summary>
-  <token key="ProcessType">
-    <variant name="ExtensionProcess" summary="extension renderer process"/>
-    <variant name="RegularProcess" summary="non extension renderer process"/>
-  </token>
-</histogram>
-
 <histogram name="Renderer.WebSandboxSupportLinux.GetFallbackFontForCharacter"
-    enum="BooleanFound" expires_after="2026-07-01">
+    enum="BooleanFound" expires_after="2026-08-30">
   <owner>andresrperez@chromium.org</owner>
   <owner>anthonyvd@chromium.org</owner>
   <owner>chrome-catan@google.com</owner>
@@ -666,7 +567,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Renderer.WebSandboxSupportLinux.GetWebFontRenderStyleForStrike"
-    enum="BooleanFound" expires_after="2026-07-01">
+    enum="BooleanFound" expires_after="2026-08-30">
   <owner>andresrperez@chromium.org</owner>
   <owner>anthonyvd@chromium.org</owner>
   <owner>chrome-catan@google.com</owner>
@@ -679,7 +580,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Renderer.WebSandboxSupportLinux.MatchFontByPostscriptNameOrFullFontName"
-    enum="BooleanFound" expires_after="2026-07-01">
+    enum="BooleanFound" expires_after="2026-08-30">
   <owner>andresrperez@chromium.org</owner>
   <owner>anthonyvd@chromium.org</owner>
   <owner>chrome-catan@google.com</owner>
@@ -692,7 +593,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RendererScheduler.DiscreteInputResponseDuration" units="ms"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>shaseley@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
   <summary>
@@ -729,7 +630,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RendererScheduler.RendererMain.TaskOffCpuDuration" units="ms"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>anandrv@google.com</owner>
   <owner>clank-performance-team@google.com</owner>
   <summary>
@@ -740,7 +641,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RendererScheduler.RendererMain.TaskOnCpuDuration" units="ms"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>anandrv@google.com</owner>
   <owner>clank-performance-team@google.com</owner>
   <summary>
@@ -751,7 +652,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RendererScheduler.RendererMain.TaskOnCpuPercentage" units="%"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>anandrv@google.com</owner>
   <owner>clank-performance-team@google.com</owner>
   <summary>
@@ -762,7 +663,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RendererScheduler.RendererMainThreadLoad6" units="%"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>lizeb@chromium.org</owner>
   <owner>shaseley@chromium.org</owner>
   <summary>
@@ -777,7 +678,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RendererScheduler.RendererMainThreadLoad6.Foreground"
-    units="%" expires_after="2026-06-28">
+    units="%" expires_after="2026-08-30">
   <owner>lizeb@chromium.org</owner>
   <owner>shaseley@chromium.org</owner>
   <summary>

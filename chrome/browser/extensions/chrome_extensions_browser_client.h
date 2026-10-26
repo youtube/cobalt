@@ -195,6 +195,7 @@ class ChromeExtensionsBrowserClient : public ExtensionsBrowserClient {
   std::unique_ptr<ScopedBrowserContextKeepAlive> CreateCrxInstallerKeepAlive(
       content::BrowserContext* context) override;
   bool IsActivityLoggingEnabled(content::BrowserContext* context) override;
+  bool IsTelemetryLoggingEnabled(content::BrowserContext* context) override;
   void GetTabAndWindowIdForWebContents(content::WebContents* web_contents,
                                        int* tab_id,
                                        int* window_id) override;
@@ -304,6 +305,13 @@ class ChromeExtensionsBrowserClient : public ExtensionsBrowserClient {
       content::BrowserContext* context,
       const Extension* extension) const override;
   ExtensionAssetsManager* GetAssetsManager() override;
+  Blocklist* GetBlocklist(content::BrowserContext* context) override;
+  InstallStageTracker* GetInstallStageTracker(
+      content::BrowserContext* context) override;
+  InstallTracker* GetInstallTracker(content::BrowserContext* context) override;
+  SharedModuleService* GetSharedModuleService(
+      content::BrowserContext* context) override;
+  void UpdateCheckIfEnabled(content::BrowserContext* context) override;
 
   static void set_did_chrome_update_for_testing(bool did_update);
 

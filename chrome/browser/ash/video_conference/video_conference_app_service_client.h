@@ -58,9 +58,8 @@ class VideoConferenceAppServiceClient
 
   ~VideoConferenceAppServiceClient() override;
 
-  // crosapi::mojom::VideoConferenceManagerClient overrides.
-  void ReturnToApp(const base::UnguessableToken& token,
-                   ReturnToAppCallback callback) override;
+  // VideoConferenceManagerClient overrides.
+  bool ReturnToApp(const base::UnguessableToken& token) override;
 
   // apps::AppCapabilityAccessCache::Observer overrides.
   void OnCapabilityAccessUpdate(

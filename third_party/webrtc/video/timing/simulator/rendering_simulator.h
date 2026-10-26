@@ -16,11 +16,11 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/numerics/samples_stats_counter.h"
 #include "api/units/data_size.h"
@@ -301,6 +301,12 @@ class RenderingSimulator {
       return SumNonNegativeIntField(&Frame::frames_dropped);
     }
 
+    // Samples of per-frame delay variation metrics. Not `const` because they
+    // sort `frames`. Defined in `.cc` for circular include order reasons.
+    SamplesStatsCounter InterRenderTimeMs();
+    SamplesStatsCounter InterDecodedTimeMs();
+    SamplesStatsCounter InterRenderedTimeMs();
+
     // Samples of webrtc-stats values in ms.
     SamplesStatsCounter JitterBufferMinimumDelayMs() const {
       return BuildSamplesMs(&Frame::jitter_buffer_minimum_delay);
@@ -383,7 +389,7 @@ inline bool RenderOrder(const RenderingSimulator::Frame& a,
                         const RenderingSimulator::Frame& b) {
   return a.render_timestamp < b.render_timestamp;
 }
-inline void SortByRenderOrder(ArrayView<RenderingSimulator::Frame> frames) {
+inline void SortByRenderOrder(std::span<RenderingSimulator::Frame> frames) {
   absl::c_stable_sort(frames, RenderOrder);
 }
 
@@ -391,7 +397,7 @@ inline bool DecodedOrder(const RenderingSimulator::Frame& a,
                          const RenderingSimulator::Frame& b) {
   return a.decoded_timestamp < b.decoded_timestamp;
 }
-inline void SortByDecodedOrder(ArrayView<RenderingSimulator::Frame> frames) {
+inline void SortByDecodedOrder(std::span<RenderingSimulator::Frame> frames) {
   absl::c_stable_sort(frames, DecodedOrder);
 }
 
@@ -399,7 +405,7 @@ inline bool RenderedOrder(const RenderingSimulator::Frame& a,
                           const RenderingSimulator::Frame& b) {
   return a.rendered_timestamp < b.rendered_timestamp;
 }
-inline void SortByRenderedOrder(ArrayView<RenderingSimulator::Frame> frames) {
+inline void SortByRenderedOrder(std::span<RenderingSimulator::Frame> frames) {
   absl::c_stable_sort(frames, RenderedOrder);
 }
 
@@ -407,18 +413,28 @@ inline void SortByRenderedOrder(ArrayView<RenderingSimulator::Frame> frames) {
 // Difference in render time (target) between two frames.
 inline TimeDelta InterRenderTime(const RenderingSimulator::Frame& cur,
                                  const RenderingSimulator::Frame& prev) {
+  if (!cur.render_timestamp.IsFinite() && !prev.render_timestamp.IsFinite()) {
+    return TimeDelta::PlusInfinity();
+  }
   return cur.render_timestamp - prev.render_timestamp;
 }
 
 // Difference in decoded time (actual) between two frames.
 inline TimeDelta InterDecodedTime(const RenderingSimulator::Frame& cur,
                                   const RenderingSimulator::Frame& prev) {
+  if (!cur.decoded_timestamp.IsFinite() && !prev.decoded_timestamp.IsFinite()) {
+    return TimeDelta::PlusInfinity();
+  }
   return cur.decoded_timestamp - prev.decoded_timestamp;
 }
 
 // Difference in rendered time (actual) between two frames.
 inline TimeDelta InterRenderedTime(const RenderingSimulator::Frame& cur,
                                    const RenderingSimulator::Frame& prev) {
+  if (!cur.rendered_timestamp.IsFinite() &&
+      !prev.rendered_timestamp.IsFinite()) {
+    return TimeDelta::PlusInfinity();
+  }
   return cur.rendered_timestamp - prev.rendered_timestamp;
 }
 

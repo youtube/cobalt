@@ -91,7 +91,7 @@ std::string VideoFrame::StorageTypeToString(
       return "DMABUFS";
 #endif
     case VideoFrame::STORAGE_MAPPABLE_SHARED_IMAGE:
-      return "GPU_MEMORY_BUFFER";
+      return "MAPPABLE_SHARED_IMAGE";
   }
 
   NOTREACHED() << "Invalid StorageType provided: " << storage_type;
@@ -370,6 +370,7 @@ scoped_refptr<VideoFrame> VideoFrame::WrapSharedImage(
     const gfx::Rect& visible_rect,
     const gfx::Size& natural_size,
     base::TimeDelta timestamp) {
+  CHECK(shared_image, base::NotFatalUntil::M149);
   scoped_refptr<VideoFrame> frame = CreateFrameForNativeTexturesInternal(
       format, coded_size, visible_rect, natural_size, timestamp);
   if (!frame) {
@@ -385,9 +386,6 @@ scoped_refptr<VideoFrame> VideoFrame::WrapSharedImage(
         << shared_image->size().ToString() << ")";
   }
   frame->shared_image_release_cb_ = std::move(shared_image_release_cb);
-
-  DCHECK(frame->HasSharedImage());
-
   return frame;
 }
 
@@ -470,21 +468,9 @@ scoped_refptr<VideoFrame> VideoFrame::WrapMappableSharedImage(
   frame->shared_image_release_cb_ = std::move(shared_image_release_cb);
   frame->acquire_sync_token_ = sync_token;
 
-  // Note that we can not use |shared_image|->MakeUnOwned() here since that
-  // will not work for MappableSI due to it owning a GMB internally and we can
-  // not create an unowned reference to it. Additionally
-  // removing the use of ClientSharedImage::MakeUnOwned() everywhere is
-  // currently work in progress as a part of Automatic shared image management
-  // for ClientSharedImage project, so we don't want to use it here as well. The
-  // downside right now with below code is that while destroying the
-  // ClientSharedImage when MappableSI is enabled, there will be more than one
-  // reference of it and we will hit CHECKs in
-  // ClientSharedImageInterface::DestroySharedImage(). To avoid this CHECKs, we
-  // will need to replace the ClientSharedImageInterface::DestroySharedImage()
-  // call sites with ClientSharedImage::UpdateDestructionSyncToken() for every
-  // VideoFrame MappableSI client. This works well since it is also eventual
-  // goal of ClientSharedImage for rest of the chrome. crbug.com/40286368 for
-  // more details on the work.
+  // Note that we cannot use |shared_image|->MakeUnowned() here since MappableSI
+  // owns a MappableBuffer internally, which we cannot create an unowned
+  // reference to.
   frame->shared_image_ = std::move(shared_image);
   return frame;
 }
@@ -1222,6 +1208,25 @@ bool VideoFrame::IsSameAllocation(VideoPixelFormat format,
 
 gfx::ColorSpace VideoFrame::ColorSpace() const {
   return color_space_;
+}
+
+void VideoFrame::set_color_space(const gfx::ColorSpace& color_space) {
+  // Check color spaces are same for video frames created from shared image
+  // from WrapSharedImage codepaths.
+  if (HasSharedImage() && !HasMappableSharedImage() &&
+      color_space != shared_image()->color_space()) {
+    SCOPED_CRASH_KEY_STRING256("video_frame", "si_color_space",
+                               shared_image()->color_space().ToString());
+    SCOPED_CRASH_KEY_STRING256("video_frame", "color_space",
+                               color_space.ToString());
+    SCOPED_CRASH_KEY_STRING256("video_frame", "si_label",
+                               shared_image()->debug_label());
+    DUMP_WILL_BE_CHECK(false)
+        << "VideoFrame color space (" << color_space.ToString()
+        << ") does not match SharedImage color_space ("
+        << shared_image()->color_space().ToString() << ")";
+  }
+  color_space_ = color_space;
 }
 
 gfx::ColorSpace VideoFrame::CompatRGBColorSpace() const {

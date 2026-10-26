@@ -86,6 +86,7 @@ public class EventForwarderDeviceTest {
         verifyNativeMouseWheelEventSent(moveEvent, upEvent);
 
         verifyNativeStartFlingEventNotSent();
+        eventForwarder.destroy();
     }
 
     @Test
@@ -120,6 +121,7 @@ public class EventForwarderDeviceTest {
         eventForwarder.onTouchEvent(upEvent);
 
         verifyNativeStartFlingEventSent(upEvent);
+        eventForwarder.destroy();
     }
 
     private void verifyNativeMouseWheelEventSent(
@@ -133,7 +135,7 @@ public class EventForwarderDeviceTest {
                         anyFloat(),
                         anyFloat(),
                         anyFloat(),
-                        eq(trackpadScrollCurrentEvent.getX() - trackpadScrollLastEvent.getX()),
+                        eq(-(trackpadScrollCurrentEvent.getX() - trackpadScrollLastEvent.getX())),
                         eq(trackpadScrollCurrentEvent.getY() - trackpadScrollLastEvent.getY()));
     }
 

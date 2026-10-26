@@ -78,16 +78,16 @@ static void AppendMailtoPostFormDataToURL(KURL& url,
                                           const String& encoding_type) {
   String body = data.FlattenToString();
 
-  if (EqualIgnoringASCIICase(encoding_type, "text/plain")) {
+  if (EqualIgnoringAsciiCase(encoding_type, "text/plain")) {
     // Convention seems to be to decode, and s/&/\r\n/. Also, spaces are encoded
     // as %20.
-    body = DecodeURLEscapeSequences(
+    body = DecodeUrlEscapeSequences(
         StrCat({body.Replace('&', "\r\n").Replace('+', ' '), "\r\n"}),
-        DecodeURLMode::kUTF8OrIsomorphic);
+        DecodeUrlMode::kUtf8OrIsomorphic);
   }
 
   Vector<char> body_data;
-  body_data.AppendSpan(base::span_from_cstring("body="));
+  body_data.append_range(base::span_from_cstring("body="));
   FormDataEncoder::EncodeStringAsFormData(body_data, body.Utf8(),
                                           FormDataEncoder::kNormalizeCRLF);
   body = String(body_data).Replace('+', "%20");
@@ -106,10 +106,12 @@ void FormSubmission::Attributes::ParseAction(const String& action) {
 }
 
 AtomicString FormSubmission::Attributes::ParseEncodingType(const String& type) {
-  if (EqualIgnoringASCIICase(type, "multipart/form-data"))
+  if (EqualIgnoringAsciiCase(type, "multipart/form-data")) {
     return AtomicString("multipart/form-data");
-  if (EqualIgnoringASCIICase(type, "text/plain"))
+  }
+  if (EqualIgnoringAsciiCase(type, "text/plain")) {
     return AtomicString("text/plain");
+  }
   return AtomicString("application/x-www-form-urlencoded");
 }
 
@@ -120,10 +122,12 @@ void FormSubmission::Attributes::UpdateEncodingType(const String& type) {
 
 FormSubmission::SubmitMethod FormSubmission::Attributes::ParseMethodType(
     const String& type) {
-  if (EqualIgnoringASCIICase(type, "post"))
+  if (EqualIgnoringAsciiCase(type, "post")) {
     return FormSubmission::kPostMethod;
-  if (EqualIgnoringASCIICase(type, "dialog"))
+  }
+  if (EqualIgnoringAsciiCase(type, "dialog")) {
     return FormSubmission::kDialogMethod;
+  }
   return FormSubmission::kGetMethod;
 }
 
@@ -353,7 +357,7 @@ FormSubmission* FormSubmission::Create(HTMLFormElement* form,
     frame_request.SetNoOpener();
   }
   if (form->HasRel(HTMLFormElement::kNoOpener) ||
-      (EqualIgnoringASCIICase(target_or_base_target, "_blank") &&
+      (EqualIgnoringAsciiCase(target_or_base_target, "_blank") &&
        !form->HasRel(HTMLFormElement::kOpener) &&
        form->GetDocument()
            .domWindow()

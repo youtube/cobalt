@@ -9,6 +9,7 @@
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
+#include "components/permissions/android/jni_headers/BluetoothScanningPermissionDialog_shared_jni.h"
 #include "content/public/browser/bluetooth_scanning_prompt.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -23,11 +24,11 @@ class BluetoothScanningPromptAndroidDelegate;
 class BluetoothScanningPromptAndroid : public content::BluetoothScanningPrompt {
  public:
   // The callback type for creating the java dialog object.
-  using CreateJavaDialogCallback =
-      base::OnceCallback<base::android::ScopedJavaLocalRef<jobject>(
+  using CreateJavaDialogCallback = base::OnceCallback<
+      base::android::ScopedJavaLocalRef<JBluetoothScanningPermissionDialog>(
           JNIEnv*,
           const base::android::JavaRef<jobject>&,
-          const base::android::JavaRef<jstring>&,
+          const std::u16string&,
           JniIntWrapper,
           const base::android::JavaRef<jobject>&,
           int64_t)>;
@@ -50,7 +51,8 @@ class BluetoothScanningPromptAndroid : public content::BluetoothScanningPrompt {
                          const std::u16string& device_name) override;
 
   // Report the dialog's result.
-  void OnDialogFinished(JNIEnv* env, int32_t event_type);
+  void OnDialogFinished(JNIEnv* env,
+                        content::BluetoothScanningPrompt::Event event);
 
   static std::unique_ptr<BluetoothScanningPromptAndroid> CreateForTesting(
       content::RenderFrameHost* frame,

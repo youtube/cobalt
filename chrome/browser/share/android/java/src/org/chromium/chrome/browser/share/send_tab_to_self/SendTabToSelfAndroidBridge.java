@@ -32,14 +32,44 @@ public class SendTabToSelfAndroidBridge {
      * @param profile Profile of the user to add entry for.
      * @param url URL to be shared
      * @param title Title of the page
+     * @param targetDeviceSyncCacheGuid The GUID of the target device
+     * @param pageContext The page context to be shared, or null if none.
      * @return If the persistent entry in the bridge was created.
      */
     public static boolean addEntry(
-            Profile profile, String url, String title, String targetDeviceSyncCacheGuid) {
+            Profile profile,
+            String url,
+            String title,
+            String targetDeviceSyncCacheGuid,
+            @Nullable PageContext pageContext) {
         // TODO(crbug.com/40618597): Add this assertion back in once the code to load is in
         // place. assert mIsNativeSendTabToSelfModelLoaded;
         return SendTabToSelfAndroidBridgeJni.get()
-                .addEntry(profile, url, title, targetDeviceSyncCacheGuid);
+                .addEntry(profile, url, title, targetDeviceSyncCacheGuid, pageContext);
+    }
+
+    /**
+     * Updates the given PageContext with the scroll position.
+     *
+     * @param pageContext The PageContext to update.
+     * @param selector The scroll-to-text selector.
+     * @return The updated PageContext.
+     */
+    public static @Nullable PageContext addScrollPositionToPageContext(
+            @Nullable PageContext pageContext, String selector) {
+        return SendTabToSelfAndroidBridgeJni.get()
+                .addScrollPositionToPageContext(pageContext, selector);
+    }
+
+    /**
+     * Extracts PageContext from the given WebContents.
+     *
+     * @param webContents WebContents to extract PageContext from.
+     * @return The extracted PageContext, or null if it couldn't be extracted.
+     */
+    public static @Nullable PageContext createPageContext(@Nullable WebContents webContents) {
+        if (webContents == null) return null;
+        return SendTabToSelfAndroidBridgeJni.get().createPageContext(webContents);
     }
 
     /**
@@ -91,7 +121,15 @@ public class SendTabToSelfAndroidBridge {
                 @JniType("Profile*") Profile profile,
                 String url,
                 String title,
-                String targetDeviceSyncCacheGuid);
+                String targetDeviceSyncCacheGuid,
+                @JniType("PageContext") @Nullable PageContext pageContext);
+
+        @JniType("PageContext")
+        @Nullable PageContext addScrollPositionToPageContext(
+                @JniType("PageContext") @Nullable PageContext pageContext, String selector);
+
+        @JniType("PageContext")
+        @Nullable PageContext createPageContext(@Nullable WebContents webContents);
 
         void deleteEntry(@JniType("Profile*") Profile profile, String guid);
 

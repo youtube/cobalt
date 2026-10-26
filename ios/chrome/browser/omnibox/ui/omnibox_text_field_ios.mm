@@ -7,6 +7,7 @@
 #import <CoreText/CoreText.h>
 
 #import "base/apple/foundation_util.h"
+#import "base/check_is_test.h"
 #import "base/check_op.h"
 #import "base/command_line.h"
 #import "base/ios/ios_util.h"
@@ -22,7 +23,6 @@
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_input_delegate.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/shared/ui/util/animation_util.h"
-#import "ios/chrome/browser/shared/ui/util/dynamic_type_util.h"
 #import "ios/chrome/browser/shared/ui/util/reversed_animation.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -529,11 +529,6 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
 - (void)beginFloatingCursorAtPoint:(CGPoint)point {
   // Exit preedit because it blocks the view of the textfield.
   [self exitPreEditState];
-  // Remove selection and put the caret at the end of the string.
-  if (!base::FeatureList::IsEnabled(kBeginCursorAtPointTentativeFix)) {
-    self.selectedTextRange = [self textRangeFromPosition:self.endOfDocument
-                                              toPosition:self.endOfDocument];
-  }
   [super beginFloatingCursorAtPoint:point];
 }
 
@@ -781,10 +776,8 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
 #pragma mark - UIAccessibilityElement
 
 - (NSString*)accessibilityValue {
-  if (NSClassFromString(@"XCTest")) {
-    return [NSString stringWithFormat:@"%@||||%@||||%@", self.userText ?: @"",
-                                      self.autocompleteText ?: @"",
-                                      self.attributedAdditionalText ?: @""];
+  if (self.text.length == 0) {
+    return self.attributedPlaceholder.string;
   }
   return self.text;
 }
@@ -1144,6 +1137,14 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
 - (void)setCustomPlaceholderText:(NSString*)customPlaceholderText {
   _customPlaceholderText = [customPlaceholderText copy];
   [self updatePlaceholder];
+}
+
+- (NSString*)textValueForTesting {
+  CHECK_IS_TEST();
+  return
+      [NSString stringWithFormat:@"%@||||%@||||%@", self.userText ?: @"",
+                                 self.autocompleteText ?: @"",
+                                 self.attributedAdditionalText.string ?: @""];
 }
 
 #pragma mark - UITextFieldDelegate

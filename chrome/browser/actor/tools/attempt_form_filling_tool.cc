@@ -13,15 +13,16 @@
 #include "base/strings/string_number_conversions.h"
 #include "chrome/browser/actor/actor_switches.h"
 #include "chrome/browser/actor/actor_task.h"
+#include "chrome/browser/actor/tools/attempt_form_filling_tool_metrics.h"
 #include "chrome/browser/actor/tools/attempt_form_filling_tool_request.h"
 #include "chrome/browser/actor/tools/page_target_util.h"
-#include "chrome/browser/autofill/glic/actor_form_filling_service.h"
+#include "chrome/browser/autofill/actor/actor_form_filling_service.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/actor_logging.h"
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/actor_webui.mojom.h"
-#include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
+#include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/optimization_guide/content/browser/page_content_proto_util.h"
 #include "content/public/browser/render_frame_host.h"
@@ -91,6 +92,39 @@ ConvertRequestedDataToProtoEnum(
   }
 }
 
+AttemptFormFillingToolRequest::RequestedData ConvertRequestedDataFromProtoEnum(
+    optimization_guide::proto::FormFillingRequest_RequestedData enum_value) {
+  switch (enum_value) {
+    case optimization_guide::proto::
+        FormFillingRequest_RequestedData_REQUESTED_DATA_UNKNOWN:
+      return AttemptFormFillingToolRequest::RequestedData::kUnknown;
+    case optimization_guide::proto::FormFillingRequest_RequestedData_ADDRESS:
+      return AttemptFormFillingToolRequest::RequestedData::kAddress;
+    case optimization_guide::proto::
+        FormFillingRequest_RequestedData_BILLING_ADDRESS:
+      return AttemptFormFillingToolRequest::RequestedData::kBillingAddress;
+    case optimization_guide::proto::
+        FormFillingRequest_RequestedData_SHIPPING_ADDRESS:
+      return AttemptFormFillingToolRequest::RequestedData::kShippingAddress;
+    case optimization_guide::proto::
+        FormFillingRequest_RequestedData_WORK_ADDRESS:
+      return AttemptFormFillingToolRequest::RequestedData::kWorkAddress;
+    case optimization_guide::proto::
+        FormFillingRequest_RequestedData_HOME_ADDRESS:
+      return AttemptFormFillingToolRequest::RequestedData::kHomeAddress;
+    case optimization_guide::proto::
+        FormFillingRequest_RequestedData_CREDIT_CARD:
+      return AttemptFormFillingToolRequest::RequestedData::kCreditCard;
+    case optimization_guide::proto::
+        FormFillingRequest_RequestedData_CONTACT_INFORMATION:
+      return AttemptFormFillingToolRequest::RequestedData::kContactInformation;
+    default:
+      ACTOR_LOG() << "Unknown RequestedData proto enum: "
+                  << static_cast<int>(enum_value);
+      return AttemptFormFillingToolRequest::RequestedData::kUnknown;
+  }
+}
+
 mojom::ActionResultPtr FromServiceError(autofill::ActorFormFillingError error) {
   switch (error) {
     case autofill::ActorFormFillingError::kAutofillNotAvailable:
@@ -133,6 +167,9 @@ void AttemptFormFillingTool::Invoke(ToolCallback callback) {
   // `service_fill_requests_` must have been set by TimeOfUseValidation() or
   // otherwise an error was returned by TimeOfUseValidation().
   CHECK(!service_fill_requests_.empty());
+
+  form_fill_metrics::RecordOnInvokeMetrics();
+
   if (tabs::TabInterface* tab = GetTargetTab().Get()) {
     journal().Log(
         JournalURL(), task_id(), "AttemptFormFillingTool::Invoke",
@@ -191,6 +228,7 @@ mojom::ActionResultPtr AttemptFormFillingTool::TimeOfUseValidation(
     }
     service_fill_requests_.emplace_back(request.requested_data,
                                         std::move(field_ids));
+    service_requested_data_.push_back(request.requested_data);
   }
 
   if (service_fill_requests_.empty()) {
@@ -238,10 +276,23 @@ void AttemptFormFillingTool::OnSuggestionsRetrieved(
     ToolCallback invoke_callback,
     base::expected<std::vector<autofill::ActorFormFillingRequest>,
                    autofill::ActorFormFillingError> suggestions_result) {
+  const int suggestions_count =
+      suggestions_result.has_value() ? suggestions_result.value().size() : 0;
+  form_fill_metrics::RecordOnSuggestionsRetrievedMetrics(suggestions_count);
+
   if (!suggestions_result.has_value()) {
     std::move(invoke_callback)
         .Run(FromServiceError(suggestions_result.error()));
     return;
+  }
+
+  // Update service_requested_data_ to reflect the actual requests returned by
+  // the service, which may have been split.
+  service_requested_data_.clear();
+  for (const autofill::ActorFormFillingRequest& request :
+       suggestions_result.value()) {
+    service_requested_data_.push_back(
+        ConvertRequestedDataFromProtoEnum(request.requested_data));
   }
 
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
@@ -252,7 +303,7 @@ void AttemptFormFillingTool::OnSuggestionsRetrieved(
   }
 
   tool_delegate().RequestToShowAutofillSuggestions(
-      std::move(*suggestions_result),
+      std::move(*suggestions_result), weak_factory_.GetWeakPtr(),
       base::BindOnce(&AttemptFormFillingTool::OnSuggestionsSelected,
                      weak_factory_.GetWeakPtr(), std::move(invoke_callback)));
 }
@@ -315,7 +366,7 @@ void AttemptFormFillingTool::OnSuggestionsSelected(
     selection.selected_suggestion_id = autofill::ActorSuggestionId(id);
     selection_response.push_back(std::move(selection));
   }
-  auto* tab = GetTargetTab().Get();
+  tabs::TabInterface* tab = GetTargetTab().Get();
   if (!tab) {
     std::move(invoke_callback)
         .Run(MakeResult(mojom::ActionResultCode::kTabWentAway));
@@ -328,6 +379,77 @@ void AttemptFormFillingTool::OnSuggestionsSelected(
         return result.has_value() ? MakeOkResult()
                                   : FromServiceError(result.error());
       }).Then(std::move(invoke_callback)));
+}
+
+bool AttemptFormFillingTool::OnFormPresented(
+    webui::mojom::AutofillSuggestionDialogOnFormPresentedParamsPtr params) {
+  tabs::TabInterface* tab = GetTargetTab().Get();
+  if (!tab) {
+    return true;
+  }
+  if (params->form_filling_request_index < 0) {
+    return false;
+  }
+  size_t request_index =
+      static_cast<size_t>(params->form_filling_request_index);
+  if (request_index >= service_requested_data_.size()) {
+    return false;
+  }
+
+  form_fill_metrics::RecordOnSuggestionPresentedMetrics(
+      /*is_first=*/request_index == 0, service_requested_data_[request_index]);
+  tool_delegate().GetActorFormFillingService().ScrollToForm(*tab,
+                                                            request_index);
+  return true;
+}
+
+void AttemptFormFillingTool::OnFormPreviewChanged(
+    webui::mojom::AutofillSuggestionDialogOnFormPreviewChangedParamsPtr
+        params) {
+  tabs::TabInterface* tab = GetTargetTab().Get();
+  if (!tab) {
+    return;
+  }
+  if (params->response) {
+    uint32_t id = 0;
+    if (base::StringToUint(params->response->selected_suggestion_id, &id)) {
+      tool_delegate().GetActorFormFillingService().PreviewForm(
+          *tab, params->form_filling_request_index,
+          autofill::ActorSuggestionId(id));
+    }
+  } else {
+    tool_delegate().GetActorFormFillingService().ClearFormPreview(
+        *tab, params->form_filling_request_index);
+  }
+}
+
+bool AttemptFormFillingTool::OnFormConfirmed(
+    webui::mojom::AutofillSuggestionDialogOnFormConfirmedParamsPtr params) {
+  tabs::TabInterface* tab = GetTargetTab().Get();
+  if (!tab) {
+    return true;
+  }
+  if (params->form_filling_request_index < 0) {
+    return false;
+  }
+  size_t request_index =
+      static_cast<size_t>(params->form_filling_request_index);
+  if (request_index >= service_requested_data_.size()) {
+    return false;
+  }
+  uint32_t id = 0;
+  if (!base::StringToUint(params->response->selected_suggestion_id, &id)) {
+    return false;
+  }
+
+  form_fill_metrics::RecordOnSuggestionConfirmedMetrics(
+      /*is_last=*/request_index == service_requested_data_.size() - 1,
+      service_requested_data_[request_index]);
+  autofill::ActorFormFillingSelection selection;
+  selection.selected_suggestion_id = autofill::ActorSuggestionId(id);
+  tool_delegate().GetActorFormFillingService().FillForm(
+      *tab, params->form_filling_request_index, std::move(selection));
+  return true;
 }
 
 }  // namespace actor

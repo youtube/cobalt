@@ -21,6 +21,7 @@ class TabGroupService;
 class TrustedVaultClientBackend;
 @class UIImage;
 @class UIWindow;
+@protocol ReauthenticationProtocol;
 
 namespace contextual_search {
 class ContextualSearchService;
@@ -66,6 +67,8 @@ class PlusAddressService;
 namespace tab_groups {
 class TabGroupSyncService;
 }  // namespace tab_groups
+
+class Browser;
 
 namespace tests_hook {
 
@@ -251,6 +254,12 @@ std::unique_ptr<AimEligibilityService> CreateAimEligibilityService(
 // The real factory will be used if this hook returns null.
 std::unique_ptr<contextual_search::ContextualSearchService>
 CreateContextualSearchService(ProfileIOS* profile);
+
+// Injects fake tabs into the given browser.
+void InjectFakeTabsInBrowser(Browser* browser);
+
+// Returns a fake reauthentication module to be used in tests.
+id<ReauthenticationProtocol> GetFakeReauthenticationModule();
 
 }  // namespace tests_hook
 

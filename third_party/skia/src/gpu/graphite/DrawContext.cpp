@@ -23,6 +23,7 @@
 #include "src/gpu/graphite/ComputePathAtlas.h"
 #include "src/gpu/graphite/DrawList.h"
 #include "src/gpu/graphite/DrawListBase.h"
+#include "src/gpu/graphite/DrawListLayer.h"
 #include "src/gpu/graphite/DrawOrder.h"
 #include "src/gpu/graphite/DrawParams.h"
 #include "src/gpu/graphite/DrawPass.h"
@@ -31,6 +32,8 @@
 #include "src/gpu/graphite/RecorderPriv.h"
 #include "src/gpu/graphite/RenderPassDesc.h"
 #include "src/gpu/graphite/ResourceTypes.h"
+#include "src/gpu/graphite/TextureFormat.h"
+#include "src/gpu/graphite/TextureInfoPriv.h"
 #include "src/gpu/graphite/TextureProxy.h"
 #include "src/gpu/graphite/TextureProxyView.h"
 #include "src/gpu/graphite/TextureUtils.h"
@@ -66,13 +69,13 @@ sk_sp<DrawContext> DrawContext::Make(const Caps* caps,
     if (!caps->isRenderable(target->textureInfo())) {
         return nullptr;
     }
-    if (!caps->areColorTypeAndTextureInfoCompatible(colorInfo.colorType(), target->textureInfo())) {
+    if (!AreColorTypeAndFormatCompatible(colorInfo.colorType(),
+                                         TextureInfoPriv::ViewFormat(target->textureInfo()))) {
         return nullptr;
     }
 
     // Accept an approximate-fit texture, but make sure it's at least as large as the device's
     // logical size.
-    // TODO: validate that the alpha type is compatible with the target's info
     SkASSERT(target->isFullyLazy() || (target->dimensions().width() >= deviceSize.width() &&
                                        target->dimensions().height() >= deviceSize.height()));
     SkImageInfo imageInfo = SkImageInfo::Make(deviceSize, colorInfo);
@@ -91,7 +94,9 @@ DrawContext::DrawContext(const Caps* caps,
         , fAdvancedBlendsRequireBarrier(caps->blendEquationSupport() ==
                                             Caps::BlendEquationSupport::kAdvancedNoncoherent)
         , fCurrentDrawTask(sk_make_sp<DrawTask>(fTarget))
-        , fPendingDraws(std::make_unique<DrawList>())
+        , fPendingDraws(caps->useDrawListLayer() ?
+                        std::unique_ptr<DrawListBase>(std::make_unique<DrawListLayer>()) :
+                        std::unique_ptr<DrawListBase>(std::make_unique<DrawList>()))
         , fPendingUploads(std::make_unique<UploadList>()) {
     // Must determine a valid strategy to use should a dst texture read be required.
     SkASSERT(fDstReadStrategy != DstReadStrategy::kNoneRequired);
@@ -99,7 +104,8 @@ DrawContext::DrawContext(const Caps* caps,
     if (!caps->isTexturable(fTarget->textureInfo())) {
         fReadView = {}; // Presumably this DrawContext is rendering into a swap chain
     } else {
-        Swizzle swizzle = caps->getReadSwizzle(ii.colorType(), fTarget->textureInfo());
+        Swizzle swizzle = ReadSwizzleForColorType(
+                ii.colorType(), TextureInfoPriv::ViewFormat(fTarget->textureInfo()));
         fReadView = {fTarget, swizzle};
     }
     // TBD - Will probably want DrawLists (and its internal commands) to come from an arena
@@ -150,15 +156,17 @@ bool DrawContext::readsTexture(const TextureProxy* texture) const {
     return !notFound; // double negation means its found in a pending child task
 }
 
-void DrawContext::recordDraw(const Renderer* renderer,
-                             const Transform& localToDevice,
-                             const Geometry& geometry,
-                             const Clip& clip,
-                             DrawOrder ordering,
-                             UniquePaintParamsID paintID,
-                             SkEnumBitMask<DstUsage> dstUsage,
-                             PipelineDataGatherer* gatherer,
-                             const StrokeStyle* stroke) {
+std::pair<DrawParams*, Insertion> DrawContext::recordDraw(
+        const Renderer* renderer,
+        const Transform& localToDevice,
+        const Geometry& geometry,
+        const Clip& clip,
+        DrawOrder ordering,
+        UniquePaintParamsID paintID,
+        SkEnumBitMask<DstUsage> dstUsage,
+        PipelineDataGatherer* gatherer,
+        const StrokeStyle* stroke,
+        const Insertion& latestInsertion) {
     SkASSERTF(SkIRect::MakeSize(this->imageInfo().dimensions()).contains(clip.scissor()),
               "Image %dx%d, scissor %d,%d,%d,%d",
               this->imageInfo().width(), this->imageInfo().height(),
@@ -178,8 +186,9 @@ void DrawContext::recordDraw(const Renderer* renderer,
         barrierBeforeDraws = BarrierType::kAdvancedNoncoherentBlend;
     }
 
-    fPendingDraws->recordDraw(renderer, localToDevice, geometry, clip, ordering, paintID, dstUsage,
-                              barrierBeforeDraws, gatherer, stroke);
+    return fPendingDraws->recordDraw(renderer, localToDevice, geometry, clip, ordering, paintID,
+                                     dstUsage,  barrierBeforeDraws, gatherer, stroke,
+                                     latestInsertion);
 }
 
 bool DrawContext::recordUpload(Recorder* recorder,
@@ -301,14 +310,19 @@ void DrawContext::flush(Recorder* recorder) {
 
         const Caps* caps = recorder->priv().caps();
         auto [loadOp, storeOp] = pass->ops();
-        auto writeSwizzle = caps->getWriteSwizzle(this->colorInfo().colorType(),
-                                                  fTarget->textureInfo());
-
+        auto writeSwizzle = WriteSwizzleForColorType(
+                this->colorInfo().colorType(), TextureInfoPriv::ViewFormat(fTarget->textureInfo()));
+        if (!writeSwizzle.has_value()) {
+            writeSwizzle = Swizzle::RGBA(); // Fall back to rgba in release builds
+            SKGPU_LOG_W("No valid write swizzle for color type %d with format %s",
+                        (int) this->colorInfo().colorType(),
+                        TextureFormatName(TextureInfoPriv::ViewFormat(fTarget->textureInfo())));
+        }
         RenderPassDesc desc = RenderPassDesc::Make(caps, fTarget->textureInfo(), loadOp, storeOp,
                                                    dsFlags,
                                                    pass->clearColor(),
                                                    drawsRequireMSAA,
-                                                   writeSwizzle,
+                                                   *writeSwizzle,
                                                    drawPassDstReadStrategy);
 
         RenderPassTask::DrawPassList passes;
@@ -316,7 +330,7 @@ void DrawContext::flush(Recorder* recorder) {
         fCurrentDrawTask->addTask(RenderPassTask::Make(std::move(passes), desc, fTarget,
                                                        std::move(dstCopy), dstReadPixelBounds));
         if (fTarget->mipmapped() == Mipmapped::kYes) {
-            if (!GenerateMipmaps(recorder, this, fTarget, fImageInfo.colorInfo())) {
+            if (!GenerateMipmaps(recorder, this, fTarget)) {
                 SKGPU_LOG_W("DrawContext::flush GenerateMipmaps failed, draw pass dropped!");
                 return;
             }

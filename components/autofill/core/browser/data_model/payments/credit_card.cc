@@ -286,8 +286,11 @@ std::u16string CreditCard::NetworkForDisplay(const std::string& network) {
 int CreditCard::IconResourceId(Suggestion::Icon icon) {
   switch (icon) {
     case Suggestion::Icon::kCardAmericanExpress:
-      return ShouldUseNewFopDisplay() ? IDR_AUTOFILL_METADATA_CC_AMEX
-                                      : IDR_AUTOFILL_METADATA_CC_AMEX_OLD;
+      return base::FeatureList::IsEnabled(
+                 features::kAutofillEnableNewAmexNetworkArt)
+                 ? IDR_AUTOFILL_METADATA_CC_AMEX_NEW
+             : ShouldUseNewFopDisplay() ? IDR_AUTOFILL_METADATA_CC_AMEX
+                                        : IDR_AUTOFILL_METADATA_CC_AMEX_OLD;
     case Suggestion::Icon::kCardDiners:
       return ShouldUseNewFopDisplay() ? IDR_AUTOFILL_METADATA_CC_DINERS
                                       : IDR_AUTOFILL_METADATA_CC_DINERS_OLD;
@@ -321,6 +324,9 @@ int CreditCard::IconResourceId(Suggestion::Icon icon) {
     case Suggestion::Icon::kCardGeneric:
       return ShouldUseNewFopDisplay() ? IDR_AUTOFILL_METADATA_CC_GENERIC
                                       : IDR_AUTOFILL_METADATA_CC_GENERIC_OLD;
+    case Suggestion::Icon::kSaveAndFill:
+      return ShouldUseNewFopDisplay() ? IDR_AUTOFILL_METADATA_CC_GENERIC
+                                      : IDR_AUTOFILL_METADATA_CC_GENERIC_OLD;
     case Suggestion::Icon::kAccount:
     case Suggestion::Icon::kClear:
     case Suggestion::Icon::kCode:
@@ -345,12 +351,12 @@ int CreditCard::IconResourceId(Suggestion::Icon icon) {
     case Suggestion::Icon::kMagic:
     case Suggestion::Icon::kNoIcon:
     case Suggestion::Icon::kOfferTag:
+    case Suggestion::Icon::kPassport:
     case Suggestion::Icon::kPenSpark:
     case Suggestion::Icon::kPersonCheck:
     case Suggestion::Icon::kPlusAddress:
     case Suggestion::Icon::kQuestionMark:
     case Suggestion::Icon::kRecoveryPassword:
-    case Suggestion::Icon::kSaveAndFill:
     case Suggestion::Icon::kScanCreditCard:
     case Suggestion::Icon::kSettings:
     case Suggestion::Icon::kUndo:
@@ -440,10 +446,8 @@ double CreditCard::GetRankingScore(base::Time current_time) const {
 
 bool CreditCard::HasGreaterRankingThan(const CreditCard& other,
                                        base::Time comparison_time) const {
-  const double score = GetRankingScore(comparison_time);
-  const double other_score = other.GetRankingScore(comparison_time);
-  return usage_history_information_.CompareRankingScores(
-      score, other_score, other.usage_history_information_.use_date());
+  return usage_history_information_.HasGreaterRankingThan(
+      other.usage_history_information_, comparison_time);
 }
 
 bool CreditCard::SetMetadata(const PaymentsMetadata& metadata) {

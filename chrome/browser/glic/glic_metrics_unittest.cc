@@ -32,6 +32,8 @@
 #include "components/prefs/testing_pref_service.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "components/startup_metric_utils/browser/startup_metric_utils.h"
+#include "components/tabs/public/mock_tab_interface.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_renderer_host.h"
@@ -55,6 +57,7 @@ using ::base::BucketsAre;
 using ::testing::_;
 using ::testing::IsEmpty;
 using ::testing::Pair;
+using ::testing::Return;
 using ::testing::UnorderedElementsAre;
 
 class MockDelegate : public GlicMetrics::Delegate {
@@ -136,6 +139,7 @@ class GlicMetricsTestBase : public testing::Test {
       : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
 
   void SetUp() override {
+    startup_metric_utils::GetBrowser().ResetSessionForTesting();
     TestingBrowserProcess::GetGlobal()->SetStatusTray(
         std::make_unique<MockStatusTray>());
     raw_ptr<TestingProfileManager> testing_profile_manager =
@@ -144,10 +148,11 @@ class GlicMetricsTestBase : public testing::Test {
 #if BUILDFLAG(IS_CHROMEOS)
     glic_user_session_test_helper_.PreProfileSetUp(
         testing_profile_manager->profile_manager());
+    startup_metric_utils::GetBrowser().RecordWebContentsStartTime(
+        base::TimeTicks::Now());
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
     profile_ = testing_profile_manager->CreateTestingProfile("profile");
-    ForceSigninAndGlicCapability(profile_);
   }
 
   void TearDown() override {
@@ -261,6 +266,87 @@ class GlicMetricsTest : public GlicMetricsTestBase {
   raw_ptr<MockDelegate> delegate_ = nullptr;
 };
 
+TEST_F(GlicMetricsTest, RecordGlicProfilePreferences) {
+  // Set up preferences to true.
+  profile()->GetPrefs()->SetBoolean(prefs::kGlicPinnedToTabstrip, true);
+  local_state()->SetBoolean(prefs::kGlicLauncherEnabled, true);
+  profile()->GetPrefs()->SetBoolean(
+      prefs::kGlicKeepSidepanelOpenOnNewTabsEnabled, true);
+  profile()->GetPrefs()->SetBoolean(prefs::kGlicGeolocationEnabled, true);
+  profile()->GetPrefs()->SetBoolean(prefs::kGlicMicrophoneEnabled, true);
+  profile()->GetPrefs()->SetBoolean(prefs::kGlicDefaultTabContextEnabled, true);
+  profile()->GetPrefs()->SetBoolean(prefs::kGlicUserEnabledActuationOnWeb,
+                                    true);
+
+  metrics()->RecordGlicProfilePreferences();
+
+  // Only true should be recorded.
+  histogram_tester().ExpectUniqueSample("Glic.Preferences.PinnedToTabstrip",
+                                        true, 1);
+  histogram_tester().ExpectUniqueSample("Glic.Preferences.LauncherEnabled",
+                                        true, 1);
+  histogram_tester().ExpectUniqueSample(
+      "Glic.Preferences.KeepSidepanelOpenOnNewTabsEnabled", true, 1);
+  histogram_tester().ExpectUniqueSample("Glic.Preferences.GeolocationEnabled",
+                                        true, 1);
+  histogram_tester().ExpectUniqueSample("Glic.Preferences.MicrophoneEnabled",
+                                        true, 1);
+  histogram_tester().ExpectUniqueSample(
+      "Glic.Preferences.DefaultTabContextEnabled", true, 1);
+  histogram_tester().ExpectUniqueSample(
+      "Glic.Preferences.ActuationOnWeb", true, 1);
+
+  // Set up preferences to false.
+  profile()->GetPrefs()->SetBoolean(prefs::kGlicPinnedToTabstrip, false);
+  local_state()->SetBoolean(prefs::kGlicLauncherEnabled, false);
+  profile()->GetPrefs()->SetBoolean(
+      prefs::kGlicKeepSidepanelOpenOnNewTabsEnabled, false);
+  profile()->GetPrefs()->SetBoolean(prefs::kGlicGeolocationEnabled, false);
+  profile()->GetPrefs()->SetBoolean(prefs::kGlicMicrophoneEnabled, false);
+  profile()->GetPrefs()->SetBoolean(prefs::kGlicDefaultTabContextEnabled,
+                                    false);
+  profile()->GetPrefs()->SetBoolean(prefs::kGlicUserEnabledActuationOnWeb,
+                                    false);
+
+  metrics()->RecordGlicProfilePreferences();
+
+  // Both true and false should be recorded once.
+  histogram_tester().ExpectBucketCount("Glic.Preferences.PinnedToTabstrip",
+                                       true, 1);
+  histogram_tester().ExpectBucketCount("Glic.Preferences.PinnedToTabstrip",
+                                       false, 1);
+
+  histogram_tester().ExpectBucketCount("Glic.Preferences.LauncherEnabled", true,
+                                       1);
+  histogram_tester().ExpectBucketCount("Glic.Preferences.LauncherEnabled",
+                                       false, 1);
+
+  histogram_tester().ExpectBucketCount(
+      "Glic.Preferences.KeepSidepanelOpenOnNewTabsEnabled", true, 1);
+  histogram_tester().ExpectBucketCount(
+      "Glic.Preferences.KeepSidepanelOpenOnNewTabsEnabled", false, 1);
+
+  histogram_tester().ExpectBucketCount("Glic.Preferences.GeolocationEnabled",
+                                       true, 1);
+  histogram_tester().ExpectBucketCount("Glic.Preferences.GeolocationEnabled",
+                                       false, 1);
+
+  histogram_tester().ExpectBucketCount("Glic.Preferences.MicrophoneEnabled",
+                                       true, 1);
+  histogram_tester().ExpectBucketCount("Glic.Preferences.MicrophoneEnabled",
+                                       false, 1);
+
+  histogram_tester().ExpectBucketCount(
+      "Glic.Preferences.DefaultTabContextEnabled", true, 1);
+  histogram_tester().ExpectBucketCount(
+      "Glic.Preferences.DefaultTabContextEnabled", false, 1);
+
+  histogram_tester().ExpectBucketCount(
+      "Glic.Preferences.ActuationOnWeb", true, 1);
+  histogram_tester().ExpectBucketCount(
+      "Glic.Preferences.ActuationOnWeb", false, 1);
+}
+
 TEST_F(GlicMetricsTest, Basic) {
   metrics()->OnUserInputSubmitted(mojom::WebClientMode::kText);
   metrics()->OnResponseStarted();
@@ -328,7 +414,10 @@ TEST_F(GlicMetricsTest, ResponseStartTime_WithFocusedTab) {
   InitializeTestWebContents();
   delegate()->SetFocusedWebContents(test_web_contents());
 
-  metrics()->DidRequestContextFromTab(*test_web_contents());
+  tabs::MockTabInterface mock_tab;
+  EXPECT_CALL(mock_tab, GetContents())
+      .WillRepeatedly(Return(test_web_contents()));
+  metrics()->DidRequestContextFromTab(mock_tab);
   metrics()->OnUserInputSubmitted(mojom::WebClientMode::kText);
   metrics()->OnResponseStarted();
 
@@ -350,7 +439,10 @@ TEST_F(GlicMetricsTest, ResponseStartTime_WithPinnedAndSharedTab) {
   InitializeTestWebContents();
   delegate()->AddToPinnedSharedTabs(test_web_contents());
 
-  metrics()->DidRequestContextFromTab(*test_web_contents());
+  tabs::MockTabInterface mock_tab;
+  EXPECT_CALL(mock_tab, GetContents())
+      .WillRepeatedly(Return(test_web_contents()));
+  metrics()->DidRequestContextFromTab(mock_tab);
   metrics()->OnUserInputSubmitted(mojom::WebClientMode::kAudio);
   metrics()->OnResponseStarted();
 
@@ -411,7 +503,10 @@ TEST_F(GlicMetricsTest, BasicUkmWithTarget) {
 
   metrics()->OnGlicWindowStartedOpening(/*attached=*/false,
                                         mojom::InvocationSource::kFre);
-  metrics()->DidRequestContextFromTab(*test_web_contents());
+  tabs::MockTabInterface mock_tab;
+  EXPECT_CALL(mock_tab, GetContents())
+      .WillRepeatedly(Return(test_web_contents()));
+  metrics()->DidRequestContextFromTab(mock_tab);
   metrics()->OnUserInputSubmitted(mojom::WebClientMode::kText);
   metrics()->OnResponseStarted();
   metrics()->OnResponseStopped(mojom::ResponseStopCause::kUnknown);
@@ -651,9 +746,50 @@ TEST_F(GlicMetricsTest, ImpressionIncompleteFreNotPermittedByPolicy) {
 // subscribers are notified. The following tests turn the feature flags on
 // before setup happens, so that glic is enabled from the start.
 class GlicMetricsFeaturesEnabledTest : public GlicMetricsTestBase {
+ public:
+  void SetUp() override {
+    GlicMetricsTestBase::SetUp();
+    glic_test_env_.SetupProfile(profile());
+  }
+
+  GlicMetrics* metrics() {
+    return static_cast<GlicMetrics*>(
+        &GlicKeyedService::Get(profile())
+             ->instance_metrics_backwards_compatibility());
+  }
+
  private:
   GlicUnitTestEnvironment glic_test_env_;
 };
+
+TEST_F(GlicMetricsFeaturesEnabledTest, TimeToEnabledFromStartupRecorded) {
+  // Glic is enabled by default in SetUp().
+  histogram_tester().ExpectTotalCount(
+      "Glic.ProfileEnablement.TimeToEnabledFromStartup", 1);
+}
+
+TEST_F(GlicMetricsFeaturesEnabledTest, TimeToEnabledFromStartupDelayed) {
+  // Disable glic capability.
+  SetGlicCapability(profile(), false);
+
+  // Create new GlicMetrics that starts with glic disabled.
+  // We use a manual instance here to avoid interference with the one in
+  // GlicKeyedService which might already have recorded something.
+  auto enabling = std::make_unique<GlicEnabling>(
+      profile(), &profile_manager()->GetProfileAttributesStorage());
+  base::HistogramTester delayed_histogram_tester;
+  auto manual_metrics =
+      std::make_unique<GlicMetrics>(profile(), enabling.get());
+
+  delayed_histogram_tester.ExpectTotalCount(
+      "Glic.ProfileEnablement.TimeToEnabledFromStartup", 0);
+
+  // Enable glic capability.
+  SetGlicCapability(profile(), true);
+
+  delayed_histogram_tester.ExpectTotalCount(
+      "Glic.ProfileEnablement.TimeToEnabledFromStartup", 1);
+}
 
 TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionBeforeFre) {
   profile()->GetPrefs()->SetInteger(
@@ -807,6 +943,19 @@ TEST_F(GlicMetricsTest, InputModesUsed) {
   histogram_tester().ExpectTotalCount("Glic.Session.InputModesUsed", 4);
   histogram_tester().ExpectBucketCount("Glic.Session.InputModesUsed",
                                        InputModesUsed::kOnlyAudio, 1);
+
+  metrics()->OnUserInputSubmitted(mojom::WebClientMode::kUnknown);
+  metrics()->OnUserInputSubmitted(mojom::WebClientMode::kAudio);
+  metrics()->OnGlicWindowClose(nullptr, std::nullopt, gfx::Rect());
+  histogram_tester().ExpectTotalCount("Glic.Session.InputModesUsed", 5);
+  histogram_tester().ExpectBucketCount("Glic.Session.InputModesUsed",
+                                       InputModesUsed::kOnlyAudio, 2);
+
+  metrics()->OnUserInputSubmitted(mojom::WebClientMode::kUnknown);
+  metrics()->OnGlicWindowClose(nullptr, std::nullopt, gfx::Rect());
+  histogram_tester().ExpectTotalCount("Glic.Session.InputModesUsed", 6);
+  histogram_tester().ExpectBucketCount("Glic.Session.InputModesUsed",
+                                       InputModesUsed::kNone, 2);
 }
 
 TEST_F(GlicMetricsTest, AttachStateChanges) {
@@ -978,10 +1127,8 @@ TEST_F(GlicMetricsTest, OnRecordUseCounter) {
 class GlicMetricsTrustFirstOnboardingTest : public GlicMetricsTest {
  public:
   void SetUp() override {
-    scoped_feature_list_.InitWithFeatures(
-        {features::kGlicTrustFirstOnboarding, features::kGlicMultiInstance,
-         mojom::features::kGlicMultiTab, features::kGlicMultitabUnderlines},
-        {});
+    scoped_feature_list_.InitWithFeatures({features::kGlicTrustFirstOnboarding},
+                                          {});
     GlicMetricsTest::SetUp();
     // Revert FRE status to NotStarted to simulate new user for this experiment.
     profile()->GetPrefs()->SetInteger(

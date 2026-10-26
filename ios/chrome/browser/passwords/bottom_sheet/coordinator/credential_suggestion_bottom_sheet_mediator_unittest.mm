@@ -357,12 +357,10 @@ class CredentialSuggestionBottomSheetMediatorTest : public PlatformTest {
                    prefService:prefs_ptr_
                         params:params_
                   reauthModule:nil
-                           URL:URL()
           profilePasswordStore:store_
           accountPasswordStore:nullptr
         sharedURLLoaderFactory:nullptr
-             engagementTracker:nil
-                     presenter:nil];
+             engagementTracker:nil];
 
     // Run the queued JS feature callback.
     base::RunLoop().RunUntilIdle();
@@ -404,8 +402,6 @@ class CredentialSuggestionBottomSheetMediatorTest : public PlatformTest {
                   forSecurityOrigin:main_frame_ptr_->GetSecurityOrigin()];
   }
 
-  GURL URL() { return GURL("http://foo.com"); }
-
   web::WebTaskEnvironment task_environment_;
   std::unique_ptr<TestProfileIOS> profile_;
   raw_ptr<sync_preferences::TestingPrefServiceSyncable> prefs_ptr_;
@@ -436,8 +432,11 @@ TEST_F(CredentialSuggestionBottomSheetMediatorTest, WithSuggestions) {
 
   OCMExpect([consumer_ setSuggestions:[OCMArg isNotNil]
                             andDomain:[OCMArg isNotNil]]);
-  OCMExpect(
-      [consumer_ setPrimaryActionString:PrimaryActionLabelForPasswordFill()]);
+  OCMExpect([consumer_
+      setPrimaryActionString:PrimaryActionLabelForPasswordFill()
+       secondaryActionString:l10n_util::GetNSString(
+                                 IDS_IOS_CREDENTIAL_BOTTOM_SHEET_USE_KEYBOARD)
+        secondaryActionImage:[OCMArg any]]);
 
   [mediator_ setConsumer:consumer_];
   EXPECT_OCMOCK_VERIFY(consumer_);
@@ -457,7 +456,10 @@ TEST_F(CredentialSuggestionBottomSheetMediatorTest,
   OCMExpect([consumer_ setSuggestions:[OCMArg isNotNil]
                             andDomain:[OCMArg isNotNil]]);
   [[consumer_ expect]
-      setPrimaryActionString:PrimaryActionLabelForUsernameFill()];
+      setPrimaryActionString:PrimaryActionLabelForUsernameFill()
+       secondaryActionString:l10n_util::GetNSString(
+                                 IDS_IOS_CREDENTIAL_BOTTOM_SHEET_USE_KEYBOARD)
+        secondaryActionImage:[OCMArg any]];
 
   [mediator_ setConsumer:consumer_];
   EXPECT_OCMOCK_VERIFY(consumer_);

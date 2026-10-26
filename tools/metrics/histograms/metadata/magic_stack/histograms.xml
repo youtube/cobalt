@@ -38,6 +38,7 @@ chromium-metrics-reviews@google.com.
   <variant name="QuickDeletePromo"/>
   <variant name="SafetyHub"/>
   <variant name="SavePasswordsPromo"/>
+  <variant name="SetupListCelebratoryPromo"/>
   <variant name="SignInPromo"/>
   <variant name="SingleTab"/>
   <variant name="TabGroupPromo"/>
@@ -49,6 +50,11 @@ chromium-metrics-reviews@google.com.
 <variants name="ScrollState">
   <variant name="NotScrolled"/>
   <variant name="Scrolled"/>
+</variants>
+
+<variants name="SetupListItemState">
+  <variant name="Active" summary="incomplete and interactable"/>
+  <variant name="Completed" summary="already finished and disabled"/>
 </variants>
 
 <variants name="ToggleState">
@@ -100,7 +106,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="MagicStack.Clank.NewTabPage.Module.FetchDataDurationMs.{ModuleType}"
-    units="ms" expires_after="2026-03-29">
+    units="ms" expires_after="2027-03-29">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>
@@ -149,7 +155,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MagicStack.Clank.NewTabPage.Module.FirstModuleShownDurationMs"
-    units="ms" expires_after="2026-06-21">
+    units="ms" expires_after="2026-08-23">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>
@@ -172,7 +178,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MagicStack.Clank.NewTabPage.Module.TopImpressionV2"
-    enum="ModuleType" expires_after="2026-07-05">
+    enum="ModuleType" expires_after="2026-09-06">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>
@@ -218,7 +224,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="MagicStack.Clank.NewTabPage.{HostSurfaceState}.Module.{ModuleType}.Build"
-    enum="ModulePosition" expires_after="2026-06-28">
+    enum="ModulePosition" expires_after="2026-09-13">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>
@@ -232,7 +238,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="MagicStack.Clank.NewTabPage.{HostSurfaceState}.Module.{ModuleType}.Click"
-    enum="ModulePosition" expires_after="2026-06-28">
+    enum="ModulePosition" expires_after="2026-08-30">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>
@@ -247,7 +253,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="MagicStack.Clank.NewTabPage.{HostSurfaceState}.Module.{ModuleType}.Impression"
-    enum="ModulePosition" expires_after="2026-06-21">
+    enum="ModulePosition" expires_after="2026-08-23">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>
@@ -262,7 +268,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="MagicStack.Clank.NewTabPage.{HostSurfaceState}.Module.{ModuleType}.ImpressionCountBeforeInteraction"
-    units="count" expires_after="2026-06-21">
+    units="count" expires_after="2026-08-23">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>
@@ -279,7 +285,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MagicStack.Clank.Settings.{ToggleState}" enum="ModuleType"
-    expires_after="2026-03-01">
+    expires_after="2027-03-01">
   <owner>hanxi@chromium.org</owner>
   <owner>xinyiji@chromium.org</owner>
   <summary>
@@ -290,6 +296,37 @@ chromium-metrics-reviews@google.com.
     when the magic stack is customizable, Android-only.
   </summary>
   <token key="ToggleState" variants="ToggleState"/>
+</histogram>
+
+<histogram name="MagicStack.Clank.SetupList.ItemClick.Active" enum="ModuleType"
+    expires_after="2026-09-13">
+  <owner>agazal@google.com</owner>
+  <owner>clank-start-surface@google.com</owner>
+  <summary>
+    Records a click for a specific Setup List item that is in the 'Active'
+    state.
+  </summary>
+</histogram>
+
+<histogram name="MagicStack.Clank.SetupList.ItemCompletion" enum="ModuleType"
+    expires_after="2026-05-26">
+  <owner>agazal@google.com</owner>
+  <owner>clank-start-surface@google.com</owner>
+  <summary>
+    Records when a specific Setup List task is marked as completed. Logged
+    exactly once per task completion.
+  </summary>
+</histogram>
+
+<histogram name="MagicStack.Clank.SetupList.ItemImpression.{State}"
+    enum="ModuleType" expires_after="2026-09-13">
+  <owner>agazal@google.com</owner>
+  <owner>clank-start-surface@google.com</owner>
+  <summary>
+    Records an impression for a specific Setup List item that is in the {State}
+    state. Logged when the module is rendered.
+  </summary>
+  <token key="State" variants="SetupListItemState"/>
 </histogram>
 
 <histogram name="MagicStack.Clank.SingleTab.SeeMoreLinkClicked" enum="Boolean"

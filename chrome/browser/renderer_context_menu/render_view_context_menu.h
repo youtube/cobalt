@@ -14,7 +14,6 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/ui/autofill/autofill_context_menu_manager.h"
@@ -117,7 +116,9 @@ class RenderViewContextMenu
                               blink::mojom::PluginActionType)>;
 
   RenderViewContextMenu(content::RenderFrameHost& render_frame_host,
-                        const content::ContextMenuParams& params);
+                        const content::ContextMenuParams& params,
+                        bool is_paste_enabled,
+                        bool is_paste_and_match_style_enabled);
 
   RenderViewContextMenu(const RenderViewContextMenu&) = delete;
   RenderViewContextMenu& operator=(const RenderViewContextMenu&) = delete;
@@ -327,7 +328,6 @@ class RenderViewContextMenu
   void AppendRegionSearchItem();
   void AppendLiveCaptionItem();
   void AppendSendTabToSelfItem(bool add_separator);
-  void AppendUserNotesItems();
   bool AppendQRCodeGeneratorItem(bool for_image,
                                  bool draw_icon,
                                  bool add_separator);
@@ -565,6 +565,12 @@ class RenderViewContextMenu
   // Responsible for handling autofill related context menu items.
   autofill::AutofillContextMenuManager autofill_context_menu_manager_;
 
+  // Whether the "Paste" menu item should be enabled.
+  const bool is_paste_enabled_;
+
+  // Whether the "Paste and Match Style" menu item should be enabled.
+  const bool is_paste_and_match_style_enabled_;
+
   // Fenced frame can disable its untrusted network in exchange for access to
   // unpartitioned cross-site data. To prevent cross-site data from leaking out
   // of fenced frame, context menu commands should be gated on untrusted network
@@ -602,7 +608,10 @@ class RenderViewContextMenu
 
            // Image loading commands.
            IDC_CONTENT_CONTEXT_LOAD_IMAGE,
-           IDC_CONTENT_CONTEXT_OPEN_ORIGINAL_IMAGE_NEW_TAB});
+           IDC_CONTENT_CONTEXT_OPEN_ORIGINAL_IMAGE_NEW_TAB,
+
+           // Autofill commands.
+           IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY});
   // LINT.ThenChange(//chrome/app/chrome_command_ids.h:ChromeCommandIds)
 
   base::WeakPtrFactory<RenderViewContextMenu> weak_pointer_factory_{this};

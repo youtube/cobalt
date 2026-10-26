@@ -1,4 +1,4 @@
-// Copyright 2025 The Chromium Authors
+// Copyright 2026 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,11 +12,8 @@
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/adapters/browser_adapter.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/adapters/tab_strip_model_adapter.h"
-#include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_impl.h"
-#include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_mojo_handler.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/testing/injector.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/testing/toy_tab_strip.h"
-#include "chrome/browser/ui/tabs/tab_strip_api/testing/toy_tab_strip_browser_adapter.h"
-#include "chrome/browser/ui/tabs/tab_strip_api/testing/toy_tab_strip_model_adapter.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/browser_apis/tab_strip/tab_strip_api.mojom.h"
@@ -36,15 +33,12 @@ namespace {
 class TabStripServiceImplTest : public ::testing::Test {
  protected:
   TabStripServiceImplTest() = default;
-  TabStripServiceImplTest(const TabStripServiceImplTest&) = delete;
-  TabStripServiceImplTest operator=(const TabStripServiceImplTest&) = delete;
   ~TabStripServiceImplTest() override = default;
 
   void SetUp() override {
     tab_strip_ = std::make_unique<testing::ToyTabStrip>();
     service_ = std::make_unique<TabStripServiceImpl>(
-        std::make_unique<testing::ToyTabStripBrowserAdapter>(tab_strip_.get()),
-        std::make_unique<testing::ToyTabStripModelAdapter>(tab_strip_.get()));
+        std::make_unique<testing::Injector>(*tab_strip_));
   }
 
  protected:
@@ -75,7 +69,10 @@ TEST_F(TabStripServiceImplTest, GetTabs) {
 
   auto result = service_->GetTabs();
 
-  const auto& tab_strip = result.value();
+  const auto& window = result.value();
+  ASSERT_TRUE(window->data->is_window());
+  ASSERT_EQ(1u, window->children.size());
+  const auto& tab_strip = window->children[0];
   ASSERT_TRUE(tab_strip->data->is_tab_strip());
   ASSERT_EQ(1u, tab_strip->children.size());
   ASSERT_TRUE(tab_strip->children[0]->data->is_tab());
@@ -138,7 +135,7 @@ TEST_F(TabStripServiceImplTest, ActivateTab) {
   ASSERT_EQ(tab_strip_->FindActiveTab(), tab1.tab_handle);
 
   tabs_api::NodeId tab2_id(NodeId::Type::kContent,
-                          base::NumberToString(tab2.tab_handle.raw_value()));
+                           base::NumberToString(tab2.tab_handle.raw_value()));
 
   auto result = service_->ActivateTab(tab2_id);
 
@@ -170,22 +167,22 @@ TEST_F(TabStripServiceImplTest, SetSelectedTabs) {
   tab_strip_->AddTab(tab2);
   tab_strip_->ActivateTab(tab1.tab_handle);
 
-  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab2.tab_handle).active);
-  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab2.tab_handle).selected);
+  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab2.tab_handle)->active);
+  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab2.tab_handle)->selected);
 
-  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab1.tab_handle).active);
-  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab1.tab_handle).selected);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab1.tab_handle)->active);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab1.tab_handle)->selected);
 
   tabs_api::NodeId tab2_id(NodeId::Type::kContent,
                            base::NumberToString(tab2.tab_handle.raw_value()));
 
   auto result = service_->SetSelectedTabs({tab2_id}, tab2_id);
 
-  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab2.tab_handle).active);
-  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab2.tab_handle).selected);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab2.tab_handle)->active);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab2.tab_handle)->selected);
 
-  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab1.tab_handle).active);
-  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab1.tab_handle).selected);
+  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab1.tab_handle)->active);
+  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab1.tab_handle)->selected);
 }
 
 TEST_F(TabStripServiceImplTest, SetSelectedTabs_MultipleSelection) {
@@ -226,17 +223,17 @@ TEST_F(TabStripServiceImplTest, SetSelectedTabs_MultipleSelection) {
   auto result =
       service_->SetSelectedTabs({tab1_id, tab2_id, tab3_id, tab4_id}, tab4_id);
 
-  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab1.tab_handle).active);
-  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab1.tab_handle).selected);
+  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab1.tab_handle)->active);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab1.tab_handle)->selected);
 
-  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab2.tab_handle).active);
-  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab2.tab_handle).selected);
+  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab2.tab_handle)->active);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab2.tab_handle)->selected);
 
-  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab3.tab_handle).active);
-  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab3.tab_handle).selected);
+  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab3.tab_handle)->active);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab3.tab_handle)->selected);
 
-  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab4.tab_handle).active);
-  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab4.tab_handle).selected);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab4.tab_handle)->active);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab4.tab_handle)->selected);
 }
 
 TEST_F(TabStripServiceImplTest, MoveTab) {

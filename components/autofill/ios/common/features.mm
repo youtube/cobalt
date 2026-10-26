@@ -32,12 +32,15 @@ BASE_FEATURE(kAutofillExtractFullUrlOnIOs, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kAutofillFormSubmissionEventsInCaptureMode,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAutofillPaymentsSheetDetachInvalidatedListenersIos,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kAutofillPaymentsSheetStateless,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAutofillPaymentsSheetV2Ios, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kAutofillPaymentsSheetV3Ios, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutofillPaymentsSheetV3Ios, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAutofillRefillForFormsIos, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -59,6 +62,8 @@ extern const base::FeatureParam<int> kAutofillDocumentFormScanPeriodMs = {
 
 BASE_FEATURE(kAutofillThrottleDocumentFormScanForceFirstScanIos,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAutofillTrackPasswordFieldsIos, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAutofillThrottleFilteredDocumentFormScanIos,
              base::FEATURE_DISABLED_BY_DEFAULT);

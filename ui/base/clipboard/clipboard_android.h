@@ -60,54 +60,53 @@ class ClipboardAndroid : public Clipboard {
 
   // Clipboard overrides:
   void OnPreShutdown() override;
-  std::optional<DataTransferEndpoint> GetSource(
-      ClipboardBuffer buffer) const override;
+  void GetSource(ClipboardBuffer buffer,
+                 GetSourceCallback callback) const override;
   const ClipboardSequenceNumberToken& GetSequenceNumber(
       ClipboardBuffer buffer) const override;
-  std::vector<std::u16string> GetStandardFormats(
+  void GetStandardFormats(ClipboardBuffer buffer,
+                          const std::optional<DataTransferEndpoint>& data_dst,
+                          GetStandardFormatsCallback callback) const override;
+  void GetAllAvailableFormats(
       ClipboardBuffer buffer,
-      const DataTransferEndpoint* data_dst) const override;
-  bool IsFormatAvailable(const ClipboardFormatType& format,
-                         ClipboardBuffer buffer,
-                         const DataTransferEndpoint* data_dst) const override;
+      const std::optional<DataTransferEndpoint>& data_dst,
+      base::OnceCallback<void(base::flat_set<ClipboardFormatType>)> callback)
+      const override;
   void Clear(ClipboardBuffer buffer) override;
   void ReadAvailableTypes(ClipboardBuffer buffer,
-                          const DataTransferEndpoint* data_dst,
-                          std::vector<std::u16string>* types) const override;
+                          const std::optional<DataTransferEndpoint>& data_dst,
+                          ReadAvailableTypesCallback callback) const override;
   void ReadText(ClipboardBuffer buffer,
-                const DataTransferEndpoint* data_dst,
-                std::u16string* result) const override;
+                const std::optional<DataTransferEndpoint>& data_dst,
+                ReadTextCallback callback) const override;
   void ReadAsciiText(ClipboardBuffer buffer,
-                     const DataTransferEndpoint* data_dst,
-                     std::string* result) const override;
+                     const std::optional<DataTransferEndpoint>& data_dst,
+                     ReadAsciiTextCallback callback) const override;
   void ReadHTML(ClipboardBuffer buffer,
-                const DataTransferEndpoint* data_dst,
-                std::u16string* markup,
-                std::string* src_url,
-                uint32_t* fragment_start,
-                uint32_t* fragment_end) const override;
+                const std::optional<DataTransferEndpoint>& data_dst,
+                ReadHtmlCallback callback) const override;
   void ReadSvg(ClipboardBuffer buffer,
-               const DataTransferEndpoint* data_dst,
-               std::u16string* result) const override;
+               const std::optional<DataTransferEndpoint>& data_dst,
+               ReadSvgCallback callback) const override;
   void ReadRTF(ClipboardBuffer buffer,
-               const DataTransferEndpoint* data_dst,
-               std::string* result) const override;
+               const std::optional<DataTransferEndpoint>& data_dst,
+               ReadRTFCallback callback) const override;
   void ReadPng(ClipboardBuffer buffer,
                const std::optional<DataTransferEndpoint>& data_dst,
                ReadPngCallback callback) const override;
-  void ReadDataTransferCustomData(ClipboardBuffer buffer,
-                                  const std::u16string& type,
-                                  const DataTransferEndpoint* data_dst,
-                                  std::u16string* result) const override;
+  void ReadDataTransferCustomData(
+      ClipboardBuffer buffer,
+      const std::u16string& type,
+      const std::optional<DataTransferEndpoint>& data_dst,
+      ReadDataTransferCustomDataCallback callback) const override;
   void ReadFilenames(ClipboardBuffer buffer,
-                     const DataTransferEndpoint* data_dst,
-                     std::vector<ui::FileInfo>* result) const override;
-  void ReadBookmark(const DataTransferEndpoint* data_dst,
-                    std::u16string* title,
-                    std::string* url) const override;
+                     const std::optional<DataTransferEndpoint>& data_dst,
+                     ReadFilenamesCallback callback) const override;
+  void ReadBookmark(const std::optional<DataTransferEndpoint>& data_dst,
+                    ReadBookmarkCallback callback) const override;
   void ReadData(const ClipboardFormatType& format,
-                const DataTransferEndpoint* data_dst,
-                std::string* result) const override;
+                const std::optional<DataTransferEndpoint>& data_dst,
+                ReadDataCallback callback) const override;
   base::Time GetLastModifiedTime() const override;
   void ClearLastModifiedTime() override;
   void WritePortableAndPlatformRepresentations(

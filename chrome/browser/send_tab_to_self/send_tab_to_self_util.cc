@@ -4,20 +4,66 @@
 
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
 
+#include <iterator>
+#include <optional>
+#include <ostream>
+
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
-#include "chrome/browser/sync/sync_service_factory.h"
-#include "components/prefs/pref_service.h"
+#include "components/autofill/content/browser/content_autofill_client.h"
+#include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/send_tab_to_self/features.h"
-#include "components/send_tab_to_self/send_tab_to_self_model.h"
+#include "components/send_tab_to_self/outgoing_tab_form_field_extractor.h"
+#include "components/send_tab_to_self/page_context.h"
+#include "components/send_tab_to_self/received_tab_forms_filler.h"
+#include "components/send_tab_to_self/send_tab_to_self_entry.h"
 #include "components/send_tab_to_self/send_tab_to_self_sync_service.h"
-#include "components/signin/public/base/signin_pref_names.h"
-#include "components/signin/public/identity_manager/account_info.h"
-#include "components/sync/service/sync_service.h"
+#include "components/shared_highlighting/core/common/text_fragment.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace send_tab_to_self {
+
+namespace {
+
+using ExtractorCallback = base::RepeatingCallback<
+    PageContext::FormFieldInfo(autofill::AutofillManager&, const url::Origin&)>;
+
+PageContext ExtractFormFieldsFromWebContentsInternal(
+    content::WebContents* web_contents,
+    ExtractorCallback extractor) {
+  if (!web_contents) {
+    return PageContext();
+  }
+
+  const url::Origin main_origin =
+      web_contents->GetPrimaryMainFrame()->GetLastCommittedOrigin();
+
+  PageContext context;
+
+  web_contents->ForEachRenderFrameHost([&](content::RenderFrameHost* rfh) {
+    autofill::ContentAutofillDriver* driver =
+        autofill::ContentAutofillDriver::GetForRenderFrameHost(rfh);
+    if (!driver) {
+      return;
+    }
+
+    PageContext::FormFieldInfo frame_info =
+        extractor.Run(driver->GetAutofillManager(), main_origin);
+    context.form_field_info.fields.insert(
+        context.form_field_info.fields.end(),
+        std::make_move_iterator(frame_info.fields.begin()),
+        std::make_move_iterator(frame_info.fields.end()));
+  });
+
+  return context;
+}
+
+}  // namespace
 
 std::optional<EntryPointDisplayReason> GetEntryPointDisplayReason(
     content::WebContents* web_contents) {
@@ -35,6 +81,55 @@ std::optional<EntryPointDisplayReason> GetEntryPointDisplayReason(
 
 bool ShouldDisplayEntryPoint(content::WebContents* web_contents) {
   return GetEntryPointDisplayReason(web_contents).has_value();
+}
+
+PageContext ExtractFormFieldsFromWebContents(
+    content::WebContents* web_contents) {
+  return ExtractFormFieldsFromWebContentsInternal(
+      web_contents, base::BindRepeating(&ExtractOutgoingTabFormFields));
+}
+
+PageContext ExtractFormFieldsFromWebContentsForTesting(  // IN-TEST
+    content::WebContents* web_contents,
+    std::ostream& os) {
+  return ExtractFormFieldsFromWebContentsInternal(
+      web_contents,
+      base::BindRepeating(
+          [](std::ostream* os, autofill::AutofillManager& manager,
+             const url::Origin& origin) {
+            return ExtractOutgoingTabFormFieldsForTesting(  // IN-TEST
+                manager, origin, *os);
+          },
+          &os));
+}
+
+void FillWebContents(content::WebContents* web_contents,
+                     const url::Origin& origin,
+                     const PageContext& page_context) {
+  if (!web_contents || page_context.form_field_info.fields.empty()) {
+    return;
+  }
+
+  autofill::ContentAutofillClient* autofill_client =
+      autofill::ContentAutofillClient::FromWebContents(web_contents);
+  if (autofill_client) {
+    ReceivedTabFormsFiller::Start(*autofill_client, origin,
+                                  page_context.form_field_info);
+  }
+}
+
+std::optional<std::string> GetScrollPositionAsTextFragment(
+    const SendTabToSelfEntry* entry) {
+  if (!base::FeatureList::IsEnabled(kSendTabToSelfPropagateScrollPosition) ||
+      !entry || entry->GetPageContext().scroll_position.IsEmpty()) {
+    return std::nullopt;
+  }
+
+  shared_highlighting::TextFragment tf =
+      entry->GetPageContext()
+          .scroll_position.text_fragment.ToSharedHighlightingTextFragment();
+  return tf.ToEscapedString(shared_highlighting::TextFragment::
+                                EscapedStringFormat::kWithoutTextDirective);
 }
 
 }  // namespace send_tab_to_self

@@ -30,6 +30,12 @@ chromium-metrics-reviews@google.com.
       summary=", from the default browser bubble dialog"/>
   <variant name=".DefaultBrowserInfoBar"
       summary=", from the default browser infobar"/>
+  <variant name=".DefaultBrowserModalDialogWithoutSettingsImage"
+      summary=", from the default browser modal dialog, without the settings
+               image showing"/>
+  <variant name=".DefaultBrowserModalDialogWithSettingsImage"
+      summary=", from the default browser modal dialog, with the settings
+               image showing"/>
   <variant name=".FirstRunExperience"
       summary=", from the first run experience"/>
   <variant name=".PinToTaskbarInfoBar"
@@ -52,7 +58,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.AutoDeElevateResult" enum="Hresult"
-    expires_after="2026-05-07">
+    expires_after="2026-08-30">
   <owner>wfh@chromium.org</owner>
   <owner>ssmole@microsoft.com</owner>
   <summary>
@@ -108,7 +114,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.Enclave.{Type}.Available" enum="BooleanAvailable"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>ajgo@chromium.org</owner>
   <owner>wfh@chromium.org</owner>
   <summary>
@@ -184,7 +190,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.InstallerDownloader.DestinationMatches" enum="Boolean"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>koretadaniel@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -194,7 +200,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.InstallerDownloader.DownloadSucceed" enum="Boolean"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>koretadaniel@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -205,7 +211,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.InstallerDownloader.FailureReason"
-    enum="InstallerDownloaderFailureReason" expires_after="2026-07-05">
+    enum="InstallerDownloaderFailureReason" expires_after="2026-09-06">
   <owner>koretadaniel@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -216,7 +222,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.InstallerDownloader.InfobarShown" enum="Boolean"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>koretadaniel@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -239,7 +245,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.InstallerDownloader.RequestAccepted" enum="Boolean"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>koretadaniel@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -276,7 +282,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.OneDriveSyncState.{SyncedState}" enum="BooleanEnabled"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>koretadaniel@chromium.org</owner>
   <owner>iclelland@chromium.org</owner>
   <summary>
@@ -392,7 +398,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.PlatformExperienceHelper.InstallerLaunchStatus.User"
-    enum="UserInstallerLaunchStatus" expires_after="2026-06-21">
+    enum="UserInstallerLaunchStatus" expires_after="2026-08-23">
   <owner>alsan@chromium.org</owner>
   <owner>chrome-desktop-ui-waterloo@google.com</owner>
   <summary>
@@ -425,6 +431,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Windows.ReplaceFileResult" enum="ReplaceFileResult"
+    expires_after="2027-03-02">
+  <owner>grt@chromium.org</owner>
+  <owner>tingshao@microsoft.com</owner>
+  <summary>
+    The result of a call to base::ReplaceFile. Logged every time when
+    base::ReplaceFile is called.
+  </summary>
+</histogram>
+
 <histogram name="Windows.ShouldPinToTaskbarResult{PinAppToTaskbarChannel}"
     enum="TaskbarPinResult" expires_after="2026-08-09">
   <owner>davidbienvenu@chromium.org</owner>
@@ -449,7 +465,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.TaskbarPinFromSettingsSucceeded" enum="Boolean"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>davidbienvenu@chromium.org</owner>
   <owner>jessemckenna@google.com</owner>
   <summary>
@@ -471,7 +487,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.TimeInSelectFileDialog" units="ms"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>fdoray@chromium.org</owner>
   <owner>pmonette@chromium.org</owner>
   <summary>
@@ -484,7 +500,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.Win11HardwareRequirements.{Type}Check"
-    enum="BooleanEnabled" expires_after="2026-06-21">
+    enum="BooleanEnabled" expires_after="2026-08-23">
   <owner>estalin@chromium.org</owner>
   <owner>davidbienvenu@chromium.org</owner>
   <summary>
@@ -501,7 +517,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Windows.Win11UpgradeEligible" enum="BooleanEnabled"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>estalin@chromium.org</owner>
   <owner>davidbienvenu@chromium.org</owner>
   <summary>

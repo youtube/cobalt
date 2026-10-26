@@ -51,13 +51,13 @@
 #include "chrome/browser/ash/login/app_mode/network_ui_controller.h"
 #include "chrome/browser/ash/login/screens/app_launch_splash_screen.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
-#include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/ui/ash/keyboard/chrome_keyboard_controller_client.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/webui/ash/login/app_launch_splash_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/network_state_informer.h"
 #include "chrome/browser/ui/webui/ash/system_web_dialog/system_web_dialog_delegate.h"
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
+#include "chromeos/ash/components/login/session/session_termination_manager.h"
 #include "chromeos/ash/components/network/network_handler.h"
 #include "chromeos/ash/components/network/network_state.h"
 #include "components/session_manager/core/session_manager.h"
@@ -324,18 +324,24 @@ class KioskLaunchController::ScopedAcceleratorDisabler {
 
 KioskLaunchController::KioskLaunchController(
     PrefService* local_state,
+    const policy::PolicyService* policy_service,
     LoginDisplayHost* host,
     AppLaunchedCallback app_launched_callback,
     AppLaunchSplashScreen* splash_screen,
     LaunchCompleteCallback done_callback)
     : KioskLaunchController(
           local_state,
+          policy_service,
           host,
           splash_screen,
           /*profile_loader=*/base::BindOnce(&LoadProfile),
           /*app_launched_callback=*/std::move(app_launched_callback),
           /*done_callback=*/std::move(done_callback),
-          /*attempt_relaunch=*/base::BindOnce(chrome::AttemptRelaunch),
+          /*attempt_relaunch=*/base::BindOnce([]() {
+            // TODO(crbug.com/479113713): Use better reason and description.
+            ash::SessionTerminationManager::Get()->Reboot(
+                power_manager::REQUEST_RESTART_OTHER, "Chrome relaunch");
+          }),
           /*attempt_logout=*/base::BindOnce([]() {
             session_manager::SessionManager::Get()->RequestSignOut();
           }),
@@ -345,6 +351,7 @@ KioskLaunchController::KioskLaunchController(
 
 KioskLaunchController::KioskLaunchController(
     PrefService* local_state,
+    const policy::PolicyService* policy_service,
     LoginDisplayHost* host,
     AppLaunchSplashScreen* splash_screen,
     LoadProfileCallback profile_loader,
@@ -356,6 +363,7 @@ KioskLaunchController::KioskLaunchController(
     std::unique_ptr<NetworkUiController::NetworkMonitor> network_monitor,
     std::unique_ptr<AcceleratorController> accelerator_controller)
     : local_state_(CHECK_DEREF(local_state)),
+      policy_service_(CHECK_DEREF(policy_service)),
       host_(host),
       splash_screen_(splash_screen),
       app_launcher_factory_(std::move(app_launcher_factory)),
@@ -589,7 +597,7 @@ void KioskLaunchController::OnAppPrepared() {
   UpdateSplashScreenData(GetSplashScreenAppData());
 
   force_install_observer_ = std::make_unique<app_mode::ForceInstallObserver>(
-      profile_,
+      policy_service_.get(), profile_,
       base::BindOnce(&KioskLaunchController::FinishForcedExtensionsInstall,
                      weak_ptr_factory_.GetWeakPtr()));
 }

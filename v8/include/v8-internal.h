@@ -320,9 +320,10 @@ constexpr size_t kExternalPointerTableReservationSize = 512 * MB;
 constexpr uint32_t kExternalPointerIndexShift = 6;
 #endif  // V8_TARGET_OS_ANDROID
 
-// The maximum number of entries in an external pointer table.
+// The byte size of an entry in an external pointer table.
 constexpr int kExternalPointerTableEntrySize = 8;
 constexpr int kExternalPointerTableEntrySizeLog2 = 3;
+// The maximum number of entries in an external pointer table.
 constexpr size_t kMaxExternalPointers =
     kExternalPointerTableReservationSize / kExternalPointerTableEntrySize;
 static_assert((1 << (32 - kExternalPointerIndexShift)) == kMaxExternalPointers,
@@ -641,8 +642,9 @@ enum ExternalPointerTag : uint16_t {
   kApiIndexedPropertyDefinerCallbackTag,
   kApiIndexedPropertyDeleterCallbackTag,
   kApiIndexedPropertyEnumeratorCallbackTag,
+  kApiIndexedPropertyIndexOfCallbackTag,
   kLastInterceptorInfoExternalPointerTag =
-      kApiIndexedPropertyEnumeratorCallbackTag,
+      kApiIndexedPropertyIndexOfCallbackTag,
 
   kLastMaybeReadOnlyExternalPointerTag = kLastInterceptorInfoExternalPointerTag,
 
@@ -670,9 +672,11 @@ enum ExternalPointerTag : uint16_t {
   kWasmFuncDataTag,
   kWasmManagedDataTag,
   kWasmNativeModuleTag,
+  kFirstSharedManagedExternalPointerTag,
+  kWasmFutexManagedObjectWaitListTag = kFirstSharedManagedExternalPointerTag,
+  kLastSharedManagedExternalPointerTag = kWasmFutexManagedObjectWaitListTag,
   kBackingStoreTag,
   kIcuBreakIteratorTag,
-  kIcuUnicodeStringTag,
   kIcuListFormatterTag,
   kIcuLocaleTag,
   kIcuSimpleDateFormatTag,
@@ -681,6 +685,7 @@ enum ExternalPointerTag : uint16_t {
   kIcuLocalizedNumberFormatterTag,
   kIcuPluralRulesTag,
   kIcuCollatorTag,
+  kIcuBreakIteratorWithTextTag,
   kTemporalDurationTag,
   kTemporalInstantTag,
   kTemporalPlainDateTag,
@@ -710,8 +715,6 @@ using ExternalPointerTagRange = TagRange<ExternalPointerTag>;
 
 constexpr ExternalPointerTagRange kAnyExternalPointerTagRange(
     kFirstExternalPointerTag, kLastExternalPointerTag);
-constexpr ExternalPointerTagRange kAnySharedExternalPointerTagRange(
-    kFirstSharedExternalPointerTag, kLastSharedExternalPointerTag);
 constexpr ExternalPointerTagRange kAnyForeignExternalPointerTagRange(
     kFirstForeignExternalPointerTag, kLastForeignExternalPointerTag);
 constexpr ExternalPointerTagRange kAnyInterceptorInfoExternalPointerTagRange(
@@ -724,12 +727,21 @@ constexpr ExternalPointerTagRange kAnyMaybeReadOnlyExternalPointerTagRange(
     kLastMaybeReadOnlyExternalPointerTag);
 constexpr ExternalPointerTagRange kAnyManagedResourceExternalPointerTag(
     kFirstManagedResourceTag, kLastManagedResourceTag);
+constexpr ExternalPointerTagRange kAnySharedManagedExternalPointerTagRange(
+    kFirstSharedManagedExternalPointerTag,
+    kLastSharedManagedExternalPointerTag);
 
 // True if the external pointer must be accessed from the shared isolate's
 // external pointer table.
 V8_INLINE static constexpr bool IsSharedExternalPointerType(
     ExternalPointerTagRange tag_range) {
-  return kAnySharedExternalPointerTagRange.Contains(tag_range);
+  // This range should only be used together with
+  // kAnySharedManagedExternalPointerTagRange in this predicate. Therefore
+  // it is defined in this scope.
+  constexpr ExternalPointerTagRange kAnySharedExternalPointerTagRange(
+      kFirstSharedExternalPointerTag, kLastSharedExternalPointerTag);
+  return kAnySharedExternalPointerTagRange.Contains(tag_range) ||
+         kAnySharedManagedExternalPointerTagRange.Contains(tag_range);
 }
 
 // True if the external pointer may live in a read-only object, in which case
@@ -815,9 +827,10 @@ constexpr uint32_t kTrustedPointerHandleShift = 9;
 constexpr TrustedPointerHandle kNullTrustedPointerHandle =
     kNullIndirectPointerHandle;
 
-// The maximum number of entries in an trusted pointer table.
+// The byte size of an entry in the trusted pointer table.
 constexpr int kTrustedPointerTableEntrySize = 8;
 constexpr int kTrustedPointerTableEntrySizeLog2 = 3;
+// The maximum number of entries in the trusted pointer table.
 constexpr size_t kMaxTrustedPointers =
     kTrustedPointerTableReservationSize / kTrustedPointerTableEntrySize;
 static_assert((1 << (32 - kTrustedPointerHandleShift)) == kMaxTrustedPointers,
@@ -863,9 +876,10 @@ constexpr uint32_t kCodePointerHandleMarker = 0x1;
 static_assert(kCodePointerHandleShift > 0);
 static_assert(kTrustedPointerHandleShift > 0);
 
-// The maximum number of entries in a code pointer table.
+// The byte size of an entry in a code pointer table.
 constexpr int kCodePointerTableEntrySize = 16;
 constexpr int kCodePointerTableEntrySizeLog2 = 4;
+// The maximum number of entries in a code pointer table.
 constexpr size_t kMaxCodePointers =
     kCodePointerTableReservationSize / kCodePointerTableEntrySize;
 static_assert(
@@ -1246,6 +1260,11 @@ class Internals {
   V8_INLINE static bool IsExternalTwoByteString(int instance_type) {
     int representation = (instance_type & kStringRepresentationAndEncodingMask);
     return representation == kExternalTwoByteRepresentationTag;
+  }
+
+  V8_INLINE static bool IsExternalOneByteString(int instance_type) {
+    int representation = (instance_type & kStringRepresentationAndEncodingMask);
+    return representation == kExternalOneByteRepresentationTag;
   }
 
   V8_INLINE static constexpr bool CanHaveInternalField(int instance_type) {

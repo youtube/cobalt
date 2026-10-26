@@ -163,16 +163,29 @@ class BrowserAutofillManager : public AutofillManager {
                                  const FillingPayload& filling_payload,
                                  AutofillTriggerSource trigger_source);
 
+  // Fills or previews `form` with the information in `filling_payload`.
+  // `blocked_fields` are fields which must not be filled because another
+  // filling product of higher priority claims them.
+  //
+  // TODO(crbug.com/489959284): Add blocked_fields to the signature of
+  // FillOrPreviewForm and remove this method.
+  virtual void FillOrPreviewFields(
+      mojom::ActionPersistence action_persistence,
+      const FormData& form,
+      const FieldGlobalId& field_id,
+      const FillingPayload& filling_payload,
+      AutofillTriggerSource trigger_source,
+      const base::flat_set<FieldGlobalId>& blocked_fields);
+
   // Routes calls from external components to FormFiller::FillOrPreviewField.
-  // Virtual for testing.
   // TODO(crbug.com/40227496): Replace FormFieldData parameter by FieldGlobalId.
-  virtual void FillOrPreviewField(mojom::ActionPersistence action_persistence,
-                                  mojom::FieldActionType action_type,
-                                  const FormData& form,
-                                  const FormFieldData& field,
-                                  const std::u16string& value,
-                                  SuggestionType type,
-                                  std::optional<FieldType> field_type_used);
+  void FillOrPreviewField(mojom::ActionPersistence action_persistence,
+                          mojom::FieldActionType action_type,
+                          const FormData& form,
+                          const FormFieldData& field,
+                          const std::u16string& value,
+                          SuggestionType type,
+                          std::optional<FieldType> field_type_used) override;
 
   // Logs metrics when the user accepts address form filling suggestion. This
   // happens only for already parsed forms (`FormStructure` and `AutofillField`
@@ -428,12 +441,16 @@ class BrowserAutofillManager : public AutofillManager {
   // `trigger_source` is the reason for triggering the filling operation.
   // `action_persistence` denotes whether the operation is a filling or preview
   // operation.
-  void FillOrPreviewCreditCardForm(mojom::ActionPersistence action_persistence,
-                                   const FormData& form,
-                                   const FormStructure& form_structure,
-                                   const AutofillField& autofill_field,
-                                   const CreditCard& credit_card,
-                                   AutofillTriggerSource trigger_source);
+  // `blocked_fields` are fields which must not be filled because another
+  // filling product of higher priority claims them.
+  void FillOrPreviewCreditCardForm(
+      mojom::ActionPersistence action_persistence,
+      const FormData& form,
+      const FormStructure& form_structure,
+      const AutofillField& autofill_field,
+      const CreditCard& credit_card,
+      AutofillTriggerSource trigger_source,
+      const base::flat_set<FieldGlobalId>& blocked_fields);
 
   // If `metrics_->initial_interaction_timestamp` is unset or is set to a later
   // time than `interaction_timestamp`, updates the cached timestamp.  The
@@ -495,6 +512,21 @@ class BrowserAutofillManager : public AutofillManager {
       base::TimeTicks suggestion_generation_start_time,
       std::vector<SuggestionGenerator::ReturnedSuggestions>
           returned_suggestions);
+
+  // Merges suggestions with `FillingProduct::kAddress` with the other
+  // suggestions whose products supports merging with address suggestions (see
+  // `kSupportedMerges` in `suggestion_generator.h` for more details).
+  std::vector<Suggestion> MergeWithAddressSuggestions(
+      std::map<FillingProduct, std::vector<Suggestion>>& suggestions_map,
+      const FormGlobalId& form_id,
+      const FieldGlobalId& field_id,
+      AutofillSuggestionTriggerSource trigger_source);
+
+  // Merges suggestions with `FillingProduct::kPlusAddress` with the other
+  // suggestions whose products supports merging with plus address suggestions
+  // (see `kSupportedMerges` in `suggestion_generator.h` for more details).
+  std::vector<Suggestion> MergeWithPlusAddressSuggestions(
+      std::map<FillingProduct, std::vector<Suggestion>>& suggestions_map);
 
   // Generates and prioritizes different kinds of suggestions and
   // suggestion surfaces accordingly (Autofill AI, SingleFieldFiller(s), address
@@ -575,16 +607,43 @@ class BrowserAutofillManager : public AutofillManager {
       bool show_suggestions,
       std::vector<Suggestion> suggestions);
 
+  // Combines passkey suggestion and existing suggestions into a single list,
+  // prioritizing existing suggestions first.
+  void MergePasskeysAndExistingSuggestions(std::vector<Suggestion>& suggestions,
+                                           Suggestion passkey_suggestions);
+
+  // Creates passkey suggestion that will be used in
+  // MergePasskeysIntoExistingSuggestions.
+  // TODO(crbug.com/409962888): Remove after new suggestion generation logic is
+  // launched.
+  std::optional<Suggestion> CreatePasskeySuggestionForMerge(
+      const FormFieldData& field);
+
+  // Combines autocomplete suggestions and plus address suggestions into a
+  // single list, prioritizing plus address suggestions first.
+  // Note: out of all single field suggestions, only autocomplete suggestions
+  // are mergeable with plus address suggestions. Other (IBAN, Merchant codes)
+  // are incompatible with plus addresses.
+  void MergeAutocompleteAndPlusAddressSuggestions(
+      std::vector<Suggestion>& plus_address_suggestions,
+      std::vector<Suggestion> single_field_suggestions,
+      AutofillPlusAddressDelegate::SuggestionContext suggestions_context);
+
+  // Combines identity credential suggestions and existing suggestions into a
+  // single list, prioritizing identity credential suggestions first.
+  void MergeIdentityCredentialsAndAddressSuggestions(
+      std::vector<Suggestion>& suggestion,
+      std::vector<Suggestion> identity_credential_suggestions);
+
   // Combines plus address and address profile suggestions into a single list,
   // prioritizing plus address suggestions first. Runs `callback` with the
   // resulting list of suggestions.
-  void MixPlusAddressAndAddressSuggestions(
-      std::vector<Suggestion> plus_address_suggestions,
-      std::vector<Suggestion> address_suggestions,
-      AutofillPlusAddressDelegate::SuggestionContext suggestions_context,
+  void MergeAddressAndPlusAddressSuggestions(
+      std::vector<Suggestion>& plus_address_suggestions,
+      std::vector<Suggestion> suggestions,
+      AutofillSuggestionTriggerSource trigger_source,
       const FormGlobalId& form_id,
-      const FieldGlobalId& field_id,
-      OnGenerateSuggestionsCallback callback);
+      const FieldGlobalId& field_id);
 
   // Iterate through all the fields in the form to process the log events for
   // each field and record into FieldInfo UKM event.

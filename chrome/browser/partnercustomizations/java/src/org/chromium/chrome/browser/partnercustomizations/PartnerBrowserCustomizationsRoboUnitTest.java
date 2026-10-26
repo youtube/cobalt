@@ -8,9 +8,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import android.os.Handler;
-import android.os.Looper;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -18,12 +15,10 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.robolectric.annotation.Config;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.ContextUtils;
-import org.chromium.base.task.TaskTraits;
-import org.chromium.base.task.test.ShadowPostTask;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -34,7 +29,7 @@ import org.chromium.url.JUnitTestGURLs;
 
 /** Unit tests for {@link PartnerBrowserCustomizations}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(shadows = {ShadowPostTask.class})
+@Config(manifest = Config.NONE)
 @EnableFeatures(ChromeFeatureList.PARTNER_CUSTOMIZATIONS_UMA)
 public class PartnerBrowserCustomizationsRoboUnitTest {
     @Mock private ActivityLifecycleDispatcher mActivityLifecycleDispatcherMock;
@@ -43,16 +38,6 @@ public class PartnerBrowserCustomizationsRoboUnitTest {
     public void setup() {
         CustomizationProviderDelegateUpstreamImpl.setHomepageForTesting(
                 JUnitTestGURLs.EXAMPLE_URL.getSpec());
-        ShadowPostTask.setTestImpl(
-                new ShadowPostTask.TestImpl() {
-                    final Handler mHandler = new Handler(Looper.getMainLooper());
-
-                    @Override
-                    public void postDelayedTask(
-                            @TaskTraits int taskTraits, Runnable task, long delay) {
-                        mHandler.postDelayed(task, delay);
-                    }
-                });
 
         MockitoAnnotations.openMocks(this);
     }
@@ -68,7 +53,7 @@ public class PartnerBrowserCustomizationsRoboUnitTest {
         PartnerBrowserCustomizations.getInstance()
                 .initializeAsync(ContextUtils.getApplicationContext());
         // Run one task, so AsyncTask#doInBackground is run, but not #onFinalized.
-        ShadowLooper.runMainLooperOneTask();
+        RobolectricUtil.runOneBackgroundTask();
         assertFalse(
                 "The homepage refreshed, but result is not yet posted on UI thread.",
                 PartnerBrowserCustomizations.getInstance().isInitialized());
@@ -83,7 +68,7 @@ public class PartnerBrowserCustomizationsRoboUnitTest {
                 "#initializeAsync should be in progress.",
                 PartnerBrowserCustomizations.getInstance().isInitialized());
 
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertTrue(
                 "#initializeAsync should be done.",
                 PartnerBrowserCustomizations.getInstance().isInitialized());
@@ -98,7 +83,7 @@ public class PartnerBrowserCustomizationsRoboUnitTest {
                 "3rd #initializeAsync should be in progress.",
                 PartnerBrowserCustomizations.getInstance().isInitialized());
 
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertTrue(
                 "3rd #initializeAsync should be done.",
                 PartnerBrowserCustomizations.getInstance().isInitialized());
@@ -129,7 +114,7 @@ public class PartnerBrowserCustomizationsRoboUnitTest {
         PartnerBrowserCustomizations.getInstance()
                 .initializeAsync(ContextUtils.getApplicationContext());
         // Run one task, so AsyncTask#doInBackground is run, but not #onFinalized.
-        ShadowLooper.runMainLooperOneTask();
+        RobolectricUtil.runOneBackgroundTask();
 
         // Simulate CTA#createInitialTab: Create an NTP when the delegate says Partner Homepage.
         // TODO(donnd): call this as an async callback through setOnInitializeAsyncFinished.
@@ -140,7 +125,7 @@ public class PartnerBrowserCustomizationsRoboUnitTest {
                         HomepageCharacterizationHelperStub::ntpHelper);
 
         // Trigger Async completion.
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         // Make sure the Outcome logged to UMA is correct.
         histograms.assertExpected();

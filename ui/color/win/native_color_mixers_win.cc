@@ -218,6 +218,7 @@ void AddNativeUiColorMixer(ColorProvider* provider,
   mixer[kColorButtonBackgroundProminentFocused] = {kColorNativeHighlight};
   mixer[kColorHelpIconActive] = {kColorNativeHighlight};
   mixer[kColorItemSelectionBackground] = {kColorNativeHighlight};
+  mixer[kColorMenuButtonBackgroundSelected] = {kColorNativeHighlight};
   mixer[kColorMenuSelectionBackground] = {kColorNativeHighlight};
   mixer[kColorSubtleAccent] = {kColorNativeHighlight};
   mixer[kColorTableBackgroundSelectedFocused] = {kColorNativeHighlight};
@@ -235,6 +236,11 @@ void AddNativeUiColorMixer(ColorProvider* provider,
   mixer[kColorTreeNodeForegroundSelectedUnfocused] = {
       kColorNativeHighlightText};
   mixer[kColorButtonForegroundProminent] = {kColorNativeHighlightText};
+
+  // Toast
+  mixer[kColorToastBackgroundProminent] = {kColorNativeWindow};
+  mixer[kColorToastForeground] = {kColorNativeWindowText};
+  mixer[kColorToastButton] = {kColorNativeWindowText};
 }
 
 }  // namespace ui

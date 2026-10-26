@@ -13,6 +13,7 @@
 #import "ios/chrome/browser/drive/model/drive_service.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/signin/model/authentication_service.h"
 
 namespace {
 
@@ -39,7 +40,8 @@ namespace drive {
 bool IsSaveToDriveAvailable(bool is_incognito,
                             signin::IdentityManager* identity_manager,
                             drive::DriveService* drive_service,
-                            PrefService* pref_service) {
+                            PrefService* pref_service,
+                            AuthenticationService* auth_service) {
   // Check if DriveService is supported.
   if (!drive_service || !drive_service->IsSupported()) {
     return false;
@@ -58,10 +60,16 @@ bool IsSaveToDriveAvailable(bool is_incognito,
     return false;
   }
 
-  // Check user is signed in.
-  if (!identity_manager ||
-      !identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+  // Drive is unavailable if the user can’t sign-in.
+  if (!auth_service->SigninEnabled()) {
     return false;
+  }
+  if (!base::FeatureList::IsEnabled(kIOSSaveToDriveSignedOut)) {
+    // Check user is signed in.
+    if (!identity_manager ||
+        !identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+      return false;
+    }
   }
 
   return true;
@@ -93,12 +101,14 @@ bool IsChooseFromDriveAvailable(web::WebState* web_state,
     return false;
   }
 
-  // Check user is signed in.
-  if (!identity_manager ||
-      !identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
-    base::UmaHistogramEnumeration("IOS.FilePicker.Drive.Displayed",
-                                  FilePickerDriveDisplayed::kNotSignedIn);
-    return false;
+  if (!base::FeatureList::IsEnabled(kIOSChooseFromDriveSignedOut)) {
+    // Check user is signed in.
+    if (!identity_manager ||
+        !identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+      base::UmaHistogramEnumeration("IOS.FilePicker.Drive.Displayed",
+                                    FilePickerDriveDisplayed::kNotSignedIn);
+      return false;
+    }
   }
 
   // Check enterprise policy.

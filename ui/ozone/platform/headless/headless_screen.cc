@@ -16,6 +16,7 @@
 #include "components/headless/screen_info/headless_screen_info.h"
 #include "ui/display/display.h"
 #include "ui/display/headless/headless_screen_manager.h"
+#include "ui/display/headless/headless_screen_util.h"
 #include "ui/display/util/display_util.h"
 #include "ui/gfx/switches.h"
 #include "ui/ozone/platform/headless/headless_window.h"
@@ -24,6 +25,9 @@
 #include "ui/ozone/public/ozone_platform.h"
 #include "ui/ozone/public/ozone_switches.h"
 
+using display::Display;
+using display::DisplayList;
+using display::DisplayObserver;
 using headless::HeadlessScreenInfo;
 
 namespace ui {
@@ -117,17 +121,17 @@ void HeadlessScreen::CreateDisplayList() {
   std::vector<HeadlessScreenInfo> screen_info = GetScreenInfo();
 
   base::flat_set<int64_t> internal_display_ids;
-  display::DisplayList::Type type = display::DisplayList::Type::PRIMARY;
+  DisplayList::Type type = DisplayList::Type::PRIMARY;
   for (const auto& it : screen_info) {
-    display::Display display(display::HeadlessScreenManager::GetNewDisplayId());
+    Display display(display::HeadlessScreenManager::GetNewDisplayId());
     display.set_label(it.label);
     display.set_color_depth(it.color_depth);
 
-    display::HeadlessScreenManager::SetDisplayGeometry(
-        display, it.bounds, it.work_area_insets, it.device_pixel_ratio);
+    headless::SetDisplayGeometry(display, it.bounds, it.work_area_insets,
+                                 it.device_pixel_ratio);
 
     if (it.rotation) {
-      CHECK(display::Display::IsValidRotation(it.rotation));
+      CHECK(Display::IsValidRotation(it.rotation));
       display.SetRotationAsDegree(it.rotation);
     }
 
@@ -135,25 +139,27 @@ void HeadlessScreen::CreateDisplayList() {
       internal_display_ids.insert(display.id());
     }
 
-    is_natural_landscape_map_.insert({display.id(), display.is_landscape()});
-
     display_list_.AddDisplay(display, type);
 
-    type = display::DisplayList::Type::NOT_PRIMARY;
+    type = DisplayList::Type::NOT_PRIMARY;
   }
 
   display::SetInternalDisplayIds(std::move(internal_display_ids));
 }
 
-int64_t HeadlessScreen::AddDisplay(const display::Display& display) {
-  display::Display new_display(display);
+int64_t HeadlessScreen::AddDisplay(const Display& display) {
+  Display new_display(display);
   new_display.set_id(display::HeadlessScreenManager::GetNewDisplayId());
 
   bool is_primary = display_list_.displays().empty();
-  display_list_.AddDisplay(
-      new_display, is_primary ? display::DisplayList::Type::PRIMARY
-                              : display::DisplayList::Type::NOT_PRIMARY);
+  display_list_.AddDisplay(new_display, is_primary
+                                            ? DisplayList::Type::PRIMARY
+                                            : DisplayList::Type::NOT_PRIMARY);
   return new_display.id();
+}
+
+void HeadlessScreen::UpdateDisplay(const Display& display) {
+  display_list_.UpdateDisplay(display);
 }
 
 void HeadlessScreen::RemoveDisplay(int64_t display_id) {
@@ -161,17 +167,21 @@ void HeadlessScreen::RemoveDisplay(int64_t display_id) {
   display::RemoveInternalDisplayId(display_id);
 }
 
-const std::vector<display::Display>& HeadlessScreen::GetAllDisplays() const {
+void HeadlessScreen::SetPrimaryDisplay(int64_t display_id) {
+  headless::SetPrimaryDisplay(display_list_, display_id);
+}
+
+const std::vector<Display>& HeadlessScreen::GetAllDisplays() const {
   return display_list_.displays();
 }
 
-display::Display HeadlessScreen::GetPrimaryDisplay() const {
+Display HeadlessScreen::GetPrimaryDisplay() const {
   auto iter = display_list_.GetPrimaryDisplayIterator();
   CHECK(iter != display_list_.displays().end());
   return *iter;
 }
 
-display::Display HeadlessScreen::GetDisplayForAcceleratedWidget(
+Display HeadlessScreen::GetDisplayForAcceleratedWidget(
     gfx::AcceleratedWidget widget) const {
   if (HeadlessWindow* window = window_manager_->GetWindow(widget)) {
     gfx::Rect bounds = window->GetBoundsInPixels();
@@ -190,8 +200,7 @@ gfx::AcceleratedWidget HeadlessScreen::GetAcceleratedWidgetAtScreenPoint(
   return window_manager_->GetAcceleratedWidgetAtScreenPoint(point);
 }
 
-display::Display HeadlessScreen::GetDisplayNearestPoint(
-    const gfx::Point& point) const {
+Display HeadlessScreen::GetDisplayNearestPoint(const gfx::Point& point) const {
   if (auto display =
           headless::GetDisplayFromScreenPoint(GetAllDisplays(), point)) {
     return display.value();
@@ -200,8 +209,7 @@ display::Display HeadlessScreen::GetDisplayNearestPoint(
   return GetPrimaryDisplay();
 }
 
-display::Display HeadlessScreen::GetDisplayMatching(
-    const gfx::Rect& match_rect) const {
+Display HeadlessScreen::GetDisplayMatching(const gfx::Rect& match_rect) const {
   if (auto display =
           headless::GetDisplayFromScreenRect(GetAllDisplays(), match_rect)) {
     return display.value();
@@ -220,11 +228,11 @@ base::TimeDelta HeadlessScreen::CalculateIdleTime() const {
   return base::Seconds(0);
 }
 
-void HeadlessScreen::AddObserver(display::DisplayObserver* observer) {
+void HeadlessScreen::AddObserver(DisplayObserver* observer) {
   display_list_.AddObserver(observer);
 }
 
-void HeadlessScreen::RemoveObserver(display::DisplayObserver* observer) {
+void HeadlessScreen::RemoveObserver(DisplayObserver* observer) {
   display_list_.RemoveObserver(observer);
 }
 

@@ -31,6 +31,9 @@ namespace blink::scheduler {
 
 namespace {
 
+BASE_FEATURE(kTaskAttributionClearStateOnNestedEventLoop,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 perfetto::protos::pbzero::BlinkTaskScope::TaskScopeType ToProtoEnum(
     TaskAttributionTracker::TaskScopeType type) {
   using ProtoType = perfetto::protos::pbzero::BlinkTaskScope::TaskScopeType;
@@ -150,9 +153,20 @@ std::optional<TaskAttributionTracker::TaskScope>
 TaskAttributionTrackerImpl::SetCurrentTaskStateIfTopLevel(
     TaskAttributionInfo* task_state,
     TaskScopeType type) {
+  bool should_override_top_level_check =
+      std::exchange(should_override_top_level_check_, false);
+  // Since we only propagate for top-level script and task state is cleared
+  // after running script, there is no need to clear the task state if
+  // `task_state` is null.
+  if (!task_state) {
+    return std::nullopt;
+  }
   // Don't propagate `task_state` if JavaScript is running, e.g. if dispatching
-  // a synchronous event.
-  if (!task_state || isolate_->InContext()) {
+  // a synchronous event, unless overridden.
+  //
+  // TODO(crbug.com/490536691): This should be replaced with a better mechanism
+  // of detecting if JavaScript is currently executing.
+  if (!should_override_top_level_check && isolate_->InContext()) {
     return std::nullopt;
   }
   return SetCurrentTaskStateImpl(UnsafeTo<TaskAttributionInfoImpl>(task_state),
@@ -287,6 +301,32 @@ void TaskAttributionTrackerImpl::BeginMicrotaskTrace() {
 
 void TaskAttributionTrackerImpl::EndMicrotaskTrace() {
   EndBlinkTaskStateTrace();
+}
+
+void TaskAttributionTrackerImpl::OnBeginNestedRunLoop() {
+  if (!base::FeatureList::IsEnabled(
+          kTaskAttributionClearStateOnNestedEventLoop)) {
+    return;
+  }
+  auto* state = TaskAttributionTaskState::GetCurrent(isolate_);
+  nested_event_loop_task_state_.emplace_back(state);
+  if (state) {
+    TaskAttributionTaskState::SetCurrent(isolate_, nullptr);
+  }
+}
+
+void TaskAttributionTrackerImpl::OnExitNestedRunLoop() {
+  if (!base::FeatureList::IsEnabled(
+          kTaskAttributionClearStateOnNestedEventLoop)) {
+    return;
+  }
+  CHECK_GT(nested_event_loop_task_state_.size(), 0u);
+  TaskAttributionTaskState* state = nested_event_loop_task_state_.back().Get();
+  nested_event_loop_task_state_.pop_back();
+  DCHECK(!TaskAttributionTaskState::GetCurrent(isolate_));
+  if (state) {
+    TaskAttributionTaskState::SetCurrent(isolate_, state);
+  }
 }
 
 }  // namespace blink::scheduler

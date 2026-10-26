@@ -54,7 +54,6 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
-import org.robolectric.shadows.ShadowLooper;
 import org.robolectric.shadows.ShadowToast;
 import org.robolectric.util.ReflectionHelpers;
 
@@ -65,6 +64,7 @@ import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
@@ -170,8 +170,8 @@ public class TabStripDragHandlerTest {
     private Tab mTabBeingDragged2;
     private Tab mGroupedTab1;
     private Tab mGroupedTab2;
-    private final ArrayList<Tab> mTabGroupBeingDragged = new ArrayList();
-    private final ArrayList<Tab> mTabsBeingDragged = new ArrayList();
+    private final ArrayList<Tab> mTabGroupBeingDragged = new ArrayList<>();
+    private final ArrayList<Tab> mTabsBeingDragged = new ArrayList<>();
     private TabGroupMetadata mTabGroupMetadata;
     private static final PointF DRAG_START_POINT = new PointF(250, 0);
     private static final float TAB_POSITION_X = 200f;
@@ -955,20 +955,20 @@ public class TabStripDragHandlerTest {
 
     /** Test for Tab Drag {@link #ONDRAG_TEST_CASES} - Scenario F */
     @Test
-    public void test_onDrag_exitIntoToolbarAndRenterStripAndDrop_source() {
-        doTestExitIntoSourceToolbarAndRenterStripAndDrop(/* isGroupDrag= */ false);
+    public void test_onDrag_exitIntoToolbarAndReenterStripAndDrop_source() {
+        doTestExitIntoSourceToolbarAndReenterStripAndDrop(/* isGroupDrag= */ false);
     }
 
     /** Test for Tab Group Drag {@link #ONDRAG_TEST_CASES} - Scenario F */
     @Test
-    public void test_onDrag_exitIntoToolbarAndRenterStripAndDrop_source_tabGroup() {
-        doTestExitIntoSourceToolbarAndRenterStripAndDrop(/* isGroupDrag= */ true);
+    public void test_onDrag_exitIntoToolbarAndReenterStripAndDrop_source_tabGroup() {
+        doTestExitIntoSourceToolbarAndReenterStripAndDrop(/* isGroupDrag= */ true);
     }
 
     /** Test for Multi-Tab Drag {@link #ONDRAG_TEST_CASES} - Scenario F */
     @Test
-    public void test_onDrag_exitIntoToolbarAndRenterStripAndDrop_source_multiTab() {
-        doTestExitIntoSourceToolbarAndRenterStripAndDrop_multiTab();
+    public void test_onDrag_exitIntoToolbarAndReenterStripAndDrop_source_multiTab() {
+        doTestExitIntoSourceToolbarAndReenterStripAndDrop_multiTab();
     }
 
     /** Test for Tab and Tab Group Drag{@link #ONDRAG_TEST_CASES} - Scenario G.1 */
@@ -1709,7 +1709,7 @@ public class TabStripDragHandlerTest {
         histogramExpectation.assertExpected();
     }
 
-    private void doTestExitIntoSourceToolbarAndRenterStripAndDrop(boolean isGroupDrag) {
+    private void doTestExitIntoSourceToolbarAndReenterStripAndDrop(boolean isGroupDrag) {
         String resultHistogram =
                 String.format(
                         "Android.DragDrop.%s.FromStrip.Result", isGroupDrag ? "TabGroup" : "Tab");
@@ -1756,7 +1756,7 @@ public class TabStripDragHandlerTest {
         histogramExpectation.assertExpected();
     }
 
-    private void doTestExitIntoSourceToolbarAndRenterStripAndDrop_multiTab() {
+    private void doTestExitIntoSourceToolbarAndReenterStripAndDrop_multiTab() {
         String resultHistogram = "Android.DragDrop.MultiTab.FromStrip.Result";
         String reorderHistogram = "Android.DragDrop.MultiTab.ReorderStripWithDragDrop";
         HistogramWatcher histogramExpectation =
@@ -1877,7 +1877,7 @@ public class TabStripDragHandlerTest {
                         .getShadowShownForTesting());
 
         // Verify the drag shadow is visible after the runnable completes.
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertTrue(
                 "Drag shadow should now be visible.",
                 ((TabDragShadowBuilder) DragDropGlobalState.getDragShadowBuilder())
@@ -1919,7 +1919,7 @@ public class TabStripDragHandlerTest {
                         POS_X,
                         mPosY,
                         isGroupDrag ? DragType.TAB_GROUP : DragType.SINGLE_TAB));
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertFalse(
                 "Drag shadow should still not visible.",
                 ((TabDragShadowBuilder) DragDropGlobalState.getDragShadowBuilder())

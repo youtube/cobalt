@@ -88,6 +88,11 @@ enum ImportExportKindCode : uint8_t {
   kExternalExactFunction = kExternalFunction | kExternalExactBit,
 };
 
+enum CompactImportCode : uint8_t {
+  kCompactImportByModule = 0x7F,
+  kCompactImportByModuleAndType = 0x7E,
+};
+
 // The limits structure: valid for both memory and table limits.
 enum LimitsFlags : uint8_t {
   kNoMaximum = 0x00,
@@ -162,8 +167,6 @@ constexpr char kCallTargetsString[] = "metadata.code.call_targets";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = "external_debug_info";
 constexpr char kBuildIdString[] = "build_id";
-// TODO(403372470): Rename to "descriptors" when finalized.
-constexpr char kDescriptorsString[] = "experimental-descriptors";
 
 // Binary encoding of name section kinds.
 enum NameSectionKindCode : uint8_t {

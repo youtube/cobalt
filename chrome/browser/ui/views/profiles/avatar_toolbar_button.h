@@ -39,6 +39,8 @@ enum class AvatarDelayType {
   kSigninPendingText,
   // Delay for the promo that are shown by expanding the button.
   kPromo,
+  // Delay for the Promo trigger for signed out profiles.
+  kSignedOutPromo,
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 };
 
@@ -121,7 +123,6 @@ class AvatarToolbarButton : public ToolbarButton,
   void OnThemeChanged() override;
   void UpdateIcon() override;
   void Layout(PassKey) override;
-  int GetIconSize() const override;
   SkColor GetForegroundColor(ButtonState state) const override;
   std::optional<SkColor> GetHighlightTextColor() const override;
   std::optional<SkColor> GetHighlightBorderColor() const override;
@@ -166,6 +167,10 @@ class AvatarToolbarButton : public ToolbarButton,
   // necessary to bypass resetting the profile - e.g. when attempting to reach
   // the limit counts.
   void ForceShowingPromoForTesting();
+
+  // Returns whether the delay timer was running or not.
+  // Stops the timer if it is running.
+  bool GetStateAndFireSignedOutTriggerDelayTimerForTesting();
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
  private:
@@ -179,6 +184,11 @@ class AvatarToolbarButton : public ToolbarButton,
 
   // ui::PropertyHandler:
   void AfterPropertyChange(const void* key, int64_t old_value) override;
+
+  // Swaps STATE_NORMAL icon between normal and hovered versions based on
+  // ink drop highlight state. Called when the highlight changes in
+  // forced-colors mode.
+  void OnInkDropHighlightedChanged();
 
   // Updates the layout insets depending on whether it is a chip or a button.
   void UpdateLayoutInsets();
@@ -223,6 +233,15 @@ class AvatarToolbarButton : public ToolbarButton,
   // remembered following a web sign-in event but waiting for the available
   // account information to be fetched in order to show the sign in IPH.
   GaiaId gaia_id_for_signin_choice_remembered_;
+
+  // Cached icons for the placeholder avatar in forced-colors mode, to avoid
+  // recomputing on every ink drop highlight change. Empty when not in
+  // forced-colors mode or when the icon is not a placeholder.
+  ui::ImageModel forced_colors_normal_icon_;
+  ui::ImageModel forced_colors_hovered_icon_;
+
+  // Subscription for ink drop highlight changes (forced-colors mode).
+  base::CallbackListSubscription ink_drop_highlight_subscription_;
 
   gfx::SlideAnimation slide_animation_;
 

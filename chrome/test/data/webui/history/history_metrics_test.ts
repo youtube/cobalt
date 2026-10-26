@@ -7,7 +7,6 @@ import 'chrome://history/history.js';
 import type {HistoryAppElement, HistoryEntry, HistoryItemElement} from 'chrome://history/history.js';
 import {BrowserServiceImpl, HistoryPageViewHistogram, HistorySignInState, SYNCED_TABS_HISTOGRAM_NAME, SyncedTabsHistogram, SyncState, VisitContextMenuAction} from 'chrome://history/history.js';
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
@@ -21,9 +20,6 @@ suite('Metrics', function() {
   let actionMap: {[key: string]: number};
 
   suiteSetup(function() {
-    loadTimeData.overrideValues(
-        {enableBrowsingHistoryActorIntegrationM1: true});
-
     disableLinkClicks();
   });
 
@@ -63,7 +59,7 @@ suite('Metrics', function() {
    */
   async function contextMenuButtonClick(
       historyItem: HistoryItemElement, buttonId: string) {
-    historyItem.$['menu-button'].click();
+    historyItem.$.menuButton.click();
     await microtasksFinished();
 
     const sharedMenu = app.$.history.$.sharedMenu.get();
@@ -174,7 +170,7 @@ suite('Metrics', function() {
 
     // items = app.$.history.shadowRoot.querySelectorAll('history-item');
     // assertTrue(!!items[0]);
-    // items[0].$['menu-button'].click();
+    // items[0].$.menuButton.click();
     // await microtasksFinished();
 
     // app.$.history.shadowRoot.querySelector<HTMLElement>(
@@ -226,15 +222,15 @@ suite('Metrics', function() {
     const cards = syncedDeviceManager.shadowRoot.querySelectorAll(
         'history-synced-device-card');
     assertTrue(!!cards[0]);
-    cards[0].$['card-heading'].click();
+    cards[0].$.cardHeading.click();
     assertEquals(1, histogram[SyncedTabsHistogram.COLLAPSE_SESSION]);
-    cards[0].$['card-heading'].click();
+    cards[0].$.cardHeading.click();
     assertEquals(1, histogram[SyncedTabsHistogram.EXPAND_SESSION]);
     cards[0].shadowRoot.querySelectorAll<HTMLElement>(
                            '.website-link')[0]!.click();
     assertEquals(1, histogram[SyncedTabsHistogram.LINK_CLICKED]);
 
-    const menuButton = cards[0].$['menu-button'];
+    const menuButton = cards[0].$.menuButton;
     menuButton.click();
     await microtasksFinished();
 

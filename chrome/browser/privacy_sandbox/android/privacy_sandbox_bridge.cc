@@ -12,8 +12,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
-#include "chrome/browser/privacy_sandbox/privacy_sandbox_activity_types_factory.h"
-#include "chrome/browser/privacy_sandbox/privacy_sandbox_activity_types_service.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service_factory.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_settings_factory.h"
@@ -148,31 +146,6 @@ static void JNI_PrivacySandboxBridge_SetFledgeJoiningAllowed(
       base::android::ConvertJavaStringToUTF8(top_frame_etld_plus1), allowed);
 }
 
-static int32_t JNI_PrivacySandboxBridge_GetRequiredPromptType(
-    JNIEnv* env,
-    const JavaRef<jobject>& j_profile,
-    int32_t surface_type) {
-  // If the FRE is disabled, as it is in tests which must not be interrupted
-  // with dialogs, do not attempt to show a dialog.
-  const auto& command_line = *base::CommandLine::ForCurrentProcess();
-  if (command_line.HasSwitch("disable-fre"))
-    return static_cast<int>(PrivacySandboxService::PromptType::kNone);
-
-  return static_cast<int>(
-      GetPrivacySandboxService(j_profile)->GetRequiredPromptType(
-          static_cast<PrivacySandboxService::SurfaceType>(surface_type)));
-}
-
-static void JNI_PrivacySandboxBridge_PromptActionOccurred(
-    JNIEnv* env,
-    const JavaRef<jobject>& j_profile,
-    int32_t action,
-    int32_t surface_type) {
-  GetPrivacySandboxService(j_profile)->PromptActionOccurred(
-      static_cast<PrivacySandboxService::PromptAction>(action),
-      static_cast<PrivacySandboxService::SurfaceType>(surface_type));
-}
-
 static bool JNI_PrivacySandboxBridge_IsRelatedWebsiteSetsDataAccessEnabled(
     JNIEnv* env,
     const JavaRef<jobject>& j_profile) {
@@ -236,22 +209,6 @@ JNI_PrivacySandboxBridge_SetAllPrivacySandboxAllowedForTesting(  // IN-TEST
   PrivacySandboxSettingsFactory::GetForProfile(
       Profile::FromJavaObject(j_profile))
       ->SetAllPrivacySandboxAllowedForTesting();  // IN-TEST
-}
-
-static void JNI_PrivacySandboxBridge_RecordActivityType(
-    JNIEnv* env,
-    const JavaRef<jobject>& j_profile,
-    int32_t activity_type) {
-  privacy_sandbox::PrivacySandboxActivityTypesService*
-      privacy_sandbox_activity_types_service =
-          PrivacySandboxActivityTypesFactory::GetForProfile(
-              Profile::FromJavaObject(j_profile));
-  if (!privacy_sandbox_activity_types_service) {
-    return;
-  }
-  privacy_sandbox_activity_types_service->RecordActivityType(
-      static_cast<privacy_sandbox::PrivacySandboxActivityTypesService::
-                      PrivacySandboxStorageActivityType>(activity_type));
 }
 
 static bool

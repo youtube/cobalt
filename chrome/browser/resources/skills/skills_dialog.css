@@ -10,17 +10,27 @@
  * #include=cr-shared-style-lit
  * #css_wrapper_metadata_end */
 
-.dialog-container {
-  background-color: var(--color-sys-surface);
-  display: grid;
-  gap: 16px;
-  overflow: hidden;
-  padding: 12px;
+cr-dialog {
+  --cr-dialog-background-color: var(--color-sys-surface);
+  --cr-dialog-border-radius: 12px;
+  --cr-dialog-shadow: none;
+  --cr-dialog-width: 100%;
 }
 
-.header-container {
+cr-dialog::part(dialog) {
+  box-shadow: none;
+}
+
+/* Needed to prevent the dialog body from being scrollable. */
+cr-dialog::part(wrapper) {
+  height: auto;
+  max-height: none;
+}
+
+[slot='title'] {
   display: grid;
   gap: 4px;
+  padding: 20px 20px 16px 20px;
 }
 
 h1 {
@@ -39,7 +49,16 @@ p.description {
   margin: 0;
 }
 
+[slot='body'] {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 20px 16px 20px;
+}
+
 .form-group {
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
@@ -48,6 +67,7 @@ p.description {
 }
 
 cr-input {
+  --cr-input-error-display: none;
   --cr-input-focus-outline-color: var(--cr-focus-outline-color);
   --cr-input-font-size: 12px;
   --cr-input-hover-background-color: var(--color-sys-surface-variant);
@@ -128,6 +148,9 @@ textarea {
   background-color: transparent;
   padding: 10px 10px 0 10px;
   flex-grow: 1;
+}
+
+textarea.has-overflow {
   -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
   mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
 }
@@ -138,7 +161,7 @@ textarea::placeholder {
 
 .textarea-actions {
   display: flex;
-  gap: 0;
+  gap: 2px;
   padding: 8px;
   background-color: transparent;
 }
@@ -150,7 +173,7 @@ textarea::placeholder {
   box-sizing: border-box;
 }
 
-cr-icon-button {
+.refine-icon {
   margin: 0;
   --cr-icon-button-fill-color: var(--color-sys-on-surface-subtle);
   --cr-icon-button-icon-size: 16px;
@@ -159,21 +182,19 @@ cr-icon-button {
     var(--color-sys-state-hover-on-subtle);
 }
 
-#iconUndo {
-  --cr-icon-image: url('images/skills_undo.svg');
-}
-
-#iconRedo {
-  --cr-icon-image: url('images/skills_redo.svg');
-}
-
-#iconRefine {
-  --cr-icon-image: url('images/skills_pen_spark.svg');
-}
-
 .buttons-group {
   display: flex;
   justify-content: flex-end;
+}
+
+.buttons-group cr-button:first-child {
+  margin-right: auto;
+}
+
+#deleteButton {
+  --cr-button-background-color: transparent;
+  --cr-button-border-color: var(--color-sys-tonal-outline);
+  --cr-button-text-color: var(--color-sys-primary);
 }
 
 .cancel-button {
@@ -216,6 +237,25 @@ cr-icon-button {
   transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.emoji-prefix-container {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+#emojiZeroStateIcon {
+  position: absolute;
+  pointer-events: none;
+  width: 16px;
+  height: 16px;
+  left: 0;
+  color: var(--color-sys-state-disabled);
+}
+
 /* Hides the blue selection background if text gets selected */
 .emoji-trigger::selection {
   background: transparent;
@@ -226,41 +266,19 @@ cr-icon-button {
   background-color: var(--cr-hover-background-color);
 }
 
-#accountInfo {
-  background-color: var(--color-sys-base-container);
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 16px;
-}
-
-#accountLabel {
-  color: var(--color-sys-on-surface);
-  font-size: 12px;
-  font-weight: 500;
+.error-message {
+  font-size: 11px;
   line-height: 16px;
-}
-
-#accountEmail {
-  color: var(--color-sys-on-surface-subtle);
-  font-size: 12px;
+  color: var(--color-sys-error);
   font-weight: 400;
-  line-height: 16px;
-}
-
-#errorMessage {
   display: flex;
   align-items: center;
   gap: 4px;
   margin-top: 8px;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--color-sys-error);
-  font-weight: 500;
+  padding-left: 10px;
 }
 
-#errorMessage a {
+.error-message a {
   color: inherit;
   text-decoration: underline;
   cursor: pointer;
@@ -278,4 +296,29 @@ cr-icon-button {
   display: block;
   margin-bottom: 19px;
   padding-right: 10px;
+}
+
+#saveErrorContainer {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+  height: 16px;
+}
+
+.icon-error {
+  --iron-icon-fill-color: var(--color-sys-error);
+  --iron-icon-width: 16px;
+  --iron-icon-height: 16px;
+}
+
+[slot='footer'] {
+  background-color: var(--color-sys-neutral-container);
+  border-top: 1px solid var(--color-sys-neutral-outline);
+  box-sizing: border-box;
+  font-size: 12px;
+  font-weight: 400;
+  gap: 4px;
+  line-height: 18px;
+  padding: 15px 20px 20px 20px;
+  color: var(--color-sys-on-surface);
 }

@@ -13,6 +13,8 @@
 namespace features {
 
 // Please keep features in alphabetical order.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(
+    kAccessibilityExposeNonAtomicTextFieldChildren);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAllowContentInitiatedDataUrlNavigations);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidDownloadableFontsMatching);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidDragDropOopif);
@@ -24,8 +26,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kAvoidUnnecessaryBeforeUnloadCheckSync);
 // ContentBrowserClient::SupportsAvoidUnnecessaryBeforeUnloadCheckSync() in the
 // header file for the context (See: https://crbug.com/396998476).
 enum class AvoidUnnecessaryBeforeUnloadCheckSyncMode {
-  // Enable DumpWithoutCrashing code for beforeunload investigation.
-  kDumpWithoutCrashing,
   // The following mode is mostly the same as the original
   // kAvoidUnnecessaryBeforeUnloadCheckSync feature that sky@ experimented in
   // the past (Ref: https://crbug.com/40361673, https://crbug.com/396998476).
@@ -54,10 +54,8 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kBackForwardCacheTimeToLiveControl);
 BASE_DECLARE_FEATURE(kBeforeUnloadBrowserResponseQueue);
 #if BUILDFLAG(IS_MAC)
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kBlockThirdPartyInProcessPlugins);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCancelCompositionWhenWindowLosesFocus);
 #endif  // BUILDFLAG(IS_MAC)
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kCanvas2DImageChromium);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCDPScreenshotNewSurface);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCompositeClipPathAnimation);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCodeCacheDeletionWithoutFilter);
@@ -110,17 +108,21 @@ enum class FontDataServiceTypefaceType {
 CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(FontDataServiceTypefaceType,
                                           kFontDataServiceTypefaceType);
 #endif  // BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(IS_LINUX)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kFontDataServiceLinux);
+#else
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kFontDataServiceChromeOS);
+#endif  // BUILDFLAG(IS_LINUX)
 enum class FontDataServiceTypefaceType {
   kFreetype,
   kFontations,
 };
 CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(FontDataServiceTypefaceType,
                                           kFontDataServiceTypefaceType);
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 bool IsFontDataServiceEnabled();
 #endif
 
@@ -154,6 +156,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kLocalNetworkAccessForFencedFrameNavigations);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kLocalNetworkAccessForFencedFrameNavigationsWarningOnly);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kLocalNetworkAccessPromptDirectSockets);
 
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kMainFrameProcessReuseAllowDevToolsAttached);
@@ -207,8 +210,8 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kServiceWorkerSuppressTimeoutWhenPaymentWindowOpen);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerClientUrlIsCreationUrl);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerWindowClientInitiator);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSkipEarlyCommitPendingForCrashedFrame);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kSkipRedundantNavigationStateNotification);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSkipRendererCancellationThrottle);
 #if BUILDFLAG(IS_ANDROID)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kStrictHighRankProcessLRU);
@@ -217,7 +220,9 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kStrictHighRankProcessLRU);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kTextInputClient);
 CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                           kTextInputClientIPCTimeout);
-CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kTextInputClientUseNestedLoop);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kTextInputClientUseNestedLoop);
+CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
+                                          kTextInputClientNestedLoopEventMask);
 #endif
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kTouchpadOverscrollHistoryNavigation);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kTrustedTypesFromLiteral);

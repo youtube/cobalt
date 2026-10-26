@@ -13,7 +13,6 @@
 #include "chrome/browser/extensions/chrome_extension_system_factory.h"
 #include "chrome/browser/extensions/component_loader_factory.h"
 #include "chrome/browser/extensions/corrupted_extension_reinstaller_factory.h"
-#include "chrome/browser/extensions/crx_installer.h"
 #include "chrome/browser/extensions/cws_info_service_factory.h"
 #include "chrome/browser/extensions/error_console/error_console_factory.h"
 #include "chrome/browser/extensions/extension_action_dispatcher.h"
@@ -21,7 +20,7 @@
 #include "chrome/browser/extensions/extension_error_controller_factory.h"
 #include "chrome/browser/extensions/extension_garbage_collector_factory.h"
 #include "chrome/browser/extensions/extension_management.h"
-#include "chrome/browser/extensions/extension_web_ui_override_registrar.h"
+#include "chrome/browser/extensions/extension_url_overrides_registrar.h"
 #include "chrome/browser/extensions/external_install_manager_factory.h"
 #include "chrome/browser/extensions/external_provider_manager_factory.h"
 #include "chrome/browser/extensions/forced_extensions/install_stage_tracker_factory.h"
@@ -36,7 +35,6 @@
 #include "extensions/browser/permissions/permissions_updater.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/extensions/extension_web_ui_override_registrar.h"
 #include "chrome/browser/extensions/plugin_manager.h"
 #include "chrome/browser/extensions/warning_badge_service_factory.h"
 #include "content/public/common/buildflags.h"
@@ -62,7 +60,6 @@ void EnsureChromeBrowserContextKeyedServiceFactoriesBuilt() {
   extensions::ChromeExtensionSystemFactory::GetInstance();
   extensions::ComponentLoaderFactory::GetInstance();
   extensions::CorruptedExtensionReinstallerFactory::GetInstance();
-  extensions::CrxInstaller::EnsureShutdownNotifierFactoryBuilt();
   extensions::CWSInfoServiceFactory::GetInstance();
   extensions::ErrorConsoleFactory::GetInstance();
   extensions::ExtensionActionDispatcher::GetFactoryInstance();
@@ -71,7 +68,7 @@ void EnsureChromeBrowserContextKeyedServiceFactoriesBuilt() {
   extensions::ExtensionGarbageCollectorFactory::GetInstance();
   extensions::ExtensionManagementFactory::GetInstance();
   extensions::ExtensionUpdaterFactory::GetInstance();
-  extensions::ExtensionWebUIOverrideRegistrar::GetFactoryInstance();
+  extensions::ExtensionUrlOverridesRegistrar::GetFactoryInstance();
   extensions::ExternalInstallManagerFactory::GetInstance();
   extensions::ExternalProviderManagerFactory::GetInstance();
   extensions::InstallStageTrackerFactory::GetInstance();

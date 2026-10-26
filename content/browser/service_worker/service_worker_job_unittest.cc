@@ -30,6 +30,7 @@
 #include "content/browser/service_worker/service_worker_container_host.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
+#include "content/browser/service_worker/service_worker_context_wrapper_test_api.h"
 #include "content/browser/service_worker/service_worker_job_coordinator.h"
 #include "content/browser/service_worker/service_worker_object_host.h"
 #include "content/browser/service_worker/service_worker_registration.h"
@@ -53,6 +54,8 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
+#include "third_party/blink/public/mojom/frame/policy_container.mojom.h"
+#include "third_party/blink/public/mojom/loader/fetch_client_settings_object.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/embedded_worker.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_event_status.mojom.h"
@@ -264,8 +267,7 @@ scoped_refptr<ServiceWorkerRegistration> ServiceWorkerJobTest::RunRegisterJob(
     blink::ServiceWorkerStatusCode expected_status) {
   scoped_refptr<ServiceWorkerRegistration> registration;
   base::RunLoop run_loop;
-  auto outside_fetch_client_settings_object =
-      blink::mojom::FetchClientSettingsObject::New();
+  auto outside_fetch_client_settings_object = CreateFetchClientSettingsObject();
   outside_fetch_client_settings_object->outgoing_referrer = script_url;
   job_coordinator()->Register(
       script_url, options, key, std::move(outside_fetch_client_settings_object),
@@ -800,8 +802,7 @@ TEST_P(ServiceWorkerJobTest, AbortAll_Register) {
   base::RepeatingClosure barrier_closure =
       base::BarrierClosure(2, run_loop.QuitClosure());
   job_coordinator()->Register(
-      script_url1, options1, key1,
-      blink::mojom::FetchClientSettingsObject::New(),
+      script_url1, options1, key1, CreateFetchClientSettingsObject(),
       /*requesting_frame_id=*/GlobalRenderFrameHostId(),
       /*ancestor_frame_type=*/blink::mojom::AncestorFrameType::kNormalFrame,
       SaveRegistration(blink::ServiceWorkerStatusCode::kErrorAbort,
@@ -810,8 +811,7 @@ TEST_P(ServiceWorkerJobTest, AbortAll_Register) {
 
   scoped_refptr<ServiceWorkerRegistration> registration2;
   job_coordinator()->Register(
-      script_url2, options2, key2,
-      blink::mojom::FetchClientSettingsObject::New(),
+      script_url2, options2, key2, CreateFetchClientSettingsObject(),
       /*requesting_frame_id=*/GlobalRenderFrameHostId(),
       /*ancestor_frame_type=*/blink::mojom::AncestorFrameType::kNormalFrame,
       SaveRegistration(blink::ServiceWorkerStatusCode::kErrorAbort,
@@ -868,7 +868,7 @@ TEST_P(ServiceWorkerJobTest, AbortAll_RegUnreg) {
   base::RepeatingClosure barrier_closure =
       base::BarrierClosure(2, run_loop.QuitClosure());
   job_coordinator()->Register(
-      script_url, options, key, blink::mojom::FetchClientSettingsObject::New(),
+      script_url, options, key, CreateFetchClientSettingsObject(),
       /*requesting_frame_id=*/GlobalRenderFrameHostId(),
       /*ancestor_frame_type=*/blink::mojom::AncestorFrameType::kNormalFrame,
       SaveRegistration(blink::ServiceWorkerStatusCode::kErrorAbort,
@@ -905,8 +905,7 @@ TEST_P(ServiceWorkerJobTest, AbortScope) {
   base::RepeatingClosure barrier_closure =
       base::BarrierClosure(2, run_loop.QuitClosure());
   job_coordinator()->Register(
-      script_url, options1, key1,
-      blink::mojom::FetchClientSettingsObject::New(),
+      script_url, options1, key1, CreateFetchClientSettingsObject(),
       /*requesting_frame_id=*/GlobalRenderFrameHostId(),
       /*ancestor_frame_type=*/blink::mojom::AncestorFrameType::kNormalFrame,
       SaveRegistration(blink::ServiceWorkerStatusCode::kErrorAbort,
@@ -915,8 +914,7 @@ TEST_P(ServiceWorkerJobTest, AbortScope) {
 
   scoped_refptr<ServiceWorkerRegistration> registration2;
   job_coordinator()->Register(
-      script_url, options2, key2,
-      blink::mojom::FetchClientSettingsObject::New(),
+      script_url, options2, key2, CreateFetchClientSettingsObject(),
       /*requesting_frame_id=*/GlobalRenderFrameHostId(),
       /*ancestor_frame_type=*/blink::mojom::AncestorFrameType::kNormalFrame,
       SaveRegistration(blink::ServiceWorkerStatusCode::kOk, &registration2,
@@ -1336,7 +1334,7 @@ TEST_P(ServiceWorkerJobTest, RegisterBadOrigin) {
   scoped_refptr<ServiceWorkerRegistration> registration;
   job_coordinator()->Register(
       script_url, options, GetTestStorageKey(options.scope),
-      blink::mojom::FetchClientSettingsObject::New(),
+      CreateFetchClientSettingsObject(),
       /*requesting_frame_id=*/GlobalRenderFrameHostId(),
       /*ancestor_frame_type=*/blink::mojom::AncestorFrameType::kNormalFrame,
       SaveRegistration(blink::ServiceWorkerStatusCode::kErrorDisallowed,
@@ -1630,7 +1628,7 @@ class UpdateJobTestHelper : public EmbeddedWorkerTestHelper,
     base::RunLoop run_loop;
     job_coordinator()->Register(
         test_origin.Resolve(kScript), options, test_storage_key,
-        blink::mojom::FetchClientSettingsObject::New(),
+        CreateFetchClientSettingsObject(),
         /*requesting_frame_id=*/GlobalRenderFrameHostId(),
         /*ancestor_frame_type=*/blink::mojom::AncestorFrameType::kNormalFrame,
         SaveRegistration(blink::ServiceWorkerStatusCode::kOk, &registration,
@@ -1675,15 +1673,15 @@ class UpdateJobTestHelper : public EmbeddedWorkerTestHelper,
       // Spoof caching the script for the initial version.
       WriteStringResponse(writer, kBody);
       version->script_cache_map()->NotifyFinishedCaching(
-          script, std::size(kBody), /*sha256_checksum=*/"", net::OK,
-          std::string());
+          script, base::ByteSize(std::size(kBody)), /*sha256_checksum=*/"",
+          net::OK, std::string());
     } else {
       EXPECT_NE(GURL(kNoChangeOrigin), script.DeprecatedGetOriginAsURL());
       // The script must be changed.
       WriteStringResponse(writer, kNewBody);
       version->script_cache_map()->NotifyFinishedCaching(
-          script, std::size(kNewBody), /*sha256_checksum=*/"", net::OK,
-          std::string());
+          script, base::ByteSize(std::size(kNewBody)), /*sha256_checksum=*/"",
+          net::OK, std::string());
     }
 
     version->SetMainScriptResponse(CreateMainScriptResponse());
@@ -1756,8 +1754,8 @@ class ServiceWorkerUpdateJobTest : public ServiceWorkerJobTest {
         CreateStoragePartitionConfigForTesting(/*in_memory=*/true),
         base::FilePath() /* relative_partition_path */);
     storage_partition_impl_->Initialize();
-    helper_->context_wrapper()->set_storage_partition(
-        storage_partition_impl_.get());
+    ServiceWorkerContextWrapperTestApi(helper_->context_wrapper())
+        .set_storage_partition(storage_partition_impl_.get());
   }
 
   void TearDown() override {
@@ -2114,7 +2112,7 @@ TEST_P(ServiceWorkerUpdateJobTest, Update_ScriptUrlChanged) {
 
   // Queue an Update. When this runs, it will use the waiting version's script.
   job_coordinator()->Update(registration.get(), false, false,
-                            blink::mojom::FetchClientSettingsObject::New(),
+                            CreateFetchClientSettingsObject(),
                             base::NullCallback());
 
   // Add a waiting version with a new script.
@@ -2137,8 +2135,8 @@ TEST_P(ServiceWorkerUpdateJobTest, Update_ScriptUrlChanged) {
   version->script_cache_map()->NotifyStartedCaching(new_script, resource_id);
   WriteStringResponse(writer, kBody);
   version->script_cache_map()->NotifyFinishedCaching(
-      new_script, std::size(kBody), /*sha256_checksum=*/"", net::OK,
-      std::string());
+      new_script, base::ByteSize(std::size(kBody)), /*sha256_checksum=*/"",
+      net::OK, std::string());
 
   // Run the update job.
   base::RunLoop().RunUntilIdle();
@@ -2225,7 +2223,7 @@ TEST_P(ServiceWorkerUpdateJobTest, Update_UninstallingRegistration) {
 
   // Update should abort after it starts and sees uninstalling.
   job_coordinator()->Update(registration.get(), false, false,
-                            blink::mojom::FetchClientSettingsObject::New(),
+                            CreateFetchClientSettingsObject(),
                             base::NullCallback());
 
   run_loop.Run();
@@ -2490,7 +2488,7 @@ TEST_P(ServiceWorkerJobTest, TimeoutBadJobs) {
       std::make_unique<DelayedFakeEmbeddedWorkerInstanceClient>(helper_.get()));
   job_coordinator()->Register(
       GURL("https://www.example.com/service_worker1.js"), options, key,
-      blink::mojom::FetchClientSettingsObject::New(),
+      CreateFetchClientSettingsObject(),
       /*requesting_frame_id=*/GlobalRenderFrameHostId(),
       /*ancestor_frame_type=*/blink::mojom::AncestorFrameType::kNormalFrame,
       SaveRegistration(blink::ServiceWorkerStatusCode::kErrorTimeout,
@@ -2508,7 +2506,7 @@ TEST_P(ServiceWorkerJobTest, TimeoutBadJobs) {
   scoped_refptr<ServiceWorkerRegistration> registration2;
   job_coordinator()->Register(
       GURL("https://www.example.com/service_worker2.js"), options, key,
-      blink::mojom::FetchClientSettingsObject::New(),
+      CreateFetchClientSettingsObject(),
       /*requesting_frame_id=*/GlobalRenderFrameHostId(),
       /*ancestor_frame_type=*/blink::mojom::AncestorFrameType::kNormalFrame,
       SaveRegistration(blink::ServiceWorkerStatusCode::kOk, &registration2,
@@ -2522,7 +2520,7 @@ TEST_P(ServiceWorkerJobTest, TimeoutBadJobs) {
   scoped_refptr<ServiceWorkerRegistration> registration3;
   job_coordinator()->Register(
       GURL("https://www.example.com/service_worker3.js"), options, key,
-      blink::mojom::FetchClientSettingsObject::New(),
+      CreateFetchClientSettingsObject(),
       /*requesting_frame_id=*/GlobalRenderFrameHostId(),
       /*ancestor_frame_type=*/blink::mojom::AncestorFrameType::kNormalFrame,
       SaveRegistration(blink::ServiceWorkerStatusCode::kOk, &registration3,

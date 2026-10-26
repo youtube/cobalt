@@ -35,18 +35,36 @@ void HTMLSelectedContentElement::CloneContentsFromOptionElement(
 Node::InsertionNotificationRequest HTMLSelectedContentElement::InsertedInto(
     ContainerNode& insertion_point) {
   HTMLElement::InsertedInto(insertion_point);
+
+  if (RuntimeEnabledFeatures::SelectedcontentSpecEnabled()) {
+    // We need to call SelectedContentElementInserted in InsertedInto instead of
+    // DidNotifySubtreeInsertionsToDocument because
+    // DidNotifySubtreeInsertionsToDocument calls other methods which iterate
+    // through all descendant selectedcontent elements within the nearest
+    // ancestor select element, which we optimize with a TreeOrderedList which
+    // gets updated in SelectedContentElementInserted.
+    HTMLSelectElement* new_nearest_ancestor_select =
+        Traversal<HTMLSelectElement>::FirstAncestor(*this);
+    if (nearest_ancestor_select_ != new_nearest_ancestor_select) {
+      CHECK(!nearest_ancestor_select_);
+      nearest_ancestor_select_ = new_nearest_ancestor_select;
+      nearest_ancestor_select_->SelectedContentElementInserted(this);
+    }
+  }
+
   return Node::InsertionNotificationRequest::
       kInsertionShouldCallDidNotifySubtreeInsertions;
 }
 
 void HTMLSelectedContentElement::DidNotifySubtreeInsertionsToDocument() {
-  // Call SelectedContentElementInserted on the first ancestor <select> if we
-  // just got inserted into a <select> and there are no other <select>s in
-  // between.
+  // Clone from the nearest ancestor select element if this element isn't
+  // disabled.
   // TODO(crbug.com/40236878): Use a flat tree traversal here.
   if (RuntimeEnabledFeatures::SelectedcontentSpecEnabled()) {
+    // TODO(crbug.com/458113204): Calculate disabled state in InsertedInto
+    // instead of this method.
     disabled_ = false;
-    nearest_ancestor_select_ = nullptr;
+    HTMLSelectElement* first_ancestor_select = nullptr;
     for (auto* ancestor = parentNode(); ancestor;
          ancestor = ancestor->parentNode()) {
       if (IsA<HTMLOptionElement>(ancestor) ||
@@ -54,32 +72,24 @@ void HTMLSelectedContentElement::DidNotifySubtreeInsertionsToDocument() {
         // Putting a <selectedcontent> inside an <option> or another
         // <selectedcontent> can lead to infinite loops.
         disabled_ = true;
-        // The HTML spec has a "break" here, but we continue instead because we
-        // need to call select->SelectedContentElementInserted to keep track of
-        // all descendant selectedcontent elements for each select, which the
-        // spec also doesn't do. This is not web observable because we account
-        // for it by gating later code in this method on disabled_.
+        break;
       }
       if (auto* select = DynamicTo<HTMLSelectElement>(ancestor)) {
-        if (nearest_ancestor_select_) {
+        if (first_ancestor_select) {
           // If there are multiple ancestor selects, then cloning can lead to
           // infinite loops, so disable this element.
           disabled_ = true;
           break;
         }
-        nearest_ancestor_select_ = select;
-        // TODO(crbug.com/458113204): This method may be called multiple times
-        // for the same select element, and we shouldn't call
-        // SelectedContentElementInserted on the same select multiple times.
-        // This should be moved to InsertedInto.
-        select->SelectedContentElementInserted(this);
+        first_ancestor_select = select;
+        CHECK_EQ(first_ancestor_select, nearest_ancestor_select_);
       }
     }
 
     if (!disabled_ && nearest_ancestor_select_ &&
         !nearest_ancestor_select_->IsMultiple()) {
-      nearest_ancestor_select_->UpdateDescendantSelectedcontentsForInsertion(
-          this);
+      CloneContentsFromOptionElement(
+          nearest_ancestor_select_->SelectedOption());
     }
   } else {
     disabled_ = false;
@@ -108,22 +118,16 @@ void HTMLSelectedContentElement::DidNotifySubtreeInsertionsToDocument() {
 void HTMLSelectedContentElement::RemovedFrom(ContainerNode& removed_from) {
   HTMLElement::RemovedFrom(removed_from);
   if (RuntimeEnabledFeatures::SelectedcontentSpecEnabled()) {
-    // TODO(crbug.com/458113204): Remove this disabled_ check after removing the
-    // code to trigger cloning during removal in order to make sure that
-    // nearest_ancestor_select_ stays up to date.
-    if (disabled_) {
+    auto* new_nearest_ancestor_select =
+        Traversal<HTMLSelectElement>::FirstAncestor(*this);
+    if (new_nearest_ancestor_select == nearest_ancestor_select_) {
       return;
     }
-    if (auto* new_nearest_ancestor_select =
-            Traversal<HTMLSelectElement>::FirstAncestor(*this)) {
-      nearest_ancestor_select_ = new_nearest_ancestor_select;
-      return;
-    }
-    if (auto* previous_ancestor_select =
-            Traversal<HTMLSelectElement>::FirstAncestorOrSelf(removed_from)) {
-      nearest_ancestor_select_ = nullptr;
-      previous_ancestor_select->SelectedContentElementRemoved(this);
-    }
+    CHECK(nearest_ancestor_select_);
+    CHECK(!new_nearest_ancestor_select);
+    nearest_ancestor_select_->SelectedContentElementRemoved(this);
+    nearest_ancestor_select_ = new_nearest_ancestor_select;
+    disabled_ = false;
   } else {
     if (!Traversal<HTMLSelectElement>::FirstAncestor(*this)) {
       if (auto* select =

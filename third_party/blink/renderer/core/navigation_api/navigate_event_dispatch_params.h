@@ -5,15 +5,13 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_NAVIGATION_API_NAVIGATE_EVENT_DISPATCH_PARAMS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_NAVIGATION_API_NAVIGATE_EVENT_DISPATCH_PARAMS_H_
 
-#include <optional>
-
 #include "base/memory/scoped_refptr.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "third_party/blink/public/common/scheduler/task_attribution_id.h"
 #include "third_party/blink/public/mojom/navigation/navigation_params.mojom-blink-forward.h"
 #include "third_party/blink/public/web/web_frame_load_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/loader/frame_loader_types.h"
+#include "third_party/blink/renderer/core/timing/performance_timeline_entry_id_generator.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
@@ -24,9 +22,6 @@ class Element;
 class HistoryItem;
 class SerializedScriptValue;
 
-// TODO(japhet): This should probably move to frame_loader_types.h and possibly
-// be used more broadly once it is in the HTML spec.
-enum class UserNavigationInvolvement { kBrowserUI, kActivation, kNone };
 enum class NavigateEventType {
   kFragment,
   kHistoryApi,
@@ -51,11 +46,11 @@ struct CORE_EXPORT NavigateEventDispatchParams
   bool has_ua_visual_transition = false;
   bool is_synchronously_committed_same_document = true;
   String download_filename;
-  std::optional<scheduler::TaskAttributionId>
-      soft_navigation_heuristics_task_id;
   bool should_skip_screenshot;
   mojo::PendingReceiver<mojom::blink::NavigationResumeDeferredCommitListener>
       resume_deferred_commit_listener;
+  PerformanceTimelineEntryIdInfo interaction_id =
+      PerformanceTimelineEntryIdInfo::kNone;
 
   void Trace(Visitor*) const;
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Google Inc.
+ * Copyright 2017 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -22,7 +22,6 @@
 #include "include/private/gpu/ganesh/GrTypesPriv.h"
 #include "src/core/SkColorData.h"
 #include "src/core/SkRectPriv.h"
-#include "src/gpu/AtlasTypes.h"
 #include "src/gpu/SkBackingFit.h"
 #include "src/gpu/Swizzle.h"
 #include "src/gpu/ganesh/GrAppliedClip.h"

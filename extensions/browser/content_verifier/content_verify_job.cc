@@ -16,6 +16,8 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
+#include "base/task/bind_post_task.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/typed_macros.h"
@@ -188,7 +190,9 @@ void ContentVerifyJob::Start(ContentVerifier* verifier,
 
   base::AutoLock auto_lock(lock_);
   manifest_version_ = manifest_version;
-  failure_callback_ = std::move(failure_callback);
+  failure_callback_ =
+      base::BindPostTask(base::SequencedTaskRunner::GetCurrentDefault(),
+                         base::BindOnce(std::move(failure_callback)));
 
   // We search for the cached ContentHash also using the extension root to avoid
   // mismatching with a different directory for the same extension version (e.g.
@@ -263,8 +267,8 @@ void ContentVerifyJob::StartWithContentHash(
     base::debug::DumpWithoutCrashing();
   }
 
-  // Build |hash_reader_|.
-  hash_reader_ = ContentHashReader::Create(relative_path_, content_hash);
+  // Fetch expected hashes.
+  hashes_ = ReadContentHashes(relative_path_, content_hash);
 
   if (g_ignore_verification_for_tests) {
     return;
@@ -272,34 +276,31 @@ void ContentVerifyJob::StartWithContentHash(
 
   scoped_refptr<TestObserver> test_observer = GetTestObserver();
   if (test_observer) {
-    test_observer->OnHashesReady(extension_id_, relative_path_, *hash_reader_);
+    test_observer->OnHashesReady(extension_id_, relative_path_, hashes_);
   }
 
-  switch (hash_reader_->status()) {
-    case ContentHashReader::InitStatus::HASHES_MISSING: {
-      DispatchFailureCallback(MISSING_ALL_HASHES);
-      return;
-    }
-    case ContentHashReader::InitStatus::HASHES_DAMAGED: {
-      DispatchFailureCallback(CORRUPTED_HASHES);
-      return;
-    }
-    case ContentHashReader::InitStatus::NO_HASHES_FOR_RESOURCE: {
-      // Proceed and dispatch failure only if the file exists.
-      break;
-    }
-    case ContentHashReader::InitStatus::SUCCESS: {
-      // Just proceed with hashes in case of success.
-      break;
+  if (!hashes_.has_value()) {
+    switch (hashes_.error()) {
+      case ContentHashReaderInitStatus::HASHES_MISSING:
+        DispatchFailureCallback(MISSING_ALL_HASHES);
+        return;
+      case ContentHashReaderInitStatus::HASHES_DAMAGED:
+        DispatchFailureCallback(CORRUPTED_HASHES);
+        return;
+      case ContentHashReaderInitStatus::NO_HASHES_FOR_RESOURCE:
+        // Proceed and dispatch failure only if the file exists.
+        break;
+      case ContentHashReaderInitStatus::FETCH_NOT_ATTEMPTED_YET:
+        // This should never happen.
+        NOTREACHED();
     }
   }
 
-  // Verification can't actually happen until hashes_ready_, so this object
+  // Verification can't actually happen until hashes are ready, so this object
   // can't enter a failed state before that point, and the only way for
-  // hashes_ready_ to become true is right below this.
+  // hashes to become ready is right below this.
   DCHECK(!failed_);
 
-  hashes_ready_ = true;
   if (!queue_.empty()) {
     DCHECK_EQ(read_error_, MOJO_RESULT_OK);
     std::string tmp;
@@ -329,7 +330,8 @@ void ContentVerifyJob::DoneReading() {
     return;
   DCHECK(!done_reading_);
   done_reading_ = true;
-  if (hashes_ready_) {
+  if (hashes_.has_value() ||
+      hashes_.error() != ContentHashReaderInitStatus::FETCH_NOT_ATTEMPTED_YET) {
     OnDoneReadingAndHashesReady();
   }
 }
@@ -342,8 +344,8 @@ void ContentVerifyJob::OnDoneReadingAndHashesReady() {
     return;
   }
 
-  if (hash_reader_->status() ==
-      ContentHashReader::InitStatus::NO_HASHES_FOR_RESOURCE) {
+  if (hashes_ ==
+      base::unexpected(ContentHashReaderInitStatus::NO_HASHES_FOR_RESOURCE)) {
     // Making a request to a non-existent file or to a directory should not
     // result in content verification failure.
     if (read_error_ == MOJO_RESULT_NOT_FOUND) {
@@ -355,7 +357,7 @@ void ContentVerifyJob::OnDoneReadingAndHashesReady() {
   }
 
   // Other statuses are handled in `DidGetContentHashOnIO`.
-  DCHECK_EQ(hash_reader_->status(), ContentHashReader::InitStatus::SUCCESS);
+  DCHECK(hashes_.has_value());
 
   // Any error that wasn't handled above should result in a verification
   // failure.
@@ -374,11 +376,11 @@ void ContentVerifyJob::OnDoneReadingAndHashesReady() {
 }
 
 void ContentVerifyJob::OnHashMismatch() {
-  if (hash_reader_->status() ==
-      ContentHashReader::InitStatus::NO_HASHES_FOR_RESOURCE) {
+  if (hashes_ ==
+      base::unexpected(ContentHashReaderInitStatus::NO_HASHES_FOR_RESOURCE)) {
     DispatchFailureCallback(NO_HASHES_FOR_FILE);
   } else {
-    DCHECK_EQ(hash_reader_->status(), ContentHashReader::InitStatus::SUCCESS);
+    DCHECK(hashes_.has_value());
     DispatchFailureCallback(HASH_MISMATCH);
   }
 }
@@ -399,34 +401,32 @@ void ContentVerifyJob::BytesReadImpl(base::span<const char> data,
     return;
   }
 
-  if (!hashes_ready_) {
+  if (hashes_ ==
+      base::unexpected(ContentHashReaderInitStatus::FETCH_NOT_ATTEMPTED_YET)) {
     queue_.append(data.begin(), data.end());
     return;
   }
-  if (hash_reader_->status() != ContentHashReader::InitStatus::SUCCESS) {
+  if (!hashes_.has_value()) {
     return;
   }
-  const int count = data.size();
-  int bytes_added = 0;
+  const size_t count = data.size();
+  size_t bytes_added = 0;
 
   while (bytes_added < count) {
-    if (current_block_ >= hash_reader_->block_count())
+    if (current_block_ >= hashes_->hashes.size()) {
       return OnHashMismatch();
+    }
 
     if (!current_hash_) {
       current_hash_byte_count_ = 0;
       current_hash_ = crypto::hash::Hasher(crypto::hash::kSha256);
     }
     // Compute how many bytes we should hash, and add them to the current hash.
-    int bytes_to_hash =
-        std::min(hash_reader_->block_size() - current_hash_byte_count_,
-                 count - bytes_added);
-    DCHECK_GT(bytes_to_hash, 0);
-    auto bytes_span = base::as_byte_span(data).subspan(
-        // TODO(https://crbug.com/434977723): get rid of these checked casts
-        // when this code uses size_t throughout.
-        base::checked_cast<size_t>(bytes_added),
-        base::checked_cast<size_t>(bytes_to_hash));
+    size_t bytes_to_hash = std::min(
+        hashes_->block_size - current_hash_byte_count_, count - bytes_added);
+    DCHECK_GT(bytes_to_hash, 0u);
+    auto bytes_span =
+        base::as_byte_span(data).subspan(bytes_added, bytes_to_hash);
     current_hash_->Update(bytes_span);
     bytes_added += bytes_to_hash;
     current_hash_byte_count_ += bytes_to_hash;
@@ -434,8 +434,7 @@ void ContentVerifyJob::BytesReadImpl(base::span<const char> data,
 
     // If we finished reading a block worth of data, finish computing the hash
     // for it and make sure the expected hash matches.
-    if (current_hash_byte_count_ == hash_reader_->block_size() &&
-        !FinishBlock()) {
+    if (current_hash_byte_count_ == hashes_->block_size && !FinishBlock()) {
       OnHashMismatch();
       return;
     }
@@ -447,7 +446,7 @@ bool ContentVerifyJob::FinishBlock() {
   if (current_hash_byte_count_ == 0) {
     if (!done_reading_ ||
         // If we have checked all blocks already, then nothing else to do here.
-        current_block_ == hash_reader_->block_count()) {
+        current_block_ == hashes_->hashes.size()) {
       return true;
     }
   }
@@ -461,11 +460,10 @@ bool ContentVerifyJob::FinishBlock() {
   current_hash_.reset();
   current_hash_byte_count_ = 0;
 
-  int block = current_block_++;
+  size_t block = current_block_++;
 
-  const std::string* expected_hash = nullptr;
-  if (!hash_reader_->GetHashForBlock(block, &expected_hash) ||
-      *expected_hash != final) {
+  const std::string& expected_hash = hashes_->hashes[block];
+  if (expected_hash != final) {
     return false;
   }
 
@@ -503,6 +501,12 @@ void ContentVerifyJob::DispatchFailureCallback(FailureReason reason) {
 }
 
 void ContentVerifyJob::ReportJobFinished(FailureReason reason) {
+  base::UmaHistogramEnumeration(
+      "Extensions.ContentVerification.VerifyJobResult", reason,
+      FAILURE_REASON_MAX);
+
+  // TODO(devlin): Remove the version-specific variants in M150, once we have
+  // sufficient data from the version-agnostic variant above.
   auto record_job_finished = [this, &reason](const char* mv2_histogram,
                                              const char* mv3_histogram) {
     if (mv2_histogram && manifest_version_ == 2) {

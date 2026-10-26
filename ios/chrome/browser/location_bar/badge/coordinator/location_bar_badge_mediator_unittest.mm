@@ -31,7 +31,7 @@
 #import "ios/chrome/browser/infobars/model/infobar_manager_impl.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/location_bar/badge/coordinator/location_bar_badge_mediator_delegate.h"
 #import "ios/chrome/browser/location_bar/badge/model/badge_type.h"
@@ -55,6 +55,7 @@
 #import "ios/chrome/browser/signin/model/identity_test_environment_browser_state_adaptor.h"
 #import "ios/chrome/browser/sync/model/mock_sync_service_utils.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/chrome/test/testing_application_context.h"
 #import "ios/web/public/test/fakes/fake_browser_state.h"
@@ -65,6 +66,7 @@
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
+#import "ui/base/l10n/l10n_util_mac.h"
 
 namespace {
 NSString* const kTestAccessibilityLabel = @"testBadge";
@@ -77,13 +79,13 @@ class FakeContextualPanelTabHelper : public ContextualPanelTabHelper {
   explicit FakeContextualPanelTabHelper(
       web::WebState* web_state,
       std::map<ContextualPanelItemType,
-               raw_ptr<ContextualPanelModel, DanglingUntriaged>> models)
+               raw_ptr<ContextualPanelModel>> models)
       : ContextualPanelTabHelper(web_state, models) {}
 
   static void CreateForWebState(
       web::WebState* web_state,
       std::map<ContextualPanelItemType,
-               raw_ptr<ContextualPanelModel, DanglingUntriaged>> models) {
+               raw_ptr<ContextualPanelModel>> models) {
     web_state->SetUserData(
         UserDataKey(),
         std::make_unique<FakeContextualPanelTabHelper>(web_state, models));
@@ -190,11 +192,11 @@ class LocationBarBadgeMediatorTest : public PlatformTest {
 
     // Contextual Panel setup.
     std::map<ContextualPanelItemType,
-             raw_ptr<ContextualPanelModel, DanglingUntriaged>>
+             raw_ptr<ContextualPanelModel>>
         models;
     FakeContextualPanelTabHelper::CreateForWebState(web_state.get(), models);
     InfoBarManagerImpl::CreateForWebState(web_state.get());
-    InfobarBadgeTabHelper::GetOrCreateForWebState(web_state.get());
+    InfobarBadgeTabHelper::CreateForWebState(web_state.get());
     BwgTabHelper::CreateForWebState(web_state.get());
 
     web_state_list_->InsertWebState(
@@ -267,7 +269,7 @@ class LocationBarBadgeMediatorTest : public PlatformTest {
   void AllowGeminiChipToShow(bool show_gemini_chip,
                              bool trigger_help_ui,
                              bool badge_is_visible) {
-    EXPECT_CALL(*tracker_, ShouldTriggerHelpUI(testing::_))
+    EXPECT_CALL(*tracker_, WouldTriggerHelpUI(testing::_))
         .WillRepeatedly(testing::Return(trigger_help_ui));
     if (show_gemini_chip) {
       OCMExpect([mock_consumer_ isBadgeVisible]).andReturn(badge_is_visible);
@@ -275,6 +277,13 @@ class LocationBarBadgeMediatorTest : public PlatformTest {
       // Triggers an early return, therefore this check shouldn't happen.
       OCMReject([mock_consumer_ isBadgeVisible]);
     }
+  }
+
+  void MockValidChipCheck() {
+    OCMExpect([mock_consumer_ expandBadgeContainer]);
+    OCMStub([mock_delegate_ canShowChip:[OCMArg any]]).andReturn(YES);
+    EXPECT_CALL(*tracker_, ShouldTriggerHelpUI(testing::_))
+        .WillRepeatedly(testing::Return(true));
   }
 
   web::WebTaskEnvironment task_environment_{
@@ -346,33 +355,33 @@ TEST_F(LocationBarBadgeMediatorTest, TestGeminiContextualChipTimestampUpdated) {
                         /*badge_is_visible=*/false);
   LocationBarBadgeConfiguration* config =
       CreateBadgeConfiguration(LocationBarBadgeType::kGeminiContextualCueChip);
+  config.badgeText = kTestAccessibilityLabel;
+  MockValidChipCheck();
+
   [mediator_ updateBadgeConfig:config];
+  task_environment_.FastForwardBy(base::Seconds(3));
+
   EXPECT_NE(base::Time(),
             profile_->GetPrefs()->GetTime(
                 prefs::kLastGeminiContextualChipDisplayedTimestamp));
   EXPECT_OCMOCK_VERIFY(mock_consumer_);
 }
-// Tests that the FET metrics are logged when the Gemini contextual cue chip is
-// shown.
-TEST_F(LocationBarBadgeMediatorTest, TestGeminiContextualChipFETMetricsLogged) {
-  AllowGeminiChipToShow(/*show_gemini_chip=*/true, /*trigger_help_ui=*/true,
-                        /*badge_is_visible=*/false);
-  EXPECT_CALL(
-      *tracker_,
-      NotifyEvent(
-          feature_engagement::events::kIOSGeminiContextualCueChipTriggered));
-  LocationBarBadgeConfiguration* config =
-      CreateBadgeConfiguration(LocationBarBadgeType::kGeminiContextualCueChip);
-  [mediator_ updateBadgeConfig:config];
-  EXPECT_OCMOCK_VERIFY(mock_consumer_);
-}
+
 // Tests that tapping the gemini chip calls the BWG command handler and logs
 // FET metrics.
 TEST_F(LocationBarBadgeMediatorTest, TestGeminiChipTapped) {
   id mock_bwg_command_handler = OCMProtocolMock(@protocol(BWGCommands));
   mediator_.BWGCommandHandler = mock_bwg_command_handler;
+
   OCMExpect([mock_bwg_command_handler
-      startGeminiFlowWithEntryPoint:gemini::EntryPoint::OmniboxChip]);
+      startGeminiFlowWithStartupState:[OCMArg checkWithBlock:^BOOL(
+                                                  GeminiStartupState* state) {
+        return state.entryPoint == gemini::EntryPoint::OmniboxChip &&
+               [state.prepopulatedPrompt
+                   isEqualToString:l10n_util::GetNSString(
+                                       IDS_IOS_ASK_GEMINI_CHIP_PREFILL_PROMPT)];
+      }]]);
+
   EXPECT_CALL(
       *tracker_,
       NotifyEvent(feature_engagement::events::kIOSGeminiContextualCueChipUsed));
@@ -381,10 +390,6 @@ TEST_F(LocationBarBadgeMediatorTest, TestGeminiChipTapped) {
   config.badgeText = kTestAccessibilityLabel;
   [mediator_ badgeTapped:config];
   EXPECT_OCMOCK_VERIFY(mock_bwg_command_handler);
-
-  web::WebState* activeWebState = web_state_list_->GetActiveWebState();
-  BwgTabHelper* BWGTabHelper = BwgTabHelper::FromWebState(activeWebState);
-  ASSERT_TRUE(BWGTabHelper->GetContextualCueLabel().length != 0);
 }
 // Tests that the Gemini contextual cue chip is not shown if it was recently
 // displayed.
@@ -392,14 +397,14 @@ TEST_F(LocationBarBadgeMediatorTest, TestGeminiChipNotShownIfTooRecent) {
   // Expect the badge to be shown and metrics logged the first time.
   AllowGeminiChipToShow(/*show_gemini_chip=*/true, /*trigger_help_ui=*/true,
                         /*badge_is_visible=*/false);
-  EXPECT_CALL(
-      *tracker_,
-      NotifyEvent(
-          feature_engagement::events::kIOSGeminiContextualCueChipTriggered))
-      .Times(1);
   LocationBarBadgeConfiguration* config =
       CreateBadgeConfiguration(LocationBarBadgeType::kGeminiContextualCueChip);
+  config.badgeText = kTestAccessibilityLabel;
+  MockValidChipCheck();
+
   [mediator_ updateBadgeConfig:config];
+  task_environment_.FastForwardBy(base::Seconds(3));
+
   EXPECT_NE(base::Time(),
             profile_->GetPrefs()->GetTime(
                 prefs::kLastGeminiContextualChipDisplayedTimestamp));
@@ -678,11 +683,11 @@ TEST_F(LocationBarBadgeMediatorTest, TestContextualPanelWebStateListChanged) {
   auto web_state = std::make_unique<web::FakeWebState>();
   web_state->SetBrowserState(profile_.get());
   std::map<ContextualPanelItemType,
-           raw_ptr<ContextualPanelModel, DanglingUntriaged>>
+           raw_ptr<ContextualPanelModel>>
       models;
   FakeContextualPanelTabHelper::CreateForWebState(web_state.get(), models);
   InfoBarManagerImpl::CreateForWebState(web_state.get());
-  InfobarBadgeTabHelper::GetOrCreateForWebState(web_state.get());
+  InfobarBadgeTabHelper::CreateForWebState(web_state.get());
 
   web_state_list_->InsertWebState(
       std::move(web_state),

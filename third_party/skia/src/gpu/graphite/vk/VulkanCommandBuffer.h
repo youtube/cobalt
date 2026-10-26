@@ -32,6 +32,10 @@ public:
 
     bool setNewCommandBufferResources() override;
 
+    bool startStatsQuery(GpuStatsFlags) override;
+    void endStatsQuery(GpuStatsFlags) override;
+    std::optional<GpuStats> gpuStats() override;
+
     bool submit(VkQueue, const SubmitInfo&);
 
     bool isFinished();
@@ -76,7 +80,6 @@ private:
                               int32_t index);
 
     bool onAddRenderPass(const RenderPassDesc&,
-                         SkIRect renderPassBounds,
                          const Texture* colorTexture,
                          const Texture* resolveTexture,
                          const Texture* depthStencilTexture,
@@ -85,7 +88,6 @@ private:
                          const DrawPassList&) override;
 
     bool beginRenderPass(const RenderPassDesc&,
-                         SkIRect renderPassBounds,
                          const Texture* colorTexture,
                          const Texture* resolveTexture,
                          const Texture* depthStencilTexture);
@@ -231,6 +233,10 @@ private:
     size_t fBoundIndirectBufferOffset = 0;
 
     std::array<float, 4> fCachedBlendConstant;
+
+    bool fHasStatsQuery = false;
+    VkQueryPool fTimestampQueryPool = VK_NULL_HANDLE;
+    VkQueryPool fOcclusionQueryPool = VK_NULL_HANDLE;
 };
 
 } // namespace skgpu::graphite

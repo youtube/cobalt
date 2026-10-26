@@ -101,7 +101,7 @@ class CompiledReplacement {
              int32_t* match);
 
   // Number of distinct parts of the replacement pattern.
-  int parts() { return static_cast<int>(parts_.size()); }
+  uint32_t parts() { return static_cast<uint32_t>(parts_.size()); }
 
  private:
   enum PartType {
@@ -698,7 +698,7 @@ StringReplaceGlobalRegExpWithString(
   // Guessing the number of parts that the final result string is built
   // from. Global regexps can match any number of times, so we guess
   // conservatively.
-  int expected_parts = (compiled_replacement.parts() + 1) * 4 + 1;
+  uint32_t expected_parts = (compiled_replacement.parts() + 1) * 4 + 1;
   // TODO(v8:12843): improve the situation where the expected_parts exceeds
   // the maximum size of the backing store.
   ReplacementStringBuilder builder(isolate->heap(), subject, expected_parts);
@@ -1319,7 +1319,7 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
   bool first = true;
 
   // Two smis before and after the match, for very long strings.
-  static const int kMaxBuilderEntriesPerRegExpMatch = 5;
+  static const uint32_t kMaxBuilderEntriesPerRegExpMatch = 5;
 
   while (true) {
     int32_t* current_match = runner.FetchNext();
@@ -1419,7 +1419,7 @@ static Tagged<UnionOf<ExceptionHole, Null, FixedArray>> SearchRegExpMultiple(
       }
       DirectHandle<FixedArray> result_fixed_array =
           FixedArray::RightTrimOrEmpty(isolate, builder.array(),
-                                       builder.length());
+                                       builder.length().value());
       // Cache the result and copy the FixedArray into a COW array.
       DirectHandle<FixedArray> copied_fixed_array =
           isolate->factory()->CopyFixedArrayWithMap(
@@ -1730,7 +1730,7 @@ DirectHandle<JSArray> NewJSArrayWithElements(Isolate* isolate,
 }  // namespace
 
 // Slow path for:
-// ES#sec-regexp.prototype-@@replace
+// https://tc39.es/ecma262/#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@split ] ( string, limit )
 RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   HandleScope scope(isolate);
@@ -1906,7 +1906,7 @@ inline bool IsContainFlag(Isolate* isolate, String::FlatContent& flags,
 }  // namespace
 
 // Slow path for:
-// ES#sec-regexp.prototype-@@replace
+// https://tc39.es/ecma262/#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
 RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
   HandleScope scope(isolate);
@@ -2140,7 +2140,7 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   DCHECK_EQ(3, args.length());
   // TODO(pwong): To follow the spec more closely and simplify calling code,
   // this could handle the canonicalization of pattern and flags. See
-  // https://tc39.github.io/ecma262/#sec-regexpinitialize
+  // https://tc39.es/ecma262/#sec-regexpinitialize
   DirectHandle<JSRegExp> regexp = args.at<JSRegExp>(0);
   DirectHandle<String> source = args.at<String>(1);
   DirectHandle<String> flags = args.at<String>(2);

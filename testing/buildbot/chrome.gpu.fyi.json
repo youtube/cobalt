@@ -24,8 +24,11 @@
         "module_scheme": "flat",
         "name": "context_lost_passthrough_tests JACUZZI_RELEASE_LKGM",
         "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true,
           "result_format": "native"
         },
+        "shard_level_retries_on_ctp": 1,
         "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/",
         "timeout_sec": 10800,
@@ -60,8 +63,11 @@
           "--buildbucket-id=${buildbucket_build_id}"
         ],
         "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true,
           "result_format": "native"
         },
+        "shard_level_retries_on_ctp": 1,
         "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/",
         "timeout_sec": 10800,
@@ -86,8 +92,11 @@
         "module_scheme": "flat",
         "name": "gpu_process_launch_tests JACUZZI_RELEASE_LKGM",
         "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true,
           "result_format": "native"
         },
+        "shard_level_retries_on_ctp": 1,
         "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/",
         "timeout_sec": 10800,
@@ -112,8 +121,11 @@
         "module_scheme": "flat",
         "name": "hardware_accelerated_feature_tests JACUZZI_RELEASE_LKGM",
         "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true,
           "result_format": "native"
         },
+        "shard_level_retries_on_ctp": 1,
         "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/",
         "timeout_sec": 10800,
@@ -142,8 +154,11 @@
         "module_scheme": "flat",
         "name": "info_collection_tests JACUZZI_RELEASE_LKGM",
         "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true,
           "result_format": "native"
         },
+        "shard_level_retries_on_ctp": 1,
         "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/",
         "timeout_sec": 10800,
@@ -178,8 +193,11 @@
           "--buildbucket-id=${buildbucket_build_id}"
         ],
         "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true,
           "result_format": "native"
         },
+        "shard_level_retries_on_ctp": 1,
         "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/",
         "timeout_sec": 10800,
@@ -205,8 +223,11 @@
         "module_scheme": "flat",
         "name": "screenshot_sync_passthrough_tests JACUZZI_RELEASE_LKGM",
         "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true,
           "result_format": "native"
         },
+        "shard_level_retries_on_ctp": 1,
         "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/",
         "timeout_sec": 10800,
@@ -231,8 +252,11 @@
         "module_scheme": "flat",
         "name": "trace_test JACUZZI_RELEASE_LKGM",
         "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true,
           "result_format": "native"
         },
+        "shard_level_retries_on_ctp": 1,
         "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/",
         "timeout_sec": 10800,
@@ -257,8 +281,11 @@
         "module_scheme": "flat",
         "name": "webcodecs_tests JACUZZI_RELEASE_LKGM",
         "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true,
           "result_format": "native"
         },
+        "shard_level_retries_on_ctp": 1,
         "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/",
         "timeout_sec": 10800,
@@ -285,8 +312,11 @@
         "module_scheme": "flat",
         "name": "webgl2_conformance_gles_passthrough_tests JACUZZI_RELEASE_LKGM",
         "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true,
           "result_format": "native"
         },
+        "shard_level_retries_on_ctp": 1,
         "shards": 20,
         "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/",
@@ -313,8 +343,11 @@
         "module_scheme": "flat",
         "name": "webgl_conformance_gles_passthrough_tests JACUZZI_RELEASE_LKGM",
         "resultdb": {
+          "enable": true,
+          "has_native_resultdb_integration": true,
           "result_format": "native"
         },
+        "shard_level_retries_on_ctp": 1,
         "shards": 6,
         "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/",
@@ -350,6 +383,7 @@
         "resultdb": {
           "result_format": "native"
         },
+        "shard_level_retries_on_ctp": 1,
         "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/",
         "timeout_sec": 10800,
@@ -384,6 +418,7 @@
         "resultdb": {
           "result_format": "native"
         },
+        "shard_level_retries_on_ctp": 1,
         "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/",
         "timeout_sec": 10800,
@@ -418,6 +453,7 @@
         "resultdb": {
           "result_format": "native"
         },
+        "shard_level_retries_on_ctp": 1,
         "test": "telemetry_gpu_integration_test",
         "test_id_prefix": "ninja://chrome/test:telemetry_gpu_integration_test/",
         "timeout_sec": 10800,

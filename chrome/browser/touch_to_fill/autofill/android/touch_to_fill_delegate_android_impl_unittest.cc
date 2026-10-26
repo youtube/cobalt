@@ -13,6 +13,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/valuables/valuables_data_manager.h"
 #include "components/autofill/core/browser/data_manager/valuables/valuables_data_manager_test_api.h"
@@ -196,6 +197,15 @@ class MockBrowserAutofillManager : public TestBrowserAutofillManager {
                AutofillTriggerSource trigger_source),
               (override));
   MOCK_METHOD(void,
+              FillOrPreviewFields,
+              (mojom::ActionPersistence action_persistence,
+               const FormData& form,
+               const FieldGlobalId& field_id,
+               const FillingPayload& filling_payload,
+               AutofillTriggerSource trigger_source,
+               const base::flat_set<FieldGlobalId>& blocked_fields),
+              (override));
+  MOCK_METHOD(void,
               FillOrPreviewField,
               (mojom::ActionPersistence action_persistence,
                mojom::FieldActionType action_type,
@@ -232,11 +242,8 @@ class TouchToFillDelegateAndroidImplUnitTest
           MockPaymentsAutofillClient> {
  public:
   TouchToFillDelegateAndroidImplUnitTest() {
-    features_.InitWithFeatures(
-        {features::kAutofillEnableLoyaltyCardsFilling,
-         features::kAutofillEnableEmailOrLoyaltyCardsFilling,
-         features::kAutofillEnableBuyNowPayLaterSyncing},
-        {});
+    features_.InitAndEnableFeature(
+        features::kAutofillEnableBuyNowPayLaterSyncing);
     // Some date after in the 2000s because Autofill doesn't allow expiration
     // dates before 2000.
     task_environment_.AdvanceClock(base::Days(365 * 50));
@@ -369,7 +376,7 @@ TEST_F(TouchToFillDelegateAndroidImplUnitTest,
        BnplSuggestionSelected_WithValidAmount) {
   std::optional<int64_t> extracted_amount = 12345;
   EXPECT_CALL(*autofill_manager().GetPaymentsBnplManager(),
-              OnDidAcceptBnplSuggestion(extracted_amount, _));
+              OnUserDecisionToUseBnpl(extracted_amount, _));
 
   touch_to_fill_delegate_->BnplSuggestionSelected(extracted_amount);
 }
@@ -377,7 +384,7 @@ TEST_F(TouchToFillDelegateAndroidImplUnitTest,
 TEST_F(TouchToFillDelegateAndroidImplUnitTest,
        BnplSuggestionSelected_WithNullAmount) {
   EXPECT_CALL(*autofill_manager().GetPaymentsBnplManager(),
-              OnDidAcceptBnplSuggestion(testing::Eq(std::nullopt), _));
+              OnUserDecisionToUseBnpl(testing::Eq(std::nullopt), _));
 
   touch_to_fill_delegate_->BnplSuggestionSelected(
       /*extracted_amount=*/std::nullopt);
@@ -392,7 +399,7 @@ TEST_F(TouchToFillDelegateAndroidImplUnitTest,
 
   base::OnceCallback<void(const CreditCard&)> captured_callback;
   EXPECT_CALL(*autofill_manager().GetPaymentsBnplManager(),
-              OnDidAcceptBnplSuggestion(_, _))
+              OnUserDecisionToUseBnpl)
       .WillOnce([&](std::optional<uint64_t> amount,
                     base::OnceCallback<void(const CreditCard&)> callback) {
         captured_callback = std::move(callback);
@@ -422,7 +429,7 @@ TEST_F(TouchToFillDelegateAndroidImplUnitTest,
 
   base::OnceCallback<void(const CreditCard&)> captured_callback;
   EXPECT_CALL(*autofill_manager().GetPaymentsBnplManager(),
-              OnDidAcceptBnplSuggestion(_, _))
+              OnUserDecisionToUseBnpl)
       .WillOnce([&](std::optional<uint64_t> amount,
                     base::OnceCallback<void(const CreditCard&)> callback) {
         captured_callback = std::move(callback);
@@ -1227,7 +1234,7 @@ TEST_F(TouchToFillDelegateAndroidImplCreditCardUnitTest,
   // Simulate that the form was autofilled by other means
   FormStructure submitted_form(form_);
   for (const std::unique_ptr<AutofillField>& field : submitted_form) {
-    field->set_is_autofilled(true);
+    field->AddFieldModifier(FieldModifier::kAutofill);
   }
 
   touch_to_fill_delegate_->LogMetricsAfterSubmission(submitted_form);

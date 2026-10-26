@@ -20,6 +20,7 @@
 #include <optional>
 #include <queue>
 #include <set>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -31,7 +32,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
@@ -39,6 +39,7 @@
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
+#include "api/payload_type.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
@@ -53,7 +54,6 @@
 #include "api/uma_metrics.h"
 #include "api/video/builtin_video_bitrate_allocator_factory.h"
 #include "api/video/video_codec_constants.h"
-#include "call/payload_type.h"
 #include "media/base/codec.h"
 #include "media/base/codec_comparators.h"
 #include "media/base/media_constants.h"
@@ -109,21 +109,7 @@
 #include "rtc_base/weak_ptr.h"
 #include "system_wrappers/include/metrics.h"
 
-using ::webrtc::ContentInfo;
-using ::webrtc::ContentInfos;
-using webrtc::MediaContentDescription;
-using ::webrtc::MediaProtocolType;
-using ::webrtc::RidDescription;
-using ::webrtc::RidDirection;
-using ::webrtc::SessionDescription;
-using ::webrtc::SimulcastDescription;
-using ::webrtc::SimulcastLayer;
-using ::webrtc::SimulcastLayerList;
-using ::webrtc::StreamParams;
-using ::webrtc::TransportInfo;
-
 namespace webrtc {
-
 namespace {
 
 class ScopedOperationsBatcher {
@@ -299,7 +285,7 @@ std::string GetSetDescriptionErrorMessage(ContentSource source,
   return oss.Release();
 }
 
-std::string GetStreamIdsString(ArrayView<const std::string> stream_ids) {
+std::string GetStreamIdsString(std::span<const std::string> stream_ids) {
   std::string output = "streams=[";
   const char* separator = "";
   for (const auto& stream_id : stream_ids) {
@@ -1747,19 +1733,18 @@ void SdpOfferAnswerHandler::CreateOffer(
 }
 
 void SdpOfferAnswerHandler::SetLocalDescription(
-    SetSessionDescriptionObserver* observer,
-    SessionDescriptionInterface* desc_ptr) {
+    scoped_refptr<SetSessionDescriptionObserver> observer,
+    std::unique_ptr<SessionDescriptionInterface> desc) {
   RTC_LOG_THREAD_BLOCK_COUNT();
   RTC_DCHECK_RUN_ON(signaling_thread());
-  RTC_DCHECK(desc_ptr);
+  RTC_DCHECK(desc);
   RTC_DCHECK(observer);
   // Chain this operation. If asynchronous operations are pending on the chain,
   // this operation will be queued to be invoked, otherwise the contents of the
   // lambda will execute immediately.
   operations_chain_->ChainOperation(
       [this_weak_ptr = weak_ptr_factory_.GetWeakPtr(),
-       observer_refptr = scoped_refptr<SetSessionDescriptionObserver>(observer),
-       desc = std::unique_ptr<SessionDescriptionInterface>(desc_ptr)](
+       observer_refptr = observer, desc = std::move(desc)](
           std::function<void()> operations_chain_callback) mutable {
         // Abort early if `this_weak_ptr` is no longer valid.
         if (!this_weak_ptr) {
@@ -1815,13 +1800,13 @@ void SdpOfferAnswerHandler::SetLocalDescription(
 }
 
 void SdpOfferAnswerHandler::SetLocalDescription(
-    SetSessionDescriptionObserver* observer) {
+    scoped_refptr<SetSessionDescriptionObserver> observer) {
   RTC_LOG_THREAD_BLOCK_COUNT();
   RTC_DCHECK_RUN_ON(signaling_thread());
-  RTC_DCHECK(observer);
-  SetLocalDescription(make_ref_counted<SetSessionDescriptionObserverAdapter>(
-      weak_ptr_factory_.GetWeakPtr(),
-      scoped_refptr<SetSessionDescriptionObserver>(observer)));
+  scoped_refptr<SetLocalDescriptionObserverInterface> adapter =
+      make_ref_counted<SetSessionDescriptionObserverAdapter>(
+          weak_ptr_factory_.GetWeakPtr(), std::move(observer));
+  SetLocalDescription(std::move(adapter));
 }
 
 void SdpOfferAnswerHandler::SetLocalDescription(
@@ -2158,36 +2143,15 @@ RTCError SdpOfferAnswerHandler::ApplyLocalDescription(
 }
 
 void SdpOfferAnswerHandler::SetRemoteDescription(
-    SetSessionDescriptionObserver* observer,
-    SessionDescriptionInterface* desc_ptr) {
+    scoped_refptr<SetSessionDescriptionObserver> observer,
+    std::unique_ptr<SessionDescriptionInterface> desc) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(observer);
-  RTC_DCHECK(desc_ptr);
-  // Chain this operation. If asynchronous operations are pending on the chain,
-  // this operation will be queued to be invoked, otherwise the contents of the
-  // lambda will execute immediately.
-  operations_chain_->ChainOperation(
-      [this_weak_ptr = weak_ptr_factory_.GetWeakPtr(),
-       observer_refptr = scoped_refptr<SetSessionDescriptionObserver>(observer),
-       desc = std::unique_ptr<SessionDescriptionInterface>(desc_ptr)](
-          std::function<void()> operations_chain_callback) mutable {
-        // Abort early if `this_weak_ptr` is no longer valid.
-        if (!this_weak_ptr) {
-          // For consistency with SetSessionDescriptionObserverAdapter whose
-          // posted messages doesn't get processed when the PC is destroyed, we
-          // do not inform `observer_refptr` that the operation failed.
-          operations_chain_callback();
-          return;
-        }
-        // SetSessionDescriptionObserverAdapter takes care of making sure the
-        // `observer_refptr` is invoked in a posted message.
-        this_weak_ptr->DoSetRemoteDescription(
-            std::make_unique<RemoteDescriptionOperation>(
-                this_weak_ptr.get(), std::move(desc),
-                make_ref_counted<SetSessionDescriptionObserverAdapter>(
-                    this_weak_ptr, observer_refptr),
-                std::move(operations_chain_callback)));
-      });
+  RTC_DCHECK(desc);
+  SetRemoteDescription(
+      std::move(desc),
+      make_ref_counted<SetSessionDescriptionObserverAdapter>(
+          weak_ptr_factory_.GetWeakPtr(), std::move(observer)));
 }
 
 void SdpOfferAnswerHandler::SetRemoteDescription(
@@ -5998,12 +5962,10 @@ bool SdpOfferAnswerHandler::UpdatePayloadTypeDemuxingState(
     return true;
   }
 
-  // TODO(bugs.webrtc.org/11993): This BlockingCall() will also block on the
-  // network thread for every demuxer sink that needs to be updated. The demuxer
-  // state needs to be fully (and only) managed on the network thread and once
-  // that's the case, there's no need to stop by on the worker. Ideally we could
-  // also do this without blocking.
-  return context_->worker_thread()->BlockingCall([&channels_to_update]() {
+  // TODO(bugs.webrtc.org/11993): The demuxer state is now fully managed on
+  // the network thread. So we do a single blocking call here to the network
+  // thread. Ideally we could also do this without blocking.
+  return context_->network_thread()->BlockingCall([&channels_to_update]() {
     for (const auto& it : channels_to_update) {
       if (!it.second->SetChannelPayloadTypeDemuxingEnabled(it.first)) {
         // Note that the state has already been irrevocably changed at this

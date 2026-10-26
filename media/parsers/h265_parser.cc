@@ -13,6 +13,7 @@
 #include "base/bits.h"
 #include "base/logging.h"
 #include "base/notreached.h"
+#include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
 #include "media/base/decrypt_config.h"
 #include "media/base/video_codecs.h"
@@ -542,6 +543,8 @@ H265Parser::Result H265Parser::ParseVPS(int* vps_id) {
       if (vps_nuh_layer_id_present_flag) {
         READ_BITS_OR_RETURN(6, &layer_id_in_nuh_i);
       }
+      IN_RANGE_IF_OR_RETURN(layer_id_in_nuh_i, 0, 62,
+                            validate_extended_bitstream_);
       std::array<int, 16> dimension_id_i = {};
       if (!splitting_flag) {
         for (int j = 0; j < num_scalability_types; ++j) {
@@ -1117,6 +1120,7 @@ H265Parser::Result H265Parser::ParseSliceHeader(const H265NALU& nalu,
   shdr->nalu_data = nalu.data.data();
   shdr->nalu_size = nalu.data.size();
   shdr->temporal_id = nalu.nuh_temporal_id_plus1 - 1;
+  shdr->nuh_layer_id = nalu.nuh_layer_id;
 
   READ_BOOL_OR_RETURN(&shdr->first_slice_segment_in_pic_flag);
   shdr->irap_pic = (shdr->nal_unit_type >= H265NALU::BLA_W_LP &&
@@ -1151,6 +1155,14 @@ H265Parser::Result H265Parser::ParseSliceHeader(const H265NALU& nalu,
       DVLOG(1) << "Cannot parse dependent slice w/out prior slice data";
       return kInvalidStream;
     }
+
+    // 7.4.7.1
+    if (shdr->nuh_layer_id != prior_shdr->nuh_layer_id) {
+      DVLOG(1) << "Dependent slice segment must have the same nuh_layer_id "
+               << "as the prior slice";
+      return kInvalidStream;
+    }
+
     // Copy everything in the structure starting at |slice_type| going forward.
     // This is copying the dependent slice data that we do not parse below.
     size_t skip_amount = offsetof(H265SliceHeader, slice_type);
@@ -1272,9 +1284,11 @@ H265Parser::Result H265Parser::ParseSliceHeader(const H265NALU& nalu,
                 std::pow(2, 32 - sps->log2_max_pic_order_cnt_lsb_minus4 - 4));
             // Equation 7-52.
             if (i != 0 && i != shdr->num_long_term_sps) {
-              shdr->delta_poc_msb_cycle_lt[i] =
-                  shdr->delta_poc_msb_cycle_lt[i] +
-                  shdr->delta_poc_msb_cycle_lt[i - 1];
+              base::CheckedNumeric<int> sum = shdr->delta_poc_msb_cycle_lt[i];
+              sum += shdr->delta_poc_msb_cycle_lt[i - 1];
+              if (!sum.AssignIfValid(&shdr->delta_poc_msb_cycle_lt[i])) {
+                return kInvalidStream;
+              }
             }
           }
         }
@@ -1361,8 +1375,9 @@ H265Parser::Result H265Parser::ParseSliceHeader(const H265NALU& nalu,
       IN_RANGE_OR_RETURN(5 - shdr->five_minus_max_num_merge_cand, 1, 5);
     }
     READ_SE_OR_RETURN(&shdr->slice_qp_delta);
-    IN_RANGE_OR_RETURN(26 + pps->init_qp_minus26 + shdr->slice_qp_delta,
-                       -pps->qp_bd_offset_y, 51);
+    int base_qp = 26 + pps->init_qp_minus26;
+    IN_RANGE_OR_RETURN(shdr->slice_qp_delta, -pps->qp_bd_offset_y - base_qp,
+                       51 - base_qp);
 
     if (pps->pps_slice_chroma_qp_offsets_present_flag) {
       READ_SE_OR_RETURN(&shdr->slice_cb_qp_offset);
@@ -1410,15 +1425,26 @@ H265Parser::Result H265Parser::ParseSliceHeader(const H265NALU& nalu,
           (pps->num_tile_columns_minus1 + 1) * (pps->num_tile_rows_minus1 + 1) -
               1);
     } else {  // both are true
-      IN_RANGE_OR_RETURN(
-          num_entry_point_offsets, 0,
-          (pps->num_tile_columns_minus1 + 1) * sps->pic_height_in_ctbs_y - 1);
+      base::CheckedNumeric<int> limit = pps->num_tile_columns_minus1 + 1;
+      limit *= sps->pic_height_in_ctbs_y;
+      limit -= 1;
+      if (!limit.IsValid()) {
+        return kInvalidStream;
+      }
+      int limit_val = limit.ValueOrDie();
+      IN_RANGE_OR_RETURN(num_entry_point_offsets, 0, limit_val);
     }
     if (num_entry_point_offsets > 0) {
       int offset_len_minus1;
       READ_UE_OR_RETURN(&offset_len_minus1);
       IN_RANGE_OR_RETURN(offset_len_minus1, 0, 31);
-      SKIP_BITS_OR_RETURN(num_entry_point_offsets * (offset_len_minus1 + 1));
+      base::CheckedNumeric<int> bits_to_skip = offset_len_minus1 + 1;
+      bits_to_skip *= num_entry_point_offsets;
+      if (!bits_to_skip.IsValid()) {
+        return kInvalidStream;
+      }
+      int bits_to_skip_val = bits_to_skip.ValueOrDie();
+      SKIP_BITS_OR_RETURN(bits_to_skip_val);
     }
   }
 
@@ -1863,7 +1889,9 @@ H265Parser::Result H265Parser::ParseVuiParameters(const H265SPS& sps,
   READ_BOOL_OR_RETURN(&data);  // chroma_loc_info_present_flag
   if (data) {
     READ_UE_OR_RETURN(&data);  // chroma_sample_loc_type_top_field
+    IN_RANGE_IF_OR_RETURN(data, 0, 5, validate_extended_bitstream_);
     READ_UE_OR_RETURN(&data);  // chroma_sample_loc_type_bottom_field
+    IN_RANGE_IF_OR_RETURN(data, 0, 5, validate_extended_bitstream_);
   }
 
   // Ignore neutral_chroma_indication_flag, field_seq_flag and
@@ -1898,10 +1926,20 @@ H265Parser::Result H265Parser::ParseVuiParameters(const H265SPS& sps,
     // and restricted_ref_pic_lists_flag.
     SKIP_BITS_OR_RETURN(3);
     READ_UE_OR_RETURN(&vui->min_spatial_segmentation_idc);
+    IN_RANGE_IF_OR_RETURN(vui->min_spatial_segmentation_idc, 0, 4095,
+                          validate_extended_bitstream_);
     READ_UE_OR_RETURN(&vui->max_bytes_per_pic_denom);
+    // Intentionally not validating max_bytes_per_pic_denom [0,16] because
+    // many valid video streams have this value out of range.
     READ_UE_OR_RETURN(&vui->max_bits_per_min_cu_denom);
+    IN_RANGE_IF_OR_RETURN(vui->max_bits_per_min_cu_denom, 0, 16,
+                          validate_extended_bitstream_);
     READ_UE_OR_RETURN(&vui->log2_max_mv_length_horizontal);
+    IN_RANGE_IF_OR_RETURN(vui->log2_max_mv_length_horizontal, 0, 16,
+                          validate_extended_bitstream_);
     READ_UE_OR_RETURN(&vui->log2_max_mv_length_vertical);
+    IN_RANGE_IF_OR_RETURN(vui->log2_max_mv_length_vertical, 0, 16,
+                          validate_extended_bitstream_);
   }
 
   return kOk;
@@ -2022,6 +2060,8 @@ H265Parser::Result H265Parser::ParsePredWeightTable(
   IN_RANGE_OR_RETURN(pred_weight_table->luma_log2_weight_denom, 0, 7);
   if (sps.chroma_array_type) {
     READ_SE_OR_RETURN(&pred_weight_table->delta_chroma_log2_weight_denom);
+    IN_RANGE_OR_RETURN(pred_weight_table->delta_chroma_log2_weight_denom, -7,
+                       7);
     pred_weight_table->chroma_log2_weight_denom =
         pred_weight_table->delta_chroma_log2_weight_denom +
         pred_weight_table->luma_log2_weight_denom;
@@ -2117,22 +2157,43 @@ H265Parser::Result H265Parser::ParseSEI(H265SEI* sei) {
   // the parsed SEI messages, so we have to set a limit here.
   constexpr int kMaxParsedSEIMessages = 64;
   do {
-    int type = 0;
+    base::CheckedNumeric<int> type_checked = 0;
     READ_BITS_OR_RETURN(8, &byte);
     while (byte == 0xff) {
-      type += 255;
+      type_checked += 255;
       READ_BITS_OR_RETURN(8, &byte);
     }
-    type += byte;
+    type_checked += byte;
 
-    int payload_size = 0;
+    if (!type_checked.IsValid()) {
+      DVLOG(1) << "SEI type overflow";
+      return kInvalidStream;
+    }
+    int type = type_checked.ValueOrDie();
+
+    base::CheckedNumeric<int> payload_size_checked = 0;
     READ_BITS_OR_RETURN(8, &byte);
     while (byte == 0xff) {
-      payload_size += 255;
+      payload_size_checked += 255;
       READ_BITS_OR_RETURN(8, &byte);
     }
-    payload_size += byte;
-    int num_bits_remain = payload_size * 8;
+    payload_size_checked += byte;
+
+    if (!payload_size_checked.IsValid()) {
+      DVLOG(1) << "SEI payload size overflow";
+      return kInvalidStream;
+    }
+
+    int payload_size = payload_size_checked.ValueOrDie();
+    base::CheckedNumeric<int> num_bits_remain_checked =
+        payload_size_checked * 8;
+
+    if (!num_bits_remain_checked.IsValid()) {
+      DVLOG(1) << "SEI payload bits overflow";
+      return kInvalidStream;
+    }
+
+    int num_bits_remain = num_bits_remain_checked.ValueOrDie();
 
     DVLOG(4) << "Found SEI message type: " << type
              << " payload size: " << payload_size;
@@ -2155,6 +2216,8 @@ H265Parser::Result H265Parser::ParseSEI(H265SEI* sei) {
           IN_RANGE_OR_RETURN(info.alpha_channel_use_idc, 0, 2);
           READ_BITS_AND_MINUS_BITS_READ_OR_RETURN(
               3, &info.alpha_channel_bit_depth_minus8, &num_bits_remain);
+          IN_RANGE_IF_OR_RETURN(info.alpha_channel_bit_depth_minus8, 0, 7,
+                                validate_extended_bitstream_);
           READ_BITS_AND_MINUS_BITS_READ_OR_RETURN(
               info.alpha_channel_bit_depth_minus8 + 9,
               &info.alpha_transparent_value, &num_bits_remain);

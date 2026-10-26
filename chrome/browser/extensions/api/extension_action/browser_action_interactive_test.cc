@@ -74,6 +74,20 @@
 namespace extensions {
 namespace {
 
+// A `CreateAndLoadWebContentsObserver` that skips WebUIs except devtools.
+class CreateAndLoadUserWebContentsObserver
+    : public content::CreateAndLoadWebContentsObserver {
+ public:
+  explicit CreateAndLoadUserWebContentsObserver(
+      size_t num_expected_contents = 1)
+      : CreateAndLoadWebContentsObserver(
+            num_expected_contents,
+            base::BindRepeating([](content::WebContents* web_contents) {
+              return !web_contents->GetWebUI() ||
+                     web_contents->GetVisibleURL().scheme() == "devtools";
+            })) {}
+};
+
 #if !BUILDFLAG(IS_CHROMEOS)
 bool IsDownloadSurfaceVisible(BrowserWindow* window) {
   return window->GetDownloadBubbleUIController()
@@ -100,8 +114,9 @@ class PopupHostWatcher : public ExtensionHostRegistry::Observer {
   PopupHostWatcher& operator=(const PopupHostWatcher&) = delete;
 
   void Wait() {
-    if (created_ == destroyed_)
+    if (created_ == destroyed_) {
       return;
+    }
 
     base::RunLoop run_loop;
     quit_closure_ = run_loop.QuitClosure();
@@ -118,8 +133,9 @@ class PopupHostWatcher : public ExtensionHostRegistry::Observer {
       content::BrowserContext* browser_context,
       ExtensionHost* host) override {
     // Only track lifetimes for popup window ExtensionHost instances.
-    if (host->extension_host_type() != mojom::ViewType::kExtensionPopup)
+    if (host->extension_host_type() != mojom::ViewType::kExtensionPopup) {
       return;
+    }
 
     ++created_;
     QuitIfSatisfied();
@@ -128,8 +144,9 @@ class PopupHostWatcher : public ExtensionHostRegistry::Observer {
   void OnExtensionHostDestroyed(content::BrowserContext* browser_context,
                                 ExtensionHost* host) override {
     // Only track lifetimes for popup window ExtensionHost instances.
-    if (host->extension_host_type() != mojom::ViewType::kExtensionPopup)
+    if (host->extension_host_type() != mojom::ViewType::kExtensionPopup) {
       return;
+    }
 
     ++destroyed_;
     QuitIfSatisfied();
@@ -137,8 +154,9 @@ class PopupHostWatcher : public ExtensionHostRegistry::Observer {
 
  private:
   void QuitIfSatisfied() {
-    if (!quit_closure_.is_null() && created_ == destroyed_)
+    if (!quit_closure_.is_null() && created_ == destroyed_) {
       quit_closure_.Run();
+    }
   }
 
   base::RepeatingClosure quit_closure_;
@@ -197,16 +215,18 @@ class BrowserActionInteractiveTest : public ExtensionApiTest {
   // to avoid leaking an API function while waiting for a reply.
   void OpenPopupViaAPI(bool will_reply) {
     // Setup the observer to wait for the popup to finish loading.
-    content::CreateAndLoadWebContentsObserver frame_observer;
+    CreateAndLoadUserWebContentsObserver frame_observer;
     std::unique_ptr<ExtensionTestMessageListener> listener;
-    if (!will_reply)
+    if (!will_reply) {
       listener = std::make_unique<ExtensionTestMessageListener>("ready");
+    }
     // Show first popup in first window and expect it to have loaded.
     ASSERT_TRUE(RunExtensionTest("browser_action/open_popup",
                                  {.extension_url = "open_popup_succeeds.html"}))
         << message_;
-    if (listener)
+    if (listener) {
       EXPECT_TRUE(listener->WaitUntilSatisfied());
+    }
     frame_observer.Wait();
     EnsurePopupActive();
   }
@@ -215,7 +235,7 @@ class BrowserActionInteractiveTest : public ExtensionApiTest {
   // with `id`.
   content::WebContents* OpenPopupViaToolbar(const std::string& id) {
     EXPECT_FALSE(id.empty());
-    content::CreateAndLoadWebContentsObserver popup_observer;
+    CreateAndLoadUserWebContentsObserver popup_observer;
     ExtensionActionTestHelper::Create(browser())->Press(id);
     content::WebContents* popup = popup_observer.Wait();
     EnsurePopupActive();
@@ -286,28 +306,30 @@ IN_PROC_BROWSER_TEST_F(BrowserActionInteractiveTest, TestOpenPopup) {
   EXPECT_TRUE(listener.WaitUntilSatisfied());
   Browser* new_browser = nullptr;
   {
-    content::CreateAndLoadWebContentsObserver frame_observer;
     // Open a new window.
     new_browser = chrome::FindBrowserWithTab(browser()->OpenURL(
         content::OpenURLParams(GURL("about:blank"), content::Referrer(),
                                WindowOpenDisposition::NEW_WINDOW,
                                ui::PAGE_TRANSITION_TYPED, false),
         /*navigation_handle_callback=*/{}));
+    ui_test_utils::BrowserActivationWaiter waiter(new_browser);
+    waiter.WaitForActivation();
+
     // Pin the extension to test that it opens when the action is on the
     // toolbar.
     ToolbarActionsModel::Get(profile())->SetActionVisibility(
         last_loaded_extension_id(), true);
-    frame_observer.Wait();
   }
 
   EXPECT_TRUE(new_browser != nullptr);
 
   ResultCatcher catcher;
   {
-    content::CreateAndLoadWebContentsObserver frame_observer;
+    ExtensionHostTestHelper host_helper(profile());
+    host_helper.RestrictToType(mojom::ViewType::kExtensionPopup);
     // Show second popup in new window.
     listener.Reply("show another");
-    frame_observer.Wait();
+    ASSERT_TRUE(host_helper.WaitForHostCompletedFirstLoad());
     EXPECT_TRUE(ExtensionActionTestHelper::Create(new_browser)->HasPopup());
   }
   ASSERT_TRUE(catcher.GetNextResult()) << message_;
@@ -323,15 +345,18 @@ IN_PROC_BROWSER_TEST_F(BrowserActionInteractiveTest, TestOpenPopup) {
 #endif
 IN_PROC_BROWSER_TEST_F(BrowserActionInteractiveTest,
                        MAYBE_TestOpenPopupIncognito) {
-  // The creation of the incognito window is the first WebContents.
-  content::CreateAndLoadWebContentsObserver frame_observer(
-      /*num_expected_contents=*/2);
+  Profile* incognito_profile =
+      profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
+  ExtensionHostTestHelper host_helper(incognito_profile);
+  host_helper.RestrictToType(mojom::ViewType::kExtensionPopup);
+
   ASSERT_TRUE(RunExtensionTest(
       "browser_action/open_popup",
       {.extension_url = "open_popup_succeeds.html", .open_in_incognito = true},
       {.allow_in_incognito = true}))
       << message_;
-  frame_observer.Wait();
+
+  ASSERT_TRUE(host_helper.WaitForHostCompletedFirstLoad());
   // Non-Aura Linux uses a singleton for the popup, so it looks like all windows
   // have popups if there is any popup open.
 #if !((BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !defined(USE_AURA))
@@ -425,8 +450,8 @@ IN_PROC_BROWSER_TEST_F(BrowserActionInteractiveTest, FocusLossClosesPopup1) {
 // Test that the extension popup is closed when the browser window is focused.
 IN_PROC_BROWSER_TEST_F(BrowserActionInteractiveTest, FocusLossClosesPopup2) {
   // Load a first extension that can open a popup.
-  ASSERT_TRUE(LoadExtension(test_data_dir_.AppendASCII(
-      "browser_action/popup")));
+  ASSERT_TRUE(
+      LoadExtension(test_data_dir_.AppendASCII("browser_action/popup")));
   const Extension* extension = GetSingleLoadedExtension();
   ASSERT_TRUE(extension) << message_;
   OpenPopupViaToolbar(extension->id());
@@ -471,8 +496,9 @@ IN_PROC_BROWSER_TEST_F(BrowserActionInteractiveTest,
   content::WebContents* active_web_contents = GetActiveWebContents();
   ASSERT_TRUE(active_web_contents);
   GURL url = active_web_contents->GetLastCommittedURL();
-  const Extension* extension = ExtensionRegistry::Get(browser()->profile())->
-      enabled_extensions().GetExtensionOrAppByURL(url);
+  const Extension* extension = ExtensionRegistry::Get(browser()->profile())
+                                   ->enabled_extensions()
+                                   .GetExtensionOrAppByURL(url);
   ASSERT_TRUE(extension);
 
   // Finally, uninstall the extension, which causes the view to be deleted and
@@ -565,14 +591,14 @@ class BrowserActionInteractiveViewsTest : public BrowserActionInteractiveTest {
 IN_PROC_BROWSER_TEST_F(BrowserActionInteractiveViewsTest,
                        CloseBrowserWithDevTools) {
   // Load a first extension that can open a popup.
-  ASSERT_TRUE(LoadExtension(test_data_dir_.AppendASCII(
-      "browser_action/popup")));
+  ASSERT_TRUE(
+      LoadExtension(test_data_dir_.AppendASCII("browser_action/popup")));
   const Extension* extension = GetSingleLoadedExtension();
   ASSERT_TRUE(extension) << message_;
 
   // Open an extension popup by clicking the browser action button.
   // This creates two WebContents: the popup and the DevTools window.
-  content::CreateAndLoadWebContentsObserver frame_observer(
+  CreateAndLoadUserWebContentsObserver frame_observer(
       /*num_expected_contents=*/2);
   ExtensionActionTestHelper::Create(browser())->InspectPopup(extension->id());
   frame_observer.Wait();
@@ -622,8 +648,9 @@ class MainFrameSizeWaiter : public content::WebContentsObserver {
         size_to_wait_for_(size_to_wait_for) {}
 
   void Wait() {
-    if (current_size() != size_to_wait_for_)
+    if (current_size() != size_to_wait_for_) {
       run_loop_.Run();
+    }
   }
 
  private:
@@ -632,8 +659,9 @@ class MainFrameSizeWaiter : public content::WebContentsObserver {
   }
 
   void PrimaryMainFrameWasResized(bool width_changed) override {
-    if (current_size() == size_to_wait_for_)
+    if (current_size() == size_to_wait_for_) {
       run_loop_.Quit();
+    }
   }
 
   gfx::Size size_to_wait_for_;
@@ -1000,7 +1028,7 @@ class NavigatingExtensionPopupInteractiveTest
     ASSERT_TRUE(model);
 
     // Trigger the extension's popup by executing its action.
-    content::CreateAndLoadWebContentsObserver popup_observer;
+    CreateAndLoadUserWebContentsObserver popup_observer;
     model->ExecuteUserAction(
         ToolbarActionViewModel::InvocationSource::kToolbarButton);
     content::WebContents* popup = popup_observer.Wait();

@@ -1729,6 +1729,12 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter time
 [Worker]     method constructor
 [Worker]     method toJSON
+[Worker] interface Profiler : EventTarget
+[Worker]     attribute @@toStringTag
+[Worker]     getter sampleInterval
+[Worker]     getter stopped
+[Worker]     method constructor
+[Worker]     method stop
 [Worker] interface ProgressEvent : Event
 [Worker]     attribute @@toStringTag
 [Worker]     getter lengthComputable
@@ -1906,6 +1912,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter headers
 [Worker]     getter integrity
 [Worker]     getter isHistoryNavigation
+[Worker]     getter isReloadNavigation
 [Worker]     getter keepalive
 [Worker]     getter method
 [Worker]     getter mode
@@ -2241,6 +2248,11 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     method constructor
 [Worker]     method toJSON
 [Worker]     method toString
+[Worker] interface TrustedParserOptions
+[Worker]     attribute @@toStringTag
+[Worker]     getter runScripts
+[Worker]     getter sanitizer
+[Worker]     method constructor
 [Worker] interface TrustedScript
 [Worker]     static method fromLiteral
 [Worker]     attribute @@toStringTag
@@ -2258,6 +2270,7 @@ Starting worker: resources/global-interface-listing-worker.js
 [Worker]     getter name
 [Worker]     method constructor
 [Worker]     method createHTML
+[Worker]     method createParserOptions
 [Worker]     method createScript
 [Worker]     method createScriptURL
 [Worker] interface TrustedTypePolicyFactory

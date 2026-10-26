@@ -7,10 +7,13 @@
 
 #include <jni.h>
 
+#include <string>
+
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
 #include "base/supports_user_data.h"
+#include "components/segmentation_platform/internal/jni_headers/SegmentationPlatformServiceImpl_shared_jni.h"
 #include "components/segmentation_platform/public/segmentation_platform_service.h"
 
 using base::android::JavaRef;
@@ -28,21 +31,21 @@ class SegmentationPlatformServiceAndroid : public base::SupportsUserData::Data {
   ~SegmentationPlatformServiceAndroid() override;
 
   void GetSelectedSegment(JNIEnv* env,
-                          const JavaRef<jstring>& j_segmentation_key,
+                          const std::string& segmentation_key,
                           const JavaRef<jobject>& j_callback);
 
   void GetClassificationResult(JNIEnv* env,
-                               const JavaRef<jstring>& j_segmentation_key,
+                               const std::string& segmentation_key,
                                const JavaRef<jobject>& j_prediction_options,
                                const JavaRef<jobject>& j_input_context,
                                const JavaRef<jobject>& j_callback);
 
   ScopedJavaLocalRef<jobject> GetCachedSegmentResult(
       JNIEnv* env,
-      const JavaRef<jstring>& j_segmentation_key);
+      const std::string& segmentation_key);
 
   void GetInputKeysForModel(JNIEnv* env,
-                            const JavaRef<jstring>& j_segmentation_key,
+                            const std::string& segmentation_key,
                             const JavaRef<jobject>& j_callback);
 
   void CollectTrainingData(JNIEnv* env,
@@ -57,7 +60,7 @@ class SegmentationPlatformServiceAndroid : public base::SupportsUserData::Data {
  private:
   // A reference to the Java counterpart of this class.  See
   // SegmentationPlatformServiceImpl.java.
-  ScopedJavaGlobalRef<jobject> java_obj_;
+  ScopedJavaGlobalRef<JSegmentationPlatformServiceImpl> java_obj_;
 
   // Not owned.
   raw_ptr<SegmentationPlatformService> segmentation_platform_service_;

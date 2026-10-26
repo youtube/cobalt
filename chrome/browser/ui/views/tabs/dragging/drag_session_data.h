@@ -66,6 +66,8 @@ struct TabDragData final {
   struct TabGroupData {
     tab_groups::TabGroupId group_id;
     tab_groups::TabGroupVisualData group_visual_data;
+    // The index of the tab within the group at the start of the drag.
+    int index_in_group;
   };
 
   // The information on the group the tab was in at the start of the drag, or
@@ -99,6 +101,9 @@ struct DragSessionData final {
   // The offset of the mouse relative to the source dragged view's width and
   // height.
   gfx::Vector2dF mouse_offset_to_size_ratios;
+
+  // When the drag session started.
+  base::TimeTicks drag_start_time;
 
   std::optional<tab_groups::TabGroupId> group_header_id() const {
     return group_header_drag_data_.has_value()

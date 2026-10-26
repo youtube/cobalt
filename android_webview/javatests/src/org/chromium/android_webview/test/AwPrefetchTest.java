@@ -206,7 +206,7 @@ public class AwPrefetchTest extends AwParameterizedTest {
         callback2.mOnStatusUpdatedHelper.waitForNext();
         Assert.assertEquals(1, callback2.getOnStatusUpdatedHelper().getCallCount());
         Assert.assertEquals(
-                AwPrefetchCallback.StatusCode.PREFETCH_START_FAILED_DUPLICATE,
+                AwPrefetchCallback.StatusCode.DUPLICATE_REQUEST,
                 callback2.getOnStatusUpdatedHelper().getStatusCode());
         Assert.assertNull(callback2.getOnStatusUpdatedHelper().getExtras());
         Assert.assertNull(callback2.getOnErrorHelper().mError);
@@ -220,7 +220,7 @@ public class AwPrefetchTest extends AwParameterizedTest {
         callback3.mOnStatusUpdatedHelper.waitForNext();
         Assert.assertEquals(1, callback3.getOnStatusUpdatedHelper().getCallCount());
         Assert.assertNotEquals(
-                AwPrefetchCallback.StatusCode.PREFETCH_START_FAILED_DUPLICATE,
+                AwPrefetchCallback.StatusCode.DUPLICATE_REQUEST,
                 callback3.getOnStatusUpdatedHelper().getStatusCode());
         Assert.assertNull(callback3.getOnStatusUpdatedHelper().getExtras());
         Assert.assertNull(callback3.getOnErrorHelper().mError);
@@ -280,13 +280,13 @@ public class AwPrefetchTest extends AwParameterizedTest {
                 () -> {
                     // Updating with negative values shouldn't be applied
                     prefetchManager.updatePrefetchConfiguration(-1, -1);
-                    Assert.assertTrue(prefetchManager.getTTlInSec() > 0);
-                    Assert.assertTrue(prefetchManager.getMaxPrefetches() > 0);
+                    Assert.assertTrue(prefetchManager.getTtlInSecForTesting() > 0);
+                    Assert.assertTrue(prefetchManager.getMaxPrefetchesForTesting() > 0);
 
                     // Updating with 0 shouldn't be applied as well.
                     prefetchManager.updatePrefetchConfiguration(0, 0);
-                    Assert.assertTrue(prefetchManager.getTTlInSec() > 0);
-                    Assert.assertTrue(prefetchManager.getMaxPrefetches() > 0);
+                    Assert.assertTrue(prefetchManager.getTtlInSecForTesting() > 0);
+                    Assert.assertTrue(prefetchManager.getMaxPrefetchesForTesting() > 0);
                 });
     }
 
@@ -299,8 +299,8 @@ public class AwPrefetchTest extends AwParameterizedTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     prefetchManager.updatePrefetchConfiguration(60, 5);
-                    Assert.assertEquals(60, prefetchManager.getTTlInSec());
-                    Assert.assertEquals(5, prefetchManager.getMaxPrefetches());
+                    Assert.assertEquals(60, prefetchManager.getTtlInSecForTesting());
+                    Assert.assertEquals(5, prefetchManager.getMaxPrefetchesForTesting());
                 });
     }
 

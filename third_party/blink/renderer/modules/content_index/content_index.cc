@@ -48,8 +48,9 @@ String ValidateDescription(const ContentDescription& description,
       return "Invalid icon URL provided";
     KURL icon_url =
         registration->GetExecutionContext()->CompleteURL(icon->src());
-    if (!icon_url.ProtocolIsInHTTPFamily())
+    if (!icon_url.ProtocolIsInHttpFamily()) {
       return "Invalid icon URL protocol";
+    }
   }
 
   KURL launch_url =
@@ -59,8 +60,9 @@ String ValidateDescription(const ContentDescription& description,
   if (!security_origin->CanRequest(launch_url))
     return "Service Worker cannot request provided launch URL";
 
-  if (!launch_url.GetString().StartsWith(registration->scope()))
+  if (!launch_url.GetString().starts_with(registration->scope())) {
     return "Launch URL must belong to the Service Worker's scope";
+  }
 
   return String();
 }

@@ -21,7 +21,6 @@
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/session_namespace_tree.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -165,7 +164,7 @@ std::unique_ptr<MoqtNamespaceTask> MoqtNamespaceSubscriberStream::CreateTask(
 
 MoqtNamespaceSubscriberStream::NamespaceTask::~NamespaceTask() {
   if (state_ != nullptr) {
-    state_->Reset(kResetCodeCanceled);
+    state_->Reset(kResetCodeCancelled);
   }
 }
 
@@ -336,7 +335,7 @@ void MoqtNamespacePublisherStream::ProcessNamespaces() {
         };
         return;
       case kError:
-        Reset(kResetCodeCanceled);
+        Reset(kResetCodeCancelled);
         return;
       case kSuccess: {
         switch (type) {

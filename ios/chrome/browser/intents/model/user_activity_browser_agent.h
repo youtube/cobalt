@@ -44,9 +44,10 @@ class UserActivityBrowserAgent
   // Opens a new Tab or routes to correct Tab.
   void RouteToCorrectTab();
 
-  // Return YES if the user intends to open links in a certain mode and the
-  // browser will proceed the request.
-  BOOL ProceedWithUserActivity(NSUserActivity* user_activity);
+  // If users request to open tab or search and Chrome is not opened in the mode
+  // they expected, show a toast to clarify that the expected mode is not
+  // available.
+  void ShowToastWhenOpenExternalIntentInUnexpectedMode();
 
  private:
   friend class BrowserUserData<UserActivityBrowserAgent>;
@@ -77,7 +78,8 @@ class UserActivityBrowserAgent
   // userActivity.
   BOOL ContinueUserActivityURL(NSURL* webpage_url,
                                BOOL application_is_active,
-                               BOOL open_existing_tab);
+                               BOOL open_existing_tab,
+                               BOOL opened_via_siri_shortcut);
 
   // Opens multiple tabs.
   void OpenMultipleTabs();

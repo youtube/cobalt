@@ -467,6 +467,10 @@ class WebIdlSchemaTest(unittest.TestCase):
             'description': 'An ExampleType passed to the event listener.'
         }], event_two['parameters'])
 
+    event_max_listeners = getEvent(schema, 'onTestMaxListeners')
+    self.assertEqual('onTestMaxListeners', event_max_listeners.get('name'))
+    self.assertEqual({'maxListeners': 1}, event_max_listeners.get('options'))
+
   # Tests that Dictionaries and Enums defined on the top level of the IDL file
   # are processed into types on the resulting namespace.
   def testApiTypesOnNamespace(self):
@@ -539,8 +543,8 @@ class WebIdlSchemaTest(unittest.TestCase):
     self.assertEqual(expected_single_line_enum, getType(schema,
                                                         'SingleLineEnum'))
 
-    expected_type_with_function = {
-        'name': 'callbackMember',
+    expected_argument_callback_type_member = {
+        'name': 'argumentCallback',
         'type': 'function',
         'parameters': [{
             'name': 'stringArgument',
@@ -548,9 +552,25 @@ class WebIdlSchemaTest(unittest.TestCase):
         }]
     }
     self.assertEqual(
-        expected_type_with_function,
-        getType(schema,
-                'DictionaryWithCallbackMember')['properties']['callbackMember'])
+        expected_argument_callback_type_member,
+        getType(
+            schema,
+            'DictionaryWithCallbackMembers')['properties']['argumentCallback'])
+
+    expected_return_callback_type_member = {
+        'name': 'returnCallback',
+        'type': 'function',
+        'parameters': [],
+        'returns': {
+            'name': 'returnCallback',
+            'type': 'boolean'
+        }
+    }
+    self.assertEqual(
+        expected_return_callback_type_member,
+        getType(
+            schema,
+            'DictionaryWithCallbackMembers')['properties']['returnCallback'])
 
   # Tests that a schema that references a custom type that has not been defined
   # causes an error to be thrown.
@@ -1288,7 +1308,7 @@ class WebIdlSchemaTest(unittest.TestCase):
             'isInstanceOf': 'ArrayBuffer'
         }, array_buffer_dict['properties']['optionalArrayBuffer'])
 
-  # Test 'ArrayBuffer' types used as function parameters.
+  # Tests 'ArrayBuffer' types used as function parameters.
   def testArrayBufferFunctionParams(self):
     idl = web_idl_schema.Load('test/web_idl/array_buffer.idl')
     self.assertEqual(1, len(idl))
@@ -1309,6 +1329,60 @@ class WebIdlSchemaTest(unittest.TestCase):
             'name': 'optionalArrayBufferParam',
             'isInstanceOf': 'ArrayBuffer'
         }, array_buffer_params[1])
+
+  # Tests using the ExternalExtensionType extended attribute to indicate a type
+  # has the actual definition in another schema file from another API
+  # 'namespace'.
+  def testExternalExtensionTypes(self):
+    idl = web_idl_schema.Load('test/web_idl/uses_shared_types.idl')
+    self.assertEqual(1, len(idl))
+    schema = idl[0]
+
+    # Using a normal locally defined type just gets a normal $ref value with the
+    # local type name.
+    local_type_params = getFunctionParameters(schema, 'localTypeFunction')
+    self.assertEqual({
+        'name': 'localTypeParam',
+        '$ref': 'LocalType'
+    }, local_type_params[0])
+
+    # The $ref value for the shared type usage should have the name specified by
+    # the extended attribute.
+    shared_type_params = getFunctionParameters(schema, 'sharedTypeFunction')
+    self.assertEqual({
+        'name': 'sharedTypeParam',
+        '$ref': 'basics.ExampleType'
+    }, shared_type_params[0])
+
+    # Only the locally defined type should be in the list of Types for the API
+    # and not the typedef for the shared type it uses.
+    self.assertEqual(1, len(schema['types']))
+    self.assertEqual('LocalType', schema['types'][0]['id'])
+
+  # Tests that a Typedef in a schema without the ExternalExtensionType extended
+  # attribute is processed as a local alias of the underlying type.
+  def testTypedefAliases(self):
+    idl = web_idl_schema.Load('test/web_idl/typedef_alias.idl')
+    self.assertEqual(1, len(idl))
+    schema = idl[0]
+
+    # takesFileAlias(FileAlias file)
+    # FileAlias is a typedef of object with [instanceOf=File]
+    file_alias_params = getFunctionParameters(schema, 'takesFileAlias')
+    self.assertEqual(
+        {
+            'name': 'file',
+            'type': 'object',
+            'additionalProperties': {
+                'type': 'any'
+            },
+            'isInstanceOf': 'File'
+        }, file_alias_params[0])
+
+    # takesLongAlias(LongAlias count)
+    # LongAlias is a typedef of long
+    long_alias_params = getFunctionParameters(schema, 'takesLongAlias')
+    self.assertEqual({'name': 'count', 'type': 'integer'}, long_alias_params[0])
 
   # Tests Manifest keys defined on a partial 'ExtensionManifest' dictionary are
   # extracted and put into the manifest keys details and not into the Types.

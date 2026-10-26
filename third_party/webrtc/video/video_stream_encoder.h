@@ -93,13 +93,13 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
       const Environment& env,
       uint32_t number_of_cores,
       VideoStreamEncoderObserver* encoder_stats_observer,
-      const VideoStreamEncoderSettings& settings,
+      VideoStreamEncoderSettings settings,
       std::unique_ptr<OveruseFrameDetector> overuse_detector,
       std::unique_ptr<FrameCadenceAdapterInterface> frame_cadence_adapter,
       std::unique_ptr<TaskQueueBase, TaskQueueDeleter> encoder_queue,
       BitrateAllocationCallbackType allocation_cb_type,
-      VideoEncoderFactory::EncoderSelectorInterface* encoder_selector =
-          nullptr);
+      VideoEncoderFactory::EncoderSelectorInterface* encoder_selector = nullptr,
+      EncoderSwitchRequestCallback encoder_switch_request_callback = nullptr);
   ~VideoStreamEncoder() override;
 
   VideoStreamEncoder(const VideoStreamEncoder&) = delete;
@@ -263,6 +263,9 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
       const CodecSpecificInfo* codec_specific_info) override;
 
   void OnDroppedFrame(EncodedImageCallback::DropReason reason) override;
+  void OnFrameDropped(uint32_t rtp_timestamp,
+                      int spatial_id,
+                      bool is_end_of_temporal_unit) override;
 
   bool EncoderPaused() const;
   void TraceFrameDropStart();
@@ -304,6 +307,7 @@ class VideoStreamEncoder : public VideoStreamEncoderInterface,
 
   EncoderSink* sink_ = nullptr;
   const VideoStreamEncoderSettings settings_;
+  EncoderSwitchRequestCallback encoder_switch_request_callback_;
   const BitrateAllocationCallbackType allocation_cb_type_;
   const RateControlSettings rate_control_settings_;
 

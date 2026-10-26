@@ -4,6 +4,8 @@
 
 #include "components/send_tab_to_self/metrics_util.h"
 
+#include <cmath>
+
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 
@@ -56,6 +58,40 @@ void RecordNotificationDismissReasonUnknown() {
 void RecordNotificationThrottled() {
   base::UmaHistogramEnumeration("Sharing.SendTabToSelf.NotificationStatus",
                                 NotificationStatus::kThrottled);
+}
+
+void RecordScrollPositionGenerationTime(base::TimeDelta time) {
+  base::UmaHistogramTimes("Sharing.SendTabToSelf.ScrollPosition.GenerationTime",
+                          time);
+}
+
+void RecordScrollPositionGenerationOutcome(
+    ScrollPositionGenerationOutcome outcome) {
+  base::UmaHistogramEnumeration(
+      "Sharing.SendTabToSelf.ScrollPosition.GenerationOutcome", outcome);
+}
+
+void RecordScrollPositionSelectorLength(size_t length) {
+  base::UmaHistogramCounts1000(
+      "Sharing.SendTabToSelf.ScrollPosition.SelectorLength", length);
+}
+
+void RecordHasScrollPositionOnOpened(bool has_scroll_position) {
+  base::UmaHistogramBoolean(
+      "Sharing.SendTabToSelf.NotificationClicked.HasScrollPosition",
+      has_scroll_position);
+}
+
+void RecordPageContextSize(size_t size) {
+  base::UmaHistogramCounts10000("Sharing.SendTabToSelf.PageContextSize", size);
+}
+
+void RecordScrollVolume(float volume, bool with_restoration) {
+  const std::string_view name =
+      with_restoration
+          ? "Sharing.SendTabToSelf.Scroll.Volume.WithRestoration"
+          : "Sharing.SendTabToSelf.Scroll.Volume.WithoutRestoration";
+  base::UmaHistogramCounts10000(name, static_cast<int>(std::round(volume)));
 }
 
 }  // namespace send_tab_to_self

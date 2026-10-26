@@ -17,6 +17,10 @@ namespace views {
 class Widget;
 }  // namespace views
 
+namespace tabs {
+class TabInterface;
+}  // namespace tabs
+
 namespace glic {
 
 class Host;
@@ -60,8 +64,7 @@ class UIDelegate {
   virtual mojom::PanelState GetPanelState() = 0;
 
   // Register for this callback to detect UI changes to the instance.
-  using StateChangeCallback =
-      base::RepeatingCallback<void(bool, mojom::CurrentView view)>;
+  using StateChangeCallback = base::RepeatingCallback<void(bool)>;
   virtual base::CallbackListSubscription RegisterStateChange(
       StateChangeCallback callback) = 0;
 };
@@ -94,6 +97,8 @@ class GlicInstance : public glic_instance_internal::UIDelegate {
   virtual base::TimeDelta GetTimeSinceLastActive() const = 0;
 
   virtual GlicInstanceMetrics* instance_metrics() = 0;
+
+  virtual void BindTabForTesting(tabs::TabInterface* tab) = 0;
 };
 
 }  // namespace glic

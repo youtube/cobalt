@@ -5,8 +5,12 @@
 #include "chrome/browser/ui/views/page_action/page_action_controller.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
+#include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
+#include "base/timer/timer.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/views/page_action/chip_selector.h"
 #include "chrome/browser/ui/views/page_action/page_action_metrics_recorder.h"
@@ -98,6 +102,10 @@ void PageActionControllerImpl::Initialize(
       base::BindRepeating(&PageActionControllerImpl::DoShowSuggestionChip,
                           base::Unretained(this)),
       base::BindRepeating(&PageActionControllerImpl::DoHideSuggestionChip,
+                          base::Unretained(this)),
+      base::BindRepeating(&PageActionControllerImpl::DoShowAnchoredMessage,
+                          base::Unretained(this)),
+      base::BindRepeating(&PageActionControllerImpl::DoHideAnchoredMessage,
                           base::Unretained(this)));
 
   page_metrics_recorder_ = CreatePageMetricsRecorder(
@@ -184,6 +192,41 @@ void PageActionControllerImpl::DoHideSuggestionChip(
                                                              /*show=*/false);
 }
 
+void PageActionControllerImpl::ShowAnchoredMessage(
+    actions::ActionId action_id) {
+  chip_selector_->RequestAnchoredMessageShow(action_id);
+}
+
+void PageActionControllerImpl::DoShowAnchoredMessage(
+    actions::ActionId action_id) {
+  FindPageActionModel(action_id).SetShouldShowAnchoredMessage(PassKey(),
+                                                              /*show=*/true);
+  active_anchored_message_ = action_id;
+  anchored_message_timeout_.Start(
+      FROM_HERE, base::Seconds(12),
+      base::BindRepeating(
+          static_cast<void (PageActionControllerImpl::*)(actions::ActionId)>(
+              &PageActionControllerImpl::ShowSuggestionChip),
+          base::Unretained(this), action_id));
+}
+
+void PageActionControllerImpl::HideAnchoredMessage(
+    actions::ActionId action_id) {
+  chip_selector_->RequestAnchoredMessageHide(action_id);
+}
+
+void PageActionControllerImpl::DoHideAnchoredMessage(
+    actions::ActionId action_id) {
+  FindPageActionModel(action_id).SetShouldShowAnchoredMessage(PassKey(),
+                                                              /*show=*/false);
+  if (active_anchored_message_ == action_id) {
+    active_anchored_message_ = std::nullopt;
+    if (anchored_message_timeout_.IsRunning()) {
+      anchored_message_timeout_.Stop();
+    }
+  }
+}
+
 ScopedPageActionActivity PageActionControllerImpl::AddActivity(
     actions::ActionId action_id) {
   auto& counter = activity_counters_[action_id];
@@ -211,6 +254,9 @@ void PageActionControllerImpl::ActionItemChanged(
 
 void PageActionControllerImpl::OnTabActivated(tabs::TabInterface* tab) {
   SetModelsTabActive(/*is_active=*/true);
+  if (anchored_message_timeout_.IsRunning()) {
+    anchored_message_timeout_.Reset();
+  }
 }
 
 void PageActionControllerImpl::OnTabWillDeactivate(tabs::TabInterface* tab) {
@@ -278,6 +324,31 @@ void PageActionControllerImpl::ClearOverrideTooltip(
     actions::ActionId action_id) {
   FindPageActionModel(action_id).SetOverrideTooltip(
       PassKey(), /*override_tooltip=*/std::nullopt);
+}
+
+void PageActionControllerImpl::SetAnchoredMessageText(
+    actions::ActionId action_id,
+    const std::u16string& anchored_message_text) {
+  FindPageActionModel(action_id).SetAnchoredMessageText(PassKey(),
+                                                        anchored_message_text);
+}
+
+void PageActionControllerImpl::SetAnchoredMessageIcon(
+    actions::ActionId action_id,
+    const ui::ImageModel& icon) {
+  FindPageActionModel(action_id).SetAnchoredMessageIcon(PassKey(), icon);
+}
+
+void PageActionControllerImpl::ClearAnchoredMessageIcon(
+    actions::ActionId action_id) {
+  FindPageActionModel(action_id).SetAnchoredMessageIcon(PassKey(),
+                                                        std::nullopt);
+}
+
+void PageActionControllerImpl::ShouldShowAnchoredMessageCloseIcon(
+    actions::ActionId action_id,
+    bool show) {
+  FindPageActionModel(action_id).SetAnchoredMessageCloseIcon(PassKey(), show);
 }
 
 void PageActionControllerImpl::AddObserver(
@@ -388,6 +459,14 @@ void PageActionControllerImpl::RecordClickMetric(
   id_and_recorder->second->RecordClick(trigger_source);
 }
 
+base::RepeatingClosure
+PageActionControllerImpl::GetAnchoredMessageCloseCallback(
+    base::PassKey<PageActionView>,
+    actions::ActionId action_id) {
+  return base::BindRepeating(&PageActionControllerImpl::HideAnchoredMessage,
+                             base::Unretained(this), action_id);
+}
+
 int PageActionControllerImpl::GetVisibleEphemeralPageActionsCount() const {
   int visible_ephemeral_page_actions_count = 0;
   for (auto& [id, model] : page_actions_) {
@@ -405,7 +484,7 @@ PageActionControllerImpl::RegisterOnWillDestroyCallback(
   return on_will_destroy_callback_list_.Add(std::move(callback));
 }
 
-void PageActionControllerImpl::RegisterIsChipShowingChangedCallback(
+void PageActionControllerImpl::RegisterCallbacks(
     base::PassKey<PageActionView>,
     actions::ActionId action_id,
     PageActionView* page_action_view) {
@@ -413,6 +492,9 @@ void PageActionControllerImpl::RegisterIsChipShowingChangedCallback(
   page_action_view->SetIsChipShowingChangedCallback(
       base::BindRepeating(&PageActionControllerImpl::OnIsChipShowingChanged,
                           weak_factory_.GetWeakPtr(), action_id));
+  page_action_view->SetAnchoredMessageCloseCallback(
+      base::BindRepeating(&PageActionControllerImpl::HideAnchoredMessage,
+                          base::Unretained(this), action_id));
 }
 
 void PageActionControllerImpl::OnIsChipShowingChanged(

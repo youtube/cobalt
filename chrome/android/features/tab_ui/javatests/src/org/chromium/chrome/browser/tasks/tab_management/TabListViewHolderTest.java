@@ -105,8 +105,6 @@ import org.chromium.components.commerce.PriceTracking.BuyableProduct;
 import org.chromium.components.commerce.PriceTracking.PriceTrackingData;
 import org.chromium.components.commerce.PriceTracking.ProductPrice;
 import org.chromium.components.commerce.PriceTracking.ProductPriceUpdate;
-import org.chromium.components.embedder_support.util.UrlUtilities;
-import org.chromium.components.embedder_support.util.UrlUtilitiesJni;
 import org.chromium.components.payments.ui.CurrencyFormatter;
 import org.chromium.components.payments.ui.CurrencyFormatterJni;
 import org.chromium.components.tab_group_sync.EitherId.EitherGroupId;
@@ -183,8 +181,6 @@ public class TabListViewHolderTest {
     @Mock private Profile mProfile;
 
     @Mock private LevelDBPersistedDataStorage.Natives mLevelDbPersistedTabDataStorage;
-
-    @Mock private UrlUtilities.Natives mUrlUtilitiesJniMock;
 
     @Mock private CurrencyFormatter.Natives mCurrencyFormatterJniMock;
 
@@ -364,7 +360,6 @@ public class TabListViewHolderTest {
         ProfileManager.setLastUsedProfileForTesting(mProfile);
         PriceTrackingFeatures.setPriceAnnotationsEnabledForTesting(false);
 
-        UrlUtilitiesJni.setInstanceForTesting(mUrlUtilitiesJniMock);
         CurrencyFormatterJni.setInstanceForTesting(mCurrencyFormatterJniMock);
         doReturn(1L)
                 .when(mCurrencyFormatterJniMock)
@@ -895,12 +890,38 @@ public class TabListViewHolderTest {
     public void testActionButtonImportantForAccessibility() {
         ImageView closableGridActionButton = mTabGridView.findViewById(R.id.action_button);
 
+        // By default, the grid model is initialized with TabActionButtonType.CLOSE.
+        Assert.assertEquals(
+                IMPORTANT_FOR_ACCESSIBILITY_YES,
+                closableGridActionButton.getImportantForAccessibility());
+
+        // Change to OVERFLOW type.
+        mGridModel.set(
+                TabProperties.TAB_ACTION_BUTTON_DATA,
+                new TabActionButtonData(TabActionButtonType.OVERFLOW, mMockCloseListener));
+        Assert.assertEquals(
+                IMPORTANT_FOR_ACCESSIBILITY_YES,
+                closableGridActionButton.getImportantForAccessibility());
+
+        // Change to PIN type.
+        mGridModel.set(
+                TabProperties.TAB_ACTION_BUTTON_DATA,
+                new TabActionButtonData(TabActionButtonType.PIN, mMockCloseListener));
+        Assert.assertEquals(
+                IMPORTANT_FOR_ACCESSIBILITY_NO,
+                closableGridActionButton.getImportantForAccessibility());
+
+        // Change to CLOSE type.
+        mGridModel.set(
+                TabProperties.TAB_ACTION_BUTTON_DATA,
+                new TabActionButtonData(TabActionButtonType.CLOSE, mMockCloseListener));
         Assert.assertEquals(
                 IMPORTANT_FOR_ACCESSIBILITY_YES,
                 closableGridActionButton.getImportantForAccessibility());
 
         ImageView selectableGridActionButton =
                 mSelectableTabGridView.findViewById(R.id.action_button);
+        // The selectable model is initialized with TabActionState.SELECTABLE.
         Assert.assertEquals(
                 IMPORTANT_FOR_ACCESSIBILITY_NO,
                 selectableGridActionButton.getImportantForAccessibility());

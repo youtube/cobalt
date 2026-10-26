@@ -191,12 +191,15 @@ class COMPONENT_EXPORT(CONCIERGE) FakeConciergeClient : public ConciergeClient {
   const base::ObserverList<Observer>& observer_list() const {
     return observer_list_;
   }
-  const base::ObserverList<VmObserver>::UncheckedAndDanglingUntriaged&
+  const base::ObserverList<
+      VmObserver,
+      /*check_empty=*/false,
+      base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>&
   vm_observer_list() const {
     return vm_observer_list_;
   }
-  const base::ObserverList<DiskImageObserver>::UncheckedAndDanglingUntriaged&
-  disk_image_observer_list() const {
+  const base::ObserverList<DiskImageObserver>& disk_image_observer_list()
+      const {
     return disk_image_observer_list_;
   }
 
@@ -533,11 +536,15 @@ class COMPONENT_EXPORT(CONCIERGE) FakeConciergeClient : public ConciergeClient {
   base::ObserverList<Observer> observer_list_{
       ConciergeClient::kObserverListPolicy};
 
-  base::ObserverList<VmObserver>::UncheckedAndDanglingUntriaged
+  // TODO(crbug.com/484371187): Investigate if reentrancy can be removed.
+  base::ObserverList<
+      VmObserver,
+      /*check_empty=*/false,
+      base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>
       vm_observer_list_{ConciergeClient::kObserverListPolicy};
 
-  base::ObserverList<DiskImageObserver>::UncheckedAndDanglingUntriaged
-      disk_image_observer_list_{ConciergeClient::kObserverListPolicy};
+  base::ObserverList<DiskImageObserver> disk_image_observer_list_{
+      ConciergeClient::kObserverListPolicy};
 
   // Note: This should remain the last member so it'll be destroyed and
   // invalidate its weak pointers before any other members are destroyed.

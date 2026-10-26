@@ -85,7 +85,7 @@ void FtlSignalingConnector::Start() {
   TryReconnect(base::TimeDelta());
 }
 
-void FtlSignalingConnector::OnSignalStrategyStateChange(
+void FtlSignalingConnector::OnSignalingStateChanged(
     SignalStrategy::State state) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -108,11 +108,6 @@ void FtlSignalingConnector::OnSignalStrategyStateChange(
     }
     TryReconnect(backoff_.GetTimeUntilRelease());
   }
-}
-
-bool FtlSignalingConnector::OnSignalStrategyIncomingStanza(
-    const jingle_xmpp::XmlElement* stanza) {
-  return false;
 }
 
 void FtlSignalingConnector::OnNetworkChanged(

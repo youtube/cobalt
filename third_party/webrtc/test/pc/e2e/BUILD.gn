@@ -48,7 +48,6 @@ if (!build_with_chromium) {
         "echo/echo_emulation.h",
       ]
       deps = [
-        "../../../api:array_view",
         "../../../api:sequence_checker",
         "../../../api/test/pclf:media_configuration",
         "../../../modules/audio_device:test_audio_device_module",
@@ -199,7 +198,6 @@ if (!build_with_chromium) {
       ]
       deps = [
         "../..:fileutils",
-        "../../../api:array_view",
         "../../../api:rtp_parameters",
         "../../../api/test/pclf:media_configuration",
         "../../../api/test/pclf:media_quality_test_params",
@@ -404,7 +402,6 @@ if (!build_with_chromium) {
         ":peerconnection_quality_test",
         ":stats_based_network_quality_metrics_reporter",
         "../..:test_support",
-        "../../../api:array_view",
         "../../../api:create_network_emulation_manager",
         "../../../api:create_peer_connection_quality_test_frame_generator",
         "../../../api:network_emulation_manager_api",
@@ -570,7 +567,6 @@ if (!build_with_chromium) {
       ":metric_metadata_keys",
       "../..:perf_test",
       "../..:test_flags",
-      "../../../api:array_view",
       "../../../api:network_emulation_manager_api",
       "../../../api:peer_connection_quality_test_fixture_api",
       "../../../api:rtc_stats_api",
@@ -637,7 +633,6 @@ if (!build_with_chromium) {
       "sdp/sdp_changer.h",
     ]
     deps = [
-      "../../../api:array_view",
       "../../../api:jsep",
       "../../../api:rtp_parameters",
       "../../../api:rtp_transceiver_direction",

@@ -182,7 +182,7 @@ template <class K>
 void KeyframeEffectModelBase::SetFrames(HeapVector<K>& keyframes) {
   // TODO(samli): Should also notify/invalidate the animation
   keyframes_.clear();
-  keyframes_.AppendVector(keyframes);
+  keyframes_.append_range(keyframes);
   IndexKeyframesAndResolveComputedOffsets();
   ClearCachedData();
 }
@@ -533,6 +533,7 @@ void KeyframeEffectModelBase::EnsureKeyframeGroups() const {
                                                    computed_offset);
       has_revert_ |= property_specific_keyframe->IsRevert();
       has_revert_ |= property_specific_keyframe->IsRevertLayer();
+      has_revert_ |= property_specific_keyframe->IsRevertRule();
       group->AppendKeyframe(property_specific_keyframe);
     }
   }

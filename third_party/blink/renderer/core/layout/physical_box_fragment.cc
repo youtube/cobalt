@@ -30,12 +30,15 @@
 #include "third_party/blink/renderer/core/layout/pagination_utils.h"
 #include "third_party/blink/renderer/core/layout/relative_utils.h"
 #include "third_party/blink/renderer/core/layout/table/layout_table_cell.h"
+#include "third_party/blink/renderer/core/overscroll/overscroll_area_tracker.h"
 #include "third_party/blink/renderer/core/paint/border_shape_painter.h"
 #include "third_party/blink/renderer/core/paint/border_shape_utils.h"
 #include "third_party/blink/renderer/core/paint/inline_paint_context.h"
 #include "third_party/blink/renderer/core/paint/outline_painter.h"
+#include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/size_assertions.h"
+#include "ui/gfx/geometry/vector2d.h"
 
 namespace blink {
 
@@ -754,9 +757,31 @@ bool PhysicalBoxFragment::MayIntersect(
   return true;
 }
 
+gfx::Vector2d PhysicalBoxFragment::PixelSnappedOverscrollContentOffset() const {
+  DCHECK(GetLayoutObject());
+  if (!IsNonOverlayOverscrollScrollContainer()) {
+    // This intentionally skips the ::-internal-overscroll-area-parents as they
+    // are self painting layers so we rely on the layer position to account
+    // for their overscroll offset.
+    return gfx::Vector2d();
+  }
+  gfx::Vector2d offset;
+  if (auto* tracker = To<Element>(GetLayoutObject()->GetNode())
+                          ->GetOverscrollAreaTracker()) {
+    for (const Element* element : tracker->DOMSortedElements()) {
+      offset += element->GetPseudoElement(kPseudoIdOverscrollAreaParent)
+                    ->GetLayoutBox()
+                    ->PixelSnappedScrolledContentOffset();
+    }
+  }
+  return offset;
+}
+
 gfx::Vector2d PhysicalBoxFragment::PixelSnappedScrolledContentOffset() const {
   DCHECK(GetLayoutObject());
-  return To<LayoutBox>(*GetLayoutObject()).PixelSnappedScrolledContentOffset();
+  return IsScrollContainer() ? To<LayoutBox>(*GetLayoutObject())
+                                   .PixelSnappedScrolledContentOffset()
+                             : gfx::Vector2d();
 }
 
 PhysicalSize PhysicalBoxFragment::ScrollSize() const {
@@ -870,7 +895,7 @@ void PhysicalBoxFragment::MutableForCloning::ReplaceChildren(
   DCHECK(!fragment_.HasItems());
 
   fragment_.children_.clear();
-  fragment_.children_.AppendVector(new_fragment.children_);
+  fragment_.children_.append_range(new_fragment.children_);
 
   // Replace propagated data.
   fragment_.propagated_data_ = new_fragment.propagated_data_;
@@ -1086,11 +1111,15 @@ PhysicalRect PhysicalBoxFragment::ComputeSelfInkOverflow() const {
         border_shape_rects ? border_shape_rects->outer : rect;
     const PhysicalRect inner_reference_rect =
         border_shape_rects ? border_shape_rects->inner : rect;
-    if (std::optional<PhysicalBoxStrut> border_shape_outsets =
-            BorderShapePainter::VisualOutsets(style, rect, outer_reference_rect,
-                                              inner_reference_rect)) {
-      ink_overflow.Expand(*border_shape_outsets);
-    }
+    // VisualOutsets() returns the complete border-shape overflow: both the
+    // border path's visual extent and the precise box-shadow extent. Use
+    // Unite (not Expand) starting from |rect| so outsets are measured from
+    // the border box, not the already-expanded ink_overflow, which prevents
+    // double-accumulation with BoxDecorationOutsets().
+    PhysicalRect border_shape_visual_rect = rect;
+    border_shape_visual_rect.Expand(BorderShapePainter::VisualOutsets(
+        style, rect, outer_reference_rect, inner_reference_rect));
+    ink_overflow.Unite(border_shape_visual_rect);
   }
 
   if (style.HasOutline() && IsOutlineOwner()) {

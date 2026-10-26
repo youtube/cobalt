@@ -24,18 +24,18 @@ suite('ExtensionCodeSectionTest', function() {
 
   test('Layout', async () => {
     const code: chrome.developerPrivate.RequestFileSourceResponse = {
-      beforeHighlight: 'this part before the highlight\nAnd this too\n',
-      highlight: 'highlight this part\n',
-      afterHighlight: 'this part after the highlight',
+      source: {
+        beforeHighlight: 'this part before the highlight\nAnd this too\n',
+        highlight: 'highlight this part\n',
+        afterHighlight: 'this part after the highlight',
+      },
       message: 'Highlight message',
       title: '',
     };
 
     const testIsVisible = isChildVisible.bind(null, codeSection);
     assertFalse(!!codeSection.code);
-    assertTrue(
-        codeSection.shadowRoot.querySelector<HTMLElement>(
-                                  '#scroll-container')!.hidden);
+    assertTrue(codeSection.$.scrollContainer.hidden);
     assertFalse(testIsVisible('#main'));
     assertTrue(testIsVisible('#no-code'));
 
@@ -49,9 +49,9 @@ suite('ExtensionCodeSectionTest', function() {
     const codeSections =
         codeSection.shadowRoot.querySelectorAll('#source > span > *');
 
-    assertEquals(code.beforeHighlight, codeSections[0]!.textContent);
-    assertEquals(code.highlight, codeSections[1]!.textContent);
-    assertEquals(code.afterHighlight, codeSections[2]!.textContent);
+    assertEquals(code.source!.beforeHighlight, codeSections[0]!.textContent);
+    assertEquals(code.source!.highlight, codeSections[1]!.textContent);
+    assertEquals(code.source!.afterHighlight, codeSections[2]!.textContent);
 
     assertEquals(
         '1\n2\n3\n4',
@@ -65,17 +65,19 @@ suite('ExtensionCodeSectionTest', function() {
     function setCodeContent(beforeLineCount: number, afterLineCount: number):
         chrome.developerPrivate.RequestFileSourceResponse {
       const code: chrome.developerPrivate.RequestFileSourceResponse = {
-        beforeHighlight: '',
-        highlight: 'highlight',
-        afterHighlight: '',
+        source: {
+          beforeHighlight: '',
+          highlight: 'highlight',
+          afterHighlight: '',
+        },
         message: 'Highlight message',
         title: '',
       };
       for (let i = 0; i < beforeLineCount; i++) {
-        code.beforeHighlight += 'a\n';
+        code.source!.beforeHighlight += 'a\n';
       }
       for (let i = 0; i < afterLineCount; i++) {
-        code.afterHighlight += 'a\n';
+        code.source!.afterHighlight += 'a\n';
       }
       return code;
     }

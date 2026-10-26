@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_ANDROID_TAB_MODEL_TAB_MODEL_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
@@ -306,11 +307,20 @@ class TabModel : public TabListInterface {
                                               const base::Time& end_time) = 0;
 
   chrome::android::ActivityType activity_type() const { return activity_type_; }
+  const std::optional<chrome::android::CustomTabProfileType>&
+  custom_tab_profile_type() const {
+    return custom_tab_profile_type_;
+  }
   TabModelType GetTabModelType() const { return tab_model_type_; }
+  bool IsEmptyRegularModelForEphemeralOrIncognitoCct() const;
+
+  static bool EnableBrowserWindowInterfaceMobile();
 
  protected:
   TabModel(Profile* profile,
            chrome::android::ActivityType activity_type,
+           std::optional<chrome::android::CustomTabProfileType>
+               custom_tab_profile_type,
            TabModelType tab_model_type);
   ~TabModel() override;
 
@@ -320,22 +330,18 @@ class TabModel : public TabListInterface {
 
   LocationBarModel* GetLocationBarModel();
 
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
-  // Sets the |SessionID|.
+  // Sets the `SessionID`.
   //
-  // This is only needed on desktop Android, where |BrowserWindowInterface|
-  // should be the source of truth for |SessionID|. This function will be
-  // called when |TabModel| is associated with a |BrowserWindowInterface|.
-  //
-  // TODO(http://crbug.com/444518651): remove the if-def when
-  // |BrowserWindowInterface| is compiled into all Android builds.
+  // `BrowserWindowInterface` is the source of truth for `SessionID`. This
+  // method will be called when the `TabModel` becomes associated or dissociated
+  // with a `BrowserWindowInterface`.
   void SetSessionId(SessionID sessionId);
-#endif
 
  private:
   raw_ptr<Profile, DanglingUntriaged> profile_;
 
   chrome::android::ActivityType activity_type_;
+  std::optional<chrome::android::CustomTabProfileType> custom_tab_profile_type_;
   TabModelType tab_model_type_;
 
   // The LiveTabContext associated with TabModel.

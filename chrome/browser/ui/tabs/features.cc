@@ -11,6 +11,9 @@ namespace tabs {
 
 BASE_FEATURE(kTabGroupHome, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kSessionRestoreShowThrobberOnVisible,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kVerticalTabs, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kVerticalTabsLaunch, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -18,6 +21,8 @@ BASE_FEATURE(kVerticalTabsLaunch, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kVerticalTabsPreviewBadge, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kVerticalTabsNewBadge, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kVerticalTabsExpandOnHover, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabSelectionByPointer, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -31,6 +36,11 @@ bool IsVerticalTabsFeatureEnabled() {
   return base::FeatureList::IsEnabled(kVerticalTabs) ||
          base::FeatureList::IsEnabled(kVerticalTabsLaunch);
   ;
+}
+
+bool IsVerticalTabsExpandOnHoverFeatureEnabled() {
+  return IsVerticalTabsFeatureEnabled() &&
+         base::FeatureList::IsEnabled(kVerticalTabsExpandOnHover);
 }
 
 }  // namespace tabs

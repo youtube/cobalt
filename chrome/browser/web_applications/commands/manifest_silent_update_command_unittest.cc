@@ -38,7 +38,6 @@
 #include "chrome/browser/web_applications/web_app_registry_update.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
-#include "chrome/common/chrome_features.h"
 #include "components/sync/protocol/web_app_specifics.equal.h"
 #include "components/sync/protocol/web_app_specifics.ostream.h"
 #include "components/sync/protocol/web_app_specifics.pb.h"
@@ -70,10 +69,6 @@ class ManifestSilentUpdateCommandTest : public WebAppTest {
   ~ManifestSilentUpdateCommandTest() override = default;
 
   void SetUp() override {
-    scoped_feature_list_.InitWithFeatures(
-        {features::kWebAppUsePrimaryIcon,
-         features::kSilentPolicyAndDefaultAppUpdating},
-        {});
     WebAppTest::SetUp();
     FakeWebAppProvider* provider = FakeWebAppProvider::Get(profile());
     provider->SetOriginAssociationManager(
@@ -189,7 +184,6 @@ class ManifestSilentUpdateCommandTest : public WebAppTest {
     return {};
   }
 
-  base::test::ScopedFeatureList scoped_feature_list_;
   base::HistogramTester histogram_tester_;
 };
 
@@ -804,7 +798,8 @@ TEST_F(ManifestSilentUpdateCommandTest,
       .bitmaps = {changed_bitmap};
 
   EXPECT_EQ(RunManifestUpdateAndGetResult(),
-            ManifestSilentUpdateCheckResult::kAppSilentlyUpdated);
+            ManifestSilentUpdateCheckResult::
+                kAppSilentlyUpdatedDueToSmallIconComparison);
 
   ASSERT_FALSE(AppHasPendingUpdateInfo(app_id));
   EXPECT_EQ(provider().registrar_unsafe().GetAppIconInfos(app_id).begin()->url,
@@ -816,11 +811,12 @@ TEST_F(ManifestSilentUpdateCommandTest,
   EXPECT_FALSE(
       base::PathExists(GetAppPendingManifestIconsDir(profile(), app_id)));
 
-  EXPECT_THAT(histogram_tester_.GetAllSamples(
-                  "Webapp.Update.ManifestSilentUpdateCheckResult"),
-              BucketsAre(base::Bucket(
-                  ManifestSilentUpdateCheckResult::kAppSilentlyUpdated,
-                  /*count=*/1)));
+  EXPECT_THAT(
+      histogram_tester_.GetAllSamples(
+          "Webapp.Update.ManifestSilentUpdateCheckResult"),
+      BucketsAre(base::Bucket(ManifestSilentUpdateCheckResult::
+                                  kAppSilentlyUpdatedDueToSmallIconComparison,
+                              /*count=*/1)));
 }
 
 TEST_F(ManifestSilentUpdateCommandTest,
@@ -857,7 +853,8 @@ TEST_F(ManifestSilentUpdateCommandTest,
   new_manifest->icons = {first_update_icon};
   web_contents_manager().GetOrCreateIconState(bitmap_url1).bitmaps = {bitmap1};
   EXPECT_EQ(RunManifestUpdateAndGetResult(),
-            ManifestSilentUpdateCheckResult::kAppSilentlyUpdated);
+            ManifestSilentUpdateCheckResult::
+                kAppSilentlyUpdatedDueToSmallIconComparison);
 
   ASSERT_FALSE(AppHasPendingUpdateInfo(app_id));
   EXPECT_EQ(provider().registrar_unsafe().GetAppIconInfos(app_id).begin()->url,
@@ -891,12 +888,12 @@ TEST_F(ManifestSilentUpdateCommandTest,
   EXPECT_THAT(
       histogram_tester_.GetAllSamples(
           "Webapp.Update.ManifestSilentUpdateCheckResult"),
-      BucketsAre(
-          base::Bucket(ManifestSilentUpdateCheckResult::kAppSilentlyUpdated,
-                       /*count=*/1),
-          base::Bucket(ManifestSilentUpdateCheckResult::
-                           kAppHasSecurityUpdateDueToThrottle,
-                       /*count=*/1)));
+      BucketsAre(base::Bucket(ManifestSilentUpdateCheckResult::
+                                  kAppSilentlyUpdatedDueToSmallIconComparison,
+                              /*count=*/1),
+                 base::Bucket(ManifestSilentUpdateCheckResult::
+                                  kAppHasSecurityUpdateDueToThrottle,
+                              /*count=*/1)));
 }
 
 TEST_F(ManifestSilentUpdateCommandTest,
@@ -936,7 +933,8 @@ TEST_F(ManifestSilentUpdateCommandTest,
       .bitmaps = {changed_bitmap};
 
   EXPECT_EQ(RunManifestUpdateAndGetResult(),
-            ManifestSilentUpdateCheckResult::kAppSilentlyUpdated);
+            ManifestSilentUpdateCheckResult::
+                kAppSilentlyUpdatedDueToSmallIconComparison);
 
   ASSERT_FALSE(AppHasPendingUpdateInfo(app_id));
   EXPECT_EQ(provider().registrar_unsafe().GetAppIconInfos(app_id).begin()->url,
@@ -950,11 +948,12 @@ TEST_F(ManifestSilentUpdateCommandTest,
   EXPECT_FALSE(
       base::PathExists(GetAppPendingManifestIconsDir(profile(), app_id)));
 
-  EXPECT_THAT(histogram_tester_.GetAllSamples(
-                  "Webapp.Update.ManifestSilentUpdateCheckResult"),
-              BucketsAre(base::Bucket(
-                  ManifestSilentUpdateCheckResult::kAppSilentlyUpdated,
-                  /*count=*/1)));
+  EXPECT_THAT(
+      histogram_tester_.GetAllSamples(
+          "Webapp.Update.ManifestSilentUpdateCheckResult"),
+      BucketsAre(base::Bucket(ManifestSilentUpdateCheckResult::
+                                  kAppSilentlyUpdatedDueToSmallIconComparison,
+                              /*count=*/1)));
 }
 
 TEST_F(ManifestSilentUpdateCommandTest,
@@ -1161,7 +1160,8 @@ TEST_F(ManifestSilentUpdateCommandTest,
       .bitmaps = {changed_bitmap};
 
   EXPECT_EQ(RunManifestUpdateAndGetResult(),
-            ManifestSilentUpdateCheckResult::kAppSilentlyUpdated);
+            ManifestSilentUpdateCheckResult::
+                kAppSilentlyUpdatedDueToSmallIconComparison);
 
   ASSERT_FALSE(AppHasPendingUpdateInfo(app_id));
   EXPECT_EQ(provider().registrar_unsafe().GetAppIconInfos(app_id).begin()->url,
@@ -1175,11 +1175,12 @@ TEST_F(ManifestSilentUpdateCommandTest,
   EXPECT_FALSE(
       base::PathExists(GetAppPendingManifestIconsDir(profile(), app_id)));
 
-  EXPECT_THAT(histogram_tester_.GetAllSamples(
-                  "Webapp.Update.ManifestSilentUpdateCheckResult"),
-              BucketsAre(base::Bucket(
-                  ManifestSilentUpdateCheckResult::kAppSilentlyUpdated,
-                  /*count=*/1)));
+  EXPECT_THAT(
+      histogram_tester_.GetAllSamples(
+          "Webapp.Update.ManifestSilentUpdateCheckResult"),
+      BucketsAre(base::Bucket(ManifestSilentUpdateCheckResult::
+                                  kAppSilentlyUpdatedDueToSmallIconComparison,
+                              /*count=*/1)));
 }
 
 TEST_F(ManifestSilentUpdateCommandTest,

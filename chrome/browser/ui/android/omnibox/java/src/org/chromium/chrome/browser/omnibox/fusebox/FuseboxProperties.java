@@ -18,6 +18,24 @@ import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 /** The properties associated with the Fusebox bar. */
 @NullMarked
 class FuseboxProperties {
+    /** Encapsulates the state for a button in the Fusebox popup. */
+    public static class PopupButtonData {
+        public final Runnable onClicked;
+        public final String text;
+        public final /*IconResourceIds*/ int iconId;
+        public final boolean enabled;
+        public final boolean selected;
+
+        public PopupButtonData(
+                Runnable onClicked, String text, int iconId, boolean enabled, boolean selected) {
+            this.onClicked = onClicked;
+            this.text = text;
+            this.iconId = iconId;
+            this.enabled = enabled;
+            this.selected = selected;
+        }
+    }
+
     /** The adapter for the attachments RecyclerView. */
     public static final WritableObjectPropertyKey<SimpleRecyclerViewAdapter> ADAPTER =
             new WritableObjectPropertyKey<>();
@@ -61,9 +79,17 @@ class FuseboxProperties {
     public static final WritableBooleanPropertyKey POPUP_ATTACH_CAMERA_ENABLED =
             new WritableBooleanPropertyKey();
 
+    /** Whether the Camera button in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_ATTACH_CAMERA_VISIBLE =
+            new WritableBooleanPropertyKey();
+
     /** Action to perform when the user clicks the Clipboard button in the popup. */
     public static final WritableObjectPropertyKey<Runnable> POPUP_ATTACH_CLIPBOARD_CLICKED =
             new WritableObjectPropertyKey<>();
+
+    /** Whether the Clipboard button in the popup is enabled. */
+    public static final WritableBooleanPropertyKey POPUP_ATTACH_CLIPBOARD_ENABLED =
+            new WritableBooleanPropertyKey();
 
     /** Whether the Clipboard button in the popup is visible. */
     public static final WritableBooleanPropertyKey POPUP_ATTACH_CLIPBOARD_VISIBLE =
@@ -111,6 +137,10 @@ class FuseboxProperties {
     public static final WritableBooleanPropertyKey POPUP_ATTACH_GALLERY_ENABLED =
             new WritableBooleanPropertyKey();
 
+    /** Whether the Gallery button in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_ATTACH_GALLERY_VISIBLE =
+            new WritableBooleanPropertyKey();
+
     /** Action to perform when the user clicks the tab picker button in the popup. */
     public static final WritableObjectPropertyKey<Runnable> POPUP_ATTACH_TAB_PICKER_CLICKED =
             new WritableObjectPropertyKey<>();
@@ -119,9 +149,45 @@ class FuseboxProperties {
     public static final WritableBooleanPropertyKey POPUP_ATTACH_TAB_PICKER_ENABLED =
             new WritableBooleanPropertyKey();
 
+    /** Whether the tab picker button in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_ATTACH_TAB_PICKER_VISIBLE =
+            new WritableBooleanPropertyKey();
+
+    /** Holds button data objects for each model that is to be shown. */
+    public static final WritableObjectPropertyKey<java.util.List<PopupButtonData>>
+            POPUP_MODEL_BUTTON_DATA_LIST = new WritableObjectPropertyKey<>();
+
+    /** Whether the models divider in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_MODEL_DIVIDER_VISIBLE =
+            new WritableBooleanPropertyKey();
+
+    /** Whether the models header in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_MODEL_HEADER_VISIBLE =
+            new WritableBooleanPropertyKey();
+
     /** Action to perform when the user clicks the AI Mode button in the popup. */
     public static final WritableObjectPropertyKey<Runnable> POPUP_TOOL_AI_MODE_CLICKED =
             new WritableObjectPropertyKey<>();
+
+    /** Whether the AI Mode button in the popup is enabled. */
+    public static final WritableBooleanPropertyKey POPUP_TOOL_AI_MODE_ENABLED =
+            new WritableBooleanPropertyKey();
+
+    /** Whether the AI Mode button in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_TOOL_AI_MODE_VISIBLE =
+            new WritableBooleanPropertyKey();
+
+    /** Action to perform when the user clicks the canvas tool button in the popup. */
+    public static final WritableObjectPropertyKey<Runnable> POPUP_TOOL_CANVAS_CLICKED =
+            new WritableObjectPropertyKey<>();
+
+    /** Whether the canvas tool button in the popup is enabled. */
+    public static final WritableBooleanPropertyKey POPUP_TOOL_CANVAS_ENABLED =
+            new WritableBooleanPropertyKey();
+
+    /** Whether the canvas tool button in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_TOOL_CANVAS_VISIBLE =
+            new WritableBooleanPropertyKey();
 
     /** Action to perform when the user clicks the 'Create Image' button in the popup. */
     public static final WritableObjectPropertyKey<Runnable> POPUP_TOOL_CREATE_IMAGE_CLICKED =
@@ -133,6 +199,26 @@ class FuseboxProperties {
 
     /** Whether the create image button in the popup is visible. */
     public static final WritableBooleanPropertyKey POPUP_TOOL_CREATE_IMAGE_VISIBLE =
+            new WritableBooleanPropertyKey();
+
+    /** Action to perform when the user clicks the Deep Search tool button in the popup */
+    public static final WritableObjectPropertyKey<Runnable> POPUP_TOOL_DEEP_SEARCH_CLICKED =
+            new WritableObjectPropertyKey<>();
+
+    /** Whether the deep search tool button in the popup is enabled. */
+    public static final WritableBooleanPropertyKey POPUP_TOOL_DEEP_SEARCH_ENABLED =
+            new WritableBooleanPropertyKey();
+
+    /** Whether the deep search tool button in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_TOOL_DEEP_SEARCH_VISIBLE =
+            new WritableBooleanPropertyKey();
+
+    /** Whether the tools divider in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_TOOL_DIVIDER_VISIBLE =
+            new WritableBooleanPropertyKey();
+
+    /** Whether the tools header in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_TOOL_HEADER_VISIBLE =
             new WritableBooleanPropertyKey();
 
     /** Whether to show the dedicated AIMode button directly in the Fusebox. */
@@ -152,7 +238,9 @@ class FuseboxProperties {
         COMPACT_UI,
         POPUP_ATTACH_CAMERA_CLICKED,
         POPUP_ATTACH_CAMERA_ENABLED,
+        POPUP_ATTACH_CAMERA_VISIBLE,
         POPUP_ATTACH_CLIPBOARD_CLICKED,
+        POPUP_ATTACH_CLIPBOARD_ENABLED,
         POPUP_ATTACH_CLIPBOARD_VISIBLE,
         POPUP_ATTACH_CURRENT_TAB_CLICKED,
         POPUP_ATTACH_CURRENT_TAB_ENABLED,
@@ -163,12 +251,27 @@ class FuseboxProperties {
         POPUP_ATTACH_FILE_VISIBLE,
         POPUP_ATTACH_GALLERY_CLICKED,
         POPUP_ATTACH_GALLERY_ENABLED,
+        POPUP_ATTACH_GALLERY_VISIBLE,
         POPUP_ATTACH_TAB_PICKER_CLICKED,
         POPUP_ATTACH_TAB_PICKER_ENABLED,
+        POPUP_ATTACH_TAB_PICKER_VISIBLE,
+        POPUP_MODEL_BUTTON_DATA_LIST,
+        POPUP_MODEL_DIVIDER_VISIBLE,
+        POPUP_MODEL_HEADER_VISIBLE,
         POPUP_TOOL_AI_MODE_CLICKED,
+        POPUP_TOOL_AI_MODE_ENABLED,
+        POPUP_TOOL_AI_MODE_VISIBLE,
+        POPUP_TOOL_CANVAS_CLICKED,
+        POPUP_TOOL_CANVAS_ENABLED,
+        POPUP_TOOL_CANVAS_VISIBLE,
         POPUP_TOOL_CREATE_IMAGE_CLICKED,
         POPUP_TOOL_CREATE_IMAGE_ENABLED,
         POPUP_TOOL_CREATE_IMAGE_VISIBLE,
+        POPUP_TOOL_DEEP_SEARCH_CLICKED,
+        POPUP_TOOL_DEEP_SEARCH_ENABLED,
+        POPUP_TOOL_DEEP_SEARCH_VISIBLE,
+        POPUP_TOOL_DIVIDER_VISIBLE,
+        POPUP_TOOL_HEADER_VISIBLE,
         SHOW_DEDICATED_MODE_BUTTON
         // go/keep-sorted end
     };

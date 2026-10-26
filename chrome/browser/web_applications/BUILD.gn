@@ -1,5 +1,5 @@
-# Use of this source code is governed by a BSD-style license that can be
 # Copyright 2018 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 import("//chrome/browser/buildflags.gni")
@@ -196,6 +196,10 @@ source_set("web_applications") {
     "jobs/finalize_install_job.h",
     "jobs/finalize_update_job.cc",
     "jobs/finalize_update_job.h",
+    "jobs/gather_migration_source_info_job.cc",
+    "jobs/gather_migration_source_info_job.h",
+    "jobs/gather_migration_source_info_job_result.cc",
+    "jobs/gather_migration_source_info_job_result.h",
     "jobs/get_progressive_web_app_size_job.cc",
     "jobs/get_progressive_web_app_size_job.h",
     "jobs/install_from_info_job.cc",
@@ -251,6 +255,12 @@ source_set("web_applications") {
     "model/display_override.h",
     "model/localized_text.cc",
     "model/localized_text.h",
+    "model/migration_behavior.cc",
+    "model/migration_behavior.h",
+    "model/migration_source.cc",
+    "model/migration_source.h",
+    "model/pending_migration_info.cc",
+    "model/pending_migration_info.h",
     "model/web_app_comparison.cc",
     "model/web_app_comparison.h",
     "navigation_capturing_log.cc",
@@ -325,6 +335,8 @@ source_set("web_applications") {
     "scheduler/install_migrate_to_app_result.h",
     "scheduler/manifest_silent_update_result.cc",
     "scheduler/manifest_silent_update_result.h",
+    "scheduler/navigate_and_trigger_install_dialog_result.cc",
+    "scheduler/navigate_and_trigger_install_dialog_result.h",
     "scheduler/web_app_install_from_migrate_from_field_result.cc",
     "scheduler/web_app_install_from_migrate_from_field_result.h",
     "scope_extension_info.cc",
@@ -946,6 +958,7 @@ source_set("web_applications_unit_tests") {
   testonly = true
 
   sources = [
+    "commands/app_migration_data_read_command_unittest.cc",
     "commands/apply_manifest_migration_command_unittest.cc",
     "commands/apply_pending_manifest_update_command_unittest.cc",
     "commands/clear_browsing_data_command_unittest.cc",
@@ -955,6 +968,7 @@ source_set("web_applications_unit_tests") {
     "commands/fetch_installability_for_chrome_management_unittest.cc",
     "commands/fetch_manifest_and_install_command_unittest.cc",
     "commands/fetch_manifest_and_update_command_unittest.cc",
+    "commands/generated_icon_fix_command_unittest.cc",
     "commands/install_app_locally_command_unittest.cc",
     "commands/install_from_sync_command_unittest.cc",
     "commands/install_migrate_to_app_command_unittest.cc",
@@ -995,6 +1009,7 @@ source_set("web_applications_unit_tests") {
     "isolated_web_apps/policy/isolated_web_app_external_install_options_unittest.cc",
     "isolated_web_apps/policy/isolated_web_app_installer_unittest.cc",
     "isolated_web_apps/policy/isolated_web_app_policy_manager_unittest.cc",
+    "isolated_web_apps/runtime_data/iwa_entitlements_unittest.cc",
     "isolated_web_apps/signed_web_bundle_metadata_unittest.cc",
     "isolated_web_apps/test/isolated_web_app_test.cc",
     "isolated_web_apps/test/isolated_web_app_test.h",
@@ -1003,6 +1018,8 @@ source_set("web_applications_unit_tests") {
     "isolated_web_apps/update/isolated_web_app_update_manager_unittest.cc",
     "isolated_web_apps/update_manifest/update_manifest_fetcher_unittest.cc",
     "isolated_web_apps/update_manifest/update_manifest_unittest.cc",
+    "jobs/finalize_install_job_unittest.cc",
+    "jobs/finalize_update_job_unittest.cc",
     "jobs/install_placeholder_job_unittest.cc",
     "jobs/manifest_to_web_app_install_info_job_unittest.cc",
     "jobs/migration_target_install_job_unittest.cc",
@@ -1208,18 +1225,21 @@ source_set("web_applications_browser_tests") {
 
   sources = [
     "alternative_error_page_override_info_browsertest.cc",
+    "commands/apply_manifest_migration_command_browsertest.cc",
     "commands/compute_app_size_command_browsertest.cc",
     "commands/external_app_resolution_command_browsertest.cc",
     "commands/fetch_manifest_and_install_command_browsertest.cc",
     "commands/fetch_manifest_and_update_command_browsertest.cc",
     "commands/install_from_info_command_browsertest.cc",
     "commands/install_from_sync_command_browsertest.cc",
+    "commands/install_migrate_to_app_command_browsertest.cc",
     "commands/launch_web_app_command_browsertest.cc",
     "commands/manifest_silent_update_command_browsertest.cc",
     "commands/navigate_and_trigger_install_dialog_command_browsertest.cc",
     "commands/update_protocol_handler_approval_command_browsertest.cc",
     "commands/web_app_install_from_migrate_from_field_command_browsertest.cc",
     "commands/web_install_from_url_command_browsertest.cc",
+    "get_installed_related_apps_browsertest.cc",
     "install_element_browsertest.cc",
     "isolated_web_apps/commands/garbage_collect_storage_partitions_command_browsertest.cc",
     "isolated_web_apps/commands/get_isolated_web_app_browsing_data_command_browsertest.cc",
@@ -1228,9 +1248,11 @@ source_set("web_applications_browser_tests") {
     "isolated_web_apps/isolated_web_app_browsing_data_browsertest.cc",
     "isolated_web_apps/isolated_web_app_csp_browsertest.cc",
     "isolated_web_apps/isolated_web_app_dev_tools_browsertest.cc",
+    "isolated_web_apps/isolated_web_app_entitlements_browsertest.cc",
     "isolated_web_apps/isolated_web_app_error_page_browsertest.cc",
     "isolated_web_apps/isolated_web_app_file_handling_browsertest.cc",
     "isolated_web_apps/isolated_web_app_install_prepare_apply_update_browsertest.cc",
+    "isolated_web_apps/isolated_web_app_link_capturing_browsertest.cc",
     "isolated_web_apps/isolated_web_app_permissions_policy_browsertest.cc",
     "isolated_web_apps/isolated_web_app_throttle_browsertest.cc",
     "isolated_web_apps/isolated_web_app_trust_checker_browsertest.cc",
@@ -1258,7 +1280,6 @@ source_set("web_applications_browser_tests") {
     "web_app_automation_browsertest.cc",
     "web_app_browser_controller_browsertest.cc",
     "web_app_icon_manager_browsertest.cc",
-    "web_app_internals_browsertest.cc",
     "web_app_link_capturing_parameterized_browsertest.cc",
     "web_app_navigation_capturing_browsertest_base.cc",
     "web_app_navigation_capturing_browsertest_base.h",
@@ -1266,6 +1287,10 @@ source_set("web_applications_browser_tests") {
     "web_app_scope_extensions_browsertest.cc",
     "web_install_browsertest.cc",
   ]
+
+  if (!is_win) {
+    sources += [ "web_app_internals_browsertest.cc" ]
+  }
 
   if (!is_chromeos) {
     sources += [
@@ -1289,6 +1314,10 @@ source_set("web_applications_browser_tests") {
     sources += [
       "os_integration/web_app_file_handler_registration_linux_browsertest.cc",
     ]
+  }
+
+  if (is_win || is_linux || is_mac) {
+    sources += [ "os_integration/shortcut_sub_manager_browsertest.cc" ]
   }
 
   if (is_mac) {

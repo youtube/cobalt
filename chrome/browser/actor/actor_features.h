@@ -9,6 +9,7 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/time/time.h"
 #include "chrome/browser/page_content_annotations/multi_source_page_context_fetcher.h"
 
 namespace actor {
@@ -23,6 +24,7 @@ BASE_DECLARE_FEATURE(kGlicActionUseOptimizationGuide);
 BASE_DECLARE_FEATURE(kActorBypassTOUValidationForGuestView);
 
 BASE_DECLARE_FEATURE(kGlicExternalProtocolActionResultCode);
+BASE_DECLARE_FEATURE(kGlicGranularBlockingActionResultCodes);
 
 BASE_DECLARE_FEATURE(kGlicBlockNavigationToDangerousContentTypes);
 
@@ -47,20 +49,17 @@ BASE_DECLARE_FEATURE_PARAM(bool, kGlicNavigationGatingUseSiteNotOrigin);
 // Controls whether a hardcoded block list is enabled for the static block list.
 // TODO(crbug.com/453660392): Remove flag once Component Updater rollout starts.
 BASE_DECLARE_FEATURE_PARAM(bool, kGlicIncludeHardcodedBlockListEntries);
+// Controls whether tool requests can implicitly allow new origins.
+BASE_DECLARE_FEATURE_PARAM(bool, kGlicAllowImplicitToolOriginGrants);
+
+// Controls whether chrome records UMA metrics for navigations by sending the
+// `NavigationConfirmationRequest` and recording the response.
+BASE_DECLARE_FEATURE(kGlicRecordNavigationConfirmationRequestMetrics);
 
 // When enabled, `beforeunload` dialog will not be displayed and the callback
 // indicating the dialog outcome will be called with `true`.
 // Warning: Enabling this feature can lead to data loss when navigating.
 BASE_DECLARE_FEATURE(kGlicSkipBeforeUnloadDialogAndNavigate);
-
-// When enabled, the actor will send a dialog request to the web client to
-// allow the user to select a credential to use for a site. When disabled, the
-// actor will automatically use the first credential.
-// TODO(crbug.com/427815202): Remove this once the front end is wired up.
-BASE_DECLARE_FEATURE(kGlicEnableAutoLoginDialogs);
-
-// Kill switch for selecting previously selected credentials.
-BASE_DECLARE_FEATURE(kGlicEnableAutoLoginPersistedPermissions);
 
 // Kill switch for skipping waiting for visual state update on new tabs.
 BASE_DECLARE_FEATURE(kGlicSkipAwaitVisualStateForNewTabs);
@@ -103,6 +102,8 @@ BASE_DECLARE_FEATURE(kActorRestartObservationDelayControllerOnNavigate);
 BASE_DECLARE_FEATURE(kActorSendBrowserSignalForAction);
 
 BASE_DECLARE_FEATURE(kGlicActorLoadAndExtractContentTool);
+extern const base::FeatureParam<base::TimeDelta>
+    kGlicActorLoadAndExtractContentToolTimeout;
 
 }  // namespace actor
 

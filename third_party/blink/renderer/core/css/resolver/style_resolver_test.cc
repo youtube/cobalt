@@ -366,6 +366,36 @@ TEST_F(StyleResolverTest, AnimationMaskedByImportant) {
   EXPECT_FALSE(StyleResolver::CanReuseBaseComputedStyle(state));
 }
 
+TEST_F(StyleResolverTest, AnimationWithRevertRuleVoidsBase) {
+  GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      div {
+        height: 10px;
+      }
+    </style>
+    <div id=div></div>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  Element* div = GetDocument().getElementById(AtomicString("div"));
+
+  auto* effect = CreateSimpleKeyframeEffectForTest(div, CSSPropertyID::kHeight,
+                                                   "revert-rule", "100px");
+  GetDocument().Timeline().Play(effect);
+  UpdateAllLifecyclePhasesForTest();
+
+  EXPECT_EQ("10px", ComputedValue("height", *StyleForId("div")));
+
+  div->SetNeedsAnimationStyleRecalc();
+  GetDocument().Lifecycle().AdvanceTo(DocumentLifecycle::kInStyleRecalc);
+  const ComputedStyle* style = StyleForId("div");
+  ASSERT_TRUE(style);
+  EXPECT_TRUE(style->GetBaseComputedStyle());
+
+  StyleResolverState state(GetDocument(), *div);
+  // We cannot use the base style due to a revert-rule-dependent animation.
+  EXPECT_FALSE(StyleResolver::CanReuseBaseComputedStyle(state));
+}
+
 TEST_F(StyleResolverTest,
        TransitionRetargetRelativeFontSizeOnParentlessElement) {
   GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
@@ -701,7 +731,7 @@ TEST_F(StyleResolverTest, SingleAxisAdjustOverflow) {
   {
     ScopedSingleAxisScrollContainersForTest single_axis_feature(true);
     run_test("clip", EOverflow::kClip, EOverflow::kScroll);
-    run_test("visible", EOverflow::kVisible, EOverflow::kScroll);
+    run_test("visible", EOverflow::kAuto, EOverflow::kScroll);
   }
 }
 
@@ -2301,17 +2331,29 @@ TEST_F(StyleResolverTest, AnchorQueriesMPC) {
         width: 100px;
         height: 100px;
       }
-      #anchor1 { left: 100px; }
-      #anchor2 { left: 150px; }
+      #anchor1 {
+        anchor-name: --anchor1;
+        left: 100px;
+      }
+      #anchor2 {
+        anchor-name: --anchor2;
+        left: 150px;
+      }
       .anchored {
         position: absolute;
         left: anchor(left);
       }
+      #a {
+        position-anchor: --anchor1;
+      }
+      #b {
+        position-anchor: --anchor2;
+      }
     </style>
     <div class=anchor id=anchor1>X</div>
     <div class=anchor id=anchor2>Y</div>
-    <div class=anchored id=a anchor=anchor1>A</div>
-    <div class=anchored id=b anchor=anchor2>B</div>
+    <div class=anchored id=a>A</div>
+    <div class=anchored id=b>B</div>
   )HTML");
 
   UpdateAllLifecyclePhasesForTest();
@@ -3220,8 +3262,6 @@ TEST_F(StyleResolverTestCQ, StyleRulesForElementContainerQuery) {
 }
 
 TEST_F(StyleResolverTest, StyleRulesForSVGUseInstanceElement) {
-  ScopedSvg2CascadeForTest enabled(true);
-
   SetBodyInnerHTML(R"HTML(
       <style>
         rect { fill: green; }

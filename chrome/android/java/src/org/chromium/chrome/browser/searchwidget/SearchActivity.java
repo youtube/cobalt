@@ -59,10 +59,10 @@ import org.chromium.chrome.browser.omnibox.BackKeyBehaviorDelegate;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
 import org.chromium.chrome.browser.omnibox.LocationBarEmbedder;
 import org.chromium.chrome.browser.omnibox.LocationBarEmbedderUiOverrides;
-import org.chromium.chrome.browser.omnibox.OmniboxActionDelegateImpl;
 import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
 import org.chromium.chrome.browser.omnibox.suggestions.CachedZeroSuggestionsManager;
 import org.chromium.chrome.browser.omnibox.suggestions.OmniboxLoadUrlParams;
+import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionDelegateImpl;
 import org.chromium.chrome.browser.password_manager.ManagePasswordsReferrer;
 import org.chromium.chrome.browser.password_manager.PasswordManagerLauncher;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -369,7 +369,7 @@ public class SearchActivity extends AsyncInitializationActivity
                                                 assumeNonNull(getProfileProviderSupplier().get())
                                                         .getOriginalProfile(),
                                                 ManagePasswordsReferrer.CHROME_SETTINGS,
-                                                getModalDialogManagerSupplier().asNonNull(),
+                                                getModalDialogManagerSupplier().asNonNull().get(),
                                                 /* managePasskeys= */ false),
                                 // Open Quick Delete Dialog callback:
                                 null,

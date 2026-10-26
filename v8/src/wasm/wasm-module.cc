@@ -724,9 +724,9 @@ int GetSourcePosition(const WasmModule* module, uint32_t func_index,
 size_t WasmModule::EstimateStoredSize() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            912
+                            920
 #else   // V8_ENABLE_DRUMBRAKE
-                            880
+                            888
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   return sizeof(WasmModule) +                            // --
@@ -804,14 +804,17 @@ size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
 size_t WasmModule::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            912
+                            920
 #else   // V8_ENABLE_DRUMBRAKE
-                            880
+                            888
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   size_t result = EstimateStoredSize();
 
-  result += signature_storage.TotalReservedSize();
+  {
+    base::MutexGuard lock{&signature_storage_mutex};
+    result += signature_storage.TotalReservedSize();
+  }
 
   result += type_feedback.EstimateCurrentMemoryConsumption();
   // For type_feedback.well_known_imports:
@@ -819,8 +822,11 @@ size_t WasmModule::EstimateCurrentMemoryConsumption() const {
 
   result += lazily_generated_names.EstimateCurrentMemoryConsumption();
 
-  result += ContentSize(marked_for_tierup);
-  result += ContentSize(feedback_slots_to_wire_byte_offsets);
+  {
+    base::MutexGuard compilation_hints_mutex_guard(&compilation_hints_mutex);
+    result += ContentSize(marked_for_tierup);
+    result += ContentSize(feedback_slots_to_wire_byte_offsets);
+  }
 
   if (v8_flags.trace_wasm_offheap_memory) {
     PrintF("WasmModule: %zu\n", result);

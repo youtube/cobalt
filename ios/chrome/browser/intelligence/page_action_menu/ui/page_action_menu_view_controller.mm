@@ -6,7 +6,7 @@
 
 #import "base/strings/sys_string_conversions.h"
 #import "build/branding_buildflags.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/page_action_menu/ui/page_action_menu_feature.h"
 #import "ios/chrome/browser/intelligence/page_action_menu/ui/page_action_menu_mutator.h"
@@ -91,7 +91,7 @@ const CGFloat kFeatureRowHorizontalPadding = 16;
 // The vertical padding within feature rows.
 const CGFloat kFeatureRowVerticalPadding = 12;
 
-// The width for the veritical feature row divider.
+// The width for the vertical feature row divider.
 const CGFloat kDividerWidth = 1.0;
 
 }  // namespace
@@ -575,8 +575,9 @@ const CGFloat kDividerWidth = 1.0;
   RecordAIHubAction(IOSAIHubAction::kGemini);
   PageActionMenuViewController* __weak weakSelf = self;
   [self.pageActionMenuHandler dismissPageActionMenuWithCompletion:^{
-    [weakSelf.BWGHandler
-        startGeminiFlowWithEntryPoint:gemini::EntryPoint::AIHub];
+    [weakSelf.BWGHandler startGeminiFlowWithStartupState:
+                             [[GeminiStartupState alloc]
+                                 initWithEntryPoint:gemini::EntryPoint::AIHub]];
   }];
 }
 

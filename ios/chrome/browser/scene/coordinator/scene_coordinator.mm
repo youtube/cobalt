@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/scene/coordinator/scene_coordinator.h"
 
+#import "base/cancelable_callback.h"
 #import "base/ios/ios_util.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/metrics/histogram_macros.h"
@@ -23,10 +24,11 @@
 #import "ios/chrome/app/application_delegate/tab_opening.h"
 #import "ios/chrome/app/deferred_initialization_runner.h"
 #import "ios/chrome/app/deferred_initialization_task_names.h"
+#import "ios/chrome/app/profile/first_run_profile_agent.h"
 #import "ios/chrome/app/profile/profile_state.h"
 #import "ios/chrome/browser/ai_prototyping/coordinator/ai_prototyping_coordinator.h"
 #import "ios/chrome/browser/app_bar/coordinator/app_bar_coordinator.h"
-#import "ios/chrome/browser/assistant/coordinator/assistant_sheet_coordinator.h"
+#import "ios/chrome/browser/assistant/coordinator/assistant_container_coordinator.h"
 #import "ios/chrome/browser/authentication/account_menu/coordinator/account_menu_coordinator.h"
 #import "ios/chrome/browser/authentication/account_menu/coordinator/account_menu_coordinator_delegate.h"
 #import "ios/chrome/browser/authentication/account_menu/public/account_menu_constants.h"
@@ -35,8 +37,11 @@
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_notification_infobar_delegate.h"
+#import "ios/chrome/browser/cobrowse/coordinator/assistant_aim_coordinator.h"
+#import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
 #import "ios/chrome/browser/default_browser/model/utils.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/history/ui_bundled/history_coordinator_factory.h"
 #import "ios/chrome/browser/incognito_interstitial/ui_bundled/incognito_interstitial_coordinator.h"
 #import "ios/chrome/browser/incognito_interstitial/ui_bundled/incognito_interstitial_coordinator_delegate.h"
@@ -51,16 +56,20 @@
 #import "ios/chrome/browser/safari_data_import/coordinator/safari_data_import_main_coordinator.h"
 #import "ios/chrome/browser/safari_data_import/model/features.h"
 #import "ios/chrome/browser/safari_data_import/public/safari_data_import_entry_point.h"
+#import "ios/chrome/browser/scene/coordinator/scene_mediator.h"
 #import "ios/chrome/browser/scene/ui/scene_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_checkup/password_checkup_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_navigation_controller.h"
+#import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/incognito_state.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/browser/browser_provider.h"
 #import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios_util.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/bookmarks_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
@@ -77,6 +86,7 @@
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/model/system_identity_manager.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_coordinator.h"
 #import "ios/chrome/browser/url_loading/model/scene_url_loading_service.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
@@ -151,7 +161,6 @@ void OnListFamilyMembersResponse(
 @end
 
 @implementation SceneCoordinator {
-  id<SceneCommands> _sceneCommandsEndpoint;
   id<TabOpening> _tabOpener;
   base::WeakPtr<Browser> _inactiveBrowser;
   base::WeakPtr<Browser> _regularBrowser;
@@ -159,6 +168,8 @@ void OnListFamilyMembersResponse(
   TabGridCoordinator* _tabGridCoordinator;
   // Coordinator for the AppBar.
   AppBarCoordinator* _appBarCoordinator;
+  // Mediator for the Scene coordinate.
+  SceneMediator* _sceneMediator;
   // Coordinator for the account menu.
   AccountMenuCoordinator* _accountMenuCoordinator;
   // Coordinator for the sign-in flow.
@@ -175,8 +186,10 @@ void OnListFamilyMembersResponse(
   IncognitoInterstitialCoordinator* _incognitoInterstitialCoordinator;
   // Coordinator for the AI prototyping menu.
   AIPrototypingCoordinator* _AIPrototypingCoordinator;
-  // The coordinator for the Assistant Sheet.
-  AssistantSheetCoordinator* _assistantSheetCoordinator;
+  // The coordinator for the AIM Assistant.
+  AssistantAIMCoordinator* _assistantAIMCoordinator;
+  // The coordinator for the Assistant Container.
+  AssistantContainerCoordinator* _assistantContainerCoordinator;
   // Observer for PolicyWatcherBrowserAgent.
   std::unique_ptr<PolicyWatcherBrowserAgentObserverBridge>
       _policyWatcherObserverBridge;
@@ -192,15 +205,14 @@ void OnListFamilyMembersResponse(
   // Fetches the Family Link member role asynchronously from KidsManagement API.
   std::unique_ptr<supervised_user::ListFamilyMembersFetcher>
       _familyMembersFetcher;
+  // Closure to timeout the request to list family members.
+  base::CancelableOnceClosure _familyMembersTimeoutClosure;
   // Navigation View controller for the settings.
   SettingsNavigationController* _settingsNavigationController;
 }
 
-- (instancetype)initWithSceneCommandsEndpoint:
-                    (id<SceneCommands>)sceneCommandsEndpoint
-                                    tabOpener:(id<TabOpening>)tabOpener {
+- (instancetype)initWithTabOpener:(id<TabOpening>)tabOpener {
   if ((self = [super init])) {
-    _sceneCommandsEndpoint = sceneCommandsEndpoint;
     _tabOpener = tabOpener;
   }
   return self;
@@ -221,14 +233,15 @@ void OnListFamilyMembersResponse(
   CHECK(_incognitoBrowser);
 
   _tabGridCoordinator = [[TabGridCoordinator alloc]
-      initWithSceneCommandsEndpoint:_sceneCommandsEndpoint
+      initWithSceneCommandsEndpoint:self
                      regularBrowser:_regularBrowser.get()
                     inactiveBrowser:_inactiveBrowser.get()
                    incognitoBrowser:_incognitoBrowser];
-  _tabGridCoordinator.delegate = self.delegate;
+  _tabGridCoordinator.delegate = self.tabGridDelegate;
   [_tabGridCoordinator start];
   if (IsUseSceneViewControllerEnabled()) {
     _viewController = [[SceneViewController alloc] init];
+    _viewController.layoutGuideCenter = LayoutGuideCenterForBrowser(nil);
     UIViewController* tabGridViewController =
         _tabGridCoordinator.viewController;
     [_viewController addChildViewController:tabGridViewController];
@@ -236,6 +249,13 @@ void OnListFamilyMembersResponse(
     tabGridViewController.view.frame = _viewController.appContainer.bounds;
     [tabGridViewController didMoveToParentViewController:_viewController];
     self.sceneState.window.rootViewController = _viewController;
+
+    _sceneMediator = [[SceneMediator alloc]
+        initWithRegularFullscreenController:FullscreenController::FromBrowser(
+                                                _regularBrowser.get())
+              incognitoFullscreenController:FullscreenController::FromBrowser(
+                                                _incognitoBrowser)];
+    _sceneMediator.consumer = _viewController;
   }
 
   if (IsChromeNextIaEnabled()) {
@@ -245,9 +265,20 @@ void OnListFamilyMembersResponse(
     [_appBarCoordinator start];
     [_viewController setAppBar:_appBarCoordinator.viewController];
   }
+
+  if (IsAssistantContainerEnabled()) {
+    _assistantContainerCoordinator = [[AssistantContainerCoordinator alloc]
+        initWithBaseViewController:self.activeViewController
+                           browser:_regularBrowser.get()];
+    [_assistantContainerCoordinator start];
+  }
 }
 
 - (void)stop {
+  // Force close the settings if open. This gives Settings the opportunity to
+  // unregister observers and destroy C++ objects before the application is
+  // shut down without depending on non-deterministic call to -dealloc.
+  [self stopSettingsAnimated:NO completion:nil];
   [_regularBrowser->GetCommandDispatcher() stopDispatchingToTarget:self];
   _policyWatcherObserver.reset();
   _policyWatcherObserverBridge.reset();
@@ -258,13 +289,16 @@ void OnListFamilyMembersResponse(
   [self stopHistoryCoordinator];
   [self stopYoutubeIncognitoCoordinator];
   [self stopIncognitoInterstitialCoordinator];
-  [self stopSettingsAnimated:NO completion:nil];
   [_AIPrototypingCoordinator stop];
   _AIPrototypingCoordinator = nil;
-  [self stopAssistantSheetCoordinator];
+  [self stopAssistantAIMCoordinator];
+  [self stopAssistantContainerCoordinator];
+  [_sceneMediator disconnect];
+  _sceneMediator = nil;
   [_tabGridCoordinator stop];
   [_appBarCoordinator stop];
-  self.delegate = nil;
+  self.UIHandler = nil;
+  self.tabGridDelegate = nil;
   self.sceneURLLoadingService = nullptr;
 }
 
@@ -299,6 +333,33 @@ void OnListFamilyMembersResponse(
   return YES;
 }
 
+- (void)openNonIncognitoTab:(ProceduralBlock)completion {
+  if (_regularBrowser->GetWebStateList()->GetActiveWebState()) {
+    // Reuse an existing tab, if one exists.
+    ApplicationMode mode = [self isIncognitoForced] ? ApplicationMode::INCOGNITO
+                                                    : ApplicationMode::NORMAL;
+    [self.UIHandler setCurrentInterfaceForMode:mode];
+    if (self.isTabGridActive) {
+      [self.UIHandler displayCurrentBVC:completion];
+    } else {
+      if (completion) {
+        completion();
+      }
+    }
+  } else {
+    // Open a new NTP.
+    UrlLoadParams params = UrlLoadParams::InNewTab(GURL(kChromeUINewTabURL));
+    params.web_params.transition_type = ui::PAGE_TRANSITION_TYPED;
+    ApplicationModeForTabOpening mode =
+        [self isIncognitoForced] ? ApplicationModeForTabOpening::INCOGNITO
+                                 : ApplicationModeForTabOpening::NORMAL;
+    [_tabOpener dismissModalsAndMaybeOpenSelectedTabInMode:mode
+                                         withUrlLoadParams:params
+                                            dismissOmnibox:YES
+                                                completion:completion];
+  }
+}
+
 - (void)showTabGridPage:(TabGridPage)page {
   [_tabGridCoordinator showTabGridPage:page];
 }
@@ -314,370 +375,6 @@ void OnListFamilyMembersResponse(
 
 - (void)setActiveMode:(TabGridMode)mode {
   [_tabGridCoordinator setActiveMode:mode];
-}
-
-- (BOOL)isSigninInProgress {
-  return _signinCoordinator != nil;
-}
-
-- (void)showAccountMenuFromWebWithURL:(const GURL&)URL {
-  if (![self isTabAvailableToPresentViewController]) {
-    return;
-  }
-  if (_accountMenuCoordinator) {
-    return;
-  }
-  _accountMenuCoordinator = [[AccountMenuCoordinator alloc]
-      initWithBaseViewController:self.activeViewController
-                         browser:_regularBrowser.get()
-                      anchorView:nil
-                     accessPoint:AccountMenuAccessPoint::kWeb
-                             URL:URL];
-  _accountMenuCoordinator.delegate = self;
-  [_accountMenuCoordinator start];
-}
-
-- (void)showSignin:(ShowSigninCommand*)command
-    baseViewController:(UIViewController*)baseViewController {
-  if (!baseViewController) {
-    baseViewController = self.activeViewController;
-  }
-  if (![self canPresentSigninCoordinatorOrCompletion:command.completion
-                                  baseViewController:baseViewController
-                                         accessPoint:command.accessPoint]) {
-    return;
-  }
-  [self stopSigninCoordinatorWithCompletionAnimated:NO];
-  _signinCoordinator =
-      [SigninCoordinator signinCoordinatorWithCommand:command
-                                              browser:_regularBrowser.get()
-                                   baseViewController:baseViewController];
-  [self startSigninCoordinatorWithCompletion:command.completion];
-}
-
-- (void)showFullscreenSigninPromoWithCompletion:
-    (SigninCoordinatorCompletionCallback)dismissalCompletion {
-  DCHECK(!_signinCoordinator)
-      << "_signinCoordinator: "
-      << base::SysNSStringToUTF8([_signinCoordinator description]);
-  [self stopSigninCoordinatorWithCompletionAnimated:NO];
-  _signinCoordinator = [SigninCoordinator
-      fullscreenSigninPromoCoordinatorWithBaseViewController:
-          self.activeViewController
-                                                     browser:_regularBrowser
-                                                                 .get()
-                                                contextStyle:
-                                                    SigninContextStyle::kDefault
-                           changeProfileContinuationProvider:
-                               DoNothingContinuationProvider()];
-  [self startSigninCoordinatorWithCompletion:dismissalCompletion];
-}
-
-- (void)showWebSigninPromoFromViewController:(UIViewController*)viewController
-                                         URL:(const GURL&)URL {
-  // Do not display the web sign-in promo if there is any UI on the screen.
-  if (viewController.presentedViewController ||
-      ![self isTabAvailableToPresentViewController]) {
-    return;
-  }
-  if (!signin::ShouldPresentWebSignin(_regularBrowser->GetProfile())) {
-    return;
-  }
-  id<BrowserCoordinatorCommands> browserCoordinatorHandler = HandlerForProtocol(
-      self.currentBrowser->GetCommandDispatcher(), BrowserCoordinatorCommands);
-  void (^prepareChangeProfile)() = ^() {
-    [browserCoordinatorHandler closeCurrentTab];
-  };
-  ChangeProfileContinuationProvider provider =
-      base::BindRepeating(&CreateChangeProfileOpensURLContinuation, URL);
-  [self stopSigninCoordinatorWithCompletionAnimated:NO];
-  base::WeakPtr<Browser> regularBrowser = _regularBrowser;
-  _signinCoordinator = [SigninCoordinator
-      consistencyPromoSigninCoordinatorWithBaseViewController:viewController
-                                                      browser:regularBrowser
-                                                                  .get()
-                                                 contextStyle:
-                                                     SigninContextStyle::
-                                                         kDefault
-                                                  accessPoint:signin_metrics::
-                                                                  AccessPoint::
-                                                                      kWebSignin
-                                         prepareChangeProfile:
-                                             prepareChangeProfile
-                                         continuationProvider:provider];
-  if (!_signinCoordinator) {
-    return;
-  }
-  // Copy the URL so it can be safely captured in the block.
-  GURL copiedURL = URL;
-  [self startSigninCoordinatorWithCompletion:^(SigninCoordinator* coordinator,
-                                               SigninCoordinatorResult result,
-                                               id<SystemIdentity> identity) {
-    if (result == SigninCoordinatorResultSuccess && regularBrowser) {
-      UrlLoadingBrowserAgent::FromBrowser(regularBrowser.get())
-          ->Load(UrlLoadParams::InCurrentTab(copiedURL));
-    }
-  }];
-}
-
-- (void)stopSigninCoordinatorWithCompletionAnimated:(BOOL)animated {
-  // We retain the coordinator until the end of the completion, while ensuring
-  // that when the completion requests `self` to stop the signin coordinator,
-  // `stop` is not called a second time.
-  SigninCoordinator* signinCoordinator = _signinCoordinator;
-  if (!signinCoordinator) {
-    return;
-  }
-  _signinCoordinator = nil;
-
-  [signinCoordinator stopAnimated:animated];
-  SigninCoordinatorCompletionCallback signinCompletion =
-      signinCoordinator.signinCompletion;
-  signinCoordinator.signinCompletion = nil;
-  CHECK(signinCompletion, base::NotFatalUntil::M142);
-  // The `signinCoordinator` must be nil here, because `_signinCoordinator`
-  // was set to `nil` above.
-  signinCompletion(nil, SigninCoordinatorResultInterrupted, nil);
-}
-
-- (void)displaySafariDataImportFromEntryPoint:
-            (SafariDataImportEntryPoint)entryPoint
-                                withUIHandler:
-                                    (id<SafariDataImportUIHandler>)UIHandler
-                           baseViewController:
-                               (UIViewController*)baseViewController {
-  if (_safariDataImportCoordinator) {
-    return;
-  }
-  CHECK(ShouldShowSafariDataImportEntryPoint(
-      self.currentBrowser->GetProfile()->GetPrefs()));
-
-  _safariDataImportCoordinator = [[SafariDataImportMainCoordinator alloc]
-          initFromEntryPoint:entryPoint
-      withBaseViewController:baseViewController
-                     browser:self.currentBrowser];
-  _safariDataImportCoordinator.delegate = self;
-  _safariDataImportCoordinator.UIHandler = UIHandler;
-  [_safariDataImportCoordinator start];
-}
-
-- (void)displaySafariDataImportFromEntryPoint:
-            (SafariDataImportEntryPoint)entryPoint
-                                withUIHandler:
-                                    (id<SafariDataImportUIHandler>)UIHandler {
-  // If presented over settings, the base view controller is the top presented
-  // view controller. Otherwise, it is the active view controller.
-  BOOL presentOverSettings = _settingsNavigationController &&
-                             entryPoint == SafariDataImportEntryPoint::kSetting;
-  UIViewController* baseViewController = presentOverSettings
-                                             ? _settingsNavigationController
-                                             : self.activeViewController;
-
-  __weak __typeof(self) weakSelf = self;
-  auto startImport = ^{
-    [weakSelf displaySafariDataImportFromEntryPoint:entryPoint
-                                      withUIHandler:UIHandler
-                                 baseViewController:baseViewController];
-  };
-  if (presentOverSettings) {
-    startImport();
-  } else {
-    [self closePresentedViews:YES completion:startImport];
-  }
-}
-
-- (void)createSafetyCheckSettingsWithReferrer:
-    (password_manager::PasswordCheckReferrer)referrer {
-  if (_settingsNavigationController) {
-    return;
-  }
-  _settingsNavigationController = [SettingsNavigationController
-      safetyCheckControllerForBrowser:_regularBrowser.get()
-                             delegate:self
-                             referrer:referrer];
-}
-
-- (void)showPasswordCheckupPageForReferrer:
-    (password_manager::PasswordCheckReferrer)referrer {
-  [self startPasswordCheckupCoordinator:referrer];
-  [self presentSettingsFromViewController:self.activeViewController];
-}
-
-- (void)
-    showPasswordIssuesWithWarningType:(password_manager::WarningType)warningType
-                             referrer:(password_manager::PasswordCheckReferrer)
-                                          referrer {
-  [self startPasswordCheckupCoordinator:referrer];
-  [_passwordCheckupCoordinator showPasswordIssuesWithWarningType:warningType];
-  [self presentSettingsFromViewController:self.activeViewController];
-}
-
-- (void)stopPasswordCheckupCoordinator {
-  [_passwordCheckupCoordinator stop];
-  _passwordCheckupCoordinator.delegate = nil;
-  _passwordCheckupCoordinator = nil;
-}
-
-- (void)startPasswordCheckupCoordinator:
-    (password_manager::PasswordCheckReferrer)referrer {
-  [self createSafetyCheckSettingsWithReferrer:referrer];
-
-  _passwordCheckupCoordinator = [[PasswordCheckupCoordinator alloc]
-      initWithBaseNavigationController:_settingsNavigationController
-                               browser:_regularBrowser.get()
-                          reauthModule:nil
-                              referrer:referrer];
-  _passwordCheckupCoordinator.delegate = self;
-  [_passwordCheckupCoordinator start];
-}
-
-- (void)stopSettingsAnimated:(BOOL)animated
-                  completion:(ProceduralBlock)completion {
-  if (_settingsNavigationController) {
-    // Dismiss the view controller if it is presented.
-    UIViewController* presentingViewController =
-        _settingsNavigationController.presentingViewController;
-
-    __weak __typeof(self) weakSelf = self;
-    ProceduralBlock cleanup = ^{
-      [weakSelf cleanUpSettings];
-      if (completion) {
-        completion();
-      }
-    };
-
-    if (presentingViewController) {
-      [presentingViewController dismissViewControllerAnimated:animated
-                                                   completion:cleanup];
-    } else {
-      cleanup();
-    }
-  } else if (completion) {
-    completion();
-  }
-}
-
-- (void)presentSettingsFromViewController:
-    (UIViewController*)baseViewController {
-  [baseViewController presentViewController:_settingsNavigationController
-                                   animated:YES
-                                 completion:nil];
-}
-
-- (void)maybeShowSettingsFromViewController {
-  if (self.isSigninInProgress) {
-    return;
-  }
-  [self showSettingsFromViewController:nil];
-}
-
-- (void)showSettingsFromViewController:(UIViewController*)baseViewController {
-  BOOL hasDefaultBrowserBlueDot = NO;
-
-  Browser* browser = _regularBrowser.get();
-  if (browser) {
-    feature_engagement::Tracker* tracker =
-        feature_engagement::TrackerFactory::GetForProfile(self.profile);
-    if (tracker) {
-      hasDefaultBrowserBlueDot =
-          ShouldTriggerDefaultBrowserHighlightFeature(tracker);
-    }
-  }
-
-  if (hasDefaultBrowserBlueDot) {
-    RecordDefaultBrowserBlueDotFirstDisplay();
-  }
-
-  [self showSettingsFromViewController:baseViewController
-              hasDefaultBrowserBlueDot:hasDefaultBrowserBlueDot];
-}
-
-- (void)showSettingsFromViewController:(UIViewController*)baseViewController
-              hasDefaultBrowserBlueDot:(BOOL)hasDefaultBrowserBlueDot {
-  if (!baseViewController) {
-    baseViewController = self.activeViewController;
-  }
-
-  DCHECK(!self.isSigninInProgress);
-  if (_settingsNavigationController) {
-    DCHECK(_settingsNavigationController.presentingViewController)
-        << base::SysNSStringToUTF8(
-               [_settingsNavigationController.viewControllers description]);
-    return;
-  }
-  [self.sceneState.profileState.appState.deferredRunner
-      runBlockNamed:kStartupInitPrefObservers];
-
-  Browser* browser = _regularBrowser.get();
-
-  _settingsNavigationController = [SettingsNavigationController
-      mainSettingsControllerForBrowser:browser
-                              delegate:self
-              hasDefaultBrowserBlueDot:hasDefaultBrowserBlueDot];
-  [baseViewController presentViewController:_settingsNavigationController
-                                   animated:YES
-                                 completion:nil];
-}
-
-- (void)showPrivacySettingsFromViewController:
-    (UIViewController*)baseViewController {
-  if (_settingsNavigationController) {
-    return;
-  }
-
-  _settingsNavigationController = [SettingsNavigationController
-      privacyControllerForBrowser:_regularBrowser.get()
-                         delegate:self];
-  [baseViewController presentViewController:_settingsNavigationController
-                                   animated:YES
-                                 completion:nil];
-}
-
-- (void)showSafeBrowsingSettingsFromViewController:
-    (UIViewController*)baseViewController {
-  if (_settingsNavigationController) {
-    [_settingsNavigationController showSafeBrowsingSettings];
-    return;
-  }
-
-  _settingsNavigationController = [SettingsNavigationController
-      safeBrowsingControllerForBrowser:_regularBrowser.get()
-                              delegate:self];
-  [baseViewController presentViewController:_settingsNavigationController
-                                   animated:YES
-                                 completion:nil];
-}
-
-- (void)openPriceTrackingNotificationsSettings {
-  Browser* browser = _regularBrowser.get();
-  _settingsNavigationController = [SettingsNavigationController
-      priceNotificationsControllerForBrowser:browser
-                                    delegate:self];
-  [self.activeViewController presentViewController:_settingsNavigationController
-                                          animated:YES
-                                        completion:nil];
-}
-
-- (void)openAIMenu {
-  DCHECK(self.currentBrowser);
-  _AIPrototypingCoordinator = [[AIPrototypingCoordinator alloc]
-      initWithBaseViewController:self.activeViewController
-                         browser:self.currentBrowser];
-
-  // Since this is only for internal prototyping, the coordinator remains active
-  // once it's been started.
-  [_AIPrototypingCoordinator start];
-}
-
-- (void)showAssistant {
-  if (!IsAssistantSheetEnabled()) {
-    return;
-  }
-  _assistantSheetCoordinator = [[AssistantSheetCoordinator alloc]
-      initWithBaseViewController:self.activeViewController
-                         browser:self.currentBrowser];
-  _assistantSheetCoordinator.mode = AssistantSheetModeGemini;
-  [_assistantSheetCoordinator start];
 }
 
 - (void)showYoutubeIncognitoWithUrlLoadParams:
@@ -705,133 +402,12 @@ void OnListFamilyMembersResponse(
   [_incognitoInterstitialCoordinator start];
 }
 
-- (void)showAppStorePage {
-  [[UIApplication sharedApplication]
-                openURL:[NSURL URLWithString:kChromeAppStoreURL]
-                options:@{}
-      completionHandler:nil];
-}
-
-- (void)showSigninAccountNotificationFromViewController:
-    (UIViewController*)baseViewController {
-  web::WebState* webState =
-      _regularBrowser->GetWebStateList()->GetActiveWebState();
-  DCHECK(webState);
-  infobars::InfoBarManager* infoBarManager =
-      InfoBarManagerImpl::FromWebState(webState);
-  DCHECK(infoBarManager);
-  CommandDispatcher* dispatcher = _regularBrowser->GetCommandDispatcher();
-  id<SettingsCommands> settingsHandler =
-      HandlerForProtocol(dispatcher, SettingsCommands);
-  SigninNotificationInfoBarDelegate::Create(
-      infoBarManager, self.profile, settingsHandler, baseViewController);
-}
-
-- (void)showPriceTrackingNotificationsSettings {
-  CHECK(!self.isSigninInProgress);
-  if (_settingsNavigationController) {
-    __weak SceneCoordinator* weakSelf = self;
-    [self closePresentedViews:NO
-                   completion:^{
-                     [weakSelf openPriceTrackingNotificationsSettings];
-                   }];
-    return;
-  }
-  [self openPriceTrackingNotificationsSettings];
-}
-
-- (void)closePresentedViews {
-  [self closePresentedViews:YES completion:nil];
-}
-
-- (void)closePresentedViewsAndOpenURL:(OpenNewTabCommand*)command {
-  DCHECK([command fromChrome]);
-  UrlLoadParams params = UrlLoadParams::InNewTab([command URL]);
-  params.web_params.transition_type = ui::PAGE_TRANSITION_TYPED;
-  id<TabOpening> tabOpener = _tabOpener;
-  ProceduralBlock completion = ^{
-    ApplicationModeForTabOpening mode =
-        [self isIncognitoForced] ? ApplicationModeForTabOpening::INCOGNITO
-                                 : ApplicationModeForTabOpening::NORMAL;
-    [tabOpener dismissModalsAndMaybeOpenSelectedTabInMode:mode
-                                        withUrlLoadParams:params
-                                           dismissOmnibox:YES
-                                               completion:nil];
-  };
-  [self closePresentedViews:YES completion:completion];
-}
-
-- (void)closePresentedViews:(BOOL)animated
-                 completion:(ProceduralBlock)completion {
-  // If the Incognito interstitial is active, stop it.
-  [self stopIncognitoInterstitialCoordinator];
-  [self stopYoutubeIncognitoCoordinator];
-
-  // If History is active, stop it.
-  [self stopHistoryCoordinator];
-
-  // If Assistant Sheet is active, stop it.
-  [self stopAssistantSheetCoordinator];
-
-  // If the Safari data import workflow is active, stop it.
-  [self stopSafariDataImportCoordinator];
-
-  __weak __typeof(self) weakSelf = self;
-  ProceduralBlock resetAndDismiss = ^{
-    __typeof(self) strongSelf = weakSelf;
-    // Cleanup Password Checkup after its UI was dismissed.
-    [strongSelf stopPasswordCheckupCoordinator];
-    if (completion) {
-      completion();
-    }
-  };
-
-  if (_settingsNavigationController && !_dismissingSettings) {
-    _dismissingSettings = YES;
-    // `self.signinCoordinator` can be presented on top of the settings, to
-    // present the Trusted Vault reauthentication `self.signinCoordinator` has
-    // to be closed first.
-    // If signinCoordinator is already dismissing, completion execution will
-    // happen when it is done animating.
-    [self stopSigninCoordinatorWithCompletionAnimated:animated];
-    [self stopSettingsAnimated:animated completion:resetAndDismiss];
-    _dismissingSettings = NO;
-  } else {
-    // `self.signinCoordinator` can be presented without settings, from the
-    // bookmarks or the recent tabs view.
-    [self stopSigninCoordinatorWithCompletionAnimated:animated];
-    resetAndDismiss();
-  }
-}
-
-- (void)showHistory {
-  CHECK(!self.currentBrowser->GetProfile()->IsOffTheRecord())
-      << "Current interface is incognito and should NOT show history. Call "
-         "this on regular interface.";
-  _historyCoordinator = CreateHistoryCoordinator(self.activeViewController,
-                                                 _regularBrowser.get());
-  _historyCoordinator.loadStrategy = UrlLoadStrategy::NORMAL;
-  _historyCoordinator.delegate = self;
-  [_historyCoordinator start];
-}
-
-- (void)dismissModalsAndShowPasswordCheckupPageForReferrer:
-    (password_manager::PasswordCheckReferrer)referrer {
-  __weak SceneCoordinator* weakSelf = self;
-  [self dismissModalDialogsWithCompletion:^{
-    [weakSelf showPasswordCheckupPageForReferrer:referrer];
-  }];
-}
-
-- (void)dismissModalDialogsWithCompletion:(ProceduralBlock)completion
-                           dismissOmnibox:(BOOL)dismissOmnibox {
-  [self dismissModalDialogsWithCompletion:completion
-                           dismissOmnibox:dismissOmnibox
-                         dismissSnackbars:YES];
-}
+#pragma mark - SceneCommands
 
 - (void)dismissModalDialogsWithCompletion:(ProceduralBlock)completion {
-  [self dismissModalDialogsWithCompletion:completion dismissOmnibox:YES];
+  [self dismissModalDialogsWithCompletion:completion
+                           dismissOmnibox:YES
+                         dismissSnackbars:YES];
 }
 
 - (void)dismissModalDialogsWithCompletion:(ProceduralBlock)completion
@@ -907,6 +483,211 @@ void OnListFamilyMembersResponse(
   ios::provider::LogIfModalViewsArePresented();
 }
 
+- (void)dismissModalsAndShowPasswordCheckupPageForReferrer:
+    (password_manager::PasswordCheckReferrer)referrer {
+  __weak SceneCoordinator* weakSelf = self;
+  [self dismissModalDialogsWithCompletion:^{
+    [weakSelf showPasswordCheckupPageForReferrer:referrer];
+  }];
+}
+
+- (void)
+    showPasswordIssuesWithWarningType:(password_manager::WarningType)warningType
+                             referrer:(password_manager::PasswordCheckReferrer)
+                                          referrer {
+  [self startPasswordCheckupCoordinator:referrer];
+  [_passwordCheckupCoordinator showPasswordIssuesWithWarningType:warningType];
+  [self presentSettingsFromViewController:self.activeViewController];
+}
+
+- (void)maybeShowSettingsFromViewController {
+  if (self.isSigninInProgress) {
+    return;
+  }
+  [self showSettingsFromViewController:nil];
+}
+
+- (void)showSettingsFromViewController:(UIViewController*)baseViewController {
+  BOOL hasDefaultBrowserBlueDot = NO;
+
+  Browser* browser = _regularBrowser.get();
+  if (browser) {
+    feature_engagement::Tracker* tracker =
+        feature_engagement::TrackerFactory::GetForProfile(self.profile);
+    if (tracker) {
+      hasDefaultBrowserBlueDot =
+          ShouldTriggerDefaultBrowserHighlightFeature(tracker);
+    }
+  }
+
+  if (hasDefaultBrowserBlueDot) {
+    RecordDefaultBrowserBlueDotFirstDisplay();
+  }
+
+  [self showSettingsFromViewController:baseViewController
+              hasDefaultBrowserBlueDot:hasDefaultBrowserBlueDot];
+}
+
+- (void)showSettingsFromViewController:(UIViewController*)baseViewController
+              hasDefaultBrowserBlueDot:(BOOL)hasDefaultBrowserBlueDot {
+  if (!baseViewController) {
+    baseViewController = self.activeViewController;
+  }
+
+  DCHECK(!self.isSigninInProgress);
+  if (_settingsNavigationController) {
+    DCHECK(_settingsNavigationController.presentingViewController)
+        << base::SysNSStringToUTF8(
+               [_settingsNavigationController.viewControllers description]);
+    return;
+  }
+  [self.sceneState.profileState.appState.deferredRunner
+      runBlockNamed:kStartupInitPrefObservers];
+
+  Browser* browser = _regularBrowser.get();
+
+  _settingsNavigationController = [SettingsNavigationController
+      mainSettingsControllerForBrowser:browser
+                              delegate:self
+              hasDefaultBrowserBlueDot:hasDefaultBrowserBlueDot];
+  [baseViewController presentViewController:_settingsNavigationController
+                                   animated:YES
+                                 completion:nil];
+}
+
+- (void)showPriceTrackingNotificationsSettings {
+  CHECK(!self.isSigninInProgress);
+  if (_settingsNavigationController) {
+    __weak SceneCoordinator* weakSelf = self;
+    [self closePresentedViews:NO
+                   completion:^{
+                     [weakSelf openPriceTrackingNotificationsSettings];
+                   }];
+    return;
+  }
+  [self openPriceTrackingNotificationsSettings];
+}
+
+- (void)showSafeBrowsingSettingsFromViewController:
+    (UIViewController*)baseViewController {
+  if (_settingsNavigationController) {
+    [_settingsNavigationController showSafeBrowsingSettings];
+    return;
+  }
+
+  _settingsNavigationController = [SettingsNavigationController
+      safeBrowsingControllerForBrowser:_regularBrowser.get()
+                              delegate:self];
+  [baseViewController presentViewController:_settingsNavigationController
+                                   animated:YES
+                                 completion:nil];
+}
+
+- (void)stopAllVoiceSearch {
+  // Stop voice search on the regular browser.
+  id<BrowserCoordinatorCommands> handler = HandlerForProtocol(
+      _regularBrowser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+  [handler stopVoiceSearch];
+
+  // Stop voice search on the incognito browser.
+  handler = HandlerForProtocol(_incognitoBrowser->GetCommandDispatcher(),
+                               BrowserCoordinatorCommands);
+  [handler stopVoiceSearch];
+}
+
+- (void)showHistory {
+  CHECK(!self.currentBrowser->GetProfile()->IsOffTheRecord())
+      << "Current interface is incognito and should NOT show history. Call "
+         "this on regular interface.";
+  _historyCoordinator = CreateHistoryCoordinator(self.activeViewController,
+                                                 _regularBrowser.get());
+  _historyCoordinator.loadStrategy = UrlLoadStrategy::NORMAL;
+  _historyCoordinator.delegate = self;
+  [_historyCoordinator start];
+}
+
+- (void)showAssistantWithContext:(CobrowseContext*)context {
+  if (!IsAssistantContainerEnabled()) {
+    return;
+  }
+  [_assistantAIMCoordinator stop];
+  _assistantAIMCoordinator = [[AssistantAIMCoordinator alloc]
+      initWithBaseViewController:self.activeViewController
+                         browser:self.currentBrowser
+                         context:context];
+  [_assistantAIMCoordinator start];
+}
+
+- (void)hideAssistant {
+  [self stopAssistantAIMCoordinator];
+}
+
+- (void)closePresentedViewsAndOpenURL:(OpenNewTabCommand*)command {
+  DCHECK([command fromChrome]);
+  UrlLoadParams params = UrlLoadParams::InNewTab([command URL]);
+  params.web_params.transition_type = ui::PAGE_TRANSITION_TYPED;
+  id<TabOpening> tabOpener = _tabOpener;
+  ProceduralBlock completion = ^{
+    ApplicationModeForTabOpening mode =
+        [self isIncognitoForced] ? ApplicationModeForTabOpening::INCOGNITO
+                                 : ApplicationModeForTabOpening::NORMAL;
+    [tabOpener dismissModalsAndMaybeOpenSelectedTabInMode:mode
+                                        withUrlLoadParams:params
+                                           dismissOmnibox:YES
+                                               completion:nil];
+  };
+  [self closePresentedViews:YES completion:completion];
+}
+
+- (void)closePresentedViews {
+  [self closePresentedViews:YES completion:nil];
+}
+
+- (void)prepareTabSwitcher {
+  web::WebState* currentWebState =
+      self.currentBrowser->GetWebStateList()->GetActiveWebState();
+  if (currentWebState) {
+    SnapshotTabHelper::FromWebState(currentWebState)
+        ->UpdateSnapshotWithCallback(nil);
+  }
+}
+
+- (void)displayTabGridInMode:(TabGridOpeningMode)mode {
+  if (self.isTabGridActive) {
+    return;
+  }
+
+  BOOL incognito = self.currentBrowser->type() == Browser::Type::kIncognito;
+  TabGridPage page =
+      incognito ? TabGridPageIncognitoTabs : TabGridPageRegularTabs;
+  if (mode == TabGridOpeningMode::kRegular && incognito) {
+    [self.UIHandler setCurrentInterfaceForMode:ApplicationMode::NORMAL];
+    page = TabGridPageRegularTabs;
+  } else if (mode == TabGridOpeningMode::kIncognito && !incognito) {
+    [self.UIHandler setCurrentInterfaceForMode:ApplicationMode::INCOGNITO];
+    page = TabGridPageIncognitoTabs;
+  } else if (mode == TabGridOpeningMode::kTabGroups) {
+    [self.UIHandler setCurrentInterfaceForMode:ApplicationMode::NORMAL];
+    page = TabGridPageTabGroups;
+  }
+
+  [self showTabSwitcherAtPage:page];
+}
+
+- (void)showPrivacySettingsFromViewController:
+    (UIViewController*)baseViewController {
+  if (_settingsNavigationController) {
+    return;
+  }
+
+  _settingsNavigationController = [SettingsNavigationController
+      privacyControllerForBrowser:_regularBrowser.get()
+                         delegate:self];
+  [baseViewController presentViewController:_settingsNavigationController
+                                   animated:YES
+                                 completion:nil];
+}
+
 - (void)showReportAnIssueFromViewController:
             (UIViewController*)baseViewController
                                      sender:(UserFeedbackSender)sender {
@@ -937,10 +718,10 @@ void OnListFamilyMembersResponse(
 
 - (void)openURLInNewTab:(OpenNewTabCommand*)command {
   if (command.inIncognito) {
-    IncognitoReauthSceneAgent* reauthAgent =
-        [IncognitoReauthSceneAgent agentFromScene:self.sceneState];
-    if (reauthAgent.authenticationRequired) {
+    if (self.sceneState.incognitoState.authenticationRequired) {
       __weak __typeof(self) weakSelf = self;
+      IncognitoReauthSceneAgent* reauthAgent =
+          [IncognitoReauthSceneAgent agentFromScene:self.sceneState];
       [reauthAgent
           authenticateIncognitoContentWithCompletionBlock:^(BOOL success) {
             if (success) {
@@ -964,6 +745,108 @@ void OnListFamilyMembersResponse(
   params.should_focus_omnibox = command.shouldFocusOmnibox;
   params.inherit_opener = !command.inBackground;
   self.sceneURLLoadingService->LoadUrlInNewTab(params);
+}
+
+- (void)showSignin:(ShowSigninCommand*)command
+    baseViewController:(UIViewController*)baseViewController {
+  if (!baseViewController) {
+    baseViewController = self.activeViewController;
+  }
+  if (![self canPresentSigninCoordinatorOrCompletion:command.completion
+                                  baseViewController:baseViewController
+                                         accessPoint:command.accessPoint]) {
+    return;
+  }
+  [self stopSigninCoordinatorWithCompletionAnimated:NO];
+  _signinCoordinator =
+      [SigninCoordinator signinCoordinatorWithCommand:command
+                                              browser:_regularBrowser.get()
+                                   baseViewController:baseViewController];
+  [self startSigninCoordinatorWithCompletion:command.completion];
+}
+
+- (void)showAccountMenuFromWebWithURL:(const GURL&)URL {
+  if (![self isTabAvailableToPresentViewController]) {
+    return;
+  }
+  if (_accountMenuCoordinator) {
+    return;
+  }
+  _accountMenuCoordinator = [[AccountMenuCoordinator alloc]
+      initWithBaseViewController:self.activeViewController
+                         browser:_regularBrowser.get()
+                      anchorView:nil
+                     accessPoint:AccountMenuAccessPoint::kWeb
+                             URL:URL];
+  _accountMenuCoordinator.delegate = self;
+  [_accountMenuCoordinator start];
+}
+
+- (void)showWebSigninPromoFromViewController:(UIViewController*)viewController
+                                         URL:(const GURL&)URL {
+  // Do not display the web sign-in promo if there is any UI on the screen.
+  if (viewController.presentedViewController ||
+      ![self isTabAvailableToPresentViewController]) {
+    return;
+  }
+  if (!signin::ShouldPresentWebSignin(_regularBrowser->GetProfile())) {
+    return;
+  }
+  id<BrowserCoordinatorCommands> browserCoordinatorHandler = HandlerForProtocol(
+      self.currentBrowser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+  void (^prepareChangeProfile)() = ^() {
+    [browserCoordinatorHandler closeCurrentTab];
+  };
+  ChangeProfileContinuationProvider provider =
+      base::BindRepeating(&CreateChangeProfileOpensURLContinuation, URL);
+  [self stopSigninCoordinatorWithCompletionAnimated:NO];
+  base::WeakPtr<Browser> regularBrowser = _regularBrowser;
+  _signinCoordinator = [SigninCoordinator
+      consistencyPromoSigninCoordinatorWithBaseViewController:viewController
+                                                      browser:regularBrowser
+                                                                  .get()
+                                                 contextStyle:
+                                                     SigninContextStyle::
+                                                         kDefault
+                                                  accessPoint:signin_metrics::
+                                                                  AccessPoint::
+                                                                      kWebSignin
+                                         prepareChangeProfile:
+                                             prepareChangeProfile
+                                         continuationProvider:provider];
+  if (!_signinCoordinator) {
+    return;
+  }
+  // Copy the URL so it can be safely captured in the block.
+  GURL copiedURL = URL;
+  [self startSigninCoordinatorWithCompletion:^(SigninCoordinator* coordinator,
+                                               SigninCoordinatorResult result,
+                                               id<SystemIdentity> identity) {
+    if (result == SigninCoordinatorResultSuccess && regularBrowser) {
+      UrlLoadingBrowserAgent::FromBrowser(regularBrowser.get())
+          ->Load(UrlLoadParams::InCurrentTab(copiedURL));
+    }
+  }];
+}
+
+- (void)showSigninAccountNotificationFromViewController:
+    (UIViewController*)baseViewController {
+  web::WebState* webState =
+      _regularBrowser->GetWebStateList()->GetActiveWebState();
+  DCHECK(webState);
+  infobars::InfoBarManager* infoBarManager =
+      InfoBarManagerImpl::FromWebState(webState);
+  DCHECK(infoBarManager);
+  CommandDispatcher* dispatcher = _regularBrowser->GetCommandDispatcher();
+  id<SettingsCommands> settingsHandler =
+      HandlerForProtocol(dispatcher, SettingsCommands);
+  SigninNotificationInfoBarDelegate::Create(
+      infoBarManager, self.profile, settingsHandler, baseViewController);
+}
+
+- (void)setIncognitoContentVisible:(BOOL)incognitoContentVisible {
+  self.sceneState.incognitoState.incognitoContentVisible =
+      incognitoContentVisible;
 }
 
 - (void)openNewWindowWithActivity:(NSUserActivity*)userActivity {
@@ -998,6 +881,88 @@ void OnListFamilyMembersResponse(
                        userActivity:userActivity
                             options:options
                        errorHandler:nil];
+}
+
+- (void)prepareToPresentModalWithSnackbarDismissal:(BOOL)dismissSnackbars
+                                        completion:(ProceduralBlock)completion {
+  __weak __typeof(self) weakSelf = self;
+  ProceduralBlock ensureNTP = ^{
+    [weakSelf ensureNTP];
+    completion();
+  };
+  if (self.isTabGridActive ||
+      ((self.currentBrowser->type() == Browser::Type::kIncognito) &&
+       ![self isIncognitoForced])) {
+    [self closePresentedViews:YES
+                   completion:^{
+                     [weakSelf openNonIncognitoTab:ensureNTP];
+                   }];
+    return;
+  }
+  [self dismissModalDialogsWithCompletion:ensureNTP
+                           dismissOmnibox:YES
+                         dismissSnackbars:dismissSnackbars];
+}
+
+- (void)openAIMenu {
+  DCHECK(self.currentBrowser);
+  _AIPrototypingCoordinator = [[AIPrototypingCoordinator alloc]
+      initWithBaseViewController:self.activeViewController
+                         browser:self.currentBrowser];
+
+  // Since this is only for internal prototyping, the coordinator remains active
+  // once it's been started.
+  [_AIPrototypingCoordinator start];
+}
+
+- (void)showFullscreenSigninPromoWithCompletion:
+    (SigninCoordinatorCompletionCallback)dismissalCompletion {
+  DCHECK(!_signinCoordinator)
+      << "_signinCoordinator: "
+      << base::SysNSStringToUTF8([_signinCoordinator description]);
+  [self stopSigninCoordinatorWithCompletionAnimated:NO];
+  _signinCoordinator = [SigninCoordinator
+      fullscreenSigninPromoCoordinatorWithBaseViewController:
+          self.activeViewController
+                                                     browser:_regularBrowser
+                                                                 .get()
+                                                contextStyle:
+                                                    SigninContextStyle::kDefault
+                           changeProfileContinuationProvider:
+                               DoNothingContinuationProvider()];
+  [self startSigninCoordinatorWithCompletion:dismissalCompletion];
+}
+
+- (void)displaySafariDataImportFromEntryPoint:
+            (SafariDataImportEntryPoint)entryPoint
+                                withUIHandler:
+                                    (id<SafariDataImportUIHandler>)UIHandler {
+  // If presented over settings, the base view controller is the top presented
+  // view controller. Otherwise, it is the active view controller.
+  BOOL presentOverSettings = _settingsNavigationController &&
+                             entryPoint == SafariDataImportEntryPoint::kSetting;
+  UIViewController* baseViewController = presentOverSettings
+                                             ? _settingsNavigationController
+                                             : self.activeViewController;
+
+  __weak __typeof(self) weakSelf = self;
+  auto startImport = ^{
+    [weakSelf displaySafariDataImportFromEntryPoint:entryPoint
+                                      withUIHandler:UIHandler
+                                 baseViewController:baseViewController];
+  };
+  if (presentOverSettings) {
+    startImport();
+  } else {
+    [self closePresentedViews:YES completion:startImport];
+  }
+}
+
+- (void)showAppStorePage {
+  [[UIApplication sharedApplication]
+                openURL:[NSURL URLWithString:kChromeAppStoreURL]
+                options:@{}
+      completionHandler:nil];
 }
 
 #pragma mark - SettingsCommands
@@ -1083,6 +1048,7 @@ void OnListFamilyMembersResponse(
 }
 
 // TODO(crbug.com/41352590) : Do not pass baseViewController through dispatcher.
+// The user must be signed-in and sign-in must be enabled.
 - (void)showSyncSettingsFromViewController:
     (UIViewController*)baseViewController {
   DCHECK(!self.isSigninInProgress);
@@ -1126,7 +1092,7 @@ void OnListFamilyMembersResponse(
 - (void)showSavedPasswordsSettingsFromViewController:
     (UIViewController*)baseViewController {
   __weak SceneCoordinator* weakSelf = self;
-  [_sceneCommandsEndpoint dismissModalDialogsWithCompletion:^{
+  [self dismissModalDialogsWithCompletion:^{
     [weakSelf showSavedPasswordsSettingsAfterModalDismissFromViewController:
                   baseViewController];
   }];
@@ -1340,8 +1306,8 @@ void OnListFamilyMembersResponse(
 
 #pragma mark - Properties
 
-- (void)setDelegate:(id<TabGridCoordinatorDelegate>)delegate {
-  _delegate = delegate;
+- (void)setTabGridDelegate:(id<TabGridCoordinatorDelegate>)delegate {
+  _tabGridDelegate = delegate;
   _tabGridCoordinator.delegate = delegate;
 }
 
@@ -1368,6 +1334,10 @@ void OnListFamilyMembersResponse(
 - (Browser*)currentBrowser {
   return self.sceneState.browserProviderInterface.currentBrowserProvider
       .browser;
+}
+
+- (BOOL)isSigninInProgress {
+  return _signinCoordinator != nil;
 }
 
 #pragma mark - PolicyWatcherBrowserAgentObserving
@@ -1453,17 +1423,20 @@ void OnListFamilyMembersResponse(
 }
 
 - (void)settingsWasDismissed {
-  [self cleanUpSettings];
+  [_settingsNavigationController cleanUpSettings];
+  _settingsNavigationController = nil;
   [self stopPasswordCheckupCoordinator];
 }
 
 #pragma mark - Private
 
-// Calls `cleanUpSettings` on the SettingsNavigationController before setting
-// it to nil.
-- (void)cleanUpSettings {
-  [_settingsNavigationController cleanUpSettings];
+// Callbacks for `stopSettingsAnimated:completion:`. It releases the navigation
+// controller and call the completion if it is non nil.
+- (void)stopSettingsCallbackWithCompletion:(ProceduralBlock)completion {
   _settingsNavigationController = nil;
+  if (completion) {
+    completion();
+  }
 }
 
 // Returns YES if incognito mode is disabled.
@@ -1656,10 +1629,16 @@ void OnListFamilyMembersResponse(
   _youtubeIncognitoCoordinator = nil;
 }
 
-// Stops the AssistantSheetcoordinator;
-- (void)stopAssistantSheetCoordinator {
-  [_assistantSheetCoordinator stop];
-  _assistantSheetCoordinator = nil;
+// Stops the AssistantContainerCoordinator.
+- (void)stopAssistantContainerCoordinator {
+  [_assistantContainerCoordinator stopAnimated:NO completion:nil];
+  _assistantContainerCoordinator = nil;
+}
+
+// Stops the AssistantAIMCoordinator.
+- (void)stopAssistantAIMCoordinator {
+  [_assistantAIMCoordinator stop];
+  _assistantAIMCoordinator = nil;
 }
 
 // Stops the History coordinator.
@@ -1724,88 +1703,54 @@ void OnListFamilyMembersResponse(
         *identity_manager, self.profile->GetSharedURLLoaderFactory(),
         base::BindOnce(&OnListFamilyMembersResponse, primary_account.gaia, data)
             .Then(base::BindOnce(^{
-              [weakSelf
-                  reportAnIssueFamilyMembersListFetchedForBaseViewController:
-                      baseViewController
-                                                            userFeedbackData:
-                                                                data
-                                                                  completion:
-                                                                      completion];
+              [weakSelf presentUserFeedbackViewController:baseViewController
+                                     withUserFeedbackData:data
+                                               completion:completion];
             })));
 
     // Timeout the request to list family members.
+    _familyMembersTimeoutClosure.Reset(base::BindOnce(^{
+      [weakSelf presentUserFeedbackViewController:baseViewController
+                             withUserFeedbackData:data
+                                       completion:completion];
+    }));
     base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE, base::BindOnce(^{
-          [weakSelf presentUserFeedbackViewController:baseViewController
-                                 withUserFeedbackData:data
-                             cancelFamilyMembersFetch:YES
-                                           completion:completion];
-        }),
-        timeout);
+        FROM_HERE, _familyMembersTimeoutClosure.callback(), timeout);
     return;
   }
 
   [self presentUserFeedbackViewController:baseViewController
                      withUserFeedbackData:data
-                 cancelFamilyMembersFetch:NO
                                completion:completion];
-}
-
-// Callback for when the Family Members list is fetched.
-- (void)
-    reportAnIssueFamilyMembersListFetchedForBaseViewController:
-        (UIViewController*)baseViewController
-                                              userFeedbackData:
-                                                  (UserFeedbackData*)data
-                                                    completion:
-                                                        (UserFeedbackDataCallback)
-                                                            completion {
-  [self presentUserFeedbackViewController:baseViewController
-                     withUserFeedbackData:data
-                 cancelFamilyMembersFetch:NO
-                               completion:completion];
-  // Reset the fetcher now that it has done its job.
-  _familyMembersFetcher.reset();
 }
 
 // Presents the Report an Issue UI using `data`. Cancels the family members
-// fetch if `cancelFamilyMembersFetch` is YES.
+// fetcher, and `_familyMembersTimeoutClosure`.
 - (void)presentUserFeedbackViewController:(UIViewController*)baseViewController
                      withUserFeedbackData:(UserFeedbackData*)data
-                 cancelFamilyMembersFetch:(BOOL)cancelFamilyMembersFetch
                                completion:(UserFeedbackDataCallback)completion {
+  // Cancel any timeout.
+  _familyMembersTimeoutClosure.Cancel();
   // Cancel any list family member requests in progress.
-  if (cancelFamilyMembersFetch) {
-    _familyMembersFetcher.reset();
+  _familyMembersFetcher.reset();
+
+  UserFeedbackConfiguration* configuration =
+      [[UserFeedbackConfiguration alloc] init];
+  configuration.data = data;
+  configuration.sceneHandler = self;
+  configuration.singleSignOnService =
+      GetApplicationContext()->GetSingleSignOnService();
+  if (IsDisableU18FeedbackIosEnabled()) {
+    AuthenticationService* authenticationService =
+        AuthenticationServiceFactory::GetForProfile(self.profile);
+    configuration.primaryIdentity = authenticationService->GetPrimaryIdentity(
+        signin::ConsentLevel::kSignin);
   }
 
-  Browser* browser = _regularBrowser.get();
-
-  id<SceneCommands> handler =
-      HandlerForProtocol(browser->GetCommandDispatcher(), SceneCommands);
-
-  if (ios::provider::CanUseStartUserFeedbackFlow()) {
-    UserFeedbackConfiguration* configuration =
-        [[UserFeedbackConfiguration alloc] init];
-    configuration.data = data;
-    configuration.sceneHandler = handler;
-    configuration.singleSignOnService =
-        GetApplicationContext()->GetSingleSignOnService();
-
-    NSError* error;
-    ios::provider::StartUserFeedbackFlow(configuration, baseViewController,
-                                         &error);
-    UMA_HISTOGRAM_BOOLEAN("IOS.FeedbackKit.UserFlowStartedSuccess",
-                          error == nil);
-  } else {
-    _settingsNavigationController =
-        [SettingsNavigationController userFeedbackControllerForBrowser:browser
-                                                              delegate:self
-                                                      userFeedbackData:data];
-    [baseViewController presentViewController:_settingsNavigationController
-                                     animated:YES
-                                   completion:nil];
-  }
+  NSError* error;
+  ios::provider::StartUserFeedbackFlow(configuration, baseViewController,
+                                       &error);
+  UMA_HISTOGRAM_BOOLEAN("IOS.FeedbackKit.UserFlowStartedSuccess", error == nil);
   std::move(completion).Run(data);
 }
 
@@ -1834,6 +1779,206 @@ void OnListFamilyMembersResponse(
 
   data.productSpecificData = specificProductData;
   return data;
+}
+
+// Shows the tab switcher UI.
+- (void)showTabSwitcherAtPage:(TabGridPage)page {
+  [self setActiveMode:TabGridMode::kNormal];
+  [self showTabGridPage:page];
+}
+
+// Ensures that a non-incognito NTP tab is open. If incognito is forced, then
+// it will ensure an incognito NTP tab is open.
+- (void)ensureNTP {
+  // If the tab does not exist, open a new tab.
+  UrlLoadParams params = UrlLoadParams::InCurrentTab(GURL(kChromeUINewTabURL));
+  ApplicationMode mode =
+      (self.currentBrowser->type() == Browser::Type::kIncognito)
+          ? ApplicationMode::INCOGNITO
+          : ApplicationMode::NORMAL;
+  [self.UIHandler openOrReuseTabInMode:mode
+                     withUrlLoadParams:params
+                   tabOpenedCompletion:nil];
+}
+
+// Stops the PasswordCheckupCoordinator.
+- (void)stopPasswordCheckupCoordinator {
+  [_passwordCheckupCoordinator stop];
+  _passwordCheckupCoordinator.delegate = nil;
+  _passwordCheckupCoordinator = nil;
+}
+
+// Creates the settings navigation controller for the safety check if it doesn't
+// exist.
+- (void)createSafetyCheckSettingsWithReferrer:
+    (password_manager::PasswordCheckReferrer)referrer {
+  if (_settingsNavigationController) {
+    return;
+  }
+  _settingsNavigationController = [SettingsNavigationController
+      safetyCheckControllerForBrowser:_regularBrowser.get()
+                             delegate:self
+                             referrer:referrer];
+}
+
+// Stops the sign-in coordinator actions and dismisses its views either
+// with or without animation. Executes its signinCompletion. It’s expected to be
+// not already executed.
+- (void)stopSigninCoordinatorWithCompletionAnimated:(BOOL)animated {
+  // We retain the coordinator until the end of the completion, while ensuring
+  // that when the completion requests `self` to stop the signin coordinator,
+  // `stop` is not called a second time.
+  SigninCoordinator* signinCoordinator = _signinCoordinator;
+  if (!signinCoordinator) {
+    return;
+  }
+  _signinCoordinator = nil;
+
+  [signinCoordinator stopAnimated:animated];
+  SigninCoordinatorCompletionCallback signinCompletion =
+      signinCoordinator.signinCompletion;
+  signinCoordinator.signinCompletion = nil;
+  CHECK(signinCompletion, base::NotFatalUntil::M142);
+  // The `signinCoordinator` must be nil here, because `_signinCoordinator`
+  // was set to `nil` above.
+  signinCompletion(nil, SigninCoordinatorResultInterrupted, nil);
+}
+
+// Shows the settings navigation controller.
+- (void)presentSettingsFromViewController:
+    (UIViewController*)baseViewController {
+  [baseViewController presentViewController:_settingsNavigationController
+                                   animated:YES
+                                 completion:nil];
+}
+
+// Stops the settings navigation controller.
+- (void)stopSettingsAnimated:(BOOL)animated
+                  completion:(ProceduralBlock)completion {
+  if (_settingsNavigationController) {
+    // Clean-up and then dismiss the view controller if it is presented.
+    [_settingsNavigationController cleanUpSettings];
+    UIViewController* presentingViewController =
+        _settingsNavigationController.presentingViewController;
+
+    __weak __typeof(self) weakSelf = self;
+    ProceduralBlock cleanup = ^{
+      [weakSelf stopSettingsCallbackWithCompletion:completion];
+    };
+
+    if (presentingViewController) {
+      [presentingViewController dismissViewControllerAnimated:animated
+                                                   completion:cleanup];
+    } else {
+      cleanup();
+    }
+  } else if (completion) {
+    completion();
+  }
+}
+
+// Opens the price tracking notification settings view.
+- (void)openPriceTrackingNotificationsSettings {
+  Browser* browser = _regularBrowser.get();
+  _settingsNavigationController = [SettingsNavigationController
+      priceNotificationsControllerForBrowser:browser
+                                    delegate:self];
+  [self.activeViewController presentViewController:_settingsNavigationController
+                                          animated:YES
+                                        completion:nil];
+}
+
+// Displays the Safari Data Import, from a `baseViewController`.
+- (void)displaySafariDataImportFromEntryPoint:
+            (SafariDataImportEntryPoint)entryPoint
+                                withUIHandler:
+                                    (id<SafariDataImportUIHandler>)UIHandler
+                           baseViewController:
+                               (UIViewController*)baseViewController {
+  if (_safariDataImportCoordinator) {
+    return;
+  }
+  CHECK(ShouldShowSafariDataImportEntryPoint(
+      self.currentBrowser->GetProfile()->GetPrefs()));
+
+  _safariDataImportCoordinator = [[SafariDataImportMainCoordinator alloc]
+          initFromEntryPoint:entryPoint
+      withBaseViewController:baseViewController
+                     browser:self.currentBrowser];
+  _safariDataImportCoordinator.delegate = self;
+  _safariDataImportCoordinator.UIHandler = UIHandler;
+  [_safariDataImportCoordinator start];
+}
+
+// Shows the password checkup page.
+- (void)showPasswordCheckupPageForReferrer:
+    (password_manager::PasswordCheckReferrer)referrer {
+  [self startPasswordCheckupCoordinator:referrer];
+  [self presentSettingsFromViewController:self.activeViewController];
+}
+
+// Starts the PasswordCheckupCoordinator.
+- (void)startPasswordCheckupCoordinator:
+    (password_manager::PasswordCheckReferrer)referrer {
+  [self createSafetyCheckSettingsWithReferrer:referrer];
+
+  _passwordCheckupCoordinator = [[PasswordCheckupCoordinator alloc]
+      initWithBaseNavigationController:_settingsNavigationController
+                               browser:_regularBrowser.get()
+                              referrer:referrer];
+  _passwordCheckupCoordinator.delegate = self;
+  [_passwordCheckupCoordinator start];
+}
+
+// Closes any presented views and calls `completion`.
+- (void)closePresentedViews:(BOOL)animated
+                 completion:(ProceduralBlock)completion {
+  // If the Incognito interstitial is active, stop it.
+  [self stopIncognitoInterstitialCoordinator];
+  [self stopYoutubeIncognitoCoordinator];
+
+  // If History is active, stop it.
+  [self stopHistoryCoordinator];
+
+  // If AIM Assistant is active, stop it.
+  [self stopAssistantAIMCoordinator];
+
+  // If the Safari data import workflow is active, stop it.
+  [self stopSafariDataImportCoordinator];
+
+  // If the guided tour is active, stop it.
+  FirstRunProfileAgent* firstRunAgent =
+      [FirstRunProfileAgent agentFromProfile:self.sceneState.profileState];
+  if (firstRunAgent) {
+    [firstRunAgent stopGuidedTour];
+  }
+
+  __weak __typeof(self) weakSelf = self;
+  ProceduralBlock resetAndDismiss = ^{
+    __typeof(self) strongSelf = weakSelf;
+    // Cleanup Password Checkup after its UI was dismissed.
+    [strongSelf stopPasswordCheckupCoordinator];
+    if (completion) {
+      completion();
+    }
+  };
+
+  if (_settingsNavigationController && !_dismissingSettings) {
+    _dismissingSettings = YES;
+    // `self.signinCoordinator` can be presented on top of the settings, to
+    // present the Trusted Vault reauthentication `self.signinCoordinator` has
+    // to be closed first.
+    // If signinCoordinator is already dismissing, completion execution will
+    // happen when it is done animating.
+    [self stopSigninCoordinatorWithCompletionAnimated:animated];
+    [self stopSettingsAnimated:animated completion:resetAndDismiss];
+    _dismissingSettings = NO;
+  } else {
+    // `self.signinCoordinator` can be presented without settings, from the
+    // bookmarks or the recent tabs view.
+    [self stopSigninCoordinatorWithCompletionAnimated:animated];
+    resetAndDismiss();
+  }
 }
 
 @end

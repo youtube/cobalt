@@ -37,6 +37,8 @@ source_set("read_anything") {
     "read_anything_side_panel_navigation_throttle.h",
     "read_anything_side_panel_web_view.cc",
     "read_anything_side_panel_web_view.h",
+    "read_anything_soft_navigation_observer.cc",
+    "read_anything_soft_navigation_observer.h",
   ]
   public_deps = [
     "//base",
@@ -59,6 +61,8 @@ source_set("read_anything") {
     "//chrome/browser/profiles",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/exclusive_access",
+    "//chrome/browser/ui/side_panel",
+    "//chrome/browser/ui/side_panel:side_panel_views_dependent",
     "//chrome/browser/ui/user_education",
     "//chrome/browser/ui/views/interaction",
     "//chrome/browser/ui/views/page_action",
@@ -66,6 +70,7 @@ source_set("read_anything") {
     "//components/accessibility:reading",
     "//components/language/core/browser",
     "//components/language/core/common",
+    "//components/page_load_metrics/browser",
     "//services/metrics/public/cpp:metrics_cpp",
   ]
 }

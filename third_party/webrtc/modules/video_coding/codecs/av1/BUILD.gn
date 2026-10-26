@@ -130,6 +130,8 @@ if (rtc_include_tests) {
       "../..:video_codec_interface",
       "../../../../api:array_view",
       "../../../../api:field_trials",
+      "../../../../api:make_ref_counted",
+      "../../../../api:scoped_refptr",
       "../../../../api/environment",
       "../../../../api/environment:environment_factory",
       "../../../../api/transport/rtp:dependency_descriptor",

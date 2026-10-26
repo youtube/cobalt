@@ -5,6 +5,7 @@
 #include "components/contextual_tasks/internal/ai_thread_sync_bridge.h"
 
 #include "base/functional/callback_helpers.h"
+#include "components/sync/base/deletion_origin.h"
 #include "components/sync/model/data_batch.h"
 #include "components/sync/model/in_memory_metadata_change_list.h"
 #include "components/sync/model/mutable_data_batch.h"
@@ -174,6 +175,7 @@ AiThreadSyncBridge::TrimAllSupportedFieldsFromRemoteSpecifics(
   trimmed_specifics.clear_server_id();
   trimmed_specifics.clear_conversation_turn_id();
   trimmed_specifics.clear_title();
+  trimmed_specifics.clear_last_turn_time_unix_epoch_millis();
   // LINT.ThenChange(//components/sync/protocol/ai_thread_specifics.proto:AiThreadSpecifics)
 
   sync_pb::EntitySpecifics trimmed_entity_specifics;
@@ -192,7 +194,39 @@ std::optional<Thread> AiThreadSyncBridge::GetThread(
   }
   sync_pb::AiThreadSpecifics specifics = it->second.specifics();
   return Thread(ThreadType::kAiMode, server_id, specifics.title(),
+                specifics.last_turn_time_unix_epoch_millis(),
                 specifics.conversation_turn_id());
+}
+
+std::vector<Thread> AiThreadSyncBridge::GetThreads() const {
+  std::vector<Thread> threads;
+  for (const auto& [server_id, thread_entity] : ai_thread_entities_) {
+    threads.emplace_back(
+        ThreadType::kAiMode, server_id, thread_entity.specifics().title(),
+        thread_entity.specifics().last_turn_time_unix_epoch_millis(),
+        thread_entity.specifics().conversation_turn_id());
+  }
+  return threads;
+}
+
+void AiThreadSyncBridge::DeleteThread(const Thread& thread) {
+  if (!change_processor()->IsTrackingMetadata()) {
+    return;
+  }
+  std::unique_ptr<syncer::DataTypeStore::WriteBatch> batch =
+      data_type_store_->CreateWriteBatch();
+
+  change_processor()->Delete(thread.server_id,
+                             syncer::DeletionOrigin::Unspecified(),
+                             batch->GetMetadataChangeList());
+
+  ai_thread_entities_.erase(thread.server_id);
+  batch->DeleteData(thread.server_id);
+
+  data_type_store_->CommitWriteBatch(
+      std::move(batch),
+      base::BindOnce(&AiThreadSyncBridge::OnDataTypeStoreCommit,
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 void AiThreadSyncBridge::AddObserver(Observer* observer) {

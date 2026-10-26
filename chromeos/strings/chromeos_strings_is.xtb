@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">Keyra hleðslupróf</translation>
 <translation id="1622402072367425417">glóandi kúlum</translation>
 <translation id="1626590945318984973">Flýtilykill ekki í boði. Ýttu á nýjan flýtilykil án þess að nota virkni- og <ph name="META_KEY" />-lykla.</translation>
+<translation id="163774412591892664">Stjórnandinn þinn slökkti á tækinu þínu og getur séð staðsetningu þess.</translation>
 <translation id="1639239467298939599">Hleður</translation>
 <translation id="1641857168437328880">Skjalamatari (einhliða)</translation>
 <translation id="1642396894598555413">reiðhjól</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814">Niðurhal umritunar fyrir tungumálið <ph name="LANGUAGE_NAME" /> er lokið</translation>
 <translation id="42126664696688958">Flytja út</translation>
 <translation id="4213104098953699324">USB-lyklaborð</translation>
+<translation id="4217571870635786043">Upplestur</translation>
 <translation id="4227825898293920515">Aðgangsorð rennur út eftir <ph name="TIME" /></translation>
 <translation id="4238516577297848345">Engin prentun í gangi</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1685,6 +1687,7 @@ Sæktu umritunarlíkanið (allt að 100 MB) til að fá þessar textauppskriftir
 <translation id="8420955526972171689">Keyra prófanir og úrræðaleit fyrir vandamál í vélbúnaði</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">niður</translation>
+<translation id="8427213022735114808">Upplestur sendir rödd þína til Google til að gera raddinnslátt mögulegan í hvaða textareit sem er.</translation>
 <translation id="8428213095426709021">Stillingar</translation>
 <translation id="8431300646573772016">Nýjungar í ChromeOS</translation>
 <translation id="8433186206711564395">Netstillingar</translation>
@@ -1723,6 +1726,7 @@ Sæktu umritunarlíkanið (allt að 100 MB) til að fá þessar textauppskriftir
 <translation id="8584654835905316966">Endurræsingar er krafist til að ljúka uppsetningu á fastbúnaði fyrir <ph name="DEVICE_NAME" /> í útgáfu <ph name="VERSION" />. Tölvan þín kann að virðast endurræsast nokkrum sinnum. Búast má við þessari virkni.</translation>
 <translation id="8593058461203131755">gera hlé á efni</translation>
 <translation id="8620617069779373398">Reikistaða</translation>
+<translation id="8624524972189162859"><ph name="DOMAIN_NAME" />-stjórnandinn þinn slökkti á tækinu þínu og getur séð staðsetningu þess.</translation>
 <translation id="8626489604350149811">Fleiri aðgerðir fyrir <ph name="APN_NAME" /></translation>
 <translation id="86356131183441916">Ljósfjólublár</translation>
 <translation id="8647595191512746911">Hljóðumritun</translation>

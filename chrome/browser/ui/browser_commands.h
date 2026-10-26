@@ -11,6 +11,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/devtools/devtools_toggle_action.h"
 #include "chrome/browser/task_manager/task_manager_metrics_recorder.h"
@@ -242,7 +243,7 @@ void GenerateQRCode(BrowserWindowInterface* bwi);
 void SharingHub(Browser* browser);
 void ScreenshotCapture(Browser* browser);
 void SavePage(Browser* browser);
-bool CanSavePage(const Browser* browser);
+bool CanSavePage(const BrowserWindowInterface* bwi);
 void Print(BrowserWindowInterface* bwi);
 bool CanPrint(BrowserWindowInterface* bwi);
 #if BUILDFLAG(ENABLE_PRINTING)
@@ -262,7 +263,6 @@ void ShowTabSearch(BrowserWindowInterface* bwi);
 void CloseTabSearch(Browser* browser);
 void ToggleContextualTasksSidePanel(BrowserWindowInterface* browser);
 void ToggleVerticalTabs(Browser* browser);
-void ShowTabDeclutter(Browser* browser);
 bool CanCloseFind(Browser* browser);
 void CloseFind(Browser* browser);
 void Zoom(Browser* browser, content::PageZoom zoom);

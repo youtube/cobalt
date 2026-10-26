@@ -163,12 +163,16 @@ class ConfigureGeminiCliUnittest(fake_filesystem_unittest.TestCase):
         self.assertTrue(os.path.exists(settings_file))
         with open(settings_file, 'r', encoding='utf-8') as f:
             settings = json.load(f)
-        self.assertEqual(settings, {
-            'telemetry': {
-                'enabled': True,
-                'outfile': str(telemetry_outfile),
-            },
-        })
+        self.assertEqual(
+            settings, {
+                'general': {
+                    'retryFetchErrors': True,
+                },
+                'telemetry': {
+                    'enabled': True,
+                    'outfile': str(telemetry_outfile),
+                },
+            })
 
     def test_updates_existing_settings_file(self):
         """Tests that an existing settings file is updated."""
@@ -186,11 +190,46 @@ class ConfigureGeminiCliUnittest(fake_filesystem_unittest.TestCase):
             settings = json.load(f)
         self.assertEqual(
             settings, {
+                'general': {
+                    'retryFetchErrors': True,
+                },
                 'other_setting': 'value',
                 'telemetry': {
                     'enabled': True,
                     'outfile': str(telemetry_outfile)
                 }
+            })
+
+    def test_updates_existing_general_settings(self):
+        """Tests that existing general settings are updated."""
+        home_dir = pathlib.Path('/fake/home')
+        telemetry_outfile = pathlib.Path('/fake/telemetry.json')
+        gemini_dir = home_dir / '.gemini'
+        os.makedirs(gemini_dir)
+        settings_file = gemini_dir / 'settings.json'
+        with open(settings_file, 'w', encoding='utf-8') as f:
+            json.dump(
+                {
+                    'general': {
+                        'retryFetchErrors': False,
+                        'someOtherSetting': True,
+                    },
+                }, f)
+
+        gemini_provider._configure_gemini_cli(home_dir, telemetry_outfile)
+
+        with open(settings_file, 'r', encoding='utf-8') as f:
+            settings = json.load(f)
+        self.assertEqual(
+            settings, {
+                'general': {
+                    'retryFetchErrors': True,
+                    'someOtherSetting': True,
+                },
+                'telemetry': {
+                    'enabled': True,
+                    'outfile': str(telemetry_outfile),
+                },
             })
 
     def test_updates_existing_telemetry_settings(self):
@@ -213,12 +252,16 @@ class ConfigureGeminiCliUnittest(fake_filesystem_unittest.TestCase):
 
         with open(settings_file, 'r', encoding='utf-8') as f:
             settings = json.load(f)
-        self.assertEqual(settings, {
-            'telemetry': {
-                'enabled': True,
-                'outfile': str(telemetry_outfile),
-            },
-        })
+        self.assertEqual(
+            settings, {
+                'general': {
+                    'retryFetchErrors': True,
+                },
+                'telemetry': {
+                    'enabled': True,
+                    'outfile': str(telemetry_outfile),
+                },
+            })
 
     def test_creates_trusted_folders_file(self):
         """Tests that a new trusted folders file is created."""
@@ -270,10 +313,10 @@ class GetGeminiCliArgumentsUnittest(fake_filesystem_unittest.TestCase):
         self.addCleanup(get_sandbox_image_tag_patcher.stop)
 
         gemini_helpers_patcher = unittest.mock.patch(
-            'gemini_provider.gemini_helpers.get_gemini_executable')
+            'gemini_provider.gemini_helpers.get_gemini_command')
         self.mock_gemini_helpers = gemini_helpers_patcher.start()
         self.addCleanup(gemini_helpers_patcher.stop)
-        self.mock_gemini_helpers.return_value = 'gemini'
+        self.mock_gemini_helpers.return_value = ['gemini']
 
         load_templates_patcher = unittest.mock.patch(
             'gemini_provider._load_templates')
@@ -291,7 +334,8 @@ class GetGeminiCliArgumentsUnittest(fake_filesystem_unittest.TestCase):
             provider_vars, provider_config, user_prompt)
 
         self.assertEqual(error, '')
-        self.assertEqual(args.command, ['gemini', '-y'])
+        self.assertEqual(args.command,
+                         ['gemini', '-y', '--model', 'gemini-2.5-pro'])
         self.assertIsNone(args.home_dir)
         self.assertEqual(args.timeout_seconds,
                          gemini_provider.DEFAULT_TIMEOUT_SECONDS)
@@ -311,7 +355,8 @@ class GetGeminiCliArgumentsUnittest(fake_filesystem_unittest.TestCase):
             provider_vars, provider_config, user_prompt)
 
         self.assertEqual(error, '')
-        self.assertEqual(args.command, ['/custom/gemini', '-y'])
+        self.assertEqual(args.command,
+                         ['/custom/gemini', '-y', '--model', 'gemini-2.5-pro'])
 
     def test_sandbox_enabled(self):
         """Tests that sandbox flags are added when sandbox is enabled."""
@@ -324,7 +369,9 @@ class GetGeminiCliArgumentsUnittest(fake_filesystem_unittest.TestCase):
             provider_vars, provider_config, user_prompt)
 
         self.assertEqual(error, '')
-        self.assertEqual(args.command, ['gemini', '-y', '--sandbox'])
+        self.assertEqual(
+            args.command,
+            ['gemini', '-y', '--model', 'gemini-2.5-pro', '--sandbox'])
         self.assertIn('SANDBOX_FLAGS', args.env)
         self.assertEqual(args.env['SANDBOX_FLAGS'], '--sandbox-flag')
 

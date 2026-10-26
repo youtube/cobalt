@@ -54,6 +54,7 @@
 #include "third_party/blink/public/mojom/frame/remote_frame.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scrollbar_mode.mojom-blink.h"
+#include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/public/web/web_local_frame_client.h"
 #include "third_party/blink/renderer/bindings/core/v8/capture_source_location.h"
@@ -73,6 +74,7 @@
 #include "third_party/blink/renderer/core/editing/drag_caret.h"
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
 #include "third_party/blink/renderer/core/editing/markers/document_marker_controller.h"
+#include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/events/error_event.h"
 #include "third_party/blink/renderer/core/exported/web_plugin_container_impl.h"
 #include "third_party/blink/renderer/core/fragment_directive/fragment_directive_utils.h"
@@ -98,6 +100,8 @@
 #include "third_party/blink/renderer/core/fullscreen/fullscreen.h"
 #include "third_party/blink/renderer/core/highlight/highlight_registry.h"
 #include "third_party/blink/renderer/core/html/anchor_element_viewport_position_tracker.h"
+#include "third_party/blink/renderer/core/html/canvas/canvas_paint_event.h"
+#include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/html/fenced_frame/document_fenced_frames.h"
 #include "third_party/blink/renderer/core/html/fenced_frame/html_fenced_frame_element.h"
 #include "third_party/blink/renderer/core/html/forms/text_control_element.h"
@@ -148,6 +152,7 @@
 #include "third_party/blink/renderer/core/page/validation_message_client.h"
 #include "third_party/blink/renderer/core/paint/cull_rect_updater.h"
 #include "third_party/blink/renderer/core/paint/frame_painter.h"
+#include "third_party/blink/renderer/core/paint/paint_info.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_painter.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
@@ -341,6 +346,7 @@ void LocalFrameView::Trace(Visitor* visitor) const {
   visitor->Trace(mobile_friendliness_checker_);
   visitor->Trace(tap_friendliness_checker_);
   visitor->Trace(lifecycle_observers_);
+  visitor->Trace(canvas_elements_needing_onpaint_);
   visitor->Trace(fullscreen_video_elements_);
   visitor->Trace(pending_transform_updates_);
   visitor->Trace(pending_opacity_updates_);
@@ -984,22 +990,83 @@ bool LocalFrameView::InvalidationDisallowed() const {
   return GetFrame().LocalFrameRoot().View()->invalidation_disallowed_;
 }
 
-void LocalFrameView::RunPostLifecycleSteps() {
-  InvalidationDisallowedScope invalidation_disallowed(*this);
-  AllowThrottlingScope allow_throttling(*this);
-  RunAccessibilitySteps();
-  RunIntersectionObserverSteps();
-  if (mobile_friendliness_checker_)
-    mobile_friendliness_checker_->MaybeRecompute();
+void LocalFrameView::WillBeginImplCommit() {
+  bool needs_post_lifecycle_steps_before_impl_commit = false;
+  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+    ForAllNonThrottledLocalFrameViews(
+        [&needs_post_lifecycle_steps_before_impl_commit](
+            LocalFrameView& frame_view) -> bool {
+          if (!needs_post_lifecycle_steps_before_impl_commit &&
+              frame_view.canvas_elements_needing_onpaint_.empty()) {
+            // Keep traversing
+            return true;
+          }
+          needs_post_lifecycle_steps_before_impl_commit = true;
+          // Stop traversing
+          return false;
+        });
+  }
 
-  ForAllRemoteFrameViews([](RemoteFrameView& frame_view) {
-    frame_view.UpdateCompositingScaleFactor();
-  });
+  if (needs_post_lifecycle_steps_before_impl_commit) {
+    RunPostLifecycleSteps();
+    did_run_post_lifecycle_steps_before_impl_commit_ = true;
+  }
+}
+
+void LocalFrameView::DidBeginMainFrame() {
+  if (!did_run_post_lifecycle_steps_before_impl_commit_) {
+    RunPostLifecycleSteps();
+  }
+  did_run_post_lifecycle_steps_before_impl_commit_ = false;
+}
+
+void LocalFrameView::RunPostLifecycleSteps() {
+  {
+    InvalidationDisallowedScope invalidation_disallowed(*this);
+    AllowThrottlingScope allow_throttling(*this);
+    RunAccessibilitySteps();
+    RunIntersectionObserverSteps();
+    if (mobile_friendliness_checker_) {
+      mobile_friendliness_checker_->MaybeRecompute();
+    }
+
+    ForAllRemoteFrameViews([](RemoteFrameView& frame_view) {
+      frame_view.UpdateCompositingScaleFactor();
+    });
+
+    ForAllNonThrottledLocalFrameViews([](LocalFrameView& frame_view) {
+      auto lifecycle_observers = frame_view.lifecycle_observers_;
+      for (auto& observer : lifecycle_observers) {
+        observer->DidFinishPostLifecycleSteps(frame_view);
+      }
+    });
+  }
+
+  RunCanvasOnpaintSteps();
+}
+
+void LocalFrameView::RunCanvasOnpaintSteps() {
+  if (!RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+    return;
+  }
 
   ForAllNonThrottledLocalFrameViews([](LocalFrameView& frame_view) {
-    auto lifecycle_observers = frame_view.lifecycle_observers_;
-    for (auto& observer : lifecycle_observers)
-      observer->DidFinishPostLifecycleSteps(frame_view);
+    if (frame_view.canvas_elements_needing_onpaint_.empty()) {
+      return;
+    }
+    HeapHashMap<Member<HTMLCanvasElement>, HeapLinkedHashSet<Member<Element>>>
+        canvas_elements_needing_onpaint;
+    canvas_elements_needing_onpaint.swap(
+        frame_view.canvas_elements_needing_onpaint_);
+
+    for (const auto& entry : canvas_elements_needing_onpaint) {
+      HTMLCanvasElement* canvas = entry.key;
+      const HeapVector<Member<Element>> children(entry.value);
+      CanvasPaintEventInit* init = CanvasPaintEventInit::Create();
+      init->setChangedElements(std::move(children));
+      canvas->DispatchEvent(
+          *CanvasPaintEvent::Create(event_type_names::kPaint, init));
+    }
   });
 }
 
@@ -1313,7 +1380,7 @@ void LocalFrameView::InvalidateLayoutForViewportConstrainedObjects() {
   auto* layout_view = GetLayoutView();
   if (layout_view && !layout_view->NeedsLayout()) {
     for (const auto& fragment : layout_view->PhysicalFragments()) {
-      if (fragment.StickyDescendants()) {
+      if (!fragment.StickyDescendants().empty()) {
         layout_view->SetNeedsSimplifiedLayout();
         return;
       }
@@ -4089,10 +4156,11 @@ bool LocalFrameView::CapturePaintPreview(
   return true;
 }
 
-void LocalFrameView::Paint(GraphicsContext& context,
-                           PaintFlags paint_flags,
+void LocalFrameView::Paint(const PaintInfo& paint_info,
                            const CullRect& cull_rect,
                            const gfx::Vector2d& paint_offset) const {
+  GraphicsContext& context = paint_info.context;
+  PaintFlags paint_flags = paint_info.GetPaintFlags();
   const auto* owner_layout_object = GetFrame().OwnerLayoutObject();
   std::optional<Document::PaintPreviewScope> paint_preview;
   if (owner_layout_object &&
@@ -4981,6 +5049,27 @@ bool LocalFrameView::HasDominantVideoElement() const {
   return !fullscreen_video_elements_.empty();
 }
 
+void LocalFrameView::DidPaintCanvasChild(HTMLCanvasElement& canvas,
+                                         Element& child) {
+  DCHECK(RuntimeEnabledFeatures::CanvasDrawElementEnabled());
+  if (IsUpdatingLifecycle()) {
+    // HeapHashMap::insert does nothing if key is already present, so this
+    // won't overwrite an existing set if one exists.
+    canvas_elements_needing_onpaint_
+        .insert(&canvas, HeapLinkedHashSet<Member<Element>>())
+        .stored_value->value.insert(&child);
+  }
+}
+
+void LocalFrameView::RequestCanvasOnpaint(HTMLCanvasElement& canvas) {
+  DCHECK(RuntimeEnabledFeatures::CanvasDrawElementEnabled());
+  // HeapHashMap::insert does nothing if key is already present, so this
+  // won't overwrite an existing set if one exists.
+  canvas_elements_needing_onpaint_.insert(&canvas,
+                                          HeapLinkedHashSet<Member<Element>>());
+  ScheduleAnimation();
+}
+
 #if DCHECK_IS_ON()
 LocalFrameView::DisallowLayoutInvalidationScope::
     DisallowLayoutInvalidationScope(LocalFrameView* view)
@@ -5381,6 +5470,10 @@ void LocalFrameView::ExecutePendingScrollMarkerSelectionUpdates() {
     }
     pending_scroll_marker_selection_updates_->clear();
   }
+}
+
+mojom::blink::WebFeature LocalFrameView::SvgFilterPaintedCounter() const {
+  return mojom::blink::WebFeature::kSvgFilterPaintedOnLocalFrame;
 }
 
 }  // namespace blink

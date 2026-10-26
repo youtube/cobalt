@@ -22,7 +22,7 @@
   },
   observers: {
     AdTracker: {
-      include_path: "third_party/blink/renderer/core/frame",
+      include_path: "third_party/blink/renderer/core/ad_tracker",
       probes: [
         "CallFunction",
         "ExecuteScript",
@@ -103,6 +103,7 @@
         "FrameOwnerContentUpdated",
         "NodeCreated",
         "UpdateScrollableFlag",
+        "UpdateAdRelatedState",
         "UpdateAffectedByStartingStylesFlag",
         "PseudoElementCreated",
         "TopLayerElementsChanged",
@@ -310,6 +311,12 @@
         "DidAddSpeculationRuleSet",
         "DidRemoveSpeculationRuleSet",
         "SpeculationCandidatesUpdated",
+      ]
+    },
+    InspectorWebMCPAgent: {
+      probes: [
+        "WebMCPToolAdded",
+        "WebMCPToolRemoved",
       ]
     },
     InspectorTraceEvents: {

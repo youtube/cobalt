@@ -31,6 +31,7 @@
 #include "content/browser/service_worker/service_worker_container_host.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
+#include "content/browser/service_worker/service_worker_context_wrapper_test_api.h"
 #include "content/browser/service_worker/service_worker_registration_object_host.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/public/browser/background_sync_parameters.h"
@@ -51,6 +52,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
+#include "third_party/blink/public/mojom/frame/policy_container.mojom.h"
 #include "third_party/blink/public/mojom/permissions/permission.mojom.h"
 #include "third_party/blink/public/mojom/permissions/permission_status.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom.h"
@@ -155,7 +157,8 @@ class BackgroundSyncManagerTest
     storage_partition_impl_ = static_cast<StoragePartitionImpl*>(
         helper_->browser_context()->GetStoragePartitionForUrl(
             GURL("https://example.com")));
-    helper_->context_wrapper()->set_storage_partition(storage_partition_impl_);
+    ServiceWorkerContextWrapperTestApi(helper_->context_wrapper())
+        .set_storage_partition(storage_partition_impl_);
     render_process_host_ =
         std::make_unique<MockRenderProcessHost>(helper_->browser_context());
 
@@ -191,17 +194,19 @@ class BackgroundSyncManagerTest
     options2.scope = GURL(kScope2);
     const blink::StorageKey key2 =
         blink::StorageKey::CreateFirstParty(url::Origin::Create(GURL(kScope2)));
+    auto fetch_client_settings_object =
+        blink::mojom::FetchClientSettingsObject::New();
+    fetch_client_settings_object->policy_container_policies =
+        blink::mojom::PolicyContainerPolicies::New();
     helper_->context()->RegisterServiceWorker(
-        GURL(kScript1), key1, options1,
-        blink::mojom::FetchClientSettingsObject::New(),
+        GURL(kScript1), key1, options1, fetch_client_settings_object.Clone(),
         base::BindOnce(&RegisterServiceWorkerCallback, &called_1,
                        &sw_registration_id_1_),
         /*requesting_frame_id=*/GlobalRenderFrameHostId(),
         PolicyContainerPolicies());
 
     helper_->context()->RegisterServiceWorker(
-        GURL(kScript2), key2, options2,
-        blink::mojom::FetchClientSettingsObject::New(),
+        GURL(kScript2), key2, options2, fetch_client_settings_object.Clone(),
         base::BindOnce(&RegisterServiceWorkerCallback, &called_2,
                        &sw_registration_id_2_),
         /*requesting_frame_id=*/GlobalRenderFrameHostId(),

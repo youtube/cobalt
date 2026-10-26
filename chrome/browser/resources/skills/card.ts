@@ -5,6 +5,7 @@
 import 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
+import 'chrome://resources/cr_elements/cr_tooltip/cr_tooltip.js';
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import '//resources/cr_elements/icons.html.js';
 import './icons.html.js';
@@ -17,8 +18,8 @@ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {getCss} from './card.css.js';
 import {getHtml} from './card.html.js';
 import type {Skill} from './skill.mojom-webui.js';
-import {SkillSource} from './skill.mojom-webui.js';
-import {SkillsDialogType} from './skills.mojom-webui.js';
+import {SkillsDialogType, SkillSource} from './skill.mojom-webui.js';
+import {SkillsManagementAction, SkillsManagementPage} from './skill_metrics.mojom-webui.js';
 import {SkillsPageBrowserProxy} from './skills_page_browser_proxy.js';
 
 export enum CardType {
@@ -28,7 +29,6 @@ export enum CardType {
 
 export interface SkillCardElement {
   $: {
-    cardBody: HTMLElement,
     name: HTMLElement,
     icon: HTMLElement,
     menu: CrActionMenuElement,
@@ -93,6 +93,7 @@ export class SkillCardElement extends CrLitElement {
   protected onEditButtonClick_() {
     this.proxy_.handler.openSkillsDialog(
         SkillsDialogType.kEdit, this.skill);
+    this.logCardAction_(SkillsManagementAction.kClickedEditSkill);
   }
 
   protected onSaveButtonClick_() {
@@ -107,12 +108,21 @@ export class SkillCardElement extends CrLitElement {
     // TODO: b/481441891 - Add toast/snackbar to let user know copy was
     // successful.
     navigator.clipboard.writeText(this.skill.prompt);
+    this.logCardAction_(SkillsManagementAction.kClickedCopyInstructions);
     this.$.menu.close();
   }
 
   protected onDeleteButtonClick_() {
+    this.logCardAction_(SkillsManagementAction.kClickedDeleteSkill);
     this.proxy_.handler.deleteSkill(this.skill.id);
     this.$.menu.close();
+  }
+  protected logCardAction_(action: SkillsManagementAction) {
+    this.proxy_.handler.recordSkillsManagementAction(
+        this.cardType === CardType.USER_SKILL_CARD ?
+            SkillsManagementPage.kYourSkills :
+            SkillsManagementPage.kBrowseSkills,
+        action);
   }
 }
 

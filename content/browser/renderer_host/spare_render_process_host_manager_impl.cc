@@ -9,6 +9,7 @@
 
 #include "base/check.h"
 #include "base/debug/dump_without_crashing.h"
+#include "base/memory_coordinator/utils.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
@@ -313,13 +314,13 @@ void LogSpareProcessTakeActionUMAs(
   }
 }
 
-// Returns the MemoryPressureLevel threshold that determines when a spare RPH
-// can be created or killed.
-base::MemoryPressureLevel GetMemoryPressureLevelThreshold() {
+// Returns the memory limit threshold (expressed as a percentage) that
+// determines when a spare RPH can be created or killed.
+int GetMemoryLimitThreshold() {
   if (base::FeatureList::IsEnabled(kSpareRPHUseCriticalMemoryPressure)) {
-    return base::MEMORY_PRESSURE_LEVEL_CRITICAL;
+    return base::kCriticalMemoryPressureThreshold;
   }
-  return base::MEMORY_PRESSURE_LEVEL_MODERATE;
+  return base::kModerateMemoryPressureThreshold;
 }
 
 }  // namespace
@@ -501,7 +502,7 @@ RenderProcessHost* SpareRenderProcessHostManagerImpl::WarmupSpare(
   // Don't create a spare renderer when the system is under load.  This is
   // currently approximated by only looking at the memory pressure.  See also
   // https://crbug.com/852905.
-  if (memory_pressure_level() >= GetMemoryPressureLevelThreshold()) {
+  if (GetMemoryLimit() <= GetMemoryLimitThreshold()) {
     no_spare_renderer_reason_ = NoSpareRendererReason::kMemoryPressure;
     return nullptr;
   }
@@ -615,11 +616,15 @@ RenderProcessHost* SpareRenderProcessHostManagerImpl::MaybeTakeSpare(
       //    launched.
       // 2. The SiteInstance has opted out of using the spare process.
       // 3. The SiteInstance is a guest SiteInstance.
-      // 4. The SiteInstance is a initial WebUI SiteInstance.
+      // 4. The SiteInstance is a Top Chrome WebUI SiteInstance. Top Chrome
+      //    WebUIs need their processes created with their SiteInstance so that
+      //    the kForTopChromeWebUI flag is correctly set on the
+      //    RenderProcessHost.
       site_instance->HasProcess() ||
-      !site_instance->CanAssociateWithSpareProcess() || site_instance->IsGuest()
+      !site_instance->CanAssociateWithSpareProcess() ||
+      site_instance->GetSecurityPrincipal().IsGuest()
 #if !BUILDFLAG(IS_ANDROID)
-      || GetContentClient()->browser()->IsInitialWebUIURL(
+      || GetContentClient()->browser()->IsTopChromeWebUIURL(
              site_instance->GetSiteURL())
 #endif
   ) {
@@ -959,7 +964,7 @@ void SpareRenderProcessHostManagerImpl::OnMemoryPressure(
     return;
   }
 
-  if (memory_pressure_level < GetMemoryPressureLevelThreshold()) {
+  if (GetMemoryLimit() > GetMemoryLimitThreshold()) {
     return;
   }
 
@@ -1009,7 +1014,7 @@ bool SpareRenderProcessHostManagerImpl::ShouldCreateExtraSpare() const {
   }
 
   // Don't create spares when under memory pressure.
-  if (memory_pressure_level() != base::MEMORY_PRESSURE_LEVEL_NONE) {
+  if (GetMemoryLimit() < base::kNoMemoryPressureThreshold) {
     return false;
   }
 

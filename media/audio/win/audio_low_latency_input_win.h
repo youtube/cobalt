@@ -69,6 +69,7 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/threading/platform_thread.h"
@@ -130,6 +131,9 @@ class MEDIA_EXPORT WASAPIAudioInputStream
                                       IActivateAudioInterfaceCompletionHandler*,
                                       IActivateAudioInterfaceAsyncOperation**)>;
 
+  using AudioClientStartCallback =
+      base::RepeatingCallback<HRESULT(IAudioClient*)>;
+
   // The ctor takes all the usual parameters, plus |manager| which is the
   // the audio manager who is creating this object.
   WASAPIAudioInputStream(AudioManagerWin* manager,
@@ -170,6 +174,17 @@ class MEDIA_EXPORT WASAPIAudioInputStream
     async_activation_timeout_ms_ = async_activation_timeout_ms;
   }
 
+  // Overrides the Start() call used for `audio_client_`. Intended for tests
+  // that need to inject failures when starting the capture stream.
+  void OverrideAudioClientStartCallbackForTesting(
+      AudioClientStartCallback&& callback) {
+    audio_client_start_callback_for_testing_ = std::move(callback);
+  }
+
+  // Returns whether the capture thread has been created. This is used for
+  // testing purposes only.
+  bool HasCaptureThreadForTesting() const { return capture_thread_ != nullptr; }
+
   // Triggers a call to OnError() on the sink to simulate a stream error.
   // This method is for testing purposes only.
   void SimulateErrorForTesting();
@@ -205,7 +220,7 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   // Sets communications policy and excludes any built-in audio processing,
   // i.e., activates raw capture mode.
   // Raw capture mode is only enabled if the native number of input channels is
-  // less than |media::kMaxConcurrentChannels| (8).
+  // less than `kMaxRawCaptureChannels` (8).
   HRESULT SetCommunicationsCategoryAndMaybeRawCaptureMode(WORD channels);
   // Returns whether the desired format is supported or not and writes the
   // result of a failing system call to |*hr|, or S_OK if successful. If this
@@ -415,6 +430,8 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   bool simulate_error_for_testing_ = false;
 
   bool use_device_sample_format_;
+
+  AudioClientStartCallback audio_client_start_callback_for_testing_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

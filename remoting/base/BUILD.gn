@@ -36,16 +36,27 @@ source_set("http_status") {
   ]
 }
 
+source_set("authentication_method") {
+  sources = [
+    "authentication_method.cc",
+    "authentication_method.h",
+  ]
+  deps = [
+    ":name_value_map",
+    "//base",
+  ]
+}
+
 source_set("base") {
   sources = [
     "async_file_util.cc",
     "async_file_util.h",
-    "authentication_method.cc",
-    "authentication_method.h",
     "auto_thread.cc",
     "auto_thread.h",
     "auto_thread_task_runner.cc",
     "auto_thread_task_runner.h",
+    "branding.cc",
+    "branding.h",
     "buffered_socket_writer.cc",
     "buffered_socket_writer.h",
     "capabilities.cc",
@@ -135,6 +146,8 @@ source_set("base") {
     "url_loader_network_service_observer.h",
     "url_request_context_getter.cc",
     "url_request_context_getter.h",
+    "username.cc",
+    "username.h",
     "util.cc",
     "util.h",
     "vlog_net_log.cc",
@@ -149,6 +162,7 @@ source_set("base") {
   ]
 
   public_deps = [
+    ":authentication_method",
     ":http_status",
     "//base",
     "//net",

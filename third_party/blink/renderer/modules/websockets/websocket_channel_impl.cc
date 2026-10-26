@@ -363,8 +363,7 @@ bool WebSocketChannelImpl::Connect(const KURL& url, const String& protocol) {
                              &devtools_token);
 
   connector->Connect(
-      url, protocols, GetBaseFetchContext()->GetSiteForCookies(),
-      execution_context_->UserAgent(),
+      url, protocols, execution_context_->UserAgent(),
       execution_context_->GetStorageAccessApiStatus(),
       handshake_client_receiver_.BindNewPipeAndPassRemote(
           execution_context_->GetTaskRunner(TaskType::kWebSocket)),
@@ -1199,7 +1198,7 @@ String WebSocketChannelImpl::GetTextMessage(
   if (chunks.size() > 1) {
     flatten.reserve(size);
     for (const auto& chunk : chunks) {
-      flatten.AppendSpan(chunk);
+      flatten.append_range(chunk);
     }
     span = base::span(flatten);
   } else if (chunks.size() == 1) {

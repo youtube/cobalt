@@ -15,9 +15,9 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <span>
 
 #include "absl/algorithm/container.h"
-#include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
@@ -90,7 +90,7 @@ class RtxLoopBackTransport : public Transport {
     packet_loss_ = 0;
   }
 
-  bool SendRtp(ArrayView<const uint8_t> data,
+  bool SendRtp(std::span<const uint8_t> data,
                const PacketOptions& /* options */) override {
     count_++;
     RtpPacketReceived packet;
@@ -115,7 +115,7 @@ class RtxLoopBackTransport : public Transport {
     return true;
   }
 
-  bool SendRtcp(ArrayView<const uint8_t> data,
+  bool SendRtcp(std::span<const uint8_t> data,
                 const PacketOptions& /* options */) override {
     module_->IncomingRtcpPacket(data);
     return true;

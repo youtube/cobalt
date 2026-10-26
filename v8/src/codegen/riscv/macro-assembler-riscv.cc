@@ -457,7 +457,8 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
   SrlWord(destination, destination, kCodePointerHandleShift);
   SllWord(destination, destination, kCodePointerTableEntrySizeLog2);
   AddWord(scratch, scratch, destination);
-  LoadWord(destination, MemOperand(scratch, 0));
+  LoadWord(destination,
+           MemOperand(scratch, kCodePointerTableEntryEntrypointOffset));
   if (tag != 0) {
     li(scratch, Operand(tag));
     Xor(destination, destination, scratch);
@@ -5435,7 +5436,6 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   bind(&start);
   LoadAddress(ra, &end);
   StoreWord(ra, MemOperand(sp));      // Reserved in EnterExitFrame.
-  AddWord(sp, sp, -kCArgsSlotsSize);  // Preserves stack alignment.
 
   // Call the C routine.
   Mv(t6, target);  // Function pointer in 't6' to conform to ABI for PIC.
@@ -7285,7 +7285,6 @@ int MacroAssembler::CalculateStackPassedDWords(int num_gp_arguments,
   if (num_fp_arguments > kRegisterPassedArguments) {
     stack_passed_dwords += num_fp_arguments - kRegisterPassedArguments;
   }
-  stack_passed_dwords += kCArgSlotCount;
   return stack_passed_dwords;
 }
 
@@ -8114,7 +8113,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               ER::exception_address(isolate), no_reg));
     __ Branch(&propagate_exception, ne, scratch, Operand(scratch2));
   }
-
+#ifndef V8_ENABLE_MEMORY_CORRUPTION_API
+  // This check doesn't make sense in for sandbox testing since
+  // Sandbox.getObjectAt(..) might legitimately return non-JSAny values
+  // and this check just hinders debugging.
   if (v8_flags.debug_code) {
     Label ok;
     if (handle_interceptor_result) {
@@ -8124,7 +8126,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                    AbortReason::kAPICallReturnedInvalidObject);
     __ bind(&ok);
   }
-
+#endif
   if (argc_operand == nullptr) {
     DCHECK_NE(slots_to_drop_on_return, 0);
     __ AddWord(sp, sp, Operand(slots_to_drop_on_return * kSystemPointerSize));

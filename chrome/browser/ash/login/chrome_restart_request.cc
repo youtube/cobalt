@@ -11,6 +11,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
+#include "ash/constants/chrome_webui_url_constants.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
@@ -29,7 +30,6 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/common/url_constants.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/cryptohome/cryptohome_parameters.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
@@ -79,7 +79,7 @@ const char kGuestModeLoggingLevel[] = "1";
 bool IsRunningTest() {
   const base::CommandLine* current_command_line =
       base::CommandLine::ForCurrentProcess();
-  return current_command_line->HasSwitch(::switches::kTestName) ||
+  return current_command_line->HasSwitch(ash::switches::kTestName) ||
          current_command_line->HasSwitch(::switches::kTestType);
 }
 
@@ -101,7 +101,6 @@ void DeriveCommandLine(const GURL& start_url,
       sandbox::policy::switches::kGpuSandboxAllowSysVShm,
       sandbox::policy::switches::kGpuSandboxFailuresFatal,
       sandbox::policy::switches::kNoSandbox,
-      ::switches::kDisable2dCanvasImageChromium,
       ::switches::kDisableAccelerated2dCanvas,
       ::switches::kDisableAcceleratedMjpegDecode,
       ::switches::kDisableAcceleratedVideoDecode,
@@ -153,8 +152,6 @@ void DeriveCommandLine(const GURL& start_url,
       ::switches::kWebAuthRemoteDesktopSupport,
       ::switches::kEnableWebGLDeveloperExtensions,
       ::switches::kEnableWebGLDraftExtensions,
-      ::switches::kDisableWebGLImageChromium,
-      ::switches::kEnableWebGLImageChromium,
       ::switches::kEnableUnsafeWebGPU,
       ::switches::kEnableWebGPUDeveloperFeatures,
       ::switches::kOzonePlatform,
@@ -182,8 +179,13 @@ void DeriveCommandLine(const GURL& start_url,
       blink::switches::kEnablePreferCompositingToLCDText,
       blink::switches::kEnableRGBA4444Textures,
       blink::switches::kEnableRasterSideDarkModeForImages,
+#if BUILDFLAG(IS_CHROMEOS)
+      blink::switches::kEnableWebGLImageChromium,
+#endif
       blink::switches::kEnableZeroCopy,
       blink::switches::kForceGpuMemAvailableMb,
+      blink::switches::
+          kGpuMemoryBufferReadbackFromTextureForceDisabledForDebugging,
       blink::switches::kGpuRasterizationMSAASampleCount,
       switches::kAshPowerButtonPosition,
       switches::kAshSideVolumeButtonPosition,
@@ -397,7 +399,7 @@ void GetOffTheRecordCommandLine(const GURL& start_url,
 
   // Override the home page.
   otr_switches.Set(::switches::kHomePage,
-                   GURL(chrome::kChromeUINewTabURL).spec());
+                   GURL(ash::chrome_urls::kChromeUINewTabURL).spec());
 
   DeriveCommandLine(start_url, base_command_line, otr_switches, command_line);
   DeriveFeatures(command_line);

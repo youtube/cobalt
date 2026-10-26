@@ -35,6 +35,7 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
                                   kDefaultReportFrequency);
   registry->RegisterListPref(kSaasUsageDomainUrlsForBrowser);
   registry->RegisterDictionaryPref(kSaasUsageReport);
+  registry->RegisterTimePref(kSaasUsageReportLastTriggerTime, base::Time());
 }
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
@@ -53,6 +54,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kUserSecurityAuthenticatedReporting, false);
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   registry->RegisterBooleanPref(prefs::kCloudExtensionRequestEnabled, false);
+  registry->RegisterBooleanPref(prefs::kExtensionDOMActivityLoggingEnabled,
+                                false);
   registry->RegisterDictionaryPref(prefs::kCloudExtensionRequestIds);
   registry->RegisterDictionaryPref(kCloudExtensionRequestUploadedIds);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -60,6 +63,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterListPref(kCloudLegacyTechReportAllowlist);
   registry->RegisterListPref(kSaasUsageDomainUrlsForProfile);
   registry->RegisterDictionaryPref(kSaasUsageReport);
+  registry->RegisterTimePref(kSaasUsageReportLastTriggerTime, base::Time());
 }
 
 }  // namespace enterprise_reporting

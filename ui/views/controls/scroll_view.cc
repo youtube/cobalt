@@ -458,6 +458,25 @@ gfx::Rect ScrollView::GetVisibleRect() const {
                    contents_viewport_->height());
 }
 
+gfx::Rect ScrollView::GetOpaqueVisibleRect() const {
+  gfx::Rect visible_rect = GetVisibleRect();
+  if (visible_rect.IsEmpty()) {
+    return visible_rect;
+  }
+  // Inset the rect if gradient masks are visible to ensure we only
+  // report the fully opaque region as "visible".
+  if (gradient_direction_ == GradientDirection::kVertical) {
+    int top_inset = is_leading_gradient_visible_ ? kGradientPixelSize : 0;
+    int bottom_inset = is_trailing_gradient_visible_ ? kGradientPixelSize : 0;
+    visible_rect.Inset(gfx::Insets::TLBR(top_inset, 0, bottom_inset, 0));
+  } else if (gradient_direction_ == GradientDirection::kHorizontal) {
+    int left_inset = is_leading_gradient_visible_ ? kGradientPixelSize : 0;
+    int right_inset = is_trailing_gradient_visible_ ? kGradientPixelSize : 0;
+    visible_rect.Inset(gfx::Insets::TLBR(0, left_inset, 0, right_inset));
+  }
+  return visible_rect;
+}
+
 void ScrollView::SetHorizontalScrollBarMode(
     ScrollBarMode horizontal_scroll_bar_mode) {
   if (horizontal_scroll_bar_mode_ == horizontal_scroll_bar_mode) {
@@ -699,6 +718,14 @@ void ScrollView::SetHasFocusIndicator(bool has_focus_indicator) {
   OnPropertyChanged(&draw_focus_indicator_, PropertyEffects::kPaint);
 }
 
+bool ScrollView::IsHorizontalContentOverflowing() const {
+  return contents_->width() > contents_viewport_->width();
+}
+
+bool ScrollView::IsVerticalContentOverflowing() const {
+  return contents_->height() > contents_viewport_->height();
+}
+
 base::CallbackListSubscription ScrollView::AddContentsScrolledCallback(
     ScrollViewCallback callback) {
   return on_contents_scrolled_.Add(std::move(callback));
@@ -938,13 +965,11 @@ void ScrollView::Layout(PassKey) {
     UpdateOverflowIndicatorVisibility(CurrentOffset());
   }
 
-  // If registered, run the post-layout callback. This is used to move the
-  // scroll view contents to the appropriate position that's different from the
-  // position assigned above.
+  // If registered, run the post-layout callback.
   if (post_layout_callback_) {
-    const bool layout_needed = needs_layout();
+    // TODO(tluk): Consider adding a CHECK on needs_layout() once layout
+    // invalidation issues with overflow indicators have been resolved.
     post_layout_callback_.Run(this);
-    CHECK_EQ(layout_needed, needs_layout());
   }
 
   if (next_successful_frame_post_layout_callback_) {
@@ -1496,6 +1521,8 @@ void ScrollView::UpdateOverflowIndicatorVisibility(const gfx::PointF& offset) {
     UpdateGradientMask();
   } else if (layer() && layer()->HasGradientMask()) {
     layer()->SetGradientMask(gfx::LinearGradient::GetEmpty());
+    is_leading_gradient_visible_ = false;
+    is_trailing_gradient_visible_ = false;
   }
 }
 

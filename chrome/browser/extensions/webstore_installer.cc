@@ -32,10 +32,9 @@
 #include "chrome/browser/download/download_crx_util.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/download/download_stats.h"
-#include "chrome/browser/extensions/crx_installer.h"
 #include "chrome/browser/extensions/install_tracker_factory.h"
 #include "chrome/browser/extensions/install_verifier_factory.h"
-#include "chrome/browser/extensions/shared_module_service.h"
+#include "chrome/browser/extensions/shared_module_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
@@ -51,6 +50,7 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
+#include "extensions/browser/crx_installer.h"
 #include "extensions/browser/extension_file_task_runner.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/install/crx_install_error.h"
@@ -58,6 +58,7 @@
 #include "extensions/browser/install_tracker.h"
 #include "extensions/browser/install_verifier.h"
 #include "extensions/browser/manifest_check_level.h"
+#include "extensions/browser/shared_module_service.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_features.h"
@@ -258,7 +259,7 @@ void WebstoreInstaller::Start() {
   }
 
   if (approval_.get() && approval_->dummy_extension.get()) {
-    SharedModuleService::Get(profile_)->CheckImports(
+    SharedModuleServiceFactory::GetForBrowserContext(profile_)->CheckImports(
         approval_->dummy_extension.get(), &pending_modules_, &pending_modules_);
     // Do not check the return value of CheckImports, the CRX installer
     // will report appropriate error messages and fail to install if there
@@ -553,11 +554,6 @@ void WebstoreInstaller::StartDownload(
   // The download url for the given extension is contained in |download_url_|.
   // We will navigate the current tab to this url to start the download. The
   // download system will then pass the crx to the CrxInstaller.
-  int render_process_host_id = web_contents_->GetPrimaryMainFrame()
-                                   ->GetRenderViewHost()
-                                   ->GetProcess()
-                                   ->GetDeprecatedID();
-
   content::RenderFrameHost* render_frame_host =
       web_contents_->GetPrimaryMainFrame();
   net::NetworkTrafficAnnotationTag traffic_annotation =
@@ -590,11 +586,10 @@ void WebstoreInstaller::StartDownload(
             }
           }
         })");
-  std::unique_ptr<DownloadUrlParameters> params(new DownloadUrlParameters(
-      download_url_, render_process_host_id, render_frame_host->GetRoutingID(),
-      traffic_annotation));
+  std::unique_ptr<DownloadUrlParameters> params =
+      render_frame_host->CreateDownloadUrlParameters(download_url_,
+                                                     traffic_annotation);
   params->set_file_path(file);
-  params->set_initiator(render_frame_host->GetLastCommittedOrigin());
   if (controller.GetVisibleEntry()) {
     content::Referrer referrer = content::Referrer::SanitizeForRequest(
         download_url_,

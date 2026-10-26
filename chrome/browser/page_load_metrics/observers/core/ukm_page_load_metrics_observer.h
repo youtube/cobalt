@@ -56,6 +56,8 @@ class UkmPageLoadMetricsObserver
   ~UkmPageLoadMetricsObserver() override;
 
   // page_load_metrics::PageLoadMetricsObserver implementation:
+  const char* GetObserverName() const override;
+  ObservePolicy ShouldObserveScheme(const GURL& url) const override;
   ObservePolicy OnStart(content::NavigationHandle* navigation_handle,
                         const GURL& currently_committed_url,
                         bool started_in_foreground) override;
@@ -110,8 +112,7 @@ class UkmPageLoadMetricsObserver
   void OnFirstContentfulPaintInPage(
       const page_load_metrics::mojom::PageLoadTiming& timing) override;
 
-  void OnSoftNavigationUpdated(
-      const page_load_metrics::mojom::SoftNavigationMetrics&) override;
+  void OnSoftNavigation() override;
 
   // Whether the current page load is an Offline Preview. Must be called from
   // OnCommit. Virtual for testing.

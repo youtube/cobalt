@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Google Inc.
+ * Copyright 2019 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -25,7 +25,6 @@
 #include "include/private/chromium/GrDeferredDisplayList.h"
 #include "src/core/SkRuntimeEffectPriv.h"
 #include "src/core/SkTraceEvent.h"
-#include "src/gpu/AtlasTypes.h"
 #include "src/gpu/SkBackingFit.h"
 #include "src/gpu/ganesh/GrAuditTrail.h"
 #include "src/gpu/ganesh/GrColorInfo.h"

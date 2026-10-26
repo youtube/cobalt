@@ -22,4 +22,35 @@ found in the LICENSE file.
         android:key="glic_permissions_section"
         android:title="@string/settings_glic_permissions_section" />
 
+    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+        android:key="permissions_location"
+        android:title="@string/settings_glic_permissions_location_toggle"
+        android:summary="@string/settings_glic_permissions_location_toggle_sublabel_data_protected"
+        android:defaultValue="false" />
+    <org.chromium.components.browser_ui.settings.ChromeExpandableSwitchPreference
+        android:key="glic_permissions_default_tab_access"
+        android:title="@string/settings_glic_permissions_default_tab_access_toggle"
+        android:summary="@string/settings_glic_permissions_default_tab_access_toggle_sublabel_data_protected"
+        app:expandedContentLayout="@layout/glic_default_tab_access" />
+
+    <org.chromium.components.browser_ui.settings.ChromeExpandableSwitchPreference
+        android:key="glic_permissions_auto_browse"
+        android:title="@string/settings_glic_permissions_chrome_web_actuation_toggle"
+        android:summary="@string/settings_glic_permissions_chrome_web_actuation_toggle_sublabel"
+        app:expandedContentLayout="@layout/glic_auto_browse" />
+
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="glic_permissions_activity"
+        android:title="@string/settings_glic_permissions_activity_button"
+        android:summary="@string/settings_glic_permissions_activity_button_sublabel"
+        android:widgetLayout="@layout/preference_widget_open_in_new" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="glic_extensions"
+        android:title="@string/settings_glic_extensions_button"
+        android:summary="@string/settings_glic_extensions_button_sublabel"
+        android:widgetLayout="@layout/preference_widget_open_in_new" />
+
+
 </PreferenceScreen>

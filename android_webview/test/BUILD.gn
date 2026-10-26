@@ -571,6 +571,7 @@ base_webview_instrumentation_test_apk("webview_instrumentation_test_apk") {
     "../javatests/src/org/chromium/android_webview/test/services/CrashLoggingUtilsTest.java",
     "../javatests/src/org/chromium/android_webview/test/services/CrashReceiverServiceTest.java",
     "../javatests/src/org/chromium/android_webview/test/services/JsSandboxFledgeTest.java",
+    "../javatests/src/org/chromium/android_webview/test/services/JsSandboxMessagePortTest.java",
     "../javatests/src/org/chromium/android_webview/test/services/JsSandboxServiceTest.java",
     "../javatests/src/org/chromium/android_webview/test/services/MetricsBridgeServiceTest.java",
     "../javatests/src/org/chromium/android_webview/test/services/MetricsBridgeServiceUnitTest.java",
@@ -786,7 +787,9 @@ test("android_webview_unittests") {
     "//android_webview/browser/metrics:test_support",
     "//android_webview/browser/variations",
     "//android_webview/common",
+    "//android_webview/js_sandbox/service:js_sandbox",
     "//android_webview/nonembedded",
+    "//base",
     "//base/test:test_support",
     "//components/autofill/core/browser",
     "//components/component_updater",
@@ -871,6 +874,7 @@ test("android_webview_unittests") {
     "../browser/tracing/aw_background_tracing_metrics_provider_unittest.cc",
     "../browser/tracing/aw_tracing_delegate_unittest.cc",
     "../browser/variations/aw_entropy_providers_unittest.cc",
+    "../js_sandbox/service/js_sandbox_memory_budget_unittest.cc",
     "../lib/webview_tests.cc",
     "../nonembedded/component_updater/aw_component_installer_policy_shim_unittest.cc",
     "../nonembedded/component_updater/aw_component_installer_policy_unittest.cc",
@@ -915,6 +919,7 @@ android_library("crash_test_utils_java") {
 # robolectric tests
 robolectric_binary("android_webview_junit_tests") {
   sources = [
+    "../junit/src/org/chromium/android_webview/robolectric/AwContentRestrictionManagerBridgeTest.java",
     "../junit/src/org/chromium/android_webview/robolectric/AwDisplayCutoutControllerTest.java",
     "../junit/src/org/chromium/android_webview/robolectric/AwDisplayModeControllerTest.java",
     "../junit/src/org/chromium/android_webview/robolectric/AwHttpAuthHandlerTest.java",
@@ -924,6 +929,7 @@ robolectric_binary("android_webview_junit_tests") {
     "../junit/src/org/chromium/android_webview/robolectric/AwWebContentsMetricsRecorderTest.java",
     "../junit/src/org/chromium/android_webview/robolectric/FindAddressTest.java",
     "../junit/src/org/chromium/android_webview/robolectric/PlatformSelectionActionMenuDelegateTest.java",
+    "../junit/src/org/chromium/android_webview/robolectric/PrefetchOperationResultTest.java",
     "../junit/src/org/chromium/android_webview/robolectric/RectUtilsTest.java",
     "../junit/src/org/chromium/android_webview/robolectric/ShouldInterceptRequestMediatorTest.java",
     "../junit/src/org/chromium/android_webview/robolectric/SupportLibSpeculativeLoadingParametersAdapterTest.java",
@@ -944,6 +950,7 @@ robolectric_binary("android_webview_junit_tests") {
 
   deps = [
     ":crash_test_utils_java",
+    ":webview_instrumentation_test_utils_java",
     "//android_webview:android_webview_java",
     "//android_webview/nonembedded:crash_java",
     "//android_webview/nonembedded:services_java",

@@ -15,6 +15,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/safe_ref.h"
 #include "base/scoped_observation.h"
+#include "base/values.h"
 #include "chrome/common/read_anything/read_anything.mojom.h"
 #include "chrome/renderer/accessibility/read_anything/read_aloud_app_model.h"
 #include "chrome/renderer/accessibility/read_anything/read_anything_app_model.h"
@@ -90,6 +91,21 @@ class ReadAnythingAppController
 
   static const int kMaxWordsConsumed = 25000;
   static const int kWordsConsumedBuckets = 100;
+
+  struct LinkData {
+    LinkData();
+    ~LinkData();
+    LinkData(const LinkData& other);
+    LinkData& operator=(const LinkData& other);
+    std::string html_id;
+    std::string name;
+    std::string target;
+    std::string text;
+    std::string textAfter;
+    std::string textBefore;
+    std::string title;
+    ui::AXNodeID id;
+  };
 
   ReadAnythingAppController(const ReadAnythingAppController&) = delete;
   ReadAnythingAppController& operator=(const ReadAnythingAppController&) =
@@ -198,6 +214,7 @@ class ReadAnythingAppController
   int StartOffset() const;
   ui::AXNodeID EndNodeId() const;
   int EndOffset() const;
+  bool HasValidSelection() const;
   std::string FontName() const;
   float FontSize() const;
   bool LinksEnabled() const;
@@ -227,9 +244,8 @@ class ReadAnythingAppController
   int YellowTheme() const;
   int BlueTheme() const;
   int HighContrastTheme() const;
-  int LowContrastTheme() const;
-  int SepiaLightTheme() const;
-  int SepiaDarkTheme() const;
+  int LowContrastLightTheme() const;
+  int LowContrastDarkTheme() const;
   int AutoHighlighting() const;
   int WordHighlighting() const;
   int PhraseHighlighting() const;
@@ -269,6 +285,8 @@ class ReadAnythingAppController
   std::string GetAltText(ui::AXNodeID ax_node_id) const;
   std::string GetDomDistillerTitle() const;
   std::string GetDomDistillerContentHtml() const;
+  // Serializes accessibility tree anchors into a V8 object for the frontend.
+  v8::Local<v8::Value> GetDomDistillerAnchors() const;
   // Will only return a state if IsImmersiveReadAnythingEnabled() is true.
   // Returns the presentation through the OnGetPresentationState callback.
   void SendGetPresentationStateRequest() const;
@@ -299,6 +317,7 @@ class ReadAnythingAppController
   bool IsTsTextSegmentationEnabled() const;
   bool IsReadabilityEnabled() const;
   bool IsLineFocusEnabled() const;
+  bool IsReadabilityWithLinksEnabled() const;
   bool IsChromeOsAsh() const;
   bool IsPhraseHighlightingEnabled() const;
   void OnLetterSpacingChange(int value);
@@ -331,6 +350,7 @@ class ReadAnythingAppController
   void TogglePresentation();
   void TogglePinState();
   void OnPinStatusReceived(bool pin_state) override;
+  void OnSpeechEngineStalled();
 
   // Returns the current active distillation method state as an integer.
   int GetDistillationMethod() const;
@@ -409,6 +429,8 @@ class ReadAnythingAppController
   //   };
   void SetContentForTesting(v8::Local<v8::Value> v8_snapshot_lite,
                             std::vector<ui::AXNodeID> content_node_ids);
+  void SetAnchorsForTesting(v8::Local<v8::Value> v8_snapshot_lite,
+                            std::vector<ui::AXNodeID> content_node_ids);
   void SetLanguageForTesting(const std::string& language_code);
 
  private:
@@ -427,8 +449,10 @@ class ReadAnythingAppController
   // new distillation if the tree is ready.
   void DistillNewTree();
 
-  // Returns the default distillation method state based on feature flags.
-  ReadAnythingAppModel::DistillationMethod GetDefaultDistillationMethod() const;
+  // Returns the initial distillation method state based on feature flags and
+  // page type (e.g. if it's PDF).
+  ReadAnythingAppModel::DistillationMethod GetInitialDistillationMethod(
+      bool is_pdf) const;
 
   void ExecuteJavaScript(const std::string& script);
 
@@ -442,6 +466,15 @@ class ReadAnythingAppController
   // Helper for forwarding various updates to the webui based on the latest
   // processed accessibility events.
   void ProcessModelUpdates();
+
+  // Applies accessibility updates to ensure links are properly synced
+  // between distilled Readability content and what's in the accessibility tree.
+  // This should only be called when Readability is being used as a distillation
+  // method and links are supported.
+  void ApplyAccessibilityUpdatesForReadabilityLinks(
+      const ui::AXTreeID& tree_id,
+      const std::vector<ui::AXTreeUpdate>& updates,
+      const std::vector<ui::AXEvent>& events);
 
   // Helper for forwarding reading mode hide events to the webui so we can
   // perform cleaning operations on it.

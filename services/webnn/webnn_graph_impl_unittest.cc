@@ -54,10 +54,10 @@ class FakeWebNNGraphImpl final : public WebNNGraphImpl {
  public:
   FakeWebNNGraphImpl(
       mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
-      base::WeakPtr<WebNNContextImpl> context,
+      WebNNContextImpl& context,
       ComputeResourceInfo compute_resource_info)
       : WebNNGraphImpl(std::move(receiver),
-                       std::move(context),
+                       context,
                        std::move(compute_resource_info),
                        /*devices=*/{}) {}
 
@@ -68,8 +68,7 @@ class FakeWebNNGraphImpl final : public WebNNGraphImpl {
       ComputeResourceInfo compute_resource_info,
       WebNNContextImpl::CreateGraphImplCallback callback) {
     std::move(callback).Run(base::MakeRefCounted<FakeWebNNGraphImpl>(
-        std::move(receiver), std::move(context),
-        std::move(compute_resource_info)));
+        std::move(receiver), *context, std::move(compute_resource_info)));
   }
 
  private:
@@ -89,11 +88,9 @@ class FakeWebNNTensorImpl final : public WebNNTensorImpl {
  public:
   FakeWebNNTensorImpl(
       mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
-      base::WeakPtr<WebNNContextImpl> context,
+      WebNNContextImpl& context,
       mojom::TensorInfoPtr tensor_info)
-      : WebNNTensorImpl(std::move(receiver),
-                        std::move(context),
-                        std::move(tensor_info)) {}
+      : WebNNTensorImpl(std::move(receiver), context, std::move(tensor_info)) {}
 
  private:
   ~FakeWebNNTensorImpl() override = default;
@@ -122,6 +119,8 @@ class FakeWebNNContextImpl final : public WebNNContextImpl {
       scoped_refptr<base::SingleThreadTaskRunner> main_task_runner)
       : WebNNContextImpl(std::move(receiver),
                          std::move(context_provider),
+                         // The backend type is ignored for testing.
+                         ContextBackendUma::kNotSupported,
                          GetContextPropertiesForTesting(),
                          mojom::CreateContextOptions::New(),
                          mojo::ScopedDataPipeConsumerHandle(),
@@ -148,7 +147,9 @@ class FakeWebNNContextImpl final : public WebNNContextImpl {
       base::flat_map<
           OperandId,
           std::unique_ptr<WebNNConstantOperand>> /*constant_operands*/,
-      base::flat_map<OperandId, WebNNTensorImpl*> /*constant_tensor_operands*/,
+      base::flat_map<
+          OperandId,
+          scoped_refptr<WebNNTensorImpl>> /*constant_tensor_operands*/,
       CreateGraphImplCallback callback) override {
     FakeWebNNGraphImpl::CreateAndBuild(
         std::move(receiver), AsWeakPtr(), *graph_info,
@@ -158,8 +159,8 @@ class FakeWebNNContextImpl final : public WebNNContextImpl {
   base::expected<scoped_refptr<WebNNTensorImpl>, mojom::ErrorPtr>
   CreateTensorImpl(mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
                    mojom::TensorInfoPtr tensor_info) override {
-    return base::MakeRefCounted<FakeWebNNTensorImpl>(
-        std::move(receiver), AsWeakPtr(), std::move(tensor_info));
+    return base::MakeRefCounted<FakeWebNNTensorImpl>(std::move(receiver), *this,
+                                                     std::move(tensor_info));
   }
 
   base::expected<scoped_refptr<WebNNTensorImpl>, mojom::ErrorPtr>

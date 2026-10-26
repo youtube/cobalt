@@ -60,6 +60,7 @@ rtc_library("time_controller_impl") {
     "../../rtc_base:timeutils",
     "../../rtc_base/synchronization:mutex",
     "../../rtc_base/synchronization:yield_policy",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]

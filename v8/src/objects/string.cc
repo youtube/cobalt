@@ -132,10 +132,10 @@ void ExternalString::InitExternalPointerFieldsDuringExternalization(
 }
 
 template <typename IsolateT>
-void String::MakeThin(IsolateT* isolate, Tagged<String> internalized) {
+void String::MakeThin(IsolateT* isolate,
+                      Tagged<InternalizedString> internalized) {
   DisallowGarbageCollection no_gc;
   DCHECK_NE(this, internalized);
-  DCHECK(IsInternalizedString(internalized));
 
   Tagged<Map> initial_map = map(kAcquireLoad);
   StringShape initial_shape(initial_map);
@@ -201,9 +201,9 @@ void String::MakeThin(IsolateT* isolate, Tagged<String> internalized) {
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::MakeThin(
-    Isolate* isolate, Tagged<String> internalized);
+    Isolate* isolate, Tagged<InternalizedString> internalized);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::MakeThin(
-    LocalIsolate* isolate, Tagged<String> internalized);
+    LocalIsolate* isolate, Tagged<InternalizedString> internalized);
 
 template <typename T>
 bool String::MarkForExternalizationDuringGC(Isolate* isolate, T* resource) {
@@ -1908,7 +1908,8 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
   if (length <= kMaxCachedArrayIndexLength) {
     uint32_t field = EnsureRawHash();  // Force computation of hash code.
     if (!IsIntegerIndex(field)) return false;
-    *index = ArrayIndexValueBits::decode(field);
+    *index = StringHasher::DecodeArrayIndexFromHashField(
+        field, HashSeed(EarlyGetReadOnlyRoots()));
     return true;
   }
   if (length == 0 || length > kMaxArrayIndexSize) return false;
@@ -1922,7 +1923,8 @@ bool String::SlowAsIntegerIndex(size_t* index) {
   if (length <= kMaxCachedArrayIndexLength) {
     uint32_t field = EnsureRawHash();  // Force computation of hash code.
     if (!IsIntegerIndex(field)) return false;
-    *index = ArrayIndexValueBits::decode(field);
+    *index = StringHasher::DecodeArrayIndexFromHashField(
+        field, HashSeed(EarlyGetReadOnlyRoots()));
     return true;
   }
   if (length == 0 || length > kMaxIntegerIndexSize) return false;

@@ -401,6 +401,7 @@ chromium-metrics-reviews@google.com.
   <int value="14"
       label="The user clicked on the |No thanks| button to decline history
              sync"/>
+  <int value="15" label="Default browser promo shown"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/first_run/android/java/src/org/chromium/chrome/browser/firstrun/MobileFreProgress.java:MobileFreProgress) -->
@@ -580,6 +581,10 @@ chromium-metrics-reviews@google.com.
   <int value="39" label="Report warned notification as spam button."/>
   <int value="40" label="Report unwarned notification as spam button."/>
   <int value="41" label="Download removed from history"/>
+  <int value="42" label="Agent paused"/>
+  <int value="43" label="Agent resumed"/>
+  <int value="44" label="Agent canceled"/>
+  <int value="45" label="View actor task"/>
 </enum>
 
 <enum name="SystemNotificationType">
@@ -626,6 +631,8 @@ chromium-metrics-reviews@google.com.
   <int value="41" label="Tracing"/>
   <int value="42" label="Serial"/>
   <int value="43" label="Safety Check Revoked Notification Permissions"/>
+  <int value="44" label="Actor"/>
+  <int value="45" label="Chrome Finds"/>
 </enum>
 
 </enums>

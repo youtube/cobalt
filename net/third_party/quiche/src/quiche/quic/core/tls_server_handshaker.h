@@ -222,6 +222,8 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
 
   std::optional<uint16_t> GetCiphersuite() const override;
 
+  uint16_t GetNegotiatedCurve() const override;
+
   void SetIgnoreTicketOpen(bool value) { ignore_ticket_open_ = value; }
 
   const SSL_CIPHER* GetCipher() const override {
@@ -275,7 +277,8 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
         std::optional<std::string> alps,
         const std::vector<uint8_t>& quic_transport_params,
         const std::optional<std::vector<uint8_t>>& early_data_context,
-        const QuicSSLConfig& ssl_config) override;
+        const QuicSSLConfig& ssl_config,
+        bool disable_alps_explicit_codepoint) override;
 
     // Delegates to proof_source_->ComputeTlsSignature.
     // Returns QUIC_SUCCESS, QUIC_FAILURE or QUIC_PENDING.

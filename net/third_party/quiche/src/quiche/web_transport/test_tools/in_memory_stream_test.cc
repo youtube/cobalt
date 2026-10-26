@@ -7,18 +7,20 @@
 #include <array>
 #include <string>
 
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
+#include "quiche/web_transport/stream_helpers.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace webtransport::test {
 namespace {
 
+using ::quiche::test::StatusIs;
 using ::testing::ElementsAre;
 
 TEST(InMemoryStreamTest, ReadSpan) {
@@ -75,29 +77,54 @@ TEST(InMemoryStreamTest, Peek) {
   EXPECT_TRUE(result.all_data_received);
 
   std::string merged_result;
-  bool fin_reached = quiche::ProcessAllReadableRegions(
+  bool fin_reached = ProcessAllReadableRegions(
       stream,
       [&](absl::string_view chunk) { absl::StrAppend(&merged_result, chunk); });
   EXPECT_EQ(merged_result, absl::StrCat(chunk_a, chunk_b));
   EXPECT_TRUE(fin_reached);
 }
 
-TEST(InMemoryStreamTest, Write) {
-  InMemoryStream stream(0);
+TEST(InMemoryStreamTest, InMemoryStreamWithMockWrite) {
+  InMemoryStreamWithMockWrite stream(0);
   EXPECT_TRUE(stream.CanWrite());
+
   std::array write_vector = {quiche::QuicheMemSlice::Copy("test")};
-  quiche::StreamWriteOptions options;
+  EXPECT_CALL(stream, OnWrite("test"));
+  StreamWriteOptions options;
   QUICHE_EXPECT_OK(stream.Writev(absl::MakeSpan(write_vector), options));
-  EXPECT_EQ(stream.last_data_sent(), "test");
   EXPECT_FALSE(stream.fin_sent());
+
   // Send FIN.
   options.set_send_fin(true);
   write_vector = {quiche::QuicheMemSlice::Copy("test2")};
+  {
+    testing::InSequence sequence;
+    EXPECT_CALL(stream, OnWrite("test2"));
+    EXPECT_CALL(stream, OnFin());
+  }
   QUICHE_EXPECT_OK(stream.Writev(absl::MakeSpan(write_vector), options));
-  EXPECT_EQ(stream.last_data_sent(), "test2");
   EXPECT_TRUE(stream.fin_sent());
   EXPECT_FALSE(stream.CanWrite());
-  EXPECT_FALSE(stream.Writev(absl::MakeSpan(write_vector), options).ok());
+  EXPECT_THAT(stream.Writev(absl::MakeSpan(write_vector), options),
+              StatusIs(absl::StatusCode::kFailedPrecondition));
+}
+
+TEST(InMemoryStreamTest, InMemoryStreamWithWriteBuffer) {
+  InMemoryStreamWithWriteBuffer stream(0);
+  EXPECT_TRUE(stream.CanWrite());
+
+  std::array write_vector = {quiche::QuicheMemSlice::Copy("foo")};
+  StreamWriteOptions options;
+  QUICHE_EXPECT_OK(stream.Writev(absl::MakeSpan(write_vector), options));
+  EXPECT_FALSE(stream.fin_sent());
+
+  // Send FIN.
+  options.set_send_fin(true);
+  write_vector = {quiche::QuicheMemSlice::Copy("bar")};
+  QUICHE_EXPECT_OK(stream.Writev(absl::MakeSpan(write_vector), options));
+  EXPECT_EQ(stream.write_buffer(), "foobar");
+  EXPECT_TRUE(stream.fin_sent());
+  EXPECT_FALSE(stream.CanWrite());
 }
 
 }  // namespace

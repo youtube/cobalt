@@ -6,6 +6,7 @@
 #define COMPONENTS_BOOKMARKS_COMMON_BOOKMARK_METRICS_H_
 
 #include "base/time/time.h"
+#include "components/bookmarks/common/storage_file_encryption_type.h"
 
 namespace bookmarks {
 
@@ -62,6 +63,8 @@ enum class StorageStateForUma {
   kSyncEnabled,
 };
 
+// LINT.IfChange(StorageFileForUma)
+
 // An enum class representing the two JSON files for storing bookmarks, used for
 // suffixing metrics.
 enum class StorageFileForUma {
@@ -70,6 +73,7 @@ enum class StorageFileForUma {
   // Represents `kAccountBookmarksFileName`.
   kAccount,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/bookmarks/enums.xml:StorageFileForUma)
 
 // Records when a bookmark is added by the user.
 // `ancestor_user_folder_depth` is the count of user-generated folders which
@@ -108,7 +112,8 @@ void RecordTimeSinceLastScheduledSave(base::TimeDelta delta);
 void RecordTimeToLoadAtStartup(base::TimeDelta delta);
 
 // Records size of the bookmark file at startup.
-void RecordFileSizeAtStartup(int64_t total_bytes);
+void RecordFileSizeAtStartup(StorageFileEncryptionType encryption_type,
+                             int64_t total_bytes);
 
 // Records a bookmark URL edit.
 void RecordURLEdit(BookmarkEditSource source);
@@ -127,8 +132,12 @@ void RecordUserFolderLoadStatsOnProfileLoad(const UserFolderLoadStats& stats);
 // bookmarks that were selected.
 void RecordCloneBookmarkNode(int num_cloned);
 
-// Records the approximate average node size at startup.
-void RecordAverageNodeSizeAtStartup(size_t size_in_bytes);
+// Records the approximate average node size at startup if
+// sum_file_size_in_bytes and total_url_bookmark_count are not zero.
+void RecordAverageNodeSizeAtStartupIfNonZero(
+    StorageFileEncryptionType encryption_type,
+    int total_url_bookmark_count,
+    size_t sum_file_size_in_bytes);
 
 // Records whether or not node IDs were reassigned as a result of loading the
 // JSON file representing local-or-syncable bookmarks.
@@ -141,6 +150,36 @@ void RecordIdsReassignedOnProfileLoad(StorageFileForUma storage_file,
 void RecordBookmarksExistInStorageType(
     bool bookmark_bar_only,
     BookmarksExistInStorageType storage_type);
+
+// LINT.IfChange(BookmarksFileLoadResult)
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// Indicates the result of the bookmarks file load.
+enum class BookmarksFileLoadResult {
+  kSuccess = 0,
+  kFileMissing = 1,
+  kContentLoadingFailed = 2,
+  kDecryptionFailed = 3,
+  kJSONParsingFailed = 4,
+  kBookmarkCodecDecodingFailed = 5,
+  kMaxValue = kBookmarkCodecDecodingFailed,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/bookmarks/enums.xml:BookmarksFileLoadResult)
+
+void RecordBookmarksFileLoadResult(StorageFileForUma storage_file,
+                                   StorageFileEncryptionType encryption_type,
+                                   BookmarksFileLoadResult result);
+
+void RecordEncryptedBookmarksFileMatchesResult(StorageFileForUma storage_file,
+                                               bool file_matches);
+
+void RecordTimeToReadFile(StorageFileForUma storage_file,
+                          StorageFileEncryptionType encryption_type,
+                          base::TimeDelta delta);
+
+void RecordFallbackToClearTextFileOnLoadResult(StorageFileForUma storage_file,
+                                               BookmarksFileLoadResult result);
 
 }  // namespace metrics
 

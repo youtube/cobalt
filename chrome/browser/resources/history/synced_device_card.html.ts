@@ -10,18 +10,18 @@ export function getHtml(this: HistorySyncedDeviceCardElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
 <div id="history-item-container">
-  <div class="card-title" id="card-heading" aria-expanded="${this.opened}"
-      aria-controls="collapse" @click="${this.toggleTabCard}">
+  <div class="card-title" id="cardHeading" aria-expanded="${this.opened}"
+      aria-controls="collapse" @click="${this.onCardHeadingClick_}">
     <div id="title-left-content">
       <div id="device-name">${this.device}</div>
       <span id="last-update-time">${this.lastUpdateTime}</span>
     </div>
     <div id="right-buttons">
-      <cr-icon-button id="menu-button" iron-icon="cr:more-vert"
+      <cr-icon-button id="menuButton" iron-icon="cr:more-vert"
           @click="${this.onMenuButtonClick_}"
           title="$i18n{actionMenuDescription}">
       </cr-icon-button>
-      <cr-icon-button id="collapse-button"
+      <cr-icon-button id="collapseButton"
           iron-icon="${this.getCollapseIcon_()}"
           title="${this.getCollapseTitle_()}">
       </cr-icon-button>
@@ -35,8 +35,8 @@ export function getHtml(this: HistorySyncedDeviceCardElement) {
         <div class="item-container">
           <a href="${tab.url}" class="website-link" title="${tab.title}"
               data-session-id="${tab.sessionId}"
-              @click="${this.openTab_}"
-              @contextmenu="${this.onLinkRightClick_}">
+              @click="${this.onLinkClick_}"
+              @contextmenu="${this.onLinkContextmenu_}">
             <div class="website-icon"></div>
             <history-searched-label class="website-title"
                 title="${tab.title}"

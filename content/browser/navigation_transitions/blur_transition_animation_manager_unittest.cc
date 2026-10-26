@@ -19,6 +19,7 @@
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/back_forward_transition_animation_manager.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/common/content_features.h"
 #include "content/public/test/mock_navigation_handle.h"
 #include "content/public/test/navigation_simulator.h"
 #include "content/test/test_render_view_host.h"
@@ -26,6 +27,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/android/view_android.h"
+#include "ui/android/window_android.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace content {
@@ -54,6 +56,7 @@ class MockWebContentsViewAndroidDelegate
   MOCK_METHOD(gfx::NativeView, GetNativeView, (), (override));
   MOCK_METHOD(ui::WindowAndroid*, GetWindowAndroid, (), (override));
   MOCK_METHOD(viz::SurfaceId, GetCurrentSurfaceId, (), (override));
+  MOCK_METHOD(std::optional<SkColor>, GetThemeColor, (), (override));
 };
 
 class MockBackForwardTransitionAnimationManager
@@ -87,6 +90,10 @@ class TestBlurTransitionAnimationManager
   void SetDelegate(std::unique_ptr<WebContentsViewAndroidDelegate> delegate) {
     web_contents_view_android_delegate_ = std::move(delegate);
   }
+
+  void OnBlurHoldTimerExpiredForTesting() { OnBlurHoldTimerExpired(); }
+
+  bool IsObservingWindow() const { return window_observation_.IsObserving(); }
 };
 
 class BlurTransitionAnimationManagerTest : public RenderViewHostTestHarness {
@@ -118,6 +125,8 @@ class BlurTransitionAnimationManagerTest : public RenderViewHostTestHarness {
         viz::LocalSurfaceId(1, base::UnguessableToken::Create()));
     ON_CALL(*mock_delegate_, GetCurrentSurfaceId())
         .WillByDefault(Return(fake_surface_id_));
+    ON_CALL(*mock_delegate_, GetThemeColor())
+        .WillByDefault(Return(std::nullopt));
 
     manager_->SetDelegate(std::move(mock_delegate));
     web_contents()->SetUserData(BlurTransitionAnimationManager::UserDataKey(),
@@ -143,9 +152,18 @@ class BlurTransitionAnimationManagerTest : public RenderViewHostTestHarness {
 
   base::HistogramTester histogram_tester_;
   std::unique_ptr<ui::ViewAndroid> view_android_;
+  std::unique_ptr<ui::WindowAndroid::ScopedWindowAndroidForTesting>
+      window_wrapper_;
   raw_ptr<MockWebContentsViewAndroidDelegate> mock_delegate_;
   raw_ptr<TestBlurTransitionAnimationManager> manager_;
   viz::SurfaceId fake_surface_id_;
+
+  void SimulateRFHActivation(NavigationSimulator* simulator) {
+    manager_->RenderFrameHostStateChanged(
+        simulator->GetFinalRenderFrameHost(),
+        RenderFrameHost::LifecycleState::kPendingCommit,
+        RenderFrameHost::LifecycleState::kActive);
+  }
 };
 
 TEST_F(BlurTransitionAnimationManagerTest, SuccessfulLayerCreation) {
@@ -161,16 +179,17 @@ TEST_F(BlurTransitionAnimationManagerTest, SuccessfulLayerCreation) {
       .WillOnce(Return(fake_surface_id_));
 
   simulator->ReadyToCommit();
+  SimulateRFHActivation(simulator.get());
 
   // Layer should be created immediately.
   const auto& children = view_android_->GetLayer()->children();
-  ASSERT_EQ(children.size(), 1u);
+  ASSERT_EQ(children.size(), 2u);
 
-  EXPECT_EQ(GetAnimationState(), AnimationState::kFadeIn);
+  EXPECT_EQ(GetAnimationState(), AnimationState::kBlurShown);
 }
 
 TEST_F(BlurTransitionAnimationManagerTest,
-       CorrectlyFadesOutBlurIfFirstPaintHappensDuringFadeIn) {
+       CorrectlyFadesOutBlurIfFirstPaintHappensDuringHold) {
   auto simulator = NavigationSimulator::CreateBrowserInitiated(
       GURL("https://example.com"), web_contents());
   simulator->Start();
@@ -181,17 +200,22 @@ TEST_F(BlurTransitionAnimationManagerTest,
       .WillOnce(Return(fake_surface_id_));
 
   simulator->ReadyToCommit();
+  SimulateRFHActivation(simulator.get());
 
-  EXPECT_EQ(GetAnimationState(), AnimationState::kFadeIn);
-  EXPECT_EQ(view_android_->GetLayer()->children().size(), 1u);
+  EXPECT_EQ(GetAnimationState(), AnimationState::kBlurShown);
+  EXPECT_EQ(view_android_->GetLayer()->children().size(), 2u);
 
-  // Trigger paint.
+  // Simulate the paint arrival before the timer expires.
   manager_->DidFirstVisuallyNonEmptyPaint();
 
   EXPECT_EQ(GetAnimationState(), AnimationState::kFadeOut);
 
-  // Manually drive the animation.
-  manager_->OnAnimate(base::TimeTicks::Now() + base::Milliseconds(200));
+  // Manually drive the final fade-out animation.
+  manager_->OnAnimate(base::TimeTicks::Now());
+  manager_->OnAnimate(
+      base::TimeTicks::Now() +
+      base::Milliseconds(
+          features::kAndroidNavigationAnimationFadeOutDuration.Get()));
 
   EXPECT_EQ(GetAnimationState(), AnimationState::kNone);
   EXPECT_TRUE(view_android_->GetLayer()->children().empty());
@@ -201,35 +225,153 @@ TEST_F(BlurTransitionAnimationManagerTest,
       TransitionExitReason::kFinished, 1);
 }
 
+TEST_F(BlurTransitionAnimationManagerTest,
+       CorrectlyFadesOutBlurIfTimerExpires) {
+  auto simulator = NavigationSimulator::CreateBrowserInitiated(
+      GURL("https://example.com"), web_contents());
+  simulator->Start();
+
+  EXPECT_CALL(*mock_delegate_, ShouldShowBlurTransitionAnimation(_))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mock_delegate_, GetCurrentSurfaceId())
+      .WillOnce(Return(fake_surface_id_));
+
+  simulator->ReadyToCommit();
+  SimulateRFHActivation(simulator.get());
+
+  EXPECT_EQ(GetAnimationState(), AnimationState::kBlurShown);
+  EXPECT_EQ(view_android_->GetLayer()->children().size(), 2u);
+
+  // Trigger timer expiration.
+  manager_->OnBlurHoldTimerExpiredForTesting();
+
+  EXPECT_EQ(GetAnimationState(), AnimationState::kFadeToFallbackColor);
+
+  // Manually drive the fade-to-color animation.
+  manager_->OnAnimate(base::TimeTicks::Now());
+  manager_->OnAnimate(
+      base::TimeTicks::Now() +
+      base::Milliseconds(
+          features::kAndroidNavigationAnimationFadeOutDuration.Get()));
+
+  EXPECT_EQ(GetAnimationState(), AnimationState::kFallbackShown);
+  // The blur layer is removed, only the white fallback layer remains.
+  EXPECT_EQ(view_android_->GetLayer()->children().size(), 1u);
+
+  // Simulate the paint arrival which should clear the fallback layer.
+  manager_->DidFirstVisuallyNonEmptyPaint();
+  EXPECT_EQ(GetAnimationState(), AnimationState::kFadeOut);
+
+  manager_->OnAnimate(base::TimeTicks::Now());
+  manager_->OnAnimate(
+      base::TimeTicks::Now() +
+      base::Milliseconds(
+          features::kAndroidNavigationAnimationFadeOutDuration.Get()));
+
+  EXPECT_EQ(GetAnimationState(), AnimationState::kNone);
+  EXPECT_TRUE(view_android_->GetLayer()->children().empty());
+
+  histogram_tester_.ExpectUniqueSample(
+      "Navigation.BlurTransitionAnimation.ExitReason",
+      TransitionExitReason::kAnimationTimerExpired, 1);
+}
+
 // Verifies that if a new navigation starts before the previous blur
 // transition has finished, the old transition is correctly interrupted and
 // cleaned up.
 TEST_F(BlurTransitionAnimationManagerTest, StaleNavigationProtection) {
   // Navigation 1.
   auto sim1 = NavigationSimulator::CreateBrowserInitiated(
-      GURL("https://example.com/1"), web_contents());
+      GURL("https://example.com"), web_contents());
   sim1->Start();
   EXPECT_CALL(*mock_delegate_, ShouldShowBlurTransitionAnimation(_))
       .WillOnce(Return(true));
   sim1->ReadyToCommit();
+  SimulateRFHActivation(sim1.get());
 
-  EXPECT_EQ(view_android_->GetLayer()->children().size(), 1u);
+  EXPECT_EQ(view_android_->GetLayer()->children().size(), 2u);
 
   // Navigation 2 starts immediately (superseding 1).
   auto sim2 = NavigationSimulator::CreateBrowserInitiated(
-      GURL("https://example.com/2"), web_contents());
+      GURL("https://test.com"), web_contents());
   sim2->Start();
+
   EXPECT_CALL(*mock_delegate_, ShouldShowBlurTransitionAnimation(_))
       .WillOnce(Return(true));
-  sim2->ReadyToCommit();
+
+  // Actually commit sim2 so the RenderFrameHost properties are valid.
+  sim2->Commit();
 
   // The first layer should be removed and replaced by the second one.
-  EXPECT_EQ(view_android_->GetLayer()->children().size(), 1u);
+  EXPECT_EQ(view_android_->GetLayer()->children().size(), 2u);
 
   // The first navigation was interrupted.
   histogram_tester_.ExpectBucketCount(
       "Navigation.BlurTransitionAnimation.ExitReason",
       TransitionExitReason::kNavigationInterrupted, 1);
+}
+
+TEST_F(BlurTransitionAnimationManagerTest, RenderProcessGoneDuringAnimation) {
+  auto simulator = NavigationSimulator::CreateBrowserInitiated(
+      GURL("https://example.com"), web_contents());
+  simulator->Start();
+
+  EXPECT_CALL(*mock_delegate_, ShouldShowBlurTransitionAnimation(_))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mock_delegate_, GetCurrentSurfaceId())
+      .WillOnce(Return(fake_surface_id_));
+
+  simulator->ReadyToCommit();
+  SimulateRFHActivation(simulator.get());
+
+  EXPECT_EQ(GetAnimationState(), AnimationState::kBlurShown);
+  EXPECT_EQ(view_android_->GetLayer()->children().size(), 2u);
+
+  // Simulate the renderer process crashing.
+  manager_->PrimaryMainFrameRenderProcessGone(
+      base::TERMINATION_STATUS_PROCESS_CRASHED);
+
+  // The layer should be destroyed immediately without fading out.
+  EXPECT_EQ(GetAnimationState(), AnimationState::kNone);
+  EXPECT_TRUE(view_android_->GetLayer()->children().empty());
+
+  histogram_tester_.ExpectUniqueSample(
+      "Navigation.BlurTransitionAnimation.ExitReason",
+      TransitionExitReason::kRenderProcessGone, 1);
+}
+
+TEST_F(BlurTransitionAnimationManagerTest, NoAnimationOnSameHostNavigation) {
+  // Initial page.
+  auto sim1 = NavigationSimulator::CreateBrowserInitiated(
+      GURL("https://example.com/1"), web_contents());
+  sim1->Commit();
+
+  // Navigation to same host.
+  auto sim2 = NavigationSimulator::CreateBrowserInitiated(
+      GURL("https://example.com/2"), web_contents());
+  sim2->Start();
+
+  EXPECT_CALL(*mock_delegate_, GetCurrentSurfaceId()).Times(0);
+  sim2->ReadyToCommit();
+
+  histogram_tester_.ExpectTotalCount(
+      "Navigation.BlurTransitionAnimation.ExitReason", 0);
+}
+
+TEST_F(BlurTransitionAnimationManagerTest, NoAnimationOnReload) {
+  // Initial page.
+  auto sim1 = NavigationSimulator::CreateBrowserInitiated(
+      GURL("https://example.com"), web_contents());
+  sim1->Commit();
+
+  // Reload.
+  auto sim2 = NavigationSimulator::CreateBrowserInitiated(
+      GURL("https://example.com"), web_contents());
+  sim2->SetReloadType(ReloadType::NORMAL);
+  sim2->Start();
+
+  EXPECT_CALL(*mock_delegate_, GetCurrentSurfaceId()).Times(0);
+  sim2->ReadyToCommit();
 }
 
 TEST_F(BlurTransitionAnimationManagerTest,
@@ -277,6 +419,58 @@ TEST_F(BlurTransitionAnimationManagerTest,
 
   EXPECT_CALL(*mock_delegate_, GetCurrentSurfaceId()).Times(0);
   manager_->ReadyToCommitNavigation(&handle);
+}
+
+TEST_F(BlurTransitionAnimationManagerTest, SafeCleanupWhenTabIsClosed) {
+  auto simulator = NavigationSimulator::CreateBrowserInitiated(
+      GURL("https://example.com"), web_contents());
+  simulator->Start();
+
+  EXPECT_CALL(*mock_delegate_, ShouldShowBlurTransitionAnimation(_))
+      .WillOnce(Return(true));
+  simulator->ReadyToCommit();
+  SimulateRFHActivation(simulator.get());
+
+  window_wrapper_ = ui::WindowAndroid::CreateForTesting();
+  window_wrapper_->get()->AddChild(view_android_.get());
+  EXPECT_CALL(*mock_delegate_, GetWindowAndroid())
+      .WillRepeatedly(Return(window_wrapper_->get()));
+
+  manager_->SignalExit(TransitionExitReason::kFinished, true);
+  EXPECT_TRUE(manager_->IsObservingWindow());
+
+  // Pretend the tab was closed and the window is gone.
+  view_android_->RemoveFromParent();
+  EXPECT_CALL(*mock_delegate_, GetWindowAndroid())
+      .WillRepeatedly(Return(nullptr));
+
+  // Stop the animation. This should work safely because the code remembers
+  // which window it was watching even if it can't find it anymore.
+  manager_->SignalExit(TransitionExitReason::kNavigationInterrupted,
+                       /*should_animate_out=*/false);
+  EXPECT_FALSE(manager_->IsObservingWindow());
+}
+
+TEST_F(BlurTransitionAnimationManagerTest, StopWatchingWindowWhenTabIsHidden) {
+  auto simulator = NavigationSimulator::CreateBrowserInitiated(
+      GURL("https://example.com"), web_contents());
+  simulator->Start();
+  EXPECT_CALL(*mock_delegate_, ShouldShowBlurTransitionAnimation(_))
+      .WillOnce(Return(true));
+  simulator->ReadyToCommit();
+  SimulateRFHActivation(simulator.get());
+
+  window_wrapper_ = ui::WindowAndroid::CreateForTesting();
+  window_wrapper_->get()->AddChild(view_android_.get());
+  EXPECT_CALL(*mock_delegate_, GetWindowAndroid())
+      .WillRepeatedly(Return(window_wrapper_->get()));
+
+  manager_->SignalExit(TransitionExitReason::kFinished, true);
+  EXPECT_TRUE(manager_->IsObservingWindow());
+
+  // Pretend the user switched to another tab.
+  manager_->OnDetachCompositor();
+  EXPECT_FALSE(manager_->IsObservingWindow());
 }
 
 }  // namespace content

@@ -16,6 +16,7 @@
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -128,31 +129,17 @@ void SubscribeRemoteTrack::FetchObjects() {
 }
 
 UpstreamFetch::~UpstreamFetch() {
-  if (task_.IsValid()) {
+  UpstreamFetchTask* task = task_.GetIfAvailable();
+  if (task != nullptr) {
     // Notify the task (which the application owns) that nothing more is coming.
     // If this has already been called, UpstreamFetchTask will ignore it.
-    task_.GetIfAvailable()->OnStreamAndFetchClosed(kResetCodeUnknown, "");
+    task->OnStreamAndFetchClosed(kResetCodeCancelled, "");
   }
 }
 
 void UpstreamFetch::OnFetchResult(Location largest_location,
-                                  MoqtDeliveryOrder group_order,
                                   absl::Status status,
                                   TaskDestroyedCallback callback) {
-  if (group_order_.has_value()) {
-    // Data stream already implied a group order.
-    if (*group_order_ != group_order) {
-      // The track is malformed. Tell the application it failed.
-      std::move(ok_callback_)(
-          std::make_unique<MoqtFailedFetch>(MoqtStreamErrorToStatus(
-              kResetCodeMalformedTrack, "Group order violation")));
-      // Tell the session this failed, so it can cancel the FETCH.
-      std::move(callback)();
-      return;
-    }
-  } else {
-    group_order_ = group_order;
-  }
   if (!status.ok()) {
     std::move(ok_callback_)(std::make_unique<MoqtFailedFetch>(status));
     // This is called from OnRequestError, which will delete UpstreamFetch. So
@@ -215,14 +202,8 @@ bool UpstreamFetch::LocationIsValid(Location location, MoqtObjectStatus status,
     return (!last_group_is_finished && location.object > last_location->object);
   }
   // Group ID has changed.
-  if (!group_order_.has_value()) {
-    group_order_ = location.group > last_location->group
-                       ? MoqtDeliveryOrder::kAscending
-                       : MoqtDeliveryOrder::kDescending;
-    return true;
-  }
   return ((location.group > last_location->group) ==
-          (*group_order_ == MoqtDeliveryOrder::kAscending));
+          (group_order_ == MoqtDeliveryOrder::kAscending));
 }
 
 UpstreamFetch::UpstreamFetchTask::~UpstreamFetchTask() {

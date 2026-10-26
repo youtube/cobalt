@@ -9,9 +9,11 @@
 #include "ui/accessibility/ax_enums.mojom-forward.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/views/view.h"
-#include "ui/views/widget/widget.h"
+#include "ui/views/views_export.h"
 
 namespace views {
+
+class Widget;
 
 class VIEWS_EXPORT ViewAccessibilityUtils {
  public:

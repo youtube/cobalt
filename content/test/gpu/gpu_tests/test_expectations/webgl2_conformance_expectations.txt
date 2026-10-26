@@ -509,6 +509,20 @@ crbug.com/891953 [ android renderer-skia-gl ] WebglExtension_OVR_multiview2 [ Fa
 # Conformance expectations
 # ========================
 
+# Temporarily disable PLS test until PIXEL_LOCAL_FORMAT_WEBGL enum rename is complete
+# TODO(anglebug.com/40096838): uncomment suppressions for this test lower in this file after roll
+crbug.com/angleproject/40096838 conformance2/extensions/webgl-shader-pixel-local-storage.html [ Failure ]
+
+# Shader translator needs to be revised
+crbug.com/486945330 conformance/glsl/misc/shader-with-double-underscore.html [ Failure ]
+
+# Verification of zero-sized SVGs needs to be changed
+crbug.com/487208470 conformance/textures/misc/tex-image-svg-image-no-natural-width-and-height.html [ Failure ]
+
+# Failing new ASTC offset tests on multiple Android devices
+crbug.com/487128735 [ android android-pixel-2 passthrough ] conformance/extensions/webgl-compressed-texture-astc.html [ Failure ]
+crbug.com/487128735 [ android android-pixel-4 passthrough ] conformance/extensions/webgl-compressed-texture-astc.html [ Failure ]
+
 # Test needs to be revised for new mipmap/texture completeness rules.
 crbug.com/angleproject/42267266 [ passthrough ] conformance2/textures/misc/immutable-tex-render-feedback.html [ Failure ]
 
@@ -608,7 +622,8 @@ crbug.com/408364836 [ win11 qualcomm-0x41333430 angle-d3d11 ] deqp/data/gles3/sh
 
 # Win / Snapdragon X Elite / D3D11
 crbug.com/41496016 [ win11 qualcomm-0x36334330 angle-d3d11 ] conformance/textures/misc/mipmap-fbo.html [ Failure ]
-crbug.com/41496016 [ win11 qualcomm-0x36334330 angle-d3d11 graphite-disabled ] conformance2/extensions/webgl-shader-pixel-local-storage.html [ Failure ]
+# TODO(anglebug.com/40096838): uncomment suppressions for this test lower in this file after roll
+# crbug.com/41496016 [ win11 qualcomm-0x36334330 angle-d3d11 graphite-disabled ] conformance2/extensions/webgl-shader-pixel-local-storage.html [ Failure ]
 crbug.com/41496016 [ win11 qualcomm-0x36334330 angle-d3d11 ] deqp/functional/gles3/shadertexturefunction/texelfetchoffset.html [ Failure ]
 crbug.com/41496274 [ win11 qualcomm-0x36334330 angle-d3d11 ] deqp/functional/gles3/transformfeedback/basic_types_interleaved_lines.html [ Failure ]
 crbug.com/41496274 [ win11 qualcomm-0x36334330 angle-d3d11 ] deqp/functional/gles3/transformfeedback/basic_types_interleaved_points.html [ Failure ]
@@ -629,7 +644,8 @@ crbug.com/41496274 [ win11 qualcomm-0x36334330 angle-d3d11 ] deqp/functional/gle
 crbug.com/41496274 [ win11 qualcomm-0x36334330 angle-d3d11 ] deqp/functional/gles3/transformfeedback/random_separate_triangles.html [ Failure ]
 
 # Graphite
-crbug.com/332745399 [ win graphite-enabled ] conformance2/extensions/webgl-shader-pixel-local-storage.html [ Failure ]
+# TODO(anglebug.com/40096838): uncomment suppressions for this test lower in this file after roll
+# crbug.com/332745399 [ win graphite-enabled ] conformance2/extensions/webgl-shader-pixel-local-storage.html [ Failure ]
 
 # Win11 Qualcomm
 crbug.com/476376945 [ win11 qualcomm-0x41333430 angle-d3d11 ] conformance2/rendering/framebuffer-render-to-layer.html [ Failure ]
@@ -750,6 +766,8 @@ crbug.com/354627705 [ mac amd-0x7340 angle-metal ] deqp/functional/gles3/fbomult
 crbug.com/354627705 [ mac amd-0x7340 angle-opengl ] deqp/functional/gles3/instancedrendering.html [ Failure ]
 crbug.com/328102507 [ amd-0x7340 angle-opengl asan graphite-disabled mac ] conformance/renderbuffers/stencil-renderbuffer-initialization.html [ Failure ]
 
+crbug.com/372295133 [ amd-0x679e angle-metal monterey passthrough ] deqp/functional/gles3/textureshadow/2d_array_linear_mipmap_linear_equal.html [ Failure ]
+crbug.com/372295133 [ amd-0x679e angle-metal monterey passthrough ] deqp/functional/gles3/textureshadow/2d_array_linear_mipmap_nearest_equal.html [ Failure ]
 crbug.com/372295133 [ amd-0x679e angle-metal monterey passthrough ] deqp/functional/gles3/textureshadow/2d_array_linear_mipmap_nearest_less_or_equal.html [ Failure ]
 crbug.com/374696517 [ mac amd-0x7340 angle-metal ] deqp/functional/gles3/uniformbuffers/random.html [ RetryOnFailure ]
 crbug.com/406424259 [ mac amd-0x7340 graphite-disabled ] conformance2/rendering/vertex-id-large-count.html [ Failure ]
@@ -827,6 +845,7 @@ crbug.com/475181552 [ sequoia angle-metal graphite-enabled intel-0x3e9b ] deqp/f
 
 crbug.com/1115314 [ linux nvidia-0x2184 angle-opengl passthrough ] deqp/functional/gles3/fbocompleteness.html [ Failure ]
 crbug.com/40144307 [ linux nvidia-0x2783 angle-opengl passthrough ] deqp/functional/gles3/fbocompleteness.html [ Failure ]
+crbug.com/488451405 [ linux nvidia angle-opengl passthrough ] conformance/textures/canvas_sub_rectangle/* [ RetryOnFailure ]
 
 ## Linux AMD RX 5500 XT ##
 
@@ -904,7 +923,8 @@ crbug.com/332743717 [ android android-pixel-10 ] conformance2/canvas/drawingbuff
 crbug.com/446941342 [ android android-pixel-10 passthrough ] conformance2/extensions/ext-texture-norm16.html [ Failure ]
 crbug.com/446941342 [ android android-pixel-10 ] conformance2/extensions/oes-sample-variables.html [ Failure ]
 crbug.com/446941342 [ android android-pixel-10 ] conformance2/extensions/webgl-blend-func-extended.html [ Failure ]
-crbug.com/446941342 [ android android-pixel-10 ] conformance2/extensions/webgl-shader-pixel-local-storage.html [ Failure ]
+# TODO(anglebug.com/40096838): uncomment suppressions for this test lower in this file after roll
+# crbug.com/446941342 [ android android-pixel-10 ] conformance2/extensions/webgl-shader-pixel-local-storage.html [ Failure ]
 crbug.com/446941342 [ android android-pixel-10 ] conformance2/glsl3/array-complex-indexing.html [ Failure ]
 crbug.com/446941342 [ android android-pixel-10 ] conformance2/glsl3/loops-with-side-effects.html [ Failure ]
 crbug.com/446941342 [ android android-pixel-10 ] conformance2/glsl3/tricky-loop-conditions.html [ Failure ]

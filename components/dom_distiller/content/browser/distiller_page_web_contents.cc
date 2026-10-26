@@ -207,7 +207,12 @@ void DistillerPageWebContents::DOMContentLoaded(
 
 void DistillerPageWebContents::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
-  if (!navigation_handle->HasCommitted()) {
+  // If the navigation was not for the main frame, we should not fail the
+  // distillation. This is because non-essential subframes (e.g. analytics,
+  // social widgets) can fail to load or be cancelled without affecting the main
+  // content.
+  if (navigation_handle->IsInPrimaryMainFrame() &&
+      !navigation_handle->HasCommitted()) {
     content::WebContentsObserver::Observe(nullptr);
     DCHECK(state_ == LOADING_PAGE || state_ == EXECUTING_JAVASCRIPT);
     state_ = PAGELOAD_FAILED;
@@ -221,7 +226,12 @@ void DistillerPageWebContents::ExecuteJavaScript() {
   content::WebContentsObserver::Observe(nullptr);
   // Stop any pending navigation since the intent is to distill the current
   // page.
-  source_page_handle_->web_contents()->Stop();
+  // Don't stop the navigation of the WebContents we don't own, to prevent any
+  // negative impact to the embedder's WebContents (e.g. don't stop a PDF from
+  // loading in the main renderer).
+  if (source_page_handle_->owned()) {
+    source_page_handle_->web_contents()->Stop();
+  }
   RunIsolatedJavaScript(
       &TargetRenderFrameHost(), script_,
       base::BindOnce(&DistillerPageWebContents::OnWebContentsDistillationDone,

@@ -56,6 +56,7 @@ import org.chromium.android_webview.common.DeveloperModeUtils;
 import org.chromium.android_webview.common.FlagOverrideHelper;
 import org.chromium.android_webview.common.Lifetime;
 import org.chromium.android_webview.common.ProductionSupportedFlagList;
+import org.chromium.android_webview.common.SafeModeActionIds;
 import org.chromium.android_webview.common.SafeModeController;
 import org.chromium.android_webview.common.WebViewCachedFlags;
 import org.chromium.android_webview.safe_mode.BrowserSafeModeActionList;
@@ -83,8 +84,7 @@ import org.chromium.services.tracing.TracingServiceFeatures;
 import org.chromium.support_lib_boundary.ProcessGlobalConfigConstants;
 
 import java.io.File;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -131,12 +131,6 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
     private static final String ASSET_PATH_WORKAROUND_HISTOGRAM_NAME =
             "Android.WebView.AssetPathWorkaroundUsed.FactoryInit";
-
-    private static final String REGISTER_RESOURCE_PATHS_HISTOGRAM_NAME =
-            "Android.WebView.RegisterResourcePathsAvailable2";
-
-    private static final String REGISTER_RESOURCE_PATHS_TIMES_HISTOGRAM_NAME =
-            "Android.WebView.RegisterResourcePathsTimeTaken";
 
     @GuardedBy("mAwInit.getLazyInitLock()")
     private TracingController mTracingController;
@@ -438,11 +432,29 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                 ctx = ctx.createCredentialProtectedStorageContext();
             }
 
+            // Initialize some of SafeMode. It's not safe to use the data directory yet so don't
+            // actually *do* anything. We need to do this early to check whether it's safe to use
+            // cached flags or not.
+            String webViewPackageName = AwBrowserProcess.getWebViewPackageName();
+            SafeModeController controller = SafeModeController.getInstance();
+            controller.registerActions(BrowserSafeModeActionList.sList);
+            mIsSafeModeEnabled = controller.isSafeModeEnabled(ctx, webViewPackageName);
+            RecordHistogram.recordBooleanHistogram(
+                    "Android.WebView.SafeMode.SafeModeEnabled", mIsSafeModeEnabled);
+            Set<String> safeModeActions =
+                    mIsSafeModeEnabled
+                            ? controller.queryActions(ctx, webViewPackageName)
+                            : new HashSet<>();
+
             try (StrictModeContext ignored = StrictModeContext.allowDiskWrites()) {
                 // Since N, getSharedPreferences creates the preference dir if it doesn't exist,
                 // causing a disk write.
                 mWebViewPrefs = ctx.getSharedPreferences(CHROMIUM_PREFS_NAME, Context.MODE_PRIVATE);
-                WebViewCachedFlags.init(mWebViewPrefs);
+                if (safeModeActions.contains(SafeModeActionIds.DELETE_VARIATIONS_SEED)) {
+                    WebViewCachedFlags.initForSafeMode(mWebViewPrefs);
+                } else {
+                    WebViewCachedFlags.init(mWebViewPrefs);
+                }
             }
 
             if (WebViewCachedFlags.get()
@@ -556,7 +568,6 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                 checkProcessUid();
             }
 
-            String webViewPackageName = AwBrowserProcess.getWebViewPackageName();
             boolean isDeveloperModeEnabled =
                     DeveloperModeUtils.isDeveloperModeEnabled(webViewPackageName);
             RecordHistogram.recordBooleanHistogram(
@@ -650,20 +661,15 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                 AwContentsStatics.logFlagOverridesWithNative(flagOverrides);
             }
 
-            SafeModeController controller = SafeModeController.getInstance();
-            controller.registerActions(BrowserSafeModeActionList.sList);
-            mIsSafeModeEnabled = controller.isSafeModeEnabled(webViewPackageName);
-            RecordHistogram.recordBooleanHistogram(
-                    "Android.WebView.SafeMode.SafeModeEnabled", mIsSafeModeEnabled);
+            // Here is where we can actually execute the safe mode actions.
             if (mIsSafeModeEnabled) {
                 try {
                     long safeModeQueryExecuteStart = SystemClock.elapsedRealtime();
-                    Set<String> actions = controller.queryActions(webViewPackageName);
                     Log.w(
                             TAG,
                             "WebViewSafeMode is enabled: received %d SafeModeActions",
-                            actions.size());
-                    controller.executeActions(actions);
+                            safeModeActions.size());
+                    controller.executeActions(safeModeActions);
                     long safeModeQueryExecuteEnd = SystemClock.elapsedRealtime();
                     RecordHistogram.recordTimesHistogram(
                             "Android.WebView.SafeMode.QueryAndExecuteBlockingTime",
@@ -691,17 +697,27 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
             helper.applyFlagOverrides(
                     Map.of(AwFeatures.WEBVIEW_FILE_SYSTEM_ACCESS, shouldEnableFileSystemAccess()));
 
-            // Apply user-agent reduction overrides for WebView. These features
-            // are intended to be enabled only for Android B+.
+            // Set user-agent reduction command-line switches and feature flags for WebView.
+            // We set command line switches as well because we want to read the configuration before
+            // feature flags are set for enabling `getDefaultUserAgent` to not wait for browser
+            // startup.
+            // These features are intended to be enabled only for Android B+.
             // 1) ReduceUserAgentMinorVersion: Enables reduction of the user-agent minor version.
             // 2) WebViewReduceUAAndroidVersionDeviceModel: Enables reduction of the user-agent
             //    Android version and device model.
+            boolean shouldEnableUserAgentReduction = shouldEnableUserAgentReduction();
             helper.applyFlagOverrides(
                     Map.of(
                             AwFeatures.WEBVIEW_REDUCE_UA_ANDROID_VERSION_DEVICE_MODEL,
-                            shouldEnableUserAgentReduction(),
+                            shouldEnableUserAgentReduction,
                             BlinkFeatures.REDUCE_USER_AGENT_MINOR_VERSION,
-                            shouldEnableUserAgentReduction()));
+                            shouldEnableUserAgentReduction));
+            if (shouldEnableUserAgentReduction) {
+                CommandLine.getInstance()
+                        .appendSwitch(AwSwitches.WEBVIEW_REDUCE_USER_AGENT_MINOR_VERSION);
+                CommandLine.getInstance()
+                        .appendSwitch(AwSwitches.WEBVIEW_REDUCE_UA_ANDROID_VERSION_DEVICE_MODEL);
+            }
 
             setSingleton(this);
         }
@@ -1032,59 +1048,22 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
         return true;
     }
 
-    @Retention(RetentionPolicy.SOURCE)
-    @IntDef({ResourcePathsApi.DISABLED, ResourcePathsApi.ENABLED, ResourcePathsApi.ERROR})
-    private @interface ResourcePathsApi {
-        int DISABLED = 0;
-        int ENABLED = 1;
-        int ERROR = 2;
-        int NUM_ENTRIES = 3;
-    }
-
     /** Returns whether the registerResourcePaths API is available to use. */
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     private boolean isRegisterResourcePathsAvailable() {
         if (Build.VERSION.SDK_INT == Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             try {
-                long before = SystemClock.uptimeMillis();
                 Properties properties = DeviceConfig.getProperties("resource_manager");
-                boolean isEnabled =
-                        properties.getBoolean("android.content.res.register_resource_paths", false);
-                long after = SystemClock.uptimeMillis();
-                RecordHistogram.recordEnumeratedHistogram(
-                        REGISTER_RESOURCE_PATHS_HISTOGRAM_NAME,
-                        isEnabled ? ResourcePathsApi.ENABLED : ResourcePathsApi.DISABLED,
-                        ResourcePathsApi.NUM_ENTRIES);
-                RecordHistogram.recordTimesHistogram(
-                        REGISTER_RESOURCE_PATHS_TIMES_HISTOGRAM_NAME, after - before);
-                return isEnabled;
+                return properties.getBoolean("android.content.res.register_resource_paths", false);
             } catch (Exception e) {
-                RecordHistogram.recordEnumeratedHistogram(
-                        REGISTER_RESOURCE_PATHS_HISTOGRAM_NAME,
-                        ResourcePathsApi.ERROR,
-                        ResourcePathsApi.NUM_ENTRIES);
                 // Default to pre-V workaround if we error checking the flag value.
                 return false;
             }
         } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.BAKLAVA) {
             try {
-                long before = SystemClock.uptimeMillis();
-                boolean isEnabled =
-                        AconfigPackage.load("android.content.res")
-                                .getBooleanFlagValue("register_resource_paths", false);
-                long after = SystemClock.uptimeMillis();
-                RecordHistogram.recordEnumeratedHistogram(
-                        REGISTER_RESOURCE_PATHS_HISTOGRAM_NAME,
-                        isEnabled ? ResourcePathsApi.ENABLED : ResourcePathsApi.DISABLED,
-                        ResourcePathsApi.NUM_ENTRIES);
-                RecordHistogram.recordTimesHistogram(
-                        REGISTER_RESOURCE_PATHS_TIMES_HISTOGRAM_NAME, after - before);
-                return isEnabled;
+                return AconfigPackage.load("android.content.res")
+                        .getBooleanFlagValue("register_resource_paths", false);
             } catch (Exception e) {
-                RecordHistogram.recordEnumeratedHistogram(
-                        REGISTER_RESOURCE_PATHS_HISTOGRAM_NAME,
-                        ResourcePathsApi.ERROR,
-                        ResourcePathsApi.NUM_ENTRIES);
                 // Default to pre-V workaround if we error checking the flag value.
                 return false;
             }

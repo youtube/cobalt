@@ -30,7 +30,8 @@ ContextImplLiteRt::Create(
     scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
     gpu::SharedImageManager* shared_image_manager,
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
-    ScopedTrace scoped_trace) {
+    ScopedTrace scoped_trace,
+    bool is_incognito) {
   DCHECK(owning_task_runner->RunsTasksInCurrentSequence());
   auto task_runner = owning_task_runner;
   return std::unique_ptr<WebNNContextImpl, OnTaskRunnerDeleter>(
@@ -39,7 +40,7 @@ ContextImplLiteRt::Create(
           std::move(write_tensor_consumer), std::move(read_tensor_producer),
           std::move(gpu_sequence), std::move(memory_tracker),
           std::move(owning_task_runner), shared_image_manager,
-          std::move(main_task_runner)),
+          std::move(main_task_runner), is_incognito),
       OnTaskRunnerDeleter(std::move(task_runner)));
 }
 
@@ -53,9 +54,11 @@ ContextImplLiteRt::ContextImplLiteRt(
     scoped_refptr<gpu::MemoryTracker> memory_tracker,
     scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
     gpu::SharedImageManager* shared_image_manager,
-    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner)
+    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
+    bool is_incognito)
     : WebNNContextImpl(std::move(receiver),
                        std::move(context_provider),
+                       ContextBackendUma::kLiteRT,
                        tflite::GraphBuilderTflite::GetContextProperties(),
                        std::move(options),
                        std::move(write_tensor_consumer),
@@ -64,7 +67,8 @@ ContextImplLiteRt::ContextImplLiteRt(
                        std::move(memory_tracker),
                        std::move(owning_task_runner),
                        shared_image_manager,
-                       std::move(main_task_runner)) {}
+                       std::move(main_task_runner)),
+      is_incognito_(is_incognito) {}
 
 ContextImplLiteRt::~ContextImplLiteRt() = default;
 
@@ -79,15 +83,26 @@ void ContextImplLiteRt::CreateGraphImpl(
     WebNNGraphImpl::ComputeResourceInfo compute_resource_info,
     base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
         constant_operands,
-    base::flat_map<OperandId, WebNNTensorImpl*> constant_tensor_operands,
+    base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
+        constant_tensor_operands,
     CreateGraphImplCallback callback) {
-  CreateWeightsFile(base::BindOnce(
-      &ContextImplLiteRt::DidCreateWeightsFile,
-      // Unretained is safe here because a reference is held by the
-      // `WebNNContextProviderImpl`
-      base::Unretained(this), std::move(receiver), std::move(graph_info),
-      std::move(compute_resource_info), std::move(constant_operands),
-      std::move(constant_tensor_operands), std::move(callback)));
+  if (is_incognito_) {
+    // In incognito mode, weights are stored in the Flatbuffer model file
+    // rather than an external weights file, pass an invalid file handle to
+    // the graph impl so it can fallback to the default behavior.
+    GraphImplLiteRt::CreateAndBuild(
+        std::move(receiver), std::move(graph_info),
+        std::move(compute_resource_info), std::move(constant_operands),
+        std::move(constant_tensor_operands), *this,
+        /*weights_file=*/base::File(base::File::FILE_ERROR_NOT_FOUND),
+        std::move(callback));
+  } else {
+    CreateWeightsFile(base::BindOnce(
+        &ContextImplLiteRt::DidCreateWeightsFile, weak_factory_.GetWeakPtr(),
+        std::move(receiver), std::move(graph_info),
+        std::move(compute_resource_info), std::move(constant_operands),
+        std::move(constant_tensor_operands), std::move(callback)));
+  }
 }
 
 void ContextImplLiteRt::DidCreateWeightsFile(
@@ -96,7 +111,8 @@ void ContextImplLiteRt::DidCreateWeightsFile(
     WebNNGraphImpl::ComputeResourceInfo compute_resource_info,
     base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
         constant_operands,
-    base::flat_map<OperandId, WebNNTensorImpl*> constant_tensor_operands,
+    base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
+        constant_tensor_operands,
     CreateGraphImplCallback callback,
     base::File weights_file) {
   if (!weights_file.IsValid()) {
@@ -109,7 +125,7 @@ void ContextImplLiteRt::DidCreateWeightsFile(
   GraphImplLiteRt::CreateAndBuild(std::move(receiver), std::move(graph_info),
                                   std::move(compute_resource_info),
                                   std::move(constant_operands),
-                                  std::move(constant_tensor_operands), this,
+                                  std::move(constant_tensor_operands), *this,
                                   std::move(weights_file), std::move(callback));
 }
 
@@ -123,7 +139,7 @@ ContextImplLiteRt::CreateTensorImpl(
         mojom::Error::New(mojom::Error::Code::kNotSupportedError,
                           "Creation of constant tensors is not supported."));
   }
-  return tflite::TensorImplTflite::Create(std::move(receiver), AsWeakPtr(),
+  return tflite::TensorImplTflite::Create(std::move(receiver), *this,
                                           std::move(tensor_info));
 }
 

@@ -26,6 +26,15 @@
 using web_modal::ModalDialogHostObserver;
 using web_modal::WebContentsModalDialogHost;
 
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(BrowserViewLayoutViews,
+                                      kVerticalTabStripTopCornerElementId);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(BrowserViewLayoutViews,
+                                      kVerticalTabStripBottomCornerElementId);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(BrowserViewLayoutViews,
+                                      kShadowOverlayElementId);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(BrowserViewLayoutViews,
+                                      kMainBackgroundRegionElementId);
+
 BrowserViewLayoutViews::BrowserViewLayoutViews() = default;
 BrowserViewLayoutViews::BrowserViewLayoutViews(
     BrowserViewLayoutViews&&) noexcept = default;
@@ -117,7 +126,7 @@ class BrowserViewLayout::BrowserModalDialogHostViews
   base::ScopedObservation<views::Widget, views::WidgetObserver>
       browser_widget_observation_{this};
 
-  base::ObserverList<ModalDialogHostObserver>::Unchecked observer_list_;
+  base::ObserverList<ModalDialogHostObserver> observer_list_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

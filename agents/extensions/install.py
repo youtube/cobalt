@@ -21,6 +21,10 @@ sys.path.append(str(_PROJECT_ROOT))
 from agents.common import gemini_helpers
 
 
+class Error(Exception):
+    """Base class for errors in this module."""
+
+
 IGNORED_EXTENSIONS = ['example-server']
 
 
@@ -32,6 +36,7 @@ class ExtensionInfo:
     installed: str = '-'
     linked: bool = False
     enabled_for_workspace: bool = False
+    enabled_for_user: bool = False
 
 
 def _get_extension_version(extension_path: Path) -> str:
@@ -47,7 +52,7 @@ def _get_extension_version(extension_path: Path) -> str:
             return '-'
 
 
-def _get_available_extensions(
+def get_available_extensions(
         project_root: Path | None,
         extra_extensions_dirs: list[Path] | None) -> dict[str, ExtensionInfo]:
     """Returns a dictionary of available extensions."""
@@ -95,13 +100,18 @@ def _parse_installed_extensions_output(
             elif (stripped_line.startswith('Enabled (Workspace):')
                   and 'true' in stripped_line):
                 current_ext.enabled_for_workspace = True
+            elif (stripped_line.startswith('Enabled (User):')
+                  and 'true' in stripped_line):
+                current_ext.enabled_for_user = True
 
     return data
 
 
 def _print_extensions_table(data: dict[str, ExtensionInfo]) -> None:
     """Prints a formatted table of extensions."""
-    headers = ['EXTENSION', 'AVAILABLE', 'INSTALLED', 'LINKED', 'ENABLED']
+    headers = [
+        'EXTENSION', 'AVAILABLE', 'INSTALLED', 'LINKED', 'WORKSPACE', 'USER'
+    ]
     col_widths = {h: len(h) for h in headers}
     for name, ext_data in data.items():
         col_widths['EXTENSION'] = max(col_widths['EXTENSION'], len(name))
@@ -109,9 +119,9 @@ def _print_extensions_table(data: dict[str, ExtensionInfo]) -> None:
                                       len(ext_data.available))
         col_widths['INSTALLED'] = max(col_widths['INSTALLED'],
                                       len(ext_data.installed))
-        col_widths['ENABLED'] = max(
-            col_widths['ENABLED'],
-            len('workspace') if ext_data.enabled_for_workspace else 0)
+        col_widths['USER'] = max(
+            col_widths['USER'],
+            len('enabled') if ext_data.enabled_for_user else 1)
 
     col_sep = '  '
     header_line = col_sep.join(h.ljust(col_widths[h]) for h in headers)
@@ -125,24 +135,34 @@ def _print_extensions_table(data: dict[str, ExtensionInfo]) -> None:
             ext_data.available.ljust(col_widths['AVAILABLE']),
             ext_data.installed.ljust(col_widths['INSTALLED']),
             ('yes' if ext_data.linked else 'no').ljust(col_widths['LINKED']),
-            ('workspace' if ext_data.enabled_for_workspace else '-').ljust(
-                col_widths['ENABLED']),
+            ('enabled' if ext_data.enabled_for_workspace else '-').ljust(
+                col_widths['WORKSPACE']),
+            ('enabled' if ext_data.enabled_for_user else '-').ljust(
+                col_widths['USER']),
         ]
         print(col_sep.join(row))
 
 
-def _handle_list_command(project_root: Path | None,
-                         extra_extensions_dirs: list[Path]) -> None:
-    """Shows all available and installed extensions."""
-    gemini_cmd = gemini_helpers.get_gemini_executable()
-    all_data = _get_available_extensions(project_root, extra_extensions_dirs)
-
-    # Get installed extensions
-    result = subprocess.run([gemini_cmd, 'extensions', 'list'],
+def get_installed_extensions(
+        gemini_cmd: list[str]) -> dict[str, ExtensionInfo]:
+    """Returns a dictionary of installed extensions."""
+    result = subprocess.run(gemini_cmd + ['extensions', 'list'],
                             capture_output=True,
                             text=True,
                             check=True)
-    installed_data = _parse_installed_extensions_output(result.stdout)
+    return _parse_installed_extensions_output(result.stdout + result.stderr)
+
+
+def _handle_list_command(
+    gemini_cmd: list[str],
+    project_root: Path | None,
+    extra_extensions_dirs: list[Path],
+) -> None:
+    """Shows all available and installed extensions."""
+    all_data = get_available_extensions(project_root, extra_extensions_dirs)
+
+    # Get installed extensions
+    installed_data = get_installed_extensions(gemini_cmd)
 
     for name, data in installed_data.items():
         if name not in all_data:
@@ -151,6 +171,7 @@ def _handle_list_command(project_root: Path | None,
             all_data[name].installed = data.installed
             all_data[name].linked = data.linked
             all_data[name].enabled_for_workspace = data.enabled_for_workspace
+            all_data[name].enabled_for_user = data.enabled_for_user
 
     _print_extensions_table(all_data)
 
@@ -232,12 +253,10 @@ def _run_command(command: list[str], skip_prompt: bool = False) -> None:
             'PATH?',
             file=sys.stderr,
         )
-        sys.exit(1)
-    except subprocess.CalledProcessError as e:
-        sys.exit(e.returncode)
+        raise
 
 
-def fix_extensions(project_root: Path | None) -> None:
+def fix_extensions(gemini_cmd: list[str], project_root: Path | None) -> None:
     """Migrates deprecated project-level extensions to the new user model.
 
     This is a one-time migration tool to move from the old model of
@@ -253,8 +272,7 @@ def fix_extensions(project_root: Path | None) -> None:
     5. Finally, it will remove the old project-level directory.
     """
     if not project_root:
-        print('Error: Could not determine project root.', file=sys.stderr)
-        sys.exit(1)
+        raise Error('Could not determine project root.')
 
     project_extensions_dir = get_local_extension_dir(project_root)
     if not project_extensions_dir or not project_extensions_dir.exists():
@@ -271,7 +289,6 @@ def fix_extensions(project_root: Path | None) -> None:
     user_extensions_dir = get_global_extension_dir()
     source_dirs = get_extensions_dirs(project_root)
 
-    gemini_cmd = gemini_helpers.get_gemini_executable()
     print('Found project-level extensions. Converting to the new model...')
     for extension in extensions:
         if (user_extensions_dir / extension).exists():
@@ -293,15 +310,14 @@ def fix_extensions(project_root: Path | None) -> None:
             continue
 
         print(f'Fixing "{extension}"...')
-        _run_command([
-            gemini_cmd, 'extensions', 'link',
-            str(source_dir_for_ext / extension)
-        ])
         _run_command(
-            [gemini_cmd, 'extensions', 'disable', extension, '--scope=User'])
-        _run_command([
-            gemini_cmd, 'extensions', 'enable', extension, '--scope=Workspace'
-        ])
+            gemini_cmd +
+            ['extensions', 'link',
+             str(source_dir_for_ext / extension)])
+        _run_command(gemini_cmd +
+                     ['extensions', 'disable', extension, '--scope=User'])
+        _run_command(gemini_cmd +
+                     ['extensions', 'enable', extension, '--scope=Workspace'])
 
     print('Removing old project-level extensions directory...')
     shutil.rmtree(project_extensions_dir)
@@ -323,149 +339,200 @@ def _check_for_workspace_extensions(project_root: Path | None) -> None:
 def check_gemini_version() -> None:
     """Checks if the Gemini CLI version is sufficient."""
     required_version = (0, 8, 0)
-    version_str = gemini_helpers.get_gemini_version()
+    version_str = gemini_helpers.get_gemini_version(use_alias=True)
     if not version_str:
-        print(
-            'Error: Could not determine Gemini CLI version. Please ensure '
-            "'gemini' is in your PATH and working correctly.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        raise Error('Could not determine Gemini CLI version. Please ensure '
+                    "'gemini' is in your PATH and working correctly.")
     try:
         version_tuple = tuple(map(int, version_str.split('.')))
-    except ValueError:
-        print(
-            f'Error: Could not parse Gemini CLI version: {version_str}',
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    except ValueError as e:
+        raise Error(
+            f'Could not parse Gemini CLI version: {version_str}') from e
+
     if version_tuple < required_version:
-        print(
-            f'Error: Gemini CLI version {version_str} is too old. Version '
-            f'>={".".join(map(str, required_version))} is required.',
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        raise Error(f'Gemini CLI version {version_str} is too old. Version '
+                    f'>={".".join(map(str, required_version))} is required.')
+
+
+def process_extensions(gemini_cmd: list[str],
+                       command: str,
+                       extensions: list[str],
+                       project_root: Path | None = None,
+                       extra_extensions_dirs: list[Path] | None = None,
+                       copy: bool = False,
+                       skip_prompt: bool = False,
+                       scope: str = 'Workspace') -> None:
+    """Processes extension actions (add, update, remove, enable, disable)."""
+    if not project_root:
+        project_root = get_project_root()
+
+    if not extensions and command == 'update':
+        _run_command(gemini_cmd + ['extensions', 'update', '--all'])
+        return
+
+    for extension in extensions:
+        if command == 'add':
+            source_dirs = get_extensions_dirs(
+                project_root, extra_extensions_dirs=extra_extensions_dirs)
+            source_dir = find_extensions_dir_for_extension(
+                extension, source_dirs)
+            if not source_dir:
+                raise Error(f"Extension '{extension}' not found.")
+            cmd = gemini_cmd + ['extensions']
+            if copy:
+                cmd.extend(['install', str(source_dir / extension)])
+            else:
+                cmd.extend(['link', str(source_dir / extension)])
+            _run_command(cmd, skip_prompt=skip_prompt)
+        elif command == 'update':
+            _run_command(gemini_cmd + ['extensions', 'update', extension],
+                         skip_prompt=skip_prompt)
+        elif command == 'remove':
+            if '_' in extension:
+                # gemini rejects extension names with _ in them so if they're
+                # already installed we need to delete them directly
+                shutil.rmtree(get_global_extension_dir() / extension)
+            else:
+                _run_command(gemini_cmd +
+                             ['extensions', 'uninstall', extension])
+        elif command == 'enable':
+            _run_command(
+                gemini_cmd +
+                ['extensions', 'enable', extension, f'--scope={scope}'])
+        elif command == 'disable':
+            _run_command(
+                gemini_cmd +
+                ['extensions', 'disable', extension, f'--scope={scope}'])
 
 
 def main() -> None:
     """Installs and manages extension."""
-    check_gemini_version()
-    project_root = get_project_root()
-    _check_for_workspace_extensions(project_root)
+    try:
+        check_gemini_version()
+        gemini_cmd = gemini_helpers.get_gemini_command(use_alias=True)
+        project_root = get_project_root()
+        _check_for_workspace_extensions(project_root)
 
-    parser = argparse.ArgumentParser(
-        description='Install and manage extensions.')
-    parser.add_argument(
-        '--extra-extensions-dir',
-        action='append',
-        type=Path,
-        default=[],
-        help='Path to a directory containing extensions. Can be specified '
-        'multiple times.',
-    )
-    subparsers = parser.add_subparsers(
-        dest='command',
-        help='Available commands.',
-        description=('Install and manage extensions. To get help for a '
-                     'specific command, run "install.py <command> -h".'))
+        parser = argparse.ArgumentParser(
+            description='Install and manage extensions.')
+        parser.add_argument(
+            '--extra-extensions-dir',
+            action='append',
+            type=Path,
+            default=[],
+            help='Path to a directory containing extensions. Can be specified '
+            'multiple times.',
+        )
+        subparsers = parser.add_subparsers(
+            dest='command',
+            help='Available commands.',
+            description=('Install and manage extensions. To get help for a '
+                         'specific command, run "install.py <command> -h".'))
 
-    add_parser = subparsers.add_parser(
-        'add', help='Add new extension (links by default).')
-    add_parser.add_argument(
-        '--copy',
-        action='store_true',
-        help='Use directory copies rather than links.',
-    )
-    add_parser.add_argument(
-        '--skip-prompt',
-        action='store_true',
-        help='Skip any interactive prompts.',
-    )
-    add_parser.add_argument(
-        'extensions',
-        nargs='+',
-        help='A list of extension directory names to add.',
-    )
+        add_parser = subparsers.add_parser(
+            'add', help='Add new extension (links by default).')
+        add_parser.add_argument(
+            '--copy',
+            action='store_true',
+            help='Use directory copies rather than links.',
+        )
+        add_parser.add_argument(
+            '--skip-prompt',
+            action='store_true',
+            help='Skip any interactive prompts.',
+        )
+        add_parser.add_argument(
+            'extensions',
+            nargs='+',
+            help='A list of extension directory names to add.',
+        )
 
-    update_parser = subparsers.add_parser('update', help='Update extensions.')
-    update_parser.add_argument(
-        '--skip-prompt',
-        action='store_true',
-        help='Skip any interactive prompts.',
-    )
-    update_parser.add_argument(
-        'extensions',
-        nargs='*',
-        help=('A list of extension directory names to update. If not '
-              'specified, all installed extensions will be updated.'))
+        update_parser = subparsers.add_parser('update',
+                                              help='Update extensions.')
+        update_parser.add_argument(
+            '--skip-prompt',
+            action='store_true',
+            help='Skip any interactive prompts.',
+        )
+        update_parser.add_argument(
+            'extensions',
+            nargs='*',
+            help=('A list of extension directory names to update. If not '
+                  'specified, all installed extensions will be updated.'))
 
-    remove_parser = subparsers.add_parser('remove', help='Remove extensions.')
-    remove_parser.add_argument(
-        'extensions',
-        nargs='+',
-        help='A list of extension directory names to remove.')
+        remove_parser = subparsers.add_parser('remove',
+                                              help='Remove extensions.')
+        remove_parser.add_argument(
+            'extensions',
+            nargs='+',
+            help='A list of extension directory names to remove.')
 
-    subparsers.add_parser('list',
-                          help='List all available and installed extensions.')
-    subparsers.add_parser(
-        'fix',
-        help='Fix project-level extensions to follow the new model.',
-    )
+        enable_parser = subparsers.add_parser('enable',
+                                              help='Enable extensions.')
+        enable_parser.add_argument(
+            '--scope',
+            choices=['User', 'Workspace'],
+            default='Workspace',
+            help='The scope for enabling the extension.',
+        )
+        enable_parser.add_argument(
+            'extensions',
+            nargs='+',
+            help='A list of extension names to enable.',
+        )
 
-    args = parser.parse_args()
+        disable_parser = subparsers.add_parser('disable',
+                                               help='Disable extensions.')
+        disable_parser.add_argument(
+            '--scope',
+            choices=['User', 'Workspace'],
+            default='Workspace',
+            help='The scope for disabling the extension.',
+        )
+        disable_parser.add_argument(
+            'extensions',
+            nargs='+',
+            help='A list of extension names to disable.',
+        )
 
-    if not args.command:
-        parser.print_help()
+        subparsers.add_parser(
+            'list', help='List all available and installed extensions.')
+        subparsers.add_parser(
+            'fix',
+            help='Fix project-level extensions to follow the new model.',
+        )
+
+        args = parser.parse_args()
+
+        if not args.command:
+            parser.print_help()
+            sys.exit(1)
+
+        if args.command == 'list':
+            _handle_list_command(
+                gemini_cmd,
+                project_root,
+                args.extra_extensions_dir,
+            )
+            return
+
+        if args.command == 'fix':
+            fix_extensions(gemini_cmd, project_root)
+            return
+        process_extensions(gemini_cmd=gemini_cmd,
+                           command=args.command,
+                           extensions=args.extensions,
+                           project_root=project_root,
+                           extra_extensions_dirs=args.extra_extensions_dir,
+                           copy=getattr(args, 'copy', False),
+                           skip_prompt=getattr(args, 'skip_prompt', False),
+                           scope=getattr(args, 'scope', 'Workspace'))
+    except Error as e:
+        print(f'Error: {e}', file=sys.stderr)
         sys.exit(1)
-
-    gemini_cmd = gemini_helpers.get_gemini_executable()
-
-    if args.command == 'list':
-        _handle_list_command(project_root, args.extra_extensions_dir)
-        return
-
-    if args.command == 'fix':
-        fix_extensions(project_root)
-        return
-
-    extensions_to_process = args.extensions
-    if not extensions_to_process and args.command == 'update':
-        _run_command([gemini_cmd, 'extensions', 'update', '--all'])
-        return
-
-    for extension in extensions_to_process:
-        if args.command == 'add':
-            source_dirs = get_extensions_dirs(
-                project_root, extra_extensions_dirs=args.extra_extensions_dir)
-            source_dir = find_extensions_dir_for_extension(
-                extension, source_dirs)
-            if not source_dir:
-                print(f"Error: Extension '{extension}' not found.",
-                      file=sys.stderr)
-                sys.exit(1)
-            cmd = [gemini_cmd, 'extensions']
-            if args.copy:
-                cmd.extend(['install', str(source_dir / extension)])
-            else:
-                cmd.extend(['link', str(source_dir / extension)])
-            _run_command(cmd, skip_prompt=args.skip_prompt)
-        elif args.command == 'update':
-            _run_command([gemini_cmd, 'extensions', 'update', extension],
-                         skip_prompt=args.skip_prompt)
-        elif args.command == 'remove':
-            if '_' in extension:
-                # gemini rejects extension names with _ in them so if they're
-                # already installed we need to delete them directly
-                try:
-                    shutil.rmtree(get_global_extension_dir() / extension)
-                except OSError as e:
-                    print(f"Error removing extension '{extension}': {e}",
-                          file=sys.stderr)
-                    sys.exit(1)
-            else:
-                _run_command(
-                    [gemini_cmd, 'extensions', 'uninstall', extension])
+    except Exception as e:
+        print(e, file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == '__main__':

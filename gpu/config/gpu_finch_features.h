@@ -31,6 +31,10 @@ GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
 
 #if BUILDFLAG(IS_ANDROID)
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo);
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                                             kCobaltRemoveUiPlaneDestroyBuffersDelay);
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltGpuShaderDiskCache);
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltGpuShaderDiskCacheSizeKb);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #endif  // BUILDFLAG(IS_COBALT)
@@ -48,6 +52,11 @@ GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kWebViewThreadSafeMediaDefault);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kDefaultEnableGpuRasterization);
+
+// Enables dynamic allocation of shared image backings at runtime.
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kUseDynamicBackingAllocations);
+
+GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kUseCompoundImageBackingAsDefault);
 
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kEnableMSAAOnNewIntelGPUs);
 

@@ -17,6 +17,8 @@
 #include "base/types/pass_key.h"
 #include "components/component_updater/component_updater_service.h"
 #include "components/on_device_translation/public/mojom/translator.mojom.h"
+#include "components/on_device_translation/service_controller.h"
+#include "components/on_device_translation/service_controller_manager.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_download_progress_manager.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_frame_host.h"
@@ -35,7 +37,7 @@ class ComponentUpdateService;
 
 namespace on_device_translation {
 
-class OnDeviceTranslationServiceController;
+class ServiceControllerManager;
 
 // The browser-side implementation of `blink::mojom::TranslationManager`, it
 // is owned by a SupportsUserData (DocumentAssociatedData for frames,
@@ -134,7 +136,8 @@ class TranslationManagerImpl : public base::SupportsUserData::Data,
       std::unique_ptr<optimization_guide::OnDeviceModelDownloadProgressManager>
           model_download_progress_manager,
       base::expected<mojo::PendingRemote<mojom::Translator>,
-                     blink::mojom::CreateTranslatorError> result);
+                     OnDeviceTranslationController::CreateTranslatorError>
+          result);
 
   // `blink::mojom::TranslationManager` implementation.
   void CreateTranslator(
@@ -146,7 +149,7 @@ class TranslationManagerImpl : public base::SupportsUserData::Data,
                             blink::mojom::TranslatorLanguageCodePtr target_lang,
                             TranslationAvailableCallback callback) override;
 
-  OnDeviceTranslationServiceController& GetServiceController();
+  ServiceControllerManager& GetServiceManager();
 
   // Instance of `TranslationManagerImpl` for testing.
   static TranslationManagerImpl* translation_manager_for_test_;
@@ -155,7 +158,7 @@ class TranslationManagerImpl : public base::SupportsUserData::Data,
   const base::WeakPtr<content::BrowserContext> browser_context_;
   const url::Origin origin_;
 
-  scoped_refptr<OnDeviceTranslationServiceController> service_controller_;
+  raw_ptr<ServiceControllerManager> manager_;
   mojo::UniqueReceiverSet<blink::mojom::Translator> translators_;
   mojo::ReceiverSet<blink::mojom::TranslationManager> receiver_set_;
   raw_ptr<component_updater::ComponentUpdateService> component_update_service_;

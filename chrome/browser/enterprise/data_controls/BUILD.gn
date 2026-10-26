@@ -10,6 +10,8 @@ import("//extensions/buildflags/buildflags.gni")
 assert(enterprise_data_controls)
 
 source_set("data_controls") {
+  configs += [ "//components/enterprise:extra_warnings" ]
+
   sources = [
     "chrome_dlp_rules_manager.cc",
     "chrome_dlp_rules_manager.h",
@@ -28,6 +30,7 @@ source_set("data_controls") {
   deps = [
     "//base",
     "//chrome/app:generated_resources",
+    "//chrome/browser/glic",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/safe_browsing",
     "//components/enterprise/common/proto:dlp_policy_event_proto",
@@ -81,9 +84,6 @@ source_set("data_controls") {
       "//ui/views",
     ]
   }
-  if (enable_glic) {
-    deps += [ "//chrome/browser/glic" ]
-  }
   if (enable_extensions) {
     deps += [ "//chrome/browser/extensions" ]
   }
@@ -107,6 +107,8 @@ source_set("data_controls") {
 
 source_set("test_support") {
   testonly = true
+  configs += [ "//components/enterprise:extra_warnings" ]
+
   public_deps = [
     ":data_controls",
     "//base",
@@ -140,6 +142,7 @@ source_set("test_support") {
 
 source_set("unit_tests") {
   testonly = true
+  configs += [ "//components/enterprise:extra_warnings" ]
 
   sources = [
     "chrome_rules_service_unittest.cc",

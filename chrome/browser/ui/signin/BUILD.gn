@@ -138,6 +138,7 @@ if (!is_android) {
         "//base",
         "//base/test:test_support",
         "//chrome/browser",
+        "//chrome/browser/bookmarks",
         "//chrome/browser/ui",
         "//chrome/browser/ui:browser_element_identifiers",
         "//chrome/browser/ui:ui_features",
@@ -220,6 +221,7 @@ if (!is_android) {
       deps += [
         "//chrome/browser/ui/toasts/api:toasts",
         "//chrome/browser/ui/webui/signin/signout_confirmation",
+        "//chrome/browser/ui/webui/signin/signout_confirmation:test_support",
         "//chrome/browser/web_applications:web_applications_test_support",
         "//chrome/test:test_support",
         "//components/sync:test_support",

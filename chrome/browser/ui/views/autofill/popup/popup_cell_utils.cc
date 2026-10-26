@@ -184,6 +184,7 @@ std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
     case Suggestion::Icon::kMagic:
     case Suggestion::Icon::kNoIcon:
     case Suggestion::Icon::kOfferTag:
+    case Suggestion::Icon::kPassport:
     case Suggestion::Icon::kPenSpark:
     case Suggestion::Icon::kPersonCheck:
     case Suggestion::Icon::kPlusAddress:
@@ -337,6 +338,7 @@ bool IsPaymentMethodSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kDevtoolsTestAddressByCountry:
     case SuggestionType::kDevtoolsTestAddressEntry:
     case SuggestionType::kDevtoolsTestAddresses:
+    case SuggestionType::kAtMemorySearchResult:
     case SuggestionType::kFillExistingPlusAddress:
     case SuggestionType::kFillPassword:
     case SuggestionType::kGeneratePasswordEntry:
@@ -356,6 +358,7 @@ bool IsPaymentMethodSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kOneTimePasswordEntry:
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
     case SuggestionType::kLoadingThrobber:
+    case SuggestionType::kBnplFootnote:
       return false;
   }
 }
@@ -426,6 +429,9 @@ std::optional<ui::ImageModel> GetIconImageModelFromIcon(Suggestion::Icon icon) {
     case Suggestion::Icon::kMagic:
       return ImageModelFromVectorIcon(vector_icons::kMagicButtonIcon,
                                       kIconSize);
+    case Suggestion::Icon::kPassport:
+      return ImageModelFromVectorIcon(vector_icons::kPassportIcon,
+                                      kChromeRefreshIconSize);
     case Suggestion::Icon::kPenSpark:
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
       return ImageModelFromVectorIcon(vector_icons::kPenSparkIcon, kIconSize);

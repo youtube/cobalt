@@ -23,7 +23,6 @@
 #include "third_party/blink/renderer/core/dom/character_data.h"
 
 #include "base/numerics/checked_math.h"
-#include "third_party/blink/renderer/core/dom/child_node_part.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/dom/mutation_observer_interest_group.h"
@@ -73,7 +72,7 @@ String CharacterData::substringData(unsigned offset,
     return String();
   }
 
-  return data().Substring(offset, count);
+  return data().substr(offset, count);
 }
 
 void CharacterData::ParserAppendData(const String& data) {
@@ -206,13 +205,21 @@ void CharacterData::SetDataAndUpdate(const String& new_data,
   if (source != kUpdateFromParser) {
     if (auto* processing_instruction_node =
             DynamicTo<ProcessingInstruction>(this))
-      processing_instruction_node->DidAttributeChanged();
+      processing_instruction_node->DidChangeData();
 
     GetDocument().NotifyUpdateCharacterData(this, diff);
   }
 
   GetDocument().IncDOMTreeVersion();
   DidModifyData(old_data, source);
+}
+
+void CharacterData::SetDataFromAttributeChange(const String& data) {
+  CHECK(IsProcessingInstruction());
+  String old_data = data_;
+  SetDataWithoutUpdate(data);
+  GetDocument().IncDOMTreeVersion();
+  DidModifyData(old_data, kUpdateFromAttributeChange);
 }
 
 void CharacterData::DidModifyData(const String& old_data, UpdateSource source) {
@@ -243,13 +250,6 @@ Node* CharacterData::Clone(Document& factory,
                            CustomElementRegistry*,
                            ExceptionState& append_exception_state) const {
   CharacterData* clone = CloneWithData(factory, data());
-  if (cloning_data.Has(CloneOption::kPreserveDOMPartsMinimalAPI) &&
-      HasNodePart()) {
-    DCHECK(RuntimeEnabledFeatures::DOMPartsAPIMinimalEnabled());
-    clone->SetHasNodePart();
-  } else if (cloning_data.Has(CloneOption::kPreserveDOMParts)) {
-    PartRoot::CloneParts(*this, *clone, cloning_data);
-  }
   if (append_to) {
     append_to->AppendChild(clone, append_exception_state);
   }

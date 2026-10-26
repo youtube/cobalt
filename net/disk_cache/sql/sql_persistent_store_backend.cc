@@ -4,12 +4,16 @@
 
 #include "net/disk_cache/sql/sql_persistent_store_backend.h"
 
+#include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <limits>
 #include <optional>
 #include <string>
 
 #include "base/containers/flat_set.h"
+#include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
@@ -33,6 +37,7 @@
 #include "net/base/features.h"
 #include "net/base/io_buffer.h"
 #include "net/disk_cache/cache_util.h"
+#include "net/disk_cache/memory_entry_data_hints.h"
 #include "net/disk_cache/simple/simple_util.h"
 #include "net/disk_cache/sql/eviction_candidate_aggregator.h"
 #include "net/disk_cache/sql/sql_backend_constants.h"
@@ -79,7 +84,9 @@ using OptionalEntryInfoWithKeyAndIterator =
 
 using InMemoryIndexAndDoomedResIds =
     SqlPersistentStore::InMemoryIndexAndDoomedResIds;
-
+using EvictionResultOrError = SqlPersistentStore::EvictionResultOrError;
+using EvictionResultOrErrorAndStoreStatus =
+    SqlPersistentStore::EvictionResultOrErrorAndStoreStatus;
 namespace {
 
 bool IsBlobSizeValid(int64_t blob_start,
@@ -155,6 +162,11 @@ void PopulateTraceDetails(const InMemoryIndexAndDoomedResIds& result,
                           perfetto::TracedDictionary& dict) {
   dict.Add("index_size", result.index.size());
   dict.Add("doomed_entry_count", result.doomed_entry_res_ids.size());
+}
+void PopulateTraceDetails(const SqlPersistentStore::EvictionResult& result,
+                          perfetto::TracedDictionary& dict) {
+  dict.Add("deleted", result.deleted_res_ids.size());
+  dict.Add("pending", result.pending_eviction_targets.size());
 }
 void PopulateTraceDetails(Error error,
                           const StoreStatus& store_status,
@@ -279,11 +291,10 @@ SqlPersistentStore::Backend::Backend(
       type_(type),
       read_cache_memory_monitor_(std::move(read_cache_memory_monitor)),
       db_(sql::DatabaseOptions()
-              .set_exclusive_locking(true)
 #if BUILDFLAG(IS_WIN)
               .set_exclusive_database_file_lock(true)
 #endif  // IS_WIN
-              .set_preload(true)
+              .set_preload(net::features::kSqlDiskCachePreloadDatabase.Get())
               .set_wal_mode(true)
               .set_no_sync_on_wal_mode(
                   net::features::kSqlDiskCacheSynchronousOff.Get())
@@ -292,7 +303,10 @@ SqlPersistentStore::Backend::Backend(
                   // This callback is only called while the `db_` instance
                   // is alive, and never during destructor, so it's safe
                   // to use base::Unretained.
-                  base::Unretained(this))),
+                  base::Unretained(this)))
+              .set_release_memory_after_writes(
+                  net::features::kSqlDiskCacheReleaseMemoryAfterWrites.Get())
+              .set_cache_size(net::features::kSqlDiskCacheCacheSize.Get()),
           // Tag for metrics collection.
           sql::Database::Tag("HttpCacheDiskCache")) {
 }
@@ -1314,7 +1328,10 @@ ResIdOrError SqlPersistentStore::Backend::WriteEntryDataAndMetadataInternal(
     statement.BindInt(5, CalculateCheckSum(blob_span, key.hash()));
     statement.BindInt(6, key.hash().value());
     statement.BindString(7, key.string());
-    statement.BindBlob(8, blob_span);
+    // SAFETY: The memory referenced by `blob_span` must outlive `statement`.
+    statement.BindBlob(
+        8, base::MakeRefCounted<base::RefCountedStaticMemory>(blob_span));
+
     if (!statement.Step()) {
       return base::unexpected(Error::kFailedToExecute);
     }
@@ -1401,7 +1418,11 @@ ResIdOrError SqlPersistentStore::Backend::WriteEntryDataAndMetadataInternal(
     if (has_head) {
       statement.BindInt(param_index++,
                         CalculateCheckSum(head_buffer->span(), key.hash()));
-      statement.BindBlob(param_index++, head_buffer->span());
+      // SAFETY: The memory referenced by `head_buffer` must outlive
+      // `statement`.
+      statement.BindBlob(param_index++,
+                         base::MakeRefCounted<base::RefCountedStaticMemory>(
+                             head_buffer->span()));
     }
     statement.BindInt64(param_index++, res_id->value());
 
@@ -1799,7 +1820,9 @@ Error SqlPersistentStore::Backend::InsertNewBlob(
   statement.BindInt64(2, end);
   const auto new_blob = buffer->first(base::checked_cast<size_t>(buf_len));
   statement.BindInt(3, CalculateCheckSum(new_blob, key.hash()));
-  statement.BindBlob(4, new_blob);
+  // SAFETY: The memory referenced by `new_blob` must outlive `statement`.
+  statement.BindBlob(
+      4, base::MakeRefCounted<base::RefCountedStaticMemory>(new_blob));
   if (!statement.Run()) {
     return Error::kFailedToExecute;
   }
@@ -1894,6 +1917,18 @@ Error SqlPersistentStore::Backend::DeleteResourceByResId(ResId res_id) {
     return Error::kFailedToExecute;
   }
   return Error::kOk;
+}
+
+Int64OrError SqlPersistentStore::Backend::DeleteLiveResourceByResIdReturnUsage(
+    ResId res_id) {
+  TRACE_EVENT0("disk_cache", "SqlBackend.DeleteLiveResourceByResIdReturnUsage");
+  sql::Statement delete_resource_stmt(db_.GetCachedStatement(
+      SQL_FROM_HERE, GetQuery(Query::kDeleteLiveResourceByResIdReturnUsage)));
+  delete_resource_stmt.BindInt64(0, res_id.value());
+  if (delete_resource_stmt.Step()) {
+    return delete_resource_stmt.ColumnInt64(0);
+  }
+  return base::unexpected(Error::kNotFound);
 }
 
 Error SqlPersistentStore::Backend::DeleteResourcesByResIds(
@@ -2259,17 +2294,25 @@ SqlPersistentStore::Backend::OpenNextEntryInternal(
 void SqlPersistentStore::Backend::StartEviction(
     int64_t size_to_be_removed,
     base::flat_set<ResId> excluded_res_ids,
+    std::vector<ResId> high_priority_res_ids,
     bool is_idle_time_eviction,
     scoped_refptr<EvictionCandidateAggregator> aggregator,
-    ResIdListOrErrorAndStoreStatusCallback callback) {
+    scoped_refptr<base::RefCountedData<std::atomic_bool>> abort_flag,
+    scoped_refptr<base::RefCountedData<std::atomic_int64_t>>
+        remaining_mandatory_size,
+    EvictionResultOrErrorAndStoreStatusCallback callback) {
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.StartEviction", "data",
                      [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
                        dict.Add("size_to_be_removed", size_to_be_removed);
                        dict.Add("is_idle_time_eviction", is_idle_time_eviction);
+                       dict.Add("excluded_res_ids", excluded_res_ids.size());
+                       dict.Add("high_priority_res_ids",
+                                high_priority_res_ids.size());
                      });
   auto candidates = SelectEvictionCandidates(
-      size_to_be_removed, std::move(excluded_res_ids), is_idle_time_eviction);
+      size_to_be_removed, std::move(excluded_res_ids),
+      std::move(high_priority_res_ids), is_idle_time_eviction);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.StartEviction", "result",
                    [&](perfetto::TracedValue trace_context) {
                      auto dict = std::move(trace_context).WriteDictionary();
@@ -2278,13 +2321,16 @@ void SqlPersistentStore::Backend::StartEviction(
   aggregator->OnCandidate(
       shard_id_, std::move(candidates),
       base::BindOnce(&Backend::EvictEntries, weak_factory_.GetWeakPtr(),
-                     std::move(callback), is_idle_time_eviction));
+                     std::move(callback), is_idle_time_eviction,
+                     std::move(abort_flag),
+                     std::move(remaining_mandatory_size)));
 }
 
 SqlPersistentStore::Backend::EvictionCandidateList
 SqlPersistentStore::Backend::SelectEvictionCandidates(
     int64_t size_to_be_removed,
     base::flat_set<ResId> excluded_res_ids,
+    std::vector<ResId> high_priority_res_ids,
     bool is_idle_time_eviction) {
   if (is_idle_time_eviction && !IsBrowserIdle()) {
     return {};
@@ -2294,31 +2340,89 @@ SqlPersistentStore::Backend::SelectEvictionCandidates(
   }
 
   base::ElapsedTimer timer;
-  // Create a list of eviction candidates in this shard until the
-  // `candidates_total_size` exceeds the `size_to_be_removed`.
-  // The EvictionCandidateAggregator merges and sorts eviction candidates from
-  // each shard. It then selects candidates until their total size exceeds
-  // 'size_to_be_removed', and passes the final list to EvictEntries().
+
+  const bool size_and_priority_aware_eviction =
+      net::features::kSqlDiskCacheSizeAndPriorityAwareEviction.Get();
+  const bool prioritized_caching_enabled = base::FeatureList::IsEnabled(
+      net::features::kSimpleCachePrioritizedCaching);
+  const int caching_prioritization_factor =
+      net::features::kSimpleCachePrioritizedCachingPrioritizationFactor.Get();
+  const uint64_t caching_prioritization_period_in_seconds =
+      static_cast<uint64_t>(
+          net::features::kSimpleCachePrioritizedCachingPrioritizationPeriod
+              .Get()
+              .InSeconds());
+
+  base::flat_set<ResId> high_priority_res_ids_set;
+  if (size_and_priority_aware_eviction) {
+    std::sort(high_priority_res_ids.begin(), high_priority_res_ids.end());
+    high_priority_res_ids_set = base::flat_set<ResId>(
+        base::sorted_unique, std::move(high_priority_res_ids));
+  }
+
   EvictionCandidateList candidates;
-  base::ClampedNumeric<int64_t> candidates_total_size = 0;
+  const base::Time now = base::Time::Now();
   {
     sql::Statement statement(db_.GetCachedStatement(
         SQL_FROM_HERE, GetQuery(Query::kStartEviction_SelectLiveResources)));
-    while (size_to_be_removed > candidates_total_size && statement.Step()) {
+    base::ClampedNumeric<int64_t> candidates_total_size = 0;
+    while (statement.Step()) {
       if (is_idle_time_eviction && !IsBrowserIdle()) {
         return {};
       }
       const ResId res_id = ResId(statement.ColumnInt64(0));
-      const int64_t bytes_usage = statement.ColumnInt64(1);
-      const base::Time last_used = statement.ColumnTime(2);
       if (excluded_res_ids.contains(res_id)) {
         continue;
       }
-      candidates_total_size += bytes_usage;
-      candidates_total_size += kSqlBackendStaticResourceSize;
-      candidates.emplace_back(res_id, shard_id_, bytes_usage, last_used);
+      const int64_t bytes_usage = statement.ColumnInt64(1);
+      const base::Time last_used = statement.ColumnTime(2);
+      const uint64_t time_since_last_used = (now - last_used).InSeconds();
+      uint64_t sort_value = time_since_last_used;
+      if (size_and_priority_aware_eviction) {
+        sort_value *= bytes_usage + kSqlBackendStaticResourceSize;
+        if (prioritized_caching_enabled &&
+            time_since_last_used < caching_prioritization_period_in_seconds &&
+            high_priority_res_ids_set.contains(res_id)) {
+          sort_value /= caching_prioritization_factor;
+        }
+      }
+      candidates.emplace_back(res_id, shard_id_,
+                              bytes_usage + kSqlBackendStaticResourceSize,
+                              sort_value);
+      if (!size_and_priority_aware_eviction) {
+        candidates_total_size += bytes_usage;
+        candidates_total_size += kSqlBackendStaticResourceSize;
+        if (size_to_be_removed <= candidates_total_size) {
+          // Since "ORDER BY last_used" is specified in the
+          // kStartEviction_SelectLiveResources query, for LRU eviction that is
+          // not size and priority aware, there is no need to read more once
+          // the total size exceeds `size_to_be_removed`.
+          break;
+        }
+      }
     }
   }
+
+  // For size and priority aware eviction, all entry information is included in
+  // `candidates` at this point. Since we don't need more than
+  // `size_to_be_removed`, we remove unnecessary candidates before passing them
+  // to the aggregator.
+  if (size_and_priority_aware_eviction) {
+    // Sort candidates by sort_value
+    std::sort(candidates.begin(), candidates.end(),
+              [](const auto& a, const auto& b) {
+                return a.sort_value > b.sort_value;
+              });
+    base::ClampedNumeric<int64_t> candidates_total_size = 0;
+    auto it = candidates.begin();
+    while (it != candidates.end() &&
+           size_to_be_removed > candidates_total_size) {
+      candidates_total_size += it->entry_size_with_overhead;
+      ++it;
+    }
+    candidates.erase(it, candidates.end());
+  }
+
   base::UmaHistogramMicrosecondsTimes(
       base::StrCat(
           {kSqlDiskCacheBackendHistogramPrefix,
@@ -2329,10 +2433,12 @@ SqlPersistentStore::Backend::SelectEvictionCandidates(
 }
 
 void SqlPersistentStore::Backend::EvictEntries(
-    ResIdListOrErrorAndStoreStatusCallback callback,
+    EvictionResultOrErrorAndStoreStatusCallback callback,
     bool is_idle_time_eviction,
-    ResIdList res_ids,
-    int64_t bytes_usage,
+    scoped_refptr<base::RefCountedData<std::atomic_bool>> abort_flag,
+    scoped_refptr<base::RefCountedData<std::atomic_int64_t>>
+        remaining_mandatory_size,
+    EvictionTargetQueue eviction_targets,
     base::TimeTicks post_task_time) {
   const base::TimeDelta posting_delay = base::TimeTicks::Now() - post_task_time;
   // Checks that this method is called on the expected sequence when invoked via
@@ -2341,54 +2447,136 @@ void SqlPersistentStore::Backend::EvictEntries(
   TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.EvictEntries", "data",
                      [&](perfetto::TracedValue trace_context) {
                        auto dict = std::move(trace_context).WriteDictionary();
-                       dict.Add("res_ids_size", res_ids.size());
+                       dict.Add("target_size", eviction_targets.size());
                      });
   base::ElapsedTimer timer;
   bool corruption_detected = false;
-  auto result = EvictEntriesInternal(
-      res_ids, bytes_usage, is_idle_time_eviction, corruption_detected);
+  // Entries in excluded_res_ids are excluded from candidates at the
+  // SelectEvictionCandidates stage, so pass an empty excluded_res_ids here.
+  auto result =
+      EvictEntriesHelper(std::move(eviction_targets), /*excluded_res_ids=*/{},
+                         is_idle_time_eviction, std::move(abort_flag),
+                         std::move(remaining_mandatory_size),
+                         /*trust_target_size=*/true, corruption_detected);
   RecordTimeAndErrorResultHistogram(
       !is_idle_time_eviction ? "EvictEntries" : "EvictEntriesOnIdleTime",
-      posting_delay, timer.Elapsed(), result, corruption_detected);
+      posting_delay, timer.Elapsed(), result.error_or(Error::kOk),
+      corruption_detected);
   TRACE_EVENT_END1("disk_cache", "SqlBackend.EvictEntries", "result",
                    [&](perfetto::TracedValue trace_context) {
                      auto dict = std::move(trace_context).WriteDictionary();
                      PopulateTraceDetails(result, store_status_, dict);
                    });
   MaybeCrashIfCorrupted(corruption_detected);
-  std::move(callback).Run(ResIdListOrErrorAndStoreStatus(
-      result == Error::kOk ? ResIdListOrError(std::move(res_ids))
-                           : base::unexpected(result),
-      store_status_));
+  std::move(callback).Run(
+      EvictionResultOrErrorAndStoreStatus(std::move(result), store_status_));
 }
 
-Error SqlPersistentStore::Backend::EvictEntriesInternal(
-    const ResIdList& res_ids,
-    int64_t bytes_usage,
+EvictionResultOrErrorAndStoreStatus
+SqlPersistentStore::Backend::ResumePendingEviction(
+    EvictionTargetQueue eviction_targets,
+    base::flat_set<ResId> excluded_res_ids,
     bool is_idle_time_eviction,
-    bool& corruption_detected) {
-  if (is_idle_time_eviction && !IsBrowserIdle()) {
-    return Error::kAbortedDueToBrowserActivity;
-  }
-  sql::Transaction transaction(&db_);
-  if (!transaction.Begin()) {
-    return Error::kFailedToExecute;
-  }
+    scoped_refptr<base::RefCountedData<std::atomic_bool>> abort_flag,
+    scoped_refptr<base::RefCountedData<std::atomic_int64_t>>
+        remaining_mandatory_size,
+    base::TimeTicks start_time) {
+  const base::TimeDelta posting_delay = base::TimeTicks::Now() - start_time;
+  TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.ResumePendingEviction", "data",
+                     [&](perfetto::TracedValue trace_context) {
+                       auto dict = std::move(trace_context).WriteDictionary();
+                       dict.Add("eviction_target_size",
+                                eviction_targets.size());
+                       dict.Add("is_idle_time_eviction", is_idle_time_eviction);
+                     });
+  base::ElapsedTimer timer;
+  bool corruption_detected = false;
+  auto result = EvictEntriesHelper(
+      std::move(eviction_targets), excluded_res_ids, is_idle_time_eviction,
+      std::move(abort_flag), std::move(remaining_mandatory_size),
+      /*trust_target_size=*/false, corruption_detected);
+  RecordTimeAndErrorResultHistogram(
+      "CalculateSizeOfEntriesBetween", posting_delay, timer.Elapsed(),
+      result.error_or(Error::kOk), corruption_detected);
+  TRACE_EVENT_END1("disk_cache", "SqlBackend.ResumePendingEviction", "result",
+                   [&](perfetto::TracedValue trace_context) {
+                     auto dict = std::move(trace_context).WriteDictionary();
+                     PopulateTraceDetails(result, store_status_, dict);
+                   });
+  return EvictionResultOrErrorAndStoreStatus(std::move(result), store_status_);
+}
 
-  for (const auto& res_id : res_ids) {
-    if (is_idle_time_eviction && !IsBrowserIdle()) {
-      return Error::kAbortedDueToBrowserActivity;
-    }
-    if (auto error = DeleteBlobsByResId(res_id); error != Error::kOk) {
-      return error;
-    }
-    if (auto error = DeleteResourceByResId(res_id); error != Error::kOk) {
-      return error;
-    }
+EvictionResultOrError SqlPersistentStore::Backend::EvictEntriesHelper(
+    EvictionTargetQueue eviction_targets,
+    const base::flat_set<ResId>& excluded_res_ids,
+    bool is_idle_time_eviction,
+    scoped_refptr<base::RefCountedData<std::atomic_bool>> abort_flag,
+    scoped_refptr<base::RefCountedData<std::atomic_int64_t>>
+        remaining_mandatory_size,
+    bool trust_target_size,
+    bool& corruption_detected) {
+  if (auto db_error = CheckDatabaseStatus(); db_error != Error::kOk) {
+    return base::unexpected(db_error);
   }
-  return UpdateStoreStatusAndCommitTransaction(
-      transaction, -static_cast<int64_t>(res_ids.size()), -bytes_usage,
-      corruption_detected);
+  ResIdList deleted_res_ids;
+  while (!eviction_targets.empty()) {
+    const auto res_id = eviction_targets.front().res_id;
+    const auto entry_size_with_overhead =
+        eviction_targets.front().entry_size_with_overhead;
+    if ((is_idle_time_eviction && !IsBrowserIdle()) ||
+        (abort_flag->data.load(std::memory_order_relaxed) &&
+         remaining_mandatory_size->data.load(std::memory_order_relaxed) <= 0)) {
+      break;
+    }
+    if (excluded_res_ids.contains(res_id)) {
+      eviction_targets.pop();
+      continue;
+    }
+    sql::Transaction transaction(&db_);
+    if (!transaction.Begin()) {
+      return base::unexpected(Error::kFailedToExecute);
+    }
+    if (eviction_hook_) {
+      eviction_hook_.Run();
+    }
+
+    int64_t deleted_byte = 0;
+    if (trust_target_size) {
+      if (auto error = DeleteResourceByResId(res_id); error != Error::kOk) {
+        return base::unexpected(error);
+      }
+      // store_status_.total_size tracks payload only, so subtract overhead.
+      deleted_byte = entry_size_with_overhead - kSqlBackendStaticResourceSize;
+    } else {
+      auto usage_or_error = DeleteLiveResourceByResIdReturnUsage(res_id);
+      if (!usage_or_error.has_value()) {
+        // DeleteLiveResourceByResIdReturnUsage() only returns kNotFound as an
+        // error. In that case, continue eviction by ignoring the entry instead
+        // of aborting.
+        CHECK_EQ(usage_or_error.error(), Error::kNotFound);
+        eviction_targets.pop();
+        continue;
+      }
+      deleted_byte = *usage_or_error;
+    }
+
+    if (auto error = DeleteBlobsByResId(res_id); error != Error::kOk) {
+      return base::unexpected(error);
+    }
+
+    deleted_res_ids.emplace_back(res_id);
+    if (const auto error = UpdateStoreStatusAndCommitTransaction(
+            transaction, -1, -deleted_byte, corruption_detected);
+        error != Error::kOk) {
+      return base::unexpected(error);
+    }
+    remaining_mandatory_size->data.fetch_sub(
+        deleted_byte + kSqlBackendStaticResourceSize,
+        std::memory_order_relaxed);
+    eviction_targets.pop();
+  }
+  return EvictionResult(std::move(deleted_res_ids),
+                        std::move(eviction_targets));
 }
 
 Error SqlPersistentStore::Backend::UpdateStoreStatusAndCommitTransaction(
@@ -2426,10 +2614,33 @@ Error SqlPersistentStore::Backend::UpdateStoreStatusAndCommitTransaction(
                          store_status_.total_size);
   }
 
-  // Intentionally DCHECK for performance.
+#if DCHECK_IS_ON()
   // In debug builds, verify consistency by recalculating.
-  DCHECK_EQ(store_status_.entry_count, CalculateResourceEntryCount());
-  DCHECK_EQ(store_status_.total_size, CalculateTotalSize());
+  const int64_t actual_entry_count = CalculateResourceEntryCount();
+  const int64_t actual_total_size = CalculateTotalSize();
+  if (store_status_.entry_count != actual_entry_count ||
+      store_status_.total_size != actual_total_size) {
+    // For debugging crbug.com/488877236.
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "entry_count_delta",
+                            entry_count_delta);
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "entry_count",
+                            store_status_.entry_count);
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "actual_entry_count",
+                            actual_entry_count);
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "total_size_delta", total_size_delta);
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "total_size",
+                            store_status_.total_size);
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "actual_total_size",
+                            actual_total_size);
+    base::debug::DumpWithoutCrashing();
+    store_status_.entry_count = actual_entry_count;
+    meta_table_.SetValue(kSqlBackendMetaTableKeyEntryCount,
+                         store_status_.entry_count);
+    store_status_.total_size = actual_total_size;
+    meta_table_.SetValue(kSqlBackendMetaTableKeyTotalSize,
+                         store_status_.total_size);
+  }
+#endif  // DCHECK_IS_ON()
 
   // Attempt to commit the transaction. If it fails, revert the in-memory
   // store status to its state before the updates.

@@ -48,6 +48,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.signin.SigninCheckerProvider;
 import org.chromium.chrome.browser.signin.SigninFirstRunFragment;
+import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.browser.ui.signin.DialogWhenLargeContentLayout;
 import org.chromium.chrome.browser.ui.signin.SigninUtils;
@@ -211,6 +212,7 @@ public class FirstRunActivity extends FirstRunActivityBase implements FirstRunPa
     private boolean mLaunchedFromChromeIcon;
 
     private boolean mLaunchedFromCct;
+    private boolean mTemplateUrlServiceLoaded;
 
     /**
      * {@link SystemClock} timestamp from when the FRE intent was initially created. This marks when
@@ -288,6 +290,26 @@ public class FirstRunActivity extends FirstRunActivityBase implements FirstRunPa
         }
         mPages.add(new FirstRunPage<>(HistorySyncFirstRunFragment.class, showHistorySync));
         mFreProgressStates.add(MobileFreProgress.HISTORY_SYNC_OPT_IN_SHOWN);
+
+        if (ChromeFeatureList.sDefaultBrowserPromoFre.isEnabled()) {
+            BooleanSupplier showDefaultBrowserPromo =
+                    () -> {
+                        // Skip CCT.
+                        if (isLaunchedFromCct()) return false;
+
+                        // Restrict promos to FRE triggered via main intents only (exclude FRE
+                        // before CCTs/PWAs/TWAs).
+                        if (!mLaunchedFromChromeIcon) return false;
+
+                        return DefaultBrowserPromoUtils.getInstance()
+                                .shouldShowRoleManagerPromoForFre(this);
+                    };
+
+            mPages.add(
+                    new FirstRunPage<>(
+                            DefaultBrowserPromoFirstRunFragment.class, showDefaultBrowserPromo));
+            mFreProgressStates.add(MobileFreProgress.DEFAULT_BROWSER_PROMO_SHOWN);
+        }
 
         if (mPagerAdapter != null) {
             mPagerAdapter.notifyDataSetChanged();
@@ -426,14 +448,15 @@ public class FirstRunActivity extends FirstRunActivityBase implements FirstRunPa
     public void finishNativeInitialization() {
         super.finishNativeInitialization();
 
-        Runnable onNativeFinished =
+        Runnable onTemplateUrlServiceLoaded =
                 () -> {
                     if (isActivityFinishingOrDestroyed()) return;
 
+                    mTemplateUrlServiceLoaded = true;
                     onNativeDependenciesFullyInitialized();
                 };
         Profile profile = assumeNonNull(getProfileProviderSupplier().get()).getOriginalProfile();
-        TemplateUrlServiceFactory.getForProfile(profile).runWhenLoaded(onNativeFinished);
+        TemplateUrlServiceFactory.getForProfile(profile).runWhenLoaded(onTemplateUrlServiceLoaded);
         // Notify feature engagement that FRE occurred.
         TrackerFactory.getTrackerForProfile(profile)
                 .notifyEvent(EventConstants.RESTORE_TABS_ON_FIRST_RUN_SHOW_PROMO);
@@ -454,9 +477,7 @@ public class FirstRunActivity extends FirstRunActivityBase implements FirstRunPa
     }
 
     private void onNativeDependenciesFullyInitialized() {
-        mNativeInitializationPromise.fulfill(null);
         mPager.setOffscreenPageLimit(ViewPager2.OFFSCREEN_PAGE_LIMIT_DEFAULT);
-
         onInternalStateChanged();
     }
 
@@ -473,6 +494,11 @@ public class FirstRunActivity extends FirstRunActivityBase implements FirstRunPa
     private void onInternalStateChanged() {
         if (!isFlowKnown()) {
             return;
+        }
+
+        if (mTemplateUrlServiceLoaded && mNativeInitializationPromise.isPending()) {
+            // `mNativeInitializationPromise` should only be set after flow is known.
+            mNativeInitializationPromise.fulfill(null);
         }
 
         if (mPagerAdapter == null) {
@@ -756,6 +782,14 @@ public class FirstRunActivity extends FirstRunActivityBase implements FirstRunPa
                         @Override
                         public void onAnimationEnd(Animator animation) {
                             mPager.endFakeDrag();
+                            if (ChromeFeatureList.sDefaultBrowserPromoFre.isEnabled()
+                                    && mPager.getCurrentItem() != position) {
+                                // When the user stays signed out, we jump from index 0 (sign-in
+                                // page) to index 2 (promo page) and skip index 1 (History sync).
+                                // Fake dragging seems to fail in multipage jumps, so we manually
+                                // jump to the target position.
+                                mPager.setCurrentItem(position, false);
+                            }
                             mAnimator = null;
                             // No need to call `mPager.setCurrentItem(position, false)`.
                         }

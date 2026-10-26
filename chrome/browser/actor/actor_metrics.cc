@@ -141,6 +141,24 @@ void RecordActorNavigationGatingListSize(size_t allow_list_size,
                                confirmed_list_size);
 }
 
+void RecordScriptToolActionResultCode(
+    actor::mojom::ActionResultCode action_result_code) {
+  base::UmaHistogramSparse("Actor.Tools.ScriptTool.ActionResultCode",
+                           std::to_underlying(action_result_code));
+  base::UmaHistogramBoolean("Actor.Tools.ScriptTool.InvocationResult",
+                            action_result_code == mojom::ActionResultCode::kOk);
+}
+
+void RecordScriptToolInputSizeBytes(size_t size_bytes) {
+  base::UmaHistogramCounts10M("Actor.Tools.ScriptTool.InputSizeBytes",
+                              size_bytes);
+}
+
+void RecordScriptToolOutputSizeBytes(size_t size_bytes) {
+  base::UmaHistogramCounts10M("Actor.Tools.ScriptTool.OutputSizeBytes",
+                              size_bytes);
+}
+
 void RecordNavigationGatingDecision(ExecutionEngine::GatingDecision decision) {
   base::UmaHistogramEnumeration("Actor.NavigationGating.GatingDecision",
                                 decision);
@@ -271,6 +289,16 @@ void RecordTabObservationResultHistogram(
     base::UmaHistogramEnumeration(kActorPageContextTabObservationResult,
                                   *tab_result);
   }
+}
+
+void RecordSplitModeTimeOfUseFrameStatus(SplitModeTimeOfUseFrameStatus status) {
+  base::UmaHistogramEnumeration("Actor.PageTool.SplitModeTimeOfUseFrameStatus",
+                                status);
+}
+
+void RecordTimeOfUseObservationSuccess(bool success) {
+  base::UmaHistogramBoolean("Actor.PageTool.TimeOfUseObservationSuccess",
+                            success);
 }
 
 }  // namespace actor

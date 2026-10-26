@@ -116,6 +116,10 @@ source_set("buildflag_macro") {
   public_configs = [ ":public_includes" ]
 }
 
+stack_scan_supported = current_cpu == "x64" || current_cpu == "x86" ||
+                       current_cpu == "arm" || current_cpu == "arm64" ||
+                       current_cpu == "riscv64" || current_cpu == "loong64"
+
 # When developers are repeatedly growing a buffer with `realloc`, they are
 # expected to request a new size that is larger than the current size by
 # some growth factor. This growth factor allows to amortize the cost of
@@ -140,6 +144,7 @@ pa_buildflag_header("buildflags") {
     "BACKUP_REF_PTR_EXTRA_OOB_CHECKS=$backup_ref_ptr_extra_oob_checks",
     "BACKUP_REF_PTR_POISON_OOB_PTR=$backup_ref_ptr_poison_oob_ptr",
     "CAN_UNWIND_WITH_FRAME_POINTERS=$can_unwind_with_frame_pointers",
+    "CHECKED_SPAN=$use_checked_span",
     "DCHECKS_ARE_ON=$partition_alloc_dchecks_are_on",
     "DCHECK_IS_CONFIGURABLE=$dcheck_is_configurable",
     "ENABLE_BACKUP_REF_PTR_FEATURE_FLAG=$enable_backup_ref_ptr_feature_flag",
@@ -165,7 +170,6 @@ pa_buildflag_header("buildflags") {
     "HAS_64_BIT_POINTERS=$has_64_bit_pointers",
     "HAS_MEMORY_TAGGING=$has_memory_tagging",
     "IS_ANDROID=$is_android",
-    "IS_DESKTOP_ANDROID=$is_desktop_android",
     "IS_CASTOS=$is_castos",
     "IS_CAST_ANDROID=$is_cast_android",
     "IS_CHROMEOS=$is_chromeos",
@@ -193,14 +197,6 @@ pa_buildflag_header("buildflags") {
     "USE_RAW_PTR_HOOKABLE_IMPL=$use_raw_ptr_hookable_impl",
     "SHIM_SUPPORTS_ALLOC_TOKEN=$shim_supports_alloc_token",
   ]
-}
-
-# TODO(crbug.com/41481467): Remove this alias.
-# Temporary alias, the time to update partition_alloc dependants.
-# Currently needed by pdfium and dawn.
-source_set("partition_alloc_buildflags") {
-  public = [ "partition_alloc_buildflags.h" ]
-  public_deps = [ ":buildflags" ]
 }
 
 # Provides platform and architecture detections from the compiler defines.
@@ -407,6 +403,8 @@ if (is_clang_or_gcc) {
       "allocation_guard.h",
       "allocator_config.cc",
       "allocator_config.h",
+      "bounds_checks.cc",
+      "bounds_checks.h",
       "bucket_lookup.h",
       "compressed_pointer.cc",
       "compressed_pointer.h",
@@ -472,6 +470,8 @@ if (is_clang_or_gcc) {
       "scheduler_loop_quarantine.h",
       "scheduler_loop_quarantine_support.cc",
       "scheduler_loop_quarantine_support.h",
+      "slot_address_and_size.cc",
+      "slot_address_and_size.h",
       "slot_start.cc",
       "slot_start.h",
       "spinning_mutex.cc",
@@ -508,27 +508,14 @@ if (is_clang_or_gcc) {
       # The Android NDK supports PR_MTE_* macros as of NDK r23.
       defines += [ "HAS_PR_MTE_MACROS" ]
     }
-    if (current_cpu == "x64") {
-      assert(stack_scan_supported)
-      sources += [ "stack/asm/x64/push_registers_asm.cc" ]
-    } else if (current_cpu == "x86") {
-      assert(stack_scan_supported)
-      sources += [ "stack/asm/x86/push_registers_asm.cc" ]
-    } else if (current_cpu == "arm") {
-      assert(stack_scan_supported)
-      sources += [ "stack/asm/arm/push_registers_asm.cc" ]
-    } else if (current_cpu == "arm64") {
-      assert(stack_scan_supported)
-      sources += [ "stack/asm/arm64/push_registers_asm.cc" ]
-    } else if (current_cpu == "riscv64") {
-      assert(stack_scan_supported)
-      sources += [ "stack/asm/riscv64/push_registers_asm.cc" ]
-    } else if (current_cpu == "loong64") {
-      assert(stack_scan_supported)
-      sources += [ "stack/asm/loong64/push_registers_asm.cc" ]
-    } else {
-      # To support a trampoline for another arch, please refer to v8/src/heap/base.
-      assert(!stack_scan_supported)
+
+    # Stack scanning support. First implemented for StarScan and later
+    # enlisted for use with MiracleObject.
+    #
+    # To support a trampoline for a new arch, please refer to
+    # `v8/src/heap/base`.
+    if (stack_scan_supported) {
+      sources += [ "stack/asm/$current_cpu/push_registers_asm.cc" ]
     }
 
     # Pool-offset encoding has better security characteristics, but requires

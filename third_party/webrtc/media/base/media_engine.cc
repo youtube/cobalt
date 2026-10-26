@@ -14,12 +14,12 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "api/array_view.h"
 #include "api/field_trials_view.h"
 #include "api/rtc_error.h"
 #include "api/rtp_headers.h"
@@ -79,7 +79,7 @@ RtpParameters CreateRtpParametersWithEncodings(StreamParams sp) {
 
 std::vector<RtpExtension> GetDefaultEnabledRtpHeaderExtensions(
     const RtpHeaderExtensionQueryInterface& query_interface,
-    const webrtc::FieldTrialsView* field_trials) {
+    const FieldTrialsView* field_trials) {
   std::vector<RtpExtension> extensions;
   for (const auto& entry :
        query_interface.GetRtpHeaderExtensions(field_trials)) {
@@ -90,7 +90,7 @@ std::vector<RtpExtension> GetDefaultEnabledRtpHeaderExtensions(
 }
 
 RTCError CheckScalabilityModeValues(const RtpParameters& rtp_parameters,
-                                    ArrayView<const Codec> send_codecs,
+                                    std::span<const Codec> send_codecs,
                                     std::optional<Codec> send_codec) {
   if (send_codecs.empty()) {
     // This is an audio sender or an extra check in the stack where the codec
@@ -161,7 +161,7 @@ RTCError CheckScalabilityModeValues(const RtpParameters& rtp_parameters,
 }
 
 RTCError CheckRtpParametersValues(const RtpParameters& rtp_parameters,
-                                  ArrayView<const Codec> send_codecs,
+                                  std::span<const Codec> send_codecs,
                                   std::optional<Codec> send_codec,
                                   const FieldTrialsView& field_trials) {
   bool has_scale_resolution_down_to = false;
@@ -280,7 +280,7 @@ RTCError CheckRtpParametersInvalidModificationAndValues(
 RTCError CheckRtpParametersInvalidModificationAndValues(
     const RtpParameters& old_rtp_parameters,
     const RtpParameters& rtp_parameters,
-    ArrayView<const Codec> send_codecs,
+    std::span<const Codec> send_codecs,
     std::optional<Codec> send_codec,
     const FieldTrialsView& field_trials) {
   if (rtp_parameters.encodings.size() != old_rtp_parameters.encodings.size()) {

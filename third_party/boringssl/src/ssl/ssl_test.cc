@@ -36,7 +36,6 @@
 #include <openssl/crypto.h>
 #include <openssl/curve25519.h>
 #include <openssl/err.h>
-#include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/hpke.h>
 #include <openssl/pem.h>
@@ -5547,6 +5546,8 @@ TEST(SSLTest, CredentialChains) {
   ASSERT_TRUE(cred);
   bssl::UniquePtr<SSL_CREDENTIAL> cred2(SSL_CREDENTIAL_new_x509());
   ASSERT_TRUE(cred2);
+  ASSERT_FALSE(SSL_CREDENTIAL_is_complete(cred.get()));
+  ASSERT_FALSE(SSL_CREDENTIAL_is_complete(cred2.get()));
 
   SSL_CTX_set_custom_verify(client_ctx.get(), SSL_VERIFY_PEER,
                             AcceptAnyCertificate);
@@ -5580,11 +5581,15 @@ TEST(SSLTest, CredentialChains) {
 
   ASSERT_TRUE(SSL_CREDENTIAL_set1_cert_chain(cred2.get(), test_chain.data(),
                                              test_chain.size()));
+  ASSERT_FALSE(SSL_CREDENTIAL_is_complete(cred.get()));
+  ASSERT_FALSE(SSL_CREDENTIAL_is_complete(cred2.get()));
 
   ASSERT_TRUE(SSL_CREDENTIAL_set1_private_key(cred.get(), key.get()));
   ASSERT_TRUE(SSL_CREDENTIAL_set1_private_key(cred2.get(), testkey.get()));
   SSL_CREDENTIAL_set_must_match_issuer(cred.get(), 1);
   SSL_CREDENTIAL_set_must_match_issuer(cred2.get(), 1);
+  ASSERT_TRUE(SSL_CREDENTIAL_is_complete(cred.get()));
+  ASSERT_TRUE(SSL_CREDENTIAL_is_complete(cred2.get()));
   ASSERT_TRUE(SSL_CTX_add1_credential(server_ctx.get(), cred.get()));
   ASSERT_TRUE(SSL_CTX_add1_credential(server_ctx.get(), cred2.get()));
 
@@ -5647,6 +5652,7 @@ TEST(SSLTest, CredentialChains) {
   // Add cred3 to the CTX so we have an ubiquitous credential
   bssl::UniquePtr<SSL_CREDENTIAL> cred3(SSL_CREDENTIAL_new_x509());
   ASSERT_TRUE(cred3);
+  ASSERT_FALSE(SSL_CREDENTIAL_is_complete(cred3.get()));
   ASSERT_TRUE(
       SSL_CREDENTIAL_set1_cert_chain(cred3.get(), chain.data(), chain.size()));
   ASSERT_TRUE(SSL_CREDENTIAL_set1_private_key(cred3.get(), key.get()));
@@ -5660,45 +5666,12 @@ TEST(SSLTest, CredentialChains) {
                            {leaf.get(), ca.get()}));
 }
 
-TEST(SSLTest, CredentialSetPrivateKey) {
-  bssl::UniquePtr<SSL_CREDENTIAL> cred(SSL_CREDENTIAL_new_x509());
-  ASSERT_TRUE(cred);
-
-  EXPECT_FALSE(SSL_CREDENTIAL_set1_private_key(cred.get(), nullptr));
-
-  bssl::UniquePtr<EVP_PKEY> test_key = GetTestKey();
-  ASSERT_TRUE(test_key);
-  ASSERT_TRUE(EVP_PKEY_has_public(test_key.get()));
-  ASSERT_TRUE(EVP_PKEY_has_private(test_key.get()));
-  EXPECT_TRUE(SSL_CREDENTIAL_set1_private_key(cred.get(), test_key.get()));
-
-  // Make another key containing the public key only.
-  ScopedCBB cbb;
-  uint8_t *der;
-  size_t der_len;
-  ASSERT_TRUE(CBB_init(cbb.get(), 0));
-  ASSERT_TRUE(EVP_marshal_public_key(cbb.get(), test_key.get()));
-  ASSERT_TRUE(CBB_finish(cbb.get(), &der, &der_len));
-  bssl::UniquePtr<uint8_t> free_der(der);
-  CBS cbs;
-  CBS_init(&cbs, der, der_len);
-  bssl::UniquePtr<EVP_PKEY> public_key(EVP_parse_public_key(&cbs));
-
-  ASSERT_TRUE(public_key);
-  ASSERT_TRUE(EVP_PKEY_has_public(public_key.get()));
-  ASSERT_FALSE(EVP_PKEY_has_private(public_key.get()));
-
-  // Attempting to set the public key as a private key should fail.
-  bssl::UniquePtr<SSL_CREDENTIAL> cred2(SSL_CREDENTIAL_new_x509());
-  ASSERT_TRUE(cred2);
-  EXPECT_FALSE(SSL_CREDENTIAL_set1_private_key(cred2.get(), public_key.get()));
-}
-
 TEST(SSLTest, CredentialCertProperties) {
   // A CertificatePropertyList containing a trust_anchors property, and an
   // unknown property 0xbb with 0 bytes of data.
   bssl::UniquePtr<SSL_CREDENTIAL> cred(SSL_CREDENTIAL_new_x509());
   ASSERT_TRUE(cred);
+  ASSERT_FALSE(SSL_CREDENTIAL_is_complete(cred.get()));
   static const uint8_t kTestProperties1[] = {0x00, 0x0b, 0x00, 0x00, 0x00,
                                              0x03, 0xba, 0xdb, 0x0b, 0x00,
                                              0xbb, 0x00, 0x00};

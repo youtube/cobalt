@@ -12,7 +12,6 @@ import static org.chromium.ui.listmenu.ListMenuUtils.createAdapter;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
-import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
 
@@ -23,6 +22,8 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
+import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.tabmodel.TabModel.RecentlyClosedEntryType;
 import org.chromium.chrome.browser.tasks.tab_management.TabOverflowMenuCoordinator;
 import org.chromium.chrome.tab_ui.R;
@@ -31,8 +32,8 @@ import org.chromium.components.browser_ui.widget.list_view.TouchTrackingListView
 import org.chromium.ui.listmenu.BasicListMenu;
 import org.chromium.ui.listmenu.ListMenu.Delegate;
 import org.chromium.ui.listmenu.ListMenuItemAdapter;
+import org.chromium.ui.listmenu.ListMenuUtils;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
-import org.chromium.ui.util.AttrUtils;
 import org.chromium.ui.widget.AnchoredPopupWindow;
 import org.chromium.ui.widget.AnchoredPopupWindow.HorizontalOrientation;
 import org.chromium.ui.widget.RectProvider;
@@ -77,7 +78,7 @@ public class TabStripContextMenuCoordinator {
         View contentView =
                 LayoutInflater.from(mContext)
                         .inflate(R.layout.tab_switcher_action_menu_layout, null);
-        clipContentViewOutline(contentView);
+        ListMenuUtils.clipContentViewOutline(contentView, R.attr.popupBgCornerRadius);
 
         // TODO (crbug.com/436283175): Update the name of this resource for generic use.
         TouchTrackingListView touchTrackingListView =
@@ -169,29 +170,32 @@ public class TabStripContextMenuCoordinator {
         // Add "Pin Gemini" option with divider
         if (ChromeFeatureList.isEnabled(
                         ChromeFeatureList.TAB_STRIP_EMPTY_SPACE_CONTEXT_MENU_ANDROID)
-                && ChromeFeatureList.isEnabled(ChromeFeatureList.GLIC)) {
-            // TODO(crbug.com/483810144): Add unpinning functionality.
-            // TODO(crbug.com/483509451): Only show when Glic button not already visible
+                && ChromeFeatureList.sGlic.isEnabled()) {
             if (!isIncognito) {
                 itemList.add(BasicListMenu.buildMenuDivider(/* isIncognito= */ false));
-                itemList.add(
-                        new ListItemBuilder()
-                                .withTitleRes(R.string.menu_pin_glic)
-                                .withMenuId(R.id.pin_glic)
-                                .withIsIncognito(false)
-                                .build());
+
+                boolean isPinned =
+                        ChromeSharedPreferences.getInstance()
+                                .readBoolean(
+                                        ChromePreferenceKeys.GLIC_BUTTON_PINNED,
+                                        /* defaultValue= */ true);
+                if (isPinned) {
+                    itemList.add(
+                            new ListItemBuilder()
+                                    .withTitleRes(R.string.glic_unpin)
+                                    .withMenuId(R.id.unpin_glic)
+                                    .withIsIncognito(false)
+                                    .build());
+                } else {
+                    itemList.add(
+                            new ListItemBuilder()
+                                    .withTitleRes(R.string.glic_pin)
+                                    .withMenuId(R.id.pin_glic)
+                                    .withIsIncognito(false)
+                                    .build());
+                }
             }
         }
-    }
-
-    private void clipContentViewOutline(View contentView) {
-        GradientDrawable outlineDrawable = new GradientDrawable();
-        outlineDrawable.setShape(GradientDrawable.RECTANGLE);
-        outlineDrawable.setCornerRadius(
-                AttrUtils.getDimensionPixelSize(
-                        contentView.getContext(), R.attr.popupBgCornerRadius));
-        contentView.setBackground(outlineDrawable);
-        contentView.setClipToOutline(true);
     }
 
     @VisibleForTesting
@@ -218,6 +222,8 @@ public class TabStripContextMenuCoordinator {
                 mDelegate.onNameWindow();
             } else if (model.get(MENU_ITEM_ID) == R.id.pin_glic) {
                 mDelegate.onPinGlic();
+            } else if (model.get(MENU_ITEM_ID) == R.id.unpin_glic) {
+                mDelegate.onUnpinGlic();
             }
             assumeNonNull(mMenuWindow).dismiss();
         };

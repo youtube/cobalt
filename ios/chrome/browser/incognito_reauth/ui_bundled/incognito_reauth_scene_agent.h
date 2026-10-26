@@ -15,21 +15,6 @@ class PrefService;
 @protocol ReauthenticationProtocol;
 @protocol SceneCommands;
 
-@protocol IncognitoReauthObserver <NSObject>
-
-@optional
-// Called when the authentication requirement in a given scene might have
-// changed.
-// TODO(crbug.com/374073829): Remove after launching Soft Lock.
-- (void)reauthAgent:(IncognitoReauthSceneAgent*)agent
-    didUpdateAuthenticationRequirement:(BOOL)isRequired;
-
-// Called when the incognito lock state in a given scene might have changed.
-- (void)reauthAgent:(IncognitoReauthSceneAgent*)agent
-    didUpdateIncognitoLockState:(IncognitoLockState)incogitoLockState;
-
-@end
-
 // A scene agent that tracks the incognito authentication status for the current
 // scene.
 @interface IncognitoReauthSceneAgent
@@ -40,7 +25,6 @@ class PrefService;
 // The `sceneHandler` is used to transition between the tab and
 // tab switcher.
 - (instancetype)initWithReauthModule:(id<ReauthenticationProtocol>)reauthModule
-                        sceneHandler:(id<SceneCommands>)sceneHandler
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;
@@ -56,14 +40,6 @@ class PrefService;
 // Registers the prefs required for this agent.
 + (void)registerLocalState:(PrefRegistrySimple*)registry;
 
-// Returns YES when the authentication is currently required.
-@property(nonatomic, assign, readonly, getter=isAuthenticationRequired)
-    BOOL authenticationRequired;
-
-// Returns whether incognito tabs are hidden behind a reauthentication screen,
-// soft lock screen or are not hidden at all.
-@property(nonatomic, assign, readonly) IncognitoLockState incognitoLockState;
-
 // Authentication module used when the user toggles the biometric auth on.
 @property(nonatomic, strong, readonly) id<ReauthenticationProtocol>
     reauthModule;
@@ -71,11 +47,6 @@ class PrefService;
 // Local state pref service used by this object. Will default to the one from
 // ApplicationContext, but is settable for overriding.
 @property(nonatomic, assign) PrefService* localState;
-
-#pragma mark observation
-
-- (void)addObserver:(id<IncognitoReauthObserver>)observer;
-- (void)removeObserver:(id<IncognitoReauthObserver>)observer;
 
 @end
 

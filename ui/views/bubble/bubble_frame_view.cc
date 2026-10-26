@@ -5,6 +5,7 @@
 #include "ui/views/bubble/bubble_frame_view.h"
 
 #include <algorithm>
+#include <optional>
 
 #include "base/check.h"
 #include "build/build_config.h"
@@ -290,10 +291,9 @@ int BubbleFrameView::NonClientHitTest(const gfx::Point& point) {
     }
   }
 
-  if (!non_client_hit_test_cb_.is_null()) {
-    const int result = non_client_hit_test_cb_.Run(point);
-    if (result != HTNOWHERE) {
-      return result;
+  if (!non_client_hit_test_callback_.is_null()) {
+    if (auto result = non_client_hit_test_callback_.Run(point); result) {
+      return result.value();
     }
   }
 
@@ -1186,12 +1186,6 @@ BubbleFrameView::ButtonsPositioning BubbleFrameView::GetButtonsPositioning()
   return HasTitle() && !(header_view_ && header_view_->GetVisible())
              ? ButtonsPositioning::kInTitleRow
              : ButtonsPositioning::kOnFrameEdge;
-}
-
-bool BubbleFrameView::TitleRowHasButtons() const {
-  return GetButtonsPositioning() == ButtonsPositioning::kInTitleRow &&
-         (GetWidget()->widget_delegate()->ShouldShowCloseButton() ||
-          GetWidget()->widget_delegate()->CanMinimize());
 }
 
 gfx::Insets BubbleFrameView::GetTitleLabelInsetsFromFrame() const {

@@ -551,7 +551,6 @@
             "crypto/pkcs8/internal.h",
             "crypto/poly1305/internal.h",
             "crypto/pool/internal.h",
-            "crypto/rand/getrandom_fillin.h",
             "crypto/rand/internal.h",
             "crypto/rsa/internal.h",
             "crypto/spake2plus/internal.h",
@@ -1107,6 +1106,16 @@
         "srcs": [
             "rust/bssl-crypto/src/*.rs",
             "rust/bssl-crypto/src/*/*.rs"
+        ]
+    },
+    "rust_bssl_macros": {
+        "srcs": [
+            "rust/bssl-macros/src/*.rs"
+        ]
+    },
+    "rust_bssl_x509": {
+        "srcs": [
+            "rust/bssl-x509/src/*.rs"
         ]
     },
     "modulewrapper": {

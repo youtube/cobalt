@@ -5,10 +5,12 @@
 #ifndef COMPONENTS_USER_EDUCATION_COMMON_USER_EDUCATION_FEATURES_H_
 #define COMPONENTS_USER_EDUCATION_COMMON_USER_EDUCATION_FEATURES_H_
 
+#include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/time/time.h"
@@ -24,12 +26,7 @@ namespace user_education::features {
 inline constexpr char kDisableRateLimitingCommandLine[] =
     "disable-user-education-rate-limiting";
 
-BASE_DECLARE_FEATURE(kUserEducationExperienceVersion2Point5);
 BASE_DECLARE_FEATURE(kNewBadgeTestFeature);
-
-// Returns whether User Education Version 2.5 policies are enabled.
-// This requires User Education Version 2.
-extern bool IsUserEducationV25();
 
 // Returns the minimum amount of time a session must last. If this is less than
 // `GetIdleTimeBetweenSessions()` then it will have no effect.
@@ -106,8 +103,6 @@ enum class NtpBrowserPromoType {
   kNone,
   // Indicates that a simple (single-promo) option is selected.
   kSimple,
-  // Indicates that a full Setup List style is selected.
-  kSetupList,
 };
 
 // The parameter that specifies which promo option to use.
@@ -123,9 +118,6 @@ BASE_DECLARE_FEATURE_PARAM(std::string, kNtpBrowserPromoSuppressList);
 // rotated out.
 BASE_DECLARE_FEATURE_PARAM(int, kNtpBrowserPromoMaxTopSpotSessions);
 
-// How long a promo stays in the "completed" section of the setup list.
-BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kNtpBrowserPromoCompletedDuration);
-
 // How long a promo is hidden after being clicked.
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                            kNtpBrowserPromoClickedHideDuration);
@@ -134,24 +126,36 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                            kNtpBrowserPromosSnoozedHideDuration);
 
-// The maximum number of promos to display in setup-list mode.
-BASE_DECLARE_FEATURE_PARAM(int, kNtpBrowserPromoSetupListPromoLimit);
-
-// The maximum number of promos to display in individual-promo mode.
-BASE_DECLARE_FEATURE_PARAM(int, kNtpBrowserPromoIndividualPromoLimit);
-
 // Accessors for `kEnableNtpBrowserPromos` parameters.
 extern std::vector<std::string> GetNtpBrowserPromoSuppressList();
 extern int GetNtpBrowserPromoMaxTopSpotSessions();
-extern base::TimeDelta GetNtpBrowserPromoCompletedDuration();
 extern base::TimeDelta GetNtpBrowserPromoClickedHideDuration();
 extern base::TimeDelta GetNtpBrowserPromosSnoozedHideDuration();
-extern int GetNtpBrowserPromoSetupListPromoLimit();
-extern int GetNtpBrowserPromoSetupListCompletedPromoLimit();
-extern int GetNtpBrowserPromoIndividualPromoLimit();
 
 extern std::ostream& operator<<(std::ostream& os,
                                 NtpBrowserPromoType promo_type);
+
+namespace testing {
+
+// Specifies how timings should be modified for tests.
+struct TimeoutOverrides {
+  base::TimeDelta low_priority_timeout;
+  base::TimeDelta medium_priority_timeout;
+  base::TimeDelta high_priority_timeout;
+
+  // Idle timeout must be larger than low priority timeout for timeout tests
+  // to work, otherwise it's not possible for the test to time out due to user
+  // input.
+  base::TimeDelta idle_before_heavyweight;
+};
+
+// Sets or clears timeout overrides for testing.
+using TimeoutOverrideHandle =
+    std::unique_ptr<base::AutoReset<std::optional<TimeoutOverrides>>>;
+[[nodiscard]] extern TimeoutOverrideHandle SetTimeoutOverridesForTest(
+    TimeoutOverrides overrides);
+
+}  // namespace testing
 
 }  // namespace user_education::features
 

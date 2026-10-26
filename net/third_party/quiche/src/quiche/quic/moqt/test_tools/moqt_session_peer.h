@@ -24,6 +24,7 @@
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -32,7 +33,8 @@ namespace moqt::test {
 class MoqtDataParserPeer {
  public:
   static void SetType(MoqtDataParser* parser, MoqtDataStreamType type) {
-    parser->type_.emplace(std::move(type));
+    parser->type_ = type;
+    parser->next_input_ = MoqtDataParser::NextInput::kTrackAlias;
   }
 };
 
@@ -153,10 +155,6 @@ class MoqtSessionPeer {
     session->next_request_id_ = id;
   }
 
-  static void set_next_incoming_request_id(MoqtSession* session, uint64_t id) {
-    session->next_incoming_request_id_ = id;
-  }
-
   static void set_peer_max_request_id(MoqtSession* session, uint64_t id) {
     session->peer_max_request_id_ = id;
   }
@@ -181,15 +179,12 @@ class MoqtSessionPeer {
 
   // Adds an upstream fetch and a stream ready to receive data.
   static std::unique_ptr<MoqtFetchTask> CreateUpstreamFetch(
-      MoqtSession* session, webtransport::Stream* stream,
-      MoqtDeliveryOrder order = MoqtDeliveryOrder::kAscending) {
+      MoqtSession* session, webtransport::Stream* stream) {
     MoqtFetch fetch_message = {
         0,
-        128,
-        std::nullopt,
         StandaloneFetch(FullTrackName{"foo", "bar"}, Location{0, 0},
                         Location{4, kMaxObjectId}),
-        VersionSpecificParameters(),
+        MessageParameters(),
     };
     std::unique_ptr<MoqtFetchTask> task;
     auto [it, success] = session->upstream_by_id_.try_emplace(
@@ -202,7 +197,7 @@ class MoqtSessionPeer {
     UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(it->second.get());
     // Initialize the fetch task
     fetch->OnFetchResult(
-        Location{4, 10}, order, absl::OkStatus(),
+        Location{4, 10}, absl::OkStatus(),
         [=, session_ptr = session, request_id = fetch_message.request_id]() {
           session_ptr->CancelFetch(request_id);
         });

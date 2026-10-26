@@ -183,6 +183,39 @@ media::SampleFormat RemovePlanar(media::SampleFormat format) {
   }
 }
 
+template <typename T>
+bool IsSpanAligned(base::span<const uint8_t> span) {
+  if constexpr (std::is_same_v<T, uint8_t>) {
+    return true;
+  } else {
+    return base::IsAligned(span.data(), sizeof(T));
+  }
+}
+
+template <typename SampleTypeTraits>
+void ConvertToInterleaved(media::AudioBus* source,
+                          size_t source_offset,
+                          base::span<uint8_t> dest) {
+  using SampleType = typename SampleTypeTraits::ValueType;
+
+  if (IsSpanAligned<SampleType>(dest)) {
+    source->ToInterleavedBytesPartial<SampleTypeTraits>(source_offset, dest);
+    return;
+  }
+
+  // `dest` is not aligned. De-interleave into a temporary aligned destination
+  // and copy it it over after.
+  std::vector<SampleType> temp_dest;
+  temp_dest.resize(dest.size() / sizeof(SampleType));
+  source->ToInterleavedPartial<SampleTypeTraits>(source_offset, temp_dest);
+  if constexpr (std::is_same_v<SampleType, float>) {
+    dest.copy_from_nonoverlapping(
+        base::as_byte_span(base::allow_nonunique_obj, temp_dest));
+  } else {
+    dest.copy_from_nonoverlapping(base::as_byte_span(temp_dest));
+  }
+}
+
 class ArrayBufferContentsAsAudioExternalMemory
     : public media::AudioBuffer::ExternalMemory {
  public:
@@ -285,11 +318,7 @@ AudioData::AudioData(ScriptState* script_state,
   }
 
   format_ = init->format();
-  auto channel_layout =
-      init->numberOfChannels() > 8
-          // GuesschannelLayout() doesn't know how to guess above 8 channels.
-          ? media::CHANNEL_LAYOUT_DISCRETE
-          : media::GuessChannelLayout(init->numberOfChannels());
+  auto channel_layout = media::GuessChannelLayout(init->numberOfChannels());
 
   bool sample_aligned = base::IsAligned(array_span.data(), bytes_per_sample);
   if (buffer_contents.IsValid() && sample_aligned) {
@@ -589,44 +618,36 @@ void AudioData::CopyConvert(base::span<uint8_t> dest,
   const uint32_t frame_count = copy_to_options->hasFrameCount()
                                    ? copy_to_options->frameCount()
                                    : available_frames;
+
+  const uint32_t sample_count = frame_count * numberOfChannels();
   CHECK_LE(frame_count, available_frames);
 
   if (media::IsInterleaved(dest_format)) {
     CHECK_EQ(0u, copy_to_options->planeIndex());
 
+    auto partial_dest = dest.first(
+        sample_count * media::SampleFormatToBytesPerChannel(dest_format));
+
     switch (dest_format) {
-      case media::kSampleFormatU8: {
-        data_as_f32_bus_
-            ->ToInterleavedPartial<media::UnsignedInt8SampleTypeTraits>(
-                offset, frame_count, dest.data());
+      case media::kSampleFormatU8:
+        ConvertToInterleaved<media::UnsignedInt8SampleTypeTraits>(
+            data_as_f32_bus_.get(), offset, partial_dest);
         return;
-      }
 
-      case media::kSampleFormatS16: {
-        int16_t* dest_data = reinterpret_cast<int16_t*>(dest.data());
-
-        data_as_f32_bus_
-            ->ToInterleavedPartial<media::SignedInt16SampleTypeTraits>(
-                offset, frame_count, dest_data);
+      case media::kSampleFormatS16:
+        ConvertToInterleaved<media::SignedInt16SampleTypeTraits>(
+            data_as_f32_bus_.get(), offset, partial_dest);
         return;
-      }
 
-      case media::kSampleFormatS32: {
-        int32_t* dest_data = reinterpret_cast<int32_t*>(dest.data());
-
-        data_as_f32_bus_
-            ->ToInterleavedPartial<media::SignedInt32SampleTypeTraits>(
-                offset, frame_count, dest_data);
+      case media::kSampleFormatS32:
+        ConvertToInterleaved<media::SignedInt32SampleTypeTraits>(
+            data_as_f32_bus_.get(), offset, partial_dest);
         return;
-      }
 
-      case media::kSampleFormatF32: {
-        float* dest_data = reinterpret_cast<float*>(dest.data());
-
-        data_as_f32_bus_->ToInterleavedPartial<media::Float32SampleTypeTraits>(
-            offset, frame_count, dest_data);
+      case media::kSampleFormatF32:
+        ConvertToInterleaved<media::Float32SampleTypeTraits>(
+            data_as_f32_bus_.get(), offset, partial_dest);
         return;
-      }
 
       default:
         NOTREACHED();

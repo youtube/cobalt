@@ -56,15 +56,24 @@ void AndroidBnplUiDelegate::ShowSelectBnplIssuerUi(
         selected_issuer_callback,
     base::OnceClosure cancel_callback,
     bool has_seen_ai_terms) {
+  // `has_seen_ai_terms` is a no-op on Android. Instead this preference is read
+  // directly on the Java layer in the TouchToFillPaymentMethodMediator.
   client_->ShowTouchToFillBnplIssuers(bnpl_issuer_context, app_locale,
                                       std::move(selected_issuer_callback),
                                       std::move(cancel_callback));
 }
 
-void AndroidBnplUiDelegate::UpdateBnplIssuerDialogUi(
-    std::vector<BnplIssuerContext> issuer_contexts) {
-  // TODO(crbug.com/438783909): Add JNI call to update the TouchToFill bottom
-  // sheet once the new list of BNPL issuers comes back.
+void AndroidBnplUiDelegate::UpdateBnplIssuerUi(
+    std::vector<BnplIssuerContext> issuer_contexts,
+    std::optional<int64_t> extracted_amount,
+    bool is_amount_supported_by_any_issuer,
+    const std::optional<std::string>& app_locale,
+    base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
+    base::OnceClosure cancel_callback) {
+  client_->OnPurchaseAmountExtracted(
+      issuer_contexts, extracted_amount, is_amount_supported_by_any_issuer,
+      app_locale, std::move(selected_issuer_callback),
+      std::move(cancel_callback));
 }
 
 void AndroidBnplUiDelegate::RemoveSelectBnplIssuerOrProgressUi() {

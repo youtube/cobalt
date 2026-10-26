@@ -9,6 +9,8 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
+#include "ash/constants/chrome_webui_url_constants.h"
+#include "ash/constants/url_constants.h"
 #include "ash/edusumer/graduation_utils.h"
 #include "base/check.h"
 #include "base/check_deref.h"
@@ -27,8 +29,6 @@
 #include "chrome/browser/ash/account_manager/account_manager_util.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_utils.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -41,8 +41,6 @@
 #include "chrome/browser/ui/webui/settings/people_handler.h"
 #include "chrome/browser/ui/webui/settings/profile_info_handler.h"
 #include "chrome/browser/ui/webui/settings/shared_settings_localized_strings_provider.h"
-#include "chrome/common/url_constants.h"
-#include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/browser_resources.h"
 #include "chrome/grit/generated_resources.h"
@@ -192,13 +190,13 @@ void AddAccountManagerPageStrings(content::WebUIDataSource* html_source,
           base::UTF8ToUTF16(user->GetDisplayEmail())));
 
   html_source->AddString("accountManagerLearnMoreUrl",
-                         chrome::kAccountManagerLearnMoreURL);
+                         ash::external_urls::kAccountManagerLearnMoreURL);
   html_source->AddLocalizedString(
       "accountManagerManagementDescription",
       profile->IsChild() ? IDS_SETTINGS_ACCOUNT_MANAGER_MANAGEMENT_STATUS_CHILD
                          : IDS_SETTINGS_ACCOUNT_MANAGER_MANAGEMENT_STATUS);
   html_source->AddString("accountManagerChromeUIManagementURL",
-                         chrome::kChromeUIManagementURL16);
+                         ash::chrome_urls::kChromeUIManagementURL16);
   html_source->AddString(
       "accountManagerDescription",
       l10n_util::GetStringFUTF16(IDS_SETTINGS_ACCOUNT_MANAGER_DESCRIPTION_V2,
@@ -326,8 +324,11 @@ void AddLockScreenPageStrings(content::WebUIDataSource* html_source,
                              IDS_SETTINGS_PEOPLE_LOCK_SCREEN_FINGERPRINT_NOTICE,
                              ui::GetChromeOSDeviceName()));
   html_source->AddString("fingerprintLearnMoreLink",
-                         chrome::kFingerprintLearnMoreURL);
-  html_source->AddString("recoveryLearnMoreUrl", chrome::kRecoveryLearnMoreURL);
+                         ash::external_urls::kFingerprintLearnMoreURL);
+  html_source->AddString("recoveryLearnMoreUrl",
+                         ash::external_urls::kRecoveryLearnMoreURL);
+  html_source->AddBoolean("managedLocalPinAndPasswordEnabled",
+                          ash::features::IsManagedLocalPinAndPasswordEnabled());
 }
 
 void AddFingerprintListStrings(content::WebUIDataSource* html_source) {
@@ -385,7 +386,6 @@ void AddSetupPinDialogStrings(content::WebUIDataSource* html_source) {
        IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_CHOOSE_PIN_TITLE},
       {"configurePinConfirmPinTitle",
        IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_CONFIRM_PIN_TITLE},
-      {"invalidPin", IDS_SETTINGS_PEOPLE_PIN_PROMPT_INVALID_PIN},
       {"configurePinMismatched", IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_MISMATCHED},
       {"configurePinTooShort", IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_TOO_SHORT},
       {"configurePinTooLong", IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_TOO_LONG},
@@ -499,9 +499,8 @@ PeopleSection::PeopleSection(Profile* profile,
   // OS and browser settings.
   if (IsAccountManagerAvailable(profile)) {
     // Some Account Manager search tags are added/removed dynamically.
-    auto* factory =
-        g_browser_process->platform_part()->GetAccountManagerFactory();
-    account_manager_ = factory->GetAccountManager(profile->GetPath().value());
+    account_manager_ = AccountManagerFactory::Get()->GetAccountManager(
+        profile->GetPath().value());
     DCHECK(account_manager_);
     account_manager_facade_ =
         AccountManagerFactory::Get()->GetAccountManagerFacade(

@@ -56,6 +56,9 @@
 #include "services/network/public/mojom/network_change_manager.mojom.h"
 #include "services/network/public/mojom/network_quality_estimator_manager.mojom.h"
 #include "services/network/public/mojom/network_service.mojom.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "services/network/public/mojom/network_context.mojom.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 #include "services/network/public/mojom/system_dns_resolution.mojom.h"
 #include "services/network/public/mojom/trust_tokens.mojom.h"
 #include "services/network/public/mojom/url_loader_network_service_observer.mojom.h"
@@ -181,7 +184,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
       mojom::HttpAuthStaticParamsPtr http_auth_static_params) override;
   void ConfigureHttpAuthPrefs(
       mojom::HttpAuthDynamicParamsPtr http_auth_dynamic_params) override;
-  void SetRawHeadersAccess(network::RendererProcess process_id,
+  void SetRawHeadersAccess(network::RendererProcessId process_id,
                            const std::vector<url::Origin>& origins) override;
   void SetMaxConnectionsPerProxyChain(uint32_t max_connections) override;
   void GetNetworkChangeManager(
@@ -305,7 +308,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
 #endif  // BUILDFLAG(IS_LINUX)
 
   bool quic_disabled() const { return quic_disabled_; }
-  bool HasRawHeadersAccess(const network::OriginatingProcess& process_id,
+  bool HasRawHeadersAccess(const network::OriginatingProcessId& process_id,
                            const GURL& resource_url) const;
 
   net::NetworkQualityEstimator* network_quality_estimator() {
@@ -509,6 +512,31 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   std::set<std::unique_ptr<NetworkContext>, base::UniquePtrComparator>
       owned_network_contexts_;
 
+#if BUILDFLAG(IS_ANDROID)
+  // Holds state for a NetworkContext whose creation is deferred until
+  // CookieStoreReadyCallback::OnCookieStoreReady() is received.
+  struct PendingNetworkContext : public mojom::CookieStoreReadyCallback {
+    PendingNetworkContext(NetworkService* service,
+                          mojo::PendingReceiver<mojom::NetworkContext> receiver,
+                          mojom::NetworkContextParamsPtr params);
+    ~PendingNetworkContext() override;
+
+    // mojom::CookieStoreReadyCallback:
+    void OnCookieStoreReady() override;
+
+    raw_ptr<NetworkService> service;
+    mojo::PendingReceiver<mojom::NetworkContext> context_receiver;
+    mojom::NetworkContextParamsPtr params;
+    mojo::Receiver<mojom::CookieStoreReadyCallback> ready_receiver{this};
+  };
+
+  void OnPendingNetworkContextReady(PendingNetworkContext* pending);
+  void OnPendingNetworkContextDisconnected(PendingNetworkContext* pending);
+
+  std::set<std::unique_ptr<PendingNetworkContext>, base::UniquePtrComparator>
+      pending_network_contexts_;
+#endif  // BUILDFLAG(IS_ANDROID)
+
   // List of all NetworkContexts that are associated with the NetworkService,
   // including ones it does not own.
   // TODO(mmenke): Once the NetworkService always owns NetworkContexts, merge
@@ -517,7 +545,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
 
   // A per-process_id map of origins that are white-listed to allow
   // them to request raw headers for resources they request.
-  std::map<network::RendererProcess, base::flat_set<url::Origin>>
+  std::map<network::RendererProcessId, base::flat_set<url::Origin>>
       raw_headers_access_origins_by_pid_;
 
   bool quic_disabled_ = false;

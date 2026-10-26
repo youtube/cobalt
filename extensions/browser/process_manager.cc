@@ -737,12 +737,11 @@ base::Uuid ProcessManager::IncrementServiceWorkerKeepaliveCount(
       util::GetServiceWorkerContextForExtensionId(extension->id(),
                                                   browser_context_);
 
-  content::ServiceWorkerExternalRequestResult start_result =
-      service_worker_context->StartingExternalRequest(
-          service_worker_version_id, timeout_type, request_uuid);
+  service_worker_context->StartingExternalRequest(service_worker_version_id,
+                                                  timeout_type, request_uuid);
 
   service_worker_keepalives_[request_uuid] = ServiceWorkerKeepaliveData{
-      worker_id, activity_type, extra_data, timeout_type, start_result};
+      worker_id, activity_type, extra_data, timeout_type};
 
   return request_uuid;
 }
@@ -801,8 +800,6 @@ void ProcessManager::DecrementServiceWorkerKeepaliveCount(
   CHECK_EQ(iter->second.worker_id, worker_id);
   CHECK_EQ(iter->second.activity_type, activity_type);
   CHECK_EQ(iter->second.extra_data, extra_data);
-  content::ServiceWorkerExternalRequestResult start_result =
-      iter->second.start_result;
   service_worker_keepalives_.erase(iter);
 
   int64_t service_worker_version_id = worker_id.version_id;
@@ -813,18 +810,6 @@ void ProcessManager::DecrementServiceWorkerKeepaliveCount(
   content::ServiceWorkerExternalRequestResult finish_result =
       service_worker_context->FinishedExternalRequest(service_worker_version_id,
                                                       request_uuid);
-
-  if (start_result == content::ServiceWorkerExternalRequestResult::kOk) {
-    base::UmaHistogramEnumeration(
-        "Extensions.ServiceWorkerBackground."
-        "ProcessManagerFinishedExternalRequestResultWithSuccessfulStart",
-        finish_result);
-  } else {
-    base::UmaHistogramEnumeration(
-        "Extensions.ServiceWorkerBackground."
-        "ProcessManagerFinishedExternalRequestResultWithUnsuccessfulStart",
-        finish_result);
-  }
 
   // Example of when kWorkerNotRunning can happen is when the renderer process
   // is killed while handling a service worker request (e.g. because of a bad
@@ -1071,7 +1056,8 @@ void ProcessManager::StopTrackingServiceWorkerRunningInstance(
 // once multi workers per extension is fixed.
 void ProcessManager::StopTrackingServiceWorkerRunningInstance(
     const ExtensionId& extension_id,
-    int64_t worker_version_id) {
+    int64_t worker_version_id,
+    const blink::ServiceWorkerToken& service_worker_token) {
   // NOTE: Multiple notifications can try to remove a worker when the worker
   // stops (DidStopServiceWorkerContext(), ProcessManager::RenderProcessExit(),
   // or extension uninstall/disable).
@@ -1087,7 +1073,9 @@ void ProcessManager::StopTrackingServiceWorkerRunningInstance(
   // TODO(crbug.com/40936639): After the fix releases there should only be one
   // worker instance tracked for each extension at any time.
   for (const WorkerId& worker_id : worker_ids_for_extension) {
-    StopTrackingServiceWorkerRunningInstance(worker_id);
+    if (worker_id.start_token == service_worker_token) {
+      StopTrackingServiceWorkerRunningInstance(worker_id);
+    }
   }
 }
 

@@ -113,6 +113,8 @@ std::string_view EntityTypeToMetricsString(EntityType type) {
       return "RedressNumber";
     case EntityTypeName::kFlightReservation:
       return "FlightReservation";
+    case EntityTypeName::kOrder:
+      return "Order";
   }
   NOTREACHED();
 }
@@ -126,6 +128,8 @@ std::string_view EntityRecordTypeToMetricsString(
       return "Local";
     case EntityInstance::RecordType::kServerWallet:
       return "ServerWallet";
+    case EntityInstance::RecordType::kAccessibilityAnnotator:
+      return "AccessibilityAnnotator";
   }
   NOTREACHED();
 }
@@ -145,5 +149,23 @@ std::string_view EntityPromptTypeToMetricsString(
   NOTREACHED();
 }
 // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/histograms.xml:Autofill.Ai.EntityPromptType)
+
+int GetBucketForAutofillAiReauthResultByFieldType(FieldType field_type,
+                                                  bool auth_succeeded) {
+  static_assert(
+      static_cast<int>(FieldType::MAX_VALID_FIELD_TYPE) <= (UINT16_MAX >> 4),
+      "Autofill::FieldType value needs more than 12 bits.");
+
+  return (static_cast<int>(field_type) << 2) | (auth_succeeded ? 0 : 1);
+}
+
+void LogReauthToFillResultPerFieldType(const FieldTypeSet& ai_field_types,
+                                       bool auth_succeeded) {
+  for (FieldType field_type : ai_field_types) {
+    base::UmaHistogramSparse("Autofill.Ai.ReauthToFill.ResultPerFieldType",
+                             GetBucketForAutofillAiReauthResultByFieldType(
+                                 field_type, auth_succeeded));
+  }
+}
 
 }  // namespace autofill

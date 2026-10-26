@@ -24,7 +24,7 @@ class StructBodyDescriptor;
 #include "torque-generated/src/objects/source-text-module-tq.inc"
 
 // The runtime representation of an ECMAScript Source Text Module Record.
-// https://tc39.github.io/ecma262/#sec-source-text-module-records
+// https://tc39.es/ecma262/#sec-source-text-module-records
 class SourceTextModule
     : public TorqueGeneratedSourceTextModule<SourceTextModule, Module> {
  public:
@@ -89,6 +89,12 @@ class SourceTextModule
   std::pair<DirectHandleVector<SourceTextModule>,
             DirectHandleVector<JSMessageObject>>
   GetStalledTopLevelAwaitMessages(Isolate* isolate);
+
+  static void GatherAsynchronousTransitiveDependencies(
+      Isolate* isolate, Handle<Module> module,
+      UnorderedModuleSet* evaluation_set,
+      ZoneVector<Handle<SourceTextModule>>* evaluation_list,
+      UnorderedModuleSet* seen);
 
   static bool ReadyForSyncExecution(Isolate* isolate, Handle<Module> module,
                                     UnorderedModuleSet* seen);
@@ -200,11 +206,6 @@ class SourceTextModule
       Isolate* isolate, Handle<SourceTextModule> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index);
 
-  static void GatherAsynchronousTransitiveDependencies(
-      Isolate* isolate, Handle<Module> module,
-      UnorderedModuleSet* evaluation_set,
-      ZoneVector<Handle<Module>>* evaluation_list, UnorderedModuleSet* seen);
-
   // Returns true if the evaluation exception was catchable by js, and false
   // for termination exceptions.
   bool MaybeHandleEvaluationException(
@@ -255,7 +256,7 @@ class SourceTextModuleInfo : public FixedArray {
   inline Tagged<FixedArray> namespace_imports() const;
 
   // Accessors for [regular_exports].
-  int RegularExportCount() const;
+  uint32_t RegularExportCount() const;
   Tagged<String> RegularExportLocalName(int i) const;
   int RegularExportCellIndex(int i) const;
   Tagged<FixedArray> RegularExportExportNames(int i) const;

@@ -27,6 +27,7 @@
 
 #include <iterator>
 
+#include "base/containers/adapters.h"
 #include "base/containers/enum_set.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/forms/form_control_type.mojom-blink.h"
@@ -82,7 +83,6 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/fullscreen/fullscreen.h"
-#include "third_party/blink/renderer/core/html/anchor_element_observer.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
 #include "third_party/blink/renderer/core/html/custom/element_internals.h"
@@ -121,6 +121,7 @@
 #include "third_party/blink/renderer/core/page/spatial_navigation.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/paint/timing/container_timing.h"
+#include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
 #include "third_party/blink/renderer/core/svg/svg_svg_element.h"
 #include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_script.h"
@@ -241,7 +242,7 @@ String HTMLElement::nodeName() const {
   if (IsA<HTMLDocument>(GetDocument())) {
     if (!TagQName().HasPrefix())
       return TagQName().LocalNameUpper();
-    return Element::nodeName().UpperASCII();
+    return Element::nodeName().ToAsciiUpper();
   }
   return Element::nodeName();
 }
@@ -325,7 +326,7 @@ void HTMLElement::ApplyBorderAttributeToStyle(
 }
 
 bool HTMLElement::IsPresentationAttribute(const QualifiedName& name) const {
-  if (name == html_names::kAlignAttr || name == html_names::kAnchorAttr ||
+  if (name == html_names::kAlignAttr ||
       name == html_names::kContenteditableAttr ||
       name == html_names::kHiddenAttr || name == html_names::kLangAttr ||
       name.Matches(xml_names::kLangAttr) ||
@@ -337,9 +338,9 @@ bool HTMLElement::IsPresentationAttribute(const QualifiedName& name) const {
 }
 
 bool HTMLElement::IsValidDirAttribute(const AtomicString& value) {
-  return EqualIgnoringASCIICase(value, "auto") ||
-         EqualIgnoringASCIICase(value, "ltr") ||
-         EqualIgnoringASCIICase(value, "rtl");
+  return EqualIgnoringAsciiCase(value, "auto") ||
+         EqualIgnoringAsciiCase(value, "ltr") ||
+         EqualIgnoringAsciiCase(value, "rtl");
 }
 
 void HTMLElement::CollectStyleForPresentationAttribute(
@@ -347,20 +348,15 @@ void HTMLElement::CollectStyleForPresentationAttribute(
     const AtomicString& value,
     HeapVector<CSSPropertyValue, 8>& style) {
   if (name == html_names::kAlignAttr) {
-    if (EqualIgnoringASCIICase(value, "middle")) {
+    if (EqualIgnoringAsciiCase(value, "middle")) {
       AddPropertyToPresentationAttributeStyle(style, CSSPropertyID::kTextAlign,
                                               CSSValueID::kCenter);
     } else {
       AddPropertyToPresentationAttributeStyle(style, CSSPropertyID::kTextAlign,
                                               value);
     }
-  } else if (name == html_names::kAnchorAttr) {
-    if (RuntimeEnabledFeatures::HTMLAnchorAttributeEnabled()) {
-      AddPropertyToPresentationAttributeStyle(
-          style, CSSPropertyID::kPositionAnchor, CSSValueID::kAuto);
-    }
   } else if (name == html_names::kContenteditableAttr) {
-    AtomicString lower_value = value.LowerASCII();
+    AtomicString lower_value = value.ToAsciiLower();
     if (lower_value.empty() || lower_value == keywords::kTrue) {
       AddPropertyToPresentationAttributeStyle(
           style, CSSPropertyID::kWebkitUserModify, CSSValueID::kReadWrite);
@@ -388,7 +384,7 @@ void HTMLElement::CollectStyleForPresentationAttribute(
           style, CSSPropertyID::kWebkitUserModify, CSSValueID::kReadOnly);
     }
   } else if (name == html_names::kHiddenAttr) {
-    if (EqualIgnoringASCIICase(value, keywords::kUntilFound)) {
+    if (EqualIgnoringAsciiCase(value, keywords::kUntilFound)) {
       AddPropertyToPresentationAttributeStyle(
           style, CSSPropertyID::kContentVisibility, CSSValueID::kHidden);
       UseCounter::Count(GetDocument(), WebFeature::kHiddenUntilFoundAttribute);
@@ -399,12 +395,12 @@ void HTMLElement::CollectStyleForPresentationAttribute(
     }
   } else if (name == html_names::kDraggableAttr) {
     UseCounter::Count(GetDocument(), WebFeature::kDraggableAttribute);
-    if (EqualIgnoringASCIICase(value, keywords::kTrue)) {
+    if (EqualIgnoringAsciiCase(value, keywords::kTrue)) {
       AddPropertyToPresentationAttributeStyle(
           style, CSSPropertyID::kWebkitUserDrag, CSSValueID::kElement);
       AddPropertyToPresentationAttributeStyle(style, CSSPropertyID::kUserSelect,
                                               CSSValueID::kNone);
-    } else if (EqualIgnoringASCIICase(value, keywords::kFalse)) {
+    } else if (EqualIgnoringAsciiCase(value, keywords::kFalse)) {
       AddPropertyToPresentationAttributeStyle(
           style, CSSPropertyID::kWebkitUserDrag, CSSValueID::kNone);
     }
@@ -412,7 +408,7 @@ void HTMLElement::CollectStyleForPresentationAttribute(
     // This chunk of code interacts with the html.css stylesheet rule labelled
     // with `rendering.html#bidi-rendering`. Make sure any changes here are
     // congruent with changes made there.
-    if (EqualIgnoringASCIICase(value, "auto")) {
+    if (EqualIgnoringAsciiCase(value, "auto")) {
       // These three are handled by the UA stylesheet.
       if (!HasTagName(html_names::kBdoTag) &&
           !HasTagName(html_names::kTextareaTag) &&
@@ -582,8 +578,6 @@ const AttributeTriggers* HTMLElement::TriggersForAttributeName(
        nullptr},
       {html_names::kOnmousewheelAttr, kNoWebFeature,
        event_type_names::kMousewheel, nullptr},
-      {html_names::kOnoverscrollAttr, kNoWebFeature,
-       event_type_names::kOverscroll, nullptr},
       {html_names::kOnpasteAttr, kNoWebFeature, event_type_names::kPaste,
        nullptr},
       {html_names::kOnpauseAttr, kNoWebFeature, event_type_names::kPause,
@@ -859,27 +853,19 @@ void HTMLElement::AttributeChanged(const AttributeModificationParams& params) {
         GetCommandEventType(params.old_value, GetExecutionContext()));
     bool new_is_overscroll = IsOverscrollCommand(
         GetCommandEventType(params.new_value, GetExecutionContext()));
-    const AtomicString& command_for =
-        FastGetAttribute(html_names::kCommandforAttr);
-    if (old_is_overscroll != new_is_overscroll && !command_for.empty()) {
+    if (isConnected() && old_is_overscroll != new_is_overscroll) {
       if (new_is_overscroll) {
-        GetDocument().AddOverscrollCommandTarget(command_for);
+        GetDocument().AddOverscrollCommandInvoker(*this);
       } else {
-        CHECK(old_is_overscroll);
-        GetDocument().RemoveOverscrollCommandTarget(command_for);
+        GetDocument().RemoveOverscrollCommandInvoker(*this);
       }
+      GetDocument().MarkOverscrollCommandTargetsDirty();
     }
   } else if (params.name == html_names::kCommandforAttr) {
-    if (IsOverscrollCommand(
-            GetCommandEventType(FastGetAttribute(html_names::kCommandAttr),
-                                GetExecutionContext())) &&
-        params.old_value != params.new_value) {
-      if (!params.old_value.empty()) {
-        GetDocument().RemoveOverscrollCommandTarget(params.old_value);
-      }
-      if (!params.new_value.empty()) {
-        GetDocument().AddOverscrollCommandTarget(params.new_value);
-      }
+    if (isConnected() && IsOverscrollCommand(GetCommandEventType(
+                             FastGetAttribute(html_names::kCommandAttr),
+                             GetExecutionContext()))) {
+      GetDocument().MarkOverscrollCommandTargetsDirty();
     }
   }
 
@@ -958,7 +944,7 @@ DocumentFragment* HTMLElement::TextToFragment(const String& text,
 
     if (i > start) {
       fragment->AppendChild(
-          Text::Create(GetDocument(), text.Substring(start, i - start)),
+          Text::Create(GetDocument(), text.substr(start, i - start)),
           exception_state);
       if (exception_state.HadException())
         return nullptr;
@@ -982,10 +968,8 @@ DocumentFragment* HTMLElement::TextToFragment(const String& text,
   return fragment;
 }
 
-V8UnionStringLegacyNullToEmptyStringOrTrustedScript*
-HTMLElement::innerTextForBinding() {
-  return MakeGarbageCollected<
-      V8UnionStringLegacyNullToEmptyStringOrTrustedScript>(innerText());
+String HTMLElement::innerTextForBinding() {
+  return innerText();
 }
 
 void HTMLElement::setInnerTextForBinding(
@@ -1014,7 +998,7 @@ void HTMLElement::setInnerText(const String& text) {
   // the function, we can guarantee that no exceptions will be thrown.
   EventQueueScope delay_mutation_events;
 
-  if (!text.Contains('\n') && !text.Contains('\r')) {
+  if (!text.contains('\n') && !text.contains('\r')) {
     if (text.empty()) {
       RemoveChildren();
       return;
@@ -1043,10 +1027,11 @@ void HTMLElement::setOuterText(const String& text,
   Node* new_child = nullptr;
 
   // Convert text to fragment with <br> tags instead of linebreaks if needed.
-  if (text.Contains('\r') || text.Contains('\n'))
+  if (text.contains('\r') || text.contains('\n')) {
     new_child = TextToFragment(text, exception_state);
-  else
+  } else {
     new_child = Text::Create(GetDocument(), text);
+  }
 
   if (exception_state.HadException())
     return;
@@ -1115,26 +1100,26 @@ void HTMLElement::ApplyAlignmentAttributeToStyle(
   CSSValueID float_value = CSSValueID::kInvalid;
   CSSValueID vertical_align_value = CSSValueID::kInvalid;
 
-  if (EqualIgnoringASCIICase(alignment, "absmiddle") ||
-      EqualIgnoringASCIICase(alignment, "abscenter")) {
+  if (EqualIgnoringAsciiCase(alignment, "absmiddle") ||
+      EqualIgnoringAsciiCase(alignment, "abscenter")) {
     vertical_align_value = CSSValueID::kMiddle;
-  } else if (EqualIgnoringASCIICase(alignment, "absbottom")) {
+  } else if (EqualIgnoringAsciiCase(alignment, "absbottom")) {
     vertical_align_value = CSSValueID::kBottom;
-  } else if (EqualIgnoringASCIICase(alignment, "left")) {
+  } else if (EqualIgnoringAsciiCase(alignment, "left")) {
     float_value = CSSValueID::kLeft;
     vertical_align_value = CSSValueID::kTop;
-  } else if (EqualIgnoringASCIICase(alignment, "right")) {
+  } else if (EqualIgnoringAsciiCase(alignment, "right")) {
     float_value = CSSValueID::kRight;
     vertical_align_value = CSSValueID::kTop;
-  } else if (EqualIgnoringASCIICase(alignment, "top")) {
+  } else if (EqualIgnoringAsciiCase(alignment, "top")) {
     vertical_align_value = CSSValueID::kTop;
-  } else if (EqualIgnoringASCIICase(alignment, "middle")) {
+  } else if (EqualIgnoringAsciiCase(alignment, "middle")) {
     vertical_align_value = CSSValueID::kWebkitBaselineMiddle;
-  } else if (EqualIgnoringASCIICase(alignment, "center")) {
+  } else if (EqualIgnoringAsciiCase(alignment, "center")) {
     vertical_align_value = CSSValueID::kMiddle;
-  } else if (EqualIgnoringASCIICase(alignment, "bottom")) {
+  } else if (EqualIgnoringAsciiCase(alignment, "bottom")) {
     vertical_align_value = CSSValueID::kBaseline;
-  } else if (EqualIgnoringASCIICase(alignment, "texttop")) {
+  } else if (EqualIgnoringAsciiCase(alignment, "texttop")) {
     vertical_align_value = CSSValueID::kTextTop;
   }
 
@@ -1155,7 +1140,7 @@ bool HTMLElement::HasCustomFocusLogic() const {
 
 ContentEditableType HTMLElement::contentEditableNormalized() const {
   AtomicString value =
-      FastGetAttribute(html_names::kContenteditableAttr).LowerASCII();
+      FastGetAttribute(html_names::kContenteditableAttr).ToAsciiLower();
 
   if (value.IsNull())
     return ContentEditableType::kInherit;
@@ -1187,7 +1172,7 @@ String HTMLElement::contentEditable() const {
 
 void HTMLElement::setContentEditable(const String& enabled,
                                      ExceptionState& exception_state) {
-  String lower_value = enabled.LowerASCII();
+  String lower_value = enabled.ToAsciiLower();
   if (lower_value == keywords::kTrue) {
     setAttribute(html_names::kContenteditableAttr, keywords::kTrue);
   } else if (lower_value == keywords::kFalse) {
@@ -1212,7 +1197,7 @@ V8UnionBooleanOrStringOrUnrestrictedDouble* HTMLElement::hidden() const {
     return MakeGarbageCollected<V8UnionBooleanOrStringOrUnrestrictedDouble>(
         false);
   }
-  if (EqualIgnoringASCIICase(attribute, keywords::kUntilFound)) {
+  if (EqualIgnoringAsciiCase(attribute, keywords::kUntilFound)) {
     return MakeGarbageCollected<V8UnionBooleanOrStringOrUnrestrictedDouble>(
         String(keywords::kUntilFound));
   }
@@ -1234,7 +1219,7 @@ void HTMLElement::setHidden(
       }
       break;
     case V8UnionBooleanOrStringOrUnrestrictedDouble::ContentType::kString:
-      if (EqualIgnoringASCIICase(value->GetAsString(), keywords::kUntilFound)) {
+      if (EqualIgnoringAsciiCase(value->GetAsString(), keywords::kUntilFound)) {
         setAttribute(html_names::kHiddenAttr,
                      AtomicString(keywords::kUntilFound));
       } else if (value->GetAsString() == "") {
@@ -1258,7 +1243,7 @@ void HTMLElement::setHidden(
 namespace {
 
 PopoverValueType GetPopoverTypeFromAttributeValue(const AtomicString& value) {
-  AtomicString lower_value = value.LowerASCII();
+  AtomicString lower_value = value.ToAsciiLower();
   if (lower_value == keywords::kAuto || (!value.IsNull() && value.empty())) {
     return PopoverValueType::kAuto;
   } else if (lower_value == keywords::kHint) {
@@ -1276,7 +1261,7 @@ PopoverValueType GetPopoverTypeFromAttributeValue(const AtomicString& value) {
 void HTMLElement::UpdatePopoverAttribute(const AtomicString& value) {
   PopoverValueType type = GetPopoverTypeFromAttributeValue(value);
   if (type == PopoverValueType::kManual &&
-      !EqualIgnoringASCIICase(value, keywords::kManual)) {
+      !EqualIgnoringAsciiCase(value, keywords::kManual)) {
     AddConsoleMessage(mojom::blink::ConsoleMessageSource::kOther,
                       mojom::blink::ConsoleMessageLevel::kWarning,
                       "Found a 'popover' attribute with an invalid value.");
@@ -1752,8 +1737,7 @@ PopoverHideResult HTMLElement::CloseEntirePopoverStack(
     // order.
     CHECK(probe::ToCoreProbeSink(popover_stack_for_inspector.back())
               ->HasDevToolsSessions());
-    stack.AppendRange(popover_stack_for_inspector.rbegin(),
-                      popover_stack_for_inspector.rend());
+    stack.append_range(base::Reversed(popover_stack_for_inspector));
     return PopoverHideResult::kForcedOpenByInspector;
   }
   return PopoverHideResult::kHidden;
@@ -1868,8 +1852,7 @@ PopoverHideResult HTMLElement::HideAllPopoversUntil(
       }
 
       if (!popover_stack_for_inspector->empty()) {
-        stack.AppendRange(popover_stack_for_inspector->rbegin(),
-                          popover_stack_for_inspector->rend());
+        stack.append_range(base::Reversed(*popover_stack_for_inspector));
         result = PopoverHideResult::kForcedOpenByInspector;
       }
     } while (repeating_hide);
@@ -2129,6 +2112,13 @@ PopoverHideResult HTMLElement::HidePopoverInternal(
         contains(document.AdjustedFocusedElement())) {
       FocusOptions* focus_options = FocusOptions::Create();
       focus_options->setPreventScroll(true);
+      if (InvokerData* data = previously_focused_element->GetInvokerData();
+          data && previously_focused_element->InterestForElement() == this) {
+        // If the previously focused element is an interest invoker for this
+        // popover, suppress the next focus, so we don't immediately (or after
+        // a delay) re-trigger the same popover.
+        data->SetSuppressNextFocusInterest(true);
+      }
       previously_focused_element->Focus(FocusParams(
           SelectionBehaviorOnFocus::kRestore, mojom::blink::FocusType::kScript,
           /*capabilities=*/nullptr, focus_options));
@@ -2297,19 +2287,6 @@ const HTMLElement* NearestTargetPopoverForInvoker(
           }
         }
 
-        // A custom element button with `ElementInternals.type=button`
-        // with the `popovertarget` attribute or the `commandfor` attribute.
-        if (auto* html_element = DynamicTo<HTMLElement>(test_node);
-            html_element &&
-            RuntimeEnabledFeatures::ElementInternalsDotTypeEnabled() &&
-            html_element->IsCustomButton()) {
-          if (auto* target = HTMLFormControlElement::popoverTargetElement(
-                                 *const_cast<HTMLElement*>(html_element))
-                                 .popover.Get()) {
-            return target;
-          }
-        }
-
         return nullptr;
       });
 }
@@ -2403,9 +2380,7 @@ const HTMLElement* HTMLElement::FindTopmostPopoverAncestor(
   // 1. DOM tree ancestor.
   check_ancestor(
       FlatTreeTraversal::ParentElement(new_popover_or_top_layer_element));
-  // 2. Anchor attribute.
-  check_ancestor(new_popover_or_top_layer_element.anchorElement());
-  // 3. Invoker to popover
+  // 2. Invoker to popover
   check_ancestor(new_popovers_invoker);
   return topmost_popover_ancestor;
 }
@@ -2560,14 +2535,25 @@ bool HTMLElement::IsValidBuiltinPopoverCommand(CommandEventType command) {
 
 bool HTMLElement::IsValidBuiltinCommand(HTMLElement& invoker,
                                         CommandEventType command) {
-  return Element::IsValidBuiltinCommand(invoker, command) ||
-         IsValidBuiltinPopoverCommand(command) ||
-         (RuntimeEnabledFeatures::HTMLCommandActionsV2Enabled() &&
-          (command == CommandEventType::kToggleFullscreen ||
-           command == CommandEventType::kRequestFullscreen ||
-           command == CommandEventType::kExitFullscreen)) ||
-         (RuntimeEnabledFeatures::HTMLCommandForScrollCommandsEnabled() &&
-          Element::IsScrollByPageCommand(command));
+  if (Element::IsValidBuiltinCommand(invoker, command) ||
+      IsValidBuiltinPopoverCommand(command)) {
+    return true;
+  }
+  if (command == CommandEventType::kToggleFullscreen ||
+      command == CommandEventType::kRequestFullscreen ||
+      command == CommandEventType::kExitFullscreen) {
+    CHECK(RuntimeEnabledFeatures::HTMLCommandActionsV2Enabled());
+    return true;
+  }
+  if (Element::IsScrollByPageCommand(command)) {
+    CHECK(RuntimeEnabledFeatures::HTMLCommandForScrollCommandsEnabled());
+    return true;
+  }
+  if (command == CommandEventType::kToggleOverscroll) {
+    CHECK(RuntimeEnabledFeatures::OverscrollGesturesEnabled());
+    return true;
+  }
+  return false;
 }
 
 bool HTMLElement::HandleCommandInternal(HTMLElement& invoker,
@@ -2576,6 +2562,94 @@ bool HTMLElement::HandleCommandInternal(HTMLElement& invoker,
     return false;
   }
   if (Element::HandleCommandInternal(invoker, command)) {
+    return true;
+  }
+
+  if (command == CommandEventType::kToggleOverscroll) {
+    CHECK(RuntimeEnabledFeatures::OverscrollGesturesEnabled());
+    auto* overscroll_area_parent =
+        GetPseudoElement(kPseudoIdOverscrollAreaParent);
+    if (!overscroll_area_parent) {
+      return true;
+    }
+
+    auto* overscroll_area_object =
+        DynamicTo<LayoutBox>(overscroll_area_parent->GetLayoutObject());
+    if (!overscroll_area_object) {
+      return true;
+    }
+
+    auto* scrollable_area = DynamicTo<PaintLayerScrollableArea>(
+        overscroll_area_object->GetScrollableArea());
+    CHECK(scrollable_area);
+
+    const cc::SnapContainerData* container_data =
+        scrollable_area->GetSnapContainerData();
+    CHECK(container_data);
+    CHECK_EQ(container_data->size(), 2u);
+
+    const cc::TargetSnapAreaElementIds& previous_snap_targets =
+        container_data->GetTargetSnapAreaElementIds();
+    const auto& first_data = container_data->at(0);
+    const auto& second_data = container_data->at(1);
+
+    gfx::PointF scroll_origin(scrollable_area->ScrollOrigin());
+
+    ScrollOffset new_offset;
+
+    if (previous_snap_targets.x == first_data.element_id &&
+        previous_snap_targets.y == first_data.element_id) {
+      gfx::RectF target_rect = second_data.rect;
+
+      PhysicalSize box_size = overscroll_area_object->PhysicalContentBoxSize();
+
+      // We need to find distances in all 4 directions relative to scroll
+      // origin. Note that we use scroll origin here instead of current offset
+      // since we could be in the middle of animating an offset. However we know
+      // that conceptually we should find the furthest area from the position we
+      // would be in if the scroll settled. That position is the scroll origin.
+      float min_x_offset = std::min(target_rect.x() - scroll_origin.x(), 0.f);
+      float min_y_offset = std::min(target_rect.y() - scroll_origin.y(), 0.f);
+      float max_x_offset = std::max(
+          target_rect.right() - box_size.width.ToFloat() - scroll_origin.x(),
+          0.f);
+      float max_y_offset = std::max(
+          target_rect.bottom() - box_size.height.ToFloat() - scroll_origin.y(),
+          0.f);
+
+      // These are now distances from scroll offset, so we need to pick a
+      // dimension which has the furthest distance to scroll from current
+      // offset. Note that "min" values should be less than or equal to 0 as a
+      // delta for the current offset.
+      // If values are equal we prefer the y axis and the "min" within the axis.
+      if (std::max(-min_x_offset, max_x_offset) >
+          std::max(-min_y_offset, max_y_offset)) {
+        new_offset.set_x(-min_x_offset >= max_x_offset ? min_x_offset
+                                                       : max_x_offset);
+      } else {
+        new_offset.set_y(-min_y_offset >= max_y_offset ? min_y_offset
+                                                       : max_y_offset);
+      }
+    }
+
+    ScrollOffset old_offset = scrollable_area->GetScrollOffset();
+    bool x_changed = new_offset.x() != old_offset.x();
+    bool y_changed = new_offset.y() != old_offset.y();
+
+    std::unique_ptr<cc::SnapSelectionStrategy> strategy =
+        cc::SnapSelectionStrategy::CreateForEndPosition(
+            scrollable_area->ScrollOffsetToPosition(new_offset), x_changed,
+            y_changed);
+    std::optional<gfx::PointF> snap_point =
+        scrollable_area->GetSnapPositionAndSetTarget(*strategy);
+    if (snap_point.has_value()) {
+      new_offset = scrollable_area->ScrollPositionToOffset(snap_point.value());
+    }
+
+    scrollable_area->SetScrollOffset(new_offset,
+                                     mojom::blink::ScrollType::kProgrammatic,
+                                     cc::ScrollSourceType::kAbsoluteScroll,
+                                     mojom::blink::ScrollBehavior::kAuto);
     return true;
   }
 
@@ -2668,8 +2742,7 @@ bool HTMLElement::HandleCommandInternal(HTMLElement& invoker,
 }
 
 bool HTMLElement::CanBeCommandInvoker() const {
-  return RuntimeEnabledFeatures::ElementInternalsDotTypeEnabled() &&
-         IsCustomButton();
+  return false;
 }
 
 bool HTMLElement::HandleCommandForActivation() {
@@ -2736,7 +2809,7 @@ AtomicString HTMLElement::command() const {
     case CommandEventType::kCustom:
       return action;
     default: {
-      const AtomicString& lower_action = action.LowerASCII();
+      const AtomicString& lower_action = action.ToAsciiLower();
       DCHECK_EQ(GetCommandEventType(lower_action, GetExecutionContext()), type);
       return lower_action;
     }
@@ -2756,48 +2829,48 @@ CommandEventType HTMLElement::GetCommandEventType(
   }
 
   // Custom Invoke Action
-  if (action.StartsWith("--")) {
+  if (action.starts_with("--")) {
     return CommandEventType::kCustom;
   }
 
   // Popover Cases
-  if (EqualIgnoringASCIICase(action, keywords::kTogglePopover)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kTogglePopover)) {
     return CommandEventType::kTogglePopover;
   }
-  if (EqualIgnoringASCIICase(action, keywords::kShowPopover)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kShowPopover)) {
     return CommandEventType::kShowPopover;
   }
-  if (EqualIgnoringASCIICase(action, keywords::kHidePopover)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kHidePopover)) {
     return CommandEventType::kHidePopover;
   }
 
   // Dialog Cases
-  if (EqualIgnoringASCIICase(action, keywords::kClose)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kClose)) {
     return CommandEventType::kClose;
   }
-  if (EqualIgnoringASCIICase(action, keywords::kShowModal)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kShowModal)) {
     return CommandEventType::kShowModal;
   }
-  if (EqualIgnoringASCIICase(action, keywords::kRequestClose)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kRequestClose)) {
     return CommandEventType::kRequestClose;
   }
 
   // Menu Cases
   if (RuntimeEnabledFeatures::MenuElementsEnabled()) {
-    if (EqualIgnoringASCIICase(action, keywords::kToggleMenu)) {
+    if (EqualIgnoringAsciiCase(action, keywords::kToggleMenu)) {
       return CommandEventType::kToggleMenu;
     }
-    if (EqualIgnoringASCIICase(action, keywords::kShowMenu)) {
+    if (EqualIgnoringAsciiCase(action, keywords::kShowMenu)) {
       return CommandEventType::kShowMenu;
     }
-    if (EqualIgnoringASCIICase(action, keywords::kHideMenu)) {
+    if (EqualIgnoringAsciiCase(action, keywords::kHideMenu)) {
       return CommandEventType::kHideMenu;
     }
   }
 
   // Overscroll gestures.
   if (RuntimeEnabledFeatures::OverscrollGesturesEnabled() &&
-      EqualIgnoringASCIICase(action, keywords::kToggleOverscroll)) {
+      EqualIgnoringAsciiCase(action, keywords::kToggleOverscroll)) {
     return CommandEventType::kToggleOverscroll;
   }
 
@@ -2808,88 +2881,81 @@ CommandEventType HTMLElement::GetCommandEventType(
   }
 
   // Input/Select Cases
-  if (EqualIgnoringASCIICase(action, keywords::kShowPicker)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kShowPicker)) {
     return CommandEventType::kShowPicker;
   }
 
   // Number Input Cases
-  if (EqualIgnoringASCIICase(action, keywords::kStepUp)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kStepUp)) {
     return CommandEventType::kStepUp;
   }
-  if (EqualIgnoringASCIICase(action, keywords::kStepDown)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kStepDown)) {
     return CommandEventType::kStepDown;
   }
 
   // Fullscreen Cases
-  if (EqualIgnoringASCIICase(action, keywords::kToggleFullscreen)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kToggleFullscreen)) {
     return CommandEventType::kToggleFullscreen;
   }
-  if (EqualIgnoringASCIICase(action, keywords::kRequestFullscreen)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kRequestFullscreen)) {
     return CommandEventType::kRequestFullscreen;
   }
-  if (EqualIgnoringASCIICase(action, keywords::kExitFullscreen)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kExitFullscreen)) {
     return CommandEventType::kExitFullscreen;
   }
 
   // Details cases
-  if (EqualIgnoringASCIICase(action, keywords::kToggle)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kToggle)) {
     return CommandEventType::kToggle;
   }
-  if (EqualIgnoringASCIICase(action, keywords::kOpen)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kOpen)) {
     return CommandEventType::kOpen;
   }
   // CommandEventType::kClose handled above in Dialog
 
   // Media cases
-  if (EqualIgnoringASCIICase(action, keywords::kPlayPause)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kPlayPause)) {
     return CommandEventType::kPlayPause;
   }
-  if (EqualIgnoringASCIICase(action, keywords::kPause)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kPause)) {
     return CommandEventType::kPause;
   }
-  if (EqualIgnoringASCIICase(action, keywords::kPlay)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kPlay)) {
     return CommandEventType::kPlay;
   }
-  if (EqualIgnoringASCIICase(action, keywords::kToggleMuted)) {
+  if (EqualIgnoringAsciiCase(action, keywords::kToggleMuted)) {
     return CommandEventType::kToggleMuted;
   }
 
   // Scroll command cases
   if (RuntimeEnabledFeatures::HTMLCommandForScrollCommandsEnabled()) {
-    if (EqualIgnoringASCIICase(action, keywords::kPage_Up)) {
+    if (EqualIgnoringAsciiCase(action, keywords::kPage_Up)) {
       return CommandEventType::kPageUp;
     }
-    if (EqualIgnoringASCIICase(action, keywords::kPage_Down)) {
+    if (EqualIgnoringAsciiCase(action, keywords::kPage_Down)) {
       return CommandEventType::kPageDown;
     }
-    if (EqualIgnoringASCIICase(action, keywords::kPageLeft)) {
+    if (EqualIgnoringAsciiCase(action, keywords::kPageLeft)) {
       return CommandEventType::kPageLeft;
     }
-    if (EqualIgnoringASCIICase(action, keywords::kPageRight)) {
+    if (EqualIgnoringAsciiCase(action, keywords::kPageRight)) {
       return CommandEventType::kPageRight;
     }
-    if (EqualIgnoringASCIICase(action, keywords::kPageBlockStart)) {
+    if (EqualIgnoringAsciiCase(action, keywords::kPageBlockStart)) {
       return CommandEventType::kPageBlockStart;
     }
-    if (EqualIgnoringASCIICase(action, keywords::kPageBlockEnd)) {
+    if (EqualIgnoringAsciiCase(action, keywords::kPageBlockEnd)) {
       return CommandEventType::kPageBlockEnd;
     }
-    if (EqualIgnoringASCIICase(action, keywords::kPageInlineStart)) {
+    if (EqualIgnoringAsciiCase(action, keywords::kPageInlineStart)) {
       return CommandEventType::kPageInlineStart;
     }
-    if (EqualIgnoringASCIICase(action, keywords::kPageInlineEnd)) {
+    if (EqualIgnoringAsciiCase(action, keywords::kPageInlineEnd)) {
       return CommandEventType::kPageInlineEnd;
     }
   }
 
   return CommandEventType::kNone;
-}
-
-PopoverTriggerSupport HTMLElement::SupportsPopoverTriggering() const {
-  return RuntimeEnabledFeatures::ElementInternalsDotTypeEnabled() &&
-                 IsCustomButton()
-             ? PopoverTriggerSupport::kSupported
-             : PopoverTriggerSupport::kNone;
 }
 
 const AtomicString& HTMLElement::autocapitalize() const {
@@ -2902,14 +2968,16 @@ const AtomicString& HTMLElement::autocapitalize() const {
   if (value.empty())
     return g_empty_atom;
 
-  if (EqualIgnoringASCIICase(value, kNone) ||
-      EqualIgnoringASCIICase(value, keywords::kOff)) {
+  if (EqualIgnoringAsciiCase(value, kNone) ||
+      EqualIgnoringAsciiCase(value, keywords::kOff)) {
     return kNone;
   }
-  if (EqualIgnoringASCIICase(value, kCharacters))
+  if (EqualIgnoringAsciiCase(value, kCharacters)) {
     return kCharacters;
-  if (EqualIgnoringASCIICase(value, kWords))
+  }
+  if (EqualIgnoringAsciiCase(value, kWords)) {
     return kWords;
+  }
   // "sentences", "on", or an invalid value
   return kSentences;
 }
@@ -2923,7 +2991,7 @@ bool HTMLElement::isContentEditableForBinding() const {
 }
 
 bool HTMLElement::draggable() const {
-  return EqualIgnoringASCIICase(FastGetAttribute(html_names::kDraggableAttr),
+  return EqualIgnoringAsciiCase(FastGetAttribute(html_names::kDraggableAttr),
                                 "true");
 }
 
@@ -3002,10 +3070,13 @@ TranslateAttributeMode HTMLElement::GetTranslateAttributeMode() const {
 
   if (value == g_null_atom)
     return kTranslateAttributeInherit;
-  if (EqualIgnoringASCIICase(value, "yes") || EqualIgnoringASCIICase(value, ""))
+  if (EqualIgnoringAsciiCase(value, "yes") ||
+      EqualIgnoringAsciiCase(value, "")) {
     return kTranslateAttributeYes;
-  if (EqualIgnoringASCIICase(value, "no"))
+  }
+  if (EqualIgnoringAsciiCase(value, "no")) {
     return kTranslateAttributeNo;
+  }
 
   return kTranslateAttributeInherit;
 }
@@ -3039,12 +3110,15 @@ static inline const AtomicString& ToValidDirValue(const AtomicString& value) {
   DEFINE_STATIC_LOCAL(const AtomicString, rtl_value, ("rtl"));
   DEFINE_STATIC_LOCAL(const AtomicString, auto_value, ("auto"));
 
-  if (EqualIgnoringASCIICase(value, ltr_value))
+  if (EqualIgnoringAsciiCase(value, ltr_value)) {
     return ltr_value;
-  if (EqualIgnoringASCIICase(value, rtl_value))
+  }
+  if (EqualIgnoringAsciiCase(value, rtl_value)) {
     return rtl_value;
-  if (EqualIgnoringASCIICase(value, auto_value))
+  }
+  if (EqualIgnoringAsciiCase(value, auto_value)) {
     return auto_value;
+  }
   return g_null_atom;
 }
 
@@ -3088,7 +3162,7 @@ bool HTMLElement::HasDirectionAuto() const {
   // https://html.spec.whatwg.org/C/#the-bdi-element
   const AtomicString& direction = FastGetAttribute(html_names::kDirAttr);
   return (IsA<HTMLBDIElement>(*this) && !IsValidDirAttribute(direction)) ||
-         EqualIgnoringASCIICase(direction, "auto");
+         EqualIgnoringAsciiCase(direction, "auto");
 }
 
 const TextControlElement*
@@ -3189,22 +3263,21 @@ Node::InsertionNotificationRequest HTMLElement::InsertedInto(
   if (IsFormAssociatedCustomElement())
     EnsureElementInternals().InsertedInto(insertion_point);
 
-  if (IsOverscrollCommand(GetCommandEventType(
+  if (insertion_point.isConnected() &&
+      IsOverscrollCommand(GetCommandEventType(
           FastGetAttribute(html_names::kCommandAttr), GetExecutionContext()))) {
-    const auto& command_for = FastGetAttribute(html_names::kCommandforAttr);
-    if (!command_for.empty()) {
-      GetDocument().AddOverscrollCommandTarget(command_for);
-    }
+    GetDocument().AddOverscrollCommandInvoker(*this);
+    GetDocument().MarkOverscrollCommandTargetsDirty();
   }
 
   return kInsertionDone;
 }
 
 void HTMLElement::RemovedFrom(ContainerNode& insertion_point) {
+  bool was_in_document = insertion_point.isConnected();
   if (IsPopover() && !GetDocument().StatePreservingAtomicMoveInProgress()) {
     // If a popover is removed from the document, make sure it gets
     // removed from the popover element stack and the top layer.
-    bool was_in_document = insertion_point.isConnected();
     if (was_in_document) {
       // We can't run focus event handlers while removing elements.
       HidePopoverInternal(
@@ -3218,12 +3291,11 @@ void HTMLElement::RemovedFrom(ContainerNode& insertion_point) {
   if (IsFormAssociatedCustomElement())
     EnsureElementInternals().RemovedFrom(insertion_point);
 
-  if (IsOverscrollCommand(GetCommandEventType(
+  if (was_in_document &&
+      IsOverscrollCommand(GetCommandEventType(
           FastGetAttribute(html_names::kCommandAttr), GetExecutionContext()))) {
-    const auto& command_for = FastGetAttribute(html_names::kCommandforAttr);
-    if (!command_for.empty()) {
-      GetDocument().RemoveOverscrollCommandTarget(command_for);
-    }
+    GetDocument().RemoveOverscrollCommandInvoker(*this);
+    GetDocument().MarkOverscrollCommandTargetsDirty();
   }
 }
 
@@ -3276,10 +3348,11 @@ static Color ParseColorStringWithCrazyLegacyRules(const String& color_string) {
   // "characters" in the String.
   for (; i < color_string.length() && digit_buffer.size() < kMaxColorLength;
        i++) {
-    if (!IsASCIIHexDigit(color_string[i]))
+    if (!IsAsciiHexDigit(color_string[i])) {
       digit_buffer.push_back('0');
-    else
+    } else {
       digit_buffer.push_back(color_string[i]);
+    }
   }
 
   if (!digit_buffer.size())
@@ -3290,9 +3363,9 @@ static Color ParseColorStringWithCrazyLegacyRules(const String& color_string) {
   digit_buffer.push_back('0');
 
   if (digit_buffer.size() < 6) {
-    return Color::FromRGB(ToASCIIHexValue(digit_buffer[0]),
-                          ToASCIIHexValue(digit_buffer[1]),
-                          ToASCIIHexValue(digit_buffer[2]));
+    return Color::FromRGB(ToAsciiHexValue(digit_buffer[0]),
+                          ToAsciiHexValue(digit_buffer[1]),
+                          ToAsciiHexValue(digit_buffer[2]));
   }
 
   // Split the digits into three components, then search the last 8 digits of
@@ -3321,11 +3394,11 @@ static Color ParseColorStringWithCrazyLegacyRules(const String& color_string) {
   SECURITY_DCHECK(blue_index + 1 < digit_buffer.size());
 
   int red_value =
-      ToASCIIHexValue(digit_buffer[red_index], digit_buffer[red_index + 1]);
+      ToAsciiHexValue(digit_buffer[red_index], digit_buffer[red_index + 1]);
   int green_value =
-      ToASCIIHexValue(digit_buffer[green_index], digit_buffer[green_index + 1]);
+      ToAsciiHexValue(digit_buffer[green_index], digit_buffer[green_index + 1]);
   int blue_value =
-      ToASCIIHexValue(digit_buffer[blue_index], digit_buffer[blue_index + 1]);
+      ToAsciiHexValue(digit_buffer[blue_index], digit_buffer[blue_index + 1]);
   return Color::FromRGB(red_value, green_value, blue_value);
 }
 
@@ -3340,8 +3413,9 @@ bool HTMLElement::ParseColorWithLegacyRules(const String& attribute_value,
   String color_string = attribute_value.StripWhiteSpace();
 
   // "transparent" doesn't apply a color either.
-  if (EqualIgnoringASCIICase(color_string, "transparent"))
+  if (EqualIgnoringAsciiCase(color_string, "transparent")) {
     return false;
+  }
 
   // If the string is a 3/6-digit hex color or a named CSS color, use that.
   // Apply legacy rules otherwise. Note color.setFromString() accepts 4/8-digit
@@ -3420,11 +3494,6 @@ void HTMLElement::DefaultEventHandler(Event& event) {
     if (HandleCommandForActivation()) {
       return;
     }
-  }
-
-  if (RuntimeEnabledFeatures::ElementInternalsDotTypeEnabled() &&
-      IsCustomButton()) {
-    HTMLFormControlElement::HandlePopoverActivation(event, *this);
   }
 
   if (event.type() == event_type_names::kKeypress && keyboard_event) {
@@ -3635,9 +3704,9 @@ void HTMLElement::OnDirAttrChanged(const AttributeModificationParams& params) {
     CalculateAndAdjustAutoDirectionality();
   } else {
     std::optional<TextDirection> text_direction;
-    if (EqualIgnoringASCIICase(params.new_value, "ltr")) {
+    if (EqualIgnoringAsciiCase(params.new_value, "ltr")) {
       text_direction = TextDirection::kLtr;
-    } else if (EqualIgnoringASCIICase(params.new_value, "rtl")) {
+    } else if (EqualIgnoringAsciiCase(params.new_value, "rtl")) {
       text_direction = TextDirection::kRtl;
     }
 
@@ -3745,10 +3814,7 @@ ElementInternals* HTMLElement::attachInternals(
   // 2. Let definition be the result of looking up a custom element definition
   // given this's node registry, its namespace, its local name, and null as the
   // is value.
-  CustomElementRegistry* registry = GetTreeScope().customElementRegistry();
-  if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()) {
-    registry = customElementRegistry();
-  }
+  CustomElementRegistry* registry = customElementRegistry();
   auto* definition =
       registry ? registry->DefinitionForName(localName()) : nullptr;
 
@@ -3799,17 +3865,6 @@ ElementInternals* HTMLElement::attachInternals(
 bool HTMLElement::IsFormAssociatedCustomElement() const {
   return GetCustomElementState() == CustomElementState::kCustom &&
          GetCustomElementDefinition()->IsFormAssociated();
-}
-
-bool HTMLElement::IsCustomButton() const {
-  CHECK(RuntimeEnabledFeatures::ElementInternalsDotTypeEnabled());
-  if (GetCustomElementState() != CustomElementState::kCustom) {
-    return false;
-  }
-  if (const auto* internals = GetElementInternals()) {
-    return internals->type() == keywords::kButton;
-  }
-  return false;
 }
 
 FocusableState HTMLElement::SupportsFocus(
@@ -3882,7 +3937,7 @@ AtomicString HTMLElement::writingSuggestions() const {
         element->FastGetAttribute(html_names::kWritingsuggestionsAttr);
     if (value == g_null_atom) {
       continue;
-    } else if (EqualIgnoringASCIICase(value, keywords::kFalse)) {
+    } else if (EqualIgnoringAsciiCase(value, keywords::kFalse)) {
       return keywords::kFalse;
     } else {
       // The invalid value default is 'true'.
@@ -3904,108 +3959,109 @@ void HTMLElement::OnRoleAttrChanged(const AttributeModificationParams& params) {
     return;
   }
 
-  if (EqualIgnoringASCIICase(params.new_value, "menu")) {
+  const AtomicString& new_value = params.new_value;
+  if (EqualIgnoringAsciiCase(new_value, "menu")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeMenu);
-  } else if (EqualIgnoringASCIICase(params.new_value, "menubar")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "menubar")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeMenubar);
-  } else if (EqualIgnoringASCIICase(params.new_value, "menuitem")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "menuitem")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeMenuitem);
-  } else if (EqualIgnoringASCIICase(params.new_value, "menuitemcheckbox")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "menuitemcheckbox")) {
     UseCounter::Count(GetDocument(),
                       WebFeature::kRoleAttributeMenuitemcheckbox);
-  } else if (EqualIgnoringASCIICase(params.new_value, "menuitemradio")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "menuitemradio")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeMenuitemradio);
-  } else if (EqualIgnoringASCIICase(params.new_value, "button")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "button")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeButton);
-  } else if (EqualIgnoringASCIICase(params.new_value, "cell")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "cell")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeCell);
-  } else if (EqualIgnoringASCIICase(params.new_value, "checkbox")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "checkbox")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeCheckbox);
-  } else if (EqualIgnoringASCIICase(params.new_value, "columnheader")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "columnheader")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeColumnheader);
-  } else if (EqualIgnoringASCIICase(params.new_value, "combobox")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "combobox")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeCombobox);
-  } else if (EqualIgnoringASCIICase(params.new_value, "dialog")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "dialog")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeDialog);
-  } else if (EqualIgnoringASCIICase(params.new_value, "grid")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "grid")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeGrid);
-  } else if (EqualIgnoringASCIICase(params.new_value, "gridcell")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "gridcell")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeGridcell);
-  } else if (EqualIgnoringASCIICase(params.new_value, "heading")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "heading")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeHeading);
-  } else if (EqualIgnoringASCIICase(params.new_value, "img")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "img")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeImg);
-  } else if (EqualIgnoringASCIICase(params.new_value, "input")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "input")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeInput);
-  } else if (EqualIgnoringASCIICase(params.new_value, "link")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "link")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeLink);
-  } else if (EqualIgnoringASCIICase(params.new_value, "list")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "list")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeList);
-  } else if (EqualIgnoringASCIICase(params.new_value, "listbox")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "listbox")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeListbox);
-  } else if (EqualIgnoringASCIICase(params.new_value, "listitem")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "listitem")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeListitem);
-  } else if (EqualIgnoringASCIICase(params.new_value, "main")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "main")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeMain);
-  } else if (EqualIgnoringASCIICase(params.new_value, "marquee")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "marquee")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeMarquee);
-  } else if (EqualIgnoringASCIICase(params.new_value, "math")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "math")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeMath);
-  } else if (EqualIgnoringASCIICase(params.new_value, "meter")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "meter")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeMeter);
-  } else if (EqualIgnoringASCIICase(params.new_value, "navigation")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "navigation")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeNavigation);
-  } else if (EqualIgnoringASCIICase(params.new_value, "option")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "option")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeOption);
-  } else if (EqualIgnoringASCIICase(params.new_value, "progressbar")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "progressbar")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeProgressbar);
-  } else if (EqualIgnoringASCIICase(params.new_value, "radio")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "radio")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeRadio);
-  } else if (EqualIgnoringASCIICase(params.new_value, "radiogroup")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "radiogroup")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeRadiogroup);
-  } else if (EqualIgnoringASCIICase(params.new_value, "range")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "range")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeRange);
-  } else if (EqualIgnoringASCIICase(params.new_value, "row")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "row")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeRow);
-  } else if (EqualIgnoringASCIICase(params.new_value, "rowgroup")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "rowgroup")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeRowgroup);
-  } else if (EqualIgnoringASCIICase(params.new_value, "rowheader")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "rowheader")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeRowheader);
-  } else if (EqualIgnoringASCIICase(params.new_value, "scrollbar")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "scrollbar")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeScrollbar);
-  } else if (EqualIgnoringASCIICase(params.new_value, "search")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "search")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeSearch);
-  } else if (EqualIgnoringASCIICase(params.new_value, "searchbox")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "searchbox")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeSearchbox);
-  } else if (EqualIgnoringASCIICase(params.new_value, "select")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "select")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeSelect);
-  } else if (EqualIgnoringASCIICase(params.new_value, "separator")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "separator")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeSeparator);
-  } else if (EqualIgnoringASCIICase(params.new_value, "slider")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "slider")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeSlider);
-  } else if (EqualIgnoringASCIICase(params.new_value, "spinbutton")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "spinbutton")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeSpinbutton);
-  } else if (EqualIgnoringASCIICase(params.new_value, "switch")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "switch")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeSwitch);
-  } else if (EqualIgnoringASCIICase(params.new_value, "tab")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "tab")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeTab);
-  } else if (EqualIgnoringASCIICase(params.new_value, "table")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "table")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeTable);
-  } else if (EqualIgnoringASCIICase(params.new_value, "tablist")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "tablist")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeTablist);
-  } else if (EqualIgnoringASCIICase(params.new_value, "tabpanel")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "tabpanel")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeTabpanel);
-  } else if (EqualIgnoringASCIICase(params.new_value, "textbox")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "textbox")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeTextbox);
-  } else if (EqualIgnoringASCIICase(params.new_value, "toolbar")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "toolbar")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeToolbar);
-  } else if (EqualIgnoringASCIICase(params.new_value, "tooltip")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "tooltip")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeTooltip);
-  } else if (EqualIgnoringASCIICase(params.new_value, "tree")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "tree")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeTree);
-  } else if (EqualIgnoringASCIICase(params.new_value, "treegrid")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "treegrid")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeTreegrid);
-  } else if (EqualIgnoringASCIICase(params.new_value, "treeitem")) {
+  } else if (EqualIgnoringAsciiCase(new_value, "treeitem")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeTreeitem);
   }
 }

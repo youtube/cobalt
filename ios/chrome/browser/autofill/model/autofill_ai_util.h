@@ -5,7 +5,9 @@
 #ifndef IOS_CHROME_BROWSER_AUTOFILL_MODEL_AUTOFILL_AI_UTIL_H_
 #define IOS_CHROME_BROWSER_AUTOFILL_MODEL_AUTOFILL_AI_UTIL_H_
 
-#include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
+#import <UIKit/UIKit.h>
+
+#import "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
 
 class ProfileIOS;
 
@@ -15,11 +17,17 @@ namespace autofill {
 // If the variations service is not available, an empty string is returned.
 const std::string GetCountryCodeFromVariations();
 
-// Returns whether the wallet storage is enabled for the profile.
-bool IsWalletStorageEnabled(ProfileIOS* profile);
+// Returns whether the wallet public pass storage is enabled for the profile.
+bool IsWalletPublicPassStorageEnabled(ProfileIOS* profile);
 
 // Returns YES if the Autofill AI action can be performed for the given profile.
 bool CanPerformAutofillAiAction(ProfileIOS* profile, AutofillAiAction action);
+
+// Returns whether Enhanced Autofill is enabled.
+bool IsEnhancedAutofillEnabled(ProfileIOS* profile);
+
+// Enables or disables Enhanced Autofill.
+void SetEnhancedAutofillEnabled(ProfileIOS* profile, bool enabled);
 
 }  // namespace autofill
 

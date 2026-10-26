@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/values.h"
+#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-forward.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -31,12 +32,11 @@ class IdentityRegistryDelegate {
   // `idp_config_url` is passed by value so that it remains valid even if the
   // implementation destructs the IdentityRegistry (e.g. by closing the
   // associated WebContents).
-  // If account_id is nullopt, uses the account that was selected in the
+  // If `account_id` is nullopt, uses the account that was selected in the
   // account chooser.
   virtual bool OnResolve(GURL idp_config_url,
                          const std::optional<std::string>& account_id,
-                         const std::optional<GURL>& redirect_to,
-                         const base::Value& token) = 0;
+                         blink::mojom::ResolveTokenParamsPtr params) = 0;
 
   enum class Method { kClose, kResolve };
 

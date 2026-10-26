@@ -27,6 +27,7 @@
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/chrome_features.h"
 #include "components/prefs/pref_service.h"
+#include "components/startup_metric_utils/browser/startup_metric_utils.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -319,6 +320,10 @@ GlicMetrics::GlicMetrics(Profile* profile, GlicEnabling* enabling)
           &GlicMetrics::OnMaybeEnabledAndConsentForProfileChanged,
           base::Unretained(this))));
 
+  if (enabling_->IsAllowed()) {
+    RecordStartupEnablement();
+  }
+
   is_enabled_ = enabling_->IsEnabledAndConsentForProfile(profile_);
   is_pinned_ = profile_->GetPrefs()->GetBoolean(prefs::kGlicPinnedToTabstrip);
   pref_registrar_.Init(profile_->GetPrefs());
@@ -337,6 +342,33 @@ GlicMetrics::GlicMetrics(Profile* profile, GlicEnabling* enabling)
 }
 
 GlicMetrics::~GlicMetrics() = default;
+
+void GlicMetrics::RecordGlicProfilePreferences() {
+  PrefService* profile_prefs = profile_->GetPrefs();
+  PrefService* local_state = g_browser_process->local_state();
+
+  base::UmaHistogramBoolean(
+      "Glic.Preferences.PinnedToTabstrip",
+      profile_prefs->GetBoolean(prefs::kGlicPinnedToTabstrip));
+  base::UmaHistogramBoolean(
+      "Glic.Preferences.LauncherEnabled",
+      local_state->GetBoolean(prefs::kGlicLauncherEnabled));
+  base::UmaHistogramBoolean(
+      "Glic.Preferences.KeepSidepanelOpenOnNewTabsEnabled",
+      profile_prefs->GetBoolean(prefs::kGlicKeepSidepanelOpenOnNewTabsEnabled));
+  base::UmaHistogramBoolean(
+      "Glic.Preferences.GeolocationEnabled",
+      profile_prefs->GetBoolean(prefs::kGlicGeolocationEnabled));
+  base::UmaHistogramBoolean(
+      "Glic.Preferences.MicrophoneEnabled",
+      profile_prefs->GetBoolean(prefs::kGlicMicrophoneEnabled));
+  base::UmaHistogramBoolean(
+      "Glic.Preferences.DefaultTabContextEnabled",
+      profile_prefs->GetBoolean(prefs::kGlicDefaultTabContextEnabled));
+  base::UmaHistogramBoolean(
+      "Glic.Preferences.ActuationOnWeb",
+      profile_prefs->GetBoolean(prefs::kGlicUserEnabledActuationOnWeb));
+}
 
 void GlicMetrics::OnTrustFirstOnboardingShown() {
   base::RecordAction(base::UserMetricsAction("Glic.Fre.Shown"));
@@ -726,14 +758,14 @@ void GlicMetrics::OnGlicWindowClose(Browser* last_active_browser,
   session_start_time_ = base::TimeTicks();
 
   InputModesUsed modes_used = InputModesUsed::kNone;
-  if (!inputs_modes_used_.empty()) {
-    if (inputs_modes_used_.size() == 2) {
-      modes_used = InputModesUsed::kTextAndAudio;
-    } else {
-      modes_used = inputs_modes_used_.contains(mojom::WebClientMode::kAudio)
-                       ? InputModesUsed::kOnlyAudio
-                       : InputModesUsed::kOnlyText;
-    }
+  bool has_audio = inputs_modes_used_.contains(mojom::WebClientMode::kAudio);
+  bool has_text = inputs_modes_used_.contains(mojom::WebClientMode::kText);
+  if (has_audio && has_text) {
+    modes_used = InputModesUsed::kTextAndAudio;
+  } else if (has_audio) {
+    modes_used = InputModesUsed::kOnlyAudio;
+  } else if (has_text) {
+    modes_used = InputModesUsed::kOnlyText;
   }
   inputs_modes_used_.clear();
   base::UmaHistogramEnumeration("Glic.Session.InputModesUsed", modes_used);
@@ -827,10 +859,10 @@ void GlicMetrics::LogGetContextForActorFromTabError(
 
 void GlicMetrics::OnActivateTabFromInstance(tabs::TabInterface* tab) {
 #if !BUILDFLAG(IS_ANDROID)
-  actor::TaskId task_id =
+  const actor::ActorTask* task =
       actor::ActorKeyedService::Get(profile_)->GetTaskFromTab(*tab);
   // Record user action if the tab is associated with an ActorTask.
-  if (!task_id.is_null()) {
+  if (task) {
     base::RecordAction(
         base::UserMetricsAction("Glic.Instance.TaskTabForegrounded"));
   }
@@ -857,9 +889,11 @@ void GlicMetrics::SetDelegateForTesting(std::unique_ptr<Delegate> delegate) {
   delegate_ = std::move(delegate);
 }
 
-void GlicMetrics::DidRequestContextFromTab(content::WebContents& web_contents) {
-  last_tab_context_source_id_ =
-      web_contents.GetPrimaryMainFrame()->GetPageUkmSourceId();
+void GlicMetrics::DidRequestContextFromTab(tabs::TabInterface& tab) {
+  if (content::WebContents* contents = tab.GetContents()) {
+    last_tab_context_source_id_ =
+        contents->GetPrimaryMainFrame()->GetPageUkmSourceId();
+  }
 }
 
 void GlicMetrics::SetWebClientMode(mojom::WebClientMode mode) {
@@ -934,6 +968,10 @@ void GlicMetrics::OnGlicWindowSizeTimerFired() {
 }
 
 void GlicMetrics::OnMaybeEnabledAndConsentForProfileChanged() {
+  if (!recorded_startup_enablement_ && enabling_->IsAllowed()) {
+    RecordStartupEnablement();
+  }
+
   bool is_enabled = enabling_->IsEnabledAndConsentForProfile(profile_);
   if (is_enabled == is_enabled_) {
     // No change, early exit.
@@ -976,6 +1014,19 @@ void GlicMetrics::OnTabContextEnabledPrefChanged() {
         "OnTabContextPermissionGranted",
         delegate_->GetActiveTabSharingState());
   }
+}
+
+void GlicMetrics::RecordStartupEnablement() {
+  base::TimeTicks startup_time =
+      startup_metric_utils::GetBrowser().GetApplicationStartTicksForStartup();
+  if (startup_time.is_null()) {
+    return;
+  }
+
+  base::TimeDelta delta = base::TimeTicks::Now() - startup_time;
+  base::UmaHistogramLongTimes("Glic.ProfileEnablement.TimeToEnabledFromStartup",
+                              delta);
+  recorded_startup_enablement_ = true;
 }
 
 DisplayPosition GlicMetrics::GetDisplayPositionOfPoint(
@@ -1076,7 +1127,8 @@ PercentOverlap GlicMetrics::GetPercentOverlapWithBrowser(
   int browser_glic_intersect_area = browser_glic_intersect_bounds.width() *
                                     browser_glic_intersect_bounds.height();
   // Calculate overlap percentage and round to the nearest 10.
-  int percentOverlap = round(10 * browser_glic_intersect_area / glic_area) * 10;
+  int percentOverlap =
+      round(10.0 * browser_glic_intersect_area / glic_area) * 10;
   switch (percentOverlap) {
     case 100:
       return PercentOverlap::k100;
@@ -1103,7 +1155,7 @@ PercentOverlap GlicMetrics::GetPercentOverlapWithBrowser(
       return PercentOverlap::k0;
   }
 }
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 void GlicMetrics::OnAttachedToBrowser(AttachChangeReason reason) {
   base::UmaHistogramEnumeration("Glic.AttachedToBrowser", reason);

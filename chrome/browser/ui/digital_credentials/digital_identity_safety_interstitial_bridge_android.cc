@@ -20,14 +20,14 @@ DigitalIdentitySafetyInterstitialBridgeAndroid::
     DigitalIdentitySafetyInterstitialBridgeAndroid()
     : weak_ptr_factory_(this) {
   JNIEnv* env = AttachCurrentThread();
-  j_bridge_ = Java_DigitalIdentitySafetyInterstitialBridge_create(
+  j_bridge_ = JDigitalIdentitySafetyInterstitialBridgeClass::create(
       env, reinterpret_cast<intptr_t>(this));
 }
 
 DigitalIdentitySafetyInterstitialBridgeAndroid::
     ~DigitalIdentitySafetyInterstitialBridgeAndroid() {
   JNIEnv* env = AttachCurrentThread();
-  Java_DigitalIdentitySafetyInterstitialBridge_destroy(env, j_bridge_);
+  j_bridge_->destroy(env);
 }
 
 content::DigitalIdentityProvider::DigitalIdentityInterstitialAbortCallback
@@ -39,17 +39,17 @@ DigitalIdentitySafetyInterstitialBridgeAndroid::ShowInterstitial(
         callback) {
   callback_ = std::move(callback);
   JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> j_origin = origin.ToJavaObject(env);
+  ScopedJavaLocalRef<url::JOrigin> j_origin = origin.ToJavaObject(env);
 
-  base::android::ScopedJavaLocalRef<jobject> j_window = nullptr;
+  base::android::ScopedJavaLocalRef<ui::JWindowAndroid> j_window = nullptr;
   if (web_contents.GetTopLevelNativeWindow()) {
     j_window = web_contents.GetTopLevelNativeWindow()->GetJavaObject();
   }
 
   auto weak_ptr = weak_ptr_factory_.GetWeakPtr();
 
-  Java_DigitalIdentitySafetyInterstitialBridge_showInterstitial(
-      env, j_bridge_, j_window, j_origin, static_cast<int>(interstitial_type));
+  j_bridge_->showInterstitial(env, j_window, j_origin,
+                              static_cast<int>(interstitial_type));
 
   // If no interstitial was shown,
   // DigitalIdentitySafetyInterstitialBridgeAndroid will have been destroyed.
@@ -70,7 +70,7 @@ void DigitalIdentitySafetyInterstitialBridgeAndroid::OnInterstitialDone(
 
 void DigitalIdentitySafetyInterstitialBridgeAndroid::Abort() {
   JNIEnv* env = AttachCurrentThread();
-  Java_DigitalIdentitySafetyInterstitialBridge_abort(env, j_bridge_);
+  j_bridge_->abort(env);
 }
 
 DEFINE_JNI(DigitalIdentitySafetyInterstitialBridge)

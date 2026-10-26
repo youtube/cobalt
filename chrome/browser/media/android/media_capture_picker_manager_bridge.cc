@@ -28,8 +28,6 @@ MediaCapturePickerManagerBridge::MediaCapturePickerManagerBridge() {
 }
 
 MediaCapturePickerManagerBridge::~MediaCapturePickerManagerBridge() {
-  // We should always have responded to any outstanding callback.
-  CHECK(callback_.is_null());
   Java_MediaCapturePickerManagerBridge_destroy(
       base::android::AttachCurrentThread(), java_object_);
 }
@@ -66,22 +64,30 @@ void MediaCapturePickerManagerBridge::OnPickTab(
           web_contents->GetPrimaryMainFrame()->GetProcess()->GetDeprecatedID(),
           web_contents->GetPrimaryMainFrame()->GetRoutingID()));
   desktop_media_id.audio_share = audio_share;
+  VLOG(1) << __func__
+          << " created desktop_media_id=" << desktop_media_id.ToString()
+          << ", audio share=" << audio_share;
   std::move(callback_).Run(desktop_media_id);
 }
 
 void MediaCapturePickerManagerBridge::OnPickWindow(JNIEnv* env) {
   auto desktop_media_id = content::DesktopMediaID(
       content::DesktopMediaID::TYPE_WINDOW, next_fake_id_++);
+  VLOG(1) << __func__
+          << " created desktop_media_id=" << desktop_media_id.ToString();
   std::move(callback_).Run(desktop_media_id);
 }
 
 void MediaCapturePickerManagerBridge::OnPickScreen(JNIEnv* env) {
   auto desktop_media_id = content::DesktopMediaID(
       content::DesktopMediaID::TYPE_SCREEN, next_fake_id_++);
+  VLOG(1) << __func__
+          << " created desktop_media_id=" << desktop_media_id.ToString();
   std::move(callback_).Run(desktop_media_id);
 }
 
 void MediaCapturePickerManagerBridge::OnCancel(JNIEnv* env) {
+  VLOG(1) << __func__;
   std::move(callback_).Run(base::unexpected(
       blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED_BY_USER));
 }

@@ -58,7 +58,6 @@
 #include "media/base/media_config.h"
 #include "media/base/media_engine.h"
 #include "media/base/stream_params.h"
-#include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/network/sent_packet.h"
@@ -163,7 +162,6 @@ class WebRtcVoiceEngine final : public VoiceEngineInterface {
   scoped_refptr<AudioState> audio_state_ RTC_GUARDED_BY(worker_thread_checker_);
   const std::vector<Codec> legacy_send_codecs_;
   const std::vector<Codec> legacy_recv_codecs_;
-  bool is_dumping_aec_ RTC_GUARDED_BY(worker_thread_checker_) = false;
   bool initialized_ RTC_GUARDED_BY(worker_thread_checker_) = false;
 
   // Jitter buffer settings for new streams.
@@ -305,8 +303,6 @@ class WebRtcVoiceSendChannel final : public MediaChannelUtil,
   // Per peer connection crypto options that last for the lifetime of the peer
   // connection.
   const CryptoOptions crypto_options_;
-  scoped_refptr<FrameTransformerInterface> unsignaled_frame_transformer_
-      RTC_GUARDED_BY(worker_thread_);
 
   // Callback invoked whenever the list of SSRCs changes.
   absl::AnyInvocable<void(const std::set<uint32_t>&)>
@@ -344,6 +340,9 @@ class WebRtcVoiceReceiveChannel final
   const AudioOptions& options() const { return options_; }
 
   void SetInterface(MediaChannelNetworkInterface* iface) override {
+    RTC_DCHECK_RUN_ON(&network_thread_checker_);
+    iface ? network_thread_safety_->SetAlive()
+          : network_thread_safety_->SetNotAlive();
     MediaChannelUtil::SetInterface(iface);
   }
   bool SetReceiverParameters(const AudioReceiverParameters& params) override;
@@ -355,8 +354,6 @@ class WebRtcVoiceReceiveChannel final
   bool RemoveRecvStream(uint32_t ssrc) override;
   void ResetUnsignaledRecvStream() override;
   std::optional<uint32_t> GetUnsignaledSsrc() const override;
-
-  void ChooseReceiverReportSsrc(const std::set<uint32_t>& choices) override;
 
   void OnDemuxerCriteriaUpdatePending() override;
   void OnDemuxerCriteriaUpdateComplete() override;
@@ -376,7 +373,7 @@ class WebRtcVoiceReceiveChannel final
   bool SetBaseMinimumPlayoutDelayMs(uint32_t ssrc, int delay_ms) override;
   std::optional<int> GetBaseMinimumPlayoutDelayMs(uint32_t ssrc) const override;
 
-  void OnPacketReceived(const RtpPacketReceived& packet) override;
+  void OnPacketReceived(RtpPacketReceived packet) override;
   bool GetStats(VoiceMediaReceiveInfo* info,
                 bool get_and_clear_legacy_stats) override;
 
@@ -420,6 +417,7 @@ class WebRtcVoiceReceiveChannel final
   const Environment env_;
   TaskQueueBase* const worker_thread_;
   ScopedTaskSafety task_safety_;
+  scoped_refptr<PendingTaskSafetyFlag> network_thread_safety_;
   SequenceChecker network_thread_checker_{SequenceChecker::kDetached};
 
   WebRtcVoiceEngine* const engine_ = nullptr;
@@ -457,21 +455,13 @@ class WebRtcVoiceReceiveChannel final
   // Sink for latest unsignaled stream - may be set before the stream exists.
   std::unique_ptr<AudioSinkInterface> default_sink_
       RTC_GUARDED_BY(worker_thread_);
-  // Default SSRC to use for RTCP receiver reports in case of no signaled
-  // send streams. See: https://code.google.com/p/webrtc/issues/detail?id=4740
-  // and https://code.google.com/p/chromium/issues/detail?id=547661
-  uint32_t receiver_reports_ssrc_ RTC_GUARDED_BY(worker_thread_) = 0xFA17FA17u;
-
   std::string mid_ RTC_GUARDED_BY(worker_thread_);
 
   class WebRtcAudioReceiveStream;
   std::map<uint32_t, WebRtcAudioReceiveStream*> recv_streams_
       RTC_GUARDED_BY(worker_thread_);
-  std::vector<RtpExtension> recv_rtp_extensions_ RTC_GUARDED_BY(worker_thread_);
-  RtpHeaderExtensionMap recv_rtp_extension_map_ RTC_GUARDED_BY(worker_thread_);
 
-  std::optional<AudioSendStream::Config::SendCodecSpec> send_codec_spec_
-      RTC_GUARDED_BY(worker_thread_);
+  AudioReceiverParameters recv_params_ RTC_GUARDED_BY(worker_thread_);
 
   // Per peer connection crypto options that last for the lifetime of the peer
   // connection.

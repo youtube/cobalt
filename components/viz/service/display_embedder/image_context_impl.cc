@@ -36,15 +36,17 @@ namespace {
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+// LINT.IfChange(CreateFallbackImageResult)
 enum class CreateFallbackImageResult {
   kSuccess = 0,
   kFailedPrefersExternalSampler = 1,
   kFailedYcbcrMismatch = 2,
-  kFailedExternalTexture = 3,
+  kFailedYCbCrTextureCreationFailure = 3,
   kFailedInvalidTextureInfo = 4,
   kFailedCreateTexture = 5,
   kMaxValue = kFailedCreateTexture
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/gpu/enums.xml:CreateFallbackImageResult)
 
 const char* CreateFallbackImageResultToString(
     CreateFallbackImageResult result) {
@@ -55,8 +57,8 @@ const char* CreateFallbackImageResultToString(
       return "FailedPrefersExternalSampler";
     case CreateFallbackImageResult::kFailedYcbcrMismatch:
       return "FailedYcbcrMismatch";
-    case CreateFallbackImageResult::kFailedExternalTexture:
-      return "FailedExternalTexture";
+    case CreateFallbackImageResult::kFailedYCbCrTextureCreationFailure:
+      return "FailedYCbCrTextureCreationFailure";
     case CreateFallbackImageResult::kFailedInvalidTextureInfo:
       return "FailedInvalidTextureInfo";
     case CreateFallbackImageResult::kFailedCreateTexture:
@@ -260,10 +262,11 @@ void ImageContextImpl::CreateFallbackImage(
     skgpu::graphite::DawnTextureInfo dawn_info;
     bool success = skgpu::graphite::TextureInfos::GetDawnTextureInfo(
         tex_infos[0], &dawn_info);
-    if (success && dawn_info.fFormat == wgpu::TextureFormat::External) {
+    if (success &&
+        dawn_info.fFormat == wgpu::TextureFormat::OpaqueYCbCrAndroid) {
       // Skia can't allocate a fallback texture since the original texture was
       // externally allocated.
-      result = CreateFallbackImageResult::kFailedExternalTexture;
+      result = CreateFallbackImageResult::kFailedYCbCrTextureCreationFailure;
       return;
     }
 #endif
@@ -323,7 +326,7 @@ void ImageContextImpl::CreateFallbackImage(
   // and leave it null.
   const auto& formats = backend_formats();
   if (formats.empty() || formats[0].textureType() == GrTextureType::kExternal) {
-    result = CreateFallbackImageResult::kFailedExternalTexture;
+    result = CreateFallbackImageResult::kFailedYCbCrTextureCreationFailure;
     return;
   }
 

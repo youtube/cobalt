@@ -180,7 +180,7 @@ void MerchantTrustChipButtonController::OpenPageInfoSubpage() {
   // and set chip_button_ as highlighted button.
   views::BubbleDialogDelegateView* const bubble =
       PageInfoBubbleView::CreatePageInfoBubble(std::move(specification));
-  bubble->SetHighlightedButton(chip_button_);
+  bubble->SetHighlightedElement(kMerchantTrustChipElementId);
   bubble->GetWidget()->Show();
 }
 
@@ -192,11 +192,7 @@ void MerchantTrustChipButtonController::MaybeShowMerchantTrustFeaturePromo() {
   if (auto* interface =
           BrowserUserEducationInterface::MaybeGetForWebContentsInTab(
               web_contents())) {
-    bool can_show_promo = interface->CanShowFeaturePromo(
+    interface->MaybeShowFeaturePromo(
         feature_engagement::kIPHMerchantTrustFeature);
-    if (can_show_promo) {
-      interface->MaybeShowFeaturePromo(
-          feature_engagement::kIPHMerchantTrustFeature);
-    }
   }
 }

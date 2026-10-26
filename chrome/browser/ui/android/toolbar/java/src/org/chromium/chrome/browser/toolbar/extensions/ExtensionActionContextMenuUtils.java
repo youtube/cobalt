@@ -9,9 +9,8 @@ import static org.chromium.ui.listmenu.ListMenuItemProperties.CLICK_LISTENER;
 import android.content.Context;
 import android.view.View;
 
-import androidx.annotation.Nullable;
-
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.extensions.ExtensionActionContextMenuBridge;
 import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
 import org.chromium.ui.listmenu.BasicListMenu;
@@ -39,14 +38,14 @@ public final class ExtensionActionContextMenuUtils {
      * @param bridge The {@link ExtensionActionContextMenuBridge} that provides the model and
      *     lifecycle.
      * @param rectProvider The {@link RectProvider} to use for positioning the menu.
-     * @param rootView The root {@link View}, if required by the buttonView.
+     * @param dismissRunnable The {@link Runnable} to run after the context menu is dismissed.
      */
     public static void showContextMenu(
             Context context,
             ListMenuButton buttonView,
             ExtensionActionContextMenuBridge bridge,
             RectProvider rectProvider,
-            @Nullable View rootView) {
+            @Nullable Runnable dismissRunnable) {
         ModelList modelList = bridge.getModelList();
 
         ListMenu.Delegate buttonDelegate =
@@ -105,9 +104,6 @@ public final class ExtensionActionContextMenuUtils {
                     }
                 };
         buttonView.setDelegate(listDelegate, false);
-        if (rootView != null) {
-            buttonView.setRootView(rootView);
-        }
 
         buttonView.addPopupListener(
                 new ListMenuHost.PopupMenuShownListener() {
@@ -118,6 +114,9 @@ public final class ExtensionActionContextMenuUtils {
                     public void onPopupMenuDismissed() {
                         bridge.destroy();
                         buttonView.removePopupListener(this);
+                        if (dismissRunnable != null) {
+                            dismissRunnable.run();
+                        }
                     }
                 });
 

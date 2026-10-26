@@ -11,7 +11,9 @@
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/constants/personalization_entry_point.h"
+#include "ash/constants/url_constants.h"
 #include "ash/constants/web_app_id_constants.h"
+#include "ash/constants/webui_url_constants.h"
 #include "ash/public/cpp/locale_update_controller.h"
 #include "ash/public/cpp/login_types.h"
 #include "ash/public/cpp/new_window_delegate.h"
@@ -45,14 +47,14 @@
 #include "chrome/browser/ash/system/system_clock.h"
 #include "chrome/browser/ash/system_web_apps/apps/personalization_app/personalization_app_metrics.h"
 #include "chrome/browser/chromeos/extensions/vpn_provider/vpn_service_factory.h"
-#include "chrome/browser/lifetime/application_lifetime.h"
+#include "chrome/browser/enterprise/browser_management/management_identity.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
+#include "chrome/browser/ui/ash/system_web_apps/system_web_app_utils.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/managed_ui.h"
 #include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"
-#include "chrome/browser/ui/settings_window_manager_chromeos.h"
 #include "chrome/browser/ui/singleton_tabs.h"
 #include "chrome/browser/ui/webui/access_code_cast/access_code_cast_dialog.h"
 #include "chrome/browser/ui/webui/ash/bluetooth/bluetooth_pairing_dialog.h"
@@ -62,7 +64,6 @@
 #include "chrome/browser/ui/webui/ash/set_time/set_time_dialog.h"
 #include "chrome/browser/upgrade_detector/upgrade_detector.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/common/url_constants.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
 #include "chromeos/ash/components/network/network_handler.h"
@@ -75,6 +76,7 @@
 #include "chromeos/ash/experiences/settings_ui/settings_app_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
+#include "components/session_manager/core/session.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/session_manager/core/session_manager_observer.h"
 #include "components/user_manager/user_manager.h"
@@ -96,8 +98,14 @@ constexpr char kOfficialCalendarUrlPrefix[] =
     "https://calendar.google.com/calendar/";
 
 void ShowSettingsSubPageForActiveUser(const std::string& sub_page) {
-  chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
-      ProfileManager::GetActiveUserProfile(), sub_page);
+  auto* session = session_manager::SessionManager::Get()->GetActiveSession();
+  if (!session) {
+    return;
+  }
+  ash::SettingsAppManager::Get()->Open(
+      CHECK_DEREF(
+          user_manager::UserManager::Get()->FindUser(session->account_id())),
+      {.sub_page = sub_page});
 }
 
 // Returns the severity of a pending update.
@@ -548,14 +556,14 @@ void SystemTrayClientImpl::ShowGestureEducationHelp() {
   }
 
   ash::SystemAppLaunchParams params;
-  params.url = GURL(chrome::kChromeOSGestureEducationHelpURL);
+  params.url = GURL(ash::kChromeUIOSGestureEducationHelpURL);
   params.launch_source = apps::LaunchSource::kFromOtherApp;
   ash::LaunchSystemWebAppAsync(profile, ash::SystemWebAppType::HELP, params);
 }
 
 void SystemTrayClientImpl::ShowPaletteHelp() {
   ShowSingletonTab(ProfileManager::GetActiveUserProfile(),
-                   GURL(chrome::kChromePaletteHelpURL));
+                   GURL(ash::external_urls::kPaletteHelpURL));
 }
 
 void SystemTrayClientImpl::ShowPaletteSettings() {
@@ -727,14 +735,14 @@ void SystemTrayClientImpl::ShowMultiDeviceSetup() {
 }
 
 void SystemTrayClientImpl::ShowFirmwareUpdate() {
-  chrome::ShowFirmwareUpdatesApp(ProfileManager::GetActiveUserProfile());
+  ash::ShowFirmwareUpdatesApp(ProfileManager::GetActiveUserProfile());
 }
 
 void SystemTrayClientImpl::SetLocaleAndExit(
     const std::string& locale_iso_code) {
   ProfileManager::GetActiveUserProfile()->ChangeAppLocale(
       locale_iso_code, Profile::APP_LOCALE_CHANGED_VIA_SYSTEM_TRAY);
-  chrome::AttemptUserExit();
+  session_manager::SessionManager::Get()->RequestSignOut();
 }
 
 void SystemTrayClientImpl::ShowAccessCodeCastingDialog(
@@ -836,7 +844,6 @@ void SystemTrayClientImpl::ShowMouseSettings() {
 }
 
 void SystemTrayClientImpl::ShowKeyboardSettings() {
-  DCHECK(ash::features::IsWelcomeExperienceEnabled());
   base::RecordAction(base::UserMetricsAction("ShowKeyboardSettingsPage"));
   ShowSettingsSubPageForActiveUser(
       chromeos::settings::mojom::kPerDeviceKeyboardSubpagePath);
@@ -849,7 +856,6 @@ void SystemTrayClientImpl::ShowTouchpadSettings() {
 }
 
 void SystemTrayClientImpl::ShowPointingStickSettings() {
-  DCHECK(ash::features::IsWelcomeExperienceEnabled());
   base::RecordAction(base::UserMetricsAction("ShowPointingStickSettingsPage"));
   ShowSettingsSubPageForActiveUser(
       chromeos::settings::mojom::kPerDevicePointingStickSubpagePath);
@@ -872,7 +878,7 @@ void SystemTrayClientImpl::ShowRemapKeysSubpage(int device_id) {
 void SystemTrayClientImpl::ShowYouTubeMusicPremiumPage() {
   base::RecordAction(base::UserMetricsAction("ShowYouTubeMusicPremiumPage"));
 
-  const GURL official_url(chrome::kYoutubeMusicPremiumURL);
+  const GURL official_url(ash::external_urls::kYoutubeMusicPremiumURL);
 
   // Check YouTube Music web app installation.
   if (!IsAppInstalled(ash::kYoutubeMusicAppId)) {
@@ -889,25 +895,25 @@ void SystemTrayClientImpl::ShowYouTubeMusicPremiumPage() {
   }
 
   // Launch web app.
-  proxy->LaunchAppWithUrl(
-      ash::kYoutubeMusicAppId, ui::EF_NONE, official_url,
-      apps::LaunchSource::kFromFocusMode, /*window_info=*/nullptr,
-      base::BindOnce(
-          [](const GURL& url, apps::LaunchResult&& result) {
-            if (result.state != apps::LaunchResult::State::kSuccess) {
-              OpenInBrowser(url);
-            }
-          },
-          official_url));
+  proxy->LaunchAppWithUrl(ash::kYoutubeMusicAppId, ui::EF_NONE, official_url,
+                          apps::LaunchSource::kFromFocusMode,
+                          /*window_info=*/nullptr,
+                          base::BindOnce(
+                              [](const GURL& url, apps::LaunchResult result) {
+                                if (result != apps::LaunchResult::kSuccess) {
+                                  OpenInBrowser(url);
+                                }
+                              },
+                              official_url));
 }
 
 void SystemTrayClientImpl::ShowChromebookPerksYouTubePage() {
-  OpenInBrowser(GURL(chrome::kChromebookPerksYouTubePage));
+  OpenInBrowser(GURL(ash::external_urls::kChromebookPerksYouTubePage));
 }
 
 void SystemTrayClientImpl::ShowEolInfoPage() {
   ash::NewWindowDelegate::GetInstance()->OpenUrl(
-      GURL(chrome::kEolNotificationURL),
+      GURL(ash::external_urls::kEolNotificationURL),
       ash::NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       ash::NewWindowDelegate::Disposition::kNewForegroundTab);
 }

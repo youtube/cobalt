@@ -13,6 +13,8 @@
 #include "chrome/browser/ui/webui/bluetooth_internals/bluetooth_internals.mojom.h"
 #include "chrome/browser/ui/webui/bluetooth_internals/bluetooth_internals_ui.h"
 #include "chrome/browser/ui/webui/browsing_topics/browsing_topics_internals_ui.h"
+#include "chrome/browser/ui/webui/chrome_finds_internals/chrome_finds_internals.mojom.h"
+#include "chrome/browser/ui/webui/chrome_finds_internals/chrome_finds_internals_ui.h"
 #include "chrome/browser/ui/webui/chrome_urls/chrome_urls_ui.h"
 #include "chrome/browser/ui/webui/connectors_internals/connectors_internals_ui.h"
 #include "chrome/browser/ui/webui/data_sharing_internals/data_sharing_internals_ui.h"
@@ -23,8 +25,11 @@
 #include "chrome/browser/ui/webui/omnibox/aim_eligibility/aim_eligibility.mojom.h"
 #include "chrome/browser/ui/webui/omnibox/omnibox_internals.mojom.h"
 #include "chrome/browser/ui/webui/omnibox/omnibox_ui.h"
+#include "chrome/browser/ui/webui/policy/policy_ui.h"
 #include "components/enterprise/connectors/connectors_internals.mojom.h"
+#include "components/policy/core/common/features.h"
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/webui/omnibox_popup/mojom/omnibox_popup.mojom.h"
 #include "chrome/browser/ui/webui/omnibox_popup/mojom/omnibox_popup_aim.mojom.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
 #endif
@@ -66,6 +71,10 @@ namespace {
 void PopulateChromeWebUIFrameBindersPartsAllPlatforms(
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map,
     content::RenderFrameHost* render_frame_host) {
+  RegisterWebUIControllerInterfaceBinder<
+      chrome_finds_internals::mojom::PageHandlerFactory,
+      chrome_finds_internals::ChromeFindsInternalsUI>(map);
+
   RegisterWebUIControllerInterfaceBinder<::mojom::BluetoothInternalsHandler,
                                          BluetoothInternalsUI>(map);
 
@@ -78,6 +87,8 @@ void PopulateChromeWebUIFrameBindersPartsAllPlatforms(
 #if !BUILDFLAG(IS_ANDROID)
   RegisterWebUIControllerInterfaceBinder<
       omnibox_popup_aim::mojom::PageHandlerFactory, OmniboxPopupUI>(map);
+  RegisterWebUIControllerInterfaceBinder<
+      omnibox_popup::mojom::PageHandlerFactory, OmniboxPopupUI>(map);
 #endif
   RegisterWebUIControllerInterfaceBinder<::mojom::OmniboxPageHandler,
                                          OmniboxUI>(map);
@@ -132,6 +143,12 @@ void PopulateChromeWebUIFrameBindersPartsAllPlatforms(
   RegisterWebUIControllerInterfaceBinder<
       webnn_internals::mojom::WebNNInternalsHandlerFactory, WebNNInternalsUI>(
       map);
+
+  if (base::FeatureList::IsEnabled(
+          policy::features::kPolicyPageMojoMigration)) {
+    RegisterWebUIControllerInterfaceBinder<
+        policy::mojom::PolicyPageHandlerFactory, PolicyUI>(map);
+  }
 
   // End of PopulateChromeWebUIFrameBindersPartsAllPlatforms().
   // Please do not add platform-specific logic to this function.

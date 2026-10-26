@@ -10,6 +10,7 @@
 #import "components/omnibox/common/omnibox_features.h"
 #import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_updater.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/location_bar/ui_bundled/location_bar_coordinator.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
@@ -46,7 +47,6 @@
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/legacy_toolbar_mediator.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/primary_toolbar_coordinator.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/primary_toolbar_view_controller_delegate.h"
-#import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/omnibox_position_util.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/toolbar_constants.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/toolbar_omnibox_consumer.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/toolbar_type.h"
@@ -54,6 +54,8 @@
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/secondary_toolbar_coordinator.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/toolbar_coordinatee.h"
 #import "ios/chrome/browser/toolbar/ui/buttons/toolbar_button_factory.h"
+#import "ios/chrome/browser/toolbar/ui/toolbar_constants.h"
+#import "ios/chrome/browser/toolbar/ui/toolbar_utils.h"
 #import "ios/chrome/browser/toolbar/ui/toolbar_view_controller.h"
 #import "ios/chrome/browser/web/model/web_navigation_browser_agent.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
@@ -61,17 +63,9 @@
 #import "ios/components/webui/web_ui_url_constants.h"
 #import "ios/web/public/web_state.h"
 
-namespace {
-
-/// The padding necessary for the edit state compact bottom omnibox.
-constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
-
-}  // namespace
-
 @interface ToolbarCoordinator () <ContextualPanelEntrypointCommands,
                                   GuidedTourCommands,
                                   LocationBarBadgeCommands,
-                                  LocationBarCoordinatorHeightDelegate,
                                   PageActionMenuEntryPointCommands,
                                   PrimaryToolbarViewControllerDelegate,
                                   ToolbarCommands,
@@ -94,8 +88,6 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 @property(nonatomic, strong) OmniboxFocusOrchestrator* orchestrator;
 /// Whether the omnibox is currently focused.
 @property(nonatomic, assign) BOOL locationBarFocused;
-/// The height of the location bar in edit state.
-@property(nonatomic, assign) CGFloat locationBarEditStateHeight;
 /// Dynamic response system view controller is an omnibox presenter. Only
 /// defined  when kOmniboxDRSPrototype is set.
 @property(nonatomic, strong) OmniboxDRSViewController* drsViewController;
@@ -122,12 +114,16 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   ToolbarMediator* _topToolbarMediator;
   /// Top toolbar view controller.
   ToolbarViewController* _topToolbarViewController;
+  /// Fullscreen UI Updater for the top toolbar.
+  std::unique_ptr<FullscreenUIUpdater> _topToolbarFullscreenUIUpdater;
   /// Top location bar coordinator.
   LocationBarCoordinator* _topLocationBarCoordinator;
   /// Bottom toolbar mediator.
   ToolbarMediator* _bottomToolbarMediator;
   /// Bottom toolbar view controller.
   ToolbarViewController* _bottomToolbarViewController;
+  /// Fullscreen UI Updater for the bottom toolbar.
+  std::unique_ptr<FullscreenUIUpdater> _bottomToolbarFullscreenUIUpdater;
   /// Bottom location bar coordinator.
   LocationBarCoordinator* _bottomLocationBarCoordinator;
 }
@@ -165,13 +161,7 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
       startDispatchingToTarget:self
                    forProtocol:@protocol(FakeboxFocuser)];
 
-  if (IsChromeNextIaEnabled()) {
-    [browser->GetCommandDispatcher()
-        startDispatchingToTarget:self
-                     forProtocol:@protocol(PageActionMenuEntryPointCommands)];
-  }
-
-  if (IsBestOfAppGuidedTourEnabled()) {
+  if (IsBestOfAppGuidedTourEnabled() && !IsChromeNextIaEnabled()) {
     [self.browser->GetCommandDispatcher()
         startDispatchingToTarget:self
                      forProtocol:@protocol(GuidedTourCommands)];
@@ -196,6 +186,8 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
         createToolbarViewControllerForMediator:_topToolbarMediator
                                    locationBar:_topLocationBarCoordinator
                                                    .locationBarViewController];
+    _topToolbarFullscreenUIUpdater = std::make_unique<FullscreenUIUpdater>(
+        FullscreenController::FromBrowser(browser), _topToolbarViewController);
 
     _bottomLocationBarCoordinator = [self createLocationBarCoordinator];
     _bottomToolbarMediator = [self createToolbarMediatorTopPosition:NO];
@@ -203,6 +195,9 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
         createToolbarViewControllerForMediator:_bottomToolbarMediator
                                    locationBar:_bottomLocationBarCoordinator
                                                    .locationBarViewController];
+    _bottomToolbarFullscreenUIUpdater = std::make_unique<FullscreenUIUpdater>(
+        FullscreenController::FromBrowser(browser),
+        _bottomToolbarViewController);
 
     LayoutGuideCenter* layoutGuideCenter = LayoutGuideCenterForBrowser(browser);
     [layoutGuideCenter referenceView:_topToolbarViewController.view
@@ -219,7 +214,11 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
     [self.browser->GetCommandDispatcher()
         startDispatchingToTarget:self
                      forProtocol:@protocol(LocationBarBadgeCommands)];
-
+    if (IsPageActionMenuEnabled()) {
+      [browser->GetCommandDispatcher()
+          startDispatchingToTarget:self
+                       forProtocol:@protocol(PageActionMenuEntryPointCommands)];
+    }
     self.started = YES;
     return;
   }
@@ -227,7 +226,6 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   self.locationBarCoordinator =
       [[LocationBarCoordinator alloc] initWithBrowser:browser];
   self.locationBarCoordinator.delegate = self.omniboxFocusDelegate;
-  self.locationBarCoordinator.heightDelegate = self;
   self.locationBarCoordinator.popupPresenterDelegate =
       self.popupPresenterDelegate;
   [self.locationBarCoordinator start];
@@ -263,7 +261,6 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   }
 
   [self updateToolbarsLayout];
-  [self updateLocationBarHeightWithAnimation:NO focusStateDidChange:NO];
 
   self.started = YES;
 }
@@ -425,21 +422,8 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   }
   [self.legacyToolbarMediator locationBarFocusChangedTo:focused];
 
-  // Disable toolbar animations when focusing the omnibox on secondary toolbar.
-  ToolbarType editStatePosition;
-  if (omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition()) {
-    editStatePosition = _steadyStateOmniboxPosition;
-  } else if (omnibox::ForceBottomOmniboxInEditState()) {
-    if (IsCompactHeight(self.traitEnvironment.traitCollection)) {
-      editStatePosition = ToolbarType::kPrimary;
-    } else {
-      editStatePosition = ToolbarType::kSecondary;
-    }
-  } else {
-    editStatePosition = ToolbarType::kPrimary;
-  }
-
-  BOOL animateTransition = (editStatePosition == _steadyStateOmniboxPosition);
+  BOOL animateTransition =
+      (_steadyStateOmniboxPosition == ToolbarType::kPrimary);
 
   BOOL toolbarExpanded = focused && !CanShowTabStrip(self.traitEnvironment);
   if (base::FeatureList::IsEnabled(kOmniboxDRSPrototype) && focused) {
@@ -462,7 +446,6 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   [self.secondaryToolbarCoordinator.viewController
       setLocationBarFocused:focused];
   self.locationBarFocused = focused;
-  [self updateLocationBarHeightWithAnimation:YES focusStateDidChange:YES];
 }
 
 - (BOOL)isOmniboxFirstResponder {
@@ -475,17 +458,8 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   return [self.locationBarCoordinator showingOmniboxPopup];
 }
 
-- (BOOL)inEditState {
-  CHECK(!IsChromeNextIaEnabled());
-  return [self isOmniboxFirstResponder] || [self showingOmniboxPopup];
-}
-
 - (void)setBottomOmniboxOffsetForPopup:(CGFloat)bottomOffset {
   [self.legacyToolbarMediator setBottomOmniboxOffsetForPopup:bottomOffset];
-}
-
-- (ToolbarType)omniboxPosition {
-  return _omniboxPosition;
 }
 
 #pragma mark ToolbarHeightProviding
@@ -497,8 +471,10 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
       // zero. This is a temporary fix for the pdf bug.
       return 1;
     }
-    return ToolbarCollapsedHeight(
-        self.traitEnvironment.traitCollection.preferredContentSizeCategory);
+    if (ShouldHaveFullHeightTopToolbar(self.traitEnvironment)) {
+      return kToolbarHeightFullscreen;
+    }
+    return kTopToolbarIPhonePortraitHeightFullscreen;
   }
   if (_omniboxPosition == ToolbarType::kSecondary) {
     // TODO(crbug.com/40279063): Find out why primary toolbar height cannot be
@@ -512,7 +488,15 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 
 - (CGFloat)expandedPrimaryToolbarHeight {
   if (IsChromeNextIaEnabled()) {
-    return _topToolbarViewController.toolbarHeight;
+    if ([self isOmniboxInBottomPosition]) {
+      // TODO(crbug.com/40279063): Find out why primary toolbar height cannot be
+      // zero. This is a temporary fix for the pdf bug.
+      return 1;
+    }
+    if (ShouldHaveFullHeightTopToolbar(self.traitEnvironment)) {
+      return kToolbarHeight;
+    }
+    return kTopToolbarIPhonePortraitHeight;
   }
   CGFloat height =
       self.primaryToolbarViewController.view.intrinsicContentSize.height;
@@ -528,8 +512,7 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 - (CGFloat)collapsedSecondaryToolbarHeight {
   if (IsChromeNextIaEnabled()) {
     if ([self isOmniboxInBottomPosition]) {
-      return ToolbarCollapsedHeight(
-          self.traitEnvironment.traitCollection.preferredContentSizeCategory);
+      return kToolbarHeightFullscreen;
     }
     return 0;
   }
@@ -542,13 +525,12 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 
 - (CGFloat)expandedSecondaryToolbarHeight {
   if (IsChromeNextIaEnabled()) {
-    return _bottomToolbarViewController.toolbarHeight;
+    if ([self isOmniboxInBottomPosition]) {
+      return kToolbarHeight;
+    }
+    return 0;
   }
-  BOOL presentInEditState =
-      self.locationBarFocused && omnibox::ForceBottomOmniboxInEditState();
-  BOOL showsSecondaryToolbarHeight =
-      IsSplitToolbarMode(self.traitEnvironment) || presentInEditState;
-  if (!showsSecondaryToolbarHeight) {
+  if (!IsSplitToolbarMode(self.traitEnvironment)) {
     return 0.0;
   }
   CGFloat height =
@@ -558,13 +540,6 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
         self.traitEnvironment.traitCollection.preferredContentSizeCategory);
   }
   return height;
-}
-
-- (CGFloat)locationBarCompactDisplayHeight {
-  CHECK(!IsChromeNextIaEnabled());
-  return self.locationBarCoordinator.locationBarViewController.view.frame.size
-             .height +
-         kLocationBarCompactBottomPadding;
 }
 
 #pragma mark - FakeboxFocuser
@@ -686,22 +661,6 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   // Do nothing.
 }
 
-- (ToolbarCancelButtonStyle)styleForCancelButtonInToolbar {
-  CHECK(!IsChromeNextIaEnabled());
-  BOOL userPreferenceBottom = _legacyToolbarMediator.preferredOmniboxPosition ==
-                              ToolbarType::kSecondary;
-  BOOL followSteadyState =
-      omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition();
-  BOOL forcedBottomInEditState = omnibox::ForceBottomOmniboxInEditState();
-  BOOL inTheBottomInEditState =
-      (followSteadyState && userPreferenceBottom) || forcedBottomInEditState;
-  if (inTheBottomInEditState) {
-    return ToolbarCancelButtonStyle::kXCircle;
-  }
-
-  return ToolbarCancelButtonStyle::kCancelLabel;
-}
-
 #pragma mark - SideSwipeToolbarInteracting
 
 - (BOOL)isInsideToolbar:(CGPoint)point {
@@ -804,20 +763,14 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 #pragma mark - GuidedTourCommands
 
 - (void)highlightViewInStep:(GuidedTourStep)step {
-  if (IsChromeNextIaEnabled()) {
-    // TODO(crbug.com/483995303): implement this.
-    NOTREACHED() << "Not implemented yet";
-  }
+  CHECK(!IsChromeNextIaEnabled());
   for (id<GuidedTourCommands> coordinator in self.coordinators) {
     [coordinator highlightViewInStep:step];
   }
 }
 
 - (void)stepCompleted:(GuidedTourStep)step {
-  if (IsChromeNextIaEnabled()) {
-    // TODO(crbug.com/483995303): implement this.
-    NOTREACHED() << "Not implemented yet";
-  }
+  CHECK(!IsChromeNextIaEnabled());
   for (id<GuidedTourCommands> coordinator in self.coordinators) {
     [coordinator stepCompleted:step];
   }
@@ -909,46 +862,6 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   [_bottomLocationBarCoordinator markDisplayedBadgeAsUnread:read];
 }
 
-#pragma mark - LocationBarCoordinatorHeightDelegate
-
-- (void)locationBarCoordinator:(LocationBarCoordinator*)coordinator
-      didChangeEditStateHeight:(CGFloat)height {
-  if (height == self.locationBarEditStateHeight) {
-    return;
-  }
-  self.locationBarEditStateHeight = height;
-  [self updateLocationBarHeightWithAnimation:NO focusStateDidChange:NO];
-}
-
-- (void)updateLocationBarHeightWithAnimation:(BOOL)animated
-                         focusStateDidChange:(BOOL)focusStateDidChange {
-  if (!IsMultilineBrowserOmniboxEnabled()) {
-    // Location bar height is constant when multiline is not enabled. The height
-    // is management in primary and secondary toolbar view controllers.
-    return;
-  }
-  // Steady state height by default.
-  CGFloat height =
-      LocationBarHeight(self.primaryToolbarViewController.traitCollection
-                            .preferredContentSizeCategory);
-
-  // Apply the edit state height only when the location bar is focused and we
-  // are not in a transition to focused state.
-  if (self.locationBarFocused && !focusStateDidChange) {
-    height = self.locationBarEditStateHeight;
-  }
-
-  [self.primaryToolbarCoordinator setLocationBarHeight:height];
-  [self.secondaryToolbarCoordinator setLocationBarHeight:height];
-
-  BOOL layoutChange = [self inEditState] || focusStateDidChange;
-  if (layoutChange) {
-    [self.toolbarHeightDelegate toolbarsHeightChanged];
-    [self.toolbarHeightDelegate
-        layoutToolbarHeightChangeWithAnimation:animated];
-  }
-}
-
 #pragma mark - ContextualPanelEntrypointCommands
 
 - (void)notifyContextualPanelEntrypointIPHDismissed {
@@ -967,8 +880,11 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 
 - (void)toggleEntryPointHighlight:(BOOL)highlight {
   CHECK(IsChromeNextIaEnabled());
-  // TODO(crbug.com/483994483): implement this.
-  NOTREACHED();
+  CHECK(IsPageActionMenuEnabled());
+  [_topLocationBarCoordinator
+      togglePageActionMenuEntryPointHighlight:highlight];
+  [_bottomLocationBarCoordinator
+      togglePageActionMenuEntryPointHighlight:highlight];
 }
 
 #pragma mark - ToolbarCommands
@@ -1036,36 +952,16 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 }
 
 - (CGFloat)keyboardAttachedBottomOmniboxHeight {
-  CGFloat attachedHeight = self.locationBarCoordinator.locationBarViewController
-                               .view.frame.size.height +
-                           2 * kBottomAdaptiveLocationBarTopMargin;
-
-  if (!self.locationBarFocused) {
-    return 0;
-  }
-
-  if (IsMultilineBrowserOmniboxEnabled()) {
-    return self.locationBarEditStateHeight +
-           LocationBarVerticalMargins(
-               self.locationBarCoordinator.locationBarViewController
-                   .traitCollection.preferredContentSizeCategory);
-  }
-
-  BOOL forceEditState = omnibox::ForceBottomOmniboxInEditState();
-  if (forceEditState) {
-    return attachedHeight;
-  }
-
-  BOOL followSteadyState =
-      omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition();
-  if (_omniboxPosition == ToolbarType::kSecondary && followSteadyState) {
-    return attachedHeight;
-  }
-
   return 0;
 }
 
 #pragma mark - Private
+
+/// Whether the omnibox is currently in edit state.
+- (BOOL)inEditState {
+  CHECK(!IsChromeNextIaEnabled());
+  return [self isOmniboxFirstResponder] || [self showingOmniboxPopup];
+}
 
 /// Returns primary and secondary coordinator in a array. Helper to call method
 /// on both coordinators.
@@ -1210,7 +1106,6 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 - (LocationBarCoordinator*)createLocationBarCoordinator {
   LocationBarCoordinator* coordinator =
       [[LocationBarCoordinator alloc] initWithBrowser:self.browser];
-  coordinator.heightDelegate = self;
   [coordinator start];
 
   return coordinator;

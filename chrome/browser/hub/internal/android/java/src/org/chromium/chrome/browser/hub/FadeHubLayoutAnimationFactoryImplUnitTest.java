@@ -27,7 +27,6 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
-import org.robolectric.annotation.LooperMode;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -37,7 +36,6 @@ import java.util.function.DoubleConsumer;
 
 /** Unit tests for {@link FadeHubLayoutAnimationFactoryImpl}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@LooperMode(LooperMode.Mode.PAUSED)
 public class FadeHubLayoutAnimationFactoryImplUnitTest {
     private static final long DURATION_MS = 500L;
     private static final long TIMEOUT_MS = 100L;
@@ -124,7 +122,7 @@ public class FadeHubLayoutAnimationFactoryImplUnitTest {
         HubLayoutAnimationRunner runner =
                 HubLayoutAnimationRunnerFactory.createHubLayoutAnimationRunner(animatorProvider);
 
-        HubLayoutAnimationListener mListener =
+        HubLayoutAnimationListener listener =
                 spy(
                         new HubLayoutAnimationListener() {
                             @Override
@@ -147,15 +145,15 @@ public class FadeHubLayoutAnimationFactoryImplUnitTest {
                                 assertEquals(1.0f, mHubContainerView.getAlpha(), FLOAT_TOLERANCE);
                             }
                         });
-        runner.addListener(mListener);
+        runner.addListener(listener);
 
         runner.runWithWaitForAnimatorTimeout(TIMEOUT_MS);
 
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
-        verify(mListener).beforeStart();
-        verify(mListener).onEnd(eq(false));
-        verify(mListener).afterEnd();
+        verify(listener).beforeStart();
+        verify(listener).onEnd(eq(false));
+        verify(listener).afterEnd();
         verify(mOnAlphaChange, atLeast(3)).accept(anyDouble());
     }
 

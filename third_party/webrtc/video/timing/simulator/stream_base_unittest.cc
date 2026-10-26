@@ -164,5 +164,14 @@ TEST(StreamBaseTest, InterFrameDelayVariationMs) {
       ElementsAre(Field(&SamplesStatsCounter::StatsSample::value, Eq(1.0))));
 }
 
+TEST(StreamBaseTest, InterAssembledTimeMs) {
+  TestStream stream{
+      .frames = {{.assembled_timestamp = Timestamp::Micros(33333)},
+                 {.assembled_timestamp = Timestamp::Micros(66666 + 1000)}}};
+
+  EXPECT_THAT(
+      stream.InterAssembledTimeMs().GetTimedSamples(),
+      ElementsAre(Field(&SamplesStatsCounter::StatsSample::value, Eq(34.333))));
+}
 }  // namespace
 }  // namespace webrtc::video_timing_simulator

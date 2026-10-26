@@ -11,7 +11,11 @@
 #include "third_party/blink/renderer/core/layout/geometry/logical_size.h"
 #include "third_party/blink/renderer/core/layout/geometry/static_position.h"
 #include "third_party/blink/renderer/core/layout/grid/grid_item.h"
+#include "third_party/blink/renderer/core/layout/grid/grid_line_resolver.h"
+#include "third_party/blink/renderer/core/layout/grid/grid_node.h"
 #include "third_party/blink/renderer/core/layout/grid/grid_track_collection.h"
+#include "third_party/blink/renderer/core/layout/grid/grid_track_sizing_algorithm.h"
+#include "third_party/blink/renderer/core/layout/grid_lanes/grid_lanes_layout_algorithm.h"
 #include "third_party/blink/renderer/core/layout/length_utils.h"
 #include "third_party/blink/renderer/core/layout/logical_box_fragment.h"
 #include "third_party/blink/renderer/core/style/grid_track_list.h"
@@ -616,9 +620,6 @@ LayoutUnit CalculateIntrinsicMinimumContribution(
     }
     case Length::kMinIntrinsic:
     case Length::kFlex:
-    case Length::kExtendToZoom:
-    case Length::kDeviceWidth:
-    case Length::kDeviceHeight:
     case Length::kNone:
     case Length::kContent:
       NOTREACHED();
@@ -638,6 +639,439 @@ LayoutUnit ClampIntrinsicMinSize(LayoutUnit min_content_contribution,
       std::max(spanned_tracks_definite_max_size, min_clamp_size);
 
   return std::min(min_content_contribution, spanned_tracks_definite_max_size);
+}
+
+namespace {
+
+GridArea SubgriddedAreaInParent(const SubgriddedItemData& opt_subgrid_data) {
+  if (!opt_subgrid_data.IsSubgrid()) {
+    return GridArea();
+  }
+
+  auto subgridded_area_in_parent = opt_subgrid_data->resolved_position;
+
+  if (!opt_subgrid_data->has_subgridded_columns) {
+    subgridded_area_in_parent.columns = GridSpan::IndefiniteGridSpan();
+  }
+  if (!opt_subgrid_data->has_subgridded_rows) {
+    subgridded_area_in_parent.rows = GridSpan::IndefiniteGridSpan();
+  }
+
+  if (!opt_subgrid_data->is_parallel_with_root_grid) {
+    std::swap(subgridded_area_in_parent.columns,
+              subgridded_area_in_parent.rows);
+  }
+  return subgridded_area_in_parent;
+}
+
+}  // namespace
+
+template <typename LayoutAlgorithmType>
+void BuildGridSizingSubtree(const LayoutAlgorithmType& algorithm,
+                            const GridLineResolver& line_resolver,
+                            GridSizingTree* sizing_tree,
+                            HeapVector<Member<LayoutBox>>* opt_oof_children,
+                            const SubgriddedItemData& opt_subgrid_data,
+                            const GridLineResolver* opt_parent_line_resolver,
+                            SizingConstraint sizing_constraint,
+                            bool must_invalidate_placement_cache,
+                            bool must_ignore_children,
+                            bool needs_intrinsic_track_size) {
+  DCHECK(sizing_tree);
+
+  const auto& node = algorithm.Node();
+  const auto& style = node.Style();
+
+  sizing_tree->AddToPreorderTraversal(node);
+
+  const auto constraint_space = algorithm.GetConstraintSpace();
+  const auto writing_mode = constraint_space.GetWritingMode();
+
+  GridItems* grid_items = MakeGarbageCollected<GridItems>();
+  GridLayoutData* layout_data = MakeGarbageCollected<GridLayoutData>();
+  bool has_nested_subgrid = false;
+
+  if (!must_ignore_children) {
+    // Construct grid items that are not subgridded.
+    grid_items =
+        node.ConstructGridItems(line_resolver, &must_invalidate_placement_cache,
+                                opt_oof_children, &has_nested_subgrid);
+  }
+
+  const auto subgrid_area = SubgriddedAreaInParent(opt_subgrid_data);
+  const bool has_standalone_columns = subgrid_area.columns.IsIndefinite();
+  const bool has_standalone_rows = subgrid_area.rows.IsIndefinite();
+
+  GridItems* virtual_items = MakeGarbageCollected<GridItems>();
+  if (has_standalone_columns) {
+    algorithm.BuildSizingCollection(kForColumns, line_resolver, *grid_items,
+                                    *layout_data, sizing_constraint,
+                                    needs_intrinsic_track_size, &virtual_items);
+  }
+  if (has_standalone_rows) {
+    algorithm.BuildSizingCollection(kForRows, line_resolver, *grid_items,
+                                    *layout_data, sizing_constraint,
+                                    needs_intrinsic_track_size, &virtual_items);
+  }
+
+  // TODO(almaher): Remove the Grid Lanes check once more of the functionality
+  // is in place for subgrid support in Grid Lanes.
+  if (!has_nested_subgrid || style.IsDisplayGridLanesBox()) {
+    sizing_tree->SetSizingNodeData(node, grid_items, layout_data,
+                                   virtual_items);
+    return;
+  }
+
+  // TODO(almaher): Update this for masonry to only be one axis.
+  InitializeTrackCollection(opt_subgrid_data, style, constraint_space,
+                            algorithm.BorderScrollbarPadding(),
+                            algorithm.GetGridAvailableSize(), kForColumns,
+                            layout_data);
+  InitializeTrackCollection(opt_subgrid_data, style, constraint_space,
+                            algorithm.BorderScrollbarPadding(),
+                            algorithm.GetGridAvailableSize(), kForRows,
+                            layout_data);
+
+  if (has_standalone_columns) {
+    layout_data->SizingCollection(kForColumns).CacheDefiniteSetsGeometry();
+  }
+  if (has_standalone_rows) {
+    layout_data->SizingCollection(kForRows).CacheDefiniteSetsGeometry();
+  }
+
+  // `AppendSubgriddedItems` rely on the cached placement data of a subgrid to
+  // construct its grid items, so we need to build their subtrees beforehand.
+  for (auto& grid_item : *grid_items) {
+    if (!grid_item.IsSubgrid()) {
+      continue;
+    }
+
+    // TODO(almaher): For grid lanes we need to use virtual items instead of
+    // getting the actual position since placement happens after sizing in grid
+    // lanes.
+    //
+    // TODO(ethavar): Currently we have an issue where we can't correctly cache
+    // the set indices of this grid item to determine its available space. This
+    // happens because subgridded items are not considered by the range builder
+    // since they can't be placed before we recurse into subgrids.
+    grid_item.ComputeSetIndices(layout_data->Columns());
+    grid_item.ComputeSetIndices(layout_data->Rows());
+
+    const SubgriddedItemData subgridded_item(grid_item, layout_data,
+                                             writing_mode);
+    const auto space =
+        algorithm.CreateConstraintSpaceForLayout(subgridded_item);
+    const auto fragment_geometry =
+        CalculateInitialFragmentGeometryForSubgrid(grid_item, space);
+
+    // TODO(almaher): Use the grid lanes algorithm if the subgrid requires it.
+    const GridLayoutAlgorithm subgrid_algorithm(
+        {grid_item.node, fragment_geometry, space});
+
+    const auto subgrid_line_resolver = subgrid_algorithm.BuildGridLineResolver(
+        SubgriddedAreaInParent(subgridded_item), &line_resolver);
+
+    // TODO(almaher): Use the grid lanes algorithm if the subgrid requires it.
+    BuildGridSizingSubtree<GridLayoutAlgorithm>(
+        subgrid_algorithm, subgrid_line_resolver, sizing_tree,
+        /*opt_oof_children=*/nullptr,
+        SubgriddedItemData(grid_item, layout_data, writing_mode),
+        &line_resolver, SizingConstraint::kLayout,
+        must_invalidate_placement_cache);
+
+    // After we accommodate subgridded items in their respective sizing track
+    // collections, their placement indices might be incorrect, so we want to
+    // recompute them when we call `InitializeTrackSizes`.
+    grid_item.ResetPlacementIndices();
+  }
+
+  AppendSubgriddedItems(style, grid_items);
+
+  // We need to recreate the track builder collections to ensure track coverage
+  // for subgridded items; it would be ideal to have them accounted for already,
+  // but we might need the track collections to compute a subgrid's automatic
+  // repetitions, so we do this process twice to avoid a cyclic dependency.
+  if (has_standalone_columns) {
+    algorithm.BuildSizingCollection(kForColumns, line_resolver, *grid_items,
+                                    *layout_data, sizing_constraint,
+                                    needs_intrinsic_track_size, &virtual_items);
+  }
+  if (has_standalone_rows) {
+    algorithm.BuildSizingCollection(kForRows, line_resolver, *grid_items,
+                                    *layout_data, sizing_constraint,
+                                    needs_intrinsic_track_size, &virtual_items);
+  }
+
+  sizing_tree->SetSizingNodeData(node, grid_items, layout_data, virtual_items);
+}
+
+template void BuildGridSizingSubtree(const GridLayoutAlgorithm&,
+                                     const GridLineResolver&,
+                                     GridSizingTree*,
+                                     HeapVector<Member<LayoutBox>>*,
+                                     const SubgriddedItemData&,
+                                     const GridLineResolver*,
+                                     SizingConstraint,
+                                     bool,
+                                     bool,
+                                     bool);
+template void BuildGridSizingSubtree(const GridLanesLayoutAlgorithm&,
+                                     const GridLineResolver&,
+                                     GridSizingTree*,
+                                     HeapVector<Member<LayoutBox>>*,
+                                     const SubgriddedItemData&,
+                                     const GridLineResolver*,
+                                     SizingConstraint,
+                                     bool,
+                                     bool,
+                                     bool);
+
+template <typename LayoutAlgorithmType>
+GridSizingTree BuildGridSizingTree(
+    const LayoutAlgorithmType& algorithm,
+    const GridLineResolver& line_resolver,
+    HeapVector<Member<LayoutBox>>* opt_oof_children,
+    SizingConstraint sizing_constraint,
+    bool needs_intrinsic_track_size) {
+  DCHECK(!algorithm.GetConstraintSpace().GetGridLayoutSubtree());
+
+  GridSizingTree sizing_tree;
+  BuildGridSizingSubtree<LayoutAlgorithmType>(
+      algorithm, line_resolver, &sizing_tree, opt_oof_children,
+      /*opt_subgrid_data=*/kNoSubgriddedItemData,
+      /*opt_parent_line_resolver=*/nullptr, sizing_constraint,
+      /*must_invalidate_placement_cache=*/false, /*must_ignore_children=*/false,
+      needs_intrinsic_track_size);
+  return sizing_tree;
+}
+
+template CORE_EXPORT GridSizingTree
+BuildGridSizingTree(const GridLayoutAlgorithm&,
+                    const GridLineResolver&,
+                    HeapVector<Member<LayoutBox>>*,
+                    SizingConstraint,
+                    bool);
+template CORE_EXPORT GridSizingTree
+BuildGridSizingTree(const GridLanesLayoutAlgorithm&,
+                    const GridLineResolver&,
+                    HeapVector<Member<LayoutBox>>*,
+                    SizingConstraint,
+                    bool);
+
+template <typename LayoutAlgorithmType>
+GridSizingTree BuildGridSizingTreeIgnoringChildren(
+    const LayoutAlgorithmType& algorithm,
+    const GridLineResolver& line_resolver,
+    SizingConstraint sizing_constraint,
+    bool needs_intrinsic_track_size) {
+  DCHECK(!algorithm.GetConstraintSpace().GetGridLayoutSubtree());
+
+  GridSizingTree sizing_tree;
+  BuildGridSizingSubtree<LayoutAlgorithmType>(
+      algorithm, line_resolver, &sizing_tree,
+      /*opt_oof_children=*/nullptr,
+      /*opt_subgrid_data=*/kNoSubgriddedItemData,
+      /*opt_parent_line_resolver=*/nullptr, sizing_constraint,
+      /*must_invalidate_placement_cache=*/false,
+      /*must_ignore_children=*/true, needs_intrinsic_track_size);
+  return sizing_tree;
+}
+
+template GridSizingTree BuildGridSizingTreeIgnoringChildren(
+    const GridLayoutAlgorithm&,
+    const GridLineResolver&,
+    SizingConstraint,
+    bool);
+template GridSizingTree BuildGridSizingTreeIgnoringChildren(
+    const GridLanesLayoutAlgorithm&,
+    const GridLineResolver&,
+    SizingConstraint,
+    bool);
+
+FragmentGeometry CalculateInitialFragmentGeometryForSubgrid(
+    const GridItemData& subgrid_data,
+    const ConstraintSpace& space,
+    const GridSizingSubtree& sizing_subtree) {
+  DCHECK(subgrid_data.IsSubgrid());
+
+  const auto& node = To<GridNode>(subgrid_data.node);
+  {
+    const bool subgrid_has_standalone_columns =
+        subgrid_data.is_parallel_with_root_grid
+            ? !subgrid_data.has_subgridded_columns
+            : !subgrid_data.has_subgridded_rows;
+
+    // We won't be able to resolve the intrinsic sizes of a subgrid if its
+    // tracks are subgridded, i.e., their sizes can't be resolved by the subgrid
+    // itself, or if `sizing_subtree` is not provided, i.e., the grid sizing
+    // tree it's not completed at this step of the sizing algorithm.
+    if (subgrid_has_standalone_columns && sizing_subtree) {
+      return CalculateInitialFragmentGeometry(
+          space, node, /* break_token */ nullptr,
+          [&](SizeType) -> MinMaxSizesResult {
+            return node.ComputeSubgridMinMaxSizes(sizing_subtree, space);
+          });
+    }
+  }
+
+  bool needs_to_compute_min_max_sizes = false;
+
+  const auto fragment_geometry = CalculateInitialFragmentGeometry(
+      space, node, /* break_token */ nullptr,
+      [&needs_to_compute_min_max_sizes](SizeType) -> MinMaxSizesResult {
+        // We can't call `ComputeMinMaxSizes` for a subgrid with an incomplete
+        // grid sizing tree, as its intrinsic size relies on its subtree. If we
+        // end up in this function, we need to use an intrinsic fragment
+        // geometry instead to avoid a cyclic dependency.
+        needs_to_compute_min_max_sizes = true;
+        return MinMaxSizesResult();
+      });
+
+  if (needs_to_compute_min_max_sizes) {
+    return CalculateInitialFragmentGeometry(space, node,
+                                            /* break_token */ nullptr,
+                                            /* is_intrinsic */ true);
+  }
+  return fragment_geometry;
+}
+
+GridLayoutTrackCollection* CreateSubgridTrackCollection(
+    const SubgriddedItemData& subgrid_data,
+    const ComputedStyle& style,
+    const ConstraintSpace& space,
+    const BoxStrut& border_scrollbar_padding,
+    const LogicalSize grid_available_size,
+    GridTrackSizingDirection track_direction) {
+  DCHECK(subgrid_data.IsSubgrid());
+
+  const bool is_for_columns_in_parent = subgrid_data->is_parallel_with_root_grid
+                                            ? track_direction == kForColumns
+                                            : track_direction == kForRows;
+
+  const auto& parent_track_collection =
+      is_for_columns_in_parent ? subgrid_data.Columns() : subgrid_data.Rows();
+  const auto& range_indices = is_for_columns_in_parent
+                                  ? subgrid_data->column_range_indices
+                                  : subgrid_data->row_range_indices;
+
+  return parent_track_collection.CreateSubgridTrackCollection(
+      range_indices.begin, range_indices.end,
+      GridTrackSizingAlgorithm::CalculateGutterSize(
+          style, grid_available_size, track_direction,
+          parent_track_collection.GutterSize()),
+      ComputeMarginsForSelf(space, style), border_scrollbar_padding,
+      track_direction,
+      is_for_columns_in_parent
+          ? subgrid_data->is_opposite_direction_in_root_grid_columns
+          : subgrid_data->is_opposite_direction_in_root_grid_rows);
+}
+
+void InitializeTrackCollection(const SubgriddedItemData& opt_subgrid_data,
+                               const ComputedStyle& style,
+                               const ConstraintSpace& space,
+                               const BoxStrut& border_scrollbar_padding,
+                               const LogicalSize grid_available_size,
+                               GridTrackSizingDirection track_direction,
+                               GridLayoutData* layout_data) {
+  if (layout_data->HasSubgriddedAxis(track_direction)) {
+    // If we don't have a sizing collection for this axis, then we're in a
+    // subgrid that must inherit the track collection of its parent grid.
+    DCHECK(opt_subgrid_data.IsSubgrid());
+
+    layout_data->SetTrackCollection(CreateSubgridTrackCollection(
+        opt_subgrid_data, style, space, border_scrollbar_padding,
+        grid_available_size, track_direction));
+    return;
+  }
+
+  auto& track_collection = layout_data->SizingCollection(track_direction);
+  track_collection.BuildSets(style, grid_available_size);
+}
+
+bool HasBlockSizeDependentGridItem(const GridItems& grid_items) {
+  for (const auto& grid_item : grid_items.IncludeSubgriddedItems()) {
+    if (grid_item.is_sizing_dependent_on_block_size) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void AppendSubgriddedItems(const ComputedStyle& root_grid_style,
+                           GridItems* grid_items) {
+  DCHECK(grid_items);
+
+  for (wtf_size_t i = 0; i < grid_items->Size(); ++i) {
+    auto& current_item = grid_items->At(i);
+
+    if (!current_item.must_consider_grid_items_for_column_sizing &&
+        !current_item.must_consider_grid_items_for_row_sizing) {
+      continue;
+    }
+
+    // TODO(almaher): This should eventually use a GridLanesNode if
+    // required once subgrids are supported for grid lanes items.
+    bool must_invalidate_placement_cache = false;
+    const auto subgrid = To<GridNode>(current_item.node);
+
+    auto* subgridded_items = subgrid.ConstructGridItems(
+        subgrid.CachedLineResolver(), root_grid_style, subgrid.Style(),
+        current_item.must_consider_grid_items_for_column_sizing,
+        current_item.must_consider_grid_items_for_row_sizing,
+        &must_invalidate_placement_cache);
+
+    DCHECK(!must_invalidate_placement_cache)
+        << "We shouldn't need to invalidate the placement cache if we relied "
+           "on the cached line resolver; it must produce the same placement.";
+
+    auto TranslateSubgriddedItem =
+        [&current_item](GridSpan& subgridded_item_span,
+                        GridTrackSizingDirection track_direction) {
+          if (current_item.MustConsiderGridItemsForSizing(track_direction)) {
+            // If a subgrid is in an opposite writing direction to the root
+            // grid, we should "reverse" the subgridded item's span.
+            if (current_item.IsOppositeDirectionInRootGrid(track_direction)) {
+              const wtf_size_t subgrid_span_size =
+                  current_item.SpanSize(track_direction);
+
+              DCHECK_LE(subgridded_item_span.EndLine(), subgrid_span_size);
+
+              subgridded_item_span = GridSpan::TranslatedDefiniteGridSpan(
+                  subgrid_span_size - subgridded_item_span.EndLine(),
+                  subgrid_span_size - subgridded_item_span.StartLine());
+            }
+            subgridded_item_span.Translate(
+                current_item.StartLine(track_direction));
+          }
+        };
+
+    for (auto& subgridded_item : *subgridded_items) {
+      subgridded_item.is_subgridded_to_parent_grid = true;
+      auto& item_position = subgridded_item.resolved_position;
+
+      if (!current_item.is_parallel_with_root_grid) {
+        std::swap(item_position.columns, item_position.rows);
+      }
+
+      TranslateSubgriddedItem(item_position.columns, kForColumns);
+      TranslateSubgriddedItem(item_position.rows, kForRows);
+    }
+    grid_items->Append(subgridded_items);
+  }
+}
+
+LayoutUnit GetSynthesizedLogicalBaseline(
+    const GridItemData& grid_item,
+    LayoutUnit block_size,
+    GridTrackSizingDirection track_direction) {
+  const auto synthesized_baseline = LogicalBoxFragment::SynthesizedBaseline(
+      grid_item.parent_grid_font_baseline,
+      grid_item.BaselineWritingDirection(track_direction).IsFlippedLines(),
+      block_size);
+
+  return grid_item.IsLastBaselineSpecified(track_direction)
+             ? block_size - synthesized_baseline
+             : synthesized_baseline;
 }
 
 }  // namespace blink

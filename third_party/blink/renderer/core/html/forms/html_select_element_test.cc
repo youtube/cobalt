@@ -70,21 +70,14 @@ class HTMLSelectElementTest : public PageTestBase {
     auto* select = To<HTMLSelectElement>(GetDocument().body()->firstChild());
     return select->InnerElement().textContent();
   }
-
- private:
-  bool original_delegates_flag_;
 };
 
 void HTMLSelectElementTest::SetUp() {
   PageTestBase::SetUp();
   GetDocument().SetMimeType(AtomicString("text/html"));
-  original_delegates_flag_ =
-      LayoutTheme::GetTheme().DelegatesMenuListRendering();
 }
 
 void HTMLSelectElementTest::TearDown() {
-  LayoutTheme::GetTheme().SetDelegatesMenuListRenderingForTesting(
-      original_delegates_flag_);
   PageTestBase::TearDown();
 }
 
@@ -555,7 +548,6 @@ TEST_F(HTMLSelectElementTest, SlotAssignmentRecalcDuringOptionRemoval) {
 // crbug.com/1060039
 TEST_F(HTMLSelectElementTest, SelectMultipleOptions) {
   GetDocument().GetSettings()->SetScriptEnabled(true);
-  LayoutTheme::GetTheme().SetDelegatesMenuListRenderingForTesting(true);
 
   // Select the same set of options.
   {
@@ -1092,6 +1084,27 @@ TEST_F(HTMLSelectElementTest, ListItemsNesting) {
   div->appendChild(div_optgroup);
   list_items.push_back(div_optgroup);
   check_selects();
+}
+
+TEST_F(HTMLSelectElementTest, InnerElementOverflow) {
+  SetHtmlInnerHTML(R"HTML(
+    <!DOCTYPE html>
+    <select id=select>
+      <option>option</option>
+    </select>
+  )HTML");
+  HTMLSelectElement* select = To<HTMLSelectElement>(GetElementById("select"));
+  Element& inner_element = select->InnerElement();
+
+  GetDocument().UpdateStyleAndLayoutTree();
+  EXPECT_EQ(inner_element.GetComputedStyle()->OverflowX(), EOverflow::kVisible);
+  EXPECT_EQ(inner_element.GetComputedStyle()->OverflowY(), EOverflow::kVisible);
+
+  select->SetInlineStyleProperty(CSSPropertyID::kTextOverflow,
+                                 CSSValueID::kEllipsis);
+  GetDocument().UpdateStyleAndLayoutTree();
+  EXPECT_EQ(inner_element.GetComputedStyle()->OverflowX(), EOverflow::kHidden);
+  EXPECT_EQ(inner_element.GetComputedStyle()->OverflowY(), EOverflow::kHidden);
 }
 
 class HTMLSelectElementSimTest : public SimTest {};

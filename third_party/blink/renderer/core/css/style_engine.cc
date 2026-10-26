@@ -834,12 +834,12 @@ const ActiveStyleSheetVector StyleEngine::ActiveStyleSheetsForInspector() {
 
   ActiveStyleSheetVector active_style_sheets;
 
-  active_style_sheets.AppendVector(
+  active_style_sheets.append_range(
       GetDocumentStyleSheetCollection().ActiveStyleSheets());
   for (TreeScope* tree_scope : active_tree_scopes_) {
     if (StyleSheetCollection* collection =
             style_sheet_collection_map_.at(tree_scope)) {
-      active_style_sheets.AppendVector(collection->ActiveStyleSheets());
+      active_style_sheets.append_range(collection->ActiveStyleSheets());
     }
   }
 
@@ -1218,7 +1218,7 @@ CSSStyleSheet* StyleEngine::ParseSheet(
     TextPosition start_position,
     RenderBlockingBehavior render_blocking_behavior) {
   CSSStyleSheet* style_sheet = nullptr;
-  style_sheet = CSSStyleSheet::CreateInline(element, NullURL(), start_position,
+  style_sheet = CSSStyleSheet::CreateInline(element, NullUrl(), start_position,
                                             GetDocument().Encoding());
   style_sheet->Contents()->SetRenderBlocking(render_blocking_behavior);
   style_sheet->Contents()->ParseString(text);
@@ -2704,13 +2704,13 @@ void StyleEngine::EnsureUAStyleForForcedColors() {
   }
 }
 
-RuleSet* StyleEngine::DefaultViewTransitionStyle(const Element& element) const {
-  auto* transition = ViewTransitionUtils::GetTransition(element);
+RuleSet* StyleEngine::ActiveViewTransitionStyle(const Element& element) const {
+  ViewTransition* transition = ViewTransitionUtils::GetTransition(element);
   if (!transition) {
     return nullptr;
   }
 
-  auto* css_style_sheet = transition->UAStyleSheet();
+  CSSStyleSheet* css_style_sheet = transition->UAStyleSheet();
   return &css_style_sheet->Contents()->EnsureRuleSet(
       CSSDefaultStyleSheets::ScreenEval(), /*mixins=*/{});
 }
@@ -3834,22 +3834,32 @@ void StyleEngine::UpdateStyleAndLayoutTreeForSizeContainer(
   NthIndexCache nth_index_cache(GetDocument());
 
   UpdateViewportSize();
-  RecalcStyleForSizeContainer(container, change);
 
-  if (container.NeedsReattachLayoutTree()) {
-    ReattachContainerSubtree(container);
-  } else if (NeedsLayoutTreeRebuild()) {
-    if (layout_tree_rebuild_root_.GetRootNode()->IsDocumentNode()) {
-      // Avoid traversing from outside the container root. We know none of the
-      // elements outside the subtree should be marked dirty in this pass, but
-      // we may have fallen back to the document root.
-      layout_tree_rebuild_root_.Clear();
-      layout_tree_rebuild_root_.Update(nullptr, &container);
-    } else {
-      DCHECK(FlatTreeTraversal::ContainsIncludingPseudoElement(
-          container, *layout_tree_rebuild_root_.GetRootNode()));
+  // Emit a probe::RecalculateStyle so that the LoAF API correctly attributes
+  // container query style recalculation to styleDuration rather than
+  // layoutDuration. Without this, style recalc triggered by container queries
+  // during layout would be counted as layout time because it runs inside the
+  // probe::UpdateLayout scope. The AnimationFrameTimingMonitor subtracts style
+  // time that occurs during layout to avoid double-counting.
+  {
+    probe::RecalculateStyle recalculate_style_scope(document_);
+    RecalcStyleForSizeContainer(container, change);
+
+    if (container.NeedsReattachLayoutTree()) {
+      ReattachContainerSubtree(container);
+    } else if (NeedsLayoutTreeRebuild()) {
+      if (layout_tree_rebuild_root_.GetRootNode()->IsDocumentNode()) {
+        // Avoid traversing from outside the container root. We know none of
+        // the elements outside the subtree should be marked dirty in this
+        // pass, but we may have fallen back to the document root.
+        layout_tree_rebuild_root_.Clear();
+        layout_tree_rebuild_root_.Update(nullptr, &container);
+      } else {
+        DCHECK(FlatTreeTraversal::ContainsIncludingPseudoElement(
+            container, *layout_tree_rebuild_root_.GetRootNode()));
+      }
+      RebuildLayoutTree(&container);
     }
-    RebuildLayoutTree(&container);
   }
 
   if (container == GetDocument().documentElement()) {
@@ -4337,7 +4347,7 @@ bool StyleEngine::MarkStyleDirtyAllowed() const {
   return !InRebuildLayoutTree();
 }
 
-bool StyleEngine::SupportsDarkColorScheme() {
+bool StyleEngine::SupportsDarkColorScheme() const {
   return (page_color_schemes_ &
           static_cast<ColorSchemeFlags>(ColorSchemeFlag::kDark)) &&
          (!(page_color_schemes_ &
@@ -4604,7 +4614,7 @@ mojom::blink::ColorScheme StyleEngine::AdjustAboutBlankColorScheme(
   // See https://issues.chromium.org/issues/40190899
 
   const bool likely_user_initiated_aboutblank =
-      GetDocument().IsInMainFrame() && GetDocument().Url().IsAboutBlankURL() &&
+      GetDocument().IsInMainFrame() && GetDocument().Url().IsAboutBlankUrl() &&
       !GetDocument().GetPage()->OpenedByDOM();
   if (preferred_color_scheme_ == mojom::blink::PreferredColorScheme::kDark &&
       likely_user_initiated_aboutblank) {
@@ -4754,6 +4764,7 @@ void StyleEngine::Trace(Visitor* visitor) const {
   visitor->Trace(user_rule_set_groups_);
   visitor->Trace(functional_media_query_results_);
   visitor->Trace(random_base_value_cache_);
+  visitor->Trace(element_keeps_random_caching_key_alive_);
   FontSelectorClient::Trace(visitor);
 }
 
@@ -4990,15 +5001,35 @@ void StyleEngine::NavigationsMayHaveChanged() {
 double StyleEngine::GetCachedRandomBaseValue(
     const RandomValueSharing& random_value_sharing,
     const Element* element) {
+  if (random_value_sharing.IsElementShared()) {
+    ElementSharedRandomValueCache::AddResult element_shared_cache_result =
+        element_shared_random_base_value_cache_.insert(
+            random_value_sharing.Name(), 0);
+    if (element_shared_cache_result.is_new_entry) {
+      element_shared_cache_result.stored_value->value = base::RandDouble();
+    }
+    return element_shared_cache_result.stored_value->value;
+  }
+
   RandomCachingKey* random_caching_key =
       RandomCachingKey::Create(random_value_sharing, element);
-  auto it = random_base_value_cache_.find(random_caching_key);
-  if (it != random_base_value_cache_.end()) {
-    return it->value;
+
+  const RandomCachingKeyLifetimeCache::AddResult&
+      random_caching_key_lifetime_cache_result =
+          element_keeps_random_caching_key_alive_.insert(element, nullptr);
+  if (random_caching_key_lifetime_cache_result.is_new_entry) {
+    random_caching_key_lifetime_cache_result.stored_value->value =
+        MakeGarbageCollected<GCedHeapHashSet<Member<RandomCachingKey>>>();
   }
-  double value = base::RandDouble();
-  random_base_value_cache_.insert(random_caching_key, value);
-  return value;
+  random_caching_key_lifetime_cache_result.stored_value->value->insert(
+      random_caching_key);
+
+  RandomValueCache::AddResult result =
+      random_base_value_cache_.insert(random_caching_key, 0);
+  if (result.is_new_entry) {
+    result.stored_value->value = base::RandDouble();
+  }
+  return result.stored_value->value;
 }
 
 }  // namespace blink

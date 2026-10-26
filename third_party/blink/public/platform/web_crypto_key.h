@@ -51,6 +51,10 @@ enum WebCryptoKeyUsage {
   kWebCryptoKeyUsageWrapKey = 1 << 5,
   kWebCryptoKeyUsageUnwrapKey = 1 << 6,
   kWebCryptoKeyUsageDeriveBits = 1 << 7,
+  kWebCryptoKeyUsageEncapsulateKey = 1 << 8,
+  kWebCryptoKeyUsageEncapsulateBits = 1 << 9,
+  kWebCryptoKeyUsageDecapsulateKey = 1 << 10,
+  kWebCryptoKeyUsageDecapsulateBits = 1 << 11,
   kEndOfWebCryptoKeyUsage,
 };
 
@@ -62,6 +66,10 @@ enum WebCryptoKeyFormat {
   kWebCryptoKeyFormatPkcs8,
   kWebCryptoKeyFormatSpki,
   kWebCryptoKeyFormatJwk,
+  kWebCryptoKeyFormatRawPublic,
+  kWebCryptoKeyFormatRawPrivate,
+  kWebCryptoKeyFormatRawSeed,
+  kWebCryptoKeyFormatRawSecret,
 };
 
 class WebCryptoKeyAlgorithm;

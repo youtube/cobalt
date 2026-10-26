@@ -127,8 +127,30 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Variations.FeatureAccess" enum="FeatureNameHash"
+    expires_after="2026-12-01">
+  <owner>artomczak@google.com</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    Records the hash of the feature name for every feature accessed via
+    base::FeatureList::IsEnabled(). This is recorded once per feature per
+    session to avoid performance overhead.
+  </summary>
+</histogram>
+
+<histogram name="Variations.FeatureAccessEarly" enum="FeatureNameHash"
+    expires_after="2026-12-01">
+  <owner>artomczak@google.com</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    Records the hash of the feature name for every feature accessed via
+    base::FeatureList::IsEnabled() *before* the FeatureList has been
+    initialized. This is recorded once per feature per session.
+  </summary>
+</histogram>
+
 <histogram name="Variations.FieldTriamParamsLogInvalidValue"
-    enum="VariationsLogInvalidValue" expires_after="2026-11-01">
+    enum="FieldTrialNameHash" expires_after="2026-11-01">
   <owner>thiabaud@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -263,26 +285,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram
-    name="Variations.Headers.URLValidationResult{VariationsHeadersURLValidationResult}"
-    enum="VariationsHeadersURLValidationResult" expires_after="2023-11-01">
-  <owner>asvitkine@chromium.org</owner>
-  <owner>src/base/metrics/OWNERS</owner>
-  <summary>
-    The result of whether to append Variations headers to a request. Logged when
-    when determining (i) whether the URL to which the request is being sent
-    should have a variations header and (ii) whether--after a redirect--the
-    request to which a variations header was added should have the variations
-    header removed. {VariationsHeadersURLValidationResult}
-  </summary>
-  <token key="VariationsHeadersURLValidationResult">
-    <variant name=".Append"
-        summary="Result when checking whether to append a header."/>
-    <variant name=".Remove"
-        summary="Result when checking whether to remove a header."/>
-  </token>
-</histogram>
-
 <histogram name="Variations.InvalidLayerReason"
     enum="VariationsInvalidLayerReason" expires_after="2026-09-10">
   <owner>asvitkine@chromium.org</owner>
@@ -349,7 +351,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.LoadSeedSignature" enum="VariationSeedSignature"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>asvitkine@chromium.org</owner>
   <owner>rkaplow@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -591,7 +593,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.SeedFileReadResult.{SeedFile}"
-    enum="VariationsSeedLoadResult" expires_after="2026-06-22">
+    enum="VariationsSeedLoadResult" expires_after="2026-08-23">
   <owner>rcanoaparicio@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -706,7 +708,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.SeedSource.{SeedFile}" enum="SeedSource"
-    expires_after="2026-06-22">
+    expires_after="2026-08-23">
   <owner>rcanoaparicio@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -745,7 +747,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.StickyAfterQuery.Activation"
-    enum="VariationsLogInvalidValue" expires_after="2026-11-01">
+    enum="FieldTrialNameHash" expires_after="2026-11-01">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -756,7 +758,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.StoreSeed.DataSize" units="KiB"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>asvitkine@chromium.org</owner>
   <owner>rkaplow@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -767,7 +769,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Variations.StoreSeed.Time" units="ms"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>

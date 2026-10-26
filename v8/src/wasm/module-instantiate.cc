@@ -47,15 +47,6 @@
 
 namespace v8::internal::wasm {
 
-namespace {
-
-uint8_t* raw_buffer_ptr(MaybeDirectHandle<JSArrayBuffer> buffer, int offset) {
-  return static_cast<uint8_t*>(buffer.ToHandleChecked()->backing_store()) +
-         offset;
-}
-
-}  // namespace
-
 void CreateMapForType(Isolate* isolate, const WasmModule* module,
                       ModuleTypeIndex type_index,
                       DirectHandle<FixedArray> maybe_shared_maps) {
@@ -487,10 +478,7 @@ WellKnownImport CheckForWellKnownImport(
     // if there are concurrent calls to `set_cast_api_signature`, then all calls
     // would store the same signature to the native module.
     if (!native_module->has_fast_api_signature(func_index)) {
-      // We have to use the lock of the NativeModule here because the
-      // `signature_storage` may get accessed by another module instantiation
-      // concurrently.
-      NativeModule::NativeModuleAllocationLockScope lock(native_module);
+      base::MutexGuard lock{&native_module->module()->signature_storage_mutex};
       native_module->set_fast_api_signature(
           func_index,
           GetFunctionSigForFastApiImport(
@@ -863,8 +851,8 @@ class InstanceBuilder {
   DirectHandle<WasmTrustedInstanceData> shared_trusted_data_;
   MaybeDirectHandle<JSReceiver> ffi_;
   MaybeDirectHandle<JSArrayBuffer> asmjs_memory_buffer_;
-  DirectHandle<JSArrayBuffer> untagged_globals_;
-  DirectHandle<JSArrayBuffer> shared_untagged_globals_;
+  DirectHandle<ByteArray> untagged_globals_;
+  DirectHandle<ByteArray> shared_untagged_globals_;
   DirectHandle<FixedArray> tagged_globals_;
   DirectHandle<FixedArray> shared_tagged_globals_;
   DirectHandleVector<WasmTagObject> tags_wrappers_;
@@ -1204,19 +1192,11 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   //--------------------------------------------------------------------------
   uint32_t untagged_globals_buffer_size = module_->untagged_globals_buffer_size;
   if (untagged_globals_buffer_size > 0) {
-    MaybeDirectHandle<JSArrayBuffer> result =
-        isolate_->factory()->NewJSArrayBufferAndBackingStore(
-            untagged_globals_buffer_size, InitializedFlag::kZeroInitialized,
-            AllocationType::kOld);
-
-    if (!result.ToHandle(&untagged_globals_)) {
-      thrower_->RangeError("Out of memory: wasm globals");
-      return {};
-    }
+    untagged_globals_ = isolate_->factory()->NewByteArray(
+        untagged_globals_buffer_size, AllocationType::kOld);
+    std::fill(untagged_globals_->begin(), untagged_globals_->end(), 0);
 
     trusted_data_->set_untagged_globals_buffer(*untagged_globals_);
-    trusted_data_->set_globals_start(
-        reinterpret_cast<uint8_t*>(untagged_globals_->backing_store()));
 
     // TODO(42204563): Do this only if we have a shared untagged global.
     // TODO(42204563): Reinstate once we support shared globals.
@@ -1292,14 +1272,8 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   //--------------------------------------------------------------------------
   // Set up table storage space, and initialize it for non-imported tables.
   //--------------------------------------------------------------------------
-  int table_count = static_cast<int>(module_->tables.size());
-  if (table_count == 0) {
-    trusted_data_->set_tables(*isolate_->factory()->empty_fixed_array());
-    if (shared) {
-      shared_trusted_data_->set_tables(
-          *isolate_->factory()->empty_fixed_array());
-    }
-  } else {
+  const uint32_t table_count = static_cast<uint32_t>(module_->tables.size());
+  if (table_count > 0) {
     DirectHandle<FixedArray> tables =
         isolate_->factory()->NewFixedArray(table_count);
     DirectHandle<ProtectedFixedArray> dispatch_tables =
@@ -1316,7 +1290,7 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
       shared_trusted_data_->set_tables(*shared_tables);
       shared_trusted_data_->set_dispatch_tables(*shared_dispatch_tables);
     }
-    for (int i = module_->num_imported_tables; i < table_count; i++) {
+    for (uint32_t i = module_->num_imported_tables; i < table_count; i++) {
       const WasmTable& table = module_->tables[i];
       CanonicalValueType canonical_type = module_->canonical_type(table.type);
       // Initialize tables with null for now. We will initialize non-defaultable
@@ -1758,17 +1732,18 @@ void InstanceBuilder::LoadDataSegments() {
 void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
                                        const WasmValue& value) {
   TRACE("init [globals_start=%p + %u] = %s, type = %s\n",
-        global.type.is_ref()
-            ? reinterpret_cast<uint8_t*>(tagged_globals_->address())
-            : raw_buffer_ptr(untagged_globals_, 0),
-        global.offset, value.to_string().c_str(), global.type.name().c_str());
+        reinterpret_cast<uint8_t*>(global.type.is_ref()
+                                       ? tagged_globals_->address()
+                                       : untagged_globals_->address()),
+        global.index_in_buffer, value.to_string().c_str(),
+        global.type.name().c_str());
   DCHECK(global.mutability
              ? (value.type() == module_->canonical_type(global.type))
              : IsSubtypeOf(value.type(), module_->canonical_type(global.type)));
   if (global.type.is_numeric()) {
     value.CopyTo(GetRawUntaggedGlobalPtr<uint8_t>(global));
   } else {
-    tagged_globals_->set(global.offset, *value.to_ref());
+    tagged_globals_->set(global.index_in_buffer, *value.to_ref());
   }
 }
 
@@ -1839,9 +1814,10 @@ void InstanceBuilder::SanitizeImports() {
         import.module_name.length() == magic_string_constants.size() &&
         std::equal(magic_string_constants.begin(), magic_string_constants.end(),
                    wire_bytes_.begin() + import.module_name.offset())) {
+      bool shared = module_->globals[import.index].type.is_shared();
       DirectHandle<String> value =
           WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-              isolate_, wire_bytes_, import.field_name, kNoInternalize);
+              isolate_, wire_bytes_, import.field_name, kNoInternalize, shared);
       sanitized_imports_[index] = value;
       continue;
     }
@@ -2125,29 +2101,12 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     return false;
   }
   if (global.mutability) {
-    DCHECK_LT(global.index, module_->num_imported_mutable_globals);
-    DirectHandle<Object> buffer;
-    if (global.type.is_ref()) {
-      static_assert(sizeof(global_object->offset()) <= sizeof(Address),
-                    "The offset into the globals buffer does not fit into "
-                    "the imported_mutable_globals array");
-      buffer = direct_handle(global_object->tagged_buffer(), isolate_);
-      // For externref globals we use a relative offset, not an absolute
-      // address.
-      trusted_instance_data->imported_mutable_globals()->set(
-          global.index, global_object->offset());
-    } else {
-      buffer = direct_handle(global_object->untagged_buffer(), isolate_);
-      // It is safe in this case to store the raw pointer to the buffer
-      // since the backing store of the JSArrayBuffer will not be
-      // relocated.
-      Address address = reinterpret_cast<Address>(
-          raw_buffer_ptr(Cast<JSArrayBuffer>(buffer), global_object->offset()));
-      trusted_instance_data->imported_mutable_globals()->set_sandboxed_pointer(
-          global.index, address);
-    }
-    trusted_instance_data->imported_mutable_globals_buffers()->set(global.index,
-                                                                   *buffer);
+    DCHECK_LT(global.mutable_imported_global_index,
+              module_->num_imported_mutable_globals);
+    trusted_instance_data->imported_mutable_globals_buffers()->set(
+        global.mutable_imported_global_index, global_object->buffer());
+    trusted_instance_data->imported_mutable_globals_offsets()->set(
+        global.mutable_imported_global_index, global_object->offset());
     return true;
   }
 
@@ -2456,9 +2415,11 @@ bool InstanceBuilder::ProcessImportedMemories(
 
 template <typename T>
 T* InstanceBuilder::GetRawUntaggedGlobalPtr(const WasmGlobal& global) {
-  return reinterpret_cast<T*>(raw_buffer_ptr(
-      global.shared ? shared_untagged_globals_ : untagged_globals_,
-      global.offset));
+  DCHECK(!global.type.is_ref());
+  DirectHandle<ByteArray> buffer =
+      global.shared ? shared_untagged_globals_ : untagged_globals_;
+  return reinterpret_cast<T*>(
+      buffer->address() + ByteArray::OffsetOfElementAt(global.index_in_buffer));
 }
 
 // Process initialization of globals.
@@ -2474,7 +2435,7 @@ void InstanceBuilder::InitGlobals() {
 
     if (global.type.is_ref()) {
       (global.shared ? shared_tagged_globals_ : tagged_globals_)
-          ->set(global.offset, *to_value(result).to_ref());
+          ->set(global.index_in_buffer, *to_value(result).to_ref());
     } else {
       to_value(result).CopyTo(GetRawUntaggedGlobalPtr<uint8_t>(global));
     }
@@ -2608,54 +2569,38 @@ void InstanceBuilder::ProcessExports() {
             break;
           }
         }
-        DirectHandle<JSArrayBuffer> untagged_buffer;
-        DirectHandle<FixedArray> tagged_buffer;
+
+        Tagged<WasmGlobalObject::BufferType> buffer;
         uint32_t offset;
-
         if (global.mutability && global.imported) {
-          DirectHandle<FixedArray> buffers_array(
-              maybe_shared_data->imported_mutable_globals_buffers(), isolate_);
-          if (global.type.is_ref()) {
-            tagged_buffer = direct_handle(
-                Cast<FixedArray>(buffers_array->get(global.index)), isolate_);
-            // For externref globals we store the relative offset in the
-            // imported_mutable_globals array instead of an absolute address.
-            offset = static_cast<uint32_t>(
-                maybe_shared_data->imported_mutable_globals()->get(
-                    global.index));
-          } else {
-            untagged_buffer = direct_handle(
-                Cast<JSArrayBuffer>(buffers_array->get(global.index)),
-                isolate_);
-            Address global_addr = maybe_shared_data->imported_mutable_globals()
-                                      ->get_sandboxed_pointer(global.index);
-
-            size_t buffer_size = untagged_buffer->GetByteLength();
-            Address backing_store =
-                reinterpret_cast<Address>(untagged_buffer->backing_store());
-            CHECK(global_addr >= backing_store &&
-                  global_addr < backing_store + buffer_size);
-            offset = static_cast<uint32_t>(global_addr - backing_store);
-          }
+          buffer = Cast<WasmGlobalObject::BufferType>(
+              maybe_shared_data->imported_mutable_globals_buffers()->get(
+                  global.mutable_imported_global_index));
+          offset = static_cast<uint32_t>(
+              maybe_shared_data->imported_mutable_globals_offsets()->get(
+                  global.mutable_imported_global_index));
         } else {
           if (global.type.is_ref()) {
-            tagged_buffer = direct_handle(
-                maybe_shared_data->tagged_globals_buffer(), isolate_);
+            buffer = maybe_shared_data->tagged_globals_buffer();
+            offset = FixedArray::OffsetOfElementAt(global.index_in_buffer);
           } else {
-            untagged_buffer = direct_handle(
-                maybe_shared_data->untagged_globals_buffer(), isolate_);
+            buffer = maybe_shared_data->untagged_globals_buffer();
+            offset = ByteArray::OffsetOfElementAt(global.index_in_buffer);
           }
-          offset = global.offset;
         }
 
-        // Since the global's array untagged_buffer is always provided,
-        // allocation should never fail.
-        DirectHandle<WasmGlobalObject> global_obj =
-            WasmGlobalObject::New(isolate_, maybe_shared_data, untagged_buffer,
-                                  tagged_buffer, global.type, offset,
-                                  global.mutability)
-                .ToHandleChecked();
-        value = global_obj;
+        // Note: For mutable imported globals we store the offset adjusted for
+        // `kHeapObjectTag` (so it's an offset from the tagged address). This
+        // avoids having to subtract that on every access, making generated code
+        // smaller.
+        offset -= kHeapObjectTag;
+
+        // Since the global's buffer is always provided, allocation should never
+        // fail.
+        value = WasmGlobalObject::New(isolate_, maybe_shared_data,
+                                      direct_handle(buffer, isolate_),
+                                      global.type, offset, global.mutability)
+                    .ToHandleChecked();
         break;
       }
       case kExternalTag: {

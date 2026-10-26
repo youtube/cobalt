@@ -26,6 +26,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/scoped_observation.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
@@ -38,10 +39,11 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
@@ -98,6 +100,7 @@
 #include "ui/views/controls/native/native_view_host.h"
 #include "ui/views/test/widget_activation_waiter.h"
 #include "ui/views/view.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/window/dialog_delegate.h"
 
@@ -354,7 +357,7 @@ class QuitDraggingObserver {
 //   by releasing the mouse or cancelling the DnD session;
 // - else, that the move loop ends, i.e. attaching to an existing browser or
 //   fully ending the tab drag.
-class BrowserChangeWaiter : public BrowserListObserver {
+class BrowserChangeWaiter : public BrowserCollectionObserver {
  public:
   enum class ChangeType {
     kAdded,
@@ -362,11 +365,12 @@ class BrowserChangeWaiter : public BrowserListObserver {
   };
 
   explicit BrowserChangeWaiter(ChangeType type) : type_(type) {
-    BrowserList::AddObserver(this);
+    browser_collection_observation_.Observe(
+        GlobalBrowserCollection::GetInstance());
   }
   BrowserChangeWaiter(const BrowserChangeWaiter&) = delete;
   BrowserChangeWaiter& operator=(const BrowserChangeWaiter&) = delete;
-  ~BrowserChangeWaiter() override { BrowserList::RemoveObserver(this); }
+  ~BrowserChangeWaiter() override = default;
 
   // The closure must ensure the system DnD session/move loop ends (see comment
   // above).
@@ -375,14 +379,14 @@ class BrowserChangeWaiter : public BrowserListObserver {
     run_loop_.Run();
   }
 
-  // BrowserListObserver:
-  void OnBrowserAdded(Browser* browser) override {
+  // BrowserCollectionObserver:
+  void OnBrowserCreated(BrowserWindowInterface* browser) override {
     if (type_ == ChangeType::kAdded) {
       Quit();
     }
   }
 
-  void OnBrowserRemoved(Browser* browser) override {
+  void OnBrowserClosed(BrowserWindowInterface* browser) override {
     if (type_ == ChangeType::kRemoved) {
       Quit();
     }
@@ -400,16 +404,21 @@ class BrowserChangeWaiter : public BrowserListObserver {
     quit_called_ = true;
     if (closure_) {
       // For ChangeType::kRemoved, the browser is still closing and
-      // synchronously running the closure now can lead to reentrancy issues, so
-      // we instead PostTask() it. We also need to make sure we only quit the
-      // RunLoop after the closure has run.
+      // synchronously running the closure now can lead to reentrancy issues,
+      // so we instead PostTask() it. We also need to make sure we only quit
+      // the RunLoop after the closure has run.
+      // Use a double-PostTask to leverage SequencedTaskRunner FIFO ordering:
+      // the first PostTask runs before SynchronouslyDestroyBrowser (enqueued
+      // later in OnWindowClosing), and the second runs after it, ensuring the
+      // closure executes after ~Browser() completes. See crbug.com/431671320.
       // It won't hurt to use the same approach for ChangeType::kAdded.
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE,
           base::BindOnce(
               [](base::OnceClosure closure, base::OnceClosure quit_closure) {
-                std::move(closure).Run();
-                std::move(quit_closure).Run();
+                base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+                    FROM_HERE,
+                    std::move(closure).Then(std::move(quit_closure)));
               },
               std::move(closure_), run_loop_.QuitClosure()));
     } else {
@@ -421,6 +430,8 @@ class BrowserChangeWaiter : public BrowserListObserver {
   bool quit_called_ = false;
   base::OnceClosure closure_;
   base::RunLoop run_loop_{base::RunLoop::Type::kNestableTasksAllowed};
+  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+      browser_collection_observation_{this};
 };
 
 void SetID(WebContents* web_contents, int id) {
@@ -1913,9 +1924,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
 
   AddTabsAndResetBrowser(browser(), 1);
+  ui_test_utils::WaitForBrowserSetLastActive(browser());
 
   // Create another browser.
   Browser* browser2 = CreateAnotherBrowserAndResize();
+  ui_test_utils::WaitForBrowserSetLastActive(browser2);
   TabStrip* tab_strip2 = GetTabStripForBrowser(browser2);
 
   Tab* tab = tab_strip->tab_at(0);
@@ -3312,9 +3325,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
 
   AddTabsAndResetBrowser(browser(), 1);
+  ui_test_utils::WaitForBrowserSetLastActive(browser());
 
   // Create another browser.
   Browser* browser2 = CreateAnotherBrowserAndResize();
+  ui_test_utils::WaitForBrowserSetLastActive(browser2);
   TabStrip* tab_strip2 = GetTabStripForBrowser(browser2);
 
   browser()->tab_strip_model()->SelectTabAt(0);
@@ -3352,8 +3367,10 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 #endif  // BUILDFLAG(IS_WIN)
           }));
 
-  ASSERT_FALSE(IsDragSessionActive(new_tab_strip));
-  ASSERT_FALSE(TabDragController::IsActive());
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return !IsDragSessionActive(new_tab_strip) &&
+           !TabDragController::IsActive();
+  }));
   EXPECT_EQ("100", IDString(browser2->tab_strip_model()));
   EXPECT_EQ("0 1", IDString(new_browser->tab_strip_model()));
   EXPECT_FALSE(GetIsDragged(new_browser));
@@ -3804,10 +3821,10 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 }
 
 // Creates a browser with four tabs. The first two tabs belong in Tab Group 1.
-// Dragging the collapsed group header of Tab Group 1 will result in Tab Group 1
-// expanding.
+// Dragging the collapsed group header of Tab Group 1 will not expand the
+// group.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
-                       DragCollapsedGroupHeaderExpandsGroup) {
+                       DragCollapsedGroupHeaderRemainsCollapsed) {
   ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
 
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
@@ -3825,14 +3842,14 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   ASSERT_EQ(4, model->count());
   ASSERT_EQ(2u, group_model->GetTabGroup(group)->ListTabs().length());
 
-  // Drag group1, this should expand the group.
+  // Drag group1, group should remain collapsed.
   ASSERT_TRUE(PressInputAtCenter(tab_strip->group_header(group)));
   ASSERT_TRUE(DragInputToCenter(tab_strip->tab_at(1)));
   ASSERT_TRUE(TabDragController::IsActive());
-  EXPECT_FALSE(model->IsGroupCollapsed(group));
+  EXPECT_TRUE(model->IsGroupCollapsed(group));
   ASSERT_TRUE(ReleaseInput());
   StopAnimating(tab_strip);
-  EXPECT_FALSE(model->IsGroupCollapsed(group));
+  EXPECT_TRUE(model->IsGroupCollapsed(group));
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -4767,7 +4784,7 @@ namespace {
 bool WebContentsIsFastResized(BrowserWindowInterface* browser) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
   ContentsWebView* contents_web_view =
-      static_cast<ContentsWebView*>(browser_view->GetContentsView());
+      views::AsViewClass<ContentsWebView>(browser_view->GetContentsView());
   return contents_web_view->holder()->fast_resize();
 }
 

@@ -24,7 +24,6 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio/audio_device.h"
 #include "api/audio/audio_processing_statistics.h"
 #include "api/candidate.h"
@@ -75,6 +74,7 @@
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/strings/string_builder.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
@@ -1733,7 +1733,9 @@ void RTCStatsCollector::ProduceMediaSourceStats_s(
     const TrackMediaInfoMap& track_media_info_map =
         *transceiver_stats_info.track_media_info_map;
 
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
     for (const auto& sender : refs.transceiver->senders()) {
+      RTC_ALLOW_PLAN_B_DEPRECATION_END()
       const auto& sender_internal = sender->internal();
       const auto& track = sender_internal->track();
       if (!track)
@@ -1746,7 +1748,7 @@ void RTCStatsCollector::ProduceMediaSourceStats_s(
       // levels are moved to the corresponding audio track/source object), don't
       // create separate media source stats objects on a per-attachment basis.
       std::unique_ptr<RTCMediaSourceStats> media_source_stats;
-      if (track->kind() == MediaStreamTrackInterface::kAudioKind) {
+      if (sender_internal->media_type() == MediaType::AUDIO) {
         AudioTrackInterface* audio_track =
             static_cast<AudioTrackInterface*>(track.get());
         auto audio_source_stats = std::make_unique<RTCAudioSourceStats>(
@@ -2264,6 +2266,7 @@ RTCStatsCollector::PrepareTransportCertificateStats_n(
 absl::AnyInvocable<RTCStatsCollector::WorkerThreadResult()>
 RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
   RTC_DCHECK_RUN_ON(signaling_thread_);
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
 
   std::vector<RtpTransceiverStatsInfo> transceiver_stats_infos;
   std::vector<TransceiverReferences> transceiver_references;
@@ -2293,6 +2296,7 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
     TransceiverReferences refs{.transceiver =
                                    scoped_refptr<RtpTransceiver>(transceiver)};
 
+    RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN()
     for (const auto& sender : transceiver->senders()) {
       stats.sender_infos.push_back(
           {.ssrc = sender->ssrc(),
@@ -2307,6 +2311,7 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
       refs.receivers.push_back(
           scoped_refptr<RtpReceiverInternal>(receiver->internal()));
     }
+    RTC_ALLOW_PLAN_B_DEPRECATION_END()
     stats.has_receivers = !refs.receivers.empty();
 
     if (stats.has_channel) {
@@ -2383,6 +2388,27 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
         continue;
       }
 
+      std::vector<RtpParameters> sender_parameters;
+      for (const auto& sender : stats.sender_infos) {
+        RtpParameters params;
+        if (sender.ssrc != 0 && stats.has_channel) {
+          auto& transceiver = refs.transceiver;
+          MediaSendChannelInterface* media_channel =
+              (stats.media_type == MediaType::AUDIO)
+                  ? static_cast<MediaSendChannelInterface*>(
+                        transceiver->voice_media_send_channel())
+                  : static_cast<MediaSendChannelInterface*>(
+                        transceiver->video_media_send_channel());
+          if (media_channel) {
+            params = media_channel->GetRtpSendParameters(sender.ssrc);
+          }
+        }
+        // `sender_parameters` must be the same size as `stats.sender_infos` to
+        // allow 1:1 mapping when TrackMediaInfoMap is constructed. Empty params
+        // are safely ignored since they have no encodings/SSRCs.
+        sender_parameters.push_back(std::move(params));
+      }
+
       std::vector<RtpParameters> receiver_parameters;
       for (const auto& receiver : refs.receivers) {
         receiver_parameters.push_back(receiver->GetParameters());
@@ -2411,8 +2437,8 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
 
       stats.track_media_info_map = std::make_unique<TrackMediaInfoMap>(
           std::move(voice_media_info), std::move(video_media_info),
-          std::move(stats.sender_infos), std::move(stats.receiver_infos),
-          std::move(receiver_parameters));
+          std::move(stats.sender_infos), std::move(sender_parameters),
+          std::move(stats.receiver_infos), std::move(receiver_parameters));
       if (stats.media_type == MediaType::AUDIO) {
         has_audio_receiver |= stats.has_receivers;
       }

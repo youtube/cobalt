@@ -136,6 +136,10 @@ DOMHighResTimeStamp PerformanceScriptTiming::forcedStyleDuration() const {
   return info_->StyleDuration().InMilliseconds();
 }
 
+DOMHighResTimeStamp PerformanceScriptTiming::forcedLayoutDuration() const {
+  return info_->LayoutDuration().InMilliseconds();
+}
+
 DOMHighResTimeStamp PerformanceScriptTiming::pauseDuration() const {
   return info_->PauseDuration().InMilliseconds();
 }
@@ -198,8 +202,10 @@ void PerformanceScriptTiming::BuildJSONValue(V8ObjectBuilder& builder) const {
   builder.AddNumber("executionStart", executionStart());
   builder.AddNumber("forcedStyleAndLayoutDuration",
                     forcedStyleAndLayoutDuration());
-  if (RuntimeEnabledFeatures::LongAnimationFrameStyleDurationEnabled()) {
+  if (RuntimeEnabledFeatures::LongAnimationFrameStyleDurationEnabled(
+          ExecutionContext::From(builder.GetScriptState()))) {
     builder.AddNumber("forcedStyleDuration", forcedStyleDuration());
+    builder.AddNumber("forcedLayoutDuration", forcedLayoutDuration());
   }
   builder.AddNumber("pauseDuration", pauseDuration());
   builder.AddString("sourceURL", sourceURL());

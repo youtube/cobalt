@@ -61,9 +61,8 @@ class CORE_EXPORT ElementInternals : public ScriptWrappable,
   LabelsNodeList* labels(ExceptionState& exception_state);
   CustomStateSet* states();
 
-  // Type attribute accessors
-  String type() const;
-  void setType(const String& value);
+  String ToolParamSchema() const;
+  void setToolParamSchema(const String& schema);
 
   bool HasState(const AtomicString& state) const;
 
@@ -132,6 +131,8 @@ class CORE_EXPORT ElementInternals : public ScriptWrappable,
   bool ShouldSaveAndRestoreFormControlState() const override;
   FormControlState SaveFormControlState() const override;
   void RestoreFormControlState(const FormControlState& state) override;
+  // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#barred-from-constraint-validation
+  bool ReadOnlyPreventsConstraintValidation() const final { return true; }
 
   Member<HTMLElement> target_;
 
@@ -140,7 +141,7 @@ class CORE_EXPORT ElementInternals : public ScriptWrappable,
   bool is_disabled_ = false;
   Member<ValidityStateFlags> validity_flags_;
   Member<Element> validation_anchor_;
-  String type_;
+  String tool_param_schema_;
   Member<CustomStateSet> custom_states_;
 
   HashMap<QualifiedName, AtomicString> accessibility_semantics_map_;

@@ -4,8 +4,6 @@
 
 import("//ui/webui/resources/tools/build_webui.gni")
 
-assert(enable_glic)
-
 build_webui("build") {
   grd_prefix = "glic_fre"
 
@@ -38,7 +36,7 @@ build_webui("build") {
     "//tools/typescript/definitions/chrome_event.d.ts",
     "//tools/typescript/definitions/context_menus.d.ts",
     "//tools/typescript/definitions/extension_types.d.ts",
-    "//tools/typescript/definitions/metrics_private.d.ts",
+    "//tools/typescript/definitions/chrome_histograms.d.ts",
     "//tools/typescript/definitions/tabs.d.ts",
     "//tools/typescript/definitions/web_request.d.ts",
     "//tools/typescript/definitions/webview_tag.d.ts",

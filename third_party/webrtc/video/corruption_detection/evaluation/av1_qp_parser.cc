@@ -12,15 +12,15 @@
 
 #include <cstdint>
 #include <optional>
+#include <span>
 
-#include "api/array_view.h"
 #include "third_party/libgav1/src/src/buffer_pool.h"
 #include "third_party/libgav1/src/src/gav1/status_code.h"
 #include "third_party/libgav1/src/src/obu_parser.h"
 
 namespace webrtc {
 
-std::optional<uint32_t> Av1QpParser::Parse(ArrayView<const uint8_t> frame_data,
+std::optional<uint32_t> Av1QpParser::Parse(std::span<const uint8_t> frame_data,
                                            int operating_point) {
   libgav1::RefCountedBufferPtr curr_frame;
   libgav1::ObuParser parser(frame_data.data(), frame_data.size(),

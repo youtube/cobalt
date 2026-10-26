@@ -312,7 +312,7 @@ std::unique_ptr<syncer::EntityData> MakeEntityData(
     bool redirect_chain_middle_trimmed,
     const GURL& referrer_url,
     const std::vector<GURL>& favicon_urls,
-    int64_t local_cluster_id,
+    ClusterId local_cluster_id,
     std::vector<VisitID>* included_visit_ids,
     std::optional<std::string> app_id) {
   DCHECK(!local_cache_guid.empty());
@@ -455,7 +455,7 @@ std::unique_ptr<syncer::EntityData> MakeEntityData(
     }
   }
 
-  history->set_originator_cluster_id(local_cluster_id);
+  history->set_originator_cluster_id(local_cluster_id.value());
   if (app_id) {
     history->set_app_id(*app_id);
   }
@@ -761,6 +761,14 @@ std::string HistorySyncBridge::GetStorageKey(
   const sync_pb::HistorySpecifics& history = entity_data.specifics.history();
   return HistorySyncMetadataDatabase::StorageKeyFromMicrosSinceWindowsEpoch(
       history.visit_time_windows_epoch_micros());
+}
+
+sync_pb::EntitySpecifics
+HistorySyncBridge::TrimAllSupportedFieldsFromRemoteSpecifics(
+    const sync_pb::EntitySpecifics& entity_specifics) const {
+  // Clears all fields by default to avoid the memory and I/O overhead of an
+  // additional copy of the data.
+  return sync_pb::EntitySpecifics();
 }
 
 bool HistorySyncBridge::IsEntityDataValid(
@@ -1100,7 +1108,7 @@ HistorySyncBridge::QueryRedirectChainAndMakeEntityData(
     // Note: `local_cluster_id` can legitimately be 0 and only get it for the
     // first visit, as the cluster id for everything in the redirect chain
     // should be the same (except potentially in unit tests).
-    int64_t local_cluster_id = history_backend_->GetClusterIdContainingVisit(
+    ClusterId local_cluster_id = history_backend_->GetClusterIdContainingVisit(
         redirect_visits.front().visit_id);
     entities.push_back(MakeEntityData(GetLocalCacheGuid(), annotated_visits,
                                       chain_middle_trimmed, referrer_url,
@@ -1172,7 +1180,7 @@ bool HistorySyncBridge::AddEntityInBackend(
       cluster_visit.annotated_visit.visit_row.visit_id = added_visit_id;
       history_backend_->AddVisitToSyncedCluster(
           cluster_visit, specifics.originator_cache_guid(),
-          specifics.originator_cluster_id());
+          ClusterId(specifics.originator_cluster_id()));
     }
 
     // Remapping chain extremities (i.e. first and last visit in the chain) via

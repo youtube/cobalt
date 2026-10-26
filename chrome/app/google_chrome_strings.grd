@@ -758,17 +758,26 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_DEFAULT_BROWSER_MODAL_BODY_WITH_SETTINGS_ILLUSTRATION" desc="Body text of the default browser modal with settings illustration.">
           Keep your passwords, bookmarks, and history perfectly synced across devices. Easily access the features you know and love by updating your default browser to Chrome.
         </message>
+        <message name="IDS_DEFAULT_BROWSER_MODAL_BODY_WITH_SETTINGS_ILLUSTRATION_UNPINNED" desc="Body text of the default browser modal with settings illustration when Chrome is not pinned to the taskbar.">
+          Keep your passwords, bookmarks, and history perfectly synced across devices. Easily access the features you know and love by updating your default browser to Chrome. Chrome will be pinned to your taskbar for quick access.
+        </message>
         <message name="IDS_DEFAULT_BROWSER_MODAL_TITLE_WITHOUT_SETTINGS_ILLUSTRATION" desc="Title of the default browser modal without settings illustration.">
           Use Google recommended browser settings
         </message>
         <message name="IDS_DEFAULT_BROWSER_MODAL_BODY_WITHOUT_SETTINGS_ILLUSTRATION" desc="Body text of the default browser modal without settings illustration.">
+          Get easy access to the features you know, love, and trust by setting Chrome as your default browser.
+        </message>
+        <message name="IDS_DEFAULT_BROWSER_MODAL_BODY_WITHOUT_SETTINGS_ILLUSTRATION_UNPINNED" desc="Body text of the default browser modal without settings illustration when Chrome is not pinned to the taskbar.">
           Get easy access to the features you know, love, and trust by setting Chrome as your default browser. Chrome will be pinned to your taskbar for quick access.
         </message>
         <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_TITLE" desc="Title of the dialog prompting the user to set Chrome as the default browser.">
-          Use Google recommended browser settings
+          Set Chrome as your default browser
         </message>
         <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_BODY" desc="Main explanatory text in the default browser dialog.">
           Get easy access to the features you know, love, and trust by setting Chrome as your default browser.
+        </message>
+        <message name="IDS_DEFAULT_BROWSER_BUBBLE_DIALOG_STEPS_PINNED_COMBINED" desc="Numbered instructions. $1, $2 and $3 are the bold button names.">
+          1. Click <ph name="BUTTON_LABEL">$1<ex>Open settings</ex></ph> below&#xA;2. Click <ph name="BUTTON_2">$2<ex>Set default</ex></ph> in your Windows settings&#xA;3. Click <ph name="BUTTON_3">$3<ex>Yes</ex></ph> in the Windows notification to pin Chrome to your taskbar for quick access
         </message>
       </if>
       <if expr="is_win or is_macosx">
@@ -923,6 +932,12 @@ Google Chrome is unable to recover your settings.
         </message>
         <message name="IDS_EXTENSIONS_MV2_DEPRECATION_PANEL_REMOVE_BUTTON_ACC_LABEL" desc="The (accessible) label for the button to remove an extension.">
           Remove <ph name="EXTENSION_NAME">$1<ex>Google Translate</ex></ph> from Chrome
+        </message>
+        <message name="IDS_EXTENSIONS_MENU_ZERO_STATE_DESC" desc="Description in the Extensions Menu when there are no extensions installed." formatter_data="android_java">
+          Extensions are add-ons that let you customize Chrome. From staying organized, to simplifying everyday tasks, extensions help you make Chrome your own.
+        </message>
+        <message name="IDS_OPEN_WEB_STORE_BUTTON_TEXT" desc="Text for the open Chrome Web Store button." formatter_data="android_java">
+          Open Chrome Web Store
         </message>
       </if>
 
@@ -1124,6 +1139,14 @@ Google Chrome is unable to recover your settings.
         Settings, opens in new tab.
       </message>
 
+      <!-- Signin Search AI Mode promo -->
+      <message name="IDS_AI_SIGNIN_PROMO_SUBTITLE" desc="The message shown in a sign-in promo bubble that is shown to users not signed-in to the browser when they click in an AI Mode Search result link.">
+        To ask AI Mode about your tab without leaving the page, sign in to Chrome. You'll also get your passwords and more on all your devices.
+      </message>
+      <message name="IDS_AI_SIGNIN_PROMO_AVATAR_PILL_TEXT" translateable="false" meaning="Text shown on the expanded avatar pill when the Signin Search AI Bubble promo is shown to the user">
+        Sign in to Chrome?
+      </message>
+
       <!-- Enterprise sign-in dialog -->
       <message name="IDS_ENTERPRISE_VALUE_PROPOSITION_PROFILE_REQUIRED_BY_ORG_TITLE" desc="Title of the screen in the profile creation flow where the user is asked whether they want to confirm signing in to Chrome with their enterprise account when it is mandatory to sign in to Chrome with the enterprise account.">
         Your organization requires you to sign into Chrome
@@ -1203,6 +1226,12 @@ Google Chrome is unable to recover your settings.
       <if expr="not is_android">
         <message name="IDS_NTP_CUSTOMIZATION_PROMO" desc="The text shown in the body of the New Tab Page browser customization promotion">
           Customize Chrome to give your browser a new look
+        </message>
+        <message name="IDS_NTP_MOBILE_PROMO_TITLE" desc="Title of the NTP promo that promotes Chrome on mobile.">
+          Get Chrome on your phone
+        </message>
+        <message name="IDS_NTP_MOBILE_PROMO_PASSWORDS_TITLE" desc="Title of the NTP promo that promotes Chrome on mobile for passwords.">
+          Get the Chrome app to save passwords on the go
         </message>
         <message name="IDS_NTP_SIGN_IN_PROMO_WITH_BOOKMARKS" desc="The text shown in the body of the New Tab Page sign in promotion">
           Sign in to Chrome to get your passwords, bookmarks, and more on all your devices
@@ -1576,6 +1605,14 @@ Google Chrome is unable to recover your settings.
       </message>
       <message name="IDS_EXTENSIONS_SETTINGS_API_SECOND_LINE_START_AND_SEARCH" desc="Second line in the Settings API bubble. Only shown if the secondary change by the extension was both the start page and the search engine. See IDS_EXTENSIONS_SETTINGS_API_SECOND_LINE_START_PAGES for reason for triple quotes.">
         ''' It also controls what page is shown when you start Chrome or search from the Omnibox. '''
+      </message>
+
+      <!-- Search Settings Page -->
+      <message name="IDS_SETTINGS_SEARCH_EXTENSION_ENGINES_ACTIVE_SHORTCUTS_EXPLANATION" desc="Subtitle for the active features and extensions subsection, explaining how they can be used.">
+        To search a specific Chrome feature or extension, type its shortcut in the address bar, followed by your selected keyboard key
+      </message>
+      <message name="IDS_SETTINGS_SEARCH_EXTENSION_ENGINES_INACTIVE_SHORTCUTS_EXPLANATION" desc="Subtitle for the inactive features and extensions subsection, explaining how they can be used.">
+        Some Chrome features and extensions come with shortcuts. You can choose to turn them back on.
       </message>
 
       <!-- Webstore strings -->
@@ -2306,6 +2343,18 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_AVATAR_BUTTON_MAKING_CHROME_YOURS" desc="The avatar button label when the user has just signed in. When clicked, it opens the profile menu.">
           Making Chrome yours...
         </message>
+
+        <!-- Sign-in Promo Avatar Button Label Desktop -->
+        <if expr="not use_titlecase">
+          <message name="IDS_AVATAR_BUTTON_SIGNIN_PROMO" desc="The avatar button promo label inviting the user to sign-in. Shown for signed out users, and signed in to the web only. When clicked, it opens the profile menu.">
+            Sign in to Chrome?
+          </message>
+        </if>
+        <if expr="use_titlecase">
+           <message name="IDS_AVATAR_BUTTON_SIGNIN_PROMO" desc="The avatar button promo label inviting the user to sign-in. Shown for signed out users, and signed in to the web only. When clicked, it opens the profile menu.">
+            Sign In to Chrome?
+          </message>
+        </if>
       </if>
 
       <!-- OOBE -->
@@ -2541,6 +2590,9 @@ Google Chrome is unable to recover your settings.
           desc="This string appears as a heading on a full-page screen that asks the user to sign in to Chrome with their Google Account. It appears when the user launches Chrome for the first time. When they sign in, they can personalize and customize Chrome and remember their settings in their Google Account. The tone should be inviting and alluring.">
           Sign in to Chrome
         </message>
+        <message name="IDS_FRE_GET_YOUR_BROWSER_READY_TITLE" meaning="Title" translateable="false" desc="">
+          Let's get your Chrome ready
+        </message>
 
         <!-- Default Browser Promo -->
         <message name="IDS_FRE_DEFAULT_BROWSER_TITLE" desc="Title for the page that prompts user to set Chrome as their default browser in the first run experience.">
@@ -2560,9 +2612,6 @@ Google Chrome is unable to recover your settings.
         </message>
         <message name="IDS_APP_MENU_TOOLTIP_DEFAULT_PROMPT" desc="The tooltip to show for the browser menu when the default browser prompt is displayed">
           Customize and control Chrome. Set Chrome as your default.
-        </message>
-        <message name="IDS_APP_MENU_BUTTON_DEFAULT_PROMPT" desc="Text in the browser menu chip indicating that the user can change their default browser">
-          Set Chrome as your default
         </message>
         <message name="IDS_SET_BROWSER_AS_DEFAULT_MENU_ITEM" desc="Menu item that prompts user to set Chrome as their default browser.">
           Set Chrome as your default browser
@@ -2972,72 +3021,74 @@ Google Chrome is unable to recover your settings.
           Cleared Chrome data
         </message>
       </if>
+      <message name="IDS_SKILL_SAVED_TOAST_BUTTON" desc="Text on the toast action button after a skill is saved">
+        Try with Gemini in Chrome
+      </message>
 
       <!-- Glic Strings -->
-      <if expr="enable_glic">
-        <message name="IDS_GLIC_PROMO_TITLE" desc="Gemini promo title.">
-          Try Gemini in Google Chrome
-        </message>
-        <message name="IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP" desc="This is the tooltip shown when hovering over the Gemini entry button in the tab strip while the Gemini window is closed.">
-          Open Gemini in Chrome
-        </message>
-        <message name="IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE" desc="This is the tooltip shown when hovering over the Gemini entry button in the tab strip while the Gemini window is open.">
-          Close Gemini in Chrome
-        </message>
+      <message name="IDS_GLIC_PROMO_TITLE" desc="Gemini promo title.">
+        Try Gemini in Google Chrome
+      </message>
+      <message name="IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP" desc="This is the tooltip shown when hovering over the Gemini entry button in the tab strip while the Gemini window is closed." formatter_data="android_java">
+        Open Gemini in Chrome
+      </message>
+      <message name="IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE" desc="This is the tooltip shown when hovering over the Gemini entry button in the tab strip while the Gemini window is open.">
+        Close Gemini in Chrome
+      </message>
 
-        <message name="IDS_GLIC_THREE_DOT_MENU_ITEM" desc="This is the three-dot menu item for opening Gemini.">
-          Open Gemini in Chrome
-        </message>
+      <message name="IDS_GLIC_THREE_DOT_MENU_ITEM" desc="This is the three-dot menu item for opening Gemini.">
+        Open Gemini in Chrome
+      </message>
 
-        <!-- Glic status tray icon strings -->
-        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is closed.">
-          Open Gemini in Chrome
-        </message>
-        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CANARY" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is closed. It indicates that this is the Canary version of the browser.">
-          Open Gemini in Chrome Canary
-        </message>
-        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_DEV" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is closed. It indicates that this is the Dev version of the browser.">
-          Open Gemini in Chrome Dev
-        </message>
-        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_BETA" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is closed. It indicates that this is the Beta version of the browser.">
-          Open Gemini in Chrome Beta
-        </message>
-        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is open.">
-          Close Gemini in Chrome
-        </message>
-        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE_CANARY" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is open. It indicates that this is the Canary version of the browser.">
-          Close Gemini in Chrome Canary
-        </message>
-        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE_DEV" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is open. It indicates that this is the Dev version of the browser.">
-          Close Gemini in Chrome Dev
-        </message>
-        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE_BETA" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is open. It indicates that this is the Beta version of the browser.">
-          Close Gemini in Chrome Beta
-        </message>
-        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_TOGGLE" desc="This is the tooltip that is shown when the Gemini status icon is hovered.">
-          Toggle Gemini in Chrome
-        </message>
-        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_TOGGLE_CANARY" desc="This is the tooltip that is shown when the Gemini status icon is hovered. It indicates that this is the Canary version of the browser.">
-          Toggle Gemini in Chrome Canary
-        </message>
-        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_TOGGLE_DEV" desc="This is the tooltip that is shown when the Gemini status icon is hovered. It indicates that this is the Dev version of the browser.">
-          Toggle Gemini in Chrome Dev
-        </message>
-        <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_TOGGLE_BETA" desc="This is the tooltip that is shown when the Gemini status icon is hovered. It indicates that this is the Beta version of the browser.">
-          Toggle Gemini in Chrome Beta
-        </message>
-        <message name="IDS_GLIC_STATUS_ICON_MENU_SHOW" desc="This is the menu item for showing the Gemini experience in Chrome.">
-          Open Gemini in Chrome
-        </message>
-        <message name="IDS_GLIC_STATUS_ICON_MENU_CLOSE" desc="This is the menu item for closing the Gemini window.">
-          Close Gemini in Chrome
-        </message>
-        <message name="IDS_GLIC_STATUS_ICON_MENU_TOGGLE" desc="This is the menu item for toggling the Gemini UI.">
-          Toggle Gemini in Chrome
-        </message>
-        <message name ="IDS_GLIC_INELIGIBLE_PROFILE_NOTICE" desc="This is the text of the Gemini ineligible profile notice.">
-          To use Gemini in Chrome, sign in with a different Google Account
-        </message>
+      <!-- Glic status tray icon strings -->
+      <message name="IDS_GLIC_STATUS_ICON_TOOLTIP" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is closed.">
+        Open Gemini in Chrome
+      </message>
+      <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CANARY" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is closed. It indicates that this is the Canary version of the browser.">
+        Open Gemini in Chrome Canary
+      </message>
+      <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_DEV" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is closed. It indicates that this is the Dev version of the browser.">
+        Open Gemini in Chrome Dev
+      </message>
+      <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_BETA" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is closed. It indicates that this is the Beta version of the browser.">
+        Open Gemini in Chrome Beta
+      </message>
+      <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is open.">
+        Close Gemini in Chrome
+      </message>
+      <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE_CANARY" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is open. It indicates that this is the Canary version of the browser.">
+        Close Gemini in Chrome Canary
+      </message>
+      <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE_DEV" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is open. It indicates that this is the Dev version of the browser.">
+        Close Gemini in Chrome Dev
+      </message>
+      <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE_BETA" desc="This is the tooltip that is shown when the Gemini status icon is hovered and the Gemini window is open. It indicates that this is the Beta version of the browser.">
+        Close Gemini in Chrome Beta
+      </message>
+      <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_TOGGLE" desc="This is the tooltip that is shown when the Gemini status icon is hovered.">
+        Toggle Gemini in Chrome
+      </message>
+      <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_TOGGLE_CANARY" desc="This is the tooltip that is shown when the Gemini status icon is hovered. It indicates that this is the Canary version of the browser.">
+        Toggle Gemini in Chrome Canary
+      </message>
+      <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_TOGGLE_DEV" desc="This is the tooltip that is shown when the Gemini status icon is hovered. It indicates that this is the Dev version of the browser.">
+        Toggle Gemini in Chrome Dev
+      </message>
+      <message name="IDS_GLIC_STATUS_ICON_TOOLTIP_TOGGLE_BETA" desc="This is the tooltip that is shown when the Gemini status icon is hovered. It indicates that this is the Beta version of the browser.">
+        Toggle Gemini in Chrome Beta
+      </message>
+      <message name="IDS_GLIC_STATUS_ICON_MENU_SHOW" desc="This is the menu item for showing the Gemini experience in Chrome.">
+        Open Gemini in Chrome
+      </message>
+      <message name="IDS_GLIC_STATUS_ICON_MENU_CLOSE" desc="This is the menu item for closing the Gemini window.">
+        Close Gemini in Chrome
+      </message>
+      <message name="IDS_GLIC_STATUS_ICON_MENU_TOGGLE" desc="This is the menu item for toggling the Gemini UI.">
+        Toggle Gemini in Chrome
+      </message>
+      <message name ="IDS_GLIC_INELIGIBLE_PROFILE_NOTICE" desc="This is the text of the Gemini ineligible profile notice.">
+        To use Gemini in Chrome, sign in with a different Google Account
+      </message>
 
         <!-- Experimental Glic settings -->
         <message name="IDS_SETTINGS_GLIC_PAGE_TITLE" desc="Title of the Gemini settings subpage. Also shown in tab strip.">
@@ -3049,40 +3100,33 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_SETTINGS_GLIC_ROW_LABEL" desc="Label of the Gemini row button on the AI settings page leading to the Gemini subpage.">
           Gemini in Chrome
         </message>
-        <message name="IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE" desc="Title for the Gemini feature introduction screen">
-          Let Chrome browse for you
-        </message>
-        <message name="IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_SUBLABEL" desc="Subheader explaining what the Gemini feature does">
-          Gemini in Chrome uses auto browse to work in your tabs and complete tasks you give it. <ph name="LINK_BEGIN">&lt;a href="#"&gt;</ph>Learn more<ph name="LINK_END">&lt;/a&gt;</ph>
-        </message>
 
-        <!-- Profile Picker Glic version-->
-        <message name="IDS_PROFILE_PICKER_MAIN_VIEW_TITLE_GLIC" desc="Heading describing that the section below choosing a Chrome profile to use with Gemini. 'Gemini' has a special styling.">
-          Choose a Chrome profile to use with <ph name="START_GLIC_STYLING">&lt;span class="glic-brand-style"&gt;</ph>Gemini<ph name="END_GLIC_STYLING">&lt;/span&gt;</ph>
-        </message>
-        <message name="IDS_PROFILE_PICKER_MAIN_VIEW_TITLE_GLIC_NO_PROFILE" desc="Sublabel describing to sign with a Google account to use Chrome with Gemini. 'Gemini' has a special styling.">
-          Sign into Chrome with your Google Account to use <ph name="START_GLIC_STYLING">&lt;span class="glic-brand-style"&gt;</ph>Gemini<ph name="END_GLIC_STYLING">&lt;/span&gt;</ph>
-        </message>
-        <message name="IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE_GLIC" desc="Sublabel describing that the section below choosing a Chrome profile to use with Gemini">
-          To use Gemini in Chrome, you need to be signed in to Chrome with your Google Account
-        </message>
-        <message name="IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE_GLIC_NO_PROFILE" desc="Sublabel describing that in order to add a new Chrome profile to use with Gemini, sign up with a Google account">
-          When you sign in to Chrome with your Google Account, you can use your Chrome profile with Gemini. <ph name="BEGIN_LINK">&lt;a class="learn-more-link" href="#" target=&quot;_blank&quot;&gt;</ph>Learn how to sign in to Chrome<ph name="END_LINK">&lt;/a&gt;</ph>
-        </message>
-        <message name="IDS_PROFILE_PICKER_ADD_PROFILE_HELPER_GLIC" desc="Sublabel describing that in order to add a new Chrome profile to use with Gemini, sign up with a different Google account">
-          To use a different Google Account with Gemini in Chrome, <ph name="BEGIN_LINK">&lt;a class="learn-more-link" href="#" target=&quot;_blank&quot;&gt;</ph>create a new profile<ph name="END_LINK">&lt;/a&gt;</ph> and sign in with the account you want
-        </message>
+      <!-- Profile Picker Glic version-->
+      <message name="IDS_PROFILE_PICKER_MAIN_VIEW_TITLE_GLIC" desc="Heading describing that the section below choosing a Chrome profile to use with Gemini. 'Gemini' has a special styling.">
+        Choose a Chrome profile to use with <ph name="START_GLIC_STYLING">&lt;span class="glic-brand-style"&gt;</ph>Gemini<ph name="END_GLIC_STYLING">&lt;/span&gt;</ph>
+      </message>
+      <message name="IDS_PROFILE_PICKER_MAIN_VIEW_TITLE_GLIC_NO_PROFILE" desc="Sublabel describing to sign with a Google account to use Chrome with Gemini. 'Gemini' has a special styling.">
+        Sign into Chrome with your Google Account to use <ph name="START_GLIC_STYLING">&lt;span class="glic-brand-style"&gt;</ph>Gemini<ph name="END_GLIC_STYLING">&lt;/span&gt;</ph>
+      </message>
+      <message name="IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE_GLIC" desc="Sublabel describing that the section below choosing a Chrome profile to use with Gemini">
+        To use Gemini in Chrome, you need to be signed in to Chrome with your Google Account
+      </message>
+      <message name="IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE_GLIC_NO_PROFILE" desc="Sublabel describing that in order to add a new Chrome profile to use with Gemini, sign up with a Google account">
+        When you sign in to Chrome with your Google Account, you can use your Chrome profile with Gemini. <ph name="BEGIN_LINK">&lt;a class="learn-more-link" href="#" target=&quot;_blank&quot;&gt;</ph>Learn how to sign in to Chrome<ph name="END_LINK">&lt;/a&gt;</ph>
+      </message>
+      <message name="IDS_PROFILE_PICKER_ADD_PROFILE_HELPER_GLIC" desc="Sublabel describing that in order to add a new Chrome profile to use with Gemini, sign up with a different Google account">
+        To use a different Google Account with Gemini in Chrome, <ph name="BEGIN_LINK">&lt;a class="learn-more-link" href="#" target=&quot;_blank&quot;&gt;</ph>create a new profile<ph name="END_LINK">&lt;/a&gt;</ph> and sign in with the account you want
+      </message>
 
-        <!-- Glic button and tab strip context menu -->
-        <message name="IDS_GLIC_CONTEXTUAL_CUEING_ANNOUNCEMENT" desc="Polite voice over announcement that happens when a contextual nudge is shown next to the Gemini button.">
-          To open Gemini in Chrome, press <ph name="GLOBAL_HOTKEY">$1<ex>⌘+G</ex></ph>
-        </message>
+      <!-- Glic button and tab strip context menu -->
+      <message name="IDS_GLIC_CONTEXTUAL_CUEING_ANNOUNCEMENT" desc="Polite voice over announcement that happens when a contextual nudge is shown next to the Gemini button.">
+        To open Gemini in Chrome, press <ph name="GLOBAL_HOTKEY">$1<ex>⌘+G</ex></ph>
+      </message>
 
-        <!-- Variant of the label on the Gemini button in the tabstrip-->
-        <message name="IDS_GLIC_BUTTON_ENTRYPOINT_ASK_BROWSER_LABEL" desc="Label on the button used to open Gemini in Chrome.">
-          Ask Chrome
-        </message>
-      </if>
+      <!-- Variant of the label on the Gemini button in the tabstrip-->
+      <message name="IDS_GLIC_BUTTON_ENTRYPOINT_ASK_BROWSER_LABEL" desc="Label on the button used to open Gemini in Chrome.">
+        Ask Chrome
+      </message>
 
       <!-- UNO Promo strings for extensions -->
       <if expr="enable_extensions">
@@ -3135,8 +3179,18 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_BUBBLE_FOOTER_TITLE" desc="The title for the footer of the iOS desktop password promo bubble suggesting to users that they can use their passwords on their iOS devices.">
           Use your passwords with Chrome on your phone
         </message>
-        <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_BUTTON_ACCEPT_QR" desc="The text inside the iOS promo bubble button allowing the user to accept by getting the app via QR code.">
-          Get the Chrome app
+        <if expr="use_titlecase">
+          <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_BUTTON_ACCEPT_QR" desc="The text inside the iOS promo bubble button allowing the user to accept by getting the app via QR code.">
+            Get the Chrome App
+          </message>
+        </if>
+        <if expr="not use_titlecase">
+          <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_BUTTON_ACCEPT_QR" desc="The text inside the iOS promo bubble button allowing the user to accept by getting the app via QR code.">
+            Get the Chrome app
+          </message>
+        </if>
+        <message name="IDS_IOS_DESKTOP_PROMO_QR_CODE_ALT_TEXT" desc="The accessibility label for the QR code image in the iOS desktop promo bubbles.">
+          QR code to download Chrome browser on mobile devices
         </message>
         <message name="IDS_IOS_DESKTOP_PROMO_REMINDER_CONFIRMATION" desc="Body text of the promo bubble that appears after uses choose to be reminded of the feature on their iOS device. The placeholder will be replaced by the name of the feature.">
           You'll see a prompt to try <ph name="FEATURE_NAME">$1<ex>Google Lens</ex></ph> next time you open Chrome iOS.
@@ -3198,9 +3252,19 @@ Google Chrome is unable to recover your settings.
       <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_TITLE" desc="Title of the dialog for reporting an unsafe site to Google">
         Report this site to Google
       </message>
-
       <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_DESCRIPTION" desc="Explanatory text in dialog for reporting an unsafe site to Google">
         Improve online safety for everyone when you report a site you think is harmful. Learn more about <ph name="BEGIN_LINK">&lt;a href="https://safebrowsing.google.com/#policies" target="_blank" id="unsafe_site_policy_link"&gt;</ph>Google's unsafe site policy.<ph name="END_LINK">&lt;/a&gt;</ph>
+      </message>
+      <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_FOOTER" desc="Explanatory text in dialog footer describing what other information is sent to Google as part of the unsafe-site-report.">
+          We use info to improve this service. See <ph name="BEGIN_LINK1">&lt;a href="https://policies.google.com/privacy" target="_blank"&gt;</ph>Privacy Policy<ph name="END_LINK1">&lt;/a&gt;</ph> and <ph name="BEGIN_LINK2">&lt;a href="https://policies.google.com/terms" target="_blank"&gt;</ph>Terms of Service<ph name="END_LINK2">&lt;/a&gt;</ph>.
+      </message>
+
+      <!-- Indigo Strings -->
+      <message name="IDS_INDIGO_ENTRYPOINT_CHIP_TEXT" desc="The text on the Indigo entry point chip in the omnibox." translateable="false">
+        Indigo
+      </message>
+      <message name="IDS_INDIGO_ENTRYPOINT_CHIP_TOOLTIP_TEXT" desc="The tooltip text of the Indigo entry point chip in the omnibox in the hover state." translateable="false">
+        Indigo tooltip text
       </message>
     </messages>
   </release>

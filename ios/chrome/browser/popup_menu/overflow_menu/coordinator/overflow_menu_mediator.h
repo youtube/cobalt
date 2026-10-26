@@ -8,6 +8,7 @@
 #import <UIKit/UIKit.h>
 
 #import "ios/chrome/browser/browser_content/ui_bundled/browser_content_consumer.h"
+#import "ios/chrome/browser/policy/model/browser_management_service.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/public/overflow_menu_action_provider.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/ui/ui_swift.h"
 
@@ -55,6 +56,7 @@ class TemplateURLService;
 class WebNavigationBrowserAgent;
 class WebStateList;
 @protocol WhatsNewCommands;
+@class LayoutGuideCenter;
 
 // Mediator for the overflow menu. This object is in charge of creating and
 // updating the items of the overflow menu.
@@ -105,6 +107,9 @@ class WebStateList;
 // BaseViewController for presenting some UI.
 @property(nonatomic, weak) UIViewController* baseViewController;
 
+// The LayoutGuideCenter to use to retrieve the layout guide.
+@property(nonatomic, strong) LayoutGuideCenter* layoutGuideCenter;
+
 // Bookmark model to know if the page is bookmarked.
 @property(nonatomic, assign) bookmarks::BookmarkModel* bookmarkModel;
 
@@ -147,6 +152,10 @@ class WebStateList;
 
 // TemplateURLService to observe default search engine change.
 @property(nonatomic, assign) TemplateURLService* templateURLService;
+
+// Browser management service to determine if the browser is managed.
+@property(nonatomic, assign)
+    policy::BrowserManagementService* browserManagementService;
 
 // If settings destination has a blue dot.
 @property(nonatomic, assign) bool hasSettingsBlueDot;

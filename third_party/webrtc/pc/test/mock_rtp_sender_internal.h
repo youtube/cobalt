@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -60,7 +61,10 @@ class MockRtpSenderInternal : public RtpSenderInternal {
               set_transport,
               (webrtc::scoped_refptr<DtlsTransportInterface>),
               (override));
-  MOCK_METHOD(void, SetCachedParameters, (RtpParameters), (override));
+  MOCK_METHOD(void,
+              SetCachedParameters,
+              (std::optional<RtpParameters>),
+              (override));
   MOCK_METHOD(RtpParameters, GetParameters, (), (const, override));
   MOCK_METHOD(RtpParameters,
               GetParametersInternal,

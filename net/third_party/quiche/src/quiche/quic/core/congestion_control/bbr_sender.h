@@ -16,12 +16,15 @@
 #include "quiche/quic/core/congestion_control/windowed_filter.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_bandwidth.h"
+#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_packet_number.h"
-#include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_tag.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_unacked_packet_map.h"
-#include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -86,6 +89,8 @@ class QUICHE_EXPORT BbrSender : public SendAlgorithmInterface {
 
     bool last_sample_is_app_limited;
     QuicPacketNumber end_of_app_limited_phase;
+
+    bool exit_startup_on_loss_even_if_app_limited;
   };
 
   BbrSender(QuicTime now, const RttStats* rtt_stats,
@@ -136,6 +141,7 @@ class QUICHE_EXPORT BbrSender : public SendAlgorithmInterface {
   void PopulateConnectionStats(QuicConnectionStats* stats) const override;
   bool EnableECT0() override { return false; }
   bool EnableECT1() override { return false; }
+  void ReduceMemoryUsage() override { sampler_.ReduceMemoryUsage(); }
   // End implementation of SendAlgorithmInterface.
 
   // Gets the number of RTTs BBR remains in STARTUP phase.

@@ -64,7 +64,6 @@ TEST(FlexfecReceiveStreamConfigTest, IsCompleteAndEnabled) {
   MockTransport rtcp_send_transport;
   FlexfecReceiveStream::Config config(&rtcp_send_transport);
 
-  config.local_ssrc = 18374743;
   config.rtcp_mode = RtcpMode::kCompound;
   EXPECT_FALSE(config.IsCompleteAndEnabled());
 
@@ -87,7 +86,7 @@ class FlexfecReceiveStreamTest : public ::testing::Test {
       : config_(CreateDefaultConfig(&rtcp_send_transport_)) {
     receive_stream_ = std::make_unique<FlexfecReceiveStreamImpl>(
         CreateEnvironment(&log_), config_, &recovered_packet_receiver_,
-        &rtt_stats_);
+        /* packet_router= */ nullptr, &rtt_stats_);
     receive_stream_->RegisterWithTransport(&rtp_stream_receiver_controller_);
   }
 

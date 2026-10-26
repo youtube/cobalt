@@ -9,6 +9,7 @@
 
 #include "base/feature_list.h"
 #include "base/trace_event/trace_event.h"
+#include "base/trace_event/trace_id_helper.h"
 #include "cc/base/features.h"
 #include "cc/metrics/event_metrics.h"
 #include "cc/metrics/scroll_jank_v4_decision_queue.h"
@@ -53,23 +54,12 @@ ScrollJankV4Processor::ScrollJankV4Processor()
     : decision_queue_(std::make_unique<ProcessorResultConsumer>()) {}
 
 void ScrollJankV4Processor::ProcessEventsMetricsForPresentedFrame(
-    const EventMetrics::List& events_metrics,
+    EventMetrics::List& events_metrics,
     base::TimeTicks presentation_ts,
     const viz::BeginFrameArgs& args) {
   static const bool scroll_jank_v4_metric_enabled =
       base::FeatureList::IsEnabled(features::kScrollJankV4Metric);
   if (!scroll_jank_v4_metric_enabled) {
-    return;
-  }
-
-  if (!base::FeatureList::IsEnabled(
-          features::kHandleNonDamagingInputsInScrollJankV4Metric)) {
-    // Ignore non-damaging events (legacy behavior).
-    ScrollJankV4FrameStage::List stages =
-        ScrollJankV4FrameStage::CalculateStages(
-            events_metrics, /* skip_non_damaging_events= */ true);
-    HandleFrame(stages, ScrollJankV4Frame::DamagingFrame(presentation_ts),
-                ScrollJankV4Frame::BeginFrameArgsForScrollJank::From(args));
     return;
   }
 

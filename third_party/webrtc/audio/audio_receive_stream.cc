@@ -55,7 +55,6 @@ std::string AudioReceiveStreamInterface::Config::Rtp::ToString() const {
   char ss_buf[1024];
   SimpleStringBuilder ss(ss_buf);
   ss << "{remote_ssrc: " << remote_ssrc;
-  ss << ", local_ssrc: " << local_ssrc;
   ss << ", nack: " << nack.ToString();
   ss << ", rtcp: "
      << (rtcp_mode == RtcpMode::kCompound
@@ -89,7 +88,7 @@ std::unique_ptr<voe::ChannelReceiveInterface> CreateChannelReceive(
       static_cast<internal::AudioState*>(audio_state);
   return voe::CreateChannelReceive(
       env, neteq_factory, internal_audio_state->audio_device_module(),
-      config.rtcp_send_transport, config.rtp.local_ssrc, config.rtp.remote_ssrc,
+      config.rtcp_send_transport, config.rtp.remote_ssrc,
       config.jitter_buffer_max_packets, config.jitter_buffer_fast_accelerate,
       config.jitter_buffer_min_delay_ms, config.enable_non_sender_rtt,
       config.decoder_factory, std::move(config.frame_decryptor),
@@ -168,7 +167,6 @@ void AudioReceiveStreamImpl::ReconfigureForTesting(
 
   // SSRC can't be changed mid-stream.
   RTC_DCHECK_EQ(remote_ssrc(), config.rtp.remote_ssrc);
-  RTC_DCHECK_EQ(local_ssrc(), config.rtp.local_ssrc);
 
   // Configuration parameters which cannot be changed.
   RTC_DCHECK_EQ(config_.rtcp_send_transport, config.rtcp_send_transport);
@@ -456,18 +454,6 @@ void AudioReceiveStreamImpl::DeliverRtcp(ArrayView<const uint8_t> packet) {
 void AudioReceiveStreamImpl::SetSyncGroup(absl::string_view sync_group) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
   config_.sync_group = std::string(sync_group);
-}
-
-void AudioReceiveStreamImpl::SetLocalSsrc(uint32_t local_ssrc) {
-  RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
-  // TODO(tommi): Consider storing local_ssrc in one place.
-  config_.rtp.local_ssrc = local_ssrc;
-  channel_receive_->OnLocalSsrcChange(local_ssrc);
-}
-
-uint32_t AudioReceiveStreamImpl::local_ssrc() const {
-  RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
-  return config_.rtp.local_ssrc;
 }
 
 const std::string& AudioReceiveStreamImpl::sync_group() const {

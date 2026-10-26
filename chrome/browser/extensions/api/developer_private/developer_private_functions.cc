@@ -28,7 +28,6 @@
 #include "chrome/browser/extensions/api/developer_private/extension_info_generator.h"
 #include "chrome/browser/extensions/api/developer_private/profile_info_generator.h"
 #include "chrome/browser/extensions/chrome_zipfile_installer.h"
-#include "chrome/browser/extensions/crx_installer.h"
 #include "chrome/browser/extensions/devtools_util.h"
 #include "chrome/browser/extensions/extension_commands_global_registry.h"
 #include "chrome/browser/extensions/extension_management.h"
@@ -43,14 +42,15 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_browser_utils.h"
-#include "chrome/browser/ui/chrome_select_file_policy.h"
 #include "chrome/browser/ui/extensions/extensions_dialogs.h"
 #include "chrome/browser/ui/safety_hub/menu_notification_service_factory.h"
+#include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "content/public/common/drop_data.h"
+#include "extensions/browser/crx_installer.h"
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/extension_file_task_runner.h"
 #include "extensions/browser/extension_prefs.h"
@@ -93,7 +93,6 @@
 #include "base/types/expected.h"
 #include "base/uuid.h"
 #include "chrome/browser/extensions/mv2_experiment_stage.h"
-#include "chrome/browser/extensions/shared_module_service.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -1918,6 +1917,12 @@ ExtensionFunction::ResponseAction DeveloperPrivateChoosePathFunction::Run() {
 
   select_file_dialog_ = ui::SelectFileDialog::Create(
       this, std::make_unique<ChromeSelectFilePolicy>(web_contents));
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, although we are not actually writing to the file, we still need
+  // to set this flag to trigger ACTION_OPEN_DOCUMENT intent to bypass the
+  // file chooser dialog.
+  select_file_dialog_->SetOpenWritable(true);
+#endif  // BUILDFLAG(IS_ANDROID)
   select_file_dialog_->SelectFile(file_type, select_title, last_directory,
                                   &file_type_info, file_type_index,
                                   base::FilePath::StringType(), owning_window);
@@ -2007,9 +2012,12 @@ void DeveloperPrivateRequestFileSourceFunction::Finish(
         file_contents, properties.line_number ? *properties.line_number : 0);
   }
 
-  response.before_highlight = highlighter->GetBeforeFeature();
-  response.highlight = highlighter->GetFeature();
-  response.after_highlight = highlighter->GetAfterFeature();
+  developer::ErrorFileSource source;
+  source.before_highlight = highlighter->GetBeforeFeature();
+  source.highlight = highlighter->GetFeature();
+  source.after_highlight = highlighter->GetAfterFeature();
+
+  response.source = std::move(source);
 
   Respond(WithArguments(response.ToValue()));
 }
@@ -2582,7 +2590,7 @@ DeveloperPrivateDismissMv2DeprecationNoticeForExtensionFunction::Run() {
         return AlreadyResponded();
       }
 
-      Browser* browser = chrome::FindLastActiveWithProfile(
+      BrowserWindowInterface* const browser = chrome::FindLastActiveWithProfile(
           Profile::FromBrowserContext(browser_context()));
       if (!browser) {
         return RespondNow(Error(kCouldNotFindWebContentsError));

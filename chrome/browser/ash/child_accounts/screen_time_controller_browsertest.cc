@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ash/child_accounts/screen_time_controller.h"
+
 #include <memory>
 
+#include "ash/constants/ash_pref_names.h"
 #include "ash/public/cpp/login_screen_test_api.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
@@ -12,7 +15,6 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "chrome/browser/ash/child_accounts/screen_time_controller.h"
 #include "chrome/browser/ash/child_accounts/screen_time_controller_factory.h"
 #include "chrome/browser/ash/child_accounts/time_limit_override.h"
 #include "chrome/browser/ash/child_accounts/time_limit_test_utils.h"
@@ -22,7 +24,6 @@
 #include "chrome/browser/ash/policy/core/user_policy_test_helper.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "components/prefs/pref_service.h"
 #include "components/session_manager/core/session_manager.h"
@@ -119,8 +120,8 @@ class ScreenTimeControllerTest : public MixinBasedInProcessBrowserTest {
   }
 
   void MockChildScreenTime(base::TimeDelta used_time) {
-    child_profile_->GetPrefs()->SetInteger(prefs::kChildScreenTimeMilliseconds,
-                                           used_time.InMilliseconds());
+    child_profile_->GetPrefs()->SetInteger(
+        ash::prefs::kChildScreenTimeMilliseconds, used_time.InMilliseconds());
   }
 
   bool IsLocked() {
@@ -649,7 +650,7 @@ IN_PROC_BROWSER_TEST_F(ScreenTimeControllerTest, BedtimeLockScreen24HourClock) {
   LogInChildAndSetupClockWithTime("1 Jan 2018 22:00:00 GMT");
 
   // Set preference of using 24 hour clock to be true.
-  child_profile_->GetPrefs()->SetBoolean(prefs::kUse24HourClock, true);
+  child_profile_->GetPrefs()->SetBoolean(ash::prefs::kUse24HourClock, true);
 
   ScreenLockerTester().Lock();
 

@@ -160,6 +160,52 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="Filenames"/>
 </enum>
 
+<!-- LINT.IfChange(DatabaseConnectionOpenResult) -->
+
+<enum name="DatabaseConnectionOpenResult">
+  <int value="0" label="Received request"/>
+  <int value="1" label="Success: direct open"/>
+  <int value="2" label="Success: upgrade needed"/>
+  <int value="3" label="Success: upgrade needed with data loss"/>
+  <int value="4" label="Error: backing store init failed"/>
+  <int value="5" label="Error: database open failed"/>
+  <int value="6" label="Error: version too low"/>
+</enum>
+
+<!-- LINT.ThenChange(//content/browser/indexed_db/indexed_db_reporting.h:DatabaseConnectionOpenResult) -->
+
+<!-- LINT.IfChange(DomStorageDatabaseRecoveryOutcome) -->
+
+<enum name="DomStorageDatabaseRecoveryOutcome">
+  <int value="0" label="Recovered to disk (destroy succeeded)"/>
+  <int value="1" label="Recovered to disk (destroy failed)"/>
+  <int value="2" label="Recovered to in-memory (both destroys succeeded)"/>
+  <int value="3" label="Recovered to in-memory (first destroy failed)"/>
+  <int value="4" label="Recovered to in-memory (second destroy failed)"/>
+  <int value="5" label="Recovered to in-memory (both destroys failed)"/>
+  <int value="6" label="Gave up (both destroys succeeded)"/>
+  <int value="7" label="Gave up (first destroy failed)"/>
+  <int value="8" label="Gave up (second destroy failed)"/>
+  <int value="9" label="Gave up (both destroys failed)"/>
+  <int value="10" label="Ongoing errors after attempted recovery"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/services/storage/dom_storage/dom_storage_histogram_helper.h:DomStorageDatabaseRecoveryOutcome) -->
+
+<!-- LINT.IfChange(DomStorageDbStatusType) -->
+
+<enum name="DomStorageDbStatusType">
+  <int value="0" label="OK"/>
+  <int value="1" label="Not found"/>
+  <int value="2" label="Corruption"/>
+  <int value="3" label="Not supported"/>
+  <int value="4" label="Invalid argument"/>
+  <int value="5" label="IO error"/>
+  <int value="6" label="Database engine error"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/services/storage/dom_storage/db_status.h:DomStorageDbStatusType) -->
+
 <!-- LINT.IfChange(FileErrorCode) -->
 
 <enum name="FileErrorCode">
@@ -320,6 +366,20 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//content/browser/indexed_db/instance/sqlite/database_connection.h:SpecificEvent) -->
 
+<!-- LINT.IfChange(IndexedDbSqliteVacuumEvent) -->
+
+<enum name="IndexedDbSqliteVacuumEvent">
+  <int value="0" label="Vacuum needed because conditions were met"/>
+  <int value="1" label="Vacuum skipped due to force close"/>
+  <int value="2" label="Vacuum requested in cleanup task"/>
+  <int value="3" label="Vacuum succeeded"/>
+  <int value="4" label="Error while determining required/available disk space"/>
+  <int value="5" label="Vacuum skipped due to insufficient disk space"/>
+  <int value="6" label="Vacuum failed at SQLite layer"/>
+</enum>
+
+<!-- LINT.ThenChange(//content/browser/indexed_db/instance/sqlite/database_connection.cc:VacuumEvent) -->
+
 <!-- LINT.IfChange(IndexedDbStatusType) -->
 
 <enum name="IndexedDbStatusType">
@@ -428,14 +488,6 @@ chromium-metrics-reviews@google.com.
   <int value="12" label="Approved with a new or existing grant"/>
   <int value="13" label="Rejected due to fenced frame"/>
   <int value="14" label="Rejected due to invalid origin"/>
-</enum>
-
-<enum name="SecFetchStorageAccessOutcome">
-  <int value="0" label="Omitted: storage access status missing"/>
-  <int value="1" label="Omitted: request credentials mode is not 'include'"/>
-  <int value="2" label="Value: none"/>
-  <int value="3" label="Value: inactive"/>
-  <int value="4" label="Value: active"/>
 </enum>
 
 <enum name="SharedStorageHeaderObserverPermissionsPolicyDoubleCheckStatus">

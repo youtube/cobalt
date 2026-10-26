@@ -56,6 +56,19 @@ declare_args() {
       !is_high_end_android && (is_android || is_castos || is_fuchsia)
 }
 
+if (is_mac && use_lld) {
+  declare_args() {
+    # Enables the `--read-workers` flag for LLD.
+    # Currently only implemented for Mach-O (macOS) in LLD.
+    enable_lld_read_workers = false
+  }
+
+  if (enable_lld_read_workers) {
+    lld_read_workers =
+        exec_script("//build/toolchain/get_lld_read_workers.py", [], "value")
+  }
+}
+
 # Cobalt needs to handle use_cxx17, which does not exist upstream.
 if (is_cobalt) {
   if (use_cxx17) {
@@ -69,9 +82,6 @@ declare_args() {
   # builds on Linux that could use a different version of the compiler.
   # With GCC, warnings in no-Chromium code are always not treated as errors.
   treat_warnings_as_errors = true
-
-  # Ignore unknown warning flags when using an older Clang version.
-  disable_unknown_warning_option = false
 
   # How clang should report warnings, either false to report in the usual
   # manner, or true to add source range information to the diagnostics in

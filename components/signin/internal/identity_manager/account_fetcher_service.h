@@ -28,7 +28,6 @@ class AccountCapabilities;
 class AccountCapabilitiesFetcher;
 class AccountFetcherFactory;
 class AccountInfoFetcher;
-class AccountInfoFetcherGaia;
 class AccountTrackerService;
 class ProfileOAuth2TokenService;
 class PrefRegistrySimple;
@@ -119,15 +118,7 @@ class AccountFetcherService : public ProfileOAuth2TokenServiceObserver {
   void OnRefreshTokensLoaded() override;
 
  private:
-  friend class AccountInfoFetcherGaia;
-
   void RefreshAllAccountInfo(bool only_fetch_if_invalid);
-
-#if BUILDFLAG(IS_ANDROID)
-  // Called on all account state changes. Decides whether to fetch new child
-  // status information or reset old values that aren't valid now.
-  void UpdateChildInfo();
-#endif
 
   void MaybeEnableNetworkFetches();
 
@@ -135,13 +126,6 @@ class AccountFetcherService : public ProfileOAuth2TokenServiceObserver {
   // Further the two fetches are managed by a different refresh logic and
   // thus, can not be combined.
   void StartFetchingUserInfo(const CoreAccountId& account_id);
-#if BUILDFLAG(IS_ANDROID)
-  void StartFetchingChildInfo(const CoreAccountId& account_id);
-
-  // Resets the child status to false if it is true. If there is more than one
-  // account in a profile, only the main account can be a child.
-  void ResetChildInfo();
-#endif
 
   void StartFetchingAccountCapabilities(
       const CoreAccountInfo& core_account_info);
@@ -150,12 +134,11 @@ class AccountFetcherService : public ProfileOAuth2TokenServiceObserver {
   void RefreshAccountInfo(const CoreAccountId& account_id,
                           bool only_fetch_if_invalid);
 
-  // Called by AccountInfoFetcherGaia.
-  void OnUserInfoFetchSuccess(const CoreAccountId& account_id,
-                              const base::DictValue& user_info);
-  void OnUserInfoFetchFailure(const CoreAccountId& account_id);
+  // Called by AccountInfoFetcher callback.
+  void OnUserInfoFetchCompleted(const CoreAccountId& account_id,
+                                std::optional<AccountInfo> account_info);
 
-  // Called by AccountCapabilitiesFetcher.
+  // Called by AccountCapabilitiesFetcher callback.
   void OnAccountCapabilitiesFetchComplete(
       const CoreAccountId& account_id,
       const std::optional<AccountCapabilities>& account_capabilities);
@@ -191,7 +174,6 @@ class AccountFetcherService : public ProfileOAuth2TokenServiceObserver {
   // CoreAccountId and the corresponding fetch start time. These two member
   // variables are only used to record account information fetch duration.
   base::flat_map<CoreAccountId, base::TimeTicks> user_info_fetch_start_times_;
-  base::flat_map<CoreAccountId, base::TimeTicks> user_avatar_fetch_start_times_;
 
   // Used for fetching the account images.
   std::unique_ptr<image_fetcher::ImageFetcherImpl> image_fetcher_;

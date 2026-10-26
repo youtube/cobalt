@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google Inc.
+ * Copyright 2021 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -53,6 +53,17 @@ bool AtlasRenderTask::addPath(const SkMatrix& viewMatrix, const SkPath& path,
     SkASSERT(!this->isClosed());
     SkASSERT(this->isEmpty());
     SkASSERT(!fDynamicAtlas->isInstantiated());  // Paths can't be added after instantiate().
+
+    // Check for room in the list first and return false if prior draws need to be flushed first.
+    if (GrFillRuleForSkPath(path) == GrFillRule::kNonzero) {
+        if (!fWindingPathList.canAdd(path)) {
+            return false;
+        }
+    } else {
+        if (!fEvenOddPathList.canAdd(path)) {
+            return false;
+        }
+    }
 
     if (!fDynamicAtlas->addRect(widthInAtlas, heightInAtlas, locationInAtlas)) {
         return false;

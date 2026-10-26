@@ -42,7 +42,6 @@
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -272,7 +271,15 @@ class NoteTakingHelperTest : public BrowserWithTestWindowTest {
     // TODO(derat): Sigh, something in ArcAppTest appears to be re-enabling ARC.
     profile()->GetPrefs()->SetBoolean(arc::prefs::kArcEnabled,
                                       flags & ENABLE_PLAY_STORE);
+
     NoteTakingHelper::Initialize();
+
+    // NOTE: In production, NoteTakingHelper is created before a profile.
+    // These simulate observer calls of ProfileManagerObserver and
+    // ArcIntentHelperObserver.
+    NoteTakingHelper::Get()->OnProfileAdded(profile());
+    NoteTakingHelper::Get()->OnIntentFiltersUpdated(std::nullopt);
+
     NoteTakingHelper::Get()->set_launch_chrome_app_callback_for_test(
         base::BindRepeating(&NoteTakingHelperTest::LaunchChromeApp,
                             base::Unretained(this)));

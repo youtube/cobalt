@@ -286,6 +286,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case JS_ITERATOR_DROP_HELPER_TYPE:
     case JS_ITERATOR_FLAT_MAP_HELPER_TYPE:
     case JS_ITERATOR_CONCAT_HELPER_TYPE:
+    case JS_ITERATOR_ZIP_HELPER_TYPE:
     case JS_VALID_ITERATOR_WRAPPER_TYPE:
     case JS_FINALIZATION_REGISTRY_TYPE:
     case JS_WEAK_MAP_TYPE:
@@ -313,6 +314,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
+    case WASM_STACK_OBJECT_TYPE:
     case WASM_SUSPENDER_OBJECT_TYPE:
     case WASM_SUSPENDING_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:

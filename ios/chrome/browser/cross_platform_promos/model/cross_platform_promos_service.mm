@@ -85,6 +85,16 @@ void CrossPlatformPromosService::ShowCPEPromo(Browser* browser) {
                                      TipsNotificationType::kCPE);
 }
 
+void CrossPlatformPromosService::ShowTabGroupsPromo(Browser* browser) {
+  TipsNotificationPresenter::Present(browser->AsWeakPtr(),
+                                     TipsNotificationType::kTabGroups);
+}
+
+void CrossPlatformPromosService::ShowPriceTrackingPromo(Browser* browser) {
+  TipsNotificationPresenter::Present(browser->AsWeakPtr(),
+                                     TipsNotificationType::kPriceTracking);
+}
+
 void CrossPlatformPromosService::MaybeShowPromo() {
   Browser* browser = GetActiveBrowser();
   if (!browser) {
@@ -127,6 +137,12 @@ void CrossPlatformPromosService::MaybeShowPromo() {
       break;
     case desktop_to_mobile_promos::PromoType::kPassword:
       ShowCPEPromo(browser);
+      break;
+    case desktop_to_mobile_promos::PromoType::kPriceTracking:
+      ShowPriceTrackingPromo(browser);
+      break;
+    case desktop_to_mobile_promos::PromoType::kTabGroups:
+      ShowTabGroupsPromo(browser);
       break;
     default:
       // If the promo type is unknown, clear the pref to avoid re-triggering.

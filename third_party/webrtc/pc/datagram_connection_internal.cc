@@ -14,11 +14,11 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/crypto/crypto_options.h"
 #include "api/datagram_connection.h"
@@ -58,6 +58,7 @@ using PacketMetadata = DatagramConnection::Observer::PacketMetadata;
 
 const size_t kMaxRtpPacketLen = 2048;
 const size_t kIceUfragLength = 16;
+const size_t kMinPayloadLengthForRtpCheck = 2;
 
 // Helper function to create IceTransportInit
 IceTransportInit CreateIceTransportInit(const Environment& env,
@@ -254,7 +255,7 @@ void DatagramConnectionInternal::SetRemoteDtlsParameters(
 }
 
 void DatagramConnectionInternal::SendPackets(
-    ArrayView<PacketSendParameters> packets) {
+    std::span<PacketSendParameters> packets) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   for (size_t i = 0; i < packets.size(); ++i) {
     SendSinglePacket(packets[i],
@@ -291,7 +292,8 @@ void DatagramConnectionInternal::SendSinglePacket(
     return;
   }
 
-  if (IsRtpOrRtcpPacket(packet.payload[0])) {
+  if (packet.payload.size() >= kMinPayloadLengthForRtpCheck &&
+      IsRtpOrRtcpPacket(packet.payload[0])) {
     // Copy the payload into a buffer with some extra capacity to allow space
     // for the SRTP encryption tag to be added.
     CopyOnWriteBuffer buffer(packet.payload.data(), packet.payload.size(),

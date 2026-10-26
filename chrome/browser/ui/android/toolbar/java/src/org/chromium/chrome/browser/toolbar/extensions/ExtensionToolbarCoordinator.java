@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.toolbar.extensions;
 
 import android.content.Context;
 import android.view.KeyEvent;
+import android.view.ViewGroup;
 import android.view.ViewStub;
 
 import org.chromium.base.ServiceLoaderUtil;
@@ -14,12 +15,15 @@ import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.layouts.toolbar.ToolbarWidthConsumer;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.ExtensionUi;
+import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
+import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
 import org.chromium.ui.base.WindowAndroid;
 
 /**
@@ -46,7 +50,10 @@ public interface ExtensionToolbarCoordinator extends Destroyable {
             Profile profile,
             NullableObservableSupplier<Tab> currentTabSupplier,
             TabCreator tabCreator,
-            ThemeColorProvider themeColorProvider) {
+            ThemeColorProvider themeColorProvider,
+            ViewGroup rootView,
+            @Nullable ContextMenuPopulatorFactory contextMenuPopulatorFactory,
+            @Nullable SelectionDropdownMenuDelegate selectionDropdownMenuDelegate) {
         // Check if the extension UI is enabled first.
         if (!ExtensionUi.isEnabled(profile)) {
             return null;
@@ -65,7 +72,10 @@ public interface ExtensionToolbarCoordinator extends Destroyable {
                 profile,
                 currentTabSupplier,
                 tabCreator,
-                themeColorProvider);
+                themeColorProvider,
+                rootView,
+                contextMenuPopulatorFactory,
+                selectionDropdownMenuDelegate);
         return coordinator;
     }
 
@@ -84,7 +94,10 @@ public interface ExtensionToolbarCoordinator extends Destroyable {
             Profile profile,
             NullableObservableSupplier<Tab> currentTabSupplier,
             TabCreator tabCreator,
-            ThemeColorProvider themeColorProvider);
+            ThemeColorProvider themeColorProvider,
+            ViewGroup rootView,
+            @Nullable ContextMenuPopulatorFactory contextMenuPopulatorFactory,
+            @Nullable SelectionDropdownMenuDelegate selectionDropdownMenuDelegate);
 
     /**
      * Dispatches the key event to trigger the corresponding extension action if any.
@@ -100,4 +113,13 @@ public interface ExtensionToolbarCoordinator extends Destroyable {
      * transitioning into incognito mode.
      */
     void updateMenuButtonBackground(int backgroundResource);
+
+    /** Shows the extensions menu programmatically. */
+    void showExtensionsMenu();
+
+    /** Returns the {@link ToolbarWidthConsumer} for the extensions menu icon. */
+    ToolbarWidthConsumer getMenuButtonWidthConsumer();
+
+    /** Returns the {@link ToolbarWidthConsumer} for the action list container. */
+    ToolbarWidthConsumer getActionListWidthConsumer();
 }

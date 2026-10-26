@@ -9,6 +9,7 @@
 #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/actions/action_view_interface.h"
+#include "ui/views/widget/widget.h"
 
 namespace {
 class TopContainerButtonActionViewInterface
@@ -48,7 +49,7 @@ void TopContainerButton::UpdateIcon(const ui::ImageModel& icon_image) {
 
   const ui::ImageModel image_model = ui::ImageModel::FromVectorIcon(
       *icon_image.GetVectorIcon().vector_icon(), GetForegroundColor(),
-      GetLayoutConstant(LayoutConstant::kVerticalTabStripTopButtonIconSize));
+      GetLayoutConstant(LayoutConstant::kVerticalTabStripButtonIconSize));
 
   SetImageModel(views::Button::STATE_NORMAL, image_model);
   SetImageModel(views::Button::STATE_HOVERED, image_model);
@@ -68,8 +69,8 @@ void TopContainerButton::RemovedFromWidget() {
 
 ui::ColorId TopContainerButton::GetForegroundColor() const {
   return GetWidget() && GetWidget()->ShouldPaintAsActive()
-             ? kColorToolbarButtonIcon
-             : kColorToolbarButtonIconInactive;
+             ? kColorTabForegroundInactiveFrameActive
+             : kColorTabForegroundInactiveFrameInactive;
 }
 
 std::unique_ptr<views::ActionViewInterface>

@@ -21,7 +21,6 @@
 #include "third_party/blink/renderer/core/execution_context/remote_security_context.h"
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
 #include "third_party/blink/renderer/core/exported/web_view_impl.h"
-#include "third_party/blink/renderer/core/frame/csp/conversion_util.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/remote_frame_client_impl.h"
@@ -251,7 +250,7 @@ WebLocalFrame* WebRemoteFrameImpl::CreateLocalChild(
       FrameInsertType::kInsertInConstructor, name, window_agent_factory, opener,
       document_token, std::move(interface_broker), std::move(policy_container),
       storage_key,
-      /*creator_base_url=*/KURL());
+      /*creator_base_url=*/NullUrl());
   DCHECK(child->GetFrame());
   return child;
 }

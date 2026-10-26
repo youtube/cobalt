@@ -89,6 +89,11 @@
 #include "ui/base/mojom/window_show_state.mojom-blink-forward.h"
 #include "ui/gfx/ca_layer_result.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/core/cobalt/performance/cobalt_frame_timing.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
+#endif
+
 namespace gfx {
 class Point;
 class PointF;
@@ -462,6 +467,7 @@ class CORE_EXPORT WebFrameWidgetImpl
 
   // WidgetBaseClient overrides:
   void OnCommitRequested() override;
+  void WillBeginImplCommit() override;
   void BeginMainFrame(const viz::BeginFrameArgs& args) override;
   void UpdateLifecycle(WebLifecycleUpdate requested_update,
                        DocumentUpdateReason reason) override;
@@ -793,6 +799,17 @@ class CORE_EXPORT WebFrameWidgetImpl
   void BeginCommitCompositorFrame() override;
   void EndCommitCompositorFrame(base::TimeTicks commit_start_time,
                                 base::TimeTicks commit_finish_time) override;
+#if BUILDFLAG(IS_COBALT)
+  void DidPresentCobaltFrame(
+      uint32_t frame_token,
+      const viz::FrameTimingDetails& frame_timing_details) override;
+  void OnCobaltPresentationCallback(
+      CobaltMainFrameSnapshot snapshot,
+      const viz::FrameTimingDetails& frame_timing_details);
+  // Captures this main frame's lifecycle metrics and requests a presentation
+  // callback for the commit that carries them. Called from EndUpdateLayers().
+  void RequestCobaltMainFramePresentation();
+#endif
   void ApplyViewportChanges(const cc::ApplyViewportChangesArgs& args) override;
   void RecordDispatchRafAlignedInputTime(
       base::TimeTicks raf_aligned_input_start_time) override;
@@ -917,6 +934,9 @@ class CORE_EXPORT WebFrameWidgetImpl
   void CenterSelection() override;
   void Paste() override;
   void PasteAndMatchStyle() override;
+  void PasteFromImageBytes(mojo_base::BigBuffer image_bytes,
+                           const String& media_format,
+                           PasteFromImageBytesCallback callback) override;
   void Delete() override;
   void SelectAll() override;
   void CollapseSelection() override;
@@ -969,8 +989,6 @@ class CORE_EXPORT WebFrameWidgetImpl
   void ForEachRemoteFrameControlledByWidget(
       base::FunctionRef<void(RemoteFrame*)> callback);
 
-  void SendOverscrollEventFromImplSide(const gfx::Vector2dF& overscroll_delta,
-                                       cc::ElementId scroll_latched_element_id);
   void SendEndOfScrollEvents(const cc::CompositorCommitData& commit_data);
   void SendScrollSnapChangingEventIfNeeded(
       const cc::CompositorCommitData& commit_data);
@@ -1295,6 +1313,13 @@ class CORE_EXPORT WebFrameWidgetImpl
   std::optional<float> browser_controls_top_height_override_;
 
   bool throttling_frame_rate_ = false;
+
+#if BUILDFLAG(IS_COBALT)
+  base::TimeTicks cobalt_bmf_start_time_;
+  // Snapshots resolved by the presentation currently being processed; see
+  // OnCobaltPresentationCallback().
+  Vector<CobaltMainFrameSnapshot> pending_cobalt_main_snapshots_;
+#endif
 };
 
 }  // namespace blink

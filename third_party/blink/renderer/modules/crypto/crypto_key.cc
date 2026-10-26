@@ -73,9 +73,13 @@ const KeyUsageMapping kKeyUsageMappings[] = {
     {kWebCryptoKeyUsageDeriveBits, "deriveBits"},
     {kWebCryptoKeyUsageWrapKey, "wrapKey"},
     {kWebCryptoKeyUsageUnwrapKey, "unwrapKey"},
+    {kWebCryptoKeyUsageEncapsulateKey, "encapsulateKey"},
+    {kWebCryptoKeyUsageEncapsulateBits, "encapsulateBits"},
+    {kWebCryptoKeyUsageDecapsulateKey, "decapsulateKey"},
+    {kWebCryptoKeyUsageDecapsulateBits, "decapsulateBits"},
 };
 
-static_assert(kEndOfWebCryptoKeyUsage == (1 << 7) + 1,
+static_assert(kEndOfWebCryptoKeyUsage == (1 << 11) + 1,
               "keyUsageMappings needs to be updated");
 
 const char* KeyUsageToString(WebCryptoKeyUsage usage) {
@@ -220,7 +224,25 @@ bool CryptoKey::ParseFormat(const String& format_string,
     return true;
   }
 
-  exception_state.ThrowTypeError("Invalid keyFormat argument");
+  if (format_string == "raw-public") {
+    format = kWebCryptoKeyFormatRawPublic;
+    return true;
+  }
+  if (format_string == "raw-private") {
+    format = kWebCryptoKeyFormatRawPrivate;
+    return true;
+  }
+  if (format_string == "raw-seed") {
+    format = kWebCryptoKeyFormatRawSeed;
+    return true;
+  }
+  if (format_string == "raw-secret") {
+    format = kWebCryptoKeyFormatRawSecret;
+    return true;
+  }
+
+  exception_state.ThrowTypeError("Invalid keyFormat argument: " +
+                                 format_string);
   return false;
 }
 

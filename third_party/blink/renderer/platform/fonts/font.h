@@ -102,6 +102,10 @@ class PLATFORM_EXPORT Font : public GarbageCollected<Font> {
     float begin_, end_;
   };
 
+  // Controls whether CJK characters are excluded from or included in text
+  // intercept computation for ink skip decoration line clipping.
+  enum class InkSkipCJKHandling { kExcludeCJK, kIncludeCJK };
+
   // Compute the text intercepts along the axis of the advance and write them
   // into the specified Vector of TextIntercepts. The number of those is zero or
   // a multiple of two, and is at most the number of glyphs * 2 in the text part
@@ -109,6 +113,7 @@ class PLATFORM_EXPORT Font : public GarbageCollected<Font> {
   // a line crossing through the text, parallel to the baseline.
   // TODO(drott): crbug.com/655154 Fix this for upright in vertical.
   void GetTextIntercepts(const TextFragmentPaintInfo&,
+                         InkSkipCJKHandling,
                          const cc::PaintFlags&,
                          const std::tuple<float, float>& bounds,
                          Vector<TextIntercept>&) const;
@@ -158,6 +163,9 @@ class PLATFORM_EXPORT Font : public GarbageCollected<Font> {
   // True if `this` has any non-initial font features. This includes not only
   // `GetFontFeatures()` but also features computed in later stages.
   bool HasNonInitialFontFeatures() const;
+
+  // True if `this` has font-features which encompass the entire range.
+  bool HasSimpleFontFeatures() const;
 
   // Access the NG shape cache associated with this particular font object.
   // Should *not* be retained across layout calls as it may become invalid.

@@ -9,7 +9,6 @@
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "base/strings/sys_string_conversions.h"
-#import "ios/chrome/browser/incognito_reauth/ui_bundled/features.h"
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
@@ -102,8 +101,15 @@ CGFloat CompactButtonHorizontalPadding() {
 
   NSArray<UITrait>* traits = TraitCollectionSetForTraits(
       @[ UITraitVerticalSizeClass.class, UITraitHorizontalSizeClass.class ]);
-  [self registerForTraitChanges:traits withAction:@selector(updateLayout)];
+  [self registerForTraitChanges:traits withAction:@selector(setNeedsLayout)];
   [super didMoveToSuperview];
+}
+
+- (void)layoutSubviews {
+  [super layoutSubviews];
+  // Perform updates during the layout phase to avoid re-entrancy issues
+  // during trait collection changes.
+  [self updateLayout];
 }
 
 // Returns intrinsicContentSize based on the content of the toolbar.

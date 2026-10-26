@@ -160,7 +160,6 @@
           'isolated_scripts': 'desktop_tests',
         },
       },
-      'Mac64 Builder': {},
       'Mac64 Debug': {
         'os_type': 'mac',
         'mixins': ['mac_15_x64', 'cores-12', 'resultdb-json-format'],
@@ -277,17 +276,6 @@
           'isolated_scripts': 'perf_tests_save_worst_frame',
         },
       },
-      'Perf Mac 11': {
-        'os_type':
-        'mac',
-        'mixins': [
-          'mac11', 'x86-64', 'perf-pool', 'timeout-3h',
-          'resultdb-gtest-json-format'
-        ],
-        'test_suites': {
-          'isolated_scripts': 'perf_tests_save_worst_frame',
-        },
-      },
       'Perf Mac M1 Arm64 12': {
         'os_type':
         'mac',
@@ -306,45 +294,6 @@
         ['win10-any', 'perf-pool', 'timeout-3h', 'resultdb-gtest-json-format'],
         'test_suites': {
           'isolated_scripts': 'perf_tests_save_worst_frame',
-        },
-      },
-    },
-  },
-  {
-    'name': 'internal.client.webrtc',
-    'mixins': [],
-    'machines': {
-      'iOS64 Debug': {
-        'mixins': [
-          'ios-device-18', 'webrtc-xctest', 'chrome-tester-service-account',
-          'xcode_26_main', 'mac_toolchain', 'has_native_resultdb_integration',
-          'out_dir_arg'
-        ],
-        'test_suites': {
-          'isolated_scripts': 'ios_device_tests',
-        },
-      },
-      'iOS64 Perf': {
-        'mixins': [
-          'arm64', 'ios-device-perf', 'webrtc-xctest', 'timeout-3h',
-          'chrome-tester-service-account', 'xcode_26_main', 'mac_toolchain',
-          'has_native_resultdb_integration', 'out_dir_arg'
-        ],
-        'test_suites': {
-          'isolated_scripts': 'perf_tests_no_video_codec',
-        },
-        'args': [
-          '--write_perf_output_on_ios',
-        ],
-      },
-      'iOS64 Release': {
-        'mixins': [
-          'ios-device-18', 'webrtc-xctest', 'chrome-tester-service-account',
-          'xcode_26_main', 'mac_toolchain', 'has_native_resultdb_integration',
-          'out_dir_arg'
-        ],
-        'test_suites': {
-          'isolated_scripts': 'ios_device_tests',
         },
       },
     },

@@ -233,7 +233,12 @@ void AnnotatedPageContentRequest::RequestAnnotatedPageContentSync() {
   FetchPageContextOptions options;
   options.annotated_page_content_options = request_->Clone();
   if (features::kPageContentCacheEnableScreenshot.Get()) {
-    options.screenshot_options = ScreenshotOptions::ViewportOnly(std::nullopt);
+    ScreenshotOptions::ScreenshotCollectionOptions
+        screenshot_collection_options;
+    screenshot_collection_options.screenshot_image_format =
+        ScreenshotOptions::ScreenshotImageFormat::kPng;
+    options.screenshot_options =
+        ScreenshotOptions::ViewportOnly(std::nullopt, std::nullopt);
   }
   fetch_page_context_callback_.Run(
       *web_contents_, options, /*progress_listener=*/nullptr,
@@ -309,10 +314,13 @@ void AnnotatedPageContentRequest::OnPageContextFetched(
 
   auto page_content_result =
       std::move(result.value()->annotated_page_content_result);
+  auto ref_counted_content =
+      base::MakeRefCounted<RefCountedAnnotatedPageContent>(
+          std::move(page_content_result->proto));
 
   page_content_extraction_service_->OnPageContentExtracted(
-      web_contents_->GetPrimaryPage(), page_content_result->proto,
-      screenshot_data, get_tab_id_callback_.Run(web_contents_));
+      web_contents_->GetPrimaryPage(), ref_counted_content, screenshot_data,
+      get_tab_id_callback_.Run(web_contents_));
 
   GURL url = web_contents_->GetLastCommittedURL();
   bool is_eligible_for_server_upload =
@@ -323,7 +331,7 @@ void AnnotatedPageContentRequest::OnPageContextFetched(
               *page_content_result),
           page_context_eligibility_);
   cached_content_ = ExtractedPageContentResult(
-      std::move(page_content_result->proto), extraction_time,
+      std::move(ref_counted_content), extraction_time,
       is_eligible_for_server_upload, std::move(screenshot_data));
 }
 

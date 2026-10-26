@@ -36,10 +36,13 @@ class MockContextualSearchContextController
               (std::unique_ptr<CreateClientToAimRequestInfo>
                    create_client_to_aim_request_info),
               (override));
-  MOCK_METHOD(void, AddObserver, (FileUploadStatusObserver * obs), (override));
+  MOCK_METHOD(void,
+              AddObserver,
+              (ContextUploadStatusObserver * obs),
+              (override));
   MOCK_METHOD(void,
               RemoveObserver,
-              (FileUploadStatusObserver * obs),
+              (ContextUploadStatusObserver * obs),
               (override));
   MOCK_METHOD(void,
               StartFileUploadFlow,
@@ -62,6 +65,10 @@ class MockContextualSearchContextController
               (const base::UnguessableToken& file_token),
               (override));
   MOCK_METHOD(std::vector<const FileInfo*>, GetFileInfoList, (), (override));
+  MOCK_METHOD(std::optional<base::UnguessableToken>,
+              FindTokenForInjectedInput,
+              (const std::string& id),
+              (override));
   MOCK_METHOD(base::WeakPtr<ContextualSearchContextController>,
               AsWeakPtr,
               (),

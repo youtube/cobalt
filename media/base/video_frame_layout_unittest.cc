@@ -318,8 +318,8 @@ TEST(VideoFrameLayout, FitsInContiguousBufferOfSize) {
   auto coded_size = gfx::Size(320, 180);
 
   std::vector<size_t> strides = {384, 192, 192};
-  std::vector<size_t> offsets = {0, 200, 300};
-  std::vector<size_t> sizes = {200, 100, 100};
+  std::vector<size_t> offsets = {0, 70000, 90000};
+  std::vector<size_t> sizes = {70000, 20000, 20000};
   std::vector<ColorPlaneLayout> planes(strides.size());
   for (size_t i = 0; i < strides.size(); i++) {
     planes[i].stride = strides[i];
@@ -358,6 +358,30 @@ TEST(VideoFrameLayout, FitsInContiguousBufferOfSize) {
   ASSERT_TRUE(layout.has_value());
   EXPECT_FALSE(
       layout->FitsInContiguousBufferOfSize(std::numeric_limits<size_t>::max()));
+
+  // Validate exact footprint calculation (stride > row_bytes).
+  {
+    std::vector<ColorPlaneLayout> exact_planes(3);
+    exact_planes[0].stride = 384;  // row_bytes = 320, rows = 180
+    exact_planes[0].offset = 0;
+    exact_planes[0].size = 384 * 179 + 320;  // 69056
+
+    exact_planes[1].stride = 192;  // row_bytes = 160, rows = 90
+    exact_planes[1].offset = 69056;
+    exact_planes[1].size = 192 * 89 + 160;  // 17248
+
+    exact_planes[2].stride = 192;  // row_bytes = 160, rows = 90
+    exact_planes[2].offset = 69056 + 17248;
+    exact_planes[2].size = 192 * 89 + 160;  // 17248
+
+    auto exact_layout = VideoFrameLayout::CreateWithPlanes(
+        PIXEL_FORMAT_I420, coded_size, exact_planes);
+    ASSERT_TRUE(exact_layout.has_value());
+    size_t exact_data_size = exact_planes[2].offset + exact_planes[2].size;
+    EXPECT_TRUE(exact_layout->FitsInContiguousBufferOfSize(exact_data_size));
+    EXPECT_FALSE(
+        exact_layout->FitsInContiguousBufferOfSize(exact_data_size - 1));
+  }
 }
 
 }  // namespace media

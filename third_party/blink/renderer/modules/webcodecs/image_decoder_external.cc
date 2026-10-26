@@ -38,8 +38,9 @@ namespace blink {
 namespace {
 
 bool IsTypeSupportedInternal(String type) {
-  if (!type.ContainsOnlyASCIIOrEmpty())
+  if (!type.ContainsOnlyAsciiOrEmpty()) {
     return false;
+  }
 
   // Disable ICO/CUR decoding since the underlying decoder does not operate like
   // the rest of our blink::ImageDecoders. Each frame is a different sized
@@ -54,7 +55,7 @@ bool IsTypeSupportedInternal(String type) {
   // Additionally, since the ICO/CUR formats are simple, it seems fine to allow
   // the parsing to happen in JS while decoding for the individual BMP or PNG
   // files can be done using this API.
-  const auto type_lower = type.LowerASCII();
+  const auto type_lower = type.ToAsciiLower();
   if (type_lower == "image/x-icon" || type_lower == "image/vnd.microsoft.icon")
     return false;
 
@@ -174,7 +175,7 @@ ImageDecoderExternal::ImageDecoderExternal(ScriptState* script_state,
   if (init->hasDesiredWidth() && init->hasDesiredHeight())
     desired_size = SkISize::Make(init->desiredWidth(), init->desiredHeight());
 
-  mime_type_ = init->type().LowerASCII();
+  mime_type_ = init->type().ToAsciiLower();
   if (!IsTypeSupportedInternal(mime_type_)) {
     tracks_->OnTracksReady(CreateUnsupportedImageTypeException(mime_type_));
     return;
@@ -427,7 +428,7 @@ void ImageDecoderExternal::OnStateChange() {
     if (result == BytesConsumer::Result::kOk) {
       if (!buffer.empty()) {
         data.ReserveInitialCapacity(static_cast<wtf_size_t>(buffer.size()));
-        data.AppendSpan(buffer);
+        data.append_range(buffer);
         bytes_read_ += buffer.size();
       }
       result = consumer_->EndRead(buffer.size());
@@ -530,7 +531,7 @@ void ImageDecoderExternal::MaybeSatisfyPendingDecodes() {
   // Copy completed requests to a new local vector to avoid reentrancy issues
   // when resolving and rejecting the promises.
   HeapVector<Member<DecodeRequest>> completed_decodes;
-  completed_decodes.AppendRange(new_end, pending_decodes_.end());
+  completed_decodes.Append(new_end, pending_decodes_.end());
   pending_decodes_.Shrink(
       static_cast<wtf_size_t>(new_end - pending_decodes_.begin()));
 

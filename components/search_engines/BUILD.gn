@@ -54,6 +54,8 @@ static_library("search_engines") {
     "template_url_service_observer.h",
     "template_url_starter_pack_data.cc",
     "template_url_starter_pack_data.h",
+    "ui_utils.cc",
+    "ui_utils.h",
     "util.cc",
     "util.h",
   ]
@@ -194,6 +196,7 @@ static_library("test_support") {
     "//base",
     "//base/test:test_support",
     "//components/country_codes",
+    "//components/metrics",
     "//components/metrics:metrics_pref_names",
     "//components/os_crypt/async/browser:test_support",
     "//components/policy/core/common",
@@ -225,6 +228,8 @@ source_set("unit_tests") {
     "template_url_service_unittest.cc",
     "template_url_service_util_unittest.cc",
     "template_url_unittest.cc",
+    "ui_utils_unittest.cc",
+    "util_unittest.cc",
   ]
 
   deps = [

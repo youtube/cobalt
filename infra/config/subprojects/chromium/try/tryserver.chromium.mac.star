@@ -161,11 +161,8 @@ try_.orchestrator_builder(
     name = "mac-rel",
     branch_selector = branches.selector.MAC_BRANCHES,
     mirrors = [
-        "ci/Mac Builder",
-        "ci/mac15-x64-rel-tests",
-        "ci/GPU Mac Builder",
-        "ci/Mac Release (Intel)",
-        "ci/Mac Retina Release (AMD)",
+        "ci/mac-arm64-rel",
+        "ci/mac15-arm64-rel-tests",
     ],
     gn_args = gn_args.config(
         configs = [
@@ -177,8 +174,9 @@ try_.orchestrator_builder(
             "partial_code_coverage_instrumentation",
             "enable_dangling_raw_ptr_feature_flag",
             "enable_backup_ref_ptr_feature_flag",
+            "enable_rust_clippy",
             "mac",
-            "x64",
+            "arm64",
         ],
     ),
     compilator = "mac-rel-compilator",
@@ -201,6 +199,56 @@ try_.compilator_builder(
     name = "mac-rel-compilator",
     branch_selector = branches.selector.MAC_BRANCHES,
     cpu = cpu.ARM64,
+    main_list_view = "try",
+)
+
+# TODO(crbug.com/415099984): Remove this builder and merge all the mirrored
+# tests/builds under mac-rel, once Mac GPU tests are ready for ARM migration.
+try_.orchestrator_builder(
+    name = "mac-gpu-rel",
+    branch_selector = branches.selector.MAC_BRANCHES,
+    mirrors = [
+        "ci/GPU Mac Builder",
+        "ci/Mac Release (Intel)",
+        "ci/Mac Retina Release (AMD)",
+    ],
+    gn_args = gn_args.config(
+        configs = [
+            "gpu_tests",
+            "release_try_builder",
+            "remoteexec",
+            "no_symbols",
+            "use_clang_coverage",
+            "partial_code_coverage_instrumentation",
+            "enable_dangling_raw_ptr_feature_flag",
+            "enable_backup_ref_ptr_feature_flag",
+            "mac",
+            "x64",
+        ],
+    ),
+    compilator = "mac-gpu-rel-compilator",
+    contact_team_email = "chrome-gpu-infra@google.com",
+    coverage_test_types = ["overall", "unit"],
+    experiments = {
+        # go/nplus1shardsproposal
+        "chromium.add_one_test_shard": 10,
+        # crbug.com/940930
+        "chromium.enable_cleandead": 100,
+    },
+    main_list_view = "try",
+    tryjob = try_.job(),
+    use_clang_coverage = True,
+    # TODO (crbug.com/1372179): Use orchestrator pool once overloaded test pools
+    # are addressed
+    #use_orchestrator_pool = True,
+)
+
+try_.compilator_builder(
+    name = "mac-gpu-rel-compilator",
+    branch_selector = branches.selector.MAC_BRANCHES,
+    description_html = "compilator for mac-gpu-rel.",
+    cpu = cpu.ARM64,
+    contact_team_email = "chrome-gpu-infra@google.com",
     main_list_view = "try",
 )
 
@@ -340,12 +388,6 @@ try_.orchestrator_builder(
     compilator = "mac15-arm64-rel-compilator",
     contact_team_email = "bling-engprod@google.com",
     main_list_view = "try",
-    tryjob = try_.job(
-        # TODO (crbug.com/415099984): change to 100,
-        # then move out of experimental CQ after,
-        # mac15-arm64-rel replaces mac14-arm64-rel on CQ.
-        experiment_percentage = 100,
-    ),
 )
 
 try_.compilator_builder(

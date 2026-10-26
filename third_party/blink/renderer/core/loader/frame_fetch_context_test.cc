@@ -51,8 +51,8 @@
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/scheduler/web_scoped_virtual_time_pauser.h"
 #include "third_party/blink/public/platform/web_document_subresource_filter.h"
+#include "third_party/blink/renderer/core/ad_tracker/ad_tracker.h"
 #include "third_party/blink/renderer/core/dom/document.h"
-#include "third_party/blink/renderer/core/frame/ad_tracker.h"
 #include "third_party/blink/renderer/core/frame/frame_owner.h"
 #include "third_party/blink/renderer/core/frame/frame_types.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -299,11 +299,23 @@ class FrameFetchContextSubresourceFilterTest
         CanRequestInternal(ReportingDisposition::kReport);
     ResourceRequest request(KURL("http://example.com/"));
     FetchInitiatorInfo initiator_info;
-    EXPECT_EQ(expect_is_ad, GetFetchContext()->CalculateIfAdSubresource(
-                                request, std::nullopt /* alias_url */,
-                                ResourceType::kMock, initiator_info,
-                                /*scan_stack_for_ads=*/false,
-                                /*out_rule=*/nullptr));
+
+    std::optional<AdProvenance> ad_provenance =
+        GetFetchContext()->CalculateIfAdSubresource(
+            request, std::nullopt /* alias_url */, ResourceType::kMock,
+            initiator_info,
+            /*scan_stack_for_ads=*/false);
+
+    if (expect_is_ad) {
+      EXPECT_TRUE(std::holds_alternative<subresource_filter::ScopedRule>(
+          *ad_provenance));
+      // Note: Since the mock subresource filter does not populate specific
+      // rules, we only verify the provenance type rather than checking the
+      // rule's exact contents.
+    } else {
+      EXPECT_FALSE(ad_provenance.has_value());
+    }
+
     return reason;
   }
 
@@ -1805,12 +1817,21 @@ TEST_P(FrameFetchContextSubresourceFilterTest,
 
     ResourceLoaderOptions options(nullptr /* world */);
 
-    EXPECT_EQ(test.expected_to_be_tagged_ad,
-              GetFetchContext()->CalculateIfAdSubresource(
-                  resource_request, alias_url, ResourceType::kScript,
-                  options.initiator_info,
-                  /*scan_stack_for_ads=*/false,
-                  /*out_rule=*/nullptr));
+    std::optional<AdProvenance> ad_provenance =
+        GetFetchContext()->CalculateIfAdSubresource(
+            resource_request, alias_url, ResourceType::kScript,
+            options.initiator_info,
+            /*scan_stack_for_ads=*/false);
+
+    if (test.expected_to_be_tagged_ad) {
+      EXPECT_TRUE(std::holds_alternative<subresource_filter::ScopedRule>(
+          *ad_provenance));
+      // Note: Since the mock subresource filter does not populate specific
+      // rules, we only verify the provenance type rather than checking the
+      // rule's exact contents.
+    } else {
+      EXPECT_FALSE(ad_provenance.has_value());
+    }
   }
 }
 

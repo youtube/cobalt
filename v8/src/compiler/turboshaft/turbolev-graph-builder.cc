@@ -813,15 +813,14 @@ class GraphBuildingNodeProcessor {
         case maglev::ValueRepresentation::kFloat64:
           __ SetVariable(
               var,
-              Float64ToTagged(
-                  V<Float64>::Cast(ts_idx),
-                  maglev::Float64ToTagged::ConversionMode::kCanonicalizeSmi));
+              Float64ToTagged(V<Float64>::Cast(ts_idx),
+                              maglev::NumberConversionMode::kCanonicalizeSmi));
           break;
         case maglev::ValueRepresentation::kHoleyFloat64:
-          __ SetVariable(
-              var, HoleyFloat64ToTagged(V<Float64>::Cast(ts_idx),
-                                        maglev::HoleyFloat64ToTagged::
-                                            ConversionMode::kCanonicalizeSmi));
+          __ SetVariable(var,
+                         HoleyFloat64ToTagged(
+                             V<Float64>::Cast(ts_idx),
+                             maglev::NumberConversionMode::kCanonicalizeSmi));
           break;
         case maglev::ValueRepresentation::kIntPtr:
           __ SetVariable(var,
@@ -2628,6 +2627,126 @@ class GraphBuildingNodeProcessor {
               CheckMapsFlag::kNone);
     return maglev::ProcessResult::kContinue;
   }
+  maglev::ProcessResult Process(maglev::CheckHomomorphicMap* node,
+                                const maglev::ProcessingState& state) {
+    GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+
+    V<Object> object = Map(node->ObjectInput());
+
+    ScopedVar<i::Map, AssemblerT> map(this);
+    if (node->check_type() == maglev::CheckType::kCheckHeapObject) {
+      IF_NOT (__ IsSmi(object)) {
+        map = __ LoadMapField(object);
+      } ELSE {
+        map = __ HeapConstant(local_factory_->heap_number_map());
+      }
+    } else {
+      // TODO(leszeks): Assert that the object is not a Smi.
+      map = __ LoadMapField(object);
+    }
+
+    int handler = node->handler_value();
+    int descriptor_index = LoadHandler::DescriptorIndexBits::decode(handler);
+
+    uint32_t length = node->homomorphic_array().length().value();
+    V<WordPtr> map_word = __ BitcastTaggedToWordPtr(map.Get());
+    V<WordPtr> cache_index = __ WordPtrBitwiseAnd(
+        __ WordPtrShiftRightLogical(map_word, kTaggedSizeLog2),
+        __ WordPtrConstant(length - 1));
+    V<HeapObject> array = __ HeapConstant(node->homomorphic_array().object());
+    V<WordPtr> weak_map =
+        __ WordPtrBitwiseOr(map_word, __ WordPtrConstant(kWeakHeapObjectMask));
+
+    V<Object> array_entry =
+        __ Load(array, cache_index, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::AnyTagged(),
+                FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
+
+    IF_NOT (__ WordPtrEqual(__ BitcastTaggedToWordPtr(array_entry), weak_map)) {
+      // 1. Check descriptor count.
+      V<Word32> bitfield3 =
+          __ Load(map, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::Int32(), Map::kBitField3Offset);
+      V<Word32> nof_desc = __ Word32BitwiseAnd(
+          bitfield3, Map::Bits3::NumberOfOwnDescriptorsBits::kMask);
+      V<Word32> encoded_descriptor_index = __ Word32Constant(
+          Map::Bits3::NumberOfOwnDescriptorsBits::encode(descriptor_index));
+      __ DeoptimizeIf(
+          __ Uint32LessThanOrEqual(nof_desc, encoded_descriptor_index),
+          frame_state, DeoptimizeReason::kWrongMap,
+          node->eager_deopt_info()->feedback_to_update());
+
+      // 2. Load descriptor array.
+      V<DescriptorArray> descriptors =
+          __ Load(map, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::TaggedPointer(),
+                  Map::kInstanceDescriptorsOffset);
+
+      // 3. Check key.
+      int key_offset = DescriptorArray::OffsetOfDescriptorAt(descriptor_index) +
+                       DescriptorArray::kEntryKeyOffset;
+      V<Object> key = __ Load(descriptors, LoadOp::Kind::TaggedBase(),
+                              MemoryRepresentation::AnyTagged(), key_offset);
+      V<Object> name = __ HeapConstant(node->name().object());
+      __ DeoptimizeIfNot(__ TaggedEqual(key, name), frame_state,
+                         DeoptimizeReason::kWrongMap,
+                         node->eager_deopt_info()->feedback_to_update());
+
+      // 4. Check details.
+      int details_offset =
+          DescriptorArray::OffsetOfDescriptorAt(descriptor_index) +
+          DescriptorArray::kEntryDetailsOffset;
+      V<Smi> details_smi =
+          __ Load(descriptors, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::TaggedSigned(), details_offset);
+      V<Word32> details = __ UntagSmi(details_smi);
+
+      // 4a. Check kind, location, and in-object.
+      uint16_t storage_offset =
+          LoadHandler::StorageOffsetInWordsBits::decode(handler);
+      bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
+      uint32_t expected_details_mask =
+          PropertyDetails::KindField::kMask |
+          PropertyDetails::LocationField::kMask |
+          PropertyDetails::OffsetInWordsField::kMask |
+          PropertyDetails::InObjectField::kMask;
+      uint32_t expected_details =
+          PropertyDetails::KindField::encode(PropertyKind::kData) |
+          PropertyDetails::LocationField::encode(PropertyLocation::kField) |
+          PropertyDetails::OffsetInWordsField::encode(storage_offset) |
+          PropertyDetails::InObjectField::encode(is_inobject);
+
+      V<Word32> masked_details =
+          __ Word32BitwiseAnd(details, expected_details_mask);
+      __ DeoptimizeIfNot(__ Word32Equal(masked_details, expected_details),
+                         frame_state, DeoptimizeReason::kWrongMap,
+                         node->eager_deopt_info()->feedback_to_update());
+
+      // 4b. Check Representation.
+      bool is_double = LoadHandler::IsDoubleBits::decode(handler);
+      uint32_t repr_mask = PropertyDetails::RepresentationField::kMask;
+      uint32_t expected_repr = PropertyDetails::RepresentationField::encode(
+          PropertyDetails::EncodeRepresentation(Representation::Double()));
+
+      V<Word32> masked_repr = __ Word32BitwiseAnd(details, repr_mask);
+      if (is_double) {
+        __ DeoptimizeIfNot(__ Word32Equal(masked_repr, expected_repr),
+                           frame_state, DeoptimizeReason::kWrongMap,
+                           node->eager_deopt_info()->feedback_to_update());
+      } else {
+        __ DeoptimizeIf(__ Word32Equal(masked_repr, expected_repr), frame_state,
+                        DeoptimizeReason::kWrongMap,
+                        node->eager_deopt_info()->feedback_to_update());
+      }
+
+      __ Store(array, cache_index, __ BitcastWordPtrToTagged(weak_map),
+               StoreOp::Kind::TaggedBase(), MemoryRepresentation::AnyTagged(),
+               WriteBarrierKind::kFullWriteBarrier,
+               FixedArray::OffsetOfElementAt(0), kTaggedSizeLog2);
+    }
+
+    return maglev::ProcessResult::kContinue;
+  }
   maglev::ProcessResult Process(maglev::CheckMapsWithAlreadyLoadedMap* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -2831,7 +2950,8 @@ class GraphBuildingNodeProcessor {
 
   maglev::ProcessResult Process(maglev::CheckMaglevType* node,
                                 const maglev::ProcessingState& state) {
-    __ CheckMaglevType(Map(node->input(0)), node->expected_type());
+    __ CheckMaglevType(Map(node->input(0)), node->expected_type(),
+                       node->allow_widening_smi_to_int32());
     return maglev::ProcessResult::kContinue;
   }
 
@@ -3525,7 +3645,7 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
     __ DeoptimizeIfNot(
-        __ UintPtrLessThan(__ ChangeUint32ToUintPtr(Map(node->IndexInput())),
+        __ UintPtrLessThan(__ ChangeInt32ToIntPtr(Map(node->IndexInput())),
                            Map(node->LengthInput())),
         frame_state, DeoptimizeReason::kOutOfBounds,
         node->eager_deopt_info()->feedback_to_update());
@@ -4679,7 +4799,16 @@ class GraphBuildingNodeProcessor {
   }
   maglev::ProcessResult Process(maglev::Int32ToNumber* node,
                                 const maglev::ProcessingState& state) {
-    SetMap(node, __ ConvertInt32ToNumber(Map(node->ValueInput())));
+    V<Number> number;
+    switch (node->conversion_mode()) {
+      case maglev::NumberConversionMode::kCanonicalizeSmi:
+        number = __ ConvertInt32ToNumber(Map(node->ValueInput()));
+        break;
+      case maglev::NumberConversionMode::kForceHeapNumber:
+        number = __ ConvertInt32ToHeapNumber(Map(node->ValueInput()));
+        break;
+    }
+    SetMap(node, number);
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(maglev::Uint32ToNumber* node,
@@ -4704,17 +4833,6 @@ class GraphBuildingNodeProcessor {
                                 const maglev::ProcessingState& state) {
     SetMap(node, HoleyFloat64ToTagged(Map(node->ValueInput()),
                                       node->conversion_mode()));
-    return maglev::ProcessResult::kContinue;
-  }
-  maglev::ProcessResult Process(maglev::Float64ToHeapNumberForField* node,
-                                const maglev::ProcessingState& state) {
-    // We don't use ConvertUntaggedToJSPrimitive but instead the lower level
-    // AllocateHeapNumberWithValue helper, because ConvertUntaggedToJSPrimitive
-    // can be GVNed, which we don't want for Float64ToHeapNumberForField, since
-    // it creates a mutable HeapNumber, that will then be owned by an object
-    // field.
-    SetMap(node, __ AllocateHeapNumberWithValue(Map(node->ValueInput()),
-                                                isolate_->factory()));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -6277,16 +6395,14 @@ class GraphBuildingNodeProcessor {
         GetArrayTypeFromElementsKind(kind));
   }
 
-  V<Number> Float64ToTagged(
-      V<Float64> input,
-      maglev::Float64ToTagged::ConversionMode conversion_mode) {
+  V<Number> Float64ToTagged(V<Float64> input,
+                            maglev::NumberConversionMode conversion_mode) {
     // Float64ToTagged's conversion mode is used to control whether integer
     // floats should be converted to Smis or to HeapNumbers: kCanonicalizeSmi
     // means that they can be converted to Smis, and otherwise they should
     // remain HeapNumbers.
     ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind kind =
-        conversion_mode ==
-                maglev::Float64ToTagged::ConversionMode::kCanonicalizeSmi
+        conversion_mode == maglev::NumberConversionMode::kCanonicalizeSmi
             ? ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber
             : ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kHeapNumber;
     return V<Number>::Cast(__ ConvertUntaggedToJSPrimitive(
@@ -6296,11 +6412,9 @@ class GraphBuildingNodeProcessor {
   }
 
   V<NumberOrUndefined> HoleyFloat64ToTagged(
-      V<Float64> input,
-      maglev::HoleyFloat64ToTagged::ConversionMode conversion_mode) {
+      V<Float64> input, maglev::NumberConversionMode conversion_mode) {
     Label<NumberOrUndefined> done(this);
-    if (conversion_mode ==
-        maglev::HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi) {
+    if (conversion_mode == maglev::NumberConversionMode::kCanonicalizeSmi) {
       // ConvertUntaggedToJSPrimitive cannot at the same time canonicalize smis
       // and handle holes. We thus manually insert a smi check when the
       // conversion_mode is CanonicalizeSmi.

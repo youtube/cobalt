@@ -2580,6 +2580,10 @@ protocol::Audits::GenericIssueErrorType GenericIssueErrorTypeToProtocol(
         kManualTextPolicyControlledFeatureInfo:
       return protocol::Audits::GenericIssueErrorTypeEnum::
           ManualTextPolicyControlledFeatureInfo;
+    case blink::mojom::GenericIssueErrorType::
+        kFormModelContextParameterMissingTitleAndDescription:
+      return protocol::Audits::GenericIssueErrorTypeEnum::
+          FormModelContextParameterMissingTitleAndDescription;
   }
 }
 

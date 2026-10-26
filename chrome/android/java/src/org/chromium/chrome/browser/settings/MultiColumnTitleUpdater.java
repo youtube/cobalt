@@ -8,9 +8,11 @@ import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 
 import android.content.Context;
 import android.graphics.text.LineBreaker;
+import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 
@@ -33,6 +35,8 @@ import org.chromium.ui.base.LocalizationUtils;
 class MultiColumnTitleUpdater implements MultiColumnSettings.Observer {
 
     private static final LinearLayout.LayoutParams LAYOUT_CENTER_VERTICAL;
+
+    private static final String KEY_FIRST_VISIBLE_INDEX = "first_visible_index";
 
     static {
         LAYOUT_CENTER_VERTICAL = new LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT);
@@ -106,6 +110,7 @@ class MultiColumnTitleUpdater implements MultiColumnSettings.Observer {
     private @Nullable MonotonicObservableSupplier<String> mCurrentPageTitle;
 
     MultiColumnTitleUpdater(
+            @Nullable Bundle savedInstanceState,
             MultiColumnSettings multiColumnSettings,
             Context context,
             LinearLayout container,
@@ -116,11 +121,16 @@ class MultiColumnTitleUpdater implements MultiColumnSettings.Observer {
         mContainer = container;
         mMainTitleSetter = mainTitleSetter;
         mTitleTapCallback = titleTapCallback;
-
+        if (savedInstanceState != null) {
+            mFirstVisibleTitleIndex = savedInstanceState.getInt(KEY_FIRST_VISIBLE_INDEX);
+        }
         final int originalHeight =
                 mContainer
                         .getResources()
                         .getDimensionPixelSize(R.dimen.settings_detailed_title_height);
+
+        // TODO(crbug.com/480084682): Remove this listener after search is enabled, since
+        //     title views will be horizontally scrollable.
         mContainer.addOnLayoutChangeListener(
                 (View v,
                         int left,
@@ -275,6 +285,11 @@ class MultiColumnTitleUpdater implements MultiColumnSettings.Observer {
                     });
             mContainer.addView(view);
         }
+
+        // Make the last-added/tapped one visible after adding titles.
+        if (mContainer.getParent() instanceof HorizontalScrollView scrollView) {
+            scrollView.post(() -> scrollView.fullScroll(HorizontalScrollView.FOCUS_RIGHT));
+        }
     }
 
     @Override
@@ -318,5 +333,9 @@ class MultiColumnTitleUpdater implements MultiColumnSettings.Observer {
         params.setMarginEnd(endMargin + helpIconSize);
         mContainer.setLayoutParams(params);
         mContainer.invalidate();
+    }
+
+    public void onSaveInstanceState(Bundle outState) {
+        outState.putInt(KEY_FIRST_VISIBLE_INDEX, mFirstVisibleTitleIndex);
     }
 }

@@ -28,6 +28,8 @@ class MockPageActionController : public PageActionController {
               (actions::ActionId, const SuggestionChipConfig&),
               (override));
   MOCK_METHOD(void, HideSuggestionChip, (actions::ActionId), (override));
+  MOCK_METHOD(void, ShowAnchoredMessage, (actions::ActionId), (override));
+  MOCK_METHOD(void, HideAnchoredMessage, (actions::ActionId), (override));
   MOCK_METHOD(void,
               OverrideText,
               (actions::ActionId, const std::u16string&),
@@ -56,6 +58,19 @@ class MockPageActionController : public PageActionController {
               (override));
   MOCK_METHOD(void, ClearOverrideTooltip, (actions::ActionId), (override));
   MOCK_METHOD(void,
+              SetAnchoredMessageText,
+              (actions::ActionId, const std::u16string&),
+              (override));
+  MOCK_METHOD(void,
+              ShouldShowAnchoredMessageCloseIcon,
+              (actions::ActionId, bool),
+              (override));
+  MOCK_METHOD(void,
+              SetAnchoredMessageIcon,
+              (actions::ActionId, const ui::ImageModel&),
+              (override));
+  MOCK_METHOD(void, ClearAnchoredMessageIcon, (actions::ActionId), (override));
+  MOCK_METHOD(void,
               AddObserver,
               (actions::ActionId,
                (base::ScopedObservation<PageActionModelInterface,
@@ -78,8 +93,12 @@ class MockPageActionController : public PageActionController {
               GetClickCallback,
               (base::PassKey<PageActionView>, actions::ActionId),
               (override));
+  MOCK_METHOD(base::RepeatingClosure,
+              GetAnchoredMessageCloseCallback,
+              (base::PassKey<PageActionView>, actions::ActionId),
+              (override));
   MOCK_METHOD(void,
-              RegisterIsChipShowingChangedCallback,
+              RegisterCallbacks,
               (base::PassKey<PageActionView>,
                actions::ActionId,
                PageActionView*),

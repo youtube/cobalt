@@ -131,15 +131,16 @@ MockNearbySharingService* CreateAndUseMockNearbySharingService(
 }
 
 std::string GetClipboardText() {
-  std::u16string text;
-  ui::Clipboard::GetForCurrentThread()->ReadText(
-      ui::ClipboardBuffer::kCopyPaste, /*data_dst=*/nullptr, &text);
+  std::u16string text = ui::clipboard_test_util::ReadText(
+      ui::Clipboard::GetForCurrentThread(), ui::ClipboardBuffer::kCopyPaste,
+      /*data_dst=*/nullptr);
   return base::UTF16ToUTF8(text);
 }
 
 SkBitmap GetClipboardImage() {
-  std::vector<uint8_t> png_data =
-      ui::clipboard_test_util::ReadPng(ui::Clipboard::GetForCurrentThread());
+  std::vector<uint8_t> png_data = ui::clipboard_test_util::ReadPng(
+      ui::Clipboard::GetForCurrentThread(), ui::ClipboardBuffer::kCopyPaste,
+      /*data_dst=*/nullptr);
   return gfx::PNGCodec::Decode(png_data);
 }
 

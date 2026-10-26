@@ -109,7 +109,7 @@ class TextDecoderStream::Transformer final : public TransformStreamTransformer {
     if (!ignore_bom_ && !bom_seen_) {
       bom_seen_ = true;
       if (encoding_has_bom_removal_ && output_chunk[0] == kBOM) {
-        output_chunk.Remove(0);
+        output_chunk.erase(0, 1);
         if (output_chunk.empty()) {
           return;
         }
@@ -146,7 +146,7 @@ TextDecoderStream* TextDecoderStream::Create(ScriptState* script_state,
   // The replacement encoding is not valid, but the Encoding API also
   // rejects aliases of the replacement encoding.
   if (!encoding.IsValid() ||
-      EqualIgnoringASCIICase(encoding.GetName(), "replacement")) {
+      EqualIgnoringAsciiCase(encoding.GetName(), "replacement")) {
     exception_state.ThrowRangeError(
         StrCat({"The encoding label provided ('", label, "') is invalid."}));
     return nullptr;
@@ -159,7 +159,7 @@ TextDecoderStream* TextDecoderStream::Create(ScriptState* script_state,
 TextDecoderStream::~TextDecoderStream() = default;
 
 String TextDecoderStream::encoding() const {
-  return encoding_.GetName().GetString().LowerASCII();
+  return encoding_.GetName().GetString().ToAsciiLower();
 }
 
 ReadableStream* TextDecoderStream::readable() const {

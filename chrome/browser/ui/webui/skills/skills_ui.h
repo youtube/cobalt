@@ -9,6 +9,7 @@
 #include "chrome/browser/ui/webui/skills/skills.mojom.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/skills/public/skill.h"
+#include "components/skills/public/skills_metrics.h"
 #include "content/public/browser/webui_config.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "ui/webui/mojo_web_ui_controller.h"
@@ -35,7 +36,9 @@ class SkillsUI : public ui::MojoWebUIController,
 
   // Initializes the SkillsDialogDelegate and initial skill for the dialog.
   void InitializeDialog(base::WeakPtr<SkillsDialogDelegate> delegate,
-                        Skill skill);
+                        Skill skill,
+                        SkillsDialogEntryPoint entrypoint,
+                        mojom::SkillsDialogType dialog_type);
 
   base::WeakPtr<SkillsDialogDelegate> GetDelegateForTesting() {
     return delegate_;
@@ -53,9 +56,15 @@ class SkillsUI : public ui::MojoWebUIController,
   void CreateDialogHandler(
       mojo::PendingReceiver<skills::mojom::DialogHandler> receiver) override;
 
+  // The entry point from which this dialog instance was initiated (i.e. web
+  // client, management page). This is set at creation time and used for metrics
+  // logging.
+  SkillsDialogEntryPoint entrypoint_ = SkillsDialogEntryPoint::kUnknown;
+
   // The initial state for the skills dialog. This is passed to the
   // DialogHandler upon construction to populate the UI fields.
-  skills::Skill initial_skill_;
+  Skill initial_skill_;
+  mojom::SkillsDialogType dialog_type_;
   std::unique_ptr<SkillsPageHandler> page_handler_;
   std::unique_ptr<SkillsDialogHandler> dialog_handler_;
   base::WeakPtr<SkillsDialogDelegate> delegate_;

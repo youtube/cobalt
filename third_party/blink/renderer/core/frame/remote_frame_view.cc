@@ -13,6 +13,7 @@
 #include "printing/buildflags/buildflags.h"
 #include "third_party/blink/public/common/frame/frame_owner_element_type.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
+#include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
@@ -22,6 +23,7 @@
 #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/page/page.h"
+#include "third_party/blink/renderer/core/paint/paint_info.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
 #include "third_party/blink/renderer/platform/graphics/paint/cull_rect.h"
 #include "third_party/blink/renderer/platform/graphics/paint/drawing_recorder.h"
@@ -352,12 +354,13 @@ void RemoteFrameView::PropagateFrameRects() {
   remote_frame_->FrameRectsChanged(frame_size, rect_in_local_root);
 }
 
-void RemoteFrameView::Paint(GraphicsContext& context,
-                            PaintFlags flags,
+void RemoteFrameView::Paint(const PaintInfo& paint_info,
                             const CullRect& rect,
                             const gfx::Vector2d& paint_offset) const {
   if (!rect.Intersects(FrameRect()))
     return;
+
+  GraphicsContext& context = paint_info.context;
 
   const auto& owner_layout_object = *GetFrame().OwnerLayoutObject();
   if (owner_layout_object.GetDocument().IsPrintingOrPaintingPreview()) {
@@ -382,7 +385,7 @@ void RemoteFrameView::Paint(GraphicsContext& context,
     context.Restore();
   }
 
-  if (GetFrame().GetCcLayer()) {
+  if (GetFrame().GetCcLayer() && !paint_info.IsPrivacyPreserving()) {
     RecordForeignLayer(
         context, owner_layout_object, DisplayItem::kForeignLayerRemoteFrame,
         GetFrame().GetCcLayer(), FrameRect().origin() + paint_offset);
@@ -500,6 +503,10 @@ uint32_t RemoteFrameView::CapturePaintPreview(const gfx::Rect& rect,
 
 void RemoteFrameView::Trace(Visitor* visitor) const {
   visitor->Trace(remote_frame_);
+}
+
+mojom::blink::WebFeature RemoteFrameView::SvgFilterPaintedCounter() const {
+  return mojom::blink::WebFeature::kSvgFilterPaintedOnRemoteFrame;
 }
 
 }  // namespace blink

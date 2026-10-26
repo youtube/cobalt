@@ -53,8 +53,9 @@ bool HasNoTranslate(const Document& document) {
     AtomicString content = meta_element.Content();
     if (content.IsNull())
       content = meta_element.FastGetAttribute(html_names::kValueAttr);
-    if (EqualIgnoringASCIICase(content, "notranslate"))
+    if (EqualIgnoringAsciiCase(content, "notranslate")) {
       return true;
+    }
   }
 
   return false;
@@ -64,7 +65,7 @@ bool HasNoTranslate(const Document& document) {
 // languages with different locales have major difference, we return the value
 // include its locales.
 String GetLanguageCode(const String& language) {
-  if (language.StartsWith("zh")) {
+  if (language.starts_with("zh")) {
     return language;
   }
 
@@ -145,7 +146,7 @@ void WebLanguageDetectionDetails::RecordAcceptLanguageAndXmlHtmlLangMetric(
   const Document* document = web_document.ConstUnwrap<Document>();
 
   // We only record UMA metrics where URLs are in http family.
-  if (!document->Url().ProtocolIsInHTTPFamily()) {
+  if (!document->Url().ProtocolIsInHttpFamily()) {
     return;
   }
 

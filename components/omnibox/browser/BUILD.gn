@@ -39,7 +39,6 @@ aggregate_vector_icons("omnibox_vector_icons") {
     "answer_sunrise_chrome_refresh.icon",
     "answer_translation.icon",
     "answer_translation_chrome_refresh.icon",
-    "answer_when_is.icon",
     "bookmark.icon",
     "bookmark_chrome_refresh.icon",
     "calculator.icon",
@@ -119,6 +118,8 @@ static_library("browser") {
     "actions/omnibox_action_concepts.h",
     "actions/omnibox_action_in_suggest.cc",
     "actions/omnibox_action_in_suggest.h",
+    "actions/omnibox_action_site_search.cc",
+    "actions/omnibox_action_site_search.h",
     "actions/omnibox_extension_action.cc",
     "actions/omnibox_extension_action.h",
     "actions/omnibox_pedal.cc",
@@ -340,11 +341,12 @@ static_library("browser") {
     "//build:branding_buildflags",
     "//components/bookmarks/browser",
     "//components/component_updater",
+    "//components/contextual_tasks/public:feature_list",
     "//components/dom_distiller/core",
     "//components/favicon/core",
     "//components/favicon_base",
     "//components/history_clusters/core",
-    "//components/history_embeddings",
+    "//components/history_embeddings/core",
     "//components/keyed_service/core",
     "//components/metrics",
     "//components/navigation_metrics",
@@ -496,6 +498,7 @@ static_library("location_bar") {
   ]
   deps = [
     ":buildflags",
+    "//components/contextual_tasks/public:feature_list",
     "//components/dom_distiller/core",
     "//components/lens/proto/server:proto",
     "//components/safe_browsing/core/common",
@@ -596,6 +599,7 @@ if (is_android) {
       "android/java/src/org/chromium/components/omnibox/AutocompleteRequestType.java",
       "android/java/src/org/chromium/components/omnibox/AutocompleteResult.java",
       "android/java/src/org/chromium/components/omnibox/OmniboxFocusReason.java",
+      "android/java/src/org/chromium/components/omnibox/ToolModeUtils.java",
       "android/java/src/org/chromium/components/omnibox/action/OmniboxAction.java",
       "android/java/src/org/chromium/components/omnibox/action/OmniboxActionDelegate.java",
       "android/java/src/org/chromium/components/omnibox/action/OmniboxActionFactory.java",
@@ -644,6 +648,7 @@ if (is_android) {
       "android/java/src/org/chromium/components/omnibox/AutocompleteInputUnitTest.java",
       "android/java/src/org/chromium/components/omnibox/AutocompleteResultUnitTest.java",
       "android/java/src/org/chromium/components/omnibox/SecurityStatusIconUnitTest.java",
+      "android/java/src/org/chromium/components/omnibox/ToolModeUtilsUnitTest.java",
     ]
     deps = [
       ":browser_java",
@@ -662,6 +667,7 @@ if (is_android) {
       "//third_party/junit",
       "//third_party/metrics_proto:metrics_proto_java",
       "//third_party/mockito:mockito_java",
+      "//url:url_java",
     ]
   }
 
@@ -748,7 +754,7 @@ static_library("test_support") {
     "//components/bookmarks/test",
     "//components/history/core/browser",
     "//components/history/core/test",
-    "//components/history_embeddings",
+    "//components/history_embeddings/core",
     "//components/optimization_guide/core",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//components/prefs:test_support",
@@ -887,11 +893,11 @@ source_set("unit_tests") {
     "//build:blink_buildflags",
     "//components/bookmarks/browser",
     "//components/bookmarks/test",
+    "//components/contextual_tasks/public:feature_list",
     "//components/dom_distiller/core",
     "//components/favicon/core/test:test_support",
     "//components/history/core/test",
-    "//components/history_embeddings",
-    "//components/memory_pressure:test_support",
+    "//components/history_embeddings/core",
     "//components/ntp_tiles",
     "//components/omnibox/common",
     "//components/open_from_clipboard:test_support",
@@ -1010,6 +1016,7 @@ mojom("mojo_bindings") {
   public_deps = [
     "//components/omnibox/composebox:mojo_bindings",
     "//mojo/public/mojom/base",
+    "//ui/base/mojom",
     "//ui/gfx/mojom",
     "//url/mojom:url_mojom_gurl",
   ]

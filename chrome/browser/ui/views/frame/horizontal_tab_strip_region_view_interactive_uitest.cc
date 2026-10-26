@@ -18,6 +18,7 @@
 #include "chrome/browser/ui/views/tabs/new_tab_button.h"
 #include "chrome/browser/ui/views/tabs/tab_search_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_test.h"
@@ -48,11 +49,6 @@ class HorizontalTabStripRegionViewBrowserBaseTest : public InProcessBrowserTest 
   }
 
   TabStrip* tab_strip() { return tab_strip_region_view()->tab_strip(); }
-
-  TabSearchContainer* tab_search_container() {
-    return BrowserElementsViews::From(browser())->GetViewAs<TabSearchContainer>(
-        kTabSearchContainerElementId);
-  }
 
   TabSearchButton* tab_search_button() {
     return BrowserElementsViews::From(browser())->GetViewAs<TabSearchButton>(
@@ -122,7 +118,7 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest, TestForwardFocus
   EXPECT_TRUE(new_tab_button()->HasFocus());
 
   press_right();
-  if (tabs::GetTabSearchPosition(browser()->profile()) !=
+  if (tabs::GetTabSearchPosition(browser()) !=
       tabs::TabSearchPosition::kToolbarButton) {
     EXPECT_TRUE(tab_search_button()->HasFocus());
   } else {
@@ -130,7 +126,7 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest, TestForwardFocus
     EXPECT_TRUE(tab_strip_region_view()->pane_has_focus());
   }
 
-  if (tabs::GetTabSearchPosition(browser()->profile()) !=
+  if (tabs::GetTabSearchPosition(browser()) !=
       tabs::TabSearchPosition::kToolbarButton) {
     // Focus should cycle back around to tab_0.
     press_right();
@@ -168,7 +164,7 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest, TestReverseFocus
 
   // Pressing left should immediately cycle back around to the last button.
   press_left();
-  if (tabs::GetTabSearchPosition(browser()->profile()) ==
+  if (tabs::GetTabSearchPosition(browser()) ==
       tabs::TabSearchPosition::kToolbarButton) {
     EXPECT_TRUE(new_tab_button()->HasFocus());
   } else {
@@ -176,14 +172,14 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest, TestReverseFocus
   }
 
   press_left();
-  if (tabs::GetTabSearchPosition(browser()->profile()) !=
+  if (tabs::GetTabSearchPosition(browser()) !=
       tabs::TabSearchPosition::kToolbarButton) {
     EXPECT_TRUE(new_tab_button()->HasFocus());
   } else {
     EXPECT_TRUE(tab_2->HasFocus());
   }
 
-  if (tabs::GetTabSearchPosition(browser()->profile()) !=
+  if (tabs::GetTabSearchPosition(browser()) !=
       tabs::TabSearchPosition::kToolbarButton) {
     move_back_to_tab(tab_2);
     EXPECT_TRUE(tab_2->HasFocus());
@@ -207,7 +203,7 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest, TestBeginEndFocu
   tab_strip_region_view()->RequestFocus();
   EXPECT_TRUE(tab_strip_region_view()->pane_has_focus());
 
-  if (tabs::GetTabSearchPosition(browser()->profile()) ==
+  if (tabs::GetTabSearchPosition(browser()) ==
       tabs::TabSearchPosition::kLeadingHorizontalTabstrip) {
     EXPECT_TRUE(tab_0->HasFocus());
 
@@ -219,7 +215,7 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest, TestBeginEndFocu
 
     EXPECT_TRUE(tab_strip_region_view()->AcceleratorPressed(
         tab_strip_region_view()->home_key()));
-    if (tabs::GetTabSearchPosition(browser()->profile()) ==
+    if (tabs::GetTabSearchPosition(browser()) ==
         tabs::TabSearchPosition::kToolbarButton) {
       EXPECT_TRUE(new_tab_button()->HasFocus());
     } else {
@@ -233,7 +229,7 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest, TestBeginEndFocu
 #if !BUILDFLAG(IS_WIN)
     EXPECT_TRUE(tab_strip_region_view()->AcceleratorPressed(
         tab_strip_region_view()->end_key()));
-    if (tabs::GetTabSearchPosition(browser()->profile()) ==
+    if (tabs::GetTabSearchPosition(browser()) ==
         tabs::TabSearchPosition::kToolbarButton) {
       EXPECT_TRUE(new_tab_button()->HasFocus());
     } else {
@@ -248,25 +244,25 @@ IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest, TestBeginEndFocu
 }
 
 IN_PROC_BROWSER_TEST_F(HorizontalTabStripRegionViewBrowserTest,
-                       DefaultTestSearchContainerIsEndAligned) {
-  if (tabs::GetTabSearchPosition(browser()->profile()) ==
+                       DefaultTabSearchButtonIsEndAligned) {
+  if (tabs::GetTabSearchPosition(browser()) ==
       tabs::TabSearchPosition::kLeadingHorizontalTabstrip) {
-    // The TabSearchContainer is calculated as controls padding away from the
+    // The TabSearchButton is calculated as controls padding away from the
     // first tab (not including bottom corner radius)
-    const int tab_search_container_expected_end =
+    const int tab_search_button_expected_end =
         tab_strip_region_view()->tab_strip()->x() +
         TabStyle::Get()->GetBottomCornerRadius() -
         GetLayoutConstant(LayoutConstant::kTabStripPadding);
 
-    EXPECT_EQ(tab_search_container()->bounds().right(),
-              tab_search_container_expected_end);
-  } else if (tabs::GetTabSearchPosition(browser()->profile()) !=
+    EXPECT_EQ(tab_search_button()->bounds().right(),
+              tab_search_button_expected_end);
+  } else if (tabs::GetTabSearchPosition(browser()) !=
              tabs::TabSearchPosition::kToolbarButton) {
-    const int tab_search_container_expected_end =
+    const int tab_search_button_expected_end =
         tab_strip_region_view()->GetLocalBounds().right() -
         GetLayoutConstant(LayoutConstant::kTabStripPadding);
-    EXPECT_EQ(tab_search_container()->bounds().right(),
-              tab_search_container_expected_end);
+    EXPECT_EQ(tab_search_button()->bounds().right(),
+              tab_search_button_expected_end);
   }
 }
 

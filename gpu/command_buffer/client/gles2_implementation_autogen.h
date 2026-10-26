@@ -1166,14 +1166,15 @@ GLboolean IsEnablediOES(GLenum target, GLuint index) override;
 
 void ProvokingVertexANGLE(GLenum provokeMode) override;
 
-void FramebufferMemorylessPixelLocalStorageANGLE(
-    GLint plane,
-    GLenum internalformat) override;
+void FramebufferMemorylessPixelLocalStorageANGLE(GLint plane,
+                                                 GLenum internalformat,
+                                                 GLbitfield usage) override;
 
 void FramebufferTexturePixelLocalStorageANGLE(GLint plane,
                                               GLuint backingtexture,
                                               GLint level,
-                                              GLint layer) override;
+                                              GLint layer,
+                                              GLbitfield usage) override;
 
 void FramebufferPixelLocalClearValuefvANGLE(GLint plane,
                                             const GLfloat* value) override;
@@ -1187,6 +1188,8 @@ void FramebufferPixelLocalClearValueuivANGLE(GLint plane,
 void BeginPixelLocalStorageANGLE(GLsizei count, const GLenum* loadops) override;
 
 void EndPixelLocalStorageANGLE(GLsizei count, const GLenum* storeops) override;
+
+void EndPixelLocalStorageImplicitANGLE() override;
 
 void PixelLocalStorageBarrierANGLE() override;
 

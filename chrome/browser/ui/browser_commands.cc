@@ -30,7 +30,6 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browsing_data/chrome_browsing_data_remover_delegate.h"
 #include "chrome/browser/chained_back_navigation_tracker.h"
-#include "chrome/browser/commerce/browser_utils.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/download/download_prefs.h"
@@ -89,6 +88,9 @@
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
 #include "chrome/browser/ui/sharing_hub/screenshot/screenshot_captured_bubble_controller.h"
 #include "chrome/browser/ui/sharing_hub/sharing_hub_bubble_controller.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/startup/startup_tab.h"
 #include "chrome/browser/ui/status_bubble.h"
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
@@ -109,9 +111,6 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
@@ -458,6 +457,16 @@ void MoveTabsToWindowImpl(Browser* source,
   target->window()->Show();
 }
 
+Browser* CreateNewBrowser(Browser* browser, bool user_gesture) {
+  auto params = Browser::CreateParams(browser->profile(), user_gesture);
+  if (auto* controller = tabs::VerticalTabStripStateController::From(browser)) {
+    params.vertical_tab_strip_collapsed = controller->IsCollapsed();
+    params.vertical_tab_strip_uncollapsed_width =
+        controller->GetUncollapsedWidth();
+  }
+  return Browser::Create(params);
+}
+
 }  // namespace
 
 using base::UserMetricsAction;
@@ -741,6 +750,20 @@ Browser* OpenEmptyWindow(Profile* profile,
   Browser::CreateParams params =
       Browser::CreateParams(Browser::TYPE_NORMAL, profile, true);
   params.should_trigger_session_restore = should_trigger_session_restore;
+
+  if (tabs::IsVerticalTabsFeatureEnabled()) {
+    BrowserWindowInterface* const last_active_browser =
+        chrome::FindLastActiveWithProfile(profile);
+    if (last_active_browser) {
+      if (auto* controller = tabs::VerticalTabStripStateController::From(
+              last_active_browser)) {
+        params.vertical_tab_strip_collapsed = controller->IsCollapsed();
+        params.vertical_tab_strip_uncollapsed_width =
+            controller->GetUncollapsedWidth();
+      }
+    }
+  }
+
   base::TimeTicks now = base::TimeTicks::Now();
   Browser* browser = Browser::Create(params);
   if (auto* manager = InitialWebUIWindowMetricsManager::From(browser)) {
@@ -1318,8 +1341,7 @@ void MoveGroupToNewWindow(Browser* browser, tab_groups::TabGroupId group) {
     web_app::MaybeAddPinnedHomeTab(new_browser,
                                    new_browser->app_controller()->app_id());
   } else {
-    new_browser =
-        Browser::Create(Browser::CreateParams(browser->profile(), true));
+    new_browser = CreateNewBrowser(browser, true);
   }
 
   MoveGroupToWindowImpl(browser, new_browser, group);
@@ -1340,8 +1362,7 @@ void MoveTabsToNewWindow(Browser* browser,
     web_app::MaybeAddPinnedHomeTab(new_browser,
                                    new_browser->app_controller()->app_id());
   } else {
-    new_browser =
-        Browser::Create(Browser::CreateParams(browser->profile(), true));
+    new_browser = CreateNewBrowser(browser, true);
   }
   if (auto* manager = InitialWebUIWindowMetricsManager::From(new_browser)) {
     manager->SetWindowCreationInfo(
@@ -2048,7 +2069,7 @@ void SavePage(Browser* browser) {
   current_tab->OnSavePage();
 }
 
-bool CanSavePage(const Browser* browser) {
+bool CanSavePage(const BrowserWindowInterface* bwi) {
   // LocalState can be NULL in tests.
   if (g_browser_process->local_state() &&
       !g_browser_process->local_state()->GetBoolean(
@@ -2056,13 +2077,13 @@ bool CanSavePage(const Browser* browser) {
     return false;
   }
   if (static_cast<policy::DownloadRestriction>(
-          browser->profile()->GetPrefs()->GetInteger(
+          bwi->GetProfile()->GetPrefs()->GetInteger(
               policy::policy_prefs::kDownloadRestrictions)) ==
       policy::DownloadRestriction::ALL_FILES) {
     return false;
   }
-  return !browser->is_type_devtools() &&
-         !(GetContentRestrictions(browser) & CONTENT_RESTRICTION_SAVE);
+  return (bwi->GetType() != BrowserWindowInterface::Type::TYPE_DEVTOOLS) &&
+         !(GetContentRestrictions(bwi) & CONTENT_RESTRICTION_SAVE);
 }
 
 void Print(BrowserWindowInterface* bwi) {
@@ -2171,9 +2192,7 @@ void FindInPage(Browser* browser, bool find_next, bool forward_direction) {
 }
 
 void ShowTabSearch(BrowserWindowInterface* bwi) {
-  bwi->GetBrowserForMigrationOnly()->window()->CreateTabSearchBubble(
-      tab_search::mojom::TabSearchSection::kSearch,
-      tab_search::mojom::TabOrganizationFeature::kNone);
+  bwi->GetBrowserForMigrationOnly()->window()->CreateTabSearchBubble();
 }
 
 void CloseTabSearch(Browser* browser) {
@@ -2197,20 +2216,7 @@ void ToggleVerticalTabs(Browser* browser) {
   if (!controller) {
     return;
   }
-
-  bool initial_tab_orientation = controller->ShouldDisplayVerticalTabs();
-
-  controller->SetVerticalTabsEnabled(!initial_tab_orientation);
-
-  base::RecordAction(UserMetricsAction(initial_tab_orientation
-                                           ? "SwitchToHorizontalTabStrip"
-                                           : "SwitchToVerticalTabStrip"));
-}
-
-void ShowTabDeclutter(Browser* browser) {
-  browser->window()->CreateTabSearchBubble(
-      tab_search::mojom::TabSearchSection::kOrganize,
-      tab_search::mojom::TabOrganizationFeature::kDeclutter);
+  controller->SetVerticalTabsEnabled(!controller->ShouldDisplayVerticalTabs());
 }
 
 bool CanCloseFind(Browser* browser) {
@@ -2499,7 +2505,7 @@ bool IsWebAppOrCustomTab(const BrowserWindowInterface* bwi) {
 
 Browser* OpenInChrome(Browser* hosted_app_browser) {
   // Find a non-incognito browser.
-  Browser* target_browser =
+  BrowserWindowInterface* target_browser =
       chrome::FindTabbedBrowser(hosted_app_browser->profile(), false);
 
   if (!target_browser) {
@@ -2511,7 +2517,7 @@ Browser* OpenInChrome(Browser* hosted_app_browser) {
       hosted_app_browser,
       hosted_app_browser->tab_strip_model()->GetActiveWebContents(),
       target_browser);
-  return target_browser;
+  return target_browser->GetBrowserForMigrationOnly();
 }
 
 bool CanViewSource(const Browser* browser) {

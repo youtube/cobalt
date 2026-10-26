@@ -28,15 +28,14 @@ public:
     /**
      * If this is the first call to SetInstance or GetInstance then the passed instance is
      * installed and true is returned. Otherwise, false is returned. In either case ownership of the
-     * tracer is transferred and it will be deleted when no longer needed.
+     * tracer is transferred.
      *
-     * Not deleting the tracer on process exit should not cause problems as
-     * the whole heap is about to go away with the process. This can also
-     * improve performance by reducing the amount of work needed.
-     *
-     * @param leakTracer Do not delete tracer on process exit.
+     * On failure, the tracer is deleted; on success the tracer will be held until process exit, and
+     * will not have its destructor run. This avoids race conditions when using Skia from multiple
+     * threads in the midst of application teardown. However, subclasses can override `onExit()` to
+     * perform operations at exit, such as flushing to disk.
      */
-    static bool SetInstance(SkEventTracer*, bool leakTracer = false);
+    static bool SetInstance(SkEventTracer*);
 
     /**
      * Gets the event tracer. If this is the first call to SetInstance or GetIntance then a default
@@ -85,6 +84,10 @@ protected:
     SkEventTracer() = default;
     SkEventTracer(const SkEventTracer&) = delete;
     SkEventTracer& operator=(const SkEventTracer&) = delete;
+
+    // Called inside an atexit() callback. Must be threadsafe as other threads could still be
+    // attempting to add trace events.
+    virtual void onExit() {}
 };
 
 #endif // SkEventTracer_DEFINED

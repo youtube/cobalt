@@ -18,9 +18,11 @@
 #include "base/atomicops.h"
 #include "base/containers/circular_deque.h"
 #include "base/containers/flat_map.h"
+#include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_span.h"
 #include "gles2_impl_export.h"
 #include "gpu/command_buffer/common/gles2_cmd_format.h"
 
@@ -31,18 +33,20 @@ class MappedMemoryManager;
 
 namespace gles2 {
 
+class GLES2ImplementationTest;
+
 // Manages buckets of QuerySync instances in mapped memory.
 class GLES2_IMPL_EXPORT QuerySyncManager {
  public:
   static const uint32_t kSyncsPerBucket = 256;
 
   struct GLES2_IMPL_EXPORT Bucket {
-    Bucket(QuerySync* sync_mem, int32_t shm_id, uint32_t shm_offset);
+    Bucket(base::span<QuerySync> sync_mem, int32_t shm_id, uint32_t shm_offset);
     ~Bucket();
 
     void FreePendingSyncs();
 
-    raw_ptr<QuerySync, AllowPtrArithmetic> syncs;
+    base::raw_span<QuerySync> syncs;
     int32_t shm_id;
     uint32_t base_shm_offset;
     std::bitset<kSyncsPerBucket> in_use_query_syncs;
@@ -56,10 +60,10 @@ class GLES2_IMPL_EXPORT QuerySyncManager {
 
   struct QueryInfo {
     QueryInfo(Bucket* bucket, uint32_t index)
-        : bucket(bucket), sync(UNSAFE_TODO(bucket->syncs + index)) {}
+        : bucket(bucket), sync(&bucket->syncs[index]) {}
     QueryInfo() = default;
 
-    uint32_t index() const { return sync - bucket->syncs.get(); }
+    uint32_t index() const { return sync - bucket->syncs.data(); }
 
     raw_ptr<Bucket, DanglingUntriaged> bucket = nullptr;
     // AllowPtrArithmetic because it is assigned an AllowPtrArithmetic pointer.
@@ -117,6 +121,7 @@ class GLES2_IMPL_EXPORT QueryTracker {
  public:
   class GLES2_IMPL_EXPORT Query {
    public:
+    friend class GLES2ImplementationTest;
     enum State {
       kUninitialized,  // never used
       kActive,         // between begin - end

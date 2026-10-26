@@ -25,7 +25,6 @@ import org.chromium.chrome.browser.incognito.IncognitoWindowNightModeStateProvid
 import org.chromium.chrome.browser.incognito_window.PreAttachIntentObserver;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.night_mode.NightModeStateProvider;
-import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorItemSelectionId;
 import org.chromium.components.browser_ui.styles.ChromeColors;
@@ -96,7 +95,7 @@ public class ChromeItemPickerActivity extends SnackbarActivity implements PreAtt
                         allowedSelectionCount,
                         isSingleContextMode);
 
-        mItemPickerCoordinator.showTabItemPicker(this::handleModelFailure);
+        mItemPickerCoordinator.showTabItemPicker(this::handlePickerShowAttempt);
     }
 
     @Override
@@ -168,8 +167,6 @@ public class ChromeItemPickerActivity extends SnackbarActivity implements PreAtt
                         /* defaultValue= */ false);
     }
 
-    // TODO(bbetini): Make method private when it is set to be the callback of
-    // TabItemPickerCoordinator.showTabItemPicker().
     public void finishWithSelectedItems(List<TabListEditorItemSelectionId> selectedItems) {
         ArrayList<Integer> tabIds = new ArrayList<>();
         for (TabListEditorItemSelectionId selectionId : selectedItems) {
@@ -189,17 +186,16 @@ public class ChromeItemPickerActivity extends SnackbarActivity implements PreAtt
         finish();
     }
 
-    private void handleModelFailure(@Nullable TabModelSelector tabModelSelector) {
-        if (tabModelSelector == null) {
-            handleFailureToShowPicker("Failed to launch activity.");
-            return;
+    private void handlePickerShowAttempt(boolean success) {
+        if (!success) {
+            handleFailureToShowPicker("Failed to load the TabModelSelector.");
         }
     }
 
     private void handleFailureToShowPicker(String error) {
         Log.e(TAG, error);
         final Intent resultIntent = new Intent();
-        resultIntent.putExtra(IntentHandler.EXTRA_ITEM_PICKER_ERROR, error);
+        resultIntent.putExtra(ChromeItemPickerExtras.EXTRA_ITEM_PICKER_ERROR, error);
         setResult(Activity.RESULT_CANCELED, resultIntent);
         finish();
     }

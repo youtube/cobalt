@@ -72,12 +72,11 @@ VideoConferenceAshFeatureClient::~VideoConferenceAshFeatureClient() {
   g_client_instance = nullptr;
 }
 
-void VideoConferenceAshFeatureClient::ReturnToApp(
-    const base::UnguessableToken& token,
-    ReturnToAppCallback callback) {
+bool VideoConferenceAshFeatureClient::ReturnToApp(
+    const base::UnguessableToken& token) {
   // Currently, for Vms, we treat the whole VM as one app, so it is not clear
   // which one to return to.
-  std::move(callback).Run(true);
+  return true;
 }
 
 void VideoConferenceAshFeatureClient::OnVmDeviceUpdated(
@@ -113,15 +112,15 @@ void VideoConferenceAshFeatureClient::OnVmDeviceUpdated(
   if (device_type == VmCameraMicManager::DeviceType::kCamera && is_capturing &&
       !camera_system_enabled_) {
     video_conference_manager_ash_->NotifyDeviceUsedWhileDisabled(
-        crosapi::mojom::VideoConferenceMediaDevice::kCamera,
-        base::UTF8ToUTF16(app_name), base::DoNothingAs<void(bool)>());
+        VideoConferenceMediaDevice::kCamera, base::UTF8ToUTF16(app_name),
+        base::DoNothingAs<void(bool)>());
   }
 
   if (device_type == VmCameraMicManager::DeviceType::kMic && is_capturing &&
       !microphone_system_enabled_) {
     video_conference_manager_ash_->NotifyDeviceUsedWhileDisabled(
-        crosapi::mojom::VideoConferenceMediaDevice::kMicrophone,
-        base::UTF8ToUTF16(app_name), base::DoNothingAs<void(bool)>());
+        VideoConferenceMediaDevice::kMicrophone, base::UTF8ToUTF16(app_name),
+        base::DoNothingAs<void(bool)>());
   }
 }
 

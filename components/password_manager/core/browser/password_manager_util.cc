@@ -36,6 +36,7 @@
 #include "components/password_manager/core/browser/password_manager_driver.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
+#include "components/password_manager/core/browser/password_store/password_store_util.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/signin_metrics.h"
@@ -67,6 +68,18 @@ std::tuple<int, base::Time, int> GetPriorityProperties(
 bool IsBetterMatch(const PasswordForm& lhs, const PasswordForm& rhs) {
   return GetPriorityProperties(lhs) > GetPriorityProperties(rhs);
 }
+
+#if BUILDFLAG(IS_ANDROID)
+// Returns true if the password saving should be allowed for the in-flow
+// Trusted Vault key recovery.
+bool ShouldAllowSavingPasswordsWithInFlowRecovery(
+    password_manager::ActionableError error) {
+  return base::FeatureList::IsEnabled(
+             password_manager::features::
+                 kInFlowTrustedVaultKeyRetrievalAndroid) &&
+         error == password_manager::ActionableError::kTrustedVaultKeyNeeded;
+}
+#endif
 
 }  // namespace
 
@@ -118,16 +131,21 @@ bool IsAbleToSavePasswords(password_manager::PasswordManagerClient* client) {
 #if BUILDFLAG(IS_ANDROID)
   if (password_manager::sync_util::HasChosenToSyncPasswords(
           client->GetSyncService())) {
-    // After store split on Android, AccountPasswordStore is a default store for
-    // saving passwords when sync is enabled. If either of conditions above is
-    // not satisfied fallback to ProfilePasswordStore.
-    return client->GetAccountPasswordStore() &&
-           client->GetAccountPasswordStore()->IsAbleToSavePasswords();
+    const password_manager::PasswordStoreInterface* account_store =
+        client->GetAccountPasswordStore();
+    password_manager::ActionableError error =
+        account_store ? account_store->GetError()
+                      : password_manager::ActionableError::kNoError;
+    const bool is_able_to_save =
+        IsAbleToSavePasswords(error) ||
+        ShouldAllowSavingPasswordsWithInFlowRecovery(error);
+    return account_store && is_able_to_save;
   }
 #endif
   // TODO(b/324054761): Check AccountPasswordStore store when needed.
-  return client->GetProfilePasswordStore() &&
-         client->GetProfilePasswordStore()->IsAbleToSavePasswords();
+  const password_manager::PasswordStoreInterface* profile_store =
+      client->GetProfilePasswordStore();
+  return profile_store && IsAbleToSavePasswords(profile_store->GetError());
 }
 
 std::string_view GetSignonRealmWithProtocolExcluded(const PasswordForm& form) {
@@ -453,18 +471,5 @@ std::u16string GetHumanReadableRealm(const std::string& signon_realm) {
   }
   return base::UTF8ToUTF16(signon_realm);
 }
-
-#if !BUILDFLAG(IS_IOS)
-bool ShouldUploadActorLoginMqls() {
-  return base::FeatureList::IsEnabled(
-             password_manager::features::kActorLoginQualityLogs) &&
-         // Disable MQLS upload if FedCM support is enabled while prototyping to
-         // not upload wrong logs.
-         // TODO(crbug.com/480920277): Remove this check once the prototyping is
-         // complete.
-         !base::FeatureList::IsEnabled(
-             password_manager::features::kActorLoginFederatedLoginSupport);
-}
-#endif  // !BUILDFLAG(IS_IOS)
 
 }  // namespace password_manager_util

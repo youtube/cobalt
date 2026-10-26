@@ -27,6 +27,9 @@
 #include "chrome/browser/enterprise/connectors/analysis/clipboard_request_handler.h"
 #include "chrome/browser/enterprise/connectors/test/fake_clipboard_request_handler.h"
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
+#include "chrome/browser/glic/test_support/glic_test_environment.h"
+#include "chrome/browser/glic/test_support/glic_test_util.h"
+#include "chrome/browser/glic/test_support/non_interactive_glic_test.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/instant_service.h"
 #include "chrome/browser/search/instant_service_factory.h"
@@ -69,6 +72,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
@@ -137,12 +141,6 @@
 #endif  // BUILDFLAG(ENTERPRISE_LOCAL_CONTENT_ANALYSIS)
 
 #endif  // BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
-
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/test_support/glic_test_environment.h"
-#include "chrome/browser/glic/test_support/glic_test_util.h"
-#include "chrome/browser/glic/test_support/non_interactive_glic_test.h"
-#endif
 
 namespace {
 
@@ -221,15 +219,15 @@ IN_PROC_BROWSER_TEST_F(IsolatedOriginNTPBrowserTest,
       content::SiteInstance::CreateForURL(context, isolated_url);
   EXPECT_TRUE(site_instance->RequiresDedicatedProcess());
   // Verify the isolated origin does not receive an NTP site URL scheme.
-  EXPECT_FALSE(
-      site_instance->GetSiteURL().SchemeIs(chrome::kChromeSearchScheme));
+  EXPECT_FALSE(site_instance->GetSecurityPrincipal().SchemeIs(
+      chrome::kChromeSearchScheme));
 
   // The site URL for the NTP URL should resolve to a chrome-search:// URL via
   // GetEffectiveURL(), even if the NTP URL matches an isolated origin.
   scoped_refptr<content::SiteInstance> ntp_site_instance =
       content::SiteInstance::CreateForURL(context, ntp_url);
-  EXPECT_TRUE(
-      ntp_site_instance->GetSiteURL().SchemeIs(chrome::kChromeSearchScheme));
+  EXPECT_TRUE(ntp_site_instance->GetSecurityPrincipal().SchemeIs(
+      chrome::kChromeSearchScheme));
 
   // Navigate to the NTP URL and verify that the resulting process is marked as
   // an Instant process.
@@ -434,11 +432,7 @@ IN_PROC_BROWSER_TEST_F(PageColorsBrowserClientTest,
                    "getPropertyValue('color').toString()"));
 }
 
-#if BUILDFLAG(ENABLE_GLIC)
 using PrefersColorSchemeTestBase = glic::NonInteractiveGlicTest;
-#else
-using PrefersColorSchemeTestBase = InProcessBrowserTest;
-#endif
 
 // Tests for the preferred color scheme for a given WebContents. The first param
 // controls whether the web NativeTheme is light or dark the second controls
@@ -553,7 +547,6 @@ IN_PROC_BROWSER_TEST_P(PrefersColorSchemeTest, FeatureOverridesChromeSchemes) {
                  ExpectedColorScheme())));
 }
 
-#if BUILDFLAG(ENABLE_GLIC)
 IN_PROC_BROWSER_TEST_P(PrefersColorSchemeTest, PrefersColorSchemeGlic) {
   RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents));
   content::RenderFrameHost* webui_frame =
@@ -569,7 +562,6 @@ IN_PROC_BROWSER_TEST_P(PrefersColorSchemeTest, PrefersColorSchemeGlic) {
                  "window.matchMedia('(prefers-color-scheme: %s)').matches",
                  ExpectedColorScheme())));
 }
-#endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 IN_PROC_BROWSER_TEST_P(PrefersColorSchemeTest, FeatureOverridesPdfUI) {

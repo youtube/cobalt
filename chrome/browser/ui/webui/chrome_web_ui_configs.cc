@@ -5,7 +5,10 @@
 #include "chrome/browser/ui/webui/chrome_web_ui_configs.h"
 
 #include "build/android_buildflags.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
+#include "chrome/browser/glic/host/glic_ui.h"
 #include "chrome/browser/optimization_guide/optimization_guide_internals_ui.h"
 #include "chrome/browser/ui/webui/about/about_ui.h"
 #include "chrome/browser/ui/webui/accessibility/accessibility_ui.h"
@@ -14,6 +17,7 @@
 #include "chrome/browser/ui/webui/autofill_and_password_manager_internals/password_manager_internals_ui.h"
 #include "chrome/browser/ui/webui/bluetooth_internals/bluetooth_internals_ui.h"  // nogncheck
 #include "chrome/browser/ui/webui/browsing_topics/browsing_topics_internals_ui.h"
+#include "chrome/browser/ui/webui/chrome_finds_internals/chrome_finds_internals_ui.h"
 #include "chrome/browser/ui/webui/chrome_urls/chrome_urls_ui.h"
 #include "chrome/browser/ui/webui/commerce/commerce_internals_ui_config.h"
 #include "chrome/browser/ui/webui/components/components_ui.h"
@@ -71,8 +75,8 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/actor/ui/actor_overlay_ui.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/ui/tabs/tab_group_home/tab_group_home_ui.h"
+#include "chrome/browser/ui/webui/content_annotator_internals/content_annotator_internals_ui.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -96,7 +100,6 @@
 #include "chrome/browser/ui/webui/internals/internals_ui.h"
 #include "chrome/browser/ui/webui/tab_strip_internals/tab_strip_internals_ui.h"
 #endif  // BUILDFLAG(ENABLE_SESSION_SERVICE)
-#include "chrome/browser/ui/webui/legion_internals/legion_internals_ui.h"
 #include "chrome/browser/ui/webui/management/management_ui.h"
 #include "chrome/browser/ui/webui/media_router/media_router_internals_ui.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer_ui.h"
@@ -108,6 +111,7 @@
 #include "chrome/browser/ui/webui/on_device_internals/on_device_internals_ui.h"  // nogncheck
 #endif  // !BUILDFLAG(IS_COBALT)
 #include "chrome/browser/ui/webui/password_manager/password_manager_ui.h"
+#include "chrome/browser/ui/webui/private_ai_internals/private_ai_internals_ui.h"
 #include "chrome/browser/ui/webui/profile_internals/profile_internals_ui.h"
 #include "chrome/browser/ui/webui/search_engine_choice/search_engine_choice_ui.h"
 #include "chrome/browser/ui/webui/settings/settings_ui.h"
@@ -205,11 +209,7 @@
 #include "chrome/browser/ui/webui/on_device_translation_internals/on_device_translation_internals_ui.h"
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/host/glic_ui.h"
-#endif
-
-#if BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/glic/fre/glic_fre_ui.h"
 #endif
 
@@ -243,12 +243,15 @@ void RegisterChromeWebUIConfigs() {
   map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<BluetoothInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<BrowsingTopicsInternalsUIConfig>());
-  map.AddWebUIConfig(std::make_unique<chromeos::DeviceLogUIConfig>());
+  map.AddWebUIConfig(
+      std::make_unique<chrome_finds_internals::ChromeFindsInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<chrome_urls::ChromeUrlsUIConfig>());
+  map.AddWebUIConfig(std::make_unique<chromeos::DeviceLogUIConfig>());
   map.AddWebUIConfig(std::make_unique<CrashesUIConfig>());
   map.AddWebUIConfig(std::make_unique<commerce::CommerceInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<ActorInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<ComponentsUIConfig>());
+  map.AddWebUIConfig(std::make_unique<ContextualTasksUIConfig>());
   map.AddWebUIConfig(
       std::make_unique<security_interstitials::ConnectionHelpUIConfig>());
   map.AddWebUIConfig(
@@ -259,6 +262,7 @@ void RegisterChromeWebUIConfigs() {
   map.AddWebUIConfig(std::make_unique<DownloadInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<FamilyLinkUserInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<FlagsUIConfig>());
+  map.AddWebUIConfig(std::make_unique<glic::GlicUIConfig>());
   map.AddWebUIConfig(std::make_unique<GCMInternalsUIConfig>());
   map.AddWebUIConfig(
       std::make_unique<
@@ -310,12 +314,14 @@ void RegisterChromeWebUIConfigs() {
   map.AddWebUIConfig(std::make_unique<NotificationsInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<WebApksUIConfig>());
 #else  // BUILDFLAG(IS_ANDROID)
+  map.AddWebUIConfig(std::make_unique<glic::GlicFreUIConfig>());
 #if !BUILDFLAG(IS_CHROMEOS)
   map.AddWebUIConfig(std::make_unique<AppHomeUIConfig>());
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   map.AddWebUIConfig(std::make_unique<media_router::CastFeedbackUIConfig>());
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  map.AddWebUIConfig(std::make_unique<ContentAnnotatorInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<actor::ui::ActorOverlayUIConfig>());
   map.AddWebUIConfig(std::make_unique<AppServiceInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<AutofillMlInternalsUIConfig>());
@@ -324,7 +330,6 @@ void RegisterChromeWebUIConfigs() {
   map.AddWebUIConfig(std::make_unique<BookmarksUIConfig>());
   map.AddWebUIConfig(std::make_unique<ColorPipelineInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<CommentsSidePanelUIConfig>());
-  map.AddWebUIConfig(std::make_unique<ContextualTasksUIConfig>());
   map.AddWebUIConfig(std::make_unique<CustomizeChromeUIConfig>());
   map.AddWebUIConfig(std::make_unique<DownloadsUIConfig>());
   map.AddWebUIConfig(std::make_unique<FeedbackUIConfig>());
@@ -337,7 +342,6 @@ void RegisterChromeWebUIConfigs() {
   map.AddWebUIConfig(std::make_unique<InternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<TabStripInternalsUIConfig>());
 #endif  // BUILDFLAG(ENABLE_SESSION_SERVICE)
-  map.AddWebUIConfig(std::make_unique<LegionInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<ManagementUIConfig>());
   map.AddWebUIConfig(
       std::make_unique<media_router::MediaRouterInternalsUIConfig>());
@@ -351,6 +355,8 @@ void RegisterChromeWebUIConfigs() {
       std::make_unique<on_device_internals::OnDeviceInternalsUIConfig>());
 #endif  // !BUILDFLAG(IS_COBALT)
   map.AddWebUIConfig(std::make_unique<PasswordManagerUIConfig>());
+  map.AddWebUIConfig(
+      std::make_unique<private_ai::PrivateAiInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<ProfileInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<ReadingListUIConfig>());
   map.AddWebUIConfig(std::make_unique<SearchEngineChoiceUIConfig>());
@@ -448,12 +454,6 @@ void RegisterChromeWebUIConfigs() {
   map.AddWebUIConfig(std::make_unique<SigninErrorUIConfig>());
   map.AddWebUIConfig(std::make_unique<SigninEmailConfirmationUIConfig>());
 #endif  //  !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
-#if BUILDFLAG(ENABLE_GLIC)
-  map.AddWebUIConfig(std::make_unique<glic::GlicUIConfig>());
-#endif
-#if BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
-  map.AddWebUIConfig(std::make_unique<glic::GlicFreUIConfig>());
-#endif
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   map.AddWebUIConfig(

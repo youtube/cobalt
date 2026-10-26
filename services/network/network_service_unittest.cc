@@ -168,6 +168,96 @@ TEST_F(NetworkServiceTest, DestroyingServiceDestroysContext) {
   run_loop.Run();
 }
 
+#if BUILDFLAG(IS_ANDROID)
+// Test that when cookie_store_ready_callback is provided, NetworkContext
+// creation is deferred until OnCookieStoreReady() is signaled, and that
+// mojo messages sent to the NetworkContext remote are naturally buffered.
+TEST_F(NetworkServiceTest, DeferredNetworkContextCreation_WaitsForReady) {
+  mojom::NetworkContextParamsPtr params = CreateContextParams();
+
+  mojo::Remote<mojom::CookieStoreReadyCallback> ready_callback_remote;
+  params->cookie_store_ready_callback =
+      ready_callback_remote.BindNewPipeAndPassReceiver();
+
+  mojo::Remote<mojom::NetworkContext> network_context;
+  service()->CreateNetworkContext(network_context.BindNewPipeAndPassReceiver(),
+                                  std::move(params));
+
+  // Send a mojo call that will be buffered in the pipe until the
+  // NetworkContext is actually created.
+  mojo::Remote<mojom::CookieManager> cookie_manager;
+  network_context->GetCookieManager(
+      cookie_manager.BindNewPipeAndPassReceiver());
+
+  // Signal that the cookie store is ready.
+  ready_callback_remote->OnCookieStoreReady();
+
+  // The buffered GetCookieManager call should now work.
+  base::test::TestFuture<net::CookieList> future;
+  cookie_manager->GetAllCookies(future.GetCallback<const net::CookieList&>());
+  EXPECT_TRUE(future.Get().empty());
+}
+
+// Test backward compatibility: when no cookie_store_ready_callback is
+// provided, the NetworkContext is created immediately.
+TEST_F(NetworkServiceTest, DeferredNetworkContextCreation_NoCallback) {
+  mojo::Remote<mojom::NetworkContext> network_context;
+  service()->CreateNetworkContext(network_context.BindNewPipeAndPassReceiver(),
+                                  CreateContextParams());
+
+  // The NetworkContext should be immediately available.
+  mojo::Remote<mojom::CookieManager> cookie_manager;
+  network_context->GetCookieManager(
+      cookie_manager.BindNewPipeAndPassReceiver());
+
+  base::test::TestFuture<net::CookieList> future;
+  cookie_manager->GetAllCookies(future.GetCallback<const net::CookieList&>());
+  EXPECT_TRUE(future.Get().empty());
+}
+
+// Test that destroying the NetworkService with pending (not yet ready)
+// network contexts does not crash.
+TEST_F(NetworkServiceTest, DeferredNetworkContextCreation_ShutdownBeforeReady) {
+  mojom::NetworkContextParamsPtr params = CreateContextParams();
+
+  mojo::Remote<mojom::CookieStoreReadyCallback> ready_callback_remote;
+  params->cookie_store_ready_callback =
+      ready_callback_remote.BindNewPipeAndPassReceiver();
+
+  mojo::Remote<mojom::NetworkContext> network_context;
+  service()->CreateNetworkContext(network_context.BindNewPipeAndPassReceiver(),
+                                  std::move(params));
+
+  // Destroy the service without ever signaling OnCookieStoreReady().
+  // This should not crash.
+  DestroyService();
+}
+
+// Test that disconnecting the ready callback before signaling cleans up
+// the pending context without crashing.
+TEST_F(NetworkServiceTest,
+       DeferredNetworkContextCreation_ReadyCallbackDisconnect) {
+  mojom::NetworkContextParamsPtr params = CreateContextParams();
+
+  mojo::Remote<mojom::CookieStoreReadyCallback> ready_callback_remote;
+  params->cookie_store_ready_callback =
+      ready_callback_remote.BindNewPipeAndPassReceiver();
+
+  mojo::Remote<mojom::NetworkContext> network_context;
+  service()->CreateNetworkContext(network_context.BindNewPipeAndPassReceiver(),
+                                  std::move(params));
+
+  // Disconnect the ready callback without calling OnCookieStoreReady().
+  ready_callback_remote.reset();
+
+  // The pending context should be cleaned up, and the NetworkContext remote
+  // should see a disconnect.
+  base::RunLoop run_loop;
+  network_context.set_disconnect_handler(run_loop.QuitClosure());
+  run_loop.Run();
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 TEST_F(NetworkServiceTest, CreateContextWithoutChannelID) {
   mojom::NetworkContextParamsPtr params = CreateContextParams();
   mojo::Remote<mojom::NetworkContext> network_context;
@@ -1040,7 +1130,7 @@ TEST_F(NetworkServiceTest, AuthAndroidNegotiateAccountType) {
 
 static size_t GetGlobalMaxConnectionsPerProxyChain() {
   return net::ClientSocketPoolManager::max_sockets_per_proxy_chain(
-      net::HttpNetworkSession::NORMAL_SOCKET_POOL);
+      net::HttpNetworkSession::SocketPoolType::kNormal);
 }
 
 // Tests that NetworkService::SetMaxConnectionsPerProxyChain() (1) modifies
@@ -1279,12 +1369,12 @@ class NetworkServiceTestWithService : public testing::Test {
     request.url = url;
     request.method = "GET";
     request.request_initiator = url::Origin();
-    StartLoadingURL(request, OriginatingProcess::browser(), options);
+    StartLoadingURL(request, OriginatingProcessId::browser(), options);
     client_->RunUntilComplete();
   }
 
   void StartLoadingURL(const ResourceRequest& request,
-                       OriginatingProcess process_id,
+                       OriginatingProcessId process_id,
                        int options = mojom::kURLLoadOptionNone) {
     client_ = std::make_unique<TestURLLoaderClient>();
     mojo::Remote<mojom::URLLoaderFactory> loader_factory;
@@ -1428,7 +1518,7 @@ TEST_F(NetworkServiceTestWithService, RawRequestHeadersAbsent) {
   request.url = test_server()->GetURL("/server-redirect?/echo");
   request.method = "GET";
   request.request_initiator = url::Origin();
-  StartLoadingURL(request, OriginatingProcess::browser());
+  StartLoadingURL(request, OriginatingProcessId::browser());
   client()->RunUntilRedirectReceived();
   EXPECT_TRUE(client()->has_received_redirect());
   loader()->FollowRedirect({}, {}, {}, std::nullopt);
@@ -1497,12 +1587,12 @@ TEST_F(NetworkServiceTestWithService, SetNetworkConditions) {
       url::Origin::Create(GURL("https://initiator.example.com"));
   request.method = "GET";
 
-  StartLoadingURL(request, OriginatingProcess::browser());
+  StartLoadingURL(request, OriginatingProcessId::browser());
   client()->RunUntilComplete();
   EXPECT_EQ(net::OK, client()->completion_status().error_code);
 
   request.throttling_profile_id = profile_id;
-  StartLoadingURL(request, OriginatingProcess::browser());
+  StartLoadingURL(request, OriginatingProcessId::browser());
   client()->RunUntilComplete();
   EXPECT_EQ(net::ERR_INTERNET_DISCONNECTED,
             client()->completion_status().error_code);
@@ -1514,7 +1604,7 @@ TEST_F(NetworkServiceTestWithService, SetNetworkConditions) {
     network_conditions.back()->conditions->offline = false;
     context()->SetNetworkConditions(profile_id, std::move(network_conditions));
   }
-  StartLoadingURL(request, OriginatingProcess::browser());
+  StartLoadingURL(request, OriginatingProcessId::browser());
   client()->RunUntilComplete();
   EXPECT_EQ(net::OK, client()->completion_status().error_code);
 
@@ -1527,12 +1617,12 @@ TEST_F(NetworkServiceTestWithService, SetNetworkConditions) {
   }
 
   request.throttling_profile_id = profile_id;
-  StartLoadingURL(request, OriginatingProcess::browser());
+  StartLoadingURL(request, OriginatingProcessId::browser());
   client()->RunUntilComplete();
   EXPECT_EQ(net::ERR_INTERNET_DISCONNECTED,
             client()->completion_status().error_code);
   context()->SetNetworkConditions(profile_id, {});
-  StartLoadingURL(request, OriginatingProcess::browser());
+  StartLoadingURL(request, OriginatingProcessId::browser());
   client()->RunUntilComplete();
   EXPECT_EQ(net::OK, client()->completion_status().error_code);
 }
@@ -1786,14 +1876,14 @@ class NetworkServiceNetworkDelegateTest : public NetworkServiceTest {
     request.url = url;
     request.method = "GET";
     request.request_initiator = url::Origin();
-    StartLoadingURL(request, OriginatingProcess::browser(), options,
+    StartLoadingURL(request, OriginatingProcessId::browser(), options,
                     std::move(url_loader_network_observer));
     client_->RunUntilComplete();
   }
 
   void StartLoadingURL(
       const ResourceRequest& request,
-      OriginatingProcess process_id,
+      OriginatingProcessId process_id,
       int options = mojom::kURLLoadOptionNone,
       mojo::PendingRemote<mojom::URLLoaderNetworkServiceObserver>
           url_loader_network_observer = mojo::NullRemote()) {

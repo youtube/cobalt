@@ -10,6 +10,7 @@
 
 Některé funkce možná nebudou k dispozici a změny nastavení se neuloží.</translation>
 <translation id="1083934481477628225">Tvůj rodič pro prohlížeč Chromium vypnul možnost Oprávnění pro weby, aplikace a rozšíření</translation>
+<translation id="1090946077924227754">Pokud chcete při vyhledávání použít konkrétní funkci nebo rozšíření prohlížeče Chromium, zadejte do adresního řádku jejich zkratku a poté stiskněte vybranou klávesu</translation>
 <translation id="1104942323762546749">Chromium chce exportovat vaše hesla. Tato akce vyžaduje zadání hesla systému Windows.</translation>
 <translation id="112640046208448578">Identifikujte věci nebo místa a kopírujte nebo překládejte text. Když použijete Vyhledávání obrázků, odešle se na server snímek obrazovky stránky. <ph name="LEARN_MORE" /></translation>
 <translation id="113122355610423240">Chromium je vaším výchozím prohlížečem</translation>
@@ -27,8 +28,10 @@ Některé funkce možná nebudou k dispozici a změny nastavení se neuloží.</
 <translation id="1262876892872089030">Když tato karta nebyla aktivní, byla uvolněna paměť, aby byl prohlížeč Chromium rychlý. Můžete zvolit, že tento web nikdy nemá být považován za neaktivní.</translation>
 <translation id="1265577313130862557">Prohlížeč Chromium toto stahování zablokoval, protože soubor je nebezpečný</translation>
 <translation id="126567311906253476">Když se pomocí účtu <ph name="USER_EMAIL" /> přihlásíte do služeb Google, jako je Gmail nebo YouTube, můžete se pomocí něj automaticky přihlásit i do prohlížeče Chromium</translation>
+<translation id="1287534462498555020">Stáhněte si Chromium do telefonu</translation>
 <translation id="1290883685122687410">Chyba nastavení: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Nastavení nového profilu Chromium</translation>
+<translation id="132092532143527429">Vyzkoušet s Gemini v Chromiu</translation>
 <translation id="1324107359134968521">K prozkoumání zařízení Bluetooth potřebuje Chromium přístup k rozhraní Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Rozpoznat jazyk</translation>
 <translation id="1330742950061766891">Používat doporučená nastavení prohlížeče Chromium</translation>
@@ -240,7 +243,9 @@ Některé funkce možná nebudou k dispozici a změny nastavení se neuloží.</
 <translation id="3509308970982693815">Zavřete prosím všechna okna prohlížeče Chromium a zkuste to znovu.</translation>
 <translation id="3522404737534491619">Pokud chcete sdílet okno, v Nastavení systému povolte pro Chromium nahrávání obrazovky</translation>
 <translation id="3530103706039034513">Už je přihlášen uživatel <ph name="EXISTING_USER" />.  Pokud své procházení chcete oddělit, přihlaste se do prohlížeče Chromium ve svém vlastním profilu jako <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="3531741627422851418">QR kód ke stažení prohlížeče Chromium do mobilních zařízení</translation>
 <translation id="3561853857681580870">Pokud chcete sdílet obrazovku, v Nastavení systému povolte pro Chromium nahrávání obrazovky.</translation>
+<translation id="3588112919289558122">Vylepšená ochrana vypíná optimalizaci JavaScriptu pro weby, které Chromium nezná</translation>
 <translation id="3597003331831379823">Spuštění instalace se zvýšenými oprávněními se nezdařilo. <ph name="METAINSTALLER_ERROR" /></translation>
 <translation id="3600428265489994557">Přihlášení do Chromia</translation>
 <translation id="3639635944603682591">Ze zařízení budou smazány údaje této osoby o prohlížení. Budete-li je chtít znovu získat, přihlaste se do prohlížeče Chromium jako <ph name="USER_EMAIL" />.</translation>
@@ -374,11 +379,11 @@ Některé funkce možná nebudou k dispozici a změny nastavení se neuloží.</
 <translation id="5174969993834422967">Obvykle oznámení blokujete. Pokud tomuto webu chcete zobrazování oznámení povolit, klikněte na ikonu oznámení v pravém rohu adresního řádku.</translation>
 <translation id="5174983315706567306">Na disku není dost místa.</translation>
 <translation id="5187123684706427865">Účet v prohlížeči Chromium vyžaduje opětovné ověření</translation>
-<translation id="5219681158518957165">Používejte doporučená nastavení prohlížeče</translation>
 <translation id="5224391634244552924">Nemáte žádná uložená hesla. Chromium může hesla zkontrolovat, pouze když si je uložíte.</translation>
 <translation id="5231355151045086930">Odhlášení z prohlížeče Chromium</translation>
 <translation id="5234764350956374838">Zavřít</translation>
 <translation id="5254739261293693943">Zeptat se na toto video</translation>
+<translation id="5276305953263010518">Stáhněte si aplikaci Chromium a ukládejte si hesla i na cestách</translation>
 <translation id="5277894862589591112">Chcete-li změny použít, restartujte Chromium</translation>
 <translation id="5286907366254680517">Rozpoznáno</translation>
 <translation id="5289287148052354622">Stáhnout aplikaci Chromium</translation>
@@ -585,9 +590,13 @@ Chromium nemůže vaše nastavení obnovit.</translation>
 <translation id="7352651011704765696">Něco se pokazilo</translation>
 <translation id="7368826207863345663">Pokud chcete v budoucnu dostávat aktualizace prohlížeče Chromium, budete potřebovat systém macOS 13 nebo novější. Tento počítač používá systém macOS 12.</translation>
 <translation id="7376384068949534168">V poslední době jste nenavštívili. Prohlížeč Chromium odebral tato oprávnění: <ph name="PERMISSION_1" /> a <ph name="PERMISSION_2" />.</translation>
+<translation id="73786666777299047">Otevřít Internetový obchod Chrome</translation>
 <translation id="7384121030444253939">Toto rozšíření už není podporováno. Chromium vám doporučuje odstranit ho.</translation>
 <translation id="7413153308467572558">Pokračujte od stavu, ve kterém jste skončili: Chromium při restartech obnovuje karty. Tuto funkci můžete vypnout v</translation>
 <translation id="7427879960656355200">Import hesel do prohlížeče Chromium</translation>
+<translation id="744815265653811511">1. Níže klikněte na <ph name="BUTTON_LABEL" />.
+2. V nastavení systému Windows klikněte na <ph name="BUTTON_2" />
+3. Kliknutím na <ph name="BUTTON_3" /> v oznámení systému Windows připněte prohlížeč Chromium na hlavní panel, aby byl kdykoli rychle k dispozici.</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> – Chromium Dev</translation>
 <translation id="7450541714075000668">Text byl zkopírován</translation>
 <translation id="7451052299415159299">Chromium pro tento web potřebuje oprávnění k přístupu k fotoaparátu</translation>
@@ -603,7 +612,9 @@ Chromium nemůže vaše nastavení obnovit.</translation>
 <translation id="761356813943268536">Chromium používá vaši kameru a mikrofon.</translation>
 <translation id="7617377681829253106">Prohlížeč Chromium je opět o něco lepší</translation>
 <translation id="7622753900276619808">V Chromiu teď máte k dispozici víc funkcí</translation>
+<translation id="7624307931717240213">Informace používáme ke zlepšování této služby. Prostudujte si zásady ochrany soukromí a smluvní podmínky.</translation>
 <translation id="7649070708921625228">Nápověda</translation>
+<translation id="7650134251917003571">Stáhnout aplikaci Chromium</translation>
 <translation id="7656340475565475526">Nechte Chromium procházet internet za vás</translation>
 <translation id="7658239707568436148">Zrušit</translation>
 <translation id="7686590090926151193">Chromium není vaším výchozím prohlížečem</translation>
@@ -687,6 +698,7 @@ Chromium nemůže vaše nastavení obnovit.</translation>
 <translation id="8522801943730206384">Chromium může hesla zkontrolovat, pouze když si je uložíte</translation>
 <translation id="8548787790260785208">Nechte se upozornit, pokud Chromium některé z vašich hesel najde ve veřejném seznamu dat prozrazených při porušení zabezpečení údajů</translation>
 <translation id="8555465886620020932">Chyba služby: <ph name="SERVICE_ERROR" />.</translation>
+<translation id="8556055872671007529">Některé funkce a rozšíření prohlížeče Chromium mají zkratky. Můžete je znovu zapnout.</translation>
 <translation id="8556420416730706394">Vyhledávání obrázků si můžete pro snadný přístup připnout. Stačí v horní části postranního panelu kliknout na tlačítko Připnout.</translation>
 <translation id="856656450041460113">Vyhledat v seznamu jazyků</translation>
 <translation id="8568283329061645092">Když se přihlásíte pomocí účtu Google, může vám Chromium kontrolovat hesla</translation>
@@ -722,6 +734,7 @@ Chromium nemůže vaše nastavení obnovit.</translation>
 <translation id="8988036198400390003">Spravovat profily Chromium</translation>
 <translation id="9019929317751753759">Aby byl prohlížeč Chromium bezpečnější, deaktivovali jsme následující rozšíření, které není uvedeno na webu <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> a pravděpodobně bylo přidáno bez vašeho vědomí.</translation>
 <translation id="904366664621834601">Prohlížeč Chromium toto stahování zablokoval, protože tento soubor archivu obsahuje další soubory, které mohou skrývat malware</translation>
+<translation id="9053882453960391422">Mějte hesla, záložky a historii dokonale synchronizované mezi zařízeními. Aktualizujte svůj výchozí prohlížeč na Chromium. Budete tak mít snadno přístup k funkcím, které znáte a máte rádi. Prohlížeč Chromium bude připnutý na hlavní panel, kde bude kdykoli snadno rychle k dispozici.</translation>
 <translation id="9062666675513499497">Přihlášení do prohlížeče Chromium při přihlášení do jiných služeb Google</translation>
 <translation id="9078733879136747090">Prohlížeč Chromium byl automaticky ukončen</translation>
 <translation id="9089354809943900324">Prohlížeč Chromium je zastaralý</translation>

@@ -1,0 +1,51 @@
+import("//build/config/android/rules.gni")
+
+android_resources("accessibility_test_support_resources") {
+  testonly = true
+  sources = [ "res/xml/accessibility_service_config.xml" ]
+  custom_package = "org.chromium.ui.accessibility.testservice"
+}
+
+android_aidl("accessibility_test_service_aidl") {
+  testonly = true
+  import_include = [ "javatest/src" ]
+  sources = [
+    "javatest/src/org/chromium/ui/accessibility/testservice/IAccessibilityTestHelperService.aidl",
+    "javatest/src/org/chromium/ui/accessibility/testservice/WaitForEventParams.aidl",
+  ]
+}
+
+android_library("accessibility_node_info_compat_dumper_java") {
+  sources = [ "java/src/org/chromium/ui/accessibility/AccessibilityNodeInfoCompatDumper.java" ]
+  deps = [
+    "//base:base_java",
+    "//third_party/androidx:androidx_core_core_java",
+  ]
+}
+
+android_library("accessibility_test_service_java") {
+  testonly = true
+  sources = [
+    "javatest/src/org/chromium/ui/accessibility/testservice/AccessibilityTestHelperService.java",
+    "javatest/src/org/chromium/ui/accessibility/testservice/AccessibilityTestService.java",
+  ]
+  srcjar_deps = [ ":accessibility_test_service_aidl" ]
+  deps = [
+    ":accessibility_node_info_compat_dumper_java",
+    "//base:base_java",
+    "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
+    "//third_party/androidx:androidx_appcompat_appcompat_java",
+    "//third_party/androidx:androidx_core_core_java",
+  ]
+}
+
+android_apk("accessibility_test_support_apk") {
+  testonly = true
+  apk_name = "AccessibilityTestService"
+  android_manifest = "AndroidManifest.xml"
+  manifest_package = "org.chromium.ui.accessibility.testservice"
+  deps = [
+    ":accessibility_test_service_java",
+    ":accessibility_test_support_resources",
+  ]
+}

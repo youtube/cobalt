@@ -39,6 +39,7 @@
 
 using Microsoft::WRL::ComPtr;
 namespace WGC = ABI::Windows::Graphics::Capture;
+using IClosable = ABI::Windows::Foundation::IClosable;
 
 namespace webrtc {
 namespace {
@@ -166,6 +167,18 @@ WgcCaptureSession::WgcCaptureSession(intptr_t source_id,
 
 WgcCaptureSession::~WgcCaptureSession() {
   RemoveEventHandlers();
+  if (frame_pool_) {
+    ComPtr<IClosable> closable;
+    HRESULT hr = frame_pool_.As(&closable);
+    if (FAILED(hr)) {
+      RTC_LOG(LS_WARNING) << "Failed to query frame pool as IClosable: " << hr;
+      return;
+    }
+    hr = closable->Close();
+    if (FAILED(hr)) {
+      RTC_LOG(LS_WARNING) << "Failed to close frame pool: " << hr;
+    }
+  }
 }
 
 HRESULT WgcCaptureSession::StartCapture(const DesktopCaptureOptions& options) {
@@ -748,7 +761,9 @@ HRESULT WgcCaptureSession::OnItemClosed(WGC::IGraphicsCaptureItem* sender,
 
 void WgcCaptureSession::RemoveEventHandlers() {
   RemoveItemClosedEventHandler();
-  RemoveFrameArrivedEventHandler();
+  if (frame_pool_) {
+    RemoveFrameArrivedEventHandler();
+  }
 }
 
 void WgcCaptureSession::RemoveItemClosedEventHandler() {

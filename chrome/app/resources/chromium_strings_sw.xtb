@@ -10,6 +10,7 @@
 
 Baadhi ya vipengele huenda visipatikane na mabadiliko katika mapendeleo hayatahifadhiwa.</translation>
 <translation id="1083934481477628225">Mzazi wako amezima "Ruhusa za tovuti, programu na viendelezi" kwenye Chromium</translation>
+<translation id="1090946077924227754">Ili utafute kipengele au kiendelezi mahususi cha Chromium, andika njia yake ya mkato katika sehemu ya anwani, ikifuatiwa na kitufe cha kibodi ulichochagua</translation>
 <translation id="1104942323762546749">Chromium ingependa kuhamisha manenosiri yako. Andika nenosiri lako la Windows ili uruhusu shughuli hii.</translation>
 <translation id="112640046208448578">Tambua vitu au maeneo kisha unakili au utafsiri maandishi. Unapotumia kipengele cha Kutafuta kwa Picha, picha ya skrini ya ukurasa hutumwa kwenye seva. <ph name="LEARN_MORE" /></translation>
 <translation id="113122355610423240">Chromium ni kivinjari chako chaguomsingi</translation>
@@ -27,8 +28,10 @@ Baadhi ya vipengele huenda visipatikane na mabadiliko katika mapendeleo hayatahi
 <translation id="1262876892872089030">Kichupo hiki kilipokuwa hakitumiki, nafasi ya hifadhi ilirejeshwa ili Chromium iwe na kasi ya utendaji. Unaweza kuchagua tovuti hii iendelee kutumika kila wakati.</translation>
 <translation id="1265577313130862557">Chromium imezuia upakuaji huu kwa sababu faili si salama</translation>
 <translation id="126567311906253476">Unapoingia katika akaunti za huduma za Google kama Gmail au YouTube ukitumia <ph name="USER_EMAIL" />, unaweza kuingia katika akaunti kiotomatiki kwenye Chromium ukitumia akaunti ile ile</translation>
+<translation id="1287534462498555020">Pakua Chromium kwenye simu yako</translation>
 <translation id="1290883685122687410">Hitilafu ya kuweka mipangilio: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Weka mipangilio ya wasifu wako mpya wa Chromium</translation>
+<translation id="132092532143527429">Jaribu ukitumia Gemini kwenye Chromium</translation>
 <translation id="1324107359134968521">Chromium inahitaji ruhusa ya kufikia Bluetooth ili kugundua 
  vifaa vyenye Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Tambua lugha</translation>
@@ -241,7 +244,9 @@ Baadhi ya vipengele huenda visipatikane na mabadiliko katika mapendeleo hayatahi
 <translation id="3509308970982693815">Tafadhali funga madirisha yote ya Chromium na ujaribu tena.</translation>
 <translation id="3522404737534491619">Ili uonyeshe dirisha lako, washa kinasa skrini katika Chromium kwenye Mipangilio ya Mfumo</translation>
 <translation id="3530103706039034513">Tayari umeingia katika akaunti ya <ph name="EXISTING_USER" />.  Ili utenganishe shughuli zako za kuvinjari, ingia katika akaunti kwenye Chromium katika wasifu wako binafsi ukitumia <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="3531741627422851418">Msimbo wa QR wa kupakua kivinjari cha Chromium kwenye vifaa vya mkononi</translation>
 <translation id="3561853857681580870">Ili uonyeshe skrini yako, washa kinasa skrini katika Chromium kwenye Mipangilio ya Mfumo.</translation>
+<translation id="3588112919289558122">Mipangilio ya ulinzi ulioboreshwa huzima kipengele cha uboreshaji wa JavaScript kwenye tovuti zisizotambuliwa na Chromium</translation>
 <translation id="3597003331831379823">Imeshindwa kuweka mipangilio ikitumia ufikiaji maalum. <ph name="METAINSTALLER_ERROR" /></translation>
 <translation id="3600428265489994557">Ingia katika Chromium</translation>
 <translation id="3639635944603682591">Data ya kuvinjari ya mtu huyu itafutwa kwenye kifaa hiki. Ili kurejesha data, ingia katika Chromium ukitumia <ph name="USER_EMAIL" />.</translation>
@@ -375,11 +380,11 @@ Baadhi ya vipengele huenda visipatikane na mabadiliko katika mapendeleo hayatahi
 <translation id="5174969993834422967">Kawaida unazuia arifa. Ili uruhusu tovuti hii ikuarifu, bofya aikoni ya arifa kwenye kona ya kulia ya upau wa eneo uliko.</translation>
 <translation id="5174983315706567306">Nafasi ya hifadhi ya diski haitoshi.</translation>
 <translation id="5187123684706427865">Akaunti ya Chromium inahitaji kuthibitisha upya</translation>
-<translation id="5219681158518957165">Tumia mipangilio ya kivinjari inayopendekezwa</translation>
 <translation id="5224391634244552924">Hakuna manenosiri yaliyohifadhiwa. Chromium inaweza kukagua manenosiri yako ukiyahifadhi.</translation>
 <translation id="5231355151045086930">Ondoka kwenye Chromium</translation>
 <translation id="5234764350956374838">Ondoa</translation>
 <translation id="5254739261293693943">Uliza kuhusu video hii</translation>
+<translation id="5276305953263010518">Pakua programu ya Chromium ili uhifadhi manenosiri popote ulipo</translation>
 <translation id="5277894862589591112">Ili utumie mabadiliko uliyofanya, fungua Chromium upya</translation>
 <translation id="5286907366254680517">Imetambua</translation>
 <translation id="5289287148052354622">Pakua programu ya Chromium</translation>
@@ -586,9 +591,13 @@ Chromium haiwezi kufufua mipangilio yako.</translation>
 <translation id="7352651011704765696">Hitilafu fulani imetokea</translation>
 <translation id="7368826207863345663">Utahitaji toleo la macOS 13 au matoleo mapya zaidi ili upate masasisho ya Chromium ya siku zijazo. Kompyuta hii inatumia toleo la macOS 12.</translation>
 <translation id="7376384068949534168">Hujazitembelea hivi majuzi. Chromium imeonda <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />.</translation>
+<translation id="73786666777299047">Fungua Duka la Chrome kwenye Wavuti</translation>
 <translation id="7384121030444253939">Kiendelezi hiki hakitumiki tena. Chromium inapendekeza ukiondoe badala yake.</translation>
 <translation id="7413153308467572558">Endelea ulikoachia: Chromium hurejesha vichupo vyako kila wakati unapoianzisha upya. Ili uzime, nenda kwenye</translation>
 <translation id="7427879960656355200">Pakia Manenosiri Kwenye Chromium</translation>
+<translation id="744815265653811511">1. Bofya <ph name="BUTTON_LABEL" /> hapa chini
+2. Bofya <ph name="BUTTON_2" /> katika mipangilio yako ya Windows
+3. Bofya <ph name="BUTTON_3" /> kwenye arifa ya Windows ili ubandike Chromium kwenye upauzana wako ili uifikie kwa haraka</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - Chromium ya Wasanidi Programu</translation>
 <translation id="7450541714075000668">Maandishi yamenakiliwa</translation>
 <translation id="7451052299415159299">Chromium inahitaji ruhusa ya kufikia kamera yako katika tovuti hii</translation>
@@ -604,7 +613,9 @@ Chromium haiwezi kufufua mipangilio yako.</translation>
 <translation id="761356813943268536">Chromium inatumia kamera na maikrofoni yako.</translation>
 <translation id="7617377681829253106">Chromium imeboreshwa</translation>
 <translation id="7622753900276619808">Sasa una vipengele zaidi vinavyopatikana katika Chromium</translation>
+<translation id="7624307931717240213">Tunatumia maelezo kuboresha huduma hii. Angalia Sera ya Faragha na Sheria na Masharti.</translation>
 <translation id="7649070708921625228">Usaidizi</translation>
+<translation id="7650134251917003571">Pakua Programu ya Chromium</translation>
 <translation id="7656340475565475526">Ruhusu Chromium ivinjari kwa niaba yako</translation>
 <translation id="7658239707568436148">Ghairi</translation>
 <translation id="7686590090926151193">Chromium si kivinjari chako chaguomsingi</translation>
@@ -688,6 +699,7 @@ Chromium haiwezi kufufua mipangilio yako.</translation>
 <translation id="8522801943730206384">Chromium inaweza kukagua manenosiri yako unapoyahifadhi</translation>
 <translation id="8548787790260785208">Pata onyo Chromium ikipata mojawapo ya manenosiri yako katika ufichuzi haramu wa data kwa umma</translation>
 <translation id="8555465886620020932">Hitilafu ya huduma: <ph name="SERVICE_ERROR" />.</translation>
+<translation id="8556055872671007529">Baadhi ya vipengele na viendelezi vya Chromium vinajumuisha njia za mkato. Unaweza kuchagua kuviwasha tena.</translation>
 <translation id="8556420416730706394">Unaweza kubandika kipengele cha Kutafuta kwa Picha ili uweze kukifikia kwa urahisi; bofya kitufe cha Bandika katika sehemu ya juu ya kidirisha cha pembeni</translation>
 <translation id="856656450041460113">Tafuta orodha ya lugha</translation>
 <translation id="8568283329061645092">Chromium inaweza kukagua manenosiri unapoingia ukitumia Akaunti yako ya Google</translation>
@@ -723,6 +735,7 @@ Chromium haiwezi kufufua mipangilio yako.</translation>
 <translation id="8988036198400390003">Dhibiti wasifu wa Chromium</translation>
 <translation id="9019929317751753759">Ili kufanya Chromium salama zaidi, tumezima kiendelezi kinachofuata ambacho hakijaorodheshwa katika <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> na huenda kimeongezwa bila ridhaa yako.</translation>
 <translation id="904366664621834601">Chromium imezuia upakuaji huu kwa sababu faili iliyo kwenye kumbukumbu inajumuisha faili nyingine ambazo huenda zimeficha programu hasidi</translation>
+<translation id="9053882453960391422">Hakikisha manenosiri, alamisho na historia yako imesawazishwa kikamilifu kwenye vifaa mbalimbali. Fikia kwa urahisi vipengele unavyovifahamu na kuvipenda kwa kusasisha kivinjari chako chaguomsingi kiwe Chromium. Chromium itabandikwa kwenye upauzana wako ili uifikie kwa haraka.</translation>
 <translation id="9062666675513499497">Ingia katika akaunti kwenye Chromium unapoingia katika akaunti za huduma nyingine za Google</translation>
 <translation id="9078733879136747090">Chromium ilifungwa kiotomatiki</translation>
 <translation id="9089354809943900324">Chromium imepitwa na wakati</translation>

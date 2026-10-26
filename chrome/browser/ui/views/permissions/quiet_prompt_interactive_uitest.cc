@@ -43,7 +43,8 @@
 
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kWebContentsElementId);
 const char kLocationBarView[] = "LocationBarView";
-const auto QuietChipElementId = PermissionChipView::kElementIdForTesting;
+const auto QuietChipElementId =
+    PermissionChipView::kPermissionRequestChipElementId;
 const auto QuietBubbleAllowElementId =
     views::DialogClientView::kOkButtonElementId;
 const auto QuietBubbleElementId = ContentSettingBubbleContents::kMainElementId;
@@ -110,7 +111,7 @@ class QuietPromptInteractiveUITest : public InteractiveBrowserTest {
     test_location_bar_model_->set_formatted_full_url(text);
 
     // Normally the URL for display has portions elided. We aren't doing that in
-    // this case, because that is irrevelant for these tests.
+    // this case, because that is irrelevant for these tests.
     test_location_bar_model_->set_url_for_display(text);
 
     omnibox_view->Update();

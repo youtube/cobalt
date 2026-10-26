@@ -128,8 +128,6 @@ class RtpReceiveChannelHelper : public Base, public MediaChannelUtil {
   std::optional<uint32_t> GetUnsignaledSsrc() const override {
     return std::nullopt;
   }
-  void ChooseReceiverReportSsrc(
-      const std::set<uint32_t>& /* choices */) override {}
 
   virtual bool SetLocalSsrc(const StreamParams& /* sp */) { return true; }
   void OnDemuxerCriteriaUpdatePending() override {}
@@ -213,7 +211,7 @@ class RtpReceiveChannelHelper : public Base, public MediaChannelUtil {
       const MediaChannelParameters::RtcpParameters& params) {
     recv_rtcp_parameters_ = params;
   }
-  void OnPacketReceived(const RtpPacketReceived& packet) override {
+  void OnPacketReceived(RtpPacketReceived packet) override {
     rtp_packets_.push_back(
         std::string(packet.Buffer().cdata<char>(), packet.size()));
   }
@@ -751,14 +749,11 @@ class FakeVideoMediaSendChannel
 
   void GenerateSendKeyFrame(uint32_t ssrc,
                             const std::vector<std::string>& rids) override;
-  RtcpMode SendCodecRtcpMode() const override { return RtcpMode::kCompound; }
   void SetSsrcListChangedCallback(
       absl::AnyInvocable<void(const std::set<uint32_t>&)> /* callback */)
       override {}
 
-  bool SendCodecHasLntf() const override { return false; }
   bool SendCodecHasNack() const override { return false; }
-  std::optional<int> SendCodecRtxTime() const override { return std::nullopt; }
   bool GetStats(VideoMediaSendInfo* info) override;
   bool SetOptions(const VideoOptions& options) override;
 
@@ -891,7 +886,9 @@ class FakeVideoEngine : public VideoEngineInterface {
       const MediaConfig& config,
       const VideoOptions& options,
       const CryptoOptions& crypto_options,
-      VideoBitrateAllocatorFactory* video_bitrate_allocator_factory) override;
+      VideoBitrateAllocatorFactory* video_bitrate_allocator_factory,
+      VideoMediaSendChannelInterface::EncoderSwitchRequestCallback
+          video_encoder_switch_request_callback = nullptr) override;
   std::unique_ptr<VideoMediaReceiveChannelInterface> CreateReceiveChannel(
       const Environment& env,
       Call* call,

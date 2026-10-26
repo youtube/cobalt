@@ -30,7 +30,7 @@
 #include <iterator>
 #include <memory>
 
-#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/strings/string_view_util.h"
 #include "style_rule.h"
 #include "third_party/blink/renderer/core/css/css_markup.h"
@@ -432,6 +432,7 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
     case kPseudoEmpty:
     case kPseudoEnabled:
     case kPseudoEnd:
+    case kPseudoFiltered:
     case kPseudoFirstChild:
     case kPseudoFirstOfType:
     case kPseudoFirstPage:
@@ -510,6 +511,7 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
     case kPseudoTargetCurrent:
     case kPseudoTargetBefore:
     case kPseudoTargetAfter:
+    case kPseudoTextField:
     case kPseudoToolFormActive:
     case kPseudoToolSubmitActive:
     case kPseudoUnknown:
@@ -592,6 +594,7 @@ constexpr static NameToPseudoStruct kPseudoTypeWithoutArgumentsMap[] = {
      CSSSelector::kPseudoHostHasNonAutoAppearance},
     {"-internal-spatial-navigation-focus",
      CSSSelector::kPseudoSpatialNavigationFocus},
+    {"-internal-text-field", CSSSelector::kPseudoTextField},
     {"-internal-video-persistent", CSSSelector::kPseudoVideoPersistent},
     {"-internal-video-persistent-ancestor",
      CSSSelector::kPseudoVideoPersistentAncestor},
@@ -633,6 +636,7 @@ constexpr static NameToPseudoStruct kPseudoTypeWithoutArgumentsMap[] = {
     {"enabled", CSSSelector::kPseudoEnabled},
     {"end", CSSSelector::kPseudoEnd},
     {"file-selector-button", CSSSelector::kPseudoFileSelectorButton},
+    {"filtered", CSSSelector::kPseudoFiltered},
     {"first", CSSSelector::kPseudoFirstPage},
     {"first-child", CSSSelector::kPseudoFirstChild},
     {"first-letter", CSSSelector::kPseudoFirstLetter},
@@ -853,8 +857,10 @@ CSSSelector::PseudoType CSSSelector::NameToPseudoType(
     return CSSSelector::kPseudoUnknown;
   }
 
-  if (match->type == CSSSelector::kPseudoActiveOption &&
-      !RuntimeEnabledFeatures::CustomizableComboboxEnabled()) {
+  if ((match->type == CSSSelector::kPseudoActiveOption ||
+       match->type == CSSSelector::kPseudoFiltered) &&
+      !RuntimeEnabledFeatures::CustomizableComboboxEnabled() &&
+      !RuntimeEnabledFeatures::FilterableSelectEnabled()) {
     return CSSSelector::kPseudoUnknown;
   }
   if (match->type == CSSSelector::kPseudoAnimatedImage &&
@@ -917,7 +923,7 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
                                    bool has_arguments,
                                    CSSParserMode mode) {
   DCHECK(Match() == kPseudoClass || Match() == kPseudoElement);
-  AtomicString lower_value = value.LowerASCII();
+  AtomicString lower_value = value.ToAsciiLower();
   PseudoType pseudo_type = CSSSelectorParser::ParsePseudoType(
       lower_value, has_arguments, context.GetDocument());
   SetPseudoType(pseudo_type);
@@ -1025,6 +1031,7 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
     case kPseudoEmpty:
     case kPseudoEnabled:
     case kPseudoEnd:
+    case kPseudoFiltered:
     case kPseudoFirstChild:
     case kPseudoFirstOfType:
     case kPseudoFocus:
@@ -1092,6 +1099,7 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
     case kPseudoTargetCurrent:
     case kPseudoTargetBefore:
     case kPseudoTargetAfter:
+    case kPseudoTextField:
     case kPseudoUnknown:
     case kPseudoUnparsed:
     case kPseudoUserInvalid:
@@ -1811,6 +1819,7 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoDisabled:
     case kPseudoDrag:
     case kPseudoEnabled:
+    case kPseudoFiltered:
     case kPseudoFocus:
     case kPseudoFocusVisible:
     case kPseudoFocusWithin:
@@ -1868,6 +1877,7 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoTargetCurrent:
     case kPseudoTargetBefore:
     case kPseudoTargetAfter:
+    case kPseudoTextField:
     case kPseudoToolFormActive:
     case kPseudoToolSubmitActive:
     case kPseudoVideoPersistent:
@@ -2167,6 +2177,7 @@ bool CSSSelector::SupportsPseudoStateChange(PseudoType type) {
     case CSSSelector::kPseudoDrag:
     case CSSSelector::kPseudoEmpty:
     case CSSSelector::kPseudoEnabled:
+    case CSSSelector::kPseudoFiltered:
     case CSSSelector::kPseudoFirstChild:
     case CSSSelector::kPseudoFirstOfType:
     case CSSSelector::kPseudoFocus:
@@ -2219,6 +2230,7 @@ bool CSSSelector::SupportsPseudoStateChange(PseudoType type) {
     case CSSSelector::kPseudoTargetAfter:
     case CSSSelector::kPseudoTargetBefore:
     case CSSSelector::kPseudoTargetCurrent:
+    case CSSSelector::kPseudoTextField:
     case CSSSelector::kPseudoToolFormActive:
     case CSSSelector::kPseudoToolSubmitActive:
     case CSSSelector::kPseudoUserInvalid:
@@ -2236,37 +2248,17 @@ bool CSSSelector::SupportsPseudoStateChange(PseudoType type) {
   }
 }
 
-constexpr bool IsPseudoMapSorted(const NameToPseudoStruct* map, unsigned size) {
-  for (unsigned i = 0; i < size - 1; i++) {
-    // strcmp/strncmp would be much better here, but unfortunately they aren't
-    // constexpr.
-    const char* current_string = UNSAFE_TODO(map[i].string);
-    const char* next_string = UNSAFE_TODO(map[i + 1].string);
-    while (true) {
-      if (*current_string > *next_string) {
-        return false;
-      }
-      if (*current_string < *next_string) {
-        break;
-      }
-      if (!*current_string) {
-        break;
-      }
-      if (!*next_string) {
-        return false;
-      }
-      UNSAFE_TODO(current_string++);
-      UNSAFE_TODO(next_string++);
-    }
-  }
-  return true;
-}
+constexpr auto PseudoNameProjection = [](const NameToPseudoStruct& entry) {
+  return std::string_view(entry.string);
+};
 
-static_assert(IsPseudoMapSorted(kPseudoTypeWithoutArgumentsMap,
-                                std::size(kPseudoTypeWithoutArgumentsMap)),
+static_assert(std::ranges::is_sorted(kPseudoTypeWithoutArgumentsMap,
+                                     {},
+                                     PseudoNameProjection),
               "kPseudoTypeWithoutArgumentsMap must be sorted.");
-static_assert(IsPseudoMapSorted(kPseudoTypeWithArgumentsMap,
-                                std::size(kPseudoTypeWithArgumentsMap)),
+static_assert(std::ranges::is_sorted(kPseudoTypeWithArgumentsMap,
+                                     {},
+                                     PseudoNameProjection),
               "kPseudoTypeWithArgumentsMap must be sorted.");
 
 }  // namespace blink

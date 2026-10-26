@@ -9,6 +9,7 @@
 #include <iterator>
 #include <optional>
 #include <ostream>
+#include <set>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -32,6 +33,7 @@
 #include "components/omnibox/browser/actions/contextual_search_action.h"
 #include "components/omnibox/browser/actions/omnibox_action_concepts.h"
 #include "components/omnibox/browser/actions/omnibox_action_in_suggest.h"
+#include "components/omnibox/browser/actions/omnibox_action_site_search.h"
 #include "components/omnibox/browser/actions/omnibox_pedal.h"
 #include "components/omnibox/browser/actions/omnibox_pedal_provider.h"
 #include "components/omnibox/browser/actions/tab_switch_action.h"
@@ -167,6 +169,10 @@ size_t AutocompleteResult::GetDynamicMaxMatches() {
 AutocompleteResult::AutocompleteResult()
     : max_url_matches_(is_android || is_ios ? 5 : 7) {
   matches_.reserve(kMaxAutocompletePositionValue);
+
+  static uint32_t next_sequence_id = 1;
+  sequence_id_ = next_sequence_id;
+  next_sequence_id++;
 }
 
 AutocompleteResult::~AutocompleteResult() {
@@ -971,6 +977,28 @@ void AutocompleteResult::AttachContextualSearchOpenLensActionToMatches() {
   }
 }
 
+void AutocompleteResult::AttachSiteSearchActionToMatches(
+    const TemplateURLService* service) {
+  std::set<std::u16string> seen;
+  for (AutocompleteMatch& match : matches_) {
+    if (match.associated_keyword.empty()) {
+      continue;
+    }
+    if (seen.contains(match.associated_keyword)) {
+      continue;
+    }
+    seen.insert(match.associated_keyword);
+
+    const TemplateURL* template_url =
+        service->GetTemplateURLForKeyword(match.associated_keyword);
+    if (!template_url) {
+      continue;
+    }
+    match.actions.push_back(
+        base::MakeRefCounted<OmniboxActionSiteSearch>(template_url));
+  }
+}
+
 void AutocompleteResult::ConvertOpenTabMatches(
     AutocompleteProviderClient* client,
     const AutocompleteInput* input) {
@@ -1306,7 +1334,8 @@ void AutocompleteResult::SwapMatchesWith(AutocompleteResult* other) {
   matches_.swap(other->matches_);
   suggestion_groups_map_.swap(other->suggestion_groups_map_);
   smart_compose_inline_hint_.swap(other->smart_compose_inline_hint_);
-  has_contextual_chips_ = other->has_contextual_chips();
+  std::swap(has_contextual_chips_, other->has_contextual_chips_);
+  std::swap(sequence_id_, other->sequence_id_);
 
 #if BUILDFLAG(IS_ANDROID)
   DestroyJavaObject();

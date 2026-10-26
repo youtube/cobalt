@@ -82,6 +82,33 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 BASE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo,
              "CobaltRemoveUiPlaneDuringFullscreenVideo",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// How long to keep the primary plane (UI) buffers after the UI plane is
+// removed, so that brief pauses (e.g. between Closed Captions lines) do not
+// repeatedly free and re-allocate them. 0 frees them immediately.
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kCobaltRemoveUiPlaneDestroyBuffersDelay,
+                   &kCobaltRemoveUiPlaneDuringFullscreenVideo,
+                   "destroy_buffers_delay",
+                   base::Seconds(5));
+
+// When enabled, Cobalt persists Skia's compiled shaders (GrShaderCache) to the
+// GPU shader disk cache instead of disabling the disk cache. The other GPU disk
+// caches stay off since every opened cache is read in full during startup.
+// Newly compiled shaders are written to disk in a batch when the GPU becomes
+// idle, when the app is backgrounded, or before a memory pressure purge,
+// instead of one IPC and disk write per shader during startup.
+BASE_FEATURE(kCobaltGpuShaderDiskCache,
+             "CobaltGpuShaderDiskCache",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Size in KB of the shader cache, both in memory and on disk. This replaces
+// the 128 KB low-end device default, which is too small to hold the shaders
+// used during startup. Non-positive values keep the platform default.
+BASE_FEATURE_PARAM(int,
+                   kCobaltGpuShaderDiskCacheSizeKb,
+                   &kCobaltGpuShaderDiskCache,
+                   "CobaltGpuShaderDiskCache_size_kb",
+                   2048);
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -163,6 +190,10 @@ BASE_FEATURE(kDefaultEnableGpuRasterization,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+
+// Use a compound backing for shared images by default.
+BASE_FEATURE(kUseCompoundImageBackingAsDefault,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the use of MSAA in skia on Ice Lake and later intel architectures.
 BASE_FEATURE(kEnableMSAAOnNewIntelGPUs,
@@ -344,11 +375,10 @@ const base::FeatureParam<std::string> kDrDcBlockListByAndroidBuildFP{
     &kEnableDrDc, "BlockListByAndroidBuildFP", ""};
 #endif  // BUILDFLAG(IS_ANDROID)
 
-// Enable Skia Graphite. This will use the Dawn backend by default, but can be
-// overridden with command line flags for testing on non-official developer
-// builds. See --skia-graphite-backend flag in gpu_switches.h.
-// Note: This can also be overridden by
-// --enable-skia-graphite & --disable-skia-graphite.
+// Enable Skia Graphite with the platform's default Dawn backend.
+// Note: This can be overridden by --enable-skia-graphite and
+// --disable-skia-graphite which take precedence over the feature flag, and the
+// Dawn backend can be overridden with the --skia-graphite-dawn-backend flag.
 BASE_FEATURE(kSkiaGraphite,
 #if BUILDFLAG(IS_APPLE)
              base::FEATURE_ENABLED_BY_DEFAULT
@@ -356,6 +386,10 @@ BASE_FEATURE(kSkiaGraphite,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+
+// Allows CompoundImageBacking to allocate backings during runtime if a
+// compatible backing to serve clients requested usage is not already present.
+BASE_FEATURE(kUseDynamicBackingAllocations, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable atlasing of small paths on Skia Graphite. Only meaningful if
 // SkiaGraphite is also enabled.

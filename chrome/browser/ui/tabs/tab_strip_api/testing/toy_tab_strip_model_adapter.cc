@@ -8,36 +8,22 @@
 
 #include "base/notimplemented.h"
 #include "base/strings/string_number_conversions.h"
-#include "chrome/browser/ui/tabs/tab_strip_api/converters/tab_converters.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/types/tab_states.h"
 
 namespace tabs_api::testing {
 
 ToyTabStripModelAdapter::ToyTabStripModelAdapter(ToyTabStrip* tab_strip)
     : tab_strip_(tab_strip) {}
 
-void ToyTabStripModelAdapter::AddModelObserver(
-    TabStripModelObserver* observer) {}
-void ToyTabStripModelAdapter::RemoveModelObserver(
-    TabStripModelObserver* observer) {}
-void ToyTabStripModelAdapter::AddCollectionObserver(
-    tabs::TabCollectionObserver* collection_observer) {}
-
-void ToyTabStripModelAdapter::RemoveCollectionObserver(
-    tabs::TabCollectionObserver* collection_observer) {}
-
 std::vector<tabs::TabHandle> ToyTabStripModelAdapter::GetTabs() const {
   return tab_strip_->GetTabs();
 }
 
-TabRendererData ToyTabStripModelAdapter::GetTabRendererData(int index) const {
-  return TabRendererData();
-}
-
-tabs_api::converters::TabStates ToyTabStripModelAdapter::GetTabStates(
+tabs_api::types::TabStates ToyTabStripModelAdapter::GetTabStates(
     tabs::TabHandle handle) const {
   return {
-      .is_active = tab_strip_->GetToyTabFor(handle).active,
-      .is_selected = tab_strip_->GetToyTabFor(handle).selected,
+      .is_active = tab_strip_->GetToyTabFor(handle)->active,
+      .is_selected = tab_strip_->GetToyTabFor(handle)->selected,
   };
 }
 
@@ -78,8 +64,15 @@ mojom::ContainerPtr ToyTabStripModelAdapter::GetTabStripTopology(
   mojo_tab_strip->id =
       tabs_api::NodeId(tabs_api::NodeId::Type::kCollection, "0");
 
-  auto result = tabs_api::mojom::Container::New();
-  result->data = tabs_api::mojom::Data::NewTabStrip(std::move(mojo_tab_strip));
+  auto window_container = tabs_api::mojom::Container::New();
+  auto window_data = tabs_api::mojom::Window::New();
+  window_data->id = tabs_api::NodeId(tabs_api::NodeId::Type::kWindow, "1");
+  window_container->data =
+      tabs_api::mojom::Data::NewWindow(std::move(window_data));
+
+  auto tab_strip_container = tabs_api::mojom::Container::New();
+  tab_strip_container->data =
+      tabs_api::mojom::Data::NewTabStrip(std::move(mojo_tab_strip));
 
   std::vector<tabs::TabHandle> tabs = tab_strip_->GetTabs();
   for (auto& handle : tabs) {
@@ -88,9 +81,10 @@ mojom::ContainerPtr ToyTabStripModelAdapter::GetTabStripTopology(
                                base::NumberToString(handle.raw_value()));
     auto child_container = tabs_api::mojom::Container::New();
     child_container->data = tabs_api::mojom::Data::NewTab(std::move(tab));
-    result->children.push_back(std::move(child_container));
+    tab_strip_container->children.push_back(std::move(child_container));
   }
-  return result;
+  window_container->children.push_back(std::move(tab_strip_container));
+  return window_container;
 }
 
 std::optional<const tab_groups::TabGroupId>
@@ -116,17 +110,19 @@ void ToyTabStripModelAdapter::SetTabSelection(
 
 std::optional<tab_groups::TabGroupId>
 ToyTabStripModelAdapter::GetTabGroupForTab(int index) const {
-  // TODO(crbug.com/412709271): Integrate with the toy tabstrip
-  NOTIMPLEMENTED();
-  return std::nullopt;
+  return tab_strip_->GetTabGroupForTab(index);
 }
 
 tabs::TabCollectionHandle
 ToyTabStripModelAdapter::GetCollectionHandleForTabGroupId(
     tab_groups::TabGroupId group_id) const {
-  // TODO(crbug.com/412709271): Integrate with the toy tabstrip
-  NOTIMPLEMENTED();
-  return tabs::TabCollectionHandle::Null();
+  return tab_strip_->GetCollectionHandleForTabGroupId(group_id);
+}
+
+tabs::TabCollectionHandle
+ToyTabStripModelAdapter::GetCollectionHandleForSplitTabId(
+    split_tabs::SplitTabId split_id) const {
+  return tab_strip_->GetCollectionHandleForSplitTabId(split_id);
 }
 
 tabs_api::Position ToyTabStripModelAdapter::GetPositionForAbsoluteIndex(
@@ -138,7 +134,8 @@ tabs_api::Position ToyTabStripModelAdapter::GetPositionForAbsoluteIndex(
 tabs_api::Path ToyTabStripModelAdapter::GetPathForCollection(
     tabs::TabCollectionHandle collection_handle) const {
   std::vector<tabs_api::NodeId> components;
-  components.push_back(NodeId::FromTabCollectionHandle(collection_handle));
+  components.emplace_back(tabs_api::NodeId::Type::kWindow, "1");
+  components.emplace_back(NodeId::FromTabCollectionHandle(collection_handle));
   return tabs_api::Path(std::move(components));
 }
 
@@ -146,6 +143,11 @@ InsertionParams ToyTabStripModelAdapter::CalculateInsertionParams(
     const std::optional<tabs_api::Position>& pos) const {
   NOTIMPLEMENTED();
   return tabs_api::InsertionParams();
+}
+
+void ToyTabStripModelAdapter::ReplaceTabInSplit(tabs::TabHandle tab_to_replace,
+                                                int tab_to_insert_index) {
+  NOTIMPLEMENTED();
 }
 
 const tabs::TabCollection* ToyTabStripModelAdapter::GetRoot() const {

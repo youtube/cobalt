@@ -43,10 +43,8 @@
 #include "content/public/browser/child_process_host.h"
 #include "content/public/browser/hid_delegate.h"
 #include "content/public/browser/usb_delegate.h"
-#include "content/public/browser/web_ui_url_loader_factory.h"
 #include "content/public/common/child_process_id_util.h"
 #include "content/public/common/content_client.h"
-#include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
 #include "ipc/constants.mojom.h"
@@ -606,7 +604,12 @@ void EmbeddedWorkerInstance::SendStartWorker(
   if (!params->outside_fetch_client_settings_object) {
     params->outside_fetch_client_settings_object =
         blink::mojom::FetchClientSettingsObject::New(
-            network::mojom::ReferrerPolicy::kDefault,
+            []() {
+              auto policies = blink::mojom::PolicyContainerPolicies::New();
+              policies->referrer_policy =
+                  network::mojom::ReferrerPolicy::kDefault;
+              return policies;
+            }(),
             /*outgoing_referrer=*/params->script_url,
             blink::mojom::InsecureRequestsPolicy::kDoNotUpgrade);
   }
@@ -890,7 +893,7 @@ EmbeddedWorkerInstance::CreateFactoryBundle(
           std::move(dip_reporter),
           static_cast<StoragePartitionImpl*>(rph->GetStoragePartition())
               ->CreateURLLoaderNetworkObserverForServiceOrSharedWorker(
-                  ToOriginatingProcess(rph->GetID()), origin),
+                  ToOriginatingProcessId(rph->GetID()), origin),
           NetworkServiceDevToolsObserver::MakeSelfOwned(devtools_worker_token),
           std::move(client_security_state),
           /*network_restrictions_id=*/std::nullopt,
@@ -918,25 +921,6 @@ EmbeddedWorkerInstance::CreateFactoryBundle(
 
   ContentBrowserClient::NonNetworkURLLoaderFactoryMap non_network_factories;
   non_network_factories[url::kDataScheme] = DataURLLoaderFactory::Create();
-  // Allow service workers for chrome:// or chrome-untrusted:// based on flags.
-  if (base::FeatureList::IsEnabled(
-          features::kEnableServiceWorkersForChromeScheme) &&
-      origin.scheme() == content::kChromeUIScheme) {
-    non_network_factories.emplace(
-        content::kChromeUIScheme,
-        CreateWebUIServiceWorkerLoaderFactory(rph->GetBrowserContext(),
-                                              content::kChromeUIScheme,
-                                              base::flat_set<std::string>()));
-  } else if (base::FeatureList::IsEnabled(
-                 features::kEnableServiceWorkersForChromeUntrusted) &&
-             origin.scheme() == content::kChromeUIUntrustedScheme) {
-    non_network_factories.emplace(
-        content::kChromeUIUntrustedScheme,
-        CreateWebUIServiceWorkerLoaderFactory(rph->GetBrowserContext(),
-                                              content::kChromeUIUntrustedScheme,
-                                              base::flat_set<std::string>()));
-  }
-
   GetContentClient()
       ->browser()
       ->RegisterNonNetworkSubresourceURLLoaderFactories(

@@ -16,16 +16,10 @@ class DeviceInfo;
 
 namespace send_tab_to_self {
 
-struct SharingDeviceNames {
-  std::string full_name;
-  std::string short_name;
-};
-
 // Device information for generating send tab to self UI.
 struct TargetDeviceInfo {
  public:
-  TargetDeviceInfo(const std::string& full_name,
-                   const std::string& short_name,
+  TargetDeviceInfo(const std::string& device_name,
                    const std::string& cache_guid,
                    const syncer::DeviceInfo::FormFactor form_factor,
                    base::Time last_updated_timestamp);
@@ -34,11 +28,7 @@ struct TargetDeviceInfo {
 
   bool operator==(const TargetDeviceInfo& rhs) const;
 
-  // Device full name.
-  std::string full_name;
-  // Device short name.
-  std::string short_name;
-  // Device name
+  // Device display name.
   std::string device_name;
   // Device guid.
   std::string cache_guid;
@@ -47,9 +37,6 @@ struct TargetDeviceInfo {
   // Last updated timestamp.
   base::Time last_updated_timestamp;
 };
-
-// Returns full and short names for |device|.
-SharingDeviceNames GetSharingDeviceNames(const syncer::DeviceInfo* device);
 
 }  // namespace send_tab_to_self
 

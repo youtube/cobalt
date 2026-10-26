@@ -8,6 +8,7 @@ import '//resources/cr_elements/icons.html.js';
 import '//resources/cr_elements/cr_toast/cr_toast.js';
 import '//resources/cr_elements/cr_button/cr_button.js';
 import './card.js';
+import './error_page.js';
 
 import type {CrToastElement} from '//resources/cr_elements/cr_toast/cr_toast.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
@@ -16,7 +17,8 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import {getCss} from './discover_skills_page.css.js';
 import {getHtml} from './discover_skills_page.html.js';
 import type {Skill} from './skill.mojom-webui.js';
-import {SkillsDialogType} from './skills.mojom-webui.js';
+import {SkillsDialogType} from './skill.mojom-webui.js';
+import {SkillsManagementAction, SkillsManagementPage} from './skill_metrics.mojom-webui.js';
 import {SkillsPageBrowserProxy} from './skills_page_browser_proxy.js';
 
 
@@ -90,6 +92,9 @@ export class DiscoverSkillsPageElement extends CrLitElement {
   }
 
   protected onSkillSave_(savedSkill: Skill) {
+    this.proxy_.handler.recordSkillsManagementAction(
+        SkillsManagementPage.kBrowseSkills,
+        SkillsManagementAction.kClickedAddSkill);
     this.is1PSkillSaving_ = true;
     this.proxy_.handler.maybeSave1PSkill(savedSkill.id).then(({success}) => {
       if (success) {
@@ -156,6 +161,12 @@ export class DiscoverSkillsPageElement extends CrLitElement {
     return skills.filter(
         skill => skill.name.toLowerCase().includes(term) ||
             skill.description.toLowerCase().includes(term));
+  }
+
+  protected shouldShowNoSearchResults_(): boolean {
+    return this.topSkills_().length === 0 &&
+        this.getOtherSkills_().length === 0 &&
+        this.getOtherCategories_().length === 0 && this.searchTerm_.length > 0;
   }
 
   protected topSkills_(): Skill[] {

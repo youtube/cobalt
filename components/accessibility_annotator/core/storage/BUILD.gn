@@ -1,0 +1,49 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("storage") {
+  sources = [
+    "accessibility_annotation_sync_bridge.cc",
+    "accessibility_annotation_sync_bridge.h",
+    "accessibility_annotator_backend.cc",
+    "accessibility_annotator_backend.h",
+    "accessibility_annotator_database.cc",
+    "accessibility_annotator_database.h",
+    "intent_table.cc",
+    "intent_table.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//components/accessibility_annotator/core:features",
+    "//components/accessibility_annotator/core/data_models",
+    "//components/history/core/browser",
+    "//components/keyed_service/core",
+    "//components/sync/base",
+    "//components/sync/model",
+    "//sql",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [
+    "accessibility_annotation_sync_bridge_unittest.cc",
+    "accessibility_annotator_database_unittest.cc",
+    "intent_table_unittest.cc",
+  ]
+
+  deps = [
+    ":storage",
+    "//base/test:test_support",
+    "//components/sync:test_support",
+    "//components/sync/model",
+    "//components/sync/protocol",
+    "//sql",
+    "//sql:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

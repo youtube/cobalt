@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google Inc.
+ * Copyright 2021 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -22,6 +22,7 @@
 #include "src/gpu/ganesh/ops/OpsTask.h"
 #include "src/gpu/ganesh/tessellate/PathTessellator.h"
 
+#include <limits>
 #include <memory>
 #include <utility>
 
@@ -89,6 +90,7 @@ private:
     class AtlasPathList : SkNoncopyable {
     public:
         void add(PathDrawAllocator* alloc, const SkMatrix& pathMatrix, const SkPath& path) {
+            SkASSERT(this->canAdd(path));
             fPathDrawList = &alloc->emplace_back(pathMatrix, path, SK_PMColor4fTRANSPARENT,
                                                  fPathDrawList);
             if (path.isInverseFillType()) {
@@ -98,6 +100,15 @@ private:
             fTotalCombinedPathVerbCnt += path.countVerbs();
             ++fPathCount;
         }
+
+        bool canAdd(const SkPath& path) const {
+            // Return true so long as we won't overflow the total verb count, with a bit of head
+            // room so that later-on allocations are unlikely to overflow (they still need to guard
+            // themselves, but we'd rather just make new Ops).
+            static constexpr int kMaxVerbLimit = std::numeric_limits<int>::max() >> 4;
+            return kMaxVerbLimit - fTotalCombinedPathVerbCnt >= path.countVerbs();
+        }
+
         const PathDrawList* pathDrawList() const { return fPathDrawList; }
         int totalCombinedPathVerbCnt() const { return fTotalCombinedPathVerbCnt; }
         int pathCount() const { return fPathCount; }

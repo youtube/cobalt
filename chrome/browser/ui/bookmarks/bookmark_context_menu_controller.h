@@ -22,6 +22,7 @@ class Profile;
 
 class BookmarkMergedSurfaceService;
 struct BookmarkParentFolder;
+class BookmarkUIOperationsHelperMergedSurfaces;
 
 // An interface implemented by an object that performs actions on the actual
 // menu for the controller.
@@ -62,7 +63,8 @@ class BookmarkContextMenuController
       Profile* profile,
       BookmarkLaunchLocation opened_from,
       const std::vector<raw_ptr<const bookmarks::BookmarkNode,
-                                VectorExperimental>>& selection);
+                                VectorExperimental>>& selection,
+      bool can_paste);
 
   BookmarkContextMenuController(const BookmarkContextMenuController&) = delete;
   BookmarkContextMenuController& operator=(
@@ -93,6 +95,9 @@ class BookmarkContextMenuController
   size_t GetIndexForNewNodes() const;
 
  private:
+  void OnPasteFinished(
+      std::unique_ptr<BookmarkUIOperationsHelperMergedSurfaces> paste_helper);
+
   friend class BookmarkContextMenuControllerTest;
   FRIEND_TEST_ALL_PREFIXES(
       BookmarkContextMenuControllerTest,
@@ -135,6 +140,8 @@ class BookmarkContextMenuController
   const raw_ptr<BookmarkMergedSurfaceService> bookmark_service_;
   std::unique_ptr<ui::SimpleMenuModel> menu_model_;
   const std::unique_ptr<BookmarkParentFolder> new_nodes_parent_;
+  // Whether IDC_PASTE is enabled.
+  const bool can_paste_;
   // Used to detect deletion of |this| executing a command.
   base::WeakPtrFactory<BookmarkContextMenuController> weak_factory_{this};
 };

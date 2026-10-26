@@ -69,7 +69,6 @@
 #include "build/build_config.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "chrome/browser/apps/platform_apps/app_browsertest_util.h"
 #include "chrome/browser/ash/app_restore/app_restore_arc_test_helper.h"
 #include "chrome/browser/ash/app_restore/app_restore_test_util.h"
@@ -91,11 +90,12 @@
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
@@ -123,6 +123,7 @@
 #include "components/policy/policy_constants.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_types.h"
+#include "components/services/app_service/public/cpp/launch_result.h"
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_info.h"
 #include "components/tab_groups/tab_group_visual_data.h"
@@ -419,31 +420,32 @@ class MockDesksTemplatesAppLaunchHandler
               (override));
 };
 
-class BrowsersAddedObserver : public BrowserListObserver {
+class BrowsersAddedObserver : public BrowserCollectionObserver {
  public:
   explicit BrowsersAddedObserver(int num_browser_expected)
       : num_browser_adds_left_(num_browser_expected) {
-    BrowserList::AddObserver(this);
+    browser_collection_observation_.Observe(
+        GlobalBrowserCollection::GetInstance());
   }
   BrowsersAddedObserver(const BrowsersAddedObserver&) = delete;
   BrowsersAddedObserver& operator=(const BrowsersAddedObserver&) = delete;
-  ~BrowsersAddedObserver() override { BrowserList::RemoveObserver(this); }
+  ~BrowsersAddedObserver() override = default;
 
   void Wait() { run_loop_.Run(); }
 
-  // BrowserListObserver:
-  void OnBrowserAdded(Browser* browser) override {
+  // BrowserCollectionObserver:
+  void OnBrowserCreated(BrowserWindowInterface* browser) override {
     --num_browser_adds_left_;
     if (num_browser_adds_left_ == 0) {
       run_loop_.Quit();
     }
   }
 
-  void OnBrowserRemoved(Browser* browser) override {}
-
  private:
   int num_browser_adds_left_;
   base::RunLoop run_loop_;
+  base::ScopedObservation<BrowserCollection, BrowserCollectionObserver>
+      browser_collection_observation_{this};
 };
 
 }  // namespace

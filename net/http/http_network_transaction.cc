@@ -102,6 +102,10 @@ namespace {
 // we give up and show an error page.
 const size_t kMaxRetryAttempts = 2;
 
+// Max number of `retry_attempts_on_connection_errors_` for connection errors,
+// after which we give up and crash early.
+const size_t kMaxRetryAttemptsOnConnectionErrors = 50;
+
 // Max number of calls to RestartWith* allowed for a single connection. A single
 // HttpNetworkTransaction should not signal very many restartable errors, but it
 // may occur due to a bug (e.g. https://crbug.com/823387 or
@@ -597,8 +601,8 @@ void HttpNetworkTransaction::DidDrainBodyForAuthRestart(bool keep_alive) {
       next_state_ = STATE_CREATE_STREAM;
     } else {
       // Renewed streams shouldn't carry over sent or received bytes.
-      DCHECK_EQ(0, new_stream->GetTotalReceivedBytes());
-      DCHECK_EQ(0, new_stream->GetTotalSentBytes());
+      DCHECK_EQ(base::ByteSize(0), new_stream->GetTotalReceivedBytes());
+      DCHECK_EQ(base::ByteSize(0), new_stream->GetTotalSentBytes());
       next_state_ = STATE_CONNECTED_CALLBACK;
     }
     stream_ = std::move(new_stream);
@@ -651,17 +655,19 @@ int HttpNetworkTransaction::Read(IOBuffer* buf,
 void HttpNetworkTransaction::StopCaching() {}
 
 int64_t HttpNetworkTransaction::GetTotalReceivedBytes() const {
-  int64_t total_received_bytes = total_received_bytes_;
-  if (stream_)
+  base::ByteSize total_received_bytes = total_received_bytes_;
+  if (stream_) {
     total_received_bytes += stream_->GetTotalReceivedBytes();
-  return total_received_bytes;
+  }
+  return total_received_bytes.InBytes();
 }
 
 int64_t HttpNetworkTransaction::GetTotalSentBytes() const {
-  int64_t total_sent_bytes = total_sent_bytes_;
-  if (stream_)
+  base::ByteSize total_sent_bytes = total_sent_bytes_;
+  if (stream_) {
     total_sent_bytes += stream_->GetTotalSentBytes();
-  return total_sent_bytes;
+  }
+  return total_sent_bytes.InBytes();
 }
 
 int64_t HttpNetworkTransaction::GetReceivedBodyBytes() const {
@@ -2081,6 +2087,13 @@ int HttpNetworkTransaction::HandleIOError(int error) {
     // preconnected but failed to be used before the server timed it out.
     case RetryReason::kEmptyResponse:
       if (ShouldResendRequest()) {
+        if (retry_attempts_on_connection_errors_ >=
+            kMaxRetryAttemptsOnConnectionErrors) {
+          NOTREACHED() << "Failed after "
+                       << retry_attempts_on_connection_errors_
+                       << " retry attempts for connection errors.";
+        }
+        retry_attempts_on_connection_errors_++;
         net_log_.AddEventWithNetErrorCode(
             NetLogEventType::HTTP_TRANSACTION_RESTART_AFTER_ERROR, error);
         ResetConnectionAndRequestForResend(*retry_reason);

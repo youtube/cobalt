@@ -9,12 +9,16 @@
 #include "ash/system/unified/unified_system_tray.h"
 #include "ash/system/unified/unified_system_tray_bubble.h"
 #include "ash/system/unified/unified_system_tray_controller.h"
+#include "ash/system/unified/unified_system_tray_model.h"
 #include "ash/test/ash_test_base.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_util.h"
 #include "base/memory/raw_ptr.h"
+#include "chromeos/dbus/power/fake_power_manager_client.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/display/manager/display_manager.h"
 #include "ui/display/test/display_manager_test_api.h"
+#include "ui/display/util/display_util.h"
 #include "ui/gfx/vector_icon_types.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/image_view.h"
@@ -52,9 +56,15 @@ class UnifiedBrightnessViewTest : public AshTestBase {
     // Tests the environment tears down with the bubble closed.
     // In `UnifiedVolumeViewTest`, the environment is torn down with the bubble
     // open, so we can test both cases.
-    brightness_slider_ = nullptr;
-    GetPrimaryUnifiedSystemTray()->CloseBubble();
+    CloseBubble();
     AshTestBase::TearDown();
+  }
+
+  void CloseBubble() {
+    brightness_slider_ = nullptr;
+    unified_brightness_view_ = nullptr;
+    brightness_slider_controller_ = nullptr;
+    GetPrimaryUnifiedSystemTray()->CloseBubble();
   }
 
   void WaitUntilUpdated() {
@@ -101,14 +111,13 @@ class UnifiedBrightnessViewTest : public AshTestBase {
  private:
   // The `UnifiedBrightnessView` containing a `QuickSettingsSlider`, a
   // `NightLight` button, and a drill-in button.
-  raw_ptr<UnifiedBrightnessView, DanglingUntriaged> unified_brightness_view_ =
-      nullptr;
+  raw_ptr<UnifiedBrightnessView> unified_brightness_view_ = nullptr;
 
   // The `UnifiedBrightnessView` containing only a `QuickSettingsSlider`.
   std::unique_ptr<UnifiedBrightnessView> brightness_slider_ = nullptr;
 
-  raw_ptr<UnifiedBrightnessSliderController, DanglingUntriaged>
-      brightness_slider_controller_ = nullptr;
+  raw_ptr<UnifiedBrightnessSliderController> brightness_slider_controller_ =
+      nullptr;
 };
 
 // Tests to ensure that the `slider_button` does not handle any events,
@@ -117,7 +126,7 @@ class UnifiedBrightnessViewTest : public AshTestBase {
 TEST_F(UnifiedBrightnessViewTest, SliderButtonClickThrough) {
   display::test::DisplayManagerTestApi(display_manager())
       .SetFirstDisplayAsInternalDisplay();
-  controller()->UpdateBrightnessSlider();
+  unified_brightness_view()->UpdateBrightnessSlider();
   slider()->SetValue(1.0);
   EXPECT_FLOAT_EQ(unified_brightness_view()->slider()->GetValue(), 1.0);
 
@@ -211,7 +220,7 @@ TEST_F(UnifiedBrightnessViewTest, MoreButton) {
   EXPECT_TRUE(more_button()->GetEnabled());
 
   // Close the bubble so the brightness view can be recreated.
-  GetPrimaryUnifiedSystemTray()->CloseBubble();
+  CloseBubble();
 
   // Create and trusted pin a window.
   std::unique_ptr<aura::Window> window(CreateTestWindow());
@@ -224,7 +233,7 @@ TEST_F(UnifiedBrightnessViewTest, MoreButton) {
   EXPECT_FALSE(more_button()->GetEnabled());
 
   // Close the bubble so the brightness view can be recreated.
-  GetPrimaryUnifiedSystemTray()->CloseBubble();
+  CloseBubble();
 
   // Unpin the window
   WindowState::Get(window.get())->Restore();
@@ -238,7 +247,7 @@ TEST_F(UnifiedBrightnessViewTest, MoreButton) {
 // enabled in the locked screen.
 TEST_F(UnifiedBrightnessViewTest, NightLightButtonState) {
   // Close the bubble so the brightness view can be recreated.
-  GetPrimaryUnifiedSystemTray()->CloseBubble();
+  CloseBubble();
 
   // In the sign-in screen, the `night_light_button_` is disabled.
   GetSessionControllerClient()->SetSessionState(
@@ -246,19 +255,76 @@ TEST_F(UnifiedBrightnessViewTest, NightLightButtonState) {
   GetPrimaryUnifiedSystemTray()->ShowBubble();
   EXPECT_FALSE(night_light_button()->GetEnabled());
 
-  GetPrimaryUnifiedSystemTray()->CloseBubble();
+  CloseBubble();
   // In the locked screen, the `night_light_button_` is enabled.
   GetSessionControllerClient()->SetSessionState(
       session_manager::SessionState::LOCKED);
   GetPrimaryUnifiedSystemTray()->ShowBubble();
   EXPECT_TRUE(night_light_button()->GetEnabled());
 
-  GetPrimaryUnifiedSystemTray()->CloseBubble();
+  CloseBubble();
   // In the active user session, the `night_light_button_` is enabled.
   GetSessionControllerClient()->SetSessionState(
       session_manager::SessionState::ACTIVE);
   GetPrimaryUnifiedSystemTray()->ShowBubble();
   EXPECT_TRUE(night_light_button()->GetEnabled());
+}
+
+TEST_F(UnifiedBrightnessViewTest,
+       BrightnessSliderDisabledInDockedModeLidClosed) {
+  // Scenario 1: Only external display -> slider disabled.
+  ASSERT_EQ(1u, display_manager()->GetNumDisplays());
+
+  auto* tray = GetPrimaryUnifiedSystemTray();
+  tray->ShowBubble();
+
+  EXPECT_FALSE(slider()->GetEnabled());
+
+  // Scenario 2: Internal display only + lid open -> slider enabled.
+  const int64_t internal_display_id =
+      display::test::DisplayManagerTestApi(display_manager())
+          .SetFirstDisplayAsInternalDisplay();
+  const auto internal_info =
+      display_manager()->GetDisplayInfo(internal_display_id);
+
+  chromeos::FakePowerManagerClient::Get()->SetLidState(
+      chromeos::PowerManagerClient::LidState::OPEN, {});
+
+  EXPECT_EQ(1u, display_manager()->GetNumDisplays());
+  tray->ShowBubble();
+
+  EXPECT_TRUE(slider()->GetEnabled());
+
+  // Scenario 3: Internal + External + lid open -> slider enabled.
+  constexpr int64_t external_id = 210000010;
+  const auto external_info =
+      display::ManagedDisplayInfo::CreateFromSpecWithID("400x300", external_id);
+
+  std::vector<display::ManagedDisplayInfo> display_info_list;
+  display_info_list.push_back(internal_info);
+  display_info_list.push_back(external_info);
+  display_manager()->OnNativeDisplaysChanged(display_info_list);
+
+  EXPECT_EQ(2U, display_manager()->GetNumDisplays());
+  EXPECT_TRUE(slider()->GetEnabled());
+
+  // Scenario 4: Docked mode, external only, lid open -> slider enabled.
+  power_manager::SetBacklightBrightnessRequest request;
+  request.set_percent(0);
+  chromeos::FakePowerManagerClient::Get()->SetScreenBrightness(request);
+  display_info_list.clear();
+  display_info_list.push_back(external_info);
+  display_manager()->OnNativeDisplaysChanged(display_info_list);
+
+  EXPECT_EQ(1u, display_manager()->GetNumDisplays());
+  EXPECT_TRUE(slider()->GetEnabled());
+
+  // Scenario 5: Docked mode, external only, lid closed -> slider disabled.
+  // Close the lid.
+  chromeos::FakePowerManagerClient::Get()->SetLidState(
+      chromeos::PowerManagerClient::LidState::CLOSED, {});
+
+  EXPECT_FALSE(slider()->GetEnabled());
 }
 
 }  // namespace ash

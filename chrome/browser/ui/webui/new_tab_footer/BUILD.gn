@@ -39,12 +39,14 @@ source_set("impl") {
   deps = [
     ":new_tab_footer",
     "//chrome/browser:browser_process",
+    "//chrome/browser/enterprise/browser_management:management_identity",
     "//chrome/browser/extensions",
     "//chrome/browser/profiles",
     "//chrome/browser/resources/new_tab_footer:resources_grit",
     "//chrome/browser/resources/new_tab_shared:resources_grit",
     "//chrome/browser/search",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/side_panel:side_panel_views_dependent",
     "//chrome/browser/ui/views/side_panel",
     "//chrome/browser/ui/webui:webui_util",
     "//chrome/browser/ui/webui/customize_buttons",
@@ -79,13 +81,17 @@ source_set("browser_tests") {
   deps = [
     ":test_support",
     "//chrome/browser/ui/webui:webui_util",
+    "//chrome/browser/ui/webui/top_chrome:test_support",
   ]
 }
 
 source_set("unit_tests") {
   testonly = true
   sources = [ "new_tab_footer_handler_unittest.cc" ]
-  deps = [ ":test_support" ]
+  deps = [
+    ":test_support",
+    "//chrome/browser/enterprise/browser_management:management_identity",
+  ]
 }
 
 mojom("mojo_bindings") {

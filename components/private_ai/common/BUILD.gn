@@ -1,0 +1,27 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("common") {
+  sources = [
+    "base64_utils.cc",
+    "base64_utils.h",
+    "private_ai_logger.cc",
+    "private_ai_logger.h",
+  ]
+  deps = [ "//base" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "base64_utils_unittest.cc",
+    "private_ai_logger_unittest.cc",
+  ]
+  deps = [
+    ":common",
+    "//base",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

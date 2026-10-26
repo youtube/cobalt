@@ -79,6 +79,7 @@
 #include "components/viz/common/view_transition_element_resource_id.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/vector2d_f.h"
+#include "ui/latency/latency_info.h"
 
 namespace gfx {
 class PointF;
@@ -276,7 +277,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   void ScrollAnimationAbort(ElementId element_id) const override;
   float GetBrowserControlsTopOffset() const override;
   void ScrollBegin() const override;
-  void ScrollEnd() const override;
+  void ScrollEnd(const gfx::Vector2dF& compensated_scroll_delta) const override;
   void StartScrollSequence(
       FrameSequenceTrackerType type,
       FrameInfo::SmoothEffectDrivingThread scrolling_thread) override;
@@ -445,7 +446,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   void DidDrawAllLayers(const FrameData& frame);
 
   // Pushes differential updates to the display tree via a LayerContext.
-  base::TimeTicks UpdateDisplayTree(FrameData& frame);
+  base::TimeTicks UpdateDisplayTree(FrameData& frame,
+                                    std::vector<ui::LatencyInfo> latency_info);
 
   const LayerTreeSettings& settings() const { return settings_; }
 

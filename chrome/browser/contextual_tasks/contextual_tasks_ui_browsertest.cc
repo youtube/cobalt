@@ -8,6 +8,7 @@
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/unguessable_token.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks.mojom.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_cookie_synchronizer.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
@@ -26,6 +27,7 @@
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/contextual_tasks/public/mock_contextual_tasks_service.h"
+#include "components/lens/lens_overlay_invocation_source.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -73,7 +75,10 @@ class MockContextualTasksPage : public contextual_tasks::mojom::Page {
   MOCK_METHOD(void, RestoreInput, (), (override));
   MOCK_METHOD(void, OnZeroStateChange, (bool is_zero_state), (override));
   MOCK_METHOD(void, OnAiPageStatusChanged, (bool), (override));
-  MOCK_METHOD(void, OnLensOverlayStateChanged, (bool), (override));
+  MOCK_METHOD(void,
+              OnLensOverlayStateChanged,
+              (bool is_showing, bool maybe_show_overlay_hint_text),
+              (override));
   MOCK_METHOD(void,
               SetTaskDetails,
               (const base::Uuid&, const std::string&, const std::string&),
@@ -88,6 +93,25 @@ class MockContextualTasksPage : public contextual_tasks::mojom::Page {
               (override));
   MOCK_METHOD(void, LockInput, (), (override));
   MOCK_METHOD(void, UnlockInput, (), (override));
+  MOCK_METHOD(void, SetShowReopenTabs, (bool show), (override));
+  MOCK_METHOD(void,
+              InjectInput,
+              (const std::string& title,
+               const std::string& thumbnail,
+               const base::UnguessableToken& file_token,
+               bool supports_unimodal),
+              (override));
+  MOCK_METHOD(void,
+              InjectInputWithIcon,
+              (const std::string& title,
+               contextual_tasks::mojom::IconType icon_id,
+               const base::UnguessableToken& file_token,
+               bool supports_unimodal),
+              (override));
+  MOCK_METHOD(void,
+              RemoveInjectedInput,
+              (const base::UnguessableToken& file_token),
+              (override));
 
   mojo::PendingRemote<contextual_tasks::mojom::Page> BindAndGetRemote() {
     return receiver_.BindNewPipeAndPassRemote();
@@ -126,7 +150,9 @@ class MockContextualTasksCookieSynchronizer
 
 class ContextualTasksUIBrowserTest : public InProcessBrowserTest {
  public:
-  ContextualTasksUIBrowserTest() = default;
+  ContextualTasksUIBrowserTest() {
+    feature_list_.InitAndEnableFeature(contextual_tasks::kContextualTasks);
+  }
   ~ContextualTasksUIBrowserTest() override = default;
 
   // This override is required to inject the FakeProfileOAuth2TokenService
@@ -197,6 +223,7 @@ class ContextualTasksUIBrowserTest : public InProcessBrowserTest {
   std::unique_ptr<content::TestWebUI> test_web_ui_;
   std::unique_ptr<ContextualTasksUI> controller_;
   base::CallbackListSubscription create_services_subscription_;
+  base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksUIBrowserTest,
@@ -265,17 +292,8 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUIBrowserTest,
   run_loop.Run();
 }
 
-class ContextualTasksLensBrowserTest : public ContextualTasksUIBrowserTest {
- public:
-  ContextualTasksLensBrowserTest() {
-    feature_list_.InitAndEnableFeature(contextual_tasks::kContextualTasks);
-  }
 
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(ContextualTasksLensBrowserTest, HandleLensButtonClick) {
+IN_PROC_BROWSER_TEST_F(ContextualTasksUIBrowserTest, HandleLensButtonClick) {
   // Setup LensController
   auto override =
       tabs::TabFeatures::GetUserDataFactoryForTesting().AddOverrideForTesting(
@@ -342,23 +360,31 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUIBrowserTest,
   mojo::PendingReceiver<contextual_tasks::mojom::PageHandler> handler_receiver;
   // The initial call to CreatePageHandler should call
   // OnLensOverlayStateChanged.
-  EXPECT_CALL(mock_page, OnLensOverlayStateChanged(false));
+  EXPECT_CALL(mock_page, OnLensOverlayStateChanged(
+                             /*is_showing=*/false,
+                             /*maybe_show_overlay_hint_text=*/false));
   controller_->CreatePageHandler(mock_page.BindAndGetRemote(),
                                  std::move(handler_receiver));
 
   {
     base::RunLoop run_loop;
-    EXPECT_CALL(mock_page, OnLensOverlayStateChanged(true))
+    EXPECT_CALL(mock_page,
+                OnLensOverlayStateChanged(
+                    /*is_showing=*/true, /*maybe_show_overlay_hint_text=*/true))
         .WillOnce(testing::InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
-    controller_->OnLensOverlayStateChanged(true);
+    controller_->OnLensOverlayStateChanged(
+        true, lens::LensOverlayInvocationSource::kContextualTasksComposebox);
     run_loop.Run();
   }
 
   {
     base::RunLoop run_loop;
-    EXPECT_CALL(mock_page, OnLensOverlayStateChanged(false))
+    EXPECT_CALL(mock_page, OnLensOverlayStateChanged(
+                               /*is_showing=*/false,
+                               /*maybe_show_overlay_hint_text=*/false))
         .WillOnce(testing::InvokeWithoutArgs(&run_loop, &base::RunLoop::Quit));
-    controller_->OnLensOverlayStateChanged(false);
+    controller_->OnLensOverlayStateChanged(
+        false, lens::LensOverlayInvocationSource::kAppMenu);
     run_loop.Run();
   }
 }
@@ -413,6 +439,31 @@ IN_PROC_BROWSER_TEST_F(
 
   // Verify third inner contents is observed.
   EXPECT_EQ(controller_->GetInnerFrameUrl(), url3);
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksUIBrowserTest,
+                       RecordsHttpResponseCodeHistograms) {
+  base::HistogramTester histogram_tester;
+
+  // Create inner contents to trigger the observer.
+  std::unique_ptr<content::WebContents> inner_contents =
+      content::WebContents::Create(
+          content::WebContents::CreateParams(browser()->profile()));
+  TriggerOnInnerWebContentsCreated(inner_contents.get());
+
+  GURL url = embedded_test_server()->GetURL("/title1.html");
+  inner_contents->GetController().LoadURL(
+      url, content::Referrer(), ui::PAGE_TRANSITION_TYPED, std::string());
+  EXPECT_TRUE(content::WaitForLoadStop(inner_contents.get()));
+
+  // Since the URL is not an AI URL, IsZeroState will return false.
+  // Both histograms should be recorded.
+  histogram_tester.ExpectUniqueSample(
+      "ContextualTasks.InnerFrameContents.HttpResponseCode", 200, 1);
+  histogram_tester.ExpectUniqueSample(
+      "ContextualTasks.InnerFrameContents.HttpResponseCode."
+      "ExcludeZeroStateLoads",
+      200, 1);
 }
 
 class ContextualTasksNoMockBrowserTest : public InProcessBrowserTest {

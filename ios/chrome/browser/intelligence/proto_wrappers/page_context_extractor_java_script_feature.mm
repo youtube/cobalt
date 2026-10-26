@@ -37,7 +37,7 @@ PageContextExtractorJavaScriptFeature::PageContextExtractorJavaScriptFeature()
           {web::JavaScriptFeature::FeatureScript::CreateWithFilename(
               kScriptName,
               web::JavaScriptFeature::FeatureScript::InjectionTime::
-                  kDocumentEnd,
+                  kDocumentStart,
               web::JavaScriptFeature::FeatureScript::TargetFrames::kAllFrames,
               web::JavaScriptFeature::FeatureScript::ReinjectionBehavior::
                   kInjectOncePerWindow,
@@ -63,19 +63,23 @@ PageContextExtractorJavaScriptFeature::GetReplacements() {
 
 void PageContextExtractorJavaScriptFeature::ExtractPageContext(
     web::WebFrame* frame,
-    bool include_anchors,
     bool include_cross_origin_frame_content,
     bool use_rich_extraction,
+    bool use_rich_extraction_with_actionable,
+    bool extract_paid_content,
+    bool attempt_paid_content_json_fixing,
     const std::string& nonce,
     base::TimeDelta timeout,
     base::OnceCallback<void(const base::Value*)> callback) {
   // TODO(crbug.com/464503759): Use one single config to pass all the
   // parameters.
   base::ListValue parameters;
-  parameters.Append(include_anchors);
   parameters.Append(nonce);
   parameters.Append(include_cross_origin_frame_content);
   parameters.Append(use_rich_extraction);
+  parameters.Append(use_rich_extraction_with_actionable);
+  parameters.Append(extract_paid_content);
+  parameters.Append(attempt_paid_content_json_fixing);
   CallJavaScriptFunction(frame, "pageContextExtractor.extractPageContext",
                          parameters, std::move(callback), timeout);
 }

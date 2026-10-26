@@ -30,13 +30,8 @@ chromium-metrics-reviews@google.com.
 
 <variants name="Wallet.WalletablePass.PassCategory">
   <variant name="BoardingPass" summary="boarding passes"/>
-  <variant name="DriverLicense" summary="driver licenses"/>
   <variant name="EventPass" summary="event passes"/>
-  <variant name="KTN" summary="Known Traveler Numbers (KTNs)"/>
   <variant name="LoyaltyCard" summary="loyalty cards"/>
-  <variant name="NationalIdentityCard" summary="national identity cards"/>
-  <variant name="Passport" summary="passports"/>
-  <variant name="RedressNumber" summary="redress numbers"/>
   <variant name="TransitTicket" summary="transit tickets"/>
   <variant name="Unspecified" summary="unspecified pass category"/>
 </variants>
@@ -51,6 +46,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Wallet.NetworkRequest.{RequestType}.HttpResponseOrErrorCode"
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-12-31">
+  <owner>vizcay@google.com</owner>
+  <owner>1p-integrations-autofill@google.com</owner>
+  <summary>
+    Records the http response code or net error code that occur when making a
+    network request to the wallet server for {RequestType}.
+  </summary>
+  <token key="RequestType" variants="Wallet.NetworkRequest.RequestType"/>
+</histogram>
+
 <histogram name="Wallet.NetworkRequest.{RequestType}.Latency" units="ms"
     expires_after="2026-12-31">
   <owner>vizcay@google.com</owner>
@@ -59,6 +65,17 @@ chromium-metrics-reviews@google.com.
     Records the latency of network requests made to the wallet server for
     {RequestType}. This is an important metric to monitor the health of the
     integration.
+  </summary>
+  <token key="RequestType" variants="Wallet.NetworkRequest.RequestType"/>
+</histogram>
+
+<histogram name="Wallet.NetworkRequest.{RequestType}.ResponseByteSize"
+    units="bytes" expires_after="2026-12-31">
+  <owner>vizcay@google.com</owner>
+  <owner>1p-integrations-autofill@google.com</owner>
+  <summary>
+    Records the size of network responses received from the wallet server for
+    {RequestType}.
   </summary>
   <token key="RequestType" variants="Wallet.NetworkRequest.RequestType"/>
 </histogram>

@@ -34,8 +34,9 @@
 namespace blink {
 
 static bool IsValidAttributeName(const String& name) {
-  if (!name.StartsWith("data-"))
+  if (!name.starts_with("data-")) {
     return false;
+  }
 
   unsigned length = name.length();
   for (unsigned i = 5; i < length; ++i) {
@@ -97,8 +98,9 @@ static bool PropertyNameMatchesAttributeName(
 
 static bool PropertyNameMatchesAttributeName(const String& property_name,
                                              const String& attribute_name) {
-  if (!attribute_name.StartsWith("data-"))
+  if (!attribute_name.starts_with("data-")) {
     return false;
+  }
 
   if (property_name.Is8Bit()) {
     if (attribute_name.Is8Bit()) {
@@ -137,7 +139,7 @@ static AtomicString ConvertPropertyNameToAttributeName(const String& name) {
     UChar character = name[i];
     if (IsASCIIUpper(character)) {
       builder.Append('-');
-      builder.Append(ToASCIILower(character));
+      builder.Append(ToAsciiLower(character));
     } else {
       builder.Append(character);
     }

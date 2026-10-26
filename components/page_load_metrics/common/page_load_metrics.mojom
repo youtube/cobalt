@@ -7,11 +7,12 @@ module page_load_metrics.mojom;
 import "mojo/public/mojom/base/byte_count.mojom";
 import "mojo/public/mojom/base/shared_memory.mojom";
 import "mojo/public/mojom/base/time.mojom";
+import "mojo/public/mojom/base/unguessable_token.mojom";
 import "services/network/public/mojom/request_priority.mojom";
 import "third_party/blink/public/mojom/loader/javascript_framework_detection.mojom";
+import "third_party/blink/public/mojom/navigation/navigation_type_for_navigation_api.mojom";
 import "third_party/blink/public/mojom/use_counter/use_counter_feature.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
-import "mojo/public/mojom/base/unguessable_token.mojom";
 
 // TimeDeltas below relative to navigation start.
 struct DocumentTiming {
@@ -65,6 +66,10 @@ struct LargestContentfulPaintTiming {
   // TODO(crbug.com/40489779): Use an optional enum.
   bool image_request_priority_valid = false;
   network.mojom.RequestPriority image_request_priority_value;
+
+  // The offset of the corresponding soft navigation; 0 otherwise.
+  // See SoftNavigationMetrics.soft_navigation_offset.
+  uint64 soft_navigation_offset;
 };
 
 // TimeDeltas below relative to navigation start.
@@ -587,7 +592,9 @@ interface PageLoadMetrics {
                CpuTiming cpu_load_timing,
                array<EventTiming> event_timings,
                SubresourceLoadMetrics? subresource_load_metrics,
-               SoftNavigationMetrics soft_navigation_metrics);
+               array<SoftNavigationMetrics> soft_navigation_metrics,
+               array<LargestContentfulPaintTiming> soft_largest_contentful_paint,
+               array<CustomUserTimingMark> custom_user_timings);
 
   // Set up a shared memory used to transfer smoothness data from the renderer
   // to the browser. The structures is defined in
@@ -629,26 +636,32 @@ struct BackForwardCacheTiming {
 // The metrics are to be added in a SoftNavigation Event which is parallel to
 // a PageLoad event.
 struct SoftNavigationMetrics {
-  // The number of soft navigations that occur during a page load.
-  uint64 count;
+  // A unique number assigned to this soft navigation from the start of the
+  // page load, 1, 2, 3, ... n. For the last soft navigation, it is synonymous
+  // with a count of the soft navigations for the page load.
+  uint64 soft_navigation_offset;
 
   // The start time of a soft navigation. It is the time the user initializes
-  // the soft navigation. It is relative to navigation start.
+  // the soft navigation. It is relative to navigation start, and is the time
+  // origin for calculating the loading performance of the soft navigation,
+  // e.g. LCP.
   mojo_base.mojom.TimeDelta start_time;
 
-  // The renderer side navigation id that increments when a soft navigation
-  // happens.
-  uint32 navigation_id;
+  // The timestamp that we use for slicing the performance timeline;
+  // specifically, for layout shifts (LayoutShift) and interactions
+  // (EventTiming) in a PageLoadMetrics.UpdateTiming call, we distinguish
+  // measurements belonging before or after this soft navigation by comparing
+  // with this timestamp. This is only a Chrome-internal mechanism and never
+  // recorded to UKM. Note: For our web exposed (experimental) API,
+  // PerformanceEntry.navigationId serves the same purpose.
+  mojo_base.mojom.TimeTicks soft_navigation_slicing_time;
+
+  // The type of the soft navigation.
+  blink.mojom.NavigationTypeForNavigationApi navigation_type;
 
   // Identifies the same document navigation for the initial URL change.
   // This allows us to map to the UKM Source ID in the browser side,
   // and therefore attribute the metrics to the correct URL
   // when any corresponding soft navigation completes.
-  mojo_base.mojom.UnguessableToken? same_document_metrics_token;
-
-  // The LargestContentfulPaint of a soft navigation, that is, the largest
-  // contentful paint that happened after a soft navigation is detected and
-  // before the next soft navigation is detected or page end.
-  // The timings are relative to the soft navigation start.
-  LargestContentfulPaintTiming largest_contentful_paint;
+  mojo_base.mojom.UnguessableToken same_document_metrics_token;
 };

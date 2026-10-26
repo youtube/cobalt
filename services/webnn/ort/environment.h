@@ -57,6 +57,11 @@ class Environment : public base::subtle::RefCountedThreadSafeBase {
       base::span<const OrtEpDevice* const> available_devices,
       OrtHardwareDeviceType device_type);
 
+  // Returns true if the execution provider name of `device` matches any of the
+  // names in `ep_names`.
+  static bool IsEpDevice(const OrtEpDevice* device,
+                         base::span<const base::cstring_view> ep_names);
+
   // Returns a span of registered execution provider devices in `env`. The span
   // is guaranteed to be valid until `env_` is released or the list of execution
   // providers is modified.

@@ -132,6 +132,20 @@ CSSValue* ConsumeSingleAnimationTrigger(CSSParserTokenStream& stream,
   return (list && list->length() == 1) ? list : nullptr;
 }
 
+bool CanonicalizeAxis(double& x, double& y, double& z) {
+  if (x < 0 && y == 0 && z == 0) {
+    x = 1;
+    return true;
+  } else if (x == 0 && y < 0 && z == 0) {
+    y = 1;
+    return true;
+  } else if (x == 0 && y == 0 && z < 0) {
+    z = 1;
+    return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 namespace css_longhand {
@@ -1581,7 +1595,8 @@ const CSSValue* BorderImageSlice::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForNinePieceImageSlice(style.BorderImage());
+  return ComputedStyleUtils::ValueForNinePieceImageSlice(style.BorderImage(),
+                                                         style.EffectiveZoom());
 }
 
 const CSSValue* BorderImageSlice::InitialValue() const {
@@ -3880,6 +3895,31 @@ const CSSValue* Cy::CSSValueFromComputedStyleInternal(
   return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(style.Cy(), style);
 }
 
+const CSSValue* PathLength::ParseSingleValue(
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    CSSParserLocalContext& local_context) const {
+  if (stream.Peek().Id() == CSSValueID::kNone) {
+    return css_parsing_utils::ConsumeIdent(stream);
+  }
+  return css_parsing_utils::ConsumeNumber(
+      stream, context, local_context,
+      CSSPrimitiveValue::ValueRange::kNonNegative);
+}
+
+const CSSValue* PathLength::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  float path_length = style.PathLength();
+  if (path_length < 0) {
+    return CSSIdentifierValue::Create(CSSValueID::kNone);
+  }
+  return CSSNumericLiteralValue::Create(path_length,
+                                        CSSPrimitiveValue::UnitType::kNumber);
+}
+
 const CSSValue* D::ParseSingleValue(CSSParserTokenStream& stream,
                                     const CSSParserContext&,
                                     CSSParserLocalContext&) const {
@@ -4011,7 +4051,7 @@ void AdjustDisplayKeywords(DisplayValidationResult& result) {
         } else if (inside == CSSValueID::kGrid) {
           new_id = CSSValueID::kInlineGrid;
         } else if (inside == CSSValueID::kGridLanes) {
-          new_id = CSSValueID::kInlineGrid;
+          new_id = CSSValueID::kInlineGridLanes;
         } else if (inside == CSSValueID::kTable) {
           new_id = CSSValueID::kInlineTable;
         }
@@ -4301,6 +4341,8 @@ const CSSValue* DynamicRangeLimit::ParseSingleValue(
   if (stream.Peek().FunctionId() != CSSValueID::kDynamicRangeLimitMix) {
     return nullptr;
   }
+  CSSParserLocalContext::FunctionLocalContext function_context(
+      CSSValueID::kDynamicRangeLimitMix, local_context);
 
   HeapVector<Member<const CSSValue>> limits;
   HeapVector<Member<const CSSPrimitiveValue>> percentages;
@@ -5205,7 +5247,14 @@ void InternalVisitedColor::ApplyInherit(StyleResolverState& state) const {
     builder.SetInternalVisitedColor(StyleColor(
         state.ParentStyle()->VisitedDependentColor(GetCSSPropertyColor())));
   } else {
-    builder.SetInternalVisitedColor(state.ParentStyle()->Color());
+    // In principle, we should always inherit the InternalVisitedColor()
+    // of the parent, but (as an optimization) we don't store anything in
+    // that field for elements outside of visited links.
+    const StyleColor& inherited_color =
+        (state.ParentStyle()->InsideLink() == EInsideLink::kInsideVisitedLink)
+            ? state.ParentStyle()->InternalVisitedColor()
+            : state.ParentStyle()->Color();
+    builder.SetInternalVisitedColor(inherited_color);
   }
   builder.SetInternalVisitedColorIsCurrentColor(
       state.ParentStyle()->InternalVisitedColorIsCurrentColor());
@@ -8990,9 +9039,30 @@ const CSSValue* Rotate::ParseSingleValue(
   CSSValue* rotation = css_parsing_utils::ConsumeAngle(
       stream, context, local_context, std::optional<WebFeature>());
 
-  CSSValue* axis =
+  bool is_negative_axis = false;
+  const CSSValue* axis =
       css_parsing_utils::ConsumeAxis(stream, context, local_context);
   if (axis) {
+    if (auto* axis_list = To<CSSValueList>(axis); axis_list->length() == 3) {
+      auto* x_dimension = DynamicTo<CSSNumericLiteralValue>(axis_list->Item(0));
+      auto* y_dimension = DynamicTo<CSSNumericLiteralValue>(axis_list->Item(1));
+      auto* z_dimension = DynamicTo<CSSNumericLiteralValue>(axis_list->Item(2));
+      if (x_dimension && y_dimension && z_dimension) {
+        double x = x_dimension->DoubleValue();
+        double y = y_dimension->DoubleValue();
+        double z = z_dimension->DoubleValue();
+        if (CanonicalizeAxis(x, y, z)) {
+          is_negative_axis = true;
+          axis = MakeGarbageCollected<cssvalue::CSSAxisValue>(
+              CSSNumericLiteralValue::Create(
+                  x, CSSPrimitiveValue::UnitType::kNumber),
+              CSSNumericLiteralValue::Create(
+                  y, CSSPrimitiveValue::UnitType::kNumber),
+              CSSNumericLiteralValue::Create(
+                  z, CSSPrimitiveValue::UnitType::kNumber));
+        }
+      }
+    }
     if (To<cssvalue::CSSAxisValue>(axis)->AxisName() != CSSValueID::kZ) {
       // The z axis should be normalized away and stored as a 2D rotate.
       list->Append(*axis);
@@ -9006,6 +9076,15 @@ const CSSValue* Rotate::ParseSingleValue(
                                                std::optional<WebFeature>());
     if (!rotation) {
       return nullptr;
+    }
+  }
+  if (is_negative_axis) {
+    if (auto* angle = DynamicTo<CSSNumericLiteralValue>(rotation)) {
+      rotation = CSSNumericLiteralValue::Create(-angle->DoubleValue(),
+                                                angle->GetType());
+    } else {
+      rotation = To<CSSPrimitiveValue>(rotation)->Multiply(
+          -1, CSSPrimitiveValue::UnitType::kNumber);
     }
   }
   list->Append(*rotation);
@@ -9022,21 +9101,28 @@ const CSSValue* Rotate::CSSValueFromComputedStyleInternal(
     return CSSIdentifierValue::Create(CSSValueID::kNone);
   }
 
+  double x = style.Rotate()->X();
+  double y = style.Rotate()->Y();
+  double z = style.Rotate()->Z();
+  double angle = style.Rotate()->Angle();
+
+  if (CanonicalizeAxis(x, y, z)) {
+    angle = -angle;
+  }
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-  if (style.Rotate()->X() != 0 || style.Rotate()->Y() != 0 ||
-      style.Rotate()->Z() != 1) {
+  if (x != 0 || y != 0 || z != 1) {
     const cssvalue::CSSAxisValue* axis =
         MakeGarbageCollected<cssvalue::CSSAxisValue>(
             MakeGarbageCollected<CSSNumericLiteralValue>(
-                style.Rotate()->X(), CSSPrimitiveValue::UnitType::kNumber),
+                x, CSSPrimitiveValue::UnitType::kNumber),
             MakeGarbageCollected<CSSNumericLiteralValue>(
-                style.Rotate()->Y(), CSSPrimitiveValue::UnitType::kNumber),
+                y, CSSPrimitiveValue::UnitType::kNumber),
             MakeGarbageCollected<CSSNumericLiteralValue>(
-                style.Rotate()->Z(), CSSPrimitiveValue::UnitType::kNumber));
+                z, CSSPrimitiveValue::UnitType::kNumber));
     list->Append(*axis);
   }
   list->Append(*CSSNumericLiteralValue::Create(
-      style.Rotate()->Angle(), CSSPrimitiveValue::UnitType::kDegrees));
+      angle, CSSPrimitiveValue::UnitType::kDegrees));
   return list;
 }
 
@@ -11792,7 +11878,8 @@ const CSSValue* WebkitMaskBoxImageSlice::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForNinePieceImageSlice(style.MaskBoxImage());
+  return ComputedStyleUtils::ValueForNinePieceImageSlice(style.MaskBoxImage(),
+                                                         style.EffectiveZoom());
 }
 
 const CSSValue* WebkitMaskBoxImageSource::ParseSingleValue(
@@ -12662,10 +12749,20 @@ void WebkitTransformOriginX::ApplyInherit(StyleResolverState& state) const {
 
 const CSSValue* Overlay::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
-    const LayoutObject*,
+    const LayoutObject* object,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return CSSIdentifierValue::Create(style.Overlay());
+  if (!RuntimeEnabledFeatures::OverlayGlobalRuleRemovalEnabled()) {
+    return CSSIdentifierValue::Create(style.Overlay());
+  }
+  if (object) {
+    if (auto* element = DynamicTo<Element>(object->GetNode())) {
+      if (element->IsInTopLayer()) {
+        return CSSIdentifierValue::Create(style.Overlay());
+      }
+    }
+  }
+  return CSSIdentifierValue::Create(EOverlay::kNone);
 }
 
 const CSSValue* WebkitTransformOriginY::ParseSingleValue(
@@ -12793,52 +12890,42 @@ const CSSValue* WillChange::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
-  if (stream.Peek().Id() == CSSValueID::kAuto) {
-    return css_parsing_utils::ConsumeIdent(stream);
+  if (const CSSValue* ident =
+          css_parsing_utils::ConsumeIdent<CSSValueID::kAuto>(stream)) {
+    return ident;
   }
 
-  CSSValueList* values = CSSValueList::CreateCommaSeparated();
   // Every comma-separated list of identifiers is a valid will-change value,
   // unless the list includes an explicitly disallowed identifier.
+  CSSValueList* values = CSSValueList::CreateCommaSeparated();
   while (true) {
     if (stream.Peek().GetType() != kIdentToken) {
       return nullptr;
     }
-    CSSPropertyID unresolved_property = UnresolvedCSSPropertyID(
-        context.GetExecutionContext(), stream.Peek().Value());
-    if (unresolved_property != CSSPropertyID::kInvalid &&
-        unresolved_property != CSSPropertyID::kVariable) {
-#if DCHECK_IS_ON()
-      DCHECK(CSSProperty::Get(ResolveCSSPropertyID(unresolved_property))
-                 .IsWebExposed(context.GetExecutionContext()));
-#endif
-      // Now "all" is used by both CSSValue and CSSPropertyValue.
-      // Need to return nullptr when currentValue is CSSPropertyID::kAll.
-      if (unresolved_property == CSSPropertyID::kWillChange ||
-          unresolved_property == CSSPropertyID::kAll) {
-        return nullptr;
-      }
-      values->Append(
-          *MakeGarbageCollected<CSSCustomIdentValue>(unresolved_property));
-      stream.ConsumeIncludingWhitespace();
+
+    if (const CSSValue* ident = css_parsing_utils::ConsumeIdent<
+            CSSValueID::kContents, CSSValueID::kScrollPosition>(stream)) {
+      values->Append(*ident);
+    } else if (css_parsing_utils::IdentMatches<
+                   CSSValueID::kNone, CSSValueID::kAll, CSSValueID::kAuto>(
+                   stream.Peek().Id())) {
+      // https://drafts.csswg.org/css-will-change-1/#typedef-animateable-feature
+      // "The <custom-ident> production used here excludes the keywords
+      //  will-change, none, all, auto, scroll-position, and contents, in
+      //  addition to the keywords normally excluded from <custom-ident>."
+      return nullptr;
+    } else if (const CSSPropertyID unresolved_property =
+                   UnresolvedCSSPropertyID(context.GetExecutionContext(),
+                                           stream.Peek().Value());
+               unresolved_property == CSSPropertyID::kWillChange) {
+      // See branch above.
+      return nullptr;
+    } else if (const CSSValue* custom_ident =
+                   css_parsing_utils::ConsumeCustomIdent(stream, context,
+                                                         local_context)) {
+      values->Append(*custom_ident);
     } else {
-      switch (stream.Peek().Id()) {
-        case CSSValueID::kNone:
-        case CSSValueID::kAll:
-        case CSSValueID::kAuto:
-        case CSSValueID::kDefault:
-        case CSSValueID::kInitial:
-        case CSSValueID::kInherit:
-        case CSSValueID::kRevert:
-          return nullptr;
-        case CSSValueID::kContents:
-        case CSSValueID::kScrollPosition:
-          values->Append(*css_parsing_utils::ConsumeIdent(stream));
-          break;
-        default:
-          stream.ConsumeIncludingWhitespace();
-          break;
-      }
+      return nullptr;
     }
 
     if (!css_parsing_utils::ConsumeCommaIncludingWhitespace(stream)) {
@@ -12854,26 +12941,19 @@ const CSSValue* WillChange::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForWillChange(
-      style.WillChangeProperties(), style.WillChangeContents(),
-      style.WillChangeScrollPosition());
+  return ComputedStyleUtils::ValueForWillChange(style.WillChange());
 }
 
 void WillChange::ApplyInitial(StyleResolverState& state) const {
   ComputedStyleBuilder& builder = state.StyleBuilder();
-  builder.SetWillChangeContents(false);
-  builder.SetWillChangeScrollPosition(false);
-  builder.SetWillChangeProperties(Vector<CSSPropertyID>());
+  builder.SetWillChange(nullptr);
   builder.SetSubtreeWillChangeContents(
       state.ParentStyle()->SubtreeWillChangeContents());
 }
 
 void WillChange::ApplyInherit(StyleResolverState& state) const {
   ComputedStyleBuilder& builder = state.StyleBuilder();
-  builder.SetWillChangeContents(state.ParentStyle()->WillChangeContents());
-  builder.SetWillChangeScrollPosition(
-      state.ParentStyle()->WillChangeScrollPosition());
-  builder.SetWillChangeProperties(state.ParentStyle()->WillChangeProperties());
+  builder.SetWillChange(state.ParentStyle()->WillChange());
   builder.SetSubtreeWillChangeContents(
       state.ParentStyle()->SubtreeWillChangeContents());
 }
@@ -12881,34 +12961,90 @@ void WillChange::ApplyInherit(StyleResolverState& state) const {
 void WillChange::ApplyValue(StyleResolverState& state,
                             const CSSValue& value,
                             ValueMode) const {
-  bool will_change_contents = false;
-  bool will_change_scroll_position = false;
-  Vector<CSSPropertyID> will_change_properties;
+  ComputedStyleBuilder& builder = state.StyleBuilder();
 
   if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
     DCHECK_EQ(identifier_value->GetValueID(), CSSValueID::kAuto);
-  } else {
-    for (auto& will_change_value : To<CSSValueList>(value)) {
-      if (auto* ident_value =
-              DynamicTo<CSSCustomIdentValue>(will_change_value.Get())) {
-        will_change_properties.push_back(ident_value->ValueAsPropertyID());
-      } else if (To<CSSIdentifierValue>(*will_change_value).GetValueID() ==
-                 CSSValueID::kContents) {
-        will_change_contents = true;
-      } else if (To<CSSIdentifierValue>(*will_change_value).GetValueID() ==
-                 CSSValueID::kScrollPosition) {
-        will_change_scroll_position = true;
-      } else {
-        NOTREACHED();
+    builder.SetWillChange(nullptr);
+    builder.SetSubtreeWillChangeContents(
+        state.ParentStyle()->SubtreeWillChangeContents());
+    return;
+  }
+
+  static CSSBitset transform_properties({CSSPropertyID::kTransform,
+                                         CSSPropertyID::kPerspective,
+                                         CSSPropertyID::kTransformStyle});
+
+  static CSSBitset any_transform_properties(
+      {CSSPropertyID::kTransform, CSSPropertyID::kPerspective,
+       CSSPropertyID::kTransformStyle, CSSPropertyID::kTranslate,
+       CSSPropertyID::kScale, CSSPropertyID::kRotate,
+       CSSPropertyID::kOffsetPath, CSSPropertyID::kOffsetPosition});
+
+  const auto& value_list = To<CSSValueList>(value);
+
+  Vector<AtomicString> values;
+  values.ReserveInitialCapacity(value_list.length());
+
+  CSSBitset resolved_longhand_ids;
+  bool has_contents_value = false;
+  bool has_scroll_position_value = false;
+  bool has_transform_property = false;
+  bool has_any_transform_property = false;
+
+  auto process_longhand = [&](CSSPropertyID id) {
+    resolved_longhand_ids.Set(id);
+    if (transform_properties.Has(id)) {
+      has_transform_property = true;
+    }
+    if (any_transform_properties.Has(id)) {
+      has_any_transform_property = true;
+    }
+  };
+
+  for (const auto& item : value_list) {
+    if (const auto* ident_value = DynamicTo<CSSIdentifierValue>(*item)) {
+      const CSSValueID value_id = ident_value->GetValueID();
+      switch (value_id) {
+        case CSSValueID::kContents:
+          has_contents_value = true;
+          break;
+        case CSSValueID::kScrollPosition:
+          has_scroll_position_value = true;
+          break;
+        default:
+          NOTREACHED();
       }
+      values.push_back(GetCSSValueNameAs<AtomicString>(value_id));
+    } else if (auto* custom_ident =
+                   DynamicTo<CSSCustomIdentValue>(item.Get())) {
+      const AtomicString value_string = custom_ident->Value();
+      values.push_back(value_string);
+
+      const CSSPropertyID id = UnresolvedCSSPropertyID(
+          state.GetDocument().GetExecutionContext(), value_string);
+      if (id != CSSPropertyID::kInvalid && id != CSSPropertyID::kVariable) {
+        const CSSPropertyID resolved_id = ResolveCSSPropertyID(id);
+        StylePropertyShorthand shorthand = shorthandForProperty(resolved_id);
+        if (shorthand.length()) {
+          for (const CSSProperty* const longhand : shorthand.properties()) {
+            process_longhand(longhand->PropertyID());
+          }
+        } else {
+          process_longhand(resolved_id);
+        }
+      }
+    } else {
+      NOTREACHED();
     }
   }
-  ComputedStyleBuilder& builder = state.StyleBuilder();
-  builder.SetWillChangeContents(will_change_contents);
-  builder.SetWillChangeScrollPosition(will_change_scroll_position);
-  builder.SetWillChangeProperties(will_change_properties);
+
+  builder.SetWillChange(MakeGarbageCollected<StyleWillChangeData>(
+      std::move(values), std::move(resolved_longhand_ids),
+      has_scroll_position_value, has_transform_property,
+      has_any_transform_property));
   builder.SetSubtreeWillChangeContents(
-      will_change_contents || state.ParentStyle()->SubtreeWillChangeContents());
+      has_contents_value || state.ParentStyle()->SubtreeWillChangeContents());
 }
 
 const CSSValue* WordBreak::CSSValueFromComputedStyleInternal(

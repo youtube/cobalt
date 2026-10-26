@@ -32,6 +32,8 @@
 #import "ios/chrome/browser/data_import/ui/data_import_credential_conflict_resolution_view_controller.h"
 #import "ios/chrome/browser/data_import/ui/data_import_credential_conflict_resolution_view_controller_delegate.h"
 #import "ios/chrome/browser/data_import/ui/data_import_invalid_credentials_view_controller.h"
+#import "ios/chrome/browser/device_reauth/model/reauthentication_service.h"
+#import "ios/chrome/browser/device_reauth/model/reauthentication_service_factory.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_favicon_loader_factory.h"
 #import "ios/chrome/browser/passwords/model/ios_chrome_account_password_store_factory.h"
 #import "ios/chrome/browser/passwords/model/ios_chrome_profile_password_store_factory.h"
@@ -78,9 +80,6 @@
   // Bridge to the PasskeyKeychainProvider that manages passkey vault keys.
   PasskeyKeychainProviderBridge* _passkeyKeychainProviderBridge;
 
-  // Reauthentication module used in credential import flow.
-  id<ReauthenticationProtocol> _reauthModule;
-
   // Coordinator for blocking credential import until Local Authentication is
   // passed. Used for requiring authentication when the app is
   // backgrounded/foregrounded with credential import opened.
@@ -91,22 +90,32 @@
 
   // Coordinator for displaying welcome screen for fetching trusted vault keys.
   PasskeyWelcomeScreenCoordinator* _passkeyWelcomeScreenCoordinator;
+
+  // Provides status of password manager as iOS AutoFill credential provider.
+  PasswordAutoFillStatusManager* _passwordAutoFillStatusManager;
+
+  // Whether there is currently an ongoing action triggered by the primary
+  // button tap, that should not be handled twice.
+  BOOL _primaryActionInProgress;
 }
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser
-                                      UUID:(NSUUID*)UUID
-                              reauthModule:
-                                  (id<ReauthenticationProtocol>)reauthModule {
+                                      UUID:(NSUUID*)UUID {
   self = [super initWithBaseViewController:viewController browser:browser];
   if (self) {
     _UUID = UUID;
-    _reauthModule = reauthModule;
   }
   return self;
 }
 
 - (void)start {
+  // Ensure that the status manager is initialized and has checked the status by
+  // the time the import flow finishes.
+  _passwordAutoFillStatusManager =
+      [PasswordAutoFillStatusManager sharedManager];
+  [_passwordAutoFillStatusManager checkAndUpdatePasswordAutoFillStatus];
+
   _viewController = [[CredentialImportViewController alloc] init];
   _viewController.delegate = self;
   ProfileIOS* profile = self.profile;
@@ -174,6 +183,14 @@
         baseViewController:self.baseViewController];
 }
 
+- (void)showGenericError {
+  NSString* title =
+      l10n_util::GetNSString(IDS_IOS_CREDENTIAL_EXCHANGE_GENERIC_ERROR_TITLE);
+  [self showAlertWithTitle:title
+                   message:nil
+        baseViewController:self.baseViewController];
+}
+
 - (void)showConflictResolutionScreenWithPasswords:
             (NSArray<PasswordImportItem*>*)passwords
                                          passkeys:(NSArray<PasskeyImportItem*>*)
@@ -186,7 +203,9 @@
               initWithPasswordConflicts:passwords
                        passkeyConflicts:passkeys];
   conflictResolutionViewController.mutator = _mediator;
-  conflictResolutionViewController.reauthModule = _reauthModule;
+  conflictResolutionViewController.reauthModule =
+      ReauthenticationServiceFactory::GetForProfile(self.profile)
+          ->GetReauthModule();
   conflictResolutionViewController.delegate = self;
 
   [_navigationController pushViewController:conflictResolutionViewController
@@ -196,12 +215,18 @@
 #pragma mark - CredentialImportViewControllerDelegate
 
 - (void)didTapPrimaryActionButton {
+  if (_primaryActionInProgress) {
+    return;
+  }
+
+  _primaryActionInProgress = YES;
   switch (_mediator.importStage) {
     case CredentialImportStage::kNotStarted: {
       // If no passkeys are being imported, there is no point in fetching the
-      // trusted vault keys Proceed to start the importing process.
+      // trusted vault keys, proceed to start the importing process.
       if (!_mediator.importingPasskeys) {
         [_mediator startImportingCredentialsWithTrustedVaultKeys:{}];
+        _primaryActionInProgress = NO;
         break;
       }
 
@@ -234,13 +259,17 @@
       break;
     }
     case CredentialImportStage::kImporting:
-      NOTREACHED() << "Primary action button should be disabled";
+      NOTREACHED(base::NotFatalUntil::M153)
+          << "Primary action button should be disabled";
+      // This code should not be reached, but in case it is, ensure that the
+      // further stages can proceed. Clean up when cleaning up not fatal until.
+      _primaryActionInProgress = NO;
+      break;
     case CredentialImportStage::kImported: {
       // On successful import, display the credential provider prompt, if the
       // AutoFill is not already enabled.
-      PasswordAutoFillStatusManager* sharedManager =
-          [PasswordAutoFillStatusManager sharedManager];
-      if (!sharedManager.ready || sharedManager.autoFillEnabled) {
+      if (!_passwordAutoFillStatusManager.ready ||
+          _passwordAutoFillStatusManager.autoFillEnabled) {
         [_delegate credentialImportCoordinatorDidFinish:self];
         break;
       }
@@ -379,6 +408,8 @@
         startImportingCredentialsWithTrustedVaultKeys:std::move(
                                                           trustedVaultKeys)];
   }
+
+  _primaryActionInProgress = NO;
 }
 
 // Presents the invalid credentials view for `credentials` with `type`.
@@ -407,7 +438,6 @@
   _reauthCoordinator = [[LocalReauthenticationCoordinator alloc]
       initWithBaseNavigationController:_navigationController
                                browser:self.browser
-                reauthenticationModule:_reauthModule
                            authOnStart:NO];
   _reauthCoordinator.delegate = self;
   [_reauthCoordinator start];

@@ -554,8 +554,8 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
         return alternative.set_tagged(
             AddNewNodeNoInputConversion<UnsafeSmiTagInt32>({value}));
       }
-      return alternative.set_tagged(
-          AddNewNodeNoInputConversion<Int32ToNumber>({value}));
+      return alternative.set_tagged(AddNewNodeNoInputConversion<Int32ToNumber>(
+          {value}, NumberConversionMode::kCanonicalizeSmi));
     }
     case ValueRepresentation::kUint32: {
       if (NodeTypeIsSmi(node_info->type())) {
@@ -572,7 +572,7 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
       }
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<Float64ToTagged>(
-              {value}, Float64ToTagged::ConversionMode::kCanonicalizeSmi));
+              {value}, NumberConversionMode::kCanonicalizeSmi));
     }
     case ValueRepresentation::kHoleyFloat64: {
       if (node_info->is_smi()) {
@@ -581,7 +581,7 @@ ReduceResult MaglevReducer<BaseT>::GetTaggedValue(
       }
       return alternative.set_tagged(
           AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
-              {value}, HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi));
+              {value}, NumberConversionMode::kCanonicalizeSmi));
     }
 
     case ValueRepresentation::kIntPtr:
@@ -624,7 +624,8 @@ ReduceResult MaglevReducer<BaseT>::GetInt32(ValueNode* value,
             AddNewNodeNoInputConversion<CheckedNumberToInt32>({value}));
       }
       ValueNode* untagged;
-      GET_VALUE_OR_ABORT(untagged, BuildSmiUntag(value));
+      GET_VALUE_OR_ABORT(untagged,
+                         BuildSmiUntag(value, AllowWideningSmiToInt32::kAllow));
       return alternative.set_int32(untagged);
     }
     case ValueRepresentation::kUint32: {
@@ -1159,6 +1160,9 @@ MaglevReducer<BaseT>::TryGetFloat64OrHoleyFloat64Constant(
     case Opcode::kInt32Constant:
       return Float64{
           static_cast<double>(value->Cast<Int32Constant>()->value())};
+    case Opcode::kUint32Constant:
+      return Float64{
+          static_cast<double>(value->Cast<Uint32Constant>()->value())};
     case Opcode::kSmiConstant:
       return Float64{
           static_cast<double>(value->Cast<SmiConstant>()->value().value())};
@@ -1370,17 +1374,18 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldCheckMaps(
 }
 
 template <typename BaseT>
-ReduceResult MaglevReducer<BaseT>::BuildSmiUntag(ValueNode* node) {
+ReduceResult MaglevReducer<BaseT>::BuildSmiUntag(
+    ValueNode* node, AllowWideningSmiToInt32 allow_widening_smi_to_int32) {
   // This is called when converting inputs in AddNewNode. We might already have
   // an empty type for `node` here. Make sure we don't add unsafe conversion
   // nodes in that case by checking for the empty node type explicitly.
-  if (IsEmptyNodeType(GetType(node))) {
+  if (IsEmptyNodeType(GetType(node, allow_widening_smi_to_int32))) {
     return EmitUnconditionalDeopt(DeoptimizeReason::kNotASmi);
   }
   if (EnsureType(node, NodeType::kSmi)) {
     if (SmiValuesAre31Bits()) {
       if (auto phi = node->TryCast<Phi>()) {
-        phi->SetUseRequires31BitValue();
+        phi->SetUseRequiresSmi();
       }
     }
     return AddNewNodeNoInputConversion<UnsafeSmiUntag>({node});

@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include <cstdint>
+#include <map>
+#include <memory>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -29,6 +32,7 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/performance/largest_contentful_paint_type.h"
 #include "third_party/blink/public/common/switches.h"
+#include "third_party/blink/public/mojom/navigation/navigation_type_for_navigation_api.mojom-shared.h"
 #include "ui/gfx/geometry/point_conversions.h"
 
 using page_load_metrics::PageLoadMetricsTestWaiter;
@@ -136,7 +140,8 @@ class SoftNavigationTest : public MetricIntegrationTest,
       page_load_metrics::PageLoadMetricsTestWaiter* waiter,
       int expected_soft_nav_count) {
     waiter->AddSoftNavigationCountExpectation(expected_soft_nav_count);
-    waiter->AddSoftNavigationImageLCPExpectation(expected_soft_nav_count);
+    waiter->AddSoftNavigationLargestContentfulPaintExpectation(
+        expected_soft_nav_count);
 
     content::SimulateMouseClickOrTapElementWithId(web_contents(), "link");
 
@@ -368,12 +373,14 @@ class SoftNavigationTest : public MetricIntegrationTest,
         observer.observe({type: 'interaction-contentful-paint', buffered: true,
                            includeSoftNavigationObservations: true});
         const lcpCandidates = observer.takeRecords();
-        // For each soft navigation, report the last LCP candidate's start time.
-        const startTimeByNavigationId = new Map();
+        // For each soft navigation, report the last LCP candidate's timing.
+        const timingByNavigationId = new Map();
         for (c of lcpCandidates) {
-          startTimeByNavigationId.set(c.navigationId, c.startTime);
+          timingByNavigationId.set(c.navigationId,
+                                   {startTime: c.startTime,
+                                    renderTime: c.renderTime});
         }
-        return Array.from(startTimeByNavigationId.values());
+        return Array.from(timingByNavigationId.values());
       })();
     )";
   }
@@ -387,11 +394,6 @@ class SoftNavigationTest : public MetricIntegrationTest,
     auto source_id_to_start_time = GetSoftNavigationMetrics(
         ukm_recorder(), ukm::builders::SoftNavigation::kStartTimeName);
     EXPECT_EQ(source_id_to_start_time.size(), expected_soft_nav_count);
-
-    // Soft navigation ids.
-    auto source_id_to_navigation_id = GetSoftNavigationMetrics(
-        ukm_recorder(), ukm::builders::SoftNavigation::kNavigationIdName);
-    EXPECT_EQ(source_id_to_navigation_id.size(), expected_soft_nav_count);
 
     // Soft navigation LCP.
     auto source_id_to_lcp = GetSoftNavigationMetrics(
@@ -433,10 +435,15 @@ class SoftNavigationTest : public MetricIntegrationTest,
     // in UKM against the web exposed values.
     if (soft_nav_heuristics_enabled) {
       EXPECT_EQ(soft_nav_lcp_list.size(), expected_soft_nav_count);
+      ASSERT_EQ(soft_nav_lcp_list.size(), soft_nav_lcp.size());
+      ASSERT_EQ(soft_nav_lcp_list.size(), soft_nav_start_times.size());
       for (uint32_t i = 0; i < soft_nav_lcp_list.size(); ++i) {
         SCOPED_TRACE(base::StringPrintf("soft_nav_lcp_list[%d]", i));
+        const base::DictValue& timing = soft_nav_lcp_list[i].GetDict();
         double expected_lcp = soft_nav_lcp[i] + soft_nav_start_times[i];
-        EXPECT_NEAR(soft_nav_lcp_list[i].GetDouble(), expected_lcp, 6);
+        EXPECT_NEAR(timing.FindDouble("renderTime").value(), expected_lcp, 6);
+        EXPECT_NEAR(timing.FindDouble("startTime").value(),
+                    soft_nav_start_times[i], 6);
       }
     }
 
@@ -492,7 +499,7 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, ImageLargestContentfulPaint) {
   // 1st soft navigation: click on the next page button and wait for soft
   // navigation count and image lcp.
   waiter->AddSoftNavigationCountExpectation(1);
-  waiter->AddSoftNavigationImageLCPExpectation(1);
+  waiter->AddSoftNavigationLargestContentfulPaintExpectation(1);
   WaitForFrameReady();
   content::SimulateMouseClickOrTapElementWithId(web_contents(), "next-page");
   waiter->Wait();
@@ -500,7 +507,7 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, ImageLargestContentfulPaint) {
   // 2nd soft navigation: click on the next page button and wait for soft
   // navigation count and image lcp.
   waiter->AddSoftNavigationCountExpectation(2);
-  waiter->AddSoftNavigationImageLCPExpectation(2);
+  waiter->AddSoftNavigationLargestContentfulPaintExpectation(2);
   WaitForFrameReady();
   content::SimulateMouseClickOrTapElementWithId(web_contents(), "next-page");
   waiter->Wait();
@@ -601,7 +608,7 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, TextLargestContentfulPaint) {
   // 1st soft navigation: click on the next page button and wait for soft
   // navigation count and text lcp.
   waiter->AddSoftNavigationCountExpectation(1);
-  waiter->AddSoftNavigationTextLCPExpectation(1);
+  waiter->AddSoftNavigationLargestContentfulPaintExpectation(1);
   WaitForFrameReady();
   content::SimulateMouseClickOrTapElementWithId(web_contents(), "next-page");
   waiter->Wait();
@@ -609,7 +616,7 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, TextLargestContentfulPaint) {
   // 2nd soft navigation: click on the next page button and wait for soft
   // navigation count and text lcp.
   waiter->AddSoftNavigationCountExpectation(2);
-  waiter->AddSoftNavigationTextLCPExpectation(2);
+  waiter->AddSoftNavigationLargestContentfulPaintExpectation(2);
   WaitForFrameReady();
   content::SimulateMouseClickOrTapElementWithId(web_contents(), "next-page");
   waiter->Wait();
@@ -664,14 +671,14 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, BackButton) {
 
   // 1st soft navigation: click on the next page button.
   waiter->AddSoftNavigationCountExpectation(1);
-  waiter->AddSoftNavigationTextLCPExpectation(1);
+  waiter->AddSoftNavigationLargestContentfulPaintExpectation(1);
   WaitForFrameReady();
   content::SimulateMouseClickOrTapElementWithId(web_contents(), "next-page");
   waiter->Wait();
 
   // 2nd soft navigation: click on the next page button.
   waiter->AddSoftNavigationCountExpectation(2);
-  waiter->AddSoftNavigationTextLCPExpectation(2);
+  waiter->AddSoftNavigationLargestContentfulPaintExpectation(2);
   WaitForFrameReady();
   content::SimulateMouseClickOrTapElementWithId(web_contents(), "next-page");
   waiter->Wait();
@@ -685,14 +692,14 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, BackButton) {
 
   // 3rd soft navigation: going backwards in history.
   waiter->AddSoftNavigationCountExpectation(3);
-  waiter->AddSoftNavigationTextLCPExpectation(3);
+  waiter->AddSoftNavigationLargestContentfulPaintExpectation(3);
   WaitForFrameReady();
   ASSERT_TRUE(content::HistoryGoToOffset(web_contents(), -1));
   waiter->Wait();
 
   // 4th soft navigation: going backwards in history.
   waiter->AddSoftNavigationCountExpectation(4);
-  waiter->AddSoftNavigationTextLCPExpectation(4);
+  waiter->AddSoftNavigationLargestContentfulPaintExpectation(4);
   WaitForFrameReady();
   ASSERT_TRUE(content::HistoryGoToOffset(web_contents(), -1));
   waiter->Wait();
@@ -732,7 +739,24 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, BackButton) {
           absl::StrFormat("http://example.com:%d/page.html?id=1#text", port),
           absl::StrFormat("http://example.com:%d/page.html?id=2#text", port),
           absl::StrFormat("http://example.com:%d/page.html?id=1#text", port),
-          absl::StrFormat("http://example.com:%d/page.html?id=0#text", port)));
+          absl::StrFormat(
+              "http://example.com:%d/soft_navigation_basics.html#text", port)));
+
+  std::vector<int> navigation_types;
+  for (const auto& [source_id, type] : GetSoftNavigationMetrics(
+           ukm_recorder(),
+           ukm::builders::SoftNavigation::kNavigationTypeName)) {
+    navigation_types.push_back(type);
+  }
+  EXPECT_THAT(
+      navigation_types,
+      testing::ElementsAre(
+          static_cast<int>(blink::mojom::NavigationTypeForNavigationApi::kPush),
+          static_cast<int>(blink::mojom::NavigationTypeForNavigationApi::kPush),
+          static_cast<int>(
+              blink::mojom::NavigationTypeForNavigationApi::kTraverse),
+          static_cast<int>(
+              blink::mojom::NavigationTypeForNavigationApi::kTraverse)));
 }
 
 // TODO(crbug.com/334416161): Re-enable this test.
@@ -762,14 +786,7 @@ INSTANTIATE_TEST_SUITE_P(All,
                          SoftNavigationTest,
                          ::testing::Values(false, true));
 
-// TODO(crbug.com/338061920, crbug.com/333963663): Flaky on Win.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_INP_ClickWithPresentation DISABLED_INP_ClickWithPresentation
-#else
-#define MAYBE_INP_ClickWithPresentation INP_ClickWithPresentation
-#endif  //  BUILDFLAG(IS_WIN)
-
-IN_PROC_BROWSER_TEST_P(SoftNavigationTest, DISABLED_INP_ClickWithPresentation) {
+IN_PROC_BROWSER_TEST_P(SoftNavigationTest, INP_ClickWithPresentation) {
   // Add waiter to wait for the interaction is arrived in browser.
   auto waiter = std::make_unique<page_load_metrics::PageLoadMetricsTestWaiter>(
       web_contents());
@@ -811,14 +828,7 @@ IN_PROC_BROWSER_TEST_P(SoftNavigationTest, DISABLED_INP_ClickWithPresentation) {
   ASSERT_TRUE(VerifyInpUkmAndTraceData(*analyzer));
 }
 
-// TODO(crbug.com/338061920): Flaky on win-asan.
-#if BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)
-#define MAYBE_LayoutShift DISABLED_LayoutShift
-#else
-#define MAYBE_LayoutShift LayoutShift
-#endif  //  BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)
-
-IN_PROC_BROWSER_TEST_P(SoftNavigationTest, DISABLED_LayoutShift) {
+IN_PROC_BROWSER_TEST_P(SoftNavigationTest, LayoutShift) {
   auto waiter = std::make_unique<page_load_metrics::PageLoadMetricsTestWaiter>(
       web_contents());
 

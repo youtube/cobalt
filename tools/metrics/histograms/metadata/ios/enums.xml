@@ -111,9 +111,9 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Apple Calendar"/>
 </enum>
 
-<!-- LINT.IfChange(FullscreenModeTransitionReason) -->
+<!-- LINT.IfChange(FullscreenModeTransitionTrigger) -->
 
-<enum name="FullscreenModeTransitionReason">
+<enum name="FullscreenModeTransitionTrigger">
   <int value="0" label="UserControlled"/>
   <int value="1" label="ForcedByCode"/>
   <int value="2" label="UserInitiatedFinishedByCode"/>
@@ -122,7 +122,18 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="NoChange"/>
 </enum>
 
-<!-- LINT.ThenChange(//ios/chrome/browser/fullscreen/ui_bundled/fullscreen_metrics.h:FullscreenModeTransitionReason) -->
+<!-- LINT.ThenChange(//ios/chrome/browser/fullscreen/ui_bundled/fullscreen_metrics.h:FullscreenModeTransitionTrigger) -->
+
+<!-- LINT.IfChange(GeminiViewState) -->
+
+<enum name="GeminiViewState">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Hidden"/>
+  <int value="2" label="Collapsed"/>
+  <int value="3" label="Expanded"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/public/provider/chrome/browser/bwg/bwg_api.h:GeminiViewState) -->
 
 <enum name="GeolocationAPI">
   <int value="0" label="Clear Watch"/>
@@ -494,6 +505,13 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Dismiss via No Thanks"/>
 </enum>
 
+<enum name="IOSDockingPromoEligibility">
+  <int value="0" label="Ineligible"/>
+  <int value="1" label="Low Engagement User"/>
+  <int value="2" label="No Recent Icon Launches"/>
+  <int value="3" label="Low Engagement User with No Recent Icon Launches"/>
+</enum>
+
 <enum name="IOSEditMenuActions">
   <int value="0" label="Invalid"/>
   <int value="1" label="NativeCut"/>
@@ -769,9 +787,10 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="App Bar"/>
   <int value="6" label="Image long-press context menu"/>
   <int value="7" label="Image Remix in-product help"/>
+  <int value="8" label="Edit Menu (Explain)"/>
 </enum>
 
-<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h:EntryPoint) -->
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h:EntryPoint) -->
 
 <!-- LINT.IfChange(IOSGeminiFeedback) -->
 
@@ -813,6 +832,7 @@ chromium-metrics-reviews@google.com.
   <int value="22"
       label="Nano Banana: Turn This Image Into a Watercolor Painting"/>
   <int value="23" label="Nano Banana: Make This Image Look Like Instant Film"/>
+  <int value="24" label="Edit Menu Prompt"/>
 </enum>
 
 <!-- LINT.ThenChange(
@@ -827,15 +847,20 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="View Transition"/>
   <int value="2" label="Web Navigation"/>
   <int value="3" label="Tab Grid"/>
-  <int value="4" label="ContextMenu"/>
+  <int value="4" label="Non-Web Context Menu (e.g. Toolbar long press)"/>
   <int value="5" label="Web Context Menu"/>
-  <int value="6" label="Forced From Fullscreen"/>
-  <int value="7" label="Overlay"/>
-  <int value="8" label="IneligibleSite"/>
+  <int value="6" label="Forced From Scrolling"/>
+  <int value="7" label="Overlay (e.g. Lens Overlay)"/>
+  <int value="8" label="Ineligible Site"/>
   <int value="9" label="Forced From Query Response"/>
+  <int value="10" label="Snackbar"/>
+  <int value="11" label="Website Alert"/>
+  <int value="12" label="Bottom Banner (e.g. Download Banner)"/>
+  <int value="13" label="Keyboard"/>
+  <int value="14" label="Gesture IPH"/>
 </enum>
 
-<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h:FloatyUpdateSource) -->
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h:FloatyUpdateSource) -->
 
 <!-- LINT.IfChange(IOSGeminiFREAction) -->
 
@@ -870,7 +895,7 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Share"/>
 </enum>
 
-<!-- LINT.ThenChange(ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h:ImageActionButtonType) -->
+<!-- LINT.ThenChange(ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h:ImageActionButtonType) -->
 
 <!-- LINT.IfChange(IOSGeminiIneligibilityReason) -->
 
@@ -893,7 +918,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Create Image Selected"/>
 </enum>
 
-<!-- LINT.ThenChange(ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h:InputPlateAttachmentOption) -->
+<!-- LINT.ThenChange(ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h:InputPlateAttachmentOption) -->
 
 <!-- LINT.IfChange(IOSGeminiOSCameraAuthorizationInitialStatus) -->
 
@@ -1008,7 +1033,7 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Session Storage"/>
 </enum>
 
-<!-- LINT.IfChange(IOSJavascriptContentBlockType) -->
+<!-- LINT.IfChange(IOSJavascriptErrorReportProcessorResult) -->
 
 <enum name="IOSJavascriptErrorReportProcessorResult">
   <summary>The results of attempting to report a JavaScript error.</summary>
@@ -1017,6 +1042,7 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Duplicate"/>
   <int value="3" label="Upload Failed"/>
   <int value="4" label="Success"/>
+  <int value="5" label="Filtered"/>
 </enum>
 
 <!-- LINT.ThenChange(//ios/web/js_features/window_error/web_js_error_report_processor.mm:IOSJavascriptErrorReportProcessorResult) -->
@@ -1287,6 +1313,8 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Scroll, action"/>
 </enum>
 
+<!-- LINT.IfChange(IOSOverflowMenuDestination) -->
+
 <enum name="IOSOverflowMenuDestination">
   <int value="0" label="Bookmarks"/>
   <int value="1" label="History"/>
@@ -1299,7 +1327,13 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="WhatsNew"/>
   <int value="9" label="SpotlightDebugger"/>
   <int value="10" label="PriceNotifications"/>
+  <int value="11" label="Cobalt"/>
 </enum>
+
+<!-- LINT.ThenChange(
+    /ios/chrome/browser/popup_menu/overflow_menu/ui/overflow_menu_metrics.h:destination,
+    /ios/chrome/browser/popup_menu/overflow_menu/public/overflow_menu_constants.h:destination
+)-->
 
 <enum name="IOSOverflowMenuReorderingReason">
   <int value="0" label="Error Badge"/>
@@ -1477,7 +1511,7 @@ chromium-metrics-reviews@google.com.
   <int value="16" label="Post-default browser abandonment alert."/>
   <int value="17" label="Fullscreen sign-in promo."/>
   <int value="18" label="Welcome Back promo"/>
-  <int value="19" label="BWG promo"/>
+  <int value="19" label="(Obsolete) BWG promo"/>
   <int value="20" label="Safari Import (Remind Me Later)"/>
   <int value="21" label="Default Browser off cycle promo"/>
 </enum>
@@ -1748,6 +1782,59 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Voice Over Swipe"/>
 </enum>
 
+<!-- LINT.IfChange(IOSTaskOrchestratorTaskSchedulingOutcome) -->
+
+<enum name="IOSTaskOrchestratorTaskSchedulingOutcome">
+  <int value="0" label="Scheduled"/>
+  <int value="1" label="Dropped due to Gaia ID mismatch"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/app/task_orchestrator.h:TaskSchedulingOutcome) -->
+
+<!-- LINT.IfChange(IOSThemeSyncInitialState) -->
+
+<enum name="IOSThemeSyncInitialState">
+  <summary>
+    Records the state of the Sync server during the initial setup flow for iOS
+    themes.
+  </summary>
+  <int value="0" label="EmptyServer"/>
+  <int value="1" label="HasRemoteData"/>
+  <int value="2" label="TooManySpecificsError"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/home_customization/model/theme_syncable_service_ios_constants.h:IOSThemeSyncInitialState) -->
+
+<!-- LINT.IfChange(IOSThemeSyncRemoteAction) -->
+
+<enum name="IOSThemeSyncRemoteAction">
+  <summary>
+    Records the outcome of evaluating an incoming remote iOS theme from the Sync
+    server.
+  </summary>
+  <int value="0" label="Applied"/>
+  <int value="1" label="Ignored: Managed by policy"/>
+  <int value="2" label="Ignored: Already matches"/>
+  <int value="3" label="Error: Missing specifics"/>
+  <int value="4" label="Error: Too many changes"/>
+  <int value="5" label="Error: Invalid change type"/>
+  <int value="6" label="Ignored (Local Theme Unsyncable)"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/home_customization/model/theme_syncable_service_ios_constants.h:IOSThemeSyncRemoteAction) -->
+
+<!-- LINT.IfChange(IOSThemeSyncStopAction) -->
+
+<enum name="IOSThemeSyncStopAction">
+  <summary>
+    Records the action taken by the client when the iOS Theme Sync service is
+    stopped, disabled, or cleared.
+  </summary>
+  <int value="0" label="RestoredLocalTheme"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/home_customization/model/theme_syncable_service_ios_constants.h:IOSThemeSyncStopAction) -->
+
 <!-- LINT.IfChange(IOSTipsNotificationType) -->
 
 <enum name="IOSTipsNotificationType">
@@ -1764,6 +1851,8 @@ chromium-metrics-reviews@google.com.
   <int value="10" label="CPE"/>
   <int value="11" label="Incognito Lock"/>
   <int value="12" label="Trusted Vault Key Retrieval"/>
+  <int value="13" label="Tab Groups"/>
+  <int value="14" label="Price Tracking"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/tips_notifications/model/utils.h:TipsNotificationType) -->
@@ -1951,6 +2040,8 @@ chromium-metrics-reviews@google.com.
   <int value="20" label="Passwords [Cross Platform Promos]"/>
   <int value="21" label="Safe Browsing [Cross Platform Promos]"/>
   <int value="22" label="Lens [Cross Platform Promos]"/>
+  <int value="23" label="Tab Groups [Cross Platform Promos]"/>
+  <int value="24" label="Price Tracking [Cross Platform Promos]"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/push_notification/model/constants.h:NotificationType) -->
@@ -2002,6 +2093,28 @@ chromium-metrics-reviews@google.com.
   <int value="5"
       label="Bottom Sheet couldn't be presented for various reasons"/>
 </enum>
+
+<!-- LINT.IfChange(PictureInPictureAppRestoration) -->
+
+<enum name="PictureInPictureAppRestoration">
+  <int value="0"
+      label="Manual App Restoration (e.g. app switcher, home screen...)"/>
+  <int value="1" label="Picture in Picture Fullscreen Button"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/picture_in_picture/public/picture_in_picture_constants.h:PictureInPictureAppRestoration) -->
+
+<!-- LINT.IfChange(PictureInPictureSessionDismissalReason) -->
+
+<enum name="PictureInPictureDismissalReason">
+  <int value="0" label="Not Supported"/>
+  <int value="1" label="Manual App Restoration"/>
+  <int value="2" label="In-App Close Button"/>
+  <int value="3" label="In-App Swipe to Close"/>
+  <int value="4" label="Picture in Picture Close Button"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/picture_in_picture/public/picture_in_picture_constants.h:PictureInPictureDismissalReason) -->
 
 <!-- LINT.IfChange(ProfileNotificationRequestCreationFailureReason) -->
 
@@ -2103,6 +2216,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="SafetyCheck"/>
   <int value="5" label="Feed"/>
   <int value="6" label="Settings"/>
+  <int value="7" label="PriceTrackingMagicStackPromo"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/push_notification/model/constants.h:NotificationOptInAccessPoint) -->

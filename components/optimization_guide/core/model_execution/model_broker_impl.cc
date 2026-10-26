@@ -11,6 +11,7 @@
 #include "base/trace_event/trace_event.h"
 #include "components/optimization_guide/core/model_execution/on_device_features.h"
 #include "components/optimization_guide/core/model_execution/usage_tracker.h"
+#include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/public/mojom/model_broker.mojom.h"
 
 namespace optimization_guide {
@@ -43,12 +44,26 @@ void ModelBrokerImpl::Subscribe(
 
 void ModelBrokerImpl::SubscribeInternal(
     mojom::ModelSubscriptionOptionsPtr options,
-    mojo::PendingRemote<mojom::ModelSubscriber> subscriber) {
+    mojo::PendingRemote<mojom::ModelSubscriber> subscriber,
+    const on_device_model::Capabilities& capabilities) {
   TRACE_EVENT("optimization_guide", "ModelBrokerImpl::SubscribeInternal");
-  if (options->mark_used) {
-    usage_tracker_->OnDeviceEligibleFeatureUsed(options->feature);
-  }
-  GetSolutionProvider(options->feature).AddSubscriber(std::move(subscriber));
+  GetSolutionProvider(options->feature)
+      .AddSubscriber(std::move(subscriber), capabilities);
+}
+
+void ModelBrokerImpl::RequestAssetsFor(mojom::OnDeviceFeature feature) {
+  TRACE_EVENT("optimization_guide", "ModelBrokerImpl::RequestAssetsFor");
+  ensure_init_callback_.Run(
+      base::BindOnce(&ModelBrokerImpl::RequestAssetsForInternal,
+                     weak_ptr_factory_.GetWeakPtr(), feature));
+}
+
+void ModelBrokerImpl::RequestAssetsForInternal(
+    mojom::OnDeviceFeature feature,
+    const on_device_model::Capabilities& capabilities) {
+  TRACE_EVENT("optimization_guide",
+              "ModelBrokerImpl::RequestAssetsForInternal");
+  usage_tracker_->OnDeviceEligibleFeatureUsed(feature);
 }
 
 ModelBrokerImpl::SolutionProvider& ModelBrokerImpl::GetSolutionProvider(
@@ -75,9 +90,11 @@ ModelBrokerImpl::SolutionProvider::SolutionProvider(
 ModelBrokerImpl::SolutionProvider::~SolutionProvider() = default;
 
 void ModelBrokerImpl::SolutionProvider::AddSubscriber(
-    mojo::PendingRemote<mojom::ModelSubscriber> pending) {
+    mojo::PendingRemote<mojom::ModelSubscriber> pending,
+    const on_device_model::Capabilities& capabilities) {
   TRACE_EVENT("optimization_guide", "ModelBrokerImpl::AddSubscriber");
   auto id = subscribers_.Add(std::move(pending));
+  UpdatePossibleCapabilities(*subscribers_.Get(id), capabilities);
   UpdateSubscriber(*subscribers_.Get(id));
 }
 
@@ -126,11 +143,13 @@ void ModelBrokerImpl::SolutionProvider::UpdateSubscriber(
               base::ToString(feature_));
   if (!solution_.has_value()) {
     subscriber.Unavailable(
-        *AvailabilityFromEligibilityReason(solution_.error()));
+        *AvailabilityFromEligibilityReason(solution_.error()),
+        NotSupportedDetailedReasonFromEligibilityReason(solution_.error()));
     return;
   }
   if (!solution_.value() || !solution_.value()->IsValid()) {
-    subscriber.Unavailable(mojom::ModelUnavailableReason::kPendingAssets);
+    subscriber.Unavailable(mojom::ModelUnavailableReason::kPendingAssets,
+                           std::nullopt);
     return;
   }
   auto config = solution_.value()->MakeConfig();
@@ -148,6 +167,15 @@ void ModelBrokerImpl::SolutionProvider::UpdateObservers() {
     observer.OnDeviceModelAvailabilityChanged(
         feature_, solution_.error_or(OnDeviceModelEligibilityReason::kSuccess));
   }
+}
+
+void ModelBrokerImpl::SolutionProvider::UpdatePossibleCapabilities(
+    mojom::ModelSubscriber& subscriber,
+    const on_device_model::Capabilities& capabilities) {
+  TRACE_EVENT("optimization_guide",
+              "ModelBrokerImpl::SolutionProvider::UpdatePossibleCapabilities",
+              "feature", base::ToString(feature_));
+  subscriber.CapabilitiesUpdated(capabilities);
 }
 
 }  // namespace optimization_guide

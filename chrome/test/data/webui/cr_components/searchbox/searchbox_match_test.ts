@@ -92,7 +92,7 @@ suite('CrComponentsRealboxMatchTest', () => {
 
     // Middle clicks are accepted.
     const middleClickEvent =
-        new MouseEvent('click', {button: 1, cancelable: true});
+        new MouseEvent('auxclick', {button: 1, cancelable: true});
     matchEl.dispatchEvent(middleClickEvent);
     assertTrue(middleClickEvent.defaultPrevented);
     const middleClickArgs =
@@ -174,7 +174,7 @@ suite('CrComponentsRealboxMatchTest', () => {
     };
     await microtasksFinished();
     assertFalse(
-        !!matchEl.shadowRoot.querySelector('#focus-indicator.selected-within'));
+        !!matchEl.shadowRoot.querySelector('#focusIndicator.selected-within'));
     assertFalse(!!matchEl.shadowRoot.querySelector('#keyword.selected'));
     assertArrayEquals([false, false], [
       ...matchEl.shadowRoot.querySelectorAll(
@@ -190,7 +190,7 @@ suite('CrComponentsRealboxMatchTest', () => {
     };
     await microtasksFinished();
     assertFalse(
-        !!matchEl.shadowRoot.querySelector('#focus-indicator.selected-within'));
+        !!matchEl.shadowRoot.querySelector('#focusIndicator.selected-within'));
     assertFalse(!!matchEl.shadowRoot.querySelector('#keyword.selected'));
     assertArrayEquals([false, false], [
       ...matchEl.shadowRoot.querySelectorAll(
@@ -206,7 +206,7 @@ suite('CrComponentsRealboxMatchTest', () => {
     };
     await microtasksFinished();
     assertTrue(
-        !!matchEl.shadowRoot.querySelector('#focus-indicator.selected-within'));
+        !!matchEl.shadowRoot.querySelector('#focusIndicator.selected-within'));
     assertTrue(!!matchEl.shadowRoot.querySelector('#keyword.selected'));
     assertArrayEquals([false, false], [
       ...matchEl.shadowRoot.querySelectorAll(
@@ -222,7 +222,7 @@ suite('CrComponentsRealboxMatchTest', () => {
     };
     await microtasksFinished();
     assertTrue(
-        !!matchEl.shadowRoot.querySelector('#focus-indicator.selected-within'));
+        !!matchEl.shadowRoot.querySelector('#focusIndicator.selected-within'));
     assertFalse(!!matchEl.shadowRoot.querySelector('#keyword.selected'));
     assertArrayEquals([true, false], [
       ...matchEl.shadowRoot.querySelectorAll(
@@ -238,7 +238,7 @@ suite('CrComponentsRealboxMatchTest', () => {
     };
     await microtasksFinished();
     assertTrue(
-        !!matchEl.shadowRoot.querySelector('#focus-indicator.selected-within'));
+        !!matchEl.shadowRoot.querySelector('#focusIndicator.selected-within'));
     assertFalse(!!matchEl.shadowRoot.querySelector('#keyword.selected'));
     assertArrayEquals([false, true], [
       ...matchEl.shadowRoot.querySelectorAll(
@@ -254,7 +254,7 @@ suite('CrComponentsRealboxMatchTest', () => {
     };
     await microtasksFinished();
     assertTrue(
-        !!matchEl.shadowRoot.querySelector('#focus-indicator.selected-within'));
+        !!matchEl.shadowRoot.querySelector('#focusIndicator.selected-within'));
     assertFalse(!!matchEl.shadowRoot.querySelector('#keyword.selected'));
     assertArrayEquals([false, false], [
       ...matchEl.shadowRoot.querySelectorAll(

@@ -21,18 +21,16 @@ namespace password_manager {
 enum class PasswordStoreBackendErrorType {
   kUncategorized = 0,
   // An authentication error that prevents the password store from accessing
-  // passwords, for which the resolution intent has been received. Used on
-  // Android.
+  // passwords, for which the resolution intent has been received.
   kAuthErrorResolvable = 1,
   // An authentication error that prevents the password store from accessing
-  // passwords, for which no resolution intent has been received. Used on
-  // Android.
+  // passwords, for which no resolution intent has been received.
   kAuthErrorUnresolvable = 2,
   // A Keychain error that prevents the password store from decrypting the
   // passwords. Used on Mac.
   kKeychainError = 3,
   // Error related only to on-device encryption users when the encryption
-  // key is missing. Used on Android.
+  // key is missing.
   kKeyRetrievalRequired = 4,
   // Saving new credentials is disabled due to an outdated GMSCore version.
   // Deprecated: kGMSCoreOutdatedSavingDisabled = 5,
@@ -42,12 +40,18 @@ enum class PasswordStoreBackendErrorType {
   kEmptySecurityDomain = 7,
   // Used on Android.
   kIrretrievableSecurityDomain = 8,
+  // Indicates that the passphrase is required to continue with e.g. saving.
+  kNeedsPassphrase = 9,
 
-  kMaxValue = kIrretrievableSecurityDomain,
+  kMaxValue = kNeedsPassphrase,
 };
 
 struct PasswordStoreBackendError {
-  PasswordStoreBackendError(PasswordStoreBackendErrorType error_type);
+  explicit PasswordStoreBackendError(PasswordStoreBackendErrorType error_type);
+  PasswordStoreBackendError(const PasswordStoreBackendError& rhs);
+  PasswordStoreBackendError(PasswordStoreBackendError&& rhs);
+  PasswordStoreBackendError& operator=(const PasswordStoreBackendError& rhs);
+  PasswordStoreBackendError& operator=(PasswordStoreBackendError&& rhs);
 
   friend bool operator==(const PasswordStoreBackendError&,
                          const PasswordStoreBackendError&) = default;

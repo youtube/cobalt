@@ -35,6 +35,7 @@
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/rect_conversions.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/size_f.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/paint_vector_icon.h"
@@ -168,6 +169,10 @@ void BrowserFrameView::OnBrowserViewInitViewsComplete() {
 
 void BrowserFrameView::OnFullscreenStateChanged() {}
 
+void BrowserFrameView::OnTabStripStateChanged() {
+  InvalidateLayout();
+}
+
 bool BrowserFrameView::CaptionButtonsOnLeadingEdge() const {
   return false;
 }
@@ -178,6 +183,10 @@ bool BrowserFrameView::CaptionButtonsOnTrailingEdge() const {
 
 views::LayoutAlignment BrowserFrameView::GetWindowTitleAlignment() const {
   return views::LayoutAlignment::kStart;
+}
+
+gfx::RoundedCornersF BrowserFrameView::GetWindowRoundedCorners() const {
+  return gfx::RoundedCornersF();
 }
 
 void BrowserFrameView::UpdateFullscreenTopUI() {}

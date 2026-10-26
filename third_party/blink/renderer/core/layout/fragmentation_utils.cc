@@ -130,8 +130,10 @@ template bool CORE_TEMPLATE_EXPORT IsAvoidBreakValue(const ConstraintSpace&,
 EBreakBetween CalculateBreakBetweenValue(LayoutInputNode child,
                                          const LayoutResult& layout_result,
                                          const BoxFragmentBuilder& builder) {
-  if (child.IsInline())
-    return EBreakBetween::kAuto;
+  if (child.IsInline()) {
+    // Inline children may carry propagated break values from block descendants.
+    return builder.JoinedBreakBetweenValue(layout_result.InitialBreakBefore());
+  }
 
   // Since it's not an inline node, if we have a fragment at all, it has to be a
   // box fragment.
@@ -303,26 +305,6 @@ BreakAppeal CalculateBreakAppealInside(
       IsAvoidBreakValue(space, physical_fragment.Style().BreakInside()))
     appeal = kBreakAppealViolatingBreakAvoid;
   return appeal;
-}
-
-LogicalSize FragmentainerLogicalCapacity(
-    const PhysicalBoxFragment& fragmentainer) {
-  DCHECK(fragmentainer.IsFragmentainerBox());
-  LogicalSize logical_size =
-      WritingModeConverter(fragmentainer.Style().GetWritingDirection())
-          .ToLogical(fragmentainer.Size());
-  // TODO(layout-dev): This should really be checking if there are any
-  // descendants that take up block space rather than if it has overflow. In
-  // other words, we would still want to clamp a zero height fragmentainer if
-  // it had content with zero inline size and non-zero block size. This would
-  // likely require us to store an extra flag on PhysicalBoxFragment.
-  if (fragmentainer.HasScrollableOverflow()) {
-    // Don't clamp the fragmentainer to a block size of 1 if it is truly a
-    // zero-height column.
-    logical_size.block_size =
-        ClampedToValidFragmentainerCapacity(logical_size.block_size);
-  }
-  return logical_size;
 }
 
 LogicalOffset GetFragmentainerProgression(const BoxFragmentBuilder& builder,

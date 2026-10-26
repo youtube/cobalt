@@ -12,10 +12,10 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <span>
 #include <utility>
 
 #include "absl/cleanup/cleanup.h"
-#include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/sequence_checker.h"
 #include "api/test/network_emulation/network_emulation_interfaces.h"
@@ -101,7 +101,7 @@ NetworkNodeTransport::NetworkNodeTransport(Clock* sender_clock,
 
 NetworkNodeTransport::~NetworkNodeTransport() = default;
 
-bool NetworkNodeTransport::SendRtp(ArrayView<const uint8_t> packet,
+bool NetworkNodeTransport::SendRtp(std::span<const uint8_t> packet,
                                    const PacketOptions& options) {
   int64_t send_time_ms = sender_clock_->TimeInMilliseconds();
   SentPacketInfo sent_packet;
@@ -122,7 +122,7 @@ bool NetworkNodeTransport::SendRtp(ArrayView<const uint8_t> packet,
   return true;
 }
 
-bool NetworkNodeTransport::SendRtcp(ArrayView<const uint8_t> packet,
+bool NetworkNodeTransport::SendRtcp(std::span<const uint8_t> packet,
                                     const PacketOptions& options) {
   CopyOnWriteBuffer buffer(packet);
   MutexLock lock(&mutex_);

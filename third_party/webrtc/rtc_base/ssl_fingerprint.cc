@@ -14,11 +14,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/message_digest.h"
@@ -68,13 +68,13 @@ std::unique_ptr<SSLFingerprint> SSLFingerprint::CreateUniqueFromRfc4572(
 
   char value[MessageDigest::kMaxSize];
   size_t value_len =
-      hex_decode_with_delimiter(ArrayView<char>(value), fingerprint, ':');
+      hex_decode_with_delimiter(std::span<char>(value), fingerprint, ':');
   if (!value_len)
     return nullptr;
 
   return std::make_unique<SSLFingerprint>(
       algorithm,
-      ArrayView<const uint8_t>(reinterpret_cast<uint8_t*>(value), value_len));
+      std::span<const uint8_t>(reinterpret_cast<uint8_t*>(value), value_len));
 }
 
 std::unique_ptr<SSLFingerprint> SSLFingerprint::CreateFromCertificate(
@@ -96,13 +96,13 @@ std::unique_ptr<SSLFingerprint> SSLFingerprint::CreateFromCertificate(
 }
 
 SSLFingerprint::SSLFingerprint(absl::string_view algorithm,
-                               ArrayView<const uint8_t> digest_view)
+                               std::span<const uint8_t> digest_view)
     : algorithm(algorithm), digest(digest_view.data(), digest_view.size()) {}
 
 SSLFingerprint::SSLFingerprint(absl::string_view algorithm,
                                const uint8_t* digest_in,
                                size_t digest_len)
-    : SSLFingerprint(algorithm, MakeArrayView(digest_in, digest_len)) {}
+    : SSLFingerprint(algorithm, std::span(digest_in, digest_len)) {}
 
 bool SSLFingerprint::operator==(const SSLFingerprint& other) const {
   return algorithm == other.algorithm && digest == other.digest;

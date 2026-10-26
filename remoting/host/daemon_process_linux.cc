@@ -34,12 +34,13 @@
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "remoting/base/auto_thread.h"
 #include "remoting/base/auto_thread_task_runner.h"
+#include "remoting/base/branding.h"
 #include "remoting/base/crash/crash_reporting_breakpad.h"
 #include "remoting/base/logging.h"
+#include "remoting/base/username.h"
 #include "remoting/host/base/host_exit_codes.h"
 #include "remoting/host/base/screen_resolution.h"
 #include "remoting/host/base/switches.h"
-#include "remoting/host/branding.h"
 #include "remoting/host/chromoting_host_services_server.h"
 #include "remoting/host/host_config.h"
 #include "remoting/host/host_main.h"
@@ -81,8 +82,7 @@ class DaemonProcessLinux : public DaemonProcess {
   // DaemonProcess implementation.
   std::unique_ptr<DesktopSession> DoCreateDesktopSession(
       int terminal_id,
-      const ScreenResolution& resolution,
-      bool is_curtained) override;
+      const mojom::DesktopSessionOptions& options) override;
   void DoCrashNetworkProcess(const base::Location& location) override;
   void LaunchNetworkProcess() override;
   void SendHostConfigToNetworkProcess(
@@ -172,11 +172,11 @@ void DaemonProcessLinux::StartDesktopSessionFactory() {
 
 std::unique_ptr<DesktopSession> DaemonProcessLinux::DoCreateDesktopSession(
     int terminal_id,
-    const ScreenResolution& resolution,
-    bool is_curtained) {
+    const mojom::DesktopSessionOptions& options) {
   DCHECK(caller_task_runner()->BelongsToCurrentThread());
 
-  return desktop_session_factory_.CreateDesktopSession(terminal_id, this);
+  return desktop_session_factory_.CreateDesktopSession(terminal_id, this,
+                                                       options);
 }
 
 void DaemonProcessLinux::DoCrashNetworkProcess(const base::Location& location) {
@@ -282,6 +282,9 @@ std::unique_ptr<DaemonProcess> DaemonProcess::Create(
     base::OnceClosure stopped_callback) {
   auto daemon_process = std::make_unique<DaemonProcessLinux>(
       caller_task_runner, io_task_runner, std::move(stopped_callback));
+
+  // TODO: crbug.com/475611769 - set ACL on the pairing registry directory for
+  // the network user.
 
   daemon_process->StartDesktopSessionFactory();
 

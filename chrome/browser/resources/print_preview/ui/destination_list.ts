@@ -125,7 +125,7 @@ export class PrintPreviewDestinationListElement extends CrLitElement {
 
   protected onKeydown_(e: KeyboardEvent) {
     if (e.key === 'Enter') {
-      this.onDestinationSelected_(e);
+      this.onDestinationClick_(e);
       e.stopPropagation();
     }
   }
@@ -133,7 +133,7 @@ export class PrintPreviewDestinationListElement extends CrLitElement {
   /**
    * @param e Event containing the destination that was selected.
    */
-  protected onDestinationSelected_(e: Event) {
+  protected onDestinationClick_(e: Event) {
     if ((e.composedPath()[0] as HTMLElement).tagName === 'A') {
       return;
     }
@@ -141,9 +141,7 @@ export class PrintPreviewDestinationListElement extends CrLitElement {
     const listItem = e.target as PrintPreviewDestinationListItemElement;
     assert(listItem.destination);
 
-    this.dispatchEvent(new CustomEvent(
-        'destination-selected',
-        {bubbles: true, composed: true, detail: listItem.destination}));
+    this.fire('destination-selected', listItem.destination);
   }
 
   /**

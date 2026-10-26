@@ -468,6 +468,20 @@ ContentSetting HostContentSettingsMap::GetUserModifiableContentSetting(
   return content_settings::ValueToContentSetting(value);
 }
 
+PermissionSetting HostContentSettingsMap::GetUserModifiablePermissionSetting(
+    const GURL& primary_url,
+    const GURL& secondary_url,
+    ContentSettingsType content_type) const {
+  CheckPermissionTypeRegistration(content_type);
+  auto* permission_info =
+      content_settings::PermissionSettingsRegistry::GetInstance()->Get(
+          content_type);
+  const base::Value value =
+      GetWebsiteSettingInternal(primary_url, secondary_url, content_type,
+                                ProviderFilter::kUserModifiable, nullptr);
+  return content_settings::ValueToPermissionSetting(permission_info, value);
+}
+
 PermissionSetting HostContentSettingsMap::GetPermissionSetting(
     const GURL& primary_url,
     const GURL& secondary_url,
@@ -1342,13 +1356,11 @@ void HostContentSettingsMap::UpdateExpiryEnforcementTimer(
 
   base::TimeDelta next_run = base::TimeDelta::Max();
 
-  if (!expiration_enforcement_timers_.contains(content_type)) {
-    expiration_enforcement_timers_[content_type] =
-        std::make_unique<base::OneShotTimer>();
-  }
-
   auto& expiration_enforcement_timer =
       expiration_enforcement_timers_[content_type];
+  if (expiration_enforcement_timer == nullptr) {
+    expiration_enforcement_timer = std::make_unique<base::OneShotTimer>();
+  }
 
   if (expiration_enforcement_timer->IsRunning()) {
     next_run = expiration_enforcement_timer->GetCurrentDelay();
@@ -1414,13 +1426,12 @@ void HostContentSettingsMap::DeleteNearlyExpiredSettingsAndMaybeScheduleNextRun(
     const base::TimeDelta next_run = std::max(
         base::Seconds(0), next_expiry - clock_->Now() - kEagerExpiryBuffer);
 
-    if (!expiration_enforcement_timers_.contains(content_setting_type)) {
-      expiration_enforcement_timers_[content_setting_type] =
-          std::make_unique<base::OneShotTimer>();
-    }
-
     auto& expiration_enforcement_timer =
         expiration_enforcement_timers_[content_setting_type];
+    if (expiration_enforcement_timer == nullptr) {
+      expiration_enforcement_timer = std::make_unique<base::OneShotTimer>();
+    }
+
     expiration_enforcement_timer->Start(
         FROM_HERE, next_run,
         base::BindOnce(&HostContentSettingsMap::

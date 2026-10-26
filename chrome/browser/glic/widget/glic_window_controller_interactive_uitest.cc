@@ -17,6 +17,7 @@
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/test_support/glic_histogram_tester.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/glic/test_support/interactive_glic_test.h"
 #include "chrome/browser/glic/test_support/interactive_test_util.h"
@@ -371,7 +372,7 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
     // TODO(b/453696965): Broken in multi-instance.
     GTEST_SKIP() << "Skipping for kGlicMultiInstance";
   }
-  base::HistogramTester histogram_tester;
+  GlicHistogramTester histogram_tester;
   RunTestSequence(
       OpenGlicFloatingWindow(),
       ClickMockGlicElement(kMockGlicClientHangButton, true),
@@ -421,7 +422,7 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest,
   // (this is subtle and platform-specific, unfortunately).
   auto other_widget = std::make_unique<views::Widget>();
 
-  base::HistogramTester histogram_tester;
+  GlicHistogramTester histogram_tester;
   RunTestSequence(
       ObserveState(test::internal::kGlicAppState, GetHost()),
       OpenGlicFloatingWindow(),

@@ -13,10 +13,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/transport/stun.h"
 #include "p2p/base/connection.h"
@@ -39,9 +39,9 @@ TestPort::TestPort(const PortParametersRef& args,
     : Port(args, IceCandidateType::kHost, min_port, max_port) {}
 TestPort::~TestPort() = default;
 
-ArrayView<const uint8_t> TestPort::last_stun_buf() {
+std::span<const uint8_t> TestPort::last_stun_buf() {
   if (!last_stun_buf_)
-    return ArrayView<const uint8_t>();
+    return std::span<const uint8_t>();
   return *last_stun_buf_;
 }
 IceMessage* TestPort::last_stun_msg() {

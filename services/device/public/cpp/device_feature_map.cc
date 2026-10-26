@@ -24,9 +24,9 @@ namespace {
 // code base.
 const base::Feature* const kFeaturesExposedToJava[] = {
     &device::kAuthenticatorPasswordsOnlyImmediateRequests,
-    &device::kWebAuthnAndroidSignal,
     &device::kWebAuthnImmediateGet,
     &kGenericSensorExtraClasses,
+    &kSensorsAllowAskBlockPermissionModel,
     &kBatteryStatusManagerBroadcastReceiverInBackground,
     &device::features::kGmsCoreLocationRequestParamOverride};
 

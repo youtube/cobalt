@@ -65,12 +65,12 @@ class TabStyleViewsImpl : public TabStyleViews {
   SkPath GetPath(TabStyle::PathType path_type,
                  float scale,
                  const TabPathFlags& flags) const override;
+  void PaintTab(gfx::Canvas* canvas) const override;
   gfx::Insets GetContentsInsets() const override;
   float GetZValue() const override;
-  float GetCurrentActiveOpacity() const override;
   bool IsApparentlyActive() const override;
+  float GetCurrentActiveOpacity() const override;
   TabStyle::TabColors CalculateTargetColors() const override;
-  void PaintTab(gfx::Canvas* canvas) const override;
   void ShowHover(TabStyle::ShowHoverStyle style) override;
   void HideHover(TabStyle::HideHoverStyle style) override;
 
@@ -221,7 +221,10 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
                                   scale;
 
   // Selected, hover, and inactive tab fills are a detached squarcle tab.
-  if ((path_type == TabStyle::PathType::kFill &&
+  // If kDetachedTabs is enabled, the active tab fill and border are also a
+  // detached tab.
+  if (base::FeatureList::IsEnabled(features::kDetachedTabs) ||
+      (path_type == TabStyle::PathType::kFill &&
        state != TabStyle::TabSelectionState::kActive) ||
       path_type == TabStyle::PathType::kHighlight ||
       path_type == TabStyle::PathType::kInteriorClip ||
@@ -240,6 +243,14 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
       tab_height -= GetLayoutConstant(LayoutConstant::kTabStripPadding) * scale;
       tab_height -=
           GetLayoutConstant(LayoutConstant::kTabstripToolbarOverlap) * scale;
+
+      if (base::FeatureList::IsEnabled(features::kDetachedTabs) &&
+          tab()->group().has_value()) {
+        tab_height -=
+            GetLayoutConstant(
+                LayoutConstant::kDetachedTabGroupUnderlineBottomSpacing) *
+            scale;
+      }
     }
 
     // Don't round the bottom corners to avoid creating dead space between tabs.
@@ -249,8 +260,17 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
     }
 
     float left = aligned_bounds.x() + extension_corner_radius;
-    int top = aligned_bounds.y() +
-              GetLayoutConstant(LayoutConstant::kTabStripPadding) * scale;
+    float top = aligned_bounds.y() +
+                GetLayoutConstant(LayoutConstant::kTabStripPadding) * scale;
+
+    if (base::FeatureList::IsEnabled(features::kDetachedTabs) &&
+        tab()->group().has_value()) {
+      top += (GetLayoutConstant(
+                  LayoutConstant::kDetachedTabGroupUnderlineBottomSpacing) /
+              2.0f) *
+             scale;
+    }
+
     float right = aligned_bounds.right() - extension_corner_radius;
     const int bottom = top + tab_height;
 
@@ -493,97 +513,6 @@ SkPath TabStyleViewsImpl::GetPath(TabStyle::PathType path_type,
   return path.detach();
 }
 
-gfx::Insets TabStyleViewsImpl::GetContentsInsets() const {
-  gfx::Insets base_style_insets = tab_style()->GetContentsInsets();
-  gfx::Insets split_insets = gfx::Insets(0);
-
-  // For split tabs, remove insets equal to the total separator width between
-  // them.
-  const float total_separator_width =
-      tab_style()->GetSeparatorMargins().left() +
-      tab_style()->GetSeparatorSize().width() +
-      tab_style()->GetSeparatorMargins().right();
-  if (IsRightSplitTab(tab())) {
-    split_insets.set_left(total_separator_width / -2);
-  }
-  if (IsLeftSplitTab(tab())) {
-    split_insets.set_right(total_separator_width / -2);
-  }
-
-  return gfx::Insets::TLBR(
-             0, 0, GetLayoutConstant(LayoutConstant::kTabstripToolbarOverlap),
-             0) +
-         base_style_insets + split_insets;
-}
-
-float TabStyleViewsImpl::GetZValue() const {
-  // This will return values so that inactive tabs can be sorted in the
-  // following order:
-  //
-  // o Unselected tabs, in ascending hover animation value order.
-  // o The single unselected tab being hovered by the mouse, if present.
-  // o Selected tabs, in ascending hover animation value order.
-  // o The single selected tab being hovered by the mouse, if present.
-  //
-  // Representing the above groupings is accomplished by adding a "weight" to
-  // the current hover animation value.
-  //
-  // 0.0 == z-value         Unselected/non hover animating.
-  // 0.0 <  z-value <= 1.0  Unselected/hover animating.
-  // 2.0 <= z-value <= 3.0  Unselected/mouse hovered tab.
-  // 4.0 == z-value         Selected/non hover animating.
-  // 4.0 <  z-value <= 5.0  Selected/hover animating.
-  // 6.0 <= z-value <= 7.0  Selected/mouse hovered tab.
-  //
-  // This function doesn't handle active tabs, as they are normally painted by a
-  // different code path (with z-value infinity).
-  float sort_value = GetHoverAnimationValue();
-  if (tab_->IsSelected()) {
-    sort_value += 4.f;
-  }
-  if (IsHovering()) {
-    sort_value += 2.f;
-  }
-
-  DCHECK_GE(sort_value, 0.0f);
-  DCHECK_LE(sort_value, TabStyle::kMaximumZValue);
-
-  return sort_value;
-}
-
-float TabStyleViewsImpl::GetCurrentActiveOpacity() const {
-  const TabStyle::TabSelectionState selection_state = GetSelectionState();
-  if (selection_state == TabStyle::TabSelectionState::kActive) {
-    return 1.0f;
-  }
-  const float base_opacity =
-      selection_state == TabStyle::TabSelectionState::kSelected
-          ? tab_style()->GetSelectedTabOpacity()
-          : 0.0f;
-  if (!IsHoverAnimationActive()) {
-    return base_opacity;
-  }
-  return std::lerp(base_opacity, GetHoverOpacity(), GetHoverAnimationValue());
-}
-
-bool TabStyleViewsImpl::IsApparentlyActive() const {
-  const TabStyle::TabSelectionState selection_state = GetSelectionState();
-  if (selection_state == TabStyle::TabSelectionState::kActive) {
-    return true;
-  }
-  if (IsHovering()) {
-    return GetHoverOpacity() > 0.5f;
-  }
-  return selection_state == TabStyle::TabSelectionState::kSelected;
-}
-
-TabStyle::TabColors TabStyleViewsImpl::CalculateTargetColors() const {
-  return tab_style()->CalculateTargetColors(
-      GetSelectionState(), IsApparentlyActive(), IsHovering(),
-      tab()->GetWidget() ? tab()->GetWidget()->ShouldPaintAsActive() : true,
-      tab()->GetColorProvider());
-}
-
 void TabStyleViewsImpl::PaintTab(gfx::Canvas* canvas) const {
   std::optional<int> active_tab_fill_id;
   if (tab_->GetThemeProvider()->HasCustomImage(IDR_THEME_TOOLBAR)) {
@@ -633,6 +562,106 @@ void TabStyleViewsImpl::PaintTabBackgroundWithImages(
       canvas->Restore();
     }
   }
+}
+
+gfx::Insets TabStyleViewsImpl::GetContentsInsets() const {
+  gfx::Insets base_style_insets = tab_style()->GetContentsInsets();
+  gfx::Insets split_insets = gfx::Insets(0);
+
+  // For split tabs, remove insets equal to the total separator width between
+  // them.
+  const float total_separator_width =
+      tab_style()->GetSeparatorMargins().left() +
+      tab_style()->GetSeparatorSize().width() +
+      tab_style()->GetSeparatorMargins().right();
+  if (IsRightSplitTab(tab())) {
+    split_insets.set_left(total_separator_width / -2);
+  }
+  if (IsLeftSplitTab(tab())) {
+    split_insets.set_right(total_separator_width / -2);
+  }
+
+  if (base::FeatureList::IsEnabled(features::kDetachedTabs) &&
+      tab()->group().has_value()) {
+    const int vertical_padding =
+        GetLayoutConstant(
+            LayoutConstant::kDetachedTabGroupUnderlineBottomSpacing) /
+        2;
+    base_style_insets += gfx::Insets::VH(vertical_padding, 0);
+  }
+
+  return gfx::Insets::TLBR(
+             0, 0, GetLayoutConstant(LayoutConstant::kTabstripToolbarOverlap),
+             0) +
+         base_style_insets + split_insets;
+}
+
+float TabStyleViewsImpl::GetZValue() const {
+  // This will return values so that inactive tabs can be sorted in the
+  // following order:
+  //
+  // o Unselected tabs, in ascending hover animation value order.
+  // o The single unselected tab being hovered by the mouse, if present.
+  // o Selected tabs, in ascending hover animation value order.
+  // o The single selected tab being hovered by the mouse, if present.
+  //
+  // Representing the above groupings is accomplished by adding a "weight" to
+  // the current hover animation value.
+  //
+  // 0.0 == z-value         Unselected/non hover animating.
+  // 0.0 <  z-value <= 1.0  Unselected/hover animating.
+  // 2.0 <= z-value <= 3.0  Unselected/mouse hovered tab.
+  // 4.0 == z-value         Selected/non hover animating.
+  // 4.0 <  z-value <= 5.0  Selected/hover animating.
+  // 6.0 <= z-value <= 7.0  Selected/mouse hovered tab.
+  //
+  // This function doesn't handle active tabs, as they are normally painted by a
+  // different code path (with z-value infinity).
+  float sort_value = GetHoverAnimationValue();
+  if (tab_->IsSelected()) {
+    sort_value += 4.f;
+  }
+  if (IsHovering()) {
+    sort_value += 2.f;
+  }
+
+  DCHECK_GE(sort_value, 0.0f);
+  DCHECK_LE(sort_value, TabStyle::kMaximumZValue);
+
+  return sort_value;
+}
+
+bool TabStyleViewsImpl::IsApparentlyActive() const {
+  const TabStyle::TabSelectionState selection_state = GetSelectionState();
+  if (selection_state == TabStyle::TabSelectionState::kActive) {
+    return true;
+  }
+  if (IsHovering()) {
+    return GetHoverOpacity() > 0.5f;
+  }
+  return selection_state == TabStyle::TabSelectionState::kSelected;
+}
+
+float TabStyleViewsImpl::GetCurrentActiveOpacity() const {
+  const TabStyle::TabSelectionState selection_state = GetSelectionState();
+  if (selection_state == TabStyle::TabSelectionState::kActive) {
+    return 1.0f;
+  }
+  const float base_opacity =
+      selection_state == TabStyle::TabSelectionState::kSelected
+          ? tab_style()->GetSelectedTabOpacity()
+          : 0.0f;
+  if (!IsHoverAnimationActive()) {
+    return base_opacity;
+  }
+  return std::lerp(base_opacity, GetHoverOpacity(), GetHoverAnimationValue());
+}
+
+TabStyle::TabColors TabStyleViewsImpl::CalculateTargetColors() const {
+  return tab_style()->CalculateTargetColors(
+      GetSelectionState(), IsApparentlyActive(), IsHovering(),
+      tab()->GetWidget() ? tab()->GetWidget()->ShouldPaintAsActive() : true,
+      tab()->GetColorProvider());
 }
 
 void TabStyleViewsImpl::ShowHover(TabStyle::ShowHoverStyle style) {
@@ -723,6 +752,13 @@ TabStyle::SeparatorOpacities TabStyleViewsImpl::GetSeparatorOpacities(
 
 float TabStyleViewsImpl::GetSeparatorOpacity(bool for_layout,
                                              bool leading) const {
+  // Do not show separators if the tab strip is in a decluttered state.
+  if (base::FeatureList::IsEnabled(features::kTabStripDeclutter) &&
+      tab()->controller()->GetTabCount() >=
+          TabStyle::kTabStripDeclutterMinTabsForSeparatorHide) {
+    return 0.0f;
+  }
+
   const auto has_visible_background = [](const Tab* const tab) {
     return tab->IsActive() || tab->IsSelected() || tab->IsMouseHovered();
   };
@@ -837,7 +873,8 @@ float TabStyleViewsImpl::GetHoverOpacity() const {
 
 int TabStyleViewsImpl::GetStrokeThickness(bool should_paint_as_active) const {
   std::optional<tab_groups::TabGroupId> group = tab_->group();
-  if (group.has_value() && tab_->IsActive()) {
+  if (group.has_value() && tab_->IsActive() &&
+      !base::FeatureList::IsEnabled(features::kDetachedTabs)) {
     return TabGroupUnderline::kStrokeThickness;
   }
 
@@ -1174,11 +1211,11 @@ ui::metadata::TypeConverter<TabStyle::TabColors>::GetValidStrings() {
 
 // TabStyleViews ---------------------------------------------------------------
 
-TabStyleViews::TabStyleViews() : tab_style_(TabStyle::Get()) {}
-
-TabStyleViews::~TabStyleViews() = default;
-
 // static
 std::unique_ptr<TabStyleViews> TabStyleViews::CreateForTab(Tab* tab) {
   return std::make_unique<TabStyleViewsImpl>(tab);
 }
+
+TabStyleViews::TabStyleViews() : tab_style_(TabStyle::Get()) {}
+
+TabStyleViews::~TabStyleViews() = default;

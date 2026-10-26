@@ -66,7 +66,7 @@ public class TabbedModeTabDelegateFactory implements TabDelegateFactory {
     private final Activity mActivity;
     private final BrowserControlsVisibilityDelegate mAppBrowserControlsVisibilityDelegate;
     private final Supplier<@Nullable ShareDelegate> mShareDelegateSupplier;
-    private final Supplier<EphemeralTabCoordinator> mEphemeralTabCoordinatorSupplier;
+    private final Supplier<@Nullable EphemeralTabCoordinator> mEphemeralTabCoordinatorSupplier;
     private final Runnable mContextMenuCopyLinkObserver;
     private final BottomSheetController mBottomSheetController;
     private final ChromeActivityNativeDelegate mChromeActivityNativeDelegate;
@@ -75,7 +75,7 @@ public class TabbedModeTabDelegateFactory implements TabDelegateFactory {
     private final TabCreatorManager mTabCreatorManager;
     private final Supplier<TabModelSelector> mTabModelSelectorSupplier;
     private final Supplier<@Nullable CompositorViewHolder> mCompositorViewHolderSupplier;
-    private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
+    private final Supplier<ModalDialogManager> mModalDialogManagerSupplier;
     private final Supplier<SnackbarManager> mSnackbarManagerSupplier;
     private final ActivityResultTracker mActivityResultTracker;
     private final MonotonicObservableSupplier<TabContentManager> mTabContentManagerSupplier;
@@ -100,7 +100,7 @@ public class TabbedModeTabDelegateFactory implements TabDelegateFactory {
             Activity activity,
             BrowserControlsVisibilityDelegate appBrowserControlsVisibilityDelegate,
             Supplier<@Nullable ShareDelegate> shareDelegateSupplier,
-            Supplier<EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
+            Supplier<@Nullable EphemeralTabCoordinator> ephemeralTabCoordinatorSupplier,
             Runnable contextMenuCopyLinkObserver,
             BottomSheetController sheetController,
             ChromeActivityNativeDelegate chromeActivityNativeDelegate,
@@ -109,7 +109,7 @@ public class TabbedModeTabDelegateFactory implements TabDelegateFactory {
             TabCreatorManager tabCreatorManager,
             Supplier<TabModelSelector> tabModelSelectorSupplier,
             Supplier<@Nullable CompositorViewHolder> compositorViewHolderSupplier,
-            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
+            Supplier<ModalDialogManager> modalDialogManagerSupplier,
             Supplier<SnackbarManager> snackbarManagerSupplier,
             ActivityResultTracker activityResultTracker,
             BrowserControlsManager browserControlsManager,
@@ -173,7 +173,7 @@ public class TabbedModeTabDelegateFactory implements TabDelegateFactory {
                 mTabCreatorManager,
                 mTabModelSelectorSupplier,
                 mCompositorViewHolderSupplier,
-                mModalDialogManagerSupplier,
+                (Supplier<@Nullable ModalDialogManager>) mModalDialogManagerSupplier,
                 mExclusiveAccessManager);
     }
 

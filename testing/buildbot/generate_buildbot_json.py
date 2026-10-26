@@ -735,6 +735,9 @@ class BBJSONGenerator(object):  # pylint: disable=useless-object-inheritance
 
     skylab = test.pop('skylab', {})
     if skylab.get('cros_board'):
+      if test.get('experiment_percentage') != 100:
+        skylab.setdefault('shard_level_retries_on_ctp', 1)
+
       for k, v in skylab.items():
         test[k] = v
 
@@ -924,8 +927,6 @@ class BBJSONGenerator(object):  # pylint: disable=useless-object-inheritance
     result.setdefault('test', test_name)
 
     skylab = result.setdefault('skylab', {})
-    if result.get('experiment_percentage') != 100:
-      skylab.setdefault('shard_level_retries_on_ctp', 1)
 
     for src, dst in (
         ('cros_board', 'cros_board'),
@@ -1477,6 +1478,12 @@ class BBJSONGenerator(object):  # pylint: disable=useless-object-inheritance
         raise BBGenErr(f'"{a}" must be a list')
       new_test.setdefault(a, []).extend(value)
 
+    if 'resultdb' in mixin:
+      new_test.setdefault('resultdb', {})
+      if 'base_variant' in mixin['resultdb']:
+        new_test['resultdb'].setdefault('base_variant', {}).update(
+            mixin['resultdb'].pop('base_variant'))
+      new_test['resultdb'].update(mixin.pop('resultdb'))
     # At this point, all keys that require merging are taken care of, so the
     # remaining entries can be copied over. The os-conditional entries will be
     # resolved immediately after and they are resolved before any mixins are

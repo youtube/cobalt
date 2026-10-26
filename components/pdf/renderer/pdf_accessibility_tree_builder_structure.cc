@@ -84,10 +84,6 @@ PdfAccessibilityTreeBuilderStructure::~PdfAccessibilityTreeBuilderStructure() =
 void PdfAccessibilityTreeBuilderStructure::BuildPageTree() {
   InsertUnassociatedTextRunsAtStart();
 
-  // TODO(crbug.com/40707542): The root node here is a
-  // chrome_pdf::PdfTagType::kDocument, which maps to the blink role Document,
-  // however, the AXTree node builder_->page_node() already has a document
-  // parent. Skip the first node to avoid nested Document roles in the AXTree.
   WalkStructureTree(structure_tree_root_, builder_->page_node());
 }
 
@@ -222,9 +218,13 @@ void PdfAccessibilityTreeBuilderStructure::WalkStructureTree(
       !pdf_struct_element->associated_text_runs_if_available.empty();
   bool has_image = !!pdf_struct_element->associated_image_if_available;
 
-  // Map PDF tag to accessibility role.
-  ax::mojom::Role role =
-      chrome_pdf::AXRoleFromPdfTagType(pdf_struct_element->type);
+  // Map PDF tag to accessibility role, except kDocument which is mapped to
+  // kGenericContainer to avoid introducing a redundant Document node in the
+  // accessibility tree.
+  const ax::mojom::Role role =
+      pdf_struct_element->type == chrome_pdf::PdfTagType::kDocument
+          ? ax::mojom::Role::kGenericContainer
+          : chrome_pdf::AXRoleFromPdfTagType(pdf_struct_element->type);
 
   // Handle elements with both text and image content (from different MCIDs).
   if (has_text && has_image) {
@@ -237,6 +237,11 @@ void PdfAccessibilityTreeBuilderStructure::WalkStructureTree(
       container_node->AddStringAttribute(ax::mojom::StringAttribute::kLanguage,
                                          pdf_struct_element->language);
     }
+    if (!pdf_struct_element->abbreviation_expansion.empty()) {
+      container_node->AddStringAttribute(
+          ax::mojom::StringAttribute::kDescription,
+          pdf_struct_element->abbreviation_expansion);
+    }
 
     // Add image as additional child of the container.
     chrome_pdf::AccessibilityImageInfo modified_image =
@@ -248,8 +253,6 @@ void PdfAccessibilityTreeBuilderStructure::WalkStructureTree(
 
     // TODO(crbug.com/40707542): Handle pdf_struct_element->actual_text as text
     // override.
-    // TODO(crbug.com/40707542): Handle
-    // pdf_struct_element->abbreviation_expansion.
 
     for (const auto& child : pdf_struct_element->children) {
       WalkStructureTree(child.get(), container_node);
@@ -266,6 +269,9 @@ void PdfAccessibilityTreeBuilderStructure::WalkStructureTree(
     if (!pdf_struct_element->alt_text.empty()) {
       node_data->AddStringAttribute(ax::mojom::StringAttribute::kDescription,
                                     pdf_struct_element->alt_text);
+    } else if (!pdf_struct_element->abbreviation_expansion.empty()) {
+      node_data->AddStringAttribute(ax::mojom::StringAttribute::kDescription,
+                                    pdf_struct_element->abbreviation_expansion);
     }
     if (!pdf_struct_element->language.empty()) {
       node_data->AddStringAttribute(ax::mojom::StringAttribute::kLanguage,
@@ -274,8 +280,6 @@ void PdfAccessibilityTreeBuilderStructure::WalkStructureTree(
 
     // TODO(crbug.com/40707542): Handle pdf_struct_element->actual_text as text
     // override.
-    // TODO(crbug.com/40707542): Handle
-    // pdf_struct_element->abbreviation_expansion.
 
     for (const auto& child : pdf_struct_element->children) {
       WalkStructureTree(child.get(), node_data);
@@ -315,6 +319,11 @@ void PdfAccessibilityTreeBuilderStructure::WalkStructureTree(
         figure_node->AddStringAttribute(ax::mojom::StringAttribute::kName,
                                         pdf_struct_element->alt_text);
       }
+      if (!pdf_struct_element->abbreviation_expansion.empty()) {
+        figure_node->AddStringAttribute(
+            ax::mojom::StringAttribute::kDescription,
+            pdf_struct_element->abbreviation_expansion);
+      }
       if (!pdf_struct_element->language.empty()) {
         figure_node->AddStringAttribute(ax::mojom::StringAttribute::kLanguage,
                                         pdf_struct_element->language);
@@ -335,6 +344,11 @@ void PdfAccessibilityTreeBuilderStructure::WalkStructureTree(
       ui::AXNodeData* image_node =
           CreateNodeWithImageContent(parent_node, modified_image);
 
+      if (!pdf_struct_element->abbreviation_expansion.empty()) {
+        image_node->AddStringAttribute(
+            ax::mojom::StringAttribute::kDescription,
+            pdf_struct_element->abbreviation_expansion);
+      }
       if (!pdf_struct_element->language.empty()) {
         image_node->AddStringAttribute(ax::mojom::StringAttribute::kLanguage,
                                        pdf_struct_element->language);
@@ -355,6 +369,9 @@ void PdfAccessibilityTreeBuilderStructure::WalkStructureTree(
   if (!pdf_struct_element->alt_text.empty()) {
     container->AddStringAttribute(ax::mojom::StringAttribute::kDescription,
                                   pdf_struct_element->alt_text);
+  } else if (!pdf_struct_element->abbreviation_expansion.empty()) {
+    container->AddStringAttribute(ax::mojom::StringAttribute::kDescription,
+                                  pdf_struct_element->abbreviation_expansion);
   }
   if (!pdf_struct_element->language.empty()) {
     container->AddStringAttribute(ax::mojom::StringAttribute::kLanguage,

@@ -33,6 +33,7 @@ class MockIdentityRequestDialogController
               (content::RelyingPartyData,
                const std::vector<IdentityProviderDataPtr>&,
                const std::vector<IdentityRequestAccountPtr>&,
+               const std::vector<IdentityRequestAccountPtr>&,
                blink::mojom::RpMode,
                AccountSelectionCallback,
                LoginToIdPCallback,
@@ -47,6 +48,7 @@ class MockIdentityRequestDialogController
                blink::mojom::RpContext rp_context,
                blink::mojom::RpMode rp_mode,
                const content::IdentityProviderMetadata&,
+               const std::vector<scoped_refptr<IdentityRequestAccount>>&,
                DismissCallback,
                LoginToIdPCallback),
               (override));
@@ -83,10 +85,6 @@ class MockIdentityRequestDialogController
               (const GURL&, blink::mojom::RpMode rp_mode, DismissCallback),
               (override));
   MOCK_METHOD(void, CloseModalDialog, (), (override));
-  MOCK_METHOD(void,
-              OnConnectionStatusHeaderReceived,
-              (const std::optional<std::string>&),
-              (override));
   MOCK_METHOD(void,
               OnFlowCompleted,
               (content::webid::FederatedLoginResult),

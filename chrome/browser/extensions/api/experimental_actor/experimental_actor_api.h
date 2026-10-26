@@ -78,16 +78,18 @@ class ExperimentalActorPerformActionsFunction
       actor::TaskId task_id,
       base::TimeTicks start_time,
       bool skip_async_observation_information,
-      actor::mojom::ActionResultCode result_code,
-      std::optional<size_t> index_of_failed_action,
+      std::optional<page_content_annotations::ScreenshotOptions::
+                        ScreenshotCollectionOptions>
+          screenshot_collection_options,
       std::vector<actor::ActionResultWithLatencyInfo> action_results);
   void OnObservationResult(
       base::TimeTicks start_time,
-      actor::mojom::ActionResultCode result_code,
-      std::optional<size_t> index_of_failed_action,
       std::vector<actor::ActionResultWithLatencyInfo> action_results,
       actor::TaskId task_id,
       bool skip_async_observation_information,
+      std::optional<page_content_annotations::ScreenshotOptions::
+                        ScreenshotCollectionOptions>
+          screenshot_collection_options,
       std::unique_ptr<optimization_guide::proto::ActionsResult> response,
       std::unique_ptr<actor::AggregatedJournal::PendingAsyncEntry>
           journal_entry);

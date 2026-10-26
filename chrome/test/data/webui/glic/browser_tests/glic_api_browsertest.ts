@@ -1,8 +1,9 @@
 // Copyright 2025 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {CaptureRegionErrorReason, HostCapability, MetricUserInputReactionType, PanelStateKind, Platform, ResponseStopCause, ScrollToErrorReason, SkillSource, WebClientMode} from '/glic/glic_api/glic_api.js';
+import {CaptureRegionErrorReason, FormFactor, HostCapability, InvocationSource, MetricUserInputReactionType, PanelStateKind, Platform, ResponseStopCause, ScrollToErrorReason, SkillSource, WebClientMode} from '/glic/glic_api/glic_api.js';
 import type {CancelActionsResult, CaptureRegionResult, FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, OpenPanelInfo, PageMetadata, PanelOpeningData, ScrollToError, TabData, UserConfirmationDialogRequest, UserProfileInfo, ZeroStateSuggestionsV2} from '/glic/glic_api/glic_api.js';
+
 
 import {ApiTestError, ApiTestFixtureBase, assertDefined, assertEquals, assertFalse, assertNotEquals, assertRejects, assertTrue, assertUndefined, checkDefined, mapObservable, observeSequence, readStream, runUntil, sleep, testMain, waitFor, WebClient} from './browser_test_base.js';
 import type {SequencedSubscriber} from './browser_test_base.js';
@@ -32,6 +33,27 @@ class ApiTests extends ApiTestFixtureBase {
         HostCapability.MULTI_INSTANCE);
   }
 
+  async testDragAndDrop() {
+    const {promise, resolve} = Promise.withResolvers<string>();
+
+    // Set up a drop event listener, and ignore dragover.
+    document.addEventListener('drop', (e: DragEvent) => {
+      e.preventDefault();
+      resolve(e.dataTransfer?.getData('text/uri-list') || '');
+    }, {once: true});
+
+    document.addEventListener('dragover', (e: DragEvent) => {
+      e.preventDefault();
+    });
+
+    await this.advanceToNextStep();
+
+    // Wait for drop event, and sent the result back to C++.
+    const droppedData = await waitFor(promise);
+
+    await this.advanceToNextStep(droppedData);
+  }
+
   // WARNING: Remember to update
   // chrome/browser/glic/host/glic_api_browsertest.cc if you add a new test!
 
@@ -49,6 +71,20 @@ class ApiTests extends ApiTestFixtureBase {
   }
 
   async testDoNothing() {}
+
+  async testInvocationSource() {
+    const expectedSource = this.testParams as number;
+    const panelOpenData =
+        checkDefined(this.client.panelOpenData.getCurrentValue());
+    assertEquals(panelOpenData.invocationSource, expectedSource);
+  }
+
+  async testDefaultInvocationSource() {
+    const panelOpenData =
+        checkDefined(this.client.panelOpenData.getCurrentValue());
+    assertEquals(
+        panelOpenData.invocationSource, InvocationSource.TOP_CHROME_BUTTON);
+  }
 
   async testWebClientReadyOnFullLoad() {}
 
@@ -423,6 +459,11 @@ class ApiTests extends ApiTestFixtureBase {
     assertTrue(await activeSequence.next());
     await this.advanceToNextStep();
     assertFalse(await activeSequence.next());
+  }
+
+  async testPanelActiveWithMicrophone() {
+    await this.advanceToNextStep();
+    await this.advanceToNextStep();
   }
 
   async testIsBrowserOpen() {
@@ -997,6 +1038,15 @@ class ApiTests extends ApiTestFixtureBase {
     assertFalse(await webActuationSetting.next() as boolean);
     await this.advanceToNextStep();
     assertTrue(await webActuationSetting.next() as boolean);
+  }
+
+  async testGetFormFactor() {
+    assertDefined(this.host.getFormFactor);
+    const formFactor = this.host.getFormFactor();
+    assertDefined(formFactor);
+    // TODO: When this is migrated to android, update this test to check for
+    // the other form factors.
+    assertEquals(formFactor, FormFactor.DESKTOP);
   }
 
   async testGetUserProfileInfo() {
@@ -1944,6 +1994,16 @@ class ApiTests extends ApiTestFixtureBase {
     journalHost.stop();
   }
 
+  async testStopMicrophone() {
+    const stopMicrophonePromise = Promise.withResolvers<void>();
+    this.client.onStopMicrophone = () => {
+      stopMicrophonePromise.resolve();
+    };
+
+    await this.advanceToNextStep();
+    await waitFor(stopMicrophonePromise.promise);
+  }
+
   async testGetHostCapabilities() {
     assertDefined(this.host.getHostCapabilities);
     const capabilities: Set<HostCapability> =
@@ -2701,8 +2761,14 @@ class ApiTests extends ApiTestFixtureBase {
         return 'TRUST_FIRST_ONBOARDING_ARM_1';
       case HostCapability.TRUST_FIRST_ONBOARDING_ARM2:
         return 'TRUST_FIRST_ONBOARDING_ARM_2';
+      case HostCapability.SHARE_ADDITIONAL_IMAGE_CONTEXT:
+        return 'SHARE_ADDITIONAL_IMAGE_CONTEXT';
+      case HostCapability.PDF_ZERO_STATE:
+        return 'PDF_ZERO_STATE';
+      case HostCapability.INVOKE:
+        return 'INVOKE';
       default:
-        return 'NEW_ENUM_NOT_IMPLEMENTED';
+        throw new Error(`Unhandled capability: ${capability}`);
     }
   }
 }
@@ -2838,9 +2904,9 @@ class ApiTestWithoutOpen extends ApiTestFixtureBase {
     assertDefined(this.host.getSkillPreviews);
     const skillPreviewsSequence = observeSequence(this.host.getSkillPreviews());
     let skills = await skillPreviewsSequence.waitFor(s => s.length === 2);
-    const user_skill_1 = skills.find(s => s.name === 'user_skill_1');
+    let user_skill_1 = skills.find(s => s.name === 'user_skill_1');
     assertDefined(user_skill_1);
-    const user_skill_2 = skills.find(s => s.name === 'user_skill_2');
+    let user_skill_2 = skills.find(s => s.name === 'user_skill_2');
     assertDefined(user_skill_2);
     await this.advanceToNextStep();
 
@@ -2859,8 +2925,15 @@ class ApiTestWithoutOpen extends ApiTestFixtureBase {
     assertEquals('contextual_skill_2', contextual_skill_2.name);
     assertEquals(
         'contextual_skill_description_2', contextual_skill_2.description);
-    assertDefined(skills.find(s => s.name === 'user_skill_1'));
-    assertDefined(skills.find(s => s.name === 'user_skill_2'));
+    user_skill_1 = skills.find(s => s.name === 'user_skill_1');
+    assertDefined(user_skill_1);
+    user_skill_2 = skills.find(s => s.name === 'user_skill_2');
+    assertDefined(user_skill_2);
+    // Verify that only the contextual skills are marked as contextual.
+    assertEquals(true, contextual_skill_1.isContextual);
+    assertEquals(true, contextual_skill_2.isContextual);
+    assertEquals(false, user_skill_1.isContextual);
+    assertEquals(false, user_skill_2.isContextual);
     await this.advanceToNextStep();
 
     // Verify that after a contextual skills update, the skills cache is updated
@@ -2873,8 +2946,14 @@ class ApiTestWithoutOpen extends ApiTestFixtureBase {
     assertEquals('contextual_skill_3', contextual_skill_3.name);
     assertEquals(
         'contextual_skill_description_3', contextual_skill_3.description);
-    assertDefined(skills.find(s => s.name === 'user_skill_1'));
-    assertDefined(skills.find(s => s.name === 'user_skill_2'));
+    user_skill_1 = skills.find(s => s.name === 'user_skill_1');
+    assertDefined(user_skill_1);
+    user_skill_2 = skills.find(s => s.name === 'user_skill_2');
+    assertDefined(user_skill_2);
+    // Verify that only the contextual skills are marked as contextual.
+    assertEquals(true, contextual_skill_3.isContextual);
+    assertEquals(false, user_skill_1.isContextual);
+    assertEquals(false, user_skill_2.isContextual);
   }
 }
 

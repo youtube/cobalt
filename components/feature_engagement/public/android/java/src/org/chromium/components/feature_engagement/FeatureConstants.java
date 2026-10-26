@@ -24,6 +24,7 @@ import java.lang.annotation.RetentionPolicy;
     FeatureConstants.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_TRANSLATE_FEATURE,
     FeatureConstants.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_ADD_TO_BOOKMARKS_FEATURE,
     FeatureConstants.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_READ_ALOUD_FEATURE,
+    FeatureConstants.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_GLIC_FEATURE,
     FeatureConstants.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_PAGE_SUMMARY_WEB_FEATURE,
     FeatureConstants.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_PAGE_SUMMARY_PDF_FEATURE,
     FeatureConstants.PAGE_SUMMARY_WEB_MENU_FEATURE,
@@ -151,6 +152,8 @@ public @interface FeatureConstants {
             "IPH_AdaptiveButtonInTopToolbarCustomization_AddToBookmarks";
     String ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_READ_ALOUD_FEATURE =
             "IPH_AdaptiveButtonInTopToolbarCustomization_ReadAloud";
+    String ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_GLIC_FEATURE =
+            "IPH_AdaptiveButtonInTopToolbarCustomization_Glic";
     String ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_PAGE_SUMMARY_WEB_FEATURE =
             "IPH_AdaptiveButtonInTopToolbarCustomization_PageSummary_Web";
     String ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_PAGE_SUMMARY_PDF_FEATURE =
@@ -363,6 +366,9 @@ public @interface FeatureConstants {
 
     /** A generic IPH feature to always trigger help UI when asked. */
     String GENERIC_ALWAYS_TRIGGER_HELP_UI_FEATURE = "IPH_GenericAlwaysTriggerHelpUiFeature";
+
+    /** An IPH feature to show on the Glic Promo on Android. */
+    String GLIC_PROMO_ANDROID_FEATURE = "IPH_GlicPromoAndroid";
 
     /**
      * An IPH feature prompting user to tap on identity disc to navigate to "Sync and Google

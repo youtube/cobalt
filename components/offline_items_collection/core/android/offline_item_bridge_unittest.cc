@@ -11,6 +11,8 @@
 #include "components/offline_items_collection/core/native_j_unittests_jni_headers/OfflineItemBridgeUnitTest_jni.h"
 
 using base::android::AttachCurrentThread;
+using JOfflineItem =
+    org::chromium::components::offline_items_collection::JOfflineItem;
 
 namespace offline_items_collection {
 namespace android {
@@ -20,25 +22,23 @@ namespace {
 class OfflineItemBridgeTest : public ::testing::Test {
  public:
   OfflineItemBridgeTest()
-      : j_test_(
-            Java_OfflineItemBridgeUnitTest_Constructor(AttachCurrentThread())) {
-  }
+      : j_test_(JOfflineItemBridgeUnitTestClass::New(AttachCurrentThread())) {}
 
-  const base::android::ScopedJavaGlobalRef<jobject>& j_test() {
+  const jni_zero::ScopedJavaGlobalRef<JOfflineItemBridgeUnitTest>& j_test() {
     return j_test_;
   }
 
  private:
-  base::android::ScopedJavaGlobalRef<jobject> j_test_;
+  jni_zero::ScopedJavaGlobalRef<JOfflineItemBridgeUnitTest> j_test_;
 };
 
 // Verfies a default offline item can be created in Java.
 TEST_F(OfflineItemBridgeTest, CreateOfflineItem) {
   OfflineItem item;
   auto* env = AttachCurrentThread();
-  auto j_offline_item = OfflineItemBridge::CreateOfflineItem(env, item);
-  Java_OfflineItemBridgeUnitTest_testCreateDefaultOfflineItem(env, j_test(),
-                                                              j_offline_item);
+  auto j_offline_item =
+      OfflineItemBridge::CreateOfflineItem(env, item).As<JOfflineItem>();
+  j_test()->testCreateDefaultOfflineItem(env, j_offline_item);
 }
 
 }  // namespace

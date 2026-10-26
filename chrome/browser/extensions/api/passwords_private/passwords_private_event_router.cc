@@ -37,9 +37,10 @@ void PasswordsPrivateEventRouter::OnSavedPasswordsListChanged(
 }
 
 void PasswordsPrivateEventRouter::SendSavedPasswordListToListeners() {
-  if (!cached_saved_password_parameters_.has_value())
+  if (!cached_saved_password_parameters_.has_value()) {
     // If there is nothing to send, return early.
     return;
+  }
 
   auto extension_event = std::make_unique<Event>(
       events::PASSWORDS_PRIVATE_ON_SAVED_PASSWORDS_LIST_CHANGED,
@@ -57,9 +58,10 @@ void PasswordsPrivateEventRouter::OnPasswordExceptionsListChanged(
 }
 
 void PasswordsPrivateEventRouter::SendPasswordExceptionListToListeners() {
-  if (!cached_password_exception_parameters_.has_value())
+  if (!cached_password_exception_parameters_.has_value()) {
     // If there is nothing to send, return early.
     return;
+  }
 
   auto extension_event = std::make_unique<Event>(
       events::PASSWORDS_PRIVATE_ON_PASSWORD_EXCEPTIONS_LIST_CHANGED,
@@ -133,6 +135,17 @@ void PasswordsPrivateEventRouter::OnPasswordManagerAuthTimeout() {
       events::PASSWORDS_PRIVATE_ON_PASSWORD_MANAGER_AUTH_TIMEOUT,
       api::passwords_private::OnPasswordManagerAuthTimeout::kEventName,
       api::passwords_private::OnPasswordManagerAuthTimeout::Create()));
+}
+
+void PasswordsPrivateEventRouter::OnPasswordManagerActionableErrorChanged(
+    api::passwords_private::PasswordManagerActionableError error) {
+  auto extension_event = std::make_unique<Event>(
+      events::PASSWORDS_PRIVATE_ON_PASSWORD_MANAGER_ACTIONABLE_ERROR_CHANGED,
+      api::passwords_private::OnPasswordManagerActionableErrorChanged::
+          kEventName,
+      api::passwords_private::OnPasswordManagerActionableErrorChanged::Create(
+          error));
+  event_router_->BroadcastEvent(std::move(extension_event));
 }
 
 }  // namespace extensions

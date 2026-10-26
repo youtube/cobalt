@@ -1615,6 +1615,7 @@ void PasswordManager::OnLoginSuccessful() {
 
   bool able_to_save_passwords =
       password_manager_util::IsAbleToSavePasswords(client_);
+
   UMA_HISTOGRAM_BOOLEAN("PasswordManager.AbleToSavePasswordsOnSuccessfulLogin",
                         able_to_save_passwords);
   if (!submitted_manager->IsPasswordUpdate() && !able_to_save_passwords) {

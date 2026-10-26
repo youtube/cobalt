@@ -48,12 +48,25 @@ public class TemplateUrl {
         return TemplateUrlJni.get().getPrepopulatedId(mTemplateUrlPtr);
     }
 
-    /** @return Whether a search engine is prepopulated or created by policy. */
+    /**
+     * @return Whether a search engine is prepopulated or created by policy. See {@link
+     *     #getIsPrepopulatedOrProgramProvided} for a variant that does not include policies.
+     */
     public boolean getIsPrepopulated() {
         return TemplateUrlJni.get().isPrepopulatedOrDefaultProviderByPolicy(mTemplateUrlPtr);
     }
 
-    /** @return The keyword of the search engine. */
+    /**
+     * @return Whether a search engine is prepopulated but not created by policies. See {@link
+     *     #getIsPrepopulated} for a variant that includes policies.
+     */
+    public boolean getIsPrepopulatedOrProgramProvided() {
+        return TemplateUrlJni.get().isPrepopulatedOrProgramProvided(mTemplateUrlPtr);
+    }
+
+    /**
+     * @return The keyword of the search engine.
+     */
     public String getKeyword() {
         return TemplateUrlJni.get().getKeyword(mTemplateUrlPtr);
     }
@@ -108,6 +121,15 @@ public class TemplateUrl {
         return pngData == null ? null : BitmapFactory.decodeByteArray(pngData, 0, pngData.length);
     }
 
+    /**
+     * @return Whether the user should be asked to confirm before removing this engine. Currently,
+     *     only built-in search engines and non default search engines created by policy require
+     *     confirmation before removal.
+     */
+    public boolean requiresRemovalConfirmation() {
+        return TemplateUrlJni.get().requiresRemovalConfirmation(mTemplateUrlPtr);
+    }
+
     public long getNativePtr() {
         return mTemplateUrlPtr;
     }
@@ -135,6 +157,8 @@ public class TemplateUrl {
 
         String getKeyword(long templateUrlPtr);
 
+        boolean isPrepopulatedOrProgramProvided(long templateUrlPtr);
+
         boolean isPrepopulatedOrDefaultProviderByPolicy(long templateUrlPtr);
 
         long getLastVisitedTime(long templateUrlPtr);
@@ -149,6 +173,8 @@ public class TemplateUrl {
         String getNewTabURL(long templateUrlPtr);
 
         GURL getFaviconURL(long templateUrlPtr);
+
+        boolean requiresRemovalConfirmation(long templateUrlPtr);
 
         byte @Nullable [] getBuiltInSearchEngineIcon(long templateUrlPtr);
     }

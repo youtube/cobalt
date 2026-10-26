@@ -55,11 +55,11 @@ namespace blink {
 
 namespace {
 bool IsCSS(const AtomicString& type) {
-  return type.empty() || EqualIgnoringASCIICase(type, keywords::kTextCss);
+  return type.empty() || EqualIgnoringAsciiCase(type, keywords::kTextCss);
 }
 
 bool IsCSSModule(const AtomicString& type) {
-  return EqualIgnoringASCIICase(type, keywords::kModule);
+  return EqualIgnoringAsciiCase(type, keywords::kModule);
 }
 }  // namespace
 
@@ -90,7 +90,7 @@ StyleElement::ProcessingResult StyleElement::ProcessStyleSheet(
   // Module type is static based upon when it's first connected.
   // TODO(crbug.com/448174611): Confirm this with the WHATWG and update behavior
   // according to WHATWG resolutions.
-  if (RuntimeEnabledFeatures::DeclarativeCSSModulesEnabled()) {
+  if (RuntimeEnabledFeatures::DeclarativeCSSModulesStyleTagEnabled()) {
     if ((element_type_ == StyleType::kPending) && element.isConnected()) {
       // TODO(crbug.com/448174611): For consistency with Import Maps, should we
       // mimic passing "Already Started" state when cloneNode is called? This
@@ -138,6 +138,11 @@ void StyleElement::RemovedFrom(Element& element,
 
 StyleElement::ProcessingResult StyleElement::ChildrenChanged(Element& element) {
   if (!has_finished_parsing_children_) {
+    return kProcessingSuccessful;
+  }
+  // CSS module content is static at parse time. Content changes should not
+  // re-process on the new content.
+  if (IsModule()) {
     return kProcessingSuccessful;
   }
   probe::WillChangeStyleElement(&element);
@@ -201,7 +206,7 @@ StyleElement::ProcessingResult StyleElement::CreateSheetOrModule(
   // TODO(crbug.com/448174611) - should Declarative CSS Modules continue
   // respecting CSP? Need to confirm with WHATWG.
   if (passes_content_security_policy_checks && IsModule()) {
-    CHECK(RuntimeEnabledFeatures::DeclarativeCSSModulesEnabled());
+    CHECK(RuntimeEnabledFeatures::DeclarativeCSSModulesStyleTagEnabled());
     AddImportMapEntry(element, text);
 
     // Return early, since we explicitly *don't* want to create a CSSStyleSheet
@@ -289,7 +294,7 @@ void StyleElement::AddImportMapEntry(Element& element, const String& text) {
   if (use_data_uri) {
     // TODO(crbug.com/448174611) - consider encoding in base64 to decrease
     // string size in memory (at the expense of decoding on the CPU).
-    url_string = StrCat({"data:text/css,", EncodeWithURLEscapeSequences(text)});
+    url_string = StrCat({"data:text/css,", EncodeWithUrlEscapeSequences(text)});
   } else {
     StringUtf8Adaptor utf8(text, Utf8ConversionMode::kLenient);
     auto* blob = Blob::Create(base::as_byte_span(utf8), "text/css");
@@ -359,7 +364,7 @@ bool StyleElement::IsLoading() const {
 bool StyleElement::IsModule() const {
   // It's only possible to set the type to module when the flag is enabled.
   DCHECK(element_type_ != StyleType::kModule ||
-         RuntimeEnabledFeatures::DeclarativeCSSModulesEnabled());
+         RuntimeEnabledFeatures::DeclarativeCSSModulesStyleTagEnabled());
   return element_type_ == StyleType::kModule;
 }
 

@@ -13,6 +13,7 @@
 #include "base/metrics/user_metrics_action.h"
 #include "base/notreached.h"
 #include "base/values.h"
+#include "build/branding_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/browser_process.h"
@@ -34,6 +35,7 @@
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager.h"
 #include "components/autofill/core/common/aliases.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/password_manager/content/browser/content_password_manager_driver.h"
 #include "components/password_manager/core/browser/password_autofill_manager.h"
 #include "components/password_manager/core/browser/password_counter.h"
@@ -83,15 +85,18 @@ const gfx::VectorIcon& kPlusAddressLogoIcon = vector_icons::kEmailIcon;
 #endif
 
 bool ShouldShowAutofillContextMenu(const content::ContextMenuParams& params) {
+  if (params.is_content_editable_for_autofill) {
+    return true;
+  }
   if (!params.form_control_type) {
     return false;
   }
   // Return true (only) on text fields.
   //
   // Note that this switch is over `blink::mojom::FormControlType`, not
-  // `autofill::FormControlType`. Therefore, it does not handle
-  // `autofill::FormControlType::kContentEditable`, which is covered by the
-  // above if-condition `!params.form_control_type`.
+  // `autofill::FormControlType`. Standard form controls are handled by this
+  // switch, while `contenteditable` elements are handled by the
+  // `is_content_editable_for_autofill` check above.
   //
   // TODO(crbug.com/40285492): Unify with functions from form_autofill_util.cc.
   switch (*params.form_control_type) {
@@ -137,6 +142,7 @@ bool IsAutofillCustomCommandId(
     AutofillContextMenuManager::CommandId command_id) {
   static constexpr auto kAutofillCommands = base::MakeFixedFlatSet<int>({
       IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PLUS_ADDRESS,
+      IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY,
       IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK,
       IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD,
       IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_IMPORT_PASSWORDS,
@@ -204,7 +210,13 @@ AutofillContextMenuManager::AutofillContextMenuManager(
 AutofillContextMenuManager::~AutofillContextMenuManager() = default;
 
 void AutofillContextMenuManager::AppendItems() {
+  if (params_.is_content_editable_for_autofill) {
+    MaybeAddAutofillAtMemoryItem();
+    return;
+  }
+
   MaybeAddAutofillManualFallbackItems();
+  MaybeAddAutofillAtMemoryItem();
   MaybeAddAutofillFeedbackItem();
 }
 
@@ -236,6 +248,11 @@ void AutofillContextMenuManager::ExecuteCommand(int command_id) {
   if (command_id == IDC_CONTENT_CONTEXT_AUTOFILL_FEEDBACK) {
     ExecuteAutofillFeedbackCommand(autofill_driver->GetFrameToken(),
                                    autofill_driver->GetAutofillManager());
+    return;
+  }
+
+  if (command_id == IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY) {
+    ExecuteFallbackForAtMemoryCommand(*autofill_driver);
     return;
   }
 
@@ -295,6 +312,34 @@ void AutofillContextMenuManager::MaybeAddAutofillFeedbackItem() {
 
     menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
   }
+}
+
+void AutofillContextMenuManager::MaybeAddAutofillAtMemoryItem() {
+  if (!base::FeatureList::IsEnabled(features::kAutofillAtMemory)) {
+    return;
+  }
+
+  if (!ShouldShowAutofillContextMenu(params_)) {
+    return;
+  }
+
+  content::RenderFrameHost* rfh = delegate_->GetRenderFrameHost();
+  if (!rfh) {
+    return;
+  }
+
+  ContentAutofillDriver* autofill_driver =
+      ContentAutofillDriver::GetForRenderFrameHost(rfh);
+  if (!autofill_driver || !autofill_driver->CanShowAutofillUi()) {
+    return;
+  }
+
+  menu_model_->AddItemWithStringIdAndIcon(
+      IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY,
+      IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_AT_MEMORY,
+      ui::ImageModel::FromVectorIcon(vector_icons::kSearchIcon, ui::kColorIcon,
+                                     kContextMenuIconSize));
+  menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
 }
 
 void AutofillContextMenuManager::MaybeAddAutofillManualFallbackItems() {
@@ -458,6 +503,13 @@ void AutofillContextMenuManager::
                                   IsPasswordFormField(*password_manager_driver,
                                                       params_));
   }
+}
+
+void AutofillContextMenuManager::ExecuteFallbackForAtMemoryCommand(
+    AutofillDriver& driver) {
+  driver.RendererShouldTriggerSuggestions(
+      {driver.GetFrameToken(), FieldRendererId(params_.field_renderer_id)},
+      AutofillSuggestionTriggerSource::kAtMemoryContextMenu);
 }
 
 void AutofillContextMenuManager::ExecuteAutofillFeedbackCommand(

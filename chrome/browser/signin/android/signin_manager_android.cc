@@ -48,7 +48,7 @@
 #include "google_apis/gaia/gaia_auth_util.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
-#include "chrome/android/chrome_jni_headers/SigninManagerImpl_jni.h"
+#include "chrome/browser/signin/services/android/jni_headers/SigninManagerImpl_jni.h"
 
 using base::android::JavaRef;
 
@@ -323,8 +323,9 @@ void SigninManagerAndroid::WipeData(Profile* profile,
   new ProfileDataRemover(profile, cleared_types, std::move(callback));
 }
 
-static std::string JNI_SigninManagerImpl_ExtractDomainName(JNIEnv* env,
-                                                           std::string& email) {
+static std::string JNI_SigninManagerImpl_ExtractDomainName(
+    JNIEnv* env,
+    const std::string& email) {
   return gaia::ExtractDomainName(email);
 }
 

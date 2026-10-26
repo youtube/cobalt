@@ -11,6 +11,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/strings/strcat.h"
+#include "components/bookmarks/common/storage_file_encryption_type.h"
 #include "components/bookmarks/common/url_load_stats.h"
 #include "components/bookmarks/common/user_folder_load_stats.h"
 
@@ -38,6 +39,8 @@ std::string_view GetStorageStateSuffixForMetrics(
   NOTREACHED();
 }
 
+// LINT.IfChange(BookmarksFileType)
+
 std::string_view GetStorageFileSuffixForMetrics(
     StorageFileForUma storage_file) {
   switch (storage_file) {
@@ -48,6 +51,21 @@ std::string_view GetStorageFileSuffixForMetrics(
   }
   NOTREACHED();
 }
+// LINT.ThenChange(/tools/metrics/histograms/metadata/bookmarks/histograms.xml:BookmarksFileType)
+
+// LINT.IfChange(EncryptionType)
+
+std::string_view GetStorageFileEncryptionTypeSuffixForMetrics(
+    StorageFileEncryptionType encryption_type) {
+  switch (encryption_type) {
+    case StorageFileEncryptionType::kClearText:
+      return ".ClearText";
+    case StorageFileEncryptionType::kEncrypted:
+      return ".Encrypted";
+  }
+  NOTREACHED();
+}
+// LINT.ThenChange(/tools/metrics/histograms/metadata/bookmarks/histograms.xml:EncryptionType)
 
 }  // namespace
 
@@ -112,10 +130,14 @@ void RecordTimeToLoadAtStartup(base::TimeDelta delta) {
   UmaHistogramTimes("Bookmarks.Storage.TimeToLoadAtStartup2", delta);
 }
 
-void RecordFileSizeAtStartup(int64_t total_bytes) {
+void RecordFileSizeAtStartup(StorageFileEncryptionType encryption_type,
+                             int64_t total_bytes) {
   int total_size_kb = base::saturated_cast<int>(total_bytes / kBytesPerKB);
-  base::UmaHistogramCounts1M("Bookmarks.Storage.FileSizeAtStartup2",
-                             total_size_kb);
+  base::UmaHistogramCounts1M(
+      encryption_type == StorageFileEncryptionType::kClearText
+          ? "Bookmarks.Storage.FileSizeAtStartup2"
+          : "Bookmarks.Storage.EncryptedFileSizeAtStartup",
+      total_size_kb);
 }
 
 void RecordURLEdit(BookmarkEditSource source) {
@@ -197,8 +219,19 @@ void RecordCloneBookmarkNode(int num_cloned) {
   base::UmaHistogramCounts100("Bookmarks.Clone.NumCloned", num_cloned);
 }
 
-void RecordAverageNodeSizeAtStartup(size_t size_in_bytes) {
-  base::UmaHistogramCounts10000("Bookmarks.AverageNodeSize", size_in_bytes);
+void RecordAverageNodeSizeAtStartupIfNonZero(
+    StorageFileEncryptionType encryption_type,
+    int total_url_bookmark_count,
+    size_t sum_file_size_in_bytes) {
+  if (sum_file_size_in_bytes == 0 || total_url_bookmark_count == 0) {
+    return;
+  }
+
+  base::UmaHistogramCounts10000(
+      base::StrCat(
+          {"Bookmarks.AverageNodeSize",
+           GetStorageFileEncryptionTypeSuffixForMetrics(encryption_type)}),
+      sum_file_size_in_bytes / total_url_bookmark_count);
 }
 
 void RecordIdsReassignedOnProfileLoad(StorageFileForUma storage_file,
@@ -217,6 +250,44 @@ void RecordBookmarksExistInStorageType(
                     bookmark_bar_only ? "UnderBookmarksBar"
                                       : "ConsideringAllBookmarks"}),
       storage_type);
+}
+
+void RecordBookmarksFileLoadResult(StorageFileForUma storage_file,
+                                   StorageFileEncryptionType encryption_type,
+                                   BookmarksFileLoadResult result) {
+  base::UmaHistogramEnumeration(
+      base::StrCat(
+          {"Bookmarks.BookmarksFileLoadResult",
+           GetStorageFileSuffixForMetrics(storage_file),
+           GetStorageFileEncryptionTypeSuffixForMetrics(encryption_type)}),
+      result);
+}
+
+void RecordEncryptedBookmarksFileMatchesResult(StorageFileForUma storage_file,
+                                               bool file_matches) {
+  base::UmaHistogramBoolean(
+      base::StrCat({"Bookmarks.EncryptedBookmarksFileMatchesResult",
+                    GetStorageFileSuffixForMetrics(storage_file)}),
+      file_matches);
+}
+
+void RecordTimeToReadFile(StorageFileForUma storage_file,
+                          StorageFileEncryptionType encryption_type,
+                          base::TimeDelta delta) {
+  base::UmaHistogramTimes(
+      base::StrCat(
+          {"Bookmarks.TimeToReadFile",
+           GetStorageFileSuffixForMetrics(storage_file),
+           GetStorageFileEncryptionTypeSuffixForMetrics(encryption_type)}),
+      delta);
+}
+
+void RecordFallbackToClearTextFileOnLoadResult(StorageFileForUma storage_file,
+                                               BookmarksFileLoadResult result) {
+  base::UmaHistogramEnumeration(
+      base::StrCat({"Bookmarks.FallbackToClearTextFileOnLoadResult",
+                    GetStorageFileSuffixForMetrics(storage_file)}),
+      result);
 }
 
 }  // namespace bookmarks::metrics

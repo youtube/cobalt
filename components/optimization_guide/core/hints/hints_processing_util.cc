@@ -229,6 +229,10 @@ std::string GetStringNameForOptimizationType(
       return "Skills";
     case proto::OptimizationType::PIX_PSP_ALLOWLIST:
       return "PixPspAllowlist";
+    case proto::OptimizationType::INDIGO:
+      return "Indigo";
+    case proto::OptimizationType::FINDS_PAGE_THEME:
+      return "FindsPageTheme";
   }
 
   // The returned string is used to record histograms for the optimization type.

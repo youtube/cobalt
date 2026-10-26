@@ -180,7 +180,7 @@ class RtpTransmissionManager : public RtpSenderBase::SetStreamsObserver {
       absl::string_view sender_id) const;
 
   // Return the RtpReceiver with the given id, or null if none exists.
-  scoped_refptr<RtpReceiverProxyWithInternal<RtpReceiverInternal>>
+  PLAN_B_ONLY scoped_refptr<RtpReceiverProxyWithInternal<RtpReceiverInternal>>
   FindReceiverById(absl::string_view receiver_id) const;
 
   TransceiverList* transceivers() { return &transceivers_; }

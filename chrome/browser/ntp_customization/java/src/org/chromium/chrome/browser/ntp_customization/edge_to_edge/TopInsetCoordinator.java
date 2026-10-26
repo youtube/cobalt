@@ -13,11 +13,13 @@ import androidx.annotation.VisibleForTesting;
 import androidx.core.graphics.Insets;
 import androidx.core.view.WindowInsetsCompat;
 
+import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
@@ -36,6 +38,7 @@ import org.chromium.ui.insets.InsetObserver;
 @NullMarked
 /** Class to consume top Insets to make supported native page (NTP) truly edge to edge. */
 public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, TopInsetProvider {
+    private static final String TAG = "TopInset";
     private final ObserverList<Observer> mObservers = new ObserverList<>();
     private final NullableObservableSupplier<Tab> mTabSupplier;
     private final TabObserver mTabObserver;
@@ -44,10 +47,16 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
     private final InsetObserver.WindowInsetsConsumer mWindowInsetsConsumer;
     private final OneshotSupplier<LayoutStateProvider> mLayoutStateProviderSupplier;
     private final NtpCustomizationConfigManager.HomepageStateListener mHomepageStateListener;
+    private final boolean mEnableLogs;
 
     private Insets mSystemInsets = Insets.NONE;
     private int mAppliedTopPadding;
     private boolean mConsumeTopInset;
+
+    // When the status indicator (e.g. offline indicator) is visible, edge-to-edge on top should be
+    // disabled because the status indicator occupies the space below the status bar and the NTP
+    // background cannot extend into the status bar area anyway.
+    private boolean mStatusIndicatorVisible;
 
     // A flag to indicate whether it is in the layout transition from the Tab switcher to a NTP.
     private boolean mInTabSwitcherToNtpTransition;
@@ -78,6 +87,7 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
         mInsetObserver = insetObserver;
         mTabSupplier = tabSupplier;
         mLayoutStateProviderSupplier = layoutStateProviderSupplier;
+        mEnableLogs = ChromeFeatureList.sNewTabPageCustomizationV2EnableLogs.getValue();
 
         // Observing the events when 1) a Tab shows its native page or 2) a native page
         // navigates to a URL for web page. This observer is only added when needed.
@@ -136,7 +146,7 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
                     @Override
                     public void onBackgroundImageChanged(
                             Bitmap originalBitmap,
-                            @Nullable BackgroundImageInfo backgroundImageInfo,
+                            BackgroundImageInfo backgroundImageInfo,
                             boolean fromInitialization,
                             @NtpBackgroundType int oldType,
                             @NtpBackgroundType int newType) {
@@ -175,13 +185,11 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
         // won't be updated if mTabSupplierObserver is removed.
         Tab currentTab = mTabSupplier.get();
         if (currentTab == null
-                // When swipe the toolbar inside NTP, currentTab == null. So the
-                // EdgeToEdgeLayoutCoordinator will add the top padding.
-                // We need to notify the observer of ToolbarPositionController to remove the top
-                // padding.
-                && (mLayoutStateProvider == null
-                        || mLayoutStateProvider.getActiveLayoutType()
-                                != LayoutType.TOOLBAR_SWIPE)) {
+                && mLayoutStateProvider != null
+                && mLayoutStateProvider.getActiveLayoutType() == LayoutType.TAB_SWITCHER) {
+            // We don't update toolbar's top padding on Tab switcher until tab switches. Thus, we
+            // should keep mConsumeTopInset reflect whether the top inset is consumed on the last
+            // Tab. See https://crbug.com/491888405.
             return windowInsetsCompat;
         }
 
@@ -190,8 +198,18 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
         // As long as the current native page supports to show edge to edge on top,
         // TopInsetCoordinator needs to consume the top padding every time when onApplyWindowInsets
         // is called to change the top padding of EdgeToEdgeLayout.
-        mConsumeTopInset = NtpCustomizationUtils.supportsEnableEdgeToEdgeOnTop(currentTab);
+        mConsumeTopInset =
+                NtpCustomizationUtils.supportsEnableEdgeToEdgeOnTop(currentTab)
+                        && !mStatusIndicatorVisible;
         computeEdgePaddings();
+        if (mEnableLogs) {
+            Log.i(
+                    TAG,
+                    "TopInsetCoordinator %s consume top padding, and the top padding added to the"
+                            + " parent layout will be: %d.",
+                    (mConsumeTopInset ? "will" : "will not"),
+                    mAppliedTopPadding);
+        }
         notifyObservers();
 
         if (!mConsumeTopInset) return windowInsetsCompat;
@@ -270,6 +288,13 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
             shouldReTriggerOnApplyWindowInsets = true;
         }
 
+        if (mEnableLogs) {
+            Log.i(
+                    TAG,
+                    "onTabSwitched %s trigger OnApplyWindowInsets with current Tab %s a NTP.",
+                    (shouldReTriggerOnApplyWindowInsets ? "will" : "will not"),
+                    isRegularNtp ? "is" : "isn't");
+        }
         if (shouldReTriggerOnApplyWindowInsets) {
             mInsetObserver.retriggerOnApplyWindowInsets();
         }
@@ -277,8 +302,26 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
 
     private void notifyObservers() {
         for (var observer : mObservers) {
-            observer.onToEdgeChange(mSystemInsets.top, mConsumeTopInset);
+            observer.onToEdgeChange(
+                    mSystemInsets.top,
+                    mConsumeTopInset,
+                    mLayoutStateProvider != null
+                            ? mLayoutStateProvider.getActiveLayoutType()
+                            : LayoutType.NONE);
         }
+    }
+
+    /**
+     * Sets whether the status indicator (e.g. offline indicator) is currently visible. When
+     * visible, edge-to-edge on top is disabled to avoid the status indicator being obscured by the
+     * status bar.
+     *
+     * @param visible Whether the status indicator is visible.
+     */
+    public void setStatusIndicatorVisible(boolean visible) {
+        if (mStatusIndicatorVisible == visible) return;
+        mStatusIndicatorVisible = visible;
+        mInsetObserver.retriggerOnApplyWindowInsets();
     }
 
     /** Destroys the TopInsetCoordinator instance. */

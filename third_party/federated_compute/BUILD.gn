@@ -5,7 +5,7 @@
 import("//testing/test.gni")
 import("//third_party/protobuf/proto_library.gni")
 
-config("confidential_compute_include") {
+config("federated_compute_include") {
   include_dirs = [
     "chromium",
     "src",
@@ -15,13 +15,21 @@ config("confidential_compute_include") {
 proto_library("confidential_compute_proto") {
   sources = [
     "src/fcp/protos/confidentialcompute/data_upload_config.proto",
+    "src/fcp/protos/confidentialcompute/key.proto",
+    "src/fcp/protos/confidentialcompute/payload_transparency.proto",
     "src/fcp/protos/confidentialcompute/signed_endorsements.proto",
     "src/fcp/protos/federatedcompute/confidential_encryption_config.proto",
   ]
 
-  deps = [ "//third_party/oak:oak_proto" ]
+  deps = [
+    "//third_party/oak:oak_proto",
+    "//third_party/protobuf:google_protobuf_timestamp_lite_proto",
+  ]
 
-  import_dirs = [ "//third_party/oak/chromium" ]
+  import_dirs = [
+    "//third_party/oak/chromium",
+    "//third_party/protobuf/src",
+  ]
 
   proto_in_dir = "src"
 
@@ -48,7 +56,7 @@ source_set("confidential_compute") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 
-  public_configs = [ ":confidential_compute_include" ]
+  public_configs = [ ":federated_compute_include" ]
 
   public_deps = [
     ":confidential_compute_proto",
@@ -60,6 +68,22 @@ source_set("confidential_compute") {
     "//components/cbor",
     "//third_party/abseil-cpp:absl",
     "//third_party/boringssl",
+  ]
+}
+
+source_set("confidential_compute_crypto_test_util") {
+  public = [ "src/fcp/confidentialcompute/crypto_test_util.h" ]
+  sources = [ "chromium/fcp/confidentialcompute/crypto_test_util.cc" ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+
+  public_configs = [ ":federated_compute_include" ]
+
+  deps = [
+    ":confidential_compute",
+    "//base",
+    "//third_party/abseil-cpp:absl",
   ]
 }
 

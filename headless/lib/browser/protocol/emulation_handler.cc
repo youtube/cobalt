@@ -7,12 +7,14 @@
 #include <optional>
 #include <vector>
 
+#include "base/check_deref.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
-#include "headless/lib/browser/headless_screen.h"
+#include "build/build_config.h"
 #include "ui/display/display.h"
 #include "ui/display/display_util.h"
 #include "ui/display/headless/headless_screen_manager.h"
+#include "ui/display/headless/headless_screen_util.h"
 #include "ui/display/mojom/screen_orientation.mojom-shared.h"
 #include "ui/display/screen.h"
 #include "ui/display/screen_info.h"
@@ -29,10 +31,8 @@ const std::vector<display::Display>& GetAllDisplays() {
   // Web Platform we only have a collection of screens. So the protocol screen
   // is referring to Chrome's display. This is consistent with
   // window.getScreenDetails() API naming conventions.
-  display::Screen* screen = display::Screen::Get();
-  CHECK(screen);
-
-  return screen->GetAllDisplays();
+  display::Screen& screen = CHECK_DEREF(display::Screen::Get());
+  return screen.GetAllDisplays();
 }
 
 std::optional<display::Display> GetDisplay(int64_t display_id) {
@@ -46,10 +46,8 @@ std::optional<display::Display> GetDisplay(int64_t display_id) {
 }
 
 bool IsPrimaryDisplay(int64_t display_id) {
-  display::Screen* screen = display::Screen::Get();
-  CHECK(screen);
-
-  return screen->GetPrimaryDisplay().id() == display_id;
+  display::Screen& screen = CHECK_DEREF(display::Screen::Get());
+  return screen.GetPrimaryDisplay().id() == display_id;
 }
 
 std::string GetProtocolScreenOrientation(
@@ -80,6 +78,17 @@ std::unique_ptr<protocol::Emulation::ScreenInfo> CreateScreenInfo(
     const display::Display& display) {
   display::ScreenInfo screen_info;
   display::DisplayUtil::DisplayToScreenInfo(&screen_info, display);
+
+  // The display::Display rotation is the physical display rotation, while the
+  // display::ScreenInfo orientation is the rotation required by the content to
+  // be shown properly on the screen, see DisplayUtil::DisplayToScreenInfo().
+#if defined(USE_AURA)
+  if (screen_info.orientation_angle == 90) {
+    screen_info.orientation_angle = 270;
+  } else if (screen_info.orientation_angle == 270) {
+    screen_info.orientation_angle = 90;
+  }
+#endif
 
   return Emulation::ScreenInfo::Create()
       .SetLeft(screen_info.rect.x())
@@ -153,8 +162,8 @@ Response EmulationHandler::AddScreen(
   }
 
   display::Display display;
-  display::HeadlessScreenManager::SetDisplayGeometry(
-      display, bounds, insets, device_pixel_ratio.value_or(1.0f));
+  headless::SetDisplayGeometry(display, bounds, insets,
+                               device_pixel_ratio.value_or(1.0f));
 
   if (rotation) {
     if (!display::Display::IsValidRotation(*rotation)) {
@@ -167,7 +176,8 @@ Response EmulationHandler::AddScreen(
   display.set_color_depth(color_depth.value_or(24));
   display.set_label(label.value_or(""));
 
-  int64_t display_id = HeadlessScreen::AddDisplay(display);
+  int64_t display_id =
+      display::HeadlessScreenManager::Get()->AddDisplay(display);
 
   auto new_display = GetDisplay(display_id);
   if (!new_display) {
@@ -182,6 +192,88 @@ Response EmulationHandler::AddScreen(
   }
 
   *out_screen_info = CreateScreenInfo(*new_display);
+
+  return Response::Success();
+}
+
+Response EmulationHandler::UpdateScreen(
+    const String& screen_id,
+    std::optional<int> left,
+    std::optional<int> top,
+    std::optional<int> width,
+    std::optional<int> height,
+    std::unique_ptr<protocol::Emulation::WorkAreaInsets> work_area_insets,
+    std::optional<double> device_pixel_ratio,
+    std::optional<int> rotation,
+    std::optional<int> color_depth,
+    std::optional<String> label,
+    std::optional<bool> is_internal,
+    std::unique_ptr<protocol::Emulation::ScreenInfo>* out_screen_info) {
+  CHECK(display::Screen::Get()->IsHeadless());
+
+  int64_t display_id;
+  if (!base::StringToInt64(screen_id, &display_id)) {
+    return Response::InvalidParams("Invalid screen id: " + screen_id);
+  }
+
+  std::optional<display::Display> display = GetDisplay(display_id);
+  if (!display) {
+    return Response::InvalidParams("Unknown screen id: " + screen_id);
+  }
+
+  if (IsPrimaryDisplay(display_id) &&
+      (left.value_or(0) != 0 || top.value_or(0) != 0)) {
+    return Response::InvalidParams("Primary screen origin must be at 0,0");
+  }
+
+  std::optional<int> top_work_area_inset;
+  std::optional<int> left_work_area_inset;
+  std::optional<int> bottom_work_area_inset;
+  std::optional<int> right_work_area_inset;
+  if (work_area_insets) {
+    top_work_area_inset = work_area_insets->GetTop();
+    left_work_area_inset = work_area_insets->GetLeft();
+    bottom_work_area_inset = work_area_insets->GetBottom();
+    right_work_area_inset = work_area_insets->GetRight();
+  }
+
+  if (device_pixel_ratio) {
+    // Apply the same constrains as in Display::SetScale().
+    if (*device_pixel_ratio < 0.5f) {
+      return Response::InvalidParams(
+          "Invalid device pixel ratio, must be >= 0.5");
+    }
+#if BUILDFLAG(IS_APPLE)
+    if (*device_pixel_ratio != static_cast<int>(*device_pixel_ratio)) {
+      return Response::InvalidParams(
+          "Invalid device pixel ratio, must be integral");
+    }
+#endif
+  }
+
+  if (rotation) {
+    if (!display::Display::IsValidRotation(*rotation)) {
+      return Response::InvalidParams("Invalid screen rotation: " +
+                                     base::NumberToString(*rotation));
+    }
+  }
+
+  headless::UpdateDisplay(
+      *display, left, top, width, height, top_work_area_inset,
+      left_work_area_inset, bottom_work_area_inset, right_work_area_inset,
+      device_pixel_ratio, rotation, color_depth, label, is_internal);
+
+  display::HeadlessScreenManager::Get()->UpdateDisplay(*display);
+
+  auto updated_display = GetDisplay(display_id);
+  if (!updated_display) {
+    return Response::InvalidParams("Failed to update screen id: " +
+                                   base::NumberToString(display_id));
+  }
+
+  CHECK_EQ(updated_display->id(), display_id);
+
+  *out_screen_info = CreateScreenInfo(*updated_display);
 
   return Response::Success();
 }
@@ -207,7 +299,24 @@ Response EmulationHandler::RemoveScreen(const String& screen_id) {
     return Response::InvalidParams("Cannot remove the primary screen");
   }
 
-  HeadlessScreen::RemoveDisplay(display_id);
+  display::HeadlessScreenManager::Get()->RemoveDisplay(display_id);
+
+  return Response::Success();
+}
+
+Response EmulationHandler::SetPrimaryScreen(const String& screen_id) {
+  CHECK(display::Screen::Get()->IsHeadless());
+
+  int64_t display_id;
+  if (!base::StringToInt64(screen_id, &display_id)) {
+    return Response::InvalidParams("Invalid screen id: " + screen_id);
+  }
+
+  if (!GetDisplay(display_id)) {
+    return Response::InvalidParams("Unknown screen id: " + screen_id);
+  }
+
+  display::HeadlessScreenManager::Get()->SetPrimaryDisplay(display_id);
 
   return Response::Success();
 }

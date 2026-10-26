@@ -1,0 +1,67 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#import "ios/chrome/browser/picture_in_picture/coordinator/picture_in_picture_mediator.h"
+
+#import "base/metrics/histogram_functions.h"
+#import "base/strings/strcat.h"
+#import "ios/chrome/browser/default_browser/model/utils.h"
+#import "ios/chrome/browser/default_browser/promo/public/features.h"
+#import "ios/chrome/browser/picture_in_picture/public/picture_in_picture_configuration.h"
+#import "ios/chrome/browser/picture_in_picture/public/picture_in_picture_constants.h"
+
+@implementation PictureInPictureMediator {
+  PictureInPictureConfiguration* _configuration;
+  int _primaryButtonTapCount;
+}
+
+- (instancetype)initWithConfiguration:
+    (PictureInPictureConfiguration*)configuration {
+  self = [super init];
+  if (self) {
+    _configuration = configuration;
+  }
+  return self;
+}
+
+#pragma mark - Public
+
+- (void)recordPrimaryButtonTapCount {
+  base::UmaHistogramCounts10000(
+      base::StrCat({"IOS.PictureInPicture.",
+                    PictureInPictureFeatureToString(_configuration.feature),
+                    ".PrimaryButtonTapCount"}),
+      _primaryButtonTapCount);
+}
+
+#pragma mark - PictureInPictureMutator
+
+- (void)startDestination {
+  switch (_configuration.feature) {
+    case PictureInPictureFeature::kDefaultBrowser:
+      OpenIOSDefaultBrowserSettingsPage(IsDefaultAppsPictureInPictureVariant());
+      break;
+  }
+}
+
+#pragma mark - ButtonStackActionDelegate
+
+- (void)didTapPrimaryActionButton {
+  _primaryButtonTapCount++;
+  switch (_configuration.feature) {
+    case PictureInPictureFeature::kDefaultBrowser:
+      OpenIOSDefaultBrowserSettingsPage(IsDefaultAppsPictureInPictureVariant());
+      break;
+  }
+}
+
+- (void)didTapSecondaryActionButton {
+  // Not used.
+}
+
+- (void)didTapTertiaryActionButton {
+  // Not used.
+}
+
+@end

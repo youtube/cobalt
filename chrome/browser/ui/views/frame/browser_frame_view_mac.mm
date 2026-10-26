@@ -15,6 +15,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/themes/theme_service.h"
@@ -116,6 +117,11 @@ BrowserFrameViewMac::~BrowserFrameViewMac() {
 // BrowserFrameViewMac, BrowserFrameView implementation:
 
 void BrowserFrameViewMac::OnFullscreenStateChanged() {
+  if (GetBrowserView()->IsFullscreen()) {
+    PictureInPictureWindowManager::GetInstance()
+        ->OnAnyBrowserEnteredFullscreen();
+  }
+
   // Record the start of a browser fullscreen session. Content fullscreen is
   // ignored.
   if (GetBrowserView()->IsFullscreen() &&
@@ -155,6 +161,22 @@ void BrowserFrameViewMac::OnFullscreenStateChanged() {
     [fullscreen_toolbar_controller_ exitFullscreenMode];
   }
   GetBrowserView()->DeprecatedLayoutImmediately();
+}
+
+void BrowserFrameViewMac::OnTabStripStateChanged() {
+  NSWindow* const window = GetWidget()->GetNativeWindow().GetNativeNSWindow();
+  if (!window) {
+    return;
+  }
+
+  // When switching between horizontal and vertical tab strip, the height of the
+  // caption button container may change so it needs to be repositioned.
+  // Toggling the full size content view mask is a hacky way to force the
+  // caption button to re-layout. Note that this will only work for normal
+  // browser windows (not PWAs or anything using a remote `NSWindow`).
+  const NSUInteger style_mask = [window styleMask];
+  [window setStyleMask:style_mask ^ NSWindowStyleMaskFullSizeContentView];
+  [window setStyleMask:style_mask];
 }
 
 bool BrowserFrameViewMac::CaptionButtonsOnLeadingEdge() const {
@@ -299,6 +321,15 @@ views::LayoutAlignment BrowserFrameViewMac::GetWindowTitleAlignment() const {
   } else {
     return views::LayoutAlignment::kCenter;
   }
+}
+
+gfx::RoundedCornersF BrowserFrameViewMac::GetWindowRoundedCorners() const {
+  if (auto* const widget = GetWidget();
+      widget && !widget->IsFullscreen() && !widget->IsMaximized()) {
+    return gfx::RoundedCornersF(
+        GetLayoutConstant(LayoutConstant::kToolbarCornerRadius));
+  }
+  return gfx::RoundedCornersF();
 }
 
 ///////////////////////////////////////////////////////////////////////////////

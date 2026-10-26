@@ -102,34 +102,47 @@ void LockProcessIfNeeded(ChildProcessId process_id,
 
 }  // namespace
 
-// Parameterize the tests to run with and without
-// features::kCommittedOriginEnforcements, for https://crbug.com/40148776.
-enum class ChildProcessSecurityPolicyTestCase {
-  kCommittedOriginEnforcementsDisabled,
-  kCommittedOriginEnforcementsEnabled,
-};
 class ChildProcessSecurityPolicyTest
     : public testing::Test,
-      public ::testing::WithParamInterface<ChildProcessSecurityPolicyTestCase> {
+      public ::testing::WithParamInterface<RustPolicy> {
  public:
   ChildProcessSecurityPolicyTest()
       : task_environment_(BrowserTaskEnvironment::REAL_IO_THREAD),
         old_browser_client_(nullptr) {
     // Force committed origin tracking to always be performed, and enable the
-    // enforcements based on that tracking according to test parameterization.
-    feature_list_.InitWithFeatureStates(
-        {{features::kCommittedOriginEnforcements,
-          GetParam() == ChildProcessSecurityPolicyTestCase::
-                            kCommittedOriginEnforcementsEnabled},
-         {features::kCommittedOriginTracking, true}});
+    // enforcements based on that tracking.
+    std::vector<base::test::FeatureRefAndParams> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    enabled_features.push_back({features::kCommittedOriginEnforcements, {}});
+    enabled_features.push_back({features::kCommittedOriginTracking, {}});
+
+    // Apply test params to run in three modes: kCppOnly, kRustOnly, and
+    // kRustAndCpp. kCppOnly should turn off kChildProcessSecurityPolicyRust,
+    // while the other two modes should enable it with a proper FeatureParam to
+    // set the mode.
+    if (GetParam() == RustPolicy::kCppOnly) {
+      disabled_features.push_back(kChildProcessSecurityPolicyRust);
+    } else {
+      enabled_features.push_back(
+          {kChildProcessSecurityPolicyRust,
+           {{kRustPolicyParam.name, kRustPolicyParam.GetName(GetParam())}}});
+    }
+
+    feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                disabled_features);
   }
 
   static std::string DescribeParams(
       const testing::TestParamInfo<ParamType>& info) {
-    return info.param == ChildProcessSecurityPolicyTestCase::
-                             kCommittedOriginEnforcementsEnabled
-               ? "CommittedOriginEnforcementsEnabled"
-               : "CommittedOriginEnforcementsDisabled";
+    switch (info.param) {
+      case RustPolicy::kCppOnly:
+        return "CppOnly";
+      case RustPolicy::kRustOnly:
+        return "RustOnly";
+      case RustPolicy::kRustAndCpp:
+        return "RustAndCpp";
+    }
   }
 
   void SetUp() override {
@@ -149,7 +162,22 @@ class ChildProcessSecurityPolicyTest
 #endif
     SiteIsolationPolicy::DisableFlagCachingForTesting();
 
+    // With unit tests, it's possible that the same global
+    // ChildProcessSecurityPolicyImpl instance is reused while running multiple
+    // tests, possibly in different Rust modes. So, it's not sufficient to rely
+    // on the ChildProcessSecurityPolicyImpl constructor to register web-safe
+    // and pseudo schemes, because the constructor could've run for a test in
+    // kCppOnly mode, initializing those schemes only on the C++ side, and then
+    // the CPSPI is reused for a subsequent test running in kRustOnly mode.
+    // Ensure that default schemes are registered in whichever mode this test is
+    // running in.
+    //
+    // TODO(crbug.com/493156320): Find a more comprehensive way to do
+    // ChildProcessSecurityPolicy state reset in unit tests.
     auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
+    policy->ResetRegisteredSchemesForTesting();
+
+    // Also make sure the per-process SecurityStates don't leak across tests.
     {
       base::AutoLock lock(policy->lock_);
       EXPECT_EQ(0u, policy->security_states_.GetSizeForTesting())
@@ -160,6 +188,8 @@ class ChildProcessSecurityPolicyTest
   }
 
   void TearDown() override {
+    // TODO(crbug.com/493156320): Find a more comprehensive way to do
+    // ChildProcessSecurityPolicy state reset in unit tests.
     auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
     {
       base::AutoLock lock(policy->lock_);
@@ -345,10 +375,12 @@ class ChildProcessSecurityPolicyTest_NoOriginKeyedProcessesByDefault
     : public ChildProcessSecurityPolicyTest {
  public:
   ChildProcessSecurityPolicyTest_NoOriginKeyedProcessesByDefault() {
-    feature_list().Reset();
-    feature_list().InitAndDisableFeature(
+    okpbd_feature_list_.InitAndDisableFeature(
         features::kOriginKeyedProcessesByDefault);
   }
+
+ private:
+  base::test::ScopedFeatureList okpbd_feature_list_;
 };
 
 TEST_P(ChildProcessSecurityPolicyTest, ChildID) {
@@ -1352,25 +1384,16 @@ TEST_P(ChildProcessSecurityPolicyTest, CanAccessDataForOrigin_URL) {
 
   // Verify unlocked origin permissions.
   for (auto url : kAllTestUrls) {
-    if (AreAllSitesIsolatedForTesting() ||
-        base::FeatureList::IsEnabled(features::kCommittedOriginEnforcements)) {
-      // An unlocked process cannot access URLs below (because with
-      // site-per-process all the URLs need to be isolated). If
-      // CanAccessDataForOrigin enforcement uses committed origin tracking, then
-      // these should fail even without site isolation, since the process hasn't
-      // committed any origins at this point.
-      EXPECT_FALSE(
-          p->CanAccessDataForOrigin(kRendererID, url::Origin::Create(url)))
-          << url;
-      EXPECT_FALSE(handle.CanAccessDataForOrigin(url::Origin::Create(url)))
-          << url;
-    } else {
-      EXPECT_TRUE(
-          p->CanAccessDataForOrigin(kRendererID, url::Origin::Create(url)))
-          << url;
-      EXPECT_TRUE(handle.CanAccessDataForOrigin(url::Origin::Create(url)))
-          << url;
-    }
+    // An unlocked process cannot access URLs below (because with
+    // site-per-process all the URLs need to be isolated). Since
+    // CanAccessDataForOrigin enforcement relies on committed origin tracking,
+    // these should fail even without site isolation, since the process hasn't
+    // committed any origins at this point.
+    EXPECT_FALSE(
+        p->CanAccessDataForOrigin(kRendererID, url::Origin::Create(url)))
+        << url;
+    EXPECT_FALSE(handle.CanAccessDataForOrigin(url::Origin::Create(url)))
+        << url;
   }
 
   // Isolate |foo_http_url| so we can't get a default SiteInstance.
@@ -1473,11 +1496,7 @@ TEST_P(ChildProcessSecurityPolicyTest, CanAccessDataForOrigin_Origin) {
   // where origins differ only in port.
   for (auto* url : foo_urls_with_port_mismatch) {
     auto origin = url::Origin::Create(GURL(url));
-    if (base::FeatureList::IsEnabled(features::kCommittedOriginEnforcements)) {
-      non_foo_origins.push_back(origin);
-    } else {
-      foo_origins.push_back(origin);
-    }
+    non_foo_origins.push_back(origin);
     all_origins.push_back(origin);
   }
 
@@ -1505,23 +1524,18 @@ TEST_P(ChildProcessSecurityPolicyTest, CanAccessDataForOrigin_Origin) {
 
   // Verify unlocked process permissions.
   for (const auto& origin : all_origins) {
-    if (AreAllSitesIsolatedForTesting() ||
-        base::FeatureList::IsEnabled(features::kCommittedOriginEnforcements)) {
-      // An unlocked process cannot access URLs below (because with
-      // site-per-process all the URLs need to be isolated). If
-      // CanAccessDataForOrigin enforcement uses committed origin tracking, then
-      // these should fail even without site isolation, since the process hasn't
-      // committed any origins at this point. The only exception is for opaque
-      // origins with no precursor, which are currently allowed; see TODO in
-      // ChildProcessSecurityPolicyImpl::CanAccessOrigin().
-      if (origin.opaque() &&
-          !origin.GetTupleOrPrecursorTupleIfOpaque().IsValid()) {
-        EXPECT_TRUE(p->CanAccessDataForOrigin(kRendererID, origin)) << origin;
-      } else {
-        EXPECT_FALSE(p->CanAccessDataForOrigin(kRendererID, origin)) << origin;
-      }
-    } else {
+    // An unlocked process cannot access URLs below (because with
+    // site-per-process all the URLs need to be isolated). Since
+    // CanAccessDataForOrigin enforcement uses committed origin tracking, then
+    // these should fail even without site isolation, since the process hasn't
+    // committed any origins at this point. The only exception is for opaque
+    // origins with no precursor, which are currently allowed; see TODO in
+    // ChildProcessSecurityPolicyImpl::CanAccessOrigin().
+    if (origin.opaque() &&
+        !origin.GetTupleOrPrecursorTupleIfOpaque().IsValid()) {
       EXPECT_TRUE(p->CanAccessDataForOrigin(kRendererID, origin)) << origin;
+    } else {
+      EXPECT_FALSE(p->CanAccessDataForOrigin(kRendererID, origin)) << origin;
     }
   }
 
@@ -2036,6 +2050,10 @@ TEST_P(ChildProcessSecurityPolicyTest_NoOriginKeyedProcessesByDefault,
   // There should be no isolated origins before this test starts.
   LOCKED_EXPECT_THAT(p->isolated_origins_lock_, p->isolated_origins_,
                      testing::IsEmpty());
+
+  // Also ensure that the web-safe schemes are in a proper initialized state.
+  EXPECT_TRUE(p->IsWebSafeScheme(url::kHttpsScheme));
+  EXPECT_TRUE(p->IsWebSafeScheme(url::kDataScheme));
 
   // Construct a simple case, a single isolated origin.
   //  IsolatedOriginPattern isolated("https://isolated.com");
@@ -3130,16 +3148,18 @@ TEST_P(ChildProcessSecurityPolicyTest, NoBrowsingInstanceIDs_OriginKeyed) {
             /*is_fenced=*/false,
             /*is_fixed_storage_partition=*/false);
 
-    p->Add(kRendererID, &context);
+    p->Add(kRendererProcess, &context);
     p->LockProcess(foo_instance->GetIsolationContext(), kRendererProcess,
                    /*is_process_used=*/false,
                    ProcessLock::FromSiteInfo(foo_instance->GetSiteInfo()));
     p->AddCommittedOrigin(kRendererID, foo);
 
-    EXPECT_TRUE(p->GetProcessLock(kRendererID).IsLockedToSite());
-    EXPECT_TRUE(
-        p->GetProcessLock(kRendererID).agent_cluster_key().IsOriginKeyed());
-    EXPECT_EQ(foo.GetURL(), p->GetProcessLock(kRendererID).GetProcessLockURL());
+    EXPECT_TRUE(p->GetProcessLock(kRendererProcess).IsLockedToSite());
+    EXPECT_TRUE(p->GetProcessLock(kRendererProcess)
+                    .agent_cluster_key()
+                    .IsOriginKeyed());
+    EXPECT_EQ(foo.GetURL(),
+              p->GetProcessLock(kRendererProcess).GetProcessLockURL());
 
     EXPECT_TRUE(ProcessLock::FromSiteInfo(foo_instance->GetSiteInfo())
                     .agent_cluster_key()
@@ -3181,7 +3201,7 @@ TEST_P(ChildProcessSecurityPolicyTest_NoOriginKeyedProcessesByDefault,
   // Create a SiteInstance for sub.foo.com in a new BrowsingInstance.
   TestBrowserContext context;
   {
-    p->Add(kRendererID, &context);
+    p->Add(kRendererProcess, &context);
     // Isolate foo.com so we can't get a default SiteInstance. This will mean
     // that https://sub.foo.com will end up in a site-keyed SiteInstance, which
     // is what we need.
@@ -3200,13 +3220,15 @@ TEST_P(ChildProcessSecurityPolicyTest_NoOriginKeyedProcessesByDefault,
                    ProcessLock::FromSiteInfo(foo_instance->GetSiteInfo()));
     p->AddCommittedOrigin(kRendererID, sub_foo_origin);
 
-    EXPECT_TRUE(p->GetProcessLock(kRendererID).IsLockedToSite());
+    EXPECT_TRUE(p->GetProcessLock(kRendererProcess).IsLockedToSite());
     // Note: This might become true in the future if we convert legacy isolated
     // origins to create origin-keyed AgentClusterKeys instead of site-keyed.
-    EXPECT_FALSE(
-        p->GetProcessLock(kRendererID).agent_cluster_key().IsOriginKeyed());
-    EXPECT_EQ(SiteInfo::GetSiteForOrigin(sub_foo_origin),
-              p->GetProcessLock(kRendererID).agent_cluster_key().GetSite());
+    EXPECT_FALSE(p->GetProcessLock(kRendererProcess)
+                     .agent_cluster_key()
+                     .IsOriginKeyed());
+    EXPECT_EQ(
+        SiteInfo::GetSiteForOrigin(sub_foo_origin),
+        p->GetProcessLock(kRendererProcess).agent_cluster_key().GetSite());
 
     EXPECT_FALSE(ProcessLock::FromSiteInfo(foo_instance->GetSiteInfo())
                      .agent_cluster_key()
@@ -3223,19 +3245,15 @@ TEST_P(ChildProcessSecurityPolicyTest_NoOriginKeyedProcessesByDefault,
             p->BrowsingInstanceIdCountForTesting(kRendererProcess));
 
   // Because the ProcessLock is site-keyed, it should match foo.com and all
-  // sub-origins. However, if we're in the new enforcement mode based on a list
+  // sub-origins. However, because we're in the enforcement mode based on a list
   // of committed origins, then only the specific origin we've committed
   // (sub.foo.com) will be allowed access. The other origin (foo.com) would need
   // to also be committed to get access.
   EXPECT_TRUE(p->CanAccessDataForOrigin(kRendererID, sub_foo_origin));
   url::Origin foo_origin(url::Origin::Create(GURL("https://foo.com/")));
-  if (base::FeatureList::IsEnabled(features::kCommittedOriginEnforcements)) {
-    EXPECT_FALSE(p->CanAccessDataForOrigin(kRendererID, foo_origin));
-    p->AddCommittedOrigin(kRendererID, foo_origin);
-    EXPECT_TRUE(p->CanAccessDataForOrigin(kRendererID, foo_origin));
-  } else {
-    EXPECT_TRUE(p->CanAccessDataForOrigin(kRendererID, foo_origin));
-  }
+  EXPECT_FALSE(p->CanAccessDataForOrigin(kRendererID, foo_origin));
+  p->AddCommittedOrigin(kRendererID, foo_origin);
+  EXPECT_TRUE(p->CanAccessDataForOrigin(kRendererID, foo_origin));
   EXPECT_FALSE(p->CanAccessDataForOrigin(
       kRendererID, url::Origin::Create(GURL("https://bar.com/"))));
 
@@ -3453,22 +3471,19 @@ TEST_P(ChildProcessSecurityPolicyTest, AddV8OptimizationState_AlreadyCached) {
             p->LookupAreV8OptimizationsDisabled(browsing_instance_id, origin));
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    ,
-    ChildProcessSecurityPolicyTest,
-    ::testing::Values(ChildProcessSecurityPolicyTestCase::
-                          kCommittedOriginEnforcementsDisabled,
-                      ChildProcessSecurityPolicyTestCase::
-                          kCommittedOriginEnforcementsEnabled),
-    &ChildProcessSecurityPolicyTest::DescribeParams);
+INSTANTIATE_TEST_SUITE_P(,
+                         ChildProcessSecurityPolicyTest,
+                         ::testing::Values(RustPolicy::kCppOnly,
+                                           RustPolicy::kRustOnly,
+                                           RustPolicy::kRustAndCpp),
+                         &ChildProcessSecurityPolicyTest::DescribeParams);
 
 INSTANTIATE_TEST_SUITE_P(
     ,
     ChildProcessSecurityPolicyTest_NoOriginKeyedProcessesByDefault,
-    ::testing::Values(ChildProcessSecurityPolicyTestCase::
-                          kCommittedOriginEnforcementsDisabled,
-                      ChildProcessSecurityPolicyTestCase::
-                          kCommittedOriginEnforcementsEnabled),
+    ::testing::Values(RustPolicy::kCppOnly,
+                      RustPolicy::kRustOnly,
+                      RustPolicy::kRustAndCpp),
     &ChildProcessSecurityPolicyTest::DescribeParams);
 
 }  // namespace content

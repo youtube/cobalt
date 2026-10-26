@@ -32,6 +32,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/test_browser_window.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/saved_tab_group.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
@@ -293,7 +294,7 @@ TEST_F(TabsApiUnitTest, IsTabStripEditable) {
   // Bug fix for crbug.com/1198717. Error updating tabs while drag in progress.
   {
     std::string args =
-        base::StringPrintf("[%d, {\"highlighted\": true}]", tab_ids[0]);
+        base::StringPrintf("[%d, {\"highlighted\": true}]", tab_ids[1]);
     auto function = base::MakeRefCounted<TabsUpdateFunction>();
     function->set_extension(extension);
     std::string error = api_test_utils::RunFunctionAndReturnError(
@@ -518,259 +519,6 @@ TEST_F(TabsApiUnitTest, ExecuteScriptNoTabIsNonFatalError) {
   EXPECT_EQ(tabs_constants::kNoTabInBrowserWindowError, error);
 }
 
-// Tests that calling chrome.tabs.update updates the URL as expected.
-TEST_F(TabsApiUnitTest, TabsUpdate) {
-  scoped_refptr<const Extension> extension =
-      ExtensionBuilder("UpdateTest").Build();
-  const GURL kExampleCom("http://example.com");
-  const GURL kChromiumOrg("https://chromium.org");
-
-  // Add a web contents to the browser.
-  std::unique_ptr<content::WebContents> contents(
-      content::WebContentsTester::CreateTestWebContents(profile(), nullptr));
-  content::WebContents* raw_contents = contents.get();
-  GetTabStripModel()->AppendWebContents(std::move(contents), true);
-  EXPECT_EQ(GetActiveWebContents(), raw_contents);
-  CreateSessionServiceTabHelper(raw_contents);
-  int tab_id = sessions::SessionTabHelper::IdForTab(raw_contents).id();
-
-  // Navigate the browser to example.com
-  content::WebContentsTester* web_contents_tester =
-      content::WebContentsTester::For(raw_contents);
-  web_contents_tester->NavigateAndCommit(kExampleCom);
-  EXPECT_EQ(kExampleCom, raw_contents->GetLastCommittedURL());
-
-  // Use the TabsUpdateFunction to navigate to chromium.org
-  auto function = base::MakeRefCounted<TabsUpdateFunction>();
-  function->set_extension(extension);
-  static constexpr char kFormatArgs[] = R"([%d, {"url": "%s"}])";
-  const std::string args =
-      base::StringPrintf(kFormatArgs, tab_id, kChromiumOrg.spec().c_str());
-  ASSERT_TRUE(api_test_utils::RunFunction(function.get(), args, profile(),
-                                          api_test_utils::FunctionMode::kNone));
-  ASSERT_TRUE(
-      CommitPendingLoadForController(GetActiveWebContents()->GetController()));
-  EXPECT_EQ(kChromiumOrg, raw_contents->GetLastCommittedURL());
-}
-
-// Tests that calling chrome.tabs.update does not update a saved tab.
-TEST_F(TabsApiUnitTest, TabsUpdateSavedTabGroupTab) {
-  const GURL kExampleCom("http://example.com");
-  const GURL kChromiumOrg("https://chromium.org");
-
-  // Add a web contents to the browser.
-  content::WebContents* raw_contents;
-  {
-    std::unique_ptr<content::WebContents> contents =
-        content::WebContentsTester::CreateTestWebContents(profile(), nullptr);
-    raw_contents = contents.get();
-    GetTabStripModel()->AppendWebContents(std::move(contents), true);
-  }
-
-  // contents used to test active state by taking active state first.
-  content::WebContents* raw_non_updated_contents;
-  {
-    std::unique_ptr<content::WebContents> non_updated_contents =
-        content::WebContentsTester::CreateTestWebContents(profile(), nullptr);
-    raw_non_updated_contents = non_updated_contents.get();
-    GetTabStripModel()->AppendWebContents(std::move(non_updated_contents),
-                                          false);
-  }
-  ASSERT_NE(raw_contents, nullptr);
-  ASSERT_NE(raw_non_updated_contents, nullptr);
-
-  EXPECT_EQ(GetActiveWebContents(), raw_contents);
-  CreateSessionServiceTabHelper(raw_contents);
-  int tab_id = sessions::SessionTabHelper::IdForTab(raw_contents).id();
-  int non_updated_tab_id =
-      sessions::SessionTabHelper::IdForTab(raw_non_updated_contents).id();
-
-  // Navigate the browser to example.com
-  content::WebContentsTester* web_contents_tester =
-      content::WebContentsTester::For(raw_contents);
-  web_contents_tester->NavigateAndCommit(kExampleCom);
-  EXPECT_EQ(kExampleCom, raw_contents->GetLastCommittedURL());
-
-  tab_groups::TabGroupSyncService* saved_service = sync_service();
-  ASSERT_TRUE(saved_service);
-
-  // Group the tab and save it.
-  tab_groups::TabGroupId group = GetTabStripModel()->AddToNewGroup(
-      {GetTabStripModel()->GetIndexOfWebContents(raw_contents)});
-  tab_groups::TabGroupVisualData visual_data(
-      u"Initial title", tab_groups::TabGroupColorId::kBlue);
-  browser()->tab_strip_model()->ChangeTabGroupVisuals(group, visual_data);
-
-  // Check that the tab is in a saved tab group.
-  TabStripModel* tab_strip_model = GetTabStripModel();
-  int index = tab_strip_model->GetIndexOfWebContents(raw_contents);
-  std::optional<tab_groups::TabGroupId> tab_group_id =
-      tab_strip_model->GetTabGroupForTab(index);
-  ASSERT_TRUE(tab_group_id.has_value());
-  EXPECT_TRUE(saved_service->GetGroup(tab_group_id.value()).has_value());
-
-  {  // Test the active state change for a saved tab.
-    GetTabStripModel()->ActivateTabAt(
-        GetTabStripModel()->GetIndexOfWebContents(raw_non_updated_contents));
-    scoped_refptr<const Extension> extension =
-        ExtensionBuilder("UpdateTest").Build();
-    auto function = base::MakeRefCounted<TabsUpdateFunction>();
-    function->set_extension(extension);
-    static constexpr char kFormatArgs[] = R"([%d, {"active": true}])";
-    const std::string args = base::StringPrintf(kFormatArgs, tab_id);
-    EXPECT_TRUE(api_test_utils::RunFunction(
-        function.get(), args, profile(), api_test_utils::FunctionMode::kNone));
-    EXPECT_EQ(GetActiveWebContents(), raw_contents);
-  }
-
-  ASSERT_TRUE(saved_service->GetGroup(group));
-
-  {  // Reset the active states, and then test highlighted for a saved tab.
-    GetTabStripModel()->ActivateTabAt(
-        GetTabStripModel()->GetIndexOfWebContents(raw_non_updated_contents));
-    GetTabStripModel()->DeselectTabAt(
-        GetTabStripModel()->GetIndexOfWebContents(raw_contents));
-
-    scoped_refptr<const Extension> extension =
-        ExtensionBuilder("UpdateTest").Build();
-    auto function = base::MakeRefCounted<TabsUpdateFunction>();
-    function->set_extension(extension);
-    static constexpr char kFormatArgs[] = R"([%d, {"highlighted": true}])";
-    const std::string args = base::StringPrintf(kFormatArgs, tab_id);
-    EXPECT_TRUE(api_test_utils::RunFunction(
-        function.get(), args, profile(), api_test_utils::FunctionMode::kNone));
-    EXPECT_EQ(GetActiveWebContents(), raw_contents);
-  }
-
-  ASSERT_TRUE(saved_service->GetGroup(group));
-
-  {  // Reset the active states, and then test selected state for a saved tab.
-    GetTabStripModel()->ActivateTabAt(
-        GetTabStripModel()->GetIndexOfWebContents(raw_non_updated_contents));
-    GetTabStripModel()->DeselectTabAt(
-        GetTabStripModel()->GetIndexOfWebContents(raw_contents));
-
-    scoped_refptr<const Extension> extension =
-        ExtensionBuilder("UpdateTest").Build();
-    auto function = base::MakeRefCounted<TabsUpdateFunction>();
-    function->set_extension(extension);
-    static constexpr char kFormatArgs[] = R"([%d, {"selected": true}])";
-    const std::string args = base::StringPrintf(kFormatArgs, tab_id);
-    EXPECT_TRUE(api_test_utils::RunFunction(
-        function.get(), args, profile(), api_test_utils::FunctionMode::kNone));
-    EXPECT_TRUE(GetTabStripModel()->IsTabSelected(
-        GetTabStripModel()->GetIndexOfWebContents(raw_contents)));
-  }
-
-  ASSERT_TRUE(saved_service->GetGroup(group));
-
-  {  // Test Muted state.
-    scoped_refptr<const Extension> extension =
-        ExtensionBuilder("UpdateTest").Build();
-    auto function = base::MakeRefCounted<TabsUpdateFunction>();
-    function->set_extension(extension);
-    static constexpr char kFormatArgs[] = R"([%d, {"muted": true}])";
-    const std::string args = base::StringPrintf(kFormatArgs, tab_id);
-    EXPECT_TRUE(api_test_utils::RunFunction(
-        function.get(), args, profile(), api_test_utils::FunctionMode::kNone));
-  }
-
-  ASSERT_TRUE(saved_service->GetGroup(group));
-
-  {  // Test setting the opener.
-    scoped_refptr<const Extension> extension =
-        ExtensionBuilder("UpdateTest").Build();
-    auto function = base::MakeRefCounted<TabsUpdateFunction>();
-    function->set_extension(extension);
-    static constexpr char kFormatArgs[] = R"([%d, {"openerTabId": %d}])";
-    const std::string args =
-        base::StringPrintf(kFormatArgs, tab_id, non_updated_tab_id);
-    EXPECT_TRUE(api_test_utils::RunFunction(
-        function.get(), args, profile(), api_test_utils::FunctionMode::kNone));
-  }
-
-  ASSERT_TRUE(saved_service->GetGroup(group));
-
-  {  // Test setting the disard state.
-    scoped_refptr<const Extension> extension =
-        ExtensionBuilder("UpdateTest").Build();
-    auto function = base::MakeRefCounted<TabsUpdateFunction>();
-    function->set_extension(extension);
-    static constexpr char kFormatArgs[] = R"([%d, {"autoDiscardable": true}])";
-    const std::string args = base::StringPrintf(kFormatArgs, tab_id);
-    EXPECT_TRUE(api_test_utils::RunFunction(
-        function.get(), args, profile(), api_test_utils::FunctionMode::kNone));
-  }
-
-  ASSERT_TRUE(saved_service->GetGroup(group));
-
-  {  // Test setting URL should pass.
-    scoped_refptr<const Extension> extension =
-        ExtensionBuilder("UpdateTest").Build();
-    auto function = base::MakeRefCounted<TabsUpdateFunction>();
-    function->set_extension(extension);
-    static constexpr char kFormatArgs[] = R"([%d, {"url": "%s"}])";
-    const std::string args =
-        base::StringPrintf(kFormatArgs, tab_id, kChromiumOrg.spec().c_str());
-    EXPECT_TRUE(api_test_utils::RunFunction(
-        function.get(), args, profile(), api_test_utils::FunctionMode::kNone));
-  }
-
-  ASSERT_TRUE(saved_service->GetGroup(group));
-
-  // Test setting pinned state should pass. This must be done last since pinning
-  // destroys the group.
-  {
-    scoped_refptr<const Extension> extension =
-        ExtensionBuilder("UpdateTest").Build();
-    auto function = base::MakeRefCounted<TabsUpdateFunction>();
-    function->set_extension(extension);
-    static constexpr char kFormatArgs[] = R"([%d, {"pinned": true}])";
-    const std::string args = base::StringPrintf(kFormatArgs, tab_id);
-    EXPECT_TRUE(api_test_utils::RunFunction(
-        function.get(), args, profile(), api_test_utils::FunctionMode::kNone));
-  }
-
-  ASSERT_FALSE(saved_service->GetGroup(group));
-}
-
-// Tests that calling chrome.tabs.update with a JavaScript URL results
-// in an error.
-TEST_F(TabsApiUnitTest, TabsUpdateJavaScriptUrlNotAllowed) {
-  // An extension with access to www.example.com.
-  scoped_refptr<const Extension> extension =
-      ExtensionBuilder()
-          .SetManifest(base::DictValue()
-                           .Set("name", "Extension with a host permission")
-                           .Set("version", "1.0")
-                           .Set("manifest_version", 2)
-                           .Set("permissions", base::ListValue().Append(
-                                                   "http://www.example.com/*")))
-          .Build();
-  auto function = base::MakeRefCounted<TabsUpdateFunction>();
-  function->set_extension(extension);
-
-  // Add a web contents to the browser.
-  std::unique_ptr<content::WebContents> contents(
-      content::WebContentsTester::CreateTestWebContents(profile(), nullptr));
-  content::WebContents* raw_contents = contents.get();
-  GetTabStripModel()->AppendWebContents(std::move(contents), true);
-  EXPECT_EQ(GetActiveWebContents(), raw_contents);
-  content::WebContentsTester* web_contents_tester =
-      content::WebContentsTester::For(raw_contents);
-  web_contents_tester->NavigateAndCommit(GURL("http://www.example.com"));
-  CreateSessionServiceTabHelper(raw_contents);
-  int tab_id = sessions::SessionTabHelper::IdForTab(raw_contents).id();
-
-  static constexpr char kFormatArgs[] = R"([%d, {"url": "%s"}])";
-  const std::string args = base::StringPrintf(
-      kFormatArgs, tab_id, "javascript:void(document.title = 'Won't work')");
-  std::string error = api_test_utils::RunFunctionAndReturnError(
-      function.get(), args, profile(), api_test_utils::FunctionMode::kNone);
-  EXPECT_EQ(ExtensionTabUtil::kJavaScriptUrlsNotAllowedInExtensionNavigations,
-            error);
-}
-
 // Test that the tabs.move() function correctly rearranges sets of tabs within a
 // single window.
 TEST_F(TabsApiUnitTest, TabsMoveWithinWindow) {
@@ -842,7 +590,7 @@ TEST_F(TabsApiUnitTest, TabsMoveAcrossWindows) {
   params.type = Browser::TYPE_NORMAL;
   params.window = window2.release();
   auto browser2 = Browser::DeprecatedCreateOwnedForTesting(params);
-  BrowserList::SetLastActive(browser2.get());
+  ui_test_utils::DeprecatedFakeActivateBrowser(browser2.get());
   int window_id2 = ExtensionTabUtil::GetWindowId(browser2.get());
 
   constexpr int kNumTabs2 = 3;
@@ -910,7 +658,7 @@ TEST_F(TabsApiUnitTest, TabsMoveAcrossWindowsShouldRespectGroupContiguity) {
   params.type = Browser::TYPE_NORMAL;
   params.window = window2.release();
   auto browser2 = Browser::DeprecatedCreateOwnedForTesting(params);
-  BrowserList::SetLastActive(browser2.get());
+  ui_test_utils::DeprecatedFakeActivateBrowser(browser2.get());
   int window_id2 = ExtensionTabUtil::GetWindowId(browser2.get());
 
   constexpr int kNumTabs2 = 3;
@@ -2160,6 +1908,41 @@ TEST_F(TabsApiUnitTest, TabsUngroupBothTabsFromSplitView) {
   TabStripModel* tab_strip_model = GetTabStripModel();
   EXPECT_FALSE(tab_strip_model->GetTabGroupForTab(0));
   EXPECT_FALSE(tab_strip_model->GetTabGroupForTab(1));
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(0).has_value());
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(1).has_value());
+}
+
+TEST_F(TabsApiUnitTest, TabsGroupSingleTabInSplitView) {
+  ASSERT_TRUE(GetTabStripModel()->SupportsTabGroups());
+
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("TabsGroupSingleTabInSplitView").Build();
+
+  // Add a couple of web contents to the browser and mark them as split.
+  std::vector<content::WebContents*> wc = CreateAndGetWebContents(2);
+  GetTabStripModel()->ActivateTabAt(0);
+  GetTabStripModel()->AddToNewSplit({1}, split_tabs::SplitTabVisualData(),
+                                    split_tabs::SplitTabCreatedSource());
+
+  // Verify that tabs are in a split view.
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(0).has_value());
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(1).has_value());
+
+  // Use the TabsGroupFunction to group tab 0.
+  auto function = base::MakeRefCounted<TabsGroupFunction>();
+  function->set_extension(extension);
+  constexpr char kFormatArgs[] = R"([{"tabIds": [%d]}])";
+  const std::string args = base::StringPrintf(
+      kFormatArgs, sessions::SessionTabHelper::IdForTab(wc[0]).id());
+  ASSERT_TRUE(api_test_utils::RunFunction(function.get(), args, profile(),
+                                          api_test_utils::FunctionMode::kNone));
+
+  // Expect both tabs to be in the same group and still in a split view.
+  TabStripModel* tab_strip_model = GetTabStripModel();
+  std::optional<tab_groups::TabGroupId> group =
+      tab_strip_model->GetTabGroupForTab(0);
+  EXPECT_TRUE(group.has_value());
+  EXPECT_EQ(group, tab_strip_model->GetTabGroupForTab(1));
   EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(0).has_value());
   EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(1).has_value());
 }

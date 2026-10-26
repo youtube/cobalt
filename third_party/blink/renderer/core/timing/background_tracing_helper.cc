@@ -44,7 +44,7 @@ std::optional<uint32_t> ConvertToHashInteger(std::string_view chars) {
     return std::nullopt;
   }
   for (auto c : chars) {
-    if (!IsASCIIHexDigit(c)) {
+    if (!IsAsciiHexDigit(c)) {
       return std::nullopt;
     }
   }
@@ -98,7 +98,7 @@ BackgroundTracingHelper::BackgroundTracingHelper(ExecutionContext* context) {
   // Get the hash of the domain in an encoded format (friendly for converting to
   // ASCII, and matching the format in which URLs will be encoded prior to
   // hashing in the Finch list).
-  String this_site = EncodeWithURLEscapeSequences(origin->Domain());
+  String this_site = EncodeWithUrlEscapeSequences(origin->Domain());
   std::string this_site_ascii = this_site.Ascii();
   uint32_t this_site_hash = MD5Hash32(this_site_ascii);
 

@@ -6,7 +6,6 @@
 #define REMOTING_HOST_IPC_DESKTOP_ENVIRONMENT_H_
 
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <string>
 
@@ -26,6 +25,7 @@
 #include "remoting/host/mojom/remoting_host.mojom.h"
 #include "remoting/protocol/desktop_capturer.h"
 #include "remoting/protocol/mouse_cursor_monitor.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_capture_types.h"
 
 namespace base {
@@ -122,6 +122,7 @@ class IpcDesktopEnvironmentFactory : public DesktopEnvironmentFactory,
                            const ScreenResolution& resolution) override;
   bool BindConnectionEventsReceiver(
       mojo::ScopedInterfaceEndpointHandle handle) override;
+  void SetRequiredUsername(std::string_view username) override;
   void OnDesktopSessionAgentAttached(
       int terminal_id,
       int session_id,
@@ -129,6 +130,36 @@ class IpcDesktopEnvironmentFactory : public DesktopEnvironmentFactory,
   void OnTerminalDisconnected(int terminal_id) override;
 
  private:
+  friend class IpcDesktopEnvironmentTest;
+
+  struct DesktopConnection {
+    // If `persist_desktop_sessions_` is true, this will be nullptr whenever
+    // the client has disconnected.
+    raw_ptr<DesktopSessionProxy> desktop_session_proxy;
+
+    // The identifier of the CRD client to ensure the correct desktop session
+    // is reused in case the host is configured to accept connections from
+    // multiple client users.
+    std::string client_id;
+  };
+
+  // List of DesktopEnvironment instances we've told the daemon process about.
+  using ConnectionsList = absl::flat_hash_map<int, DesktopConnection>;
+
+  ConnectionsList::iterator FindConnection(const DesktopSessionProxy* proxy);
+
+  // If `persist_desktop_sessions_` is true, instead of closing the desktop
+  // session when the client disconnects, the session will remain active while
+  // the pipe to the desktop process is disconnected. When the client with
+  // the same email address reconnects, the desktop session will be reused and
+  // the desktop process will be requested to send a new desktop pipe.
+  // TODO: yuweih - see if it makes sense to enable it on Windows.
+#if BUILDFLAG(IS_LINUX)
+  bool persist_desktop_sessions_ = true;
+#else
+  bool persist_desktop_sessions_ = false;
+#endif
+
   // Used to run the audio capturer.
   scoped_refptr<base::SingleThreadTaskRunner> audio_task_runner_;
 
@@ -137,16 +168,15 @@ class IpcDesktopEnvironmentFactory : public DesktopEnvironmentFactory,
 
   // Task runner used for running background I/O.
   scoped_refptr<base::SingleThreadTaskRunner> io_task_runner_;
-
-  // List of DesktopEnvironment instances we've told the daemon process about.
-  typedef std::map<int, raw_ptr<DesktopSessionProxy, CtnExperimental>>
-      ActiveConnectionsList;
-  ActiveConnectionsList active_connections_;
+  ConnectionsList connections_;
 
   // Next desktop session ID. IDs are allocated sequentially starting from 0.
   // This gives us more than 67 years of unique IDs assuming a new ID is
   // allocated every second.
   int next_id_ = 0;
+
+  // See DesktopSessionConnector::SetRequiredUsername().
+  std::string required_username_;
 
   mojo::AssociatedRemote<mojom::DesktopSessionManager> desktop_session_manager_;
 

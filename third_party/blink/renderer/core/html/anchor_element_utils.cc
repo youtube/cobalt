@@ -143,7 +143,7 @@ void AnchorElementUtils::HandleRelAttribute(FrameLoadRequest& frame_request,
     frame_request.SetNoOpener();
   }
   if (HasRel(link_relations, kRelationNoOpener) ||
-      (EqualIgnoringASCIICase(target, "_blank") &&
+      (EqualIgnoringAsciiCase(target, "_blank") &&
        !HasRel(link_relations, kRelationOpener) &&
        settings->GetTargetBlankImpliesNoOpenerEnabledWillBeRemoved())) {
     frame_request.SetNoOpener();
@@ -163,7 +163,7 @@ bool AnchorElementUtils::HasRel(uint32_t link_relations, uint32_t relation) {
 uint32_t AnchorElementUtils::ParseRelAttribute(const AtomicString& value,
                                                Document& document) {
   uint32_t link_relations = 0;
-  SpaceSplitString new_link_relations(value.LowerASCII());
+  SpaceSplitString new_link_relations(value.ToAsciiLower());
   // FIXME: Add link relations as they are implemented
   if (new_link_relations.Contains(AtomicString("noreferrer"))) {
     link_relations |= kRelationNoReferrer;
@@ -208,9 +208,9 @@ void AnchorElementUtils::SendPings(const KURL& destination_url,
     return;
   }
 
-  if ((ping_value.Contains('\n') || ping_value.Contains('\r') ||
-       ping_value.Contains('\t')) &&
-      ping_value.Contains('<')) {
+  if ((ping_value.contains('\n') || ping_value.contains('\r') ||
+       ping_value.contains('\t')) &&
+      ping_value.contains('<')) {
     Deprecation::CountDeprecation(
         document.GetExecutionContext(),
         WebFeature::kCanRequestURLHTTPContainingNewline);

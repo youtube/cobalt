@@ -197,7 +197,17 @@ bssl::CertificateTrust TrustStoreAndroid::GetTrust(
 
 std::shared_ptr<const bssl::MTCAnchor> TrustStoreAndroid::GetTrustedMTCIssuerOf(
     const bssl::ParsedCertificate* cert) {
+#if BUILDFLAG(IS_COBALT)
+  // MaybeInitializeAndGetImpl() returns nullptr while another thread is still
+  // initializing the store. Treat that as "no MTC issuer", like the base
+  // bssl::TrustStore implementation.
+  if (auto impl = MaybeInitializeAndGetImpl()) {
+    return impl->GetTrustedMTCIssuerOf(cert);
+  }
+  return nullptr;
+#else
   return MaybeInitializeAndGetImpl()->GetTrustedMTCIssuerOf(cert);
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 std::vector<net::PlatformTrustStore::CertWithTrust>

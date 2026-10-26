@@ -6,13 +6,14 @@ package org.chromium.chrome.browser.autofill.editors.autofill_ai;
 
 import static org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorProperties.ALLOW_DELETE;
 import static org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorProperties.CANCEL_RUNNABLE;
+import static org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorProperties.DELETE_CALLBACK;
 import static org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorProperties.DELETE_CONFIRMATION_PRIMARY_BUTTON_TEXT_ID;
 import static org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorProperties.DELETE_CONFIRMATION_TEXT;
 import static org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorProperties.DELETE_CONFIRMATION_TITLE;
-import static org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorProperties.DELETE_RUNNABLE;
 import static org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorProperties.DONE_RUNNABLE;
 import static org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorProperties.EDITOR_FIELDS;
 import static org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorProperties.EDITOR_TITLE;
+import static org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorProperties.VALIDATE_ON_SHOW;
 import static org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorProperties.VISIBLE;
 
 import org.chromium.build.annotations.NullMarked;
@@ -49,12 +50,14 @@ public class EntityEditorViewBinder {
         } else if (propertyKey == DELETE_CONFIRMATION_PRIMARY_BUTTON_TEXT_ID) {
             view.setDeleteConfirmationPrimaryButtonText(
                     model.get(DELETE_CONFIRMATION_PRIMARY_BUTTON_TEXT_ID));
-        } else if (propertyKey == DELETE_RUNNABLE) {
-            view.setDeleteRunnable(model.get(DELETE_RUNNABLE));
+        } else if (propertyKey == DELETE_CALLBACK) {
+            view.setDeleteCallback(model.get(DELETE_CALLBACK));
         } else if (propertyKey == ALLOW_DELETE) {
             view.setAllowDelete(model.get(ALLOW_DELETE));
         } else if (propertyKey == EDITOR_FIELDS) {
             view.setEditorFields(model.get(EDITOR_FIELDS));
+        } else if (propertyKey == VALIDATE_ON_SHOW) {
+            view.setValidateOnShow(model.get(VALIDATE_ON_SHOW));
         } else {
             assert false : "Unhandled update to property:" + propertyKey;
         }

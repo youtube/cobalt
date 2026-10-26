@@ -17,17 +17,9 @@ namespace tab_search_prefs {
 const char kTabSearchRecentlyClosedSectionExpanded[] =
     "tab_search.recently_closed_expanded";
 
-// Integer pref indicating which tab the Tab Search bubble should open to
-// when shown.
-const char kTabSearchTabIndex[] = "tab_search.tab_index";
-
 // Boolean pref indicating whether the Tab Search bubble has been used (a tab
 // has been activated or closed).
 const char kTabSearchUsed[] = "tab_search.used";
-
-// Integer pref indicating which organization feature, if any, the Tab
-// Organization Selector should open to when shown.
-const char kTabOrganizationFeature[] = "tab_organization.feature";
 
 // Boolean pref indicating whether the user should see the first run experience
 // when interacting with the Tab Organization UI.
@@ -37,44 +29,11 @@ const char kTabOrganizationShowFRE[] = "tab_organization.show_fre_2";
 // to be organized according to.
 const char kTabOrganizationModelStrategy[] = "tab_organization.model_strategy";
 
-// Integer pref indicating the number of times an user used declutter
-const char kTabDeclutterUsageCount[] = "tab_declutter.usage_count";
-
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(kTabSearchRecentlyClosedSectionExpanded, true);
-  registry->RegisterIntegerPref(
-      kTabSearchTabIndex,
-      GetIntFromTabSearchSection(tab_search::mojom::TabSearchSection::kSearch));
   registry->RegisterBooleanPref(kTabSearchUsed, false);
-  registry->RegisterIntegerPref(
-      kTabOrganizationFeature,
-      GetIntFromTabOrganizationFeature(
-          tab_search::mojom::TabOrganizationFeature::kSelector));
   registry->RegisterBooleanPref(kTabOrganizationShowFRE, true);
   registry->RegisterIntegerPref(kTabOrganizationModelStrategy, 0);
-  registry->RegisterIntegerPref(kTabDeclutterUsageCount, 0);
-}
-
-tab_search::mojom::TabSearchSection GetTabSearchSectionFromInt(
-    const int section) {
-  return ToKnownEnumValue(
-      static_cast<tab_search::mojom::TabSearchSection>(section));
-}
-
-int GetIntFromTabSearchSection(
-    const tab_search::mojom::TabSearchSection section) {
-  return std::to_underlying(section);
-}
-
-tab_search::mojom::TabOrganizationFeature GetTabOrganizationFeatureFromInt(
-    const int feature) {
-  return ToKnownEnumValue(
-      static_cast<tab_search::mojom::TabOrganizationFeature>(feature));
-}
-
-int GetIntFromTabOrganizationFeature(
-    const tab_search::mojom::TabOrganizationFeature feature) {
-  return std::to_underlying(feature);
 }
 
 }  // namespace tab_search_prefs

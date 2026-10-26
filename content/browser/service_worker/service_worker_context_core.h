@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/containers/id_map.h"
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
@@ -30,6 +31,7 @@
 #include "content/common/content_export.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/service_worker_context.h"
+#include "content/public/common/child_process_id.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -225,7 +227,7 @@ class CONTENT_EXPORT ServiceWorkerClientOwner final {
   // Used for starting a web worker (dedicated worker or shared worker). Returns
   // a service worker client for the worker.
   ScopedServiceWorkerClient CreateServiceWorkerClientForWorker(
-      int process_id,
+      ChildProcessId process_id,
       ServiceWorkerClientInfo client_info);
 
   // Binds the ServiceWorkerContainerHost mojo receiver for `container_host`.
@@ -514,7 +516,7 @@ class CONTENT_EXPORT ServiceWorkerContextCore
   void NotifyRegistrationStored(const int64_t registration_id,
                                 const GURL& scope,
                                 const blink::StorageKey& key,
-                                uint64_t stored_resources_total_size_bytes);
+                                base::ByteSize stored_resources_total_size);
   // Notifies observers that all registrations have been deleted for a
   // particular `key`.
   void NotifyAllRegistrationsDeletedForStorageKey(const blink::StorageKey& key);

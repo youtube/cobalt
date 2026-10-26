@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/memory/raw_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "components/sync/engine/cancelation_signal.h"
 #include "components/sync/engine/net/http_post_provider.h"
 #include "components/sync/engine/net/http_post_provider_factory.h"
@@ -131,12 +132,15 @@ SyncServerConnectionManager::~SyncServerConnectionManager() = default;
 
 HttpResponse SyncServerConnectionManager::PostBuffer(
     const std::string& buffer_in,
-    const std::string& access_token,
     std::string* buffer_out) {
-  if (access_token.empty()) {
-    // Print a log to distinguish this "known failure" from others.
-    DVLOG(1) << "ServerConnectionManager forcing SYNC_AUTH_ERROR due to missing"
-                " access token";
+  base::UmaHistogramBoolean("Sync.URLFetchAccessToken",
+                            !HasInvalidAccessToken());
+
+  if (HasInvalidAccessToken()) {
+    ClearAccessToken();
+
+    // Return an auth error in case the access token is invalid (e.g. expired),
+    // so the access token will be renewed.
     return HttpResponse::ForHttpStatusCode(net::HTTP_UNAUTHORIZED);
   }
 
@@ -150,7 +154,7 @@ HttpResponse SyncServerConnectionManager::PostBuffer(
   // Note that the post may be aborted by now, which will just cause Init to
   // fail with CONNECTION_UNAVAILABLE.
   HttpResponse http_response = connection->PostRequestAndDownloadResponse(
-      sync_request_url_, access_token, buffer_in, buffer_out);
+      sync_request_url_, GetAccessToken(), buffer_in, buffer_out);
 
   if (http_response.server_status == HttpResponse::SYNC_AUTH_ERROR) {
     ClearAccessToken();

@@ -96,11 +96,6 @@ public class OmniboxFeatures {
     /// Holds the information whether logic should focus on preserving memory on this device.
     private static @Nullable Boolean sIsLowMemoryDevice;
 
-    public static final CachedFlag sAnimateSuggestionsListAppearance =
-            newFlag(
-                    OmniboxFeatureList.ANIMATE_SUGGESTIONS_LIST_APPEARANCE,
-                    FeatureState.ENABLED_IN_PROD);
-
     public static final CachedFlag sTouchDownTriggerForPrefetch =
             newFlag(
                     OmniboxFeatureList.OMNIBOX_TOUCH_DOWN_TRIGGER_FOR_PREFETCH,
@@ -177,10 +172,18 @@ public class OmniboxFeatures {
             newFlag(OmniboxFeatureList.ANDROID_HUB_SEARCH_TAB_GROUPS, FeatureState.ENABLED_IN_PROD);
 
     public static final CachedFlag sOmniboxImprovementForLFF =
-            newFlag(OmniboxFeatureList.OMNIBOX_IMPROVEMENT_FOR_LFF, FeatureState.DISABLED);
+            newFlag(OmniboxFeatureList.OMNIBOX_IMPROVEMENT_FOR_LFF, FeatureState.ENABLED_IN_TEST);
 
     public static final CachedFlag sRemoveSearchReadyOmnibox =
-            newFlag(OmniboxFeatureList.REMOVE_SEARCH_READY_OMNIBOX, FeatureState.ENABLED_IN_TEST);
+            newFlag(OmniboxFeatureList.REMOVE_SEARCH_READY_OMNIBOX, FeatureState.DISABLED);
+
+    public static final CachedFlag sServeJavaCachedZeroSuggest =
+            newFlag(
+                    OmniboxFeatureList.SERVE_JAVA_CACHED_ZERO_SUGGEST,
+                    FeatureState.ENABLED_IN_PROD);
+
+    public static final CachedFlag sResetSuggestionsScroll =
+            newFlag(OmniboxFeatureList.RESET_SUGGESTIONS_SCROLL, FeatureState.DISABLED);
 
     public static final BooleanCachedFeatureParam sRemoveSroIncludingVerbatimMatch =
             newBooleanParam(
@@ -370,14 +373,6 @@ public class OmniboxFeatures {
      */
     public static int getMaxPrefetchesPerOmniboxSession() {
         return sTouchDownTriggerMaxPrefetchesPerSession.getValue();
-    }
-
-    /**
-     * Whether the appearance of the omnibox suggestions list should animated in sync with the soft
-     * keyboard.
-     */
-    public static boolean shouldAnimateSuggestionsListAppearance() {
-        return sAnimateSuggestionsListAppearance.isEnabled();
     }
 
     /** Indicate a low memory device for testing purposes. */

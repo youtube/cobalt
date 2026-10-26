@@ -30,6 +30,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
 #include "ui/base/accelerators/accelerator.h"
+#include "ui/base/class_property.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -44,14 +45,15 @@
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_utils.h"
 
 namespace glic {
 
-// TODO(crbug.com/461326322): Remove this flag when crbug.com/461326322 is
-// resolved.
-BASE_FEATURE(kGlicButtonHideLabelOnTaskNudge, base::FEATURE_ENABLED_BY_DEFAULT);
-
 namespace {
+
+const base::FeatureParam<bool> kAdjustMargins{
+    &features::kGlicButtonAltLabel, "glic-button-alt-label-adjust-margins",
+    true};
 
 constexpr int kHighlightMargin = 2;
 constexpr int kHighlightCornerRadius = 8;
@@ -101,8 +103,10 @@ std::u16string GetLabelText() {
 }
 
 bool ShouldUseAltIcon() {
+  // LINT.IfChange(ShouldUseAltIcon)
   return EntrypointVariationsEnabled() &&
          features::kGlicEntrypointVariationsAltIcon.Get();
+  // LINT.ThenChange(//chrome/browser/ui/views/tabs/glic/glic_actor_task_icon.cc:ShouldUseGlicButtonAltIconBackgroundColor)
 }
 
 bool HighlightNudgeEnabled() {
@@ -139,6 +143,13 @@ gfx::Insets GetIconMargins(bool label_shown) {
     // Extra left margin if the label is shown.
     left += 2;
   }
+
+  if (base::FeatureList::IsEnabled(features::kGlicButtonAltLabel) &&
+      kAdjustMargins.Get()) {
+    // TODO(crbug.com/485624752): Consolidate after launch.
+    right += 1;
+  }
+
   return gfx::Insets().set_left_right(left, right);
 }
 
@@ -276,7 +287,8 @@ TabStripGlicButton::TabStripGlicButton(
 
   UpdateIcon();
   OnLabelVisibilityChanged();
-  auto* image_view = static_cast<views::ImageView*>(image_container_view());
+  auto* image_view =
+      views::AsViewClass<views::ImageView>(image_container_view());
   image_view->SetImageSize({kIconSize, kIconSize});
   image_view->SetPaintToLayer();
   image_view->layer()->SetFillsBoundsOpaquely(false);
@@ -288,8 +300,7 @@ TabStripGlicButton::TabStripGlicButton(
     // the same opacity animation whether or not the label has text.
     label()->SetPaintToLayer();
   }
-  label()->SetProperty(views::kMarginsKey,
-                       gfx::Insets().set_right(kLabelRightMargin));
+  SetLabelMargins();
   close_button()->SetProperty(
       views::kMarginsKey, gfx::Insets().set_left_right(
                               HighlightNudgeEnabled() ? kCloseButtonMargin : 0,
@@ -323,13 +334,15 @@ void TabStripGlicButton::SetNudgeLabel(std::string label) {
   // Store the new label text until the right moment in the animation to update
   // the view.
   pending_text_ = base::UTF8ToUTF16(label);
+
+  if (width_state_ == WidthState::kNudge) {
+    end_width_ = CalculateExpandedWidth();
+    SetText(*pending_text_);
+    PreferredSizeChanged();
+  }
 }
 
 void TabStripGlicButton::Expand() {
-  if (!base::FeatureList::IsEnabled(kGlicButtonHideLabelOnTaskNudge)) {
-    return;
-  }
-
   // Update state.
   if (width_state_ != WidthState::kCollapsed) {
     return;
@@ -361,10 +374,6 @@ void TabStripGlicButton::Expand() {
 }
 
 void TabStripGlicButton::Collapse() {
-  if (!base::FeatureList::IsEnabled(kGlicButtonHideLabelOnTaskNudge)) {
-    return;
-  }
-
   WidthState old_width_state = width_state_;
   if (width_state_ == WidthState::kCollapsed) {
     return;
@@ -400,14 +409,17 @@ void TabStripGlicButton::SetGlicPanelIsOpen(bool open) {
   UpdateTextAndBackgroundColors();
   UpdateIcon();
 
-  // Set tooltip and accessibility text based on whether any glic UI (window or
-  // FRE) is open.
+  // The tooltip reflects whether clicking will open or close glic.
   std::u16string tooltip_text =
       l10n_util::GetStringUTF16(open ? IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE
                                      : IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP);
-
   SetTooltipText(tooltip_text);
-  GetViewAccessibility().SetName(tooltip_text);
+
+  // The accessibility text mirrors the visible label, unless glic is open, in
+  // which case this text should communicate that clicking will close it.
+  GetViewAccessibility().SetName(
+      open ? l10n_util::GetStringUTF16(IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE)
+           : GetLabelText());
 }
 
 void TabStripGlicButton::SetIsShowingNudge(bool is_showing) {
@@ -559,8 +571,7 @@ void TabStripGlicButton::ExecuteCommand(int command_id, int event_flags) {
 void TabStripGlicButton::SetText(std::u16string_view text) {
   TabStripNudgeButton::SetText(text);
   // Setting label text seems to clear the margin. Set it again.
-  label()->SetProperty(views::kMarginsKey,
-                       gfx::Insets().set_right(kLabelRightMargin));
+  SetLabelMargins();
 }
 
 bool TabStripGlicButton::OnMousePressed(const ui::MouseEvent& event) {
@@ -713,7 +724,7 @@ void TabStripGlicButton::ShowNudge() {
   views::AnimationBuilder()
       .OnEnded(base::BindOnce(&TabStripGlicButton::ApplyTextAndFadeIn,
                               weak_ptr_factory_.GetWeakPtr(),
-                              std::move(pending_text_),
+                              /*text=*/std::nullopt,
                               /*delay=*/DurationMs(0), kNudgeFadeInDuration))
       .Once()
       .At(kNudgeFadeInStart - kLabelFadeOutDuration)
@@ -767,7 +778,9 @@ void TabStripGlicButton::HideNudge() {
 void TabStripGlicButton::ApplyTextAndFadeIn(std::optional<std::u16string> text,
                                             base::TimeDelta delay,
                                             base::TimeDelta duration) {
-  if (text) {
+  if (width_state_ == WidthState::kNudge && pending_text_) {
+    SetText(*pending_text_);
+  } else if (text) {
     SetText(*text);
   }
 
@@ -945,6 +958,31 @@ void TabStripGlicButton::UpdateInkdropHoverColor(bool is_frame_active) {
                              ? kColorTabBackgroundInactiveHoverFrameActive
                              : kColorTabBackgroundInactiveHoverFrameInactive);
   UpdateColors();
+}
+
+void TabStripGlicButton::SetLabelMargins() {
+  int bottom = 0;
+  if (base::FeatureList::IsEnabled(features::kGlicButtonAltLabel) &&
+      kAdjustMargins.Get()) {
+    bottom += 1;
+  }
+  label()->SetProperty(
+      views::kMarginsKey,
+      gfx::Insets().set_right(kLabelRightMargin).set_bottom(bottom));
+}
+
+// TODO(crbug.com/485257764): Remove once TabStripGlicButton inherits from
+// GlicButton<T>
+bool TabStripGlicButton::GetVisible() {
+  return TabStripNudgeButton::GetVisible();
+}
+
+float TabStripGlicButton::GetWidthFactor() const {
+  return TabStripNudgeButton::GetWidthFactor();
+}
+
+ui::PropertyHandler* TabStripGlicButton::GetPropertyHandler() {
+  return this;
 }
 
 BEGIN_METADATA(TabStripGlicButton)

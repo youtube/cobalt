@@ -1,0 +1,388 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.content.browser.accessibility;
+
+import android.app.UiAutomation;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.os.Build;
+import android.os.IBinder;
+import android.view.accessibility.AccessibilityEvent;
+
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
+import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
+
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+
+import org.chromium.base.test.BaseJUnit4ClassRunner;
+import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.base.test.util.MinAndroidSdkLevel;
+import org.chromium.base.test.util.UrlUtils;
+import org.chromium.content_public.browser.ContentFeatureList;
+import org.chromium.ui.accessibility.testservice.IAccessibilityTestHelperService;
+import org.chromium.ui.accessibility.testservice.WaitForEventParams;
+
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
+
+/** Tests for Accessibility end-to-end. */
+@Batch(Batch.PER_CLASS)
+@RunWith(BaseJUnit4ClassRunner.class)
+public class WebContentsAccessibilityE2ETest {
+    private static final String ACCESSIBILITY_TEST_SERVICE_PACKAGE =
+            "org.chromium.ui.accessibility.testservice";
+    private static final String ACCESSIBILITY_TEST_SERVICE_CLASS =
+            "org.chromium.ui.accessibility.testservice.AccessibilityTestService";
+    private static final String ACCESSIBILITY_TEST_HELPER_SERVICE_CLASS =
+            "org.chromium.ui.accessibility.testservice.AccessibilityTestHelperService";
+    private static final ComponentName ACCESSIBILITY_TEST_SERVICE_COMPONENT_NAME =
+            new ComponentName(ACCESSIBILITY_TEST_SERVICE_PACKAGE, ACCESSIBILITY_TEST_SERVICE_CLASS);
+    private static final ComponentName ACCESSIBILITY_TEST_HELPER_SERVICE_COMPONENT_NAME =
+            new ComponentName(
+                    ACCESSIBILITY_TEST_SERVICE_PACKAGE, ACCESSIBILITY_TEST_HELPER_SERVICE_CLASS);
+    private static final String ACCESSIBILITY_TEST_SERVICE_NAME =
+            ACCESSIBILITY_TEST_SERVICE_COMPONENT_NAME.flattenToString();
+    private static final long BIND_TIMEOUT_MS = 5000;
+    private static final long EVENT_TIMEOUT_MS = 5000;
+    private static final String TAG = "WebContentsAXTest";
+
+    private final AtomicReference<CompletableFuture<IAccessibilityTestHelperService>>
+            mServiceFuture = new AtomicReference<>(new CompletableFuture<>());
+
+    @Rule
+    public AccessibilityContentShellActivityTestRule mActivityTestRule =
+            new AccessibilityContentShellActivityTestRule();
+
+    private final ServiceConnection mConnection =
+            new ServiceConnection() {
+                @Override
+                public void onServiceConnected(ComponentName className, IBinder service) {
+                    // Ensure calls made in this block are thread safe.
+                    mServiceFuture
+                            .get()
+                            .complete(IAccessibilityTestHelperService.Stub.asInterface(service));
+                }
+
+                @Override
+                public void onServiceDisconnected(ComponentName arg0) {
+                    // Ensure calls made in this block are thread safe.
+                    mServiceFuture.set(new CompletableFuture<>());
+                }
+            };
+
+    @Before
+    public void setUp() throws IOException {
+        enableAccessibilityService();
+        ensureBoundToHelperService();
+    }
+
+    @After
+    public void tearDown() throws IOException {
+        disableAccessibilityService();
+    }
+
+    private void ensureBoundToHelperService() {
+        if (mServiceFuture.get().isDone()) {
+            return;
+        }
+
+        Intent intent = new Intent();
+        intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+        intent.setComponent(ACCESSIBILITY_TEST_HELPER_SERVICE_COMPONENT_NAME);
+        intent.setPackage(ACCESSIBILITY_TEST_SERVICE_PACKAGE);
+        boolean bound =
+                InstrumentationRegistry.getInstrumentation()
+                        .getContext()
+                        .bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+        Assert.assertTrue("Failed to bind to helper service", bound);
+    }
+
+    private IAccessibilityTestHelperService getAccessibilityHelperService()
+            throws TimeoutException, InterruptedException, ExecutionException {
+        return mServiceFuture.get().get(BIND_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    }
+
+    private void enableAccessibilityService() throws IOException {
+        UiAutomation uiAutomation =
+                InstrumentationRegistry.getInstrumentation()
+                        .getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES);
+
+        // Adopt shell permissions so we can write to secure settings.
+        uiAutomation.adoptShellPermissionIdentity(
+                android.Manifest.permission.WRITE_SECURE_SETTINGS);
+
+        try {
+            // Enable the service via ADB shell command under the hood.
+            uiAutomation
+                    .executeShellCommand(
+                            "settings put secure enabled_accessibility_services "
+                                    + ACCESSIBILITY_TEST_SERVICE_NAME)
+                    .close();
+            uiAutomation.executeShellCommand("settings put secure accessibility_enabled 1").close();
+        } finally {
+            uiAutomation.dropShellPermissionIdentity();
+        }
+    }
+
+    private void disableAccessibilityService() throws IOException {
+        UiAutomation uiAutomation =
+                InstrumentationRegistry.getInstrumentation()
+                        .getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES);
+
+        // Adopt shell permissions so we can write to secure settings.
+        uiAutomation.adoptShellPermissionIdentity(
+                android.Manifest.permission.WRITE_SECURE_SETTINGS);
+
+        try {
+            // Disable the service.
+            uiAutomation
+                    .executeShellCommand("settings delete secure enabled_accessibility_services")
+                    .close();
+            uiAutomation.executeShellCommand("settings put secure accessibility_enabled 0").close();
+        } finally {
+            uiAutomation.dropShellPermissionIdentity();
+        }
+    }
+
+    @Test
+    @SmallTest
+    public void testAccessibilityServiceReceivesInitialEvent() throws Throwable {
+        // Load a page.
+        String url = UrlUtils.encodeHtmlDataUri("<p>hello</p>");
+        mActivityTestRule.launchContentShellWithUrl(url);
+
+        // Wait for the window to appear.
+        boolean wscReceived =
+                getAccessibilityHelperService()
+                        .waitForEvent(
+                                new WaitForEventParamsBuilder()
+                                        .setEventType(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+                                        .build());
+        Assert.assertTrue("Service did not receive WINDOW_STATE_CHANGED", wscReceived);
+    }
+
+    @Test
+    @SmallTest
+    @MinAndroidSdkLevel(Build.VERSION_CODES.BAKLAVA)
+    public void testAccessibilityServiceReceivesInitialEvent_SdkBalklavaAndAbove()
+            throws Throwable {
+        // Load a page.
+        String url = UrlUtils.encodeHtmlDataUri("<p>hello</p>");
+        mActivityTestRule.launchContentShellWithUrl(url);
+
+        // Wait for the window to appear.
+        boolean wscReceived =
+                getAccessibilityHelperService()
+                        .waitForEvent(
+                                new WaitForEventParamsBuilder()
+                                        .setEventType(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+                                        .build());
+        Assert.assertTrue("Service did not receive WINDOW_STATE_CHANGED", wscReceived);
+
+        // Ask the service to wait for a text selection changed on the omnibox.
+        boolean tscReceived =
+                getAccessibilityHelperService()
+                        .waitForEvent(
+                                new WaitForEventParamsBuilder()
+                                        .setEventType(
+                                                AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED)
+                                        .setClassName("android.widget.EditText")
+                                        .setText(url)
+                                        .build());
+        Assert.assertTrue("Service did not receive TEXT_SELECTION_CHANGED", tscReceived);
+    }
+
+    @Test
+    @SmallTest
+    @MinAndroidSdkLevel(Build.VERSION_CODES.BAKLAVA)
+    public void testAccessibilityServiceReceivesAccessibilityFocusEvent() throws Throwable {
+        // Load a page with a focusable element.
+        mActivityTestRule.launchContentShellWithUrl(
+                UrlUtils.encodeHtmlDataUri("<button>Click Me</button>"));
+
+        // Wait for the page to load by waiting for the initial TWCC.
+        boolean initialEventReceived =
+                getAccessibilityHelperService()
+                        .waitForEvent(
+                                new WaitForEventParamsBuilder()
+                                        .setEventType(
+                                                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
+                                        .setClassName("android.webkit.WebView")
+                                        .build());
+        Assert.assertTrue(
+                "Service did not receive initial TYPE_WINDOW_CONTENT_CHANGED event",
+                initialEventReceived);
+
+        // Find the button and perform a focus action.
+        boolean actionRes =
+                getAccessibilityHelperService()
+                        .performActionOnNode(
+                                "android.widget.Button",
+                                "Click Me",
+                                AccessibilityNodeInfoCompat.ACTION_ACCESSIBILITY_FOCUS);
+        Assert.assertTrue("Failed to perform accessibility focus action", actionRes);
+
+        // Ask the service to wait for the event.
+        boolean eventReceived =
+                getAccessibilityHelperService()
+                        .waitForEvent(
+                                new WaitForEventParamsBuilder()
+                                        .setEventType(
+                                                AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED)
+                                        .setClassName("android.widget.Button")
+                                        .setText("Click Me")
+                                        .build());
+        Assert.assertTrue("Service did not receive accessibility focus event", eventReceived);
+    }
+
+    @Test
+    @SmallTest
+    @MinAndroidSdkLevel(Build.VERSION_CODES.BAKLAVA)
+    public void testDumpWebContentsAccessibilityTree() throws Throwable {
+        // Load a page with more complex HTML content.
+        String html =
+                """
+                <h1>Heading</h1>
+                <p>Some text</p>
+                <button>Click Me</button>
+                <div><a href="#">Link</a></div>
+                """;
+        mActivityTestRule.launchContentShellWithUrl(UrlUtils.encodeHtmlDataUri(html));
+
+        // Wait for the page to load by waiting for the initial TWCC.
+        boolean initialEventReceived =
+                getAccessibilityHelperService()
+                        .waitForEvent(
+                                new WaitForEventParamsBuilder()
+                                        .setEventType(
+                                                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
+                                        .setClassName("android.webkit.WebView")
+                                        .build());
+        Assert.assertTrue(
+                "Service did not receive initial TYPE_WINDOW_CONTENT_CHANGED event",
+                initialEventReceived);
+
+        // Dump the accessibility tree.
+        String treeDump = getAccessibilityHelperService().dumpWebContentsAccessibilityTree();
+        String expectedDump =
+"""
+WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="rootWebArea"]
+  TextView text:"Heading" heading actions:[AX_FOCUS, NEXT, PREVIOUS, SET_SELECTION] bundle:[chromeRole="heading", roleDescription="heading 1"]
+  TextView text:"Some text" actions:[AX_FOCUS, NEXT, PREVIOUS, SET_SELECTION] bundle:[chromeRole="paragraph"]
+  Button text:"Click Me" clickable focusable actions:[FOCUS, CLICK, AX_FOCUS, NEXT, PREVIOUS, SET_SELECTION] bundle:[chromeRole="button", clickableScore="300"]
+  View actions:[AX_FOCUS] bundle:[chromeRole="genericContainer"]
+    View text:"null" contentDescription:"Link" clickable focusable actions:[FOCUS, CLICK, AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="link", clickableScore="300", roleDescription="link", targetUrl="data:text/html;utf-8,%3Ch1%3EHeading%3C%2Fh1%3E%0A%3Cp%3ESome%20text%3C%2Fp%3E%0A%3Cbutton%3EClick%20Me%3C%2Fbutton%3E%0A%3Cdiv%3E%3Ca%20href%3D%22%23%22%3ELink%3C%2Fa%3E%3C%2Fdiv%3E%0A#"]
+      TextView text:"Link" actions:[AX_FOCUS, NEXT, PREVIOUS, SET_SELECTION] bundle:[chromeRole="staticText", clickableScore="100"]
+""";
+        Assert.assertEquals("Tree dump does not match expected value", expectedDump, treeDump);
+    }
+
+    @Test
+    @SmallTest
+    @MinAndroidSdkLevel(Build.VERSION_CODES.BAKLAVA)
+    @EnableFeatures({ContentFeatureList.ACCESSIBILITY_EXTENDED_SELECTION})
+    public void testDumpTreeWithInitialSelection() throws Throwable {
+        // Load a page with an initial selection.
+        String html =
+                """
+                <p id="p1">Some selected text</p>
+                """;
+        mActivityTestRule.launchContentShellWithUrl(UrlUtils.encodeHtmlDataUri(html));
+
+        // Wait for the page to load by waiting for the initial TWCC.
+        boolean initialEventReceived =
+                getAccessibilityHelperService()
+                        .waitForEvent(
+                                new WaitForEventParamsBuilder()
+                                        .setEventType(
+                                                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
+                                        .setClassName("android.webkit.WebView")
+                                        .build());
+        Assert.assertTrue(
+                "Service did not receive initial TYPE_WINDOW_CONTENT_CHANGED event",
+                initialEventReceived);
+
+        // Inject script to set the selection.
+        String script =
+                """
+                  var range = document.createRange();
+                  var p1 = document.getElementById("p1").firstChild;
+                  range.setStart(p1, 5);
+                  range.setEnd(p1, 13);
+                  window.getSelection().removeAllRanges();
+                  window.getSelection().addRange(range);
+                """;
+        mActivityTestRule.executeJSAndGetResult(script);
+
+        // Wait for the selection event to be fired.
+        boolean selectionEventReceived =
+                getAccessibilityHelperService()
+                        .waitForEvent(
+                                new WaitForEventParamsBuilder()
+                                        .setEventType(
+                                                AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED)
+                                        .setClassName("android.webkit.WebView")
+                                        .build());
+        Assert.assertTrue(
+                "Service did not receive TYPE_VIEW_TEXT_SELECTION_CHANGED event",
+                selectionEventReceived);
+
+        // Dump the accessibility tree.
+        String treeDump = getAccessibilityHelperService().dumpWebContentsAccessibilityTree();
+
+        String expectedDump =
+"""
+WebView focusable focused actions:[CLEAR_FOCUS, AX_FOCUS] bundle:[chromeRole="rootWebArea"]
+  TextView text:"Some selected text" viewIdResName:"p1" actions:[AX_FOCUS, NEXT, PREVIOUS] bundle:[chromeRole="paragraph"] extendedSelectionStart:5 extendedSelectionEnd:13
+""";
+        Assert.assertEquals("Tree dump does not match expected value", expectedDump, treeDump);
+    }
+
+    private static class WaitForEventParamsBuilder {
+        private static final long DEFAULT_TIMEOUT_MS = 5000;
+
+        private int mEventType;
+        private String mClassName = "";
+        private String mText = "";
+        private final long mTimeoutMs = DEFAULT_TIMEOUT_MS;
+
+        public WaitForEventParamsBuilder setEventType(int eventType) {
+            mEventType = eventType;
+            return this;
+        }
+
+        public WaitForEventParamsBuilder setClassName(String className) {
+            mClassName = className;
+            return this;
+        }
+
+        public WaitForEventParamsBuilder setText(String text) {
+            mText = text;
+            return this;
+        }
+
+        public WaitForEventParams build() {
+            WaitForEventParams params = new WaitForEventParams();
+            params.eventType = mEventType;
+            params.className = mClassName;
+            params.text = mText;
+            params.timeoutMs = mTimeoutMs;
+            return params;
+        }
+    }
+}

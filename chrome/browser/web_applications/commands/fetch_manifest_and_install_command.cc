@@ -40,7 +40,6 @@
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/browser/web_applications/web_contents/web_app_data_retriever.h"
 #include "chrome/browser/web_applications/web_contents/web_contents_manager.h"
-#include "chrome/common/chrome_features.h"
 #include "components/webapps/browser/features.h"
 #include "components/webapps/browser/install_result_code.h"
 #include "components/webapps/browser/installable/installable_evaluator.h"
@@ -671,16 +670,22 @@ void FetchManifestAndInstallCommand::OnDialogCompleted(
   finalize_options.add_to_quick_launch_bar = kAddAppsToQuickLaunchBarByDefault;
 
   DCHECK(app_lock_);
-  app_lock_->install_finalizer().FinalizeInstall(
-      *web_app_info_, finalize_options,
-      base::BindOnce(
-          &FetchManifestAndInstallCommand::OnInstallFinalizedMaybeReparentTab,
-          weak_ptr_factory_.GetWeakPtr()));
+  auto* profile =
+      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+
+  install_job_ = std::make_unique<FinalizeInstallJob>(
+      *profile, app_lock_.get(), app_lock_.get(), *web_app_info_,
+      finalize_options);
+
+  install_job_->Start(base::BindOnce(
+      &FetchManifestAndInstallCommand::OnInstallFinalizedMaybeReparentTab,
+      weak_ptr_factory_.GetWeakPtr()));
 }
 
 void FetchManifestAndInstallCommand::OnInstallFinalizedMaybeReparentTab(
     const webapps::AppId& app_id,
     webapps::InstallResultCode code) {
+  install_job_.reset();
   if (IsWebContentsDestroyed()) {
     Abort(webapps::InstallResultCode::kWebContentsDestroyed);
     return;

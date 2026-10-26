@@ -800,11 +800,13 @@ egl::Error OffscreenSurfaceVk::querySurfacePointerANGLE(EGLint /*attribute*/, vo
     return egl::Error(EGL_BAD_CURRENT_SURFACE);
 }
 
-egl::Error OffscreenSurfaceVk::bindTexImage(const gl::Context * /*context*/,
+egl::Error OffscreenSurfaceVk::bindTexImage(const gl::Context *context,
                                             gl::Texture * /*texture*/,
                                             EGLint /*buffer*/)
 {
-    return egl::NoError();
+    ContextVk *contextVk = vk::GetImpl(context);
+    ASSERT(contextVk);
+    return angle::ResultToEGL(contextVk->onBindTexImage());
 }
 
 egl::Error OffscreenSurfaceVk::releaseTexImage(const gl::Context * /*context*/, EGLint /*buffer*/)
@@ -1764,7 +1766,7 @@ angle::Result WindowSurfaceVk::createSwapchain(vk::ErrorContext *context)
     // Enable mutable swapchain if VK_KHR_swapchain_mutable_format is supported
     // This enables us to fully support GL_EXT_sRGB_write_control for default framebuffers
     VkImageFormatListCreateInfo imageFormatListInfo = {};
-    vk::ImageHelper::ImageListFormats formatsList;
+    vk::ImageHelper::ImageFormats imageFormats;
     if (renderer->getFeatures().supportsSwapchainMutableFormat.enabled)
     {
         ASSERT(renderer->getFeatures().supportsImageFormatList.enabled);
@@ -1773,11 +1775,12 @@ angle::Result WindowSurfaceVk::createSwapchain(vk::ErrorContext *context)
         VkImageCreateFlags unusedCreateFlags = 0;
         const void *pNext                    = nullptr;
         pNext                                = vk::ImageHelper::DeriveCreateInfoPNext(
-            context, actualFormatID, pNext, &imageFormatListInfo, &formatsList,
+            context, actualFormatID, pNext, &imageFormatListInfo, &imageFormats,
             vk::ImageFormatReinterpretability::ColorspaceOverrides, &unusedCreateFlags);
         if (pNext != nullptr)
         {
-            ASSERT(imageFormatListInfo.viewFormatCount == vk::ImageHelper::kImageListFormatCount);
+            ASSERT(imageFormatListInfo.viewFormatCount ==
+                   vk::ImageHelper::kImageColorspaceOverrideFormatCount);
             swapchainInfo.flags |= VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR;
             vk::AddToPNextChain(&swapchainInfo, &imageFormatListInfo);
         }
@@ -1858,16 +1861,19 @@ angle::Result WindowSurfaceVk::createSwapchain(vk::ErrorContext *context)
         SwapchainImage &member = mSwapchainImages[imageIndex];
 
         // Convert swapchain create flags to image create flags
-        const VkImageCreateFlags createFlags =
+        VkImageCreateFlags createFlags =
             (swapchainInfo.flags & VK_SWAPCHAIN_CREATE_PROTECTED_BIT_KHR) != 0
                 ? VK_IMAGE_CREATE_PROTECTED_BIT
                 : 0;
+        createFlags |= (swapchainInfo.flags & VK_SWAPCHAIN_CREATE_MUTABLE_FORMAT_BIT_KHR) != 0
+                           ? VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT
+                           : 0;
 
         ASSERT(member.image);
         member.image->init2DWeakReference(
             context, swapchainImages[imageIndex], nonZeroSurfaceExtents,
             Is90DegreeRotation(getPreTransform()), intendedFormatID, actualFormatID, createFlags,
-            imageUsageFlags, 1, robustInit);
+            imageUsageFlags, 1, robustInit, imageFormats);
         member.imageViews.init(renderer);
         member.frameNumber = 0;
     }
@@ -3302,7 +3308,14 @@ egl::Error WindowSurfaceVk::bindTexImage(const gl::Context *context,
                                          gl::Texture *texture,
                                          EGLint buffer)
 {
-    return egl::NoError();
+    // EGL 1.5 spec, 3.6.1: Binding a Surface to a OpenGL ES Texture
+    //     ...
+    //     The texture target, the texture format and the size of the texture components are
+    //     derived from attributes of the specified surface, which must be a pbuffer ...
+    //
+    // It is invalid to call "eglBindTexImage" on a window surface
+    UNREACHABLE();
+    return egl::Error(EGL_BAD_SURFACE);
 }
 
 egl::Error WindowSurfaceVk::releaseTexImage(const gl::Context *context, EGLint buffer)

@@ -882,6 +882,10 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kIteratorConcat:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_sequencing);
 
+    // --js-joint-iteration:
+    case Builtin::kIteratorZip:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_joint_iteration);
+
     // --js-upsert
     case Builtin::kMapPrototypeGetOrInsert:
     case Builtin::kMapPrototypeGetOrInsertComputed:
@@ -902,6 +906,10 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     // --enable-queue-microtask
     case Builtin::kGlobalQueueMicrotask:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.enable_queue_microtask);
+
+    // --js-iterator-join
+    case Builtin::kIteratorPrototypeJoin:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_join);
 
 #ifdef V8_INTL_SUPPORT
     // --js-intl-locale-variants

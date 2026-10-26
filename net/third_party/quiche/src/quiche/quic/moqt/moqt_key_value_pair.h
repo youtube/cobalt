@@ -13,10 +13,12 @@
 #include <vector>
 
 #include "absl/container/btree_map.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -52,40 +54,6 @@ class QUICHE_EXPORT KeyValuePairList {
 
  private:
   absl::btree_multimap<uint64_t, std::variant<uint64_t, std::string>> map_;
-};
-
-inline constexpr uint64_t kMaxGroupId = quiche::kVarInt62MaxValue;
-inline constexpr uint64_t kMaxObjectId = quiche::kVarInt62MaxValue;
-// Location as defined in
-// https://moq-wg.github.io/moq-transport/draft-ietf-moq-transport.html#location-structure
-struct Location {
-  uint64_t group = 0;
-  uint64_t object = 0;
-
-  Location() = default;
-  Location(uint64_t group, uint64_t object) : group(group), object(object) {}
-
-  // Location order as described in
-  // https://moq-wg.github.io/moq-transport/draft-ietf-moq-transport.html#location-structure
-  auto operator<=>(const Location&) const = default;
-
-  Location Next() const {
-    if (object == kMaxObjectId) {
-      if (group == kMaxObjectId) {
-        return Location(0, 0);
-      }
-      return Location(group + 1, 0);
-    }
-    return Location(group, object + 1);
-  }
-
-  template <typename H>
-  friend H AbslHashValue(H h, const Location& m);
-
-  template <typename Sink>
-  friend void AbslStringify(Sink& sink, const Location& sequence) {
-    absl::Format(&sink, "(%d; %d)", sequence.group, sequence.object);
-  }
 };
 
 enum AuthTokenType : uint64_t {
@@ -217,7 +185,7 @@ struct QUICHE_EXPORT SetupParameters {
   // Defined in moqt_parser.cc.
   // If the class is not initialized with the default constructor, it is likely
   // to return an error if a non-default field duplicates what is in |list|.
-  MoqtError FromKeyValuePairList(const KeyValuePairList& list);
+  absl::Status FromKeyValuePairList(const KeyValuePairList& list);
 };
 
 enum class MessageParameter : uint64_t {
@@ -275,7 +243,7 @@ struct MessageParameters {
   // Defined in moqt_parser.cc.
   // If the class is not initialized with the default constructor, it is likely
   // to return an error if a non-default field duplicates what is in |list|.
-  MoqtError FromKeyValuePairList(const KeyValuePairList& list);
+  absl::Status FromKeyValuePairList(const KeyValuePairList& list);
 
  private:
   // "if (forward)" is bug-prone because it returns forward_.has_value(). Make
@@ -335,43 +303,6 @@ class TrackExtensions : public KeyValuePairList {
   // present, that the value is acceptable.
   bool ValidateInner(ExtensionHeader header, std::optional<uint64_t> min_value,
                      std::optional<uint64_t> max_value) const;
-};
-
-// Version specific parameters.
-// TODO(martinduke): Replace with MessageParameters and delete when all
-// messages are migrated.
-enum class QUICHE_EXPORT VersionSpecificParameter : uint64_t {
-  kDeliveryTimeout = 0x2,
-  kAuthorizationToken = 0x3,
-  kMaxCacheDuration = 0x4,
-
-  // QUICHE-specific extensions.
-  kOackWindowSize = 0xbbf1438,
-};
-struct VersionSpecificParameters {
-  VersionSpecificParameters() = default;
-  // Likely parameter combinations.
-  VersionSpecificParameters(quic::QuicTimeDelta delivery_timeout,
-                            quic::QuicTimeDelta max_cache_duration)
-      : delivery_timeout(delivery_timeout),
-        max_cache_duration(max_cache_duration) {}
-  VersionSpecificParameters(AuthTokenType token_type, absl::string_view token) {
-    authorization_tokens.emplace_back(token_type, token);
-  }
-  VersionSpecificParameters(quic::QuicTimeDelta delivery_timeout,
-                            AuthTokenType token_type, absl::string_view token)
-      : delivery_timeout(delivery_timeout) {
-    authorization_tokens.emplace_back(token_type, token);
-  }
-
-  std::vector<AuthToken> authorization_tokens;
-  quic::QuicTimeDelta delivery_timeout = quic::QuicTimeDelta::Infinite();
-  quic::QuicTimeDelta max_cache_duration = quic::QuicTimeDelta::Infinite();
-  std::optional<quic::QuicTimeDelta> oack_window_size;
-
-  bool operator==(const VersionSpecificParameters& other) const = default;
-  KeyValuePairList ToKeyValuePairList() const;
-  MoqtError FromKeyValuePairList(const KeyValuePairList& list);
 };
 
 // TODO(martinduke): Extension Headers (MOQT draft-16 Sec 11)

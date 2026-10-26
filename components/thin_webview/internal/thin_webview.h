@@ -42,6 +42,10 @@ class ThinWebView : public content::WebContentsObserver {
       const base::android::JavaRef<jobject>& jweb_contents,
       const base::android::JavaRef<jobject>& jweb_contents_delegate);
 
+  void SetContextMenuPopulatorFactory(
+      JNIEnv* env,
+      const base::android::JavaRef<jobject>& jpopulator_factory);
+
   void SizeChanged(JNIEnv* env, int32_t width, int32_t height);
 
  private:
@@ -56,10 +60,10 @@ class ThinWebView : public content::WebContentsObserver {
   base::android::ScopedJavaGlobalRef<jobject> obj_;
   raw_ptr<CompositorView, DanglingUntriaged> compositor_view_;
   raw_ptr<ui::WindowAndroid> window_android_;
-  raw_ptr<content::WebContents> web_contents_;
   std::unique_ptr<web_contents_delegate_android::WebContentsDelegateAndroid>
       web_contents_delegate_;
   gfx::Size view_size_;
+  base::WeakPtr<content::WebContents> web_contents_;
 };
 
 }  // namespace android

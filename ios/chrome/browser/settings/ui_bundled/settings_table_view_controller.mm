@@ -119,6 +119,7 @@
 #import "ios/chrome/browser/shared/model/utils/first_run_util.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
+#import "ios/chrome/browser/shared/public/commands/picture_in_picture_commands.h"
 #import "ios/chrome/browser/shared/public/commands/popup_menu_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
@@ -275,7 +276,7 @@ struct EnhancedSafeBrowsingActivePromoData
   PasswordsCoordinator* _passwordsCoordinator;
 
   // Feature engagement tracker for the signin IPH.
-  raw_ptr<feature_engagement::Tracker, DanglingUntriaged>
+  raw_ptr<feature_engagement::Tracker>
       _featureEngagementTracker;
   // Presenter for the signin IPH.
   BubbleViewControllerPresenter* _bubblePresenter;
@@ -468,6 +469,10 @@ struct EnhancedSafeBrowsingActivePromoData
 
 - (void)viewIsAppearing:(BOOL)animated {
   [super viewIsAppearing:animated];
+  if (_settingsAreDismissed) {
+    return;
+  }
+
   // Update the `_safetyCheckItem` icon when returning to this view controller.
   [self updateSafetyCheckItemTrailingIcon];
   if (IsBottomOmniboxAvailable()) {
@@ -487,6 +492,10 @@ struct EnhancedSafeBrowsingActivePromoData
 
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
+  if (_settingsAreDismissed) {
+    return;
+  }
+
   [self maybeShowSigninIPH];
 }
 
@@ -1262,7 +1271,13 @@ struct EnhancedSafeBrowsingActivePromoData
         [self reloadData];
       }
 
-      controller = [[DefaultBrowserSettingsTableViewController alloc] init];
+      DefaultBrowserSettingsTableViewController* defaultBrowserController =
+          [[DefaultBrowserSettingsTableViewController alloc] init];
+      defaultBrowserController.PIPHandler = HandlerForProtocol(
+          _browser->GetCommandDispatcher(), PictureInPictureCommands);
+      defaultBrowserController.settingsHandler = HandlerForProtocol(
+          _browser->GetCommandDispatcher(), SettingsCommands);
+      controller = defaultBrowserController;
       break;
     }
     case SettingsItemTypeSearchEngine:
@@ -1586,6 +1601,17 @@ struct EnhancedSafeBrowsingActivePromoData
     base::debug::DumpWithoutCrashing();
   }
 
+  AuthenticationService* authService =
+      AuthenticationServiceFactory::GetForProfile(_browser->GetProfile());
+  if (!authService->HasPrimaryIdentity(signin::ConsentLevel::kSignin) ||
+      !authService->SigninEnabled()) {
+    // Due to race condition, the user may be signed-out, or sign-in may be
+    // disabled between the time the user tap on the button and the execution of
+    // this method. In this case, do nothing, the button will disappear by
+    // itself. See crbug.com/488974911
+    return;
+  }
+
   // Stop the coordinator before restarting it, if it exists.
   [_manageSyncSettingsCoordinator stop];
 
@@ -1738,8 +1764,14 @@ struct EnhancedSafeBrowsingActivePromoData
   identityAccountItem.image =
       GetApplicationContext()->GetIdentityAvatarProvider()->GetIdentityAvatar(
           _identity, IdentityAvatarSize::TableViewIcon);
-  identityAccountItem.text = _identity.userFullName;
-  identityAccountItem.detailText = _identity.userEmail;
+  NSString* name = _identity.userFullName;
+  NSString* email = _identity.userEmail;
+  if (name) {
+    identityAccountItem.text = name;
+    identityAccountItem.detailText = email;
+  } else {
+    identityAccountItem.text = email;
+  }
 
   syncer::SyncService* syncService =
       SyncServiceFactory::GetForProfile(_profile);
@@ -2183,6 +2215,9 @@ struct EnhancedSafeBrowsingActivePromoData
 
 - (void)settingsWillBeDismissed {
   CHECK(!_settingsAreDismissed, base::NotFatalUntil::M151);
+  if (_settingsAreDismissed) {
+    return;
+  }
 
   // Remove Enhanced Safe Browsing Promo.
   [self removeEnhancedSafeBrowsingPromoFETDataIfNeeded];
@@ -2257,6 +2292,7 @@ struct EnhancedSafeBrowsingActivePromoData
   // Clear C++ ivars.
   _voiceLocaleCode.Destroy();
   _passwordCheckManager.reset();
+  _featureEngagementTracker = nullptr;
   _browser = nullptr;
   _profile = nullptr;
 

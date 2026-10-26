@@ -9,12 +9,14 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/frame/frame.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
 #include "third_party/blink/renderer/core/performance_entry_names.h"
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 #include "third_party/blink/renderer/core/timing/timing_utils.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/traced_value.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -23,14 +25,13 @@ PerformanceEventTiming* PerformanceEventTiming::Create(
     const AtomicString& event_type,
     EventTimingReportingInfo reporting_info,
     bool cancelable,
-    EventTarget* target,
     DOMWindow* source,
     uint64_t navigation_id,
     std::optional<PerformanceTimelineEntryIdInfo> interaction_id) {
   CHECK(source);
   return MakeGarbageCollected<PerformanceEventTiming>(
       event_type, performance_entry_names::kEvent, std::move(reporting_info),
-      cancelable, target, source, navigation_id, interaction_id);
+      cancelable, source, navigation_id, interaction_id);
 }
 
 // static
@@ -40,9 +41,11 @@ PerformanceEventTiming* PerformanceEventTiming::CreateFirstInputTiming(
       MakeGarbageCollected<PerformanceEventTiming>(
           entry->name(), performance_entry_names::kFirstInput,
           *entry->GetEventTimingReportingInfo(), entry->cancelable(),
-          entry->target(), entry->source(), entry->navigationId(),
+          entry->source(), entry->navigationId(),
           entry->GetInteractionIdInfo());
   first_input->SetDuration(entry->duration_);
+  first_input->SetTarget(entry->target_);
+  first_input->SetTargetSelector(entry->target_selector_);
   return first_input;
 }
 
@@ -63,6 +66,10 @@ String PerformanceEventTiming::FallbackReasonToString(FallbackReason reason) {
       return "MacOSArtificialEvent";
     case FallbackReason::kDoesNotNeedNextPaint:
       return "DoesNotNeedNextPaint";
+    case FallbackReason::kInteractionInterruptedByContextMenu:
+      return "InteractionInterruptedByContextMenu";
+    case FallbackReason::kWindowDestroyed:
+      return "WindowDestroyed";
     default:
       return "None";
   }
@@ -73,7 +80,6 @@ PerformanceEventTiming::PerformanceEventTiming(
     const AtomicString& entry_type,
     EventTimingReportingInfo reporting_info,
     bool cancelable,
-    EventTarget* target,
     DOMWindow* source,
     uint64_t navigation_id,
     std::optional<PerformanceTimelineEntryIdInfo> interaction_id)
@@ -88,9 +94,7 @@ PerformanceEventTiming::PerformanceEventTiming(
       entry_type_(entry_type),
       cancelable_(cancelable),
       interaction_id_(interaction_id),
-      reporting_info_(reporting_info) {
-  SetTarget(target);
-}
+      reporting_info_(reporting_info) {}
 
 PerformanceEventTiming::~PerformanceEventTiming() = default;
 
@@ -125,8 +129,11 @@ Node* PerformanceEventTiming::target() const {
 }
 
 void PerformanceEventTiming::SetTarget(EventTarget* target) {
-  target_selector_ = EventTargetToString(target);
   target_ = target ? target->ToNode() : nullptr;
+}
+
+void PerformanceEventTiming::SetTargetSelector(const AtomicString& selector) {
+  target_selector_ = selector;
 }
 
 uint64_t PerformanceEventTiming::interactionId() const {
@@ -151,7 +158,16 @@ bool PerformanceEventTiming::HasKnownEndTime() const {
 }
 
 bool PerformanceEventTiming::IsReadyForReporting() const {
+  return !reporting_info_.processing_end_time.is_null() && HasKnownEndTime() &&
+         HasKnownInteractionID();
+}
+
+bool PerformanceEventTiming::IsReadyForReportingForIssue328902994() const {
   return !reporting_info_.processing_end_time.is_null() && HasKnownEndTime();
+}
+
+base::TimeTicks PerformanceEventTiming::GetStartTime() const {
+  return reporting_info_.creation_time;
 }
 
 base::TimeTicks PerformanceEventTiming::GetEndTime() const {
@@ -306,6 +322,15 @@ perfetto::protos::pbzero::EventTiming::EventType GetEventType(
   if (name == event_type_names::kDrop) {
     return ProtoType::DROP_EVENT;
   }
+  if (name == event_type_names::kNavigate) {
+    return ProtoType::NAVIGATE_EVENT;
+  }
+  if (name == event_type_names::kPopstate) {
+    return ProtoType::POPSTATE_EVENT;
+  }
+  if (name == event_type_names::kHashchange) {
+    return ProtoType::HASHCHANGE_EVENT;
+  }
   return ProtoType::UNDEFINED;
 }
 }  // namespace
@@ -342,9 +367,7 @@ std::unique_ptr<TracedValue> PerformanceEventTiming::ToTracedValue(
   auto traced_value = std::make_unique<TracedValue>();
   traced_value->SetString("type", name());
   // Recalculate this as the stored duration value is rounded.
-  traced_value->SetDouble(
-      "duration",
-      (GetEndTime() - reporting_info_.creation_time).InMillisecondsF());
+  traced_value->SetDouble("duration", GetExactDuration().InMillisecondsF());
   traced_value->SetBoolean("cancelable", cancelable());
   // If int overflows occurs, the static_cast may not work correctly.
   if (interaction_id_) {

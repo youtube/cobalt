@@ -826,6 +826,58 @@ TEST(EVPExtraTest, Ed25519) {
   ERR_clear_error();
 }
 
+static void ExpectRSAKey(const EVP_PKEY *pkey, int bits, uint64_t e) {
+  ASSERT_EQ(EVP_PKEY_id(pkey), EVP_PKEY_RSA);
+  EXPECT_EQ(EVP_PKEY_bits(pkey), bits);
+  const BIGNUM *e_bn = RSA_get0_e(EVP_PKEY_get0_RSA(pkey));
+  uint64_t e_seen;
+  ASSERT_TRUE(BN_get_u64(e_bn, &e_seen));
+  EXPECT_EQ(e_seen, e);
+}
+
+TEST(EVPExtraTest, RSAKeygen) {
+  // By default, we generate a 2048-bit RSA key.
+  UniquePtr<EVP_PKEY> pkey(EVP_PKEY_generate_from_alg(EVP_pkey_rsa()));
+  ASSERT_TRUE(pkey);
+  ExpectRSAKey(pkey.get(), 2048, RSA_F4);
+
+  UniquePtr<EVP_PKEY_CTX> ctx(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr));
+  ASSERT_TRUE(ctx);
+  ASSERT_TRUE(EVP_PKEY_keygen_init(ctx.get()));
+  EVP_PKEY *pkey_raw = nullptr;
+  ASSERT_TRUE(EVP_PKEY_keygen(ctx.get(), &pkey_raw));
+  pkey.reset(pkey_raw);
+  ExpectRSAKey(pkey.get(), 2048, RSA_F4);
+
+  // Callers can specify a bit count.
+  pkey.reset(EVP_RSA_gen(1024));
+  ASSERT_TRUE(pkey);
+  ExpectRSAKey(pkey.get(), 1024, RSA_F4);
+
+  ctx.reset(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr));
+  ASSERT_TRUE(ctx);
+  ASSERT_TRUE(EVP_PKEY_keygen_init(ctx.get()));
+  ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_keygen_bits(ctx.get(), 1024));
+  pkey_raw = nullptr;
+  ASSERT_TRUE(EVP_PKEY_keygen(ctx.get(), &pkey_raw));
+  pkey.reset(pkey_raw);
+  ExpectRSAKey(pkey.get(), 1024, RSA_F4);
+
+  // Callers can specify bit count and e.
+  ctx.reset(EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr));
+  ASSERT_TRUE(ctx);
+  ASSERT_TRUE(EVP_PKEY_keygen_init(ctx.get()));
+  ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_keygen_bits(ctx.get(), 1024));
+  UniquePtr<BIGNUM> e(BN_new());
+  ASSERT_TRUE(e);
+  ASSERT_TRUE(BN_set_u64(e.get(), 3));
+  ASSERT_TRUE(EVP_PKEY_CTX_set_rsa_keygen_pubexp(ctx.get(), e.release()));
+  pkey_raw = nullptr;
+  ASSERT_TRUE(EVP_PKEY_keygen(ctx.get(), &pkey_raw));
+  pkey.reset(pkey_raw);
+  ExpectRSAKey(pkey.get(), 1024, 3);
+}
+
 static void ExpectECGroupOnly(const EVP_PKEY *pkey, int nid) {
   EC_KEY *ec = EVP_PKEY_get0_EC_KEY(pkey);
   ASSERT_TRUE(ec);
@@ -920,6 +972,15 @@ TEST(EVPExtraTest, ECKeygen) {
     UniquePtr<EVP_PKEY> pkey3(raw);
     ExpectECGroupAndKey(pkey3.get(), NID_secp384r1);
     EXPECT_EQ(EVP_PKEY_cmp(pkey.get(), pkey3.get()), 0);
+
+    // The algorithm-based API provides a much, much easier keygen API.
+    pkey.reset(EVP_PKEY_generate_from_alg(EVP_pkey_ec_p256()));
+    ASSERT_TRUE(pkey);
+    ExpectECGroupAndKey(pkey.get(), NID_X9_62_prime256v1);
+
+    pkey.reset(EVP_PKEY_generate_from_alg(EVP_pkey_ec_p384()));
+    ASSERT_TRUE(pkey);
+    ExpectECGroupAndKey(pkey.get(), NID_secp384r1);
   }
 }
 
@@ -985,6 +1046,23 @@ TEST(EVPExtraTest, DHKeygen) {
   }
 }
 
+static void CheckSignAndVerify(EVP_PKEY *pkey) {
+  auto msg = StringAsBytes("hello");
+  ScopedEVP_MD_CTX ctx;
+  ASSERT_TRUE(EVP_DigestSignInit(ctx.get(), nullptr, nullptr, nullptr, pkey));
+  size_t len;
+  ASSERT_TRUE(EVP_DigestSign(ctx.get(), nullptr, &len, msg.data(), msg.size()));
+  std::vector<uint8_t> sig(len);
+  ASSERT_TRUE(
+      EVP_DigestSign(ctx.get(), sig.data(), &len, msg.data(), msg.size()));
+  sig.resize(len);
+
+  ctx.Reset();
+  ASSERT_TRUE(EVP_DigestVerifyInit(ctx.get(), nullptr, nullptr, nullptr, pkey));
+  ASSERT_TRUE(EVP_DigestVerify(ctx.get(), sig.data(), sig.size(), msg.data(),
+                               msg.size()));
+}
+
 // Test that |EVP_PKEY_keygen| works for Ed25519.
 TEST(EVPExtraTest, Ed25519Keygen) {
   UniquePtr<EVP_PKEY_CTX> pctx(EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, nullptr));
@@ -993,21 +1071,54 @@ TEST(EVPExtraTest, Ed25519Keygen) {
   EVP_PKEY *raw = nullptr;
   ASSERT_TRUE(EVP_PKEY_keygen(pctx.get(), &raw));
   UniquePtr<EVP_PKEY> pkey(raw);
+  CheckSignAndVerify(pkey.get());
 
-  // Round-trip a signature to sanity-check the key is good.
-  ScopedEVP_MD_CTX ctx;
-  ASSERT_TRUE(
-      EVP_DigestSignInit(ctx.get(), nullptr, nullptr, nullptr, pkey.get()));
-  uint8_t sig[64];
-  size_t len = sizeof(sig);
-  ASSERT_TRUE(EVP_DigestSign(ctx.get(), sig, &len,
-                             reinterpret_cast<const uint8_t *>("hello"), 5));
+  pkey.reset(EVP_PKEY_generate_from_alg(EVP_pkey_ed25519()));
+  ASSERT_TRUE(pkey);
+  CheckSignAndVerify(pkey.get());
+}
 
-  ctx.Reset();
-  ASSERT_TRUE(
-      EVP_DigestVerifyInit(ctx.get(), nullptr, nullptr, nullptr, pkey.get()));
-  ASSERT_TRUE(EVP_DigestVerify(ctx.get(), sig, len,
-                               reinterpret_cast<const uint8_t *>("hello"), 5));
+TEST(EVPExtraTest, MLDSAKeyGen) {
+  const struct {
+    int type;
+    const EVP_PKEY_ALG *alg;
+  } kAlgs[] = {
+      {EVP_PKEY_ML_DSA_44, EVP_pkey_ml_dsa_44()},
+      {EVP_PKEY_ML_DSA_65, EVP_pkey_ml_dsa_65()},
+      {EVP_PKEY_ML_DSA_87, EVP_pkey_ml_dsa_87()},
+  };
+  for (const auto &alg : kAlgs) {
+    SCOPED_TRACE(alg.type);
+    UniquePtr<EVP_PKEY_CTX> ctx(EVP_PKEY_CTX_new_id(alg.type, nullptr));
+    ASSERT_TRUE(ctx);
+    ASSERT_TRUE(EVP_PKEY_keygen_init(ctx.get()));
+    EVP_PKEY *raw = nullptr;
+    ASSERT_TRUE(EVP_PKEY_keygen(ctx.get(), &raw));
+    UniquePtr<EVP_PKEY> pkey(raw);
+
+    // The key should be functional. Test that we can round-trip a signature.
+    EXPECT_EQ(EVP_PKEY_id(pkey.get()), alg.type);
+    CheckSignAndVerify(pkey.get());
+
+    // Generate a second key. They should be different.
+    ctx.reset(EVP_PKEY_CTX_new_id(alg.type, nullptr));
+    ASSERT_TRUE(ctx);
+    ASSERT_TRUE(EVP_PKEY_keygen_init(ctx.get()));
+    raw = nullptr;
+    ASSERT_TRUE(EVP_PKEY_keygen(ctx.get(), &raw));
+    UniquePtr<EVP_PKEY> pkey2(raw);
+
+    EXPECT_EQ(EVP_PKEY_id(pkey2.get()), alg.type);
+    CheckSignAndVerify(pkey2.get());
+    EXPECT_EQ(EVP_PKEY_cmp(pkey.get(), pkey2.get()), 0);
+
+    // The less messy API should also work.
+    UniquePtr<EVP_PKEY> pkey3(EVP_PKEY_generate_from_alg(alg.alg));
+    ASSERT_TRUE(pkey3);
+    EXPECT_EQ(EVP_PKEY_id(pkey3.get()), alg.type);
+    CheckSignAndVerify(pkey3.get());
+    EXPECT_EQ(EVP_PKEY_cmp(pkey.get(), pkey3.get()), 0);
+  }
 }
 
 // Test that OpenSSL's legacy TLS-specific APIs in EVP work correctly. When we
@@ -1302,6 +1413,50 @@ TEST(EVPExtraTest, NoHalfEmptyKeys) {
   EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
   EXPECT_FALSE(EVP_PKEY_set1_DSA(pkey.get(), nullptr));
   EXPECT_EQ(EVP_PKEY_id(pkey.get()), EVP_PKEY_NONE);
+}
+
+// Due to an OpenSSL API flaw, it is possible to make a half-empty X25519 key.
+// Using a key in this state is a caller error, but we gracefully handle this
+// case.
+TEST(EVPExtraTest, HalfEmptyX25519) {
+  UniquePtr<EVP_PKEY> half_empty(EVP_PKEY_new());
+  ASSERT_TRUE(half_empty);
+  ASSERT_TRUE(EVP_PKEY_set_type(half_empty.get(), EVP_PKEY_X25519));
+
+  // A half-empty key has nothing.
+  EXPECT_FALSE(EVP_PKEY_has_public(half_empty.get()));
+  EXPECT_FALSE(EVP_PKEY_has_private(half_empty.get()));
+
+  // We cannot copy parameters from a half-empty key.
+  EXPECT_TRUE(EVP_PKEY_missing_parameters(half_empty.get()));
+  UniquePtr<EVP_PKEY> pkey(EVP_PKEY_new());
+  ASSERT_TRUE(pkey);
+  EXPECT_FALSE(EVP_PKEY_copy_parameters(pkey.get(), half_empty.get()));
+
+  // A half-empty key cannot be serialized.
+  ScopedCBB cbb;
+  ASSERT_TRUE(CBB_init(cbb.get(), 0));
+  EXPECT_FALSE(EVP_marshal_public_key(cbb.get(), half_empty.get()));
+  EXPECT_FALSE(EVP_marshal_private_key(cbb.get(), half_empty.get()));
+
+  // A half-empty key cannot be used.
+  UniquePtr<EVP_PKEY_CTX> ctx(EVP_PKEY_CTX_new(half_empty.get(), nullptr));
+  EXPECT_FALSE(ctx);
+
+  // Make a real key.
+  UniquePtr<EVP_PKEY> real_key(EVP_PKEY_generate_from_alg(EVP_pkey_x25519()));
+  ASSERT_TRUE(real_key);
+
+  // A half-empty key cannot be compared.
+  EXPECT_FALSE(EVP_PKEY_cmp(half_empty.get(), half_empty.get()));
+  EXPECT_FALSE(EVP_PKEY_cmp(half_empty.get(), real_key.get()));
+  EXPECT_FALSE(EVP_PKEY_cmp(real_key.get(), half_empty.get()));
+
+  // A half-empty cannot be the peer in a Diffie-Hellman operation.
+  ctx.reset(EVP_PKEY_CTX_new(real_key.get(), nullptr));
+  ASSERT_TRUE(ctx);
+  ASSERT_TRUE(EVP_PKEY_derive_init(ctx.get()));
+  EXPECT_FALSE(EVP_PKEY_derive_set_peer(ctx.get(), half_empty.get()));
 }
 
 // Test that parsers correctly handle trailing data.

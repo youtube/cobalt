@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Google Inc.
+ * Copyright 2023 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -218,6 +218,7 @@ VulkanYcbcrConversion::VulkanYcbcrConversion(const VulkanSharedContext* context,
         : Resource(context,
                    Ownership::kOwned,
                    /*gpuMemorySize=*/0,
+                   /*label=*/"",
                    /*reusableRequiresPurgeable=*/false)
         , fYcbcrConversion(ycbcrConversion)
         , fRequiredFilter(requiredFilter) {}

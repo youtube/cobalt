@@ -23,10 +23,10 @@ import {getHtml} from './synced_device_card.html.js';
 
 export interface HistorySyncedDeviceCardElement {
   $: {
-    'card-heading': HTMLElement,
-    'collapse': CrCollapseElement,
-    'collapse-button': HTMLElement,
-    'menu-button': HTMLElement,
+    cardHeading: HTMLElement,
+    collapseButton: HTMLElement,
+    collapse: CrCollapseElement,
+    menuButton: HTMLElement,
   };
 }
 
@@ -97,9 +97,9 @@ export class HistorySyncedDeviceCardElement extends CrLitElement {
    * one for each result if the card is open.
    */
   createFocusRows(): FocusRow[] {
-    const titleRow = new FocusRow(this.$['card-heading'], null);
-    titleRow.addItem('menu', '#menu-button');
-    titleRow.addItem('collapse', '#collapse-button');
+    const titleRow = new FocusRow(this.$.cardHeading, null);
+    titleRow.addItem('menu', '#menuButton');
+    titleRow.addItem('collapse', '#collapseButton');
     const rows = [titleRow];
     if (this.opened) {
       this.shadowRoot.querySelectorAll<HTMLElement>('.item-container')
@@ -113,7 +113,7 @@ export class HistorySyncedDeviceCardElement extends CrLitElement {
   }
 
   /** Open a single synced tab. */
-  protected openTab_(e: MouseEvent) {
+  protected onLinkClick_(e: MouseEvent) {
     const browserService = BrowserServiceImpl.getInstance();
     browserService.recordHistogram(
         SYNCED_TABS_HISTOGRAM_NAME, SyncedTabsHistogram.LINK_CLICKED,
@@ -122,6 +122,10 @@ export class HistorySyncedDeviceCardElement extends CrLitElement {
         this.sessionTag,
         Number((e.currentTarget as HTMLElement).dataset['sessionId']), e);
     e.preventDefault();
+  }
+
+  protected onCardHeadingClick_() {
+    this.toggleTabCard();
   }
 
   /**
@@ -184,7 +188,7 @@ export class HistorySyncedDeviceCardElement extends CrLitElement {
     e.stopPropagation();  // Prevent cr-collapse.
   }
 
-  protected onLinkRightClick_() {
+  protected onLinkContextmenu_() {
     BrowserServiceImpl.getInstance().recordHistogram(
         SYNCED_TABS_HISTOGRAM_NAME, SyncedTabsHistogram.LINK_RIGHT_CLICKED,
         SyncedTabsHistogram.LIMIT);

@@ -456,6 +456,14 @@ class AutofillMetrics {
 
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
+  enum class AtMemoryTriggerSource {
+    kTypedTrigger = 0,
+    kContextMenu = 1,
+    kMaxValue = kContextMenu
+  };
+
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
   //
   // Represents the status of Autofill prompts when at least one prompt can be
   // displayed.
@@ -880,7 +888,7 @@ class AutofillMetrics {
   // Returns the histogram string for the passed in
   // `payments::PaymentsAutofillClient::PaymentsRpcCardType` or
   // `CreditCard::RecordType`, starting with a period.
-  static std::string GetHistogramStringForCardType(
+  static std::string_view GetHistogramStringForCardType(
       std::variant<payments::PaymentsAutofillClient::PaymentsRpcCardType,
                    CreditCard::RecordType> card_type);
 
@@ -929,7 +937,7 @@ int GetFieldTypeUserEditStatusMetric(
 std::string GetCreditCardTypeSuffix(
     payments::PaymentsAutofillClient::PaymentsRpcCardType card_type);
 
-const std::string PaymentsRpcResultToMetricsSuffix(
+const std::string_view PaymentsRpcResultToMetricsSuffix(
     payments::PaymentsAutofillClient::PaymentsRpcResult result);
 
 }  // namespace autofill

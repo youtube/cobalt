@@ -4,12 +4,12 @@
 
 #include "base/containers/span.h"
 #include "base/run_loop.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "components/shared_highlighting/core/common/shared_highlighting_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/public/common/input/web_menu_source_type.h"
 #include "third_party/blink/public/public_buildflags.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_font_face_descriptors.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_mouse_event_init.h"
@@ -205,6 +205,176 @@ TEST_F(TextFragmentAnchorTest, BasicSmokeTest) {
   EXPECT_TRUE(ViewportRect().Contains(BoundingRectInFrame(p)))
       << "<p> Element wasn't scrolled into view, viewport's scroll offset: "
       << LayoutViewport()->GetScrollOffset().ToString();
+}
+
+// Basic test case for silent scroll directives, ensure we scroll the matching
+// text into view but do NOT apply :target or markers.
+TEST_F(TextFragmentAnchorTest, BasicSilentScrollTest) {
+  base::HistogramTester histogram_tester;
+  SimRequest request("https://example.com/test.html", "text/html");
+  LoadURL("https://example.com/test.html");
+
+  // Set the text fragment to scroll to on the DocumentLoader.
+  GetDocument().Loader()->SetInternalScrollToTextFragment("test");
+
+  request.Complete(R"HTML(
+    <!DOCTYPE html>
+    <style>
+      body {
+        height: 1200px;
+      }
+      p {
+        position: absolute;
+        top: 1000px;
+      }
+    </style>
+    <p id="text">This is a test page</p>
+  )HTML");
+  RunUntilTextFragmentFinalization();
+
+  Element& p = *GetDocument().getElementById(AtomicString("text"));
+
+  EXPECT_EQ(nullptr, GetDocument().CssTarget());
+  EXPECT_EQ(0u, GetDocument().Markers().Markers().size());
+  EXPECT_TRUE(ViewportRect().Contains(BoundingRectInFrame(p)))
+      << "<p> Element wasn't scrolled into view, viewport's scroll offset: "
+      << LayoutViewport()->GetScrollOffset().ToString();
+
+  histogram_tester.ExpectUniqueSample(
+      "TextFragmentAnchor.LinkOpenSource",
+      TextFragmentAnchorMetrics::TextFragmentLinkOpenSource::kSendTabToSelf, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      "TextFragmentAnchor.SendTabToSelf.MatchRate", 100, 1);
+}
+
+// Test case for mixed directives: one from URL (highlighted) and one internal
+// (silent). Ensure :target is applied because there's at least one
+// non-scroll-only match.
+TEST_F(TextFragmentAnchorTest, MixedDirectivesTest) {
+  base::HistogramTester histogram_tester;
+  SimRequest request("https://example.com/test.html#:~:text=test", "text/html");
+  LoadURL("https://example.com/test.html#:~:text=test");
+
+  // Set the text fragment to scroll to on the DocumentLoader.
+  GetDocument().Loader()->SetInternalScrollToTextFragment("page");
+
+  request.Complete(R"HTML(
+    <!DOCTYPE html>
+    <style>
+      body {
+        height: 1200px;
+      }
+      p {
+        position: absolute;
+        top: 1000px;
+      }
+    </style>
+    <p id="text">This is a test page</p>
+  )HTML");
+  RunUntilTextFragmentFinalization();
+
+  Element& p = *GetDocument().getElementById(AtomicString("text"));
+
+  // :target should be applied because the URL directive matched.
+  EXPECT_EQ(p, *GetDocument().CssTarget());
+
+  // There should be a marker for "test" (URL directive) but NOT for "page"
+  // (internal directive).
+  EXPECT_EQ(1u, GetDocument().Markers().Markers().size());
+
+  // It should have scrolled to the FIRST match, which in this case is the URL
+  // one because it was added first.
+  EXPECT_TRUE(ViewportRect().Contains(BoundingRectInFrame(p)))
+      << "<p> Element wasn't scrolled into view, viewport's scroll offset: "
+      << LayoutViewport()->GetScrollOffset().ToString();
+
+  histogram_tester.ExpectUniqueSample(
+      "TextFragmentAnchor.LinkOpenSource",
+      TextFragmentAnchorMetrics::TextFragmentLinkOpenSource::kSendTabToSelf, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      "TextFragmentAnchor.SendTabToSelf.MatchRate", 100, 1);
+}
+
+// Test case for mixed directives matching different elements.
+TEST_F(TextFragmentAnchorTest, MixedDirectivesDifferentElements) {
+  base::HistogramTester histogram_tester;
+  SimRequest request("https://example.com/test.html#:~:text=highlight",
+                     "text/html");
+  LoadURL("https://example.com/test.html#:~:text=highlight");
+
+  // Set the text fragment to scroll to on the DocumentLoader.
+  GetDocument().Loader()->SetInternalScrollToTextFragment("silent");
+
+  request.Complete(R"HTML(
+    <!DOCTYPE html>
+    <style>
+      body { height: 2000px; }
+      #first { position: absolute; top: 1000px; }
+      #second { position: absolute; top: 1500px; }
+    </style>
+    <p id="first">This is a highlight</p>
+    <p id="second">This is a silent scroll-only match</p>
+  )HTML");
+  RunUntilTextFragmentFinalization();
+
+  Element& first = *GetDocument().getElementById(AtomicString("first"));
+  Element& second = *GetDocument().getElementById(AtomicString("second"));
+
+  // The first match (the URL one) should be the CSS target and scrolled to.
+  EXPECT_EQ(first, *GetDocument().CssTarget());
+  EXPECT_TRUE(ViewportRect().Contains(BoundingRectInFrame(first)));
+  EXPECT_FALSE(ViewportRect().Contains(BoundingRectInFrame(second)));
+
+  // Only the highlight should have a marker.
+  EXPECT_EQ(1u, GetDocument().Markers().Markers().size());
+
+  histogram_tester.ExpectUniqueSample(
+      "TextFragmentAnchor.LinkOpenSource",
+      TextFragmentAnchorMetrics::TextFragmentLinkOpenSource::kSendTabToSelf, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      "TextFragmentAnchor.SendTabToSelf.MatchRate", 100, 1);
+}
+
+// Test case where a URL directive fails but a scroll-only internal one
+// succeeds.
+TEST_F(TextFragmentAnchorTest, MixedDirectivesUrlFails) {
+  base::HistogramTester histogram_tester;
+  SimRequest request("https://example.com/test.html#:~:text=nomatch",
+                     "text/html");
+  LoadURL("https://example.com/test.html#:~:text=nomatch");
+
+  // Set the text fragment to scroll to on the DocumentLoader.
+  GetDocument().Loader()->SetInternalScrollToTextFragment("silent");
+
+  request.Complete(R"HTML(
+    <!DOCTYPE html>
+    <style>
+      body { height: 2000px; }
+      #first { position: absolute; top: 1000px; }
+      #second { position: absolute; top: 1500px; }
+    </style>
+    <p id="first">This is no-match</p>
+    <p id="second">This is a silent scroll-only match</p>
+  )HTML");
+  RunUntilTextFragmentFinalization();
+
+  Element& second = *GetDocument().getElementById(AtomicString("second"));
+
+  // The only match is the scroll-only one.
+  // It should be scrolled to, but NO :target and NO marker.
+  EXPECT_EQ(nullptr, GetDocument().CssTarget());
+  EXPECT_TRUE(ViewportRect().Contains(BoundingRectInFrame(second)));
+  EXPECT_EQ(0u, GetDocument().Markers().Markers().size());
+
+  histogram_tester.ExpectUniqueSample(
+      "TextFragmentAnchor.LinkOpenSource",
+      TextFragmentAnchorMetrics::TextFragmentLinkOpenSource::kSendTabToSelf, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      "TextFragmentAnchor.SendTabToSelf.MatchRate", 50, 1);
 }
 
 // Make sure an anchor isn't created (and we don't crash) if text= is empty.

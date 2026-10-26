@@ -20,6 +20,8 @@ template("eslint_ts") {
                              "in_files",
                              "tsconfig",
                              "enable_web_component_missing_deps",
+                             "enable_no_chrome_send",
+                             "visibility",
                            ])
 
     # The file holding the ESLint configuration.
@@ -28,6 +30,16 @@ template("eslint_ts") {
     inputs = [
       config_base,
       tsconfig,
+      "//ui/webui/resources/tools/eslint/inline_event_handler.js",
+      "//ui/webui/resources/tools/eslint/lit_property_accessor.js",
+      "//ui/webui/resources/tools/eslint/lit_element_bindings.js",
+      "//ui/webui/resources/tools/eslint/lit_element_invalid_interface.js",
+      "//ui/webui/resources/tools/eslint/lit_element_structure.js",
+      "//ui/webui/resources/tools/eslint/lit_element_template_structure.js",
+      "//ui/webui/resources/tools/eslint/polymer_property_class_member.js",
+      "//ui/webui/resources/tools/eslint/polymer_property_declare.js",
+      "//ui/webui/resources/tools/eslint/query_utils.js",
+      "//ui/webui/resources/tools/eslint/web_component_missing_deps.js",
       "//ui/webui/resources/tools/webui_eslint_plugin.js",
     ]
     outputs = [ "$target_gen_dir/eslint.config.mjs" ]
@@ -53,6 +65,10 @@ template("eslint_ts") {
     if (defined(enable_web_component_missing_deps) &&
         enable_web_component_missing_deps) {
       args += [ "--enable_web_component_missing_deps" ]
+    }
+
+    if (defined(enable_no_chrome_send) && enable_no_chrome_send) {
+      args += [ "--enable_no_chrome_send" ]
     }
   }
 }

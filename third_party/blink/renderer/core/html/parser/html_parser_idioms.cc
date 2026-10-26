@@ -65,8 +65,8 @@ String StripLeadingAndTrailingHTMLSpaces(const String& string) {
     if (!(num_leading_spaces | num_trailing_spaces))
       return string;
 
-    return string.Substring(num_leading_spaces, length - (num_leading_spaces +
-                                                          num_trailing_spaces));
+    return string.substr(num_leading_spaces,
+                         length - (num_leading_spaces + num_trailing_spaces));
   });
 }
 
@@ -92,7 +92,7 @@ Vector<String> SplitOnASCIIWhitespace(const String& input) {
     while (cursor < chars.size()) {
       const wtf_size_t token_start = static_cast<wtf_size_t>(cursor);
       cursor = SkipUntil<CharacterType, IsHTMLSpace>(chars, cursor);
-      output.push_back(input.Substring(
+      output.push_back(input.substr(
           token_start, static_cast<wtf_size_t>(cursor - token_start)));
       cursor = SkipWhile<CharacterType, IsHTMLSpace>(chars, cursor);
     }
@@ -121,8 +121,9 @@ Decimal ParseToDecimalForNumberType(const String& string,
   // whitespace characters, which are not valid here.
   const UChar first_character = string[0];
   if (first_character != '-' && first_character != '.' &&
-      !IsASCIIDigit(first_character))
+      !IsAsciiDigit(first_character)) {
     return fallback_value;
+  }
 
   const Decimal value = Decimal::FromString(string);
   if (!value.IsFinite())
@@ -166,10 +167,12 @@ double ParseToDoubleForNumberType(const String& string, double fallback_value) {
   // not valid here.
   UChar first_character = string[0];
   if (first_character != '-' && first_character != '.' &&
-      !IsASCIIDigit(first_character))
+      !IsAsciiDigit(first_character)) {
     return fallback_value;
-  if (string.EndsWith('.'))
+  }
+  if (string.ends_with('.')) {
     return fallback_value;
+  }
 
   auto value = StringToDouble(string);
   return CheckDoubleValue(value.value_or(0), value.has_value(), fallback_value);
@@ -289,7 +292,7 @@ static bool IsSpaceOrDelimiter(CharacterType c) {
 
 template <typename CharacterType>
 static bool IsNotSpaceDelimiterOrNumberStart(CharacterType c) {
-  return !(IsSpaceOrDelimiter(c) || IsASCIIDigit(c) || c == '.' || c == '-');
+  return !(IsSpaceOrDelimiter(c) || IsAsciiDigit(c) || c == '.' || c == '-');
 }
 
 template <typename CharacterType>
@@ -378,7 +381,7 @@ String ExtractCharset(const String& value) {
     if (quote_mark && (end == length))
       break;  // Close quote not found.
 
-    return value.Substring(pos, end - pos);
+    return value.substr(pos, end - pos);
   }
 
   return "";
@@ -401,8 +404,9 @@ TextEncoding EncodingFromMetaAttributes(const HTMLAttributeList& attributes) {
     const AtomicString& attribute_value = AtomicString(html_attribute.second);
 
     if (ThreadSafeMatch(attribute_name, html_names::kHttpEquivAttr)) {
-      if (EqualIgnoringASCIICase(attribute_value, "content-type"))
+      if (EqualIgnoringAsciiCase(attribute_value, "content-type")) {
         got_pragma = true;
+      }
     } else if (ThreadSafeMatch(attribute_name, html_names::kCharsetAttr)) {
       has_charset = true;
       charset = attribute_value;

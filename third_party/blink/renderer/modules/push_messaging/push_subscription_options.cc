@@ -53,10 +53,10 @@ Vector<uint8_t> BufferSourceToVector(
   const bool is_vapid = input.size() == 65 && input[0] == 0x04;
   const bool is_sender_id =
       input.size() > 0 && input.size() < kMaxApplicationServerKeyLength &&
-      (std::ranges::find_if_not(input, IsASCIIDigit<uint8_t>) == input.end());
+      (std::ranges::find_if_not(input, IsAsciiDigit<uint8_t>) == input.end());
 
   if (is_vapid || is_sender_id) {
-    result.AppendSpan(base::as_bytes(input));
+    result.append_range(input);
   } else {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidAccessError,
@@ -79,7 +79,7 @@ PushSubscriptionOptions* PushSubscriptionOptions::FromOptionsInit(
   if (options_init->hasApplicationServerKey() &&
       options_init->applicationServerKey()
   ) {
-    application_server_key.AppendVector(BufferSourceToVector(
+    application_server_key.append_range(BufferSourceToVector(
         options_init->applicationServerKey(), exception_state));
   }
 

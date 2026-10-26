@@ -36,10 +36,33 @@ class FormFillingHelper;
 // Upon completion invokes `result_callback` to notify the result of submission.
 class ChangePasswordFormFillingSubmissionHelper {
  public:
-  using SubmissionResult = PasswordChangeSubmissionVerifier::SubmissionResult;
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // LINT.IfChange(SubmissionError)
+  enum class SubmissionError {
+    kFailedToFillForm = 0,
+    kTimeout = 1,
+    kFailedToCaptureContent = 2,
+    kFailedToParseResponse = 3,
+    kSubmitButtonNotFound = 4,
+    kInterventionDetected = 5,
+    kFailedToClickSubmit = 6,
+    kMaxValue = kFailedToClickSubmit,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/password/enums.xml:ChangePasswordFormSubmissionError)
+
+  using SubmissionResult =
+      base::expected<std::unique_ptr<password_manager::PasswordFormManager>,
+                     SubmissionError>;
 
   static constexpr base::TimeDelta kSubmissionWaitingTimeout =
       base::Seconds(10);
+
+  ChangePasswordFormFillingSubmissionHelper(
+      content::WebContents* web_contents,
+      password_manager::PasswordManagerClient* client,
+      base::OnceCallback<void(SubmissionResult)> result_callback);
 
   ChangePasswordFormFillingSubmissionHelper(
       content::WebContents* web_contents,
@@ -79,10 +102,6 @@ class ChangePasswordFormFillingSubmissionHelper {
   GURL GetURL() const;
 
 #if defined(UNIT_TEST)
-  PasswordChangeSubmissionVerifier* submission_verifier() {
-    return submission_verifier_.get();
-  }
-
   ChangePasswordFormWaiter* form_waiter() { return form_waiter_.get(); }
 
   ButtonClickHelper* click_helper() { return click_helper_.get(); }
@@ -92,12 +111,9 @@ class ChangePasswordFormFillingSubmissionHelper {
   }
 
   FormFillingHelper* form_filler() { return form_filler_.get(); }
-
 #endif
   // Whether helper has submitted change password form or not.
-  bool IsPasswordFormSubmitted() const {
-    return submission_verifier_ != nullptr;
-  }
+  bool IsPasswordFormSubmitted() const { return click_helper_ != nullptr; }
 
  private:
   void TriggerFilling(
@@ -123,12 +139,10 @@ class ChangePasswordFormFillingSubmissionHelper {
 
   void OnSubmissionDetectedOrTimeout();
 
-  void OnSubmissionOutcomeChecked(SubmissionResult result);
-
   void OnChangePasswordFormFound(
       password_manager::PasswordFormManager* form_manager);
 
-  std::optional<base::Time> creation_time_;
+  base::Time creation_time_;
 
   const raw_ptr<content::WebContents> web_contents_ = nullptr;
   const raw_ptr<password_manager::PasswordManagerClient> client_ = nullptr;
@@ -158,9 +172,6 @@ class ChangePasswordFormFillingSubmissionHelper {
   bool submission_detected_ = false;
 
   std::unique_ptr<FormFillingHelper> form_filler_;
-
-  // Helper object which verifies whether password was updated successfully.
-  std::unique_ptr<PasswordChangeSubmissionVerifier> submission_verifier_;
 
   std::unique_ptr<ButtonClickHelper> click_helper_;
 

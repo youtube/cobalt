@@ -38,6 +38,8 @@ static_library("test_support") {
     "test/embedded_fake_server_adapter.h",
     "test/entity_builder_factory.cc",
     "test/entity_builder_factory.h",
+    "test/fake_connection_manager.cc",
+    "test/fake_connection_manager.h",
     "test/fake_cryptographer.cc",
     "test/fake_cryptographer.h",
     "test/fake_data_type_connector.cc",
@@ -78,8 +80,6 @@ static_library("test_support") {
     "test/forwarding_data_type_local_change_processor.h",
     "test/mock_commit_queue.cc",
     "test/mock_commit_queue.h",
-    "test/mock_connection_manager.cc",
-    "test/mock_connection_manager.h",
     "test/mock_data_type_controller_delegate.cc",
     "test/mock_data_type_controller_delegate.h",
     "test/mock_data_type_local_change_processor.cc",
@@ -163,6 +163,7 @@ static_library("test_support") {
     "//components/prefs:test_support",
     "//components/signin/public/base",
     "//components/signin/public/identity_manager:test_support",
+    "//components/sync_device_info",
     "//components/version_info",
     "//components/version_info:generate_version_info",
     "//google_apis",
@@ -276,6 +277,7 @@ source_set("unit_tests") {
     "service/sync_user_settings_impl_unittest.cc",
     "service/syncable_service_based_data_type_controller_unittest.cc",
     "service/trusted_vault_synthetic_field_trial_unittest.cc",
+    "test/unknown_field_util_unittest.cc",
   ]
 
   configs += [ "//build/config:precompiled_headers" ]
@@ -288,6 +290,7 @@ source_set("unit_tests") {
   deps = [
     ":sync",
     ":test_support",
+    ":test_support_proto",
     "//base",
     "//base/test:test_support",
     "//components/gcm_driver:test_support",

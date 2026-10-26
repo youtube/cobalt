@@ -13,8 +13,10 @@
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
 #import "ios/chrome/browser/saved_tab_groups/ui/tab_group_utils.h"
 #import "ios/chrome/browser/shared/model/web_state_list/tab_group.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/top_aligned_image_view.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
+#import "ios/chrome/browser/shared/ui/util/color_palette/tab_group_color_palette.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/create_or_edit_tab_group_view_controller_delegate.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups/group_tab_view.h"
@@ -304,7 +306,12 @@ const CGFloat kClearButtonWidthAndHeight = 40;
   tab_groups::TabGroupColorId colorID =
       static_cast<tab_groups::TabGroupColorId>(_selectedButton.tag);
 
-  UIColor* defaultColor = tab_groups::ColorForTabGroupColorId(colorID);
+  UIColor* defaultColor;
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    defaultColor = [TabGroupColorPalette commonColor:colorID];
+  } else {
+    defaultColor = tab_groups::ColorForTabGroupColorId(colorID);
+  }
   _dotView = [self groupDotViewWithColor:defaultColor];
   _tabGroupTextField = [self configuredTabGroupNameTextFieldInput];
 
@@ -479,7 +486,11 @@ const CGFloat kClearButtonWidthAndHeight = 40;
   [_selectedButton setSelected:YES];
   tab_groups::TabGroupColorId colorID =
       static_cast<tab_groups::TabGroupColorId>(_selectedButton.tag);
-  [_dotView setBackgroundColor:tab_groups::ColorForTabGroupColorId(colorID)];
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    [_dotView setBackgroundColor:[TabGroupColorPalette commonColor:colorID]];
+  } else {
+    [_dotView setBackgroundColor:tab_groups::ColorForTabGroupColorId(colorID)];
+  }
 }
 
 // Creates all the available color buttons.
@@ -510,16 +521,23 @@ const CGFloat kClearButtonWidthAndHeight = 40;
                             weight:UIImageSymbolWeightRegular
                              scale:UIImageSymbolScaleDefault];
 
+    UIColor* buttonColor;
+    if (IsTabGroupColorOnSurfaceEnabled()) {
+      buttonColor = [TabGroupColorPalette commonColor:colorID];
+    } else {
+      buttonColor = tab_groups::ColorForTabGroupColorId(colorID);
+    }
+
     UIImage* normalSymbolImage =
         DefaultSymbolWithConfiguration(kCircleFillSymbol, configuration);
     normalSymbolImage = [normalSymbolImage
-        imageWithTintColor:tab_groups::ColorForTabGroupColorId(colorID)
+        imageWithTintColor:buttonColor
              renderingMode:UIImageRenderingModeAlwaysOriginal];
 
     UIImage* selectedSymbolImage =
         DefaultSymbolWithConfiguration(kCircleCircleFillSymbol, configuration);
     selectedSymbolImage = [selectedSymbolImage
-        imageWithTintColor:tab_groups::ColorForTabGroupColorId(colorID)
+        imageWithTintColor:buttonColor
              renderingMode:UIImageRenderingModeAlwaysOriginal];
 
     [colorButton setImage:normalSymbolImage forState:UIControlStateNormal];

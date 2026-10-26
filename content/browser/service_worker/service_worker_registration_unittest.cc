@@ -28,6 +28,7 @@
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_core_observer.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
+#include "content/browser/service_worker/service_worker_context_wrapper_test_api.h"
 #include "content/browser/service_worker/service_worker_host.h"
 #include "content/browser/service_worker/service_worker_register_job.h"
 #include "content/browser/service_worker/service_worker_registration_object_host.h"
@@ -180,8 +181,8 @@ class ServiceWorkerRegistrationTest : public testing::Test {
         CreateStoragePartitionConfigForTesting(/*in_memory=*/true),
         base::FilePath() /* relative_partition_path */);
     storage_partition_impl_->Initialize();
-    helper_->context_wrapper()->set_storage_partition(
-        storage_partition_impl_.get());
+    ServiceWorkerContextWrapperTestApi(helper_->context_wrapper())
+        .set_storage_partition(storage_partition_impl_.get());
   }
 
   void TearDown() override {
@@ -831,8 +832,12 @@ class ServiceWorkerRegistrationObjectHostTest
       std::string* out_error_msg) {
     blink::mojom::ServiceWorkerErrorType out_error =
         blink::mojom::ServiceWorkerErrorType::kUnknown;
+    auto fetch_client_settings_object =
+        blink::mojom::FetchClientSettingsObject::New();
+    fetch_client_settings_object->policy_container_policies =
+        blink::mojom::PolicyContainerPolicies::New();
     registration_host->Update(
-        blink::mojom::FetchClientSettingsObject::New(),
+        std::move(fetch_client_settings_object),
         base::BindLambdaForTesting(
             [&out_error, &out_error_msg](
                 blink::mojom::ServiceWorkerErrorType error,
@@ -851,8 +856,13 @@ class ServiceWorkerRegistrationObjectHostTest
       ServiceWorkerVersion& version) {
     std::optional<blink::mojom::ServiceWorkerErrorType> error;
     base::RunLoop run_loop;
+    auto fetch_client_settings_object =
+        blink::mojom::FetchClientSettingsObject::New();
+    fetch_client_settings_object->policy_container_policies =
+        blink::mojom::PolicyContainerPolicies::New();
     registration->DelayUpdate(
-        version, blink::mojom::FetchClientSettingsObject::New(),
+        version, std::move(fetch_client_settings_object),
+
         base::BindOnce(
             [](std::optional<blink::mojom::ServiceWorkerErrorType>* out_error,
                base::OnceClosure callback,

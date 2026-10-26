@@ -324,11 +324,17 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
       ScrollState scroll_state,
       base::TimeDelta delayed_by = base::TimeDelta());
 
+  struct ScrollVector {
+    gfx::Vector2dF scroll_delta;
+    ui::ScrollGranularity granularity;
+  };
+
   // Stop scrolling the selected layer. Must be called only if ScrollBegin()
   // returned SCROLL_STARTED. No-op if ScrollBegin wasn't called or didn't
   // result in a successful scroll latch. Snap to a snap position if
   // |should_snap| is true.
-  virtual void ScrollEnd(bool should_snap = false);
+  virtual void ScrollEnd(bool should_snap,
+                         std::optional<ScrollVector> compensated_scroll_delta);
 
   // Called to notify every time scroll-begin/end is attempted by an input
   // event.
@@ -339,8 +345,8 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   virtual PointerResultType HitTest(const gfx::PointF& mouse_position);
   virtual InputHandlerPointerResult MouseMoveAt(
       const gfx::Point& mouse_position);
-  // TODO(arakeri): Pass in the modifier instead of a bool once the refactor
-  // (crbug.com/1022097) is done. For details, see crbug.com/1016955.
+  // TODO(crbug.com/40106459): Pass in the modifier instead of a bool once the
+  // refactor is done. For details, see crbug.com/1016955.
   virtual InputHandlerPointerResult MouseDown(const gfx::PointF& mouse_position,
                                               bool shift_modifier);
   virtual InputHandlerPointerResult MouseUp(const gfx::PointF& mouse_position);
@@ -750,7 +756,9 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
   // |scroll_node| is not null, we assume it is the ScrollNode for which the
   // scroll has ended. Otherwise, we assume the scroll has ended for
   // |CurrentlyScrollingNode()|.
-  void ScrollEnd(ScrollNode* scroll_node, bool should_snap = false);
+  void ScrollEnd(ScrollNode* scroll_node,
+                 bool should_snap = false,
+                 std::optional<ScrollVector> scroll_state = std::nullopt);
 
   void LimitDeltaToScrollerSize(const ScrollState& scroll_state,
                                 const ScrollNode& scroll_node,
@@ -898,6 +906,10 @@ class CC_EXPORT InputHandler : public InputDelegateForCompositor {
 
   // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types.
   ScrollSourceType last_latched_scroll_source_type_ = ScrollSourceType::kNone;
+
+  // This tracks if a scroll update event has been received for the current
+  // touch sequence.
+  bool has_received_scroll_update_for_sequence_ = false;
 
   // Must be the last member to ensure this is destroyed first in the
   // destruction order and invalidates all weak pointers.

@@ -8,6 +8,7 @@
 <translation id="1051793555070215510">Pomóż nam ulepszać tryb incognito, wypełniając tę 1-minutową ankietę.</translation>
 <translation id="1065672644894730302">Nie można odczytać ustawień. Niektóre funkcje mogą być niedostępne, a zmiany w ustawieniach nie zostaną zapisane.</translation>
 <translation id="1083934481477628225">Rodzic wyłączył „Uprawnienia stron, aplikacji i rozszerzeń” w Chromium</translation>
+<translation id="1090946077924227754">Aby wyszukać konkretną funkcję lub rozszerzenie Chromium, wpisz skrót do danego elementu na pasku adresu i naciśnij wybrany klawisz</translation>
 <translation id="1104942323762546749">Chromium chce wyeksportować Twoje hasła. Wpisz swoje hasło do Windows, by na to zezwolić.</translation>
 <translation id="112640046208448578">Rozpoznawaj obiekty lub miejsca i kopiuj lub tłumacz tekst. Gdy używasz wyszukiwania obrazów, na serwer jest wysyłany zrzut ekranu ze strony. <ph name="LEARN_MORE" /></translation>
 <translation id="113122355610423240">Chromium jest domyślną przeglądarką</translation>
@@ -25,8 +26,10 @@
 <translation id="1262876892872089030">Gdy ta karta była nieaktywna, pamięć została zwolniona, aby przeglądarka Chromium działała szybko. Możesz zdecydować, że ta witryna ma być zawsze aktywna.</translation>
 <translation id="1265577313130862557">Pobieranie zostało zablokowane przez Chromium, bo plik jest niebezpieczny</translation>
 <translation id="126567311906253476">Gdy logujesz się w usługach Google takich jak Gmail czy YouTube, używając konta <ph name="USER_EMAIL" />, możesz za pomocą tego samego konta automatycznie logować się w Chromium</translation>
+<translation id="1287534462498555020">Pobierz Chromium na telefon</translation>
 <translation id="1290883685122687410">Błąd konfiguracji: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Skonfiguruj nowy profil w Chromium</translation>
+<translation id="132092532143527429">Wypróbuj z Gemini w Chromium</translation>
 <translation id="1324107359134968521">Aby można było przeglądać urządzenia Bluetooth, Chromium musi mieć dostęp do Bluetootha. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Wykryj język</translation>
 <translation id="1330742950061766891">Użyj zalecanych ustawień przeglądarki Chromium</translation>
@@ -236,7 +239,9 @@
 <translation id="3509308970982693815">Zamknij wszystkie okna Chromium i spróbuj ponownie.</translation>
 <translation id="3522404737534491619">Aby udostępnić okno, pozwól Chromium na nagrywanie ekranu w ustawieniach systemu</translation>
 <translation id="3530103706039034513">Jesteś już zalogowany(a) na konto <ph name="EXISTING_USER" />.  Aby przeglądać osobno, zaloguj się w Chromium w swoim profilu jako <ph name="USER_EMAIL_ADDRESS" />.</translation>
+<translation id="3531741627422851418">Kod QR umożliwiający pobranie przeglądarki Chromium na urządzeniach mobilnych</translation>
 <translation id="3561853857681580870">Aby udostępnić ekran, pozwól Chromium na nagrywanie ekranu w ustawieniach systemu.</translation>
+<translation id="3588112919289558122">Silniejsza ochrona wyłącza optymalizację JavaScriptu w witrynach, których Chromium nie rozpoznaje</translation>
 <translation id="3597003331831379823">Nie udało się uruchomić konfiguracji z podwyższonymi uprawnieniami. <ph name="METAINSTALLER_ERROR" /></translation>
 <translation id="3600428265489994557">Zaloguj się w Chromium</translation>
 <translation id="3639635944603682591">Dane przeglądania tej osoby zostaną usunięte z tego urządzenia. Aby je odzyskać, zaloguj się w Chromium jako <ph name="USER_EMAIL" />.</translation>
@@ -370,11 +375,11 @@
 <translation id="5174969993834422967">Zazwyczaj blokujesz powiadomienia. Aby zezwolić tej stronie na wysyłanie powiadomień, kliknij ikonę powiadomienia w prawym rogu paska lokalizacji.</translation>
 <translation id="5174983315706567306">Za mało miejsca na dysku.</translation>
 <translation id="5187123684706427865">Konto Chromium wymaga ponownego uwierzytelnienia</translation>
-<translation id="5219681158518957165">Użyj zalecanych ustawień przeglądarki</translation>
 <translation id="5224391634244552924">Brak zapisanych haseł. Chromium może sprawdzać Twoje hasła, gdy je zapiszesz.</translation>
 <translation id="5231355151045086930">Wylogowanie z Chromium</translation>
 <translation id="5234764350956374838">Zamknij</translation>
 <translation id="5254739261293693943">Zapytaj o ten film</translation>
+<translation id="5276305953263010518">Pobierz aplikację Chromium, aby zapisywać hasła, gdziekolwiek jesteś</translation>
 <translation id="5277894862589591112">Aby zastosować zmiany, uruchom ponownie Chromium</translation>
 <translation id="5286907366254680517">Wykryto</translation>
 <translation id="5289287148052354622">Pobierz aplikację Chromium</translation>
@@ -581,9 +586,13 @@ Chromium nie może odzyskać ustawień.</translation>
 <translation id="7352651011704765696">Coś poszło nie tak</translation>
 <translation id="7368826207863345663">Aby otrzymywać w przyszłości aktualizacje Chromium, musisz mieć system macOS 13 lub nowszy. Na tym komputerze jest zainstalowany system macOS 12.</translation>
 <translation id="7376384068949534168">Od jakiegoś czasu nie odwiedzasz tej witryny. Przeglądarka Chromium usunęła te uprawnienia: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />.</translation>
+<translation id="73786666777299047">Otwórz Chrome Web Store</translation>
 <translation id="7384121030444253939">To rozszerzenie nie jest już obsługiwane. Chromium zaleca jego usunięcie.</translation>
 <translation id="7413153308467572558">Wznawianie przeglądania od tego samego miejsca: Chromium po każdym ponownym uruchomieniu przywraca karty. Aby wyłączyć tę funkcję, otwórz</translation>
 <translation id="7427879960656355200">Importuj hasła do Chromium</translation>
+<translation id="744815265653811511">1. Kliknij <ph name="BUTTON_LABEL" /> poniżej
+2. Kliknij <ph name="BUTTON_2" /> w ustawieniach systemu Windows
+3. Kliknij <ph name="BUTTON_3" /> w powiadomieniu systemu Windows, aby przypiąć przeglądarkę Chromium do paska zadań i mieć do niej szybki dostęp</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> – Chromium Dev</translation>
 <translation id="7450541714075000668">Tekst został skopiowany</translation>
 <translation id="7451052299415159299">Chromium potrzebuje uprawnień dostępu do aparatu na tej stronie</translation>
@@ -599,7 +608,9 @@ Chromium nie może odzyskać ustawień.</translation>
 <translation id="761356813943268536">Chromium używa Twojej kamery i mikrofonu.</translation>
 <translation id="7617377681829253106">Przeglądarka Chromium jest jeszcze lepsza</translation>
 <translation id="7622753900276619808">Teraz masz do dyspozycji więcej funkcji w Chromium</translation>
+<translation id="7624307931717240213">Informacji używamy, aby ulepszyć tę usługę. Przeczytaj politykę prywatności i warunki korzystania z usługi.</translation>
 <translation id="7649070708921625228">Pomoc</translation>
+<translation id="7650134251917003571">Pobierz aplikację Chromium</translation>
 <translation id="7656340475565475526">Pozwól Chromium przeglądać strony za Ciebie</translation>
 <translation id="7658239707568436148">Anuluj</translation>
 <translation id="7686590090926151193">Chromium nie jest domyślną przeglądarką</translation>
@@ -683,6 +694,7 @@ Chromium nie może odzyskać ustawień.</translation>
 <translation id="8522801943730206384">Chromium może sprawdzać Twoje hasła, gdy je zapiszesz</translation>
 <translation id="8548787790260785208">Otrzymuj ostrzeżenia, jeśli Chromium wykryje, że któreś z Twoich haseł zostało ujawnione w wyniku publicznego naruszenia bezpieczeństwa danych</translation>
 <translation id="8555465886620020932">Błąd usługi: <ph name="SERVICE_ERROR" /></translation>
+<translation id="8556055872671007529">Niektóre funkcje i rozszerzenia Chromium mają skróty. Możesz je ponownie włączyć.</translation>
 <translation id="8556420416730706394">Możesz przypiąć wyszukiwanie obrazów, aby mieć do niego łatwy dostęp. Kliknij przycisk Przypnij u góry panelu bocznego</translation>
 <translation id="856656450041460113">Przeszukaj listę języków</translation>
 <translation id="8568283329061645092">Chromium może sprawdzić Twoje hasła, gdy zalogujesz się na swoje konto Google</translation>
@@ -718,6 +730,7 @@ Chromium nie może odzyskać ustawień.</translation>
 <translation id="8988036198400390003">Zarządzaj profilami Chromium</translation>
 <translation id="9019929317751753759">Aby poprawić bezpieczeństwo Chromium, wyłączyliśmy to rozszerzenie. Nie jest ono dostępne w <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> i mogło zostać dodane bez Twojej wiedzy.</translation>
 <translation id="904366664621834601">Pobieranie zostało zablokowane przez Chromium, ponieważ plik archiwum zawiera inne pliki, które mogą ukrywać złośliwe oprogramowanie</translation>
+<translation id="9053882453960391422">Synchronizuj hasła, zakładki i historię na wszystkich swoich urządzeniach. Zaktualizuj przeglądarkę domyślną do Chromium, aby mieć łatwy dostęp do znanych i lubianych funkcji. Przeglądarka Chromium zostanie przypięta do paska zadań, aby była łatwo dostępna.</translation>
 <translation id="9062666675513499497">Loguj się w Chromium, gdy logujesz się w innych usługach Google</translation>
 <translation id="9078733879136747090">Aplikacja Chromium została automatycznie zamknięta</translation>
 <translation id="9089354809943900324">Chromium jest nieaktualny</translation>

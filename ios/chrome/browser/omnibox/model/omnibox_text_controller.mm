@@ -114,14 +114,12 @@ const char kOmniboxFocusResultedInNavigation[] =
 
   [textInput.view becomeFirstResponder];
 
-  if (_presentationContext == OmniboxPresentationContext::kComposebox) {
-    if (textInput.isPreEditing) {
-      // Reset the pre-edit state to ensure the caret is not visible.
-      [textInput exitPreEditState];
-      [textInput enterPreEditState];
-    } else {
-      [self setCaretPos:textInput.text.length];
-    }
+  if (_presentationContext == OmniboxPresentationContext::kComposebox &&
+      _omniboxTextModel && _omniboxTextModel->user_input_in_progress) {
+    // In composebox, the omnibox is refocused after using the camera
+    // attachment. If user has existing input, set the caret to the end of the
+    // text. Otherwise, skip setting the caret position crbug.com/475977756.
+    [self setCaretPos:textInput.text.length];
   }
 
   // Ensures that the accessibility system focuses the text input instead of
@@ -160,11 +158,8 @@ const char kOmniboxFocusResultedInNavigation[] =
   // Exiting pre edit also shows the selections handle when animating the
   // defocus (crbug.com/458055336).
   BOOL skipExitPreEdit =
-      (IsMultilineBrowserOmniboxEnabled() &&
-       _presentationContext == OmniboxPresentationContext::kLocationBar) ||
-      (IsComposeboxIOSEnabled() &&
-       _presentationContext == OmniboxPresentationContext::kComposebox);
-  ;
+      IsComposeboxIOSEnabled() &&
+      _presentationContext == OmniboxPresentationContext::kComposebox;
   if (!skipExitPreEdit) {
     [self.textInput exitPreEditState];
   }
@@ -337,6 +332,16 @@ const char kOmniboxFocusResultedInNavigation[] =
   const AutocompleteMatch& current_match =
       _omniboxTextModel->user_input_in_progress ? [self currentMatch:nullptr]
                                                 : AutocompleteMatch();
+
+  // NOTE: Suggestions are currently disabled for Cobrowse. If they are
+  // requested in the future, remove this conditional branch.
+  if (_presentationContext == OmniboxPresentationContext::kCobrowse) {
+    const AutocompleteResult result;
+    _omniboxClient->OnTextChanged(
+        current_match, _omniboxTextModel->user_input_in_progress,
+        _omniboxTextModel->user_text, result, _omniboxTextModel->HasFocus());
+    return;
+  }
 
   if (const AutocompleteResult* result =
           [self.omniboxAutocompleteController autocompleteResult]) {
@@ -522,8 +527,10 @@ const char kOmniboxFocusResultedInNavigation[] =
 
   if (_omniboxTextModel) {
     _omniboxTextModel->OnSetFocus();
-
-    if (_presentationContext == OmniboxPresentationContext::kLensOverlay) {
+    if (_presentationContext == OmniboxPresentationContext::kCobrowse) {
+      [self startAutocompletePreventingInline:YES];
+    } else if (_presentationContext ==
+               OmniboxPresentationContext::kLensOverlay) {
       if (textInput.userText.length) {
         [self setUserText:textInput.userText.cr_UTF16String];
         [self startAutocompletePreventingInline:YES];
@@ -558,6 +565,7 @@ const char kOmniboxFocusResultedInNavigation[] =
   // omnibox only display search terms.
   if (!popupOpenBeforeEdit &&
       _presentationContext != OmniboxPresentationContext::kLensOverlay &&
+      _presentationContext != OmniboxPresentationContext::kCobrowse &&
       !userInputInProgress) {
     [textInput enterPreEditState];
   }

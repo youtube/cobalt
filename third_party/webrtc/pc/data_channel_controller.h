@@ -15,10 +15,10 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/data_channel_event_observer_interface.h"
 #include "api/data_channel_interface.h"
 #include "api/priority.h"
@@ -154,7 +154,7 @@ class DataChannelController : public SctpDataChannelControllerInterface,
   BuildObserverMessage(
       StreamId sid,
       DataMessageType type,
-      ArrayView<const uint8_t> payload,
+      std::span<const uint8_t> payload,
       DataChannelEventObserverInterface::Message::Direction direction) const
       RTC_RUN_ON(network_thread());
 

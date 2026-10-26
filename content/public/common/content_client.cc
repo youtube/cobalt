@@ -9,6 +9,7 @@
 
 #include "base/feature_list.h"
 #include "base/memory/ref_counted_memory.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/notimplemented.h"
 #include "base/strings/string_split.h"
@@ -170,16 +171,35 @@ bool ContentClient::ShouldIgnoreDuplicateNavs(
   if (!base::FeatureList::IsEnabled(features::kIgnoreDuplicateNavs)) {
     return false;
   }
-  if (is_renderer_initiated &&
-      features::kSkipIgnoreRendererInitiatedNavs.Get()) {
-    return false;
-  }
   const std::string& origins_list_str =
       features::kIgnoreDuplicateNavsOrigins.Get();
-  // Ignore browser-initiated navigations, or if the origin list parameter is
-  // empty, which means the feature should apply to all origins.
-  if (!is_renderer_initiated || origins_list_str.empty()) {
-    return true;
+
+  bool is_match = false;
+  // Check if the origin matches the origins list if it is not empty.
+  if (!origins_list_str.empty()) {
+    is_match = IsUrlInIgnoreDuplicateNavsOrigins(url);
+    base::UmaHistogramBoolean(
+        is_renderer_initiated
+            ? "Navigation.RendererInitiated.DuplicateNavOriginMatch"
+            : "Navigation.BrowserInitiated.DuplicateNavOriginMatch",
+        is_match);
+  }
+
+  // Browser-initiated navigations are ignored if the skip flag is off.
+  if (!is_renderer_initiated) {
+    return !features::kSkipIgnoreBrowserInitiatedNavs.Get();
+  }
+  // Renderer-initiated navigations are ignored if the origin matches and the
+  // skip flag is off.
+  return (origins_list_str.empty() || is_match) &&
+         !features::kSkipIgnoreRendererInitiatedNavs.Get();
+}
+
+bool ContentClient::IsUrlInIgnoreDuplicateNavsOrigins(const GURL& url) const {
+  const std::string& origins_list_str =
+      features::kIgnoreDuplicateNavsOrigins.Get();
+  if (origins_list_str.empty()) {
+    return false;
   }
   static const base::NoDestructor<std::vector<url::Origin>>
       target_origin_ignorelist([&origins_list_str] {
@@ -194,8 +214,8 @@ bool ContentClient::ShouldIgnoreDuplicateNavs(
         return origins;
       }());
 
-  const url::Origin navigation_origin = url::Origin::Create(url);
-  return std::ranges::contains(*target_origin_ignorelist, navigation_origin);
+  return std::ranges::contains(*target_origin_ignorelist,
+                               url::Origin::Create(url));
 }
 
 bool ContentClient::IsFilePickerAllowedForCrossOriginSubframe(

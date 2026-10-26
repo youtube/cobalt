@@ -342,6 +342,10 @@ class BitstreamProcessor final : public EncodedImageCallback,
     return Result(Result::Error::OK);
   }
 
+  void OnFrameDropped(uint32_t /*rtp_timestamp*/,
+                      int /*spatial_id*/,
+                      bool /*is_end_of_temporal_unit*/) override {}
+
   VideoCodec video_codec_setting_;
   int32_t frames_ = 0;
 

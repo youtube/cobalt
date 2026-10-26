@@ -17,6 +17,7 @@ import org.chromium.build.annotations.DoNotInline;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
 import org.chromium.components.embedder_support.delegate.WebContentsDelegateAndroid;
 import org.chromium.components.thinwebview.CompositorView;
 import org.chromium.components.thinwebview.ThinWebView;
@@ -25,6 +26,7 @@ import org.chromium.content_public.browser.SelectionClient;
 import org.chromium.content_public.browser.SelectionPopupController;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.ui.base.WindowAndroid;
@@ -46,6 +48,7 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
 
     /**
      * Creates a {@link ThinWebViewImpl} backed by a {@link Surface}.
+     *
      * @param context The Context to create this view.
      * @param constraints A set of constraints associated with this view.
      * @param intentRequestTracker The {@link IntentRequestTracker} of the current activity.
@@ -109,6 +112,21 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
             WebContents webContents,
             @Nullable View contentView,
             @Nullable WebContentsDelegateAndroid delegate) {
+        attachWebContents(
+                webContents,
+                contentView,
+                delegate,
+                /* contextMenuPopulatorFactory= */ null,
+                /* selectionDropdownMenuDelegate= */ null);
+    }
+
+    @Override
+    public void attachWebContents(
+            WebContents webContents,
+            @Nullable View contentView,
+            @Nullable WebContentsDelegateAndroid delegate,
+            @Nullable ContextMenuPopulatorFactory contextMenuPopulatorFactory,
+            @Nullable SelectionDropdownMenuDelegate selectionDropdownMenuDelegate) {
         if (mNativeThinWebViewImpl == 0) return;
         // Native code holds only a weak reference to this object.
         mWebContentsDelegate = delegate;
@@ -117,8 +135,18 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
 
         // Allow highlighting text.
         SelectionPopupController controller = SelectionPopupController.fromWebContents(webContents);
+        if (selectionDropdownMenuDelegate != null) {
+            controller.setDropdownMenuDelegate(selectionDropdownMenuDelegate);
+        }
         controller.setActionModeCallback(new ThinWebViewActionModeCallback(webContents));
         controller.setSelectionClient(SelectionClient.createSmartSelectionClient(webContents));
+
+        // Populate context menu.
+        if (contextMenuPopulatorFactory != null) {
+            ThinWebViewImplJni.get()
+                    .setContextMenuPopulatorFactory(
+                            mNativeThinWebViewImpl, contextMenuPopulatorFactory);
+        }
 
         webContents.updateWebContentsVisibility(Visibility.VISIBLE);
     }
@@ -173,6 +201,9 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
                 long nativeThinWebView,
                 WebContents webContents,
                 @Nullable WebContentsDelegateAndroid delegate);
+
+        void setContextMenuPopulatorFactory(
+                long nativeThinWebView, ContextMenuPopulatorFactory factory);
 
         void sizeChanged(long nativeThinWebView, int width, int height);
     }

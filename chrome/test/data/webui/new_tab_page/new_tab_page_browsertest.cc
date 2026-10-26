@@ -26,6 +26,20 @@ class NewTabPageBrowserTest : public WebUIMochaBrowserTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+class NewTabPageNextBrowserTest : public WebUIMochaBrowserTest {
+ protected:
+  NewTabPageNextBrowserTest() {
+    set_test_loader_host(chrome::kChromeUINewTabPageHost);
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/{omnibox::kAimServerEligibilityEnabled,
+                              ntp_realbox::kNtpRealboxNext},
+        /*disabled_features=*/{});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
 using NewTabPageTest = NewTabPageBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(NewTabPageTest, MetricsUtils) {
@@ -34,6 +48,12 @@ IN_PROC_BROWSER_TEST_F(NewTabPageTest, MetricsUtils) {
 
 IN_PROC_BROWSER_TEST_F(NewTabPageTest, VoiceSearchOverlay) {
   RunTest("new_tab_page/voice_search_overlay_test.js", "mocha.run()");
+}
+
+using NewTabPageNextTest = NewTabPageNextBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(NewTabPageNextTest, Realbox) {
+  RunTest("new_tab_page/realbox_test.js", "mocha.run()");
 }
 
 // TODO(crbug.com/40933410):  Re-enable once no longer fails.
@@ -74,14 +94,58 @@ IN_PROC_BROWSER_TEST_F(NewTabPageTest, Transparency) {
   RunTest("new_tab_page/transparency_test.js", "mocha.run()");
 }
 
-// TODO(crbug.com/483519387): Flaky on Linux Debug bots.
-#if BUILDFLAG(IS_LINUX) && !defined(NDEBUG)
-#define MAYBE_Composebox DISABLED_Composebox
-#else
-#define MAYBE_Composebox Composebox
-#endif
-IN_PROC_BROWSER_TEST_F(NewTabPageTest, MAYBE_Composebox) {
+IN_PROC_BROWSER_TEST_F(NewTabPageTest, Composebox) {
   RunTest("new_tab_page/composebox/composebox_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxAutocompleteDropdown) {
+  RunTest("new_tab_page/composebox/composebox_autocomplete_test.js",
+          "runMochaSuite('NewTabPageComposeboxAutocompleteDropdownTest')");
+}
+
+IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxAutocompleteKeyboardNavigation) {
+  RunTest("new_tab_page/composebox/composebox_autocomplete_test.js",
+          "runMochaSuite('NewTabPageComposeboxAutocompleteKeyboardNavigationTest')");
+}
+
+IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxAutocompleteMatchRemoval) {
+  RunTest("new_tab_page/composebox/composebox_autocomplete_test.js",
+          "runMochaSuite('NewTabPageComposeboxAutocompleteMatchRemovalTest')");
+}
+
+IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxAutocompleteSmartCompose) {
+  RunTest("new_tab_page/composebox/composebox_autocomplete_test.js",
+          "runMochaSuite('NewTabPageComposeboxAutocompleteSmartComposeTest')");
+}
+
+IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxAutocompleteQuerying) {
+  RunTest("new_tab_page/composebox/composebox_autocomplete_test.js",
+          "runMochaSuite('NewTabPageComposeboxAutocompleteQueryingTest')");
+}
+
+IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxAutocompleteContext) {
+  RunTest("new_tab_page/composebox/composebox_autocomplete_test.js",
+          "runMochaSuite('NewTabPageComposeboxAutocompleteContextTest')");
+}
+
+IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxAutocompleteVoiceSearch) {
+  RunTest("new_tab_page/composebox/composebox_autocomplete_test.js",
+          "runMochaSuite('NewTabPageComposeboxAutocompleteVoiceSearchTest')");
+}
+
+IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxContextMenu) {
+  RunTest("new_tab_page/composebox/composebox_context_menu_test.js",
+          "mocha.run()");
+}
+
+// TODO(https://crbug.com/492773182): Fix the flakiness.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_ComposeboxUpload DISABLED_ComposeboxUpload
+#else
+#define MAYBE_ComposeboxUpload ComposeboxUpload
+#endif
+IN_PROC_BROWSER_TEST_F(NewTabPageTest, MAYBE_ComposeboxUpload) {
+  RunTest("new_tab_page/composebox/composebox_upload_test.js", "mocha.run()");
 }
 
 IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxFileCarousel) {
@@ -92,10 +156,8 @@ IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxFileThumbnail) {
   RunTest("new_tab_page/composebox/file_thumbnail_test.js", "mocha.run()");
 }
 
-// TODO(crbug.com/452644435): Test is flaky on no_field_trial.
-IN_PROC_BROWSER_TEST_F(NewTabPageTest,
-                       DISABLED_ContextualEntrypointAndCarousel) {
-  RunTest("new_tab_page/composebox/contextual_entrypoint_and_carousel_test.js",
+IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxFileInputs) {
+  RunTest("new_tab_page/composebox/composebox_file_inputs_test.js",
           "mocha.run()");
 }
 
@@ -115,10 +177,6 @@ using NewTabPageNtpPromoTest = NewTabPageBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(NewTabPageNtpPromoTest, IndividualPromosTest) {
   RunTest("new_tab_page/ntp_promo/individual_promos_test.js", "mocha.run()");
-}
-
-IN_PROC_BROWSER_TEST_F(NewTabPageNtpPromoTest, NtpSetupListTest) {
-  RunTest("new_tab_page/ntp_promo/setup_list_test.js", "mocha.run()");
 }
 
 using NewTabPageModulesTest = NewTabPageBrowserTest;

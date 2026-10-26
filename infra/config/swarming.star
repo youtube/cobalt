@@ -7,6 +7,7 @@
 They are actually shared with a bunch other projects.
 """
 
+load("@chromium-luci//branches.star", "branches")
 load("@chromium-luci//swarming.star", "swarming")
 load("//project.star", "ACTIVE_MILESTONES")
 
@@ -37,6 +38,14 @@ swarming.task_accounts(
         # this.
         "ios-isolated-tester@chops-service-accounts.iam.gserviceaccount.com",
     ],
+)
+
+# Let fleet ops folks delete bots from all chromium pools in the course of their
+# fleet/hardware duties.
+branches.binding(
+    roles = ["role/swarming.poolOwner"],
+    realm = "@root",
+    groups = ["mdb/chrome-peep-fleet-operations-fte-team"],
 )
 
 # LED users that can trigger tasks in *any* realm in *any* pool.
@@ -147,10 +156,10 @@ swarming.pool_realm(
         "service-account-chromeperf",
     ],
     user_users = [
-        # Skia uses this pool directly.
-        "skia-external-ct-skps@skia-swarming-bots.iam.gserviceaccount.com",
-        # TODO(borenet): Remove the below after we're fully switched to Kitchen.
-        "chromium-swarm-bots@skia-swarming-bots.iam.gserviceaccount.com",
+        # TODO(b/486147856): Skia is temporarily using this pool to test on
+        # Intel Macs with discrete GPUs. Remove this once Skia has its own
+        # capacity in the Skia pool.
+        "task-scheduler@skia-infra-public.iam.gserviceaccount.com",
     ],
     owner_groups = [
         "mdb/chrome-infra-eng",

@@ -8,6 +8,7 @@
 
 #include "ash/constants/webui_url_constants.h"
 #include "ash/webui/settings/public/constants/routes.mojom.h"
+#include "ash/webui/settings/public/constants/routes_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/test_future.h"
@@ -195,16 +196,16 @@ IN_PROC_BROWSER_TEST_F(SettingsWindowManagerTest, OpenSettings) {
   EXPECT_EQ(ash::kChromeUIOSSettingsHost, web_contents->GetURL().GetHost());
 
   // Showing an OS sub-page reuses the OS settings window.
-  base::RunLoop run_loop;
+  base::test::TestFuture<apps::LaunchResult> result;
   settings_manager_->ShowChromePageForProfile(
       browser()->profile(),
-      chrome::GetOSSettingsUrl(
+      chromeos::settings::GetOSSettingsUrl(
           chromeos::settings::mojom::kBluetoothDevicesSubpagePath),
-      display::kInvalidDisplayId,
-      base::BindOnce([](apps::LaunchResult&& result) {
-        EXPECT_EQ(apps::State::kSuccess, result.state);
-      }).Then(run_loop.QuitClosure()));
-  run_loop.Run();
+      display::kInvalidDisplayId, result.GetCallback());
+
+  ASSERT_TRUE(result.Wait());
+  EXPECT_EQ(apps::LaunchResult::kSuccess, result.Get());
+
   EXPECT_EQ(1u, GetNumberOfSettingsWindows());
   EXPECT_EQ(2u, chrome::GetTotalBrowserCount());
 

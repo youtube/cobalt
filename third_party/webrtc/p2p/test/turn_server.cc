@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <tuple>  // for std::tie
 #include <utility>
@@ -21,7 +22,6 @@
 #include "absl/algorithm/container.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/packet_socket_factory.h"
 #include "api/sequence_checker.h"
@@ -173,7 +173,7 @@ void TurnServer::OnInternalPacket(AsyncPacketSocket* socket,
                                   const ReceivedIpPacket& packet) {
   RTC_DCHECK_RUN_ON(thread_);
   // Fail if the packet is too small to even contain a channel header.
-  ArrayView<const uint8_t> payload = packet.payload();
+  std::span<const uint8_t> payload = packet.payload();
   if (payload.size() < TURN_CHANNEL_HEADER_SIZE) {
     return;
   }
@@ -197,7 +197,7 @@ void TurnServer::OnInternalPacket(AsyncPacketSocket* socket,
 }
 
 void TurnServer::HandleStunMessage(TurnServerConnection* conn,
-                                   ArrayView<const uint8_t> payload,
+                                   std::span<const uint8_t> payload,
                                    EcnMarking ecn) {
   RTC_DCHECK_RUN_ON(thread_);
   TurnMessage msg;
@@ -398,7 +398,7 @@ bool TurnServer::ValidateNonce(absl::string_view nonce) const {
   // Decode the timestamp.
   int64_t then;
   char* p = reinterpret_cast<char*>(&then);
-  size_t len = hex_decode(ArrayView<char>(p, sizeof(then)),
+  size_t len = hex_decode(std::span<char>(p, sizeof(then)),
                           nonce.substr(0, sizeof(then) * 2));
   if (len != sizeof(then)) {
     return false;
@@ -784,7 +784,7 @@ void TurnServerAllocation::HandleChannelBindRequest(const TurnMessage* msg) {
   SendResponse(&response);
 }
 
-void TurnServerAllocation::HandleChannelData(ArrayView<const uint8_t> payload,
+void TurnServerAllocation::HandleChannelData(std::span<const uint8_t> payload,
                                              EcnMarking ecn) {
   // Extract the channel number from the data.
   uint16_t channel_id = GetBE16(payload);
@@ -809,7 +809,7 @@ void TurnServerAllocation::OnExternalPacket(AsyncPacketSocket* socket,
     ByteBufferWriter buf;
     buf.WriteUInt16(channel->id);
     buf.WriteUInt16(static_cast<uint16_t>(packet.payload().size()));
-    buf.Write(ArrayView<const uint8_t>(packet.payload()));
+    buf.Write(std::span<const uint8_t>(packet.payload()));
     server_->Send(&conn_, buf, packet.ecn());
   } else if (!server_->enable_permission_checks_ ||
              HasPermission(packet.source_address().ipaddr())) {

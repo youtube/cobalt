@@ -17,7 +17,7 @@ import org.chromium.components.signin.identitymanager.PrimaryAccountChangeEvent;
 import org.chromium.google_apis.gaia.CoreAccountId;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,10 +25,11 @@ import java.util.Map;
 @NullMarked
 public class FakeIdentityManager implements IdentityManager {
     private final List<Observer> mObservers = new ArrayList<>();
-    private final Map<String, AccountInfo> mExtendedAccountInfos = new HashMap<>();
+    private final Map<CoreAccountId, AccountInfo> mExtendedAccountInfos = new LinkedHashMap<>();
     private @Nullable CoreAccountInfo mPrimaryAccount;
     private boolean mIsOnExtendedAccountInfoUpdatedBlocked;
     private boolean mIsClearPrimaryAccountAllowed;
+    private boolean mAreRefreshTokensLoaded = true;
 
     @Override
     public void addObserver(Observer observer) {
@@ -52,17 +53,17 @@ public class FakeIdentityManager implements IdentityManager {
 
     @Override
     public @Nullable AccountInfo findExtendedAccountInfoByEmailAddress(String email) {
-        return mExtendedAccountInfos.get(email);
-    }
-
-    @Override
-    public @Nullable AccountInfo findExtendedAccountInfoByAccountId(CoreAccountId accountId) {
-        for (AccountInfo accountInfo : mExtendedAccountInfos.values()) {
-            if (accountInfo.getId().equals(accountId)) {
+        for (var accountInfo : mExtendedAccountInfos.values()) {
+            if (email.equals(accountInfo.getEmail())) {
                 return accountInfo;
             }
         }
         return null;
+    }
+
+    @Override
+    public @Nullable AccountInfo findExtendedAccountInfoByAccountId(CoreAccountId accountId) {
+        return mExtendedAccountInfos.get(accountId);
     }
 
     @Override
@@ -77,6 +78,16 @@ public class FakeIdentityManager implements IdentityManager {
     @Override
     public void invalidateAccessToken(String accessToken) {}
 
+    @Override
+    public List<AccountInfo> getExtendedAccountInfoForAccountsWithRefreshToken() {
+        return new ArrayList<>(mExtendedAccountInfos.values());
+    }
+
+    @Override
+    public boolean areRefreshTokensLoaded() {
+        return mAreRefreshTokensLoaded;
+    }
+
     /**
      * Sets the extended account info. This account info is returned on future calls to {@link
      * #findExtendedAccountInfoByEmailAddress(String)}.
@@ -85,7 +96,12 @@ public class FakeIdentityManager implements IdentityManager {
         assert accountInfo != null;
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mExtendedAccountInfos.put(accountInfo.getEmail(), accountInfo);
+                    mExtendedAccountInfos.put(accountInfo.getId(), accountInfo);
+                    if (mAreRefreshTokensLoaded) {
+                        for (Observer observer : mObservers) {
+                            observer.onRefreshTokenUpdatedForAccount(accountInfo);
+                        }
+                    }
                     if (!mIsOnExtendedAccountInfoUpdatedBlocked) {
                         for (Observer observer : mObservers) {
                             observer.onExtendedAccountInfoUpdated(accountInfo);
@@ -116,6 +132,31 @@ public class FakeIdentityManager implements IdentityManager {
                                         type, PrimaryAccountChangeEvent.Type.NONE));
                     }
                 });
+    }
+
+    /** Removes the account with the given account ID from the fake IdentityManager. */
+    public void removeAccount(CoreAccountId accountId) {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mExtendedAccountInfos.remove(accountId);
+                    if (mPrimaryAccount != null && mPrimaryAccount.getId().equals(accountId)) {
+                        mPrimaryAccount = null;
+                    }
+                    if (mAreRefreshTokensLoaded) {
+                        for (Observer observer : mObservers) {
+                            observer.onRefreshTokenRemovedForAccount(accountId);
+                        }
+                    }
+                });
+    }
+
+    public void setAreRefreshTokensLoaded(boolean areRefreshTokensLoaded) {
+        mAreRefreshTokensLoaded = areRefreshTokensLoaded;
+        if (mAreRefreshTokensLoaded) {
+            for (Observer observer : mObservers) {
+                observer.onRefreshTokensLoaded();
+            }
+        }
     }
 
     public void setIsClearPrimaryAccountAllowed(boolean isAllowed) {

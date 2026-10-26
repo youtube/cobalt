@@ -19,6 +19,10 @@ assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
 
 group("resources") {
   public_deps = [
+    "contextual_tasks:resources",
+    "glic:resources",
+    "glic/fre:resources",
+    "glic/shared:resources",
     "saved_tab_groups_unsupported:resources",
     "segmentation_internals:resources",
     "//components/enterprise/connectors/resources",
@@ -39,15 +43,15 @@ group("resources") {
       "autofill_ml_internals:resources",
       "bookmarks:resources",
       "certificate_manager:resources",
-      "contextual_tasks:resources",
+      "content_annotator_internals:resources",
       "data_sharing:resources",
       "downloads:resources",
       "feedback:resources",
       "gaia_auth_host:resources",
+      "glic/selection_overlay:resources",
       "history:resources",
       "inspect:resources",
       "key_value_pair_viewer_shared:resources",
-      "legion_internals:resources",
       "lens/overlay:resources",
       "lens/shared:resources",
       "management:resources",
@@ -60,6 +64,7 @@ group("resources") {
       "omnibox_popup:resources",
       "password_manager:resources",
       "privacy_sandbox/internals:resources",
+      "private_ai_internals:resources",
       "profile_internals:resources",
       "search_engine_choice:resources",
       "settings:resources",
@@ -120,7 +125,10 @@ group("resources") {
   }
 
   if (is_win || is_mac || is_linux || is_chromeos) {
-    public_deps += [ "skills:resources" ]
+    public_deps += [
+      "ai_overlay_dialog:resources",
+      "skills:resources",
+    ]
   }
 
   if (is_win || is_mac || is_linux) {
@@ -179,14 +187,6 @@ group("resources") {
 
   if (enable_compose) {
     public_deps += [ "compose:resources" ]
-  }
-
-  if (enable_glic) {
-    public_deps += [
-      "glic:resources",
-      "glic/fre:resources",
-      "glic/shared:resources",
-    ]
   }
 
   if (enterprise_watermark) {
@@ -293,6 +293,7 @@ group("dev_ui_resources") {
     "actor_internals:resources",
     "bluetooth_internals:resources",
     "browsing_topics:resources",
+    "chrome_finds_internals:resources",
     "components:resources",
     "device_log:resources",
     "engagement:resources",
@@ -372,6 +373,7 @@ repack("dev_ui_paks") {
     "$root_gen_dir/chrome/actor_internals_resources.pak",
     "$root_gen_dir/chrome/bluetooth_internals_resources.pak",
     "$root_gen_dir/chrome/browsing_topics_internals_resources.pak",
+    "$root_gen_dir/chrome/chrome_finds_internals_resources.pak",
     "$root_gen_dir/chrome/components_resources.pak",
     "$root_gen_dir/chrome/device_log_resources.pak",
     "$root_gen_dir/chrome/engagement_resources.pak",

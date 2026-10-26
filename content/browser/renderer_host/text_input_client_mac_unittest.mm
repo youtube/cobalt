@@ -12,6 +12,7 @@
 #include <tuple>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "base/containers/queue.h"
 #include "base/functional/bind.h"
@@ -21,6 +22,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/bind.h"
 #include "base/test/gtest_util.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
@@ -33,6 +35,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_renderer_host.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -45,7 +48,6 @@ namespace content {
 
 namespace {
 
-using ::testing::Bool;
 using ::testing::Combine;
 using ::testing::Values;
 
@@ -68,6 +70,13 @@ enum class FunctionToTest {
   kGetFirstRectForRange,
 };
 
+// State of the kTextInputClientUseNestedLoop feature.
+enum class NestedLoopFeatureState {
+  kDisabled,
+  kEnabledWithoutEventMask,
+  kEnabledWithEventMask,
+};
+
 // GetCharacterIndexAtPoint() returns uint32_t.
 // GetFirstRectForRange() returns gfx::Rect.
 using ResponseType = std::variant<uint32_t, gfx::Rect>;
@@ -83,9 +92,10 @@ using ResponseType = std::variant<uint32_t, gfx::Rect>;
 class FakeAsyncRequestDelegate final
     : public TextInputClientMac::AsyncRequestDelegate {
  public:
-  FakeAsyncRequestDelegate(FunctionToTest function_to_test,
-                           RenderWidgetHost* widget)
-      : function_to_test_(function_to_test), widget_(widget) {
+  using BeforeResponseCallback = base::OnceCallback<void(RenderFrameHost*)>;
+
+  explicit FakeAsyncRequestDelegate(FunctionToTest function_to_test)
+      : function_to_test_(function_to_test) {
     // Wait until `host_impl_` is created on the IO thread.
     base::test::TestFuture<std::unique_ptr<TextInputHostImpl>> host_future;
     GetIOThreadTaskRunner()->PostTaskAndReplyWithResult(
@@ -105,10 +115,18 @@ class FakeAsyncRequestDelegate final
   FakeAsyncRequestDelegate(const FakeAsyncRequestDelegate&) = delete;
   FakeAsyncRequestDelegate& operator=(const FakeAsyncRequestDelegate&) = delete;
 
-  void AddResponse(ResponseType response,
-                   base::TimeDelta delay = TestTimeouts::tiny_timeout()) {
+  FunctionToTest function_to_test() const { return function_to_test_; }
+
+  // Adds `response`, to be sent after `delay`, to the queue.
+  // `before_response_callback` will be called before the delay starts so that
+  // tests can add extra steps.
+  void AddResponse(
+      ResponseType response,
+      base::TimeDelta delay = TestTimeouts::tiny_timeout(),
+      BeforeResponseCallback before_response_callback = base::DoNothing()) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    responses_.emplace(std::move(response), delay);
+    responses_.emplace(std::move(response), delay,
+                       std::move(before_response_callback));
   }
 
   size_t NumResponses() const {
@@ -163,12 +181,11 @@ class FakeAsyncRequestDelegate final
                         const TextInputClientMac::RequestToken& request_token) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     ASSERT_TRUE(rfh);
-    ASSERT_EQ(rfh->GetRenderWidgetHost(), widget_);
     if (responses_.empty()) {
       return;
     }
-    auto [response, delay] = responses_.front();
-    responses_.pop();
+    auto& [response, delay, before_response_callback] = responses_.front();
+    std::move(before_response_callback).Run(rfh);
 
     if (delay.is_zero()) {
       // Poke the response into TextInputClient, bypassing TextInputHostImpl
@@ -197,17 +214,17 @@ class FakeAsyncRequestDelegate final
                          request_token, std::move(response)),
           delay);
     }
+
+    responses_.pop();
   }
 
   const FunctionToTest function_to_test_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 
-  raw_ptr<RenderWidgetHost> widget_ GUARDED_BY_CONTEXT(sequence_checker_);
-
   // Queue of responses to send, with delay.
-  base::queue<std::pair<ResponseType, base::TimeDelta>> responses_
-      GUARDED_BY_CONTEXT(sequence_checker_);
+  base::queue<std::tuple<ResponseType, base::TimeDelta, BeforeResponseCallback>>
+      responses_ GUARDED_BY_CONTEXT(sequence_checker_);
 
   // The TextInputHostImpl object must be accessed on the IO thread, but the
   // pointer to it must be accessed on this sequence. It's not using
@@ -218,7 +235,8 @@ class FakeAsyncRequestDelegate final
 
 class TextInputClientMacTestBase : public content::RenderViewHostTestHarness {
  public:
-  TextInputClientMacTestBase(TimeoutParam timeout_param, bool use_nested_loop)
+  TextInputClientMacTestBase(TimeoutParam timeout_param,
+                             NestedLoopFeatureState feature_state)
       : RenderViewHostTestHarness(BrowserTaskEnvironment::REAL_IO_THREAD) {
     base::TimeDelta ipc_timeout;
     switch (timeout_param) {
@@ -230,10 +248,31 @@ class TextInputClientMacTestBase : public content::RenderViewHostTestHarness {
         ipc_timeout = TestTimeouts::tiny_timeout() * 1.5;
         break;
     }
-    feature_list_.InitAndEnableFeatureWithParameters(
+
+    std::vector<base::test::FeatureRefAndParams> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+    enabled_features.push_back(base::test::FeatureRefAndParams(
         features::kTextInputClient,
-        {{"ipc_timeout", absl::StrFormat("%dms", ipc_timeout.InMilliseconds())},
-         {"use_nested_loop", use_nested_loop ? "true" : "false"}});
+        {{"ipc_timeout",
+          absl::StrFormat("%dms", ipc_timeout.InMilliseconds())}}));
+    switch (feature_state) {
+      case NestedLoopFeatureState::kDisabled:
+        disabled_features.push_back(
+            base::test::FeatureRef(features::kTextInputClientUseNestedLoop));
+        break;
+      case NestedLoopFeatureState::kEnabledWithoutEventMask:
+        enabled_features.push_back(base::test::FeatureRefAndParams(
+            features::kTextInputClientUseNestedLoop,
+            {{"enable_event_mask", "false"}}));
+        break;
+      case NestedLoopFeatureState::kEnabledWithEventMask:
+        enabled_features.push_back(base::test::FeatureRefAndParams(
+            features::kTextInputClientUseNestedLoop,
+            {{"enable_event_mask", "true"}}));
+        break;
+    }
+    feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                disabled_features);
   }
 
  protected:
@@ -282,18 +321,17 @@ class TextInputClientMacTestBase : public content::RenderViewHostTestHarness {
 class TextInputClientMacTest
     : public TextInputClientMacTestBase,
       public ::testing::WithParamInterface<
-          std::tuple<FunctionToTest, TimeoutParam, bool>> {
+          std::tuple<FunctionToTest, TimeoutParam, NestedLoopFeatureState>> {
  public:
   TextInputClientMacTest()
       : TextInputClientMacTestBase(/*ipc_timeout=*/std::get<1>(GetParam()),
-                                   /*use_nested_loop=*/std::get<2>(GetParam())),
+                                   /*feature_state=*/std::get<2>(GetParam())),
         function_to_test_(std::get<0>(GetParam())) {}
 
  protected:
   std::unique_ptr<TextInputClientMac::AsyncRequestDelegate> CreateDelegate()
       override {
-    return std::make_unique<FakeAsyncRequestDelegate>(function_to_test_,
-                                                      widget());
+    return std::make_unique<FakeAsyncRequestDelegate>(function_to_test_);
   }
 
   // Initializes a ResponseType value from an arbitrary integer.
@@ -357,7 +395,9 @@ INSTANTIATE_TEST_SUITE_P(
     Combine(Values(FunctionToTest::kGetCharacterIndexAtPoint,
                    FunctionToTest::kGetFirstRectForRange),
             Values(TimeoutParam::kLongTimeout),
-            Bool()));
+            Values(NestedLoopFeatureState::kDisabled,
+                   NestedLoopFeatureState::kEnabledWithoutEventMask,
+                   NestedLoopFeatureState::kEnabledWithEventMask)));
 
 INSTANTIATE_TEST_SUITE_P(
     All,
@@ -365,52 +405,9 @@ INSTANTIATE_TEST_SUITE_P(
     Combine(Values(FunctionToTest::kGetCharacterIndexAtPoint,
                    FunctionToTest::kGetFirstRectForRange),
             Values(TimeoutParam::kShortTimeout),
-            Bool()));
-
-class TextInputClientMacReentryDeathTest
-    : public TextInputClientMacTestBase,
-      public ::testing::WithParamInterface<bool> {
- public:
-  TextInputClientMacReentryDeathTest()
-      : TextInputClientMacTestBase(TimeoutParam::kLongTimeout,
-                                   /*use_nested_loop=*/GetParam()) {}
-
- protected:
-  // A delegate that calls back into TextInputClientMac on the same thread. This
-  // should fail with a CHECK because reentry is unsafe.
-  class Delegate final : public TextInputClientMac::AsyncRequestDelegate {
-   public:
-    void GetCharacterIndexAtPoint(
-        RenderFrameHost* rfh,
-        const TextInputClientMac::RequestToken& request_token,
-        const gfx::Point& point) final {
-      ASSERT_TRUE(rfh);
-      TextInputClientMac::GetInstance()->GetFirstRectForRange(
-          rfh->GetRenderWidgetHost(), gfx::Range(NSMakeRange(0, 32)));
-    }
-
-    void GetFirstRectForRange(
-        RenderFrameHost* rfh,
-        const TextInputClientMac::RequestToken& request_token,
-        const gfx::Range& range) final {
-      ASSERT_TRUE(rfh);
-      TextInputClientMac::GetInstance()->GetCharacterIndexAtPoint(
-          rfh->GetRenderWidgetHost(), gfx::Point(2, 2));
-    }
-  };
-
-  std::unique_ptr<TextInputClientMac::AsyncRequestDelegate> CreateDelegate()
-      override {
-    return std::make_unique<Delegate>();
-  }
-
-  void SetUp() override {
-    TextInputClientMacTestBase::SetUp();
-    FocusWebContentsOnMainFrame();
-  }
-};
-
-INSTANTIATE_TEST_SUITE_P(All, TextInputClientMacReentryDeathTest, Bool());
+            Values(NestedLoopFeatureState::kDisabled,
+                   NestedLoopFeatureState::kEnabledWithoutEventMask,
+                   NestedLoopFeatureState::kEnabledWithEventMask)));
 
 }  // namespace
 
@@ -425,7 +422,10 @@ TEST_P(TextInputClientMacTest, SyncGetter_NoFocus) {
 
 TEST_P(TextInputClientMacTest, SyncGetter_Basic) {
   const ResponseType kSuccessValue = CreateResponse(42);
-  request_delegate().AddResponse(kSuccessValue);
+  request_delegate().AddResponse(
+      kSuccessValue, TestTimeouts::tiny_timeout(),
+      base::BindLambdaForTesting(
+          [this](RenderFrameHost* rfh) { EXPECT_EQ(rfh, this->main_rfh()); }));
 
   FocusWebContentsOnMainFrame();
   EXPECT_EQ(TextInputClientGetSync(widget()), kSuccessValue);
@@ -459,6 +459,79 @@ TEST_P(TextInputClientMacTest, SyncGetter_Immediate) {
   // A response with 0 delay is sent immediately, not posted.
   const ResponseType kSuccessValue = CreateResponse(42);
   request_delegate().AddResponse(kSuccessValue, base::TimeDelta());
+
+  FocusWebContentsOnMainFrame();
+  EXPECT_EQ(TextInputClientGetSync(widget()), kSuccessValue);
+}
+
+// Tests that TextInputClient sends a request to the focused frame, even if it's
+// not the main frame.
+TEST_P(TextInputClientMacTest, SyncGetter_ChildFrame) {
+  const ResponseType kSuccessValue = CreateResponse(42);
+
+  RenderFrameHost* child_rfh =
+      RenderFrameHostTester::For(main_rfh())->AppendChild("child frame");
+  FocusWebContentsOnFrame(child_rfh);
+
+  request_delegate().AddResponse(
+      kSuccessValue, TestTimeouts::tiny_timeout(),
+      base::BindLambdaForTesting(
+          [child_rfh](RenderFrameHost* rfh) { EXPECT_EQ(child_rfh, rfh); }));
+
+  EXPECT_EQ(TextInputClientGetSync(widget()), kSuccessValue);
+}
+
+// Tests that TextInputClient can handle a frame being deleted by a nested
+// RunLoop while waiting for a reply.
+TEST_P(TextInputClientMacTest, SyncGetter_DeleteFrame) {
+  const ResponseType kSuccessValue = CreateResponse(42);
+
+  request_delegate().AddResponse(
+      kSuccessValue, TestTimeouts::tiny_timeout(),
+      base::BindLambdaForTesting([this](RenderFrameHost* rfh) {
+        EXPECT_EQ(WebContents::FromRenderFrameHost(rfh), this->web_contents());
+        this->DeleteContents();
+      }));
+  FocusWebContentsOnMainFrame();
+
+  // GetFirstRectForRange needs the frame to do coordinate translation.
+  EXPECT_EQ(TextInputClientGetSync(widget()),
+            request_delegate().function_to_test() ==
+                    FunctionToTest::kGetFirstRectForRange
+                ? NoFocusResponse()
+                : kSuccessValue);
+}
+
+// Tests that reentrant calls into TextInputClient immediately return dummy
+// results.
+TEST_P(TextInputClientMacTest, SyncGetter_ReentrantGetCharacterIndex) {
+  const ResponseType kSuccessValue = CreateResponse(42);
+
+  request_delegate().AddResponse(
+      kSuccessValue, TestTimeouts::tiny_timeout(),
+      base::BindLambdaForTesting([](RenderFrameHost* rfh) {
+        // Reentrant call to GetCharacterIndexAtPoint.
+        EXPECT_EQ(TextInputClientMac::GetInstance()->GetCharacterIndexAtPoint(
+                      rfh->GetRenderWidgetHost(), gfx::Point(2, 2)),
+                  0);
+      }));
+
+  FocusWebContentsOnMainFrame();
+  EXPECT_EQ(TextInputClientGetSync(widget()), kSuccessValue);
+}
+
+TEST_P(TextInputClientMacTest, SyncGetter_ReentrantGetFirstRect) {
+  const ResponseType kSuccessValue = CreateResponse(42);
+
+  request_delegate().AddResponse(
+      kSuccessValue, TestTimeouts::tiny_timeout(),
+      base::BindLambdaForTesting([](RenderFrameHost* rfh) {
+        // Reentrant call to GetFirstRectForRange.
+        EXPECT_EQ(
+            TextInputClientMac::GetInstance()->GetFirstRectForRange(
+                rfh->GetRenderWidgetHost(), gfx::Range(NSMakeRange(0, 32))),
+            gfx::Rect(0, 0));
+      }));
 
   FocusWebContentsOnMainFrame();
   EXPECT_EQ(TextInputClientGetSync(widget()), kSuccessValue);
@@ -502,17 +575,6 @@ TEST_P(TextInputClientMacTimeoutTest, SyncGetter_StaleResult) {
            second_response == TimeoutResponse());
   EXPECT_EQ(first_response, TimeoutResponse());  // Replaces kStaleValue.
   EXPECT_EQ(second_response, kSuccessValue);
-}
-
-TEST_P(TextInputClientMacReentryDeathTest, GetCharacterIndexAtPoint) {
-  EXPECT_CHECK_DEATH(
-      TextInputClientMac::GetInstance()->GetCharacterIndexAtPoint(
-          rvh()->GetWidget(), gfx::Point(2, 2)));
-}
-
-TEST_P(TextInputClientMacReentryDeathTest, GetFirstRectForRange) {
-  EXPECT_CHECK_DEATH(TextInputClientMac::GetInstance()->GetFirstRectForRange(
-      rvh()->GetWidget(), gfx::Range(NSMakeRange(0, 32))));
 }
 
 }  // namespace content

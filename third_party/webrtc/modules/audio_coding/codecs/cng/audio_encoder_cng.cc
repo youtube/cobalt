@@ -132,7 +132,7 @@ AudioEncoder::EncodedInfo AudioEncoderCng::EncodeImpl(
                rtp_timestamps_.size() * samples_per_10ms_frame);
   rtp_timestamps_.push_back(rtp_timestamp);
   RTC_DCHECK_EQ(samples_per_10ms_frame, audio.size());
-  speech_buffer_.insert(speech_buffer_.end(), audio.cbegin(), audio.cend());
+  speech_buffer_.insert(speech_buffer_.end(), audio.begin(), audio.end());
   const size_t frames_to_encode = speech_encoder_->Num10MsFramesInNextPacket();
   if (rtp_timestamps_.size() < frames_to_encode) {
     return EncodedInfo();

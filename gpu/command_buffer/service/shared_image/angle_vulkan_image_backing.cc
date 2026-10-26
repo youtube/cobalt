@@ -345,7 +345,6 @@ bool AngleVulkanImageBacking::InitializeWihGMB(
                            : ToVkFormatSinglePlanar(format());
   auto vulkan_image = vulkan_implementation->CreateImageFromGpuMemoryHandle(
       device_queue, std::move(handle), size(), vk_format, color_space());
-
   if (!vulkan_image) {
     return false;
   }
@@ -353,7 +352,6 @@ bool AngleVulkanImageBacking::InitializeWihGMB(
   vk_textures_.emplace_back(std::move(vulkan_image), format(), color_space());
 
   SetCleared();
-
   return true;
 }
 
@@ -689,7 +687,8 @@ bool AngleVulkanImageBacking::InitializePassthroughTexture() {
     if (gl::g_current_gl_driver->ext.b_GL_KHR_debug) {
       const std::string label =
           "SharedImage_AngleVulkan" + CreateLabelForSharedImageUsage(usage());
-      api->glObjectLabelFn(GL_TEXTURE, texture_id, label.size(), label.c_str());
+      api->glObjectLabelKHRFn(GL_TEXTURE, texture_id, label.size(),
+                              label.c_str());
     }
 
     auto& gl_texture = gl_textures_.emplace_back();

@@ -20,6 +20,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "components/autofill/core/browser/autofill_field.h"
+#include "components/autofill/core/browser/autofill_format_string.h"
 #include "components/autofill/core/browser/crowdsourcing/randomized_encoder.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_parsing/determine_regex_types.h"
@@ -2594,8 +2595,6 @@ TEST_F(AutofillCrowdsourcingEncoding,
 // Tests that a joined prediction for email or loyalty card fields is generated
 // when the server returns separate predictions for each type.
 TEST_F(AutofillCrowdsourcingEncoding, ParseQueryResponse_JoinedTypes) {
-  base::test::ScopedFeatureList features{
-      features::kAutofillEnableEmailOrLoyaltyCardsFilling};
   FormData form_data = test::GetFormData(
       {.fields =
            {// Field accepting the user email of loyalty card.
@@ -2635,8 +2634,6 @@ TEST_F(AutofillCrowdsourcingEncoding, ParseQueryResponse_JoinedTypes) {
 // Tests that a server joined prediction is not generated for email or loyalty
 // card fields if the server does not return separate predictions for each type.
 TEST_F(AutofillCrowdsourcingEncoding, ParseQueryResponse_NoJoinedTypes) {
-  base::test::ScopedFeatureList features{
-      features::kAutofillEnableEmailOrLoyaltyCardsFilling};
   FormData form_data = test::GetFormData(
       {.fields =
            {// Field accepting the user email of loyalty card.

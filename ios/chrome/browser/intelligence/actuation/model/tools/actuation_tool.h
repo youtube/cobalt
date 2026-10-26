@@ -5,42 +5,53 @@
 #ifndef IOS_CHROME_BROWSER_INTELLIGENCE_ACTUATION_MODEL_TOOLS_ACTUATION_TOOL_H_
 #define IOS_CHROME_BROWSER_INTELLIGENCE_ACTUATION_MODEL_TOOLS_ACTUATION_TOOL_H_
 
-#include <string>
-
 #import "base/functional/callback_forward.h"
+#import "base/memory/raw_ptr.h"
+#import "base/memory/weak_ptr.h"
 #import "base/types/expected.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+
+struct ActuationError;
+class Browser;
+class ProfileIOS;
+
+namespace web {
+class WebState;
+}
 
 // Abstract base class for all actuation tools.
 class ActuationTool {
  public:
-  enum class ActuationErrorCode {
-    // Default error code for unknown or unspecified failures.
-    kUnknown,
-    // The specific tool type is disabled via the 'DisabledTools' feature
-    // parameter.
-    kToolDisabled,
-    // The action provided in the proto is not recognized or supported.
-    kUnsupportedAction,
-    // The factory failed to create a valid tool object from the tool data.
-    kToolCreationFailed,
-    // The tool encountered an error during execution (e.g., invalid
-    // parameters, missing dependencies).
-    kExecutionFailed,
-  };
-
-  // Represents an error that occurred during actuation.
-  struct ActuationError {
-    ActuationErrorCode code;
-    std::string message;
-  };
-
   using ActuationResult = base::expected<void, ActuationError>;
   using ActuationCallback = base::OnceCallback<void(ActuationResult)>;
+
+  // Result of resolving a tab ID to its associated objects.
+  struct TabResolutionResult {
+    TabResolutionResult();
+    TabResolutionResult(const TabResolutionResult&);
+    TabResolutionResult& operator=(const TabResolutionResult&);
+    ~TabResolutionResult();
+
+    // The browser containing the tab.
+    raw_ptr<Browser> browser = nullptr;
+    // The index of the tab in the browser's web state list.
+    int tab_index = WebStateList::kInvalidIndex;
+    // A weak pointer to the tab's WebState.
+    base::WeakPtr<web::WebState> web_state;
+  };
 
   virtual ~ActuationTool() = default;
 
   // Executes the tool.
   virtual void Execute(ActuationCallback callback) = 0;
+
+ protected:
+  // Resolves the given `tab_id` to its associated objects in regular Browsers.
+  // Returns an ActuationError if the tab or its associated objects are not
+  // found.
+  static base::expected<TabResolutionResult, ActuationError> ResolveTab(
+      int32_t tab_id,
+      ProfileIOS* profile);
 };
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_ACTUATION_MODEL_TOOLS_ACTUATION_TOOL_H_

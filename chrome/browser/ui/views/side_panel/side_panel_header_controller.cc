@@ -19,13 +19,14 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
+#include "chrome/browser/ui/side_panel/side_panel_metrics.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_helper.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_toolbar_pinning_controller.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/strings/grit/components_strings.h"
@@ -80,7 +81,7 @@ SidePanelHeaderController::SidePanelHeaderController(
       side_panel_entry_(side_panel_entry->GetWeakPtr()) {
   CHECK(side_panel_entry_);
   actions::ActionItem* const action_item =
-      SidePanelUtil::GetActionItem(browser, side_panel_entry->key());
+      SidePanelHelper::GetActionItem(browser, side_panel_entry->key());
   action_item_controller_subscription_ = action_item->AddActionChangedCallback(
       base::BindRepeating(&SidePanelHeaderController::OnActionItemChanged,
                           base::Unretained(this)));
@@ -182,6 +183,7 @@ SidePanelHeaderController::CreateOpenNewTabButton() {
                      side_panel_entry_->GetOpenInNewTabURL().is_valid());
   button->SetProperty(views::kElementIdentifierKey,
                       kSidePanelOpenInNewTabButtonElementId);
+  button->SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
 
   open_new_tab_button_ = button.get();
   return button;
@@ -199,6 +201,7 @@ SidePanelHeaderController::CreateMoreInfoButton() {
       IDS_SIDE_PANEL_HEADER_MORE_INFO_BUTTON_TOOLTIP));
   button->SetProperty(views::kElementIdentifierKey,
                       kSidePanelMoreInfoButtonElementId);
+  button->SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
 
   // A menu button controller is used so that the button remains pressed while
   // the menu is open.
@@ -226,6 +229,7 @@ SidePanelHeaderController::CreateCloseButton() {
       l10n_util::GetStringUTF16(IDS_ACCNAME_SIDE_PANEL_CLOSE));
   button->SetProperty(views::kElementIdentifierKey,
                       kSidePanelCloseButtonElementId);
+  button->SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
   close_button_ = button.get();
   return button;
 }
@@ -261,7 +265,7 @@ void SidePanelHeaderController::UpdateSidePanelHeader() {
 void SidePanelHeaderController::UpdatePinButton() {
   CHECK(side_panel_entry_);
   actions::ActionItem* const action_item =
-      SidePanelUtil::GetActionItem(browser_, side_panel_entry_->key());
+      SidePanelHelper::GetActionItem(browser_, side_panel_entry_->key());
   Profile* const profile = browser_->profile();
   const bool current_pinned_state =
       side_panel_toolbar_pinning_controller_->GetPinnedStateFor(
@@ -281,7 +285,7 @@ void SidePanelHeaderController::UpdatePinButton() {
 ui::ImageModel SidePanelHeaderController::GetIconImage() {
   CHECK(side_panel_entry_);
   ui::ImageModel icon =
-      SidePanelUtil::GetActionItem(browser_, side_panel_entry_->key())
+      SidePanelHelper::GetActionItem(browser_, side_panel_entry_->key())
           ->GetImage();
   if (icon.IsVectorIcon()) {
     icon = ui::ImageModel::FromVectorIcon(*icon.GetVectorIcon().vector_icon(),
@@ -294,7 +298,8 @@ ui::ImageModel SidePanelHeaderController::GetIconImage() {
 std::u16string_view SidePanelHeaderController::GetTitleText() {
   CHECK(side_panel_entry_);
   return side_panel_entry_->GetProperty(kShouldShowTitleInSidePanelHeaderKey)
-             ? SidePanelUtil::GetActionItem(browser_, side_panel_entry_->key())
+             ? SidePanelHelper::GetActionItem(browser_,
+                                              side_panel_entry_->key())
                    ->GetText()
              : std::u16string_view();
 }
@@ -327,7 +332,7 @@ void SidePanelHeaderController::OpenInNewTab() {
 
   base::WeakPtr<SidePanelHeaderController> weak_this =
       weak_pointer_factor_.GetWeakPtr();
-  SidePanelUtil::RecordNewTabButtonClicked(side_panel_entry_->key().id());
+  SidePanelMetrics::RecordNewTabButtonClicked(side_panel_entry_->key().id());
   content::OpenURLParams params(new_tab_url, content::Referrer(),
                                 WindowOpenDisposition::NEW_FOREGROUND_TAB,
                                 ui::PAGE_TRANSITION_AUTO_BOOKMARK,

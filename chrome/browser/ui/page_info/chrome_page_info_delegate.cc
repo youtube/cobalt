@@ -46,6 +46,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "media/base/media_switches.h"
+#include "services/network/public/cpp/features.h"
 #include "third_party/blink/public/common/features.h"
 #include "ui/base/window_open_disposition_utils.h"
 #include "url/origin.h"
@@ -82,7 +83,6 @@
 #include "chrome/browser/ash/floating_sso/floating_sso_service_factory.h"
 #include "chrome/browser/smart_card/smart_card_permission_context.h"
 #include "chrome/browser/smart_card/smart_card_permission_context_factory.h"
-#include "chrome/browser/ui/webui/ash/settings/app_management/app_management_uma.h"
 #endif
 
 namespace {
@@ -255,7 +255,36 @@ bool ChromePageInfoDelegate::IsIsolatedWebApp() {
   const webapps::AppId* app_id =
       web_app::WebAppTabHelper::GetAppId(web_contents_);
   return app_id && provider->registrar_unsafe().AppMatches(
-                       *app_id, web_app::WebAppFilter::IsIsolatedApp());
+                       *app_id, web_app::WebAppFilter::IsIsolatedApp() |
+                                    web_app::WebAppFilter::IsIsolatedSubApp());
+}
+
+bool ChromePageInfoDelegate::IsSubApp() {
+  CHECK(web_contents_);
+  web_app::WebAppProvider* provider =
+      web_app::WebAppProvider::GetForWebContents(web_contents_);
+  if (!provider) {
+    return false;
+  }
+
+  const webapps::AppId* app_id =
+      web_app::WebAppTabHelper::GetAppId(web_contents_);
+  return app_id && provider->registrar_unsafe().AppMatches(
+                       *app_id, web_app::WebAppFilter::IsIsolatedSubApp());
+}
+
+bool ChromePageInfoDelegate::HasSubApps() {
+  CHECK(web_contents_);
+  web_app::WebAppProvider* provider =
+      web_app::WebAppProvider::GetForWebContents(web_contents_);
+  if (!provider) {
+    return false;
+  }
+
+  const webapps::AppId* app_id =
+      web_app::WebAppTabHelper::GetAppId(web_contents_);
+  return app_id &&
+         !provider->registrar_unsafe().GetAllSubAppIds(*app_id).empty();
 }
 
 void ChromePageInfoDelegate::ShowSiteSettings(const GURL& site_url) {
@@ -473,6 +502,11 @@ bool ChromePageInfoDelegate::IsHttpsFirstModeEnabled() {
 
 bool ChromePageInfoDelegate::IsIncognitoProfile() {
   return GetProfile()->IsIncognitoProfile();
+}
+
+bool ChromePageInfoDelegate::IsLocalNetworkAccessSplitPermissionsEnabled() {
+  return base::FeatureList::IsEnabled(
+      network::features::kLocalNetworkAccessChecksSplitPermissions);
 }
 
 void ChromePageInfoDelegate::SetSecurityStateForTests(

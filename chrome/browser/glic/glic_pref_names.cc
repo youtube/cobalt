@@ -74,6 +74,10 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
       ui::Command::AcceleratorToString(
           GlicLauncherConfiguration::GetDefaultHotkey()));
   registry->RegisterStringPref(
+      prefs::kGlicSelectionHotkey,
+      ui::Command::AcceleratorToString(
+          GlicLauncherConfiguration::GetDefaultSelectionHotkey()));
+  registry->RegisterStringPref(
       prefs::kGlicFocusToggleHotkey,
       ui::Command::AcceleratorToString(
           LocalHotkeyManager::GetDefaultAccelerator(
@@ -84,6 +88,8 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(prefs::kGlicGuestUrlPresetStaging, "");
   registry->RegisterStringPref(prefs::kGlicGuestUrlPresetPreprod, "");
   registry->RegisterStringPref(prefs::kGlicGuestUrlPresetProd, "");
+  registry->RegisterStringPref(
+      prefs::kGlicWebContinuityOriginatingHostUrlPreset, "");
 }
 
 }  // namespace glic::prefs

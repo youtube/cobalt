@@ -72,6 +72,10 @@ String TimelineOffset::ToString() const {
 
 bool TimelineOffset::UpdateOffset(Element* element, CSSValue* value) {
   Length new_offset = ResolveLength(element, value);
+  if (const auto* style = element->GetComputedStyle()) {
+    new_offset = new_offset.Zoom(style->EffectiveZoom());
+  }
+
   if (new_offset != offset) {
     offset = new_offset;
     return true;
@@ -98,8 +102,11 @@ std::optional<TimelineOffset> TimelineOffset::Create(
   CSSParserTokenStream stream(css_text);
   stream.ConsumeWhitespace();
 
+  // TODO(crbug.com/490153753): CSS Typed OM currently lacks support for the
+  // random() function, preventing its use within the ViewTimeline API. Revisit
+  // once CSS Typed OM support for random() is implemented.
   CSSParserLocalContext local_context =
-      CSSParserLocalContext::CreateWithoutPropertyForAnimations();
+      CSSParserLocalContext::CreateWithoutPropertyForCSSOM();
   const CSSValue* value = css_parsing_utils::ConsumeAnimationRange(
       stream, *document.ElementSheet().Contents()->ParserContext(),
       local_context,
@@ -235,13 +242,19 @@ Length TimelineOffset::ResolveLength(Element* element, const CSSValue* value) {
   ElementResolveContext element_resolve_context(*element);
   Document& document = element->GetDocument();
   CSSToLengthConversionData::Flags ignored_flags = 0;
+
+  // Use zoom=1.0 to produce CSS pixel values, consistent with the early returns
+  // above for plain px/percentage values. Using EffectiveZoom() here would
+  // cause pixel values inside calc() expressions to be pre-zoomed, which leads
+  // to double-zooming when callers (e.g. ComputeTriggerBoundary) later apply
+  // zoom explicitly via Length::Zoom().
   CSSToLengthConversionData length_conversion_data(
       element->ComputedStyleRef(), element_resolve_context.ParentStyle(),
       element_resolve_context.RootElementStyle(),
       CSSToLengthConversionData::ViewportSize(document.GetLayoutView()),
       CSSToLengthConversionData::ContainerSizes(element),
       CSSToLengthConversionData::AnchorData(),
-      element->GetComputedStyle()->EffectiveZoom(), ignored_flags, element);
+      /*zoom=*/1.0f, ignored_flags, element);
 
   return DynamicTo<CSSPrimitiveValue>(value)->ConvertToLength(
       length_conversion_data);
@@ -256,8 +269,11 @@ CSSValue* TimelineOffset::ParseOffset(Document* document, String css_text) {
   CSSParserTokenStream stream(css_text);
   stream.ConsumeWhitespace();
 
+  // TODO(crbug.com/490153753): CSS Typed OM currently lacks support for the
+  // random() function, preventing its use within the ViewTimeline API. Revisit
+  // once CSS Typed OM support for random() is implemented.
   CSSParserLocalContext local_context =
-      CSSParserLocalContext::CreateWithoutPropertyForAnimations();
+      CSSParserLocalContext::CreateWithoutPropertyForCSSOM();
   CSSValue* value = css_parsing_utils::ConsumeLengthOrPercent(
       stream, *document->ElementSheet().Contents()->ParserContext(),
       local_context, CSSPrimitiveValue::ValueRange::kAll);

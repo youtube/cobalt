@@ -14,7 +14,7 @@
 #include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "net/base/lookup_string_in_fixed_set.h"
+#include "net/base/registry_controlled_domain_constants.h"
 #include "url/gurl.h"
 #include "url/third_party/mozilla/url_parse.h"
 
@@ -42,16 +42,16 @@ constexpr char kGperfPreamble[] =
 }  // namespace
 
 int Rule::Serialize() const {
-  int type = 0;
+  DomainRuleTags type;
   if (exception) {
-    type = kDafsaExceptionRule;
+    type = {DomainRuleTag::kException};
   } else if (wildcard) {
-    type = kDafsaWildcardRule;
+    type = {DomainRuleTag::kWildcard};
   }
   if (is_private) {
-    type += kDafsaPrivateRule;
+    type.Put(DomainRuleTag::kPrivate);
   }
-  return type;
+  return type.ToEnumBitmask();
 }
 
 std::string RulesToGperf(const RuleMap& rules) {

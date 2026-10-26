@@ -12,34 +12,51 @@
 
 #include <jni.h>
 
-#include "rtc_base/time_utils.h"
+#include <cstdint>
+
+#include "api/environment/environment.h"
 #include "sdk/android/generated_video_jni/TimestampAligner_jni.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/java_types.h"
 
 namespace webrtc {
 namespace jni {
+namespace {
 
-static jlong JNI_TimestampAligner_RtcTimeNanos(JNIEnv* env) {
-  return TimeNanos();
-}
+class TimestampAlignerWithClock {
+ public:
+  explicit TimestampAlignerWithClock(const Environment& env) : env_(env) {}
 
-static jlong JNI_TimestampAligner_CreateTimestampAligner(JNIEnv* env) {
-  return jlongFromPointer(new TimestampAligner());
+  int64_t TranslateTimestampNs(int64_t camera_time_ns) {
+    return aligner_.TranslateTimestamp(
+               /*capture_time_us=*/camera_time_ns / 1'000,
+               /*system_time_us=*/env_.clock().TimeInMicroseconds()) *
+           1'000;
+  }
+
+ private:
+  const Environment env_;
+  TimestampAligner aligner_;
+};
+
+}  // namespace
+
+static jlong JNI_TimestampAligner_CreateTimestampAligner(JNIEnv* env,
+                                                         jlong webrtcEnvRef) {
+  return NativeToJavaPointer(new TimestampAlignerWithClock(
+      *reinterpret_cast<const Environment*>(webrtcEnvRef)));
 }
 
 static void JNI_TimestampAligner_ReleaseTimestampAligner(
     JNIEnv* env,
     jlong timestamp_aligner) {
-  delete reinterpret_cast<TimestampAligner*>(timestamp_aligner);
+  delete reinterpret_cast<TimestampAlignerWithClock*>(timestamp_aligner);
 }
 
 static jlong JNI_TimestampAligner_TranslateTimestamp(JNIEnv* env,
                                                      jlong timestamp_aligner,
                                                      jlong camera_time_ns) {
-  return reinterpret_cast<TimestampAligner*>(timestamp_aligner)
-             ->TranslateTimestamp(camera_time_ns / kNumNanosecsPerMicrosec,
-                                  TimeMicros()) *
-         kNumNanosecsPerMicrosec;
+  return reinterpret_cast<TimestampAlignerWithClock*>(timestamp_aligner)
+      ->TranslateTimestampNs(camera_time_ns);
 }
 
 }  // namespace jni

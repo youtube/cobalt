@@ -50,12 +50,6 @@ BASE_FEATURE_PARAM(bool,
                    "data_block_io_scheduler",
                    true);
 
-// Controls ACTION_BOOT_COMPLETED broadcast for third party applications on ARC.
-// When disabled, third party apps will not receive this broadcast.
-BASE_FEATURE(kBootCompletedBroadcastFeature,
-             "ArcBootCompletedBroadcast",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Defers the ARC actvation until the user session start up tasks
 // are completed to give more resources to critical tasks for user session
 // starting.
@@ -230,15 +224,6 @@ BASE_FEATURE(kResizeCompat,
              "ArcResizeCompat",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Controls ARCVM real time vcpu feature on a device with 2 logical cores
-// online.
-// When you change the default, you also need to change the chromeExtraAgas
-// in tast-tests/src/chromiumos/tast/local/bundles/cros/arc/cpu_set.go to
-// match it to the new default.
-BASE_FEATURE(kRtVcpuDualCore,
-             "ArcRtVcpuDualCore",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Controls ARCVM real time vcpu feature on a device with 3+ logical cores
 // online.
 // When you change the default, you also need to modify the chromeExtraAgas
@@ -256,12 +241,6 @@ BASE_FEATURE(kSaveRawFilesOnTracing,
 // When enabled, skip dropping ARCVM page cache after boot.
 BASE_FEATURE(kSkipDropCaches,
              "ArcSkipDropPageCache",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// When enabled, ARC will pass install priority to Play in sync install
-// requests.
-BASE_FEATURE(kSyncInstallPriority,
-             "ArcSyncInstallPriority",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, ARC will not be throttled when there is active audio stream

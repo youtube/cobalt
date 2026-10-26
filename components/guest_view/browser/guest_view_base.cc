@@ -30,6 +30,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "third_party/blink/public/common/input/web_gesture_event.h"
+#include "third_party/blink/public/common/page/drag_operation.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 
@@ -994,17 +995,6 @@ bool GuestViewBase::ShouldFocusPageAfterCrash(content::WebContents* source) {
   return false;
 }
 
-bool GuestViewBase::PreHandleGestureEvent(WebContents* source,
-                                          const blink::WebGestureEvent& event) {
-  CHECK(!base::FeatureList::IsEnabled(features::kGuestViewMPArch));
-  // Pinch events which cause a scale change should not be routed to a guest.
-  // We still allow synthetic wheel events for touchpad pinch to go to the page.
-  DCHECK(!blink::WebInputEvent::IsPinchGestureEventType(event.GetType()) ||
-         (event.SourceDevice() == blink::WebGestureDevice::kTouchpad &&
-          event.NeedsWheelEvent()));
-  return false;
-}
-
 void GuestViewBase::UpdatePreferredSize(WebContents* target_web_contents,
                                         const gfx::Size& pref_size) {
   CHECK(!base::FeatureList::IsEnabled(features::kGuestViewMPArch));
@@ -1021,6 +1011,19 @@ void GuestViewBase::UpdateTargetURL(WebContents* source, const GURL& url) {
 
   embedder_web_contents()->GetDelegate()->UpdateTargetURL(
       embedder_web_contents(), url);
+}
+
+bool GuestViewBase::CanDragEnter(WebContents* source,
+                                 const content::DropData& data,
+                                 blink::DragOperationsMask operations_allowed) {
+  CHECK(!base::FeatureList::IsEnabled(features::kGuestViewMPArch));
+
+  if (!attached() || !embedder_web_contents()->GetDelegate()) {
+    return false;
+  }
+
+  return embedder_web_contents()->GetDelegate()->CanDragEnter(
+      embedder_web_contents(), data, operations_allowed);
 }
 
 void GuestViewBase::DraggableRegionsChanged(

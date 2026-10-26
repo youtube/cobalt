@@ -86,8 +86,8 @@ float RnnVad::ComputeVadProbability(
     return 0.f;
   }
   input_.ComputeOutput(feature_vector);
-  hidden_.ComputeOutput(input_);
-  output_.ComputeOutput(hidden_);
+  hidden_.ComputeOutput(input_.output());
+  output_.ComputeOutput(hidden_.output());
   RTC_DCHECK_EQ(output_.size(), 1);
   return output_.data()[0];
 }

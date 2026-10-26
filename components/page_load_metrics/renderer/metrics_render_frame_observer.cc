@@ -12,6 +12,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "components/page_load_metrics/common/features.h"
 #include "components/page_load_metrics/renderer/features.h"
 #include "components/page_load_metrics/renderer/page_timing_metrics_sender.h"
 #include "components/page_load_metrics/renderer/page_timing_sender.h"
@@ -68,13 +69,17 @@ class MojoPageTimingSender : public PageTimingSender {
       std::vector<mojom::EventTimingPtr> event_timings,
       const std::optional<blink::SubresourceLoadMetrics>&
           subresource_load_metrics,
-      const mojom::SoftNavigationMetricsPtr& soft_navigation_metrics) override {
+      std::vector<mojom::SoftNavigationMetricsPtr> soft_navigation_metrics,
+      std::vector<mojom::LargestContentfulPaintTimingPtr>
+          soft_largest_contentful_paint,
+      std::vector<mojom::CustomUserTimingMarkPtr> user_timings) override {
     DCHECK(page_load_metrics_);
     page_load_metrics_->UpdateTiming(
         limited_sending_mode_ ? CreatePageLoadTiming() : timing->Clone(),
         metadata->Clone(), new_features, std::move(resources),
         render_data.Clone(), cpu_timing->Clone(), std::move(event_timings),
-        subresource_load_metrics, soft_navigation_metrics->Clone());
+        subresource_load_metrics, std::move(soft_navigation_metrics),
+        std::move(soft_largest_contentful_paint), std::move(user_timings));
   }
 
   void SetUpDroppedFramesReporting(
@@ -216,16 +221,11 @@ void MetricsRenderFrameObserver::DidObserveSoftNavigation(
 void MetricsRenderFrameObserver::DidObserveSoftLargestContentfulPaint(
     const blink::LargestContentfulPaintDetailsForReporting& lcp) {
   if (page_timing_metrics_sender_) {
-    base::TimeDelta softnav_relative_start =
-        page_timing_metrics_sender_->GetSoftNavigationStartTime();
-
-    double softnav_start =
-        GetNavigationStart() + softnav_relative_start.InSecondsF();
-
     // The lcp object we pass to the sender is a mojom type that is relative
-    // to the soft navigation start time.
+    // to the (hard) navigation start time.
     mojom::LargestContentfulPaintTimingPtr relative_lcp =
         CreateLargestContentfulPaintTiming();
+    relative_lcp->soft_navigation_offset = lcp.soft_navigation_offset;
 
     if (lcp.image_paint_size > 0) {
       // Set largest image time.
@@ -238,7 +238,7 @@ void MetricsRenderFrameObserver::DidObserveSoftLargestContentfulPaint(
       } else {
         relative_lcp->largest_image_paint =
             CreateTimeDeltaFromTimestampsInSeconds(lcp.image_paint_time,
-                                                   softnav_start);
+                                                   GetNavigationStart());
       }
       // Set largest image size.
       relative_lcp->largest_image_paint_size = lcp.image_paint_size;
@@ -264,7 +264,7 @@ void MetricsRenderFrameObserver::DidObserveSoftLargestContentfulPaint(
         relative_lcp->resource_load_timings->discovery_time =
             CreateTimeDeltaFromTimestampsInSeconds(
                 lcp.resource_load_timings.discovery_time.value().InSecondsF(),
-                softnav_start);
+                GetNavigationStart());
       }
 
       // Set largest image load start.
@@ -272,7 +272,7 @@ void MetricsRenderFrameObserver::DidObserveSoftLargestContentfulPaint(
         relative_lcp->resource_load_timings->load_start =
             CreateTimeDeltaFromTimestampsInSeconds(
                 lcp.resource_load_timings.load_start.value().InSecondsF(),
-                softnav_start);
+                GetNavigationStart());
       }
 
       // Set largest image load end.
@@ -280,7 +280,7 @@ void MetricsRenderFrameObserver::DidObserveSoftLargestContentfulPaint(
         relative_lcp->resource_load_timings->load_end =
             CreateTimeDeltaFromTimestampsInSeconds(
                 lcp.resource_load_timings.load_end.value().InSecondsF(),
-                softnav_start);
+                GetNavigationStart());
       }
     }
     if (lcp.text_paint_size > 0) {
@@ -289,7 +289,7 @@ void MetricsRenderFrameObserver::DidObserveSoftLargestContentfulPaint(
       DCHECK(lcp.text_paint_time);
 
       relative_lcp->largest_text_paint = CreateTimeDeltaFromTimestampsInSeconds(
-          lcp.text_paint_time, softnav_start);
+          lcp.text_paint_time, GetNavigationStart());
 
       relative_lcp->largest_text_paint_size = lcp.text_paint_size;
 
@@ -584,8 +584,14 @@ void MetricsRenderFrameObserver::SendMetrics() {
 
   mojom::CustomUserTimingMarkPtr user_timing = GetCustomUserTimingMark();
   if (user_timing) {
-    page_timing_metrics_sender_->SendCustomUserTimingMark(
-        std::move(user_timing));
+    if (base::FeatureList::IsEnabled(
+            features::kThrottleSendingCustomUserTimings)) {
+      page_timing_metrics_sender_->UpdateCustomUserTimings(
+          std::move(user_timing));
+    } else {
+      page_timing_metrics_sender_->SendCustomUserTimingMark(
+          std::move(user_timing));
+    }
   }
 }
 

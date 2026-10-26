@@ -24,7 +24,6 @@
 #include "chrome/browser/chromeos/video_conference/video_conference_manager_client_common.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "chromeos/crosapi/mojom/video_conference.mojom.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -34,6 +33,22 @@ namespace ash {
 constexpr char kCrostiniVmId[] = "Linux";
 constexpr char kPluginVmId[] = "PluginVm";
 constexpr char kBorealisId[] = "Borealis";
+
+VideoConferenceMediaAppInfo MakeMediaAppInfo(const base::UnguessableToken& id,
+                                             base::Time last_activity_time,
+                                             bool is_capturing_camera,
+                                             bool is_capturing_microphone,
+                                             const std::u16string& title,
+                                             VideoConferenceAppType app_type) {
+  VideoConferenceMediaAppInfo app;
+  app.id = id;
+  app.last_activity_time = last_activity_time;
+  app.is_capturing_camera = is_capturing_camera;
+  app.is_capturing_microphone = is_capturing_microphone;
+  app.title = title;
+  app.app_type = app_type;
+  return app;
+}
 
 class VideoConferenceAshfeatureClientTest : public InProcessBrowserTest {
  public:
@@ -69,21 +84,13 @@ class VideoConferenceAshfeatureClientTest : public InProcessBrowserTest {
     }
   }
 
-  std::vector<crosapi::mojom::VideoConferenceMediaAppInfoPtr> GetMediaApps() {
-    std::vector<crosapi::mojom::VideoConferenceMediaAppInfoPtr> media_app_info;
-
-    VideoConferenceAshFeatureClient::Get()->GetMediaApps(
-        base::BindLambdaForTesting(
-            [&media_app_info](
-                std::vector<crosapi::mojom::VideoConferenceMediaAppInfoPtr>
-                    result) { media_app_info = std::move(result); }));
-
-    return media_app_info;
+  VideoConferenceManagerClient::MediaApps GetMediaApps() {
+    return VideoConferenceAshFeatureClient::Get()->GetMediaApps();
   }
 
   // Returns current VideoConferenceMediaState in the VideoConferenceManagerAsh
   VideoConferenceMediaState GetMediaStateInVideoConferenceManagerAsh() {
-    return ash::VideoConferenceManagerAsh::Get()->GetAggregatedState();
+    return VideoConferenceManagerAsh::Get()->GetAggregatedState();
   }
 
  protected:
@@ -102,18 +109,15 @@ IN_PROC_BROWSER_TEST_F(VideoConferenceAshfeatureClientTest, GetMediaApps) {
     ASSERT_EQ(media_app_info.size(), 1u);
     const auto& info0 = media_app_info[0];
 
-    crosapi::mojom::VideoConferenceMediaAppInfoPtr expected_media_app_info =
-        crosapi::mojom::VideoConferenceMediaAppInfo::New(
-            /*id=*/info0->id,
-            /*last_activity_time=*/info0->last_activity_time,
-            /*is_capturing_camera=*/false,
-            /*is_capturing_microphone=*/true,
-            /*is_capturing_screen=*/false,
-            /*title=*/base::UTF8ToUTF16(std::string(kCrostiniVmId)),
-            /*url=*/std::nullopt,
-            /*app_type=*/crosapi::mojom::VideoConferenceAppType::kCrostiniVm);
+    const auto expected_media_app_info = MakeMediaAppInfo(
+        /*id=*/info0.id,
+        /*last_activity_time=*/info0.last_activity_time,
+        /*is_capturing_camera=*/false,
+        /*is_capturing_microphone=*/true,
+        /*title=*/base::UTF8ToUTF16(std::string(kCrostiniVmId)),
+        /*app_type=*/VideoConferenceAppType::kCrostiniVm);
 
-    EXPECT_TRUE(media_app_info[0].Equals(expected_media_app_info));
+    EXPECT_EQ(media_app_info[0], expected_media_app_info);
 
     // Stop accessing should remove the app.
     VideoConferenceAshFeatureClient::Get()->OnVmDeviceUpdated(
@@ -137,18 +141,15 @@ IN_PROC_BROWSER_TEST_F(VideoConferenceAshfeatureClientTest, GetMediaApps) {
     ASSERT_EQ(media_app_info.size(), 1u);
     const auto& info0 = media_app_info[0];
 
-    crosapi::mojom::VideoConferenceMediaAppInfoPtr expected_media_app_info =
-        crosapi::mojom::VideoConferenceMediaAppInfo::New(
-            /*id=*/info0->id,
-            /*last_activity_time=*/info0->last_activity_time,
-            /*is_capturing_camera=*/true,
-            /*is_capturing_microphone=*/true,
-            /*is_capturing_screen=*/false,
-            /*title=*/base::UTF8ToUTF16(std::string(kPluginVmId)),
-            /*url=*/std::nullopt,
-            /*app_type=*/crosapi::mojom::VideoConferenceAppType::kPluginVm);
+    const auto expected_media_app_info = MakeMediaAppInfo(
+        /*id=*/info0.id,
+        /*last_activity_time=*/info0.last_activity_time,
+        /*is_capturing_camera=*/true,
+        /*is_capturing_microphone=*/true,
+        /*title=*/base::UTF8ToUTF16(std::string(kPluginVmId)),
+        /*app_type=*/VideoConferenceAppType::kPluginVm);
 
-    EXPECT_TRUE(media_app_info[0].Equals(expected_media_app_info));
+    EXPECT_EQ(media_app_info[0], expected_media_app_info);
   }
 }
 
@@ -233,11 +234,11 @@ IN_PROC_BROWSER_TEST_F(VideoConferenceAshfeatureClientTest,
                        HandleDeviceUsedWhileDisabled) {
   // Notify disabling state of camera and microphone from
   // video_conference_manager_ash.
-  ash::VideoConferenceManagerAsh::Get()->SetSystemMediaDeviceStatus(
-      crosapi::mojom::VideoConferenceMediaDevice::kCamera,
+  VideoConferenceManagerAsh::Get()->SetSystemMediaDeviceStatus(
+      VideoConferenceMediaDevice::kCamera,
       /*enabled=*/false);
-  ash::VideoConferenceManagerAsh::Get()->SetSystemMediaDeviceStatus(
-      crosapi::mojom::VideoConferenceMediaDevice::kMicrophone,
+  VideoConferenceManagerAsh::Get()->SetSystemMediaDeviceStatus(
+      VideoConferenceMediaDevice::kMicrophone,
       /*enabled=*/false);
 
   FakeVideoConferenceTrayController* fake_try_controller =
@@ -253,10 +254,9 @@ IN_PROC_BROWSER_TEST_F(VideoConferenceAshfeatureClientTest,
   // FakeVideoConferenceTrayController.
   ASSERT_EQ(fake_try_controller->device_used_while_disabled_records().size(),
             1u);
-  EXPECT_THAT(
-      fake_try_controller->device_used_while_disabled_records().back(),
-      testing::Pair(crosapi::mojom::VideoConferenceMediaDevice::kMicrophone,
-                    base::UTF8ToUTF16(std::string(kCrostiniVmId))));
+  EXPECT_THAT(fake_try_controller->device_used_while_disabled_records().back(),
+              testing::Pair(VideoConferenceMediaDevice::kMicrophone,
+                            base::UTF8ToUTF16(std::string(kCrostiniVmId))));
 
   // Notifying PluginVm is using Camera.
   VideoConferenceAshFeatureClient::Get()->OnVmDeviceUpdated(
@@ -268,7 +268,7 @@ IN_PROC_BROWSER_TEST_F(VideoConferenceAshfeatureClientTest,
   ASSERT_EQ(fake_try_controller->device_used_while_disabled_records().size(),
             2u);
   EXPECT_THAT(fake_try_controller->device_used_while_disabled_records().back(),
-              testing::Pair(crosapi::mojom::VideoConferenceMediaDevice::kCamera,
+              testing::Pair(VideoConferenceMediaDevice::kCamera,
                             base::UTF8ToUTF16(std::string(kPluginVmId))));
 }
 

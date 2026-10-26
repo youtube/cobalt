@@ -10,6 +10,7 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/password_manager/actor_login/internal/actor_login_metrics_helper.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_credentials_fetcher.h"
 #include "content/public/browser/webid/identity_request_account.h"
@@ -24,14 +25,6 @@ namespace actor_login {
 class ActorLoginFederatedCredentialsFetcher
     : public ActorLoginCredentialsFetcher {
  public:
-  // Status specific to federated credentials fetching.
-  class FederatedFetcherStatus : public ActorLoginCredentialsFetcher::Status {
-   public:
-    FederatedFetcherStatus() = default;
-
-    std::optional<ActorLoginError> GetGlobalError() const override;
-  };
-
   using IdentityCredentialSourceCallback =
       base::RepeatingCallback<content::webid::IdentityCredentialSource*()>;
 
@@ -42,6 +35,8 @@ class ActorLoginFederatedCredentialsFetcher
 
   // ActorLoginCredentialsFetcher:
   void Fetch(FetchResultCallback callback) override;
+
+  void SetMetricsHelper(ActorLoginMetricsHelper* metrics_helper);
 
  private:
   void OnGetIdentityCredentialSuggestions(
@@ -59,6 +54,9 @@ class ActorLoginFederatedCredentialsFetcher
   // we need to get a fresh source whenever the fetch is triggered.
   // TODO(crbug.com/480004512): Check the origin of the source before using it.
   IdentityCredentialSourceCallback get_source_callback_;
+
+  // Owned by ActorLoginDelegateImpl.
+  raw_ptr<ActorLoginMetricsHelper> metrics_helper_ = nullptr;
 
   base::WeakPtrFactory<ActorLoginFederatedCredentialsFetcher> weak_ptr_factory_{
       this};

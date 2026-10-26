@@ -11,14 +11,17 @@
 #import "base/functional/bind.h"
 #import "base/ios/block_types.h"
 #import "base/memory/ref_counted.h"
+#import "base/metrics/histogram_functions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/task/thread_pool.h"
+#import "ios/web/common/features.h"
 #import "ios/web/public/browser_state.h"
 #import "ios/web/public/security/certificate_policy_cache.h"
 #import "ios/web/public/thread/web_task_traits.h"
 #import "ios/web/public/thread/web_thread.h"
 #import "ios/web/security/wk_web_view_security_util.h"
 #import "net/cert/cert_verify_proc_ios.h"
+#import "net/cert/x509_certificate.h"
 #import "net/cert/x509_util.h"
 #import "net/cert/x509_util_apple.h"
 
@@ -205,8 +208,40 @@ using web::WebThread;
             errSecSuccess) {
           trustResult = kSecTrustResultInvalid;
         }
-        DCHECK_EQ(isTrusted, (trustResult == kSecTrustResultProceed ||
-                              trustResult == kSecTrustResultUnspecified));
+
+        const bool expectedTrusted = trustResult == kSecTrustResultProceed ||
+                                     trustResult == kSecTrustResultUnspecified;
+        const bool trustMatch = isTrusted == expectedTrusted;
+        base::UmaHistogramBoolean(
+            "IOS.CertificateVerification.TrustEvaluationMatch", trustMatch);
+
+        if (!trustMatch) {
+          // TODO(crbug.com/485184282): This workaround should be removed once
+          // Apple fixes the issue. It is needed because
+          // SecTrustEvaluateWithError and SecTrustGetTrustResult can return
+          // mismatched results. This has been observed only on iOS 26.4. The
+          // workaround consists in updating trustResult to
+          // kSecTrustResultRecoverableTrustFailure to be sure we're not
+          // trusting certificates that should not be trusted.
+          if (!isTrusted && trustResult == kSecTrustResultUnspecified &&
+              base::FeatureList::IsEnabled(
+                  web::features::kCertVerificationWorkaroundKillSwitch)) {
+            trustResult = kSecTrustResultRecoverableTrustFailure;
+          }
+
+          DLOG(FATAL) << "Trust mismatch! isTrusted: "
+                      << (isTrusted ? "true" : "false")
+                      << ", trustResult: " << trustResult << ", cert: "
+                      << (web::CreateCertFromTrust(trust.get())
+                              ? web::CreateCertFromTrust(trust.get())
+                                    ->subject()
+                                    .common_name
+                              : "unknown")
+                      << ", error: "
+                      << base::SysNSStringToUTF8(
+                             [(__bridge NSError*)trustError.get() description]);
+        }
+
         // TODO(crbug.com/40588591): This should use PostTask to post to
         // WebThread::UI with BLOCK_SHUTDOWN once shutdown behaviors are
         // supported on the UI thread. BLOCK_SHUTDOWN is necessary because

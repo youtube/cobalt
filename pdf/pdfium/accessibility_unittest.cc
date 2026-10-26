@@ -206,7 +206,7 @@ TEST_P(AccessibilityTest, AccessibilityStructureTree) {
       engine->GetStructureTree();
   ASSERT_TRUE(doc_structure);
 
-  static constexpr char kExpectedStructureTree[] = R"(/S /Document
+  static constexpr char kExpectedStructureTree[] = R"(/S /Document /Lang (en-US)
 ++/S /Part
 ++++/S /Document /Lang (en-US)
 ++++++/S /Art AssociatedTextRunLens={ 9 }
@@ -233,13 +233,39 @@ TEST_P(AccessibilityTest, AccessibilityStructureTreeWithImages) {
       engine->GetStructureTree();
   ASSERT_TRUE(doc_structure);
 
-  static constexpr char kExpectedStructureTree[] = R"(/S /Document
+  static constexpr char kExpectedStructureTree[] = R"(/S /Document /Lang (en-US)
 ++/S /Part
 ++++/S /Document
 ++++++/S /P
 ++++++++/S /Figure /Alt (Image 1) AssociatedImage={page_object_index=0 bounds=380,78 67x68}
 ++++++++/S /Figure /Alt (Image 2) AssociatedImage={page_object_index=1 bounds=380,385 27x28}
 ++++++++/S /Figure /Alt (Image 3) AssociatedImage={page_object_index=2 bounds=380,678 1x1})";
+
+  EXPECT_EQ(kExpectedStructureTree,
+            AccessibilityStructureElementToString(*doc_structure));
+}
+
+TEST_P(AccessibilityTest, AccessibilityStructureTreeWithExpansion) {
+  base::test::ScopedFeatureList pdf_tags;
+  pdf_tags.InitAndEnableFeature(features::kPdfTags);
+
+  TestClient client(/*use_skia_renderer=*/GetParam());
+  std::unique_ptr<PDFiumEngine> engine = InitializeEngine(
+      &client, FILE_PATH_LITERAL("abbreviation_expansion.pdf"));
+  ASSERT_TRUE(engine);
+  ASSERT_EQ(1, engine->GetNumberOfPages());
+
+  std::unique_ptr<AccessibilityStructureElement> doc_structure =
+      engine->GetStructureTree();
+  ASSERT_TRUE(doc_structure);
+
+  static constexpr char kExpectedStructureTree[] =
+      R"(/S /Document /Lang (en-US)
+++/S /Part
+++++/S /Document /Lang (en-US)
+++++++/S /P AssociatedTextRunLens={ 10 }
+++++++/S /Span /E (Portable Document Format) AssociatedTextRunLens={ 11 }
+++++++/S /P)";
 
   EXPECT_EQ(kExpectedStructureTree,
             AccessibilityStructureElementToString(*doc_structure));
@@ -278,20 +304,34 @@ TEST_P(AccessibilityTest, AccessibilityStructureTreeWithMultipleMCIDs) {
             AccessibilityStructureElementToString(*doc_structure));
 }
 
+TEST_P(AccessibilityTest, DocumentLanguageFromCatalog) {
+  base::test::ScopedFeatureList pdf_tags;
+  pdf_tags.InitAndEnableFeature(features::kPdfTags);
+
+  TestClient client(/*use_skia_renderer=*/GetParam());
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("tags.pdf"));
+  ASSERT_TRUE(engine);
+
+  std::unique_ptr<AccessibilityStructureElement> doc_structure =
+      engine->GetStructureTree();
+  ASSERT_TRUE(doc_structure);
+
+  // Verify the document root has the language from the catalog's /Lang entry.
+  EXPECT_EQ(PdfTagType::kDocument, doc_structure->type);
+  EXPECT_EQ("en-US", doc_structure->language);
+}
+
 TEST_P(AccessibilityTest, GetAccessibilityPageWithTags) {
   base::test::ScopedFeatureList pdf_tags;
   pdf_tags.InitAndEnableFeature(features::kPdfTags);
 
-  struct TestTextRun {
-    uint32_t len;
-    std::string tag_type;
-  };
-  static constexpr std::array<TestTextRun, 5> kExpectedTextRuns = {
-      TestTextRun{/*"Article\r\n"*/ 9, "Art"},
-      TestTextRun{/*"BlockQuote\r\n"*/ 12, "BlockQuote"},
-      TestTextRun{/*"Paragraph\r\n"*/ 11, "P"},
-      TestTextRun{/*"Heading1\r\n"*/ 10, "H1"},
-      TestTextRun{/*"Heading2"*/ 8, "H2"},
+  static constexpr std::array<uint32_t, 5> kExpectedTextRunLens = {
+      /*"Article\r\n"*/ 9,
+      /*"BlockQuote\r\n"*/ 12,
+      /*"Paragraph\r\n"*/ 11,
+      /*"Heading1\r\n"*/ 10,
+      /*"Heading2"*/ 8,
   };
 
   static constexpr char kExpectedChars[] =
@@ -314,11 +354,10 @@ TEST_P(AccessibilityTest, GetAccessibilityPageWithTags) {
   EXPECT_EQ(text_runs.size(), page_info.text_run_count);
   EXPECT_EQ(chars.size(), page_info.char_count);
 
-  ASSERT_EQ(kExpectedTextRuns.size(), text_runs.size());
-  for (const auto [expected, actual] :
-       base::zip(kExpectedTextRuns, text_runs)) {
-    EXPECT_EQ(expected.len, actual.len);
-    EXPECT_EQ(expected.tag_type, actual.tag_type);
+  ASSERT_EQ(kExpectedTextRunLens.size(), text_runs.size());
+  for (const auto [expected_len, actual] :
+       base::zip(kExpectedTextRunLens, text_runs)) {
+    EXPECT_EQ(expected_len, actual.len);
   }
 
   ASSERT_EQ(std::size(kExpectedChars) - 1, chars.size());

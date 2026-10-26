@@ -32,6 +32,7 @@
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
 #include "chrome/browser/first_run/first_run.h"
+#include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/gpu/gpu_mode_manager.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/login_detection/login_detection_prefs.h"
@@ -74,6 +75,7 @@
 #include "chrome/browser/serial/serial_policy_allowed_ports.h"
 #include "chrome/browser/sharing_hub/sharing_hub_features.h"
 #include "chrome/browser/signin/chrome_signin_client.h"
+#include "chrome/browser/signin/signin_promo_util.h"
 #include "chrome/browser/ssl/ssl_config_service_manager.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "chrome/browser/themes/theme_service.h"
@@ -85,6 +87,7 @@
 #include "chrome/browser/ui/safety_hub/safety_hub_prefs.h"
 #include "chrome/browser/ui/search_engines/keyword_editor_controller.h"
 #include "chrome/browser/ui/tabs/projects/projects_prefs.h"
+#include "chrome/browser/ui/tabs/tab_strip_prefs.h"
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_prefs.h"
 #include "chrome/browser/ui/toolbar/chrome_location_bar_model_delegate.h"
 #include "chrome/browser/ui/toolbar/toolbar_pref_names.h"
@@ -216,8 +219,8 @@
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "chrome/browser/extensions/activity_log/activity_log.h"
 #include "chrome/browser/extensions/commands/command_service.h"
+#include "chrome/browser/extensions/extension_url_overrides.h"
 #include "chrome/browser/extensions/extension_util.h"
-#include "chrome/browser/extensions/extension_web_ui.h"
 #include "chrome/browser/ui/webui/extensions/extensions_ui_prefs.h"
 #include "extensions/browser/api/runtime/runtime_api.h"
 #include "extensions/browser/extension_prefs.h"
@@ -237,6 +240,8 @@
 #include "chrome/browser/pdf/pdf_pref_names.h"
 #endif  // BUILDFLAG(ENABLE_PDF)
 
+#include "chrome/browser/media/unified_autoplay_config.h"
+
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/accessibility/accessibility_prefs/android/accessibility_prefs_controller.h"
 #include "chrome/browser/android/ntp/recent_tabs_page_prefs.h"
@@ -244,6 +249,7 @@
 #include "chrome/browser/android/preferences/browser_prefs_android.h"
 #include "chrome/browser/android/preferences/shared_preferences_migrator_android.h"
 #include "chrome/browser/android/usage_stats/usage_stats_bridge.h"
+#include "chrome/browser/auxiliary_search/auxiliary_search_donation_service.h"
 #include "chrome/browser/first_run/android/first_run_prefs.h"
 #include "chrome/browser/lens/android/lens_prefs.h"
 #include "chrome/browser/media/android/cdm/media_drm_origin_id_manager.h"
@@ -260,12 +266,12 @@
 #include "components/webapps/browser/android/install_prompt_prefs.h"
 #else  // BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/actor/ui/actor_ui_state_manager_prefs.h"
+#include "chrome/browser/desktop_to_mobile_promos/promos_utils.h"  // nogncheck crbug.com/1125897
 #include "chrome/browser/gcm/gcm_product_util.h"
 #include "chrome/browser/hid/hid_policy_allowed_devices.h"
 #include "chrome/browser/intranet_redirect_detector.h"
 #include "chrome/browser/media/router/discovery/access_code/access_code_cast_feature.h"
 #include "chrome/browser/media/router/media_router_feature.h"
-#include "chrome/browser/media/unified_autoplay_config.h"
 #include "chrome/browser/nearby_sharing/common/nearby_share_prefs.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/drive_service.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/microsoft_files_page_handler.h"
@@ -276,7 +282,6 @@
 #include "chrome/browser/new_tab_page/modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption_page_handler.h"
 #include "chrome/browser/new_tab_page/modules/v2/tab_groups/tab_groups_page_handler.h"
 #include "chrome/browser/new_tab_page/promos/promo_service.h"
-#include "chrome/browser/promos/promos_utils.h"  // nogncheck crbug.com/1125897
 #include "chrome/browser/screen_ai/pref_names.h"
 #include "chrome/browser/search_engine_choice/search_engine_choice_dialog_service.h"
 #include "chrome/browser/signin/signin_promo.h"
@@ -286,12 +291,12 @@
 #include "chrome/browser/ui/hats/hats_service_desktop.h"
 #include "chrome/browser/ui/read_anything/read_anything_prefs.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
+#include "chrome/browser/ui/side_panel/side_panel_prefs.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/tabs/organization/prefs.h"
 #include "chrome/browser/ui/tabs/pinned_tab_codec.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_pref_names.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_prefs.h"
 #include "chrome/browser/ui/webui/certificate_manager/certificate_manager_handler.h"
 #include "chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler.h"
 #include "chrome/browser/ui/webui/history/foreign_session_handler.h"
@@ -492,10 +497,13 @@
 #include "chrome/browser/webnn/webnn_prefs.h"
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/enterprise/platform_auth/platform_auth_policy_observer.h"
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #include "components/os_crypt/sync/os_crypt.h"  // nogncheck
-#endif
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
@@ -512,7 +520,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_DOWNGRADE_PROCESSING)
-#include "chrome/browser/downgrade/downgrade_prefs.h"
+#include "chrome/browser/downgrade/downgrade_prefs.h"  // nogncheck
 #endif
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
@@ -540,10 +548,6 @@
 
 #if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
 #include "components/enterprise/data_controls/core/browser/prefs.h"
-#endif
-
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/glic_pref_names.h"
 #endif
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
@@ -996,6 +1000,27 @@ constexpr char kDiceMigrationRestoredFromBackup[] =
 // Deprecated 02/2026.
 inline constexpr char kTabSearchOpened[] = "tab_search.opened";
 
+// Deprecated 02/2026.
+constexpr char kTabOrganizationFeature[] = "tab_organization.feature";
+
+// Deprecated 03/2026.
+constexpr char kTabDeclutterUsageCount[] = "tab_declutter.usage_count";
+
+// Deprecated 03/2026.
+inline constexpr char kTabSearchTabIndex[] = "tab_search.tab_index";
+
+// Deprecated 03/2026
+constexpr char kSigninFromBookmarksBubbleSyntheticTrialGroupNamePref[] =
+    "UnoDesktopBookmarksEnabledInAccountFromBubbleGroup";
+constexpr char kBookmarksBubblePromoShownSyntheticTrialGroupNamePref[] =
+    "UnoDesktopBookmarksBubblePromoShownGroup";
+
+#if BUILDFLAG(IS_ANDROID)
+// Deprecated 03/2026.
+constexpr char kPrivacySandboxActivityTypeRecord2[] =
+    "privacy_sandbox.activity_type.record2";
+#endif  // BUILDFLAG(IS_ANDROID)
+
 // Register local state used only for migration (clearing or moving to a new
 // key).
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
@@ -1388,6 +1413,26 @@ void RegisterProfilePrefsForMigration(
 
   // Deprecated 02/2026.
   registry->RegisterBooleanPref(kTabSearchOpened, false);
+
+  // Deprecated 02/2026.
+  registry->RegisterIntegerPref(kTabOrganizationFeature, 0);
+
+  // Deprecated 03/2026.
+  registry->RegisterIntegerPref(kTabDeclutterUsageCount, 0);
+
+  // Deprecated 03/2026.
+  registry->RegisterIntegerPref(kTabSearchTabIndex, 1);
+
+  // Deprecated 03/2026.
+  registry->RegisterStringPref(
+      kSigninFromBookmarksBubbleSyntheticTrialGroupNamePref, std::string());
+  registry->RegisterStringPref(
+      kBookmarksBubblePromoShownSyntheticTrialGroupNamePref, std::string());
+
+#if BUILDFLAG(IS_ANDROID)
+  // Deprecated 03/2026.
+  registry->RegisterListPref(kPrivacySandboxActivityTypeRecord2);
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace
@@ -1418,7 +1463,6 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   chrome_labs_prefs::RegisterLocalStatePrefs(registry);
   chrome_urls::RegisterPrefs(registry);
   ChromeMetricsServiceClient::RegisterPrefs(registry);
-  ChromeSigninClient::RegisterLocalStatePrefs(registry);
   enterprise_connectors::RegisterLocalStatePrefs(registry);
   enterprise_util::RegisterLocalStatePrefs(registry);
   component_updater::RegisterPrefs(registry);
@@ -1516,6 +1560,10 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   UpgradeDetector::RegisterPrefs(registry);
   registry->RegisterIntegerPref(prefs::kLastWhatsNewVersion, 0);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  extensions::ExtensionPrefs::RegisterBrowserPrefs(registry);
+#endif
 
 #if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION)
   on_device_translation::RegisterLocalStatePrefs(registry);
@@ -1651,9 +1699,9 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   screen_ai::RegisterLocalStatePrefs(registry);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
   PlatformAuthPolicyObserver::RegisterPrefs(registry);
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
 
   // Platform-specific and compile-time conditional individual preferences.
   // If you have multiple preferences that should clearly be grouped together,
@@ -1686,17 +1734,11 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(prefs::kChromeForTestingAllowed, true);
 #endif
 
-#if BUILDFLAG(IS_WIN)
-  registry->RegisterBooleanPref(prefs::kUiAutomationProviderEnabled, false);
-#endif
-
   registry->RegisterBooleanPref(prefs::kQRCodeGeneratorEnabled, true);
 
   registry->RegisterIntegerPref(prefs::kChromeDataRegionSetting, 0);
 
-#if BUILDFLAG(ENABLE_GLIC)
   glic::prefs::RegisterLocalStatePrefs(registry);
-#endif
 
   registry->RegisterIntegerPref(prefs::kToastAlertLevel, 0);
 
@@ -1747,9 +1789,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   enterprise_reporting::RegisterProfilePrefs(registry);
   dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);
   DownloadPrefs::RegisterProfilePrefs(registry);
-#if BUILDFLAG(ENABLE_GLIC)
   glic::prefs::RegisterProfilePrefs(registry);
-#endif
   permissions::PermissionHatsTriggerHelper::RegisterProfilePrefs(registry);
   history_clusters::prefs::RegisterProfilePrefs(registry);
   HostContentSettingsMap::RegisterProfilePrefs(registry);
@@ -1822,6 +1862,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
       registry);
   SessionStartupPref::RegisterProfilePrefs(registry);
   SharingSyncPreference::RegisterProfilePrefs(registry);
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  signin::AvatarButtonPromoManager::RegisterProfilePrefs(registry);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
   SigninPrefs::RegisterProfilePrefs(registry);
   site_engagement::SiteEngagementService::RegisterProfilePrefs(registry);
   subscription_eligibility::prefs::RegisterProfilePrefs(registry);
@@ -1854,7 +1897,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   extensions::CommandService::RegisterProfilePrefs(registry);
   extensions::util::RegisterProfilePrefs(registry);
   extensions_ui_prefs::RegisterProfilePrefs(registry);
-  ExtensionWebUI::RegisterProfilePrefs(registry);
+  ExtensionUrlOverrides::RegisterProfilePrefs(registry);
   update_client::RegisterProfilePrefs(registry);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
@@ -1886,7 +1929,10 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   ChromeRLZTrackerDelegate::RegisterProfilePrefs(registry);
 #endif
 
+  UnifiedAutoplayConfig::RegisterProfilePrefs(registry);
+
 #if BUILDFLAG(IS_ANDROID)
+  AuxiliarySearchDonationService::RegisterProfilePrefs(registry);
   feed::prefs::RegisterFeedSharedProfilePrefs(registry);
   feed::RegisterProfilePrefs(registry);
   cdm::MediaDrmStorageImpl::RegisterProfilePrefs(registry);
@@ -1943,7 +1989,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   ThemeColorPickerHandler::RegisterProfilePrefs(registry);
   ThemeService::RegisterProfilePrefs(registry);
   toolbar::RegisterProfilePrefs(registry);
-  UnifiedAutoplayConfig::RegisterProfilePrefs(registry);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
@@ -1965,8 +2010,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   registry->RegisterBooleanPref(prefs::kDeskAPIDeskSaveAndShareEnabled, false);
   registry->RegisterListPref(prefs::kDeskAPIThirdPartyAllowlist);
   registry->RegisterBooleanPref(prefs::kInsightsExtensionEnabled, false);
-  registry->RegisterBooleanPref(prefs::kEssentialSearchEnabled, false);
-  registry->RegisterBooleanPref(prefs::kLastEssentialSearchValue, false);
+  registry->RegisterBooleanPref(ash::prefs::kEssentialSearchEnabled, false);
+  registry->RegisterBooleanPref(ash::prefs::kLastEssentialSearchValue, false);
   // By default showing Sync Consent is set to true. It can changed by policy.
   registry->RegisterBooleanPref(prefs::kEnableSyncConsent, true);
   registry->RegisterListPref(
@@ -2198,8 +2243,10 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   registry->RegisterBooleanPref(prefs::kAndroidTipNotificationShownSignin,
                                 false);
   registry->RegisterBooleanPref(
-      prefs::kAndroidTipNotificationShownCreateTabGroup, false);
+      prefs::kAndroidTipNotificationShownCreateTabGroups, false);
   registry->RegisterBooleanPref(prefs::kAndroidTipNotificationShownCustomizeMVT,
+                                false);
+  registry->RegisterBooleanPref(prefs::kAndroidTipNotificationShownRecentTabs,
                                 false);
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -2684,6 +2731,28 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
 
   // Added 02/2026.
   profile_prefs->ClearPref(kTabSearchOpened);
+
+  // Added 03/2026.
+  profile_prefs->ClearPref(kTabDeclutterUsageCount);
+
+  // Added 03/2026.
+  profile_prefs->ClearPref(kTabSearchTabIndex);
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Added 02/2026.
+  tabs::MigrateTabSearchPref(profile_prefs);
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+  // Added 03/2026
+  profile_prefs->ClearPref(
+      kSigninFromBookmarksBubbleSyntheticTrialGroupNamePref);
+  profile_prefs->ClearPref(
+      kBookmarksBubblePromoShownSyntheticTrialGroupNamePref);
+
+#if BUILDFLAG(IS_ANDROID)
+  // Added 03/2026.
+  profile_prefs->ClearPref(kPrivacySandboxActivityTypeRecord2);
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

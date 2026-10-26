@@ -18,7 +18,6 @@ import org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType;
 import org.chromium.chrome.browser.magic_stack.ModuleProvider;
 import org.chromium.chrome.browser.magic_stack.ModuleProviderBuilder;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.setup_list.SetupListManager;
 import org.chromium.chrome.browser.setup_list.SetupListModuleUtils;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.segmentation_platform.InputContext;
@@ -42,14 +41,15 @@ public class EducationalTipModuleBuilder implements ModuleProviderBuilder {
     @Override
     public boolean build(
             ModuleDelegate moduleDelegate, Callback<ModuleProvider> onModuleBuiltCallback) {
-        if (!ChromeFeatureList.isEnabled(
-                ChromeFeatureList.SEGMENTATION_PLATFORM_EPHEMERAL_CARD_RANKER)) {
-            return false;
-        }
+        if (!SetupListModuleUtils.isSetupListModule(mModuleType)) {
+            if (!EducationalTipModuleUtils.isEducationalTipActive()) {
+                return false;
+            }
 
-        if (mModuleType == ModuleType.DEFAULT_BROWSER_PROMO
-                && !ChromeFeatureList.sEducationalTipDefaultBrowserPromoCard.isEnabled()) {
-            return false;
+            if (mModuleType == ModuleType.DEFAULT_BROWSER_PROMO
+                    && !ChromeFeatureList.sEducationalTipDefaultBrowserPromoCard.isEnabled()) {
+                return false;
+            }
         }
 
         EducationalTipModuleCoordinator coordinator =
@@ -65,10 +65,14 @@ public class EducationalTipModuleBuilder implements ModuleProviderBuilder {
     /** Create view for the educational tip module. */
     @Override
     public ViewGroup createView(ViewGroup parentView) {
+        int layoutId =
+                mModuleType == ModuleType.SETUP_LIST_CELEBRATORY_PROMO
+                        ? R.layout.setup_list_celebratory_promo_layout
+                        : R.layout.educational_tip_module_layout;
         ViewGroup moduleView =
                 (ViewGroup)
                         LayoutInflater.from(mActionDelegate.getContext())
-                                .inflate(R.layout.educational_tip_module_layout, parentView, false);
+                                .inflate(layoutId, parentView, false);
 
         if (SetupListModuleUtils.isSetupListModule(mModuleType)) {
             // Setup List images don't have a background
@@ -92,11 +96,17 @@ public class EducationalTipModuleBuilder implements ModuleProviderBuilder {
 
     @Override
     public boolean isEligible() {
-        if (SetupListManager.isBaseSetupListModule(mModuleType)) {
+        if (SetupListModuleUtils.isSetupListModule(mModuleType)) {
             return SetupListModuleUtils.isModuleEligible(mModuleType);
         }
 
-        return true;
+        // When the Setup List is inactive, check if Educational Tips are active globally.
+        if (!EducationalTipModuleUtils.isEducationalTipActive()) {
+            return false;
+        }
+
+        // Only standard Educational Tip modules are eligible.
+        return EducationalTipModuleUtils.getModuleTypes().contains(mModuleType);
     }
 
     @Override

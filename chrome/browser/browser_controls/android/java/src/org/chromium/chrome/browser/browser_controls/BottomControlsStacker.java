@@ -21,8 +21,10 @@ import org.chromium.ui.OffsetTagConstraints;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.display.DisplayUtil;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  * Coordinator class for UI layers in the bottom browser controls. This class manages the relative
@@ -41,33 +43,38 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
     private int mNumberOfVisibleLayers;
 
     /** Enums that defines the type and position for each bottom controls. */
+    @Target(ElementType.TYPE_USE)
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({
         LayerType.PROGRESS_BAR,
         LayerType.TABSTRIP_TOOLBAR,
-        LayerType.TABSTRIP_TOOLBAR_BELOW_READALOUD,
         LayerType.READ_ALOUD_PLAYER,
         LayerType.BOTTOM_TOOLBAR,
         LayerType.BOTTOM_CHIN,
+        LayerType.BOTTOM_SHEET,
+        LayerType.BOTTOM_APP_BAR,
         LayerType.TEST_BOTTOM_LAYER
     })
     public @interface LayerType {
         // The progress bar during page loading. This layer has a height of 0 and overlaps the next
         // visible layer in the stack.
         int PROGRESS_BAR = 0;
-        int TABSTRIP_TOOLBAR = 1;
         int READ_ALOUD_PLAYER = 2;
-        // Temporary layer that allows us to flag guard the new behavior of stacking the tabstrip
-        // toolbar below, rather than above, the readadloud player.
-        int TABSTRIP_TOOLBAR_BELOW_READALOUD = 3;
+        int TABSTRIP_TOOLBAR = 3;
         int BOTTOM_TOOLBAR = 4;
         int BOTTOM_CHIN = 5;
+        // Bottom sheet as a browser control layer. This is used to position bottom sheet in
+        // respect to other bottom controls, and/or specialized bottom sheets that can push web
+        // content up in PEEK state.
+        int BOTTOM_SHEET = 6;
+        int BOTTOM_APP_BAR = 7;
 
         // Layer that's used for testing.
         int TEST_BOTTOM_LAYER = 100;
     }
 
     /** Enums that defines the scroll behavior for different controls. */
+    @Target(ElementType.TYPE_USE)
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({
         LayerScrollBehavior.ALWAYS_SCROLL_OFF,
@@ -86,6 +93,7 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
     }
 
     /** Enums that defines the type and position for each bottom controls. */
+    @Target(ElementType.TYPE_USE)
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({
         LayerVisibility.VISIBLE,
@@ -118,11 +126,12 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
     // The pre-defined stack order for different bottom controls.
     private static final @LayerType int[] STACK_ORDER =
             new int[] {
+                LayerType.BOTTOM_SHEET,
                 LayerType.PROGRESS_BAR,
-                LayerType.TABSTRIP_TOOLBAR,
                 LayerType.READ_ALOUD_PLAYER,
-                LayerType.TABSTRIP_TOOLBAR_BELOW_READALOUD,
+                LayerType.TABSTRIP_TOOLBAR,
                 LayerType.BOTTOM_TOOLBAR,
+                LayerType.BOTTOM_APP_BAR,
                 LayerType.BOTTOM_CHIN,
                 LayerType.TEST_BOTTOM_LAYER
             };
@@ -489,7 +498,6 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
                     minHeightBottomOffset = Math.min(minHeightBottomOffset, mTotalHeight);
                 }
 
-
                 logIfHeightMismatch(
                         "Heights before #repositionLayers",
                         mTotalHeight,
@@ -501,7 +509,6 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
 
             yOffsetOfLayers.put(type, layerYOffset);
         }
-
 
         // 2. If animated, compare and fix the yOffset with the previous mLayerOffsets if reposition
         // is caused by an animated browser controls height adjustment. This needs to run in a

@@ -12,6 +12,7 @@
 #include "base/auto_reset.h"
 #include "base/feature_list.h"
 #include "base/memory/weak_ptr.h"
+#include "base/memory_coordinator/utils.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/scoped_observation.h"
@@ -35,6 +36,7 @@
 #include "components/crash/core/common/crash_key.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/render_widget_host_view.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "ui/base/models/menu_model.h"
@@ -118,7 +120,7 @@ content::WebUIController* GetWebUIController(
 }
 
 bool IsShowingErrorPage(content::WebContents* web_contents) {
-  return web_contents->GetSiteInstance()->GetSiteURL().SchemeIs(
+  return web_contents->GetSiteInstance()->GetSecurityPrincipal().SchemeIs(
       content::kChromeErrorScheme);
 }
 
@@ -483,6 +485,16 @@ std::optional<base::TimeTicks> WebUIContentsPreloadManager::GetRequestTime(
   return preload_state->request_time;
 }
 
+void WebUIContentsPreloadManager::SetRequestTime(
+    content::WebContents* web_contents,
+    base::TimeTicks time) {
+  auto* preload_state =
+      WebUIContentsPreloadState::FromWebContents(web_contents);
+  if (preload_state) {
+    preload_state->request_time = time;
+  }
+}
+
 bool WebUIContentsPreloadManager::WasPreloaded(
     content::WebContents* web_contents) const {
   if (!web_contents) {
@@ -551,7 +563,7 @@ bool WebUIContentsPreloadManager::ShouldPreloadForBrowserContext(
   }
 
   // Don't preload if under heavy memory pressure.
-  if (memory_pressure_level() >= base::MEMORY_PRESSURE_LEVEL_MODERATE) {
+  if (GetMemoryLimit() <= base::kModerateMemoryPressureThreshold) {
     return false;
   }
 

@@ -59,6 +59,8 @@
 
 #if BUILDFLAG(DAWN_ENABLE_BACKEND_OPENGLES)
 #include "third_party/dawn/include/dawn/native/OpenGLBackend.h"
+#include "ui/gl/gl_bindings.h"
+#include "ui/gl/gl_context.h"
 #include "ui/gl/gl_surface_egl.h"
 #endif
 
@@ -172,6 +174,7 @@ std::vector<const char*> GetEnabledToggles(
 
   enabled_toggles.push_back("disable_robustness");
   enabled_toggles.push_back("disable_lazy_clear_for_mapped_at_creation_buffer");
+  enabled_toggles.push_back("dump_shaders_on_failure");
 
 #if BUILDFLAG(IS_WIN)
   if (backend_type == wgpu::BackendType::D3D11) {
@@ -246,6 +249,11 @@ std::vector<wgpu::FeatureName> GetRequiredFeatures(
   }
 #endif
 
+  if (backend_type == wgpu::BackendType::OpenGLES &&
+      gl::GetANGLEImplementation() == gl::ANGLEImplementation::kOpenGL) {
+    features.push_back(wgpu::FeatureName::ANGLETextureSharing);
+  }
+
   constexpr wgpu::FeatureName kOptionalFeatures[] = {
       wgpu::FeatureName::BGRA8UnormStorage,
       wgpu::FeatureName::BufferMapExtendedUsages,
@@ -271,6 +279,7 @@ std::vector<wgpu::FeatureName> GetRequiredFeatures(
       // backend on Android.
       wgpu::FeatureName::SharedTextureMemoryAHardwareBuffer,
       wgpu::FeatureName::SharedFenceSyncFD,
+      wgpu::FeatureName::RenderPassRenderArea,
 
       // The following features are always supported by the the D3D backends.
       wgpu::FeatureName::SharedTextureMemoryD3D11Texture2D,
@@ -281,6 +290,9 @@ std::vector<wgpu::FeatureName> GetRequiredFeatures(
       wgpu::FeatureName::SharedBufferMemoryD3D12Resource,
 
       wgpu::FeatureName::TransientAttachments,
+
+      wgpu::FeatureName::DawnLoadResolveTexture,
+      wgpu::FeatureName::DawnPartialLoadResolveTexture,
       wgpu::FeatureName::DawnTexelCopyBufferRowAlignment,
       wgpu::FeatureName::FlexibleTextureViews,
   };
@@ -290,17 +302,12 @@ std::vector<wgpu::FeatureName> GetRequiredFeatures(
       continue;
     }
     features.push_back(feature);
-  }
 
-  // Both MSAARenderToSingleSampled and DawnLoadResolveTexture are used to
-  // unresolve a single-sampled texture for multi-sampled rendering.
-  // We prefer the former if it's available,
-  if (adapter.HasFeature(wgpu::FeatureName::MSAARenderToSingleSampled)) {
-    features.push_back(wgpu::FeatureName::MSAARenderToSingleSampled);
-  } else if (adapter.HasFeature(wgpu::FeatureName::DawnLoadResolveTexture)) {
-    features.push_back(wgpu::FeatureName::DawnLoadResolveTexture);
-    if (adapter.HasFeature(wgpu::FeatureName::DawnPartialLoadResolveTexture)) {
-      features.push_back(wgpu::FeatureName::DawnPartialLoadResolveTexture);
+    // Enabling MSAARenderToSingleSampled causes performance regression without
+    // TransientAttachments support.
+    if (feature == wgpu::FeatureName::TransientAttachments &&
+        adapter.HasFeature(wgpu::FeatureName::MSAARenderToSingleSampled)) {
+      features.push_back(wgpu::FeatureName::MSAARenderToSingleSampled);
     }
   }
 
@@ -397,17 +404,17 @@ const char* BackendTypeToString(wgpu::BackendType backend_type) {
 wgpu::BackendType DawnContextProvider::GetDefaultBackendType() {
   const auto switch_value =
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-          switches::kSkiaGraphiteBackend);
-  if (switch_value == switches::kSkiaGraphiteBackendDawnD3D11) {
+          switches::kSkiaGraphiteDawnBackend);
+  if (switch_value == switches::kSkiaGraphiteDawnBackendD3D11) {
     return wgpu::BackendType::D3D11;
-  } else if (switch_value == switches::kSkiaGraphiteBackendDawnD3D12) {
+  } else if (switch_value == switches::kSkiaGraphiteDawnBackendD3D12) {
     return wgpu::BackendType::D3D12;
-  } else if (switch_value == switches::kSkiaGraphiteBackendDawnMetal) {
+  } else if (switch_value == switches::kSkiaGraphiteDawnBackendMetal) {
     return wgpu::BackendType::Metal;
-  } else if (switch_value == switches::kSkiaGraphiteBackendDawnOpenGLES) {
+  } else if (switch_value == switches::kSkiaGraphiteDawnBackendOpenGLES) {
     return wgpu::BackendType::OpenGLES;
-  } else if (switch_value == switches::kSkiaGraphiteBackendDawnSwiftshader ||
-             switch_value == switches::kSkiaGraphiteBackendDawnVulkan) {
+  } else if (switch_value == switches::kSkiaGraphiteDawnBackendSwiftshader ||
+             switch_value == switches::kSkiaGraphiteDawnBackendVulkan) {
     return wgpu::BackendType::Vulkan;
   }
 
@@ -430,8 +437,8 @@ wgpu::BackendType DawnContextProvider::GetDefaultBackendType() {
 // static
 bool DawnContextProvider::DefaultForceFallbackAdapter() {
   return base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-             switches::kSkiaGraphiteBackend) ==
-             switches::kSkiaGraphiteBackendDawnSwiftshader ||
+             switches::kSkiaGraphiteDawnBackend) ==
+             switches::kSkiaGraphiteDawnBackendSwiftshader ||
          gl::GetANGLEImplementation() == gl::ANGLEImplementation::kSwiftShader;
 }
 
@@ -830,6 +837,8 @@ bool DawnSharedContext::Initialize(
 #if BUILDFLAG(DAWN_ENABLE_BACKEND_OPENGLES)
   dawn::native::opengl::RequestAdapterOptionsGetGLProc
       adapter_options_get_gl_proc = {};
+  dawn::native::opengl::RequestAdapterOptionsAngleVirtualizationGroup group =
+      {};
   if (adapter_options.backendType == wgpu::BackendType::OpenGLES) {
     adapter_options_get_gl_proc.getProc = gl::GetGLProcAddress;
     gl::GLDisplayEGL* gl_display = gl::GLSurfaceEGL::GetGLDisplayEGL();
@@ -840,6 +849,12 @@ bool DawnSharedContext::Initialize(
     }
     adapter_options_get_gl_proc.nextInChain = adapter_options.nextInChain;
     adapter_options.nextInChain = &adapter_options_get_gl_proc;
+    if (gl_display->ext->b_EGL_ANGLE_context_virtualization) {
+      group.angleVirtualizationGroup = static_cast<GLuint>(
+          gl::AngleContextVirtualizationGroup::kGraphiteDawnSharedContext);
+      group.nextInChain = adapter_options.nextInChain;
+      adapter_options.nextInChain = &group;
+    }
   }
 #endif
 
@@ -1051,15 +1066,6 @@ void DawnSharedContext::OnError(wgpu::ErrorType error_type,
 
   DumpWithoutCrashingOnError(error_type,
                              static_cast<std::string_view>(message));
-
-#if !DCHECK_IS_ON()
-  // Do not provoke context loss on validation failures for non-DCHECK builds.
-  // We want to capture the above dump on validation errors, but not necessarily
-  // restart the GPU process unless we also have a device loss.
-  if (error_type == wgpu::ErrorType::Validation) {
-    return;
-  }
-#endif
 
   error::ContextLostReason reason = error::kUnknown;
   switch (error_type) {

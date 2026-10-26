@@ -66,7 +66,7 @@ struct SessionMetrics {
   // Number of file upload failures per file type.
   std::map<lens::MimeType, int> file_upload_failure_count_per_type;
   // Number of file validation errors per file type.
-  std::map<lens::MimeType, std::map<FileUploadErrorType, int>>
+  std::map<lens::MimeType, std::map<ContextUploadErrorType, int>>
       file_validation_failure_count_per_type;
   // In most cases `num_query_submissions` will equal 1 except in the case
   // where a user navigates to the AIM page on a new window or tab and the
@@ -94,18 +94,28 @@ class ContextualSearchMetricsRecorder {
 
   // Should be called when there are session state changes to keep track of
   // session state metrics. Virtual for testing.
+  // TODO(crbug.com/458086158): Make this private and instead make
+  // NotifySessionStarted, NotifyQuerySubmitted, RecordSessionAbandonedMetrics,
+  // and a new NotifyNavigationOccurred method public so that the session state
+  // can be managed internally by the metrics recorder.
   virtual void NotifySessionStateChanged(SessionState session_state);
+
+  // Notifies the metrics recorder that a query was submitted.
+  virtual void NotifyQuerySubmitted(bool has_tab_context,
+                                    bool has_non_tab_context,
+                                    int query_text_length,
+                                    int file_count);
 
   // Activates a funnel for metrics logging.
   virtual void ActivateMetricsFunnel(const std::string& funnel_name);
 
-  virtual void OnFileUploadStatusChanged(
+  virtual void OnContextUploadStatusChanged(
       lens::MimeType file_mime_type,
-      FileUploadStatus file_upload_status,
-      const std::optional<FileUploadErrorType>& error_type);
+      ContextUploadStatus context_upload_status,
+      const std::optional<ContextUploadErrorType>& error_type);
 
   // Maps file errors to its string version for histogram naming.
-  std::string FileErrorToString(FileUploadErrorType error);
+  std::string FileErrorToString(ContextUploadErrorType error);
   // Maps mime types to its string version for histogram naming.
   std::string MimeTypeToString(lens::MimeType mime_type);
   // Maps contextual search sources to its string version for histogram naming.
@@ -115,14 +125,17 @@ class ContextualSearchMetricsRecorder {
 
   // Records several metrics about the query, such the number of characters
   // found in the query.
-  void RecordQueryMetrics(int text_length, int file_count);
+  void RecordQueryMetrics(bool has_tab_context,
+                          bool has_non_tab_context,
+                          int text_length,
+                          int file_count);
 
   void RecordFileSizeMetric(lens::MimeType mime_type, uint64_t file_size_bytes);
 
   // Should be called when a file has been deleted.
   void RecordFileDeletedMetrics(bool success,
                                 lens::MimeType file_type,
-                                FileUploadStatus file_status);
+                                ContextUploadStatus file_status);
 
   void RecordTabAddedMetrics(bool has_duplicate_title,
                                std::optional<int> recency_ranking,
@@ -147,13 +160,16 @@ class ContextualSearchMetricsRecorder {
       composebox_query::mojom::ToolMode tool_mode,
       composebox_query::mojom::ModelMode model_mode);
 
+  // Records when a zero-suggest suggestion is clicked.
+  virtual void RecordZeroSuggestClick(bool is_contextual);
+
+  // Records when a typed suggestion is clicked.
+  virtual void RecordTypedSuggestNavigation(bool is_verbatim);
+
  private:
   // Called when the session starts to correctly track session
   // durations.
   void NotifySessionStarted();
-  // Called when a query is submitted to correctly track the time from
-  // the session starting to query submission.
-  void NotifyQuerySubmitted();
   // Should only be called when a session has been abandoned.
   void RecordSessionAbandonedMetrics();
   // Should only be called if a query was submitted and navigation to the AIM
@@ -166,6 +182,7 @@ class ContextualSearchMetricsRecorder {
   void FinalizeSessionMetrics();
   // Resets all session metrics at the end of a session.
   void ResetSessionMetrics();
+
   ContextualSearchSource source_;
   std::string metrics_suffix_;
   std::unique_ptr<SessionMetrics> session_metrics_;

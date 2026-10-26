@@ -54,18 +54,20 @@ String DOMFilePath::EnsureDirectoryPath(const String& path) {
 }
 
 String DOMFilePath::GetName(const String& path) {
-  int index = path.ReverseFind(DOMFilePath::kSeparator);
-  if (index != -1)
-    return path.Substring(index + 1);
+  auto index = path.rfind(DOMFilePath::kSeparator);
+  if (index != String::npos) {
+    return path.substr(index + 1);
+  }
   return path;
 }
 
 String DOMFilePath::GetDirectory(const String& path) {
-  int index = path.ReverseFind(DOMFilePath::kSeparator);
+  auto index = path.rfind(DOMFilePath::kSeparator);
   if (!index)
     return DOMFilePath::kRoot;
-  if (index != -1)
-    return path.Substring(0, index);
+  if (index != String::npos) {
+    return path.substr(0, index);
+  }
   return ".";
 }
 
@@ -113,13 +115,13 @@ bool DOMFilePath::IsValidPath(const String& path) {
     return true;
 
   // Embedded NULs are not allowed.
-  if (path.find(static_cast<UChar>(0)) != kNotFound) {
+  if (path.contains('\0')) {
     return false;
   }
 
   // While not [yet] restricted by the spec, '\\' complicates implementation for
   // Chromium.
-  if (path.find('\\') != kNotFound) {
+  if (path.contains('\\')) {
     return false;
   }
 
@@ -136,8 +138,9 @@ bool DOMFilePath::IsValidName(const String& name) {
   if (name.empty())
     return true;
   // '/' is not allowed in name.
-  if (name.Contains('/'))
+  if (name.contains('/')) {
     return false;
+  }
   return IsValidPath(name);
 }
 

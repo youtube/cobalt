@@ -19,7 +19,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.chromium.base.test.transit.ViewFinder.waitForNoView;
 import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeNtpUrl;
 
-import android.content.Intent;
 import android.content.res.Configuration;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,7 +29,6 @@ import androidx.test.espresso.matcher.ViewMatchers;
 import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
 
-import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -42,10 +40,8 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-import org.chromium.base.CommandLine;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -56,7 +52,6 @@ import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.lens.LensController;
-import org.chromium.chrome.browser.lifecycle.InflationObserver;
 import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.locale.LocaleManagerDelegate;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler;
@@ -70,6 +65,7 @@ import org.chromium.chrome.test.util.OmniboxTestUtils;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.OmniboxFeatures;
+import org.chromium.components.omnibox.OmniboxFocusReason;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.content_public.common.ContentSwitches;
@@ -81,7 +77,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Instrumentation tests for the LocationBar component. */
 @RunWith(ChromeJUnit4ClassRunner.class)
@@ -140,41 +135,6 @@ public class LocationBarTest {
         return webPageStation;
     }
 
-    private void startActivityWithDeferredNativeInitialization() {
-        CommandLine.getInstance().appendSwitch(ChromeSwitches.DISABLE_NATIVE_INITIALIZATION);
-        Intent intent = new Intent("about:blank");
-        intent.addCategory(Intent.CATEGORY_LAUNCHER);
-        mActivityTestRule.getActivityTestRule().prepareUrlIntent(intent, "about:blank");
-        mActivityTestRule.getActivityTestRule().launchActivity(intent);
-        mActivity = mActivityTestRule.getActivity();
-        if (!mActivity.isInitialLayoutInflationComplete()) {
-            AtomicBoolean isInflated = new AtomicBoolean();
-            mActivity
-                    .getLifecycleDispatcher()
-                    .register(
-                            new InflationObserver() {
-                                @Override
-                                public void onPreInflationStartup() {}
-
-                                @Override
-                                public void onPostInflationStartup() {
-                                    isInflated.set(true);
-                                }
-                            });
-            CriteriaHelper.pollUiThread(isInflated::get);
-        }
-        doPostActivitySetup(mActivity);
-    }
-
-    private void triggerAndWaitForDeferredNativeInitialization() {
-        CommandLine.getInstance().removeSwitch(ChromeSwitches.DISABLE_NATIVE_INITIALIZATION);
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mActivityTestRule.getActivity().startDelayedNativeInitializationForTests();
-                });
-        mActivityTestRule.waitForActivityNativeInitializationComplete();
-    }
-
     private void doPostActivitySetup(ChromeActivity activity) {
         mOmnibox = new OmniboxTestUtils(activity);
         mUrlBar = activity.findViewById(R.id.url_bar);
@@ -212,7 +172,6 @@ public class LocationBarTest {
                         Map.entry(R.id.lens_camera_button, "R.id.lens_camera_button"),
                         Map.entry(R.id.zoom_button, "R.id.zoom_button"),
                         Map.entry(R.id.install_button, "R.id.install_button"),
-                        Map.entry(R.id.composeplate_button, "R.id.composeplate_button"),
                         Map.entry(R.id.bookmark_button, "R.id.bookmark_button"),
                         Map.entry(R.id.delete_button, "R.id.delete_button"));
 
@@ -267,7 +226,10 @@ public class LocationBarTest {
         final String query = "testing query";
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    AutocompleteInput input = new AutocompleteInput().setUserText(query);
+                    AutocompleteInput input =
+                            new AutocompleteInput()
+                                    .setUserText(query)
+                                    .setFocusReason(OmniboxFocusReason.SEARCH_QUERY);
                     mLocationBarMediator.beginInput(input);
                 });
         // Query cannot be applied right away because the UrlBar needs to acquire focus first.
@@ -276,24 +238,6 @@ public class LocationBarTest {
                     Assert.assertEquals(query, mUrlBar.getTextWithoutAutocomplete());
                     Assert.assertTrue(mLocationBarMediator.isUrlBarFocused());
                     mKeyboardDelegate.isKeyboardShowing(mUrlBar);
-                });
-    }
-
-    @Test
-    @MediumTest
-    public void testSetSearchQueryFocusesUrlBar_preNative() {
-        startActivityWithDeferredNativeInitialization();
-        final String query = "testing query";
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    AutocompleteInput input = new AutocompleteInput().setUserText(query);
-                    mLocationBarMediator.beginInput(input);
-                });
-        triggerAndWaitForDeferredNativeInitialization();
-        CriteriaHelper.pollUiThread(
-                () -> {
-                    Criteria.checkThat(mUrlBar.getTextWithoutAutocomplete(), Matchers.is(query));
-                    Criteria.checkThat(mLocationBarMediator.isUrlBarFocused(), Matchers.is(true));
                 });
     }
 

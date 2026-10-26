@@ -105,7 +105,7 @@ class BlobReader : public blink::mojom::BlobReaderClient {
         MOJO_TRIGGER_CONDITION_SIGNALS_SATISFIED,
         base::BindRepeating(&BlobReader::OnDataAvailable,
                             base::Unretained(this)));
-    watcher_->Arm();
+    watcher_->ArmOrNotify();
   }
 
   ~BlobReader() override = default;
@@ -151,7 +151,7 @@ class BlobReader : public blink::mojom::BlobReaderClient {
       MojoResult read_result = consumer_handle_->ReadData(
           MOJO_READ_DATA_FLAG_NONE, base::span(buffer), num_bytes);
       if (read_result == MOJO_RESULT_SHOULD_WAIT) {
-        watcher_->Arm();
+        watcher_->ArmOrNotify();
         return;
       }
       if (read_result != MOJO_RESULT_OK) {

@@ -85,12 +85,10 @@ class ContextualOmniboxClient : public SearchboxOmniboxClient {
 // shared between the composebox and realbox to support contextual search.
 class ContextualSearchboxHandler
     : public contextual_search::ContextualSearchContextController::
-          FileUploadStatusObserver,
+          ContextUploadStatusObserver,
       public SearchboxHandler,
       public TabStripModelObserver {
  public:
-  DECLARE_FEATURE(kExhaustiveGetRecentTabs);
-
   explicit ContextualSearchboxHandler(
       mojo::PendingReceiver<searchbox::mojom::PageHandler>
           pending_searchbox_handler,
@@ -108,10 +106,10 @@ class ContextualSearchboxHandler
                       AddFileContextCallback callback) override;
   void AddTabContext(int32_t tab_id,
                      bool delay_upload,
-                     AddTabContextCallback) override;
+                     AddTabContextCallback callback) override;
   void DeleteContext(const base::UnguessableToken& file_token,
                      bool from_automatic_chip) override;
-  void ClearFiles() override;
+  void ClearFiles(bool should_block_auto_suggested_tabs) override;
   void SubmitQuery(const std::string& query_text,
                    uint8_t mouse_button,
                    bool alt_key,
@@ -121,6 +119,14 @@ class ContextualSearchboxHandler
   void GetRecentTabs(GetRecentTabsCallback callback) override;
   void GetTabPreview(int32_t tab_id, GetTabPreviewCallback callback) override;
   void GetInputState(GetInputStateCallback callback) override;
+  void OpenAutocompleteMatch(uint8_t line,
+                             const GURL& url,
+                             bool are_matches_showing,
+                             uint8_t mouse_button,
+                             bool alt_key,
+                             bool ctrl_key,
+                             bool meta_key,
+                             bool shift_key) override;
 
   // Continues the process of adding tab context for a given `tab_id`.
   // This method is used when a `context_token` has already been generated
@@ -149,13 +155,13 @@ class ContextualSearchboxHandler
       std::unique_ptr<lens::ContextualInputData> data,
       RecontextualizeTabCallback callback);
 
-  // contextual_search::FileUploadStatusObserver:
-  void OnFileUploadStatusChanged(
-      const base::UnguessableToken& file_token,
+  // contextual_search::ContextUploadStatusObserver:
+  void OnContextUploadStatusChanged(
+      const base::UnguessableToken& context_token,
       lens::MimeType mime_type,
-      contextual_search::FileUploadStatus file_upload_status,
-      const std::optional<contextual_search::FileUploadErrorType>& error_type)
-      override;
+      contextual_search::ContextUploadStatus context_upload_status,
+      const std::optional<contextual_search::ContextUploadErrorType>&
+          error_type) override;
 
   // TabStripModelObserver:
   void OnTabStripModelChanged(
@@ -167,9 +173,6 @@ class ContextualSearchboxHandler
     return context_input_data_;
   }
 
-  // SearchboxHandler:
-  omnibox::InputState GetInputState() const override;
-
   std::vector<base::UnguessableToken> GetUploadedContextTokens();
 
   contextual_search::InputStateModel* input_state_model() {
@@ -179,10 +182,22 @@ class ContextualSearchboxHandler
   // Resets `input_state_model_`.
   void ResetInputStateModel();
   void SetActiveToolMode(omnibox::ToolMode tool) override;
+  void RecordToolSelectionAction(omnibox::ToolMode tool) override;
   void SetActiveModelMode(omnibox::ModelMode model) override;
+  void RecordModelSelectionAction(omnibox::ModelMode model) override;
   void ActivateMetricsFunnel(const std::string& funnel_name) override;
 
+  void OnInputStateChangedForTesting(
+      const contextual_search::InputState& state) {
+    OnInputStateChanged(state);
+  }
+
  protected:
+  // SearchboxHandler:
+  omnibox::InputState GetInputState() const override;
+
+  virtual void OpenUrl(GURL url, const WindowOpenDisposition disposition);
+
   void ComputeAndOpenQueryUrl(
       const std::string& query_text,
       WindowOpenDisposition disposition,
@@ -201,6 +216,10 @@ class ContextualSearchboxHandler
                            AddTabContext_DelayUpload);
   FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerTestTabsTest,
                            DeleteContext_DelayUpload);
+  FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerTest,
+                           OpenAutocompleteMatch_ZeroSuggestClick);
+  FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerTest,
+                           OpenAutocompleteMatch_TypedSuggestNavigation);
 
   std::optional<lens::ImageEncodingOptions> CreateTabPreviewEncodingOptions(
       content::WebContents* web_contents);
@@ -228,9 +247,13 @@ class ContextualSearchboxHandler
   void RecordTabAddedMetric(tabs::TabInterface* const tab,
                             bool is_tab_suggestion_chip);
 
-  void InitializeInputStateModel();
+  virtual void InitializeInputStateModel();
 
   std::unique_ptr<contextual_search::InputStateModel> input_state_model_;
+
+  void OnInputStateChanged(const contextual_search::InputState& state);
+
+  base::CallbackListSubscription input_state_subscription_;
 
  private:
   // Helper to get the correct number of tab suggestions. Virtual so it
@@ -247,8 +270,6 @@ class ContextualSearchboxHandler
   void SnapshotTabContext(
       const base::UnguessableToken& context_token,
       std::unique_ptr<lens::ContextualInputData> page_content_data);
-
-  void OpenUrl(GURL url, const WindowOpenDisposition disposition);
 
   void OnPreviewReceived(GetTabPreviewCallback callback,
                          const SkBitmap& preview_bitmap);
@@ -269,16 +290,11 @@ class ContextualSearchboxHandler
       context_controller_;
 
   std::optional<lens::ContextualInputData> context_input_data_;
-  // Callback for `InputStateModel` changes.
-  void OnInputStateChanged(const contextual_search::InputState& state);
-
-  std::unique_ptr<contextual_search::InputState> input_state_;
-
-  base::CallbackListSubscription input_state_subscription_;
 
   // Callback to get the contextual session handle from WebUI controller.
   GetSessionHandleCallback get_session_callback_;
 
+ protected:
   base::WeakPtrFactory<ContextualSearchboxHandler> weak_ptr_factory_{this};
 };
 

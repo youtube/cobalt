@@ -165,37 +165,47 @@ class ReusingTextShaper final {
   const ShapeResult* Shape(const InlineItem& start_item,
                            const Font& font,
                            unsigned end_offset) {
-    auto ShapeFunc = [&]() -> const ShapeResult* {
+    auto ShapeFunc = [&]() -> ShaperResult {
       return ShapeWithoutCache(start_item, font, end_offset);
     };
     if (allow_shape_cache_) {
+      const LayoutLocale* locale = font.GetFontDescription().Locale();
       return font.PrimaryFont()->GetShapeCache().GetOrCreate(
-          shaper_.GetText(), start_item.Direction(), ShapeFunc);
+          ShapeCacheKey(shaper_.GetText(), start_item.StartOffset(), end_offset,
+                        locale ? locale->LocaleString() : g_null_atom,
+                        font.GetFontFeatures(), start_item.Direction()),
+          ShapeFunc);
     }
-    return ShapeFunc();
+    return ShapeFunc().shape_result;
   }
 
  private:
-  const ShapeResult* ShapeWithoutCache(const InlineItem& start_item,
-                                       const Font& font,
-                                       unsigned end_offset) {
+  ShaperResult ShapeWithoutCache(const InlineItem& start_item,
+                                 const Font& font,
+                                 unsigned end_offset) {
     const unsigned start_offset = start_item.StartOffset();
     DCHECK_LT(start_offset, end_offset);
 
-    if (!reusable_items_)
-      return Reshape(start_item, font, start_offset, end_offset);
+    if (!reusable_items_) {
+      return {Reshape(start_item, font, start_offset, end_offset),
+              /*can_cache=*/true};
+    }
 
     // TODO(yosin): We should support segment text
-    if (data_.segments)
-      return Reshape(start_item, font, start_offset, end_offset);
+    if (data_.segments) {
+      return {Reshape(start_item, font, start_offset, end_offset),
+              /*can_cache=*/true};
+    }
 
     HeapVector<Member<const ShapeResult>> reusable_shape_results =
         CollectReusableShapeResults(start_offset, end_offset, font,
                                     start_item.Direction());
     ClearCollectionScope clear_scope(&reusable_shape_results);
 
-    if (reusable_shape_results.empty())
-      return Reshape(start_item, font, start_offset, end_offset);
+    if (reusable_shape_results.empty()) {
+      return {Reshape(start_item, font, start_offset, end_offset),
+              /*can_cache=*/true};
+    }
 
     ShapeResult* shape_result =
         ShapeResult::CreateEmpty(*reusable_shape_results.front());
@@ -219,13 +229,20 @@ class ReusingTextShaper final {
           offset, std::min(reusable_shape_result->EndIndex(), end_offset),
           shape_result);
       offset = shape_result->EndIndex();
-      if (offset == end_offset)
-        return shape_result;
+      if (offset == end_offset) {
+        break;
+      }
     }
-    DCHECK_LT(offset, end_offset);
-    AppendShapeResult(*Reshape(start_item, font, offset, end_offset),
-                      shape_result);
-    return shape_result;
+
+    if (offset < end_offset) {
+      AppendShapeResult(*Reshape(start_item, font, offset, end_offset),
+                        shape_result);
+    }
+
+    // Don't allow this shape-result to be inserted into the cache. It's
+    // created from previous shape-results and as such may differ from a
+    // shape-result created without previous shape-results.
+    return {shape_result, /*can_cache=*/false};
   }
 
   void AppendShapeResult(const ShapeResult& shape_result, ShapeResult* target) {
@@ -347,17 +364,17 @@ void CollectInlinesInternal(ItemsBuilder* builder,
           } else {
             // The text must be in the following form:
             // Symbol, separator, symbol, separator, symbol, ...
-            builder->AppendText(text.Substring(0, 1), counter);
+            builder->AppendText(text.substr(0, 1), counter);
             builder->SetIsSymbolMarker();
             const AtomicString& separator = counter->Separator();
             for (wtf_size_t i = 1; i < text.length();) {
               if (separator.length() > 0) {
-                DCHECK_EQ(separator, text.Substring(i, separator.length()));
+                DCHECK_EQ(separator, text.substr(i, separator.length()));
                 builder->AppendText(separator, counter);
                 i += separator.length();
                 DCHECK_LT(i, text.length());
               }
-              builder->AppendText(text.Substring(i, 1), counter);
+              builder->AppendText(text.substr(i, 1), counter);
               builder->SetIsSymbolMarker();
               ++i;
             }
@@ -545,7 +562,7 @@ bool FirstLineNeedsReshape(const ComputedStyle& first_line_style,
 // appending space characters if shorter.
 void TruncateOrPadText(String* text, unsigned length) {
   if (text->length() > length) {
-    *text = text->Substring(0, length);
+    *text = text->substr(0, length);
   } else if (text->length() < length) {
     StringBuilder builder;
     builder.ReserveCapacity(length);
@@ -1443,33 +1460,108 @@ bool InlineNode::IsNGShapeCacheAllowed(const String& text_content,
                                        const Font* override_font,
                                        const InlineItems& items,
                                        ShapeResultSpacing& spacing) const {
-  // For consistency with similar usages of ShapeCache (e.g. canvas) and in
-  // order to avoid caching bugs (e.g. with scripts having Arabic joining)
-  // NGShapeCache is only enabled when the IFC is made of a single text item. To
-  // be efficient, NGShapeCache only stores entries for short strings and
-  // without memory copy, so don't allow it if the text item is too long or if
-  // the start/end offsets match a substring. Don't allow it either if a call to
-  // ApplySpacing is needed to avoid a costly copy of the ShapeResult in the
-  // loop below. Finally, check that the font meet requirements on the font
-  // family list to avoid expensive hash key calculations.
-  if (items.size() != 1) {
+  // We only allow the shape cache in a restricted (but common) set of
+  // circumstances.
+  //
+  // Theoretically we could build a more advanced cache, which stores a
+  // duplicate representation of the inline-items as the cache key, however
+  // this is too complex for what we need at the moment.
+  //
+  // Instead we cache using the raw text, and a restricted set of inline items.
+  // This is to avoid caching bugs (e.g. scripts having Arabic joining).
+  //
+  // At the moment we just support:
+  //  - A single text-item.
+  unsigned previous_text_end_offset = 0u;
+  auto is_at_text_start = [&]() { return previous_text_end_offset == 0u; };
+  auto is_at_text_end = [&]() {
+    return previous_text_end_offset == text_content.length();
+  };
+
+  // Don't hit the cache if we don't have any text.
+  if (text_content.empty()) {
     return false;
   }
-  const InlineItem& single_item = *items[0];
-  if (!(single_item.Type() == InlineItem::kText &&
-        single_item.StartOffset() == 0 &&
-        single_item.EndOffset() == text_content.length())) {
+
+  for (const auto& item : items) {
+    switch (item->Type()) {
+      case InlineItem::kControl:
+      case InlineItem::kText:
+        if (!RuntimeEnabledFeatures::ExtendedShapeCacheEnabled()) {
+          // Only support a single text-item at the moment.
+          if (!is_at_text_start()) {
+            return false;
+          }
+          if (item->Type() == InlineItem::kControl) {
+            return false;
+          }
+        }
+        if (previous_text_end_offset != item->StartOffset()) {
+          return false;
+        }
+        previous_text_end_offset = item->EndOffset();
+        break;
+      case InlineItem::kFloating:
+      case InlineItem::kOutOfFlowPositioned:
+        if (!RuntimeEnabledFeatures::ExtendedShapeCacheEnabled()) {
+          return false;
+        }
+        // Floats/OOF-positioned objects are transparent to shaping, and just
+        // split the text similar to control items (resulting in multiple shape
+        // calls with different start/end offsets).
+        break;
+      case InlineItem::kOpenTag:
+        if (!RuntimeEnabledFeatures::ExtendedShapeCacheEnabled()) {
+          return false;
+        }
+        // As we get the font from the first item, we can allow an open tag if
+        // its the first.
+        if (item != items.front()) {
+          return false;
+        }
+        break;
+      case InlineItem::kCloseTag:
+        if (!RuntimeEnabledFeatures::ExtendedShapeCacheEnabled()) {
+          return false;
+        }
+        // Similarly allow the a close tag if its the last.
+        if (item != items.back()) {
+          return false;
+        }
+        break;
+      case InlineItem::kAtomicInline:
+      case InlineItem::kBlockInInline:
+      case InlineItem::kInitialLetterBox:
+      case InlineItem::kListMarker:
+      case InlineItem::kBidiControl:
+      case InlineItem::kOpenRubyColumn:
+      case InlineItem::kCloseRubyColumn:
+      case InlineItem::kRubyLinePlaceholder:
+        return false;
+    }
+  }
+
+  // Only allow the cache if the text-item(s) matches the text-content.
+  if (!is_at_text_end()) {
     return false;
   }
+
   const Font& font =
-      override_font ? *override_font : single_item.FontWithSvgScaling();
-  if (font.HasNonInitialFontFeatures()) [[unlikely]] {
-    // Non-initial font features can't be cached because the cache is in
-    // `SimpleFontData`.
-    return false;
+      override_font ? *override_font : items.front()->FontWithSvgScaling();
+  if (RuntimeEnabledFeatures::ExtendedShapeCacheEnabled()) {
+    // Only allow the cache for features we can cache.
+    if (!font.HasSimpleFontFeatures()) [[unlikely]] {
+      return false;
+    }
+  } else {
+    // Only allow the cache for initial font features.
+    if (font.HasNonInitialFontFeatures()) [[unlikely]] {
+      return false;
+    }
   }
-  const FontDescription& font_description = font.GetFontDescription();
-  if (spacing.SetSpacing(font_description)) [[unlikely]] {
+
+  // We mutate the shape-result if there is spacing, it isn't safe to cache.
+  if (spacing.SetSpacing(font.GetFontDescription())) [[unlikely]] {
     return false;
   }
   return true;

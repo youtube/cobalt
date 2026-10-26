@@ -4,7 +4,6 @@
 
 #import "ios/chrome/browser/content_suggestions/ui/cells/content_suggestions_tile_view.h"
 
-#import "ios/chrome/browser/shared/ui/util/dynamic_type_util.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
@@ -16,8 +15,6 @@ namespace {
 const NSInteger kLabelNumLines = 2;
 const CGFloat kSpaceIconTitle = 10;
 const CGFloat kMagicStackIconSize = 52;
-// Standard width of tiles.
-const CGFloat kPreferredMaxWidth = 74;
 // Image container corner radius.
 const CGFloat kCornerRadius = 8.0;
 
@@ -42,7 +39,6 @@ const CGFloat kCornerRadius = 8.0;
     _titleLabel.textColor = [UIColor colorNamed:kTextSecondaryColor];
     _titleLabel.font = [self titleLabelFont];
     _titleLabel.textAlignment = NSTextAlignmentCenter;
-    _titleLabel.preferredMaxLayoutWidth = kPreferredMaxWidth;
     _titleLabel.numberOfLines = kLabelNumLines;
     _titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
 

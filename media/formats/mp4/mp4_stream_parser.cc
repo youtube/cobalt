@@ -711,7 +711,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       }
 
       AudioCodec codec = AudioCodec::kUnknown;
-      ChannelLayout channel_layout = CHANNEL_LAYOUT_NONE;
+      ChannelLayoutConfig channel_layout_config;
       int sample_per_second = 0;
       int codec_delay_in_frames = 0;
       base::TimeDelta seek_preroll;
@@ -724,7 +724,8 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 
       if (audio_format == FOURCC_OPUS) {
         codec = AudioCodec::kOpus;
-        channel_layout = GuessChannelLayout(entry.dops.channel_count);
+        channel_layout_config =
+            ChannelLayoutConfig::Guess(entry.dops.channel_count);
         sample_per_second = entry.dops.sample_rate;
         codec_delay_in_frames = entry.dops.codec_delay_in_frames;
         seek_preroll = entry.dops.seek_preroll;
@@ -740,7 +741,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         }
 
         codec = AudioCodec::kFLAC;
-        channel_layout = GuessChannelLayout(entry.channelcount);
+        channel_layout_config = ChannelLayoutConfig::Guess(entry.channelcount);
         sample_per_second = entry.samplerate;
         extra_data = entry.dfla.stream_info;
 #if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
@@ -765,14 +766,15 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         // AudioDecoderConfig.
         // TODO (crbug.com/1513779): Parse the bitstream to set the correct
         // values here.
-        channel_layout = CHANNEL_LAYOUT_STEREO;
+        channel_layout_config = ChannelLayoutConfig::Stereo();
         sample_per_second = 48000;
 #endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
 #if BUILDFLAG(ENABLE_PLATFORM_MPEG_H_AUDIO)
       } else if (audio_format == FOURCC_MHM1 || audio_format == FOURCC_MHA1) {
         codec = AudioCodec::kMpegHAudio;
-        channel_layout = CHANNEL_LAYOUT_BITSTREAM;
+        channel_layout_config =
+            ChannelLayoutConfig::FromLayout<CHANNEL_LAYOUT_BITSTREAM>();
         sample_per_second = entry.samplerate;
         extra_data = entry.dfla.stream_info;
 #endif
@@ -821,28 +823,32 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
           const AAC& aac = entry.esds.aac;
           codec = AudioCodec::kAAC;
           profile = aac.GetProfile();
-          channel_layout = aac.GetChannelLayout(has_sbr_);
+          channel_layout_config = aac.GetChannelLayout(has_sbr_);
           sample_per_second = aac.GetOutputSamplesPerSecond(has_sbr_);
           extra_data = aac.codec_specific_data();
 #if BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
         } else if (audio_type == kAC3) {
           codec = AudioCodec::kAC3;
-          channel_layout = entry.ac3.dac3.GetChannelLayout();
+          channel_layout_config = entry.ac3.dac3.GetChannelLayout();
           // Add an exception to allow using AudioSampleEntry's ChannelCount
           // temporarily when AC3SpecificBox('dac3') information is
           // not available.
-          if (channel_layout == CHANNEL_LAYOUT_UNSUPPORTED) {
-            channel_layout = GuessChannelLayout(entry.channelcount);
+          if (channel_layout_config.channel_layout() ==
+              CHANNEL_LAYOUT_UNSUPPORTED) {
+            channel_layout_config =
+                ChannelLayoutConfig::Guess(entry.channelcount);
           }
           sample_per_second = entry.samplerate;
         } else if (audio_type == kEAC3) {
           codec = AudioCodec::kEAC3;
-          channel_layout = entry.eac3.dec3.GetChannelLayout();
+          channel_layout_config = entry.eac3.dec3.GetChannelLayout();
           // Add an exception to allow using AudioSampleEntry's ChannelCount
           // temporarily when EC3SpecificBox('dec3') information is
           // not available.
-          if (channel_layout == CHANNEL_LAYOUT_UNSUPPORTED) {
-            channel_layout = GuessChannelLayout(entry.channelcount);
+          if (channel_layout_config.channel_layout() ==
+              CHANNEL_LAYOUT_UNSUPPORTED) {
+            channel_layout_config =
+                ChannelLayoutConfig::Guess(entry.channelcount);
           }
           sample_per_second = entry.samplerate;
 #endif
@@ -852,24 +858,28 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
           // channel_layout and sample rate will be ignored on decoding.
           // Refer to E.4.1 AC4SampleEntry Box in
           //    ETSI TS 103 190 - 2 V1 .2.1(2018 - 02)
-          channel_layout = GuessChannelLayout(entry.channelcount);
+          channel_layout_config =
+              ChannelLayoutConfig::Guess(entry.channelcount);
           sample_per_second = entry.samplerate;
           extra_data = entry.ac4.dac4.StreamInfo();
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC4_AUDIO)
 #if BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
         } else if (audio_type == kDTS) {
           codec = AudioCodec::kDTS;
-          channel_layout = GuessChannelLayout(entry.channelcount);
+          channel_layout_config =
+              ChannelLayoutConfig::Guess(entry.channelcount);
           sample_per_second = entry.samplerate;
         } else if (audio_type == kDTSX) {
           // HDMI versions pre HDMI 2.0 can only transmit 8 raw PCM channels.
           // In the case of a 5_1_4 stream we downmix to 5_1.
           codec = AudioCodec::kDTSXP2;
-          channel_layout = GuessChannelLayout(entry.channelcount);
+          channel_layout_config =
+              ChannelLayoutConfig::Guess(entry.channelcount);
           sample_per_second = entry.samplerate;
         } else if (audio_type == kDTSE) {
           codec = AudioCodec::kDTSE;
-          channel_layout = GuessChannelLayout(entry.channelcount);
+          channel_layout_config =
+              ChannelLayoutConfig::Guess(entry.channelcount);
           sample_per_second = entry.samplerate;
 #endif
         } else {
@@ -910,7 +920,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
           return false;
       }
 
-      audio_config.Initialize(codec, sample_format, channel_layout,
+      audio_config.Initialize(codec, sample_format, channel_layout_config,
                               sample_per_second, extra_data, scheme,
                               seek_preroll, codec_delay_in_frames);
 
@@ -941,11 +951,11 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
           MediaTrack::Label(track->media.handler.name),
           MediaTrack::Language(track->media.header.language()));
       continue;
-    }
-
-    if (track->media.handler.type == kVideo) {
+    } else if (track->media.handler.type == kVideo) {
       detected_video_track_count++;
 
+      // It is not uncommon to find otherwise-valid files with incorrect sample
+      // description indices, so we fail gracefully in that case.
       RCHECK(!samp_descr.video_entries.empty());
       if (desc_idx >= samp_descr.video_entries.size())
         desc_idx = 0;
@@ -993,11 +1003,11 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       VideoCodecProfile video_codec_profile = entry.video_info.profile;
       VideoCodecLevel video_codec_level = entry.video_info.level;
       if (entry.dv_info.has_value()) {
-        DCHECK_EQ(entry.dv_info->codec, VideoCodec::kDolbyVision);
+        DCHECK_EQ(entry.dv_info->codec_info.codec, VideoCodec::kDolbyVision);
         if (has_dv_) {
-          video_codec = entry.dv_info->codec;
-          video_codec_profile = entry.dv_info->profile;
-          video_codec_level = entry.dv_info->level;
+          video_codec = entry.dv_info->codec_info.codec;
+          video_codec_profile = entry.dv_info->codec_info.profile;
+          video_codec_level = entry.dv_info->codec_info.level;
         } else {
           MEDIA_LOG(INFO, media_log_)
               << "Dolby Vision video track with track_id=" << video_track_id
@@ -1020,6 +1030,11 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 
       if (entry.video_color_space.IsSpecified())
         video_config.set_color_space_info(entry.video_color_space);
+
+      if (entry.dv_info.has_value() && has_dv_ &&
+          entry.dv_info->color_space.IsSpecified()) {
+        video_config.set_color_space_info(entry.dv_info->color_space);
+      }
 
       if (!entry.hdr_metadata.IsEmpty() && entry.hdr_metadata.IsValid()) {
         video_config.set_hdr_metadata(entry.hdr_metadata);
@@ -1199,15 +1214,18 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
     }
   }
 
-  bool audio =
-      audio_track_ids_.find(runs_->track_id()) != audio_track_ids_.end();
-  bool video =
-      video_track_ids_.find(runs_->track_id()) != video_track_ids_.end();
+  DemuxerStream::Type buffer_type = DemuxerStream::UNKNOWN;
+  if (audio_track_ids_.count(runs_->track_id())) {
+    buffer_type = DemuxerStream::AUDIO;
+  } else if (video_track_ids_.count(runs_->track_id())) {
+    buffer_type = DemuxerStream::VIDEO;
+  }
 
   // Skip this entire track if it's not one we're interested in
-  if (!audio && !video) {
-    if (!runs_->AdvanceRun())
+  if (buffer_type == DemuxerStream::UNKNOWN) {
+    if (!runs_->AdvanceRun()) {
       return ParseResult::kError;
+    }
     return ParseResult::kOk;
   }
 
@@ -1323,7 +1341,7 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   std::vector<uint8_t> frame_buf;
 #endif
   base::HeapArray<uint8_t> heap_frame_buf;
-  if (video) {
+  if (buffer_type == DemuxerStream::VIDEO) {
     if (runs_->video_description().video_info.codec == VideoCodec::kH264 ||
         runs_->video_description().video_info.codec == VideoCodec::kHEVC ||
         (runs_->video_description().video_info.codec ==
@@ -1390,9 +1408,7 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
         is_keyframe = analysis.is_keyframe.value();
       }
     }
-  }
-
-  if (audio) {
+  } else if (buffer_type == DemuxerStream::AUDIO) {
     if (ESDescriptor::IsAAC(runs_->audio_description().esds.object_type)) {
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -1443,7 +1459,6 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   const size_t original_scratch_capacity = scratch_frame_buf_.capacity();
 #endif
 
-  const auto buffer_type = audio ? DemuxerStream::AUDIO : DemuxerStream::VIDEO;
   scoped_refptr<StreamParserBuffer> stream_buf;
 
   if (auto* media_client = GetMediaClient()) {
@@ -1545,7 +1560,7 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
     return ParseResult::kError;
   }
 
-  DVLOG(3) << "Emit " << (audio ? "audio" : "video") << " frame: "
+  DVLOG(3) << "Emit " << DemuxerStream::GetTypeName(buffer_type) << " frame: "
            << " track_id=" << runs_->track_id() << ", key=" << is_keyframe
            << ", dur=" << runs_->duration().InMilliseconds()
            << ", dts=" << runs_->dts().InMilliseconds()

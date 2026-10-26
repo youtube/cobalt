@@ -60,6 +60,13 @@ chrome_internal_verifier(
 )
 
 chrome_internal_verifier(
+    builder = "android-internal-desktop-x64-rel",
+    tryjob = try_.job(
+        experiment_percentage = 5,
+    ),
+)
+
+chrome_internal_verifier(
     builder = "linux-chromeos-compile-chrome",
     tryjob = try_.job(),
 )
@@ -144,6 +151,22 @@ chrome_internal_verifier(
 
 chrome_internal_verifier(
     builder = "chromeos-betty-chrome",
+)
+
+chrome_internal_verifier(
+    builder = "chromeos-betty-compile-chrome",
+)
+
+chrome_internal_verifier(
+    builder = "chromeos-betty-chrome-gtest",
+)
+
+chrome_internal_verifier(
+    builder = "chromeos-betty-chrome-gtest-and-cqtast",
+)
+
+chrome_internal_verifier(
+    builder = "chromeos-betty-chrome-gtest-and-tast",
 )
 
 chrome_internal_verifier(
@@ -472,6 +495,7 @@ chrome_internal_verifier(
     #       We definitely want to have autoroll bots here because we have no
     #       Perf tests on those sub repos, and we want to catch the regressions
     #       during rollout.
+    # setting to 50 on new builder for win-11.
     owner_whitelist = ["googlers", "project-chromium-robot-committers"],
     tryjob = try_.job(
         experiment_percentage = 100,

@@ -6,29 +6,29 @@
 
 #include <memory>
 
-#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "media/formats/mp4/h264_annex_b_to_avc_bitstream_converter.h"
+#include "testing/libfuzzer/libfuzzer_base_wrappers.h"
 
 // Entry point for LibFuzzer.
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  if (!size)
+DEFINE_LLVM_FUZZER_TEST_ONE_INPUT_SPAN(const base::span<const uint8_t> input) {
+  if (input.empty()) {
     return 0;
+  }
 
   for (bool add_parameter_sets_in_bitstream : {false, true}) {
-    std::vector<uint8_t> output(size);
+    std::vector<uint8_t> output(input.size());
     size_t size_out;
     bool config_changed;
     media::H264AnnexBToAvcBitstreamConverter converter(
         add_parameter_sets_in_bitstream);
-    base::span<const uint8_t> input =
-        UNSAFE_TODO(base::span<const uint8_t>(data, data + size));
 
     auto status =
         converter.ConvertChunk(input, output, &config_changed, &size_out);
 
     auto& config = converter.GetCurrentConfig();
 
-    std::vector<uint8_t> avc_config(size);
+    std::vector<uint8_t> avc_config(input.size());
     config.Serialize(avc_config);
   }
 

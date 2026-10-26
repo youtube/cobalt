@@ -175,7 +175,7 @@ const AtomicString& InputType::NormalizeTypeName(
   if (type_name.empty())
     return input_type_names::kText;
 
-  AtomicString type_name_lower = type_name.LowerASCII();
+  AtomicString type_name_lower = type_name.ToAsciiLower();
 
 #define NORMALIZE_INPUT_TYPE(input_type, class_name)   \
   if (type_name_lower == input_type_names::input_type) \
@@ -943,8 +943,9 @@ bool InputType::IsSteppable() const {
   NOTREACHED();
 }
 
-PopoverTriggerSupport InputType::SupportsPopoverTriggering() const {
-  return PopoverTriggerSupport::kNone;
+HTMLFormControlElement::PopoverTriggerSupport
+InputType::SupportsPopoverTriggering() const {
+  return HTMLFormControlElement::PopoverTriggerSupport::kNone;
 }
 
 bool InputType::ShouldRespectHeightAndWidthAttributes() {
@@ -1046,7 +1047,7 @@ void InputType::ApplyStep(const Decimal& current,
   Decimal new_value = current;
   const AtomicString& step_string =
       GetElement().FastGetAttribute(html_names::kStepAttr);
-  if (!EqualIgnoringASCIICase(step_string, "any") &&
+  if (!EqualIgnoringAsciiCase(step_string, "any") &&
       step_range.StepMismatch(current)) {
     // Snap-to-step / clamping steps
     // If the current value is not matched to step value:
@@ -1067,8 +1068,9 @@ void InputType::ApplyStep(const Decimal& current,
   }
   new_value = new_value + step_range.Step() * Decimal::FromDouble(count);
 
-  if (!EqualIgnoringASCIICase(step_string, "any"))
+  if (!EqualIgnoringAsciiCase(step_string, "any")) {
     new_value = step_range.AlignValueForStep(current, new_value);
+  }
 
   // 8. If the element has a minimum, and value is less than that minimum,
   // then set value to the smallest value that, when subtracted from the step

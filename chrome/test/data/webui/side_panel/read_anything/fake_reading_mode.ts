@@ -10,6 +10,7 @@ export class FakeReadingMode {
   startOffset: number = 0;
   endNodeId: number = 0;
   endOffset: number = 0;
+  hasValidSelection: boolean = true;
 
   // Items in the ReadAnythingTheme struct, see read_anything.mojom for info.
   fontName: string = 'MyFont';
@@ -47,9 +48,8 @@ export class FakeReadingMode {
   yellowTheme: number = 9;
   blueTheme: number = 10;
   highContrastTheme: number = 11;
-  lowContrastTheme: number = 12;
-  sepiaLightTheme: number = 13;
-  sepiaDarkTheme: number = 14;
+  lowContrastLightTheme: number = 12;
+  lowContrastDarkTheme: number = 13;
 
   // Enum values for highlight granularity.
   autoHighlighting: number = 0;
@@ -423,6 +423,9 @@ export class FakeReadingMode {
   setContentForTesting(_snapshotLite: Object, contentNodeIds: number[]) {
     this.isSpeechTreeInitialized = contentNodeIds.length > 0;
   }
+  // Sets the same structure as setContentForTesting but forces
+  // the processing of the AX Tree Anchors.
+  setAnchorsForTesting(_snapshotLite: Object, _contentNodeIds: number[]) {}
 
   // Set the theme. Used by tests only.
   setThemeForTesting(
@@ -568,4 +571,8 @@ export class FakeReadingMode {
   // Called by the Read Anything app to toggle between Side Panel and Immersive
   // Mode.
   togglePresentation() {}
+
+  // There has been a long delay between starting speech and speech
+  // playing.
+  onSpeechEngineStalled() {}
 }

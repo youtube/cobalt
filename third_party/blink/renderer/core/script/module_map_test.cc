@@ -176,10 +176,10 @@ class ModuleMapTestModulator final : public DummyModulator {
    private:
     ResolvedModuleType ResolvedModuleTypeFromUrl() {
       const AtomicString& string_url = url_.GetString();
-      if (string_url.Find(".js") != kNotFound) {
+      if (string_url.contains(".js")) {
         return ResolvedModuleType::kJavaScript;
       }
-      CHECK_NE(string_url.Find(".wasm"), kNotFound);
+      CHECK(string_url.contains(".wasm"));
       return ResolvedModuleType::kWasm;
     }
 
@@ -353,7 +353,7 @@ void ModuleMapTest::TearDown() {
 }
 
 TEST_F(ModuleMapTest, sequentialRequests) {
-  KURL url(NullURL(), "https://example.com/foo.js");
+  KURL url(NullUrl(), "https://example.com/foo.js");
 
   TestSequentialRequest(url, ModuleGraphLevel::kTopLevelModuleFetch,
                         ModuleImportPhase::kEvaluation,
@@ -361,7 +361,7 @@ TEST_F(ModuleMapTest, sequentialRequests) {
 }
 
 TEST_F(ModuleMapTest, concurrentRequestsShouldJoin) {
-  KURL url(NullURL(), "https://example.com/foo.js");
+  KURL url(NullUrl(), "https://example.com/foo.js");
 
   TestConcurrentRequestsShouldJoin(url, ModuleGraphLevel::kTopLevelModuleFetch,
                                    ModuleImportPhase::kEvaluation,
@@ -369,7 +369,7 @@ TEST_F(ModuleMapTest, concurrentRequestsShouldJoin) {
 }
 
 TEST_F(ModuleMapTest, WasmSourcePhaseSequentialRequests) {
-  KURL url(NullURL(), "https://example.com/foo.wasm");
+  KURL url(NullUrl(), "https://example.com/foo.wasm");
 
   TestSequentialRequest(url, ModuleGraphLevel::kDependentModuleFetch,
                         ModuleImportPhase::kSource,
@@ -377,7 +377,7 @@ TEST_F(ModuleMapTest, WasmSourcePhaseSequentialRequests) {
 }
 
 TEST_F(ModuleMapTest, WasmSourcePhaseConcurrentRequestsShouldJoin) {
-  KURL url(NullURL(), "https://example.com/foo.wasm");
+  KURL url(NullUrl(), "https://example.com/foo.wasm");
 
   TestConcurrentRequestsShouldJoin(url, ModuleGraphLevel::kDependentModuleFetch,
                                    ModuleImportPhase::kSource,

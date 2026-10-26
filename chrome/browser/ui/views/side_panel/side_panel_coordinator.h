@@ -12,13 +12,14 @@
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/time/time.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui_base.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_toolbar_pinning_controller.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui_base.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "ui/views/view_observer.h"
 
+class Browser;
 class BrowserView;
 class BrowserWindowInterface;
 class SidePanel;
@@ -58,14 +59,14 @@ class SidePanelCoordinator final : public SidePanelUIBase,
              SidePanelEntryHideReason reason,
              bool suppress_animations) override;
   void Toggle(SidePanelEntryKey key,
-              SidePanelUtil::SidePanelOpenTrigger open_trigger) override;
+              SidePanelOpenTrigger open_trigger) override;
   void ShowFrom(SidePanelEntryKey entry_key,
                 gfx::Rect starting_bounds_in_browser_coordinates) override;
 
   // SidePanelUIBase:
   using SidePanelUIBase::Show;
   void Show(const UniqueKey& entry,
-            std::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger,
+            std::optional<SidePanelOpenTrigger> open_trigger,
             bool suppress_animations) override;
 
   void SetNoDelaysForTesting(bool no_delays_for_testing) override;
@@ -86,9 +87,9 @@ class SidePanelCoordinator final : public SidePanelUIBase,
   void PopulateSidePanel(
       bool suppress_animations,
       const UniqueKey& unique_key,
-      std::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger,
+      std::optional<SidePanelOpenTrigger> open_trigger,
       SidePanelEntry* entry,
-      std::optional<std::unique_ptr<views::View>> content_view) override;
+      std::optional<SidePanelNativeView> content_view) override;
   void MaybeShowEntryOnTabStripModelChanged(
       SidePanelRegistry* old_contextual_registry,
       SidePanelRegistry* new_contextual_registry) override;

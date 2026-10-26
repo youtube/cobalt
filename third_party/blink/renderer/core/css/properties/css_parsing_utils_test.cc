@@ -77,6 +77,19 @@ TEST(CSSParsingUtilsTest, FontFamilyMathUseCount) {
   EXPECT_TRUE(document.IsWebDXFeatureCounted(feature));
 }
 
+TEST(CSSParsingUtilsTest, ContrastColorUseCount) {
+  test::TaskEnvironment task_environment;
+  auto dummy_page_holder =
+      std::make_unique<DummyPageHolder>(gfx::Size(800, 600));
+  Page::InsertOrdinaryPageForTesting(&dummy_page_holder->GetPage());
+  Document& document = dummy_page_holder->GetDocument();
+  WebDXFeature feature = WebDXFeature::kContrastColor;
+  EXPECT_FALSE(document.IsWebDXFeatureCounted(feature));
+  document.documentElement()->SetInnerHTMLWithoutTrustedTypes(
+      "<style>span { background-color: contrast-color(blue); }</style>");
+  EXPECT_TRUE(document.IsWebDXFeatureCounted(feature));
+}
+
 TEST(CSSParsingUtilsTest, Revert) {
   EXPECT_TRUE(css_parsing_utils::IsCSSWideKeyword(CSSValueID::kRevert));
   EXPECT_TRUE(css_parsing_utils::IsCSSWideKeyword("revert"));
@@ -440,40 +453,6 @@ TEST(CSSParsingUtilsTest, ConsumeProgressType) {
   }
 }
 
-struct XYSelfTestCase {
-  // The input string to parse as position-area value.
-  const char* input;
-
-  // The expected serialization of the parsed value if accepted.
-  const char* expected;
-};
-
-const XYSelfTestCase legacy_xy_self_position_area_tests[] = {
-    {"x-self-start y-self-start", "self-x-start self-y-start"},
-    {"x-self-end y-self-end", "self-x-end self-y-end"},
-    {"span-x-self-start span-y-self-start",
-     "span-self-x-start span-self-y-start"},
-    {"span-x-self-end span-y-self-end", "span-self-x-end span-self-y-end"},
-};
-
-class PositionAreaXYSelfParseTest
-    : public ::testing::TestWithParam<XYSelfTestCase> {};
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         PositionAreaXYSelfParseTest,
-                         testing::ValuesIn(legacy_xy_self_position_area_tests));
-
-TEST_P(PositionAreaXYSelfParseTest, ConsumeLegacyXYSelfPositionArea) {
-  // Old *x/y-self* are aliases for *self-x/y* values with PositionAreaXYSelf
-  // enabled.
-  ScopedPositionAreaXYSelfForTest enabled(true);
-  auto param = GetParam();
-  SCOPED_TRACE(param.input);
-  CSSParserTokenStream stream(param.input);
-  CSSValue* val = css_parsing_utils::ConsumePositionArea(stream);
-  ASSERT_TRUE(val);
-  EXPECT_EQ(val->CssText(), String(param.expected));
-}
 
 TEST(CSSParsingUtilsTest, ConsumeRevertRuleUnderFlags) {
   test::TaskEnvironment task_environment;
@@ -515,6 +494,77 @@ TEST(CSSParsingUtilsTest, ConsumeRevertRuleUnderFlags) {
     CSSParserTokenStream stream(text);
     EXPECT_TRUE(IsA<cssvalue::CSSRevertRuleValue>(
         css_parsing_utils::ConsumeCSSWideKeyword(stream, *context)));
+  }
+}
+
+TEST(CSSParsingUtilsTest, ConsumeUrlPattern) {
+  using css_parsing_utils::ConsumeUrlPattern;
+
+  const CSSParserContext* context = MakeContext(kHTMLStandardMode);
+
+  // Basic valid case.
+  {
+    String text = "url-pattern(\"foo\")";
+    CSSParserTokenStream stream(text);
+    EXPECT_TRUE(ConsumeUrlPattern(stream, *context));
+    EXPECT_TRUE(stream.AtEnd());
+  }
+
+  // Whitespace around argument.
+  {
+    String text = "url-pattern( \"foo\" )";
+    CSSParserTokenStream stream(text);
+    EXPECT_TRUE(ConsumeUrlPattern(stream, *context));
+    EXPECT_TRUE(stream.AtEnd());
+  }
+
+  // Clean up whitespace after block.
+  {
+    String text = "url-pattern(\"foo\")   ";
+    CSSParserTokenStream stream(text);
+    EXPECT_TRUE(ConsumeUrlPattern(stream, *context));
+    EXPECT_TRUE(stream.AtEnd());
+  }
+
+  // Invalid cases:
+
+  {
+    String text = "url-pattern()";
+    CSSParserTokenStream stream(text);
+    EXPECT_FALSE(ConsumeUrlPattern(stream, *context));
+  }
+
+  {
+    String text = "url-pattern(0)";  // As seen in crbug.com/485056787.
+    CSSParserTokenStream stream(text);
+    EXPECT_FALSE(ConsumeUrlPattern(stream, *context));
+  }
+
+  {
+    String text = "url-pattern(ident)";
+    CSSParserTokenStream stream(text);
+    EXPECT_FALSE(ConsumeUrlPattern(stream, *context));
+  }
+
+  {
+    String text = "url-pattern(!)";
+    CSSParserTokenStream stream(text);
+    EXPECT_FALSE(ConsumeUrlPattern(stream, *context));
+  }
+
+  {
+    String text = "url-pattern(ident())";
+    CSSParserTokenStream stream(text);
+    EXPECT_FALSE(ConsumeUrlPattern(stream, *context));
+  }
+
+  {
+    String text = "url-pattern(\"foo\" junk)";
+    CSSParserTokenStream stream(text);
+    EXPECT_FALSE(ConsumeUrlPattern(stream, *context));
+    // On failure, ConsumeUrlPattern should return the stream
+    // in its origin state:
+    EXPECT_EQ(CSSValueID::kUrlPattern, stream.Peek().FunctionId());
   }
 }
 

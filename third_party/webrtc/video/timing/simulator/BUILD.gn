@@ -35,7 +35,6 @@ if (rtc_enable_protobuf) {
       "stream_base.h",
     ]
     deps = [
-      "../../../api:array_view",
       "../../../api:field_trials",
       "../../../api:rtp_headers",
       "../../../api:rtp_packet_info",

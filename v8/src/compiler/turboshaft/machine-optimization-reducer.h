@@ -861,7 +861,7 @@ class MachineOptimizationReducer : public Next {
         // increase register pressure because it extends the lifetime of `a`.
         // Therefore we do the optimization only when `left = (a <op k1)` has no
         // other uses.
-        if (matcher_.Get(left).saturated_use_count.IsZero()) {
+        if (matcher_.Get(left).saturated_use_count.Is(0)) {
           return ReduceWordBinop(a, ReduceWordBinop(k1, k2, kind, rep), kind,
                                  rep);
         }
@@ -891,7 +891,7 @@ class MachineOptimizationReducer : public Next {
             V<Word> x, y;
             int64_t k;
             if (right_value_signed == -1 &&
-                matcher_.MatchBitwiseAnd(left, &x, &y, rep) &&
+                matcher_.MatchBitwiseXor(left, &x, &y, rep) &&
                 matcher_.MatchIntegralWordConstant(y, rep, &k) && k == -1) {
               return x;
             }
@@ -1119,6 +1119,20 @@ class MachineOptimizationReducer : public Next {
         x = left;
         return __ WordSub(x, y, rep);
       }
+#ifdef V8_TARGET_ARCH_ARM64
+#ifdef V8_ENABLE_WEBASSEMBLY
+      if (rep == RegisterRepresentation::Word32() && __ data()->is_wasm()) {
+        const std::optional<OpIndex> reduce_input =
+            TryMatchAddReduce(left, right);
+        if (reduce_input.has_value()) {
+          V<Simd128> reduce_op = __ Simd128Reduce(
+              reduce_input.value(), Simd128ReduceOp::Kind::kI32x4AddReduce);
+          return V<Word>::Cast(__ Simd128ExtractLane(
+              reduce_op, Simd128ExtractLaneOp::Kind::kI32x4, 0));
+        }
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_TARGET_ARCH_ARM64
     }
 
     // 0 / right  =>  0
@@ -1185,6 +1199,80 @@ class MachineOptimizationReducer : public Next {
     // For anything else, assume that it's not a heap object.
     return false;
   }
+
+#ifdef V8_TARGET_ARCH_ARM64
+#ifdef V8_ENABLE_WEBASSEMBLY
+  std::optional<OpIndex> TryMatchAddReduce(OpIndex left, OpIndex right) {
+    // AddReduce I32x4:
+    // Iteratively check children, to make sure it's a valid tree that we
+    // can use for this optimisation. Save results as we go, so we can
+    // construct the return value right away.
+    OpIndex reduce_input = OpIndex::Invalid();
+    bool summed_lanes[4] = {false, false, false, false};
+    int num_lanes_filled = 0;
+    bool multiple_input_registers = false;
+    bool unknown_op_in_tree = false;
+    base::SmallVector<OpIndex, 4> children;
+    children.push_back(left);
+    children.push_back(right);
+    while (!children.empty()) {
+      const OpIndex child = children.back();
+      children.pop_back();
+      if (const WordBinopOp* child_binop =
+              matcher_.Get(child).TryCast<WordBinopOp>();
+          child_binop && child_binop->kind == WordBinopOp::Kind::kAdd) {
+        // explore add's children too
+        children.push_back(child_binop->left());
+        children.push_back(child_binop->right());
+        continue;
+      } else if (const Simd128ExtractLaneOp* child_extract =
+                     matcher_.Get(child).TryCast<Simd128ExtractLaneOp>();
+                 child_extract &&
+                 child_extract->kind == Simd128ExtractLaneOp::Kind::kI32x4) {
+        // check extract, and record to check future ones against
+        uint8_t lane = static_cast<int>(child_extract->lane);
+        if (!reduce_input.valid()) {
+          // no input register found yet: remember it and the lane
+          reduce_input = child_extract->input();
+          summed_lanes[lane] = true;
+          num_lanes_filled += 1;
+          continue;
+        } else if (reduce_input == child_extract->input() &&
+                   !summed_lanes[lane]) {
+          // input is from the same register as others, and lane not already
+          // in the sum
+          summed_lanes[lane] = true;
+          num_lanes_filled += 1;
+          continue;
+        } else if (reduce_input == child_extract->input()) {
+          // Same input, but a duplicate lane.
+          // Naive solution: Cancel the optimisation by incrementing
+          // num_lanes_filled.
+          num_lanes_filled += 1;
+          // Better solution: Add this with the result of addv if it meets
+          // conditions.
+        } else {
+          // An add from a different input.
+          // Naive solution: Cancel the optimisation
+          multiple_input_registers = true;
+        }
+      } else {
+        // Unknown op: Cancel the optimisation
+        unknown_op_in_tree = true;
+      }
+      break;
+    }
+    bool all_lanes_filled = summed_lanes[0] && summed_lanes[1] &&
+                            summed_lanes[2] && summed_lanes[3];
+    if (reduce_input.valid() && num_lanes_filled == 4 && all_lanes_filled &&
+        !multiple_input_registers && !unknown_op_in_tree) {
+      return reduce_input;
+    } else {
+      return std::nullopt;
+    }
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_TARGET_ARCH_ARM64
 
   std::optional<V<Word>> TryReduceToRor(V<Word> left, V<Word> right,
                                         WordBinopOp::Kind kind,
@@ -1559,7 +1647,7 @@ class MachineOptimizationReducer : public Next {
                 left, &x, rep_w, &k1) &&
             matcher_.MatchIntegralWordConstant(right, rep_w, &k2) &&
             CountLeadingSignBits(k2, rep_w) > k1) {
-          if (matcher_.Get(left).saturated_use_count.IsZero()) {
+          if (matcher_.Get(left).saturated_use_count.Is(0)) {
             return __ Comparison(
                 x, __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w), kind,
                 rep_w);
@@ -1586,7 +1674,7 @@ class MachineOptimizationReducer : public Next {
                 right, &x, rep_w, &k1) &&
             matcher_.MatchIntegralWordConstant(left, rep_w, &k2) &&
             CountLeadingSignBits(k2, rep_w) > k1) {
-          if (matcher_.Get(right).saturated_use_count.IsZero()) {
+          if (matcher_.Get(right).saturated_use_count.Is(0)) {
             return __ Comparison(
                 __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w), x, kind,
                 rep_w);
@@ -1851,8 +1939,7 @@ class MachineOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
     if (std::optional<bool> decision = MatchBoolConstant(condition)) {
       if (*decision != negated) {
-        Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
-        __ Unreachable();
+        __ WasmTrap(frame_state, trap_id);
       }
       // `TrapIf` doesn't produce a value.
       return V<None>::Invalid();
@@ -1920,15 +2007,16 @@ class MachineOptimizationReducer : public Next {
 
   V<None> REDUCE(Store)(OpIndex base_idx, OptionalOpIndex index, OpIndex value,
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                        WriteBarrierKind write_barrier, int32_t offset,
-                        uint8_t element_scale,
+                        WriteBarrierKind write_barrier,
+                        std::optional<AtomicMemoryOrder> memory_order,
+                        int32_t offset, uint8_t element_scale,
                         bool maybe_initializing_or_transitioning,
                         IndirectPointerTag maybe_indirect_pointer_tag) {
     LABEL_BLOCK(no_change) {
-      return Next::ReduceStore(base_idx, index, value, kind, stored_rep,
-                               write_barrier, offset, element_scale,
-                               maybe_initializing_or_transitioning,
-                               maybe_indirect_pointer_tag);
+      return Next::ReduceStore(
+          base_idx, index, value, kind, stored_rep, write_barrier, memory_order,
+          offset, element_scale, maybe_initializing_or_transitioning,
+          maybe_indirect_pointer_tag);
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 #if V8_TARGET_ARCH_32_BIT
@@ -1975,14 +2063,15 @@ class MachineOptimizationReducer : public Next {
       index = base.right();
       // We go through the Store stack again, which might merge {index} into
       // {offset}, or just do other optimizations on this Store.
-      __ Store(base_idx, index, value, kind, stored_rep, write_barrier, offset,
-               element_scale, maybe_initializing_or_transitioning,
-               maybe_indirect_pointer_tag);
+      __ Store(base_idx, index, value, kind, stored_rep, write_barrier,
+               memory_order, offset, element_scale,
+               maybe_initializing_or_transitioning, maybe_indirect_pointer_tag);
+
       return V<None>::Invalid();
     }
 
     return Next::ReduceStore(base_idx, index, value, kind, stored_rep,
-                             write_barrier, offset, element_scale,
+                             write_barrier, memory_order, offset, element_scale,
                              maybe_initializing_or_transitioning,
                              maybe_indirect_pointer_tag);
   }
@@ -2520,7 +2609,7 @@ class MachineOptimizationReducer : public Next {
                   left, &x, rep_w, &k1) &&
               matcher_.MatchIntegralWordConstant(right, rep_w, &k2) &&
               CountLeadingSignBits(k2, rep_w) > k1 &&
-              matcher_.Get(left).saturated_use_count.IsZero()) {
+              matcher_.Get(left).saturated_use_count.Is(0)) {
             return __ Equal(
                 x, __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w),
                 rep_w);

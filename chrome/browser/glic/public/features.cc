@@ -10,12 +10,22 @@ namespace features {
 
 BASE_FEATURE(kGlicTabRestoration, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kGlicChromeStatusIcon, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kGlicOrphanedReattachment, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicSelectionPrompt, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kGlicDaisyChainViaCoordinator, base::FEATURE_ENABLED_BY_DEFAULT);
 #else
 BASE_FEATURE(kGlicDaisyChainViaCoordinator, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
+
+BASE_FEATURE(kAutoOpenGlicForPdf, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicInvoke, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicCreateTabAdjacent, base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace features

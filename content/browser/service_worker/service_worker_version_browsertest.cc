@@ -12,6 +12,7 @@
 #include <string>
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -61,6 +62,7 @@
 #include "third_party/blink/public/common/service_worker/service_worker_type_converters.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "third_party/blink/public/mojom/frame/policy_container.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration_options.mojom.h"
 #include "url/origin.h"
 
@@ -531,10 +533,14 @@ class ServiceWorkerVersionBrowserTest : public ContentBrowserTest {
     scoped_refptr<ServiceWorkerRegistration> registration =
         wrapper()->context()->GetLiveRegistration(registration_id);
     ASSERT_TRUE(registration);
+    auto fetch_client_settings_object =
+        blink::mojom::FetchClientSettingsObject::New();
+    fetch_client_settings_object->policy_container_policies =
+        blink::mojom::PolicyContainerPolicies::New();
     wrapper()->context()->UpdateServiceWorker(
         registration.get(), false /* force_bypass_cache */,
         false /* skip_script_comparison */,
-        blink::mojom::FetchClientSettingsObject::New(),
+        std::move(fetch_client_settings_object),
         base::BindLambdaForTesting([&](blink::ServiceWorkerStatusCode status,
                                        const std::string& message,
                                        int64_t registration_id) {
@@ -859,7 +865,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerVersionBrowserTest, ReadResourceFailure) {
   auto records = std::make_unique<
       std::vector<storage::mojom::ServiceWorkerResourceRecordPtr>>();
   records->push_back(storage::mojom::ServiceWorkerResourceRecord::New(
-      30, version_->script_url(), 100, /*sha256_checksum=*/""));
+      30, version_->script_url(), base::ByteSize(100), /*sha256_checksum=*/""));
   SetResources(version_.get(), std::move(records));
 
   // Store the registration.
@@ -892,7 +898,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerVersionBrowserTest,
   auto records1 = std::make_unique<
       std::vector<storage::mojom::ServiceWorkerResourceRecordPtr>>();
   records1->push_back(storage::mojom::ServiceWorkerResourceRecord::New(
-      30, version_->script_url(), 100, /*sha256_checksum=*/""));
+      30, version_->script_url(), base::ByteSize(100), /*sha256_checksum=*/""));
   SetResources(version_.get(), std::move(records1));
 
   // Make a waiting version and store it.
@@ -900,7 +906,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerVersionBrowserTest,
   auto records2 = std::make_unique<
       std::vector<storage::mojom::ServiceWorkerResourceRecordPtr>>();
   records2->push_back(storage::mojom::ServiceWorkerResourceRecord::New(
-      31, version_->script_url(), 100, /*sha256_checksum=*/""));
+      31, version_->script_url(), base::ByteSize(100), /*sha256_checksum=*/""));
   SetResources(registration_->waiting_version(), std::move(records2));
   StoreRegistration(registration_->waiting_version()->version_id(),
                     blink::ServiceWorkerStatusCode::kOk);

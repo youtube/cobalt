@@ -68,9 +68,7 @@ namespace test_utils = api_test_utils;
 
 class ExtensionManagementApiBrowserTest : public ExtensionBrowserTest {
  public:
-  explicit ExtensionManagementApiBrowserTest(
-      ContextType context_type = ContextType::kNone)
-      : ExtensionBrowserTest(context_type) {}
+  ExtensionManagementApiBrowserTest() = default;
   ~ExtensionManagementApiBrowserTest() override = default;
   ExtensionManagementApiBrowserTest(const ExtensionManagementApiBrowserTest&) =
       delete;
@@ -82,8 +80,9 @@ class ExtensionManagementApiBrowserTest : public ExtensionBrowserTest {
     ExtensionHost* background_host =
         ProcessManager::Get(profile())->GetBackgroundHostForExtension(
             extension_id);
-    if (!background_host)
+    if (!background_host) {
       return false;
+    }
     content::CrashTab(background_host->host_contents());
     return true;
   }
@@ -92,14 +91,10 @@ class ExtensionManagementApiBrowserTest : public ExtensionBrowserTest {
   ScopedInstallVerifierBypassForTest install_verifier_bypass_;
 };
 
-using ContextType = extensions::browser_test_util::ContextType;
-
 class ExtensionManagementApiTestWithBackgroundType
-    : public ExtensionManagementApiBrowserTest,
-      public ::testing::WithParamInterface<ContextType> {
+    : public ExtensionManagementApiBrowserTest {
  public:
-  ExtensionManagementApiTestWithBackgroundType()
-      : ExtensionManagementApiBrowserTest(GetParam()) {
+  ExtensionManagementApiTestWithBackgroundType() {
 #if !BUILDFLAG(IS_ANDROID)
     // Android does not support Chrome apps and does not have access to the
     // variable g_enable_chrome_apps_for_testing.
@@ -124,20 +119,9 @@ class ExtensionManagementApiTestWithBackgroundType
 #endif
 };
 
-#if !BUILDFLAG(IS_ANDROID)
-// Android does not support persistent background pages.
-INSTANTIATE_TEST_SUITE_P(PersistentBackground,
-                         ExtensionManagementApiTestWithBackgroundType,
-                         ::testing::Values(ContextType::kPersistentBackground));
-#endif  // !BUILDFLAG(IS_ANDROID)
-
-INSTANTIATE_TEST_SUITE_P(ServiceWorker,
-                         ExtensionManagementApiTestWithBackgroundType,
-                         ::testing::Values(ContextType::kServiceWorker));
-
 // We test this here instead of in an ExtensionApiTest because normal extensions
 // are not allowed to call the install function.
-IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
+IN_PROC_BROWSER_TEST_F(ExtensionManagementApiTestWithBackgroundType,
                        InstallEvent) {
   ExtensionTestMessageListener listener1("ready");
   ASSERT_TRUE(
@@ -153,7 +137,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
 
 #if !BUILDFLAG(IS_ANDROID)
 // Android does not support Chrome apps.
-IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
+IN_PROC_BROWSER_TEST_F(ExtensionManagementApiTestWithBackgroundType,
                        LaunchApp) {
   ExtensionTestMessageListener listener1("app_launched");
   ExtensionTestMessageListener listener2("got_expected_error");
@@ -170,7 +154,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
 }
 
 // Android does not support Chrome apps.
-IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
+IN_PROC_BROWSER_TEST_F(ExtensionManagementApiTestWithBackgroundType,
                        NoLaunchAppDeprecated) {
   extensions::testing::g_enable_chrome_apps_for_testing = false;
   const Extension* packaged_app =
@@ -193,7 +177,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
 }
 
 // Android does not support Chrome apps.
-IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
+IN_PROC_BROWSER_TEST_F(ExtensionManagementApiTestWithBackgroundType,
                        LaunchAppFromBackground) {
   ExtensionTestMessageListener listener1("success");
   ASSERT_TRUE(
@@ -205,7 +189,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
 }
 
 // Android does not support Chrome apps.
-IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
+IN_PROC_BROWSER_TEST_F(ExtensionManagementApiTestWithBackgroundType,
                        NoLaunchAppFromBackgroundDeprecated) {
   extensions::testing::g_enable_chrome_apps_for_testing = false;
   const Extension* packaged_app =
@@ -233,7 +217,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
+IN_PROC_BROWSER_TEST_F(ExtensionManagementApiTestWithBackgroundType,
                        SelfUninstall) {
   // Wait for the helper script to finish before loading the primary
   // extension. This ensures that the onUninstall event listener is
@@ -248,7 +232,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
   ASSERT_TRUE(listener2.WaitUntilSatisfied());
 }
 
-IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
+IN_PROC_BROWSER_TEST_F(ExtensionManagementApiTestWithBackgroundType,
                        SelfUninstallNoPermissions) {
   // Wait for the helper script to finish before loading the primary
   // extension. This ensures that the onUninstall event listener is
@@ -263,7 +247,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
   ASSERT_TRUE(listener2.WaitUntilSatisfied());
 }
 
-IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType, Get) {
+IN_PROC_BROWSER_TEST_F(ExtensionManagementApiTestWithBackgroundType, Get) {
   ExtensionTestMessageListener listener("success");
   ASSERT_TRUE(
       LoadExtension(test_data_dir_.AppendASCII("management/simple_extension"),
@@ -272,7 +256,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType, Get) {
   ASSERT_TRUE(listener.WaitUntilSatisfied());
 }
 
-IN_PROC_BROWSER_TEST_P(ExtensionManagementApiTestWithBackgroundType,
+IN_PROC_BROWSER_TEST_F(ExtensionManagementApiTestWithBackgroundType,
                        GetSelfNoPermissions) {
   ExtensionTestMessageListener listener1("success");
   ASSERT_TRUE(LoadExtension(test_data_dir_.AppendASCII("management/get_self")));
@@ -376,8 +360,9 @@ class ExtensionManagementApiEscalationTest :
     scoped_refptr<ManagementSetEnabledFunction> function(
         new ManagementSetEnabledFunction);
     function->set_extension(extension);
-    if (user_gesture)
+    if (user_gesture) {
       function->set_user_gesture(true);
+    }
     function->SetRenderFrameHost(GetActiveWebContents()->GetPrimaryMainFrame());
     bool response = test_utils::RunFunction(
         function.get(),

@@ -688,7 +688,6 @@
 #pragma redefine_extname DH_get_rfc7919_2048 BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(DH_get_rfc7919_2048))
 #pragma redefine_extname DH_marshal_parameters BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(DH_marshal_parameters))
 #pragma redefine_extname DH_new BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(DH_new))
-#pragma redefine_extname DH_num_bits BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(DH_num_bits))
 #pragma redefine_extname DH_parse_parameters BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(DH_parse_parameters))
 #pragma redefine_extname DH_set0_key BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(DH_set0_key))
 #pragma redefine_extname DH_set0_pqg BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(DH_set0_pqg))
@@ -1139,6 +1138,7 @@
 #pragma redefine_extname EVP_PKEY_from_raw_private_key BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(EVP_PKEY_from_raw_private_key))
 #pragma redefine_extname EVP_PKEY_from_raw_public_key BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(EVP_PKEY_from_raw_public_key))
 #pragma redefine_extname EVP_PKEY_from_subject_public_key_info BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(EVP_PKEY_from_subject_public_key_info))
+#pragma redefine_extname EVP_PKEY_generate_from_alg BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(EVP_PKEY_generate_from_alg))
 #pragma redefine_extname EVP_PKEY_get0 BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(EVP_PKEY_get0))
 #pragma redefine_extname EVP_PKEY_get0_DH BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(EVP_PKEY_get0_DH))
 #pragma redefine_extname EVP_PKEY_get0_DSA BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(EVP_PKEY_get0_DSA))
@@ -1184,6 +1184,7 @@
 #pragma redefine_extname EVP_PKEY_verify_init BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(EVP_PKEY_verify_init))
 #pragma redefine_extname EVP_PKEY_verify_recover BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(EVP_PKEY_verify_recover))
 #pragma redefine_extname EVP_PKEY_verify_recover_init BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(EVP_PKEY_verify_recover_init))
+#pragma redefine_extname EVP_RSA_gen BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(EVP_RSA_gen))
 #pragma redefine_extname EVP_SignFinal BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(EVP_SignFinal))
 #pragma redefine_extname EVP_SignInit BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(EVP_SignInit))
 #pragma redefine_extname EVP_SignInit_ex BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(EVP_SignInit_ex))
@@ -1836,7 +1837,9 @@
 #pragma redefine_extname SSL_CREDENTIAL_free BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_free))
 #pragma redefine_extname SSL_CREDENTIAL_get_ex_data BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_get_ex_data))
 #pragma redefine_extname SSL_CREDENTIAL_get_ex_new_index BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_get_ex_new_index))
+#pragma redefine_extname SSL_CREDENTIAL_is_complete BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_is_complete))
 #pragma redefine_extname SSL_CREDENTIAL_new_delegated BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_delegated))
+#pragma redefine_extname SSL_CREDENTIAL_new_pre_shared_key BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_pre_shared_key))
 #pragma redefine_extname SSL_CREDENTIAL_new_spake2plusv1_client BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_spake2plusv1_client))
 #pragma redefine_extname SSL_CREDENTIAL_new_spake2plusv1_server BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_spake2plusv1_server))
 #pragma redefine_extname SSL_CREDENTIAL_new_x509 BORINGSSL_SYMBOL(BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_x509))
@@ -3749,7 +3752,6 @@
 #define DH_get_rfc7919_2048 BORINGSSL_ADD_PREFIX(DH_get_rfc7919_2048)
 #define DH_marshal_parameters BORINGSSL_ADD_PREFIX(DH_marshal_parameters)
 #define DH_new BORINGSSL_ADD_PREFIX(DH_new)
-#define DH_num_bits BORINGSSL_ADD_PREFIX(DH_num_bits)
 #define DH_parse_parameters BORINGSSL_ADD_PREFIX(DH_parse_parameters)
 #define DH_set0_key BORINGSSL_ADD_PREFIX(DH_set0_key)
 #define DH_set0_pqg BORINGSSL_ADD_PREFIX(DH_set0_pqg)
@@ -4200,6 +4202,7 @@
 #define EVP_PKEY_from_raw_private_key BORINGSSL_ADD_PREFIX(EVP_PKEY_from_raw_private_key)
 #define EVP_PKEY_from_raw_public_key BORINGSSL_ADD_PREFIX(EVP_PKEY_from_raw_public_key)
 #define EVP_PKEY_from_subject_public_key_info BORINGSSL_ADD_PREFIX(EVP_PKEY_from_subject_public_key_info)
+#define EVP_PKEY_generate_from_alg BORINGSSL_ADD_PREFIX(EVP_PKEY_generate_from_alg)
 #define EVP_PKEY_get0 BORINGSSL_ADD_PREFIX(EVP_PKEY_get0)
 #define EVP_PKEY_get0_DH BORINGSSL_ADD_PREFIX(EVP_PKEY_get0_DH)
 #define EVP_PKEY_get0_DSA BORINGSSL_ADD_PREFIX(EVP_PKEY_get0_DSA)
@@ -4245,6 +4248,7 @@
 #define EVP_PKEY_verify_init BORINGSSL_ADD_PREFIX(EVP_PKEY_verify_init)
 #define EVP_PKEY_verify_recover BORINGSSL_ADD_PREFIX(EVP_PKEY_verify_recover)
 #define EVP_PKEY_verify_recover_init BORINGSSL_ADD_PREFIX(EVP_PKEY_verify_recover_init)
+#define EVP_RSA_gen BORINGSSL_ADD_PREFIX(EVP_RSA_gen)
 #define EVP_SignFinal BORINGSSL_ADD_PREFIX(EVP_SignFinal)
 #define EVP_SignInit BORINGSSL_ADD_PREFIX(EVP_SignInit)
 #define EVP_SignInit_ex BORINGSSL_ADD_PREFIX(EVP_SignInit_ex)
@@ -4897,7 +4901,9 @@
 #define SSL_CREDENTIAL_free BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_free)
 #define SSL_CREDENTIAL_get_ex_data BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_get_ex_data)
 #define SSL_CREDENTIAL_get_ex_new_index BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_get_ex_new_index)
+#define SSL_CREDENTIAL_is_complete BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_is_complete)
 #define SSL_CREDENTIAL_new_delegated BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_delegated)
+#define SSL_CREDENTIAL_new_pre_shared_key BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_pre_shared_key)
 #define SSL_CREDENTIAL_new_spake2plusv1_client BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_spake2plusv1_client)
 #define SSL_CREDENTIAL_new_spake2plusv1_server BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_spake2plusv1_server)
 #define SSL_CREDENTIAL_new_x509 BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_x509)
@@ -6154,6 +6160,8 @@
 
 #endif  // __PRAGMA_REDEFINE_EXTNAME
 
+#if !defined(BORINGSSL_ALWAYS_USE_STATIC_INLINE)
+
 #define CBS_data BORINGSSL_ADD_PREFIX(CBS_data)
 #define CBS_init BORINGSSL_ADD_PREFIX(CBS_init)
 #define CBS_len BORINGSSL_ADD_PREFIX(CBS_len)
@@ -6911,5 +6919,7 @@
 #define sk_void_sort BORINGSSL_ADD_PREFIX(sk_void_sort)
 #define sk_void_value BORINGSSL_ADD_PREFIX(sk_void_value)
 #define sk_void_zero BORINGSSL_ADD_PREFIX(sk_void_zero)
+
+#endif  // !BORINGSSL_ALWAYS_USE_STATIC_INLINE
 
 #endif  // OPENSSL_HEADER_PREFIX_SYMBOLS_H

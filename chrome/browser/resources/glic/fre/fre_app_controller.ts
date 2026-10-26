@@ -5,7 +5,6 @@
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {GlicRequestHeaderInjector} from '/shared/glic_request_headers.js';
-import {createWebView, isFullWebView} from '/shared/web_view_type.js';
 import type {WebViewType} from '/shared/web_view_type.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import {getRequiredElement} from 'chrome://resources/js/util.js';
@@ -130,7 +129,7 @@ export class FreAppController {
         const parentPanel = button.closest('.panel');
         if (parentPanel) {
           button.addEventListener('click', () => {
-            chrome.metricsPrivate.recordUserAction('Glic.Fre.CloseWithX');
+            chrome.histograms.recordUserAction('Glic.Fre.CloseWithX');
             this.dismissFre(this.panelIdToEnum(parentPanel.id));
           });
         }
@@ -144,7 +143,7 @@ export class FreAppController {
       assert(parentPanel);
 
       disabledByAdminButton.addEventListener('click', () => {
-        chrome.metricsPrivate.recordUserAction(
+        chrome.histograms.recordUserAction(
             'Glic.Fre.DisabledByAdminPanelCloseButton');
         this.dismissFre(this.panelIdToEnum(parentPanel.id));
       });
@@ -153,15 +152,14 @@ export class FreAppController {
           this.freContainer.querySelector<HTMLAnchorElement>(
               '#freDisabledByAdminPanel a');
       assert(disabledByAdminLink);
-      disabledByAdminLink.addEventListener(
-          'click', (e) => {
-            e.preventDefault();
-            chrome.metricsPrivate.recordUserAction(
-                'Glic.Fre.DisabledByAdminPanelLinkClicked');
-            this.freHandler.validateAndOpenLinkInNewTab(
-                (e.target as HTMLAnchorElement).href);
-            e.stopPropagation();
-          });
+      disabledByAdminLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.histograms.recordUserAction(
+            'Glic.Fre.DisabledByAdminPanelLinkClicked');
+        this.freHandler.validateAndOpenLinkInNewTab(
+            (e.target as HTMLAnchorElement).href);
+        e.stopPropagation();
+      });
 
       getRequiredElement('fre-reload')?.addEventListener('click', () => {
         this.reload();
@@ -198,7 +196,7 @@ export class FreAppController {
     } else if (urlHash.startsWith('#noThanks')) {
       const source = url.searchParams.get('source');
       if (source === 'x_button') {
-        chrome.metricsPrivate.recordUserAction(`Glic.Fre.CloseWithX`);
+        chrome.histograms.recordUserAction(`Glic.Fre.CloseWithX`);
         this.dismissFre(FreWebUiState.kReady);
       } else {
         this.rejectFre();
@@ -404,8 +402,8 @@ export class FreAppController {
         MAX_WAIT_TIME_MS;
     this.loadingTimer = setTimeout(() => {
       console.warn('Exceeded timeout in finishLoading');
-      chrome.metricsPrivate.recordUserAction('Glic.Fre.WebviewLoadTimedOut');
-      chrome.metricsPrivate.recordEnumerationValue(
+      chrome.histograms.recordUserAction('Glic.Fre.WebviewLoadTimedOut');
+      chrome.histograms.recordEnumerationValue(
           'Glic.Fre.WebviewLoadAbortReason',
           GlicFreWebviewLoadAbortReason.ERR_TIMED_OUT,
           GlicFreWebviewLoadAbortReason.MAX_VALUE + 1);
@@ -419,7 +417,7 @@ export class FreAppController {
   }
 
   private createWebview(): WebViewType {
-    const webview = createWebView();
+    const webview = document.createElement('webview');
     webview.id = 'freGuestFrame';
     // TODO(crbug.com/408475473): Update the webviewTag definition to be able to
     // define properties rather than using setAttribute.
@@ -440,12 +438,10 @@ export class FreAppController {
       webview.setAttribute('maxheight', window.screen.availHeight.toString());
     }
 
-    if (isFullWebView(webview)) {
-      this.glicRequestHeaderInjector = new GlicRequestHeaderInjector(
-          webview, loadTimeData.getString('chromeVersion'),
-          loadTimeData.getString('chromeChannel'),
-          loadTimeData.getString('glicHeaderRequestTypes'));
-    }
+    this.glicRequestHeaderInjector = new GlicRequestHeaderInjector(
+        webview, loadTimeData.getString('chromeVersion'),
+        loadTimeData.getString('chromeChannel'),
+        loadTimeData.getString('glicHeaderRequestTypes'));
 
     this.webviewContainer.appendChild(webview);
 
@@ -493,8 +489,8 @@ export class FreAppController {
 
   private onLoadAbort(e: chrome.webviewTag.LoadAbortEvent) {
     const reasonEnum = this.reasonStringToEnum(e.reason);
-    chrome.metricsPrivate.recordUserAction('Glic.Fre.WebviewLoadAborted');
-    chrome.metricsPrivate.recordEnumerationValue(
+    chrome.histograms.recordUserAction('Glic.Fre.WebviewLoadAborted');
+    chrome.histograms.recordEnumerationValue(
         'Glic.Fre.WebviewLoadAbortReason', reasonEnum,
         GlicFreWebviewLoadAbortReason.MAX_VALUE + 1);
 

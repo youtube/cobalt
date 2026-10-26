@@ -1795,8 +1795,7 @@ targets.tests.gtest_test(
     name = "media_unittests_skia_graphite_dawn",
     args = [
         "--test-launcher-bot-mode",
-        "--enable-features=SkiaGraphite",
-        "--skia-graphite-backend=dawn",
+        "--enable-skia-graphite",
         "--use-gpu-in-tests",
     ],
     binary = "media_unittests",
@@ -3313,6 +3312,18 @@ targets.tests.gpu_telemetry_test(
     telemetry_test_name = "webgpu_compat_cts",
     mixins = [
         "has_native_resultdb_integration",
+    ],
+    module_scheme = "webgpucts",
+)
+
+targets.tests.gpu_telemetry_test(
+    name = "webgpu_cts_default_features_tests",
+    telemetry_test_name = "webgpu_cts",
+    mixins = [
+        "has_native_resultdb_integration",
+    ],
+    args = [
+        "--enable-default-webgpu-features",
     ],
     module_scheme = "webgpucts",
 )

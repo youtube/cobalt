@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include "components/safe_browsing/content/browser/web_ui/safe_browsing_content_ui_handler.h"
 
+#include "base/values.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/async/common/encryptor.h"
 #include "components/safe_browsing/core/browser/referrer_chain_provider.h"
@@ -16,35 +17,6 @@
 #endif
 
 namespace safe_browsing {
-
-SafeBrowsingContentUIHandler::ObserverDelegate::ObserverDelegate(
-    SafeBrowsingContentUIHandler& handler)
-    : handler_(handler) {}
-
-SafeBrowsingContentUIHandler::ObserverDelegate::~ObserverDelegate() = default;
-
-base::DictValue SafeBrowsingContentUIHandler::ObserverDelegate::
-    GetFormattedTailoredVerdictOverride() {
-  return handler_->GetFormattedTailoredVerdictOverride();
-}
-
-void SafeBrowsingContentUIHandler::ObserverDelegate::SendEventToHandler(
-    std::string_view event_name,
-    base::Value value) {
-  handler_->NotifyWebUIListener(event_name, value);
-}
-
-void SafeBrowsingContentUIHandler::ObserverDelegate::SendEventToHandler(
-    std::string_view event_name,
-    base::ListValue& list) {
-  handler_->NotifyWebUIListener(event_name, list);
-}
-
-void SafeBrowsingContentUIHandler::ObserverDelegate::SendEventToHandler(
-    std::string_view event_name,
-    base::DictValue dict) {
-  handler_->NotifyWebUIListener(event_name, dict);
-}
 
 SafeBrowsingContentUIHandler::SafeBrowsingContentUIHandler(
     content::BrowserContext* context,
@@ -132,116 +104,22 @@ void SafeBrowsingContentUIHandler::SetWebUIForTesting(content::WebUI* web_ui) {
 }
 
 void SafeBrowsingContentUIHandler::RegisterMessages() {
-  web_ui()->RegisterMessageCallback(
-      "getExperiments",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetExperiments,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getPolicies", base::BindRepeating(&SafeBrowsingUIHandler::GetPolicies,
-                                         base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getPrefs", base::BindRepeating(&SafeBrowsingUIHandler::GetPrefs,
-                                      base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getCookie", base::BindRepeating(&SafeBrowsingUIHandler::GetCookie,
-                                       base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getSavedPasswords",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetSavedPasswords,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getDatabaseManagerInfo",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetDatabaseManagerInfo,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getDownloadUrlsChecked",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetDownloadUrlsChecked,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getSentClientDownloadRequests",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetSentClientDownloadRequests,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getReceivedClientDownloadResponses",
-      base::BindRepeating(
-          &SafeBrowsingUIHandler::GetReceivedClientDownloadResponses,
-          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getSentClientPhishingRequests",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetSentClientPhishingRequests,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getReceivedClientPhishingResponses",
-      base::BindRepeating(
-          &SafeBrowsingUIHandler::GetReceivedClientPhishingResponses,
-          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getSentCSBRRs",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetSentCSBRRs,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getPGEvents", base::BindRepeating(&SafeBrowsingUIHandler::GetPGEvents,
-                                         base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getSecurityEvents",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetSecurityEvents,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getPGPings", base::BindRepeating(&SafeBrowsingUIHandler::GetPGPings,
-                                        base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getPGResponses",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetPGResponses,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getURTLookupPings",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetURTLookupPings,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getURTLookupResponses",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetURTLookupResponses,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getHPRTLookupPings",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetHPRTLookupPings,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getHPRTLookupResponses",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetHPRTLookupResponses,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getLogMessages",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetLogMessages,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
+  SafeBrowsingUIHandler::RegisterMessages();
+  RegisterMessage(
       "getReferrerChain",
       base::BindRepeating(&SafeBrowsingContentUIHandler::GetReferrerChain,
                           base::Unretained(this)));
 #if BUILDFLAG(IS_ANDROID)
-  web_ui()->RegisterMessageCallback(
+  RegisterMessage(
       "getReferringAppInfo",
       base::BindRepeating(&SafeBrowsingContentUIHandler::GetReferringAppInfo,
                           base::Unretained(this)));
 #endif
-  web_ui()->RegisterMessageCallback(
-      "getReportingEvents",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetReportingEvents,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getDeepScans", base::BindRepeating(&SafeBrowsingUIHandler::GetDeepScans,
-                                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "getTailoredVerdictOverride",
-      base::BindRepeating(&SafeBrowsingUIHandler::GetTailoredVerdictOverride,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "setTailoredVerdictOverride",
-      base::BindRepeating(&SafeBrowsingUIHandler::SetTailoredVerdictOverride,
-                          base::Unretained(this)));
-  web_ui()->RegisterMessageCallback(
-      "clearTailoredVerdictOverride",
-      base::BindRepeating(&SafeBrowsingUIHandler::ClearTailoredVerdictOverride,
-                          base::Unretained(this)));
+}
+
+void SafeBrowsingContentUIHandler::RegisterMessage(std::string_view name,
+                                                   MessageCallback callback) {
+  web_ui()->RegisterMessageCallback(name, std::move(callback));
 }
 
 void SafeBrowsingContentUIHandler::ResolveCallback(
@@ -268,6 +146,25 @@ WebUIInfoSingleton* SafeBrowsingContentUIHandler::web_ui_info_singleton() {
 WebUIInfoSingletonEventObserver*
 SafeBrowsingContentUIHandler::event_observer() {
   return event_observer_.get();
+}
+
+void SafeBrowsingContentUIHandler::NotifyWebUIListener(
+    std::string_view event_name,
+    const base::Value& value) {
+  AllowJavascript();
+  FireWebUIListener(event_name, value);
+}
+void SafeBrowsingContentUIHandler::NotifyWebUIListener(
+    std::string_view event_name,
+    const base::ListValue& list) {
+  AllowJavascript();
+  FireWebUIListener(event_name, list);
+}
+void SafeBrowsingContentUIHandler::NotifyWebUIListener(
+    std::string_view event_name,
+    const base::DictValue& dict) {
+  AllowJavascript();
+  FireWebUIListener(event_name, dict);
 }
 
 }  // namespace safe_browsing

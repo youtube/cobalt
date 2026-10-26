@@ -170,6 +170,8 @@ class CONTENT_EXPORT BrowserAccessibilityManagerAndroid
   std::unique_ptr<ui::BrowserAccessibility> CreateBrowserAccessibility(
       ui::AXNode* node) override;
 
+  void OnAccessibilityEventsProcessedForExperiment();
+
  private:
   // AXTreeObserver overrides.
   void OnAtomicUpdateStarting(
@@ -189,6 +191,8 @@ class CONTENT_EXPORT BrowserAccessibilityManagerAndroid
 
   // Handle a hover event from the renderer process.
   void HandleHoverEvent(ui::BrowserAccessibility* node);
+
+  void FireDocumentSelectionChangedEvent(WebContentsAccessibilityAndroid* wcax);
 
   // A weak reference to WebContentsAccessibility for reaching Java layer.
   // Only the root manager has the reference. Should be accessed through

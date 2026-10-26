@@ -14,6 +14,8 @@
 #include "ash/accessibility/a11y_feature_type.h"
 #include "ash/accessibility/accessibility_notification_controller.h"
 #include "ash/accessibility/accessibility_observer.h"
+#include "ash/accessibility/accessibility_prefs_custom_associator.h"
+#include "ash/accessibility/accessibility_sync_prefs_utils.h"
 #include "ash/accessibility/autoclick/autoclick_controller.h"
 #include "ash/accessibility/disable_touchpad_event_rewriter.h"
 #include "ash/accessibility/drag_event_rewriter.h"
@@ -369,34 +371,8 @@ bool ShouldCopySigninPrefs(PrefService* previous_pref_service,
   return false;
 }
 
-// On a user's first login into a device, any a11y features enabled/disabled
-// by the user on the login screen are enabled/disabled in the user's profile.
-// This function copies settings from the signin prefs into the user's prefs
-// when it detects a login with a newly created profile.
-void CopySigninPrefsIfNeeded(PrefService* previous_pref_service,
-                             PrefService* current_pref_service) {
-  DCHECK(current_pref_service);
-  if (!ShouldCopySigninPrefs(previous_pref_service, current_pref_service)) {
-    return;
-  }
-
-  PrefService* signin_prefs =
-      Shell::Get()->session_controller()->GetSigninScreenPrefService();
-  DCHECK(signin_prefs);
-  for (const auto* pref_path : kCopiedOnSigninAccessibilityPrefs) {
-    const PrefService::Preference* pref =
-        signin_prefs->FindPreference(pref_path);
-
-    // Ignore if the pref has not been set by the user.
-    if (!pref || !pref->IsUserControlled()) {
-      continue;
-    }
-
-    // Copy the pref value from the signin profile.
-    const base::Value* value_on_login = pref->GetValue();
-    current_pref_service->Set(pref_path, *value_on_login);
-  }
-}
+using EnsurePrefsCustomAssociatorCallback =
+    base::OnceCallback<AccessibilityPrefsCustomAssociator*()>;
 
 // Returns notification icon based on the A11yNotificationType.
 const gfx::VectorIcon& GetNotificationIcon(A11yNotificationType type) {
@@ -609,6 +585,45 @@ std::string UmaNameForSwitchAccessCommand(SwitchAccessCommand command) {
       return "Accessibility.CrosSwitchAccess.PreviousKeyCode";
     case SwitchAccessCommand::kNone:
       NOTREACHED();
+  }
+}
+
+// This function registers the accessibility preferences that are conditionally
+// syncable - as per the respective feature flag - and require a resolution
+// policy when values set at OOBE differ from values stored at Chrome Sync.
+void RegisterAccessibilityPrefsWithConditionalSync(
+    PrefRegistrySimple* registry,
+    base::span<const AccessibilityPrefBatchEntry> prefs) {
+  for (const auto& pref : prefs) {
+    // The preference is registered elsewhere.
+    if (pref.has_custom_registration) {
+      continue;
+    }
+
+    switch (pref.default_value.type()) {
+      case base::Value::Type::BOOLEAN:
+        registry->RegisterBooleanPref(pref.pref_name,
+                                      pref.default_value.GetBool(),
+                                      pref.registration_flags);
+        break;
+      case base::Value::Type::INTEGER:
+        registry->RegisterIntegerPref(pref.pref_name,
+                                      pref.default_value.GetInt(),
+                                      pref.registration_flags);
+        break;
+      case base::Value::Type::DOUBLE:
+        registry->RegisterDoublePref(pref.pref_name,
+                                     pref.default_value.GetDouble(),
+                                     pref.registration_flags);
+        break;
+      case base::Value::Type::STRING:
+        registry->RegisterStringPref(pref.pref_name,
+                                     pref.default_value.GetString(),
+                                     pref.registration_flags);
+        break;
+      default:
+        NOTREACHED();
+    }
   }
 }
 
@@ -1502,69 +1517,14 @@ void AccessibilityController::RegisterProfilePrefs(
       prefs::kAccessibilityMagnifierFollowsSts, true,
       user_prefs::PrefRegistrySyncable::SYNCABLE_OS_PREF);
 
-  // Gate the first batch of visual accessibility prefs so the OS sync rollout
+  // Gate the batches of feature accessibility prefs so the OS sync rollout
   // can be staged (and rolled back) via Finch if issues arise.
-  const uint32_t syncable_registration_flag_batch1 =
-      base::FeatureList::IsEnabled(features::kOsSyncAccessibilitySettingsBatch1)
-          ? user_prefs::PrefRegistrySyncable::SYNCABLE_OS_PREF
-          : 0;
-  registry->RegisterBooleanPref(prefs::kAccessibilityColorCorrectionEnabled,
-                                false, syncable_registration_flag_batch1);
-  registry->RegisterBooleanPref(
-      prefs::kAccessibilityColorCorrectionHasBeenSetup, false,
-      syncable_registration_flag_batch1);
-  registry->RegisterBooleanPref(prefs::kAccessibilityCursorHighlightEnabled,
-                                false, syncable_registration_flag_batch1);
-  registry->RegisterBooleanPref(prefs::kAccessibilityCursorColorEnabled, false,
-                                syncable_registration_flag_batch1);
-  registry->RegisterIntegerPref(prefs::kAccessibilityCursorColor,
-                                ui::kDefaultCursorColor,
-                                syncable_registration_flag_batch1);
-  registry->RegisterBooleanPref(prefs::kAccessibilityLargeCursorEnabled, false,
-                                syncable_registration_flag_batch1);
-  registry->RegisterIntegerPref(prefs::kAccessibilityLargeCursorDipSize,
-                                kDefaultLargeCursorSize,
-                                syncable_registration_flag_batch1);
-  registry->RegisterBooleanPref(prefs::kAccessibilityHighContrastEnabled, false,
-                                syncable_registration_flag_batch1);
-  registry->RegisterBooleanPref(
-      prefs::kHighContrastAcceleratorDialogHasBeenAccepted, false,
-      syncable_registration_flag_batch1);
-  registry->RegisterBooleanPref(prefs::kAccessibilityCaretHighlightEnabled,
-                                false, syncable_registration_flag_batch1);
-  registry->RegisterIntegerPref(prefs::kAccessibilityCaretBlinkInterval,
-                                kDefaultCaretBlinkIntervalMs,
-                                syncable_registration_flag_batch1);
-  registry->RegisterBooleanPref(prefs::kAccessibilityFocusHighlightEnabled,
-                                false, syncable_registration_flag_batch1);
-
-  const uint32_t registration_flags_batch2 =
-      base::FeatureList::IsEnabled(features::kOsSyncAccessibilitySettingsBatch2)
-          ? user_prefs::PrefRegistrySyncable::SYNCABLE_OS_PREF
-          : 0;
-  registry->RegisterBooleanPref(prefs::kAccessibilityReducedAnimationsEnabled,
-                                false, registration_flags_batch2);
-
-  const uint32_t registration_flags_batch3 =
-      base::FeatureList::IsEnabled(features::kOsSyncAccessibilitySettingsBatch3)
-          ? user_prefs::PrefRegistrySyncable::SYNCABLE_OS_PREF
-          : 0;
-  registry->RegisterBooleanPref(prefs::kAccessibilityScreenMagnifierEnabled,
-                                false, registration_flags_batch3);
-  registry->RegisterBooleanPref(prefs::kAccessibilitySelectToSpeakEnabled,
-                                false, registration_flags_batch3);
-  registry->RegisterDoublePref(prefs::kAccessibilityScreenMagnifierScale,
-                               std::numeric_limits<double>::min(),
-                               registration_flags_batch3);
-  registry->RegisterBooleanPref(
-      prefs::kScreenMagnifierAcceleratorDialogHasBeenAccepted, false,
-      registration_flags_batch3);
-  registry->RegisterBooleanPref(
-      prefs::kDockedMagnifierAcceleratorDialogHasBeenAccepted, false,
-      registration_flags_batch3);
-  registry->RegisterBooleanPref(
-      prefs::kSelectToSpeakAcceleratorDialogHasBeenAccepted, false,
-      registration_flags_batch3);
+  RegisterAccessibilityPrefsWithConditionalSync(
+      registry, GetSyncableAccessibilityPrefsBatch1());
+  RegisterAccessibilityPrefsWithConditionalSync(
+      registry, GetSyncableAccessibilityPrefsBatch2());
+  RegisterAccessibilityPrefsWithConditionalSync(
+      registry, GetSyncableAccessibilityPrefsBatch3());
 
   if (::features::IsAccessibilityFlashScreenFeatureEnabled()) {
     registry->RegisterIntegerPref(prefs::kAccessibilityFlashNotificationsColor,
@@ -2498,7 +2458,7 @@ void AccessibilityController::OnActiveUserPrefServiceChanged(
   // This is guaranteed to be received after
   // OnSigninScreenPrefServiceInitialized() so only copy the signin prefs if
   // needed here.
-  CopySigninPrefsIfNeeded(active_user_prefs_, prefs);
+  CopySigninPrefsIfNeeded(prefs);
   ObservePrefs(prefs);
 }
 
@@ -2522,6 +2482,16 @@ void AccessibilityController::OnSessionStateChanged(
   container->SetProperty(
       ui::kAXConsiderInvisibleAndIgnoreChildren,
       Shell::Get()->session_controller()->IsUserSessionBlocked());
+}
+
+void AccessibilityController::OnFirstSessionReady() {
+  // By the time the user desktop fully loads, any eventual syncable/conflicting
+  // preferences are set in the associator already.
+  //
+  // TODO(crbug.com/479890756): Launch the conflict resolution feature.
+
+  // Reset the associator since it is not needed anymore.
+  prefs_custom_associator_.reset();
 }
 
 AccessibilityEventRewriter*
@@ -2562,6 +2532,45 @@ void AccessibilityController::OnDisplayTabletStateChanged(
           A11yNotificationType::kSpokenFeedbackEnabled, kNotificationId,
           std::vector<std::u16string>()));
     }
+  }
+}
+
+// On a user's first login into a device, any a11y features enabled/disabled
+// by the user on the login screen are enabled/disabled in the user's profile.
+// This function copies settings from the signin prefs into the user's prefs
+// when it detects a login with a newly created profile.
+void AccessibilityController::CopySigninPrefsIfNeeded(
+    PrefService* current_pref_service) {
+  DCHECK(current_pref_service);
+  if (!ShouldCopySigninPrefs(/*previous_pref_service=*/active_user_prefs_,
+                             current_pref_service)) {
+    return;
+  }
+
+  // Ensure a fresh state on the associator.
+  CHECK(!prefs_custom_associator_);
+  prefs_custom_associator_ =
+      std::make_unique<AccessibilityPrefsCustomAssociator>();
+
+  PrefService* signin_prefs =
+      Shell::Get()->session_controller()->GetSigninScreenPrefService();
+  DCHECK(signin_prefs);
+  for (const auto* pref_path : kCopiedOnSigninAccessibilityPrefs) {
+    const PrefService::Preference* pref =
+        signin_prefs->FindPreference(pref_path);
+
+    // Ignore if the pref has not been set by the user.
+    if (!pref || !pref->IsUserControlled()) {
+      continue;
+    }
+
+    // Copy the pref value from the signin profile.
+    const base::Value* value_on_login = pref->GetValue();
+    current_pref_service->Set(pref_path, *value_on_login);
+
+    // Try to "lock" this preference in case it is syncable and we must wait to
+    // sync until after showing the resolution dialog.
+    prefs_custom_associator_->TryLockPref(pref_path, *value_on_login);
   }
 }
 
@@ -3842,7 +3851,7 @@ void AccessibilityController::UpdateFeatureFromPref(FeatureType feature) {
         // here (as opposed to the extension) to ensure that mv3 key handling
         // is only enabled if we're guaranteed a response from the extension.
         accessibility_event_rewriter_->SetSpokenFeedbackMv3KeyHandlingEnabled(
-            false);
+            false, /*session_id=*/0);
       }
 
       // ChromeVox focus highlighting overrides the other focus highlighting.

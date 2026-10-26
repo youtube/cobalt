@@ -59,10 +59,23 @@ class CORE_EXPORT TaskAttributionTrackerImpl
   void ResetSameDocumentNavigationTasks() override;
   void BeginMicrotaskTrace() override;
   void EndMicrotaskTrace() override;
+  void OnBeginNestedRunLoop() override;
+  void OnExitNestedRunLoop() override;
 
   // trace_event::TraceSessionObserver implementation.
   void OnStart(const perfetto::DataSourceBase::StartArgs&) override;
   void OnStop(const perfetto::DataSourceBase::StopArgs&) override;
+
+  // Used by TaskAttributionTopLevelOverrideScope to override the
+  // v8::Isolate::InContext() check when propagating task state. This is
+  // necessary for the navigation API because of how deeply nested callback
+  // dispatch is.
+  //
+  // TODO(crbug.com/490536691): This should be replaced with a better mechanism
+  // of detecting if JavaScript is currently executing.
+  void SetShouldOverrideTopLevelCheck(bool value) {
+    should_override_top_level_check_ = value;
+  }
 
  private:
   explicit TaskAttributionTrackerImpl(v8::Isolate*);
@@ -81,8 +94,18 @@ class CORE_EXPORT TaskAttributionTrackerImpl
   // tracked through task attribution).
   Deque<Persistent<TaskAttributionInfo>> same_document_navigation_tasks_;
 
+  // The current task state is cleared when entering a nested event loop to
+  // prevent leaking state to nested event loop tasks. The current state is
+  // captured and stored in this stack before being cleared, and it is restored
+  // when exiting the nested event loop. Note this only applies in a few
+  // situations, specifically devtools debugging (breakpoints) and modal
+  // dialogs, like window.print().
+  Vector<Persistent<TaskAttributionTaskState>> nested_event_loop_task_state_;
+
   // The lifetime of this class is tied to the `isolate_`.
   v8::Isolate* isolate_;
+
+  bool should_override_top_level_check_ = false;
 
   base::WeakPtrFactory<TaskAttributionTrackerImpl> weak_factory_{this};
 };

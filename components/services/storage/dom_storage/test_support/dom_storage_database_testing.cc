@@ -6,14 +6,14 @@
 
 #include <algorithm>
 
-#include "base/memory/scoped_refptr.h"
+#include "base/files/file_enumerator.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/run_loop.h"
-#include "base/task/sequenced_task_runner.h"
-#include "base/task/thread_pool.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_expected_support.h"
 #include "base/test/test_future.h"
-#include "storage/common/database/db_status.h"
+#include "components/services/storage/dom_storage/db_status.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -80,25 +80,21 @@ void ExpectEqualsMapMetadataSpan(
 
 DomStorageDatabase::MapMetadata CloneMapMetadata(
     const DomStorageDatabase::MapMetadata& source) {
-  const std::vector<std::string>& source_session_ids =
-      source.map_locator.session_ids();
-  CHECK_GT(source_session_ids.size(), 0u);
-
   DomStorageDatabase::MapMetadata clone{
       .map_locator =
           source.map_locator.map_id().has_value()
-              ? DomStorageDatabase::MapLocator(source_session_ids[0],
-                                               source.map_locator.storage_key(),
+              ? DomStorageDatabase::MapLocator(source.map_locator.storage_key(),
                                                *source.map_locator.map_id())
               : DomStorageDatabase::MapLocator(
-                    source_session_ids[0], source.map_locator.storage_key()),
+                    source.map_locator.storage_key()),
       .last_accessed{source.last_accessed},
       .last_modified{source.last_modified},
       .total_size{source.total_size},
   };
 
-  for (size_t i = 1u; i < source_session_ids.size(); ++i) {
-    clone.map_locator.AddSession(source_session_ids[i]);
+  // Clone the session IDs.
+  for (const std::string& session_id : source.map_locator.session_ids()) {
+    clone.map_locator.AddSession(session_id);
   }
   return clone;
 }
@@ -110,6 +106,14 @@ std::vector<DomStorageDatabase::MapMetadata> CloneMapMetadataVector(
     results.push_back(CloneMapMetadata(source));
   }
   return results;
+}
+
+DomStorageDatabase::Metadata CloneMetadata(
+    const DomStorageDatabase::Metadata& source) {
+  DomStorageDatabase::Metadata copy;
+  copy.next_map_id = source.next_map_id;
+  copy.map_metadata = CloneMapMetadataVector(source.map_metadata);
+  return copy;
 }
 
 void TestUpdateMaps(DomStorageDatabase& database,
@@ -194,15 +198,17 @@ void TestUpdateMaps(DomStorageDatabase& database,
   EXPECT_EQ(actual_entries, map2_entries);
 }
 
-void InsertMapEntries(DomStorageDatabase& database,
-                      const DomStorageDatabase::MapLocator& map_locator,
-                      const std::map<DomStorageDatabase::Key,
-                                     DomStorageDatabase::Value>& entries) {
+void InsertMapEntries(
+    DomStorageDatabase& database,
+    const DomStorageDatabase::MapLocator& map_locator,
+    const std::map<DomStorageDatabase::Key, DomStorageDatabase::Value>& entries,
+    std::optional<DomStorageDatabase::MapBatchUpdate::Usage> usage_metadata) {
   // Write the `entries` to `database`.
   DomStorageDatabase::MapBatchUpdate map_update(map_locator.Clone());
   for (const auto& entry : entries) {
     map_update.entries_to_add.emplace_back(entry.first, entry.second);
   }
+  map_update.map_usage = std::move(usage_metadata);
 
   std::vector<DomStorageDatabase::MapBatchUpdate> map_updates;
   map_updates.push_back(std::move(map_update));
@@ -370,6 +376,30 @@ void PutVersionForTesting(AsyncDomStorageDatabase& async_database,
 
   run_loop.Run();
   EXPECT_TRUE(status.ok()) << status.ToString();
+}
+
+void SearchDirectoryContent(const base::FilePath& directory_path,
+                            std::string query,
+                            bool expected_is_found) {
+  int query_found_count = 0;
+  base::FileEnumerator file_enumerator(directory_path, /*recursive=*/true,
+                                       base::FileEnumerator::FILES);
+
+  for (base::FilePath file_path = file_enumerator.Next(); !file_path.empty();
+       file_path = file_enumerator.Next()) {
+    std::string file_contents;
+    ASSERT_TRUE(base::ReadFileToString(file_path, &file_contents));
+
+    if (file_contents.find(query) != std::string::npos) {
+      ++query_found_count;
+      if (!expected_is_found) {
+        LOG(ERROR) << "Found '" << query << "' in " << file_path;
+      }
+    }
+  }
+
+  EXPECT_EQ(query_found_count > 0, expected_is_found)
+      << "Found '" << query << "' " << query_found_count << " times";
 }
 
 }  // namespace storage

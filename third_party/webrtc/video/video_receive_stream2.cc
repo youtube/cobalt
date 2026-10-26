@@ -18,13 +18,13 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/str_cat.h"
-#include "api/array_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
@@ -349,7 +349,7 @@ void VideoReceiveStream2::SignalNetworkState(NetworkState state) {
   rtp_video_stream_receiver_.SignalNetworkState(state);
 }
 
-bool VideoReceiveStream2::DeliverRtcp(ArrayView<const uint8_t> packet) {
+bool VideoReceiveStream2::DeliverRtcp(std::span<const uint8_t> packet) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
   return rtp_video_stream_receiver_.DeliverRtcp(packet);
 }
@@ -357,16 +357,6 @@ bool VideoReceiveStream2::DeliverRtcp(ArrayView<const uint8_t> packet) {
 void VideoReceiveStream2::SetSync(Syncable* audio_syncable) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
   rtp_stream_sync_.ConfigureSync(audio_syncable);
-}
-
-void VideoReceiveStream2::SetLocalSsrc(uint32_t local_ssrc) {
-  RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
-  if (config_.rtp.local_ssrc == local_ssrc)
-    return;
-
-  // TODO(tommi): Make sure we don't rely on local_ssrc via the config struct.
-  const_cast<uint32_t&>(config_.rtp.local_ssrc) = local_ssrc;
-  rtp_video_stream_receiver_.OnLocalSsrcChange(local_ssrc);
 }
 
 void VideoReceiveStream2::Start() {

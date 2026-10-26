@@ -5,8 +5,9 @@
 /* #css_wrapper_metadata_start
  * #type=style-lit
  * #import=//resources/cr_elements/cr_icons_lit.css.js
+ * #import=//resources/cr_components/composebox/composebox_shared_style.css.js
  * #scheme=relative
- * #include=cr-icons-lit
+ * #include=cr-icons-lit composebox-shared-style
  * #css_wrapper_metadata_end */
 
 :host {
@@ -106,119 +107,47 @@
 
 :host([is-lens-searchbox_]) #inputWrapper {
   box-shadow: none;
+  overflow: hidden;
 }
 
-:host([multi-line-enabled]) textarea {
-  background-color: transparent;
-  box-sizing: border-box;
-  field-sizing: content;
-  line-height: 24px;
-  max-height: 190px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-top: calc((var(--cr-searchbox-height) - 24px) / 2);
-  resize: none;
-  scrollbar-width: none;
-  white-space: pre-wrap;
+:host([compose-button-enabled]) cr-searchbox-input::part(searchbox-input) {
+  padding-inline-end: 16px;
 }
 
-:host([multi-line-enabled]) #input::-webkit-scrollbar {
-  display: none;
-}
-
-:is(input, textarea) {
-  background-color: transparent;
-  border: none;
-  color: var(--color-searchbox-foreground);
-  font-family: inherit;
-  font-size: inherit;
-  height: 100%;
-  outline: none;
-  padding-top: 20px;
-  position: relative;
-  width: 100%;
-}
-
-:host-context([searchbox-layout-mode='Compact']) :is(input, textarea) {
+:host([searchbox-layout-mode='Compact']) cr-searchbox-input::part(searchbox-input) {
   padding-inline-start: 0;
 }
 
-:host-context([multi-line-enabled][searchbox-layout-mode='Compact']) textarea {
+:host([multi-line-enabled][searchbox-layout-mode='Compact']) cr-searchbox-input::part(searchbox-input) {
   padding-bottom: 10px;
   padding-top: 16px;
 }
 
-:host(:not([ntp-realbox-next-enabled])) input,
-:host([searchbox-layout-mode='Compact']) input {
+:host(:not([ntp-realbox-next-enabled])) cr-searchbox-input::part(searchbox-input),
+:host([searchbox-layout-mode='Compact']) cr-searchbox-input::part(searchbox-input) {
   align-self: center;
   padding-top: 2px;
 }
 
-:host([searchbox-chrome-refresh-theming]) :is(input, textarea)::selection {
+:host([searchbox-chrome-refresh-theming]) cr-searchbox-input::part(searchbox-input)::selection {
   background-color: var(--color-searchbox-selection-background);
   color: var(--color-searchbox-selection-foreground);
 }
 
-input::-webkit-search-decoration,
-input::-webkit-search-results-button,
-input::-webkit-search-results-decoration {
-  display: none;
-}
-
-/* Visually hide the cancel button but do not set display to none or
- * visibility to hidden as this causes issues with NVDA not reading out the
- * full value of the searchbox input as the user selects suggestion matches.
- * See crbug.com/1312442 for more context. */
-input::-webkit-search-cancel-button {
-  appearance: none;
-  margin: 0;
-}
-
-:is(input, textarea)::placeholder {
-  color: var(--color-searchbox-placeholder);
-  opacity: var(--placeholder-opacity);
-  white-space: nowrap;
-}
-
-:is(input, textarea):focus::placeholder {
-  /* Visually hide the placeholder on focus. The placeholder will still be
-   * read by screen readers. Using color: transparent or other ways of
-   * visually hiding the placeholder does not work well with 'Find in page...'
-   * as the placeholder text can get highlighted. */
-  visibility: hidden;
-}
-
-:host([is-lens-searchbox_]) :is(input, textarea):focus::placeholder{
+:host([is-lens-searchbox_]) cr-searchbox-input::part(searchbox-input):focus::placeholder {
   visibility: visible;
 }
 
-/* Search bubble realbox input color shouldn't change when dropdown is
- * visible. */
-:host([is-lens-searchbox_][dropdown-is-visible]) :is(input, textarea) {
+:host([is-lens-searchbox_][dropdown-is-visible]) cr-searchbox-input::part(searchbox-input) {
   background-color: var(--color-bubble-searchbox-results-input-background, --color-searchbox-results-background);
 }
 
-:host([is-lens-searchbox_]:not([dropdown-is-visible])) :is(input, textarea):focus {
+:host([is-lens-searchbox_]:not([dropdown-is-visible])) cr-searchbox-input::part(searchbox-input):focus {
   background-color: var(--color-searchbox-background);
 }
 
-cr-searchbox-icon {
-  height: 100%;
-  padding-inline-end: 4px;
-  padding-inline-start: var(--cr-searchbox-icon-left-position);
-  position: relative;
-  top: var(--cr-searchbox-icon-top-position);
-  pointer-events: none;
-}
-
-:host(:not([ntp-realbox-next-enabled])) cr-searchbox-icon {
+:host(:not([ntp-realbox-next-enabled])) cr-searchbox-input::part(icon) {
   align-self: center;
-}
-
-@media (forced-colors: active) {
-  cr-searchbox-icon {
-    border-radius: 4px;
-  }
 }
 
 :host-context([is-back-arrow-visible]) #icon {
@@ -240,7 +169,7 @@ cr-searchbox-icon {
   position: static;
   right: 16px;
   width: var(--cr-searchbox-icon-width);
-
+  z-index: 100;
 }
 
 /* When voice/lens icons are monochrome, they are webkit mask images.
@@ -309,39 +238,18 @@ cr-searchbox-icon {
   --cr-searchbox-voice-icon-offset: calc(16px + 2 * var(--cr-searchbox-icon-spacing) + var(--cr-searchbox-icon-width) + var(--cr-compose-button-width));
 }
 
-:host([compose-button-enabled][dropdown-is-visible])
-    .searchbox-icon-button-container {
-  display: none;
-}
-
-:host([searchbox-layout-mode^='Tall']) contextual-entrypoint-and-carousel {
-  z-index: 100;
-}
-
-:is(input, textarea),
-cr-searchbox-icon,
-.searchbox-icon-button {
-  z-index: 100;
-}
-
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 #thumbnailContainer {
   align-self: center;
   padding-inline: 10px;
   z-index: 101;
 }
 
-:host([ntp-realbox-next-enabled]) :is(input, textarea)::placeholder {
-  font-size: 18px;
+:host([ntp-realbox-next-enabled]) cr-searchbox-input::part(searchbox-input)::placeholder {
   color: var(--cr-composebox-input-placeholder-color, var(--color-composebox-type-ahead));
   font-weight: 400;
 }
 
-:host([ntp-realbox-next-enabled]) :is(input, textarea):focus::placeholder{
+:host([ntp-realbox-next-enabled]) cr-searchbox-input::part(searchbox-input):focus::placeholder {
   visibility: visible;
 }
 
@@ -368,46 +276,35 @@ cr-searchbox-dropdown::part(dropdown-content) {
   padding-top: unset;
 }
 
-:host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {
+:host([ntp-realbox-next-enabled]) cr-composebox-contextual-entrypoint-and-menu::part(context-menu-entrypoint-icon) {
   --cr-icon-button-icon-size: 24px;
   --cr-icon-button-margin-start: 2px;
   --cr-icon-button-size: 36px;
 }
 
-:host([ntp-realbox-next-enabled]:not([context-menu-glif-animation-state='ineligible'])) contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {
+:host([ntp-realbox-next-enabled]:not([context-menu-glif-animation-state='ineligible'])) cr-composebox-contextual-entrypoint-and-menu::part(context-menu-entrypoint-icon) {
   /* Account for the margin of the glow container */
   --cr-icon-button-margin-start: 0px;
 }
 
-:host([ntp-realbox-next-enabled][searchbox-layout-mode^='Tall']) contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {
+:host([ntp-realbox-next-enabled][searchbox-layout-mode^='Tall']) cr-composebox-contextual-entrypoint-and-menu::part(context-menu-entrypoint-icon) {
   --cr-icon-button-icon-size: 20px;
 }
 
-:host([ntp-realbox-next-enabled][searchbox-layout-mode='Compact']) contextual-entrypoint-and-carousel::part(context-menu-and-tools) {
+:host([ntp-realbox-next-enabled][searchbox-layout-mode='Compact']) .context-menu-container {
   padding-block: 10px;
 }
 
-:host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel {
-  position: relative;
-}
-
-:host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(composebox-entrypoint) {
+:host([ntp-realbox-next-enabled]) cr-composebox-contextual-entrypoint-and-menu {
+  color: var(--color-searchbox-results-foreground);
   padding-inline-end: 6px;
-  z-index: 100;
-}
-
-:host-context([ntp-realbox-next-enabled][context-menu-glif-animation-state='ineligible']) contextual-entrypoint-and-carousel::part(composebox-entrypoint) {
-  padding-inline-end: 14px;
-}
-
-:host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(tool-chips-container) {
-  --contextual-entrypoint-and-carousel-context-menu-container-margin-bottom: 6px;
+  padding-inline-start: 8px;
   position: relative;
   z-index: 100;
 }
 
-:host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(cr-composebox-file-carousel) {
-  margin-top: 16px;
+:host-context([ntp-realbox-next-enabled][context-menu-glif-animation-state='ineligible']) cr-composebox-contextual-entrypoint-and-menu {
+  padding-inline-end: 14px;
 }
 
 #inputContainer {
@@ -419,19 +316,11 @@ cr-searchbox-dropdown::part(dropdown-content) {
   width: 100%;
 }
 
-#inputInnerContainer {
-  align-items: flex-start;
-  display: flex;
-  min-height: 48px;
-  position: relative;
-  width: 100%;
-}
-
-:host([is-lens-searchbox_]) #inputInnerContainer {
+:host([is-lens-searchbox_]) cr-searchbox-input::part(input-inner-container) {
   min-height: 52px;
 }
 
-:host([searchbox-layout-mode^='Tall']) #inputInnerContainer {
+:host([searchbox-layout-mode^='Tall']) cr-searchbox-input::part(input-inner-container) {
   padding-bottom: 14px;
 }
 
@@ -475,27 +364,26 @@ cr-searchbox-dropdown::part(dropdown-content) {
   }
 }
 
-:host([searchbox-layout-mode^='Tall']) input {
+:host([searchbox-layout-mode^='Tall']) cr-searchbox-input::part(searchbox-input) {
   height: 44px;
   padding-top: 14px;
 }
 
-:host([multi-line-enabled][searchbox-layout-mode^='Tall']) textarea {
+:host([multi-line-enabled][searchbox-layout-mode^='Tall']) cr-searchbox-input::part(searchbox-input) {
   height: auto;
   padding-top: var(--cr-searchbox-input-padding-top_);
 }
 
-:host([searchbox-layout-mode^='Tall']:not([dropdown-is-visible]):not([input-focused_])) :is(input, textarea) {
+:host([searchbox-layout-mode^='Tall']:not([dropdown-is-visible]):not([input-focused_])) cr-searchbox-input::part(searchbox-input) {
   padding-inline-start: 24px;
 }
 
-:host([searchbox-layout-mode^='Tall']:not([dropdown-is-visible]):not([input-focused_])) cr-searchbox-icon,
-:host([searchbox-layout-mode^='Tall'][dropdown-is-visible]) .searchbox-icon-button-container {
+:host([searchbox-layout-mode^='Tall']:not([dropdown-is-visible]):not([input-focused_])) cr-searchbox-input::part(icon) {
   display: none;
 }
 
-:host([searchbox-layout-mode^='Tall'][dropdown-is-visible]) cr-searchbox-icon,
-:host([searchbox-layout-mode^='Tall'][input-focused_]) cr-searchbox-icon {
+:host([searchbox-layout-mode^='Tall'][dropdown-is-visible]) cr-searchbox-input::part(icon),
+:host([searchbox-layout-mode^='Tall'][input-focused_]) cr-searchbox-input::part(icon) {
   height: 24px;
   top: var(--cr-searchbox-input-padding-top_);
 }
@@ -504,7 +392,7 @@ cr-searchbox-dropdown::part(dropdown-content) {
   --cr-button-height: 36px;
 }
 
-:host-context([searchbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(carousel-divider) {
+:host-context([searchbox-layout-mode='TallTopContext']) .carousel-divider {
   margin-top: 10px;
 }
 
@@ -517,7 +405,7 @@ cr-searchbox-dropdown::part(dropdown-content) {
   --search-animated-glow-drag-drop-placeholder-top: 16px;
 }
 
-:host([searchbox-layout-mode='Compact']) cr-searchbox-icon {
+:host([searchbox-layout-mode='Compact']) cr-searchbox-input::part(icon) {
   display: none;
 }
 
@@ -536,38 +424,12 @@ cr-searchbox-dropdown::part(dropdown-content) {
       + var(--cr-searchbox-icon-spacing) + var(--cr-compose-button-width));
 }
 
-:host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(voice-icon) {
-  --cr-icon-button-fill-color: var(--color-composebox-font-light);
-  --cr-icon-button-hover-background-color: var(--color-composebox-context-entrypoint-hover-background);
-  --cr-icon-button-margin-end: 0px;
-  --cr-icon-button-margin-start: 0px;
-  --cr-icon-button-size: 36px;
-}
-
-:host([searchbox-layout-mode='TallBottomContext']) contextual-entrypoint-and-carousel::part(voice-icon) {
-  bottom: 10px;
-  inset-inline-end: 14px;
-  position: absolute;
-}
-
-:host([searchbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(voice-icon) {
-  margin-inline-end: 14px;
-  margin-inline-start: auto;
-  position: static;
-}
-
-:host([searchbox-layout-mode='Compact']) contextual-entrypoint-and-carousel::part(voice-icon) {
-  margin-inline-end: calc(var(--cr-compose-button-width));
-  margin-inline-start: auto;
-  z-index: 100;
-}
-
 :host([ntp-realbox-next-enabled][is-dragging-file]) {
   --cr-searchbox-compose-button-z-index: 99;
 }
 
-:host([ntp-realbox-next-enabled][is-dragging-file]) :is(input, textarea),
-:host([ntp-realbox-next-enabled][is-dragging-file]) cr-searchbox-icon,
+:host([ntp-realbox-next-enabled][is-dragging-file]) cr-searchbox-input::part(searchbox-input),
+:host([ntp-realbox-next-enabled][is-dragging-file]) cr-searchbox-input::part(icon),
 :host([ntp-realbox-next-enabled][is-dragging-file]) .searchbox-icon-button-container,
 :host([ntp-realbox-next-enabled][is-dragging-file]) .searchbox-icon-button {
   opacity: 0;
@@ -577,7 +439,7 @@ cr-searchbox-dropdown::part(dropdown-content) {
   padding-bottom: 10px;
 }
 
-#recentTabChipContainer {
+:host([ntp-realbox-next-enabled][searchbox-layout-mode='Compact']) #recentTabChipContainer {
   padding-block: 6px;
   padding-inline: 16px;
 }

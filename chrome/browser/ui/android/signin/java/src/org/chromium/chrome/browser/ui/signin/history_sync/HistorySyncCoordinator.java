@@ -40,10 +40,6 @@ public class HistorySyncCoordinator {
          * @param isHistorySyncAccepted Whether the user accepted history sync.
          */
         void dismissHistorySync(boolean didSignOut, boolean isHistorySyncAccepted);
-
-        // TODO(crbug.com/453950636): inline delegate implementation directly in HistorySyncMediator
-        void recordHistorySyncOptIn(
-                @SigninAccessPoint int accessPoint, boolean isHistorySyncAccepted);
     }
 
     private final Activity mActivity;
@@ -107,6 +103,14 @@ public class HistorySyncCoordinator {
     public void destroy() {
         setView(null, false);
         mMediator.destroy();
+    }
+
+    /**
+     * Declines the history sync flow and dismisses the UI. Signs out the user if the flow was
+     * configured to do so on decline.
+     */
+    public void declineAndDismiss() {
+        mMediator.declineAndDismiss();
     }
 
     public @Nullable HistorySyncView getView() {

@@ -23,11 +23,11 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/sequence_checker.h"
 #include "rtc_base/checks.h"
 #include "sdk/android/native_api/jni/scoped_java_ref.h"
@@ -245,10 +245,10 @@ ScopedJavaLocalRef<jobjectArray> NativeToJavaObjectArray(
 
 ScopedJavaLocalRef<jbyteArray> NativeToJavaByteArray(
     JNIEnv* env,
-    ArrayView<int8_t> container);
+    std::span<int8_t> container);
 ScopedJavaLocalRef<jintArray> NativeToJavaIntArray(
     JNIEnv* env,
-    ArrayView<int32_t> container);
+    std::span<int32_t> container);
 
 std::vector<int8_t> JavaToNativeByteArray(
     JNIEnv* env,

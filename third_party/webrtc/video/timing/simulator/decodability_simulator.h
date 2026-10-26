@@ -13,10 +13,10 @@
 
 #include <cstdint>
 #include <set>
+#include <span>
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "api/array_view.h"
 #include "api/numerics/samples_stats_counter.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
@@ -115,7 +115,7 @@ inline bool DecodableOrder(const DecodabilitySimulator::Frame& a,
   return a.decodable_timestamp < b.decodable_timestamp;
 }
 inline void SortByDecodableOrder(
-    ArrayView<DecodabilitySimulator::Frame> frames) {
+    std::span<DecodabilitySimulator::Frame> frames) {
   absl::c_stable_sort(frames, DecodableOrder);
 }
 
@@ -123,6 +123,10 @@ inline void SortByDecodableOrder(
 // Difference in decodable time between two frames.
 inline TimeDelta InterDecodableTime(const DecodabilitySimulator::Frame& cur,
                                     const DecodabilitySimulator::Frame& prev) {
+  if (!cur.decodable_timestamp.IsFinite() &&
+      !prev.decodable_timestamp.IsFinite()) {
+    return TimeDelta::PlusInfinity();
+  }
   return cur.decodable_timestamp - prev.decodable_timestamp;
 }
 

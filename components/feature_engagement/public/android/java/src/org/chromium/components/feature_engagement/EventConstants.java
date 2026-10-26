@@ -175,6 +175,11 @@ public final class EventConstants {
     public static final String ADAPTIVE_TOOLBAR_CUSTOMIZATION_ADD_TO_BOOKMARKS_OPENED =
             "adaptive_toolbar_customization_add_to_bookmarks_opened";
 
+    public static final String ADAPTIVE_TOOLBAR_GLIC_IPH_TRIGGER =
+            "adaptive_toolbar_glic_iph_trigger";
+    public static final String ADAPTIVE_TOOLBAR_CUSTOMIZATION_GLIC_CLICKED =
+            "adaptive_toolbar_customization_glic_clicked";
+
     /** Open new incognito tab from app menu. */
     public static final String APP_MENU_NEW_INCOGNITO_TAB_CLICKED =
             "app_menu_new_incognito_tab_clicked";
@@ -248,6 +253,9 @@ public final class EventConstants {
 
     /** Fusebox attachment popup was toggled open by the user. */
     public static final String FUSEBOX_ATTACHMENT_POPUP_USED = "fusebox_attachment_popup_used";
+
+    /** Glic on Android used by the user. */
+    public static final String GLIC_ANDROID_USED = "glic_android_used";
 
     /** Do not instantiate. */
     private EventConstants() {}

@@ -91,7 +91,6 @@ CONTENT_EXPORT extern const char kDisableSpeechSynthesisAPI[];
 CONTENT_EXPORT extern const char kDisableThreadedCompositing[];
 extern const char kDisableV8IdleTasks[];
 CONTENT_EXPORT extern const char kDisableWebRtcEncryption[];
-CONTENT_EXPORT extern const char kDisableWebGLImageChromium[];
 CONTENT_EXPORT extern const char kDisableWebSecurity[];
 CONTENT_EXPORT extern const char kDisableZeroCopyDxgiVideo[];
 CONTENT_EXPORT extern const char kDomAutomationController[];
@@ -125,7 +124,6 @@ CONTENT_EXPORT extern const char kEnableViewport[];
 CONTENT_EXPORT extern const char kEnableVtune[];
 CONTENT_EXPORT extern const char kEnableWebGLDeveloperExtensions[];
 CONTENT_EXPORT extern const char kEnableWebGLDraftExtensions[];
-CONTENT_EXPORT extern const char kEnableWebGLImageChromium[];
 CONTENT_EXPORT extern const char kEnableWebVR[];
 CONTENT_EXPORT extern const char kFileUrlPathAlias[];
 CONTENT_EXPORT extern const char kForceDisplayList2dCanvas[];
@@ -250,6 +248,7 @@ CONTENT_EXPORT extern const char kEnableLongpressDragSelection[];
 CONTENT_EXPORT extern const char kForceOnlineConnectionStateForIndicator[];
 CONTENT_EXPORT extern const char kRemoteDebuggingSocketName[];
 CONTENT_EXPORT extern const char kRendererWaitForJavaDebugger[];
+CONTENT_EXPORT extern const char kJavalessRenderers[];
 #endif
 
 #if BUILDFLAG(IS_IOS)

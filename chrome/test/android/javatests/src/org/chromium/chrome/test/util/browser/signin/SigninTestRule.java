@@ -55,15 +55,16 @@ public class SigninTestRule implements TestRule {
 
     private final FakeAccountManagerFacade mFakeAccountManagerFacade;
 
-    private final boolean mSerializeToPrefs;
-
     public SigninTestRule() {
-        this(false);
+        this(new FakeAccountManagerFacade(false));
     }
 
     public SigninTestRule(boolean serializeToPrefs) {
-        mSerializeToPrefs = serializeToPrefs;
-        mFakeAccountManagerFacade = new FakeAccountManagerFacade(mSerializeToPrefs);
+        this(new FakeAccountManagerFacade(serializeToPrefs));
+    }
+
+    public SigninTestRule(FakeAccountManagerFacade fakeAccountManagerFacade) {
+        mFakeAccountManagerFacade = fakeAccountManagerFacade;
     }
 
     @Override
@@ -119,9 +120,15 @@ public class SigninTestRule implements TestRule {
         mFakeAccountManagerFacade.setAccountFetchFailed();
     }
 
-    /** See {@link FakeAccountManagerFacade#blockGetAccounts(boolean)}. */
-    public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdate(boolean populateCache) {
-        return mFakeAccountManagerFacade.blockGetAccounts(populateCache);
+    /** See {@link FakeAccountManagerFacade#blockGetAccounts}. */
+    public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdate() {
+        return mFakeAccountManagerFacade.blockGetAccounts(/* postUnblockCallback= */ null);
+    }
+
+    /** See {@link FakeAccountManagerFacade#blockGetAccountsAndPopulateCache}. */
+    public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdateAndPopulateCache() {
+        return mFakeAccountManagerFacade.blockGetAccountsAndPopulateCache(
+                /* postUnblockCallback= */ null);
     }
 
     /**

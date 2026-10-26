@@ -1628,6 +1628,65 @@ class AndroidDebuggableBuildTest(unittest.TestCase):
         self.assertIn('UsedExplicitBuildType.java:2', msgs[0].items)
 
 
+class AndroidToastUsageTest(unittest.TestCase):
+
+    def testCheckAndroidToastUsage(self):
+        mock_input_api = MockInputApi()
+        mock_output_api = MockOutputApi()
+
+        mock_input_api.files = [
+            MockAffectedFile('RandomStuff.java', ['random stuff']),
+            MockAffectedFile('CorrectUsage.java', [
+                'import org.chromium.ui.widget.Toast;',
+                'Toast.makeText(context, "ok", Toast.LENGTH_SHORT).show();',
+            ]),
+            MockAffectedFile('UsedAndroidToastImport.java', [
+                'import android.widget.Toast;',
+            ]),
+            MockAffectedFile('UsedAndroidToastImportLine2.java', [
+                'some random stuff',
+                'import android.widget.Toast;',
+            ]),
+            MockAffectedFile('chromecast/AllowedImport.java', [
+                'import android.widget.Toast;',
+            ]),
+            MockAffectedFile('remoting/AllowedImport.java', [
+                'import android.widget.Toast;',
+            ]),
+        ]
+
+        msgs = PRESUBMIT._CheckAndroidToastUsage(mock_input_api,
+                                                 mock_output_api)
+        self.assertEqual(
+            1, len(msgs),
+            'Expected %d items, found %d: %s' % (1, len(msgs), msgs))
+        self.assertEqual(
+            2, len(msgs[0].items), 'Expected %d items, found %d: %s' %
+            (2, len(msgs[0].items), msgs[0].items))
+        self.assertIn('UsedAndroidToastImport.java:1', msgs[0].items)
+        self.assertIn('UsedAndroidToastImportLine2.java:2', msgs[0].items)
+
+    def testCheckAndroidToastUsageNoViolations(self):
+        mock_input_api = MockInputApi()
+        mock_output_api = MockOutputApi()
+
+        mock_input_api.files = [
+            MockAffectedFile('RandomStuff.java', ['random stuff']),
+            MockAffectedFile('CorrectUsage.java', [
+                'import org.chromium.ui.widget.Toast;',
+                'Toast.makeText(context, "ok", Toast.LENGTH_SHORT).show();',
+            ]),
+            MockAffectedFile('AnotherCorrectUsage.java', [
+                'import org.chromium.ui.widget.Toast;',
+                'Toast.makeText(context, "ok2", Toast.LENGTH_LONG).show();',
+            ]),
+        ]
+
+        msgs = PRESUBMIT._CheckAndroidToastUsage(mock_input_api,
+                                                 mock_output_api)
+        self.assertEqual(0, len(msgs))
+
+
 class LogUsageTest(unittest.TestCase):
 
     def testCheckAndroidCrLogUsage(self):
@@ -1636,23 +1695,8 @@ class LogUsageTest(unittest.TestCase):
 
         mock_input_api.files = [
             MockAffectedFile('RandomStuff.java', ['random stuff']),
-            MockAffectedFile('HasAndroidLog.java', [
-                'import android.util.Log;',
-                'some random stuff',
-                'Log.d("TAG", "foo");',
-            ]),
-            MockAffectedFile('HasExplicitUtilLog.java', [
-                'some random stuff',
-                'android.util.Log.d("TAG", "foo");',
-            ]),
             MockAffectedFile('IsInBasePackage.java', [
                 'package org.chromium.base;',
-                'private static final String TAG = "cr_Foo";',
-                'Log.d(TAG, "foo");',
-            ]),
-            MockAffectedFile('IsInBasePackageButImportsLog.java', [
-                'package org.chromium.base;',
-                'import android.util.Log;',
                 'private static final String TAG = "cr_Foo";',
                 'Log.d(TAG, "foo");',
             ]),
@@ -1733,8 +1777,8 @@ class LogUsageTest(unittest.TestCase):
                                                  mock_output_api)
 
         self.assertEqual(
-            5, len(msgs),
-            'Expected %d items, found %d: %s' % (5, len(msgs), msgs))
+            4, len(msgs),
+            'Expected %d items, found %d: %s' % (4, len(msgs), msgs))
 
         # Declaration format
         nb = len(msgs[0].items)
@@ -1758,23 +1802,13 @@ class LogUsageTest(unittest.TestCase):
         self.assertIn('HasInlineTag.java:4', msgs[2].items)
         self.assertIn('HasInlineTagWithSpace.java:4', msgs[2].items)
 
-        # Util Log usage
+        # Tag must not contain
         nb = len(msgs[3].items)
         self.assertEqual(
-            5, nb, 'Expected %d items, found %d: %s' % (3, nb, msgs[3].items))
-        self.assertIn('HasAndroidLog.java:1', msgs[3].items)
-        self.assertIn('HasAndroidLog.java:3', msgs[3].items)
-        self.assertIn('HasExplicitUtilLog.java:2', msgs[3].items)
-        self.assertIn('IsInBasePackageButImportsLog.java:2', msgs[3].items)
-        self.assertIn('IsInBasePackageButImportsLog.java:4', msgs[3].items)
-
-        # Tag must not contain
-        nb = len(msgs[4].items)
-        self.assertEqual(
-            3, nb, 'Expected %d items, found %d: %s' % (2, nb, msgs[4].items))
-        self.assertIn('HasDottedTag.java', msgs[4].items)
-        self.assertIn('HasDottedTagPublic.java', msgs[4].items)
-        self.assertIn('HasOldTag.java', msgs[4].items)
+            3, nb, 'Expected %d items, found %d: %s' % (2, nb, msgs[3].items))
+        self.assertIn('HasDottedTag.java', msgs[3].items)
+        self.assertIn('HasDottedTagPublic.java', msgs[3].items)
+        self.assertIn('HasOldTag.java', msgs[3].items)
 
 
 class GoogleAnswerUrlFormatTest(unittest.TestCase):
@@ -3094,6 +3128,23 @@ class BannedTypeCheckTest(unittest.TestCase):
                          'content/desktop_android.cc')
         self.assertEqual(results[8].locations[0].start_line, 2)
         self.assertEqual(results[8].locations[0].end_line, 2)
+
+    def testBannedMemoryPressureListener(self):
+        input_api = MockInputApi()
+        input_api.files = [
+            MockFile('some/cpp/problematic/file.cc',
+                     ['MemoryPressureListener* listener;']),
+            MockFile('base/memory/memory_pressure_listener.cc',
+                     ['void MemoryPressureListener::NotifyMemoryPressure() {']),
+        ]
+
+        results = PRESUBMIT.CheckNoBannedPatterns(input_api, MockOutputApi())
+
+        self.assertEqual(1, len(results))
+        self.assertIn('some/cpp/problematic/file.cc', results[0].message)
+        self.assertTrue(
+            all('base/memory/memory_pressure_listener.cc' not in r.message
+                for r in results))
 
     def testBannedCppRandomFunctions(self):
         banned_rngs = [
@@ -5896,7 +5947,7 @@ class CheckInlineConstexprDefinitionsInHeadersTest(unittest.TestCase):
 class CheckDeprecatedSyncConsentFunctionsTest(unittest.TestCase):
     """Test the presubmit for deprecated ConsentLevel::kSync functions."""
 
-    def testCppMobilePlatformPath(self):
+    def testCppPath(self):
         input_api = MockInputApi()
         input_api.files = [
             MockFile('chrome/browser/android/file.cc', ['OtherFunction']),
@@ -5911,11 +5962,14 @@ class CheckDeprecatedSyncConsentFunctionsTest(unittest.TestCase):
                      ['IsSyncFeatureActive']),
             MockFile('components/foo/ios_delegate.cc',
                      ['IsSyncFeatureActive']),
+            MockFile('chrome/browser/file.cc', ['HasSyncConsent']),
+            MockFile('bios/file.cc', ['HasSyncConsent']),
+            MockFile('components/kiosk/file.cc', ['HasSyncConsent']),
         ]
 
         results = PRESUBMIT.CheckNoBannedPatterns(input_api, MockOutputApi())
 
-        self.assertEqual(7, len(results))
+        self.assertEqual(10, len(results))
         self.assertTrue(
             all('chrome/browser/android/file.cc' not in r.message
                 for r in results))
@@ -5926,18 +5980,9 @@ class CheckDeprecatedSyncConsentFunctionsTest(unittest.TestCase):
         self.assertIn('components/foo/delegate_ios.cc', results[4].message)
         self.assertIn('components/foo/android_delegate.cc', results[5].message)
         self.assertIn('components/foo/ios_delegate.cc', results[6].message)
-
-    def testCppNonMobilePlatformPath(self):
-        input_api = MockInputApi()
-        input_api.files = [
-            MockFile('chrome/browser/file.cc', ['HasSyncConsent']),
-            MockFile('bios/file.cc', ['HasSyncConsent']),
-            MockFile('components/kiosk/file.cc', ['HasSyncConsent']),
-        ]
-
-        results = PRESUBMIT.CheckNoBannedPatterns(input_api, MockOutputApi())
-
-        self.assertEqual(0, len(results))
+        self.assertIn('chrome/browser/file.cc', results[7].message)
+        self.assertIn('bios/file.cc', results[8].message)
+        self.assertIn('components/kiosk/file.cc', results[9].message)
 
     def testJavaPath(self):
         input_api = MockInputApi()
@@ -6179,7 +6224,7 @@ class TestCheckSettingsChanges(unittest.TestCase):
                          ['jinsukkim@chromium.org', 'adelm@google.com'])
         errors = results[0].items
         self.assertTrue(any("MyFeature.java" in e and "Missing SEARCH_INDEX_DATA_PROVIDER" in e for e in errors))
-        self.assertTrue(any("MyScreen.java" in e and "Provider not registered" in e for e in errors))
+        self.assertTrue(any("MyScreen.java" in e and "Fragment not found in SearchIndexProviderRegistry" in e for e in errors))
 
     def testParityLogicMismatch(self):
         java_content = [
@@ -6216,7 +6261,7 @@ class TestCheckSettingsChanges(unittest.TestCase):
         self.assertEqual(len(results[0].items), 3)
         self.assertEqual(self.mock_output.more_cc,
                          ['jinsukkim@chromium.org', 'adelm@google.com'])
-        self.assertIn("Potential Search Index Issues", results[0].message)
+        self.assertIn("Potential Settings Search Indexing Issues", results[0].message)
         actual_errors = "\n".join(results[0].items)
         self.assertIn("updateEntrySummaryForKey", actual_errors)
         self.assertIn("removeEntryForKey()", actual_errors)
@@ -6264,6 +6309,95 @@ class TestCheckSettingsChanges(unittest.TestCase):
         self.assertEqual(len(results), 0)
         # Non-settings file shouldn't trigger a CC
         self.assertEqual(len(self.mock_output.more_cc), 0)
+
+
+class CheckNoMainLayoutSwitcherTest(unittest.TestCase):
+
+    def testPositive(self):
+        mock_input_api = MockInputApi()
+        mock_input_api.files = [
+            MockAffectedFile('some/other/File.java', ['something']),
+        ]
+        results = PRESUBMIT.CheckNoMainLayoutSwitcher(mock_input_api,
+                                                      MockOutputApi())
+        self.assertEqual(0, len(results))
+
+    def testNoDiffs(self):
+        mock_input_api = MockInputApi()
+        mock_input_api.no_diffs = True
+        mock_input_api.files = [
+            MockAffectedFile(
+                'chrome/android/java/src/org/chromium/chrome/browser/app/MainLayoutSwitcher.java',
+                ['something']),
+        ]
+        results = PRESUBMIT.CheckNoMainLayoutSwitcher(mock_input_api,
+                                                      MockOutputApi())
+        self.assertEqual(0, len(results))
+
+    def testNegative(self):
+        mock_input_api = MockInputApi()
+        mock_input_api.files = [
+            MockAffectedFile(
+                'chrome/android/java/src/org/chromium/chrome/browser/app/MainLayoutSwitcher.java',
+                ['something']),
+        ]
+        results = PRESUBMIT.CheckNoMainLayoutSwitcher(mock_input_api,
+                                                      MockOutputApi())
+        self.assertEqual(1, len(results))
+        self.assertEqual('error', results[0].type)
+
+    def testNegativeWithWindowsPath(self):
+        # Simulate Windows path with backslashes
+        windows_path = 'chrome\\android\\java\\src\\org\\chromium\\chrome\\browser\\app\\MainLayoutSwitcher.java'
+
+        mock_input_api = MockInputApi()
+        mock_input_api.files = [
+            MockAffectedFile(windows_path, ['something']),
+        ]
+        results = PRESUBMIT.CheckNoMainLayoutSwitcher(mock_input_api,
+                                                      MockOutputApi())
+        self.assertEqual(1, len(results))
+        self.assertEqual('error', results[0].type)
+
+    def testBypassTagTrue(self):
+        mock_input_api = MockInputApi()
+        mock_input_api.files = [
+            MockAffectedFile(
+                'chrome/android/java/src/org/chromium/chrome/browser/app/MainLayoutSwitcher.java',
+                ['something']),
+        ]
+        mock_input_api.change.footers = {
+            'Allow-MainLayoutSwitcher-Changes': ['true']
+        }
+        results = PRESUBMIT.CheckNoMainLayoutSwitcher(mock_input_api,
+                                                      MockOutputApi())
+        self.assertEqual(0, len(results))
+
+    def testBypassTagFalse(self):
+        mock_input_api = MockInputApi()
+        mock_input_api.files = [
+            MockAffectedFile(
+                'chrome/android/java/src/org/chromium/chrome/browser/app/MainLayoutSwitcher.java',
+                ['something']),
+        ]
+        mock_input_api.change.footers = {
+            'Allow-MainLayoutSwitcher-Changes': ['false']
+        }
+        results = PRESUBMIT.CheckNoMainLayoutSwitcher(mock_input_api,
+                                                      MockOutputApi())
+        self.assertEqual(1, len(results))
+
+    def testDelete(self):
+        mock_input_api = MockInputApi()
+        mock_input_api.files = [
+            MockAffectedFile(
+                'chrome/android/java/src/org/chromium/chrome/browser/app/MainLayoutSwitcher.java',
+                ['something'],
+                action='D'),
+        ]
+        results = PRESUBMIT.CheckNoMainLayoutSwitcher(mock_input_api,
+                                                      MockOutputApi())
+        self.assertEqual(0, len(results))
 
 
 if __name__ == '__main__':

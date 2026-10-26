@@ -345,16 +345,6 @@ base::expected<TfLitePadding, std::string> GetPool2dTfLitePaddingMode(
     const mojom::Size2d& stride,
     const mojom::Size2d& dilation,
     const webnn::Size2d<uint32_t>& output) {
-  // WebNN explicit padding is in [beginning_height, ending_height,
-  // beginning_width, ending_width] sequence.
-  std::array<uint32_t, 4> explicit_padding = {
-      padding2d.beginning->height, padding2d.ending->height,
-      padding2d.beginning->width, padding2d.ending->width};
-  std::array<uint32_t, 4> no_padding = {0, 0, 0, 0};
-  if (explicit_padding == no_padding) {
-    return TfLitePadding{.mode = ::tflite::Padding_VALID};
-  }
-
   // TFLite always performs a floor operation in VALID mode. If WebNN's
   // RoundingType is ceil, the `actual_output_height` might be 1 greater than
   // what TFLite's VALID padding formula (floor based) would produce. In this
@@ -390,7 +380,7 @@ base::expected<TfLitePadding, std::string> GetPool2dTfLitePaddingMode(
     // Otherwise, a TFLite PAD operator will be inserted later using VALID
     // padding.
     return GetTfLitePaddingMode(padding2d, input, filter, stride, dilation,
-                                /*is_transposed_conv2d*/ false);
+                                /*is_transposed_conv2d=*/false);
   } else if (actual_output_height ==
                  base::ClampCeil<uint32_t>(calculated_output_sizes.height) &&
              actual_output_width ==
@@ -405,8 +395,9 @@ base::expected<TfLitePadding, std::string> GetPool2dTfLitePaddingMode(
         CalculatePaddingEndForCeilRoundingType(
             input.width, filter.width, stride.width, dilation.width,
             output.width, padding2d.beginning->width));
-    explicit_padding = {padding2d.beginning->height, padding_height_end,
-                        padding2d.beginning->width, padding_width_end};
+    std::array<uint32_t, 4> explicit_padding = {
+        padding2d.beginning->height, padding_height_end,
+        padding2d.beginning->width, padding_width_end};
     // The explicit padding are used to insert a TfLite PAD operator.
     return TfLitePadding{.mode = ::tflite::Padding_VALID,
                          .paddings = explicit_padding};
@@ -672,8 +663,6 @@ ContextProperties GraphBuilderTflite::GetContextProperties() {
        {kInt4AndInts8Int32, SupportedRanks::UpTo(6)},
        /*dequantize_linear_scale=*/
        {DataTypeConstraint::kFloat16To32, SupportedRanks::UpTo(6)},
-       /*dequantize_linear_zero_point=*/
-       {kInt4AndInts8Int32, SupportedRanks::UpTo(6)},
        // Limited to 6D when broadcasting is required:
        // https://source.chromium.org/chromium/chromium/src/+/main:third_party/tflite/src/tensorflow/lite/kernels/add.cc
        /*add_input=*/{kFloat16To32AndInt32To64, SupportedRanks::UpTo(6)},
@@ -766,21 +755,27 @@ ContextProperties GraphBuilderTflite::GetContextProperties() {
        // https://source.chromium.org/chromium/chromium/src/+/main:third_party/tflite/src/tensorflow/lite/kernels/internal/reference/gather.h;l=43;drc=49db932a0bdfca060c3e8b0d063a7e8c9f5d2fa5
        /*gather_input=*/
        {kFloat16To32AndInt8To64AndUint8, SupportedRanks::NonScalarUpTo(8)},
+       // Clamping indices to the input dimensions requires a broadcasting
+       // MIN/MAX op, which is limited to 5D.
        /*gather_indices=*/
        {DataTypeConstraint::kGatherScatterIndicesSupportedDataTypes,
-        SupportedRanks::UpTo(8)},
+        SupportedRanks::UpTo(5)},
        // Scalar is not supported:
        // https://source.chromium.org/chromium/chromium/src/+/main:third_party/tflite/src/tensorflow/lite/kernels/gather_nd.cc
        /*gather_elements_input=*/
        {kFloat16To32AndInt8To64AndUint8, SupportedRanks::NonScalarUpTo(8)},
+       // Clamping indices to the input dimensions requires a broadcasting
+       // MIN/MAX op, which is limited to 5D.
        /*gather_elements_indices=*/
        {DataTypeConstraint::kGatherScatterIndicesSupportedDataTypes,
-        SupportedRanks::NonScalarUpTo(8)},
+        SupportedRanks::NonScalarUpTo(5)},
        /*gather_nd_input=*/
        {kFloat16To32AndInt8To64AndUint8, SupportedRanks::NonScalarUpTo(8)},
+       // Clamping indices to the input dimensions requires a broadcasting
+       // MIN/MAX op, which is limited to 5D.
        /*gather_nd_indices=*/
        {DataTypeConstraint::kGatherScatterIndicesSupportedDataTypes,
-        SupportedRanks::NonScalarUpTo(8)},
+        SupportedRanks::NonScalarUpTo(5)},
        /*gelu_input=*/
        {DataTypeConstraint::kFloat16To32, SupportedRanks::UpTo(8)},
        /*gemm_a=*/
@@ -895,8 +890,10 @@ ContextProperties GraphBuilderTflite::GetContextProperties() {
        {kFloat16To32AndInt8To64AndUint32, SupportedRanks::NonScalarUpTo(8)},
        // The indices of tfl.scatter_nd only support int32.
        // https://www.tensorflow.org/mlir/tfl_ops#operands_117
+       // Clamping indices to the input dimensions requires a broadcasting
+       // MIN/MAX op, which is limited to 5D.
        /*scatter_nd_indices=*/
-       {{OperandDataType::kInt32}, SupportedRanks::NonScalarUpTo(8)},
+       {{OperandDataType::kInt32}, SupportedRanks::NonScalarUpTo(5)},
        /*scatter_nd_updates=*/
        {kFloat16To32AndInt8To64AndUint32, SupportedRanks::NonScalarUpTo(8)},
        // Polyfilled with linear.
@@ -4046,6 +4043,24 @@ auto GraphBuilderTflite::SerializeConv2d(const mojom::Conv2d& conv2d)
   const auto& filter_shape = filter_operand.descriptor.shape();
   const webnn::Size2d<uint32_t> filter_size2d = {.height = filter_shape[1],
                                                  .width = filter_shape[2]};
+
+  if (conv2d.kind == mojom::Conv2d::Kind::kDirect) {
+    // Calculate the im2col temp tensor size [batch_size * output_height *
+    // output_width * input_channels * filter_height, filter_width].
+    const base::CheckedNumeric<int32_t> im2col_elements =
+        base::CheckedNumeric<int32_t>(input_shape[0]) * output_shape[1] *
+        output_shape[2] * input_channels * filter_size2d.height *
+        filter_size2d.width;
+
+    // Check against the 32-bit signed integer limit to avoid overflow in
+    // TFLite.
+    if (!im2col_elements.IsValid()) {
+      return base::unexpected(
+          "Conv2d doesn't support configurations that require an internal "
+          "computation buffer exceeding INT32_MAX elements.");
+    }
+  }
+
   ASSIGN_OR_RETURN(
       TfLitePadding padding_mode,
       GetTfLitePaddingMode(*conv2d.padding, input_size2d, filter_size2d,
@@ -7303,16 +7318,15 @@ auto GraphBuilderTflite::SerializeDequantizeLinear(
     -> base::expected<OperatorOffset, std::string> {
   const mojom::Operand& input_operand =
       GetOperand(dequantize_linear.input_operand_id);
-  CHECK(context_properties_.data_type_limits.dequantize_linear_input.Supports(
-      input_operand.descriptor));
+  const mojom::Operand& zero_point_operand =
+      GetOperand(dequantize_linear.zero_point_operand_id);
+  CHECK(
+      context_properties_.data_type_limits.dequantize_linear_input.SupportsAll(
+          {input_operand.descriptor, zero_point_operand.descriptor}));
   const mojom::Operand& scale_operand =
       GetOperand(dequantize_linear.scale_operand_id);
   CHECK(context_properties_.data_type_limits.dequantize_linear_scale.Supports(
       scale_operand.descriptor));
-  const mojom::Operand& zero_point_operand =
-      GetOperand(dequantize_linear.zero_point_operand_id);
-  CHECK(context_properties_.data_type_limits.dequantize_linear_zero_point
-            .Supports(zero_point_operand.descriptor));
 
   std::optional<QuantizateParametersOffset> quantize_params =
       SerializeQuantizeParams(dequantize_linear.zero_point_operand_id,

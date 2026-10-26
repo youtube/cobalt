@@ -264,6 +264,13 @@ void LayerTreeView::WillBeginMainFrame() {
   delegate_->WillBeginMainFrame();
 }
 
+void LayerTreeView::WillBeginImplCommit() {
+  if (!delegate_) {
+    return;
+  }
+  delegate_->WillBeginImplCommit();
+}
+
 void LayerTreeView::DidBeginMainFrame() {
   if (!delegate_)
     return;
@@ -455,6 +462,11 @@ void LayerTreeView::DidPresentCompositorFrame(
              ->RunsTasksInCurrentSequence());
   // Only run callbacks on successful presentations.
   if (frame_timing_details.presentation_feedback.failed()) {
+#if BUILDFLAG(IS_COBALT)
+    // cobalt-frame does not report failed frames, but still needs their swap
+    // end to compute the next frame's framePrepDuration.
+    delegate_->DidPresentCobaltFrame(frame_token, frame_timing_details);
+#endif
     return;
   }
   while (!presentation_callbacks_.empty()) {
@@ -465,6 +477,10 @@ void LayerTreeView::DidPresentCompositorFrame(
       std::move(callback).Run(frame_timing_details);
     presentation_callbacks_.erase(front);
   }
+
+#if BUILDFLAG(IS_COBALT)
+  delegate_->DidPresentCobaltFrame(frame_token, frame_timing_details);
+#endif
 
 #if BUILDFLAG(IS_APPLE)
   while (!core_animation_error_code_callbacks_.empty()) {

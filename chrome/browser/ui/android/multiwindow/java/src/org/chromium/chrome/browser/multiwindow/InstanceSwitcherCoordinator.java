@@ -38,8 +38,6 @@ import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.multiwindow.UiUtils.NameWindowDialogSource;
-import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.components.browser_ui.util.TimeTextResolver;
 import org.chromium.components.browser_ui.widget.BoundedLinearLayout;
 import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
@@ -213,7 +211,7 @@ public class InstanceSwitcherCoordinator {
                                 mInstanceListContainer,
                                 mInactiveInstancesList,
                                 mIsInactiveListShowing,
-                                getTotalInstanceCount() < mMaxInstanceCount);
+                                shouldAllowNewWindowCreation());
                         mActiveInstancesList.setVisibility(isActiveTab ? View.VISIBLE : View.GONE);
                         mInactiveInstancesList.setVisibility(
                                 isActiveTab ? View.GONE : View.VISIBLE);
@@ -228,7 +226,7 @@ public class InstanceSwitcherCoordinator {
                                 mMinCommandItemHeightPx,
                                 mItemPaddingHeightPx,
                                 /* registerResizeListener= */ false);
-                        updateCommandUiState(getTotalInstanceCount() < mMaxInstanceCount);
+                        updateCommandUiState(shouldAllowNewWindowCreation());
                         unselectItems(/* hideVisibleList= */ false);
                         updateMoreMenu();
                         updatePositiveButtonText();
@@ -447,7 +445,7 @@ public class InstanceSwitcherCoordinator {
         addItemsToModelList(mInactiveModelList, inactiveInstances);
 
         // Update UI state.
-        updateCommandUiState(getTotalInstanceCount() < mMaxInstanceCount);
+        updateCommandUiState(shouldAllowNewWindowCreation());
         updateTabTitle(mActiveModelList.size(), mInactiveModelList.size());
 
         mDialog = createDialog(mDialogView);
@@ -534,7 +532,7 @@ public class InstanceSwitcherCoordinator {
     }
 
     private PropertyModel generateListItem(InstanceInfo item) {
-        String title = mUiUtils.getItemTitle(item);
+        String title = UiUtils.getItemTitle(mContext, item);
         String desc = mUiUtils.getItemDesc(item);
         boolean isCurrentWindow = item.type == InstanceInfo.Type.CURRENT;
         PropertyModel.Builder builder =
@@ -562,7 +560,7 @@ public class InstanceSwitcherCoordinator {
                     InstanceSwitcherItemProperties.CLOSE_BUTTON_CONTENT_DESCRIPTION,
                     mContext.getString(
                             R.string.instance_switcher_item_close_content_description,
-                            mUiUtils.getItemTitle(item)));
+                            UiUtils.getItemTitle(mContext, item)));
             timestamp = calculateClosureTime(item);
         }
         String lastAccessedString =
@@ -606,7 +604,7 @@ public class InstanceSwitcherCoordinator {
                 InstanceSwitcherItemProperties.MORE_MENU_CONTENT_DESCRIPTION,
                 mContext.getString(
                         R.string.instance_switcher_item_more_menu_content_description,
-                        mUiUtils.getItemTitle(item)));
+                        UiUtils.getItemTitle(mContext, item)));
     }
 
     private void closeWindow(InstanceInfo item) {
@@ -771,10 +769,12 @@ public class InstanceSwitcherCoordinator {
                 : R.string.max_number_of_windows_instance_switcher_v2_active_tab;
     }
 
-    private int getTotalInstanceCount() {
-        int numActiveInstances = mActiveModelList.size();
-        int numInactiveInstances = mInactiveModelList.size();
-        return numActiveInstances + numInactiveInstances;
+    private boolean shouldAllowNewWindowCreation() {
+        int instanceCount = mActiveModelList.size();
+        if (!UiUtils.isRobustWindowManagementEnabled()) {
+            instanceCount += mInactiveModelList.size();
+        }
+        return instanceCount < mMaxInstanceCount;
     }
 
     private void removeInstances(List<Integer> instanceIds) {
@@ -796,7 +796,7 @@ public class InstanceSwitcherCoordinator {
             removeItemFromModelList(
                     instanceId, mIsInactiveListShowing ? mInactiveModelList : mActiveModelList);
             updateActionButtons();
-            updateCommandUiState(getTotalInstanceCount() < mMaxInstanceCount);
+            updateCommandUiState(shouldAllowNewWindowCreation());
             updateTabTitle(mActiveModelList.size(), mInactiveModelList.size());
             updateMoreMenu();
             updateInactiveListEmptyStateVisibility();
@@ -818,14 +818,12 @@ public class InstanceSwitcherCoordinator {
     private static boolean canSkipConfirm(InstanceInfo item) {
         // Unrestorable, invisible instance can be deleted without confirmation.
         if (UiUtils.totalTabCount(item) == 0 && item.type == InstanceInfo.Type.OTHER) return true;
-        return ChromeSharedPreferences.getInstance()
-                .readBoolean(ChromePreferenceKeys.MULTI_INSTANCE_CLOSE_WINDOW_SKIP_CONFIRM, false);
+        return MultiInstancePersistentStore.readCloseWindowSkipConfirm();
     }
 
     @VisibleForTesting
     static void setSkipCloseConfirmation() {
-        ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.MULTI_INSTANCE_CLOSE_WINDOW_SKIP_CONFIRM, true);
+        MultiInstancePersistentStore.writeCloseWindowSkipConfirm(true);
     }
 
     private void showConfirmationMessage(InstanceInfo item) {
@@ -899,7 +897,7 @@ public class InstanceSwitcherCoordinator {
                                         item.isIncognitoSelected,
                                         item.lastAccessedTime,
                                         item.closureTime);
-                        newTitle = mUiUtils.getItemTitle(updatedItem);
+                        newTitle = UiUtils.getItemTitle(mContext, updatedItem);
                     }
 
                     listItem.model.set(InstanceSwitcherItemProperties.TITLE, newTitle);

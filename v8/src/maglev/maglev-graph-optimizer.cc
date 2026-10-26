@@ -442,9 +442,7 @@ ReduceResult MaglevGraphOptimizer::EmitThrow(Throw::Function function,
 template <typename NodeT>
 ProcessResult MaglevGraphOptimizer::ProcessLoadContextSlot(NodeT* node) {
   REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryGetContextCachedValue(
-      node->input_node(0), node->offset(),
-      node->is_const() ? ContextSlotMutability::kImmutable
-                       : ContextSlotMutability::kMutable));
+      node->input_node(0), node->offset(), node->maybe_assigned()));
   return ProcessResult::kContinue;
 }
 
@@ -601,7 +599,7 @@ ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
                 std::is_same_v<NodeT, CheckMapsWithMigrationAndDeopt>) {
     NodeInfo* known_info =
         known_node_aspects().GetOrCreateInfoFor(broker(), object);
-    node->set_check_type(reducer_.GetCheckType(known_info->type()));
+    node->set_check_type(reducer_.GetCheckType(known_info->type(), object));
   }
 
   merger.UpdateKnownNodeAspects(object, known_node_aspects());
@@ -611,6 +609,11 @@ ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
 ProcessResult MaglevGraphOptimizer::VisitCheckMaps(
     CheckMaps* node, const ProcessingState& state) {
   return ProcessCheckMaps(node);
+}
+
+ProcessResult MaglevGraphOptimizer::VisitCheckHomomorphicMap(
+    CheckHomomorphicMap* node, const ProcessingState& state) {
+  return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCheckMapsWithMigrationAndDeopt(
@@ -1735,7 +1738,12 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedNumberToUint8Clamped(
 
 ProcessResult MaglevGraphOptimizer::VisitInt32ToNumber(
     Int32ToNumber* node, const ProcessingState& state) {
-  REPLACE_AND_RETURN_IF_DONE(TrySmiTag<UnsafeSmiTagInt32>(node->ValueInput()));
+  if (node->conversion_mode() != NumberConversionMode::kForceHeapNumber) {
+    REPLACE_AND_RETURN_IF_DONE(
+        TrySmiTag<UnsafeSmiTagInt32>(node->ValueInput()));
+  } else {
+    // TODO(b/424157317): Optimize.
+  }
   return ProcessResult::kContinue;
 }
 
@@ -1779,12 +1787,6 @@ ProcessResult MaglevGraphOptimizer::VisitIntPtrToBoolean(
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64ToTagged(
     Float64ToTagged* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
-  return ProcessResult::kContinue;
-}
-
-ProcessResult MaglevGraphOptimizer::VisitFloat64ToHeapNumberForField(
-    Float64ToHeapNumberForField* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -2234,8 +2236,16 @@ ProcessResult MaglevGraphOptimizer::VisitInt32MultiplyWithOverflow(
   if (auto lhs_range = GetRange(node->input_node(0))) {
     if (auto rhs_range = GetRange(node->input_node(1))) {
       if (Range::Mul(*lhs_range, *rhs_range).IsInt32()) {
-        return ReplaceWith<Int32Multiply>(
-            {node->input_node(0), node->input_node(1)});
+        bool lhs_can_be_zero = lhs_range->min() <= 0 && lhs_range->max() >= 0;
+        bool rhs_can_be_zero = rhs_range->min() <= 0 && rhs_range->max() >= 0;
+        bool lhs_can_be_neg = lhs_range->min() < 0;
+        bool rhs_can_be_neg = rhs_range->min() < 0;
+        bool can_be_neg_zero = (lhs_can_be_zero && rhs_can_be_neg) ||
+                               (rhs_can_be_zero && lhs_can_be_neg);
+        if (!can_be_neg_zero) {
+          return ReplaceWith<Int32Multiply>(
+              {node->input_node(0), node->input_node(1)});
+        }
       }
     }
   }

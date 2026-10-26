@@ -16,7 +16,6 @@
 #import "base/timer/timer.h"
 #import "base/values.h"
 #import "components/prefs/pref_service.h"
-#import "components/send_tab_to_self/features.h"
 #import "components/sync_device_info/device_info_sync_service.h"
 #import "google_apis/gaia/gaia_id.h"
 #import "ios/chrome/app/application_delegate/app_state.h"
@@ -94,6 +93,12 @@ enum class PushNotificationLifecycleEvent {
   kNotificationInteraction,
   kMaxValue = kNotificationInteraction
 };
+
+BASE_FEATURE_PARAM(int,
+                   kDeliveredNAUMaxPerSessionFeature,
+                   &kContentNotificationDeliveredNAU,
+                   kDeliveredNAUMaxPerSession,
+                   kDeliveredNAUMaxSendsPerSession);
 
 // Extract the notification information from `attr`, and store them into
 // `mapping`. Will also copy the notification permission from the profile's
@@ -722,10 +727,7 @@ void ProcessIncomingNotification(
                             !error);
   if (!error) {
     if (ProfileIOS* profile = weakProfile.get()) {
-      if (base::FeatureList::IsEnabled(
-              send_tab_to_self::kSendTabToSelfIOSPushNotifications)) {
         [self setUpAndEnableSendTabNotificationsWithProfile:profile];
-      }
     }
   }
 }
@@ -949,9 +951,7 @@ void ProcessIncomingNotification(
   if (IsContentNotificationEnabled(profile)) {
     ContentNotificationService* contentNotificationService =
         ContentNotificationServiceFactory::GetForProfile(profile);
-    int maxNauSentPerSession = base::GetFieldTrialParamByFeatureAsInt(
-        kContentNotificationDeliveredNAU, kDeliveredNAUMaxPerSession,
-        kDeliveredNAUMaxSendsPerSession);
+    int maxNauSentPerSession = kDeliveredNAUMaxPerSessionFeature.Get();
     // Check if there are notifications received in the background to send the
     // respective NAUs.
     NSUserDefaults* defaults = app_group::GetGroupUserDefaults();

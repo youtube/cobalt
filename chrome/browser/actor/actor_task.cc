@@ -137,10 +137,12 @@ ActorTask::ActorTask(base::PassKey<ActorKeyedService, ActorTask>,
                      TaskId id,
                      std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
                      webui::mojom::TaskOptionsPtr options,
+                     const TaskSourceInfo& source_info,
                      const EnterprisePolicyUrlChecker* policy_checker,
                      base::WeakPtr<ActorTaskDelegate> delegate)
     : service_(service),
       id_(id),
+      source_info_(source_info),
       create_time_(base::TimeTicks::Now()),
       action_tracker_for_metrics_(std::make_unique<ActionTrackerForMetrics>()),
       ui_event_dispatcher_(std::move(ui_event_dispatcher)),
@@ -167,11 +169,12 @@ std::unique_ptr<ActorTask> ActorTask::CreateForTesting(
     TaskId id,
     std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
     webui::mojom::TaskOptionsPtr options,
+    const TaskSourceInfo& source_info,
     const EnterprisePolicyUrlChecker* policy_checker,
     base::WeakPtr<ActorTaskDelegate> delegate) {
   return std::make_unique<ActorTask>(
       base::PassKey<ActorTask>(), service, id, std::move(ui_event_dispatcher),
-      std::move(options), policy_checker, std::move(delegate));
+      std::move(options), source_info, policy_checker, std::move(delegate));
 }
 
 ExecutionEngine& ActorTask::GetExecutionEngine() const {
@@ -263,6 +266,7 @@ void ActorTask::SetState(State new_state) {
       DidTabExitActorControl(tab);
     }
     ResetToObserveTabsSet();
+    ResetAdditionalTabObservations();
   }
   if (IsInterruptedState(new_state)) {
     ++total_number_of_interruptions_;
@@ -294,17 +298,17 @@ void ActorTask::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
   if (IsUnderUserControl()) {
     journal_->Log(GURL(), id(), "ActorTask::Act",
                   JournalDetailsBuilder().AddError("Task is paused").Build());
-    MaybeRunLater(base::BindOnce(
-        std::move(callback), MakeResult(mojom::ActionResultCode::kTaskPaused),
-        std::nullopt, std::vector<ActionResultWithLatencyInfo>()));
+    MaybeRunLater(
+        base::BindOnce(std::move(callback),
+                       MakeResultVector(mojom::ActionResultCode::kTaskPaused)));
     return;
   }
   if (IsCompleted()) {
     journal_->Log(GURL(), id(), "ActorTask::Act",
                   JournalDetailsBuilder().AddError("Task is Stopped").Build());
     MaybeRunLater(base::BindOnce(
-        std::move(callback), MakeResult(mojom::ActionResultCode::kTaskWentAway),
-        std::nullopt, std::vector<ActionResultWithLatencyInfo>()));
+        std::move(callback),
+        MakeResultVector(mojom::ActionResultCode::kTaskWentAway)));
     return;
   }
 
@@ -314,12 +318,12 @@ void ActorTask::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
         JournalDetailsBuilder().AddError("Task is Waiting for User").Build());
     MaybeRunLater(base::BindOnce(
         std::move(callback),
-        MakeResult(mojom::ActionResultCode::kInvalidTaskStateForAct),
-        std::nullopt, std::vector<ActionResultWithLatencyInfo>()));
+        MakeResultVector(mojom::ActionResultCode::kInvalidTaskStateForAct)));
     return;
   }
 
   ResetToObserveTabsSet();
+  ResetAdditionalTabObservations();
 
   callback_for_act_ = std::move(callback);
 
@@ -356,9 +360,15 @@ void ActorTask::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
 }
 
 void ActorTask::OnFinishedAct(
-    mojom::ActionResultPtr result,
-    std::optional<size_t> index_of_failed_action,
     std::vector<ActionResultWithLatencyInfo> action_results) {
+  mojom::ActionResultPtr result = MakeOkResult();
+  for (const auto& action_result : action_results) {
+    if (!IsOk(action_result.result->code)) {
+      result = action_result.result->Clone();
+      break;
+    }
+  }
+
   if (state_ != State::kActing) {
     // Note: this likely isn't a problem when it happens - e.g. the task was
     // paused while the act was in progress but we note it here for debugging
@@ -392,9 +402,7 @@ void ActorTask::OnFinishedAct(
     if (result) {
       action_tracker_for_metrics_->OnFinishedAct(*result);
     }
-    std::move(callback_for_act_)
-        .Run(std::move(result), index_of_failed_action,
-             std::move(action_results));
+    std::move(callback_for_act_).Run(std::move(action_results));
   }
 
   if (state_ == State::kActing ||
@@ -411,9 +419,7 @@ void ActorTask::Stop(StoppedReason stop_reason) {
     mojom::ActionResultPtr result =
         MakeResult(mojom::ActionResultCode::kTaskWentAway);
     action_tracker_for_metrics_->OnFinishedAct(*result);
-    std::move(callback_for_act_)
-        .Run(std::move(result), /*index_of_failed_action=*/std::nullopt,
-             /*action_results=*/{});
+    std::move(callback_for_act_).Run(MakeResultVector(std::move(result)));
   }
 
   CancelOngoingActions(mojom::ActionResultCode::kTaskWentAway);
@@ -450,9 +456,7 @@ void ActorTask::Pause(bool from_actor, bool cancel_existing_action) {
     mojom::ActionResultPtr result =
         MakeResult(mojom::ActionResultCode::kTaskPaused);
     action_tracker_for_metrics_->OnFinishedAct(*result);
-    std::move(callback_for_act_)
-        .Run(MakeResult(mojom::ActionResultCode::kTaskPaused),
-             /*index_of_failed_action=*/std::nullopt, /*action_results=*/{});
+    std::move(callback_for_act_).Run(MakeResultVector(std::move(result)));
   }
 
   if (cancel_existing_action) {
@@ -692,8 +696,7 @@ void ActorTask::DidEarlyAddTabs(
   // with failure.
   for (mojom::ActionResultPtr& result : add_tab_results) {
     if (!IsOk(*result)) {
-      OnFinishedAct(std::move(result), /*index_of_failed_action=*/std::nullopt,
-                    /*action_results=*/{});
+      OnFinishedAct(MakeResultVector(std::move(result)));
       return;
     }
   }
@@ -743,6 +746,10 @@ void ActorTask::ResetToObserveTabsSet() {
     DidContentsExitActorControl(state.get(), tab->GetContents());
   }
   to_observe_tabs_.clear();
+}
+
+void ActorTask::ResetAdditionalTabObservations() {
+  additional_tab_observations_.clear();
 }
 
 bool ActorTask::HasTab(tabs::TabHandle tab) const {
@@ -854,6 +861,15 @@ void ActorTask::DidContentsExitActorControl(
 #if BUILDFLAG(IS_MAC) && BUILDFLAG(USE_EXTERNAL_POPUP_MENU)
   state->reenable_external_popups = {};
 #endif  // BUILDFLAG(IS_MAC) && BUILDFLAG(USE_EXTERNAL_POPUP_MENU)
+}
+
+void ActorTask::AddAdditionalTabObservations(
+    std::vector<optimization_guide::proto::TabObservation> tab_observations) {
+  // This is currently only used by the load and extract content tool.
+  CHECK(base::FeatureList::IsEnabled(kGlicActorLoadAndExtractContentTool));
+  CHECK(additional_tab_observations_.empty());
+
+  additional_tab_observations_ = std::move(tab_observations);
 }
 
 std::string ToString(const ActorTask::State& state) {

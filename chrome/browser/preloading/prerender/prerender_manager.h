@@ -141,11 +141,15 @@ class PrerenderManager : public content::WebContentsObserver,
   // Decides if prewarm should be triggered. If not, returns the reason why.
   // Otherwise, returns kReady and sets `prewarm_url`.
   PrewarmDecision ShouldPrewarm(GURL& prewarm_url);
+  bool IsPrewarmValid();
 
   void OnSearchPrewarmPrerenderNavigationHandle(
       content::NavigationHandle& navigation_handle);
 
+  void NotifySearchPrewarmFinished();
+
   std::unique_ptr<content::PrerenderHandle> search_prewarm_handle_;
+  bool is_search_prewarm_ongoing_ = false;
   std::optional<GURL> prewarm_url_for_testing_;
 
   // Stores the prerender which serves for search results. It is responsible for

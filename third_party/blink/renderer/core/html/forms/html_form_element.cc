@@ -45,12 +45,14 @@
 #include "third_party/blink/renderer/core/dom/events/scoped_event_queue.h"
 #include "third_party/blink/renderer/core/dom/node_lists_node_data.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
+#include "third_party/blink/renderer/core/execution_context/agent.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/remote_frame.h"
 #include "third_party/blink/renderer/core/html/collection_type.h"
+#include "third_party/blink/renderer/core/html/custom/ce_reactions_scope.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element.h"
 #include "third_party/blink/renderer/core/html/custom/element_internals.h"
 #include "third_party/blink/renderer/core/html/forms/form_controller.h"
@@ -165,11 +167,22 @@ bool HTMLFormElement::MatchesToolFormActivePseudoClass() const {
 void HTMLFormElement::HTMLFormMcpTool::ExecuteTool(
     String input_arguments,
     base::OnceCallback<void(McpToolCallbackResult)> done_callback) {
+  UseCounter::Count(form_->GetDocument(),
+                    WebFeature::kModelContextExecuteDeclarativeTool);
   bool require_submit_button =
       !form_->FastHasAttribute(html_names::kToolautosubmitAttr);
+  if (!require_submit_button) {
+    UseCounter::Count(form_->GetDocument(),
+                      WebFeature::kModelContextExecuteDeclarativeAutosubmit);
+  }
   HTMLFormControlElement* submit_button = nullptr;
-  std::optional<WebDocument::ScriptToolError> error =
-      FillFormControls(input_arguments, require_submit_button, &submit_button);
+
+  std::optional<ScriptToolError> error;
+  {
+    CEReactionsScope reactions(form_->GetDocument().GetAgent().isolate());
+    error = FillFormControls(input_arguments, require_submit_button,
+                             &submit_button);
+  }
 
   if (error.has_value()) {
     return std::move(done_callback).Run(base::unexpected(error.value()));
@@ -204,7 +217,7 @@ void HTMLFormElement::HTMLFormMcpTool::ExecuteTool(
   }
 }
 
-std::optional<WebDocument::ScriptToolError>
+std::optional<ScriptToolError>
 HTMLFormElement::HTMLFormMcpTool::FillFormControls(
     const String& input_arguments,
     bool require_submit_button,
@@ -212,23 +225,21 @@ HTMLFormElement::HTMLFormMcpTool::FillFormControls(
   *submit_button = nullptr;
   std::unique_ptr<JSONValue> json = ParseJSON(input_arguments);
   if (!json) {
-    return WebDocument::ScriptToolError(
-        WebDocument::ScriptToolError::kInvalidInputArguments,
-        "Failed to parse input string as JSON");
+    return ScriptToolError(ScriptToolErrorCode::kInvalidInputArguments,
+                           "Failed to parse input string as JSON");
   }
 
   std::unique_ptr<JSONObject> json_obj = JSONObject::From(std::move(json));
   if (!json_obj) {
-    return WebDocument::ScriptToolError(
-        WebDocument::ScriptToolError::kInvalidInputArguments,
-        "JSON input arguments must be an object");
+    return ScriptToolError(ScriptToolErrorCode::kInvalidInputArguments,
+                           "JSON input arguments must be an object");
   }
 
   FormMCPSchema mcp_schema(*form_);
   *submit_button = mcp_schema.SubmitButton();
   if (!*submit_button && require_submit_button) {
-    return WebDocument::ScriptToolError(
-        WebDocument::ScriptToolError::kMissingRequiredSubmitButton,
+    return ScriptToolError(
+        ScriptToolErrorCode::kMissingRequiredSubmitButton,
         "No submit button was found, but for a form without `toolautosubmit`, "
         "there must be a submit button");
   }
@@ -290,9 +301,9 @@ void HTMLFormElement::HandleWebMcpToolResponse(HTMLFormMcpTool* tool,
     // Promise rejected - error.
     V8ScriptRunner::ReportException(script_state->GetIsolate(),
                                     value.V8Value());
-    tool->CallDoneCallback(base::unexpected(WebDocument::ScriptToolError(
-        WebDocument::ScriptToolError::kToolInvocationFailed,
-        "respondWith promise was rejected")));
+    tool->CallDoneCallback(base::unexpected(
+        ScriptToolError(ScriptToolErrorCode::kToolInvocationFailed,
+                        "respondWith promise was rejected")));
   }
 }
 
@@ -330,10 +341,9 @@ void HTMLFormElement::UpdateMcpDefinitionsIfNeeded() {
   if (IsValidWebMCPForm()) {
     CHECK(!is_valid_mcp_form || name_or_description_changed);
     // Unregister the tool to ensure any in-flight tool executions are aborted.
-    active_webmcp_tool_->CallDoneCallback(
-        base::unexpected(WebDocument::ScriptToolError(
-            WebDocument::ScriptToolError::kToolCancelled,
-            "Tool execution cancelled, since tool definition was updated")));
+    active_webmcp_tool_->CallDoneCallback(base::unexpected(ScriptToolError(
+        ScriptToolErrorCode::kToolCancelled,
+        "Tool execution cancelled, since tool definition was updated")));
     model_context->unregisterTool(active_webmcp_tool_->ToolName(),
                                   ASSERT_NO_EXCEPTION);
     active_webmcp_tool_ = nullptr;
@@ -889,10 +899,9 @@ void HTMLFormElement::reset() {
   }
 
   if (active_webmcp_tool_) {
-    active_webmcp_tool_->CallDoneCallback(
-        base::unexpected(WebDocument::ScriptToolError(
-            WebDocument::ScriptToolError::kToolCancelled,
-            "Tool execution cancelled by a form reset")));
+    active_webmcp_tool_->CallDoneCallback(base::unexpected(
+        ScriptToolError(ScriptToolErrorCode::kToolCancelled,
+                        "Tool execution cancelled by a form reset")));
   }
 
   is_in_reset_function_ = false;
@@ -1373,7 +1382,7 @@ bool HTMLFormElement::HasNamedElements(const AtomicString& name) {
 }
 
 bool HTMLFormElement::ShouldAutocomplete() const {
-  return !EqualIgnoringASCIICase(
+  return !EqualIgnoringAsciiCase(
       FastGetAttribute(html_names::kAutocompleteAttr), "off");
 }
 
@@ -1397,7 +1406,8 @@ bool HTMLFormElement::HasAnyNamedProperties() const {
   return (elements && !elements->NamedItemsEmpty()) || !PastNamesEmpty();
 }
 
-V8UnionElementOrRadioNodeList* HTMLFormElement::AnonymousNamedGetter(
+V8UnionElementOrRadioNodeList::Ret HTMLFormElement::AnonymousNamedGetter(
+    ScriptState* script_state,
     const AtomicString& name) {
   // Call getNamedElements twice, first time check if it has a value
   // and let HTMLFormElement update its cache.
@@ -1406,7 +1416,7 @@ V8UnionElementOrRadioNodeList* HTMLFormElement::AnonymousNamedGetter(
     HeapVector<Member<Element>> elements;
     GetNamedElements(name, elements);
     if (elements.empty())
-      return nullptr;
+      return {};
   }
 
   // Second call may return different results from the first call,
@@ -1432,10 +1442,10 @@ V8UnionElementOrRadioNodeList* HTMLFormElement::AnonymousNamedGetter(
     }
   }
   if (elements.size() == 1) {
-    return MakeGarbageCollected<V8UnionElementOrRadioNodeList>(elements[0]);
+    return V8UnionElementOrRadioNodeList::Ret(script_state, elements[0]);
   }
-  return MakeGarbageCollected<V8UnionElementOrRadioNodeList>(
-      GetRadioNodeList(name, only_match_img));
+  return V8UnionElementOrRadioNodeList::Ret(
+      script_state, GetRadioNodeList(name, only_match_img));
 }
 
 bool HTMLFormElement::NamedPropertyQuery(const AtomicString& name,
@@ -1463,7 +1473,7 @@ void HTMLFormElement::UseCountPropertyAccess(
     v8::Local<v8::Name>& v8_property_name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   bool hasPropertyInPrototypeChain =
-      !info.HolderV2()
+      !info.Holder()
            ->GetRealNamedPropertyInPrototypeChain(
                info.GetIsolate()->GetCurrentContext(), v8_property_name)
            .IsEmpty();

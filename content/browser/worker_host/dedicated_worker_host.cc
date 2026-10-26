@@ -174,6 +174,10 @@ DedicatedWorkerHost::~DedicatedWorkerHost() {
     lock_manager->RemoveLockObserver(GetToken().value());
   }
 
+  GetStoragePartitionImpl()->ClearNoncesInNetworkContextAfterDelay({
+      network_restrictions_id_,
+  });
+
   // Send any final reports and allow the reporting configuration to be
   // removed. Note that the RenderProcessHost and the associated
   // StoragePartition outlives `this`.
@@ -913,7 +917,7 @@ void DedicatedWorkerHost::CreateCodeCacheHost(
     mojo::PendingReceiver<blink::mojom::CodeCacheHost> receiver) {
   // Create a new CodeCacheHostImpl and bind it to the given receiver.
   RenderProcessHost* rph = GetProcessHost();
-  code_cache_host_receivers_.Add(rph->GetDeprecatedID(),
+  code_cache_host_receivers_.Add(rph->GetID(),
                                  isolation_info_.network_isolation_key(),
                                  GetStorageKey(), std::move(receiver));
 }
@@ -1011,7 +1015,7 @@ void DedicatedWorkerHost::BindPressureService(
 void DedicatedWorkerHost::ObserveNetworkServiceCrash(
     StoragePartitionImpl* storage_partition_impl) {
   auto params = network::mojom::URLLoaderFactoryParams::New();
-  params->process_id = ToOriginatingProcess(worker_process_host_->GetID());
+  params->process_id = ToOriginatingProcessId(worker_process_host_->GetID());
   params->debug_tag = "DedicatedWorkerHost::ObserveNetworkServiceCrash";
   network_service_connection_error_handler_holder_.reset();
   storage_partition_impl->GetNetworkContext()->CreateURLLoaderFactory(

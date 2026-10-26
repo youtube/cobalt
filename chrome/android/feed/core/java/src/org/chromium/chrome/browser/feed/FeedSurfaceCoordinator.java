@@ -28,7 +28,6 @@ import android.widget.TextView;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.Px;
-import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
@@ -47,11 +46,6 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.feed.componentinterfaces.SurfaceCoordinator;
-import org.chromium.chrome.browser.feed.sections.SectionHeaderListProperties;
-import org.chromium.chrome.browser.feed.sections.SectionHeaderView;
-import org.chromium.chrome.browser.feed.sections.SectionHeaderViewBinder;
-import org.chromium.chrome.browser.feed.sort_ui.FeedOptionsCoordinator;
-import org.chromium.chrome.browser.feed.webfeed.WebFeedBridge;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.magic_stack.ModuleRegistry;
 import org.chromium.chrome.browser.ntp.NewTabPageLaunchOrigin;
@@ -92,11 +86,6 @@ import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.edge_to_edge.EdgeToEdgePadAdjuster;
-import org.chromium.ui.modelutil.ListModelChangeProcessor;
-import org.chromium.ui.modelutil.PropertyKey;
-import org.chromium.ui.modelutil.PropertyListModel;
-import org.chromium.ui.modelutil.PropertyModel;
-import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -109,7 +98,6 @@ public class FeedSurfaceCoordinator
                 FeedBubbleDelegate,
                 SwipeRefreshLayout.OnRefreshListener,
                 SurfaceCoordinator,
-                HasContentListener,
                 FeedContentFirstLoadWatcher {
     @Nullable ImageView getRecyclerViewSnapshotOverlayForTesting() {
         return mRecyclerViewSnapshotOverlay;
@@ -128,6 +116,12 @@ public class FeedSurfaceCoordinator
     private final ObserverList<SurfaceCoordinator.Observer> mObservers = new ObserverList<>();
     private final FeedActionDelegate mActionDelegate;
     private final boolean mUseStaggeredLayout;
+
+    /** Factory for creating {@link FeedActionDelegate}. */
+    public interface ActionDelegateFactory {
+        FeedActionDelegate createActionDelegate();
+    }
+
     private final int mDefaultBackgroundColor;
 
     // FeedReliabilityLogger params.
@@ -146,15 +140,7 @@ public class FeedSurfaceCoordinator
     private final Profile mProfile;
     private @Nullable FeedSurfaceLifecycleManager mFeedSurfaceLifecycleManager;
     private @Nullable View mSigninPromoView;
-    // Feed header fields.
-    private @Nullable PropertyModel mSectionHeaderModel;
     private final @Nullable ViewGroup mViewportView;
-    private @Nullable
-            ListModelChangeProcessor<
-                    PropertyListModel<PropertyModel, PropertyKey>, SectionHeaderView, PropertyKey>
-            mSectionHeaderListModelChangeProcessor;
-    private @Nullable PropertyModelChangeProcessor<PropertyModel, SectionHeaderView, PropertyKey>
-            mSectionHeaderModelChangeProcessor;
     // Feed RecyclerView/xSurface fields.
     private FeedListContentManager mContentManager;
     private final RecyclerView mRecyclerView;
@@ -168,8 +154,6 @@ public class FeedSurfaceCoordinator
     // In New Tab Page, it does not track the header offset (no header) - instead, it
     // tracks scrolling events.
     private @Nullable ScrollableContainerDelegate mScrollableContainerDelegate;
-
-    private @Nullable HeaderIphScrollListener mHeaderIphScrollListener;
     private @Nullable RefreshIphScrollListener mRefreshIphScrollListener;
     private @Nullable FeedReliabilityLogger mReliabilityLogger;
     private final PrivacyPreferencesManagerImpl mPrivacyPreferencesManager;
@@ -177,14 +161,11 @@ public class FeedSurfaceCoordinator
     private final Supplier<Toolbar> mToolbarSupplier;
 
     private FeedSwipeRefreshLayout mSwipeRefreshLayout;
-
-    private boolean mWebFeedHasContent;
     private final NonNullObservableSupplier<Integer> mTabStripHeightSupplier;
     private final Callback<Integer> mTabStripHeightChangeCallback;
 
     // Used to handle padding adjustment when edge to edge is enabled.
     private final EdgeToEdgePadAdjuster mEdgePadAdjuster;
-    private final boolean mIsNewTabPageCustomizationEnabled;
     private final boolean mIsNewTabPageCustomizationV2Enabled;
     private @Nullable ImageButton mNtpCustomizationButton;
     private @Nullable NtpCustomizationConfigManager mNtpCustomizationConfigManager;
@@ -198,6 +179,8 @@ public class FeedSurfaceCoordinator
          */
         RootView(Context context) {
             super(context);
+            setClipChildren(false);
+            setClipToPadding(false);
         }
 
         @Override
@@ -219,7 +202,7 @@ public class FeedSurfaceCoordinator
                 mRecyclerView.post(mRecyclerView::invalidateItemDecorations);
                 updateNtpHeaderMargins();
             }
-            if (mIsNewTabPageCustomizationEnabled && mUseStaggeredLayout) {
+            if (mUseStaggeredLayout) {
                 updateNtpCustomizationButtonVisibility();
             }
         }
@@ -373,15 +356,6 @@ public class FeedSurfaceCoordinator
         private int mPrevState = -1;
     }
 
-    private class Scroller implements Runnable {
-        @Override
-        public void run() {
-            // The feed header may not be visible for smaller screens or landscape mode. Scroll
-            // to show the header after showing the IPH.
-            mMediator.scrollToViewIfNecessary(getHeaderPosition());
-        }
-    }
-
     // Returns the index of the header if it is visible. Otherwise returns the index after the
     // invisible header.
     int getHeaderPosition() {
@@ -415,7 +389,7 @@ public class FeedSurfaceCoordinator
      * @param overScrollDisabled Whether the overscroll effect is disabled.
      * @param viewportView The view that should be used as a container for viewport measurement
      *     purposes, or |null| if the view returned by HybridListRenderer is to be used.
-     * @param actionDelegate Implements some Feed actions.
+     * @param createActionDelegate Factory for creating the implementation of Feed actions.
      * @param tabStripHeightSupplier Supplier for the tab strip height.
      * @param edgeToEdgeControllerSupplier Supplier for the {@link EdgeToEdgeController} instance.
      * @param moduleRegistry The instance of {@link ModuleRegistry}.
@@ -440,7 +414,7 @@ public class FeedSurfaceCoordinator
             FeedSwipeRefreshLayout swipeRefreshLayout,
             boolean overScrollDisabled,
             @Nullable ViewGroup viewportView,
-            FeedActionDelegate actionDelegate,
+            ActionDelegateFactory createActionDelegate,
             NonNullObservableSupplier<Integer> tabStripHeightSupplier,
             MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
             @Nullable ModuleRegistry moduleRegistry) {
@@ -459,16 +433,13 @@ public class FeedSurfaceCoordinator
         mSwipeRefreshLayout = swipeRefreshLayout;
         mOverScrollDisabled = overScrollDisabled;
         mViewportView = viewportView;
-        mActionDelegate = actionDelegate;
+        mActionDelegate = createActionDelegate.createActionDelegate();
         mEmbeddingSurfaceCreatedTimeNs = embeddingSurfaceCreatedTimeNs;
-        mWebFeedHasContent = false;
         mHeaderIndex = 0;
         mTabStripHeightSupplier = tabStripHeightSupplier;
         mUseStaggeredLayout = DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity);
-        mIsNewTabPageCustomizationEnabled = ChromeFeatureList.sNewTabPageCustomization.isEnabled();
         mIsNewTabPageCustomizationV2Enabled =
-                mIsNewTabPageCustomizationEnabled
-                        && NtpCustomizationUtils.isNtpThemeCustomizationEnabled();
+                NtpCustomizationUtils.isNtpThemeCustomizationEnabled();
         mDefaultBackgroundColor =
                 ContextCompat.getColor(mActivity, R.color.home_surface_background_color);
 
@@ -517,7 +488,7 @@ public class FeedSurfaceCoordinator
 
         // The NTP customization button needs to be added after the RecyclerView to make it float
         // above the RecyclerView.
-        if (mIsNewTabPageCustomizationEnabled && mUseStaggeredLayout) {
+        if (mUseStaggeredLayout) {
             mNtpCustomizationButton =
                     NtpCustomizationUtils.createNtpCustomizationButton(
                             mActivity,
@@ -534,7 +505,7 @@ public class FeedSurfaceCoordinator
                         @Override
                         public void onBackgroundImageChanged(
                                 Bitmap originalBitmap,
-                                @Nullable BackgroundImageInfo backgroundImageInfo,
+                                BackgroundImageInfo backgroundImageInfo,
                                 boolean fromInitialization,
                                 @NtpBackgroundType int oldType,
                                 @NtpBackgroundType int newType) {
@@ -566,55 +537,10 @@ public class FeedSurfaceCoordinator
         mHandler = new Handler(Looper.getMainLooper());
 
         // MVC setup for feed header.
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_HEADER_REMOVAL)) {
-            String treatment =
-                    ChromeFeatureList.getFieldTrialParamByFeature(
-                            ChromeFeatureList.FEED_HEADER_REMOVAL, "treatment");
-            mHeaderView =
-                    LayoutInflater.from(mActivity)
-                            .inflate(R.layout.new_tab_page_feed_header, null, false);
-            mHeaderView.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
-            if (!treatment.equals("label")) {
-                mHeaderView.setVisibility(View.GONE);
-            }
-        } else {
-            if (WebFeedBridge.isWebFeedEnabled()) {
-                mHeaderView =
-                        LayoutInflater.from(mActivity)
-                                .inflate(R.layout.new_tab_page_multi_feed_header, null, false);
-            } else {
-                mHeaderView =
-                        LayoutInflater.from(mActivity)
-                                .inflate(
-                                        R.layout.new_tab_page_feed_v2_expandable_header,
-                                        null,
-                                        false);
-            }
-        }
-
-        FeedOptionsCoordinator optionsCoordinator = new FeedOptionsCoordinator(mActivity);
-
-        if (mHeaderView != null && mHeaderView instanceof SectionHeaderView) {
-            mSectionHeaderModel = SectionHeaderListProperties.create(toolbarHeight);
-
-            SectionHeaderViewBinder binder = new SectionHeaderViewBinder();
-            mSectionHeaderModelChangeProcessor =
-                    PropertyModelChangeProcessor.create(
-                            mSectionHeaderModel, (SectionHeaderView) mHeaderView, binder);
-            mSectionHeaderListModelChangeProcessor =
-                    new ListModelChangeProcessor<>(
-                            mSectionHeaderModel.get(
-                                    SectionHeaderListProperties.SECTION_HEADERS_KEY),
-                            (SectionHeaderView) mHeaderView,
-                            binder);
-            mSectionHeaderModel
-                    .get(SectionHeaderListProperties.SECTION_HEADERS_KEY)
-                    .addObserver(mSectionHeaderListModelChangeProcessor);
-
-            mSectionHeaderModel.set(
-                    SectionHeaderListProperties.EXPANDING_DRAWER_VIEW_KEY,
-                    optionsCoordinator.getView());
-        }
+        mHeaderView =
+                LayoutInflater.from(mActivity)
+                        .inflate(R.layout.new_tab_page_feed_header, null, false);
+        mHeaderView.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
 
         if (mNtpHeader != null && ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_CONTAINMENT)) {
             int bottomPadding =
@@ -629,18 +555,9 @@ public class FeedSurfaceCoordinator
         }
 
         // Mediator should be created before any Stream changes.
-        boolean useUiConfig = ntpHeader != null && mUseStaggeredLayout;
         mMediator =
                 new FeedSurfaceMediator(
-                        this,
-                        mActivity,
-                        snapScrollHelper,
-                        mSectionHeaderModel,
-                        getTabIdFromLaunchOrigin(launchOrigin),
-                        actionDelegate,
-                        optionsCoordinator,
-                        useUiConfig ? mUiConfig : null,
-                        profile);
+                        this, mActivity, snapScrollHelper, mActionDelegate, profile);
 
         FeedSurfaceTracker.getInstance().trackSurface(this);
 
@@ -708,7 +625,7 @@ public class FeedSurfaceCoordinator
     // Sets the background image for the embedder NTP.
     private void setBackground(
             Bitmap originalBitmap,
-            @Nullable BackgroundImageInfo backgroundImageInfo,
+            BackgroundImageInfo backgroundImageInfo,
             @NtpBackgroundType int backgroundType) {
         if (mNtpHeader != null) {
             mNtpHeader.setBackgroundColor(Color.TRANSPARENT);
@@ -757,13 +674,13 @@ public class FeedSurfaceCoordinator
     }
 
     void updateNtpCustomizationButtonVisibility() {
-        int min_margin =
+        int minMargin =
                 mActivity
                         .getResources()
                         .getDimensionPixelSize(R.dimen.min_margin_for_ntp_customization_button);
         assumeNonNull(mNtpCustomizationButton);
         mNtpCustomizationButton.setVisibility(
-                mRecyclerView.getPaddingLeft() >= min_margin ? View.VISIBLE : View.GONE);
+                mRecyclerView.getPaddingLeft() >= minMargin ? View.VISIBLE : View.GONE);
     }
 
     void showNtpCustomizationBottomSheet(@Nullable ModuleRegistry moduleRegistry) {
@@ -781,13 +698,6 @@ public class FeedSurfaceCoordinator
         RecordUserAction.record("MobileNewTabPageNtpCustomization");
     }
 
-    @Override
-    public void hasContentChanged(@StreamKind int kind, boolean hasContent) {
-        if (kind == StreamKind.FOLLOWING) {
-            mWebFeedHasContent = hasContent;
-        }
-    }
-
     private void stopScrollTracking() {
         if (mScrollableContainerDelegate != null) {
             if (mDependencyProvider != null) {
@@ -797,27 +707,9 @@ public class FeedSurfaceCoordinator
         }
     }
 
-    public void maybeShowWebFeedAwarenessIph() {
-        if (mHeaderView != null
-                && mHeaderView instanceof SectionHeaderView
-                && mWebFeedHasContent
-                && FeedFeatures.shouldUseWebFeedAwarenessIph()
-                && !FeedFeatures.isFeedFollowUiUpdateEnabled()) {
-            UserEducationHelper helper = new UserEducationHelper(mActivity, mProfile, mHandler);
-            ((SectionHeaderView) mHeaderView)
-                    .showWebFeedAwarenessIph(helper, StreamTabId.FOLLOWING, new Scroller());
-        }
-    }
-
+    // TODO(crbug.com/407797637): Removes the FeedContentFirstLoadWatcher interface.
     @Override
-    public void nonNativeContentLoaded(@StreamKind int kind) {
-        // We want to show the web feed IPH on the first load of the FOR_YOU feed.
-        if (kind == StreamKind.FOR_YOU) {
-            // After the web feed content has loaded, we will know if we have any content, and
-            // it is safe to show the IPH.
-            maybeShowWebFeedAwarenessIph();
-        }
-    }
+    public void nonNativeContentLoaded(@StreamKind int kind) {}
 
     @Override
     @SuppressWarnings("NullAway")
@@ -835,12 +727,6 @@ public class FeedSurfaceCoordinator
         if (mFeedSurfaceLifecycleManager != null) mFeedSurfaceLifecycleManager.destroy();
         mFeedSurfaceLifecycleManager = null;
         stopScrollTracking();
-        if (mSectionHeaderModelChangeProcessor != null) {
-            mSectionHeaderModelChangeProcessor.destroy();
-            mSectionHeaderModel
-                    .get(SectionHeaderListProperties.SECTION_HEADERS_KEY)
-                    .removeObserver(mSectionHeaderListModelChangeProcessor);
-        }
 
         // Destroy mediator after all other related controller/processors are destroyed.
         mMediator.destroy();
@@ -862,6 +748,8 @@ public class FeedSurfaceCoordinator
         if (mNtpBackgroundImageCoordinator != null) {
             mNtpBackgroundImageCoordinator.destroy();
         }
+
+        mActionDelegate.destroy();
     }
 
     /**
@@ -1005,19 +893,6 @@ public class FeedSurfaceCoordinator
         mMediator.restoreSavedInstanceState(state);
     }
 
-    /**
-     * Gets the appropriate {@link StreamTabId} for the given {@link NewTabPageLaunchOrigin}.
-     *
-     * <p>If coming from a Web Feed button, open the following tab, otherwise open the for you tab.
-     */
-    @VisibleForTesting
-    @StreamTabId
-    int getTabIdFromLaunchOrigin(@NewTabPageLaunchOrigin int launchOrigin) {
-        return launchOrigin == NewTabPageLaunchOrigin.WEB_FEED
-                ? StreamTabId.FOLLOWING
-                : StreamTabId.DEFAULT;
-    }
-
     @Initializer
     private RecyclerView setUpView() {
         mContentManager = new FeedListContentManager();
@@ -1075,6 +950,14 @@ public class FeedSurfaceCoordinator
         assumeNonNull(view);
         view.setId(R.id.feed_stream_recycler_view);
         view.setClipToPadding(false);
+        view.setClipChildren(false);
+
+        RecyclerView.ItemAnimator animator = view.getItemAnimator();
+        if (animator != null) {
+            // Prevents Feeds flickering when bring Chrome to the background and move to foreground
+            // again.
+            animator.setAddDuration(0);
+        }
 
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_CONTAINMENT)) {
             // Used to draw containment background.
@@ -1244,13 +1127,6 @@ public class FeedSurfaceCoordinator
         mHeaderIndex = headerViews.size() - (hasSigninPromoView ? 2 : 1);
     }
 
-    /**
-     * @return The {@link SectionHeaderListProperties} model for the Feed section header.
-     */
-    @Nullable PropertyModel getSectionHeaderModelForTest() {
-        return mSectionHeaderModel;
-    }
-
     /** Update header views in the Feed. */
     void updateHeaderViews(@Nullable View signinPromoView) {
         if (!mMediator.hasStreams()) return;
@@ -1319,24 +1195,7 @@ public class FeedSurfaceCoordinator
             mScrollableContainerDelegate = new ScrollableContainerDelegateImpl();
         }
 
-        if (!mIsNewTabPageCustomizationEnabled) {
-            createHeaderIphScrollListener();
-        }
         createRefreshIphScrollListener();
-    }
-
-    private void createHeaderIphScrollListener() {
-        assumeNonNull(mScrollableContainerDelegate);
-        mHeaderIphScrollListener =
-                new HeaderIphScrollListener(
-                        this,
-                        mScrollableContainerDelegate,
-                        () -> {
-                            UserEducationHelper helper =
-                                    new UserEducationHelper(mActivity, mProfile, mHandler);
-                            ((SectionHeaderView) mHeaderView).showMenuIph(helper);
-                        });
-        mScrollableContainerDelegate.addScrollListener(mHeaderIphScrollListener);
     }
 
     private void createRefreshIphScrollListener() {
@@ -1360,10 +1219,6 @@ public class FeedSurfaceCoordinator
      */
     private void stopBubbleTriggering() {
         if (mMediator.hasStreams() && mScrollableContainerDelegate != null) {
-            if (mHeaderIphScrollListener != null) {
-                mScrollableContainerDelegate.removeScrollListener(mHeaderIphScrollListener);
-                mHeaderIphScrollListener = null;
-            }
             if (mRefreshIphScrollListener != null) {
                 mScrollableContainerDelegate.removeScrollListener(mRefreshIphScrollListener);
                 mRefreshIphScrollListener = null;

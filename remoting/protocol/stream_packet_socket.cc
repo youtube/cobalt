@@ -4,6 +4,7 @@
 
 #include "remoting/protocol/stream_packet_socket.h"
 
+#include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/notimplemented.h"
 #include "components/webrtc/net_address_utils.h"
@@ -188,8 +189,8 @@ int StreamPacketSocket::Send(const void* data,
     return -1;
   }
 
-  auto packet = packet_processor_->Pack(reinterpret_cast<const uint8_t*>(data),
-                                        data_size);
+  auto packet = packet_processor_->Pack(
+      UNSAFE_TODO(base::span(static_cast<const uint8_t*>(data), data_size)));
   if (!packet) {
     SetError(EINVAL);
     return -1;
@@ -304,8 +305,7 @@ void StreamPacketSocket::DoWrite() {
     if (packet.data->BytesConsumed() == 0) {
       // Only apply packet options when we are about to send the head of the
       // packet.
-      packet_processor_->ApplyPacketOptions(packet.data->bytes(),
-                                            packet.data->size(),
+      packet_processor_->ApplyPacketOptions(packet.data->span(),
                                             packet.options.packet_time_params);
     }
     int result = socket_->Write(
@@ -394,12 +394,11 @@ bool StreamPacketSocket::HandleReadResult(int result) {
   base::span<uint8_t> span = read_buffer_->span_before_offset();
   while (!span.empty()) {
     size_t bytes_consumed = 0;
-    auto packet =
-        packet_processor_->Unpack(span.data(), span.size(), &bytes_consumed);
+    auto packet = packet_processor_->Unpack(span, &bytes_consumed);
     if (packet) {
       NotifyPacketReceived(webrtc::ReceivedIpPacket(
-          webrtc::MakeArrayView(packet->bytes(), packet->size()),
-          GetRemoteAddress(), webrtc::Timestamp::Micros(webrtc::TimeMicros())));
+          packet->span(), GetRemoteAddress(),
+          webrtc::Timestamp::Micros(webrtc::TimeMicros())));
     }
     if (!bytes_consumed) {
       break;

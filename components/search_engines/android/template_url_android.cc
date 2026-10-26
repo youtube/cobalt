@@ -52,6 +52,14 @@ static ScopedJavaLocalRef<jobject> JNI_TemplateUrl_GetFaviconURL(
   return url::GURLAndroid::FromNativeGURL(env, template_url->favicon_url());
 }
 
+static bool JNI_TemplateUrl_IsPrepopulatedOrProgramProvided(
+    JNIEnv* env,
+    int64_t template_url_ptr) {
+  TemplateURL* template_url = ToTemplateURL(template_url_ptr);
+  return template_url->prepopulate_id() > 0 ||
+         template_url->CreatedByRegulatoryProgram();
+}
+
 static bool JNI_TemplateUrl_IsPrepopulatedOrDefaultProviderByPolicy(
     JNIEnv* env,
     int64_t template_url_ptr) {
@@ -77,6 +85,13 @@ static int32_t JNI_TemplateUrl_GetStarterPackId(JNIEnv* env,
                                                 int64_t template_url_ptr) {
   TemplateURL* template_url = ToTemplateURL(template_url_ptr);
   return static_cast<int>(template_url->starter_pack_id());
+}
+
+static bool JNI_TemplateUrl_RequiresRemovalConfirmation(
+    JNIEnv* env,
+    int64_t template_url_ptr) {
+  TemplateURL* template_url = ToTemplateURL(template_url_ptr);
+  return template_url->RequiresRemovalConfirmation();
 }
 
 ScopedJavaLocalRef<jobject> CreateTemplateUrlAndroid(

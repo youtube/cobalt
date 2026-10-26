@@ -5,99 +5,24 @@
 #include "chrome/browser/ui/search_engines/template_url_table_model.h"
 
 #include <algorithm>
-#include <memory>
 #include <string>
-#include <tuple>
-#include <utility>
 
-#include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
 #include "base/strings/string_util.h"
 #include "chrome/grit/generated_resources.h"
-#include "components/omnibox/browser/omnibox_field_trial.h"
-#include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_data.h"
 #include "components/search_engines/template_url_service.h"
-#include "components/search_engines/template_url_starter_pack_data.h"
-#include "third_party/icu/source/common/unicode/locid.h"
-#include "third_party/icu/source/i18n/unicode/coll.h"
-#include "third_party/icu/source/i18n/unicode/ucol.h"
+#include "components/search_engines/ui_utils.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/table_model_observer.h"
 
-namespace internal {
-
-OrderByManagedAndAlphabetically::OrderByManagedAndAlphabetically() {
-  UErrorCode error_code = U_ZERO_ERROR;
-  collator_.reset(
-      icu::Collator::createInstance(icu::Locale::getDefault(), error_code));
-  if (!U_SUCCESS(error_code)) {
-    collator_.reset();
-  }
-  if (collator_) {
-    // Case-insensitive, ignoring diacriticals.
-    collator_->setStrength(icu::Collator::PRIMARY);
-  }
-}
-
-OrderByManagedAndAlphabetically::OrderByManagedAndAlphabetically(
-    const OrderByManagedAndAlphabetically& other)
-    : collator_(other.collator_->clone()) {}
-
-OrderByManagedAndAlphabetically::~OrderByManagedAndAlphabetically() = default;
-
-bool OrderByManagedAndAlphabetically::operator()(const TemplateURL* lhs,
-                                                 const TemplateURL* rhs) const {
-  auto get_sort_key = [this](const TemplateURL* engine) {
-    return std::make_tuple(
-        // Enterprise search engines are shown before other engines.
-        !engine->CreatedByNonDefaultSearchProviderPolicy(),
-        // Try to compare short names ignoring case and diacriticals.
-        collator_ ? GetShortNameSortKey(engine->short_name()) : std::string(),
-        // If a collator is not available, fallback to regular string
-        // comparison.
-        engine->short_name(),
-        // If short name is the same, fallback to keyword.
-        engine->keyword());
-  };
-  return get_sort_key(lhs) < get_sort_key(rhs);
-}
-
-std::string OrderByManagedAndAlphabetically::GetShortNameSortKey(
-    const std::u16string& short_name) const {
-  CHECK(collator_);
-
-  constexpr int32_t kBufferSize = 1000;
-  uint8_t buffer[kBufferSize];
-  icu::UnicodeString icu_str(short_name.c_str(), short_name.length());
-
-  int32_t sort_key_length = collator_->getSortKey(icu_str, buffer, kBufferSize);
-
-  // If the sort key is too long for our buffer, trim the original string
-  // for comparison to avoid buffer overflow.
-  if (sort_key_length >= kBufferSize) {
-    buffer[kBufferSize - 1] = 0;
-    sort_key_length = kBufferSize;
-  }
-
-  // getSortKey returns the length including null terminator, but we want
-  // to exclude it from the string to avoid issues with string comparison.
-  if (sort_key_length > 0) {
-    sort_key_length--;
-  }
-
-  return std::string(reinterpret_cast<const char*>(buffer), sort_key_length);
-}
-
-}  // namespace internal
-
 TemplateURLTableModel::TemplateURLTableModel(
     TemplateURLService* template_url_service,
-    bool ai_mode_enabled)
+    template_url_starter_pack_data::StarterPackIdSet disabled_starter_pack_ids)
     : observer_(nullptr),
       template_url_service_(template_url_service),
-      ai_mode_enabled_(ai_mode_enabled) {
+      disabled_starter_pack_ids_(disabled_starter_pack_ids) {
   DCHECK(template_url_service);
   template_url_service_->AddObserver(this);
   template_url_service_->Load();
@@ -116,22 +41,7 @@ void TemplateURLTableModel::Reload() {
       extension_entries;
   // Keywords that can be made the default first.
   for (TemplateURL* template_url : urls) {
-    // Skip @gemini if feature disabled.
-    if (template_url->starter_pack_id() ==
-            template_url_starter_pack_data::StarterPackId::kGemini &&
-        !OmniboxFieldTrial::IsStarterPackExpansionEnabled()) {
-      continue;
-    }
-    // Skip @page if feature disabled.
-    if (template_url->starter_pack_id() ==
-            template_url_starter_pack_data::StarterPackId::kPage &&
-        !omnibox_feature_configs::ContextualSearch::Get().starter_pack_page) {
-      continue;
-    }
-    // Skip @aimode if feature disabled.
-    if (template_url->starter_pack_id() ==
-            template_url_starter_pack_data::StarterPackId::kAiMode &&
-        !ai_mode_enabled_) {
+    if (disabled_starter_pack_ids_.Has(template_url->starter_pack_id())) {
       continue;
     }
 
@@ -149,8 +59,9 @@ void TemplateURLTableModel::Reload() {
   }
 
   std::ranges::sort(active_entries,
-                    internal::OrderByManagedAndAlphabetically());
-  std::ranges::sort(other_entries, internal::OrderByManagedAndAlphabetically());
+                    internal::OrderTemplateUrlsByManagedAndAlphabetically());
+  std::ranges::sort(other_entries,
+                    internal::OrderTemplateUrlsByManagedAndAlphabetically());
 
   last_search_engine_index_ = default_entries.size();
   last_active_engine_index_ = last_search_engine_index_ + active_entries.size();

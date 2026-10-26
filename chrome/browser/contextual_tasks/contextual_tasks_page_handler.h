@@ -51,6 +51,8 @@ class ContextualTasksPageHandler
   void SetThreadTitle(const std::string& title) override;
   void IsZeroState(const GURL& url, IsZeroStateCallback callback) override;
   void IsAiPage(const GURL& url, IsAiPageCallback callback) override;
+  void IsPendingErrorPage(const base::Uuid& task_id,
+                          IsPendingErrorPageCallback callback) override;
   void CloseSidePanel() override;
   void ShowThreadHistory() override;
   void IsShownInTab(IsShownInTabCallback callback) override;
@@ -67,9 +69,13 @@ class ContextualTasksPageHandler
                              bool is_side_panel,
                              GetCommonSearchParamsCallback callback) override;
   void OnboardingTooltipDismissed() override;
+  void ReopenTabs() override;
   void PostMessageToWebview(const lens::ClientToAimMessage& message);
 
   // contextual_tasks::ContextualTasksService::Observer:
+  void OnTaskAdded(
+      const contextual_tasks::ContextualTask& task,
+      contextual_tasks::ContextualTasksService::TriggerSource source) override;
   void OnTaskUpdated(
       const contextual_tasks::ContextualTask& task,
       contextual_tasks::ContextualTasksService::TriggerSource source) override;
@@ -82,6 +88,8 @@ class ContextualTasksPageHandler
   void UpdateContextForTask(const base::Uuid& task_id);
   void OnReceivedUpdatedThreadContextLibrary(
       const lens::UpdateThreadContextLibrary& message);
+  void OnReceivedInjectInput(std::unique_ptr<lens::ModalityChipProps> modality);
+  void OnReceivedRemoveInjectedInput(const std::string& id);
 
   mojo::Receiver<contextual_tasks::mojom::PageHandler> receiver_;
   raw_ptr<contextual_tasks::ContextualTasksUIInterface> web_ui_controller_;

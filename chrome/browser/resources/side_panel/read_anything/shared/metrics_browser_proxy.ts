@@ -116,9 +116,10 @@ export enum ReadAnythingSpeechError {
   AUDIO_BUSY = 6,
   AUDIO_HARDWARE = 7,
   NETWORK = 8,
+  TIMEOUT_ENGINE_STALLED = 9,
 
   // Must be last.
-  COUNT = 9,
+  COUNT = 10,
 }
 // LINT.ThenChange(/tools/metrics/histograms/metadata/accessibility/enums.xml:ReadAnythingSpeechError)
 
@@ -142,6 +143,7 @@ export interface MetricsBrowserProxy {
   recordVoiceSpeed(index: number): void;
   recordVoiceType(voiceType: ReadAnythingVoiceType): void;
   recordExtensionState(): void;
+  recordCount(umaName: string, count: number): void;
 }
 
 export class MetricsBrowserProxyImpl implements MetricsBrowserProxy {
@@ -224,6 +226,10 @@ export class MetricsBrowserProxyImpl implements MetricsBrowserProxy {
 
   recordExtensionState(): void {
     chrome.readingMode.logExtensionState();
+  }
+
+  recordCount(umaName: string, count: number) {
+    chrome.metricsPrivate.recordCount(umaName, count);
   }
 
   static getInstance(): MetricsBrowserProxy {

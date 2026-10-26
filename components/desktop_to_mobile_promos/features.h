@@ -27,9 +27,17 @@ enum class IOSPromoBubbleForceType {
   kNoOverride = 2,
 };
 
+// Enum to represent variations of feature kMobileNTPPromoOnDesktop.
+enum class MobileNTPPromoOnDesktopVariation {
+  kGeneral = 0,
+  kPasswords = 1,
+  kAll = 2,
+};
+
 // If this feature is enabled, show mobile promo on desktop with a "Remind Me"
 // button.
 BASE_DECLARE_FEATURE(kMobilePromoOnDesktopWithReminder);
+BASE_DECLARE_FEATURE(kMobilePromoOnDesktopWithReminderWave1);
 
 // If this feature is enabled, collect data for the mobile promo on desktop.
 BASE_DECLARE_FEATURE(kMobilePromoOnDesktopRecordActiveDays);
@@ -37,9 +45,13 @@ BASE_DECLARE_FEATURE(kMobilePromoOnDesktopRecordActiveDays);
 // If this feature is enabled, show the QR Code flow for the mobile
 // promo on desktop.
 BASE_DECLARE_FEATURE(kMobilePromoOnDesktopWithQRCode);
+BASE_DECLARE_FEATURE(kMobilePromoOnDesktopWithQRCodeWave1);
 
 // If this feature is enabled, force the iOS promo to be a specific type.
 BASE_DECLARE_FEATURE(kMobilePromoOnDesktopForcePromoType);
+
+// If this feature is enabled, show the mobile NTP promo on desktop.
+BASE_DECLARE_FEATURE(kMobileNTPPromoOnDesktop);
 
 // Parameter of `kMobilePromoOnDesktop` for promo type.
 extern const char kMobilePromoOnDesktopPromoTypeParam[];
@@ -48,6 +60,9 @@ extern const char kMobilePromoOnDesktopNotificationParam[];
 
 // Parameter of `kMobilePromoOnDesktopForcePromoType` for the promo type.
 extern const char kMobilePromoOnDesktopForcePromoTypeParam[];
+
+// Parameter of `kMobileNTPPromoOnDesktop` for the variation.
+extern const char kMobileNTPPromoOnDesktopVariationParam[];
 
 // Returns true if either the `kMobilePromoOnDesktopWithReminder` or
 // `kMobilePromoOnDesktopWithQRCode` feature is enabled.
@@ -77,5 +92,13 @@ bool IsMobilePromoOnDesktopNotificationsEnabled();
 // Returns the forced promo type if `kMobilePromoOnDesktopForcePromoType` is
 // enabled, otherwise returns `IOSPromoBubbleType::kNoOverride`.
 IOSPromoBubbleForceType GetMobilePromoOnDesktopForcePromoType();
+
+// Returns true if the `kMobileNTPPromoOnDesktop` feature is enabled.
+bool IsMobileNTPPromoOnDesktopEnabled();
+
+// Returns whether the given variation is enabled for feature
+// `kMobileNTPPromoOnDesktop`.
+bool IsMobileNTPPromoOnDesktopVariationEnabled(
+    MobileNTPPromoOnDesktopVariation variation);
 
 #endif  // COMPONENTS_DESKTOP_TO_MOBILE_PROMOS_FEATURES_H_

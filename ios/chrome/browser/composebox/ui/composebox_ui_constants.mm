@@ -5,10 +5,13 @@
 #import "ios/chrome/browser/composebox/ui/composebox_ui_constants.h"
 
 const CGFloat kOmniboxMinHeight = 44.0;
+const CGFloat kOmniboxIPadMinHeight = 56.0;
 
 const CGFloat kInputPlateMargin = 10.0f;
 
 const CGFloat kInputPlateCornerRadius = 24.0f;
+
+const CGFloat kComposeboxOmniboxLayoutGuideHorizontalMargin = 10.0f;
 
 NSString* const kComposeboxAccessibilityIdentifier =
     @"kComposeboxAccessibilityIdentifier";

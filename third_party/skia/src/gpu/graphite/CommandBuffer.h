@@ -53,22 +53,19 @@ public:
     bool hasWork() { return fHasWork; }
 #endif
 
-    // Takes a Usage ref on the Resource that will be released when the command buffer has finished
-    // execution.
-    void trackResource(sk_sp<Resource> resource);
     // Takes a CommandBuffer ref on the Resource that will be released when the command buffer has
     // finished execution. This allows a Resource to be returned to ResourceCache for reuse while
     // the CommandBuffer is still executing on the GPU. This is most commonly used for Textures or
     // Buffers which are only accessed via commands on a command buffer.
-    void trackCommandBufferResource(sk_sp<Resource> resource);
+    void trackResource(sk_sp<Resource> resource);
     // Release all tracked Resources
     void resetCommandBuffer();
 
     // If any work is needed to create new resources for a fresh command buffer do that here.
     virtual bool setNewCommandBufferResources() = 0;
 
-    virtual bool startTimerQuery() { SK_ABORT("Timer query unsupported."); }
-    virtual void endTimerQuery() { SK_ABORT("Timer query unsupported."); }
+    virtual bool startStatsQuery(GpuStatsFlags) { SK_ABORT("Stats query unsupported."); }
+    virtual void endStatsQuery(GpuStatsFlags) { SK_ABORT("Stats query unsupported."); }
     virtual std::optional<GpuStats> gpuStats() { return {}; }
 
     void addFinishedProc(sk_sp<RefCntedCallback> finishedProc);
@@ -146,7 +143,13 @@ protected:
     CommandBuffer(Protected);
 
     // These are the color attachment bounds, intersected with any clip provided on replay.
-    SkIRect fRenderPassBounds;
+    SkIRect fRenderTargetBounds;
+
+    // These are the bounds of all rendering operations in the current render pass. They have been
+    // intersected with render target bounds and translated by the replay transition. The value is
+    // undefined outside a call to `addRenderPass()`.
+    SkIRect fRenderAreaBounds;
+
     // This is also the origin of the logical viewport relative to the target texture's (0,0) pixel.
     SkIVector fReplayTranslation;
 
@@ -171,10 +174,8 @@ private:
 
     virtual void onResetCommandBuffer() = 0;
 
-    // Renderpass, viewport bounds have already been adjusted by the replay translation. The render
-    // pass bounds has been intersected with the color attachment bounds.
+    // Viewport bounds have already been adjusted by the replay translation.
     virtual bool onAddRenderPass(const RenderPassDesc&,
-                                 SkIRect renderPassBounds,
                                  const Texture* colorTexture,
                                  const Texture* resolveTexture,
                                  const Texture* depthStencilTexture,
@@ -212,7 +213,6 @@ private:
     inline static constexpr int kInitialTrackedResourcesCount = 32;
     template <typename T>
     using TrackedResourceArray = skia_private::STArray<kInitialTrackedResourcesCount, T>;
-    TrackedResourceArray<sk_sp<Resource>> fTrackedUsageResources;
     TrackedResourceArray<gr_cb<Resource>> fCommandBufferResources;
     skia_private::TArray<sk_sp<RefCntedCallback>> fFinishedProcs;
     skia_private::TArray<sk_sp<Buffer>> fBuffersToAsyncMap;

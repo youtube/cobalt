@@ -11,12 +11,18 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/test/ios/wait_util.h"
+#import "base/uuid.h"
 #import "components/application_locale_storage/application_locale_storage.h"
 #import "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
+#import "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
 #import "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #import "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #import "components/autofill/core/browser/data_model/addresses/autofill_profile_test_api.h"
+#import "components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.h"
+#import "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
+#import "components/autofill/core/browser/field_types.h"
 #import "components/autofill/core/browser/form_import/form_data_importer.h"
+#import "components/autofill/core/browser/form_import/payments/payments_form_data_importer.h"
 #import "components/autofill/core/browser/foundations/autofill_client.h"
 #import "components/autofill/core/browser/foundations/browser_autofill_manager_test_api.h"
 #import "components/autofill/core/browser/payments/credit_card_save_manager.h"
@@ -24,6 +30,7 @@
 #import "components/autofill/core/browser/payments/payments_network_interface.h"
 #import "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
 #import "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#import "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #import "components/autofill/core/common/autofill_prefs.h"
 #import "components/autofill/ios/browser/autofill_driver_ios.h"
 #import "components/autofill/ios/browser/autofill_java_script_feature.h"
@@ -229,7 +236,8 @@ class FakeCreditCardServer : public CreditCardSaveManager::ObserverForTest {
   static CreditCardSaveManager* GetCreditCardSaveManager() {
     return GetAutofillClient()
         .GetFormDataImporter()
-        ->GetCreditCardSaveManager();
+        ->GetPaymentsFormDataImporter()
+        .GetCreditCardSaveManager();
   }
 
   // Access the VirtualCardEnrollmentManager.
@@ -719,6 +727,48 @@ class FakeCreditCardServer : public CreditCardSaveManager::ObserverForTest {
       autofill::PersonalDataManagerFactory::GetForProfile(profile);
   personalDataManager->payments_data_manager().SetSyncingForTest(true);
   return personalDataManager;
+}
+
++ (void)showAutofillAiSaveEntityBubble {
+  autofill::EntityInstance entity = autofill::test::GetVehicleEntityInstance();
+  autofill::ChromeAutofillClientIOS* client =
+      static_cast<autofill::ChromeAutofillClientIOS*>(
+          autofill::AutofillClientIOS::FromWebState(
+              chrome_test_util::GetCurrentWebState()));
+  if (client) {
+    client->ShowEntityImportBubble(std::move(entity), std::nullopt,
+                                   /*save_is_synchronous=*/true,
+                                   base::DoNothing());
+  }
+}
+
++ (BOOL)saveRedressNumberEntityWithName:(NSString*)name
+                                 number:(NSString*)number {
+  if (!name || !number) {
+    return NO;
+  }
+
+  autofill::AutofillClient& client =
+      autofill::FakeCreditCardServer::GetAutofillClient();
+
+  autofill::EntityDataManager* entityDataManager =
+      client.GetEntityDataManager();
+
+  if (!entityDataManager) {
+    return NO;
+  }
+
+  autofill::test::RedressNumberOptions options = {};
+  std::u16string name_u16;
+  std::u16string number_u16;
+  name_u16 = base::SysNSStringToUTF16(name);
+  options.name = name_u16.c_str();
+  number_u16 = base::SysNSStringToUTF16(number);
+  options.number = number_u16.c_str();
+  autofill::EntityInstance entity =
+      autofill::test::GetRedressNumberEntityInstance(options);
+  entityDataManager->AddOrUpdateEntityInstance(entity);
+  return YES;
 }
 
 @end

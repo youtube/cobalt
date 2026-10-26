@@ -500,7 +500,6 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   // Disable the credential bottom sheet.
   [CredentialSuggestionBottomSheetAppInterface disableBottomSheet];
 
-  [FormInputAccessoryAppInterface setUpMockReauthenticationModule];
   [FormInputAccessoryAppInterface mockReauthenticationModuleExpectedResult:
                                       ReauthenticationResult::kSuccess];
 
@@ -526,8 +525,6 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   // correctly recorded.
   CheckPasswordAutofillSuggestionAcceptedIndexMetricsCount(
       /*suggestion_index=*/0);
-
-  [FormInputAccessoryAppInterface removeMockReauthenticationModule];
 }
 
 // Tests that the username field is filled when it is the only field in the
@@ -536,7 +533,6 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   // Disable the credential bottom sheet.
   [CredentialSuggestionBottomSheetAppInterface disableBottomSheet];
 
-  [FormInputAccessoryAppInterface setUpMockReauthenticationModule];
   [FormInputAccessoryAppInterface mockReauthenticationModuleExpectedResult:
                                       ReauthenticationResult::kSuccess];
 
@@ -559,8 +555,6 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   [[EarlGrey selectElementWithMatcher:user_chip] performAction:grey_tap()];
 
   [self verifyFieldWithIdHasBeenFilled:kSigninUffFormUsername value:username];
-
-  [FormInputAccessoryAppInterface removeMockReauthenticationModule];
 }
 
 // Tests that the password field is filled when it is the only field in the
@@ -569,7 +563,6 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   // Disable the credential bottom sheet.
   [CredentialSuggestionBottomSheetAppInterface disableBottomSheet];
 
-  [FormInputAccessoryAppInterface setUpMockReauthenticationModule];
   [FormInputAccessoryAppInterface mockReauthenticationModuleExpectedResult:
                                       ReauthenticationResult::kSuccess];
 
@@ -592,8 +585,6 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   [[EarlGrey selectElementWithMatcher:user_chip] performAction:grey_tap()];
 
   [self verifyFieldWithIdHasBeenFilled:kSigninUffFormPassword value:password];
-
-  [FormInputAccessoryAppInterface removeMockReauthenticationModule];
 }
 
 // Tests that tapping on a credit card related field opens the keyboard
@@ -643,8 +634,8 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   [AutofillAppInterface clearMockReauthenticationModule];
 }
 
-// Tests that the fix on the is_user_edited bit in the parsed form fields is
-// effective in the case the user has edited the input field for real.
+// Tests that the fix on the is_user_edited_deprecated bit in the parsed form
+// fields is effective in the case the user has edited the input field for real.
 - (void)testFillCreditCardFieldsOnForm_WithUserEditedFix_UserEdited {
   // Fill using another test. The CVC number won't be filled because a local
   // card is used.
@@ -678,8 +669,9 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
       @"Autofill.PerfectFilling.CreditCards verification failed");
 }
 
-// Tests that the fix on the is_user_edited bit in the parsed form fields is
-// effective in the case the user didn't edit the fields that weren't filled.
+// Tests that the fix on the is_user_edited_deprecated bit in the parsed form
+// fields is effective in the case the user didn't edit the fields that weren't
+// filled.
 - (void)testFillCreditCardFieldsOnForm_WithUserEditedFix_NotUserEdited {
   // Fill using another test. The CVC number won't be filled because a local
   // card is used.
@@ -1075,7 +1067,6 @@ id<GREYMatcher> PaymentsBottomSheetUseKeyboardButton() {
   [CredentialSuggestionBottomSheetAppInterface disableBottomSheet];
 
   // Set up the reauthentication module.
-  [FormInputAccessoryAppInterface setUpMockReauthenticationModule];
   [FormInputAccessoryAppInterface mockReauthenticationModuleExpectedResult:
                                       ReauthenticationResult::kSuccess];
 

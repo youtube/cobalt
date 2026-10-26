@@ -40,7 +40,8 @@ void HistorySyncOptinServiceDefaultDelegate::ShowHistorySyncOptinScreen(
     Profile* profile,
     HistorySyncOptinHelper::FlowCompletedCallback callback) {
   CHECK(profile);
-  Browser* browser = chrome::FindLastActiveWithProfile(profile);
+  BrowserWindowInterface* const browser =
+      chrome::FindLastActiveWithProfile(profile);
   if (!browser) {
     // The browser has been closed in the meantime, nothing to do.
     std::move(callback.value())
@@ -217,7 +218,6 @@ void HistorySyncOptinService::OnPrimaryAccountChanged(
     case signin_metrics::AccessPoint::kAvatarBubbleSignIn:
     case signin_metrics::AccessPoint::kUserManager:
     case signin_metrics::AccessPoint::kFullscreenSigninPromo:
-    case signin_metrics::AccessPoint::kUnknown:
     case signin_metrics::AccessPoint::kAutofillDropdown:
     case signin_metrics::AccessPoint::kResigninInfobar:
     case signin_metrics::AccessPoint::kMachineLogon:
@@ -277,6 +277,11 @@ void HistorySyncOptinService::OnPrimaryAccountChanged(
     case signin_metrics::AccessPoint::kCredentialExchangeImport:
     case signin_metrics::AccessPoint::kSetSyncConsentFromSyncInternals:
     case signin_metrics::AccessPoint::kIosChromeWebView:
+    case signin_metrics::AccessPoint::kAshChromeSessionManager:
+    case signin_metrics::AccessPoint::kAshUserSessionManager:
+    case signin_metrics::AccessPoint::kAvatarPillExpandPromo:
+    case signin_metrics::AccessPoint::kSearchAIModeBubble:
+    case signin_metrics::AccessPoint::kIosAppBar:
       return;
   }
 
@@ -337,6 +342,9 @@ void HistorySyncOptinService::OnPrimaryAccountChanged(
 }
 
 void HistorySyncOptinService::ShowErrorDialogWithMessage(int error_message_id) {
+  BrowserWindowInterface* const browser =
+      chrome::FindLastActiveWithProfile(profile_);
   signin_util::ShowErrorDialogWithMessage(
-      chrome::FindLastActiveWithProfile(profile_), error_message_id);
+      browser ? browser->GetBrowserForMigrationOnly() : nullptr,
+      error_message_id);
 }

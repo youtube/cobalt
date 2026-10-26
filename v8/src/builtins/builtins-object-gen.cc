@@ -326,6 +326,7 @@ ObjectEntriesValuesBuiltinsAssembler::FinalizeValuesOrEntriesJSArray(
   return array;
 }
 
+// https://tc39.es/ecma262/#sec-object.prototype.hasownproperty
 TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   auto object = Parameter<Object>(Descriptor::kReceiver);
   auto key = Parameter<Object>(Descriptor::kKey);
@@ -395,7 +396,7 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   Return(CallRuntime(Runtime::kObjectHasOwnProperty, context, object, key));
 }
 
-// ES #sec-object.assign
+// https://tc39.es/ecma262/#sec-object.assign
 TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
@@ -624,7 +625,7 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   args.PopAndReturn(to);
 }
 
-// ES #sec-object.keys
+// https://tc39.es/ecma262/#sec-object.keys
 TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   auto object = Parameter<Object>(Descriptor::kObject);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -744,7 +745,7 @@ TF_BUILTIN(ObjectHasOwn, ObjectBuiltinsAssembler) {
                        new_target, object, key));
 }
 
-// ES #sec-object.getOwnPropertyNames
+// https://tc39.es/ecma262/#sec-object.getOwnPropertyNames
 TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
   auto object = Parameter<Object>(Descriptor::kObject);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -866,7 +867,7 @@ TF_BUILTIN(ObjectEntries, ObjectEntriesValuesBuiltinsAssembler) {
   GetOwnValuesOrEntries(context, object, CollectType::kEntries);
 }
 
-// ES #sec-object.prototype.isprototypeof
+// https://tc39.es/ecma262/#sec-object.prototype.isprototypeof
 TF_BUILTIN(ObjectPrototypeIsPrototypeOf, ObjectBuiltinsAssembler) {
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
   auto value = Parameter<Object>(Descriptor::kValue);
@@ -1216,7 +1217,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   }
 }
 
-// ES #sec-object.create
+// https://tc39.es/ecma262/#sec-object.create
 TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   int const kPrototypeArg = 0;
   int const kPropertiesArg = 1;
@@ -1315,7 +1316,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   }
 }
 
-// ES #sec-object.is
+// https://tc39.es/ecma262/#sec-object.is
 TF_BUILTIN(ObjectIs, ObjectBuiltinsAssembler) {
   const auto left = Parameter<Object>(Descriptor::kLeft);
   const auto right = Parameter<Object>(Descriptor::kRight);

@@ -11,9 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ash/crosapi/crosapi_id.h"
-#include "chromeos/crosapi/mojom/cros_display_config.mojom.h"
 #include "chromeos/crosapi/mojom/crosapi.mojom.h"
-#include "chromeos/crosapi/mojom/print_preview_cros.mojom-forward.h"
 #include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
 #include "media/gpu/buildflags.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
@@ -29,10 +27,6 @@ class TelemetryManagementServiceAsh;
 namespace auth {
 class InSessionAuth;
 }  // namespace auth
-
-namespace printing {
-class PrintPreviewWebcontentsAdapterAsh;
-}  // namespace printing
 
 }  // namespace ash
 
@@ -60,9 +54,6 @@ class CrosapiAsh : public mojom::Crosapi {
   void BindBrowserCdmFactory(mojo::GenericPendingReceiver receiver) override;
   void BindCfmServiceContext(
       mojo::PendingReceiver<chromeos::cfm::mojom::CfmServiceContext> receiver)
-      override;
-  void BindCrosDisplayConfigController(
-      mojo::PendingReceiver<mojom::CrosDisplayConfigController> receiver)
       override;
   void BindDocumentScan(
       mojo::PendingReceiver<mojom::DocumentScan> receiver) override;
@@ -102,11 +93,6 @@ class CrosapiAsh : public mojom::Crosapi {
 
   LocalPrinterAsh* local_printer_ash() { return local_printer_ash_.get(); }
 
-  ash::printing::PrintPreviewWebcontentsAdapterAsh*
-  print_preview_webcontents_adapter_ash() {
-    return print_preview_webcontents_adapter_ash_.get();
-  }
-
   ash::ProbeServiceAsh* probe_service_ash() { return probe_service_ash_.get(); }
 
  private:
@@ -120,8 +106,6 @@ class CrosapiAsh : public mojom::Crosapi {
   std::unique_ptr<ash::TelemetryManagementServiceAsh>
       telemetry_management_service_ash_;
   std::unique_ptr<ash::ProbeServiceAsh> probe_service_ash_;
-  std::unique_ptr<ash::printing::PrintPreviewWebcontentsAdapterAsh>
-      print_preview_webcontents_adapter_ash_;
 
   mojo::ReceiverSet<mojom::Crosapi, CrosapiId> receiver_set_;
   std::map<mojo::ReceiverId, base::OnceClosure> disconnect_handler_map_;

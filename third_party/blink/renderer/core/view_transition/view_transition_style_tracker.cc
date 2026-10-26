@@ -13,6 +13,7 @@
 #include "components/viz/common/view_transition_element_resource_id.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/resources/grit/blink_resources.h"
+#include "third_party/blink/renderer/bindings/core/v8/frozen_array.h"
 #include "third_party/blink/renderer/core/animation/element_animations.h"
 #include "third_party/blink/renderer/core/animation/property_handle.h"
 #include "third_party/blink/renderer/core/css/css_default_style_sheets.h"
@@ -144,34 +145,6 @@ CSSPropertyID FromTransitionPropertyId(
     return CSSPropertyID::k##id;
   switch (id) { FOR_EACH_CSS_PROPERTY(FROM_TRANSITION_PROPERTY_ID) }
   return CSSPropertyID::kInvalid;
-}
-
-const String& StaticUAStyles() {
-  DEFINE_STATIC_LOCAL(
-      String, kStaticUAStyles,
-      (UncompressResourceAsASCIIString(IDR_UASTYLE_TRANSITION_CSS)));
-  return kStaticUAStyles;
-}
-
-const String& StaticUAStylesScoped() {
-  DEFINE_STATIC_LOCAL(
-      String, kStaticUAStylesScoped,
-      (UncompressResourceAsASCIIString(IDR_UASTYLE_TRANSITION_SCOPED_CSS)));
-  return kStaticUAStylesScoped;
-}
-
-const String& AnimationUAStyles() {
-  DEFINE_STATIC_LOCAL(
-      String, kAnimationUAStyles,
-      (UncompressResourceAsASCIIString(IDR_UASTYLE_TRANSITION_ANIMATIONS_CSS)));
-  return kAnimationUAStyles;
-}
-
-const String& AnimationUAStylesScoped() {
-  DEFINE_STATIC_LOCAL(String, kAnimationUAStyles,
-                      (UncompressResourceAsASCIIString(
-                          IDR_UASTYLE_TRANSITION_ANIMATIONS_SCOPED_CSS)));
-  return kAnimationUAStyles;
 }
 
 // Computes and returns the start offset for element's painting in horizontal or
@@ -659,6 +632,20 @@ bool ViewTransitionStyleTracker::MatchForOnlyChild(
 void ViewTransitionStyleTracker::AddTransitionElementsFromCSS() {
   DCHECK(document_ && document_->View());
 
+  if (element_ && element_ != document_->documentElement()) {
+    // Scoped view transition apply auto-nesting. The nested group applies
+    // clipping unless overflow explicitly set to visible.
+    // TODO(https://github.com/w3c/csswg-drafts/issues/13445) we might consider
+    // having per axis values here. Revisit once we have a resolution for this
+    // issue.
+    if (const ComputedStyle* style = element_->GetComputedStyle()) {
+      if (style->OverflowX() != EOverflow::kVisible ||
+          style->OverflowY() != EOverflow::kVisible) {
+        apply_overflow_clip_ = true;
+      }
+    }
+  }
+
   // We need our paint layers, and z-order lists which is done during
   // compositing inputs update.
   DCHECK_GE(document_->Lifecycle().GetState(),
@@ -909,7 +896,7 @@ bool ViewTransitionStyleTracker::HasContainmentBoundary(
     if (Element* element = DynamicTo<Element>(node)) {
       if (element != element_ &&
           element->GetComputedStyle()->ViewTransitionScope() ==
-              EViewTransitionScope::kAuto) {
+              EViewTransitionScope::kAll) {
         return true;
       }
     }
@@ -1622,6 +1609,10 @@ bool ViewTransitionStyleTracker::RunPostPrePaintStepsForElement(
   for (CSSPropertyID id : kPropertiesToCaptureOnGroupChildren) {
     capture_property(id, group_children_css_property_builder);
   }
+  if (apply_overflow_clip_) {
+    group_children_css_property_builder.Insert(CSSPropertyID::kOverflow,
+                                               "clip");
+  }
 
   auto css_properties = std::move(css_property_builder).Finish();
   auto group_children_css_properties =
@@ -2264,14 +2255,10 @@ CSSStyleSheet& ViewTransitionStyleTracker::UAStyleSheet() {
   const bool in_start_phase = state_ == State::kStarted;
 
   ViewTransitionStyleBuilder builder;
-  builder.AddUAStyle(RuntimeEnabledFeatures::ScopedViewTransitionsEnabled()
-                         ? StaticUAStylesScoped()
-                         : StaticUAStyles());
-  if (in_start_phase) {
-    builder.AddUAStyle(RuntimeEnabledFeatures::ScopedViewTransitionsEnabled()
-                           ? AnimationUAStylesScoped()
-                           : AnimationUAStyles());
-  }
+
+  // Default rules that are not specific to the instance of the transition
+  // are loaded via CSSDefaultStyleSheets. Only need to add rules specific
+  // to the active transition here.
 
   // If we started the animation then we always create the full dynamic style
   // sheet. However, before the animation phase, the dynamic sheet should only

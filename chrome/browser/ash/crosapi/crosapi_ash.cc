@@ -7,7 +7,6 @@
 #include <memory>
 #include <utility>
 
-#include "ash/public/ash_interfaces.h"
 #include "base/dcheck_is_on.h"
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
@@ -17,10 +16,8 @@
 #include "chrome/browser/ash/crosapi/document_scan_ash.h"
 #include "chrome/browser/ash/crosapi/local_printer_ash.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_factory.h"
-#include "chrome/browser/ash/printing/print_preview/print_preview_webcontents_adapter_ash.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
@@ -80,10 +77,7 @@ CrosapiAsh::CrosapiAsh()
           std::make_unique<ash::TelemetryDiagnosticsRoutineServiceAsh>()),
       telemetry_management_service_ash_(
           std::make_unique<ash::TelemetryManagementServiceAsh>()),
-      probe_service_ash_(std::make_unique<ash::ProbeServiceAsh>()),
-      print_preview_webcontents_adapter_ash_(
-          std::make_unique<
-              ash::printing::PrintPreviewWebcontentsAdapterAsh>()) {
+      probe_service_ash_(std::make_unique<ash::ProbeServiceAsh>()) {
   receiver_set_.set_disconnect_handler(base::BindRepeating(
       &CrosapiAsh::OnDisconnected, weak_factory_.GetWeakPtr()));
 }
@@ -102,10 +96,8 @@ void CrosapiAsh::BindAccountManager(
   // `AccountManagerMojoService` that can/should be contacted - the one attached
   // to the regular `Profile` in ash-chrome for the active `User`.
   crosapi::AccountManagerMojoService* const account_manager_mojo_service =
-      g_browser_process->platform_part()
-          ->GetAccountManagerFactory()
-          ->GetAccountManagerMojoService(
-              /*profile_path=*/GetAshProfile()->GetPath().value());
+      ash::AccountManagerFactory::Get()->GetAccountManagerMojoService(
+          /*profile_path=*/GetAshProfile()->GetPath().value());
   account_manager_mojo_service->BindReceiver(std::move(receiver));
 }
 
@@ -119,11 +111,6 @@ void CrosapiAsh::BindCfmServiceContext(
     mojo::PendingReceiver<chromeos::cfm::mojom::CfmServiceContext> receiver) {
   chromeos::cfm::ServiceConnection::GetInstance()->BindServiceContext(
       std::move(receiver));
-}
-
-void CrosapiAsh::BindCrosDisplayConfigController(
-    mojo::PendingReceiver<mojom::CrosDisplayConfigController> receiver) {
-  ash::BindCrosDisplayConfigController(std::move(receiver));
 }
 
 void CrosapiAsh::BindDocumentScan(

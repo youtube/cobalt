@@ -12,7 +12,9 @@
 #include <vector>
 
 #include "base/containers/flat_map.h"
+#include "ui/display/display.h"
 #include "ui/display/headless/headless_screen_manager.h"
+#include "ui/display/types/display_constants.h"
 #include "ui/display/win/screen_win.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
@@ -125,7 +127,9 @@ class DISPLAY_EXPORT ScreenWinHeadless
  private:
   // display::HeadlessScreenManager::Delegate:
   int64_t AddDisplay(const Display& display) override;
+  void UpdateDisplay(const Display& display) override;
   void RemoveDisplay(int64_t display_id) override;
+  void SetPrimaryDisplay(int64_t display_id) override;
 
   std::vector<internal::DisplayInfo> DisplayInfosFromScreenInfo(
       const std::vector<headless::HeadlessScreenInfo>& screen_infos);
@@ -138,9 +142,13 @@ class DISPLAY_EXPORT ScreenWinHeadless
 
   std::optional<MONITORINFOEX> GetMONITORINFOFromDisplayId(int64_t id) const;
 
+  void UpdateFromDisplays(const std::vector<Display>& displays);
+
   // Maps display id to a fake Windows monitor info that correlates to
   // a headless display.
   base::flat_map<int64_t, MONITORINFOEX> headless_monitor_info_;
+
+  int64_t primary_display_id_ = kInvalidDisplayId;
 
   gfx::Point cursor_screen_point_;
 };

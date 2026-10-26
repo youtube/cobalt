@@ -10,7 +10,6 @@ import android.os.SystemClock;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
-import androidx.annotation.VisibleForTesting;
 import androidx.annotation.WorkerThread;
 
 import org.jni_zero.CalledByNative;
@@ -202,14 +201,30 @@ public class AwPrefetchManager {
         }
     }
 
-    @VisibleForTesting
-    public int getTTlInSec() {
-        return AwPrefetchManagerJni.get().getTtlInSec(mNativePrefetchManager);
+    @UiThread
+    public void setMaxPrefetches(@Nullable Integer maxPrefetches) {
+        try (TraceEvent event = TraceEvent.scoped("WebView.Profile.Prefetch.SET_MAX_PREFETCHES")) {
+            assert ThreadUtils.runningOnUiThread();
+            AwPrefetchManagerJni.get().setMaxPrefetches(mNativePrefetchManager, maxPrefetches);
+        }
     }
 
-    @VisibleForTesting
-    public int getMaxPrefetches() {
-        return AwPrefetchManagerJni.get().getMaxPrefetches(mNativePrefetchManager);
+    @UiThread
+    public void setPrefetchTtlSeconds(@Nullable Integer prefetchTtlSeconds) {
+        try (TraceEvent event =
+                TraceEvent.scoped("WebView.Profile.Prefetch.SET_PREFETCH_TTL_SECONDS")) {
+            assert ThreadUtils.runningOnUiThread();
+            AwPrefetchManagerJni.get().setTtlInSec(mNativePrefetchManager, prefetchTtlSeconds);
+        }
+    }
+
+    public int getTtlInSecForTesting() {
+        return AwPrefetchManagerJni.get().getTtlInSecForTesting(mNativePrefetchManager); // IN-TEST
+    }
+
+    public int getMaxPrefetchesForTesting() {
+        return AwPrefetchManagerJni.get()
+                .getMaxPrefetchesForTesting(mNativePrefetchManager); // IN-TEST
     }
 
     public int getNoPrefetchKeyForTesting() {
@@ -227,7 +242,7 @@ public class AwPrefetchManager {
     public void onPrefetchStartFailedDuplicate(
             AwPrefetchCallback callback, Executor callbackExecutor) {
         callbackExecutor.execute(
-                () -> callback.onStatusUpdated(StatusCode.PREFETCH_START_FAILED_DUPLICATE, null));
+                () -> callback.onStatusUpdated(StatusCode.DUPLICATE_REQUEST, null));
     }
 
     @CalledByNative
@@ -277,12 +292,16 @@ public class AwPrefetchManager {
         // IN-TESTS
         boolean getIsPrefetchInCacheForTesting(long nativeAwPrefetchManager, int prefetchKey);
 
-        void setTtlInSec(long nativeAwPrefetchManager, int ttlInSeconds);
+        void setTtlInSec(
+                long nativeAwPrefetchManager,
+                @JniType("std::optional<int>") @Nullable Integer ttlInSeconds);
 
-        void setMaxPrefetches(long nativeAwPrefetchManager, int maxPrefetches);
+        void setMaxPrefetches(
+                long nativeAwPrefetchManager,
+                @JniType("std::optional<int>") @Nullable Integer maxPrefetches);
 
-        int getTtlInSec(long nativeAwPrefetchManager);
+        int getTtlInSecForTesting(long nativeAwPrefetchManager); // IN-TEST
 
-        int getMaxPrefetches(long nativeAwPrefetchManager);
+        int getMaxPrefetchesForTesting(long nativeAwPrefetchManager); // IN-TEST
     }
 }

@@ -232,8 +232,7 @@ class EnclaveManager : public EnclaveManagerInterface {
   std::unique_ptr<StoreKeysLock> GetStoreKeysLock();
   // Adds the current device to the security domain. This method is supposed to
   // be called after calling `StoreKeys` (with a lock outstanding from
-  // `GetStoreKeysLock`) and thus `has_pending_keys` returns true. Also, this
-  // method is being called from `StoreKeysFromOutOfContextRetrieval`.
+  // `GetStoreKeysLock`) and thus `has_pending_keys` returns true.
   //
   // If `pin_metadata` has a value then it is taken to be the current GPM PIN.
   // If you want to add a new PIN to the account, see
@@ -378,6 +377,7 @@ class EnclaveManager : public EnclaveManagerInterface {
       std::vector<trusted_vault::TrustedVaultKeyAndVersion> keys,
       std::optional<trusted_vault::TrustedVaultUserActionTriggerForUMA>
           user_action_trigger);
+  bool IsStoringKeysFromOutOfContextRetrievalEnabled();
 
   // Slowly compute a PIN claim for the given PIN for submission to the enclave.
   static std::unique_ptr<device::enclave::ClaimedPIN> MakeClaimedPINSlowly(
@@ -426,6 +426,13 @@ class EnclaveManager : public EnclaveManagerInterface {
   base::WeakPtr<EnclaveManager> GetWeakPtr();
 
  private:
+  enum class SystemUv {
+    kNotSupported,
+    kSupported,
+  };
+  using OpportunisticRetrievalCheck = std::variant<
+      trusted_vault::DownloadAuthenticationFactorsRegistrationStateResult,
+      SystemUv>;
   class StateMachine;
   class IdentityObserver;
   struct PendingAction;
@@ -509,12 +516,6 @@ class EnclaveManager : public EnclaveManagerInterface {
   // Called when the OSCrypt encryptor is available.
   void OnOsCryptReady(os_crypt_async::Encryptor encryptor);
 
-  // Called when the result of checking the GPM PIN availability is received.
-  void OnCheckGpmPinAvailabilityResult(
-      base::OnceCallback<void(GpmPinAvailability)> callback,
-      trusted_vault::DownloadAuthenticationFactorsRegistrationStateResult
-          result);
-
   // Stores keys in the pending state (the keys will remain in this state until
   // `AddDeviceToAccount` is called).
   void StorePendingKeys(
@@ -526,33 +527,14 @@ class EnclaveManager : public EnclaveManagerInterface {
   void StoreKeysFromOutOfContextRetrieval(
       const GaiaId& gaia_id,
       std::vector<trusted_vault::TrustedVaultKeyAndVersion> keys);
-  // Used by `StoreKeysFromOutOfContextRetrieval`. Executed upon verification of
-  // the system UV availability. If a system UV is available - stores the
-  // opportunistically retrieved keys. If a system UV is not available -
-  // starts verification of the presence of a GPM PIN (because the GPM PIN can
-  // be used for user verification as well). If the GPM PIN is present - the
-  // opportunistically retrieved keys will be stored as well.
-  void OpportunisticStoreKeysUVCheckComplete(
-      std::unique_ptr<StoreKeysArgs> pending_keys,
-      bool can_make_uv_keys);
-  // Indirectly used by `StoreKeysFromOutOfContextRetrieval`
-  // (`StoreKeysFromOutOfContextRetrieval` performs the check of the presence of
-  // the system UV, and if the system UV is not available - we check the
-  // presence of the GPM PIN). This method is being executed upon verification
-  // of the GPM PIN availability. If the GPM PIN is present - the
-  // opportunistically retrieved keys will be stored.
-  void OpportunisticStoreKeysGpmPinCheckComplete(
-      std::unique_ptr<StoreKeysArgs> pending_keys,
-      GpmPinAvailability gpm_pin_availability);
-  // Indirectly used by `StoreKeysFromOutOfContextRetrieval`: if either the
-  // system UV is present or the GPM PIN is present - stores keys.
-  void OpportunisticStoreKeys(std::unique_ptr<StoreKeysArgs> pending_keys);
   void OpportunisticStoreKeysAddComplete(bool success);
   void NotifyObserversAboutOutOfContextRecoveryOutcome(
       OutOfContextRecoveryOutcome outcome);
   void TemporarilyCachePendingOpportunisticKeys(
       const GaiaId& gaia_id,
       std::vector<trusted_vault::TrustedVaultKeyAndVersion> keys);
+
+  void RemoveGaiaIdsFromLocalState(base::flat_set<GaiaId> gaia_ids_to_remove);
 
   const base::FilePath file_path_;
   const raw_ptr<signin::IdentityManager> identity_manager_;

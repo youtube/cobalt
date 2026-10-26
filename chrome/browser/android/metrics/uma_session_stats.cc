@@ -162,18 +162,6 @@ void UmaSessionStats::UmaEndSession(JNIEnv* env) {
   DCHECK_GE(active_session_count_, 0);
 }
 
-void UmaSessionStats::FlushSession(JNIEnv* env) {
-  metrics::MetricsService* metrics = g_browser_process->metrics_service();
-  if (metrics) {
-    metrics->Flush();
-  }
-  ukm::UkmService* ukm_service =
-      g_browser_process->GetMetricsServicesManager()->GetUkmService();
-  if (ukm_service) {
-    ukm_service->Flush(metrics::MetricsLogsEventManager::CreateReason::kFlush);
-  }
-}
-
 void UmaSessionStats::ProvideCurrentSessionData() {
   // Session.IsActive historically gave the wrong value when closing an active
   // session as we decremented the session count before closing the session.
@@ -407,8 +395,8 @@ static void JNI_UmaSessionStats_RegisterExternalExperiment(
 
 static void JNI_UmaSessionStats_RegisterSyntheticFieldTrial(
     JNIEnv* env,
-    std::string& trial_name,
-    std::string& group_name,
+    const std::string& trial_name,
+    const std::string& group_name,
     int annotation_mode) {
   UmaSessionStats::RegisterSyntheticFieldTrial(
       trial_name, group_name,

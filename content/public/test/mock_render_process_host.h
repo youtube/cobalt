@@ -92,9 +92,7 @@ class MockRenderProcessHost : public RenderProcessHost {
   int VisibleClientCount() override;
   unsigned int GetFrameDepth() override;
   bool GetIntersectsViewport() override;
-#if !BUILDFLAG(IS_ANDROID)
-  bool IsForInitialWebUI() const override;
-#endif  // !BUILDFLAG(IS_ANDROID)
+  bool IsForTopChromeWebUI() const override;
   bool IsForGuestsOnly() override;
   bool IsJitDisabled() override;
   bool AreV8OptimizationsDisabled() override;
@@ -116,7 +114,8 @@ class MockRenderProcessHost : public RenderProcessHost {
                               bool skip_unload_handlers,
                               bool ignore_workers,
                               bool ignore_keep_alive,
-                              bool ignore_pending_reuse) override;
+                              bool ignore_pending_reuse,
+                              bool use_outermost_main_frame_check) override;
   bool FastShutdownStarted() override;
   const base::Process& GetProcess() override;
   bool IsReady() override;
@@ -164,6 +163,7 @@ class MockRenderProcessHost : public RenderProcessHost {
   std::unique_ptr<base::PersistentMemoryAllocator> TakeMetricsAllocator()
       override;
   const base::TimeTicks& GetLastInitTime() override;
+  base::TimeTicks GetProcessLaunchedTime() const override;
   base::Process::Priority GetPriority() const override;
   size_t GetWorkerRefCount() const;
   std::string GetKeepAliveDurations() const override;
@@ -298,8 +298,16 @@ class MockRenderProcessHost : public RenderProcessHost {
 
   void set_priority(base::Process::Priority priority) { priority_ = priority; }
 
+  void SetIsForTopChromeWebUI(bool is_for_top_chrome_web_ui) {
+    is_for_top_chrome_web_ui_ = is_for_top_chrome_web_ui;
+  }
+
   void SetProcess(base::Process&& new_process) {
     process = std::move(new_process);
+  }
+
+  void SetProcessLaunchedTime(base::TimeTicks time) {
+    process_launched_time_ = time;
   }
 
   void OverrideBinderForTesting(const std::string& interface_name,
@@ -323,7 +331,12 @@ class MockRenderProcessHost : public RenderProcessHost {
   ChildProcessId id_;
   bool has_connection_;
   raw_ptr<BrowserContext, DanglingUntriaged> browser_context_;
-  base::ObserverList<RenderProcessHostObserver> observers_;
+  // TODO(crbug.com/484371187): Investigate if reentrancy can be removed.
+  base::ObserverList<
+      RenderProcessHostObserver,
+      /*check_empty=*/false,
+      base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>
+      observers_;
 
   StoragePartitionConfig storage_partition_config_;
   base::flat_set<raw_ptr<RenderProcessHostPriorityClient, CtnExperimental>>
@@ -338,7 +351,9 @@ class MockRenderProcessHost : public RenderProcessHost {
   bool is_for_guests_only_;
   base::Process::Priority priority_;
   bool is_unused_;
+  bool is_for_top_chrome_web_ui_ = false;
   bool is_ready_ = false;
+  base::TimeTicks process_launched_time_;
   base::Process process;
   int pending_view_count_;
   int worker_ref_count_;

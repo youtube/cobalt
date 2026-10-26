@@ -70,12 +70,12 @@
 #include "third_party/blink/public/platform/web_content_settings_client.h"
 #include "third_party/blink/public/web/web_print_params.h"
 #include "third_party/blink/public/web/web_script_execution_callback.h"
+#include "third_party/blink/renderer/core/ad_tracker/ad_script_identifier.h"
+#include "third_party/blink/renderer/core/ad_tracker/ad_tracker.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/weak_identifier_map.h"
 #include "third_party/blink/renderer/core/editing/forward.h"
 #include "third_party/blink/renderer/core/editing/iterators/text_iterator_behavior.h"
-#include "third_party/blink/renderer/core/frame/ad_script_identifier.h"
-#include "third_party/blink/renderer/core/frame/ad_tracker.h"
 #include "third_party/blink/renderer/core/frame/frame.h"
 #include "third_party/blink/renderer/core/frame/frame_types.h"
 #include "third_party/blink/renderer/core/frame/frame_visibility_observer.h"
@@ -227,18 +227,24 @@ class CORE_EXPORT LocalFrame final
   //   you pass ukm::kInvalidSourceId, a new ukm source id will be generated.
   // - `creator_base_url` is the base url of the initiator that created this
   //    frame.
+  // - `sandbox_origin_token` is used to deterministically generate opaque
+  //    origins for newly created sandboxed frames and windows. Only set
+  //    during initial frame/window creation, null for regular cross-document
+  //    navigation commits.
   //
   // Note: Usually, the initial empty document inherits its |policy_container|
   // and |storage_key| from the parent or the opener. The inheritance operation
   // is taken care of by the browser (if this LocalFrame was just created in
   // response to the creation of a RenderFrameHost) or by blink if this is a
   // synchronously created LocalFrame child.
-  void Init(Frame* opener,
-            const DocumentToken& document_token,
-            std::unique_ptr<PolicyContainer> policy_container,
-            const StorageKey& storage_key,
-            ukm::SourceId document_ukm_source_id,
-            const KURL& creator_base_url);
+  void Init(
+      Frame* opener,
+      const DocumentToken& document_token,
+      std::unique_ptr<PolicyContainer> policy_container,
+      const StorageKey& storage_key,
+      ukm::SourceId document_ukm_source_id,
+      const KURL& creator_base_url,
+      std::unique_ptr<base::UnguessableToken> sandbox_origin_token = nullptr);
   void SetView(LocalFrameView*);
   void CreateView(const gfx::Size&, const Color&);
 
@@ -360,9 +366,6 @@ class CORE_EXPORT LocalFrame final
   // Activates or clears history user activation state and also notifies frame
   // scheduler of the state change.
   void SetHadUserInteraction(bool had_user_interaction);
-
-  // Sets the Storage Access API status in the browser process..
-  void SetStorageAccessApiStatus(net::StorageAccessApiStatus status);
 
   // Registers an observer that will be notified if a VK occludes
   // the content when it raises/dismisses. The observer is a HeapHashSet

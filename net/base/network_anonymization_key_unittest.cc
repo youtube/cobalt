@@ -16,6 +16,7 @@
 #include "net/base/schemeful_site.h"
 #include "network_anonymization_key.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/hash/hash_testing.h"
 #include "url/gurl.h"
 #include "url/url_util.h"
 
@@ -191,6 +192,10 @@ TEST_F(NetworkAnonymizationKeyTest, IsEmpty) {
 
   EXPECT_TRUE(empty_key.IsEmpty());
   EXPECT_FALSE(populated_key.IsEmpty());
+
+  NetworkAnonymizationKey transient_key =
+      NetworkAnonymizationKey::CreateTransient();
+  EXPECT_FALSE(transient_key.IsEmpty());
 }
 
 TEST_F(NetworkAnonymizationKeyTest, CreateTransient) {
@@ -241,21 +246,6 @@ TEST_F(NetworkAnonymizationKeyTest, IsTransient) {
                                                /*nonce=*/std::nullopt);
   EXPECT_FALSE(data_frame_key.IsTransient());
   EXPECT_FALSE(populated_double_key.IsTransient());
-}
-
-TEST_F(NetworkAnonymizationKeyTest, IsFullyPopulated) {
-  NetworkAnonymizationKey empty_key;
-  NetworkAnonymizationKey populated_key =
-      NetworkAnonymizationKey::CreateFromParts(/*top_frame_site=*/kTestSiteA,
-                                               /*is_cross_site=*/false,
-                                               /*nonce=*/std::nullopt);
-  EXPECT_TRUE(populated_key.IsFullyPopulated());
-  EXPECT_FALSE(empty_key.IsFullyPopulated());
-  NetworkAnonymizationKey empty_frame_site_key =
-      NetworkAnonymizationKey::CreateFromParts(/*top_frame_site=*/kTestSiteA,
-                                               /*is_cross_site=*/false,
-                                               /*nonce=*/std::nullopt);
-  EXPECT_TRUE(empty_frame_site_key.IsFullyPopulated());
 }
 
 TEST_F(NetworkAnonymizationKeyTest, Getters) {
@@ -484,9 +474,23 @@ TEST_F(NetworkAnonymizationKeyTest,
             NetworkIsolationPartition::kGeneral);
 }
 
+TEST_F(NetworkAnonymizationKeyTest, SupportsAbslHash) {
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly({
+      NetworkAnonymizationKey(),
+      NetworkAnonymizationKey::CreateSameSite(kTestSiteA),
+      NetworkAnonymizationKey::CreateCrossSite(kTestSiteA),
+      NetworkAnonymizationKey::CreateSameSite(kTestSiteB),
+      NetworkAnonymizationKey::CreateSameSite(kDataSite),
+      NetworkAnonymizationKey::CreateFromParts(kTestSiteA, false, kNonce),
+      NetworkAnonymizationKey::CreateFromParts(kTestSiteA, true, kNonce),
+      NetworkAnonymizationKey::CreateFromParts(
+          kTestSiteA, false, std::nullopt,
+          NetworkIsolationPartition::kProtectedAudienceSellerWorklet),
+  }));
+}
+
 TEST(NetworkAnonymizationKeyFeatureShiftTest,
      ValueRoundTripKeySchemeMissmatch) {
-  base::test::ScopedFeatureList scoped_feature_list_;
   const SchemefulSite kOpaqueSite = SchemefulSite(GURL("data:text/html,junk"));
   const SchemefulSite kTestSiteA = SchemefulSite(GURL("http://a.test/"));
   const SchemefulSite kTestSiteB = SchemefulSite(GURL("http://b.test/"));
@@ -510,8 +514,8 @@ TEST(NetworkAnonymizationKeyFeatureShiftTest,
   EXPECT_FALSE(NetworkAnonymizationKey::FromValue(double_key_value,
                                                   &expected_failure_nak));
 
-  // Check that deserializing a triple keyed value (a 2-element list containing
-  // two sites) fails.
+  // Check that deserializing a triple keyed value (a 2-element list
+  // containing two sites) fails.
   base::ListValue triple_key_list;
   triple_key_list.Append(serialized_site.Clone());
   triple_key_list.Append(std::move(serialized_site));

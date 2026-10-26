@@ -74,6 +74,8 @@ class ChromeBrowserCloudManagementControllerDesktop
       override;
   std::unique_ptr<enterprise_reporting::ReportingDelegateFactory>
   GetReportingDelegateFactory() override;
+  std::unique_ptr<enterprise_reporting::SaasUsageReportingDelegateFactory>
+  GetSaasUsageReportingDelegateFactory() override;
   void SetGaiaURLLoaderFactory(scoped_refptr<network::SharedURLLoaderFactory>
                                    url_loader_factory) override;
   bool ReadyToCreatePolicyManager() override;
@@ -90,6 +92,8 @@ class ChromeBrowserCloudManagementControllerDesktop
   void StartInvalidations() override;
   scoped_refptr<network::SharedURLLoaderFactory> GetURLLoaderFactory() override;
   bool IsInvalidationsServiceStarted() const override;
+  void StartExtensionInstallPolicyInvalidator() override;
+  bool CanStartExtensionInstallPolicyInvalidator() const override;
 
  private:
   std::unique_ptr<ChromeBrowserCloudManagementRegisterWatcher>

@@ -27,6 +27,7 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHAdaptiveButtonInTopToolbarCustomizationAddToBookmarksFeature,
     &kIPHAdaptiveButtonInTopToolbarCustomizationTranslateFeature,
     &kIPHAdaptiveButtonInTopToolbarCustomizationReadAloudFeature,
+    &kIPHAdaptiveButtonInTopToolbarCustomizationGlicFeature,
     &kIPHAdaptiveButtonInTopToolbarCustomizationPageSummaryWebFeature,
     &kIPHAdaptiveButtonInTopToolbarCustomizationPageSummaryPdfFeature,
     &kIPHPageSummaryWebMenuFeature,
@@ -62,6 +63,7 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHFeedCardMenuFeature,
     &kIPHFuseboxAttachmentFeature,
     &kIPHGenericAlwaysTriggerHelpUiFeature,
+    &kIPHGlicPromoAndroidFeature,
     &kIPHIdentityDiscFeature,
     &kIPHInstanceSwitcherFeature,
     &kIPHKeyboardAccessoryAddressFillingFeature,
@@ -135,6 +137,7 @@ const base::Feature* const kAllFeatures[] = {
 #endif  // BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_IOS)
+    &kIPHiOSActiveDaysTrackingFeature,
     &kIPHLongPressToolbarTipFeature,
     &kIPHBadgedReadingListFeature,
     &kIPHWhatsNewFeature,
@@ -273,11 +276,13 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHSidePanelLensOverlayPinnableFollowupFeature,
     &kIPHSideSearchAutoTriggeringFeature,
     &kIPHSideSearchPageActionLabelFeature,
+    &kIPHVerticalTabstripTutorialFeature,
     &kIPHTabGroupsSaveV2IntroFeature,
     &kIPHTabGroupsSaveV2CloseGroupFeature,
     &kIPHTabGroupsSharedTabChangedFeature,
     &kIPHTabGroupsSharedTabFeedbackFeature,
     &kIPHTabOrganizationSuccessFeature,
+    &kIPHTabSearchComboButtonFeature,
     &kIPHTabSearchToolbarButtonFeature,
     &kIPHDesktopPwaInstallFeature,
     &kIPHProfileSwitchFeature,

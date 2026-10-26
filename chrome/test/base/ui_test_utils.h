@@ -196,6 +196,7 @@ Browser* WaitForBrowserToOpen();
 // Blocks until a Browser is removed from the BrowserList. If |browser| is null,
 // the removal of any browser will suffice; otherwise the removed browser must
 // match |browser|.
+// DEPRECATED: Please use BrowserDestroyedObserver.
 void WaitForBrowserToClose(BrowserWindowInterface* browser = nullptr);
 
 // Download the given file and waits for the download to complete.
@@ -359,6 +360,16 @@ Browser* OpenNewEmptyWindowAndWaitUntilActivated(
 void WaitForBrowserSetLastActive(
     BrowserWindowInterface* browser,
     bool wait_for_set_last_active_observed = false);
+
+// DEPRECATED - DO NOT USE. This function exists only to assist with deprecation
+// of existing tests incorrectly manipulating browser activation state. If you
+// want to write tests that handle browser activation, please create an
+// interactive ui test and activate the browser's ui::BaseWindow.
+//
+// This function fakes the activation state managed by `browser`. It does not
+// change the activation state of the underlying ui::BaseWindow. This creates
+// inconsistencies in tests and may yield unexpected results.
+void DeprecatedFakeActivateBrowser(BrowserWindowInterface* browser);
 
 // Send the given text to the omnibox and wait until it's updated.
 void SendToOmniboxAndSubmit(
@@ -621,8 +632,15 @@ class BrowserDestroyedObserver : public BrowserCollectionObserver {
   void OnBrowserClosed(BrowserWindowInterface* browser) override;
 
  private:
-  bool was_removed_ = false;
+  // True if a closed event has been observed for `browser_`.
+  bool browser_was_closed_ = false;
+
+  // WeakPtr captured when the target browser was closed.
+  base::WeakPtr<BrowserWindowInterface> browser_;
+
+  // SessionID of the target browser.
   const std::optional<SessionID> session_id_;
+
   base::RunLoop run_loop_{base::RunLoop::Type::kNestableTasksAllowed};
   base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
       browser_collection_observation_{this};

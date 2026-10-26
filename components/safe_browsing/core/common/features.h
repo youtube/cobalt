@@ -120,6 +120,11 @@ BASE_DECLARE_FEATURE(kClientSideDetectionKillswitch);
 BASE_DECLARE_FEATURE(
     kClientSideDetectionLlamaForcedTriggerInfoForScamDetection);
 
+// The observers that trigger the image classification have been tweaked with a
+// more defined page loading state check.
+BASE_DECLARE_FEATURE(kClientSideDetectionNewObservers);
+extern const base::FeatureParam<double> kCsdClassificationDelay;
+
 #if BUILDFLAG(IS_ANDROID)
 // Instead of starting model download on startup, do it lazily during inference.
 BASE_DECLARE_FEATURE(kClientSideDetectionOnDeviceModelLazyDownloadAndroid);
@@ -246,6 +251,12 @@ extern const base::FeatureParam<int>
 
 // Enables reporting of external app redirects
 BASE_DECLARE_FEATURE(kExternalAppRedirectTelemetry);
+
+// When this flag is enabled, and when the configured secure_dns_mode is
+// AUTOMATIC, the DoH fallback setting
+// (dns_over_https.automatic_mode_fallback_to_doh) should be forced to be
+// interpreted as true.
+BASE_DECLARE_FEATURE(kForceSecureDnsDohFallback);
 
 // Enables querying server-side Gemini model for scam detection.
 BASE_DECLARE_FEATURE(kGeminiAntiscamProtectionForMetricsCollection);

@@ -15,6 +15,7 @@
 #include "components/saved_tab_groups/internal/saved_tab_group_model.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/saved_tab_groups/public/types.h"
+#include "components/user_education/common/feature_promo/feature_promo_result.h"
 #include "content/public/browser/page.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/accessible_pane_view.h"
@@ -66,7 +67,7 @@ class SavedTabGroupBar : public views::AccessiblePaneView,
   }
 
   content::PageNavigator* page_navigator() { return page_navigator_; }
-  views::View* overflow_button() { return overflow_button_; }
+  views::View* everything_menu_button() { return everything_menu_button_; }
 
   // views::View
   bool GetDropFormats(int* formats,
@@ -119,6 +120,9 @@ class SavedTabGroupBar : public views::AccessiblePaneView,
   // groups opens the group into the tab strip.
   void ShowEverythingMenu();
 
+  // The callback that the button calls when clicked by a user.
+  void OnTabGroupButtonPressed(const base::Uuid& id, const ui::Event& event);
+
  private:
   // Adds the saved group denoted by `guid` as a button in the
   // `SavedTabGroupBar` if the `guid` exists in `saved_tab_group_model_`.
@@ -136,6 +140,9 @@ class SavedTabGroupBar : public views::AccessiblePaneView,
   // `saved_tab_group_model_`.
   void SavedTabGroupReordered();
 
+  // Called when the resumption rail promo is closed.
+  void OnResumptionRailPromoClosed();
+
   // Adds the button to the child views for a new tab group at a specific index.
   // This function then verifies if the added button and overflow button should
   // be visible/hidden. Also adds a button ptr to the tab_group_buttons_ list.
@@ -149,23 +156,24 @@ class SavedTabGroupBar : public views::AccessiblePaneView,
   // the button ptr from the tab_group_buttons_ list.
   void RemoveTabGroupButton(const base::Uuid& guid);
 
-  // Remove all buttons currently in the bar.
+  // Removes all buttons currently in the bar.
   void RemoveAllButtons();
 
-  // Find the button that matches `guid`.
+  // Internal implementation of ShowEverythingMenu.
+  void ShowEverythingMenuInternal();
+
+  // Finds the button that matches `guid`.
   views::View* GetButton(const base::Uuid& guid);
 
   // Returns the index of the group.
   std::optional<size_t> GetIndexOfGroup(const base::Uuid& guid) const;
 
-  // The callback that the button calls when clicked by a user.
-  void OnTabGroupButtonPressed(const base::Uuid& id, const ui::Event& event);
 
   // Creates the overflow button that houses saved tab groups that are not
   // visible in the SavedTabGroupBar.
   std::unique_ptr<SavedTabGroupOverflowButton> CreateOverflowButton();
 
-  // Updates the visibilites of all buttons up to `last_index_visible`. The
+  // Updates the visibilities of all buttons up to `last_index_visible`. The
   // overflow button will be displayed based on `should_show_overflow`.
   void UpdateButtonVisibilities(bool should_show_overflow,
                                 int last_visible_button_index);
@@ -174,6 +182,10 @@ class SavedTabGroupBar : public views::AccessiblePaneView,
   // enough space to display all the buttons or if there are more buttons than
   // the maximum visible.
   bool ShouldShowOverflowButtonForWidth(int max_width) const;
+
+  // Returns whether the overflow button is explicitly hidden by logic (e.g. for
+  // promo or if there are no groups with projects panel).
+  bool IsOverflowButtonHidden() const;
 
   // Finds the index of the last button that can be displayed within the given
   // width. Guaranteed to not exceed `kMaxVisibleButtons`. Does not include the
@@ -193,7 +205,7 @@ class SavedTabGroupBar : public views::AccessiblePaneView,
   // Paints the drop indicator, if one should be shown.
   void MaybePaintDropIndicatorInBar(gfx::Canvas* canvas);
 
-  // Maybe show the promo if a group was closed from the tabstrip.
+  // Maybe shows the promo if a group was closed from the tabstrip.
   void MaybeShowClosePromo(const base::Uuid& saved_group_id);
 
   // Calculates the index in the saved tab groups bar at which we should show a
@@ -208,7 +220,13 @@ class SavedTabGroupBar : public views::AccessiblePaneView,
   // Provides a callback that returns the page navigator
   base::RepeatingCallback<content::PageNavigator*()> GetPageNavigatorGetter();
 
-  raw_ptr<views::MenuButton, AcrossTasksDanglingUntriaged> overflow_button_;
+  // animations have been noted to cause issues with tests in the bookmarks bar.
+  // this boolean lets the SavedTabGroupButton choose whether they want to
+  // animate or not.
+  const bool animations_enabled_ = true;
+
+  // The button that opens the "Everything" menu for saved tab groups.
+  raw_ptr<views::MenuButton> everything_menu_button_;
 
   std::unique_ptr<STGEverythingMenu> everything_menu_;
 
@@ -230,13 +248,14 @@ class SavedTabGroupBar : public views::AccessiblePaneView,
   base::ScopedObservation<views::Widget, SavedTabGroupBar> widget_observation_{
       this};
 
-  // animations have been noted to cause issues with tests in the bookmarks bar.
-  // this boolean lets the SavedTabGroupButton choose whether they want to
-  // animate or not.
-  const bool animations_enabled_ = true;
 
   // Returns WeakPtrs used in GetPageNavigatorGetter(). Used to ensure
   // safety if BookmarkBarView is deleted after getting the callback.
+  // Factory for creating WeakPtrs to this class. This is used to ensure that
+  // callbacks to this class are not run after the class is destroyed.
+
+  bool resumption_iph_dismissed_ = false;
+
   base::WeakPtrFactory<SavedTabGroupBar> weak_ptr_factory_{this};
 };
 

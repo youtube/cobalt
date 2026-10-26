@@ -11,43 +11,6 @@ enum ClickDispositionFlag {
   kMiddleMouseButton = 1,
   kAltKeyDown = 2,
   kMetaKeyDown = 3,
-};
-
-// The context menu types that can be opened with BrowserControlsService's
-// ShowContextMenu.
-enum ContextMenuType {
-  kUnspecified = 0,
-  kReload = 1,
-  kSplitTabsAction = 2,
-  kSplitTabsContext = 3,
-};
-
-// The state of a paritcular context menu.
-enum ContextMenuState {
-  kUnspecified = 0,
-  kVisible = 1,
-  kHidden = 2,
-};
-
-enum DevToolsState {
-  kUnspecified = 0,
-  kConnected = 1,
-  kDisconnected = 2,
-};
-
-enum NavigationState {
-  kUnspecified = 0,
-  kLoading = 1,
-  kNotLoading = 2,
-};
-
-enum SplitTabActiveLocation {
-  kStart,
-  kEnd,
-  kTop,
-  kBottom,
-};
-
-enum ToolbarButtonType {
-  kSplitTabs,
+  kShiftKeyDown = 4,
+  kControlKeyDown = 5,
 };

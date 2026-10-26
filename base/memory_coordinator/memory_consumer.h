@@ -5,6 +5,7 @@
 #ifndef BASE_MEMORY_COORDINATOR_MEMORY_CONSUMER_H_
 #define BASE_MEMORY_COORDINATOR_MEMORY_CONSUMER_H_
 
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -17,6 +18,7 @@
 
 namespace base {
 
+class AsyncMemoryConsumerRegistration;
 class MemoryConsumerRegistry;
 
 // The MemoryConsumer is used to coordinate memory usage across all processes.
@@ -76,6 +78,7 @@ class BASE_EXPORT MemoryConsumer {
   // This is the default value for a consumer's memory limit. It corresponds to
   // 100%, meaning the consumer is not restricted in its memory usage.
   static constexpr int kDefaultMemoryLimit = 100;
+  static constexpr double kDefaultMemoryLimitRatio = 1.0;
 
   MemoryConsumer();
   virtual ~MemoryConsumer() = default;
@@ -135,9 +138,12 @@ class BASE_EXPORT MemoryConsumerRegistration
     kDisabled,
   };
 
+  // `traits` is only optional temporarily to assist with the migration of
+  // clients from MemoryPressureListener to MemoryCoordinator. It will be made
+  // mandatory in the future.
   MemoryConsumerRegistration(
-      std::string_view consumer_id,
-      MemoryConsumerTraits traits,
+      std::string_view consumer_name,
+      std::optional<MemoryConsumerTraits> traits,
       MemoryConsumer* consumer,
       CheckUnregister check_unregister = CheckUnregister::kEnabled,
       CheckRegistryExists check_registry_exists =
@@ -152,15 +158,26 @@ class BASE_EXPORT MemoryConsumerRegistration
   // MemoryConsumerRegistryDestructionObserver:
   void OnBeforeMemoryConsumerRegistryDestroyed() override;
 
- private:
-  using PassKey = PassKey<MemoryConsumerRegistration>;
+  // Associates an optional flag that indicates if the async handle of this
+  // registration was already destroyed.
+  void SetAsyncHandleDestroyedFlag(
+      const std::atomic<bool>* async_handle_destroyed_flag,
+      base::PassKey<AsyncMemoryConsumerRegistration> pass_key);
 
-  std::string consumer_id_;
+ private:
+  using PassKey = base::PassKey<MemoryConsumerRegistration>;
+
+  std::string consumer_name_;
   raw_ptr<MemoryConsumer> consumer_;
 
-  // Indicates if failure to unregister in time should cause a CHECK failure, or
+  // Whether we should check if the consumer was correctly unregistered or
   // if it should simply be ignored.
   CheckUnregister check_unregister_;
+
+  // An optional flag that indicates if the async handle of this registration
+  // was already destroyed. This is used to distinguish between a leak and a
+  // race condition in async registrations.
+  raw_ptr<const std::atomic<bool>> async_handle_destroyed_flag_;
 
   raw_ptr<MemoryConsumerRegistry> registry_;
 };

@@ -15,13 +15,13 @@
 class PrefService;
 class PrefRegistrySimple;
 
+namespace metrics {
+class ProfileMetricsService;
+}
+
 namespace signin {
 class ActivePrimaryAccountsMetricsRecorder;
 }
-
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-extern const char kExplicitSigninMigrationHistogramName[];
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 // This class should be used to records metrics related to sign in events.
 // Some metrics might not be session bound, needing some information to be
@@ -30,29 +30,14 @@ extern const char kExplicitSigninMigrationHistogramName[];
 class SigninMetricsService : public KeyedService,
                              public signin::IdentityManager::Observer {
  public:
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-  // LINT.IfChange(ExplicitSigninMigration)
-  enum class ExplicitSigninMigration {
-    kMigratedSignedOut = 0,
-    kMigratedSignedIn = 1,
-    kMigratedSyncing = 2,
-
-    kNotMigratedSignedIn = 3,
-    kNotMigratedSyncing = 4,
-
-    kMaxValue = kNotMigratedSyncing,
-  };
-  // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:ExplicitSigninMigration)
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
-
   // `active_primary_accounts_metrics_recorder` may be null (this should happen
   // only in tests).
-  explicit SigninMetricsService(signin::IdentityManager& identity_manager,
-                                PrefService& pref_service,
-                                signin::ActivePrimaryAccountsMetricsRecorder*
-                                    active_primary_accounts_metrics_recorder);
+  explicit SigninMetricsService(
+      signin::IdentityManager& identity_manager,
+      PrefService& pref_service,
+      signin::ActivePrimaryAccountsMetricsRecorder*
+          active_primary_accounts_metrics_recorder,
+      metrics::ProfileMetricsService* profile_metrics_service);
   ~SigninMetricsService() override;
 
   static void RegisterProfilePrefs(PrefRegistrySimple* registry);
@@ -83,13 +68,12 @@ class SigninMetricsService : public KeyedService,
       signin_metrics::SourceForRefreshTokenOperation token_operation_source);
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  void RecordExplicitSigninMigrationStatus();
 
   // Returns the time of the web signin for the given account, or
   // `std::nullopt` if the `account_id` was not previously signed in on the web.
   std::optional<base::Time> GetTimeOfWebSignin(
       const CoreAccountId& account_id) const;
-  void MaybeRecordMetricsForSigninPromoLimitsExperiment(
+  void MaybeRecordMetricsForPromoShowCountAtSignin(
       const CoreAccountInfo& account_info,
       signin_metrics::AccessPoint access_point);
   void MaybeRecordWebSigninToChromeSigninMetrics(
@@ -105,6 +89,8 @@ class SigninMetricsService : public KeyedService,
 
   const raw_ptr<signin::ActivePrimaryAccountsMetricsRecorder>
       active_primary_accounts_metrics_recorder_;
+
+  const raw_ref<metrics::ProfileMetricsService> profile_metrics_service_;
 
   signin::AccountManagementTypeMetricsRecorder management_type_recorder_;
 

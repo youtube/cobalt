@@ -9,6 +9,7 @@
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/capture_source_location.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_security_policy_violation_event_init.h"
+#include "third_party/blink/renderer/core/ad_tracker/ad_tracker.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/dom/element.h"
@@ -16,6 +17,7 @@
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
+#include "third_party/blink/renderer/core/inspector/ad_tagging_utils.h"
 #include "third_party/blink/renderer/core/inspector/identifiers_factory.h"
 #include "third_party/blink/renderer/core/inspector/protocol/audits.h"
 #include "third_party/blink/renderer/core/inspector/protocol/network.h"
@@ -173,6 +175,10 @@ AuditsIssue::GenericIssueErrorTypeToProtocol(
         kManualTextPolicyControlledFeatureInfo:
       return protocol::Audits::GenericIssueErrorTypeEnum::
           ManualTextPolicyControlledFeatureInfo;
+    case mojom::blink::GenericIssueErrorType::
+        kFormModelContextParameterMissingTitleAndDescription:
+      return protocol::Audits::GenericIssueErrorTypeEnum::
+          FormModelContextParameterMissingTitleAndDescription;
   }
 }
 
@@ -1038,6 +1044,36 @@ void AuditsIssue::ReportPermissionElementIssue(
               protocol::Audits::InspectorIssueCodeEnum::PermissionElementIssue)
           .setDetails(std::move(issue_details))
           .build();
+  execution_context->AddInspectorIssue(AuditsIssue(std::move(issue)));
+}
+
+// static
+void AuditsIssue::ReportSelectivePermissionsInterventionIssue(
+    ExecutionContext* execution_context,
+    const String& api_name,
+    const AdTracker::AdScriptAncestry& ad_ancestry,
+    const SourceLocation& source_location) {
+  auto intervention_details =
+      protocol::Audits::SelectivePermissionsInterventionIssueDetails::create()
+          .setApiName(api_name)
+          .setAdAncestry(CreateAdAncestryProtocolObject(ad_ancestry))
+          .build();
+
+  if (source_location.HasStackTrace()) {
+    intervention_details->setStackTrace(source_location.BuildInspectorObject());
+  }
+
+  auto details = protocol::Audits::InspectorIssueDetails::create()
+                     .setSelectivePermissionsInterventionIssueDetails(
+                         std::move(intervention_details))
+                     .build();
+
+  auto issue = protocol::Audits::InspectorIssue::create()
+                   .setCode(protocol::Audits::InspectorIssueCodeEnum::
+                                SelectivePermissionsInterventionIssue)
+                   .setDetails(std::move(details))
+                   .build();
+
   execution_context->AddInspectorIssue(AuditsIssue(std::move(issue)));
 }
 

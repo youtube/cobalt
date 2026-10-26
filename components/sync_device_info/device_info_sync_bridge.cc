@@ -558,6 +558,14 @@ std::string DeviceInfoSyncBridge::GetStorageKey(
   return entity_data.specifics.device_info().cache_guid();
 }
 
+sync_pb::EntitySpecifics
+DeviceInfoSyncBridge::TrimAllSupportedFieldsFromRemoteSpecifics(
+    const sync_pb::EntitySpecifics& entity_specifics) const {
+  // Clears all fields by default to avoid the memory and I/O overhead of an
+  // additional copy of the data.
+  return sync_pb::EntitySpecifics();
+}
+
 bool DeviceInfoSyncBridge::IsEntityDataValid(
     const EntityData& entity_data) const {
   CHECK(entity_data.specifics.has_device_info());
@@ -769,22 +777,9 @@ std::string DeviceInfoSyncBridge::GetLocalClientName() const {
     }
   }
 
-  bool can_use_personalizable_name =
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-      // On mobile, all sign-ins are considered explicit and thus can use the
-      // personalizable device name.
-      true;
-#else
-      // On desktop, sign-ins are explicit for Sync-the-feature users, or if
-      // kReplaceSyncPromosWithSignInPromos is enabled. (Or if
-      // prefs::kExplicitBrowserSignin is true, but that information is not
-      // easily available here and not worth the plumbing.)
-      (sync_mode_ == SyncMode::kFull) ||
-      base::FeatureList::IsEnabled(kReplaceSyncPromosWithSignInPromos);
-#endif
-  return can_use_personalizable_name
-             ? local_device_name_info_.personalizable_name
-             : local_device_name_info_.model_name;
+  // On all platforms, sign-in is considered explicit and thus can use the
+  // personalizable device name.
+  return local_device_name_info_.personalizable_name;
 }
 
 void DeviceInfoSyncBridge::OnStoreCreated(

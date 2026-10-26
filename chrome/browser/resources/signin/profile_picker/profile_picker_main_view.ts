@@ -7,6 +7,7 @@ import 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
 import 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
+import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
 import 'chrome://resources/cr_elements/icons.html.js';
 import './icons.html.js';
 import './profile_card.js';
@@ -16,6 +17,7 @@ import './signin_error_dialog.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
 import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import type {CrCheckboxElement} from 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
+import type {CrToggleElement} from 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
 import {I18nMixinLit} from 'chrome://resources/cr_elements/i18n_mixin_lit.js';
 import {WebUiListenerMixinLit} from 'chrome://resources/cr_elements/web_ui_listener_mixin_lit.js';
 import {assert} from 'chrome://resources/js/assert.js';
@@ -37,8 +39,8 @@ import type {SigninErrorDialogElement} from './signin_error_dialog.js';
 export interface ProfilePickerMainViewElement {
   $: {
     addProfile: CrButtonElement,
-    askOnStartup: CrCheckboxElement,
-    'picker-logo': HTMLElement,
+    askOnStartup: CrCheckboxElement|CrToggleElement,
+    pickerLogo: HTMLElement,
     browseAsGuestButton: HTMLElement,
     openAllProfilesButton: HTMLElement,
     profilesContainer: HTMLElement,
@@ -224,7 +226,7 @@ export class ProfilePickerMainViewElement extends
       return;
     }
 
-    this.$['picker-logo'].animate(
+    this.$.pickerLogo.animate(
         {
           transform: ['none', 'rotate(-10turn)'],
         },
@@ -260,7 +262,7 @@ export class ProfilePickerMainViewElement extends
   /**
    * Called when the user modifies 'Ask on startup' preference.
    */
-  protected onAskOnStartupChangedByUser_(e: CustomEvent<{value: boolean}>) {
+  protected onAskOnStartupCheckedChanged_(e: CustomEvent<{value: boolean}>) {
     if (this.hideAskOnStartup_) {
       return;
     }
@@ -331,16 +333,19 @@ export class ProfilePickerMainViewElement extends
     return !isAskOnStartupAllowed() || !shouldShowBasedOnProfilesCount;
   }
 
-  protected toggleDrag_(e: Event) {
+  protected onToggleDrag_(e: CustomEvent<{toggle: boolean}>) {
     if (!this.dragDelegate_) {
       return;
     }
 
-    const customEvent = e as CustomEvent;
-    this.dragDelegate_.toggleDrag(customEvent.detail.toggle);
+    this.dragDelegate_.toggleDrag(e.detail.toggle);
   }
 
-  protected disableAllPickerButtons_() {
+  protected onDisableAllPickerButtons_() {
+    this.disableAllPickerButtons_();
+  }
+
+  private disableAllPickerButtons_() {
     this.pickerButtonsDisabled_ = true;
     if (this.dragDelegate_) {
       this.dragDelegate_.toggleDrag(false);
@@ -362,12 +367,10 @@ export class ProfilePickerMainViewElement extends
   }
 
   protected getTitle_(): TrustedHTML {
-    // <if expr="enable_glic">
     if (this.isProfileListLoadedAndEmptyAndGlic_()) {
       // Special styling through 'class' attribute in some version of the title.
       return this.i18nAdvanced('glicTitleNoProfile', {attrs: ['class']});
     }
-    // </if>
     const titleStringResouce = this.isProfilePickerTextVariationsEnabled_ &&
             this.profilesList_.length === 1 ?
         'mainViewSingleProfileTitle' :
@@ -376,14 +379,12 @@ export class ProfilePickerMainViewElement extends
   }
 
   protected getSubtitle_(): TrustedHTML {
-    // <if expr="enable_glic">
     if (this.isProfileListLoadedAndEmptyAndGlic_()) {
       // Special tagging through 'class' attribute in some version of the
       // subtitle.
       return this.i18nAdvanced(
           'mainViewSubtitleGlicNoProfile', {attrs: ['class']});
     }
-    // </if>
     const subtitleStringResource = this.isProfilePickerTextVariationsEnabled_ &&
             this.profilesList_.length === 1 ?
         'mainViewSingleProfileSubtitle' :

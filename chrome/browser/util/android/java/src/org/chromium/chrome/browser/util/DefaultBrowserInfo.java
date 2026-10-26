@@ -34,12 +34,6 @@ import java.util.concurrent.atomic.AtomicReference;
 /** A utility class for querying information about the default browser setting. */
 @NullMarked
 public final class DefaultBrowserInfo {
-    static final String CHROME_STABLE_PACKAGE_NAME = "com.android.chrome";
-
-    // TODO(crbug.com/40697015): move to some util class for reuse.
-    static final String[] CHROME_PRE_STABLE_PACKAGE_NAMES = {
-        "org.chromium.chrome", "com.chrome.canary", "com.chrome.beta", "com.chrome.dev"
-    };
 
     //  LINT.IfChange(AndroidDefaultBrowserState)
     @IntDef({
@@ -86,6 +80,12 @@ public final class DefaultBrowserInfo {
 
         public final boolean isChromePreStableInstalled;
 
+        /**
+         * The ResolveInfo for the default web browser, or null if no default browser is set or an
+         * error occurred.
+         */
+        public final @Nullable ResolveInfo defaultBrowserResolveInfo;
+
         /** Creates an instance of the {@link DefaultInfo} class. */
         public DefaultInfo(
                 @DefaultBrowserState int defaultBrowserState,
@@ -93,13 +93,15 @@ public final class DefaultBrowserInfo {
                 boolean isDefaultSystem,
                 int browserCount,
                 int systemCount,
-                boolean isChromePreStableInstalled) {
+                boolean isChromePreStableInstalled,
+                @Nullable ResolveInfo defaultBrowserResolveInfo) {
             this.defaultBrowserState = defaultBrowserState;
             this.isChromeSystem = isChromeSystem;
             this.isDefaultSystem = isDefaultSystem;
             this.browserCount = browserCount;
             this.systemCount = systemCount;
             this.isChromePreStableInstalled = isChromePreStableInstalled;
+            this.defaultBrowserResolveInfo = defaultBrowserResolveInfo;
         }
     }
 
@@ -129,6 +131,41 @@ public final class DefaultBrowserInfo {
         }
     }
 
+    /**
+     * Return null when task not finished yet or be canceled, otherwise return the previous result.
+     */
+    public static @Nullable DefaultInfo getDefaultBrowserInfoCacheResult() {
+        // Add a local reference to avoid sDefaultInfoTask being changed in another thread.
+        DefaultInfoTask infoTask = sDefaultInfoTask;
+        // If the task is not done yet or cancelled, return null.
+        if (infoTask == null || infoTask.getStatus() != AsyncTask.Status.FINISHED) {
+            return null;
+        }
+        return infoTask.getDefaultInfo();
+    }
+
+    /**
+     * Returns the ResolveInfo for the default web browser
+     *
+     * <p>This method first attempts to retrieve cached information from a previously completed
+     * DefaultInfoTask. If the cache is available and contains the default browser ResolveInfo, it
+     * returns the cached value. Otherwise, it queries the system directly via PackageManagerUtils.
+     *
+     * <p>Note: defaultBrowserResolveInfo may be null if an exception occurred during the initial
+     * call to PackageManagerUtils.resolveDefaultWebBrowserActivity(). In this case, this method
+     * will retry the call to PackageManagerUtils.resolveDefaultWebBrowserActivity().
+     *
+     * @return A ResolveInfo representing the default web browser, or null if no default browser is
+     *     set.
+     */
+    public static @Nullable ResolveInfo getDefaultWebBrowserInfo() {
+        DefaultInfo defaultBrowserInfoCacheResult = getDefaultBrowserInfoCacheResult();
+        return defaultBrowserInfoCacheResult != null
+                        && defaultBrowserInfoCacheResult.defaultBrowserResolveInfo != null
+                ? defaultBrowserInfoCacheResult.defaultBrowserResolveInfo
+                : PackageManagerUtils.resolveDefaultWebBrowserActivity();
+    }
+
     public static void setDefaultInfoForTests(DefaultInfo info) {
         DefaultInfoTask.setDefaultInfoForTests(info);
     }
@@ -140,11 +177,17 @@ public final class DefaultBrowserInfo {
     private static class DefaultInfoTask extends AsyncTask<DefaultInfo> {
         private static @Nullable AtomicReference<DefaultInfo> sTestInfo;
 
+        private @Nullable volatile DefaultInfo mDefaultInfo;
+
         private final ObserverList<Callback<@Nullable DefaultInfo>> mObservers =
                 new ObserverList<>();
 
         public static void setDefaultInfoForTests(DefaultInfo info) {
             sTestInfo = new AtomicReference<>(info);
+        }
+
+        public @Nullable DefaultInfo getDefaultInfo() {
+            return mDefaultInfo;
         }
 
         public static void clearDefaultInfoForTests() {
@@ -201,7 +244,7 @@ public final class DefaultBrowserInfo {
             if (defaultRi != null && defaultRi.match != 0) {
                 if (isSamePackage(context, defaultRi)) {
                     defaultBrowserState = DefaultBrowserState.CHROME_DEFAULT;
-                } else if (CHROME_STABLE_PACKAGE_NAME.equals(
+                } else if (ChromePackageNameVariant.CHROME_STABLE_PACKAGE_NAME.equals(
                                 defaultRi.activityInfo.applicationInfo.packageName)
                         || isChromePreStable(defaultRi)) {
                     defaultBrowserState = DefaultBrowserState.OTHER_CHROME_DEFAULT;
@@ -238,7 +281,8 @@ public final class DefaultBrowserInfo {
                     isDefaultSystem,
                     browserCount,
                     systemCount,
-                    isChromePreStableInstalled);
+                    isChromePreStableInstalled,
+                    defaultRi);
         }
 
         @Override
@@ -252,6 +296,7 @@ public final class DefaultBrowserInfo {
         }
 
         private void flushCallbacks(@Nullable DefaultInfo info) {
+            mDefaultInfo = info;
             for (Callback<@Nullable DefaultInfo> callback : mObservers) {
                 callback.onResult(info);
             }
@@ -269,9 +314,7 @@ public final class DefaultBrowserInfo {
     }
 
     private static boolean isChromePreStable(ResolveInfo info) {
-        for (String name : CHROME_PRE_STABLE_PACKAGE_NAMES) {
-            if (name.equals(info.activityInfo.applicationInfo.packageName)) return true;
-        }
-        return false;
+        return ChromePackageNameVariant.CHROME_PRE_STABLE_PACKAGE_NAMES.contains(
+                info.activityInfo.applicationInfo.packageName);
     }
 }

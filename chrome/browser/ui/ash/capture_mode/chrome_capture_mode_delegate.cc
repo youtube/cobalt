@@ -485,10 +485,9 @@ void ChromeCaptureModeDelegate::OpenScreenshotInImageEditor(
 
 bool ChromeCaptureModeDelegate::Uses24HourFormat() const {
   Profile* profile = ProfileManager::GetActiveUserProfile();
-  // TODO(afakhry): Consider moving |prefs::kUse24HourClock| to ash/public so
-  // we can do this entirely in ash.
+  // TODO(afakhry): Consider moving this entirely in ash.
   if (profile) {
-    return profile->GetPrefs()->GetBoolean(prefs::kUse24HourClock);
+    return profile->GetPrefs()->GetBoolean(ash::prefs::kUse24HourClock);
   }
   return base::GetHourClockType() == base::k24HourClock;
 }
@@ -663,7 +662,7 @@ bool ChromeCaptureModeDelegate::IsAudioCaptureDisabledByPolicy() const {
 }
 
 void ChromeCaptureModeDelegate::RegisterVideoConferenceManagerClient(
-    crosapi::mojom::VideoConferenceManagerClient* client,
+    ash::VideoConferenceManagerClient* client,
     const base::UnguessableToken& client_id) {
   video_conference_manager_ash_->RegisterCppClient(client, client_id);
 }
@@ -674,13 +673,13 @@ void ChromeCaptureModeDelegate::UnregisterVideoConferenceManagerClient(
 }
 
 void ChromeCaptureModeDelegate::UpdateVideoConferenceManager(
-    crosapi::mojom::VideoConferenceMediaUsageStatusPtr status) {
+    ash::VideoConferenceMediaUsageStatus status) {
   video_conference_manager_ash_->NotifyMediaUsageUpdate(std::move(status),
                                                         base::DoNothing());
 }
 
 void ChromeCaptureModeDelegate::NotifyDeviceUsedWhileDisabled(
-    crosapi::mojom::VideoConferenceMediaDevice device) {
+    ash::VideoConferenceMediaDevice device) {
   video_conference_manager_ash_->NotifyDeviceUsedWhileDisabled(
       device, l10n_util::GetStringUTF16(IDS_ASH_SCREEN_CAPTURE_DISPLAY_SOURCE),
       base::DoNothing());

@@ -89,6 +89,7 @@ class InterfaceRegistry;
 class PageState;
 class WebAssociatedURLLoader;
 class WebAutofillClient;
+class WebRecordReplayClient;
 class WebContentCaptureClient;
 class WebContentSettingsClient;
 class WebLocalFrameClient;
@@ -147,8 +148,8 @@ class BLINK_EXPORT WebLocalFrame : public WebFrame {
       WebFrame* opener = nullptr,
       const WebString& name = WebString(),
       network::mojom::WebSandboxFlags = network::mojom::WebSandboxFlags::kNone,
-      const WebURL& base_url = WebURL());
-
+      const WebURL& base_url = WebURL(),
+      std::unique_ptr<base::UnguessableToken> sandbox_origin_token = nullptr);
   // Used to create a provisional local frame. Currently, it's possible for a
   // provisional navigation not to commit (i.e. it might turn into a download),
   // but this can only be determined by actually trying to load it. The loading
@@ -209,6 +210,9 @@ class BLINK_EXPORT WebLocalFrame : public WebFrame {
 
   virtual void SetAutofillClient(WebAutofillClient*) = 0;
   virtual WebAutofillClient* AutofillClient() = 0;
+
+  virtual void SetRecordReplayClient(WebRecordReplayClient*) = 0;
+  virtual WebRecordReplayClient* RecordReplayClient() = 0;
 
   virtual void SetContentCaptureClient(WebContentCaptureClient*) = 0;
   virtual WebContentCaptureClient* ContentCaptureClient() const = 0;

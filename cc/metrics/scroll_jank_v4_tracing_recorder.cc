@@ -8,7 +8,6 @@
 
 #include "base/check.h"
 #include "base/time/time.h"
-#include "base/trace_event/trace_id_helper.h"
 #include "base/trace_event/typed_macros.h"
 #include "base/tracing/protos/chrome_track_event.pbzero.h"
 #include "cc/metrics/scroll_jank_v4_frame.h"
@@ -111,6 +110,8 @@ void PopulateScrollJankV4ResultProto(
     const BeginFrameArgsForScrollJank& args,
     const ScrollJankV4Result& result,
     perfetto::protos::pbzero::EventLatency::ScrollJankV4Result& out) {
+  out.set_result_id(args.result_id);
+
   PopulateScrollUpdatesProto(updates, result, *out.set_updates());
 
   out.set_damage_type(std::visit(
@@ -169,6 +170,12 @@ void RecordSubEvents(const ScrollUpdates& updates,
                      const BeginFrameArgsForScrollJank& args,
                      const ScrollJankV4Result& result,
                      const perfetto::Track& trace_track) {
+  auto set_result_id_lambda = [result_id = args.result_id](
+                                  perfetto::EventContext context) {
+    auto* event = context.event<perfetto::protos::pbzero::ChromeTrackEvent>();
+    event->set_scroll_jank_v4()->set_result_id(result_id);
+  };
+
   // Scroll updates.
   if (const auto* synthetic =
           std::get_if<ScrollJankV4Result::SyntheticFirstScrollUpdate>(
@@ -177,36 +184,41 @@ void RecordSubEvents(const ScrollUpdates& updates,
     TRACE_EVENT_INSTANT(
         kTracingCategory,
         "Extrapolated first synthetic scroll update input generation",
-        trace_track, *synthetic->extrapolated_input_generation_ts);
+        trace_track, *synthetic->extrapolated_input_generation_ts,
+        set_result_id_lambda);
   }
   if (updates.real().has_value()) {
     TRACE_EVENT_BEGIN(kTracingCategory, "Real scroll update input generation",
-                      trace_track, updates.real()->first_input_generation_ts);
+                      trace_track, updates.real()->first_input_generation_ts,
+                      set_result_id_lambda);
     TRACE_EVENT_END(kTracingCategory, trace_track,
                     updates.real()->last_input_generation_ts);
   }
   if (updates.synthetic().has_value()) {
     TRACE_EVENT_INSTANT(
         kTracingCategory, "First synthetic scroll update original begin frame",
-        trace_track, updates.synthetic()->first_input_begin_frame_ts);
+        trace_track, updates.synthetic()->first_input_begin_frame_ts,
+        set_result_id_lambda);
   }
 
   // Begin frame.
   TRACE_EVENT_INSTANT(kTracingCategory, "Begin frame", trace_track,
-                      args.frame_time);
+                      args.frame_time, set_result_id_lambda);
 
   // Presentation.
   std::visit(
       absl::Overload{
           [&](const ScrollJankV4Result::DamagingPresentation& damaging) {
             TRACE_EVENT_INSTANT(kTracingCategory, "Presentation", trace_track,
-                                damaging.actual_presentation_ts);
+                                damaging.actual_presentation_ts,
+                                set_result_id_lambda);
           },
           [&](const ScrollJankV4Result::NonDamagingPresentation& non_damaging) {
             if (non_damaging.extrapolated_presentation_ts.has_value()) {
               TRACE_EVENT_INSTANT(kTracingCategory, "Extrapolated presentation",
                                   trace_track,
-                                  *non_damaging.extrapolated_presentation_ts);
+                                  *non_damaging.extrapolated_presentation_ts,
+                                  set_result_id_lambda);
             }
           }},
       result.presentation);
@@ -226,24 +238,49 @@ void ScrollJankV4TracingRecorder::RecordTraceEvents(
 
   // Consecutive "ScrollJankV4" trace events are likely to overlap, so create a
   // new track for each event.
-  const perfetto::Track trace_track =
-      perfetto::Track(base::trace_event::GetNextGlobalTraceId());
+  const perfetto::Track trace_track = perfetto::Track(args.result_id);
 
-  base::TimeTicks start_ts = std::visit(
+  base::TimeTicks start_ts = args.frame_time;
+  base::TimeTicks end_ts = args.frame_time;
+
+  auto add_to_trace_event_range = [&](base::TimeTicks ts) {
+    DCHECK_LE(start_ts, end_ts);
+    if (ts < start_ts) {
+      start_ts = ts;
+    } else if (ts > end_ts) {
+      end_ts = ts;
+    }
+  };
+
+  // Scroll updates.
+  if (const auto* synthetic =
+          std::get_if<ScrollJankV4Result::SyntheticFirstScrollUpdate>(
+              &result.first_scroll_update);
+      synthetic && synthetic->extrapolated_input_generation_ts.has_value()) {
+    add_to_trace_event_range(*synthetic->extrapolated_input_generation_ts);
+  }
+  if (updates.real().has_value()) {
+    add_to_trace_event_range(updates.real()->first_input_generation_ts);
+    add_to_trace_event_range(updates.real()->last_input_generation_ts);
+  }
+  if (updates.synthetic().has_value()) {
+    add_to_trace_event_range(updates.synthetic()->first_input_begin_frame_ts);
+  }
+
+  // Presentation.
+  std::visit(
       absl::Overload{
-          [](const ScrollJankV4Result::RealFirstScrollUpdate& real) {
-            return real.actual_input_generation_ts;
+          [&](const ScrollJankV4Result::DamagingPresentation& damaging) {
+            add_to_trace_event_range(damaging.actual_presentation_ts);
           },
-          [&](const ScrollJankV4Result::SyntheticFirstScrollUpdate& synthetic) {
-            if (synthetic.extrapolated_input_generation_ts.has_value()) {
-              return *synthetic.extrapolated_input_generation_ts;
+          [&](const ScrollJankV4Result::NonDamagingPresentation& non_damaging) {
+            if (non_damaging.extrapolated_presentation_ts.has_value()) {
+              add_to_trace_event_range(
+                  *non_damaging.extrapolated_presentation_ts);
             }
-            // `result.first_scroll_update` can only be empty if this is a
-            // synthetic frame.
-            CHECK(updates.synthetic().has_value());
-            return updates.synthetic()->first_input_begin_frame_ts;
           }},
-      result.first_scroll_update);
+      result.presentation);
+
   TRACE_EVENT_BEGIN(
       kTracingCategory, "ScrollJankV4", trace_track, start_ts,
       [&](perfetto::EventContext context) {
@@ -255,19 +292,14 @@ void ScrollJankV4TracingRecorder::RecordTraceEvents(
 
   RecordSubEvents(updates, damage, args, result, trace_track);
 
-  base::TimeTicks end_ts = std::visit(
-      absl::Overload{
-          [&](const ScrollJankV4Result::DamagingPresentation& damaging) {
-            return damaging.actual_presentation_ts;
-          },
-          [&](const ScrollJankV4Result::NonDamagingPresentation& non_damaging) {
-            if (non_damaging.extrapolated_presentation_ts.has_value()) {
-              return *non_damaging.extrapolated_presentation_ts;
-            }
-            return args.frame_time;
-          }},
-      result.presentation);
-  TRACE_EVENT_END(kTracingCategory, trace_track, end_ts);
+  // The Perfetto trace processor assigns slice ancestors based on closed-open
+  // [start, end) intervals. We add add 1 μs to the end timestamp of the
+  // "ScrollJankV4" trace event, so that its end timestamp would be strictly
+  // greater than the timestamp of any final instant sub-event (e.g.
+  // "Presentation") and thus the trace processor would set the "ScrollJankV4"
+  // slice as the ancestor of the final instant sub-event.
+  TRACE_EVENT_END(kTracingCategory, trace_track,
+                  end_ts + base::Microseconds(1));
 }
 
 }  // namespace cc

@@ -182,6 +182,18 @@
   </translations>
   <release seq="1">
     <messages fallback_to_english="true">
+      <message name="IDS_AUTOFILL_SCAN_CARD_AND_AUTOFILL_PROMPT_CANCEL_BUTTON_LABEL" desc="Label for the cancel button of scan card and save prompt offer. This prompt is shown if the user clicks on the credit card form field and there are no saved cards on file on IOS devices.">
+        No thanks
+      </message>
+      <message name="IDS_AUTOFILL_SCAN_CARD_AND_AUTOFILL_PROMPT_PRIMARY_BUTTON_LABEL" desc="Label for the primary button of scan card and save prompt offer. This prompt is shown if the user clicks on the credit card form field and there are no saved cards on file on IOS devices.">
+        Scan Card and Autofill
+      </message>
+      <message name="IDS_AUTOFILL_SCAN_SAVE_AND_FILL_BOTTOM_SHEET_DESCRIPTION" desc="Description for the `Scan, Save and Fill` suggestion shown in the Autofill bottom sheet for users who don't have any cards saved in Autofill. When the suggestion is clicked, users are offered to scan, save and fill a credit card with a single click.">
+        Save your card in your Google Account to autofill it for this purchase and future purchases made on Chrome
+      </message>
+      <message name="IDS_AUTOFILL_SCAN_SAVE_AND_FILL_BOTTOM_SHEET_TITLE" desc="Title for the `Scan, Save and Fill` suggestion shown in the Autofill bottom sheet for users who don't have any cards saved in Autofill. When the suggestion is clicked, users are offered to scan, save and fill a credit card with a single click.">
+        Check out faster with autofill across your devices
+      </message>
       <message name="IDS_IOS_ACCNAME_CLEAR_TEXT" desc="The accessibility label for the clear text button in the location bar [Length: unlimited].">
         Clear text
       </message>
@@ -467,6 +479,18 @@
       <message name="IDS_IOS_APPLICATION_SHORTCUT_VOICE_SEARCH_TITLE" desc="Message when opening a Voice Search from springboard force touch static shortcuts. [Length: unlimited] [iOS only]." meaning="3D Touch entry to trigger a voice search.">
         Voice search
       </message>
+      <message name="IDS_IOS_APP_BAR_ALL_TABS" desc="Title of the button opening the TabGrid where all the tabs are visible. Note that if the translation is too long, the 'all' can be dropped and translate only 'Tabs'. [CHAR_LIMIT=14]" meaning="Tap this button to see all your tabs.">
+          All tabs
+          </message>
+      <message name="IDS_IOS_APP_BAR_ASK_GEMINI" desc="Title of the button opening a gemini prompt. [CHAR_LIMIT=14]" meaning="Tap this button to ask something to Gemini">
+          Ask Gemini
+          </message>
+      <message name="IDS_IOS_APP_BAR_CONTEXT_MENU_NEW_TAB_GROUP" desc="The text for the button opening a new tab group from the app bar's context menu in the tab groups page of the tab grid.">
+        New Tab Group...
+      </message>
+      <message name="IDS_IOS_APP_BAR_NEW" desc="Title of the button that is either creating a new tab or a new tab group. [CHAR_LIMIT=14]" meaning="Tap this button to create a new entity based on your current context">
+          New
+          </message>
       <message name="IDS_IOS_APP_LAUNCHER_OPEN_APP_BUTTON_LABEL" desc="Label of a button to open an application. [Length: 10em] [iOS only]">
         Open
       </message>
@@ -514,11 +538,41 @@
            =1 {{count} option for address available above your keyboard.}
            other {{count} options for address available above your keyboard.}}
       </message>
+      <message name="IDS_IOS_AUTOFILL_ADD_ADDRESS_BUTTON_TEXT" desc="Button text for adding an address from Addresses and more screen of Settings [iOS only]">
+        Address
+      </message>
       <message name="IDS_IOS_AUTOFILL_ADD_CREDIT_CARD_OPEN_CAMERA_BUTTON_LABEL" desc="The text shown on a button to open the camera scanner to scan a credit card and extract the card number and expiry date, when adding a new credit card to Chrome Autofill [iOS only]">
         Use Camera
       </message>
       <message name="IDS_IOS_AUTOFILL_ADMIN_LEVEL2" desc="Title of the field of a profile address representing the administrative area level 2. A sub-division of a state, e.g. a Municipio in Brazil or Mexico. [Length: 15em] [iOS only]">
         Municipality
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_FOOTER_SAVE_TO_DEVICE" desc="Footer text in the save/update dialog indicating that the entity data will be saved locally on the device. [iOS only]">
+      Your info is saved to your device.
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_FOOTER_SAVE_TO_WALLET" desc="Footer text in the save/update dialog explaining the benefits of saving to Google Wallet. [iOS only]">
+      Save your info and get things done faster, like filling forms across Google products. You can manage your info in Google Wallet for <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>.
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_IDENTITY_DOCS_TITLE" desc="Title for the Your saved info settings sub page that allows user to manage their list of saved identity documents. Sentence-Cased." formatter_data="android_java">
+        Identity docs
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_SAVE_FALLBACK_BODY" desc="Body text of the alert shown when saving to Wallet fails but saving to device succeeds. [iOS only]">
+      You’ll have the chance to save this info to Wallet the next time you fill a relevant form.
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_SAVE_FALLBACK_TITLE" desc="Title of the alert shown when saving to Wallet fails but saving to device succeeds. [iOS only]">
+      Info saved only to device
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_SAVE_PROMPT" desc="The prompt text asking the user to save a new entity to Autofill AI. [iOS only]">
+        Save <ph name="ENTITY_TYPE">$1<ex>Passport</ex></ph>?
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_TRAVEL_TITLE" desc="Title for the Your saved info settings sub page that allows user to manage their list of saved travel info. Sentence-Cased." formatter_data="android_java">
+        Travel
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_UPDATE_PROMPT" desc="The prompt text asking the user to update an existing entity in Autofill AI. [iOS only]">
+        Update <ph name="ENTITY_TYPE">$1<ex>Passport</ex></ph>?
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_VEHICLE_VIN_NAME" desc="The display name for the vehicle identification number (VIN) in Autofill AI. [iOS only]">
+        VIN
       </message>
       <message name="IDS_IOS_AUTOFILL_AUTOCOMPLETE_OPTIONS_AVAILABLE_ACCESSIBILITY_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="The accessibility announcement to indicate the number of options available to the user above the keyboard in relation to autocomplete. This announcement is triggered when the user enters edit mode in an autocomplete-related form field and has options available in the keyboard accessory for autofill purposes. According to the number of available options, the string goes from singular to plural. [iOS only]">
         {count, plural,
@@ -618,6 +672,11 @@
       <message name="IDS_IOS_AUTOFILL_NICKNAME" desc="Title of the field representing the user defined nickname of a credit card. [Length: 15em] [iOS only]">
         Card nickname
       </message>
+      <message name="IDS_IOS_AUTOFILL_OPTIONS_AVAILABLE_ACCESSIBILITY_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="The accessibility announcement to indicate the number of options available to the user above the keyboard in relation to enhanced autofill. This announcement is triggered when the user enters edit mode in an autocomplete-related form field and has options available in the keyboard accessory for autofill purposes. According to the number of available options, the string goes from singular to plural. [iOS only]">
+        {count, plural,
+           =1 {{count} autofill option available above your keyboard.}
+           other {{count} autofill options available above your keyboard.}}
+      </message>
       <message name="IDS_IOS_AUTOFILL_PASSWORD_AUTOFILL_DATA" desc="The accessible name for the button in the keyboard accessory shown when filling out forms used to open the expanded view to see password autofill data. This is spoken by VoiceOver. [Length: unlimited] [iOS only]">
         Passwords
       </message>
@@ -669,6 +728,21 @@
       </message>
       <message name="IDS_IOS_AUTOFILL_SUGGESTION_INDEX_VALUE" desc="The accessibility value of a suggestion shown in the Autofill keyboard acessory to indicate the position of the focused suggestion in the list of suggestions. [Length: unlimited] [iOS only]">
         <ph name="INDEX">$1<ex>1</ex></ph> of <ph name="NUM_SUGGESTIONS">$2<ex>5</ex></ph>
+      </message>
+      <message name="IDS_IOS_AUTOFILL_VERIFICATION_INFO_FOOTER" desc="The footer text explaining the verify sensitive info setting. [iOS only]">
+        If you share this device, use your screen lock to verify it's you when using sensitive info like passports
+      </message>
+      <message name="IDS_IOS_AUTOFILL_VERIFICATION_INFO_LABEL" desc="The label for the toggle to verify identity when filling sensitive info. [iOS only]">
+        Verify it's you when filling sensitive info
+      </message>
+      <message name="IDS_IOS_AUTOFILL_WALLET_PROMO_DETAIL_TEXT" desc="Text explaining that the user needs to enable 'Use passes across Google' in Wallet settings to use autofill. [iOS only]">
+        To autofill your info, turn on “Use passes across Google” in Wallet settings
+      </message>
+      <message name="IDS_IOS_AUTOFILL_WALLET_PROMO_LINK_TEXT" desc="Link text to open the Google Wallet app. [iOS only]">
+        Open Google Wallet
+      </message>
+      <message name="IDS_IOS_AUTOFILL_WALLET_PROMO_TITLE" desc="Title of the wallet promo in autofill settings. [iOS only]">
+        Allow Wallet to share data
       </message>
       <message name="IDS_IOS_AUTOFILL_WALLET_SERVER_NAME" desc="The name of the data source for non-local card and address info. Title case. 'Google Pay' should not be translated as it is the product name. [Length: 15em] [iOS only]">
         Google Pay
@@ -1195,7 +1269,7 @@
         Ask Gemini
       </message>
       <message name="IDS_IOS_BWG_CONSENT_FIRST_BOX_TITLE" desc="First box title text for the Gemini Consent page for managed accounts.">
-          Your page content is shared for more relevant answers
+          Get more relevant answers by sharing your tabs
       </message>
       <message name="IDS_IOS_BWG_CONSENT_FOOTNOTE_MANAGED_LINK">
           Your privacy &amp; Gemini.
@@ -1213,7 +1287,7 @@
           <ph name="GOOGLE_TERMS">$1<ex>Google Terms</ex></ph> and the <ph name="GEMINI_APPS_PRIVACY">$2<ex>Gemini Apps Privacy Notice</ex></ph> apply. Gemini can make mistakes, so double-check it.
       </message>
       <message name="IDS_IOS_BWG_CONSENT_MANAGED_FIRST_BOX_BODY" desc="First box body text for the Gemini Consent page for managed accounts.">
-          When you use this feature, page content and URLs are sent to Google but won't be used to improve generative AI models. You can turn this off in settings anytime.
+          By default, your current tab is shared when you start a new chat. When tabs are shared, their contents and URLs are sent to Google but won’t be used to improve generative AI models. You can change this setting anytime.
       </message>
       <message name="IDS_IOS_BWG_CONSENT_MANAGED_SECOND_BOX_BODY" desc="Second box body text for the Gemini Consent page for managed accounts.">
           Neither your conversations with Gemini nor your <ph name="GOOGLE_WORKSPACE_DATA">$1<ex>Google Workspace data</ex></ph> will be reviewed by human reviewers or used to improve generative AI models.
@@ -1225,7 +1299,7 @@
           Your organization's data is private and secure
       </message>
       <message name="IDS_IOS_BWG_CONSENT_NON_MANAGED_FIRST_BOX_BODY" desc="First box body text for the Gemini Consent page for non managed accounts.">
-          When you use this feature, page content and URLs are sent to Google. You can turn this off in settings anytime.
+          By default, your current tab is shared when you start a new chat. When tabs are shared, their contents and URLs are sent to Google. You can change this setting anytime.
       </message>
       <message name="IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_BODY" desc="Second box body text for the Gemini Consent page for non managed accounts.">
           Chats are reviewed and used to improve Google AI. <ph name="LEARN_ABOUT_CHOICES">$1<ex>Learn about your choices.</ex></ph> <ph name="INFO_ABOUT_LOCATION">$2<ex>Info about your location</ex></ph> is also stored with your activity.
@@ -1267,10 +1341,10 @@
           No thanks
       </message>
       <message name="IDS_IOS_BWG_PAGE_CONTENT_SHARING_ALERT_MESSAGE" desc="The body/message of the alert asking a user to turn on Page Content sharing with Gemini so they can get more relevant results. This asks them if they would like to share the contents of webpages with Gemini.">
-          Share page content with Gemini to get more relevant answers
+          Share current tab content with Gemini to get more relevant answers
       </message>
       <message name="IDS_IOS_BWG_PAGE_CONTENT_SHARING_ALERT_TITLE" desc="The title of the alert asking a user to turn on Page Content sharing.">
-          Turn on page content sharing
+          Turn on tab sharing
       </message>
       <message name="IDS_IOS_BWG_PROMO_FIRST_BOX_BODY" desc="First box body text for the Gemini Promo page.">
           Get relevant answers based on the content of the page you're on
@@ -1312,10 +1386,10 @@
         Precise location
       </message>
       <message name="IDS_IOS_BWG_SETTINGS_PAGE_CONTENT_FOOTER_TEXT" desc="The footer text of page content sharing row in BWG settings page.">
-        Share page content with Gemini to get more relevant answers. When you share a page with Gemini, the page’s full content and URL are sent to Google. <ph name="BEGIN_LINK">BEGIN_LINK</ph>Learn more<ph name="END_LINK">END_LINK</ph>
+        The current tab is shared with Gemini when you start a new chat. When you share a tab with Gemini, their contents and URL are sent to Google. <ph name="BEGIN_LINK">BEGIN_LINK</ph>Learn more<ph name="END_LINK">END_LINK</ph>
       </message>
       <message name="IDS_IOS_BWG_SETTINGS_PAGE_CONTENT_SHARING_TITLE" desc="The title text of page content sharing row in BWG settings page.">
-        Page content sharing
+        Share current tab
       </message>
       <message name="IDS_IOS_CALL_OMNIBOX_ACTION" desc="Call suggestion action button [iOS only]">
         Call
@@ -1440,6 +1514,9 @@
       <message name="IDS_IOS_COMPOSEBOX_AIM_ENABLED_PLACEHOLDER" desc="The placeholder to show when AIM is enabled and no user text was added.">
         Ask Google anything
       </message>
+      <message name="IDS_IOS_COMPOSEBOX_ASK_ABOUT_THIS_PAGE_ACTION" desc="A Composebox button to attach the current tab as context. [iOS only].">
+        Ask about this page
+      </message>
       <message name="IDS_IOS_COMPOSEBOX_ATTACHMENT_FILE_ACCESSIBILITY_LABEL" desc="The accessibility announcement prefix read by Voice Over for a file attachment in AI Mode input plate. [iOS only].">
         Attached file {title}
       </message>
@@ -1463,9 +1540,6 @@
       </message>
       <message name="IDS_IOS_COMPOSEBOX_CREATE_IMAGE_ACTION" desc="The contextual menu option instructing the input plate to use the image generation tool. [iOS only].">
         Create image
-      </message>
-      <message name="IDS_IOS_COMPOSEBOX_CREATE_IMAGE_PRO_ACTION" desc="The contextual menu option instructing the input plate to use the image generation tool when the advanced model is being used. [iOS only].">
-        Create image Pro
       </message>
       <message name="IDS_IOS_COMPOSEBOX_DEEP_SEARCH_ACTION" desc="The contextual menu option for opening the tool that helps users perform complex research tasks. [iOS only].">
         Deep Search
@@ -1798,17 +1872,17 @@
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_EDIT_PINNED_SITE_TITLE" desc="The title of form for the user to edit an existing pinned site">
         Edit site
       </message>
-      <message name="IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_FORM_FOOTER" desc="The footer of form for the user to add or edit a pinned site">
-        Your edits will only apply to your pinned sites on this device.
-      </message>
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_FORM_NAME" desc="The label of the 'name' field of form for the user to add or edit a pinned site">
         Name
       </message>
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_FORM_URL" desc="The label of the 'URL' field of form for the user to edit an existing pinned site">
         URL
       </message>
-      <message name="IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_FORM_URL_VALIDATION_FAILED" desc="Error message shown below URL input field when the the site is already pinned. [Length: 20em]">
+      <message name="IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_FORM_URL_EXISTS" desc="Error message shown below URL input field when the the site is already pinned. [Length: 20em]">
         Pinned site already exists
+      </message>
+      <message name="IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_FORM_URL_VALIDATION_FAILED" desc="Error message shown below URL input field when the the site is invalid. [Length: 20em]">
+        Type a valid URL
       </message>
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_PIN_SITE_IN_PRODUCT_HELP" desc="In-product help that points at the first most visited tile in content suggestions to educate the user that they could long tap on the tile to pin this site">
         Tap and hold to pin your favorite sites
@@ -1834,17 +1908,8 @@
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_PRICE_TRACKING_PROMO_HIDE_CARD" desc="Button text indicating price tracking promo module can be removed">
         Hide "Get Price Tracking Notifications"
       </message>
-      <message name="IDS_IOS_CONTENT_SUGGESTIONS_PRICE_TRACKING_PROMO_SETTINGS_TURN_ON_NOTIFICATIONS_ACCEPT" desc="Button text indicating the user can accept turning on price tracking notifications in settings">
-          Go to Settings...
-      </message>
-      <message name="IDS_IOS_CONTENT_SUGGESTIONS_PRICE_TRACKING_PROMO_SETTINGS_TURN_ON_NOTIFICATIONS_DENY" desc="Button text indicating the user can deny turning on price tracking notifications in settings">
-          No, Thanks
-      </message>
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_PRICE_TRACKING_PROMO_SETTINGS_TURN_ON_NOTIFICATIONS_TEXT" desc="Text indicating the user needs to go to settings to turn on notifications (because they have previously turned it off)">
           To get price tracking notifications, turn on notifications in your iOS Settings.
-      </message>
-      <message name="IDS_IOS_CONTENT_SUGGESTIONS_PRICE_TRACKING_PROMO_SETTINGS_TURN_ON_NOTIFICATIONS_TITLE" desc="Title indicating the user needs to go to settings to turn on notifications (because they have previously turned it off)">
-          Turn on notifications?
       </message>
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_PRICE_TRACKING_PROMO_SNACKBAR_MANAGE" desc="Snackbar action enabling management of price tracking notifications">
           Manage
@@ -2031,6 +2096,9 @@
       </message>
       <message name="IDS_IOS_CREDENTIAL_BOTTOM_SHEET_CONTINUE" desc="The action button to use the selected credentials to fill the username on a username only form without password.">
         Continue
+      </message>
+      <message name="IDS_IOS_CREDENTIAL_BOTTOM_SHEET_MORE_PASSKEYS" desc="The action button to dismiss the credential bottom sheet and defer the passkey request back to iOS, for potentially more passkey options.">
+        More passkeys
       </message>
       <message name="IDS_IOS_CREDENTIAL_BOTTOM_SHEET_NO_USERNAME" desc="Text shown for an option in a list of the user's saved passwords, when the user did not save a username along with the password.">
         No username ••••••••
@@ -2277,15 +2345,6 @@
       </message>
       <message name="IDS_IOS_DEVICE_ACCOUNTS_MANAGEMENT" desc="Title of a page that shows all accounts on the user's device and lets them add, remove and otherwise manage their accounts. Avoid long strings given the limited space between surrounding buttons. [iOS only]">
         Manage Accounts
-      </message>
-      <message name="IDS_IOS_DIAMOND_PROTOTYPE_ALL_TABS" desc="Title of the button opening the Tab Grid, containing all the tabs">
-        All Tabs
-      </message>
-      <message name="IDS_IOS_DIAMOND_PROTOTYPE_ASK_GEMINI" desc="Title of the button opening a gemini prompt">
-        Ask Gemini
-      </message>
-      <message name="IDS_IOS_DIAMOND_PROTOTYPE_NEW_TAB" desc="Title of the button opening a new tab">
-        New Tab
       </message>
       <message name="IDS_IOS_DIRECTIONS_OMNIBOX_ACTION" desc="Directions suggestion action button [iOS only]">
         Directions
@@ -2721,6 +2780,24 @@
       <message name="IDS_IOS_ENTERPRISE_ACCOUNT_MANAGED" desc="Text displayed to inform the user that the account is managed by Enterprise policies (without link). [iOS only]">
         This account is managed
       </message>
+      <message name="IDS_IOS_ENTERPRISE_FILE_DOWNLOAD_WARN_CONTINUE_BUTTON" desc="Continue dialog button label for warning before saving or sharing the file. [iOS only]">
+        Continue
+      </message>
+      <message name="IDS_IOS_ENTERPRISE_FILE_DOWNLOAD_WARN_LABEL" desc="Text displayed at the top of a dialog telling the user that saving or sharing the file is not recommended. [iOS only]">
+        Based on your organization's policies, this file may contain sensitive information
+      </message>
+      <message name="IDS_IOS_ENTERPRISE_FILE_SAVE_BLOCKED_SNACKBAR_TEXT" desc="The text of the snackbar message to inform users that saving files is blocked. [iOS only]">
+        File couldn't save due to your organization's policies
+      </message>
+      <message name="IDS_IOS_ENTERPRISE_FILE_SAVE_WARN_TITLE" desc="Text displayed at the top of a dialog telling the user that saving the file is not recommended. [iOS only]">
+        Saving not recommended
+      </message>
+      <message name="IDS_IOS_ENTERPRISE_FILE_SHARE_BLOCKED_SNACKBAR_TEXT" desc="The text of the snackbar message to inform users that sharing files is blocked. [iOS only]">
+        File can't be shared due to your organization's policies
+      </message>
+      <message name="IDS_IOS_ENTERPRISE_FILE_SHARE_WARN_TITLE" desc="Text displayed at the top of a dialog telling the user that sharing the file is not recommended. [iOS only]">
+        Sharing not recommended
+      </message>
       <message name="IDS_IOS_ENTERPRISE_MANAGED_BY_YOUR_ORGANIZATION" desc="Text displayed to inform the user that the browser is managed by Enterprise policies (without link). [iOS only]">
         Managed by your organization
       </message>
@@ -2853,10 +2930,10 @@
         Payment methods
       </message>
       <message name="IDS_IOS_EXPLAIN_GEMINI_EDIT_MENU" desc="Edit Menu button to explain the selected text with Gemini.">
-        Explain
+        Explain with Gemini
       </message>
       <message name="IDS_IOS_EXPLAIN_GEMINI_PROMPT_PREFIX" desc="This text will be appended before a body of text which Gemini is being asked to explain to the user.">
-          Explain this to me
+          Explain this to me:
       </message>
       <message name="IDS_IOS_EXPORT_PASSWORDS" desc="Button that the user can press to export passwords. [Length: 22em] [iOS only]">
         Export passwords…
@@ -3240,6 +3317,9 @@
       </message>
       <message name="IDS_IOS_HOME_BACKGROUND_CUSTOMIZATION_IPH" desc="In-product help that points at the entrypoint for the Home Customization menu in the new tab page when background customization is added.">
         Pick a theme, color, or more for your background
+      </message>
+      <message name="IDS_IOS_HOME_BACKGROUND_CUSTOMIZATION_USER_UPLOAD_NOT_SYNCED_SNACKBAR" desc="The snackbar displayed at the bottom of the screen informing the user that their uploaded background image will not be synced to other devices.">
+        Photos from Camera Roll won’t sync across your devices
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_ACCESSIBILITY_LABEL" desc="Accessibility label for the Home Customization menu in the new tab page.">
         Customize your home screen
@@ -3682,6 +3762,12 @@
       </message>
       <message name="IDS_IOS_INFOBAR_BANNER_OPTIONS_HINT" desc="Accessibility hint that indicates the user that can get more options for the Infobar banner. [Length:Unlimited]">
         More options
+      </message>
+      <message name="IDS_IOS_INFOBAR_MESSAGE_SAVE_TO_DEVICE" desc="A generic infobar message for saving something to device. [iOS only]">
+      Saves to your device.
+      </message>
+      <message name="IDS_IOS_INFOBAR_MESSAGE_SAVE_TO_WALLET" desc="A generic infobar message for saving something to Google Wallet. [iOS only]">
+      In Google Wallet for <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>.
       </message>
       <message name="IDS_IOS_INFOBAR_MODAL_PASSWORD_HIDE_PASSWORD_HINT" desc="Accessibility hint that indicates to the user that then can hide/mask the password. [Length:Unlimited]">
         Hide password
@@ -4905,6 +4991,12 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_PASSKEY_HIDDEN_INFO" desc="Label in the popover informing the user that a passkey was deleted by a website and will be deleted from password manager soon. Includes a link to a help center article informing more about passkeys. Refer to Glossary for the meaning of 'passkey', do not translate it as 'password'. [iOS only]">
         This passkey doesn't work anymore. It was deleted from <ph name="WEBSITE">$1<ex>shrine.com</ex></ph> and will get deleted from here soon. <ph name="BEGIN_LINK">BEGIN_LINK</ph>About passkeys<ph name="END_LINK">END_LINK</ph>
+      </message>
+      <message name="IDS_IOS_PASSKEY_INCOGNITO_INTERSTITIAL_CANCEL_BUTTON" desc="Title of the cancel button in the incognito interstitial dialog. [iOS only]">
+        Cancel
+      </message>
+      <message name="IDS_IOS_PASSKEY_INCOGNITO_INTERSTITIAL_CONTINUE_BUTTON" desc="Title of the continue button in the incognito interstitial dialog. [iOS only]">
+        Continue
       </message>
       <message name="IDS_IOS_PASSKEY_INCOGNITO_INTERSTITIAL_DIALOG_SUBTITLE" desc="Subtitle of the dialog shown when a user tries to create a passkey while in Incognito mode, explaining that passkeys are accessible even outside incognito mode.">
         Passkeys get saved to your password manager. They’re accessible in Incognito and regular tabs.
@@ -6588,6 +6680,12 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_LOCAL_HOME_WORK_ADDRESS_CONFIRMATION_TITLE" desc="Title for the sheet shown to the user for confirmation to delete local and home or work addresses. [iOS only]">
           This deletes addresses saved on this device. It also removes selected info from Chrome, but it doesn’t delete this info from your Google Account.
       </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_TITLE_LOCAL" desc="Title for the sheet shown to the user for confirmation to delete mixed selection of addresses and entities. Locally saved only. [iOS only]">
+          This deletes selected info saved on this device.
+      </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_DELETE_TITLE_LOCAL_AND_SERVER" desc="Title for the sheet shown to the user for confirmation to delete mixed selection of addresses and entities when addresses are saved in the user's Google Account. [iOS only]">
+          This deletes selected info saved on this device and in your Google Account <ph name="USER_EMAIL">$1<ex>janedoe@google.com</ex></ph>.
+      </message>
       <message name="IDS_IOS_SETTINGS_AUTOFILL_EDIT_HOME_WORK_ADDRESS_CONFIRMATION_BUTTON" desc="Edit button shown as an option in the address deletion confirmation sheet. [iOS only]">
           Edit in Google Account
       </message>
@@ -6602,6 +6700,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_SETTINGS_AUTOFILL_REMOVE_ADDRESS_LABEL" desc="Remove button title shown to the user to remove an address in the table view either by swiping the row or tapping the red minus icon in editing mode. [iOS only]">
           Remove
+      </message>
+      <message name="IDS_IOS_SETTINGS_AUTOFILL_VERIFICATION_TOGGLE_REAUTH_REASON" desc="Message explaining that the reason why we are requiring the user to re-authenticate is to be able to toggle user verification for enhanced autofill. This is shown by iOS in the passcode reauthentication system dialogue, right under the OS string 'Enter iPhone Passcode for $BROWSER_NAME'. [Length: one line]">
+        Toggle enhanced autofill user verification
       </message>
       <message name="IDS_IOS_SETTINGS_AUTOMATICALLY_OPEN_SYNCED_TAB_GROUPS_TITLE" desc="Title for the setting to automatically open tab groups from other devices. [iOS only]">
           Automatically open tab groups from other devices
@@ -6634,6 +6735,9 @@ Handoff must also be enabled in the General section of Settings, and your device
           {count, plural,
           =1 {A required field is empty. Fill it before saving.}
           other {Some required fields are empty. Fill them before saving.}}
+      </message>
+      <message name="IDS_IOS_SETTINGS_ENHANCED_AUTOFILL_SAVED_INFORMATION" desc="Text describing that the information is saved on device in the Enhanced Autofill Settings menu. [iOS only]">
+        Your saved information is stored on your device
       </message>
       <message name="IDS_IOS_SETTINGS_EXPORT_PASSWORDS_SET_UP_SCREENLOCK_CONTENT" desc="Message informing the user that in order to export the passwords, a screen lock needs to be set up on the device. This is shown as an alert message after the user tries to view or copy the password from a settings page. [Length: about two lines]">
         To export passwords, you must first set a passcode on your device.

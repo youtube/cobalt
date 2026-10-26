@@ -6,10 +6,13 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
+#include "components/omnibox/common/logger.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/contextual_tasks/public/features.h"
+#include "components/embedder_support/user_agent_utils.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
@@ -30,6 +33,7 @@
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 
 namespace contextual_tasks {
 
@@ -215,6 +219,13 @@ class ContextualTasksProxyingURLLoaderFactory
     target_factory_.set_disconnect_handler(base::BindOnce(
         &ContextualTasksProxyingURLLoaderFactory::OnTargetFactoryDisconnected,
         base::Unretained(this)));
+
+    if (base::FeatureList::IsEnabled(
+            kContextualTasksSendFullVersionListEnabled)) {
+      blink::UserAgentMetadata ua_metadata =
+          embedder_support::GetUserAgentMetadata();
+      ch_ua_full_version_list_ = ua_metadata.SerializeBrandFullVersionList();
+    }
   }
 
   ~ContextualTasksProxyingURLLoaderFactory() override = default;
@@ -228,35 +239,51 @@ class ContextualTasksProxyingURLLoaderFactory
       mojo::PendingRemote<network::mojom::URLLoaderClient> client,
       const net::MutableNetworkTrafficAnnotationTag& traffic_annotation)
       override {
+    network::ResourceRequest modified_request = request;
+    if (base::FeatureList::IsEnabled(
+            kContextualTasksSendFullVersionListEnabled) &&
+        !ch_ua_full_version_list_.empty()) {
+      modified_request.headers.SetHeader("Sec-CH-UA-Full-Version-List",
+                                         ch_ua_full_version_list_);
+    }
+
     if (!ui_service_) {
-      target_factory_->CreateLoaderAndStart(std::move(loader), request_id,
-                                            options, request, std::move(client),
-                                            traffic_annotation);
+      OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: CreateLoaderAndStart "
+                 "proceeding immediately, no ui_service_";
+      target_factory_->CreateLoaderAndStart(
+          std::move(loader), request_id, options, modified_request,
+          std::move(client), traffic_annotation);
       return;
     }
 
     // Only intercept HTTP/HTTPS requests.
-    if (!request.url.SchemeIs(url::kHttpsScheme)) {
-      target_factory_->CreateLoaderAndStart(std::move(loader), request_id,
-                                            options, request, std::move(client),
-                                            traffic_annotation);
+    if (!modified_request.url.SchemeIs(url::kHttpsScheme)) {
+      OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: CreateLoaderAndStart "
+                 "proceeding, scheme is not HTTPS";
+      target_factory_->CreateLoaderAndStart(
+          std::move(loader), request_id, options, modified_request,
+          std::move(client), traffic_annotation);
       return;
     }
 
     // If the request doesn't need the Authorization header, create the loader
     // and start immediately.
-    if (!ShouldAddAuthHeader(request.url)) {
-      target_factory_->CreateLoaderAndStart(std::move(loader), request_id,
-                                            options, request, std::move(client),
-                                            traffic_annotation);
+    if (!ShouldAddAuthHeader(modified_request.url)) {
+      OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: CreateLoaderAndStart "
+                 "proceeding, no auth header needed";
+      target_factory_->CreateLoaderAndStart(
+          std::move(loader), request_id, options, modified_request,
+          std::move(client), traffic_annotation);
       return;
     }
 
+    OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: CreateLoaderAndStart "
+               "asking ContextualTasksUiService for AccessToken";
     ui_service_->GetAccessToken(
         base::BindOnce(
             &ContextualTasksProxyingURLLoaderFactory::OnAccessTokenReceived,
             weak_factory_.GetWeakPtr(), std::move(loader), request_id, options,
-            request, std::move(client), traffic_annotation),
+            modified_request, std::move(client), traffic_annotation),
         web_contents_);
   }
 
@@ -271,6 +298,9 @@ class ContextualTasksProxyingURLLoaderFactory
       mojo::PendingRemote<network::mojom::URLLoaderClient> client,
       net::MutableNetworkTrafficAnnotationTag traffic_annotation,
       const std::string& token) {
+    OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: ProxyingURLLoaderFactory "
+               "OnAccessTokenReceived with token empty="
+            << (token.empty() ? "true" : "false");
     if (!token.empty()) {
       request.headers.SetHeader(kAuthorizationHeader, kBearerPrefix + token);
     }
@@ -289,6 +319,8 @@ class ContextualTasksProxyingURLLoaderFactory
             std::move(target_factory_clone)),
         std::move(loader));
   }
+
+  std::string ch_ua_full_version_list_;
 
   mojo::Remote<network::mojom::URLLoaderFactory> target_factory_;
   base::WeakPtr<ContextualTasksUiService> ui_service_;
@@ -322,6 +354,9 @@ void MaybeInterceptURLLoaderFactory(
   const GURL& owner_url = owner_web_contents->GetLastCommittedURL();
   if (owner_url.scheme() != content::kChromeUIScheme ||
       owner_url.host() != chrome::kChromeUIContextualTasksHost) {
+    OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
+               "MaybeInterceptURLLoaderFactory owner_url is not "
+               "chrome://contextual-tasks";
     return;
   }
 
@@ -331,12 +366,16 @@ void MaybeInterceptURLLoaderFactory(
       ContextualTasksUiServiceFactory::GetForBrowserContext(profile);
 
   if (!ui_service) {
+    OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
+               "MaybeInterceptURLLoaderFactory ui_service is null";
     return;
   }
 
   // Insert the proxy factory.
   auto [receiver, remote] = factory_builder.Append();
 
+  OMNIBOX_LOG("nav_trace") << "ContextualTasks navigation trace: "
+             "MaybeInterceptURLLoaderFactory creating proxy factory";
   // The proxy factory manages its own lifetime.
   new ContextualTasksProxyingURLLoaderFactory(
       std::move(receiver), std::move(remote), ui_service,

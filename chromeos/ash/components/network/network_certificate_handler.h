@@ -9,6 +9,8 @@
 #include <vector>
 
 #include "base/component_export.h"
+#include "base/observer_list.h"
+#include "base/scoped_observation.h"
 #include "chromeos/ash/components/network/network_cert_loader.h"
 
 namespace ash {
@@ -18,19 +20,14 @@ namespace ash {
 class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkCertificateHandler
     : public NetworkCertLoader::Observer {
  public:
-  class Observer {
+  class Observer : public base::CheckedObserver {
    public:
-    Observer(const Observer&) = delete;
-    Observer& operator=(const Observer&) = delete;
-
-    virtual ~Observer() {}
-
     // Called for any Observers whenever the certificates are loaded and any
     // time the certificate lists change.
     virtual void OnCertificatesChanged() = 0;
 
    protected:
-    Observer() {}
+    ~Observer() override = default;
   };
 
   struct Certificate {
@@ -98,8 +95,10 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) NetworkCertificateHandler
       const NetworkCertLoader::NetworkCertList& authority_certs,
       const NetworkCertLoader::NetworkCertList& client_certs);
 
-  base::ObserverList<NetworkCertificateHandler::Observer>::Unchecked
-      observer_list_;
+  base::ObserverList<Observer> observer_list_;
+
+  base::ScopedObservation<NetworkCertLoader, NetworkCertLoader::Observer>
+      observation_{this};
 
   std::vector<Certificate> server_ca_certificates_;
   std::vector<Certificate> client_certificates_;

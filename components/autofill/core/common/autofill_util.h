@@ -90,6 +90,9 @@ IsPasswordRequestManuallyTriggered IsPasswordsAutofillManuallyTriggered(
 bool IsPlusAddressesManuallyTriggered(
     AutofillSuggestionTriggerSource trigger_source);
 
+// Checks if the user triggered @memory on a field.
+bool IsAtMemoryTriggerSource(AutofillSuggestionTriggerSource trigger_source);
+
 // Returns whether the feature `kAutofillPaymentsFieldSwapping` is enabled
 // or not.
 // TODO(crbug.com/354175563): Remove when launched on all platforms.
@@ -102,7 +105,7 @@ std::u16string GetButtonTitlesString(const ButtonTitleList& titles_list);
 //
 // A form is perfectly filled if the user did not have to manually type into any
 // field that Autofill didn't assist with.
-bool IsFormPerfectlyFilled(const FormData& form);
+bool IsFormDataPerfectlyFilled(const FormData& form);
 
 // Returns true if `field` is a <select> field that appears to be a
 // `PHONE_HOME_COUNTRY_CODE` field by looking at its option contents.

@@ -8,6 +8,7 @@
 <translation id="1051793555070215510">请花 1 分钟时间填写调查问卷，帮助我们改进无痕模式。</translation>
 <translation id="1065672644894730302">系统无法读取您的偏好设置。某些功能可能无法使用，并且对偏好设置所做的更改不会保存。</translation>
 <translation id="1083934481477628225">您的家长已为 Chromium 停用“网站、应用和扩展程序的权限”</translation>
+<translation id="1090946077924227754">若要在特定的 Chromium 功能或扩展程序中进行搜索，请先在地址栏中输入相应的快捷字词，然后按下您选择的键盘按键</translation>
 <translation id="1104942323762546749">Chromium 想导出您的密码。请输入您的 Windows 密码以允许此操作。</translation>
 <translation id="112640046208448578">识别事物或地点，以及复制或翻译文本。当您使用图片搜索功能时，系统会将相关页面的屏幕截图发送给服务器。<ph name="LEARN_MORE" /></translation>
 <translation id="113122355610423240">Chromium 是您的默认浏览器</translation>
@@ -25,8 +26,10 @@
 <translation id="1262876892872089030">当此标签页处于闲置状态时，系统会释放一些内存，以让 Chromium 保持快速运行。您可以选择始终不让此网站处于闲置状态。</translation>
 <translation id="1265577313130862557">由于该文件具有危险性，Chromium 阻止了这次下载</translation>
 <translation id="126567311906253476">使用 <ph name="USER_EMAIL" /> 登录 Gmail 或 YouTube 等 Google 服务时，您可以使用同一账号自动登录 Chromium</translation>
+<translation id="1287534462498555020">在手机上下载 Chromium</translation>
 <translation id="1290883685122687410">设置错误：<ph name="METAINSTALLER_EXIT_CODE" />。<ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">设置您的新 Chromium 个人资料</translation>
+<translation id="132092532143527429">试用 Chromium 中的 Gemini</translation>
 <translation id="1324107359134968521">Chromium 需获得蓝牙使用权限，才能浏览蓝牙设备。<ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">检测语言</translation>
 <translation id="1330742950061766891">使用 Chromium 推荐的浏览器设置</translation>
@@ -238,7 +241,9 @@
 <translation id="3509308970982693815">请关闭所有 Chromium 窗口并重试。</translation>
 <translation id="3522404737534491619">若要共享窗口，请在“系统设置”中为 Chromium 启用屏幕录制功能</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" />已登录。若要单独存储您的浏览数据，请使用您自己的个人资料 (<ph name="USER_EMAIL_ADDRESS" />) 登录 Chromium。</translation>
+<translation id="3531741627422851418">用于在移动设备上下载 Chromium 浏览器的二维码</translation>
 <translation id="3561853857681580870">若要共享屏幕，请在“系统设置”中为 Chromium 启用屏幕录制功能。</translation>
+<translation id="3588112919289558122">增强型保护会为 Chromium 无法识别的网站关闭 JavaScript 优化功能</translation>
 <translation id="3597003331831379823">未能以提升的权限运行设置。<ph name="METAINSTALLER_ERROR" /></translation>
 <translation id="3600428265489994557">登录 Chromium</translation>
 <translation id="3639635944603682591">系统将会从此设备上删除该用户的浏览数据。要想恢复这些数据，请以“<ph name="USER_EMAIL" />”的身份登录 Chromium。</translation>
@@ -366,17 +371,17 @@
 <translation id="4987820182225656817">访客使用Chromium不会留下任何痕迹。</translation>
 <translation id="4992938037305302429">设置 Chromium 账号</translation>
 <translation id="4994636714258228724">将您自己添加到Chromium</translation>
-<translation id="5083712646171654472">Chromium 中的 Gemini 会使用自动浏览功能在标签页中运行，完成您交代的各种任务。<ph name="LINK_BEGIN" />了解详情<ph name="LINK_END" /></translation>
+<translation id="5083712646171654472">Chromium 中的 Gemini 利用“自动浏览”功能在标签页中操作，完成您交代的各种任务。<ph name="LINK_BEGIN" />了解详情<ph name="LINK_END" /></translation>
 <translation id="5123973130450702873">Chromium 需要获得权限，才能跟踪您的手部动作</translation>
 <translation id="5141988424377517949">您近期未访问过该网站，因此 Chromium 撤消了该网站的<ph name="PERMISSION_1" />权限、<ph name="PERMISSION_2" />权限和<ph name="PERMISSION_3" />权限。</translation>
 <translation id="5174969993834422967">您通常会屏蔽通知。要允许此网站向您发送通知，请点击位置栏右侧的通知图标。</translation>
 <translation id="5174983315706567306">磁盘可用空间不足。</translation>
 <translation id="5187123684706427865">Chromium 账号需要重新验证身份</translation>
-<translation id="5219681158518957165">使用推荐的浏览器设置</translation>
 <translation id="5224391634244552924">尚未保存任何密码。您需要先保存密码才能使用 Chromium 的密码检查功能。</translation>
 <translation id="5231355151045086930">退出 Chromium</translation>
 <translation id="5234764350956374838">关闭</translation>
 <translation id="5254739261293693943">询问此视频</translation>
+<translation id="5276305953263010518">下载 Chromium 应用，随时随地保存密码</translation>
 <translation id="5277894862589591112">要想应用您的更改，请重新启动 Chromium</translation>
 <translation id="5286907366254680517">检测到</translation>
 <translation id="5289287148052354622">获取 Chromium 应用</translation>
@@ -583,11 +588,15 @@ Chromium 无法恢复您的设置。</translation>
 <translation id="7352651011704765696">出了点问题</translation>
 <translation id="7368826207863345663">若要接收后续 Chromium 更新，您需要使用 macOS 13 或更高版本。该电脑目前使用的是 macOS 12。</translation>
 <translation id="7376384068949534168">您近期未访问过该网站，因此 Chromium 撤消了该网站的<ph name="PERMISSION_1" />权限和<ph name="PERMISSION_2" />权限。</translation>
+<translation id="73786666777299047">打开 Chrome 应用商店</translation>
 <translation id="7384121030444253939">此扩展程序已不再受支持。Chromium 建议您移除它。</translation>
 <translation id="7413153308467572558">从上次停下的地方继续：Chromium 会在您每次重启后恢复标签页。如需关闭此功能，请前往</translation>
 <translation id="7427879960656355200">将密码导入 Chromium</translation>
+<translation id="744815265653811511">1. 点击下方的“<ph name="BUTTON_LABEL" />”
+2. 在 Windows 设置中点击“<ph name="BUTTON_2" />”
+3. 点击 Windows 通知中的“<ph name="BUTTON_3" />”，将 Chromium 固定到任务栏，以便快速访问</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - Chromium 开发者版</translation>
-<translation id="7450541714075000668">文本已复制</translation>
+<translation id="7450541714075000668">已复制文字</translation>
 <translation id="7451052299415159299">Chromium 需要获得相应权限，才能允许此网站使用您的摄像头</translation>
 <translation id="7458892263350425044">如需使用麦克风，请在<ph name="BEGIN_LINK" />系统设置<ph name="END_LINK" />中授予 Chromium 访问权限</translation>
 <translation id="7461356015007898716">若要接收后续 Chromium 更新，您需使用 Windows 10 或更高版本。该计算机目前使用的是 Windows 7。</translation>
@@ -601,7 +610,9 @@ Chromium 无法恢复您的设置。</translation>
 <translation id="761356813943268536">Chromium 正在使用您的摄像头和麦克风。</translation>
 <translation id="7617377681829253106">Chromium现在更好用了</translation>
 <translation id="7622753900276619808">您现在可以在 Chromium 中使用更多功能了</translation>
+<translation id="7624307931717240213">我们会使用这些信息来改进此服务。请参阅《隐私权政策》和《服务条款》。</translation>
 <translation id="7649070708921625228">帮助</translation>
+<translation id="7650134251917003571">获取 Chromium 应用</translation>
 <translation id="7656340475565475526">让 Chromium 代您浏览</translation>
 <translation id="7658239707568436148">取消</translation>
 <translation id="7686590090926151193">Chromium 不是您的默认浏览器</translation>
@@ -665,7 +676,7 @@ Chromium 无法恢复您的设置。</translation>
 <translation id="8359544530202147897">请更新 Chromium，以便继续使用 Google 账号 <ph name="ACCOUNT_EMAIL" /> 中的 Chromium 数据</translation>
 <translation id="8360718212975266891">若要接收后续 Chromium 更新，您需使用 Windows 10 或更高版本。此计算机目前使用的是 Windows 8。</translation>
 <translation id="8362914115861174987">目标语言</translation>
-<translation id="8367705492654390392">请提出任何问题</translation>
+<translation id="8367705492654390392">有问题，尽管问</translation>
 <translation id="8370517070665726704">版权所有 <ph name="YEAR" /> Google LLC. 保留所有权利。</translation>
 <translation id="8372327902843331129">如需获取您所有设备上的密码等信息，请登录 Chromium。登录后，该密码将保存到您的 Google 账号。</translation>
 <translation id="837460953767177950">然后，您需要重启 Chromium。</translation>
@@ -685,6 +696,7 @@ Chromium 无法恢复您的设置。</translation>
 <translation id="8522801943730206384">您需要先保存密码，然后才能使用 Chromium 的密码检查功能</translation>
 <translation id="8548787790260785208">如果 Chromium 发现您的密码在公开数据泄露事件中外泄，会向您发出警告</translation>
 <translation id="8555465886620020932">发生了服务错误：<ph name="SERVICE_ERROR" />。</translation>
+<translation id="8556055872671007529">某些 Chromium 功能和扩展程序附带快捷字词。您可以选择重新开启它们。</translation>
 <translation id="8556420416730706394">您可以固定图片搜索功能以方便访问，点击侧边栏顶部的“固定”按钮即可</translation>
 <translation id="856656450041460113">搜索语言列表</translation>
 <translation id="8568283329061645092">您需要先登录 Google 账号才能使用 Chromium 的密码检查功能。</translation>
@@ -720,6 +732,7 @@ Chromium 无法恢复您的设置。</translation>
 <translation id="8988036198400390003">管理 Chromium 个人资料</translation>
 <translation id="9019929317751753759">为了提高 Chromium 的安全性，我们停用了以下扩展程序（该扩展程序未列在<ph name="IDS_EXTENSION_WEB_STORE_TITLE" />中，并且可能是在您不知情的情况下添加的）。</translation>
 <translation id="904366664621834601">Chromium 阻止了此项下载操作，因为归档文件包含可能隐藏恶意软件的其他文件</translation>
+<translation id="9053882453960391422">让您的密码、书签和历史记录在所有设备上完美同步。将默认浏览器更新为 Chromium，即可轻松使用您熟悉且喜爱的功能。Chromium 将固定到任务栏，以便您快速访问。</translation>
 <translation id="9062666675513499497">登录其他 Google 服务时登录 Chromium</translation>
 <translation id="9078733879136747090">Chromium 已自动关闭</translation>
 <translation id="9089354809943900324">Chromium版本太旧</translation>

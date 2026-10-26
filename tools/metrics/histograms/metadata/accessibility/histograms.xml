@@ -185,7 +185,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Accessibility.Android.FindElementType.Usage2.{RunningATs}"
-    enum="AccessibilityPredicateType" expires_after="2026-06-01">
+    enum="AccessibilityPredicateType" expires_after="2026-08-16">
   <owner>mschillaci@google.com</owner>
   <owner>lucasradaelli@google.com</owner>
   <owner>chrome-a11y-core@chromium.org</owner>
@@ -538,6 +538,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Accessibility.Android.RunningAccessibilityTools"
+    enum="AccessibilityAndroidAccessibilityTools" expires_after="2026-08-18">
+  <owner>aaronmoss@google.com</owner>
+  <owner>davidsegovia@google.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Logged during browser startup and accessibility tool activation when the
+    provided tool is enabled.
+  </summary>
+</histogram>
+
 <histogram
     name="Accessibility.Android.TextFormatting.Performance.DurationForRangeCount.{Bucket}"
     units="microseconds" expires_after="M152">
@@ -715,41 +726,20 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<!-- LINT.IfChange(AssistiveTechPackage) -->
-
-<histogram name="Accessibility.Android.{AssistiveTechPackage}"
-    enum="BooleanEnabled" expires_after="2026-11-01">
-  <owner>davidsegovia@google.com</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    Logged if {AssistiveTechPackage} is enabled. Recorded during browser startup
-    or toggled on during user session.
-  </summary>
-  <token key="AssistiveTechPackage">
-    <variant name="AccessibilitySuite" summary="Android Accessibility Suite"/>
-    <variant name="ActionBlocks" summary="Action Blocks Accessibility"/>
-    <variant name="BrailleBack" summary="BrailleBack"/>
-    <variant name="SoundAmplifier" summary="Sound Amplifier"/>
-    <variant name="VoiceAccess" summary="Voice Accces"/>
-  </token>
-</histogram>
-
-<!-- LINT.ThenChange(//content/browser/accessibility/browser_accessibility_state_impl_android.cc:kAssistiveTechMap) -->
-
-<histogram name="Accessibility.AndroidServiceInfo.{RunningApps}"
+<histogram name="Accessibility.AndroidServiceInfo2.{RunningApps}"
     enum="AccessibilityAndroidServiceInfoEnum" expires_after="2026-08-02">
-  <owner>mschillaci@google.com</owner>
+  <owner>aaronmoss@google.com</owner>
   <owner>aldietz@google.com</owner>
   <owner>dtseng@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     Tracks events, flags, feedback and capabilities of enabled accessibility
     services separated into variants based on the types of running accessibility
-    services. This information would be a subset of the (now deprecated)
-    Accessibility.AndroidServiceInfo histogram. It will allow us to look at the
-    same histograms but only for a subset of users (e.g. what are the requested
-    flags etc of enabled accessibility services for clients running only a
-    password manager).
+    services. It allows us to track requested flags, capabilities, and events,
+    segmented by which type of accessibility services the user has active. It
+    replaces the equivalent Accessibility.AndroidServiceInfo.{RunningApps}
+    histogram due to a time-series break where all services with the Android S+
+    isAccessibilityTool flag are classified as ASSISTIVE_TECH.
   </summary>
   <token key="RunningApps">
     <variant name="ALL_VARIANTS"/>
@@ -1025,7 +1015,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Accessibility.ChromeVox.StartUpSpeechDelay" units="ms"
     expires_after="2026-06-01">
-  <owner>akihiroota@chromium.org</owner>
+  <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     The duration of time from when ChromeVox was first loaded to when the
@@ -1069,7 +1059,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Accessibility.CrosColorCorrection.FilterAmount" units="%"
-    expires_after="2026-06-01">
+    expires_after="2026-08-23">
   <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
@@ -1081,7 +1071,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Accessibility.CrosColorCorrection.FilterType"
-    enum="ColorCorrectionFilterTypes" expires_after="2026-06-01">
+    enum="ColorCorrectionFilterTypes" expires_after="2026-08-23">
   <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
@@ -1132,7 +1122,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Accessibility.CrosDictation.MacroFailed"
     enum="CrosDictationMacroName" expires_after="2026-06-01">
-  <owner>akihiroota@chromium.org</owner>
+  <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     Recorded whenever Dictation fails to perform a macro. Warning: this
@@ -1142,14 +1132,14 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Accessibility.CrosDictation.MacroRecognized"
     enum="CrosDictationMacroName" expires_after="2026-06-01">
-  <owner>akihiroota@chromium.org</owner>
+  <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>Recorded whenever Dictation recognizes a macro.</summary>
 </histogram>
 
 <histogram name="Accessibility.CrosDictation.MacroSucceeded"
     enum="CrosDictationMacroName" expires_after="2026-06-01">
-  <owner>akihiroota@chromium.org</owner>
+  <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     Recorded whenever Dictation successfully performs a macro. Warning: this
@@ -1159,7 +1149,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Accessibility.CrosDictation.PumpkinSucceeded"
     enum="BooleanUsage" expires_after="2026-06-01">
-  <owner>akihiroota@chromium.org</owner>
+  <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     Records whether Pumpkin successfully parsed a command. This histogram is
@@ -1187,7 +1177,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Accessibility.CrosDictation.UsedPumpkin" enum="BooleanUsage"
     expires_after="2026-06-01">
-  <owner>akihiroota@chromium.org</owner>
+  <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     Records whether Pumpkin was used to parse a command. If Pumpkin was not
@@ -1710,7 +1700,7 @@ even if they fit the naming pattern. -->
 
 <histogram name="Accessibility.DlcInstallerFaceGazeAssetsInstallationDuration"
     units="ms" expires_after="2026-08-02">
-  <owner>akihiroota@chromium.org</owner>
+  <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     The FaceGaze assets DLC installation is triggered when one of the features
@@ -1723,7 +1713,7 @@ even if they fit the naming pattern. -->
 
 <histogram name="Accessibility.DlcInstallerFaceGazeAssetsSuccess"
     enum="BooleanSuccess" expires_after="2026-06-01">
-  <owner>akihiroota@chromium.org</owner>
+  <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     The FaceGaze assets DLC installation is triggered when one of the features
@@ -1735,7 +1725,7 @@ even if they fit the naming pattern. -->
 
 <histogram name="Accessibility.DlcInstallerPumpkinInstallationDuration"
     units="ms" expires_after="2026-06-01">
-  <owner>akihiroota@chromium.org</owner>
+  <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     The Pumpkin DLC installation is triggered when one of the features using the
@@ -1805,7 +1795,7 @@ even if they fit the naming pattern. -->
 
 <histogram name="Accessibility.FaceGaze.AverageFaceLandmarkerLatency"
     units="ms" expires_after="2026-08-02">
-  <owner>akihiroota@chromium.org</owner>
+  <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     The time it takes for the FaceLandmarker API to process a single video
@@ -2000,11 +1990,10 @@ even if they fit the naming pattern. -->
   <summary>
     This metric is related to the Preferred Content Size chosen by the user. It
     is only recorded once per session. This is hit if the chosen category is not
-    listed in the map defined in
-    /ios/chrome/browser/shared/ui/util/dynamic_type_util.mm. In that case, we
-    should update the code by adding an entry for the new category in that map.
-    This is logged when the helper to returning the multiplier associated with
-    the current preferred content size is called.
+    listed in the map defined in /ios/components/ui_util/dynamic_type_util.mm.
+    In that case, we should update the code by adding an entry for the new
+    category in that map. This is logged when the helper to returning the
+    multiplier associated with the current preferred content size is called.
   </summary>
 </histogram>
 
@@ -2302,6 +2291,46 @@ even if they fit the naming pattern. -->
   </token>
 </histogram>
 
+<histogram name="Accessibility.LiveTranslate.GetTranslation.SourceLanguage"
+    enum="LocaleCodeBCP47" expires_after="2026-08-02">
+  <owner>danft@google.com</owner>
+  <owner>evliu@google.com</owner>
+  <owner>chrome-media-ux@google.com</owner>
+  <summary>
+    Records the source language of a request to the
+    LiveTranslate.GetTranslation.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.LiveTranslate.GetTranslation.TargetLanguage"
+    enum="LocaleCodeBCP47" expires_after="2026-08-02">
+  <owner>danft@google.com</owner>
+  <owner>evliu@google.com</owner>
+  <owner>chrome-media-ux@google.com</owner>
+  <summary>
+    Records the target language of a request to the
+    LiveTranslate.GetTranslation.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.LiveTranslate.GoogleApiTranslation.Result"
+    enum="Boolean" expires_after="2026-08-02">
+  <owner>danft@google.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Records the result coming from the GoogleApi (true or false).
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.LiveTranslate.OnDeviceTranslation.Result"
+    enum="Boolean" expires_after="2026-08-02">
+  <owner>danft@google.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Records the result coming from on-device-translation (true or false).
+  </summary>
+</histogram>
+
 <histogram name="Accessibility.LiveTranslate.SourceLanguage"
     enum="LocaleCodeBCP47" expires_after="2026-08-02">
   <owner>evliu@google.com</owner>
@@ -2405,7 +2434,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.PDF.IsPDFTagged" enum="BooleanExists"
-    expires_after="2026-06-01">
+    expires_after="2026-09-13">
   <owner>dtseng@chromium.org</owner>
   <owner>kyungjunlee@google.com</owner>
   <owner>chrome-a11y-core@google.com</owner>
@@ -3030,7 +3059,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.ReadAnything.DistillationStatusAfterOmnibox"
-    enum="ReadAnythingDistillationStatus" expires_after="2026-06-01">
+    enum="ReadAnythingDistillationStatus" expires_after="2026-08-30">
   <owner>kristislee@google.com</owner>
   <owner>komo-eng@google.com</owner>
   <summary>
@@ -3050,7 +3079,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.ReadAnything.EntryPointAfterOmnibox"
-    enum="ReadAnythingOpenTrigger" expires_after="2026-06-01">
+    enum="ReadAnythingOpenTrigger" expires_after="2026-08-16">
   <owner>kristislee@google.com</owner>
   <owner>komo-eng@google.com</owner>
   <summary>
@@ -3086,6 +3115,17 @@ even if they fit the naming pattern. -->
     pruned by one of the heuristics, or value none if it was not puned. This
     metric would be used to find out which heuristics are needed and can be
     passed to Screen2x pre/post processing.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.ReadAnything.HiddenBeforeShown"
+    enum="BooleanYesNo" expires_after="2027-01-01">
+  <owner>gusmartin@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records whether Reading Mode was closed before the UI was fully shown to the
+    user. Recorded when the Reading Mode entry is hidden, except during
+    transitions between presentation modes.
   </summary>
 </histogram>
 
@@ -3220,6 +3260,23 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
+<histogram name="Accessibility.ReadAnything.Readability.PageLinks{Status}Count"
+    units="count" expires_after="2027-03-01">
+  <owner>martinglopez@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records the number of links in the Readability distillation with the given
+    {Status}. This is recorded when the content is successfully updated in the
+    Reading Mode panel.
+  </summary>
+  <token key="Status">
+    <variant name="NoHref" summary="no href attribute"/>
+    <variant name="NoMatch" summary="no matching node in AXTree"/>
+    <variant name="Success" summary="successful match"/>
+    <variant name="TooManyMatches" summary="multiple matching nodes in AXTree"/>
+  </token>
+</histogram>
+
 <histogram name="Accessibility.ReadAnything.ReadAloud.EngineVersion"
     units="yyyymmdd0" expires_after="2026-07-10">
   <owner>lwinston@google.com</owner>
@@ -3331,8 +3388,43 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
+<histogram name="Accessibility.ReadAnything.ShownDurationMax1Day" units="ms"
+    expires_after="2027-01-01">
+  <owner>gusmartin@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records how long Reading Mode overlay was active, regardless of whether it
+    was shown in the side panel or in the immersive view. Recorded when the
+    feature is hidden or closed (capped at 24 hours). Difference with
+    SidePanel.ReadAnything.ShownDuration is that this metric records sessions
+    for immersive view also (Only records if
+    read-anything-immersive-reading-mode is enabled).
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.ReadAnything.ShowTriggered"
+    enum="ReadAnythingOpenTrigger" expires_after="2027-01-01">
+  <owner>gusmartin@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Recorded when Reading Mode is opened. Tracks the trigger that caused it to
+    open.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.ReadAnything.SidePanelTriggeredByEmptyState"
+    enum="ReadAnythingOpenTrigger" expires_after="2027-01-01">
+  <owner>martinglopez@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records when Immersive Reading Mode opens in side panel mode because the
+    distillation was empty. This metric captures the original trigger for
+    opening Reading Mode (e.g. Omnibox, Context Menu) or the Toggle trigger.
+  </summary>
+</histogram>
+
 <histogram name="Accessibility.ReadAnything.SpeechError"
-    enum="ReadAnythingSpeechError" expires_after="2026-06-01">
+    enum="ReadAnythingSpeechError" expires_after="2026-08-23">
   <owner>lwinston@google.com</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
@@ -3381,6 +3473,18 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
+<histogram
+    name="Accessibility.ReadAnything.TimeFromStartDistillationToOnArticleReady"
+    units="ms" expires_after="2027-03-01">
+  <owner>martinglopez@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records the time it takes for the Readability distiller to complete a
+    distillation process. This starts when StartDistillation is called and ends
+    when OnArticleReady is called.
+  </summary>
+</histogram>
+
 <histogram name="Accessibility.ReadAnything.TimeFrom{Flow}StartedTo{Method}"
     units="ms" expires_after="2026-08-02">
   <owner>lwinston@google.com</owner>
@@ -3408,6 +3512,19 @@ even if they fit the naming pattern. -->
   <summary>
     Records an estimate of how many words were distilled in Reading mode for the
     page opened via the omnibox entrypoint. Uses built-in web segmenter to count
+    words using the page language. (See
+    https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/Segmenter)
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.ReadAnything.WordsDistilledByReadability"
+    units="words" expires_after="2027-01-01">
+  <owner>martinglopez@google.com</owner>
+  <owner>chrome-irm-devs@google.com</owner>
+  <summary>
+    Records the word count of the distilled content when using the Readability
+    distillation algorithm. This is recorded when the content is successfully
+    updated in the Reading Mode panel. Uses built-in web segmenter to count
     words using the page language. (See
     https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/Segmenter)
   </summary>
@@ -4344,7 +4461,7 @@ even if they fit the naming pattern. -->
 
 <histogram name="PumpkinInstaller.InstallationSuccess" enum="BooleanSuccess"
     expires_after="2025-05-04">
-  <owner>akihiroota@chromium.org</owner>
+  <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     Pumpkin installation is triggered when one of the features using Pumpkin
@@ -4434,7 +4551,7 @@ even if they fit the naming pattern. -->
 <histogram name="TextToSpeech.ExtensionNetworkSpeechSynthesis.Playback"
     enum="AudioPlayback" expires_after="2026-06-01">
   <owner>dtseng@chromium.org</owner>
-  <owner>akihiroota@chromium.org</owner>
+  <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     Counts when playback starts and stops on the audio element via the
@@ -4444,7 +4561,7 @@ even if they fit the naming pattern. -->
 
 <histogram name="TextToSpeech.Settings.GetVoiceBytes"
     enum="TextToSpeechGetVoiceBytes" expires_after="2026-06-01">
-  <owner>akihiroota@chromium.org</owner>
+  <owner>katie@chromium.org</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     When the user requests a download of a text-to-speech voice, records the

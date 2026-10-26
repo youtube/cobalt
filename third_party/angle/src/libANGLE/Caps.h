@@ -156,9 +156,6 @@ struct Limitations
     // ASTC texture support is emulated.
     bool emulatedAstc = false;
 
-    // No compressed TEXTURE_3D support.
-    bool noCompressedTexture3D = false;
-
     // D3D does not support compressed textures where the base mip level is not a multiple of 4
     bool compressedBaseMipLevelMultipleOfFour = false;
 
@@ -172,6 +169,10 @@ struct Limitations
     // GL_ANGLE_base_vertex_base_instance is emulated and should only be exposed to WebGL. Emulated
     // by default in shared renderer code.
     bool baseInstanceBaseVertexEmulated = true;
+
+    // Size limit for buffers. GL_INVALID_OPERATION should be generated if trying to allocate a
+    // buffer larger than this limit.
+    GLsizeiptr bufferSizeLimit = std::numeric_limits<GLsizeiptr>::max();
 };
 
 struct TypePrecision

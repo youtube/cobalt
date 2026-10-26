@@ -74,7 +74,8 @@ PerformanceLongAnimationFrameTiming::PerformanceLongAnimationFrameTiming(
           /*allow_negative_value=*/false,
           cross_origin_isolated_capability)),
       blocking_duration_(info->TotalBlockingDuration().InMillisecondsF()),
-      style_duration_(info->StyleDuration().InMillisecondsF()) {
+      style_duration_(info->StyleDuration().InMillisecondsF()),
+      layout_duration_(info->LayoutDuration().InMillisecondsF()) {
   CHECK(source->ToLocalDOMWindow());
   const SecurityOrigin* security_origin =
       source->ToLocalDOMWindow()->GetSecurityOrigin();
@@ -108,8 +109,10 @@ void PerformanceLongAnimationFrameTiming::BuildJSONValue(
   builder.AddNumber("styleAndLayoutStart", style_and_layout_start_);
   builder.AddNumber("firstUIEventTimestamp", first_ui_event_timestamp_);
   builder.AddNumber("blockingDuration", blocking_duration_);
-  if (RuntimeEnabledFeatures::LongAnimationFrameStyleDurationEnabled()) {
+  if (RuntimeEnabledFeatures::LongAnimationFrameStyleDurationEnabled(
+          ExecutionContext::From(builder.GetScriptState()))) {
     builder.AddNumber("styleDuration", style_duration_);
+    builder.AddNumber("layoutDuration", layout_duration_);
   }
   builder.AddV8Value("scripts",
                      ToV8Traits<IDLArray<PerformanceScriptTiming>>::ToV8(

@@ -28,9 +28,11 @@ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bu
 import type {DropdownMenuOptionList, SettingsDropdownMenuElement} from '../controls/settings_dropdown_menu.js';
 import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
 import {loadTimeData} from '../i18n_setup.js';
+import type {MetricsBrowserProxy} from '../metrics_browser_proxy.js';
+import {MetricsBrowserProxyImpl} from '../metrics_browser_proxy.js';
 import {pageVisibility} from '../page_visibility.js';
 import type {AppearancePageVisibility} from '../page_visibility.js';
-import {RelaunchMixin, RestartType} from '../relaunch_mixin.js';
+import {RelaunchMixin} from '../relaunch_mixin.js';
 import {routes} from '../route.js';
 import {Router} from '../router.js';
 import {SettingsViewMixin} from '../settings_page/settings_view_mixin.js';
@@ -67,7 +69,6 @@ export interface SettingsAppearancePageElement {
     colorSchemeModeSelect: HTMLSelectElement,
     defaultFontSize: SettingsDropdownMenuElement,
     zoomLevel: HTMLSelectElement,
-    tabSearchPositionDropdown: SettingsDropdownMenuElement,
   };
 }
 
@@ -233,31 +234,30 @@ export class SettingsAppearancePageElement extends
         },
       },
 
-      showTabSearchPositionRestartButton_: {
+      showTabStripComboButtonEnabled_: {
         type: Boolean,
-        value: false,
+        value() {
+          return loadTimeData.getBoolean('showTabStripComboButtonEnabled');
+        },
+      },
+
+      showProjectsPanelEnabled_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('showProjectsPanelEnabled');
+        },
+      },
+
+      showEverythingMenuEnabled_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('showEverythingMenuEnabled');
+        },
       },
 
       showResetPinnedActionsButton_: {
         type: Boolean,
         value: false,
-      },
-
-      tabSearchOptions_: {
-        readOnly: true,
-        type: Array,
-        value() {
-          return [
-            {
-              value: 'true',
-              name: loadTimeData.getString('uiFeatureAlignRight'),
-            },
-            {
-              value: 'false',
-              name: loadTimeData.getString('uiFeatureAlignLeft'),
-            },
-          ];
-        },
       },
     };
   }
@@ -267,8 +267,6 @@ export class SettingsAppearancePageElement extends
       'defaultFontSizeChanged_(prefs.webkit.webprefs.default_font_size.value)',
       'themeChanged_(' +
           'prefs.extensions.theme.id.value, systemTheme_, isForcedTheme_)',
-      'updateShowTabSearchRestartButton_(' +
-          'prefs.tab_search.is_right_aligned.value)',
       // <if expr="is_linux">
       'systemThemePrefChanged_(prefs.extensions.theme.system_theme.value)',
       // </if>
@@ -298,11 +296,12 @@ export class SettingsAppearancePageElement extends
   // </if>
 
   declare private showVerticalTabsEnabled_: boolean;
-  declare private showTabSearchPositionRestartButton_: boolean;
+  declare private showTabStripComboButtonEnabled_: boolean;
+  declare private showProjectsPanelEnabled_: boolean;
+  declare private showEverythingMenuEnabled_: boolean;
   declare private showManagedThemeDialog_: boolean;
   declare private sidePanelOptions_: DropdownMenuOptionList;
   declare private tabStripOptions_: DropdownMenuOptionList;
-  declare private tabSearchOptions_: DropdownMenuOptionList;
   private appearanceBrowserProxy_: AppearanceBrowserProxy =
       AppearanceBrowserProxyImpl.getInstance();
   private colorSchemeModeHandler_: CustomizeColorSchemeModeHandlerInterface =
@@ -311,6 +310,8 @@ export class SettingsAppearancePageElement extends
       CustomizeColorSchemeModeClientCallbackRouter =
           CustomizeColorSchemeModeBrowserProxy.getInstance().callbackRouter;
   private setColorSchemeModeListenerId_: number|null = null;
+  private metricsBrowserProxy_: MetricsBrowserProxy =
+      MetricsBrowserProxyImpl.getInstance();
 
   override ready() {
     super.ready();
@@ -535,6 +536,15 @@ export class SettingsAppearancePageElement extends
     return previousIsVisible && nextIsVisible;
   }
 
+  private onTabStripPositionChanged_() {
+    const enabled = this.getPref<boolean>('vertical_tabs.enabled').value;
+    this.appearanceBrowserProxy_.recordVerticalTabStripModeChanged(enabled);
+  }
+
+  private showEverythingMenuToggle_(): boolean {
+    return !this.showProjectsPanelEnabled_ && this.showEverythingMenuEnabled_;
+  }
+
   private onHoverCardImagesToggleChange_(event: Event) {
     const enabled = (event.target as SettingsToggleButtonElement).checked;
     this.appearanceBrowserProxy_.recordHoverCardImagesEnabledChanged(enabled);
@@ -542,17 +552,6 @@ export class SettingsAppearancePageElement extends
 
   private onManagedDialogClosed_() {
     this.showManagedThemeDialog_ = false;
-  }
-
-  private onTabSearchPositionRestartClick_(e: Event) {
-    // Prevent event from bubbling up to the toggle button.
-    e.stopPropagation();
-    this.performRestart(RestartType.RESTART);
-  }
-
-  private updateShowTabSearchRestartButton_(newValue: boolean): void {
-    this.showTabSearchPositionRestartButton_ = newValue !==
-        loadTimeData.getBoolean('tabSearchIsRightAlignedAtStartup');
   }
 
   // SettingsViewMixin

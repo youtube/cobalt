@@ -286,7 +286,7 @@ bool GraphiteSharedContext::InsertRecordingImpl(
     // cache in case the error was due to a corrupted cached shader blob.
     GpuProcessShmCount::ScopedIncrement use_shader_cache(
         use_shader_cache_shm_count_);
-    static crash_reporter::CrashKeyString<1024> insert_error_key(
+    static crash_reporter::CrashKeyString<4096> insert_error_key(
         "graphite-insert-error");
     insert_error_key.Set(insert_status.message());
     CHECK(simulating_insert_failure);
@@ -312,6 +312,12 @@ void GraphiteSharedContext::submit(skgpu::graphite::SyncToCpu syncToCpu) {
 
 bool GraphiteSharedContext::SubmitImpl(skgpu::graphite::SyncToCpu syncToCpu) {
   num_pending_recordings_ = 0;
+
+  if (syncToCpu == skgpu::graphite::SyncToCpu::kNo &&
+      !graphite_context_->hasPendingGPUWork()) {
+      // Skip submitting if there is no pending GPU work.
+      return true;
+  }
 
   return graphite_context_->submit(syncToCpu);
 }

@@ -9,13 +9,18 @@
 #include "base/functional/bind.h"
 #include "base/rand_util.h"
 #include "chrome/browser/android/tab_android.h"
+#include "chrome/browser/context_sharing/tab_bottom_sheet/android/jni_headers/CoBrowseViewFactory_jni.h"
+#include "chrome/browser/context_sharing/tab_bottom_sheet/android/jni_headers/CoBrowseViews_jni.h"
 #include "chrome/browser/context_sharing/tab_bottom_sheet/android/jni_headers/TabBottomSheetNativeInterface_jni.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/android/window_android.h"
 
 using base::android::AttachCurrentThread;
 
 namespace glic {
+
+DEFINE_JNI(TabBottomSheetNativeInterface)
 
 GlicSidePanelCoordinatorAndroid::GlicSidePanelCoordinatorAndroid(
     tabs::TabInterface* tab)
@@ -33,11 +38,20 @@ GlicSidePanelCoordinatorAndroid::GlicSidePanelCoordinatorAndroid(
 }
 
 GlicSidePanelCoordinatorAndroid::~GlicSidePanelCoordinatorAndroid() {
+  if (co_browse_views_) {
+    Java_CoBrowseViews_setWebContents(AttachCurrentThread(), co_browse_views_,
+                                      nullptr);
+  }
   Java_TabBottomSheetNativeInterface_destroy(AttachCurrentThread(),
                                              java_interface_);
 }
 
 void GlicSidePanelCoordinatorAndroid::Show(bool suppress_animations) {
+  Show(suppress_animations, /* startsExpanded= */ true);
+}
+
+void GlicSidePanelCoordinatorAndroid::Show(bool suppress_animations,
+                                           bool startsExpanded) {
   if (IsShowing()) {
     return;
   }
@@ -46,16 +60,39 @@ void GlicSidePanelCoordinatorAndroid::Show(bool suppress_animations) {
     SetState(State::kBackgrounded);
     return;
   }
-  Java_TabBottomSheetNativeInterface_show(AttachCurrentThread(),
-                                          java_interface_);
+  Java_TabBottomSheetNativeInterface_show(
+      AttachCurrentThread(), java_interface_, co_browse_views_, startsExpanded);
   SetState(State::kShown);
 }
 
 void GlicSidePanelCoordinatorAndroid::SetWebContents(
     content::WebContents* web_contents) {
-  Java_TabBottomSheetNativeInterface_setWebContents(
-      AttachCurrentThread(), java_interface_,
-      web_contents ? web_contents->GetJavaWebContents() : nullptr);
+  if (!web_contents) {
+    last_web_contents_.reset();
+    co_browse_views_.Reset();
+    return;
+  }
+  TabAndroid* tab_android = GetTabAndroid();
+  if (!tab_android) {
+    return;
+  }
+  ui::WindowAndroid* window_android =
+      tab_android->GetContents()->GetTopLevelNativeWindow();
+  if (!window_android) {
+    return;
+  }
+
+  if (last_web_contents_ && last_web_contents_.get() == web_contents) {
+    // The web contents didn't change, so we don't need to do anything.
+    return;
+  }
+
+  last_web_contents_ = web_contents->GetWeakPtr();
+  JNIEnv* env = base::android::AttachCurrentThread();
+  // Call Factory to get CoBrowseViews and save it
+  co_browse_views_.Reset(Java_CoBrowseViewFactory_getCoBrowseViews(
+      env, window_android->GetJavaObject(),
+      web_contents->GetJavaWebContents()));
 }
 
 void GlicSidePanelCoordinatorAndroid::Close(const CloseOptions& options) {
@@ -63,9 +100,13 @@ void GlicSidePanelCoordinatorAndroid::Close(const CloseOptions& options) {
     return;
   }
 
+  if (co_browse_views_) {
+    Java_CoBrowseViews_setWebContents(AttachCurrentThread(), co_browse_views_,
+                                      nullptr);
+  }
+
   Java_TabBottomSheetNativeInterface_close(AttachCurrentThread(),
                                            java_interface_);
-  SetState(State::kClosed);
 }
 
 bool GlicSidePanelCoordinatorAndroid::IsShowing() const {
@@ -104,8 +145,8 @@ void GlicSidePanelCoordinatorAndroid::OnTabDidActivate(
     return;
   }
 
-  // If we are not closed (e.g. backgrounded), show the panel.
-  Show(/*suppress_animations=*/true);
+  // If we are not closed (e.g. backgrounded), show the panel in peek state.
+  Show(/*suppress_animations=*/true, /* startsExpanded= */ false);
 }
 
 void GlicSidePanelCoordinatorAndroid::OnTabWillDeactivate(
@@ -114,6 +155,10 @@ void GlicSidePanelCoordinatorAndroid::OnTabWillDeactivate(
     return;
   }
   SetState(State::kBackgrounded);
+}
+
+void GlicSidePanelCoordinatorAndroid::OnClose(JNIEnv* env) {
+  SetState(State::kClosed);
 }
 
 TabAndroid* GlicSidePanelCoordinatorAndroid::GetTabAndroid() const {

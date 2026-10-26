@@ -1576,31 +1576,31 @@ GridPosition StyleBuilderConverter::ConvertGridPosition(
   int grid_line_number = 1;
   AtomicString grid_line_name;
 
-  auto it = values.begin();
-  const CSSValue* current_value = it->Get();
+  wtf_size_t i = 0;
+  const CSSValue* current_value = &values.Item(i);
   auto* current_identifier_value = DynamicTo<CSSIdentifierValue>(current_value);
   if (current_identifier_value &&
       current_identifier_value->GetValueID() == CSSValueID::kSpan) {
     is_span_position = true;
-    UNSAFE_TODO(++it);
-    current_value = it != values.end() ? it->Get() : nullptr;
+    ++i;
+    current_value = i < values.length() ? &values.Item(i) : nullptr;
   }
 
   auto* current_primitive_value = DynamicTo<CSSPrimitiveValue>(current_value);
   if (current_primitive_value && current_primitive_value->IsNumber()) {
     grid_line_number = current_primitive_value->ComputeInteger(
         state.CssToLengthConversionData());
-    UNSAFE_TODO(++it);
-    current_value = it != values.end() ? it->Get() : nullptr;
+    ++i;
+    current_value = i < values.length() ? &values.Item(i) : nullptr;
   }
 
   auto* current_ident_value = DynamicTo<CSSCustomIdentValue>(current_value);
   if (current_ident_value) {
     grid_line_name = current_ident_value->Value();
-    UNSAFE_TODO(++it);
+    ++i;
   }
 
-  DCHECK_EQ(it, values.end());
+  DCHECK_EQ(i, values.length());
   if (is_span_position) {
     position.SetSpanPosition(grid_line_number, grid_line_name);
   } else {
@@ -1728,22 +1728,24 @@ ComputedGridTrackList* StyleBuilderConverter::ConvertGridTrackList(
   };
 
   const auto& values = To<CSSValueList>(value);
-  auto curr_value = values.begin();
+  wtf_size_t curr_index = 0;
   bool is_subgrid = false;
 
-  auto* identifier_value = DynamicTo<CSSIdentifierValue>(curr_value->Get());
+  auto* identifier_value =
+      DynamicTo<CSSIdentifierValue>(values.Item(curr_index));
   if (identifier_value &&
       identifier_value->GetValueID() == CSSValueID::kSubgrid) {
     state.GetDocument().CountUse(WebFeature::kCSSSubgridLayout);
     computed_grid_track_list->SetGridAxisType(GridAxisType::kSubgriddedAxis);
     track_list.SetAxisType(GridAxisType::kSubgriddedAxis);
     is_subgrid = true;
-    UNSAFE_TODO(++curr_value);
+    ++curr_index;
   }
 
-  for (; curr_value != values.end(); UNSAFE_TODO(++curr_value)) {
+  for (; curr_index < values.length(); ++curr_index) {
+    const CSSValue& curr_value = values.Item(curr_index);
     if (auto* grid_auto_repeat_value =
-            DynamicTo<cssvalue::CSSGridAutoRepeatValue>(curr_value->Get())) {
+            DynamicTo<cssvalue::CSSGridAutoRepeatValue>(curr_value)) {
       Vector<GridTrackSize, 1> repeated_track_sizes;
       wtf_size_t auto_repeat_index = 0;
       CSSValueID auto_repeat_id = grid_auto_repeat_value->AutoRepeatID();
@@ -1752,7 +1754,7 @@ ComputedGridTrackList* StyleBuilderConverter::ConvertGridTrackList(
       computed_grid_track_list->SetAutoRepeatType(
           (auto_repeat_id == CSSValueID::kAutoFill) ? AutoRepeatType::kAutoFill
                                                     : AutoRepeatType::kAutoFit);
-      for (const CSSValue* auto_repeat_value : To<CSSValueList>(**curr_value)) {
+      for (const CSSValue* auto_repeat_value : To<CSSValueList>(curr_value)) {
         if (auto_repeat_value->IsGridLineNamesValue()) {
           ConvertGridLineNamesList(
               *auto_repeat_value, auto_repeat_index,
@@ -1779,7 +1781,7 @@ ComputedGridTrackList* StyleBuilderConverter::ConvertGridTrackList(
     }
 
     if (auto* grid_integer_repeat_value =
-            DynamicTo<cssvalue::CSSGridIntegerRepeatValue>(curr_value->Get())) {
+            DynamicTo<cssvalue::CSSGridIntegerRepeatValue>(curr_value)) {
       const wtf_size_t repetitions =
           grid_integer_repeat_value->ComputeRepetitions(
               state.CssToLengthConversionData());
@@ -1825,9 +1827,9 @@ ComputedGridTrackList* StyleBuilderConverter::ConvertGridTrackList(
     }
 
     // Handle non-repeaters.
-    ConvertLineNameOrTrackSize(**curr_value);
-    if (!curr_value->Get()->IsGridLineNamesValue()) {
-      track_list.AddRepeater({ConvertGridTrackSize(state, **curr_value)});
+    ConvertLineNameOrTrackSize(curr_value);
+    if (!curr_value.IsGridLineNamesValue()) {
+      track_list.AddRepeater({ConvertGridTrackSize(state, curr_value)});
     } else if (is_subgrid) {
       track_list.AddRepeater(/*repeater_track_sizes=*/{});
     }
@@ -1993,6 +1995,19 @@ int StyleBuilderConverter::ConvertBorderWidth(const StyleResolverState& state,
 
   // Clamp the result to a reasonable range for layout.
   return ClampTo<int>(floor(result), 0, LayoutUnit::Max().ToInt());
+}
+
+int StyleBuilderConverter::ConvertOutlineOffset(const StyleResolverState& state,
+                                                const CSSValue& value) {
+  double result = To<CSSPrimitiveValue>(value).ComputeLength<double>(
+      state.CssToLengthConversionData());
+  double abs_result = std::abs(result);
+  if (abs_result > 0.0 && abs_result < 1.0) {
+    return result > 0.0 ? 1 : -1;
+  }
+  int int_result =
+      ClampTo<int>(std::floor(abs_result), 0, LayoutUnit::Max().ToInt());
+  return result < 0.0 ? -int_result : int_result;
 }
 
 Superellipse StyleBuilderConverter::ConvertCornerShape(
@@ -2209,6 +2224,16 @@ float StyleBuilderConverter::ConvertNumberOrPercentage(
   const auto& primitive_value = To<CSSPrimitiveValue>(value);
   DCHECK(primitive_value.IsNumber() || primitive_value.IsPercentage());
   return primitive_value.ConvertTo<float>(state.CssToLengthConversionData());
+}
+
+float StyleBuilderConverter::ConvertPathLength(StyleResolverState& state,
+                                               const CSSValue& value) {
+  if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
+    DCHECK_EQ(identifier_value->GetValueID(), CSSValueID::kNone);
+    return -1.0;
+  }
+  return To<CSSPrimitiveValue>(value).ConvertTo<float>(
+      state.CssToLengthConversionData());
 }
 
 int StyleBuilderConverter::ConvertInteger(StyleResolverState& state,
@@ -2685,7 +2710,7 @@ ShadowData StyleBuilderConverter::ConvertShadow(
       black_text_link_colors.SetActiveLinkColor(Color::kBlack);
 
       const ResolveColorValueContext context{
-          .conversion_data = conversion_data,
+          .length_resolver = conversion_data,
           .text_link_colors = black_text_link_colors};
       color = ResolveColorValue(*shadow.color, context);
       if (!color.IsAbsoluteColor()) {
@@ -2904,7 +2929,7 @@ StyleColor ResolveColorValueImpl(const CSSValue& value,
     // TODO(crbug.com/40238188): Not sure what is appropriate to return when
     // both mix amounts are zero.
     color_mix_value->NormalizePercentages(mix_amount, alpha_multiplier,
-                                          context.conversion_data);
+                                          context.length_resolver);
     const StyleColor::UnresolvedColorMix* unresolved_color_mix =
         MakeGarbageCollected<StyleColor::UnresolvedColorMix>(
             color_mix_value->ColorInterpolationSpace(),
@@ -2930,7 +2955,7 @@ StyleColor ResolveColorValueImpl(const CSSValue& value,
             origin_color, relative_color_value->ColorInterpolationSpace(),
             relative_color_value->Channel0(), relative_color_value->Channel1(),
             relative_color_value->Channel2(), relative_color_value->Alpha(),
-            context.conversion_data);
+            context.length_resolver);
     // https://drafts.csswg.org/css-color-5/#resolving-rcs
     // If the origin color is resolvable at computed-value time, the relative
     // color function should be resolved at computed-value time as well.
@@ -2944,14 +2969,20 @@ StyleColor ResolveColorValueImpl(const CSSValue& value,
 
   if (auto* contrast_color_value =
           DynamicTo<cssvalue::CSSContrastColorValue>(value)) {
-    // TODO(crbug.com/40142548): Implement black/white result depending on color
-    // parameter.
-    return ResolveColorValueImpl(contrast_color_value->Color(), context);
+    const StyleColor param_color =
+        ResolveColorValueImpl(contrast_color_value->Color(), context);
+    const StyleColor::UnresolvedContrastColor* unresolved_contrast_color =
+        MakeGarbageCollected<StyleColor::UnresolvedContrastColor>(param_color);
+    if (param_color.IsAbsoluteColor()) {
+      return StyleColor(unresolved_contrast_color->Resolve(Color()));
+    } else {
+      return StyleColor(unresolved_contrast_color);
+    }
   }
 
   if (auto* unresolved_color_value =
           DynamicTo<cssvalue::CSSUnresolvedColorValue>(value)) {
-    return StyleColor(unresolved_color_value->Resolve(context.conversion_data));
+    return StyleColor(unresolved_color_value->Resolve(context.length_resolver));
   }
 
   auto& light_dark_pair = To<CSSLightDarkValuePair>(value);
@@ -3009,7 +3040,7 @@ StyleColor StyleBuilderConverter::ConvertStyleColor(
       state.StyleBuilder().UsedColorScheme();
   auto& document = state.GetDocument();
   const ResolveColorValueContext context{
-      .conversion_data = state.CssToLengthConversionData(),
+      .length_resolver = state.CssToLengthConversionData(),
       .text_link_colors = document.GetTextLinkColors(),
       .used_color_scheme = color_scheme,
       .color_provider = document.GetColorProviderForPainting(color_scheme),
@@ -3436,7 +3467,7 @@ static const CSSValue& ComputeColorValue(
     const Document& document,
     mojom::blink::ColorScheme color_scheme) {
   const ResolveColorValueContext context{
-      .conversion_data = conversion_data,
+      .length_resolver = conversion_data,
       .text_link_colors = document.GetTextLinkColors(),
       .used_color_scheme = color_scheme,
       .color_provider = document.GetColorProviderForPainting(color_scheme),
@@ -3538,7 +3569,7 @@ static const CSSValue& ComputeRegisteredPropertyValue(
   }
 
   if (const auto* uri_value = DynamicTo<cssvalue::CSSURIValue>(value)) {
-    const KURL& base_url = context ? context->BaseURL() : KURL();
+    const KURL& base_url = context ? context->BaseURL() : NullUrl();
     const TextEncoding& charset = context ? context->Charset() : TextEncoding();
     return *uri_value->ComputedCSSValue(base_url, charset);
   }
@@ -3553,21 +3584,10 @@ static const CSSValue& ComputeRegisteredPropertyValue(
                                           selected_value, context);
   }
 
-  if (auto* color_mix_value = DynamicTo<cssvalue::CSSColorMixValue>(value)) {
-    return ComputeColorValue(css_to_length_conversion_data, *color_mix_value,
-                             document, color_scheme);
-  }
-
-  if (auto* relative_color_value =
-          DynamicTo<cssvalue::CSSRelativeColorValue>(value)) {
-    return ComputeColorValue(css_to_length_conversion_data,
-                             *relative_color_value, document, color_scheme);
-  }
-
-  if (auto* unresolved_color_value =
-          DynamicTo<cssvalue::CSSUnresolvedColorValue>(value)) {
-    return ComputeColorValue(css_to_length_conversion_data,
-                             *unresolved_color_value, document, color_scheme);
+  if (value.IsColorMixValue() || value.IsRelativeColorValue() ||
+      value.IsContrastColorValue() || value.IsUnresolvedColorValue()) {
+    return ComputeColorValue(css_to_length_conversion_data, value, document,
+                             color_scheme);
   }
   if (auto* custom_ident = DynamicTo<CSSCustomIdentValue>(value)) {
     return *custom_ident->Resolve(css_to_length_conversion_data);
@@ -3621,7 +3641,7 @@ CSSVariableData* StyleBuilderConverter::ConvertRegisteredPropertyVariableData(
   // TODO(andruud): Produce tokens directly from CSSValue.
   return CSSVariableData::Create(value.CssText(), is_animation_tainted,
                                  is_attr_tainted,
-                                 /* needs_variable_resolution */ false);
+                                 CSSVariableData::HasReferences(false));
 }
 
 namespace {

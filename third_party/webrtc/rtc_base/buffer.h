@@ -22,7 +22,6 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/type_traits.h"
 #include "rtc_base/zero_memory.h"
@@ -215,12 +214,12 @@ class BufferT {
 
   T& operator[](size_t index) {
     RTC_DCHECK_LT(index, size_);
-    return ArrayView<T>(*this)[index];
+    return std::span<T>(*this)[index];
   }
 
   T operator[](size_t index) const {
     RTC_DCHECK_LT(index, size_);
-    return ArrayView<const T>(*this)[index];
+    return std::span<const T>(*this)[index];
   }
 
   iterator begin() { return std::span(*this).begin(); }
@@ -263,12 +262,12 @@ class BufferT {
   // Replaces the data in the buffer with at most `max_elements` of data, using
   // the function `setter`, which should have the following signature:
   //
-  //   size_t setter(ArrayView<U> view)
+  //   size_t setter(std::span<U> view)
   //
-  // `setter` is given an appropriately typed ArrayView of length exactly
+  // `setter` is given an appropriately typed std::span of length exactly
   // `max_elements` that describes the area where it should write the data; it
   // should return the number of elements actually written. (If it doesn't fill
-  // the whole ArrayView, it should leave the unused space at the end.)
+  // the whole std::span, it should leave the unused space at the end.)
   template <typename U = T,
             typename F,
             typename std::enable_if<
@@ -298,9 +297,9 @@ class BufferT {
     const size_t new_size = size_ + size;
     EnsureCapacityWithHeadroom(new_size, true);
     static_assert(sizeof(T) == sizeof(U), "");
-    ArrayView<const U> source(data, size);
-    ArrayView<T> destination =
-        ArrayView<T>(data_.get(), capacity_).subview(size_, size);
+    std::span<const U> source(data, size);
+    std::span<T> destination =
+        std::span<T>(data_.get(), capacity_).subspan(size_, size);
     absl::c_copy(source, destination.begin());
     size_ = new_size;
     RTC_DCHECK(IsConsistent());
@@ -331,12 +330,12 @@ class BufferT {
   // Appends at most `max_elements` to the end of the buffer, using the function
   // `setter`, which should have the following signature:
   //
-  //   size_t setter(ArrayView<U> view)
+  //   size_t setter(std::span<U> view)
   //
-  // `setter` is given an appropriately typed ArrayView of length exactly
+  // `setter` is given an appropriately typed std::span of length exactly
   // `max_elements` that describes the area where it should write the data; it
   // should return the number of elements actually written. (If it doesn't fill
-  // the whole ArrayView, it should leave the unused space at the end.)
+  // the whole std::span, it should leave the unused space at the end.)
   template <typename U = T,
             typename F,
             typename std::enable_if<
@@ -344,9 +343,9 @@ class BufferT {
   size_t AppendData(size_t max_elements, F&& setter) {
     RTC_DCHECK(IsConsistent());
     const size_t old_size = size_;
-    SetSize(old_size + max_elements);
+    SetSizeInternal(old_size + max_elements);
     size_t written_elements =
-        setter(ArrayView<U>(data<U>(), size()).subspan(old_size));
+        setter(std::span<U>(data<U>(), size()).subspan(old_size));
 
     RTC_CHECK_LE(written_elements, max_elements);
     size_ = old_size + written_elements;
@@ -358,9 +357,15 @@ class BufferT {
   // buffer contents will be kept but truncated; if the new size is greater,
   // the existing contents will be kept and the new space will be
   // uninitialized.
-  void SetSize(size_t size) {
-    const size_t old_size = size_;
-    EnsureCapacityWithHeadroom(size, true);
+  // TODO: issues.webrtc.org/42223681 - deprecate and remove the ability to
+  // create uninitialized buffer space.
+  // When we know that the new size is smaller than the old, use Truncate().
+  void SetSize(size_t size) { SetSizeInternal(size); }
+
+  // Truncate the buffer. The buffer contents will be kept but truncated.
+  void Truncate(size_t size) {
+    RTC_DCHECK_LE(size, size_);
+    size_t old_size = size_;
     size_ = size;
     if (ZeroOnFree && size_ < old_size) {
       ZeroTrailingData(old_size - size_);
@@ -404,6 +409,14 @@ class BufferT {
     RTC_DCHECK(IsConsistent());
   }
 
+  void SetSizeInternal(size_t size) {
+    const size_t old_size = size_;
+    EnsureCapacityWithHeadroom(size, true);
+    size_ = size;
+    if (ZeroOnFree && size_ < old_size) {
+      ZeroTrailingData(old_size - size_);
+    }
+  }
   void EnsureCapacityWithHeadroom(size_t capacity, bool extra_headroom) {
     RTC_DCHECK(IsConsistent());
     if (capacity <= capacity_)
@@ -434,7 +447,7 @@ class BufferT {
       // It would be sufficient to only zero "size_" elements, as all other
       // methods already ensure that the unused capacity contains no sensitive
       // data---but better safe than sorry.
-      ExplicitZeroMemory(ArrayView<T>(data_.get(), capacity_));
+      ExplicitZeroMemory(std::span<T>(data_.get(), capacity_));
     }
   }
 
@@ -442,7 +455,7 @@ class BufferT {
   void ZeroTrailingData(size_t count) {
     RTC_DCHECK(IsConsistent());
     RTC_DCHECK_LE(count, capacity_ - size_);
-    ExplicitZeroMemory(MakeArrayView(data(), capacity_).subview(size_));
+    ExplicitZeroMemory(std::span(data(), capacity_).subspan(size_));
   }
 
   // Precondition for all methods except Clear, operator= and the destructor.

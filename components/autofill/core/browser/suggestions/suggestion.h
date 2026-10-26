@@ -32,6 +32,14 @@
 
 namespace autofill {
 
+// The index that will be used to filter suggestions for showing them in tabbed
+// panes in the suggestion bubble.
+using SuggestionTabIndex = base::StrongAlias<struct SuggestionTabIndexTag, int>;
+
+// The index of the default suggestion tab which all suggestions should be
+// displayed in unless specified otherwise in `Suggestion::tab_index`.
+inline constexpr SuggestionTabIndex kDefaultSuggestionTabIndex(0);
+
 struct Suggestion {
   struct PasswordSuggestionDetails {
     std::u16string username;
@@ -192,8 +200,25 @@ struct Suggestion {
     std::map<FieldType, std::u16string> fields;
   };
 
+  struct AtMemoryPayload final {
+    AtMemoryPayload();
+    explicit AtMemoryPayload(std::u16string value);
+    AtMemoryPayload(const AtMemoryPayload&);
+    AtMemoryPayload(AtMemoryPayload&&);
+    AtMemoryPayload& operator=(const AtMemoryPayload&);
+    AtMemoryPayload& operator=(AtMemoryPayload&&);
+    ~AtMemoryPayload();
+
+    friend bool operator==(const AtMemoryPayload&,
+                           const AtMemoryPayload&) = default;
+
+    // Text to fill in the trigger field upon accepting the suggestion.
+    std::u16string value;
+  };
+
   using IsLoading = base::StrongAlias<class IsLoadingTag, bool>;
   using InstrumentId = base::StrongAlias<class InstrumentIdTag, uint64_t>;
+  // TODO(crbug.com/477689220): Directly use BnplIssuer and remove the alias.
   using BnplIssuer = base::StrongAlias<class BnplIssuerTag, BnplIssuer>;
   using Payload = std::variant<Guid,
                                InstrumentId,
@@ -205,7 +230,8 @@ struct Suggestion {
                                PaymentsPayload,
                                IdentityCredentialPayload,
                                AutocompleteEntry,
-                               BnplIssuer>;
+                               BnplIssuer,
+                               AtMemoryPayload>;
 
   // This struct is used to provide password suggestions with custom icons,
   // using the favicon of the website associated with the credentials. While
@@ -321,6 +347,7 @@ struct Suggestion {
     kLoyalty,
     kMagic,
     kOfferTag,
+    kPassport,
     kPenSpark,
     kPersonCheck,
     kPlusAddress,
@@ -454,6 +481,8 @@ struct Suggestion {
       case SuggestionType::kBnplEntry:
         return std::holds_alternative<PaymentsPayload>(payload) ||
                std::holds_alternative<BnplIssuer>(payload);
+      case SuggestionType::kAtMemorySearchResult:
+        return std::holds_alternative<AtMemoryPayload>(payload);
       case SuggestionType::kDevtoolsTestAddressEntry:
       default:
         return std::holds_alternative<Guid>(payload) ||
@@ -472,6 +501,14 @@ struct Suggestion {
 
   // Determines popup identifier for the suggestion.
   SuggestionType type;
+
+  // The index of the tab in which the suggestion is shown in.
+  // This index is used to filter suggestions into separate tabs
+  // when they are displayed within a tabbed pane.
+  // Note: Suggestions are typically shown in a single list.
+  // Displaying suggestions in tabbed panes is enabled only for specific cases,
+  // for example, the "Pay Now"/"Pay Later" tabs.
+  SuggestionTabIndex tab_index = kDefaultSuggestionTabIndex;
 
   // The texts that will be displayed on the first line in a suggestion. The
   // order of showing the two texts on the first line depends on whether it is

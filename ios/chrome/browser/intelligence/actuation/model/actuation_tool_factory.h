@@ -5,9 +5,10 @@
 #ifndef IOS_CHROME_BROWSER_INTELLIGENCE_ACTUATION_MODEL_ACTUATION_TOOL_FACTORY_H_
 #define IOS_CHROME_BROWSER_INTELLIGENCE_ACTUATION_MODEL_ACTUATION_TOOL_FACTORY_H_
 
-#include <memory>
-#include <string>
+#import <memory>
 
+#import "base/types/expected.h"
+#import "ios/chrome/browser/intelligence/actuation/model/actuation_error.h"
 #import "ios/chrome/browser/intelligence/actuation/model/tools/actuation_tool.h"
 
 namespace optimization_guide {
@@ -22,10 +23,12 @@ class ProfileIOS;
 class ActuationToolFactory {
  public:
   ActuationToolFactory();
-  ~ActuationToolFactory();
+  virtual ~ActuationToolFactory();
 
   // Creates an ActuationTool based on the provided action proto.
-  base::expected<std::unique_ptr<ActuationTool>, ActuationTool::ActuationError>
+  //
+  // This is virtual for testing.
+  virtual base::expected<std::unique_ptr<ActuationTool>, ActuationError>
   CreateTool(const optimization_guide::proto::Action& action,
              ProfileIOS* profile);
 };

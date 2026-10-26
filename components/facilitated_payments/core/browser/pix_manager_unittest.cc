@@ -28,6 +28,7 @@
 #include "components/facilitated_payments/core/browser/mock_facilitated_payments_client.h"
 #include "components/facilitated_payments/core/browser/model/secure_payload.h"
 #include "components/facilitated_payments/core/browser/network_api/mock_facilitated_payments_network_interface.h"
+#include "components/facilitated_payments/core/browser/pix_manager_test_api.h"
 #include "components/facilitated_payments/core/features/features.h"
 #include "components/facilitated_payments/core/metrics/facilitated_payments_metrics.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_ui_utils.h"
@@ -75,6 +76,17 @@ SecurePayload CreateSecurePayload() {
   return secure_payload;
 }
 
+std::string GetPurchaseActionResultString(PurchaseActionResult result) {
+  switch (result) {
+    case PurchaseActionResult::kResultOk:
+      return "Succeeded";
+    case PurchaseActionResult::kCouldNotInvoke:
+      return "Failed";
+    case PurchaseActionResult::kResultCanceled:
+      return "Abandoned";
+  }
+}
+
 }  // namespace
 
 class PixManagerTest : public testing::Test {
@@ -120,7 +132,7 @@ class PixManagerTest : public testing::Test {
 
   MockFacilitatedPaymentsApiClient& GetApiClient() {
     return *static_cast<MockFacilitatedPaymentsApiClient*>(
-        pix_manager_->GetApiClient());
+        test_api(*pix_manager_).GetApiClient());
   }
 
  protected:
@@ -178,8 +190,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
 
   EXPECT_CALL(*client_, ShowPixPaymentPrompt(testing::_, testing::_)).Times(0);
 
-  pix_manager_->OnApiAvailabilityReceived(/*start_time=*/base::TimeTicks::Now(),
-                                          /*is_api_available=*/false);
+  test_api(*pix_manager_)
+      .OnApiAvailabilityReceived(/*start_time=*/base::TimeTicks::Now(),
+                                 /*is_api_available=*/false);
 }
 
 // If the facilitated payment API is available, then the manager shows the Pix
@@ -197,8 +210,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
                                                  {pix_account1, pix_account2}),
                                              testing::_));
 
-  pix_manager_->OnApiAvailabilityReceived(/*start_time=*/base::TimeTicks::Now(),
-                                          /*is_api_available=*/true);
+  test_api(*pix_manager_)
+      .OnApiAvailabilityReceived(/*start_time=*/base::TimeTicks::Now(),
+                                 /*is_api_available=*/true);
 }
 
 // If the user selects a Pix account on the payment prompt,
@@ -211,8 +225,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled, OnPixAccountSelected) {
   EXPECT_CALL(*client_, ShowProgressScreen());
   EXPECT_CALL(*client_, LoadRiskData(testing::_));
 
-  pix_manager_->OnPixAccountSelected(base::TimeTicks::Now() - base::Seconds(2),
-                                     /*selected_instrument_id=*/0);
+  test_api(*pix_manager_)
+      .OnPixAccountSelected(base::TimeTicks::Now() - base::Seconds(2),
+                            /*selected_instrument_id=*/0);
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.FopSelector.UserAction",
@@ -235,8 +250,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
        RiskDataNotEmpty_HistogramsLogged) {
   base::HistogramTester histogram_tester;
 
-  pix_manager_->OnRiskDataLoaded(base::TimeTicks::Now() - base::Seconds(2),
-                                 "seems pretty risky");
+  test_api(*pix_manager_)
+      .OnRiskDataLoaded(base::TimeTicks::Now() - base::Seconds(2),
+                        "seems pretty risky");
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.LoadRiskData.Success.Latency",
@@ -249,7 +265,8 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
        RiskDataEmpty_HistogramsLogged) {
   base::HistogramTester histogram_tester;
 
-  pix_manager_->OnRiskDataLoaded(base::TimeTicks::Now() - base::Seconds(2), "");
+  test_api(*pix_manager_)
+      .OnRiskDataLoaded(base::TimeTicks::Now() - base::Seconds(2), "");
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.LoadRiskData.Failure.Latency",
@@ -263,7 +280,7 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
        PayflowExitedReason_RiskDataEmpty) {
   base::HistogramTester histogram_tester;
 
-  pix_manager_->OnRiskDataLoaded(base::TimeTicks::Now(), "");
+  test_api(*pix_manager_).OnRiskDataLoaded(base::TimeTicks::Now(), "");
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -278,8 +295,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   EXPECT_CALL(GetApiClient(), GetClientToken(testing::_)).Times(0);
   EXPECT_CALL(*client_, ShowErrorScreen());
 
-  pix_manager_->OnRiskDataLoaded(/*start_time=*/base::TimeTicks::Now(),
-                                 /*risk_data=*/"");
+  test_api(*pix_manager_)
+      .OnRiskDataLoaded(/*start_time=*/base::TimeTicks::Now(),
+                        /*risk_data=*/"");
 }
 
 // If the risk data is not empty, then the manager retrieves a client token from
@@ -288,8 +306,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
        RiskDataNotEmpty_GetClientTokenCalled) {
   EXPECT_CALL(GetApiClient(), GetClientToken(testing::_));
 
-  pix_manager_->OnRiskDataLoaded(/*start_time=*/base::TimeTicks::Now(),
-                                 /*risk_data=*/"seems pretty risky");
+  test_api(*pix_manager_)
+      .OnRiskDataLoaded(/*start_time=*/base::TimeTicks::Now(),
+                        /*risk_data=*/"seems pretty risky");
 }
 
 // Verify that the result and latency of the GetClientToken call is logged
@@ -299,10 +318,12 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   for (bool get_client_token_result : {true, false}) {
     base::HistogramTester histogram_tester;
 
-    pix_manager_->OnGetClientToken(
-        /*start_time=*/base::TimeTicks::Now() - base::Seconds(2),
-        get_client_token_result ? std::vector<uint8_t>{'t', 'o', 'k', 'e', 'n'}
-                                : std::vector<uint8_t>{});
+    test_api(*pix_manager_)
+        .OnGetClientToken(
+            /*start_time=*/base::TimeTicks::Now() - base::Seconds(2),
+            get_client_token_result
+                ? std::vector<uint8_t>{'t', 'o', 'k', 'e', 'n'}
+                : std::vector<uint8_t>{});
 
     histogram_tester.ExpectUniqueSample(
         base::StrCat({"FacilitatedPayments.Pix.GetClientToken.",
@@ -319,8 +340,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
        PayflowExitedReason_ClientTokenNotAvailable) {
   base::HistogramTester histogram_tester;
 
-  pix_manager_->OnGetClientToken(/*start_time=*/base::TimeTicks::Now(),
-                                 std::vector<uint8_t>{});
+  test_api(*pix_manager_)
+      .OnGetClientToken(/*start_time=*/base::TimeTicks::Now(),
+                        std::vector<uint8_t>{});
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -332,29 +354,36 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
        OnGetClientToken_ClientTokenEmpty_ErrorScreenShown) {
   EXPECT_CALL(*client_, ShowErrorScreen());
 
-  pix_manager_->OnGetClientToken(/*start_time=*/base::TimeTicks::Now(),
-                                 std::vector<uint8_t>{});
+  test_api(*pix_manager_)
+      .OnGetClientToken(/*start_time=*/base::TimeTicks::Now(),
+                        std::vector<uint8_t>{});
 }
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled, ResettingPreventsPayment) {
-  pix_manager_->initiate_payment_request_details_->risk_data_ =
+  test_api(*pix_manager_).initiate_payment_request_details()->risk_data_ =
       "seems pretty risky";
-  pix_manager_->initiate_payment_request_details_->client_token_ =
+  test_api(*pix_manager_).initiate_payment_request_details()->client_token_ =
       std::vector<uint8_t>{'t', 'o', 'k', 'e', 'n'};
-  pix_manager_->initiate_payment_request_details_->billing_customer_number_ =
-      13;
-  pix_manager_->initiate_payment_request_details_
+  test_api(*pix_manager_)
+      .initiate_payment_request_details()
+      ->billing_customer_number_ = 13;
+  test_api(*pix_manager_)
+      .initiate_payment_request_details()
       ->merchant_payment_page_hostname_ = "foo.com";
-  pix_manager_->initiate_payment_request_details_->instrument_id_ = 13;
-  pix_manager_->initiate_payment_request_details_->pix_code_ = "a valid code";
+  test_api(*pix_manager_).initiate_payment_request_details()->instrument_id_ =
+      13;
+  test_api(*pix_manager_).initiate_payment_request_details()->pix_code_ =
+      "a valid code";
 
-  EXPECT_TRUE(
-      pix_manager_->initiate_payment_request_details_->IsReadyForPixPayment());
+  EXPECT_TRUE(test_api(*pix_manager_)
+                  .initiate_payment_request_details()
+                  ->IsReadyForPixPayment());
 
   pix_manager_->Reset();
 
-  EXPECT_FALSE(
-      pix_manager_->initiate_payment_request_details_->IsReadyForPixPayment());
+  EXPECT_FALSE(test_api(*pix_manager_)
+                   .initiate_payment_request_details()
+                   ->IsReadyForPixPayment());
 }
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled, CopyTrigger_LogPixCodeCopied) {
@@ -411,9 +440,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   // asynchronously.
   task_environment_.RunUntilIdle();
 
-  EXPECT_THAT(
-      pix_manager_->initiate_payment_request_details_->chrome_experiment_ids_,
-      testing::ElementsAre(iframe_control_id));
+  EXPECT_THAT(test_api(*pix_manager_)
+                  .initiate_payment_request_details()
+                  ->chrome_experiment_ids_,
+              testing::ElementsAre(iframe_control_id));
 }
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled,
@@ -692,8 +722,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
-  EXPECT_EQ(pix_manager_->initiate_payment_request_details_->psp_hostname_,
-            "trusted-psp.com");
+  EXPECT_EQ(
+      test_api(*pix_manager_).initiate_payment_request_details()->psp_hostname_,
+      "trusted-psp.com");
 }
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled,
@@ -723,9 +754,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
       "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
       ukm::UkmRecorder::GetNewSourceID());
 
-  EXPECT_THAT(
-      pix_manager_->initiate_payment_request_details_->chrome_experiment_ids_,
-      testing::ElementsAre(iframe_experiment_id));
+  EXPECT_THAT(test_api(*pix_manager_)
+                  .initiate_payment_request_details()
+                  ->chrome_experiment_ids_,
+              testing::ElementsAre(iframe_experiment_id));
 }
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled,
@@ -772,6 +804,54 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
 }
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled,
+       IsIframeStateUpdatedOnConsecutiveCalls) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kEnableIframeForPix);
+  payments_data_manager_->AddMaskedBankAccountForTest(
+      CreatePixBankAccount(/*instrument_id=*/1));
+  GURL main_frame_url("https://merchant.com/");
+  GURL iframe_url("https://trusted-psp.com/");
+  url::Origin origin = url::Origin::Create(main_frame_url);
+
+  EXPECT_CALL(*optimization_guide_decider_,
+              CanApplyOptimization(
+                  testing::Eq(iframe_url),
+                  testing::Eq(optimization_guide::proto::PIX_PSP_ALLOWLIST),
+                  testing::Matcher<optimization_guide::OptimizationMetadata*>(
+                      testing::Eq(nullptr))))
+      .Times(1)
+      .WillOnce(testing::Return(
+          optimization_guide::OptimizationGuideDecision::kTrue));
+
+  // Expect IsAvailable to be called only on the first trigger.
+  EXPECT_CALL(GetApiClient(), IsAvailable(testing::_)).Times(1);
+
+  // First call: with iframe. `pix_code_is_in_iframe_` should become true.
+  pix_manager_->OnPixCodeCopiedToClipboard(
+      main_frame_url, iframe_url, origin, PixCodeRustValidationResult::kDynamic,
+      "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
+      ukm::UkmRecorder::GetNewSourceID());
+  EXPECT_TRUE(test_api(*pix_manager_).pix_code_is_in_iframe());
+
+  // Second call: without iframe. `pix_code_is_in_iframe_` should be updated to
+  // false.
+  pix_manager_->OnPixCodeCopiedToClipboard(
+      main_frame_url, std::nullopt, origin,
+      PixCodeRustValidationResult::kDynamic, "pix_code",
+      ukm::UkmRecorder::GetNewSourceID());
+  task_environment_.RunUntilIdle();
+  EXPECT_FALSE(test_api(*pix_manager_).pix_code_is_in_iframe());
+
+  // Third call: with iframe again. `pix_code_is_in_iframe_` should be updated
+  // to true.
+  pix_manager_->OnPixCodeCopiedToClipboard(
+      main_frame_url, iframe_url, origin, PixCodeRustValidationResult::kDynamic,
+      "pix_code", ukm::UkmRecorder::GetNewSourceID());
+  task_environment_.RunUntilIdle();
+  EXPECT_TRUE(test_api(*pix_manager_).pix_code_is_in_iframe());
+}
+
+TEST_P(PixManagerTestWithAccountLinkingEnabled,
        TestPayFlowCanBeTriggeredOnlyOncePerPageLoad) {
   payments_data_manager_->AddMaskedBankAccountForTest(
       CreatePixBankAccount(/*instrument_id=*/1));
@@ -813,10 +893,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_));
   EXPECT_CALL(*client_, InitPixAccountLinkingFlow).Times(0);
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 }
 
 // If the validation utility process has disconnected (e.g., due to a crash in
@@ -830,11 +910,12 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_)).Times(0);
   EXPECT_CALL(*client_, InitPixAccountLinkingFlow).Times(0);
 
-  pix_manager_->OnPixCodeValidated(
-      std::nullopt,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*is_pix_code_valid=*/
-      base::unexpected("Data Decoder terminated unexpectedly"));
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(
+          std::nullopt,
+          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+          /*pix_qr_code_type=*/
+          base::unexpected("Data Decoder terminated unexpectedly"));
 }
 
 // If the validation utility process has disconnected (e.g., due to a crash in
@@ -844,11 +925,12 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
        PayflowExitedReason_CodeValidatorFailed) {
   base::HistogramTester histogram_tester;
 
-  pix_manager_->OnPixCodeValidated(
-      std::nullopt,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*is_pix_code_valid=*/
-      base::unexpected("Data Decoder terminated unexpectedly"));
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(
+          std::nullopt,
+          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+          /*pix_qr_code_type=*/
+          base::unexpected("Data Decoder terminated unexpectedly"));
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -865,10 +947,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled, InvalidCode_PixFlowsAbandoned) {
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_)).Times(0);
   EXPECT_CALL(*client_, InitPixAccountLinkingFlow).Times(0);
 
-  pix_manager_->OnPixCodeValidated(
-      std::nullopt,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kInvalid);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(std::nullopt,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kInvalid);
 }
 
 // If the Pix code validation in the utility process has returned `false`, then
@@ -877,10 +959,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
        PayflowExitedReason_InvalidCode) {
   base::HistogramTester histogram_tester;
 
-  pix_manager_->OnPixCodeValidated(
-      std::nullopt,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kInvalid);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(std::nullopt,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kInvalid);
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -894,10 +976,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
        PayflowExitedReason_NoLinkedAccount) {
   base::HistogramTester histogram_tester;
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -915,10 +997,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_)).Times(0);
   EXPECT_CALL(*client_, InitPixAccountLinkingFlow).Times(0);
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kStatic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kStatic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kStatic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kStatic);
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -935,10 +1017,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   feature_list.InitAndEnableFeature(kEnableStaticQrCodeForPix);
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_)).Times(1);
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kStatic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kStatic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kStatic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kStatic);
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PaymentCodeValidation.Result",
@@ -958,10 +1040,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_)).Times(0);
   EXPECT_CALL(*client_, InitPixAccountLinkingFlow).Times(0);
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 }
 
 // If the payments autofill pref is disabled, neither the payflow nor the
@@ -976,10 +1058,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_)).Times(0);
   EXPECT_CALL(*client_, InitPixAccountLinkingFlow(testing::_)).Times(0);
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 }
 
 // If the user has turned off autofilling payment methods, the
@@ -992,10 +1074,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   // Disable payment methods pref.
   autofill::prefs::SetAutofillPaymentMethodsEnabled(pref_service_.get(), false);
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -1014,10 +1096,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_)).Times(0);
   EXPECT_CALL(*client_, InitPixAccountLinkingFlow(testing::_)).Times(0);
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 }
 
 // If the user has opted out of the Pix flow, the PayflowExitedReason
@@ -1029,10 +1111,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
       CreatePixBankAccount(/*instrument_id=*/1));
   autofill::prefs::SetFacilitatedPaymentsPix(pref_service_.get(), false);
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -1049,10 +1131,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_)).Times(0);
   EXPECT_CALL(*client_, InitPixAccountLinkingFlow(testing::_));
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 }
 
 // If the account linking flag is disabled, the account linking flow shouldn't
@@ -1065,10 +1147,10 @@ TEST_P(
 
   EXPECT_CALL(*client_, InitPixAccountLinkingFlow(testing::_)).Times(0);
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 }
 
 // Verify that the API check result and latency are logged.
@@ -1076,9 +1158,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
        LogApiAvailabilityCheckResultAndLatency) {
   base::HistogramTester histogram_tester;
 
-  pix_manager_->OnApiAvailabilityReceived(
-      /*start_time=*/base::TimeTicks::Now() - base::Seconds(2),
-      /*is_api_available=*/true);
+  test_api(*pix_manager_)
+      .OnApiAvailabilityReceived(
+          /*start_time=*/base::TimeTicks::Now() - base::Seconds(2),
+          /*is_api_available=*/true);
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.IsApiAvailable.Success.Latency",
@@ -1093,8 +1176,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
        PayflowExitedReason_ApiClientNotAvailable) {
   base::HistogramTester histogram_tester;
 
-  pix_manager_->OnApiAvailabilityReceived(/*start_time=*/base::TimeTicks::Now(),
-                                          /*is_api_available=*/false);
+  test_api(*pix_manager_)
+      .OnApiAvailabilityReceived(/*start_time=*/base::TimeTicks::Now(),
+                                 /*is_api_available=*/false);
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -1110,8 +1194,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
 
   EXPECT_CALL(*client_, ShowErrorScreen);
 
-  pix_manager_->OnPurchaseActionResult(/*start_time=*/base::TimeTicks::Now(),
-                                       PurchaseActionResult::kCouldNotInvoke);
+  test_api(*pix_manager_)
+      .OnPurchaseActionResult(/*start_time=*/base::TimeTicks::Now(),
+                              PurchaseActionResult::kCouldNotInvoke);
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -1127,8 +1212,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   // received, and again when the test fixture destroys the `pix_manager_`.
   EXPECT_CALL(*client_, DismissPrompt).Times(2);
 
-  pix_manager_->OnPurchaseActionResult(/*start_time=*/base::TimeTicks::Now(),
-                                       PurchaseActionResult::kResultOk);
+  test_api(*pix_manager_)
+      .OnPurchaseActionResult(/*start_time=*/base::TimeTicks::Now(),
+                              PurchaseActionResult::kResultOk);
 }
 
 // Test that when Chrome is successful in invoking the purchase action, the UI
@@ -1139,8 +1225,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   // received, and again when the test fixture destroys the `pix_manager_`.
   EXPECT_CALL(*client_, DismissPrompt).Times(2);
 
-  pix_manager_->OnPurchaseActionResult(/*start_time=*/base::TimeTicks::Now(),
-                                       PurchaseActionResult::kResultCanceled);
+  test_api(*pix_manager_)
+      .OnPurchaseActionResult(/*start_time=*/base::TimeTicks::Now(),
+                              PurchaseActionResult::kResultCanceled);
 }
 
 // Test that when an InitiatePurchaseAction request is sent, the attempt is
@@ -1154,10 +1241,12 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   auto response_details =
       std::make_unique<FacilitatedPaymentsInitiatePaymentResponseDetails>();
   response_details->secure_payload_ = CreateSecurePayload();
-  pix_manager_->OnInitiatePaymentResponseReceived(
-      /*start_time=*/base::TimeTicks::Now(),
-      autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess,
-      std::move(response_details));
+  test_api(*pix_manager_)
+      .OnInitiatePaymentResponseReceived(
+          /*start_time=*/base::TimeTicks::Now(),
+          autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::
+              kSuccess,
+          std::move(response_details));
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.InitiatePurchaseAction.Attempt",
@@ -1180,13 +1269,16 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
     auto response_details =
         std::make_unique<FacilitatedPaymentsInitiatePaymentResponseDetails>();
     response_details->secure_payload_ = CreateSecurePayload();
-    pix_manager_->OnInitiatePaymentResponseReceived(
-        /*start_time=*/base::TimeTicks::Now(),
-        autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess,
-        std::move(response_details));
+    test_api(*pix_manager_)
+        .OnInitiatePaymentResponseReceived(
+            /*start_time=*/base::TimeTicks::Now(),
+            autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::
+                kSuccess,
+            std::move(response_details));
 
-    pix_manager_->OnPurchaseActionResult(
-        /*start_time=*/base::TimeTicks::Now() - base::Seconds(2), result);
+    test_api(*pix_manager_)
+        .OnPurchaseActionResult(
+            /*start_time=*/base::TimeTicks::Now() - base::Seconds(2), result);
 
     std::string result_string;
     switch (result) {
@@ -1246,8 +1338,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
         break;
     }
 
-    pix_manager_->OnPurchaseActionResult(
-        /*start_time=*/base::TimeTicks::Now(), result);
+    test_api(*pix_manager_)
+        .OnPurchaseActionResult(
+            /*start_time=*/base::TimeTicks::Now(), result);
 
     histogram_tester.ExpectBucketCount(
         base::StrCat({"FacilitatedPayments.Pix.Transaction.", result_string,
@@ -1257,20 +1350,114 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   }
 }
 
+TEST_P(PixManagerTestWithAccountLinkingEnabled, LogTransactionResultForIframe) {
+  base::HistogramTester histogram_tester;
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kEnableIframeForPix);
+
+  GURL url("https://merchant.com/");
+  GURL iframe_url("https://trusted-psp.com/");
+  url::Origin origin = url::Origin::Create(url);
+
+  // Mock PSP allowlist check result.
+  EXPECT_CALL(*optimization_guide_decider_,
+              CanApplyOptimization(
+                  testing::Eq(iframe_url),
+                  testing::Eq(optimization_guide::proto::PIX_PSP_ALLOWLIST),
+                  testing::Matcher<optimization_guide::OptimizationMetadata*>(
+                      testing::Eq(nullptr))))
+      .Times(1)
+      .WillOnce(testing::Return(
+          optimization_guide::OptimizationGuideDecision::kTrue));
+
+  // Simulate Pix code being copied.
+  pix_manager_->OnPixCodeCopiedToClipboard(
+      url, iframe_url, origin, PixCodeRustValidationResult::kDynamic,
+      "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
+      ukm::UkmRecorder::GetNewSourceID());
+
+  for (PurchaseActionResult result :
+       {PurchaseActionResult::kResultOk, PurchaseActionResult::kCouldNotInvoke,
+        PurchaseActionResult::kResultCanceled}) {
+    test_api(*pix_manager_)
+        .OnPurchaseActionResult(
+            /*start_time=*/base::TimeTicks::Now(), result);
+
+    histogram_tester.ExpectUniqueSample(
+        base::StrCat({"FacilitatedPayments.Pix.Transaction.MainFrame.",
+                      GetPurchaseActionResultString(result)}),
+        /*sample=*/false,
+        /*expected_bucket_count=*/0);
+    histogram_tester.ExpectUniqueSample(
+        base::StrCat({"FacilitatedPayments.Pix.Transaction.Iframe.",
+                      GetPurchaseActionResultString(result)}),
+        /*sample=*/true,
+        /*expected_bucket_count=*/1);
+  }
+}
+
+TEST_P(PixManagerTestWithAccountLinkingEnabled,
+       LogTransactionResultForMainFrame) {
+  base::HistogramTester histogram_tester;
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kEnableIframeForPix);
+
+  GURL url("https://merchant.com/");
+  url::Origin origin = url::Origin::Create(url);
+
+  // Mock merchant allowlist check result.
+  EXPECT_CALL(
+      *optimization_guide_decider_,
+      CanApplyOptimization(
+          testing::Eq(url),
+          testing::Eq(
+              optimization_guide::proto::PIX_MERCHANT_ORIGINS_ALLOWLIST),
+          testing::Matcher<optimization_guide::OptimizationMetadata*>(
+              testing::Eq(nullptr))))
+      .Times(1)
+      .WillOnce(testing::Return(
+          optimization_guide::OptimizationGuideDecision::kTrue));
+
+  // Simulate Pix code being copied.
+  pix_manager_->OnPixCodeCopiedToClipboard(
+      url, std::nullopt, origin, PixCodeRustValidationResult::kDynamic,
+      "00020126370014br.gov.bcb.pix2515www.example.com6304EA3F",
+      ukm::UkmRecorder::GetNewSourceID());
+
+  for (PurchaseActionResult result :
+       {PurchaseActionResult::kResultOk, PurchaseActionResult::kCouldNotInvoke,
+        PurchaseActionResult::kResultCanceled}) {
+    test_api(*pix_manager_)
+        .OnPurchaseActionResult(
+            /*start_time=*/base::TimeTicks::Now(), result);
+
+    histogram_tester.ExpectUniqueSample(
+        base::StrCat({"FacilitatedPayments.Pix.Transaction.MainFrame.",
+                      GetPurchaseActionResultString(result)}),
+        /*sample=*/true,
+        /*expected_bucket_count=*/1);
+    histogram_tester.ExpectUniqueSample(
+        base::StrCat({"FacilitatedPayments.Pix.Transaction.Iframe.",
+                      GetPurchaseActionResultString(result)}),
+        /*sample=*/true,
+        /*expected_bucket_count=*/0);
+  }
+}
+
 // Verify that the API client is initialized lazily, so it does not take up
 // space in memory unless it's being used.
 TEST_P(PixManagerTestWithAccountLinkingEnabled, ApiClientInitializedLazily) {
   payments_data_manager_->AddMaskedBankAccountForTest(
       CreatePixBankAccount(/*instrument_id=*/1));
 
-  EXPECT_EQ(nullptr, pix_manager_->api_client_.get());
+  EXPECT_EQ(nullptr, test_api(*pix_manager_).api_client());
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 
-  EXPECT_NE(nullptr, pix_manager_->api_client_.get());
+  EXPECT_NE(nullptr, test_api(*pix_manager_).api_client());
 }
 
 // Verify that a failure to lazily initialize the API client is not fatal.
@@ -1278,16 +1465,16 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
        HandlesFailureToLazilyInitializeApiClient) {
   payments_data_manager_->AddMaskedBankAccountForTest(
       CreatePixBankAccount(/*instrument_id=*/1));
-  pix_manager_->api_client_creator_.Reset();
+  test_api(*pix_manager_).api_client_creator().Reset();
 
-  EXPECT_EQ(nullptr, pix_manager_->api_client_.get());
+  EXPECT_EQ(nullptr, test_api(*pix_manager_).api_client());
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 
-  EXPECT_EQ(nullptr, pix_manager_->api_client_.get());
+  EXPECT_EQ(nullptr, test_api(*pix_manager_).api_client());
 }
 
 // Test class for devices being used in the landscape mode.
@@ -1322,10 +1509,10 @@ TEST_P(PixManagerTestInLandscapeMode, PixPayflowBlockedWhenFlagDisabled) {
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_))
       .Times(IsPaymentEnabledInLandscapeMode() ? 1 : 0);
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 }
 
 TEST_P(PixManagerTestInLandscapeMode,
@@ -1334,10 +1521,10 @@ TEST_P(PixManagerTestInLandscapeMode,
   payments_data_manager_->AddMaskedBankAccountForTest(
       CreatePixBankAccount(/*instrument_id=*/1));
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 
   // In landscape mode, if the `EnablePixPaymentsInLandscapeMode` flag is
   // disabled, Pix payment is not offered, and a histogram should be logged.
@@ -1349,7 +1536,7 @@ TEST_P(PixManagerTestInLandscapeMode,
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled, ShowPixPaymentPrompt) {
   // Verify the default UI state.
-  EXPECT_EQ(pix_manager_->ui_state_, UiState::kHidden);
+  EXPECT_EQ(test_api(*pix_manager_).ui_state(), UiState::kHidden);
 
   // Verify that when the feature wants to show the payment prompt, it asks the
   // client.
@@ -1357,39 +1544,39 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled, ShowPixPaymentPrompt) {
 
   const std::vector<autofill::BankAccount> bank_accounts = {
       autofill::test::CreatePixBankAccount(100L)};
-  pix_manager_->ShowPixPaymentPrompt(std::move(bank_accounts),
-                                     base::DoNothing());
+  test_api(*pix_manager_)
+      .ShowPixPaymentPrompt(std::move(bank_accounts), base::DoNothing());
 
   // Verify that the UI state is updated.
-  EXPECT_EQ(pix_manager_->ui_state_, UiState::kFopSelector);
+  EXPECT_EQ(test_api(*pix_manager_).ui_state(), UiState::kFopSelector);
 }
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled, ShowProgressScreen) {
   // Verify the default UI state.
-  EXPECT_EQ(pix_manager_->ui_state_, UiState::kHidden);
+  EXPECT_EQ(test_api(*pix_manager_).ui_state(), UiState::kHidden);
 
   // Verify that when the feature wants to show the progress screen, it asks the
   // client.
   EXPECT_CALL(*client_, ShowProgressScreen);
 
-  pix_manager_->ShowProgressScreen();
+  test_api(*pix_manager_).ShowProgressScreen();
 
   // Verify that the UI state is updated.
-  EXPECT_EQ(pix_manager_->ui_state_, UiState::kProgressScreen);
+  EXPECT_EQ(test_api(*pix_manager_).ui_state(), UiState::kProgressScreen);
 }
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled, ShowErrorScreen) {
   // Verify the default UI state.
-  EXPECT_EQ(pix_manager_->ui_state_, UiState::kHidden);
+  EXPECT_EQ(test_api(*pix_manager_).ui_state(), UiState::kHidden);
 
   // Verify that when the feature wants to show the error screen, it asks the
   // client.
   EXPECT_CALL(*client_, ShowErrorScreen);
 
-  pix_manager_->ShowErrorScreen();
+  test_api(*pix_manager_).ShowErrorScreen();
 
   // Verify that the UI state is updated.
-  EXPECT_EQ(pix_manager_->ui_state_, UiState::kErrorScreen);
+  EXPECT_EQ(test_api(*pix_manager_).ui_state(), UiState::kErrorScreen);
 }
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled, DismissPrompt) {
@@ -1397,10 +1584,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled, DismissPrompt) {
   // client. The second call is from test teardown.
   EXPECT_CALL(*client_, DismissPrompt).Times(2);
 
-  pix_manager_->DismissPrompt();
+  test_api(*pix_manager_).DismissPrompt();
 
   // Verify that the UI state is updated.
-  EXPECT_EQ(pix_manager_->ui_state_, UiState::kHidden);
+  EXPECT_EQ(test_api(*pix_manager_).ui_state(), UiState::kHidden);
 }
 
 // Test that when the Pix FOP selector is shown, related Pix metrics are logged.
@@ -1419,9 +1606,9 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   // Simulate that the FOP selector was shown successfully.
   std::vector<autofill::BankAccount> bank_accounts = {
       autofill::test::CreatePixBankAccount(100L)};
-  pix_manager_->ShowPixPaymentPrompt(std::move(bank_accounts),
-                                     base::DoNothing());
-  pix_manager_->OnUiScreenEvent(UiEvent::kNewScreenShown);
+  test_api(*pix_manager_)
+      .ShowPixPaymentPrompt(std::move(bank_accounts), base::DoNothing());
+  test_api(*pix_manager_).OnUiScreenEvent(UiEvent::kNewScreenShown);
 
   // Verify that when the Pix FOP selector is shown, related metrics are
   // logged.
@@ -1439,7 +1626,7 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
 TEST_P(PixManagerTestWithAccountLinkingEnabled,
        ProgressScreenAutoDismissedAfterInvokingPurchaseAction) {
   // When purchase action is invoked, the progress screen would be showing.
-  pix_manager_->ShowProgressScreen();
+  test_api(*pix_manager_).ShowProgressScreen();
   ON_CALL(*client_, GetCoreAccountInfo)
       .WillByDefault(testing::Return(CreateLoggedInAccountInfo()));
 
@@ -1448,19 +1635,21 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   auto response_details =
       std::make_unique<FacilitatedPaymentsInitiatePaymentResponseDetails>();
   response_details->secure_payload_ = CreateSecurePayload();
-  pix_manager_->OnInitiatePaymentResponseReceived(
-      /*start_time=*/base::TimeTicks::Now(),
-      autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess,
-      std::move(response_details));
+  test_api(*pix_manager_)
+      .OnInitiatePaymentResponseReceived(
+          /*start_time=*/base::TimeTicks::Now(),
+          autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::
+              kSuccess,
+          std::move(response_details));
 
   // The progress screen is persisted for a short duration after invoking the
   // purchase action for a smooth transition to the platform screen.
-  EXPECT_EQ(pix_manager_->ui_state_, UiState::kProgressScreen);
+  EXPECT_EQ(test_api(*pix_manager_).ui_state(), UiState::kProgressScreen);
 
   FastForwardBy(base::Seconds(2));
 
   // The progress screen should be dismissed after a short delay.
-  EXPECT_EQ(pix_manager_->ui_state_, UiState::kHidden);
+  EXPECT_EQ(test_api(*pix_manager_).ui_state(), UiState::kHidden);
 }
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled,
@@ -1475,10 +1664,10 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   payments_data_manager_->AddMaskedBankAccountForTest(
       CreatePixBankAccount(/*instrument_id=*/1));
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -1499,16 +1688,16 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
       CreatePixBankAccount(/*instrument_id=*/1));
   EXPECT_CALL(GetApiClient(), IsAvailable(testing::_));
 
-  pix_manager_->OnPixCodeValidated(
-      PixCodeRustValidationResult::kDynamic,
-      /*pix_code=*/std::string(), base::TimeTicks::Now(),
-      /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
+  test_api(*pix_manager_)
+      .OnPixCodeValidated(PixCodeRustValidationResult::kDynamic,
+                          /*pix_code=*/std::string(), base::TimeTicks::Now(),
+                          /*pix_qr_code_type=*/mojom::PixQrCodeType::kDynamic);
 }
 
 TEST_P(PixManagerTestWithAccountLinkingEnabled,
        ErrorScreenNotAutoDismissedAfterInvokingPurchaseAction) {
   // When purchase action is invoked, the progress screen would be showing.
-  pix_manager_->ShowProgressScreen();
+  test_api(*pix_manager_).ShowProgressScreen();
   ON_CALL(*client_, GetCoreAccountInfo)
       .WillByDefault(testing::Return(CreateLoggedInAccountInfo()));
 
@@ -1517,19 +1706,22 @@ TEST_P(PixManagerTestWithAccountLinkingEnabled,
   auto response_details =
       std::make_unique<FacilitatedPaymentsInitiatePaymentResponseDetails>();
   response_details->secure_payload_ = CreateSecurePayload();
-  pix_manager_->OnInitiatePaymentResponseReceived(
-      /*start_time=*/base::TimeTicks::Now(),
-      autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess,
-      std::move(response_details));
+  test_api(*pix_manager_)
+      .OnInitiatePaymentResponseReceived(
+          /*start_time=*/base::TimeTicks::Now(),
+          autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::
+              kSuccess,
+          std::move(response_details));
 
   // If the purchase action could not be invoked, the `PurchaseActionResult` is
   // returned immediately. The error screen is shown.
-  pix_manager_->OnPurchaseActionResult(/*start_time=*/base::TimeTicks::Now(),
-                                       PurchaseActionResult::kCouldNotInvoke);
+  test_api(*pix_manager_)
+      .OnPurchaseActionResult(/*start_time=*/base::TimeTicks::Now(),
+                              PurchaseActionResult::kCouldNotInvoke);
   FastForwardBy(base::Seconds(1));
 
   // The error screen shouldn't be auto-dismissed.
-  EXPECT_EQ(pix_manager_->ui_state_, UiState::kErrorScreen);
+  EXPECT_EQ(test_api(*pix_manager_).ui_state(), UiState::kErrorScreen);
 }
 
 class PixManagerTestForUiScreens : public PixManagerTest,
@@ -1539,21 +1731,21 @@ class PixManagerTestForUiScreens : public PixManagerTest,
     PixManagerTest::SetUp();
 
     // Default state.
-    EXPECT_EQ(pix_manager_->ui_state_, UiState::kHidden);
+    EXPECT_EQ(test_api(*pix_manager_).ui_state(), UiState::kHidden);
 
     switch (GetParam()) {
       case UiState::kFopSelector: {
         const std::vector<autofill::BankAccount> bank_accounts = {
             autofill::test::CreatePixBankAccount(100L)};
-        pix_manager_->ShowPixPaymentPrompt(std::move(bank_accounts),
-                                           base::DoNothing());
+        test_api(*pix_manager_)
+            .ShowPixPaymentPrompt(std::move(bank_accounts), base::DoNothing());
         break;
       }
       case UiState::kProgressScreen:
-        pix_manager_->ShowProgressScreen();
+        test_api(*pix_manager_).ShowProgressScreen();
         break;
       case UiState::kErrorScreen:
-        pix_manager_->ShowErrorScreen();
+        test_api(*pix_manager_).ShowErrorScreen();
         break;
       case UiState::kHidden:
         NOTREACHED();
@@ -1575,10 +1767,10 @@ TEST_P(PixManagerTestForUiScreens, NewScreenShown) {
   base::HistogramTester histogram_tester;
 
   // Simulate new screen was shown successfully.
-  pix_manager_->OnUiScreenEvent(UiEvent::kNewScreenShown);
+  test_api(*pix_manager_).OnUiScreenEvent(UiEvent::kNewScreenShown);
 
   // Verify feature has updated the UI state.
-  EXPECT_EQ(pix_manager_->ui_state_, ui_state());
+  EXPECT_EQ(test_api(*pix_manager_).ui_state(), ui_state());
   // Verify that the histogram is logged.
   histogram_tester.ExpectUniqueSample("FacilitatedPayments.Pix.UiScreenShown",
                                       /*sample=*/ui_state(),
@@ -1597,10 +1789,10 @@ TEST_P(PixManagerTestForUiScreens, NewScreenCouldNotBeShown) {
   base::HistogramTester histogram_tester;
 
   // Simulate new screen could not be shown.
-  pix_manager_->OnUiScreenEvent(UiEvent::kScreenClosedNotByUser);
+  test_api(*pix_manager_).OnUiScreenEvent(UiEvent::kScreenClosedNotByUser);
 
   // Verify that the UI state is hidden.
-  EXPECT_EQ(pix_manager_->ui_state_, UiState::kHidden);
+  EXPECT_EQ(test_api(*pix_manager_).ui_state(), UiState::kHidden);
   // Verify that the payflow exited histogram is logged.
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -1614,12 +1806,12 @@ TEST_P(PixManagerTestForUiScreens, ScreenClosedNotByUser) {
   base::HistogramTester histogram_tester;
 
   // Simulate new screen was shown successfully.
-  pix_manager_->OnUiScreenEvent(UiEvent::kNewScreenShown);
+  test_api(*pix_manager_).OnUiScreenEvent(UiEvent::kNewScreenShown);
   // Simulate UI screen was closed, but it was not due to a user action.
-  pix_manager_->OnUiScreenEvent(UiEvent::kScreenClosedNotByUser);
+  test_api(*pix_manager_).OnUiScreenEvent(UiEvent::kScreenClosedNotByUser);
 
   // Verify that the UI state is hidden.
-  EXPECT_EQ(pix_manager_->ui_state_, UiState::kHidden);
+  EXPECT_EQ(test_api(*pix_manager_).ui_state(), UiState::kHidden);
   // Verify that the payflow exited histogram is logged.
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -1633,12 +1825,12 @@ TEST_P(PixManagerTestForUiScreens, ScreenClosedByUser) {
   base::HistogramTester histogram_tester;
 
   // Simulate new screen was shown successfully.
-  pix_manager_->OnUiScreenEvent(UiEvent::kNewScreenShown);
+  test_api(*pix_manager_).OnUiScreenEvent(UiEvent::kNewScreenShown);
   // Simulate UI screen was closed by the user.
-  pix_manager_->OnUiScreenEvent(UiEvent::kScreenClosedByUser);
+  test_api(*pix_manager_).OnUiScreenEvent(UiEvent::kScreenClosedByUser);
 
   // Verify that the UI state is hidden.
-  EXPECT_EQ(pix_manager_->ui_state_, UiState::kHidden);
+  EXPECT_EQ(test_api(*pix_manager_).ui_state(), UiState::kHidden);
   // Verify that the payflow exited histogram is logged.
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -1685,7 +1877,7 @@ TEST_F(PixManagerPaymentsNetworkInterfaceTest, SendInitiatePaymentRequest) {
   EXPECT_CALL(*payments_network_interface_,
               InitiatePayment(testing::_, testing::_, testing::_));
 
-  pix_manager_->SendInitiatePaymentRequest();
+  test_api(*pix_manager_).SendInitiatePaymentRequest();
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.InitiatePayment.Attempt",
@@ -1700,7 +1892,7 @@ TEST_F(PixManagerPaymentsNetworkInterfaceTest, SendInitiatePaymentRequest) {
 TEST_F(PixManagerPaymentsNetworkInterfaceTest,
        OnInitiatePaymentResponseReceived_FailureResponse) {
   base::HistogramTester histogram_tester;
-  pix_manager_->SendInitiatePaymentRequest();
+  test_api(*pix_manager_).SendInitiatePaymentRequest();
   ON_CALL(*client_, GetCoreAccountInfo)
       .WillByDefault(testing::Return(CreateLoggedInAccountInfo()));
 
@@ -1710,11 +1902,12 @@ TEST_F(PixManagerPaymentsNetworkInterfaceTest,
   auto response_details =
       std::make_unique<FacilitatedPaymentsInitiatePaymentResponseDetails>();
   response_details->secure_payload_ = CreateSecurePayload();
-  pix_manager_->OnInitiatePaymentResponseReceived(
-      /*start_time=*/base::TimeTicks::Now() - base::Seconds(2),
-      autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::
-          kPermanentFailure,
-      std::move(response_details));
+  test_api(*pix_manager_)
+      .OnInitiatePaymentResponseReceived(
+          /*start_time=*/base::TimeTicks::Now() - base::Seconds(2),
+          autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::
+              kPermanentFailure,
+          std::move(response_details));
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.PayflowExitedReason",
@@ -1732,7 +1925,7 @@ TEST_F(PixManagerPaymentsNetworkInterfaceTest,
 TEST_F(PixManagerPaymentsNetworkInterfaceTest,
        OnInitiatePaymentResponseReceived_NoActionToken_ErrorScreenShown) {
   base::HistogramTester histogram_tester;
-  pix_manager_->SendInitiatePaymentRequest();
+  test_api(*pix_manager_).SendInitiatePaymentRequest();
   ON_CALL(*client_, GetCoreAccountInfo)
       .WillByDefault(testing::Return(CreateLoggedInAccountInfo()));
 
@@ -1741,10 +1934,12 @@ TEST_F(PixManagerPaymentsNetworkInterfaceTest,
 
   auto response_details =
       std::make_unique<FacilitatedPaymentsInitiatePaymentResponseDetails>();
-  pix_manager_->OnInitiatePaymentResponseReceived(
-      /*start_time=*/base::TimeTicks::Now() - base::Seconds(2),
-      autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess,
-      std::move(response_details));
+  test_api(*pix_manager_)
+      .OnInitiatePaymentResponseReceived(
+          /*start_time=*/base::TimeTicks::Now() - base::Seconds(2),
+          autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::
+              kSuccess,
+          std::move(response_details));
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.InitiatePayment.Success.Latency",
@@ -1761,7 +1956,7 @@ TEST_F(PixManagerPaymentsNetworkInterfaceTest,
 TEST_F(PixManagerPaymentsNetworkInterfaceTest,
        OnInitiatePaymentResponseReceived_NoCoreAccountInfo_ErrorScreenShown) {
   base::HistogramTester histogram_tester;
-  pix_manager_->SendInitiatePaymentRequest();
+  test_api(*pix_manager_).SendInitiatePaymentRequest();
   ON_CALL(*client_, GetCoreAccountInfo)
       .WillByDefault(testing::Return(std::nullopt));
 
@@ -1771,10 +1966,12 @@ TEST_F(PixManagerPaymentsNetworkInterfaceTest,
   auto response_details =
       std::make_unique<FacilitatedPaymentsInitiatePaymentResponseDetails>();
   response_details->secure_payload_ = CreateSecurePayload();
-  pix_manager_->OnInitiatePaymentResponseReceived(
-      /*start_time=*/base::TimeTicks::Now() - base::Seconds(2),
-      autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess,
-      std::move(response_details));
+  test_api(*pix_manager_)
+      .OnInitiatePaymentResponseReceived(
+          /*start_time=*/base::TimeTicks::Now() - base::Seconds(2),
+          autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::
+              kSuccess,
+          std::move(response_details));
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.InitiatePayment.Success.Latency",
@@ -1791,7 +1988,7 @@ TEST_F(PixManagerPaymentsNetworkInterfaceTest,
 TEST_F(PixManagerPaymentsNetworkInterfaceTest,
        OnInitiatePaymentResponseReceived_LoggedOutProfile_ErrorScreenShown) {
   base::HistogramTester histogram_tester;
-  pix_manager_->SendInitiatePaymentRequest();
+  test_api(*pix_manager_).SendInitiatePaymentRequest();
   ON_CALL(*client_, GetCoreAccountInfo)
       .WillByDefault(testing::Return(CoreAccountInfo()));
 
@@ -1801,10 +1998,12 @@ TEST_F(PixManagerPaymentsNetworkInterfaceTest,
   auto response_details =
       std::make_unique<FacilitatedPaymentsInitiatePaymentResponseDetails>();
   response_details->secure_payload_ = CreateSecurePayload();
-  pix_manager_->OnInitiatePaymentResponseReceived(
-      /*start_time=*/base::TimeTicks::Now() - base::Seconds(2),
-      autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess,
-      std::move(response_details));
+  test_api(*pix_manager_)
+      .OnInitiatePaymentResponseReceived(
+          /*start_time=*/base::TimeTicks::Now() - base::Seconds(2),
+          autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::
+              kSuccess,
+          std::move(response_details));
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.InitiatePayment.Success.Latency",
@@ -1821,7 +2020,7 @@ TEST_F(PixManagerPaymentsNetworkInterfaceTest,
 TEST_F(PixManagerPaymentsNetworkInterfaceTest,
        OnInitiatePaymentResponseReceived_InvokePurchaseActionTriggered) {
   base::HistogramTester histogram_tester;
-  pix_manager_->SendInitiatePaymentRequest();
+  test_api(*pix_manager_).SendInitiatePaymentRequest();
   ON_CALL(*client_, GetCoreAccountInfo)
       .WillByDefault(testing::Return(CreateLoggedInAccountInfo()));
 
@@ -1830,10 +2029,12 @@ TEST_F(PixManagerPaymentsNetworkInterfaceTest,
   auto response_details =
       std::make_unique<FacilitatedPaymentsInitiatePaymentResponseDetails>();
   response_details->secure_payload_ = CreateSecurePayload();
-  pix_manager_->OnInitiatePaymentResponseReceived(
-      /*start_time=*/base::TimeTicks::Now() - base::Seconds(2),
-      autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess,
-      std::move(response_details));
+  test_api(*pix_manager_)
+      .OnInitiatePaymentResponseReceived(
+          /*start_time=*/base::TimeTicks::Now() - base::Seconds(2),
+          autofill::payments::PaymentsAutofillClient::PaymentsRpcResult::
+              kSuccess,
+          std::move(response_details));
 
   histogram_tester.ExpectUniqueSample(
       "FacilitatedPayments.Pix.InitiatePayment.Success.Latency",
@@ -1846,10 +2047,10 @@ TEST_F(PixManagerPaymentsNetworkInterfaceTest,
 TEST_F(PixManagerPaymentsNetworkInterfaceTest, Reset) {
   EXPECT_CALL(*payments_network_interface_, InitiatePayment);
 
-  pix_manager_->SendInitiatePaymentRequest();
+  test_api(*pix_manager_).SendInitiatePaymentRequest();
   pix_manager_->Reset();
 
-  EXPECT_FALSE(pix_manager_->weak_ptr_factory_.HasWeakPtrs());
+  EXPECT_FALSE(test_api(*pix_manager_).HasWeakPtrs());
 }
 
 }  // namespace payments::facilitated

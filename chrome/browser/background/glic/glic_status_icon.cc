@@ -18,6 +18,7 @@
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/glic_settings_util.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/resources/glic_resources.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
@@ -41,6 +42,10 @@
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/views/widget/widget.h"
+
+#if BUILDFLAG(IS_MAC)
+#include "components/omnibox/browser/vector_icons.h"  // nogncheck
+#endif                                                // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_WIN)
 #include "chrome/browser/background/glic/glic_status_icon_win.h"
@@ -108,7 +113,23 @@ std::unique_ptr<GlicStatusIcon> GlicStatusIcon::Create(
 
 GlicStatusIcon::GlicStatusIcon(GlicController* controller,
                                StatusTray* status_tray)
-    : controller_(controller), status_tray_(status_tray) {
+    : controller_(controller), status_tray_(status_tray) {}
+
+GlicStatusIcon::~GlicStatusIcon() {
+  context_menu_ = nullptr;
+  if (status_icon_) {
+#if !BUILDFLAG(IS_LINUX)
+    status_icon_->RemoveObserver(this);
+#endif
+    std::unique_ptr<StatusIcon> removed_icon =
+        status_tray_->RemoveStatusIcon(status_icon_);
+    status_icon_ = nullptr;
+    removed_icon.reset();
+  }
+  status_tray_ = nullptr;
+}
+
+void GlicStatusIcon::Init() {
   status_icon_ = status_tray_->CreateStatusIcon(
       StatusTray::GLIC_ICON, GetIcon(),
       l10n_util::GetStringUTF16(GetTooltipMessageId(controller_->IsShowing())));
@@ -149,20 +170,6 @@ GlicStatusIcon::GlicStatusIcon(GlicController* controller,
   if (GlicKeyedService* service = manager->GetLastActiveGlic()) {
     panel_state_observer_.Observe(&service->window_controller());
   }
-}
-
-GlicStatusIcon::~GlicStatusIcon() {
-  context_menu_ = nullptr;
-  if (status_icon_) {
-#if !BUILDFLAG(IS_LINUX)
-    status_icon_->RemoveObserver(this);
-#endif
-    std::unique_ptr<StatusIcon> removed_icon =
-        status_tray_->RemoveStatusIcon(status_icon_);
-    status_icon_ = nullptr;
-    removed_icon.reset();
-  }
-  status_tray_ = nullptr;
 }
 
 void GlicStatusIcon::OnStatusIconClicked() {
@@ -332,6 +339,12 @@ gfx::ImageSkia GlicStatusIcon::GetIcon() const {
   // On Mac and Linux, theming is handled by the system,. whereas ChromeOS and
   // Win need theme aware icons. (See GetIcon() implementations of
   // GlicStatusIconWin and GlicStatusIconChromeOS)
+#if BUILDFLAG(IS_MAC)
+  if (base::FeatureList::IsEnabled(features::kGlicChromeStatusIcon)) {
+    return gfx::CreateVectorIcon(omnibox::kProductChromeRefreshIcon,
+                                 SK_ColorWHITE);
+  }
+#endif
   const auto& icon =
       glic::GlicVectorIconManager::GetVectorIcon(IDR_GLIC_STATUS_ICON);
   return gfx::CreateVectorIcon(icon, SK_ColorWHITE);

@@ -11,6 +11,7 @@
 
 #include "base/check_deref.h"
 #include "base/notreached.h"
+#include "components/autofill/core/browser/autofill_browser_util.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/field_types.h"
@@ -44,6 +45,8 @@ optimization_guide::proto::AutofillAiEntityType GetEntityType(
       return ProtoType::AUTOFILL_AI_ENTITY_TYPE_KNOWN_TRAVELER_NUMBER;
     case EntityTypeName::kNationalIdCard:
       return ProtoType::AUTOFILL_AI_ENTITY_TYPE_NATIONAL_ID_CARD;
+    case EntityTypeName::kOrder:
+      return ProtoType::AUTOFILL_AI_ENTITY_TYPE_ORDER;
     case EntityTypeName::kPassport:
       return ProtoType::AUTOFILL_AI_ENTITY_TYPE_PASSPORT;
     case EntityTypeName::kRedressNumber:
@@ -161,6 +164,8 @@ optimization_guide::proto::AutofillAiEntityStorageType GetStorageType(
       return optimization_guide::proto::AUTOFILL_AI_ENTITY_STORAGE_TYPE_LOCAL;
     case EntityInstance::RecordType::kServerWallet:
       return optimization_guide::proto::AUTOFILL_AI_ENTITY_STORAGE_TYPE_WALLET;
+    case EntityInstance::RecordType::kAccessibilityAnnotator:
+      return optimization_guide::proto::AUTOFILL_AI_ENTITY_STORAGE_TYPE_UNKNOWN;
   }
 }
 
@@ -197,6 +202,7 @@ void AutofillAiUkmLogger::LogKeyMetrics(ukm::SourceId ukm_source_id,
           case FillingProduct::kCompose:
           case FillingProduct::kDataList:
           case FillingProduct::kPasskey:
+          case FillingProduct::kAtMemory:
           case FillingProduct::kNone:
             return false;
         }
@@ -204,7 +210,7 @@ void AutofillAiUkmLogger::LogKeyMetrics(ukm::SourceId ukm_source_id,
   const int autofill_ai_filled_field_count = std::ranges::count(
       form, FillingProduct::kAutofillAi, &AutofillField::filling_product);
 
-  const bool perfect_filling = IsFormPerfectlyFilled(form.ToFormData());
+  const bool perfect_filling = IsFormStructurePerfectlyFilled(form);
 
   if (optimization_guide::ModelQualityLogsUploaderService* uploader_ =
           client_->GetMqlsUploadService();

@@ -10,7 +10,11 @@
 #include "chrome/browser/actor/ui/actor_overlay_web_view.h"
 #include "chrome/browser/devtools/devtools_contents_resizing_strategy.h"
 #include "chrome/browser/enterprise/watermark/watermark_view.h"
+#include "chrome/browser/glic/browser_ui/context_sharing_border_view.h"
+#include "chrome/browser/glic/browser_ui/context_sharing_border_view_controller_impl.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/ai_overlay_dialog/ai_overlay_dialog_controller.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/read_anything/read_anything_immersive_overlay_view.h"
@@ -43,12 +47,6 @@
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/widget/widget.h"
-
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/browser_ui/context_sharing_border_view.h"
-#include "chrome/browser/glic/browser_ui/context_sharing_border_view_controller_impl.h"
-#include "chrome/browser/glic/public/glic_enabling.h"
-#endif
 
 #if BUILDFLAG(IS_WIN)
 #include "ui/views/widget/native_widget_aura.h"
@@ -103,6 +101,15 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
   watermark_view_ =
       AddChildView(std::make_unique<enterprise_watermark::WatermarkView>());
 
+  if (base::FeatureList::IsEnabled(features::kAiOverlayDialog)) {
+    auto ai_overlay_dialog_view =
+        std::make_unique<views::WebView>(browser_view->GetProfile());
+    ai_overlay_dialog_view->SetVisible(false);
+    ai_overlay_dialog_view->SetProperty(views::kElementIdentifierKey,
+                                        kAiOverlayDialogWebViewElementId);
+    ai_overlay_dialog_view_ = AddChildView(std::move(ai_overlay_dialog_view));
+  }
+
   if (features::IsImmersiveReadAnythingEnabled()) {
     auto read_anything_immersive_overlay_view =
         std::make_unique<ReadAnythingImmersiveOverlayView>(contents_view_);
@@ -121,7 +128,17 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
     actor_overlay_web_view_ = AddChildView(std::move(actor_overlay_web_view));
   }
 
-#if BUILDFLAG(ENABLE_GLIC)
+  if (base::FeatureList::IsEnabled(features::kGlicRegionSelectionNew)) {
+    auto glic_selection_overlay_view = std::make_unique<views::WebView>();
+    glic_selection_overlay_view->SetProperty(
+        views::kElementIdentifierKey, kGlicSelectionOverlayViewElementId);
+    glic_selection_overlay_view->SetVisible(false);
+    glic_selection_overlay_view->SetLayoutManager(
+        std::make_unique<views::FillLayout>());
+    glic_selection_overlay_view_ =
+        AddChildView(std::move(glic_selection_overlay_view));
+  }
+
   if (glic::GlicEnabling::IsProfileEligible(browser_view->GetProfile())) {
     glic_border_ = AddChildView(
         views::Builder<glic::ContextSharingBorderView>(
@@ -133,7 +150,6 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
             .SetCanProcessEventsWithinSubtree(false)
             .Build());
   }
-#endif
 
   mini_toolbar_ = AddChildView(std::make_unique<MultiContentsViewMiniToolbar>(
       browser_view, contents_view_));
@@ -268,11 +284,19 @@ void ContentsContainerView::UpdateBorderRoundedCorners() {
     actor_overlay_web_view_->holder()->SetCornerRadii(radii);
   }
 
-#if BUILDFLAG(ENABLE_GLIC)
+  if (ai_overlay_dialog_view_) {
+    // ai_overlay_dialog_view_ should use the same radii as the contents view
+    // since it acts as a layer directly over the main web content.
+    ai_overlay_dialog_view_->holder()->SetCornerRadii(radii);
+  }
+
+  if (glic_selection_overlay_view_) {
+    glic_selection_overlay_view_->holder()->SetCornerRadii(radii);
+  }
+
   if (glic_border_) {
     glic_border_->SetRoundedCorners(content_rounded_corners);
   }
-#endif
 }
 
 void ContentsContainerView::ClearBorderRoundedCorners() {
@@ -294,11 +318,17 @@ void ContentsContainerView::ClearBorderRoundedCorners() {
     actor_overlay_web_view_->holder()->SetCornerRadii(kNoRoundedCorners);
   }
 
-#if BUILDFLAG(ENABLE_GLIC)
+  if (ai_overlay_dialog_view_) {
+    ai_overlay_dialog_view_->holder()->SetCornerRadii(kNoRoundedCorners);
+  }
+
+  if (glic_selection_overlay_view_) {
+    glic_selection_overlay_view_->holder()->SetCornerRadii(kNoRoundedCorners);
+  }
+
   if (glic_border_) {
     glic_border_->SetRoundedCorners(kNoRoundedCorners);
   }
-#endif
 }
 
 void ContentsContainerView::ChildVisibilityChanged(View* child) {
@@ -314,6 +344,8 @@ void ContentsContainerView::Layout(PassKey pass_key) {
   if (capture_contents_border_widget_) {
     UpdateCaptureContentsBorderLocation();
   }
+
+  UpdateContentsClip();
 }
 
 void ContentsContainerView::OnViewBoundsChanged(View* observed_view) {
@@ -411,6 +443,16 @@ gfx::Rect ContentsContainerView::GetContentsViewBounds() const {
   return contents_view_bounds;
 }
 
+void ContentsContainerView::SetTargetContentBounds(
+    std::optional<gfx::Outsets> target_content_bounds) {
+  if (target_content_bounds_ == target_content_bounds) {
+    return;
+  }
+
+  target_content_bounds_ = target_content_bounds;
+  InvalidateLayout(/*avoid_propagate_during_layout=*/true);
+}
+
 void ContentsContainerView::CreateCaptureContentsBorder() {
   capture_contents_border_widget_ = std::make_unique<views::Widget>();
   views::Widget::InitParams params(
@@ -487,6 +529,25 @@ void ContentsContainerView::UpdateCaptureContentsBorderLocation() {
   capture_contents_border_widget_->SetBounds(rect);
 }
 
+void ContentsContainerView::UpdateContentsClip() {
+  bool changed = false;
+  if (auto* const layer = contents_view_->holder()->GetUILayer()) {
+    if (layer->clip_rect() != contents_clip_rect_) {
+      layer->SetClipRect(contents_clip_rect_);
+      changed = true;
+    }
+  }
+  if (auto* const layer = contents_view_->layer()) {
+    if (layer->clip_rect() != contents_clip_rect_) {
+      layer->SetClipRect(contents_clip_rect_);
+      changed = true;
+    }
+  }
+  if (changed) {
+    contents_view_->SchedulePaint();
+  }
+}
+
 views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
     const views::SizeBounds& size_bounds) const {
   views::ProposedLayout layouts;
@@ -552,14 +613,12 @@ views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
   layouts.child_layouts.emplace_back(
       contents_view_.get(), contents_view_->GetVisible(), contents_rect);
 
-#if BUILDFLAG(ENABLE_GLIC)
   if (glic_border_) {
     // |glic_border_| should not be seen over devtools.
     layouts.child_layouts.emplace_back(glic_border_.get(),
                                        glic_border_->GetVisible(),
                                        non_devtools_contents_bounds);
   }
-#endif
 
   // The content scrim view should cover the entire contents bounds.
   CHECK(contents_scrim_view_);
@@ -576,6 +635,20 @@ views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
   if (actor_overlay_web_view_) {
     layouts.child_layouts.emplace_back(
         actor_overlay_web_view_.get(), actor_overlay_web_view_->GetVisible(),
+        non_devtools_contents_bounds, size_bounds);
+  }
+
+  if (ai_overlay_dialog_view_) {
+    layouts.child_layouts.emplace_back(
+        ai_overlay_dialog_view_.get(), ai_overlay_dialog_view_->GetVisible(),
+        non_devtools_contents_bounds,
+        views::SizeBounds(non_devtools_contents_bounds.size()));
+  }
+
+  if (glic_selection_overlay_view_) {
+    layouts.child_layouts.emplace_back(
+        glic_selection_overlay_view_.get(),
+        glic_selection_overlay_view_->GetVisible(),
         non_devtools_contents_bounds, size_bounds);
   }
 
@@ -610,6 +683,16 @@ views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
     layouts.child_layouts.emplace_back(container_outline_.get(),
                                        container_outline_->GetVisible(),
                                        gfx::Rect(0, 0, width, height));
+  }
+
+  auto* const content_layout = layouts.GetLayoutFor(contents_view_);
+  if (target_content_bounds_) {
+    content_layout->bounds.Outset(*target_content_bounds_);
+    contents_clip_rect_ =
+        gfx::Rect(gfx::Point(), content_layout->bounds.size());
+    contents_clip_rect_.Inset(-target_content_bounds_->ToInsets());
+  } else {
+    contents_clip_rect_ = gfx::Rect();
   }
 
   layouts.host_size = gfx::Size(width, height);

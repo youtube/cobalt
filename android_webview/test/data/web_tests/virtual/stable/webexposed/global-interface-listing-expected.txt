@@ -99,6 +99,7 @@ interface AnimationEvent : Event
     getter animationName
     getter elapsedTime
     getter pseudoElement
+    getter pseudoTarget
     method constructor
 interface AnimationPlaybackEvent : Event
     attribute @@toStringTag
@@ -823,6 +824,13 @@ interface CSSPropertyRule : CSSRule
     getter name
     getter syntax
     method constructor
+interface CSSPseudoElement
+    attribute @@toStringTag
+    getter element
+    getter parent
+    getter type
+    method constructor
+    method pseudo
 interface CSSRotate : CSSTransformComponent
     attribute @@toStringTag
     getter angle
@@ -1298,6 +1306,7 @@ interface CreateMonitor : EventTarget
     method constructor
     setter ondownloadprogress
 interface Credential
+    static method isConditionalMediationAvailable
     attribute @@toStringTag
     getter id
     getter type
@@ -2141,6 +2150,7 @@ interface EditContext : EventTarget
 interface Element : Node
     attribute @@toStringTag
     attribute @@unscopables
+    getter activeViewTransition
     getter ariaActiveDescendantElement
     getter ariaAtomic
     getter ariaAutoComplete
@@ -2263,6 +2273,7 @@ interface Element : Node
     method matches
     method moveBefore
     method prepend
+    method pseudo
     method querySelector
     method querySelectorAll
     method releasePointerCapture
@@ -2286,6 +2297,7 @@ interface Element : Node
     method setHTML
     method setHTMLUnsafe
     method setPointerCapture
+    method startViewTransition
     method toggleAttribute
     method webkitMatchesSelector
     method webkitRequestFullScreen
@@ -9119,6 +9131,7 @@ interface TransitionEvent : Event
     getter elapsedTime
     getter propertyName
     getter pseudoElement
+    getter pseudoTarget
     method constructor
 interface TreeWalker
     attribute @@toStringTag
@@ -9173,6 +9186,7 @@ interface TrustedTypePolicyFactory
 interface UIEvent : Event
     attribute @@toStringTag
     getter detail
+    getter pseudoTarget
     getter sourceCapabilities
     getter view
     getter which
@@ -9348,6 +9362,7 @@ interface ViewTransition
     attribute @@toStringTag
     getter finished
     getter ready
+    getter transitionRoot
     getter types
     getter updateCallbackDone
     method constructor

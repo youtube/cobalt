@@ -43,9 +43,10 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/autofill/autofill_snackbar_controller_impl.h"
-#else  // BUILDFLAG(IS_ANDROID)
+#else                                         // BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/actor/actor_task.h"  // nogncheck
 #include "chrome/browser/ui/autofill/autofill_field_promo_controller.h"
+#include "components/autofill/core/browser/form_predictions_tracker.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 class ToastController;
@@ -68,10 +69,7 @@ class SaveUpdateAddressProfileFlowManager;
 class AutofillMessageController;
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
-class GlicFormParsingTracker;
-#endif
-
+class ActorKeyMetricsRecorder;
 class AutofillOptimizationGuideDecider;
 class EmailVerifierDelegate;
 class FormFieldData;
@@ -140,6 +138,8 @@ class ChromeAutofillClient : public ContentAutofillClient {
   AutocompleteHistoryManager* GetAutocompleteHistoryManager() final;
   AutofillComposeDelegate* GetComposeDelegate() final;
   AutofillPlusAddressDelegate* GetPlusAddressDelegate() final;
+  accessibility_annotator::AccessibilityQueryService*
+  GetAccessibilityQueryService() override;
   PasswordManagerDelegate* GetPasswordManagerDelegate(
       const FieldGlobalId& field_id) final;
   void GetAiPageContent(GetAiPageContentCallback callback) final;
@@ -204,10 +204,11 @@ class ChromeAutofillClient : public ContentAutofillClient {
       EntityType entity_type,
       const base::flat_set<EntityTypeName>& saved_entities) final;
   bool IsTabInActorMode() const final;
+  ActorKeyMetricsRecorder* GetActorKeyMetricsRecorder() final;
   bool IsAutofillEnabled() const final;
   bool IsAutofillProfileEnabled() const final;
   bool IsAutocompleteEnabled() const final;
-  bool IsWalletStorageEnabled() const final;
+  bool IsWalletPublicPassStorageEnabled() const final;
   bool IsPasswordManagerEnabled() const final;
   bool IsContextSecure() const final;
   LogManager* GetCurrentLogManager() final;
@@ -223,7 +224,8 @@ class ChromeAutofillClient : public ContentAutofillClient {
   // The AutofillMessageController is used to show native Android messages via
   // the messages API.
   AutofillMessageController* GetAutofillMessageController();
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
+
   std::unique_ptr<device_reauth::DeviceAuthenticator> GetDeviceAuthenticator(
       std::string histogram) final;
   bool ShowAutofillFieldIphForFeature(const FormFieldData& field,
@@ -247,7 +249,8 @@ class ChromeAutofillClient : public ContentAutofillClient {
       EntityImportPromptResultCallback prompt_result_callback) final;
   void CloseEntityImportBubble() final;
   void ShowAutofillAiLocalSaveNotification() final;
-  void ShowAutofillAiFailureNotification(std::u16string message) final;
+  void ShowAutofillAiSaveToWalletFailureNotification() final;
+  void ShowAutofillAiFetchFromWalletFailureNotification() final;
   void ShowEmailVerifiedToast() final;
 
   // TODO(crbug.com/407666146): Create a test API.
@@ -276,7 +279,7 @@ class ChromeAutofillClient : public ContentAutofillClient {
     autofill_snackbar_controller_impl_ =
         std::move(autofill_snackbar_controller_impl);
   }
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
 #endif  // defined(UNIT_TEST)
 
   // ContentAutofillClient:
@@ -290,6 +293,8 @@ class ChromeAutofillClient : public ContentAutofillClient {
 
   OtpFieldDetector* GetOtpFieldDetector() override;
   OtpPhishGuardDelegate* GetOtpPhishGuardDelegate() override;
+
+  FormPredictionsTracker* GetFormPredictionsTracker() override;
 
   one_time_tokens::OneTimeTokenService* GetOneTimeTokenService() const final;
 
@@ -377,7 +382,9 @@ class ChromeAutofillClient : public ContentAutofillClient {
   // actor interacting with the current tab it is `std::nullopt`.
   std::optional<actor::TaskId> active_actor_task_;
 
-  std::unique_ptr<GlicFormParsingTracker> glic_form_parsing_tracker_;
+  std::unique_ptr<FormPredictionsTracker> form_predictions_tracker_;
+
+  std::unique_ptr<ActorKeyMetricsRecorder> actor_key_metrics_recorder_;
 #endif  // BUILDFLAG(IS_ANDROID)
 
   SEQUENCE_CHECKER(sequence_checker_);

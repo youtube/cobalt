@@ -35,7 +35,9 @@ class ScreenMacHeadless : public ScreenBase,
 
   // HeadlessScreenManager::Delegate overrides:
   int64_t AddDisplay(const Display& display) override;
+  void UpdateDisplay(const Display& display) override;
   void RemoveDisplay(int64_t display_id) override;
+  void SetPrimaryDisplay(int64_t display_id) override;
 
  private:
   void CreateDisplayList();

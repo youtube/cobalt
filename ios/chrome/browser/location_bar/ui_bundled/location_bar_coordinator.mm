@@ -135,7 +135,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   // Service for local and profile preferences.
   raw_ptr<PrefService> _prefService;
   // Tracker for feature events.
-  raw_ptr<feature_engagement::Tracker, DanglingUntriaged> _tracker;
+  raw_ptr<feature_engagement::Tracker> _tracker;
 }
 // Whether the coordinator is started.
 @property(nonatomic, assign, getter=isStarted) BOOL started;
@@ -476,6 +476,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   _locationBarModel = nullptr;
   _locationBarModelDelegate = nullptr;
   _prefService = nullptr;
+  _tracker = nullptr;
 
   _badgeFullscreenUIUpdater = nullptr;
   _incognitoBadgeFullscreenUIUpdater = nullptr;
@@ -523,6 +524,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 }
 
 - (void)setPageActionMenuEntryPointDispatcher {
+  CHECK(!IsChromeNextIaEnabled());
   [self.browser->GetCommandDispatcher()
       startDispatchingToTarget:self.viewController
                                    .pageActionMenuEntryPointHandler
@@ -578,6 +580,11 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     [self setFakeboxButtonsSnapshotProvider:nil];
     [self.omniboxCoordinator focusOmnibox];
   }
+}
+
+- (void)insertTextToOmnibox:(NSString*)string {
+  CHECK(!IsComposeboxIOSEnabled());
+  [self.omniboxCoordinator insertTextToOmnibox:string];
 }
 
 - (void)focusOmniboxForVoiceOver {
@@ -685,6 +692,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 }
 
 - (void)locationBarDidTapAIHubNewBadge {
+  _tracker->Dismissed(feature_engagement::kIPHiOSAIHubNewBadge);
   _tracker->NotifyUsedEvent(feature_engagement::kIPHiOSAIHubNewBadge);
 }
 
@@ -696,10 +704,11 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
       feature_engagement::kIPHiOSAIHubNewBadge);
 }
 
-- (void)locationBarViewController:(LocationBarViewController*)controller
-         didChangeEditStateHeight:(CGFloat)height {
-  [self.heightDelegate locationBarCoordinator:self
-                     didChangeEditStateHeight:height];
+- (void)locationBarHideToolbarTapped {
+  FullscreenController* fullscreenController =
+      FullscreenController::FromBrowser(self.browser);
+  fullscreenController->EnterForceFullscreenMode(
+      /* insets_update_enabled */ true);
 }
 
 #pragma mark - LocationBarBadgeCommands
@@ -717,6 +726,11 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 - (void)markDisplayedBadgeAsUnread:(BOOL)read {
   CHECK(IsChromeNextIaEnabled());
   [self.locationBarBadgeCoordinator markDisplayedBadgeAsUnread:read];
+}
+
+- (void)togglePageActionMenuEntryPointHighlight:(BOOL)highlight {
+  [self.viewController.pageActionMenuEntryPointHandler
+      toggleEntryPointHighlight:highlight];
 }
 
 #pragma mark - ContextualPanelEntrypointCommands

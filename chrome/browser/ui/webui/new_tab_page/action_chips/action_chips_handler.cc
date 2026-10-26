@@ -41,7 +41,6 @@ using ::action_chips::RecordActionChipsRetrievalLatencyMetrics;
 using ::action_chips::RecordImpressionMetrics;
 using ::action_chips::mojom::ActionChip;
 using ::action_chips::mojom::ActionChipPtr;
-using ::action_chips::mojom::ChipType;
 using ::action_chips::mojom::TabInfo;
 using ::action_chips::mojom::TabInfoPtr;
 using ::tabs::TabInterface;
@@ -121,9 +120,11 @@ ActionChipsHandler::ActionChipsHandler(
   content::WebContents* web_contents = web_ui_->GetWebContents();
   auto* browser_window_interface =
       webui::GetBrowserWindowInterface(web_contents);
-  // No need to call RemoveObserver later since TabStripModelObserver takes care
-  // of it in its destructor.
-  browser_window_interface->GetTabStripModel()->AddObserver(this);
+  if (browser_window_interface) {
+    // No need to call RemoveObserver later since TabStripModelObserver takes
+    // care of it in its destructor.
+    browser_window_interface->GetTabStripModel()->AddObserver(this);
+  }
   pref_change_registrar_.Init(profile_->GetPrefs());
   pref_change_registrar_.Add(
       prefs::kNtpToolChipsVisible,
@@ -174,6 +175,10 @@ void ActionChipsHandler::ActivateMetricsFunnel(const std::string& funnel_name) {
   if (metrics_recorder) {
     metrics_recorder->ActivateMetricsFunnel(funnel_name);
   }
+}
+
+void ActionChipsHandler::SetActionChipsVisibility(bool is_visible) {
+  profile_->GetPrefs()->SetBoolean(prefs::kNtpToolChipsVisible, is_visible);
 }
 
 void ActionChipsHandler::SendActionChipsToUi(base::TimeTicks start_time,

@@ -82,7 +82,7 @@ AtomicString ConsumeStringOrURI(CSSParserTokenStream& stream) {
   }
 
   if (token.GetType() != kFunctionToken ||
-      !EqualIgnoringASCIICase(token.Value(), "url")) {
+      !EqualIgnoringAsciiCase(token.Value(), "url")) {
     return AtomicString();
   }
 
@@ -218,7 +218,7 @@ unsigned CSSParserImpl::ParseValue(HeapVector<CSSPropertyValue, 8>& result,
   parser.ConsumeDeclarationValue(stream, unresolved_property,
                                  /*is_in_declaration_list=*/false,
                                  StyleRule::kStyle);
-  result.AppendVector(parser.parsed_properties_);
+  result.append_range(parser.parsed_properties_);
   return parser.parsed_properties_.size();
 }
 
@@ -559,7 +559,7 @@ CSSSelectorList* CSSParserImpl::ParsePageSelector(
   if (!pseudo.IsNull()) {
     CSSSelector selector;
     selector.SetMatch(CSSSelector::kPagePseudoClass);
-    selector.UpdatePseudoPage(pseudo.LowerASCII(), context.GetDocument());
+    selector.UpdatePseudoPage(pseudo.ToAsciiLower(), context.GetDocument());
     if (selector.GetPseudoType() == CSSSelector::kPseudoUnknown) {
       return nullptr;
     }
@@ -1908,8 +1908,9 @@ StyleRuleProperty* CSSParserImpl::ConsumePropertyRule(
   // values inside initial value of registered custom properties. Use
   // CSSParserLocalContext with custom property name just to keep it consistent
   // in case we need it in the future.
-  CSSParserLocalContext local_context =
-      CSSParserLocalContext(CSSPropertyName(AtomicString(name)));
+  CSSParserLocalContext local_context(CSSPropertyName(AtomicString(name)),
+                                      CSSPropertyID::kInvalid,
+                                      /*custom_function_name=*/g_null_atom);
   std::optional<const CSSValue*> initial =
       syntax.has_value()
           ? PropertyRegistration::ConvertInitial(
@@ -1949,7 +1950,7 @@ StyleRuleRoute* CSSParserImpl::ConsumeRouteRule(CSSParserTokenStream& stream) {
   String name;
   if (name_token.GetType() == kIdentToken) {
     name = name_token.Value().ToString();
-    if (!name.StartsWith("--")) {
+    if (!name.starts_with("--")) {
       ConsumeErroneousAtRule(stream, CSSAtRuleID::kCSSAtRuleRoute);
       return nullptr;
     }
@@ -2347,8 +2348,8 @@ StyleRulePositionTry* CSSParserImpl::ConsumePositionTryRule(
   String name;
   if (name_token.GetType() == kIdentToken) {
     name = name_token.Value().ToString();
-    if (!name.StartsWith("--") &&
-        !(context_->Mode() == kUASheetMode && name.StartsWith("-internal-"))) {
+    if (!name.starts_with("--") &&
+        !(context_->Mode() == kUASheetMode && name.starts_with("-internal-"))) {
       ConsumeErroneousAtRule(stream, CSSAtRuleID::kCSSAtRulePositionTry);
       return nullptr;
     }
@@ -2494,7 +2495,7 @@ StyleRuleMixin* CSSParserImpl::ConsumeMixinRule(CSSParserTokenStream& stream) {
     return nullptr;  // Parse error.
   }
   AtomicString name = stream.Peek().Value().ToAtomicString();
-  if (!name.StartsWith("--")) {
+  if (!name.starts_with("--")) {
     ConsumeErroneousAtRule(stream, CSSAtRuleID::kCSSAtRuleMixin);
     return nullptr;
   }
@@ -2626,7 +2627,7 @@ StyleRuleApplyMixin* CSSParserImpl::ConsumeApplyMixinRule(
     return nullptr;  // Parse error.
   }
   AtomicString name = stream.Peek().Value().ToAtomicString();
-  if (!name.StartsWith("--")) {
+  if (!name.starts_with("--")) {
     ConsumeErroneousAtRule(stream, CSSAtRuleID::kCSSAtRuleApplyMixin);
     return nullptr;
   }
@@ -2760,7 +2761,7 @@ CSSParserImpl::ConsumeFunctionParameters(CSSParserTokenStream& stream) {
     // We just check the syntax here, we don't actually parse calc()
     // expressions, so we don't need property context for random().
     CSSParserLocalContext local_context =
-        CSSParserLocalContext::CreateWithoutPropertyForSubstitutions();
+        CSSParserLocalContext::CreateWithoutPropertyForSyntaxParsing();
     // If a type and a default are both provided, the default must
     // parse successfully according to that type.
     //
@@ -3451,7 +3452,7 @@ bool CSSParserImpl::ConsumeVariableValue(CSSParserTokenStream& stream,
   }
   parsed_properties_.push_back(
       CSSPropertyValue(CSSPropertyName(variable_name), *value, important));
-  context_->Count(context_->Mode(), CSSPropertyID::kVariable);
+  context_->Count(CSSPropertyID::kVariable);
   return true;
 }
 
@@ -3483,10 +3484,10 @@ std::unique_ptr<Vector<KeyframeOffset>> CSSParserImpl::ConsumeKeyframeKeyList(
                                        token.NumericValue() / 100));
       stream.ConsumeIncludingWhitespace();
     } else if (token.GetType() == kIdentToken) {
-      if (EqualIgnoringASCIICase(token.Value(), "from")) {
+      if (EqualIgnoringAsciiCase(token.Value(), "from")) {
         result->push_back(KeyframeOffset(TimelineOffset::NamedRange::kNone, 0));
         stream.ConsumeIncludingWhitespace();
-      } else if (EqualIgnoringASCIICase(token.Value(), "to")) {
+      } else if (EqualIgnoringAsciiCase(token.Value(), "to")) {
         result->push_back(KeyframeOffset(TimelineOffset::NamedRange::kNone, 1));
         stream.ConsumeIncludingWhitespace();
       } else {

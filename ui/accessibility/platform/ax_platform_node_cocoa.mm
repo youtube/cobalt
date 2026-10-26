@@ -559,6 +559,12 @@ const ui::CocoaActionList& GetCocoaActionListForTesting() {
   if (!label)
     return nil;
 
+  // If the label itself gets its name from a source that we would normally
+  // expose as a description (like aria-label), don't create a titleUIElement
+  // link. The button should expose the name directly in its own title.
+  if (label->GetDelegate()->GetNameFrom() == ax::mojom::NameFrom::kAttribute)
+    return nil;
+
   // No title UI element if the label's name is empty.
   std::string labelName = label->GetDelegate()->GetName();
   if (labelName.empty())
@@ -2688,6 +2694,11 @@ const ui::CocoaActionList& GetCocoaActionListForTesting() {
           ax::mojom::NameFrom::kAttributeExplicitlyEmpty) {
     return NO;
   }
+
+  if ([self internalRole] == ax::mojom::Role::kLineBreak) {
+    return NO;
+  }
+
   return YES;
 }
 

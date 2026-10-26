@@ -3,12 +3,14 @@
 // found in the LICENSE file.
 
 #include "base/test/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/browser/web_applications/external_install_options.h"
 #include "chrome/browser/web_applications/externally_managed_app_manager.h"
+#include "chrome/browser/web_applications/model/migration_behavior.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/test/web_app_test_utils.h"
@@ -23,6 +25,7 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "third_party/blink/public/common/features.h"
 
 namespace web_app {
 
@@ -60,9 +63,9 @@ class ReplaceMigrationSuggestedAppBrowserTest
     web_app_info->title = u"Test App";
     web_app_info->user_display_mode = mojom::UserDisplayMode::kStandalone;
 
-    web_app::proto::WebAppMigrationSource source;
-    source.set_manifest_id(start_url.GetWithoutFilename().spec());
-    web_app_info->migration_sources.push_back(std::move(source));
+    web_app_info->migration_sources.emplace_back(
+        webapps::ManifestId(GURL(start_url.GetWithoutFilename().spec())),
+        MigrationBehavior::kSuggest);
 
     base::test::TestFuture<const webapps::AppId&, webapps::InstallResultCode>
         install_future;
@@ -100,6 +103,10 @@ class ReplaceMigrationSuggestedAppBrowserTest
 #endif  // BUILDFLAG(IS_CHROMEOS)
     }
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_{
+      blink::features::kWebAppMigrationApi};
 };
 
 IN_PROC_BROWSER_TEST_P(ReplaceMigrationSuggestedAppBrowserTest,

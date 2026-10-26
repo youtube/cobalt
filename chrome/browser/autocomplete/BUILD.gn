@@ -82,8 +82,12 @@ source_set("impl") {
     "//chrome/browser:browser_process",
     "//chrome/browser:global_features",
     "//chrome/browser/bitmap_fetcher",
+    "//chrome/browser/bookmarks",
     "//chrome/browser/custom_handlers",
+    "//chrome/browser/external_protocol",
     "//chrome/browser/history",
+    "//chrome/browser/history_clusters",
+    "//chrome/browser/history_embeddings",
     "//chrome/browser/prefs",
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile_io_data",
@@ -106,7 +110,8 @@ source_set("impl") {
     "//components/custom_handlers",
     "//components/history/core/common",
     "//components/history_clusters/core",
-    "//components/history_embeddings",
+    "//components/history_embeddings/content",
+    "//components/history_embeddings/core",
     "//components/language/core/browser",
     "//components/lens",
     "//components/optimization_guide:machine_learning_tflite_buildflags",
@@ -119,6 +124,7 @@ source_set("impl") {
   if (is_android) {
     sources += [ "../android/autocomplete/tab_matcher_android.cc" ]
     deps += [
+      "//chrome/browser/android:tabs_public",
       "//chrome/browser/flags:flags_android",
       "//chrome/browser/ui/android/omnibox:jni_headers",
       "//chrome/browser/ui/android/tab_model",
@@ -169,6 +175,8 @@ source_set("impl") {
 
 source_set("aim_eligibility_service") {
   sources = [
+    "aim_eligibility_refresh_navigation_throttle.cc",
+    "aim_eligibility_refresh_navigation_throttle.h",
     "aim_eligibility_service_factory.cc",
     "aim_eligibility_service_factory.h",
     "chrome_aim_eligibility_service.cc",
@@ -182,6 +190,8 @@ source_set("aim_eligibility_service") {
     "//chrome/browser/search_engines",
     "//chrome/browser/signin",
     "//components/application_locale_storage",
+    "//components/contextual_tasks/public:feature_list",
+    "//components/embedder_support:user_agent",
     "//components/keyed_service/core",
     "//components/omnibox/browser",
     "//components/prefs",
@@ -189,6 +199,7 @@ source_set("aim_eligibility_service") {
     "//components/variations/service",
     "//content/public/browser",
     "//services/network/public/cpp",
+    "//third_party/blink/public/common:headers",
   ]
 }
 
@@ -251,6 +262,7 @@ if (!is_android) {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "aim_eligibility_refresh_navigation_throttle_unittest.cc",
     "chrome_autocomplete_scheme_classifier_unittest.cc",
     "provider_state_service_factory_unittest.cc",
     "remote_suggestions_service_factory_unittest.cc",
@@ -258,6 +270,7 @@ source_set("unit_tests") {
     "shortcuts_provider_extension_unittest.cc",
   ]
   deps = [
+    ":aim_eligibility_service",
     ":autocomplete",
     "//base",
     "//chrome/browser",

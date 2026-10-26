@@ -20,6 +20,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "components/autofill/core/browser/autofill_format_string.h"
 #include "components/autofill/core/browser/data_model/data_model_utils.h"
 #include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/field_types.h"
@@ -430,45 +431,6 @@ std::ostream& operator<<(std::ostream& os, const Section& section) {
   return os << section.ToString();
 }
 
-AutofillFormatString::AutofillFormatString() = default;
-
-AutofillFormatString::AutofillFormatString(std::u16string v,
-                                           FormatString_Type type)
-    : value(std::move(v)), type(type) {
-  DCHECK(IsValid(value, type));
-}
-
-AutofillFormatString::AutofillFormatString(const AutofillFormatString&) =
-    default;
-
-AutofillFormatString& AutofillFormatString::operator=(
-    const AutofillFormatString&) = default;
-
-AutofillFormatString::AutofillFormatString(AutofillFormatString&&) = default;
-
-AutofillFormatString& AutofillFormatString::operator=(AutofillFormatString&&) =
-    default;
-
-AutofillFormatString::~AutofillFormatString() = default;
-
-// static
-bool AutofillFormatString::IsValid(std::u16string_view value,
-                                   FormatString_Type type) {
-  switch (type) {
-    case FormatString_Type_DATE:
-      return data_util::IsValidDateFormat(value);
-    case FormatString_Type_AFFIX:
-      return data_util::IsValidAffixFormat(value);
-    case FormatString_Type_FLIGHT_NUMBER:
-      return data_util::IsValidFlightNumberFormat(value);
-    case FormatString_Type_ICU_DATE:
-      // TODO(crbug.com/464004123): Add validation for ICU date format strings.
-      return true;
-  }
-  // Graceful catch-all because the `type` may come from the server.
-  return false;
-}
-
 AutofillField::AutofillField() {
   local_type_predictions_.fill(NO_SERVER_DATA);
 }
@@ -582,14 +544,6 @@ void AutofillField::MaybeAddServerPrediction(FieldPrediction prediction) {
   const FieldType field_type =
       ToSafeFieldType(prediction.type(), NO_SERVER_DATA);
   prediction.set_type(field_type);
-
-  // LOYALTY_MEMBERSHIP_ID server predictions are only available for clients
-  // with the flag `kAutofillEnableLoyaltyCardsFilling` enabled.
-  if (field_type == LOYALTY_MEMBERSHIP_ID &&
-      !base::FeatureList::IsEnabled(
-          features::kAutofillEnableLoyaltyCardsFilling)) {
-    return;
-  }
 
   if (!prediction.has_source()) {
     // TODO(crbug.com/40243028): captured tests store old autofill api
@@ -716,9 +670,7 @@ AutofillField::PredictionResult AutofillField::GetComputedPredictionResult()
 
     // TODO(crbug.com/416664590): Convert to PredictionPrecedenceException and
     // add it to `kPreferredHeuristicTypesOverHtmlTypes` after launch.
-    if (base::FeatureList::IsEnabled(
-            features::kAutofillEnableEmailOrLoyaltyCardsFilling) &&
-        heuristic_type_local == EMAIL_OR_LOYALTY_MEMBERSHIP_ID &&
+    if (heuristic_type_local == EMAIL_OR_LOYALTY_MEMBERSHIP_ID &&
         html_type_local == HtmlFieldType::kEmail) {
       return {MakeAutofillType(EMAIL_OR_LOYALTY_MEMBERSHIP_ID),
               AutofillPredictionSource::kHeuristics};
@@ -771,9 +723,7 @@ AutofillField::PredictionResult AutofillField::GetComputedPredictionResult()
 
   // TODO(crbug.com/416664590): Convert to PredictionPrecedenceException after
   // launch.
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillEnableEmailOrLoyaltyCardsFilling) &&
-      heuristic_type_local == EMAIL_OR_LOYALTY_MEMBERSHIP_ID &&
+  if (heuristic_type_local == EMAIL_OR_LOYALTY_MEMBERSHIP_ID &&
       server_type_local == EMAIL_ADDRESS) {
     return {MakeAutofillType(EMAIL_OR_LOYALTY_MEMBERSHIP_ID),
             AutofillPredictionSource::kHeuristics};
@@ -809,8 +759,9 @@ const std::u16string& AutofillField::value_for_import() const {
   if (!should_consider_value_for_import) {
     return base::EmptyString16();
   }
-  if (base::optional_ref<const SelectOption> o = selected_option()) {
-    return o->text;
+
+  if (const std::optional<std::u16string>& text = selected_option_text()) {
+    return *text;
   }
   return value();
 }
@@ -843,7 +794,7 @@ bool AutofillField::ShouldSuppressSuggestionsAndFillingByDefault(
   // autocomplete attribute's value to unrecognized. This is done in order to
   // preserve the ability to swap an autofilled value for a different one.
   // See crbug.com/469057923 for details.
-  if (is_autofilled() &&
+  if (last_modifier() == FieldModifier::kAutofill &&
       base::FeatureList::IsEnabled(
           features::kShowSugesstionsOnAlreadyAutofilledUnrecognized)) {
     return false;
@@ -925,6 +876,64 @@ bool AutofillField::WasAutofilledWithFallback() const {
   return autofilled_type_ &&
          (!overall_type_ ||
           !overall_type_->type.GetTypes().contains(*autofilled_type_));
+}
+
+DenseSet<FieldModifier> AutofillField::all_modifiers() const {
+  if (!base::FeatureList::IsEnabled(features::kAutofillFixIsAutofilled)) {
+    DenseSet<FieldModifier> field_modifiers;
+    if (is_user_edited_deprecated()) {
+      field_modifiers.insert(FieldModifier::kUser);
+    }
+    if (is_autofilled_according_to_renderer() ||
+        previously_autofilled_deprecated()) {
+      field_modifiers.insert(FieldModifier::kAutofill);
+    }
+    return field_modifiers;
+  }
+  return DenseSet<FieldModifier>(field_modifiers_);
+}
+
+std::optional<FieldModifier> AutofillField::last_modifier() const {
+  if (!base::FeatureList::IsEnabled(features::kAutofillFixIsAutofilled)) {
+    return is_autofilled_according_to_renderer()
+               ? std::optional(FieldModifier::kAutofill)
+               : std::nullopt;
+  }
+  return field_modifiers_.empty() ? std::nullopt
+                                  : std::optional(field_modifiers_.back());
+}
+
+void AutofillField::AddFieldModifier(FieldModifier modifier) {
+  if (!base::FeatureList::IsEnabled(features::kAutofillFixIsAutofilled)) {
+    if (modifier == FieldModifier::kUser) {
+      set_is_user_edited_deprecated(true);
+      if (is_autofilled_according_to_renderer()) {
+        set_is_autofilled_according_to_renderer(false);
+        set_previously_autofilled_deprecated(true);
+      }
+    }
+    if (modifier == FieldModifier::kAutofill) {
+      set_is_autofilled_according_to_renderer(true);
+    }
+    return;
+  }
+  std::erase(field_modifiers_, modifier);
+  field_modifiers_.push_back(modifier);
+}
+
+void AutofillField::RemoveFieldModifier(FieldModifier modifier,
+                                        base::PassKey<FormFiller> pass_key) {
+  if (!base::FeatureList::IsEnabled(features::kAutofillFixIsAutofilled)) {
+    if (modifier == FieldModifier::kUser) {
+      set_is_user_edited_deprecated(false);
+    }
+    if (modifier == FieldModifier::kAutofill) {
+      set_is_autofilled_according_to_renderer(false);
+      set_previously_autofilled_deprecated(false);
+    }
+    return;
+  }
+  std::erase(field_modifiers_, modifier);
 }
 
 }  // namespace autofill

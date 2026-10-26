@@ -68,10 +68,6 @@ TestingModuleBuilder::TestingModuleBuilder(
 
   WasmJs::Install(isolate_);
   module_->untagged_globals_buffer_size = kMaxGlobalsSize;
-  // The GlobalsData must be located inside the sandbox, so allocate it from the
-  // ArrayBuffer allocator.
-  globals_data_ = reinterpret_cast<uint8_t*>(
-      isolate->array_buffer_allocator()->Allocate(kMaxGlobalsSize));
 
   uint32_t maybe_import_index = 0;
   if (maybe_import) {
@@ -116,7 +112,6 @@ TestingModuleBuilder::~TestingModuleBuilder() {
   // When the native module dies and is erased from the cache, it is expected to
   // have either valid bytes or no bytes at all.
   native_module_->SetWireBytes({});
-  isolate_->array_buffer_allocator()->Free(globals_data_, kMaxGlobalsSize);
 }
 
 uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
@@ -126,7 +121,7 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   CHECK_EQ(0, module_->memories.size());
   CHECK_NULL(mem0_start_);
   CHECK_EQ(0, mem0_size_);
-  CHECK_EQ(0, trusted_instance_data_->memory_objects()->length());
+  CHECK_EQ(0u, trusted_instance_data_->memory_objects()->length().value());
 
   uint32_t initial_pages = RoundUp(size, kWasmPageSize) / kWasmPageSize;
   uint32_t maximum_pages =
@@ -161,8 +156,7 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
       TrustedFixedAddressArray::New(isolate_, 2);
   uint8_t* mem_start = reinterpret_cast<uint8_t*>(
       memory_object->backing_store()->buffer_start());
-  memory_bases_and_sizes->set_sandboxed_pointer(
-      0, reinterpret_cast<Address>(mem_start));
+  memory_bases_and_sizes->set(0, reinterpret_cast<Address>(mem_start));
   memory_bases_and_sizes->set(1, size);
   trusted_instance_data_->set_memory_bases_and_sizes(*memory_bases_and_sizes);
 
@@ -282,10 +276,12 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
     // Store the shortcut to the dispatch table.
     DirectHandle<ProtectedFixedArray> old_dispatch_tables{
         trusted_instance_data_->dispatch_tables(), isolate_};
-    DCHECK_EQ(table_index, old_dispatch_tables->length());
+    const uint32_t old_dispatch_tables_len =
+        old_dispatch_tables->length().value();
+    DCHECK_EQ(table_index, old_dispatch_tables_len);
     DirectHandle<ProtectedFixedArray> new_dispatch_tables =
         isolate_->factory()->NewProtectedFixedArray(table_index + 1);
-    for (int i = 0; i < old_dispatch_tables->length(); ++i) {
+    for (uint32_t i = 0; i < old_dispatch_tables_len; ++i) {
       new_dispatch_tables->set(i, old_dispatch_tables->get(i));
     }
     new_dispatch_tables->set(table_index, *dispatch_table);
@@ -338,7 +334,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
                                       isolate_);
   DirectHandle<FixedArray> new_tables =
       isolate_->factory()->CopyFixedArrayAndGrow(old_tables, 1);
-  new_tables->set(old_tables->length(), *table_obj);
+  new_tables->set(old_tables->length().value(), *table_obj);
   trusted_instance_data_->set_tables(*new_tables);
 }
 
@@ -380,8 +376,7 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
     base::Vector<const uint8_t> bytes) {
   uint32_t index = static_cast<uint32_t>(module_->data_segments.size());
   DCHECK_EQ(index, module_->data_segments.size());
-  DCHECK_EQ(index, data_segment_starts_.size());
-  DCHECK_EQ(index, data_segment_sizes_.size());
+  DCHECK_EQ(index, trusted_instance_data_->data_segments()->length().value());
 
   // Add a passive data segment. This isn't used by function compilation, but
   // but it keeps the index in sync. The data segment's source will not be
@@ -392,41 +387,28 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
   // to validate the segment index, during function compilation.
   module_->num_declared_data_segments = index + 1;
 
-  Address old_data_address =
-      reinterpret_cast<Address>(data_segment_data_.data());
-  size_t old_data_size = data_segment_data_.size();
-  data_segment_data_.resize(old_data_size + bytes.size());
-  Address new_data_address =
-      reinterpret_cast<Address>(data_segment_data_.data());
-
-  memcpy(data_segment_data_.data() + old_data_size, bytes.begin(),
-         bytes.size());
-
-  // The data_segment_data_ offset may have moved, so update all the starts.
-  for (Address& start : data_segment_starts_) {
-    start += new_data_address - old_data_address;
+  DirectHandle<TrustedPodArray<WireBytesRef>> new_data_segments =
+      TrustedPodArray<WireBytesRef>::New(isolate_, index + 1);
+  for (uint32_t i = 0; i < index; ++i) {
+    new_data_segments->set(i, trusted_instance_data_->data_segments()->get(i));
   }
-  data_segment_starts_.push_back(new_data_address + old_data_size);
-  data_segment_sizes_.push_back(static_cast<uint32_t>(bytes.size()));
 
-  // The vector pointers may have moved, so update the instance object.
-  uint32_t size = static_cast<uint32_t>(data_segment_sizes_.size());
-  DirectHandle<FixedAddressArray> data_segment_starts =
-      FixedAddressArray::New(isolate_, size);
-  MemCopy(data_segment_starts->begin(), data_segment_starts_.data(),
-          size * sizeof(Address));
-  trusted_instance_data_->set_data_segment_starts(*data_segment_starts);
-  DirectHandle<FixedUInt32Array> data_segment_sizes =
-      FixedUInt32Array::New(isolate_, size);
-  MemCopy(data_segment_sizes->begin(), data_segment_sizes_.data(),
-          size * sizeof(uint32_t));
-  trusted_instance_data_->set_data_segment_sizes(*data_segment_sizes);
+  uint32_t new_segment_offset = AddBytes(bytes);
+  DCHECK_LE(bytes.size(), kMaxUInt32);
+  new_data_segments->set(
+      index,
+      WireBytesRef{new_segment_offset, static_cast<uint32_t>(bytes.size())});
+
+  trusted_instance_data_->set_data_segments(*new_data_segments);
   return index;
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
   uint8_t size = type.value_kind_size();
   global_offset_ = RoundUp(global_offset_, size);  // align
+  // Make sure that the returned pointer stays valid by pre-reserving enough
+  // space.
+  module_->globals.reserve(kMaxGlobalsSize);
   module_->globals.push_back(
       {type, true, {}, {global_offset_}, false, false, false});
   global_offset_ += size;
@@ -461,6 +443,9 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
     script->set_infos(ReadOnlyRoots{isolate_}.empty_weak_fixed_array());
   }
 
+  DirectHandle<ByteArray> globals_buffer =
+      isolate_->factory()->NewByteArray(kMaxGlobalsSize);
+  std::fill(globals_buffer->begin(), globals_buffer->end(), 0);
   DirectHandle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, native_module, script);
   native_module_ = native_module.get();
@@ -473,7 +458,7 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   DirectHandle<WasmInstanceObject> instance_object(
       trusted_data->instance_object(), isolate_);
   trusted_data->set_tags_table(ReadOnlyRoots{isolate_}.empty_fixed_array());
-  trusted_data->set_globals_start(globals_data_);
+  trusted_data->set_untagged_globals_buffer(*globals_buffer);
   DirectHandle<FixedArray> feedback_vector =
       isolate_->factory()->NewFixedArrayWithZeroes(kMaxFunctions);
   trusted_data->set_feedback_vectors(*feedback_vector);

@@ -83,6 +83,7 @@ source_set("host_main_headers") {
     "//remoting/host/crash:crash_uploader_main_headers",
     "//remoting/host/it2me:main_headers",
     "//remoting/host/linux:login_session_reporter_main_headers",
+    "//remoting/host/linux:remote_session_info_main_headers",
     "//remoting/host/mac:agent_process_broker_main_headers",
     "//remoting/host/mac:host_service_main_headers",
     "//remoting/host/mac:remoting_native_messaging_host",
@@ -154,6 +155,7 @@ source_set("ipc_constants") {
     "//base",
     "//components/named_mojo_ipc_server",
     "//mojo/public/cpp/platform",
+    "//remoting/base",
     "//remoting/host/base",
   ]
 }
@@ -323,20 +325,6 @@ source_set("mojo_caller_security_checker") {
   }
 }
 
-source_set("desktop_capturer") {
-  sources = [
-    "desktop_capturer_proxy.cc",
-    "desktop_capturer_proxy.h",
-    "desktop_capturer_wrapper.cc",
-    "desktop_capturer_wrapper.h",
-  ]
-  deps = [
-    "//base",
-    "//remoting/protocol",
-    "//third_party/webrtc_overrides:webrtc_component",
-  ]
-}
-
 # This must be a static library instead of a source set because
 # remoting_unittests requires that remoting_me2me_host.cc not be pulled in,
 # which in turn depends on remoting_me2me_host_static which isn't part of that
@@ -356,8 +344,6 @@ static_library("common") {
     "backoff_timer.cc",
     "backoff_timer.h",
     "basic_desktop_environment.cc",
-    "branding.cc",
-    "branding.h",
     "chromoting_host.cc",
     "chromoting_host.h",
     "chromoting_host_context.cc",
@@ -509,7 +495,6 @@ static_library("common") {
     ":chromoting_host_services_server",
     ":client_session_control",
     ":clipboard",
-    ":desktop_capturer",
     ":display_layout",
     ":host_main_headers",
     ":ipc_constants",
@@ -546,7 +531,6 @@ static_library("common") {
     "//remoting/signaling",
     "//services/network:network_service",
     "//services/network/public/cpp",
-    "//third_party/libjingle_xmpp:rtc_xmllite",
     "//third_party/webrtc_overrides:webrtc_component",
     "//ui/events",
 
@@ -776,7 +760,6 @@ static_library("test_support") {
   deps = [
     ":chromoting_host_services_client",
     ":client_session_control",
-    ":desktop_capturer",
     ":platform_interfaces",
     "//remoting/base:errors",
     "//remoting/base:session_policies",
@@ -799,7 +782,6 @@ static_library("test_support") {
     ":common",
     "//remoting/base:test_support",
     "//remoting/host/file_transfer:test_support",
-    "//third_party/libjingle_xmpp:rtc_xmllite",
     "//third_party/protobuf:protobuf_lite",
     "//third_party/webrtc_overrides:webrtc_component",
   ]
@@ -1191,7 +1173,6 @@ if (enable_me2me_host) {
       "//remoting/protocol",
       "//remoting/signaling",
       "//services/network/public/cpp",
-      "//third_party/libjingle_xmpp:rtc_xmllite",
       "//third_party/webrtc_overrides:webrtc_component",
     ]
 

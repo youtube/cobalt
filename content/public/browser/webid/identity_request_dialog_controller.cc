@@ -78,6 +78,8 @@ bool IdentityRequestDialogController::ShowAccountsDialog(
     content::RelyingPartyData rp_data,
     const std::vector<scoped_refptr<content::IdentityProviderData>>& idp_list,
     const std::vector<scoped_refptr<content::IdentityRequestAccount>>& accounts,
+    const std::vector<scoped_refptr<content::IdentityRequestAccount>>&
+        filtered_accounts,
     blink::mojom::RpMode rp_mode,
     AccountSelectionCallback on_selected,
     LoginToIdPCallback on_add_account,
@@ -96,6 +98,7 @@ bool IdentityRequestDialogController::ShowFailureDialog(
     blink::mojom::RpContext rp_context,
     blink::mojom::RpMode rp_mode,
     const IdentityProviderMetadata& idp_metadata,
+    const std::vector<scoped_refptr<IdentityRequestAccount>>& filtered_accounts,
     DismissCallback dismiss_callback,
     LoginToIdPCallback login_callback) {
   if (!is_interception_enabled_) {
@@ -169,9 +172,6 @@ WebContents* IdentityRequestDialogController::ShowModalDialog(
 }
 
 void IdentityRequestDialogController::CloseModalDialog() {}
-
-void IdentityRequestDialogController::OnConnectionStatusHeaderReceived(
-    const std::optional<std::string>& account_id) {}
 
 void IdentityRequestDialogController::OnFlowCompleted(
     content::webid::FederatedLoginResult result) {}

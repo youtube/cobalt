@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/video_conference/video_conference_client_base.h"
 
 #include "base/check_deref.h"
+#include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ash/video_conference/video_conference_manager_ash.h"
 
@@ -12,25 +13,24 @@ namespace ash {
 
 namespace {
 
-crosapi::mojom::VideoConferenceAppType ToVideoConferenceAppType(
-    apps::AppType app_type) {
+VideoConferenceAppType ToNativeVideoConferenceAppType(apps::AppType app_type) {
   switch (app_type) {
     case apps::AppType::kArc:
-      return crosapi::mojom::VideoConferenceAppType::kArcApp;
+      return VideoConferenceAppType::kArcApp;
     case apps::AppType::kChromeApp:
-      return crosapi::mojom::VideoConferenceAppType::kChromeApp;
+      return VideoConferenceAppType::kChromeApp;
     case apps::AppType::kWeb:
-      return crosapi::mojom::VideoConferenceAppType::kWebApp;
+      return VideoConferenceAppType::kWebApp;
     case apps::AppType::kExtension:
-      return crosapi::mojom::VideoConferenceAppType::kChromeExtension;
+      return VideoConferenceAppType::kChromeExtension;
     case apps::AppType::kCrostini:
-      return crosapi::mojom::VideoConferenceAppType::kCrostiniVm;
+      return VideoConferenceAppType::kCrostiniVm;
     case apps::AppType::kPluginVm:
-      return crosapi::mojom::VideoConferenceAppType::kPluginVm;
+      return VideoConferenceAppType::kPluginVm;
     case apps::AppType::kBorealis:
-      return crosapi::mojom::VideoConferenceAppType::kBorealis;
+      return VideoConferenceAppType::kBorealis;
     default:
-      return crosapi::mojom::VideoConferenceAppType::kAppServiceUnknown;
+      return VideoConferenceAppType::kAppServiceUnknown;
   }
 }
 
@@ -39,14 +39,7 @@ crosapi::mojom::VideoConferenceAppType ToVideoConferenceAppType(
 VideoConferenceClientBase::VideoConferenceClientBase(
     VideoConferenceManagerAsh* video_conference_manager_ash)
     : client_id_(base::UnguessableToken::Create()),
-      status_(crosapi::mojom::VideoConferenceMediaUsageStatus::New(
-          /*client_id=*/client_id_,
-          /*has_media_app=*/false,
-          /*has_camera_permission=*/false,
-          /*has_microphone_permission=*/false,
-          /*is_capturing_camera=*/false,
-          /*is_capturing_microphone=*/false,
-          /*is_capturing_screen=*/false)),
+      status_(client_id_),
       video_conference_manager_ash_(CHECK_DEREF(video_conference_manager_ash)) {
   video_conference_manager_ash_->RegisterCppClient(this, client_id_);
 }
@@ -55,8 +48,9 @@ VideoConferenceClientBase::~VideoConferenceClientBase() {
   video_conference_manager_ash_->UnregisterClient(client_id_);
 }
 
-void VideoConferenceClientBase::GetMediaApps(GetMediaAppsCallback callback) {
-  std::vector<crosapi::mojom::VideoConferenceMediaAppInfoPtr> apps;
+VideoConferenceManagerClient::MediaApps
+VideoConferenceClientBase::GetMediaApps() {
+  MediaApps apps;
 
   for (const auto& [app_id, app_state] : id_to_app_state_) {
     const std::string app_name = GetAppName(app_id);
@@ -65,59 +59,53 @@ void VideoConferenceClientBase::GetMediaApps(GetMediaAppsCallback callback) {
       continue;
     }
 
-    apps.push_back(crosapi::mojom::VideoConferenceMediaAppInfo::New(
-        /*id=*/app_state.token,
-        /*last_activity_time=*/app_state.last_activity_time,
-        /*is_capturing_camera=*/app_state.is_capturing_camera,
-        /*is_capturing_microphone=*/app_state.is_capturing_microphone,
-        /*is_capturing_screen=*/false,
-        /*title=*/base::UTF8ToUTF16(app_name),
-        /*url=*/std::nullopt,
-        /*app_type=*/ToVideoConferenceAppType(GetAppType(app_id))));
+    VideoConferenceMediaAppInfo app;
+    app.id = app_state.token;
+    app.last_activity_time = app_state.last_activity_time;
+    app.is_capturing_camera = app_state.is_capturing_camera;
+    app.is_capturing_microphone = app_state.is_capturing_microphone;
+    app.title = base::UTF8ToUTF16(app_name);
+    app.app_type = ToNativeVideoConferenceAppType(GetAppType(app_id));
+    apps.push_back(std::move(app));
   }
 
-  std::move(callback).Run(std::move(apps));
+  return apps;
 }
-void VideoConferenceClientBase::SetSystemMediaDeviceStatus(
-    crosapi::mojom::VideoConferenceMediaDevice device,
-    bool enabled,
-    SetSystemMediaDeviceStatusCallback callback) {
+bool VideoConferenceClientBase::SetSystemMediaDeviceStatus(
+    VideoConferenceMediaDevice device,
+    bool enabled) {
   switch (device) {
-    case crosapi::mojom::VideoConferenceMediaDevice::kCamera:
+    case VideoConferenceMediaDevice::kCamera:
       camera_system_enabled_ = enabled;
-      std::move(callback).Run(true);
-      return;
-    case crosapi::mojom::VideoConferenceMediaDevice::kMicrophone:
+      return true;
+    case VideoConferenceMediaDevice::kMicrophone:
       microphone_system_enabled_ = enabled;
-      std::move(callback).Run(true);
-      return;
-    case crosapi::mojom::VideoConferenceMediaDevice::kUnusedDefault:
-      std::move(callback).Run(false);
-      return;
+      return true;
   }
+
+  NOTREACHED();
 }
 
 void VideoConferenceClientBase::HandleMediaUsageUpdate() {
-  crosapi::mojom::VideoConferenceMediaUsageStatusPtr new_status =
-      crosapi::mojom::VideoConferenceMediaUsageStatus::New();
-  new_status->client_id = client_id_;
-  new_status->has_media_app = !id_to_app_state_.empty();
+  VideoConferenceMediaUsageStatus new_status(client_id_);
+  new_status.state.has_media_app = !id_to_app_state_.empty();
 
   for (const auto& [app_id, app_state] : id_to_app_state_) {
-    new_status->is_capturing_camera |= app_state.is_capturing_camera;
-    new_status->is_capturing_microphone |= app_state.is_capturing_microphone;
+    new_status.state.is_capturing_camera |= app_state.is_capturing_camera;
+    new_status.state.is_capturing_microphone |=
+        app_state.is_capturing_microphone;
 
     VideoConferencePermissions permissions = GetAppPermission(app_id);
-    new_status->has_camera_permission |= permissions.has_camera_permission;
-    new_status->has_microphone_permission |=
+    new_status.state.has_camera_permission |= permissions.has_camera_permission;
+    new_status.state.has_microphone_permission |=
         permissions.has_microphone_permission;
   }
 
   // If `status` equals the previously sent status, don't notify manager.
-  if (new_status.Equals(status_)) {
+  if (new_status == status_) {
     return;
   }
-  status_ = new_status->Clone();
+  status_ = new_status;
 
   auto callback = base::BindOnce([](bool success) {
     if (!success) {

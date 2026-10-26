@@ -55,12 +55,35 @@ const unsigned kMaxBusChannels = 32;
 scoped_refptr<AudioBus> AudioBus::Create(unsigned number_of_channels,
                                          uint32_t length,
                                          bool allocate) {
-  DCHECK_LE(number_of_channels, kMaxBusChannels);
   if (number_of_channels > kMaxBusChannels) {
     return nullptr;
   }
 
-  return base::AdoptRef(new AudioBus(number_of_channels, length, allocate));
+  if (allocate) {
+    scoped_refptr<AudioBus> bus = TryCreate(number_of_channels, length);
+    CHECK(bus);
+    return bus;
+  }
+
+  return base::AdoptRef(new AudioBus(number_of_channels, length, false));
+}
+
+scoped_refptr<AudioBus> AudioBus::TryCreate(unsigned number_of_channels,
+                                            uint32_t length) {
+  if (number_of_channels > kMaxBusChannels) {
+    return nullptr;
+  }
+
+  scoped_refptr<AudioBus> bus =
+      base::AdoptRef(new AudioBus(number_of_channels, length, false));
+
+  for (unsigned i = 0; i < number_of_channels; ++i) {
+    if (!bus->Channel(i)->TryAllocate(length)) {
+      return nullptr;
+    }
+  }
+
+  return bus;
 }
 
 AudioBus::AudioBus(unsigned number_of_channels, uint32_t length, bool allocate)
@@ -522,12 +545,12 @@ void AudioBus::CopyWithGainFrom(const AudioBus& source_bus, float gain) {
     return;
   }
 
-  std::array<const float*, kMaxBusChannels> sources;
-  std::array<float*, kMaxBusChannels> destinations;
+  std::array<base::span<const float>, kMaxBusChannels> sources;
+  std::array<base::span<float>, kMaxBusChannels> destinations;
 
   for (unsigned i = 0; i < number_of_channels; ++i) {
-    sources[i] = source_bus.Channel(i)->Data();
-    destinations[i] = Channel(i)->MutableData();
+    sources[i] = source_bus.Channel(i)->Span();
+    destinations[i] = Channel(i)->MutableSpan();
   }
 
   unsigned frames_to_process = length();
@@ -536,22 +559,22 @@ void AudioBus::CopyWithGainFrom(const AudioBus& source_bus, float gain) {
   if (gain == 1) {
     for (unsigned channel_index = 0; channel_index < number_of_channels;
          ++channel_index) {
-      UNSAFE_TODO(
-          memcpy(destinations[channel_index], sources[channel_index],
-                 frames_to_process * sizeof(*destinations[channel_index])));
+      destinations[channel_index]
+          .first(frames_to_process)
+          .copy_from(sources[channel_index].first(frames_to_process));
     }
   } else if (gain == 0) {
     for (unsigned channel_index = 0; channel_index < number_of_channels;
          ++channel_index) {
-      UNSAFE_TODO(
-          memset(destinations[channel_index], 0,
-                 frames_to_process * sizeof(*destinations[channel_index])));
+      std::ranges::fill(destinations[channel_index].first(frames_to_process),
+                        0.0f);
     }
   } else {
     for (unsigned channel_index = 0; channel_index < number_of_channels;
          ++channel_index) {
-      vector_math::Vsmul(sources[channel_index], 1, &gain,
-                         destinations[channel_index], 1, frames_to_process);
+      vector_math::Vsmul(sources[channel_index].data(), 1, &gain,
+                         destinations[channel_index].data(), 1,
+                         frames_to_process);
     }
   }
 }
@@ -676,14 +699,14 @@ scoped_refptr<AudioBus> AudioBus::CreateByMixingToMono(
       unsigned n = source_bus->length();
       scoped_refptr<AudioBus> destination_bus = Create(1, n);
 
-      const float* source_l = source_bus->Channel(0)->Data();
-      const float* source_r = source_bus->Channel(1)->Data();
-      float* destination = destination_bus->Channel(0)->MutableData();
+      base::span<const float> source_l = source_bus->Channel(0)->Span();
+      base::span<const float> source_r = source_bus->Channel(1)->Span();
+      base::span<float> destination =
+          destination_bus->Channel(0)->MutableSpan();
 
       // Do the mono mixdown.
       for (unsigned i = 0; i < n; ++i) {
-        UNSAFE_TODO(destination[i]) =
-            (UNSAFE_TODO(source_l[i]) + UNSAFE_TODO(source_r[i])) / 2;
+        destination[i] = (source_l[i] + source_r[i]) * 0.5f;
       }
 
       destination_bus->ClearSilentFlag();

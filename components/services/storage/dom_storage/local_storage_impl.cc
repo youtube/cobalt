@@ -13,43 +13,28 @@
 #include <string_view>
 #include <utility>
 
-#include "base/barrier_closure.h"
 #include "base/byte_size.h"
-#include "base/debug/dump_without_crashing.h"
-#include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/numerics/safe_conversions.h"
-#include "base/strings/string_number_conversions.h"
-#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
 #include "base/task/thread_pool.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "components/services/storage/dom_storage/async_dom_storage_database.h"
+#include "components/services/storage/dom_storage/db_status.h"
 #include "components/services/storage/dom_storage/dom_storage_constants.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
-#include "components/services/storage/dom_storage/leveldb/local_storage_leveldb.h"
+#include "components/services/storage/dom_storage/leveldb_status_helper.h"
 #include "components/services/storage/dom_storage/storage_area_impl.h"
-#include "components/services/storage/public/cpp/constants.h"
-#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "storage/common/database/database_identifier.h"
-#include "storage/common/database/db_status.h"
-#include "storage/common/database/leveldb_status_helper.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
-#include "url/gurl.h"
 
 namespace storage {
 namespace {
-
-// After this many consecutive commit errors we'll throw away the entire
-// database.
-const int kCommitErrorThreshold = 8;
 
 // Limits on the cache size and number of areas in memory, over which the areas
 // are purged.
@@ -101,8 +86,7 @@ class LocalStorageImpl::StorageAreaHolder final
         storage_key_(storage_key),
         area_(context_->database_.get(),
               base::MakeRefCounted<DomStorageDatabase::SharedMapLocator>(
-                  DomStorageDatabase::MapLocator(kLocalStorageSessionId,
-                                                 storage_key_)),
+                  DomStorageDatabase::MapLocator(storage_key_)),
               this,
               createOptions()) {}
 
@@ -115,6 +99,12 @@ class LocalStorageImpl::StorageAreaHolder final
     if (storage_area()->empty()) {
       return;
     }
+
+    if (!context_->database_) {
+      // The database does not exist.
+      return;
+    }
+
     // We should not write last_accessed if the data will be purged.
     if (context_->origins_to_purge_on_shutdown_.find(storage_key_.origin()) !=
             context_->origins_to_purge_on_shutdown_.end() ||
@@ -124,10 +114,10 @@ class LocalStorageImpl::StorageAreaHolder final
       return;
     }
 
-    // Update the storage area map's last access time.
+    // Update the storage area map's last access time in the database.
     DomStorageDatabase::Metadata usage;
     usage.map_metadata.push_back({
-        .map_locator{kLocalStorageSessionId, storage_key_},
+        .map_locator{storage_key_},
         .last_accessed{base::Time::Now()},
     });
     context_->database_->PutMetadata(
@@ -237,19 +227,19 @@ void LocalStorageImpl::DeleteStorage(const blink::StorageKey& storage_key,
 
   auto found = areas_.find(storage_key);
   if (found != areas_.end()) {
-    // Renderer process expects |source| to always be two newline separated
-    // strings. We don't bother passing an observer because this is a one-shot
-    // event and we only care about observing its completion, for which the
-    // reply alone is sufficient.
+    // We don't bother passing an observer because this is a one-shot event and
+    // we only care about observing its completion, for which the reply alone is
+    // sufficient.
     found->second->storage_area()->DeleteAll(
-        "\n", /*new_observer=*/mojo::NullRemote(), std::move(callback));
+        /*source=*/nullptr,
+        /*new_observer=*/mojo::NullRemote(), std::move(callback));
     found->second->storage_area()->ScheduleImmediateCommit();
   } else if (database_) {
     std::vector<DomStorageDatabase::MapLocator> maps_to_delete;
-    maps_to_delete.emplace_back(kLocalStorageSessionId, storage_key);
+    maps_to_delete.emplace_back(storage_key);
 
     database_->DeleteStorageKeysFromSession(
-        kLocalStorageSessionId, /*metadata_to_delete=*/{storage_key},
+        /*session_id=*/std::string(), /*metadata_to_delete=*/{storage_key},
         std::move(maps_to_delete),
         base::BindOnce([](base::OnceClosure callback,
                           DbStatus) { std::move(callback).Run(); },
@@ -268,11 +258,12 @@ void LocalStorageImpl::CleanUpStorage(CleanUpStorageCallback callback) {
   }
 
   if (database_) {
-    // Try to commit all changes before rewriting the database. If
+    // Try to commit all changes before cleaning up the database. If
     // an area is not ready to commit its changes, nothing breaks but the
-    // rewrite doesn't remove all traces of old data.
+    // clean up doesn't remove all traces of old data.
     Flush();
-    database_->RewriteDB(base::BindOnce(&IgnoreStatus, std::move(callback)));
+    database_->CleanUpStaleData(
+        base::BindOnce(&IgnoreStatus, std::move(callback)));
   } else {
     std::move(callback).Run();
   }
@@ -321,7 +312,8 @@ void LocalStorageImpl::ShutDown() {
       area->CancelAllPendingRequests();
     }
 
-    if (!force_keep_session_state_ && !origins_to_purge_on_shutdown_.empty()) {
+    if (database_ && !force_keep_session_state_ &&
+        !origins_to_purge_on_shutdown_.empty()) {
       database_->PurgeOriginsForShutdown(
           std::move(origins_to_purge_on_shutdown_));
     }
@@ -469,7 +461,7 @@ void LocalStorageImpl::PurgeAllStorageAreas() {
 }
 
 void LocalStorageImpl::InitiateConnection(bool in_memory_only) {
-  DCHECK_EQ(connection_state_, CONNECTION_IN_PROGRESS);
+  CHECK_EQ(connection_state_, CONNECTION_IN_PROGRESS);
 
   if (!storage_partition_directory_.empty() &&
       storage_partition_directory_.IsAbsolute() && !in_memory_only) {
@@ -492,15 +484,13 @@ void LocalStorageImpl::InitiateConnection(bool in_memory_only) {
 }
 
 void LocalStorageImpl::OnDatabaseOpened(DbStatus status) {
-  LogLevelDBStatusHistogram("LocalStorage.DatabaseOpen", status);
-
   if (!status.ok()) {
     // If we failed to open the database, try to delete and recreate the
     // database, or ultimately fallback to an in-memory database.
 #if BUILDFLAG(IS_COBALT)
-    LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseOpenError", status);
+    status.Log("Cobalt.LocalStorage.DatabaseOpenError", in_memory_);
 #endif
-    DeleteAndRecreateDatabase();
+    DeleteAndRecreateDatabase(DomStorageRecoveryReason::kOpenFailure);
     return;
   }
 
@@ -508,11 +498,19 @@ void LocalStorageImpl::OnDatabaseOpened(DbStatus status) {
 }
 
 void LocalStorageImpl::OnConnectionFinished() {
-  DCHECK_EQ(connection_state_, CONNECTION_IN_PROGRESS);
+  CHECK_EQ(connection_state_, CONNECTION_IN_PROGRESS);
   // If connection was opened successfully, reset tried_to_recreate_during_open_
   // to enable recreating the database on future errors.
   if (database_)
     tried_to_recreate_during_open_ = false;
+
+  // Emit recovery histogram if we just completed a recovery cycle.
+  if (recovery_state_) {
+    LogDomStorageRecoveryOutcome("LocalStorage", *recovery_state_,
+                                 /*has_database=*/database_ != nullptr,
+                                 in_memory_);
+    recovery_state_.reset();
+  }
 
   // Clear stale storage areas after a delay to prevent blocking session
   // restoration.
@@ -532,7 +530,17 @@ void LocalStorageImpl::OnConnectionFinished() {
   on_database_opened_callbacks_.clear();
 }
 
-void LocalStorageImpl::DeleteAndRecreateDatabase() {
+void LocalStorageImpl::DeleteAndRecreateDatabase(
+    DomStorageRecoveryReason reason) {
+  // Record the reason that initiated this recovery cycle. The first reason
+  // wins: subsequent calls during the same recovery cycle (e.g. an open
+  // failure after a destroy triggered by kCommitErrorThresholdExceeded) do not
+  // overwrite it. So, the histogram correctly attributes the outcome to the
+  // original reason.
+  if (!recovery_state_) {
+    recovery_state_.emplace(reason, in_memory_);
+  }
+
   // We're about to set database_ to null, so delete the StorageAreaImpls
   // that might still be using the old database.
   PurgeAllStorageAreas();
@@ -572,14 +580,13 @@ void LocalStorageImpl::DeleteAndRecreateDatabase() {
 }
 
 void LocalStorageImpl::OnDBDestroyed(bool recreate_in_memory, DbStatus status) {
-  // We're essentially ignoring the status here. Even if destroying failed we
-  // still want to go ahead and try to recreate.
+  recovery_state_.value().AddDestroyResult(status.ok());
   InitiateConnection(recreate_in_memory);
 }
 
 LocalStorageImpl::StorageAreaHolder* LocalStorageImpl::GetOrCreateStorageArea(
     const blink::StorageKey& storage_key) {
-  DCHECK_EQ(connection_state_, CONNECTION_FINISHED);
+  CHECK_EQ(connection_state_, CONNECTION_FINISHED);
   auto found = areas_.find(storage_key);
   if (found != areas_.end()) {
     return found->second.get();
@@ -594,6 +601,8 @@ LocalStorageImpl::StorageAreaHolder* LocalStorageImpl::GetOrCreateStorageArea(
 }
 
 void LocalStorageImpl::RetrieveStorageUsage(GetUsageCallback callback) {
+  CHECK_EQ(connection_state_, ConnectionState::CONNECTION_FINISHED);
+
   if (!database_) {
     // If for whatever reason no database is available, no storage is
     // used, so return an array only containing the current areas.
@@ -661,9 +670,15 @@ void LocalStorageImpl::GetStatistics(size_t* total_cache_size,
 }
 
 void LocalStorageImpl::OnCommitResult(DbStatus status) {
-  DCHECK(connection_state_ == CONNECTION_FINISHED) << connection_state_;
   if (status.ok()) {
     commit_error_count_ = 0;
+    return;
+  }
+
+  if (connection_state_ != CONNECTION_FINISHED) {
+    // Previous commit errors deleted and recreated the database below.  Ignore
+    // additional errors from the old database while waiting for the new
+    // database to open.
     return;
   }
 
@@ -673,6 +688,10 @@ void LocalStorageImpl::OnCommitResult(DbStatus status) {
       // We already tried to recover from a high commit error rate before, but
       // are still having problems: there isn't really anything left to try, so
       // just ignore errors.
+      base::UmaHistogramEnumeration(
+          "Storage.LocalStorage.Recovery.CommitErrorThresholdExceeded",
+          DomStorageDatabaseRecoveryOutcome::
+              kOngoingErrorsAfterAttemptedRecovery);
       return;
     }
     tried_to_recover_from_commit_errors_ = true;
@@ -681,15 +700,15 @@ void LocalStorageImpl::OnCommitResult(DbStatus status) {
     // errors), but those commits won't reach OnCommitResult because the area
     // will have been deleted before the commit finishes.
 #if BUILDFLAG(IS_COBALT)
-    LogLevelDBStatusHistogram("Cobalt.LocalStorage.DatabaseCommitError",
-                              status);
+    status.Log("Cobalt.LocalStorage.DatabaseCommitError", in_memory_);
 #endif
-    DeleteAndRecreateDatabase();
+    DeleteAndRecreateDatabase(
+        DomStorageRecoveryReason::kCommitErrorThresholdExceeded);
   }
 }
 
 void LocalStorageImpl::DeleteStaleStorageAreas() {
-  if (!database_) {
+  if (!database_ || connection_state_ != CONNECTION_FINISHED) {
     // Due to the delay before LocalStorageImpl::DeleteStaleStorageAreas is invoked
     // it's possible `database_` existed before, but no longer.
     return;
@@ -701,7 +720,7 @@ void LocalStorageImpl::DeleteStaleStorageAreas() {
 
 void LocalStorageImpl::OnGotMetaDataToDeleteStaleStorageAreas(
     StatusOr<DomStorageDatabase::Metadata> all_metadata) {
-  if (!database_) {
+  if (!database_ || connection_state_ != CONNECTION_FINISHED) {
     // This method is provided as a callback to an off thread task. Between the
     // time that the task is posted and now when this callback is invoked, the
     // `database_` member may have been reset.
@@ -740,7 +759,7 @@ void LocalStorageImpl::OnGotMetaDataToDeleteStaleStorageAreas(
       // If the storage area has not been accessed or modified within 400 days
       // it can be cleared.
       stale_storage_keys.push_back(storage_key);
-      maps_to_delete.emplace_back(kLocalStorageSessionId, storage_key);
+      maps_to_delete.emplace_back(storage_key);
     } else if ((storage_key.nonce().has_value() ||
                 storage_key.top_level_site().opaque()) &&
                (base::Time::Now() - accessed_or_modified_time) >=
@@ -748,7 +767,7 @@ void LocalStorageImpl::OnGotMetaDataToDeleteStaleStorageAreas(
       // If the storage area has not been accessed or modified in this browsing
       // session and is transient (has a nonce) then it can be cleared.
       stale_storage_keys.push_back(storage_key);
-      maps_to_delete.emplace_back(kLocalStorageSessionId, storage_key);
+      maps_to_delete.emplace_back(storage_key);
       orphans_found++;
     }
   }
@@ -759,7 +778,7 @@ void LocalStorageImpl::OnGotMetaDataToDeleteStaleStorageAreas(
   // Delete stale storage areas and count results.
   size_t deleted_count = stale_storage_keys.size();
   database_->DeleteStorageKeysFromSession(
-      kLocalStorageSessionId,
+      /*session_id=*/std::string(),
       /*metadata_to_delete=*/std::move(stale_storage_keys),
       std::move(maps_to_delete),
       base::BindOnce(

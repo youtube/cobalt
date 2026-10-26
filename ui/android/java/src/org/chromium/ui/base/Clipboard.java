@@ -14,6 +14,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
@@ -23,6 +24,8 @@ import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.url.GURL;
+
+import java.util.Map;
 
 /** Simple proxy that provides C++ code with an access pathway to the Android clipboard. */
 @JNINamespace("ui")
@@ -253,36 +256,36 @@ public class Clipboard {
     }
 
     /**
-     * Emulates the behavior of the now-deprecated
-     * {@link android.text.ClipboardManager#setText(CharSequence)}, setting the
-     * clipboard's current primary clip to a plain-text clip that consists of
-     * the specified string.
-     * @param text  will become the content of the clipboard's primary clip.
+     * Emulates the behavior of the now-deprecated {@link
+     * android.text.ClipboardManager#setText(CharSequence)}, setting the clipboard's current primary
+     * clip to a plain-text clip that consists of the specified string.
+     *
+     * @param text will become the content of the clipboard's primary clip.
      */
     @CalledByNative
     public void setText(final String text) {
-        Log.w(TAG, "setText is a no-op because Clipboard service isn't available");
+        Log.w(TAG, "Clipboard service isn't available");
     }
 
     /**
      * Writes text to the clipboard.
      *
      * @param label the label for the clip data.
-     * @param text  will become the content of the clipboard's primary clip.
+     * @param text will become the content of the clipboard's primary clip.
      */
     public void setText(final String label, final String text) {
-        Log.w(TAG, "setText is a no-op because Clipboard service isn't available");
+        Log.w(TAG, "Clipboard service isn't available");
     }
 
     /**
      * Writes text to the clipboard.
      *
      * @param label the label for the clip data.
-     * @param text  will become the content of the clipboard's primary clip.
+     * @param text will become the content of the clipboard's primary clip.
      * @param notifyOnSuccess whether show a notification, e.g. a toast, to the user when success.
      */
     public void setText(final String label, final String text, boolean notifyOnSuccess) {
-        Log.w(TAG, "setText is a no-op because Clipboard service isn't available");
+        Log.w(TAG, "Clipboard service isn't available");
     }
 
     /**
@@ -294,16 +297,50 @@ public class Clipboard {
     @CalledByNative
     @VisibleForTesting
     void setHTMLText(final String html, final String text) {
-        Log.w(TAG, "setHTMLText is a no-op because Clipboard service isn't available");
+        Log.w(TAG, "Clipboard service isn't available");
+    }
+
+    /**
+     * Writes content to the clipboard with multiple MIME types.
+     *
+     * @param textData The map of MIME types to their String data.
+     */
+    @CalledByNative
+    protected void setClipboardText(
+            @JniType("std::map<std::string, std::string>") Map<String, String> textData) {
+        Log.w(TAG, "setClipboardText is a no-op because Clipboard service isn't available");
+    }
+
+    /**
+     * Check if the given mimeType is within the Clipboard.
+     *
+     * @param mimeType The MIME type to be checked.
+     */
+    @CalledByNative
+    protected boolean hasClipboardDataForMimeType(@JniType("std::string") String mimeType) {
+        return false;
+    }
+
+    /**
+     * Gets the custom data for a specific custom MIME type.
+     *
+     * @param customMimeType The custom MIME type to get data for.
+     * @return The data as a String, or null if not found.
+     */
+    @CalledByNative
+    protected @JniType("std::optional<std::string>") @Nullable String getCustomClipData(
+            @JniType("std::string") String customMimeType) {
+        return null;
     }
 
     /**
      * Writes password to the clipboard, and set the Clipdata is sensitive.
-     * @param password  will become the content of the clipboard's primary clip.
+     *
+     * @param password will become the content of the clipboard's primary clip.
      */
     @CalledByNative
     public void setPassword(final String password) {
-        Log.w(TAG, "setPassword is a no-op because Clipboard service isn't available");
+        Log.w(TAG, "Clipboard service isn't available");
     }
 
     /**
@@ -313,7 +350,7 @@ public class Clipboard {
      * @param uri The {@link Uri} will become the content of the clipboard's primary clip.
      */
     public void setImageUri(final Uri uri) {
-        Log.w(TAG, "setImageUri is a no-op because Clipboard service isn't available");
+        Log.w(TAG, "Clipboard service isn't available");
     }
 
     /**
@@ -325,18 +362,30 @@ public class Clipboard {
      * @param notifyOnSuccess Whether show a notification when success.
      */
     public void setImageUri(final Uri uri, boolean notifyOnSuccess) {
-        Log.w(TAG, "setImageUriAndNotify is a no-op because Clipboard service isn't available");
+        Log.w(TAG, "Clipboard service isn't available");
     }
 
     /**
      * Setting the clipboard's current primary clip to an image.
+     *
+     * @param uri The {@link Uri} will become the content of the clipboard's primary clip.
+     * @param clipData The ClipData object to use.
+     * @param notifyOnSuccess Whether show a notification when success.
+     */
+    public void setImageUri(Uri uri, ClipData clipData, boolean notifyOnSuccess) {
+        Log.w(TAG, "Clipboard service isn't available");
+    }
+
+    /**
+     * Setting the clipboard's current primary clip to an image.
+     *
      * @param imageData The image data to be shared in |extension| format.
      * @param extension Image file extension which |imageData| encoded to.
      */
     @CalledByNative
     @VisibleForTesting
     public void setImage(final byte[] imageData, final String extension) {
-        Log.w(TAG, "setImage is a no-op because Clipboard service isn't available");
+        Log.w(TAG, "Clipboard service isn't available");
     }
 
     /**
@@ -346,7 +395,7 @@ public class Clipboard {
      */
     @CalledByNative
     public void setFilenames(final String[] uriList) {
-        Log.w(TAG, "setFilenames is a no-op because Clipboard service isn't available");
+        Log.w(TAG, "Clipboard service isn't available");
     }
 
     /** Clears the Clipboard Primary clip. */
@@ -360,10 +409,11 @@ public class Clipboard {
 
     /**
      * Set {@link ImageFileProvider} for sharing image.
+     *
      * @param imageFileProvider The implementation of {@link ImageFileProvider}.
      */
     public void setImageFileProvider(ImageFileProvider imageFileProvider) {
-        Log.w(TAG, "setImageFileProvider is a no-op because Clipboard service isn't available");
+        Log.w(TAG, "Clipboard service isn't available");
     }
 
     /**

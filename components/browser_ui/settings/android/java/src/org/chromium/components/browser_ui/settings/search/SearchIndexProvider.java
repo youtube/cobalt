@@ -7,6 +7,8 @@ package org.chromium.components.browser_ui.settings.search;
 import android.content.Context;
 import android.os.Bundle;
 
+import androidx.annotation.XmlRes;
+
 import org.chromium.build.annotations.NullMarked;
 
 import java.util.Map;
@@ -17,6 +19,23 @@ import java.util.Set;
 public interface SearchIndexProvider {
     /** Returns the name of the associated {@link PreferenceFragment}. */
     String getPrefFragmentName();
+
+    /** Returns the Preference XML resource. */
+    @XmlRes
+    int getXmlRes();
+
+    /**
+     * Returns whether the preferences from this provider should appear in user search results.
+     *
+     * <p>If this returns {@code false}, the preferences are still parsed to build the structural
+     * parent-child graph (used for generating breadcrumbs on deep links), but they are explicitly
+     * hidden from the search results UI.
+     *
+     * @return {@code true} if searchable, {@code false} if used for structure only.
+     */
+    default boolean isSearchable() {
+        return true;
+    }
 
     /**
      * Registers the fragment headers of the indexed search prefs by setting headers for ones that

@@ -808,35 +808,23 @@ inline const LayoutResult* BlockLayoutAlgorithm::Layout(
 
   if (Style().HasLineClamp()) {
     if (!line_clamp_data_.data.IsLineClampContext()) {
-      LayoutUnit clamp_bfc_offset = ChildAvailableSize().block_size;
-      if (clamp_bfc_offset == kIndefiniteSize) {
-        const MinMaxSizes sizes = ComputeInitialMinMaxBlockSizes(
-            constraint_space, Node(), BorderPadding());
-        if (sizes.max_size != LayoutUnit::Max()) {
-          clamp_bfc_offset =
-              (sizes.max_size - BorderScrollbarPadding().block_end)
-                  .ClampNegativeToZero();
-        }
-      } else {
-        clamp_bfc_offset =
-            (BorderScrollbarPadding().block_start + clamp_bfc_offset)
-                .ClampNegativeToZero();
-      }
-
-      if (clamp_bfc_offset != kIndefiniteSize) {
-        WebFeature use_counter_feature;
-        if (Style().WebkitLineClamp() != 0 ||
-            Style().Continue() == EContinue::kWebkitLegacy) {
-          use_counter_feature = WebFeature::kWebkitLineClampWithHeight;
-        } else if (Style().LineClamp() == 0) {
-          use_counter_feature = WebFeature::kLineClampAuto;
+      LayoutUnit clamp_bfc_offset = kIndefiniteSize;
+      if (!Style().LineClamp() ||
+          RuntimeEnabledFeatures::CSSLineClampLinesAndHeightEnabled()) {
+        clamp_bfc_offset = ChildAvailableSize().block_size;
+        if (clamp_bfc_offset == kIndefiniteSize) {
+          const MinMaxSizes sizes = ComputeInitialMinMaxBlockSizes(
+              constraint_space, Node(), BorderPadding());
+          if (sizes.max_size != LayoutUnit::Max()) {
+            clamp_bfc_offset = sizes.max_size;
+          }
         } else {
-          use_counter_feature = WebFeature::kLineClampByLinesAndHeight;
+          clamp_bfc_offset += BorderScrollbarPadding().BlockSum();
         }
-        UseCounter::Count(Node().GetDocument(), use_counter_feature);
       }
 
-      line_clamp_data_.UpdateFromStyle(Style().LineClamp(), clamp_bfc_offset);
+      line_clamp_data_.UpdateFromStyle(Style().LineClamp(), clamp_bfc_offset,
+                                       BorderPadding().block_end);
     }
   } else {
     if (Style().WebkitLineClamp() != 0) {
@@ -844,27 +832,32 @@ inline const LayoutResult* BlockLayoutAlgorithm::Layout(
                         WebFeature::kWebkitLineClampWithoutWebkitBox);
     }
 
-    // If we're clamping by BFC offset, we need to subtract the bottom bmp to
-    // leave room for it. This doesn't apply if we're relaying out to fix the
-    // offset, because that already accounts for the bmp.
+    // If we're clamping by BFC offset, we need to add this box to the ancestor
+    // chain so we can properly compute the line-clamp container block size if
+    // we clamp inside it.
     if (line_clamp_data_.data.IsMeasureUntilBfcOffset()) {
-      MarginStrut end_margin_strut = constraint_space.LineClampEndMarginStrut();
-      end_margin_strut.Append(
-          ComputeMarginsForSelf(constraint_space, Style()).block_end,
-          /* is_quirky */ false);
+      MinMaxSizes block_min_max_sizes = ComputeInitialMinMaxBlockSizes(
+          constraint_space, Node(), BorderPadding());
 
-      // `constraint_space.LineClampEndMarginStrut().Sum()` is the margin
-      // contribution from our ancestor boxes, which has already been taken
-      // into account for the clamp BFC offset that we have. We only need to
-      // add any additional margin contribution from this box's margin.
-      line_clamp_data_.data.clamp_bfc_offset -=
-          BorderScrollbarPadding().block_end +
-          (end_margin_strut.Sum() -
-           constraint_space.LineClampEndMarginStrut().Sum());
+      const bool is_fixed_block_size =
+          ChildAvailableSize().block_size != kIndefiniteSize ||
+          Node().ShouldApplyBlockSizeContainment() ||
+          block_min_max_sizes.min_size == block_min_max_sizes.max_size;
 
-      // The presence of borders and padding blocks margin propagation.
-      if (!BorderScrollbarPadding().block_end) {
-        line_clamp_data_.end_margin_strut = end_margin_strut;
+      if (is_fixed_block_size) {
+        // If the block size is fixed, we won't ever clamp inside this box,
+        // since that couldnt possibly reduce the line-clamp container's height.
+        // But our ancestors still need to know the number of lines in the box.
+        line_clamp_data_.data.state = LineClampData::kCountLines;
+      } else {
+        DCHECK(constraint_space.GetLineClampAncestorChain());
+        LayoutUnit end_margin =
+            ComputeMarginsForSelf(constraint_space, Style()).block_end;
+        line_clamp_data_.ancestor_chain =
+            MakeGarbageCollected<LineClampAncestorChain>(
+                container_builder_.BfcBlockOffset(), BorderPadding().block_end,
+                end_margin, block_min_max_sizes,
+                constraint_space.GetLineClampAncestorChain());
       }
     }
   }
@@ -1602,7 +1595,7 @@ bool BlockLayoutAlgorithm::TryReuseFragmentsFromCache(
     DCHECK(result.line_count <= max_lines);
     DCHECK(line_clamp_data_.data.IsClampByLines());
     line_clamp_data_.data.lines_until_clamp -= result.line_count;
-  } else if (line_clamp_data_.data.IsMeasureUntilBfcOffset()) {
+  } else if (line_clamp_data_.data.IsCountLines()) {
     line_clamp_data_.data.lines_until_clamp += result.line_count;
   }
 
@@ -3580,7 +3573,14 @@ ConstraintSpace BlockLayoutAlgorithm::CreateConstraintSpaceForChild(
           container_builder_.GetAdjoiningObjectTypes());
     }
     builder.SetLineClampData(line_clamp_data_.data);
-    builder.SetLineClampEndMarginStrut(line_clamp_data_.end_margin_strut);
+    if (container_builder_.BfcBlockOffset() &&
+        line_clamp_data_.ancestor_chain &&
+        !line_clamp_data_.ancestor_chain->HasBfcOffset()) {
+      line_clamp_data_.ancestor_chain =
+          line_clamp_data_.ancestor_chain->WithResolvedBfcOffset(
+              *container_builder_.BfcBlockOffset());
+    }
+    builder.SetLineClampAncestorChain(line_clamp_data_.ancestor_chain);
     builder.SetShouldTextBoxTrimInsideWhenLineClamp(
         line_clamp_data_.data.IsLineClampContext() &&
         (constraint_space.ShouldTextBoxTrimInsideWhenLineClamp() ||
@@ -4058,7 +4058,8 @@ LogicalOffset BlockLayoutAlgorithm::AdjustSliderThumbInlineOffset(
 }
 
 void BlockLineClampData::UpdateFromStyle(int lines_until_clamp,
-                                         LayoutUnit clamp_bfc_offset) {
+                                         LayoutUnit clamp_bfc_offset,
+                                         LayoutUnit end_border_padding) {
   if (ignore_line_clamp) {
     DCHECK_EQ(data.state, LineClampData::kDisabled);
     return;
@@ -4079,10 +4080,16 @@ void BlockLineClampData::UpdateFromStyle(int lines_until_clamp,
       data.state = LineClampData::kClampByLines;
       data.lines_until_clamp = lines_until_clamp;
     } else {
+      DCHECK(RuntimeEnabledFeatures::CSSLineClampLinesAndHeightEnabled());
       data.state = LineClampData::kClampByLinesWithBfcOffset;
       data.lines_until_clamp = lines_until_clamp;
       data.clamp_bfc_offset = clamp_bfc_offset;
     }
+  }
+
+  if (data.IsMeasureUntilBfcOffset()) {
+    ancestor_chain =
+        MakeGarbageCollected<LineClampAncestorChain>(end_border_padding);
   }
 }
 
@@ -4093,7 +4100,7 @@ bool BlockLineClampData::UpdateAfterLayout(
   const PhysicalFragment& fragment = layout_result->GetPhysicalFragment();
 
   int old_lines_until_clamp = 0;
-  if (data.IsClampByLines() || data.IsMeasureUntilBfcOffset()) {
+  if (data.IsClampByLines() || data.IsCountLines()) {
     old_lines_until_clamp = data.lines_until_clamp;
     if (!fragment.IsFormattingContextRoot() && !ignore_further_lines) {
       data.lines_until_clamp = layout_result->LinesUntilClamp();
@@ -4122,17 +4129,6 @@ bool BlockLineClampData::UpdateAfterLayout(
       return true;
     }
 
-    // We compute the margin strut we'd have after this block if we were to
-    // clamp here.
-    MarginStrut collapsed_strut = previous_inflow_position.margin_strut;
-    collapsed_strut.positive_margin = std::max(
-        collapsed_strut.positive_margin, end_margin_strut.positive_margin);
-    collapsed_strut.quirky_positive_margin =
-        std::max(collapsed_strut.quirky_positive_margin,
-                 end_margin_strut.quirky_positive_margin);
-    collapsed_strut.negative_margin = std::max(
-        collapsed_strut.negative_margin, end_margin_strut.negative_margin);
-
     // The extra space after the current box that would be added by ruby
     // annotations, considering that the annotations eat into the following
     // padding if it exists, and that we have already subtracted the block end
@@ -4144,20 +4140,19 @@ bool BlockLineClampData::UpdateAfterLayout(
                    -container_builder.Padding().block_end);
     }
 
-    LayoutUnit bfc_offset = *container_builder.BfcBlockOffset() +
-                            previous_inflow_position.logical_block_offset +
-                            padding_annotation_overflow +
-                            (collapsed_strut.Sum() - end_margin_strut.Sum());
+    DCHECK(ancestor_chain);
+    if (!ancestor_chain->HasBfcOffset()) {
+      ancestor_chain = ancestor_chain->WithResolvedBfcOffset(
+          *container_builder.BfcBlockOffset());
+    }
+    LayoutUnit bfc_offset = ancestor_chain->FinalLineClampBlockSize(
+        previous_inflow_position.logical_block_offset +
+            padding_annotation_overflow,
+        previous_inflow_position.margin_strut);
 
     if (bfc_offset > data.clamp_bfc_offset) {
-      if (data.IsClampByLines()) {
-        UseCounter::Count(container_builder.Node().GetDocument(),
-                          WebFeature::kLineClampByLinesOverflows);
-      }
-      if (RuntimeEnabledFeatures::CSSLineClampEnabled()) {
-        data.lines_until_clamp = old_lines_until_clamp;
-        return false;
-      }
+      data.lines_until_clamp = old_lines_until_clamp;
+      return false;
     }
 
     if (old_lines_until_clamp == data.lines_until_clamp ||

@@ -17,7 +17,6 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -27,9 +26,9 @@
 #include "content/public/test/mock_navigation_handle.h"
 #include "content/public/test/navigation_simulator.h"
 
-#if BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/test/glic_user_session_test_helper.h"
@@ -38,7 +37,7 @@
 namespace contextual_cueing {
 namespace {
 
-#if BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
 
 using ::testing::Return;
 
@@ -217,7 +216,7 @@ INSTANTIATE_TEST_SUITE_P(All,
                          ContextualCueingHelperResponseCodeTest,
                          ::testing::Bool());
 
-#endif  // BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 }  // namespace contextual_cueing

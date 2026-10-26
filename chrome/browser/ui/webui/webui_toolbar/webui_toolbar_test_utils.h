@@ -6,16 +6,19 @@
 #define CHROME_BROWSER_UI_WEBUI_WEBUI_TOOLBAR_WEBUI_TOOLBAR_TEST_UTILS_H_
 
 #include "chrome/browser/command_updater.h"
+#include "chrome/browser/ui/webui/webui_toolbar/browser_controls_service.h"
+#include "chrome/browser/ui/webui/webui_toolbar/toolbar_ui_service.h"
 #include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
+#include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api.mojom.h"
+#include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/base/window_open_disposition.h"
 
 // Mock implementation of the
-// browser_controls_api::mojom::BrowserControlsObserver interface.
-class MockReloadButtonPage
-    : public browser_controls_api::mojom::BrowserControlsObserver {
+// toolbar_ui_api::mojom::ToolbarUIObserver interface.
+class MockReloadButtonPage : public toolbar_ui_api::mojom::ToolbarUIObserver {
  public:
   MockReloadButtonPage();
   ~MockReloadButtonPage() override;
@@ -24,40 +27,54 @@ class MockReloadButtonPage
   MockReloadButtonPage& operator=(const MockReloadButtonPage&) = delete;
 
   // Returns a PendingRemote to this mock implementation.
-  mojo::PendingRemote<browser_controls_api::mojom::BrowserControlsObserver>
+  mojo::PendingRemote<toolbar_ui_api::mojom::ToolbarUIObserver>
   BindAndGetRemote();
+
+  void Bind(
+      mojo::PendingReceiver<toolbar_ui_api::mojom::ToolbarUIObserver> receiver);
 
   void FlushForTesting();
 
-  // browser_controls_api::mojom::BrowserControlsObserver:
+  // toolbar_ui_api::mojom::ToolbarUIObserver:
   MOCK_METHOD(void,
-              OnDevToolsStatusChanged,
-              (browser_controls_api::mojom::DevToolsState state),
-              (override));
-  MOCK_METHOD(void,
-              OnNavigationStatusChanged,
-              (browser_controls_api::mojom::NavigationState state),
-              (override));
-  MOCK_METHOD(void,
-              OnContextMenuStateChanged,
-              (browser_controls_api::mojom::ContextMenuType menu_type,
-               browser_controls_api::mojom::ContextMenuState state),
-              (override));
-  MOCK_METHOD(void,
-              OnTabSplitStatusChanged,
-              (bool is_split,
-               browser_controls_api::mojom::SplitTabActiveLocation location),
-              (override));
-  MOCK_METHOD(void,
-              OnButtonPinStateChanged,
-              (browser_controls_api::mojom::ToolbarButtonType type,
-               bool is_pinned),
+              OnNavigationControlsStateChanged,
+              (toolbar_ui_api::mojom::NavigationControlsStatePtr state),
               (override));
 
  private:
-  mojo::Receiver<browser_controls_api::mojom::BrowserControlsObserver>
-      receiver_{this};
+  mojo::Receiver<toolbar_ui_api::mojom::ToolbarUIObserver> receiver_{this};
 };
+
+class MockToolbarUIServiceDelegate
+    : public toolbar_ui_api::ToolbarUIService::ToolbarUIServiceDelegate {
+ public:
+  MockToolbarUIServiceDelegate();
+  ~MockToolbarUIServiceDelegate() override;
+
+  // ToolbarUIService::ToolbarUIServiceDelegate:
+  MOCK_METHOD(void,
+              HandleContextMenu,
+              (toolbar_ui_api::mojom::ContextMenuType,
+               gfx::Point,
+               ui::mojom::MenuSourceType),
+              (override));
+  MOCK_METHOD(void, OnPageInitialized, (), (override));
+};
+
+class MockBrowserControlsServiceDelegate
+    : public browser_controls_api::BrowserControlsService::
+          BrowserControlsServiceDelegate {
+ public:
+  MockBrowserControlsServiceDelegate();
+  ~MockBrowserControlsServiceDelegate() override;
+
+  // BrowserControlsService::BrowserControlsServiceDelegate:
+  MOCK_METHOD(void, PermitLaunchUrl, (), (override));
+};
+
+// Helper to create a valid NavigationControlsState with initialized fields.
+toolbar_ui_api::mojom::NavigationControlsStatePtr
+CreateValidNavigationControlsState();
 
 // Mock implementation of CommandUpdater for testing.
 class MockCommandUpdater : public CommandUpdater {

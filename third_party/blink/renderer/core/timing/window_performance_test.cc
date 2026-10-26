@@ -17,6 +17,7 @@
 #include "build/build_config.h"
 #include "components/viz/common/frame_timing_details.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/responsiveness_metrics/user_interaction_latency.h"
@@ -69,11 +70,16 @@ class WindowPerformanceTest : public testing::Test,
                               public ::testing::WithParamInterface<bool> {
  protected:
   void SetUp() override {
+    std::vector<base::test::FeatureRef> features{
+        blink::features::
+            kEventTimingIgnorePresentationTimeFromUnexpectedFrameSource,
+        blink::kEventTimingReportingInStrictOrderOnly};
     if (GetParam()) {
-      features_.InitAndEnableFeature(
-          blink::features::
-              kEventTimingIgnorePresentationTimeFromUnexpectedFrameSource);
+      features_.InitWithFeatures(features, {});
+    } else {
+      features_.InitWithFeatures({}, features);
     }
+
     test_task_runner_ = base::MakeRefCounted<base::TestMockTimeTaskRunner>();
     ResetPerformance();
   }
@@ -87,6 +93,24 @@ class WindowPerformanceTest : public testing::Test,
     // simulate with filter options.
     performance_->observer_filter_options_ = PerformanceEntry::kInvalid;
   }
+
+#if BUILDFLAG(IS_COBALT)
+  void AddCobaltFrameObserver() {
+    performance_->observer_filter_options_ |= PerformanceEntry::kCobaltFrame;
+  }
+
+  void RemoveCobaltFrameObserver() {
+    performance_->observer_filter_options_ &= ~PerformanceEntry::kCobaltFrame;
+  }
+
+  CobaltFrameTiming* CreateCobaltFrameTiming(
+      uint32_t frame_token,
+      const viz::FrameTimingDetails& details,
+      std::optional<CobaltMainFrameSnapshot> main_snapshot) {
+    return performance_->CreateCobaltFrameTiming(frame_token, details,
+                                                 std::move(main_snapshot));
+  }
+#endif
 
   void SimulateJustPaintFinished() { performance_->OnPaintFinished(); }
   void SimulateJustCommitFinished(base::TimeTicks commit_time) {
@@ -113,22 +137,12 @@ class WindowPerformanceTest : public testing::Test,
                                   base::TimeTicks presentation_timestamp,
                                   uint64_t expected_frame_source_id,
                                   uint64_t actual_frame_source_id) {
-    uint64_t presentation_promise_index =
-        performance_->event_presentation_promise_count_;
+    uint64_t frame_index = GetCurrentFrameIndex();
     SimulateJustPaintFinished();
     SimulateJustCommitFinished(commit_timestamp);
-    SimulateJustPresentationTime(
-        presentation_promise_index, presentation_timestamp,
-        expected_frame_source_id, actual_frame_source_id);
-  }
-
-  void SimulateInteractionId(PerformanceEventTiming* entry) {
-    ResponsivenessMetrics::EventTimestamps event_timestamps = {
-        entry->GetEventTimingReportingInfo()->creation_time,
-        entry->GetEventTimingReportingInfo()->enqueued_to_main_thread_time,
-        entry->GetEventTimingReportingInfo()->commit_finish_time,
-        entry->GetEndTime()};
-    performance_->SetInteractionIdAndRecordLatency(entry, event_timestamps);
+    SimulateJustPresentationTime(frame_index, presentation_timestamp,
+                                 expected_frame_source_id,
+                                 actual_frame_source_id);
   }
 
   PerformanceEventTiming* RegisterKeyboardEvent(
@@ -144,11 +158,12 @@ class WindowPerformanceTest : public testing::Test,
         MakeGarbageCollected<KeyboardEvent>(type, init, start_time);
     // use start_time to simulate enqueue time.
     performance_->GetResponsivenessMetrics()
-          .SetCurrentInteractionEventQueuedTimestamp(start_time);
-    performance_->EventTimingProcessingStart(*keyboard_event, processing_start,
-                                             target);
+        .SetCurrentInteractionEventQueuedTimestamp(start_time);
+    PerformanceEventTiming* entry = performance_->EventTimingProcessingStart(
+        *keyboard_event, processing_start);
     keyboard_event->SetTarget(target);
-    performance_->EventTimingProcessingEnd(*keyboard_event, processing_end);
+    performance_->EventTimingProcessingEnd(entry, *keyboard_event,
+                                           processing_end);
     return performance_->event_timing_entries_.back();
   }
 
@@ -163,11 +178,12 @@ class WindowPerformanceTest : public testing::Test,
     PointerEvent* pointer_event = PointerEvent::Create(type, init, start_time);
     // use start_time to simulate enqueue time.
     performance_->GetResponsivenessMetrics()
-          .SetCurrentInteractionEventQueuedTimestamp(start_time);
-    performance_->EventTimingProcessingStart(*pointer_event, processing_start,
-                                             target);
+        .SetCurrentInteractionEventQueuedTimestamp(start_time);
+    PerformanceEventTiming* entry = performance_->EventTimingProcessingStart(
+        *pointer_event, processing_start);
     pointer_event->SetTarget(target);
-    performance_->EventTimingProcessingEnd(*pointer_event, processing_end);
+    performance_->EventTimingProcessingEnd(entry, *pointer_event,
+                                           processing_end);
     return performance_->event_timing_entries_.back();
   }
 
@@ -179,14 +195,20 @@ class WindowPerformanceTest : public testing::Test,
       base::TimeTicks presentation_timestamp) {
     PerformanceEventTiming::EventTimingReportingInfo reporting_info{
         .creation_time = event_creation_timestamp,
+        .processing_start_time = event_creation_timestamp,
+        .processing_end_time = presentation_timestamp,
         .presentation_time = presentation_timestamp,
         .key_code = key_code,
         .pointer_id = pointer_id};
 
-    return PerformanceEventTiming::Create(
-        name, reporting_info, false, nullptr,
-        LocalDOMWindow::From(GetScriptState()),
+    auto* entry = PerformanceEventTiming::Create(
+        name, reporting_info, false, LocalDOMWindow::From(GetScriptState()),
         performance_->NavigationId());
+    performance_->event_timing_entries_.push_back(entry);
+    performance_->GetResponsivenessMetrics().TryAssignInteractionId(entry);
+    performance_->TryFlushEventTimingQueue();
+
+    return entry;
   }
 
   HeapVector<Member<PerformanceEventTiming>>*
@@ -236,8 +258,8 @@ class WindowPerformanceTest : public testing::Test,
     performance_->PageVisibilityChangedWithTimestamp(timestamp);
   }
 
-  uint64_t GetPresentationPromiseIndex() const {
-    return performance_->event_presentation_promise_count_;
+  uint64_t GetCurrentFrameIndex() const {
+    return performance_->current_frame_index_;
   }
 
   test::TaskEnvironment task_environment_;
@@ -550,35 +572,80 @@ TEST_P(WindowPerformanceTest, NewCommitNotOverwritePreviousEventTimings) {
 }
 
 // Test for existence of 'first-input' given different types of first events.
-TEST_P(WindowPerformanceTest, FirstInput) {
-  struct {
-    AtomicString event_type;
-    bool should_report;
-  } inputs[] = {{event_type_names::kClick, true},
-                {event_type_names::kKeydown, true},
-                {event_type_names::kKeypress, false},
-                {event_type_names::kPointerdown, false},
-                {event_type_names::kMousedown, true},
-                {event_type_names::kMouseover, false}};
-  for (const auto& input : inputs) {
-    // first-input does not have a |duration| threshold so use close values.
-    if (input.event_type == event_type_names::kKeydown ||
-        input.event_type == event_type_names::kKeypress) {
-      RegisterKeyboardEvent(input.event_type, GetTimeOrigin(),
-                            GetTimeOrigin() + base::Milliseconds(1),
-                            GetTimeOrigin() + base::Milliseconds(2), 4);
-    } else {
-      RegisterPointerEvent(input.event_type, GetTimeOrigin(),
-                           GetTimeOrigin() + base::Milliseconds(1),
-                           GetTimeOrigin() + base::Milliseconds(2), 4);
-    }
-    SimulateAllRenderingStages(GetTimeOrigin() + base::Milliseconds(3));
-    PerformanceEntryVector firstInputs =
-        performance_->getEntriesByType(performance_entry_names::kFirstInput);
-    EXPECT_GE(1u, firstInputs.size());
-    EXPECT_EQ(input.should_report, firstInputs.size() == 1u);
-    ResetPerformance();
-  }
+TEST_P(WindowPerformanceTest, FirstInput_Keydown) {
+  RegisterKeyboardEvent(event_type_names::kKeydown, GetTimeOrigin(),
+                        GetTimeOrigin() + base::Milliseconds(1),
+                        GetTimeOrigin() + base::Milliseconds(2), 4);
+  SimulateAllRenderingStages(GetTimeOrigin() + base::Milliseconds(3));
+  PerformanceEntryVector firstInputs =
+      performance_->getEntriesByType(performance_entry_names::kFirstInput);
+  EXPECT_EQ(1u, firstInputs.size());
+  EXPECT_EQ(event_type_names::kKeydown, firstInputs[0]->name());
+}
+
+TEST_P(WindowPerformanceTest, FirstInput_PointerdownPointerup) {
+  RegisterPointerEvent(event_type_names::kPointerdown, GetTimeOrigin(),
+                       GetTimeOrigin() + base::Milliseconds(1),
+                       GetTimeOrigin() + base::Milliseconds(2), 4);
+  SimulateAllRenderingStages(GetTimeOrigin() + base::Milliseconds(3));
+  EXPECT_EQ(0u,
+            performance_->getEntriesByType(performance_entry_names::kFirstInput)
+                .size());
+
+  RegisterPointerEvent(event_type_names::kPointerup, GetTimeOrigin(),
+                       GetTimeOrigin() + base::Milliseconds(4),
+                       GetTimeOrigin() + base::Milliseconds(5), 4);
+  SimulateAllRenderingStages(GetTimeOrigin() + base::Milliseconds(6));
+  PerformanceEntryVector firstInputs =
+      performance_->getEntriesByType(performance_entry_names::kFirstInput);
+  EXPECT_EQ(1u, firstInputs.size());
+  EXPECT_EQ(event_type_names::kPointerdown, firstInputs[0]->name());
+}
+
+TEST_P(WindowPerformanceTest, FirstInput_Click) {
+  RegisterPointerEvent(event_type_names::kClick, GetTimeOrigin(),
+                       GetTimeOrigin() + base::Milliseconds(1),
+                       GetTimeOrigin() + base::Milliseconds(2), 4);
+  SimulateAllRenderingStages(GetTimeOrigin() + base::Milliseconds(3));
+  PerformanceEntryVector firstInputs =
+      performance_->getEntriesByType(performance_entry_names::kFirstInput);
+  EXPECT_EQ(1u, firstInputs.size());
+  EXPECT_EQ(event_type_names::kClick, firstInputs[0]->name());
+}
+
+TEST_P(WindowPerformanceTest,
+       FirstInput_PointercancelThenPointerdownPointerup) {
+  // 1. Pointerdown
+  RegisterPointerEvent(event_type_names::kPointerdown, GetTimeStamp(0),
+                       GetTimeStamp(1), GetTimeStamp(2), 4);
+  SimulateAllRenderingStages(GetTimeStamp(3));
+
+  // 2. Pointercancel
+  RegisterPointerEvent(event_type_names::kPointercancel, GetTimeStamp(4),
+                       GetTimeStamp(5), GetTimeStamp(6), 4);
+  SimulateAllRenderingStages(GetTimeStamp(7));
+
+  EXPECT_EQ(0u,
+            performance_->getEntriesByType(performance_entry_names::kFirstInput)
+                .size());
+
+  // 3. New Pointerdown
+  RegisterPointerEvent(event_type_names::kPointerdown, GetTimeStamp(8),
+                       GetTimeStamp(9), GetTimeStamp(10), 4);
+  SimulateAllRenderingStages(GetTimeStamp(11));
+
+  // 4. Pointerup
+  RegisterPointerEvent(event_type_names::kPointerup, GetTimeStamp(12),
+                       GetTimeStamp(13), GetTimeStamp(14), 4);
+  SimulateAllRenderingStages(GetTimeStamp(15));
+
+  PerformanceEntryVector firstInputs =
+      performance_->getEntriesByType(performance_entry_names::kFirstInput);
+  EXPECT_EQ(1u, firstInputs.size());
+  // The first valid interaction is the second pointerdown.
+  EXPECT_EQ(event_type_names::kPointerdown, firstInputs[0]->name());
+  EXPECT_EQ(performance_->MonotonicTimeToDOMHighResTimeStamp(GetTimeStamp(8)),
+            firstInputs[0]->startTime());
 }
 
 // Test whether we can detect that the event is fully nested in another event
@@ -591,8 +658,9 @@ TEST_P(WindowPerformanceTest, NestedEventInProcessingTime) {
   init->setKeyCode(4);
   KeyboardEvent* keyboard_event = MakeGarbageCollected<KeyboardEvent>(
       event_type_names::kKeypress, init, GetTimeOrigin());
-  performance_->EventTimingProcessingStart(
-      *keyboard_event, GetTimeOrigin() + base::Milliseconds(1), nullptr);
+  PerformanceEventTiming* keyboard_entry =
+      performance_->EventTimingProcessingStart(
+          *keyboard_event, GetTimeOrigin() + base::Milliseconds(1));
 
   UIEventInit* event_init = UIEventInit::Create();
   event_init->setBubbles(true);
@@ -600,13 +668,14 @@ TEST_P(WindowPerformanceTest, NestedEventInProcessingTime) {
   event_init->setComposed(true);
   UIEvent* event = MakeGarbageCollected<UIEvent>(event_type_names::kBeforeinput,
                                                  event_init, GetTimeOrigin());
-  performance_->EventTimingProcessingStart(
-      *event, GetTimeOrigin() + base::Milliseconds(2), nullptr);
+  PerformanceEventTiming* event_entry =
+      performance_->EventTimingProcessingStart(
+          *event, GetTimeOrigin() + base::Milliseconds(2));
 
   performance_->EventTimingProcessingEnd(
-      *event, GetTimeOrigin() + base::Milliseconds(4));
+      event_entry, *event, GetTimeOrigin() + base::Milliseconds(4));
   performance_->EventTimingProcessingEnd(
-      *keyboard_event, GetTimeOrigin() + base::Milliseconds(5));
+      keyboard_entry, *keyboard_event, GetTimeOrigin() + base::Milliseconds(5));
 
   base::TimeTicks presentation_time = GetTimeOrigin() + base::Seconds(6.0);
   SimulateAllRenderingStages(presentation_time);
@@ -626,20 +695,31 @@ TEST_P(WindowPerformanceTest, NestedEventInProcessingTime) {
 // Test that the 'first-input' is populated after some irrelevant events are
 // ignored.
 TEST_P(WindowPerformanceTest, FirstInputAfterIgnored) {
-  AtomicString several_events[] = {event_type_names::kMouseover,
-                                   event_type_names::kMousedown,
-                                   event_type_names::kPointerup};
-  for (const auto& event : several_events) {
-    RegisterPointerEvent(event, GetTimeOrigin(),
-                         GetTimeOrigin() + base::Milliseconds(1),
-                         GetTimeOrigin() + base::Milliseconds(2), 4);
-    SimulateAllRenderingStages(GetTimeOrigin() + base::Milliseconds(3));
-  }
+  RegisterPointerEvent(event_type_names::kMouseover, GetTimeStamp(0),
+                       GetTimeStamp(1), GetTimeStamp(2), 4);
+  SimulateAllRenderingStages(GetTimeStamp(3));
+
+  EXPECT_EQ(0u,
+            performance_->getEntriesByType(performance_entry_names::kFirstInput)
+                .size());
+
+  RegisterPointerEvent(event_type_names::kPointerdown, GetTimeStamp(4),
+                       GetTimeStamp(5), GetTimeStamp(6), 4);
+  SimulateAllRenderingStages(GetTimeStamp(7));
+
+  EXPECT_EQ(0u,
+            performance_->getEntriesByType(performance_entry_names::kFirstInput)
+                .size());
+
+  RegisterPointerEvent(event_type_names::kPointerup, GetTimeStamp(8),
+                       GetTimeStamp(9), GetTimeStamp(10), 4);
+  SimulateAllRenderingStages(GetTimeStamp(11));
+
   ASSERT_EQ(1u,
             performance_->getEntriesByType(performance_entry_names::kFirstInput)
                 .size());
   EXPECT_EQ(
-      event_type_names::kMousedown,
+      event_type_names::kPointerdown,
       performance_->getEntriesByType(performance_entry_names::kFirstInput)[0]
           ->name());
 }
@@ -669,40 +749,33 @@ TEST_P(WindowPerformanceTest, FirstPointerUp) {
                     .size());
 }
 
-// When the pointerdown is optimized out, the mousedown works as a
+// When the pointerdown is optimized out, the click works as a
 // 'first-input'.
 TEST_P(WindowPerformanceTest, PointerdownOptimizedOut) {
   base::TimeTicks start_time = GetTimeStamp(0);
   base::TimeTicks processing_start = GetTimeStamp(1);
   base::TimeTicks processing_end = GetTimeStamp(2);
   base::TimeTicks presentation_time = GetTimeStamp(3);
-  RegisterPointerEvent(event_type_names::kMousedown, start_time,
-                       processing_start, processing_end, 4);
+  RegisterPointerEvent(event_type_names::kClick, start_time, processing_start,
+                       processing_end, 4);
   SimulateAllRenderingStages(presentation_time);
   EXPECT_EQ(1u,
             performance_->getEntriesByType(performance_entry_names::kFirstInput)
                 .size());
-  // The name of the entry should be event_type_names::kMousedown.
+  // The name of the entry should be event_type_names::kClick.
   EXPECT_EQ(1u, performance_
-                    ->getEntriesByName(event_type_names::kMousedown,
+                    ->getEntriesByName(event_type_names::kClick,
                                        performance_entry_names::kFirstInput)
                     .size());
 }
 
-// Test that pointerdown followed by mousedown, pointerup works as a
-// 'first-input'.
+// Test that pointerdown followed by pointerup works as a 'first-input'.
 TEST_P(WindowPerformanceTest, PointerdownOnDesktop) {
   base::TimeTicks start_time = GetTimeStamp(0);
   base::TimeTicks processing_start = GetTimeStamp(1);
   base::TimeTicks processing_end = GetTimeStamp(2);
   base::TimeTicks presentation_time = GetTimeStamp(3);
   RegisterPointerEvent(event_type_names::kPointerdown, start_time,
-                       processing_start, processing_end, 4);
-  SimulateAllRenderingStages(presentation_time);
-  EXPECT_EQ(0u,
-            performance_->getEntriesByType(performance_entry_names::kFirstInput)
-                .size());
-  RegisterPointerEvent(event_type_names::kMousedown, start_time,
                        processing_start, processing_end, 4);
   SimulateAllRenderingStages(presentation_time);
   EXPECT_EQ(0u,
@@ -747,21 +820,24 @@ TEST_P(WindowPerformanceTest, OneKeyboardInteraction) {
   // Check UKM recording.
   auto entries = GetUkmRecorder()->GetEntriesByName(
       ukm::builders::Responsiveness_UserInteraction::kEntryName);
-  EXPECT_EQ(1u, entries.size());
-  const ukm::mojom::UkmEntry* ukm_entry = entries[0];
-  GetUkmRecorder()->ExpectEntryMetric(
-      ukm_entry,
-      ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName, 7);
-  GetUkmRecorder()->ExpectEntryMetric(
-      ukm_entry,
-      ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName,
-      static_cast<int64_t>(UserInteractionType::kKeyboard));
+  EXPECT_EQ(2u, entries.size());
+  std::vector<int> actual_durations;
+  for (const auto& ukm_entry : entries) {
+    actual_durations.push_back(*GetUkmRecorder()->GetEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName));
+    GetUkmRecorder()->ExpectEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName,
+        static_cast<int64_t>(UserInteractionType::kKeyboard));
+  }
+  EXPECT_THAT(actual_durations, testing::UnorderedElementsAre(5, 7));
 
   // Check UMA recording.
   GetHistogramTester().ExpectTotalCount(
-      "Blink.Responsiveness.UserInteraction.MaxEventDuration.AllTypes", 1);
+      "Blink.Responsiveness.UserInteraction.MaxEventDuration.AllTypes", 2);
   GetHistogramTester().ExpectTotalCount(
-      "Blink.Responsiveness.UserInteraction.MaxEventDuration.Keyboard", 1);
+      "Blink.Responsiveness.UserInteraction.MaxEventDuration.Keyboard", 2);
   GetHistogramTester().ExpectTotalCount(
       "Blink.Responsiveness.UserInteraction.MaxEventDuration.TapOrClick", 0);
   GetHistogramTester().ExpectTotalCount(
@@ -817,25 +893,24 @@ TEST_P(WindowPerformanceTest, HoldingDownAKey) {
   // Check UKM recording.
   entries = GetUkmRecorder()->GetEntriesByName(
       ukm::builders::Responsiveness_UserInteraction::kEntryName);
-  EXPECT_EQ(3u, entries.size());
-  std::vector<int> expected_durations = {5, 6, 10};
-  for (std::size_t i = 0; i < entries.size(); ++i) {
-    auto* entry = entries[i].get();
+  EXPECT_EQ(4u, entries.size());
+  std::vector<int> actual_durations;
+  for (auto& ukm_entry : entries) {
+    actual_durations.push_back(*GetUkmRecorder()->GetEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName));
     GetUkmRecorder()->ExpectEntryMetric(
-        entry,
-        ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName,
-        expected_durations[i]);
-    GetUkmRecorder()->ExpectEntryMetric(
-        entry,
+        ukm_entry,
         ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName,
         static_cast<int64_t>(UserInteractionType::kKeyboard));
   }
+  EXPECT_THAT(actual_durations, testing::UnorderedElementsAre(5, 6, 7, 10));
 
   // Check UMA recording.
   GetHistogramTester().ExpectTotalCount(
-      "Blink.Responsiveness.UserInteraction.MaxEventDuration.AllTypes", 3);
+      "Blink.Responsiveness.UserInteraction.MaxEventDuration.AllTypes", 4);
   GetHistogramTester().ExpectTotalCount(
-      "Blink.Responsiveness.UserInteraction.MaxEventDuration.Keyboard", 3);
+      "Blink.Responsiveness.UserInteraction.MaxEventDuration.Keyboard", 4);
   GetHistogramTester().ExpectTotalCount(
       "Blink.Responsiveness.UserInteraction.MaxEventDuration.TapOrClick", 0);
   GetHistogramTester().ExpectTotalCount(
@@ -893,19 +968,18 @@ TEST_P(WindowPerformanceTest, PressMultipleKeys) {
   // Check UKM recording.
   entries = GetUkmRecorder()->GetEntriesByName(
       ukm::builders::Responsiveness_UserInteraction::kEntryName);
-  EXPECT_EQ(2u, entries.size());
-  std::vector<int> expected_durations = {10, 15};
-  for (std::size_t i = 0; i < entries.size(); ++i) {
-    auto* entry = entries[i].get();
+  EXPECT_EQ(4u, entries.size());
+  std::vector<int> actual_durations;
+  for (auto& ukm_entry : entries) {
+    actual_durations.push_back(*GetUkmRecorder()->GetEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName));
     GetUkmRecorder()->ExpectEntryMetric(
-        entry,
-        ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName,
-        expected_durations[i]);
-    GetUkmRecorder()->ExpectEntryMetric(
-        entry,
+        ukm_entry,
         ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName,
         static_cast<int64_t>(UserInteractionType::kKeyboard));
   }
+  EXPECT_THAT(actual_durations, testing::UnorderedElementsAre(5, 7, 10, 15));
 }
 
 // Test a real world scenario, where keydown got presented first but its
@@ -924,7 +998,7 @@ TEST_P(WindowPerformanceTest, KeyupFinishLastButCallbackInvokedFirst) {
   RegisterKeyboardEvent(event_type_names::kKeydown, keydown_timestamp,
                         processing_start_keydown, processing_end_keydown,
                         digit_1_key_code);
-  const uint64_t presentation_index_keydown = GetPresentationPromiseIndex();
+  const uint64_t presentation_index_keydown = GetCurrentFrameIndex();
 
   SimulateJustPaintFinished();
   SimulateJustCommitFinished(processing_end_keydown);
@@ -937,7 +1011,7 @@ TEST_P(WindowPerformanceTest, KeyupFinishLastButCallbackInvokedFirst) {
   RegisterKeyboardEvent(event_type_names::kKeyup, keyup_timestamp,
                         processing_start_keyup, processing_end_keyup,
                         digit_1_key_code);
-  const uint64_t presentation_index_keyup = GetPresentationPromiseIndex();
+  const uint64_t presentation_index_keyup = GetCurrentFrameIndex();
 
   // keyup resolved without a paint, due to no damage.
   SimulateJustPresentationTime(presentation_index_keyup,
@@ -951,21 +1025,24 @@ TEST_P(WindowPerformanceTest, KeyupFinishLastButCallbackInvokedFirst) {
   // Check UKM recording.
   auto entries = GetUkmRecorder()->GetEntriesByName(
       ukm::builders::Responsiveness_UserInteraction::kEntryName);
-  EXPECT_EQ(1u, entries.size());
-  const ukm::mojom::UkmEntry* ukm_entry = entries[0];
-  GetUkmRecorder()->ExpectEntryMetric(
-      ukm_entry,
-      ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName, 7);
-  GetUkmRecorder()->ExpectEntryMetric(
-      ukm_entry,
-      ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName,
-      static_cast<int64_t>(UserInteractionType::kKeyboard));
+  EXPECT_EQ(2u, entries.size());
+  std::vector<int> actual_durations;
+  for (auto& ukm_entry : entries) {
+    actual_durations.push_back(*GetUkmRecorder()->GetEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName));
+    GetUkmRecorder()->ExpectEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName,
+        static_cast<int64_t>(UserInteractionType::kKeyboard));
+  }
+  EXPECT_THAT(actual_durations, testing::UnorderedElementsAre(5, 7));
 
   // Check UMA recording.
   GetHistogramTester().ExpectTotalCount(
-      "Blink.Responsiveness.UserInteraction.MaxEventDuration.AllTypes", 1);
+      "Blink.Responsiveness.UserInteraction.MaxEventDuration.AllTypes", 2);
   GetHistogramTester().ExpectTotalCount(
-      "Blink.Responsiveness.UserInteraction.MaxEventDuration.Keyboard", 1);
+      "Blink.Responsiveness.UserInteraction.MaxEventDuration.Keyboard", 2);
   GetHistogramTester().ExpectTotalCount(
       "Blink.Responsiveness.UserInteraction.MaxEventDuration.TapOrClick", 0);
   GetHistogramTester().ExpectTotalCount(
@@ -1008,23 +1085,26 @@ TEST_P(WindowPerformanceTest, TapOrClick) {
   // Check UKM recording.
   auto entries = GetUkmRecorder()->GetEntriesByName(
       ukm::builders::Responsiveness_UserInteraction::kEntryName);
-  EXPECT_EQ(1u, entries.size());
-  const ukm::mojom::UkmEntry* ukm_entry = entries[0];
-  GetUkmRecorder()->ExpectEntryMetric(
-      ukm_entry,
-      ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName, 7);
-  GetUkmRecorder()->ExpectEntryMetric(
-      ukm_entry,
-      ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName,
-      static_cast<int64_t>(UserInteractionType::kTapOrClick));
+  EXPECT_EQ(3u, entries.size());
+  std::vector<int> actual_durations;
+  for (const auto& ukm_entry : entries) {
+    actual_durations.push_back(*GetUkmRecorder()->GetEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName));
+    GetUkmRecorder()->ExpectEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName,
+        static_cast<int64_t>(UserInteractionType::kTapOrClick));
+  }
+  EXPECT_THAT(actual_durations, testing::UnorderedElementsAre(5, 7, 7));
 
   // Check UMA recording.
   GetHistogramTester().ExpectTotalCount(
-      "Blink.Responsiveness.UserInteraction.MaxEventDuration.AllTypes", 1);
+      "Blink.Responsiveness.UserInteraction.MaxEventDuration.AllTypes", 3);
   GetHistogramTester().ExpectTotalCount(
       "Blink.Responsiveness.UserInteraction.MaxEventDuration.Keyboard", 0);
   GetHistogramTester().ExpectTotalCount(
-      "Blink.Responsiveness.UserInteraction.MaxEventDuration.TapOrClick", 1);
+      "Blink.Responsiveness.UserInteraction.MaxEventDuration.TapOrClick", 3);
   GetHistogramTester().ExpectTotalCount(
       "Blink.Responsiveness.UserInteraction.MaxEventDuration.Drag", 0);
 }
@@ -1069,20 +1149,18 @@ TEST_P(WindowPerformanceTest, PageVisibilityChanged) {
   // Check UKM recording.
   auto entries = GetUkmRecorder()->GetEntriesByName(
       ukm::builders::Responsiveness_UserInteraction::kEntryName);
-  EXPECT_EQ(1u, entries.size());
-  const ukm::mojom::UkmEntry* ukm_entry = entries[0];
-  // The event duration of pointerdown is 5ms, all the way to presentation.
-  // The event duration of pointerup is processingEnd 6 - event
-  // creation time 3 = 3.
-  // The event duration of click is page visibility change time 16 - 13 = 3.
-  // So the max duration should be 5 ms.
-  GetUkmRecorder()->ExpectEntryMetric(
-      ukm_entry,
-      ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName, 5);
-  GetUkmRecorder()->ExpectEntryMetric(
-      ukm_entry,
-      ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName,
-      static_cast<int64_t>(UserInteractionType::kTapOrClick));
+  EXPECT_EQ(3u, entries.size());
+  std::vector<int> actual_durations;
+  for (const auto& ukm_entry : entries) {
+    actual_durations.push_back(*GetUkmRecorder()->GetEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName));
+    GetUkmRecorder()->ExpectEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName,
+        static_cast<int64_t>(UserInteractionType::kTapOrClick));
+  }
+  EXPECT_THAT(actual_durations, testing::UnorderedElementsAre(5, 3, 3));
 
   EXPECT_EQ(1ul, performance_->interactionCount());
 }
@@ -1161,17 +1239,17 @@ TEST_P(WindowPerformanceTest, GPUCrashedAndFrameSourceIdChanged) {
   // Check UKM recording.
   auto entries = GetUkmRecorder()->GetEntriesByName(
       ukm::builders::Responsiveness_UserInteraction::kEntryName);
-  EXPECT_EQ(1u, entries.size());
-  const ukm::mojom::UkmEntry* ukm_entry = entries[0];
-  auto expected_max_duration =
-      commit_time_pointerup_and_click - pointerup_timestamp;
-  GetUkmRecorder()->ExpectEntryMetric(
-      ukm_entry,
-      ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName,
-      expected_max_duration.InMilliseconds());
-  GetUkmRecorder()->ExpectEntryMetric(
-      ukm_entry,
-      ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName, 1);
+  EXPECT_EQ(3u, entries.size());
+  std::vector<int> actual_durations;
+  for (const auto& ukm_entry : entries) {
+    actual_durations.push_back(*GetUkmRecorder()->GetEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName));
+    GetUkmRecorder()->ExpectEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName, 1);
+  }
+  EXPECT_THAT(actual_durations, testing::UnorderedElementsAre(5, 17, 7));
 
   EXPECT_EQ(1ul, performance_->interactionCount());
 }
@@ -1203,7 +1281,7 @@ TEST_P(WindowPerformanceTest, Scroll) {
   // Check UKM recording.
   auto entries = GetUkmRecorder()->GetEntriesByName(
       ukm::builders::Responsiveness_UserInteraction::kEntryName);
-  EXPECT_EQ(0u, entries.size());
+  EXPECT_THAT(entries, testing::IsEmpty());
 
   // Check UMA recording.
   GetHistogramTester().ExpectTotalCount(
@@ -1244,7 +1322,7 @@ TEST_P(WindowPerformanceTest, TouchesWithoutClick) {
   // Check UKM recording.
   auto entries = GetUkmRecorder()->GetEntriesByName(
       ukm::builders::Responsiveness_UserInteraction::kEntryName);
-  EXPECT_EQ(0u, entries.size());
+  EXPECT_THAT(entries, testing::IsEmpty());
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -1289,27 +1367,120 @@ TEST_P(WindowPerformanceTest, ArtificialPointerupOrClick) {
   // Check UKM recording.
   auto entries = GetUkmRecorder()->GetEntriesByName(
       ukm::builders::Responsiveness_UserInteraction::kEntryName);
-  EXPECT_EQ(1u, entries.size());
-  const ukm::mojom::UkmEntry* ukm_entry = entries[0];
-  GetUkmRecorder()->ExpectEntryMetric(
-      ukm_entry,
-      ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName, 12);
-  GetUkmRecorder()->ExpectEntryMetric(
-      ukm_entry,
-      ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName,
-      static_cast<int64_t>(UserInteractionType::kTapOrClick));
+  EXPECT_EQ(3u, entries.size());
+  std::vector<int> actual_durations;
+  for (const auto& ukm_entry : entries) {
+    actual_durations.push_back(*GetUkmRecorder()->GetEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName));
+    GetUkmRecorder()->ExpectEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName,
+        static_cast<int64_t>(UserInteractionType::kTapOrClick));
+  }
+  EXPECT_THAT(actual_durations, testing::UnorderedElementsAre(3, 6, 12));
 
   // Check UMA recording.
   GetHistogramTester().ExpectTotalCount(
-      "Blink.Responsiveness.UserInteraction.MaxEventDuration.AllTypes", 1);
+      "Blink.Responsiveness.UserInteraction.MaxEventDuration.AllTypes", 3);
   GetHistogramTester().ExpectTotalCount(
       "Blink.Responsiveness.UserInteraction.MaxEventDuration.Keyboard", 0);
   GetHistogramTester().ExpectTotalCount(
-      "Blink.Responsiveness.UserInteraction.MaxEventDuration.TapOrClick", 1);
+      "Blink.Responsiveness.UserInteraction.MaxEventDuration.TapOrClick", 3);
   GetHistogramTester().ExpectTotalCount(
       "Blink.Responsiveness.UserInteraction.MaxEventDuration.Drag", 0);
 }
 #endif  // BUILDFLAG(IS_MAC)
+
+TEST_P(WindowPerformanceTest, DeduplicateIdenticalTimings) {
+  // Simulate two events for the same interaction with identical timings in the
+  // same frame.
+  base::TimeTicks start_time = GetTimeStamp(0);
+  base::TimeTicks processing_start = GetTimeStamp(1);
+  base::TimeTicks processing_end = GetTimeStamp(2);
+  base::TimeTicks presentation_time = GetTimeStamp(5);
+  int key_code = 1;
+
+  // 1. Keydown
+  RegisterKeyboardEvent(event_type_names::kKeydown, start_time,
+                        processing_start, processing_end, key_code);
+
+  // 2. Keypress with identical timings.
+  RegisterKeyboardEvent(event_type_names::kKeypress, start_time,
+                        processing_start, processing_end, key_code);
+
+  // Both events are in the same frame and will get the same presentation time.
+  SimulateAllRenderingStages(presentation_time);
+
+  // Flush UKM logging mojo request.
+  RunPendingTasks();
+
+  // Check UKM recording - UKM should NOT be deduplicated.
+  auto entries = GetUkmRecorder()->GetEntriesByName(
+      ukm::builders::Responsiveness_UserInteraction::kEntryName);
+  EXPECT_EQ(2u, entries.size());
+
+  // Check UMA recording - UMA SHOULD be deduplicated.
+  GetHistogramTester().ExpectTotalCount(
+      "Blink.Responsiveness.UserInteraction.MaxEventDuration.AllTypes", 1);
+  GetHistogramTester().ExpectTotalCount(
+      "Blink.Responsiveness.UserInteraction.MaxEventDuration.Keyboard", 1);
+}
+
+TEST_P(WindowPerformanceTest, NoDeduplicateDifferentInteractions) {
+  // Simulate two different interactions with identical timings in the same
+  // frame.
+  base::TimeTicks start_time = GetTimeStamp(0);
+  base::TimeTicks processing_start = GetTimeStamp(1);
+  base::TimeTicks processing_end = GetTimeStamp(2);
+  base::TimeTicks presentation_time = GetTimeStamp(5);
+
+  // 1. Keydown for key 1
+  RegisterKeyboardEvent(event_type_names::kKeydown, start_time,
+                        processing_start, processing_end, 1);
+
+  // 2. Keydown for key 2
+  RegisterKeyboardEvent(event_type_names::kKeydown, start_time,
+                        processing_start, processing_end, 2);
+
+  SimulateAllRenderingStages(presentation_time);
+
+  RunPendingTasks();
+
+  // Check UMA recording - Should NOT be deduplicated.
+  GetHistogramTester().ExpectTotalCount(
+      "Blink.Responsiveness.UserInteraction.MaxEventDuration.AllTypes", 2);
+}
+
+TEST_P(WindowPerformanceTest, DeduplicateResetsAcrossFrames) {
+  // Simulate two identical interactions in DIFFERENT frames.
+  base::TimeTicks start_time = GetTimeStamp(0);
+  base::TimeTicks processing_start = GetTimeStamp(1);
+  base::TimeTicks processing_end = GetTimeStamp(2);
+  base::TimeTicks presentation_time1 = GetTimeStamp(5);
+  int key_code = 1;
+
+  // Frame 1
+  RegisterKeyboardEvent(event_type_names::kKeydown, start_time,
+                        processing_start, processing_end, key_code);
+  RegisterKeyboardEvent(event_type_names::kKeypress, start_time,
+                        processing_start, processing_end, key_code);
+  SimulateAllRenderingStages(presentation_time1);
+
+  // Frame 2 - Same interaction, same timings.
+  // Note: processing times are unlikely to be exactly the same, but
+  // theoretically the start_time can be.  Not likely for real key's but some
+  // events are simulated and dispatched in terms of common hardware events.
+  RegisterKeyboardEvent(event_type_names::kKeyup, start_time, processing_start,
+                        processing_end, key_code);
+  SimulateAllRenderingStages(GetTimeStamp(10));
+
+  RunPendingTasks();
+
+  // 1 from Frame 1 (deduplicated), 1 from Frame 2. Total 2.
+  GetHistogramTester().ExpectTotalCount(
+      "Blink.Responsiveness.UserInteraction.MaxEventDuration.AllTypes", 2);
+}
 
 // The trace_analyzer does not work on platforms on which the migration of
 // tracing into Perfetto has not completed.
@@ -1592,7 +1763,7 @@ TEST_P(WindowPerformanceTest, SlowInteractionToNextPaintTraceEvents) {
             Query::EventPhaseIs(TRACE_EVENT_PHASE_NESTABLE_ASYNC_BEGIN);
   analyzer->FindEvents(q, &events);
 
-  ASSERT_EQ(3u, events.size());
+  EXPECT_EQ(3u, events.size());
 
   ASSERT_TRUE(events[0]->has_other_event());
   EXPECT_EQ(events[0]->category, "latency");
@@ -1612,11 +1783,9 @@ TEST_P(WindowPerformanceTest, InteractionID) {
   PerformanceEventTiming* keydown_entry =
       CreatePerformanceEventTiming(event_type_names::kKeydown, 1, std::nullopt,
                                    GetTimeStamp(100), GetTimeStamp(120));
-  SimulateInteractionId(keydown_entry);
   PerformanceEventTiming* keyup_entry =
       CreatePerformanceEventTiming(event_type_names::kKeyup, 1, std::nullopt,
                                    GetTimeStamp(115), GetTimeStamp(140));
-  SimulateInteractionId(keyup_entry);
   EXPECT_EQ(keydown_entry->interactionId(), keyup_entry->interactionId());
   EXPECT_GT(keydown_entry->interactionId(), 0u);
 
@@ -1625,15 +1794,12 @@ TEST_P(WindowPerformanceTest, InteractionID) {
   PerformanceEventTiming* pointerdown_entry = CreatePerformanceEventTiming(
       event_type_names::kPointerdown, std::nullopt, pointer_id_1,
       GetTimeStamp(100), GetTimeStamp(120));
-  SimulateInteractionId(pointerdown_entry);
   PerformanceEventTiming* pointerup_entry = CreatePerformanceEventTiming(
       event_type_names::kPointerup, std::nullopt, pointer_id_1,
       GetTimeStamp(130), GetTimeStamp(150));
-  SimulateInteractionId(pointerup_entry);
   PerformanceEventTiming* click_entry = CreatePerformanceEventTiming(
       event_type_names::kClick, std::nullopt, pointer_id_1, GetTimeStamp(130),
       GetTimeStamp(200));
-  SimulateInteractionId(click_entry);
   EXPECT_GT(pointerdown_entry->interactionId(), 0u);
   EXPECT_EQ(pointerdown_entry->interactionId(),
             pointerup_entry->interactionId());
@@ -1644,11 +1810,9 @@ TEST_P(WindowPerformanceTest, InteractionID) {
   pointerdown_entry = CreatePerformanceEventTiming(
       event_type_names::kPointerdown, std::nullopt, pointer_id_2,
       GetTimeStamp(300), GetTimeStamp(315));
-  SimulateInteractionId(pointerdown_entry);
   PerformanceEventTiming* pointercancel_entry = CreatePerformanceEventTiming(
       event_type_names::kPointercancel, std::nullopt, pointer_id_2,
       GetTimeStamp(310), GetTimeStamp(330));
-  SimulateInteractionId(pointercancel_entry);
   EXPECT_EQ(pointerdown_entry->interactionId(), 0u);
   EXPECT_EQ(pointercancel_entry->interactionId(), 0u);
 
@@ -1656,28 +1820,28 @@ TEST_P(WindowPerformanceTest, InteractionID) {
   RunPendingTasks();
 
   // Check UKM values.
-  struct ExpectedUkm {
-    int max_duration;
-    UserInteractionType type;
-  };
-  auto expected_ukm = std::to_array<ExpectedUkm>({
-      {25, UserInteractionType::kKeyboard},
-      {70, UserInteractionType::kTapOrClick},
-  });
   auto entries = GetUkmRecorder()->GetEntriesByName(
       ukm::builders::Responsiveness_UserInteraction::kEntryName);
-  EXPECT_EQ(2u, entries.size());
-  for (size_t i = 0; i < entries.size(); ++i) {
-    const ukm::mojom::UkmEntry* ukm_entry = entries[i];
-    GetUkmRecorder()->ExpectEntryMetric(
+  EXPECT_EQ(5u, entries.size());
+  std::vector<int> keyboard_durations;
+  std::vector<int> tap_or_click_durations;
+  for (auto ukm_entry : entries) {
+    int duration = *GetUkmRecorder()->GetEntryMetric(
         ukm_entry,
-        ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName,
-        expected_ukm[i].max_duration);
-    GetUkmRecorder()->ExpectEntryMetric(
+        ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName);
+    int type = *GetUkmRecorder()->GetEntryMetric(
         ukm_entry,
-        ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName,
-        static_cast<int>(expected_ukm[i].type));
+        ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName);
+    if (type == static_cast<int>(UserInteractionType::kKeyboard)) {
+      keyboard_durations.emplace_back(duration);
+    } else {
+      tap_or_click_durations.emplace_back(duration);
+    }
   }
+  std::sort(keyboard_durations.begin(), keyboard_durations.end());
+  std::sort(tap_or_click_durations.begin(), tap_or_click_durations.end());
+  EXPECT_EQ((std::vector<int>{20, 25}), keyboard_durations);
+  EXPECT_EQ((std::vector<int>{20, 20, 70}), tap_or_click_durations);
 }
 
 TEST_P(WindowPerformanceTest, ContainerTimingTraceEvent) {
@@ -1751,12 +1915,11 @@ class InteractionIdTest : public WindowPerformanceTest {
       PerformanceEventTiming* entry = CreatePerformanceEventTiming(
           event.name_, event.key_code_, event.pointer_id_,
           event.event_timestamp_, event.presentation_timestamp_);
-      SimulateInteractionId(entry);
-      entries.push_back(entry);
+      entries.emplace_back(entry);
     }
     std::vector<uint32_t> interaction_ids;
     for (const auto& entry : entries) {
-      interaction_ids.push_back(entry->interactionId());
+      interaction_ids.emplace_back(entry->interactionId());
     }
     return interaction_ids;
   }
@@ -1768,17 +1931,47 @@ class InteractionIdTest : public WindowPerformanceTest {
     auto entries = GetUkmRecorder()->GetEntriesByName(
         ukm::builders::Responsiveness_UserInteraction::kEntryName);
     EXPECT_EQ(expected_ukms.size(), entries.size());
-    for (size_t i = 0; i < entries.size(); ++i) {
-      const ukm::mojom::UkmEntry* ukm_entry = entries[i];
-      GetUkmRecorder()->ExpectEntryMetric(
-          ukm_entry,
-          ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName,
-          expected_ukms[i].max_duration_);
-      GetUkmRecorder()->ExpectEntryMetric(
-          ukm_entry,
-          ukm::builders::Responsiveness_UserInteraction::kInteractionTypeName,
-          static_cast<int64_t>(expected_ukms[i].interaction_type_));
+
+    std::vector<ExpectedUkmValue> actual_ukms;
+    for (auto ukm_entry : entries) {
+      actual_ukms.emplace_back(
+          static_cast<int>(*GetUkmRecorder()->GetEntryMetric(
+              ukm_entry, ukm::builders::Responsiveness_UserInteraction::
+                             kMaxEventDurationName)),
+          static_cast<UserInteractionType>(*GetUkmRecorder()->GetEntryMetric(
+              ukm_entry, ukm::builders::Responsiveness_UserInteraction::
+                             kInteractionTypeName)));
     }
+    auto compare_ukms = [](const ExpectedUkmValue& a,
+                           const ExpectedUkmValue& b) {
+      if (a.max_duration_ != b.max_duration_) {
+        return a.max_duration_ < b.max_duration_;
+      }
+      return a.interaction_type_ < b.interaction_type_;
+    };
+    std::sort(actual_ukms.begin(), actual_ukms.end(), compare_ukms);
+    std::vector<ExpectedUkmValue> sorted_expected = expected_ukms;
+    std::sort(sorted_expected.begin(), sorted_expected.end(), compare_ukms);
+
+    std::vector<std::pair<int, UserInteractionType>> actual_ukm_pairs;
+    for (const auto& ukm_entry : entries) {
+      actual_ukm_pairs.emplace_back(
+          static_cast<int>(*GetUkmRecorder()->GetEntryMetric(
+              ukm_entry, ukm::builders::Responsiveness_UserInteraction::
+                             kMaxEventDurationName)),
+          static_cast<UserInteractionType>(*GetUkmRecorder()->GetEntryMetric(
+              ukm_entry, ukm::builders::Responsiveness_UserInteraction::
+                             kInteractionTypeName)));
+    }
+
+    std::vector<std::pair<int, UserInteractionType>> expected_ukm_pairs;
+    for (const auto& expected : expected_ukms) {
+      expected_ukm_pairs.emplace_back(expected.max_duration_,
+                                      expected.interaction_type_);
+    }
+
+    EXPECT_THAT(actual_ukm_pairs,
+                testing::UnorderedElementsAreArray(expected_ukm_pairs));
   }
 };
 
@@ -1830,7 +2023,10 @@ TEST_P(InteractionIdTest, InputOutsideComposition) {
       << "Second and third keydown have different interactionId";
 
   CheckUKMValues({{50, UserInteractionType::kKeyboard},
+                  {20, UserInteractionType::kKeyboard},
+                  {20, UserInteractionType::kKeyboard},
                   {40, UserInteractionType::kKeyboard},
+                  {20, UserInteractionType::kKeyboard},
                   {25, UserInteractionType::kKeyboard}});
 }
 
@@ -1840,8 +2036,10 @@ TEST_P(InteractionIdTest, CompositionSingleKeydown) {
   std::vector<EventForInteraction> events1 = {
       {event_type_names::kKeydown, 229, std::nullopt, GetTimeStamp(100),
        GetTimeStamp(200)},
-      {event_type_names::kCompositionstart, std::nullopt, std::nullopt},
-      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt},
+      {event_type_names::kCompositionstart, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
+      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
       {event_type_names::kInput, std::nullopt, std::nullopt, GetTimeStamp(120),
        GetTimeStamp(140)},
       {event_type_names::kKeyup, 65, std::nullopt, GetTimeStamp(120),
@@ -1852,15 +2050,17 @@ TEST_P(InteractionIdTest, CompositionSingleKeydown) {
   std::vector<EventForInteraction> events2 = {
       {event_type_names::kKeydown, 229, std::nullopt, GetTimeStamp(200),
        GetTimeStamp(300)},
-      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt},
+      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
       {event_type_names::kInput, std::nullopt, std::nullopt, GetTimeStamp(230),
        GetTimeStamp(260)},
+      {event_type_names::kCompositionend, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
       {event_type_names::kKeyup, 66, std::nullopt, GetTimeStamp(270),
-       GetTimeStamp(370)},
-      {event_type_names::kCompositionend, std::nullopt, std::nullopt}};
+       GetTimeStamp(370)}};
   std::vector<uint32_t> ids2 = SimulateInteractionIds(events2);
 
-  performance_->GetResponsivenessMetrics().FlushAllEventsForTesting();
+  performance_->GetResponsivenessMetrics().FlushAllEvents();
 
   EXPECT_GT(ids1[0], 0u) << "Keydown interactionId was nonzero";
   EXPECT_EQ(ids1[1], 0u) << "Compositionstart interactionId was zero";
@@ -1868,17 +2068,26 @@ TEST_P(InteractionIdTest, CompositionSingleKeydown) {
   EXPECT_GT(ids1[4], 0u) << "Keyup interactionId was nonzero";
   EXPECT_EQ(ids1[0], ids1[3])
       << "Keydown and Input have the same interactionIds";
+  EXPECT_EQ(ids1[0], ids1[4])
+      << "Keydown and Keyup have the same interactionIds";
 
   EXPECT_GT(ids2[0], 0u) << "Second keydown interactionId was nonzero";
   EXPECT_GT(ids2[2], 0u) << "Second input interactionId was nonzero";
-  EXPECT_GT(ids2[3], 0u) << "Second keyup interactionId was non zero";
-  EXPECT_EQ(ids2[4], 0u) << "Compositionend interactionId was zero";
+  EXPECT_EQ(ids2[3], 0u) << "Compositionend interactionId was zero";
+  EXPECT_GT(ids2[4], 0u) << "Second keyup interactionId was non zero";
   EXPECT_EQ(ids2[0], ids2[2])
       << "Keydown and Input have the same interactionIds";
+  EXPECT_EQ(ids2[0], ids2[4])
+      << "Keydown and Keyup have the same interactionIds";
+
   EXPECT_NE(ids1[3], ids2[2])
       << "First and second inputs have different interactionIds";
 
   CheckUKMValues({{100, UserInteractionType::kKeyboard},
+                  {20, UserInteractionType::kKeyboard},
+                  {100, UserInteractionType::kKeyboard},
+                  {100, UserInteractionType::kKeyboard},
+                  {30, UserInteractionType::kKeyboard},
                   {100, UserInteractionType::kKeyboard}});
 }
 
@@ -1889,35 +2098,43 @@ TEST_P(InteractionIdTest, CompositionToFinalInput) {
   std::vector<EventForInteraction> events1 = {
       {event_type_names::kKeydown, 229, std::nullopt, GetTimeStamp(100),
        GetTimeStamp(190)},
-      {event_type_names::kCompositionstart, std::nullopt, std::nullopt},
-      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt},
+      {event_type_names::kCompositionstart, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
+      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
       {event_type_names::kInput, std::nullopt, std::nullopt, GetTimeStamp(100),
        GetTimeStamp(125)},
       {event_type_names::kKeyup, 65, std::nullopt, GetTimeStamp(110),
        GetTimeStamp(190)}};
   std::vector<uint32_t> ids1 = SimulateInteractionIds(events1);
   EXPECT_GT(ids1[3], 0u) << "First input nonzero";
+  EXPECT_EQ(ids1[0], ids1[3]) << "Keydown and input have the same id";
+  EXPECT_EQ(ids1[0], ids1[4]) << "Keydown and keyup have the same id";
 
   // Insert "b" with a duration of 35.
   std::vector<EventForInteraction> events2 = {
       {event_type_names::kKeydown, 229, std::nullopt, GetTimeStamp(200),
        GetTimeStamp(290)},
-      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt},
+      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
       {event_type_names::kInput, std::nullopt, std::nullopt, GetTimeStamp(220),
        GetTimeStamp(255)},
       {event_type_names::kKeyup, 66, std::nullopt, GetTimeStamp(210),
        GetTimeStamp(290)}};
   std::vector<uint32_t> ids2 = SimulateInteractionIds(events2);
   EXPECT_GT(ids2[2], 0u) << "Second input nonzero";
+  EXPECT_EQ(ids2[0], ids2[2]) << "Keydown and input have the same id";
   EXPECT_NE(ids1[3], ids2[2])
       << "First and second input have different interactionIds";
 
   // Select a composed input and finish, with a duration of 140.
   std::vector<EventForInteraction> events3 = {
-      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt},
+      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
       {event_type_names::kInput, std::nullopt, std::nullopt, GetTimeStamp(300),
        GetTimeStamp(440)},
-      {event_type_names::kCompositionend, std::nullopt, std::nullopt}};
+      {event_type_names::kCompositionend, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)}};
   std::vector<uint32_t> ids3 = SimulateInteractionIds(events3);
   EXPECT_EQ(ids3[2], 0u) << "Compositionend has zero interactionId";
   EXPECT_GT(ids3[1], 0u) << "Third input has nonzero interactionId";
@@ -1926,10 +2143,14 @@ TEST_P(InteractionIdTest, CompositionToFinalInput) {
   EXPECT_NE(ids2[2], ids3[1])
       << "Second and third inputs have different interactionIds";
 
-  performance_->GetResponsivenessMetrics().FlushAllEventsForTesting();
+  performance_->GetResponsivenessMetrics().FlushAllEvents();
 
   CheckUKMValues({{90, UserInteractionType::kKeyboard},
+                  {25, UserInteractionType::kKeyboard},
+                  {80, UserInteractionType::kKeyboard},
                   {90, UserInteractionType::kKeyboard},
+                  {35, UserInteractionType::kKeyboard},
+                  {80, UserInteractionType::kKeyboard},
                   {140, UserInteractionType::kKeyboard}});
 }
 
@@ -1939,8 +2160,10 @@ TEST_P(InteractionIdTest, CompositionToFinalInputMultipleKeyUps) {
   std::vector<EventForInteraction> events1 = {
       {event_type_names::kKeydown, 229, std::nullopt, GetTimeStamp(0),
        GetTimeStamp(100)},
-      {event_type_names::kCompositionstart, std::nullopt, std::nullopt},
-      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt},
+      {event_type_names::kCompositionstart, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
+      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
       {event_type_names::kInput, std::nullopt, std::nullopt, GetTimeStamp(0),
        GetTimeStamp(66)},
       {event_type_names::kKeyup, 229, std::nullopt, GetTimeStamp(0),
@@ -1953,7 +2176,8 @@ TEST_P(InteractionIdTest, CompositionToFinalInputMultipleKeyUps) {
   std::vector<EventForInteraction> events2 = {
       {event_type_names::kKeydown, 229, std::nullopt, GetTimeStamp(200),
        GetTimeStamp(300)},
-      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt},
+      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
       {event_type_names::kInput, std::nullopt, std::nullopt, GetTimeStamp(200),
        GetTimeStamp(251)},
       {event_type_names::kKeyup, 229, std::nullopt, GetTimeStamp(200),
@@ -1964,22 +2188,26 @@ TEST_P(InteractionIdTest, CompositionToFinalInputMultipleKeyUps) {
 
   // Select a composed input and finish, with duration of 85.
   std::vector<EventForInteraction> events3 = {
-      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt},
+      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
       {event_type_names::kInput, std::nullopt, std::nullopt, GetTimeStamp(300),
        GetTimeStamp(385)},
-      {event_type_names::kCompositionend, std::nullopt, std::nullopt}};
+      {event_type_names::kCompositionend, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)}};
   std::vector<uint32_t> ids3 = SimulateInteractionIds(events3);
 
-  performance_->GetResponsivenessMetrics().FlushAllEventsForTesting();
+  performance_->GetResponsivenessMetrics().FlushAllEvents();
   EXPECT_GT(ids1[3], 0u) << "First input nonzero";
-  EXPECT_GT(ids1[4], 0u) << "First keyup has nonzero interactionId";
-  EXPECT_GT(ids1[5], 0u) << "Second keyup has nonzero interactionId";
+  EXPECT_EQ(ids1[0], ids1[3]) << "Keydown and input have the same id";
+  EXPECT_EQ(ids1[0], ids1[4]) << "Keydown and keyup have the same id";
+  EXPECT_EQ(ids1[0], ids1[5]) << "Keydown and keyup have the same id";
 
   EXPECT_GT(ids2[2], 0u) << "Second input nonzero";
+  EXPECT_EQ(ids2[0], ids2[2]) << "Keydown and input have the same id";
   EXPECT_NE(ids1[3], ids2[2])
       << "First and second input have different interactionIds";
-  EXPECT_GT(ids2[3], 0u) << "Third keyup has nonzero interactionId";
-  EXPECT_GT(ids2[4], 0u) << "Fourth keyup has nonzero interactionId";
+  EXPECT_EQ(ids2[0], ids2[3]) << "Keydown and keyup have the same id";
+  EXPECT_EQ(ids2[0], ids2[4]) << "Keydown and keyup have the same id";
 
   EXPECT_GT(ids3[1], 0u) << "Third input has nonzero interactionId";
   EXPECT_NE(ids1[3], ids3[1])
@@ -1987,6 +2215,12 @@ TEST_P(InteractionIdTest, CompositionToFinalInputMultipleKeyUps) {
   EXPECT_NE(ids2[2], ids3[1])
       << "Second and third inputs have different interactionIds";
   CheckUKMValues({{100, UserInteractionType::kKeyboard},
+                  {66, UserInteractionType::kKeyboard},
+                  {100, UserInteractionType::kKeyboard},
+                  {100, UserInteractionType::kKeyboard},
+                  {100, UserInteractionType::kKeyboard},
+                  {51, UserInteractionType::kKeyboard},
+                  {100, UserInteractionType::kKeyboard},
                   {100, UserInteractionType::kKeyboard},
                   {85, UserInteractionType::kKeyboard}});
 }
@@ -1997,8 +2231,10 @@ TEST_P(InteractionIdTest, SmartSuggestion) {
   std::vector<EventForInteraction> events1 = {
       {event_type_names::kKeydown, 229, std::nullopt, GetTimeStamp(0),
        GetTimeStamp(16)},
-      {event_type_names::kCompositionstart, std::nullopt, std::nullopt},
-      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt},
+      {event_type_names::kCompositionstart, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
+      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
       {event_type_names::kInput, std::nullopt, std::nullopt, GetTimeStamp(0),
        GetTimeStamp(9)},
       {event_type_names::kKeyup, 229, std::nullopt, GetTimeStamp(0),
@@ -2007,10 +2243,12 @@ TEST_P(InteractionIdTest, SmartSuggestion) {
 
   // Compose to "At" with a duration of 14.
   std::vector<EventForInteraction> events2 = {
-      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt},
+      {event_type_names::kCompositionupdate, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)},
       {event_type_names::kInput, std::nullopt, std::nullopt, GetTimeStamp(100),
        GetTimeStamp(114)},
-      {event_type_names::kCompositionend, std::nullopt, std::nullopt}};
+      {event_type_names::kCompositionend, std::nullopt, std::nullopt,
+       GetTimeStamp(1), GetTimeStamp(2)}};
   std::vector<uint32_t> ids2 = SimulateInteractionIds(events2);
 
   // Add "the". No composition so need to consider the keydown and keyup.
@@ -2024,10 +2262,10 @@ TEST_P(InteractionIdTest, SmartSuggestion) {
        GetTimeStamp(270)}};
   std::vector<uint32_t> ids3 = SimulateInteractionIds(events3);
 
-  performance_->GetResponsivenessMetrics().FlushAllEventsForTesting();
+  performance_->GetResponsivenessMetrics().FlushAllEvents();
   EXPECT_GT(ids1[3], 0u) << "First input nonzero";
   EXPECT_EQ(ids1[0], ids1[3]) << "Keydown and input have the same id";
-  EXPECT_EQ(ids1[0], ids1[3]) << "Keydown and keyup have the same id";
+  EXPECT_EQ(ids1[0], ids1[4]) << "Keydown and keyup have the same id";
 
   EXPECT_GT(ids2[1], 0u) << "Second input nonzero";
   EXPECT_NE(ids1[3], ids2[1])
@@ -2037,8 +2275,11 @@ TEST_P(InteractionIdTest, SmartSuggestion) {
   EXPECT_EQ(ids3[1], 0u) << "Third input has zero id";
 
   CheckUKMValues({{16, UserInteractionType::kKeyboard},
+                  {9, UserInteractionType::kKeyboard},
+                  {16, UserInteractionType::kKeyboard},
                   {14, UserInteractionType::kKeyboard},
-                  {43, UserInteractionType::kKeyboard}});
+                  {43, UserInteractionType::kKeyboard},
+                  {35, UserInteractionType::kKeyboard}});
 }
 
 TEST_P(InteractionIdTest, TapWithoutClick) {
@@ -2051,15 +2292,9 @@ TEST_P(InteractionIdTest, TapWithoutClick) {
   EXPECT_GT(ids[0], 0u) << "Nonzero interaction id";
   EXPECT_EQ(ids[0], ids[1])
       << "Pointerdown and pointerup have same interaction id";
-  // No UKM value, since we are waiting for click.
-  RunPendingTasks();
-  auto entries = GetUkmRecorder()->GetEntriesByName(
-      ukm::builders::Responsiveness_UserInteraction::kEntryName);
-  EXPECT_EQ(entries.size(), 0u);
 
-  // After a wait, we should see the UKM.
-  test::RunDelayedTasks(base::Seconds(1));
-  CheckUKMValues({{40, UserInteractionType::kTapOrClick}});
+  CheckUKMValues({{40, UserInteractionType::kTapOrClick},
+                  {30, UserInteractionType::kTapOrClick}});
 }
 
 TEST_P(InteractionIdTest, PointerupClick) {
@@ -2100,7 +2335,8 @@ TEST_P(InteractionIdTest, PointerdownClick) {
   EXPECT_EQ(ids[0], ids[1]) << "Pointerdown and click have same interaction id";
   // Flush UKM logging mojo request.
   RunPendingTasks();
-  CheckUKMValues({{40, UserInteractionType::kTapOrClick}});
+  CheckUKMValues({{40, UserInteractionType::kTapOrClick},
+                  {30, UserInteractionType::kTapOrClick}});
 }
 
 TEST_P(InteractionIdTest, MultiTouch) {
@@ -2124,7 +2360,9 @@ TEST_P(InteractionIdTest, MultiTouch) {
   EXPECT_EQ(ids[1], ids[2]);
   // After a wait, flush UKM logging mojo request.
   test::RunDelayedTasks(base::Seconds(1));
-  CheckUKMValues({{30, UserInteractionType::kTapOrClick},
+  CheckUKMValues({{10, UserInteractionType::kTapOrClick},
+                  {20, UserInteractionType::kTapOrClick},
+                  {30, UserInteractionType::kTapOrClick},
                   {50, UserInteractionType::kTapOrClick}});
 }
 
@@ -2145,6 +2383,287 @@ TEST_P(InteractionIdTest, ClickIncorrectPointerId) {
   RunPendingTasks();
   CheckUKMValues({{40, UserInteractionType::kTapOrClick}});
 }
+
+TEST_P(InteractionIdTest, ContextMenu) {
+  PointerId pointer_id = 4;
+
+  // 1. Pointerdown
+  base::TimeTicks pointerdown_timestamp = GetTimeOrigin();
+  base::TimeTicks processing_start_pointerdown = GetTimeStamp(1);
+  base::TimeTicks processing_end_pointerdown = GetTimeStamp(2);
+  PerformanceEventTiming* pointerdown_entry = RegisterPointerEvent(
+      event_type_names::kPointerdown, pointerdown_timestamp,
+      processing_start_pointerdown, processing_end_pointerdown, pointer_id);
+
+  // pointerdown is pending and should not have an interactionId yet.
+  EXPECT_FALSE(pointerdown_entry->HasKnownInteractionID());
+  EXPECT_FALSE(pointerdown_entry->HasKnownEndTime());
+
+  // 2. Contextmenu
+  base::TimeTicks contextmenu_timestamp = GetTimeStamp(3);
+  base::TimeTicks processing_start_contextmenu = GetTimeStamp(4);
+  base::TimeTicks processing_end_contextmenu = GetTimeStamp(5);
+  PerformanceEventTiming* contextmenu_entry = RegisterPointerEvent(
+      event_type_names::kContextmenu, contextmenu_timestamp,
+      processing_start_contextmenu, processing_end_contextmenu, pointer_id);
+
+  // Now pointerdown should have a fallback time.
+  EXPECT_TRUE(pointerdown_entry->HasKnownEndTime());
+  EXPECT_EQ(pointerdown_entry->GetEventTimingReportingInfo()->fallback_reason,
+            FallbackReason::kInteractionInterruptedByContextMenu);
+  EXPECT_EQ(pointerdown_entry->GetEndTime(), processing_end_contextmenu);
+
+  SimulateAllRenderingStages(GetTimeStamp(6));
+
+  // ...And finally, after presentation time arrives, we should have an
+  // interactionId.
+  EXPECT_TRUE(pointerdown_entry->HasKnownInteractionID());
+  EXPECT_GT(pointerdown_entry->interactionId(), 0u);
+
+  // Contextmenu itself should not have an interactionId, but should have a
+  // duration and fallback.
+  EXPECT_TRUE(contextmenu_entry->HasKnownInteractionID());
+  EXPECT_EQ(contextmenu_entry->interactionId(), 0u);
+  EXPECT_TRUE(contextmenu_entry->HasKnownEndTime());
+  EXPECT_EQ(contextmenu_entry->GetEventTimingReportingInfo()->fallback_reason,
+            FallbackReason::kInteractionInterruptedByContextMenu);
+  EXPECT_EQ(contextmenu_entry->GetEndTime(), processing_end_contextmenu);
+
+  // 3. Pointerup
+  base::TimeTicks pointerup_timestamp = GetTimeStamp(6);
+  base::TimeTicks processing_start_pointerup = GetTimeStamp(7);
+  base::TimeTicks processing_end_pointerup = GetTimeStamp(8);
+  base::TimeTicks presentation_pointerup = GetTimeStamp(9);
+  PerformanceEventTiming* pointerup_entry = RegisterPointerEvent(
+      event_type_names::kPointerup, pointerup_timestamp,
+      processing_start_pointerup, processing_end_pointerup, pointer_id);
+
+  SimulateAllRenderingStages(presentation_pointerup);
+
+  // pointerup should have the same interactionId as pointerdown and a good end
+  // time.
+  EXPECT_EQ(pointerup_entry->interactionId(),
+            pointerdown_entry->interactionId());
+  EXPECT_TRUE(pointerup_entry->HasKnownEndTime());
+  EXPECT_EQ(pointerup_entry->GetEndTime(), presentation_pointerup);
+
+  // After a wait, we should see the UKM.
+  test::RunDelayedTasks(base::Seconds(1));
+  auto entries = GetUkmRecorder()->GetEntriesByName(
+      ukm::builders::Responsiveness_UserInteraction::kEntryName);
+  EXPECT_EQ(2u, entries.size());
+  std::vector<int> actual_durations;
+  for (const auto& ukm_entry : entries) {
+    actual_durations.push_back(*GetUkmRecorder()->GetEntryMetric(
+        ukm_entry,
+        ukm::builders::Responsiveness_UserInteraction::kMaxEventDurationName));
+  }
+  EXPECT_THAT(actual_durations, testing::UnorderedElementsAre(5, 3));
+}
+
+// Regression test for crbug.com/487091601.
+TEST_P(InteractionIdTest, FirstInputInteractionIdCrash) {
+  // 1. Pointerdown with pointerId 4
+  base::TimeTicks start_time1 = GetTimeStamp(0);
+  base::TimeTicks processing_start1 = GetTimeStamp(1);
+  base::TimeTicks processing_end1 = GetTimeStamp(2);
+  RegisterPointerEvent(event_type_names::kPointerdown, start_time1,
+                       processing_start1, processing_end1, 4);
+  SimulateAllRenderingStages(GetTimeStamp(3));
+
+  // 2. Pointerdown with pointerId 5
+  base::TimeTicks start_time2 = GetTimeStamp(10);
+  base::TimeTicks processing_start2 = GetTimeStamp(11);
+  base::TimeTicks processing_end2 = GetTimeStamp(12);
+  RegisterPointerEvent(event_type_names::kPointerdown, start_time2,
+                       processing_start2, processing_end2, 5);
+  SimulateAllRenderingStages(GetTimeStamp(13));
+
+  // 3. Pointerup with pointerId 4
+  base::TimeTicks start_time3 = GetTimeStamp(20);
+  base::TimeTicks processing_start3 = GetTimeStamp(21);
+  base::TimeTicks processing_end3 = GetTimeStamp(22);
+  RegisterPointerEvent(event_type_names::kPointerup, start_time3,
+                       processing_start3, processing_end3, 4);
+  SimulateAllRenderingStages(GetTimeStamp(23));
+
+  PerformanceEntryVector firstInputs =
+      performance_->getEntriesByType(performance_entry_names::kFirstInput);
+  ASSERT_EQ(1u, firstInputs.size());
+
+  PerformanceEventTiming* firstInput =
+      static_cast<PerformanceEventTiming*>(firstInputs[0].Get());
+  // This should NOT crash, and should have a valid interactionId.
+  EXPECT_GT(firstInput->interactionId(), 0u);
+}
+
+#if BUILDFLAG(IS_COBALT)
+TEST_P(WindowPerformanceTest, QueueCobaltFrameTimingWithoutObserver) {
+  viz::FrameTimingDetails details;
+  details.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(16);
+  performance_->QueueCobaltFrameTiming(1, details, std::nullopt);
+  EXPECT_FALSE(performance_->HasCobaltFrameObserver());
+}
+
+TEST_P(WindowPerformanceTest, QueueCobaltFrameTimingWithObserver) {
+  AddCobaltFrameObserver();
+  EXPECT_TRUE(performance_->HasCobaltFrameObserver());
+  viz::FrameTimingDetails details;
+  details.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(10);
+  details.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(14);
+  details.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(16);
+  details.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(16);
+  // Must not crash without a real PerformanceObserver attached.
+  performance_->QueueCobaltFrameTiming(100, details, std::nullopt);
+  RemoveCobaltFrameObserver();
+}
+
+TEST_P(WindowPerformanceTest, CobaltFrameTimingMainFrame) {
+  viz::FrameTimingDetails details;
+  details.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(10);
+  details.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(14);
+  details.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(16);
+  details.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(16);
+
+  CobaltMainFrameSnapshot snapshot;
+  snapshot.bmf_start = GetTimeOrigin();
+  snapshot.metrics = std::make_unique<cc::BeginMainFrameMetrics>();
+  snapshot.metrics->animate = base::Milliseconds(2);
+  snapshot.metrics->style_update = base::Milliseconds(3);
+  snapshot.metrics->layout_update = base::Milliseconds(4);
+  snapshot.metrics->prepaint = base::Milliseconds(1);
+  snapshot.metrics->paint = base::Milliseconds(2);
+
+  CobaltFrameTiming* entry =
+      CreateCobaltFrameTiming(100, details, std::move(snapshot));
+  ASSERT_TRUE(entry);
+  EXPECT_EQ(entry->entryType(), performance_entry_names::kCobaltFrame);
+  EXPECT_EQ(entry->frameToken(), 100u);
+  EXPECT_NEAR(entry->startTime(), 0, 0.2);
+  EXPECT_NEAR(entry->presentationTime(), 16, 0.2);
+  EXPECT_NEAR(entry->duration(), 16, 0.2);
+  EXPECT_DOUBLE_EQ(entry->animateDuration().value(), 2);
+  EXPECT_DOUBLE_EQ(entry->styleDuration().value(), 3);
+  EXPECT_DOUBLE_EQ(entry->layoutDuration().value(), 4);
+  EXPECT_DOUBLE_EQ(entry->prepaintDuration().value(), 1);
+  EXPECT_DOUBLE_EQ(entry->paintDuration().value(), 2);
+  // No previous swap yet.
+  EXPECT_DOUBLE_EQ(entry->framePrepDuration(), 0);
+  EXPECT_DOUBLE_EQ(entry->drawDuration(), 4);
+  EXPECT_DOUBLE_EQ(entry->swapDuration(), 2);
+}
+
+TEST_P(WindowPerformanceTest, CobaltFrameTimingCompositorOnlyFrame) {
+  viz::FrameTimingDetails details1;
+  details1.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(10);
+  details1.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(14);
+  details1.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(16);
+  details1.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(16);
+  ASSERT_TRUE(CreateCobaltFrameTiming(100, details1, std::nullopt));
+
+  viz::FrameTimingDetails details2;
+  details2.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(25);
+  details2.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(30);
+  details2.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(32);
+  details2.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(33);
+  CobaltFrameTiming* entry =
+      CreateCobaltFrameTiming(101, details2, std::nullopt);
+  ASSERT_TRUE(entry);
+  EXPECT_FALSE(entry->animateDuration().has_value());
+  EXPECT_FALSE(entry->styleDuration().has_value());
+  EXPECT_FALSE(entry->layoutDuration().has_value());
+  EXPECT_FALSE(entry->prepaintDuration().has_value());
+  EXPECT_FALSE(entry->paintDuration().has_value());
+  // Compositor-only frames start at the viz draw.
+  EXPECT_NEAR(entry->startTime(), 25, 0.2);
+  EXPECT_NEAR(entry->duration(), 8, 0.2);
+  // Previous swap_end (16 ms) -> this swap_start (30 ms).
+  EXPECT_DOUBLE_EQ(entry->framePrepDuration(), 14);
+  EXPECT_DOUBLE_EQ(entry->drawDuration(), 5);
+  EXPECT_DOUBLE_EQ(entry->swapDuration(), 2);
+}
+
+TEST_P(WindowPerformanceTest, CobaltFrameTimingFailedPresentation) {
+  viz::FrameTimingDetails failed;
+  failed.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(10);
+  failed.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(14);
+  failed.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(16);
+  failed.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(16);
+  failed.presentation_feedback.flags = gfx::PresentationFeedback::kFailure;
+  // Failed presentations are not reported.
+  EXPECT_FALSE(CreateCobaltFrameTiming(100, failed, std::nullopt));
+
+  viz::FrameTimingDetails details;
+  details.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(25);
+  details.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(30);
+  details.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(32);
+  details.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(33);
+  CobaltFrameTiming* entry =
+      CreateCobaltFrameTiming(101, details, std::nullopt);
+  ASSERT_TRUE(entry);
+  // The failed frame's swap_end (16 ms) still feeds framePrepDuration.
+  EXPECT_DOUBLE_EQ(entry->framePrepDuration(), 14);
+}
+
+TEST_P(WindowPerformanceTest,
+       CobaltFrameTimingFramePrepTrackedWhileUnobserved) {
+  // Frame 1, observed: swap_end at 16 ms.
+  viz::FrameTimingDetails details1;
+  details1.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(10);
+  details1.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(14);
+  details1.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(16);
+  details1.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(16);
+  ASSERT_TRUE(CreateCobaltFrameTiming(100, details1, std::nullopt));
+
+  // Frame 2 arrives while no observer is attached: no entry, but the swap
+  // cadence must still be followed (swap_end at 32 ms).
+  viz::FrameTimingDetails details2;
+  details2.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(25);
+  details2.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(30);
+  details2.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(32);
+  details2.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(33);
+  RemoveCobaltFrameObserver();
+  performance_->QueueCobaltFrameTiming(101, details2, std::nullopt);
+
+  // Frame 3, observed again: framePrepDuration is measured from frame 2's
+  // swap_end (32 ms), not frame 1's (16 ms).
+  AddCobaltFrameObserver();
+  viz::FrameTimingDetails details3;
+  details3.draw_start_timestamp = GetTimeOrigin() + base::Milliseconds(40);
+  details3.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(45);
+  details3.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(47);
+  details3.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(48);
+  CobaltFrameTiming* entry =
+      CreateCobaltFrameTiming(102, details3, std::nullopt);
+  ASSERT_TRUE(entry);
+  EXPECT_DOUBLE_EQ(entry->framePrepDuration(), 13);
+  RemoveCobaltFrameObserver();
+}
+
+TEST_P(WindowPerformanceTest, CobaltFrameTimingNullDrawStart) {
+  viz::FrameTimingDetails details;
+  details.swap_timings.swap_start = GetTimeOrigin() + base::Milliseconds(14);
+  details.swap_timings.swap_end = GetTimeOrigin() + base::Milliseconds(16);
+  details.presentation_feedback.timestamp =
+      GetTimeOrigin() + base::Milliseconds(16);
+  CobaltFrameTiming* entry =
+      CreateCobaltFrameTiming(100, details, std::nullopt);
+  ASSERT_TRUE(entry);
+  // Without a draw start, the entry starts at presentation time.
+  EXPECT_NEAR(entry->startTime(), 16, 0.2);
+  EXPECT_DOUBLE_EQ(entry->duration(), 0);
+}
+#endif
 
 INSTANTIATE_TEST_SUITE_P(All, InteractionIdTest, ::testing::Bool());
 

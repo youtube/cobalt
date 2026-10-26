@@ -226,7 +226,6 @@
       name: "ClientHintUAHighEntropyValues",
       permissions_policy_name: "ch-ua-high-entropy-values",
       feature_default: "EnableForAll",
-      depends_on: ["ClientHintUAHighEntropyValuesPermissionPolicy"],
     },
     {
       name: "ClientHintUAPlatform",
@@ -486,7 +485,7 @@
     {
       name: "MulticastInDirectSockets",
       permissions_policy_name: "direct-sockets-multicast",
-      depends_on: ["MulticastInDirectSockets"],
+      depends_on: ["DirectSockets"],
       visibility: "IsolatedContext",
     },
     {

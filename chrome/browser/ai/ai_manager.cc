@@ -21,6 +21,7 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/types/expected.h"
+#include "base/types/optional_ref.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/ai/ai_context_bound_object.h"
 #include "chrome/browser/ai/ai_context_bound_object_set.h"
@@ -51,6 +52,7 @@
 #include "content/public/common/page_visibility_state.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #include "services/on_device_model/public/cpp/capabilities.h"
 #include "services/on_device_model/public/mojom/download_observer.mojom.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
@@ -70,11 +72,6 @@ constexpr float kDefaultMaxTemperature = 2.0f;
 constexpr uint32_t kMinTopK = 1;
 constexpr float kMinTemperature = 0.0f;
 
-// Base set of supported language codes when features don't have their own
-// set of supported languages.
-constexpr auto kDefaultSupportedBaseLanguages =
-    base::MakeFixedFlatSet<std::string_view>({"en"});
-
 const char kUnsupportedLanguageError[] =
     "Unsupported %s API languages were specified, and the request was aborted. "
     "API calls must only specify supported languages to ensure successful "
@@ -84,95 +81,139 @@ const char kEmptyOutputLanguageWarning[] =
     "No output language was specified in a %s API request. An output language "
     "should be specified to ensure optimal output quality and properly attest "
     "to output safety. Please specify a supported output language code: [%s]";
+const char kExperimentalLanguageWarning[] =
+    "The specified languages are experimental in %s API and output quality "
+    "cannot be guaranteed. The supported language codes are: [%s]";
 
 // Eagerly initializes other downloadable APIs when any session type is created.
 BASE_FEATURE(kBuiltInAIEagerInit, base::FEATURE_ENABLED_BY_DEFAULT);
 
 blink::mojom::ModelAvailabilityCheckResult
-ConvertOnDeviceModelEligibilityReasonToModelAvailabilityCheckResult(
-    optimization_guide::OnDeviceModelEligibilityReason
-        on_device_model_eligibility_reason) {
-  auto availability = optimization_guide::AvailabilityFromEligibilityReason(
-      on_device_model_eligibility_reason);
-  if (availability ==
-      optimization_guide::mojom::ModelUnavailableReason::kPendingAssets) {
-    return blink::mojom::ModelAvailabilityCheckResult::kDownloading;
-  }
-  if (availability ==
-      optimization_guide::mojom::ModelUnavailableReason::kPendingUsage) {
-    return blink::mojom::ModelAvailabilityCheckResult::kDownloadable;
+ConvertModelNotSupportedReasonToModelAvailabilityCheckResult(
+    std::optional<optimization_guide::mojom::ModelNotSupportedDetailedReason>
+        reason) {
+  if (!reason.has_value()) {
+    return blink::mojom::ModelAvailabilityCheckResult::kUnavailableUnknown;
   }
 
-  switch (on_device_model_eligibility_reason) {
-    case optimization_guide::OnDeviceModelEligibilityReason::kUnknown:
-      return blink::mojom::ModelAvailabilityCheckResult::kUnavailableUnknown;
-    case optimization_guide::OnDeviceModelEligibilityReason::kFeatureNotEnabled:
+  switch (reason.value()) {
+    case optimization_guide::mojom::ModelNotSupportedDetailedReason::
+        kFeatureNotEnabled:
       return blink::mojom::ModelAvailabilityCheckResult::
           kUnavailableFeatureNotEnabled;
-    case optimization_guide::OnDeviceModelEligibilityReason::
-        kConfigNotAvailableForFeature:
-      return blink::mojom::ModelAvailabilityCheckResult::
-          kUnavailableConfigNotAvailableForFeature;
-    case optimization_guide::OnDeviceModelEligibilityReason::kGpuBlocked:
+    case optimization_guide::mojom::ModelNotSupportedDetailedReason::
+        kGpuBlocked:
       return blink::mojom::ModelAvailabilityCheckResult::kUnavailableGpuBlocked;
-    case optimization_guide::OnDeviceModelEligibilityReason::
+    case optimization_guide::mojom::ModelNotSupportedDetailedReason::
         kTooManyRecentCrashes:
       return blink::mojom::ModelAvailabilityCheckResult::
           kUnavailableTooManyRecentCrashes;
-    case optimization_guide::OnDeviceModelEligibilityReason::
-        kSafetyModelNotAvailable:
-      return blink::mojom::ModelAvailabilityCheckResult::
-          kUnavailableSafetyModelNotAvailable;
-    case optimization_guide::OnDeviceModelEligibilityReason::
+    case optimization_guide::mojom::ModelNotSupportedDetailedReason::
         kSafetyConfigNotAvailableForFeature:
       return blink::mojom::ModelAvailabilityCheckResult::
           kUnavailableSafetyConfigNotAvailableForFeature;
-    case optimization_guide::OnDeviceModelEligibilityReason::
-        kLanguageDetectionModelNotAvailable:
-      return blink::mojom::ModelAvailabilityCheckResult::
-          kUnavailableLanguageDetectionModelNotAvailable;
-    case optimization_guide::OnDeviceModelEligibilityReason::
+    case optimization_guide::mojom::ModelNotSupportedDetailedReason::
         kFeatureExecutionNotEnabled:
       return blink::mojom::ModelAvailabilityCheckResult::
           kUnavailableFeatureExecutionNotEnabled;
-    case optimization_guide::OnDeviceModelEligibilityReason::
-        kModelAdaptationNotAvailable:
-      return blink::mojom::ModelAvailabilityCheckResult::
-          kUnavailableModelAdaptationNotAvailable;
-    case optimization_guide::OnDeviceModelEligibilityReason::kModelNotEligible:
-      return blink::mojom::ModelAvailabilityCheckResult::
-          kUnavailableModelNotEligible;
-    case optimization_guide::OnDeviceModelEligibilityReason::kValidationPending:
-      return blink::mojom::ModelAvailabilityCheckResult::
-          kUnavailableValidationPending;
-    case optimization_guide::OnDeviceModelEligibilityReason::kValidationFailed:
+    case optimization_guide::mojom::ModelNotSupportedDetailedReason::
+        kValidationFailed:
       return blink::mojom::ModelAvailabilityCheckResult::
           kUnavailableValidationFailed;
-    case optimization_guide::OnDeviceModelEligibilityReason::
+    case optimization_guide::mojom::ModelNotSupportedDetailedReason::
+        kModelNotEligible:
+      return blink::mojom::ModelAvailabilityCheckResult::
+          kUnavailableModelNotEligible;
+    case optimization_guide::mojom::ModelNotSupportedDetailedReason::
         kInsufficientDiskSpace:
       return blink::mojom::ModelAvailabilityCheckResult::
           kUnavailableInsufficientDiskSpace;
-    case optimization_guide::OnDeviceModelEligibilityReason::
-        kModelToBeInstalled:
-    case optimization_guide::OnDeviceModelEligibilityReason::
-        kNoOnDeviceFeatureUsed:
-      // Shouldn't reach here since it's handled by checking `availability`.
-      NOTREACHED();
-    case optimization_guide::OnDeviceModelEligibilityReason::
-        kDeprecatedModelNotAvailable:
-    case optimization_guide::OnDeviceModelEligibilityReason::kSuccess:
-      NOTREACHED();
+    case optimization_guide::mojom::ModelNotSupportedDetailedReason::
+        kModelAdaptationNotAvailable:
+      return blink::mojom::ModelAvailabilityCheckResult::
+          kUnavailableModelAdaptationNotAvailable;
   }
+
   NOTREACHED();
 }
 
-// Get the capabilities specified from the expected input or output types.
-on_device_model::Capabilities GetExpectedCapabilities(
-    const std::optional<std::vector<blink::mojom::AILanguageModelExpectedPtr>>&
-        expected_vector) {
+blink::mojom::ModelAvailabilityCheckResult
+ConvertModelEligibilityReasonToModelAvailabilityCheckResult(
+    std::optional<optimization_guide::mojom::ModelUnavailableReason> reason,
+    std::optional<optimization_guide::mojom::ModelNotSupportedDetailedReason>
+        detailed_reason) {
+  if (!reason.has_value()) {
+    return blink::mojom::ModelAvailabilityCheckResult::kAvailable;
+  }
+
+  switch (reason.value()) {
+    case optimization_guide::mojom::ModelUnavailableReason::kUnknown:
+      return blink::mojom::ModelAvailabilityCheckResult::kUnavailableUnknown;
+    case optimization_guide::mojom::ModelUnavailableReason::kPendingAssets:
+      return blink::mojom::ModelAvailabilityCheckResult::kDownloading;
+    case optimization_guide::mojom::ModelUnavailableReason::kPendingUsage:
+      return blink::mojom::ModelAvailabilityCheckResult::kDownloadable;
+    case optimization_guide::mojom::ModelUnavailableReason::kNotSupported:
+      return ConvertModelNotSupportedReasonToModelAvailabilityCheckResult(
+          detailed_reason);
+  }
+
+  NOTREACHED();
+}
+
+// Checks if capabilities contain image or audio input (multimodal
+// capabilities).
+bool HasMultimodalInputCapabilities(
+    const on_device_model::Capabilities& capabilities) {
+  return capabilities.Has(on_device_model::CapabilityFlags::kImageInput) ||
+         capabilities.Has(on_device_model::CapabilityFlags::kAudioInput);
+}
+
+// Returns whether the model supports the given capabilities. Tool use is
+// assumed supported since it is gated by RuntimeEnabledFeatures in Blink.
+// TODO(crbug.com/422803232): Expose actual model tool use capability from
+// model metadata instead of assuming support.
+bool ModelSupportsCapabilities(
+    OptimizationGuideKeyedService* service,
+    const on_device_model::Capabilities& capabilities) {
+  auto model_caps = service->GetOnDeviceCapabilities();
+  model_caps.Put(on_device_model::CapabilityFlags::kToolUse);
+  return model_caps.HasAll(capabilities);
+}
+
+// Checks if the expected outputs contain any invalid types.
+// Models can generate text and tool calls, but not images, audio, or tool
+// responses.
+bool HasInvalidOutputTypes(
+    base::optional_ref<
+        const std::vector<blink::mojom::AILanguageModelExpectedPtr>>
+        expected_outputs) {
+  if (!expected_outputs.has_value()) {
+    return false;
+  }
+  for (const auto& expected_entry : expected_outputs.value()) {
+    switch (expected_entry->type) {
+      case blink::mojom::AILanguageModelPromptType::kText:
+      case blink::mojom::AILanguageModelPromptType::kToolCall:
+        // Valid output types.
+        break;
+      case blink::mojom::AILanguageModelPromptType::kImage:
+      case blink::mojom::AILanguageModelPromptType::kAudio:
+      case blink::mojom::AILanguageModelPromptType::kToolResponse:
+        // Invalid output types - models don't generate these.
+        return true;
+    }
+  }
+  return false;
+}
+
+on_device_model::Capabilities GetExpectedInputCapabilities(
+    base::optional_ref<
+        const std::vector<blink::mojom::AILanguageModelExpectedPtr>>
+        expected_inputs) {
   on_device_model::Capabilities capabilities;
-  if (expected_vector) {
-    for (const auto& expected_entry : expected_vector.value()) {
+  if (expected_inputs.has_value()) {
+    for (const auto& expected_entry : expected_inputs.value()) {
       switch (expected_entry->type) {
         case blink::mojom::AILanguageModelPromptType::kText:
           // Text capabilities are included by default.
@@ -185,7 +226,8 @@ on_device_model::Capabilities GetExpectedCapabilities(
           break;
         case blink::mojom::AILanguageModelPromptType::kToolCall:
         case blink::mojom::AILanguageModelPromptType::kToolResponse:
-          // TODO(crbug.com/422803232): Implement tool capabilities.
+          // Tool use capability is signaled by the presence of tool
+          // declarations, not by expected input/output types.
           break;
       }
     }
@@ -277,10 +319,15 @@ LanguageSet GetLanguages(
   return languages;
 }
 
-bool AreLanguagesSupported(const LanguageSet& requested,
-                           const base::flat_set<std::string_view>& supported) {
+bool AreLanguagesEnabled(
+    const LanguageSet& requested,
+    const std::optional<base::flat_set<std::string>>& enabled) {
+  // If `enabled` is nullopt, then all languages are considered available.
+  if (!enabled) {
+    return true;
+  }
   return std::ranges::all_of(requested, [&](const AILanguageCodePtr& lang) {
-    return supported.contains(language::ExtractBaseLanguage(lang->code));
+    return enabled->contains(language::ExtractBaseLanguage(lang->code));
   });
 }
 
@@ -363,6 +410,12 @@ void AIManager::AddReceiver(
 void AIManager::CanCreateLanguageModel(
     blink::mojom::AILanguageModelCreateOptionsPtr options,
     CanCreateLanguageModelCallback callback) {
+  auto* rfh = rfh_.AsRenderFrameHostIfValid();
+  if (rfh && !rfh->IsFeatureEnabled(
+                 network::mojom::PermissionsPolicyFeature::kLanguageModel)) {
+    receivers_.ReportBadMessage("Permissions policy disabled");
+    return;
+  }
   if (!IsBuiltInAIAPIsEnabledByPolicy()) {
     std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
                                 kUnavailableEnterprisePolicyDisabled);
@@ -371,19 +424,34 @@ void AIManager::CanCreateLanguageModel(
 
   on_device_model::Capabilities input_capabilities;
   if (options) {
-    input_capabilities = GetExpectedCapabilities(options->expected_inputs);
-    if (!GetExpectedCapabilities(options->expected_outputs).empty() ||
-        (!input_capabilities.empty() &&
-         !base::FeatureList::IsEnabled(
-             blink::features::kAIPromptAPIMultimodalInput))) {
+    input_capabilities = GetExpectedInputCapabilities(options->expected_inputs);
+    // Check if outputs request invalid types (image/audio/tool response).
+    // Models can generate text and tool calls, but not multimodal content or
+    // tool responses.
+    if (HasInvalidOutputTypes(options->expected_outputs)) {
       std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
                                   kUnavailableModelAdaptationNotAvailable);
       return;
     }
+    // Check if multimodal input (image/audio) is used without the feature flag.
+    if (HasMultimodalInputCapabilities(input_capabilities) &&
+        !base::FeatureList::IsEnabled(
+            blink::features::kAIPromptAPIMultimodalInput)) {
+      std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
+                                  kUnavailableModelAdaptationNotAvailable);
+      return;
+    }
+    // Note: Tool use capabilities are gated by RuntimeEnabledFeatures in Blink.
+    // Tool use capability is signaled by the presence of tool declarations.
+    if (options->tools.has_value() && !options->tools->empty()) {
+      input_capabilities.Put(on_device_model::CapabilityFlags::kToolUse);
+    }
   }
 
-  if (!CheckAndFixLanguages(options, "LanguageModel",
-                            AILanguageModel::GetSupportedLanguageBaseCodes())) {
+  if (!CheckAndFixLanguages(
+          options, "LanguageModel",
+          AILanguageModel::GetEnabledLanguageBaseCodes(),
+          AILanguageModel::GetDefaultSupportedLanguageBaseCodes())) {
     std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
                                 kUnavailableUnsupportedLanguage);
     return;
@@ -398,8 +466,16 @@ void AIManager::CreateLanguageModel(
         client,
     blink::mojom::AILanguageModelCreateOptionsPtr options) {
   CHECK(options);
-  if (!CheckAndFixLanguages(options, "LanguageModel",
-                            AILanguageModel::GetSupportedLanguageBaseCodes())) {
+  auto* rfh = rfh_.AsRenderFrameHostIfValid();
+  if (rfh && !rfh->IsFeatureEnabled(
+                 network::mojom::PermissionsPolicyFeature::kLanguageModel)) {
+    receivers_.ReportBadMessage("Permissions policy disabled");
+    return;
+  }
+  if (!CheckAndFixLanguages(
+          options, "LanguageModel",
+          AILanguageModel::GetEnabledLanguageBaseCodes(),
+          AILanguageModel::GetDefaultSupportedLanguageBaseCodes())) {
     mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>
         client_remote(std::move(client));
     on_device_ai::SendClientRemoteError(
@@ -416,6 +492,8 @@ void AIManager::CreateLanguageModel(
         blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
     return;
   }
+  model_broker_client_->RequestAssetsFor(
+      optimization_guide::mojom::OnDeviceFeature::kPromptApi);
   model_broker_client_
       ->GetSubscriber(optimization_guide::mojom::OnDeviceFeature::kPromptApi)
       .WaitForClient(base::BindOnce(&AIManager::CreateLanguageModelInternal,
@@ -456,14 +534,29 @@ void AIManager::CreateLanguageModelInternal(
 
   auto* service = OptimizationGuideKeyedServiceFactory::GetForProfile(
       Profile::FromBrowserContext(browser_context_));
-  params->capabilities = GetExpectedCapabilities(options->expected_inputs);
-  on_device_model::Capabilities output_capabilities =
-      GetExpectedCapabilities(options->expected_outputs);
-  if (!params->capabilities.empty() || !output_capabilities.empty()) {
-    if (!output_capabilities.empty() ||
-        !base::FeatureList::IsEnabled(
-            blink::features::kAIPromptAPIMultimodalInput) ||
-        !service->GetOnDeviceCapabilities().HasAll(params->capabilities)) {
+  params->capabilities = GetExpectedInputCapabilities(options->expected_inputs);
+  // Tool use capability is signaled by the presence of tool declarations.
+  if (options->tools.has_value() && !options->tools->empty()) {
+    params->capabilities.Put(on_device_model::CapabilityFlags::kToolUse);
+  }
+  // Check if outputs request invalid types (image/audio/tool response).
+  // Models can generate text and tool calls, but not multimodal content or
+  // tool responses.
+  if (HasInvalidOutputTypes(options->expected_outputs)) {
+    mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>
+        client_remote(std::move(client));
+    on_device_ai::SendClientRemoteError(
+        client_remote,
+        blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
+    return;
+  }
+  if (!params->capabilities.empty()) {
+    // Check if multimodal input (image/audio) is used without the feature flag
+    // or if the model doesn't support the requested capabilities.
+    if ((HasMultimodalInputCapabilities(params->capabilities) &&
+         !base::FeatureList::IsEnabled(
+             blink::features::kAIPromptAPIMultimodalInput)) ||
+        !ModelSupportsCapabilities(service, params->capabilities)) {
       mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>
           client_remote(std::move(client));
       on_device_ai::SendClientRemoteError(
@@ -483,7 +576,12 @@ void AIManager::CreateLanguageModelInternal(
       service->GetOptimizationGuideLogger()
           ? service->GetOptimizationGuideLogger()->GetWeakPtr()
           : nullptr);
-  model->Initialize(std::move(options->initial_prompts), std::move(client));
+  std::vector<blink::mojom::AILanguageModelToolDeclarationPtr> tools;
+  if (options->tools.has_value()) {
+    tools = std::move(options->tools.value());
+  }
+  model->Initialize(std::move(options->initial_prompts), std::move(tools),
+                    std::move(client));
 
   context_bound_object_set_.AddContextBoundObject(std::move(model));
 
@@ -495,17 +593,34 @@ void AIManager::CreateLanguageModelInternal(
 void AIManager::CanCreateSummarizer(
     blink::mojom::AISummarizerCreateOptionsPtr options,
     CanCreateSummarizerCallback callback) {
+  auto* rfh = rfh_.AsRenderFrameHostIfValid();
+  if (rfh && !rfh->IsFeatureEnabled(
+                 network::mojom::PermissionsPolicyFeature::kSummarizer)) {
+    receivers_.ReportBadMessage("Permissions policy disabled");
+    return;
+  }
   if (!IsBuiltInAIAPIsEnabledByPolicy()) {
     std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
                                 kUnavailableEnterprisePolicyDisabled);
     return;
   }
-  if (!CheckAndFixLanguages(options, "Summarizer",
-                            AISummarizer::GetSupportedLanguageBaseCodes())) {
+  if (!CheckAndFixLanguages(
+          options, "Summarizer", AISummarizer::GetEnabledLanguageBaseCodes(),
+          AISummarizer::GetDefaultSupportedLanguageBaseCodes())) {
     std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
                                 kUnavailableUnsupportedLanguage);
     return;
   }
+
+  // TODO(crbug.com/488092645): Support capability and speed preference for
+  // summarizer. This is currently a No-Op.
+  if (options &&
+      options->preference == blink::mojom::PerformancePreference::kSpeed) {
+    std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
+                                kUnavailableUnsupportedPerformancePreference);
+    return;
+  }
+
   CanCreateSession(optimization_guide::mojom::OnDeviceFeature::kSummarize,
                    on_device_model::Capabilities(), std::move(callback));
 }
@@ -513,13 +628,37 @@ void AIManager::CanCreateSummarizer(
 void AIManager::CreateSummarizer(
     mojo::PendingRemote<blink::mojom::AIManagerCreateSummarizerClient> client,
     blink::mojom::AISummarizerCreateOptionsPtr options) {
-  if (!CheckAndFixLanguages(options, "Summarizer",
-                            AISummarizer::GetSupportedLanguageBaseCodes())) {
+  auto* rfh = rfh_.AsRenderFrameHostIfValid();
+  if (rfh && !rfh->IsFeatureEnabled(
+                 network::mojom::PermissionsPolicyFeature::kSummarizer)) {
+    receivers_.ReportBadMessage("Permissions policy disabled");
+    return;
+  }
+  if (!CheckAndFixLanguages(
+          options, "Summarizer", AISummarizer::GetEnabledLanguageBaseCodes(),
+          AISummarizer::GetDefaultSupportedLanguageBaseCodes())) {
     mojo::Remote<blink::mojom::AIManagerCreateSummarizerClient> client_remote(
         std::move(client));
     on_device_ai::SendClientRemoteError(
         client_remote,
         blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
+    return;
+  }
+
+  // TODO(crbug.com/488092645): Support capability and speed preference for
+  // summarizer. This is currently a No-Op.
+
+  // CanCreateSummarizer should have been called which has already verified
+  // that the preference is supported, but if the renderer is compromised, the
+  // CreateSummarizer mojo function could be called directly with invalid
+  // values.
+  if (options &&
+      options->preference == blink::mojom::PerformancePreference::kSpeed) {
+    mojo::Remote<blink::mojom::AIManagerCreateSummarizerClient> client_remote(
+        std::move(client));
+    on_device_ai::SendClientRemoteError(
+        client_remote, blink::mojom::AIManagerCreateClientError::
+                           kUnsupportedPerformancePreference);
     return;
   }
 
@@ -555,12 +694,13 @@ void AIManager::CreateSummarizer(
 void AIManager::CanCreateProofreader(
     blink::mojom::AIProofreaderCreateOptionsPtr options,
     CanCreateProofreaderCallback callback) {
+  // TODO(crbug.com/466425250): Enforce permissions policy.
   // TODO(crbug.com/424673180): Add a warning message when options
   // `includeCorrectionTypes` and `includeCorrectionExplanations` are set to
   // true as those features are not yet supported by the API.
-  auto supported =
-      base::MakeFlatSet<std::string_view>(kDefaultSupportedBaseLanguages);
-  if (!CheckAndFixLanguages(options, "Proofreader", supported)) {
+  if (!CheckAndFixLanguages(
+          options, "Proofreader", AIProofreader::GetEnabledLanguageBaseCodes(),
+          AIProofreader::GetDefaultSupportedLanguageBaseCodes())) {
     std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
                                 kUnavailableUnsupportedLanguage);
     return;
@@ -572,9 +712,10 @@ void AIManager::CanCreateProofreader(
 void AIManager::CreateProofreader(
     mojo::PendingRemote<blink::mojom::AIManagerCreateProofreaderClient> client,
     blink::mojom::AIProofreaderCreateOptionsPtr options) {
-  auto supported =
-      base::MakeFlatSet<std::string_view>(kDefaultSupportedBaseLanguages);
-  if (!CheckAndFixLanguages(options, "Proofreader", supported)) {
+  // TODO(crbug.com/466425250): Enforce permissions policy.
+  if (!CheckAndFixLanguages(
+          options, "Proofreader", AIProofreader::GetEnabledLanguageBaseCodes(),
+          AIProofreader::GetDefaultSupportedLanguageBaseCodes())) {
     mojo::Remote<blink::mojom::AIManagerCreateProofreaderClient> client_remote(
         std::move(client));
     on_device_ai::SendClientRemoteError(
@@ -659,13 +800,20 @@ void AIManager::GetLanguageModelParams(
 
 void AIManager::CanCreateWriter(blink::mojom::AIWriterCreateOptionsPtr options,
                                 CanCreateWriterCallback callback) {
+  auto* rfh = rfh_.AsRenderFrameHostIfValid();
+  if (rfh && !rfh->IsFeatureEnabled(
+                 network::mojom::PermissionsPolicyFeature::kWriter)) {
+    receivers_.ReportBadMessage("Permissions policy disabled");
+    return;
+  }
   if (!IsBuiltInAIAPIsEnabledByPolicy()) {
     std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
                                 kUnavailableEnterprisePolicyDisabled);
     return;
   }
   if (!CheckAndFixLanguages(options, "Writer",
-                            AIWriter::GetSupportedLanguageBaseCodes())) {
+                            AIWriter::GetEnabledLanguageBaseCodes(),
+                            AIWriter::GetDefaultSupportedLanguageBaseCodes())) {
     std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
                                 kUnavailableUnsupportedLanguage);
     return;
@@ -678,8 +826,15 @@ void AIManager::CanCreateWriter(blink::mojom::AIWriterCreateOptionsPtr options,
 void AIManager::CreateWriter(
     mojo::PendingRemote<blink::mojom::AIManagerCreateWriterClient> client,
     blink::mojom::AIWriterCreateOptionsPtr options) {
+  auto* rfh = rfh_.AsRenderFrameHostIfValid();
+  if (rfh && !rfh->IsFeatureEnabled(
+                 network::mojom::PermissionsPolicyFeature::kWriter)) {
+    receivers_.ReportBadMessage("Permissions policy disabled");
+    return;
+  }
   if (!CheckAndFixLanguages(options, "Writer",
-                            AIWriter::GetSupportedLanguageBaseCodes())) {
+                            AIWriter::GetEnabledLanguageBaseCodes(),
+                            AIWriter::GetDefaultSupportedLanguageBaseCodes())) {
     mojo::Remote<blink::mojom::AIManagerCreateWriterClient> client_remote(
         std::move(client));
     on_device_ai::SendClientRemoteError(
@@ -720,13 +875,20 @@ void AIManager::CreateWriter(
 void AIManager::CanCreateRewriter(
     blink::mojom::AIRewriterCreateOptionsPtr options,
     CanCreateRewriterCallback callback) {
+  auto* rfh = rfh_.AsRenderFrameHostIfValid();
+  if (rfh && !rfh->IsFeatureEnabled(
+                 network::mojom::PermissionsPolicyFeature::kRewriter)) {
+    receivers_.ReportBadMessage("Permissions policy disabled");
+    return;
+  }
   if (!IsBuiltInAIAPIsEnabledByPolicy()) {
     std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
                                 kUnavailableEnterprisePolicyDisabled);
     return;
   }
-  if (!CheckAndFixLanguages(options, "Rewriter",
-                            AIRewriter::GetSupportedLanguageBaseCodes())) {
+  if (!CheckAndFixLanguages(
+          options, "Rewriter", AIRewriter::GetEnabledLanguageBaseCodes(),
+          AIRewriter::GetDefaultSupportedLanguageBaseCodes())) {
     std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
                                 kUnavailableUnsupportedLanguage);
     return;
@@ -739,8 +901,15 @@ void AIManager::CanCreateRewriter(
 void AIManager::CreateRewriter(
     mojo::PendingRemote<blink::mojom::AIManagerCreateRewriterClient> client,
     blink::mojom::AIRewriterCreateOptionsPtr options) {
-  if (!CheckAndFixLanguages(options, "Rewriter",
-                            AIRewriter::GetSupportedLanguageBaseCodes())) {
+  auto* rfh = rfh_.AsRenderFrameHostIfValid();
+  if (rfh && !rfh->IsFeatureEnabled(
+                 network::mojom::PermissionsPolicyFeature::kRewriter)) {
+    receivers_.ReportBadMessage("Permissions policy disabled");
+    return;
+  }
+  if (!CheckAndFixLanguages(
+          options, "Rewriter", AIRewriter::GetEnabledLanguageBaseCodes(),
+          AIRewriter::GetDefaultSupportedLanguageBaseCodes())) {
     mojo::Remote<blink::mojom::AIManagerCreateRewriterClient> client_remote(
         std::move(client));
     on_device_ai::SendClientRemoteError(
@@ -795,53 +964,27 @@ void AIManager::CanCreateSession(
                        weak_factory_.GetWeakPtr(), model_path.value()));
   }
 
-  // Check if the optimization guide service can create session.
-  OptimizationGuideKeyedService* service =
-      OptimizationGuideKeyedServiceFactory::GetForProfile(
-          Profile::FromBrowserContext(browser_context_));
-
-  // If the `OptimizationGuideKeyedService` cannot be retrieved, return false.
-  if (!service) {
+  if (!model_broker_client_) {
     std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
                                 kUnavailableServiceNotRunning);
     return;
   }
 
-  service->GetOnDeviceModelEligibilityAsync(
-      capability, capabilities,
-      base::BindOnce(&AIManager::FinishCanCreateSession,
-                     weak_factory_.GetWeakPtr(), capability, capabilities,
-                     std::move(callback)));
+  model_broker_client_->GetSubscriber(capability)
+      .CanCreateSession(
+          capabilities,
+          base::BindOnce(&AIManager::FinishCanCreateSession,
+                         weak_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 void AIManager::FinishCanCreateSession(
-    optimization_guide::mojom::OnDeviceFeature capability,
-    on_device_model::Capabilities capabilities,
     CanCreateLanguageModelCallback callback,
-    optimization_guide::OnDeviceModelEligibilityReason eligibility) {
-  OptimizationGuideKeyedService* service =
-      OptimizationGuideKeyedServiceFactory::GetForProfile(
-          Profile::FromBrowserContext(browser_context_));
-
-  // If the `OptimizationGuideKeyedService` cannot create new session, return
-  // the reason.
-  if (eligibility !=
-      optimization_guide::OnDeviceModelEligibilityReason::kSuccess) {
-    std::move(callback).Run(
-        ConvertOnDeviceModelEligibilityReasonToModelAvailabilityCheckResult(
-            eligibility));
-    return;
-  }
-
-  if (!capabilities.empty() &&
-      !service->GetOnDeviceCapabilities().HasAll(capabilities)) {
-    std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
-                                kUnavailableModelAdaptationNotAvailable);
-    return;
-  }
-
+    std::optional<optimization_guide::mojom::ModelUnavailableReason> reason,
+    std::optional<optimization_guide::mojom::ModelNotSupportedDetailedReason>
+        detailed_reason) {
   std::move(callback).Run(
-      blink::mojom::ModelAvailabilityCheckResult::kAvailable);
+      ConvertModelEligibilityReasonToModelAvailabilityCheckResult(
+          reason, detailed_reason));
 }
 
 template <typename ContextBoundObjectType,
@@ -930,28 +1073,9 @@ void AIManager::MaybeTryEagerInit() {
         optimization_guide::mojom::OnDeviceFeature::kSummarize,
         optimization_guide::mojom::OnDeviceFeature::kWritingAssistanceApi}) {
     // TODO(crbug.com/447192715): Gate on runtime determined component size.
-    if (tried_init_.insert(feature).second) {
-      OptimizationGuideKeyedService* service =
-          OptimizationGuideKeyedServiceFactory::GetForProfile(
-              Profile::FromBrowserContext(browser_context_));
-      service->GetOnDeviceModelEligibilityAsync(
-          feature, on_device_model::Capabilities{},
-          base::BindOnce(&AIManager::MaybeTryEagerInitWithEligibility,
-                         weak_factory_.GetWeakPtr(), feature));
+    if (tried_init_.insert(feature).second && model_broker_client_) {
+      model_broker_client_->RequestAssetsFor(feature);
     }
-  }
-}
-
-void AIManager::MaybeTryEagerInitWithEligibility(
-    optimization_guide::mojom::OnDeviceFeature feature,
-    optimization_guide::OnDeviceModelEligibilityReason eligibility) {
-  if (optimization_guide::AvailabilityFromEligibilityReason(eligibility) ==
-      optimization_guide::mojom::ModelUnavailableReason::kPendingUsage) {
-    // TODO(crbug.com/447174556): Init features without creating sessions.
-    VLOG(1) << "Eagerly initializing " << base::ToString(feature);
-    model_broker_client_->CreateSession(
-        feature, ::optimization_guide::SessionConfigParams{},
-        base::DoNothing());
   }
 }
 
@@ -959,14 +1083,18 @@ template <typename OptionsPtrType>
 bool AIManager::CheckAndFixLanguages(
     OptionsPtrType& options,
     std::string_view api_name,
-    const base::flat_set<std::string_view>& supported) {
+    const std::optional<base::flat_set<std::string>>& enabled,
+    const base::flat_set<std::string>& default_supported) {
   LanguageSet languages = GetLanguages(options);
-  if (!AreLanguagesSupported(languages, supported)) {
-    MaybeLogUnsupportedLanguageError(api_name, supported);
+  if (!AreLanguagesEnabled(languages, enabled)) {
+    MaybeLogUnsupportedLanguageError(api_name, enabled);
     return false;
   }
+  if (!AreLanguagesEnabled(languages, default_supported)) {
+    MaybeLogExperimentalLanguageWarning(api_name, default_supported);
+  }
   if (!options || !CheckAndFixOutputLanguage(options, languages)) {
-    MaybeLogMissingOutputLanguageWarning(api_name, supported);
+    MaybeLogMissingOutputLanguageWarning(api_name, enabled);
   }
   return true;
 }
@@ -1006,13 +1134,14 @@ void AIManager::RenderWidgetHostDestroyed(
 
 void AIManager::MaybeLogMissingOutputLanguageWarning(
     const std::string_view api_name,
-    const base::flat_set<std::string_view>& supported_languages) {
+    const std::optional<base::flat_set<std::string>>& enabled_languages) {
   auto* rfh = rfh_.AsRenderFrameHostIfValid();
   if (!rfh || did_log_missing_output_language_warning_) {
     return;
   }
   did_log_missing_output_language_warning_ = true;
-  auto list = base::JoinString(supported_languages, ", ");
+  auto list =
+      enabled_languages ? base::JoinString(*enabled_languages, ", ") : "*";
   rfh->AddMessageToConsole(
       blink::mojom::ConsoleMessageLevel::kWarning,
       base::StringPrintf(kEmptyOutputLanguageWarning, api_name, list));
@@ -1020,14 +1149,29 @@ void AIManager::MaybeLogMissingOutputLanguageWarning(
 
 void AIManager::MaybeLogUnsupportedLanguageError(
     const std::string_view api_name,
-    const base::flat_set<std::string_view>& supported_languages) {
+    const std::optional<base::flat_set<std::string>>& enabled_languages) {
   auto* rfh = rfh_.AsRenderFrameHostIfValid();
   if (!rfh || did_log_unsupported_language_error_) {
     return;
   }
   did_log_unsupported_language_error_ = true;
-  auto list = base::JoinString(supported_languages, ", ");
+  auto list =
+      enabled_languages ? base::JoinString(*enabled_languages, ", ") : "*";
   rfh->AddMessageToConsole(
       blink::mojom::ConsoleMessageLevel::kError,
       base::StringPrintf(kUnsupportedLanguageError, api_name, list));
+}
+
+void AIManager::MaybeLogExperimentalLanguageWarning(
+    const std::string_view api_name,
+    const base::flat_set<std::string>& default_supported_languages) {
+  auto* rfh = rfh_.AsRenderFrameHostIfValid();
+  if (!rfh || did_log_experimental_language_warning_) {
+    return;
+  }
+  did_log_experimental_language_warning_ = true;
+  auto list = base::JoinString(default_supported_languages, ", ");
+  rfh->AddMessageToConsole(
+      blink::mojom::ConsoleMessageLevel::kWarning,
+      base::StringPrintf(kExperimentalLanguageWarning, api_name, list));
 }

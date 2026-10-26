@@ -82,8 +82,19 @@
 }
 
 .dropdown-item:hover {
-  background-color: var(--cr-hover-background-color);
+  background-color: var(--color-context-menu-hover-background,
+      var(--cr-hover-background-color));
+}
+
+.dropdown-item:focus {
+  background-color: var(--color-context-menu-hover-background,
+      var(--cr-hover-background-color));
   outline: none;
+}
+
+.dropdown-item:focus-visible {
+  outline: 2px solid var(--cr-focus-outline-color);
+  outline-offset: -2px;
 }
 
 .dropdown-item[disabled] {
@@ -115,21 +126,21 @@
 }
 
 .multi-tab-icon {
-  --iron-icon-height: 10px;
-  --iron-icon-width: 10px;
-  border-radius: 10px;
+  --iron-icon-height: 16px;
+  --iron-icon-width: 16px;
   flex-shrink: 0;
   margin-left: auto;
-  padding: 2px;
 }
 
 #multi-tab-add {
-  border: 1px solid;
+  color: var(--color-composebox-context-menu-text,
+      var(--color-composebox-file-chip-text));
 }
 
 #multi-tab-check {
-  --iron-icon-fill-color: white;
-  background-color: var(--color-composebox-tab-selector-button-selected);
+  color: var(--color-composebox-context-menu-checkbox-override,
+      /* Default defined in colors.css: */
+      var(--color-composebox-tab-selector-button-selected));
 }
 
 #model-check {

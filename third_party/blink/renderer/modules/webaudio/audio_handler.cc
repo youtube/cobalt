@@ -530,10 +530,10 @@ void AudioHandler::PrintNodeCounts() {
 #endif  // DEBUG_AUDIONODE_REFERENCES
 
 #if DEBUG_AUDIONODE_REFERENCES > 1
-void AudioHandler::TailProcessingDebug(const char* note, bool flag) {
-  UNSAFE_TODO(fprintf(stderr, "[%16p]: %16p: %2d: %s %d @%.15g flag=%d",
-                      Context(), this, GetNodeType(), note,
-                      connection_ref_count_, Context()->currentTime(), flag));
+void AudioHandler::TailProcessingDebug(String note, bool flag) {
+  fprintf(stderr, "[%16p]: %16p: %2d: %s %d @%.15g flag=%d", Context(), this,
+          GetNodeType(), note.Utf8().c_str(), connection_ref_count_,
+          Context()->currentTime(), flag);
 
   // If we're on the audio thread, we can print out the tail and
   // latency times (because these methods can only be called from the
@@ -564,13 +564,13 @@ void AudioHandler::UpdateChannelInterpretation() {
   channel_interpretation_ = new_channel_interpretation_;
 }
 
-void AudioHandler::SendLogMessage(const char* const function_name,
+void AudioHandler::SendLogMessage(const String& function_name,
                                   const String& message) {
   WebRtcLogMessage(
-      UNSAFE_TODO(String::Format("[WA]AH::%s %s [type=%s, this=0x%" PRIXPTR "]",
-                                 function_name, message.Utf8().c_str(),
-                                 NodeTypeName().Utf8().c_str(),
-                                 reinterpret_cast<uintptr_t>(this)))
+      String::Format("[WA]AH::%s %s [type=%s, this=0x%" PRIXPTR "]",
+                     function_name.Utf8().c_str(), message.Utf8().c_str(),
+                     NodeTypeName().Utf8().c_str(),
+                     reinterpret_cast<uintptr_t>(this))
           .Utf8());
 }
 

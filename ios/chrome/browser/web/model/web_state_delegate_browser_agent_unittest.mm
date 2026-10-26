@@ -7,6 +7,7 @@
 #import "base/functional/callback_helpers.h"
 #import "base/run_loop.h"
 #import "base/test/bind.h"
+#import "ios/chrome/browser/enterprise/data_controls/model/data_controls_tab_helper.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_request.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_request_queue.h"
 #import "ios/chrome/browser/overlays/model/public/web_content_area/http_auth_overlay.h"
@@ -56,9 +57,10 @@ class WebStateDelegateBrowserAgentTest : public PlatformTest {
     std::unique_ptr<web::WebState> web_state =
         web::WebState::Create(create_params);
     OverlayRequestQueue::CreateForWebState(web_state.get());
-    BlockedPopupTabHelper::GetOrCreateForWebState(web_state.get());
+    BlockedPopupTabHelper::CreateForWebState(web_state.get());
     SnapshotTabHelper::CreateForWebState(web_state.get());
     SnapshotSourceTabHelper::CreateForWebState(web_state.get());
+    data_controls::DataControlsTabHelper::CreateForWebState(web_state.get());
     web_state->GetNavigationManager()->LoadURLWithParams(load_params);
 
     WebStateList* web_state_list = browser_->GetWebStateList();
@@ -93,7 +95,7 @@ TEST_F(WebStateDelegateBrowserAgentTest, CreateNewWebStateAndPopup) {
 
   // Verify that this webstate's popups are blocked
   BlockedPopupTabHelper* popup_helper =
-      BlockedPopupTabHelper::GetOrCreateForWebState(web_state);
+      BlockedPopupTabHelper::FromWebState(web_state);
   EXPECT_TRUE(popup_helper->ShouldBlockPopup(GURL(kURL1)));
   // Create a new webstate without user initiation.
   web::WebState* web_state2 =
@@ -134,6 +136,26 @@ TEST_F(WebStateDelegateBrowserAgentTest, OpenURLNewTabs) {
   EXPECT_EQ(browser_->GetWebStateList()->GetActiveWebState(), web_state2);
 }
 
+// Tests that OpenURLFromWebState() correctly copies the text fragment.
+TEST_F(WebStateDelegateBrowserAgentTest,
+       OpenURLWithInternalScrollToTextFragment) {
+  web::WebState* web_state = InsertNewWebState(GURL(kURL1));
+  web::WebState::OpenURLParams open_params(
+      GURL(kURL2), web::Referrer(), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui::PAGE_TRANSITION_LINK, false);
+  open_params.internal_scroll_to_text_fragment = "start,end";
+  web::WebState* web_state2 =
+      delegate()->OpenURLFromWebState(web_state, open_params);
+
+  ASSERT_TRUE(web_state2);
+  web::NavigationItem* pending_item =
+      web_state2->GetNavigationManager()->GetPendingItem();
+  ASSERT_TRUE(pending_item);
+  ASSERT_TRUE(pending_item->GetInternalScrollToTextFragment().has_value());
+  EXPECT_EQ("start,end",
+            pending_item->GetInternalScrollToTextFragment().value());
+}
+
 // Tests that OpenURLFromWebState() doesn't create a new tab with the
 // CURRENT_TAB option.
 TEST_F(WebStateDelegateBrowserAgentTest, OpenURLCurrentTab) {
@@ -157,7 +179,7 @@ TEST_F(WebStateDelegateBrowserAgentTest, OnAuthRequired) {
       [[NSURLCredential alloc] initWithUser:@""
                                    password:@""
                                 persistence:NSURLCredentialPersistenceNone];
-  web::WebStateDelegate::AuthCallback callback =
+  web::WebStateDelegate::HTTPAuthCallback callback =
       base::BindOnce(^(NSString* user, NSString* password){
       });
   web::WebState* web_state = InsertNewWebState(GURL(kURL1));

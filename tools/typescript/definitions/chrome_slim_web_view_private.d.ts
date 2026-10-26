@@ -4,14 +4,16 @@
 
 // This namespace is populated by bindings in
 // components/guest_view/renderer/slim_web_view/slim_web_view_bindings.cc
-// and is used to implement SlimWebViewElement.
+// and is used to implement SlimWebviewElement.
 declare namespace chrome {
   export namespace slimWebViewPrivate {
+    export function allowGuestViewElementDefinition(callback: () => void): void;
     export function getNextId(): number;
     export function registerView(viewInstanceId: number, view: object): void;
     export function getViewFromId(instanceId: number): object|null;
     export function attachIframeGuest(
-        elementInstanceId: number, guestInstanceId: number, params: object,
+        containerId: number, guestInstanceId: number, params: object,
         contentWindow: WindowProxy, callback: () => void): void;
+    export function destroyContainer(containerId: number): void;
   }
 }

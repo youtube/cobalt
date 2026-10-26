@@ -14,7 +14,9 @@ import android.view.View;
 
 import org.chromium.base.IntentUtils;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.signin.services.DisplayableProfileData;
+import org.chromium.components.sync.UserActionableError;
 
 /** Helper functions for sign-in and accounts. */
 @NullMarked
@@ -24,18 +26,8 @@ public final class SigninUtils {
     private SigninUtils() {}
 
     /**
-     * Opens a Settings page to configure settings for a single account.
-     *
-     * @param activity Activity to use when starting the Activity.
-     * @param accountEmail The account email for which the Settings page should be opened.
-     * @return Whether or not Android accepted the Intent.
-     */
-    public static boolean openSettingsForAccount(Activity activity, String accountEmail) {
-        return openSettingsForAllAccounts(activity);
-    }
-
-    /**
      * Opens a Settings page with all accounts on the device.
+     *
      * @param activity Activity to use when starting the Activity.
      * @return Whether or not Android accepted the Intent.
      */
@@ -67,7 +59,7 @@ public final class SigninUtils {
         return context.getString(R.string.sync_promo_continue_as, profileData.getAccountEmail());
     }
 
-    /** Returns the accessibility label for the the account picker. */
+    /** Returns the accessibility label for the account picker. */
     public static String getChooseAccountLabel(
             final Context context,
             DisplayableProfileData profileData,
@@ -127,5 +119,32 @@ public final class SigninUtils {
         return configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
                 && configuration.screenWidthDp >= DUAL_PANES_HORIZONTAL_LAYOUT_MIN_WIDTH
                 && !DialogWhenLargeContentLayout.shouldShowAsDialog(context);
+    }
+
+    public static String getContentDescriptionForIdentityDisc(
+            Context context,
+            @Nullable DisplayableProfileData profileData,
+            @UserActionableError int identityError) {
+        if (profileData == null) {
+            return context.getString(R.string.accessibility_toolbar_btn_signed_out_identity_disc);
+        }
+
+        String userName = profileData.getFullNameOrFallbackName(context);
+        if (profileData.hasDisplayableEmailAddress()) {
+            String email = profileData.getAccountEmail();
+            return context.getString(
+                    identityError == UserActionableError.NONE
+                            ? R.string.accessibility_toolbar_btn_identity_disc_with_name_and_email
+                            : R.string
+                                    .accessibility_toolbar_btn_identity_disc_error_with_name_and_email,
+                    userName,
+                    email);
+        }
+
+        return context.getString(
+                identityError == UserActionableError.NONE
+                        ? R.string.accessibility_toolbar_btn_identity_disc_with_name
+                        : R.string.accessibility_toolbar_btn_identity_disc_error_with_name,
+                userName);
     }
 }

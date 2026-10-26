@@ -273,10 +273,16 @@ generate_bindings("generate_bindings_all") {
       generated_union_sources_for_testing_in_core
 
   if (!use_webrtc_peer_connection) {
-    _filtered_outputs =
-        filter_exclude(outputs, cobalt_bindings_exclude_patterns)
+    # RTCDiagnosticLoggingOptions lives in modules/webrtc (kept in Cobalt), not
+    # modules/peerconnection (removed), so its generated bindings must still be
+    # produced. Drop everything the broad "*v8_rtc_*" patterns catch EXCEPT
+    # v8_rtc_diagnostic_logging_options, leaving it in place.
+    _dropped_outputs = filter_exclude(
+        filter_include(outputs, cobalt_bindings_exclude_patterns),
+        [ "*v8_rtc_diagnostic_logging_options.*" ])
+    _kept_outputs = filter_exclude(outputs, _dropped_outputs)
     outputs = []
-    outputs = _filtered_outputs
+    outputs = _kept_outputs
   }
 }
 
@@ -411,10 +417,17 @@ action_with_pydeps("check_generated_file_list") {
   file_list += generated_union_sources_for_testing_in_core
 
   if (!use_webrtc_peer_connection) {
-    _filtered_file_list =
-        filter_exclude(file_list, cobalt_bindings_exclude_patterns)
+    # RTCDiagnosticLoggingOptions lives in modules/webrtc (kept in Cobalt), not
+    # modules/peerconnection (removed), so its generated bindings must stay
+    # listed. Drop everything the broad "*v8_rtc_*" patterns catch EXCEPT
+    # v8_rtc_diagnostic_logging_options, leaving it in its original --kind
+    # section.
+    _dropped_bindings = filter_exclude(
+        filter_include(file_list, cobalt_bindings_exclude_patterns),
+        [ "*v8_rtc_diagnostic_logging_options.*" ])
+    _kept_file_list = filter_exclude(file_list, _dropped_bindings)
     file_list = []
-    file_list = _filtered_file_list
+    file_list = _kept_file_list
   }
 
   response_file_contents = []

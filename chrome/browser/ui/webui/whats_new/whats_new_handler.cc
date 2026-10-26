@@ -12,6 +12,8 @@
 #include "base/metrics/user_metrics_action.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/values.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -33,15 +35,7 @@
 #include "content/public/browser/web_contents.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/public/glic_keyed_service.h"
-#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
-#endif
-
 namespace {
-
-// The trigger ID for the HaTS survey for the What's New refresh page.
-constexpr char kHatsSurveyEnSiteID[] = "en_site_id";
 
 }  // namespace
 
@@ -121,15 +115,6 @@ void WhatsNewHandler::RecordModuleImpression(
   if (interaction_data) {
     interaction_data->add_module_shown(module_name, position);
   }
-
-#if BUILDFLAG(ENABLE_GLIC)
-  if (module_name == "GlicIntro") {
-    if (auto* glic_service =
-            glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile_)) {
-      glic_service->TryPreloadFre(glic::GlicPrewarmingFreSource::kWhatsNew);
-    }
-  }
-#endif  // BUILDFLAG(ENABLE_GLIC)
 }
 
 void WhatsNewHandler::RecordExploreMoreToggled(bool expanded) {
@@ -292,14 +277,6 @@ void WhatsNewHandler::TryShowHatsSurveyWithTimeout() {
         /*navigation_behavior=*/HatsService::REQUIRE_SAME_ORIGIN,
         base::DoNothing(), base::DoNothing(), survey_override.value());
   } else {
-    // Temporary survey for the refresh experiment.
-    const std::optional<std::string> survey_trigger_override =
-        base::FeatureList::IsEnabled(features::kWhatsNewDesktopRefresh)
-            ? std::make_optional(base::FeatureParam<std::string>(
-                                     &features::kWhatsNewDesktopRefresh,
-                                     kHatsSurveyEnSiteID, "")
-                                     .Get())
-            : std::nullopt;
     hats_service->LaunchDelayedSurveyForWebContents(
         kHatsSurveyTriggerWhatsNew, web_contents_,
         features::kHappinessTrackingSurveysForDesktopWhatsNewTime.Get()
@@ -307,6 +284,6 @@ void WhatsNewHandler::TryShowHatsSurveyWithTimeout() {
         /*product_specific_bits_data=*/{},
         /*product_specific_string_data=*/{},
         /*navigation_behavior=*/HatsService::REQUIRE_SAME_ORIGIN,
-        base::DoNothing(), base::DoNothing(), survey_trigger_override);
+        base::DoNothing(), base::DoNothing(), std::nullopt);
   }
 }

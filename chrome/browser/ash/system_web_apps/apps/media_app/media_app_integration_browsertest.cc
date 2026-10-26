@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/webui/media_app_ui/buildflags.h"
 #include "ash/webui/media_app_ui/test/media_app_ui_browsertest.h"
@@ -46,7 +47,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -281,28 +281,11 @@ using MediaAppIntegrationAllProfilesTest = MediaAppIntegrationTest;
 using MediaAppIntegrationWithFilesAppAllProfilesTest =
     MediaAppIntegrationWithFilesAppTest;
 
-class BrowserWindowWaiter : public BrowserListObserver {
- public:
-  void WaitForBrowserAdded() {
-    BrowserList::GetInstance()->AddObserver(this);
-    base::RunLoop run_loop;
-    quit_closure_ = run_loop.QuitClosure();
-    run_loop.Run();
-    BrowserList::GetInstance()->RemoveObserver(this);
-  }
-
-  // BrowserListObserver:
-  void OnBrowserAdded(Browser* browser) override { quit_closure_.Run(); }
-
- private:
-  base::RepeatingClosure quit_closure_;
-};
-
 // Waits for the number of active Browsers in the test process to reach `count`.
 void WaitForBrowserCount(size_t count) {
   EXPECT_LE(chrome::GetTotalBrowserCount(), count) << "Too many browsers";
   while (chrome::GetTotalBrowserCount() < count) {
-    BrowserWindowWaiter().WaitForBrowserAdded();
+    ui_test_utils::BrowserCreatedObserver().Wait();
   }
 }
 
@@ -1538,7 +1521,7 @@ IN_PROC_BROWSER_TEST_P(MediaAppIntegrationTest, MaybeTriggerPdfHats) {
   // Enable HaTS testing for PDF editing.
   base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
       ash::switches::kForceHappinessTrackingSystem,
-      features::kHappinessTrackingMediaAppPdf.name);
+      ash::features::kHappinessTrackingMediaAppPdf.name);
 
   content::WebContents* web_ui = LaunchWithOneTestFile(kFilePdfTall);
 
@@ -1567,7 +1550,7 @@ IN_PROC_BROWSER_TEST_P(MediaAppIntegrationTest, MaybeTriggerPhotosHats) {
   // Enable HaTS testing for the Photos Experience.
   base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
       ash::switches::kForceHappinessTrackingSystem,
-      features::kHappinessTrackingPhotosExperience.name);
+      ash::features::kHappinessTrackingPhotosExperience.name);
 
   // Pretend the Gallery is the Android Photos app, so it can be tracked for
   // survey triggers that fire when the app is closed.

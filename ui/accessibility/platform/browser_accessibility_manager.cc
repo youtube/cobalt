@@ -718,6 +718,10 @@ bool BrowserAccessibilityManager::OnAccessibilityEvents(
     }
   }
 
+  if (!accessibility_events_callback_for_testing_.is_null()) {
+    accessibility_events_callback_for_testing_.Run();
+  }
+
   return true;
 }
 
@@ -999,6 +1003,11 @@ void BrowserAccessibilityManager::SetGeneratedEventCallbackForTesting(
   generated_event_callback_for_testing_ = callback;
 }
 
+void BrowserAccessibilityManager::SetAccessibilityEventsCallbackForTesting(
+    const base::RepeatingClosure& callback) {
+  accessibility_events_callback_for_testing_ = callback;
+}
+
 void BrowserAccessibilityManager::SetLocationChangeCallbackForTesting(
     const base::RepeatingClosure& callback) {
   location_change_callback_for_testing_ = callback;
@@ -1179,7 +1188,7 @@ void BrowserAccessibilityManager::ScrollToMakeVisible(
   // manager.
   BrowserAccessibilityManager* root_manager = GetManagerForRootFrame();
   if (root_manager) {
-    UpdateAccessibilityFocus(this, node);
+    root_manager->UpdateAccessibilityFocus(this, node);
   }
 #endif
 }

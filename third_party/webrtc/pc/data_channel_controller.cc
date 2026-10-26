@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,7 +22,6 @@
 #include "absl/algorithm/container.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/data_channel_event_observer_interface.h"
 #include "api/data_channel_interface.h"
 #include "api/priority.h"
@@ -527,7 +527,7 @@ void DataChannelController::set_data_channel_transport(
 std::optional<Message> DataChannelController::BuildObserverMessage(
     StreamId sid,
     DataMessageType type,
-    ArrayView<const uint8_t> payload,
+    std::span<const uint8_t> payload,
     Message::Direction direction) const {
   RTC_DCHECK_RUN_ON(network_thread());
 

@@ -55,6 +55,7 @@ namespace blink {
 class PagePopup;
 class PagePopupClient;
 class WebAutofillClient;
+class WebRecordReplayClient;
 class WebViewImpl;
 
 // Handles window-level notifications from core on behalf of a WebView.
@@ -229,7 +230,6 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
                             const gfx::Rect& rect) override;
 
   // ChromeClient methods:
-  String AcceptLanguages() override;
   void SetCursorForPlugin(const ui::Cursor&, LocalFrame*) override;
   void SetDelegatedInkMetadata(
       LocalFrame* frame,
@@ -340,6 +340,10 @@ class CORE_EXPORT ChromeClientImpl final : public ChromeClient {
   // Returns WebAutofillClient associated with the WebLocalFrame. This takes and
   // returns nullable.
   WebAutofillClient* AutofillClientFromFrame(LocalFrame*);
+
+  // Returns WebRecordReplayClient associated with the WebLocalFrame. This takes
+  // and returns nullable.
+  WebRecordReplayClient* RecordReplayClientFromFrame(LocalFrame*);
 
   // Returns a copy of |pending_rect|, adjusted for available screen area
   // constraints. This is used to synchronously estimate, or preemptively apply,

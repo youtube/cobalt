@@ -309,8 +309,6 @@ void PreloadServingMetrics::RecordMetricsForNonPrerenderNavigationCommitted()
 
 void PreloadServingMetrics::RecordMetricsForPrerenderInitialNavigationFailed()
     const {
-  CHECK(PreloadServingMetricsCapsule::IsFeatureEnabled());
-
   RecordMetricsInternal(
       *this, "PreloadServingMetrics.ForPrerenderInitialNavigationFailed.",
       /*is_prerender_initial_navigation=*/true);
@@ -374,6 +372,7 @@ void PreloadServingMetrics::RecordMetricsForPrerenderInitialNavigationFailed()
           /*is_prerender_initial_navigation=*/true,
           /*prefetch_match_metrics_force_use=*/&prefetch_match_metrics);
 
+      // See https://crbug.com/479983093 for more details.
       if (prefetch_match_metrics.prerender_debug_metrics &&
           prefetch_match_metrics.prerender_debug_metrics
               ->prefetch_ahead_of_prerender_debug_metrics) {
@@ -407,7 +406,11 @@ void PreloadServingMetrics::RecordMetricsForPrerenderInitialNavigationFailed()
               "PreloadServingMetrics", "non_urls_same",
               debug_metrics.prefetch_key_navigated.NonUrlPartIsSame(
                   debug_metrics.prefetch_key_ahead_of_prerender));
-          base::debug::DumpWithoutCrashing();
+          // Temporarily disable `DumpWithoutCrashing` as we collected data.
+          // Reenable it when we need it.
+          //
+          // Removal is managed by https://crbug.com/479983093.
+          // base::debug::DumpWithoutCrashing();
         }
       }
     }
@@ -438,9 +441,7 @@ void PreloadServingMetrics::RecordFirstContentfulPaint(
       corrected_first_contentful_paint);
 }
 
-PreloadServingMetrics::PreloadServingMetrics() {
-  CHECK(PreloadServingMetricsCapsule::IsFeatureEnabled());
-}
+PreloadServingMetrics::PreloadServingMetrics() = default;
 
 PreloadServingMetrics::~PreloadServingMetrics() = default;
 
@@ -448,8 +449,6 @@ PreloadServingMetrics::~PreloadServingMetrics() = default;
 std::unique_ptr<PreloadServingMetricsCapsule>
 PreloadServingMetricsCapsuleImpl::TakeFromNavigationHandle(
     NavigationHandle& navigation_handle) {
-  CHECK(PreloadServingMetricsCapsule::IsFeatureEnabled());
-
   return base::WrapUnique(new PreloadServingMetricsCapsuleImpl(
       PreloadServingMetricsHolder::GetOrCreateForNavigationHandle(
           navigation_handle)
@@ -458,9 +457,7 @@ PreloadServingMetricsCapsuleImpl::TakeFromNavigationHandle(
 
 PreloadServingMetricsCapsuleImpl::PreloadServingMetricsCapsuleImpl(
     std::unique_ptr<PreloadServingMetrics> preload_serving_metrics)
-    : preload_serving_metrics_(std::move(preload_serving_metrics)) {
-  CHECK(PreloadServingMetricsCapsule::IsFeatureEnabled());
-}
+    : preload_serving_metrics_(std::move(preload_serving_metrics)) {}
 
 PreloadServingMetricsCapsuleImpl::~PreloadServingMetricsCapsuleImpl() = default;
 

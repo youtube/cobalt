@@ -14,8 +14,8 @@
 // content.
 BASE_DECLARE_FEATURE(kAutofillAllowDefaultPreventedSubmission);
 
-// Enables correctly setting the is_user_edited bit in the parsed form fields
-// instead of using true by default.
+// Enables correctly setting the is_user_edited_deprecated bit in the parsed
+// form fields instead of using true by default.
 BASE_DECLARE_FEATURE(kAutofillCorrectUserEditedBitInParsedField);
 
 // Record form submissions events that are detected in the renderer before they
@@ -39,6 +39,11 @@ BASE_DECLARE_FEATURE(kAutofillExtractFullUrlOnIOs);
 // Listen to form submission events in capture mode before the events are
 // propagated.
 BASE_DECLARE_FEATURE(kAutofillFormSubmissionEventsInCaptureMode);
+
+// Detaches the listeners for the payments suggestion bottom sheet when the
+// listeners are invalidated (i.e. the field type is no longer a credit card
+// field). This can be used in combination with kAutofillPaymentsSheetV3Ios.
+BASE_DECLARE_FEATURE(kAutofillPaymentsSheetDetachInvalidatedListenersIos);
 
 // Enables the stateless version of the payments suggestion bottom sheet that
 // can directly pick the Autofill suggestions provider instead of intermediating
@@ -86,6 +91,10 @@ extern const base::FeatureParam<int> kAutofillDocumentFormScanPeriodMs;
 // status quo with how the initial document scanning was triggered prior to
 // batching.
 BASE_DECLARE_FEATURE(kAutofillThrottleDocumentFormScanForceFirstScanIos);
+
+// Track password fields mutations to determine if an input had been a password
+// in its lifetime. It is used as a killswitch.
+BASE_DECLARE_FEATURE(kAutofillTrackPasswordFieldsIos);
 
 // Throttles the filtered document form scanning done for taking a snapshot of
 // specific forms on the spot. Throttles with scheduled batches.

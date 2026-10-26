@@ -61,9 +61,15 @@ class TabStripService {
   virtual mojom::TabStripExperimentService::UpdateTabGroupVisualResult
   UpdateTabGroupVisual(const tabs_api::NodeId& id,
                        const tab_groups::TabGroupVisualData& visual_data) = 0;
+  virtual mojom::TabStripExperimentService::ReplaceTabInSplitResult
+  ReplaceTabInSplit(const tabs_api::NodeId& tab_to_replace,
+                    const tabs_api::NodeId& tab_to_insert) = 0;
+
   virtual mojom::TabStripExperimentService::ShowTabContextMenuResult
   ShowTabContextMenu(const tabs_api::NodeId& tab_id,
                      const gfx::Point& location) = 0;
+  virtual mojom::TabStripExperimentService::GetAllTabsForProfileResult
+  GetAllTabsForProfile() = 0;
 
   virtual void AddObserver(
       observation::TabStripApiBatchedObserver* observer) = 0;

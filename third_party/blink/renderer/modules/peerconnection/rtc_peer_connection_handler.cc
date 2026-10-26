@@ -387,7 +387,7 @@ class RTCPeerConnectionHandler::WebRtcSetDescriptionObserverImpl
                    current_local_description) {
           created_session_description = current_local_description.get();
         }
-        RTC_DCHECK(created_session_description);
+        CHECK(created_session_description);
         std::string sdp;
         created_session_description->ToString(&sdp);
 
@@ -1232,6 +1232,8 @@ webrtc::RTCErrorType RTCPeerConnectionHandler::SetConfiguration(
   new_configuration.certificates = blink_config.certificates;
   new_configuration.ice_candidate_pool_size =
       blink_config.ice_candidate_pool_size;
+  new_configuration.always_negotiate_data_channels =
+      blink_config.always_negotiate_data_channels;
 
   if (peer_connection_tracker_)
     peer_connection_tracker_->TrackSetConfiguration(this, new_configuration);
@@ -1351,7 +1353,7 @@ void RTCPeerConnectionHandler::EmitCurrentStateForTracker() {
   if (!peer_connection_tracker_) {
     return;
   }
-  RTC_DCHECK(native_peer_connection_);
+  CHECK(native_peer_connection_);
   const webrtc::SessionDescriptionInterface* local_desc =
       native_peer_connection_->local_description();
   // If the local desc is an answer, emit it after the offer.

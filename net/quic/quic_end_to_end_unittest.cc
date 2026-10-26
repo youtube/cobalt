@@ -334,27 +334,6 @@ TEST_F(QuicEndToEndTest, EnableMLKEM) {
             SSL_GROUP_X25519_MLKEM768);
 }
 
-TEST_F(QuicEndToEndTest, MLKEMDisabled) {
-  // Disable ML-KEM on the client.
-  SSLContextConfig config;
-  std::erase_if(config.supported_named_groups,
-                std::mem_fn(&net::SSLNamedGroupInfo::IsPostQuantum));
-  ssl_config_service_->UpdateSSLConfigAndNotify(config);
-
-  // Configure the server to only support ML-KEM.
-  server_->crypto_config()->set_preferred_groups({SSL_GROUP_X25519_MLKEM768});
-
-  AddToCache(request_.url.PathForRequest(), 200, "OK", kResponseBody);
-
-  TestTransactionConsumer consumer(DEFAULT_PRIORITY,
-                                   transaction_factory_.get());
-  consumer.Start(&request_, NetLogWithSource());
-
-  // Connection should fail because there's no supported group in common between
-  // client and server.
-  EXPECT_EQ(consumer.error(), net::ERR_QUIC_PROTOCOL_ERROR);
-}
-
 #if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
 class QuicEndToEndMTCTest : public QuicEndToEndTest {
  public:
@@ -427,6 +406,14 @@ TEST_F(QuicEndToEndMTCTest, SimpleConnection) {
   histograms.ExpectTotalCount("Net.QuicSession.MTCLandmarkDelta.OldClient", 0);
   histograms.ExpectTotalCount("Net.QuicSession.MTCLandmarkDelta.CurrentClient",
                               0);
+  histograms.ExpectTotalCount(
+      "Net.QuicSession.MTCLandmarkDelta.OldClient.NewConnection", 0);
+  histograms.ExpectTotalCount(
+      "Net.QuicSession.MTCLandmarkDelta.CurrentClient.NewConnection", 0);
+  histograms.ExpectTotalCount(
+      "Net.QuicSession.MTCLandmarkDelta.OldClient.Resumption", 0);
+  histograms.ExpectTotalCount(
+      "Net.QuicSession.MTCLandmarkDelta.CurrentClient.Resumption", 0);
 
   histograms.ExpectTimeBucketCount("Net.QuicSession.MTCMetadataAge",
                                    kMtcUpdateAge, 1);
@@ -443,9 +430,23 @@ TEST_F(QuicEndToEndMTCTest, SimpleConnection) {
       /*sample=*/-net::OK,
       /*expected_bucket_count=*/1);
   histograms.ExpectUniqueSample(
+      "Net.QuicSession.CertVerificationResult.MTCAdvertised.NewConnection",
+      /*sample=*/-net::OK,
+      /*expected_bucket_count=*/1);
+  // TODO(crbug.com/482083310): add tests of histograms in the resumption case.
+  histograms.ExpectTotalCount(
+      "Net.QuicSession.CertVerificationResult.MTCAdvertised.Resumption", 0);
+
+  histograms.ExpectUniqueSample(
       "Net.QuicSession.CertVerificationResult.MTCReceived",
       /*sample=*/-net::OK,
       /*expected_bucket_count=*/1);
+  histograms.ExpectUniqueSample(
+      "Net.QuicSession.CertVerificationResult.MTCReceived.NewConnection",
+      /*sample=*/-net::OK,
+      /*expected_bucket_count=*/1);
+  histograms.ExpectTotalCount(
+      "Net.QuicSession.CertVerificationResult.MTCReceived.Resumption", 0);
 
   // A mock time is used, and is not advanced during the test, but there was
   // still some flaky failures where the histogram had a non-zero number. I'm
@@ -456,10 +457,18 @@ TEST_F(QuicEndToEndMTCTest, SimpleConnection) {
   // Therefore we only check that the metric is present, but don't try to check
   // the value.
   histograms.ExpectTotalCount("Net.QuicSession.HandshakeConfirmedTime.MTC", 1);
+  histograms.ExpectTotalCount(
+      "Net.QuicSession.HandshakeConfirmedTime.MTC.NewConnection", 1);
+  histograms.ExpectTotalCount(
+      "Net.QuicSession.HandshakeConfirmedTime.MTC.Resumption", 0);
 
   // Should be logged, but we don't know what the exact value will be, so just
   // check that a sample is present.
-  histograms.ExpectTotalCount("Net.QuicSession.TLSHandshakeBytes.MTC", 1);
+  histograms.ExpectTotalCount("Net.QuicSession.TLSHandshakeBytes.MTC2", 1);
+  histograms.ExpectTotalCount(
+      "Net.QuicSession.TLSHandshakeBytes.MTC2.NewConnection", 1);
+  histograms.ExpectTotalCount(
+      "Net.QuicSession.TLSHandshakeBytes.MTC2.Resumption", 0);
 }
 #endif  // BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
 

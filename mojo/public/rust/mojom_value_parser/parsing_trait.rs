@@ -3,10 +3,18 @@
 // found in the LICENSE file.
 
 //! FOR_RELASE: Docs
+
+chromium::import! {
+    "//mojo/public/rust/system";
+}
+
 use crate::ast::*;
 use crate::pack::pack_mojom_type;
 use ordered_float::OrderedFloat;
 use std::collections::HashMap;
+
+use system::message_pipe::MessageEndpoint;
+use system::mojo_types::UntypedHandle;
 
 /// This trait allows a type to be serialized/deserialized into a Mojom message.
 pub trait MojomParse:
@@ -63,8 +71,8 @@ pub trait MojomParse:
 // FOR_RELEASE: We could replace this with one of a number of crates. num_enum
 // seems closest, though it doesn't have quite the API we want (we want
 // from_primitive to return an option but respect default values if they exist)
-pub trait PrimitiveEnum: Into<u32> + TryFrom<u32, Error = anyhow::Error> + Sized {
-    fn is_valid(value: u32) -> bool {
+pub trait PrimitiveEnum: Into<i32> + TryFrom<i32, Error = anyhow::Error> + Sized {
+    fn is_valid(value: i32) -> bool {
         Self::try_from(value).is_ok()
     }
 }
@@ -132,6 +140,9 @@ mojomparse_leaf_impl!(OrderedFloat<f64>, Float64);
 mojomparse_leaf_impl!(bool, Bool);
 mojomparse_leaf_impl!(String, String);
 
+mojomparse_leaf_impl!(UntypedHandle, Handle);
+mojomparse_leaf_impl!(MessageEndpoint, Handle);
+
 // Implement MojomParse for any type that implements PrimitiveEnum and the other
 // requirements for MojomParse. All requirements are derived by
 // #[derive(PrimitiveEnum)]. Note that logically we could implement
@@ -142,7 +153,7 @@ where
     T: PrimitiveEnum + TryFrom<MojomValue, Error = anyhow::Error> + 'static,
 {
     fn mojom_type() -> MojomType {
-        MojomType::Enum { is_valid: Predicate::new::<T>(&(Self::is_valid as fn(u32) -> bool)) }
+        MojomType::Enum { is_valid: Predicate::new::<T>(&(Self::is_valid as fn(i32) -> bool)) }
     }
 }
 

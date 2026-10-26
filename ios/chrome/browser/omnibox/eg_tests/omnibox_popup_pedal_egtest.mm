@@ -4,11 +4,11 @@
 
 #import "base/ios/ios_util.h"
 #import "base/strings/sys_string_conversions.h"
+#import "ios/chrome/browser/device_reauth/test/reauthentication_app_interface.h"
 #import "ios/chrome/browser/history/ui_bundled/history_ui_constants.h"
 #import "ios/chrome/browser/omnibox/eg_tests/omnibox_app_interface.h"
 #import "ios/chrome/browser/omnibox/eg_tests/omnibox_matchers.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_popup_accessibility_identifier_constants.h"
-#import "ios/chrome/browser/settings/ui_bundled/password/password_settings_app_interface.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/common/ui/confirmation_alert/constants.h"
@@ -83,7 +83,7 @@ NSString* const kDinoSearchString = @"dino game";
   id<GREYMatcher> dinoPedal =
       OmniboxPedalSuggestionMatcherWithSubtitleString(kDinoPedalString);
   id<GREYMatcher> dinoSearch =
-      chrome_test_util::OmniboxPopupRowWithString(kDinoSearchString);
+      chrome_test_util::OmniboxPopupRowVisibleWithString(kDinoSearchString);
 
   // Dino pedal and search suggestions should be visible.
   [ChromeEarlGrey waitForUIElementToAppearWithMatcher:dinoPedal];
@@ -138,8 +138,7 @@ NSString* const kDinoSearchString = @"dino game";
   [ChromeEarlGrey waitForUIElementToAppearWithMatcher:managePasswordsPedal];
 
   // Mock successful reauth when opening the Password Manager.
-  [PasswordSettingsAppInterface setUpMockReauthenticationModule];
-  [PasswordSettingsAppInterface mockReauthenticationModuleExpectedResult:
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
                                     ReauthenticationResult::kSuccess];
 
   // Tap on Manage passwords pedal.
@@ -158,9 +157,6 @@ NSString* const kDinoSearchString = @"dino game";
                       chrome_test_util::PasswordsTableViewMatcher()];
 
   [ChromeEarlGrey closeCurrentTab];
-
-  // Remove mock to keep the app in the same state as before running the test.
-  [PasswordSettingsAppInterface removeMockReauthenticationModule];
 }
 
 // Tests that the clear browsing data pedal is present and it opens the clear
@@ -376,9 +372,9 @@ NSString* const kDinoSearchString = @"dino game";
 
   // Matcher for the dino pedal and search suggestions.
   id<GREYMatcher> dinoPedal =
-      chrome_test_util::OmniboxPopupRowWithString(kDinoPedalString);
+      chrome_test_util::OmniboxPopupRowVisibleWithString(kDinoPedalString);
   id<GREYMatcher> dinoSearch =
-      chrome_test_util::OmniboxPopupRowWithString(kDinoSearchString);
+      chrome_test_util::OmniboxPopupRowVisibleWithString(kDinoSearchString);
 
   // The dino search suggestion should be present.
   [ChromeEarlGrey waitForUIElementToAppearWithMatcher:dinoSearch];

@@ -27,10 +27,8 @@ source_set("common") {
     "feature_promo/feature_promo_specification.h",
     "feature_promo/impl/common_preconditions.cc",
     "feature_promo/impl/common_preconditions.h",
-    "feature_promo/impl/feature_promo_controller_20.cc",
-    "feature_promo/impl/feature_promo_controller_20.h",
-    "feature_promo/impl/feature_promo_controller_25.cc",
-    "feature_promo/impl/feature_promo_controller_25.h",
+    "feature_promo/impl/feature_promo_controller_impl.cc",
+    "feature_promo/impl/feature_promo_controller_impl.h",
     "feature_promo/impl/feature_promo_queue.cc",
     "feature_promo/impl/feature_promo_queue.h",
     "feature_promo/impl/feature_promo_queue_set.cc",
@@ -39,6 +37,10 @@ source_set("common") {
     "feature_promo/impl/messaging_coordinator.h",
     "feature_promo/impl/precondition_list_provider.cc",
     "feature_promo/impl/precondition_list_provider.h",
+    "feature_promo/impl/scoped_typed_data.h",
+    "feature_promo/impl/typed_data.h",
+    "feature_promo/impl/typed_data_collection.cc",
+    "feature_promo/impl/typed_data_collection.h",
     "help_bubble/custom_help_bubble.cc",
     "help_bubble/custom_help_bubble.h",
     "help_bubble/help_bubble.cc",
@@ -97,6 +99,8 @@ source_set("common") {
     "user_education_storage_service.h",
   ]
 
+  public_deps = [ "//ui/base/interaction" ]
+
   deps = [
     ":events",
     "//base",
@@ -107,7 +111,6 @@ source_set("common") {
     "//skia",
     "//third_party/abseil-cpp:absl",
     "//ui/accessibility",
-    "//ui/base/interaction",
     "//ui/menus",
   ]
 }
@@ -138,11 +141,12 @@ source_set("unit_tests") {
     "feature_promo/feature_promo_precondition_unittest.cc",
     "feature_promo/feature_promo_specification_unittest.cc",
     "feature_promo/impl/common_preconditions_unittest.cc",
-    "feature_promo/impl/feature_promo_controller_2x_unittest.cc",
+    "feature_promo/impl/feature_promo_controller_impl_unittest.cc",
     "feature_promo/impl/feature_promo_queue_set_unittest.cc",
     "feature_promo/impl/feature_promo_queue_unittest.cc",
     "feature_promo/impl/messaging_coordinator_unittest.cc",
     "feature_promo/impl/precondition_list_provider_unittest.cc",
+    "feature_promo/impl/typed_data_collection_unittest.cc",
     "help_bubble/help_bubble_factory_registry_unittest.cc",
     "new_badge/new_badge_controller_unittest.cc",
     "ntp_promo/ntp_promo_controller_unittest.cc",

@@ -9,12 +9,12 @@
 
 #include <memory>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 #include "base/files/file_path.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/models/image_model.h"
 #include "ui/gfx/geometry/point.h"
@@ -31,6 +31,17 @@ class ImageSkia;
 class Profile;
 class ProfileAttributesEntry;
 class SkBitmap;
+
+// Type of avatar icon returned by
+// ProfileAttributesEntry::GetAvatarIconWithType() and
+// StateProvider::GetAvatarIcon().
+enum class AvatarIconType {
+  // The default placeholder silhouette (a pre-rasterized bitmap that cannot
+  // be re-colored by the view framework on state changes).
+  kPlaceholder,
+  // Any other icon (GAIA picture, account image, vector icon, etc.).
+  kNonPlaceholder,
+};
 
 namespace profiles {
 
@@ -212,7 +223,7 @@ base::ListValue GetCustomProfileAvatarIconsAndLabels(
 // This method tries to find a random avatar index that is not in
 // |used_icon_indices|. If there is no such index, a random index is returned.
 size_t GetRandomAvatarIconIndex(
-    const std::unordered_set<size_t>& used_icon_indices);
+    const absl::flat_hash_set<size_t>& used_icon_indices);
 
 #if !BUILDFLAG(IS_ANDROID)
 // Get all the available profile icons to choose from for a specific profile

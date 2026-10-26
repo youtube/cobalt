@@ -43,7 +43,7 @@ BlinkTransferableMessage BlinkTransferableMessage::FromTransferableMessage(
   result.sender_agent_cluster_id = message.sender_agent_cluster_id;
   result.locked_to_sender_agent_cluster =
       message.locked_to_sender_agent_cluster;
-  result.ports.AppendRange(message.ports.begin(), message.ports.end());
+  result.ports.append_range(message.ports);
   for (auto& channel : message.stream_channels) {
     result.message->GetStreams().push_back(
         SerializedScriptValue::Stream(channel.ReleaseHandle()));
@@ -65,10 +65,7 @@ BlinkTransferableMessage BlinkTransferableMessage::FromTransferableMessage(
 
     for (auto& item : message.array_buffer_contents_array) {
       mojo_base::BigBuffer& big_buffer = item->contents;
-      std::optional<size_t> max_byte_length;
-      if (item->is_resizable_by_user_javascript) {
-        max_byte_length = base::checked_cast<size_t>(item->max_byte_length);
-      }
+      std::optional<size_t> max_byte_length = item->javascript_resize_limit;
       ArrayBufferContents contents(
           big_buffer.size(), max_byte_length, 1,
           ArrayBufferContents::kNotShared, ArrayBufferContents::kDontInitialize,

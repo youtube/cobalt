@@ -167,7 +167,7 @@ declare_args() {
 
   # Enable DWARF v5.
   # See analysis for is_android at https://crbug.com/479802735
-  use_dwarf5 = is_android && !is_official_build  # Untested on official builds.
+  use_dwarf5 = is_android
 
   # Override this to put full paths to PDBs in Windows PE files. This helps
   # windbg and Windows Performance Analyzer with finding the PDBs in some local-
@@ -546,6 +546,18 @@ config("compiler") {
     # linker for Rust targets as well.
     rustflags += [ "-Csplit-debuginfo=unpacked" ]
 
+    if (use_thin_lto) {
+      # These passes were recently added to the mach-o lld thintlo link step,
+      # but cause timeouts in certain build configs. Disable them until that's
+      # fixed (crbug.com/489711936).
+      ldflags += [
+        "-Wl,-mllvm",
+        "-Wl,-vectorize-loops=false",
+        "-Wl,-mllvm",
+        "-Wl,-vectorize-slp=false",
+      ]
+    }
+
     if (xcode_version_int >= 2700) {
       # Xcode 27+'s no longer define INFINITY and NAN unconditionally, and this
       # requires at least LLVM 22.1.0 to work correctly.
@@ -639,9 +651,12 @@ config("compiler") {
       ]
     }
 
-    # TODO(crbug.com/484082200): Re-enable once the test failures this causes
-    # have been solved.
-    cflags += [ "-fno-lifetime-dse" ]
+    # The performance improvement does not seem worth the risk. See
+    # https://crbug.com/484082200 for background and https://crrev.com/c/7593035
+    # for discussion.
+    if (!is_wasm) {
+      cflags += [ "-fno-lifetime-dse" ]
+    }
 
     # TODO(hans): Remove this once Clang generates better optimized debug info
     # by default. https://crbug.com/765793
@@ -1184,6 +1199,10 @@ config("linker") {
     ldflags += [ "-Wl,--strict-auto-link" ]
   }
 
+  if (defined(lld_read_workers)) {
+    ldflags += [ "-Wl,--read-workers=$lld_read_workers" ]
+  }
+
   # LLD does call-graph-sorted binary layout by default when profile data is
   # present. On Android this increases binary size due to more thinks for long
   # jumps. Turn it off by default and enable selectively for targets where it's
@@ -1359,7 +1378,7 @@ config("compiler_cpu_abi") {
       }
       cflags += [ "-msse3" ]
       if (target_os == "chromeos" && cros_target_cpu_arch != "" &&
-          current_cpu == target_cpu) {
+          is_a_target_toolchain) {
         cflags += [ "-march=$cros_target_cpu_arch" ]
         ldflags += [ "-march=$cros_target_cpu_arch" ]
       }
@@ -1390,7 +1409,7 @@ config("compiler_cpu_abi") {
         ldflags += [ "--target=aarch64-linux-gnu" ]
       }
       if (target_os == "chromeos" && cros_target_cpu_arch != "" &&
-          current_cpu == target_cpu) {
+          is_a_target_toolchain) {
         cflags += [ "-march=$cros_target_cpu_arch" ]
         ldflags += [ "-march=$cros_target_cpu_arch" ]
       }
@@ -1933,11 +1952,29 @@ config("sanitize_c_array_bounds") {
   }
 }
 
+# Enable UBSan subset to ensure we always hit `return` statement in non-void
+# functions (https://crbug.com/489565636). This is equivalent to inserting
+# `NOTREACHED()` at the end of such functions.
+config("sanitize_return") {
+  if (!is_ubsan && is_clang) {
+    cflags = [
+      "-fsanitize=return",
+      "-fsanitize-trap=return",
+
+      # Some code users feature detection to determine if UBSAN (or any
+      # sanitizer) is enabled, they then do expensive debug like operations. We
+      # want to suppress this behaviour since we want to keep performance costs
+      # as low as possible while having these checks.
+      "-fsanitize-ignore-for-ubsan-feature=return",
+    ]
+  }
+}
+
 config("rustc_revision") {
   if (rustc_revision != "") {
-    # Similar to the above config, this is here so that all files get recompiled
-    # after a rustc roll. Nothing should ever read this cfg. This will not be
-    # set if a custom toolchain is used.
+    # Similar to the `clang_revision` config, this is here so that all `.rs`
+    # sources get recompiled after a rustc roll. Nothing should ever read this
+    # cfg. This will not be set if a custom toolchain is used.
     rustflags = [
       "--cfg",
       "cr_rustc_revision=\"$rustc_revision\"",
@@ -2335,10 +2372,6 @@ config("default_warnings") {
       # should always be added for clang builds.
       cflags += [ "-Wexit-time-destructors" ]
     }
-
-    if (disable_unknown_warning_option) {
-      cflags += [ "-Wno-unknown-warning-option" ]
-    }
   }
 
   # TODO(crbug.com/354162568): Clean up and enable.
@@ -2351,7 +2384,28 @@ config("default_warnings") {
     ldflags += [ "-Wl,-no_warn_duplicate_libraries" ]
   }
 
-  rustflags = [ "-Dclippy::all" ]
+  configs = [ ":default_clippy_lints" ]
+}
+
+# default_clippy_lints --------------------------------------------------------
+
+config("default_clippy_lints") {
+  rustflags = [
+    # NOTE: Change `cr_clippy_revision` when 1) enabling new Clippy warnings or
+    # 2) enabling Clippy on new platforms/bots.  This is quite similar to
+    # `config("rustc_revision")` - a custom `--cfg` flag is used to force
+    # rebuilding of all `.rs` files (which as a side-effect should also trigger
+    # a Clippy check if `enable_rust_clippy = true`).
+    "--cfg=cr_clippy_revision=\"2026-03-16\"",
+
+    # Treat all default Clippy lints as warnings.
+    # See also `config("treat_warnings_as_errors")`.
+    "-Wclippy::all",
+
+    # Lints disabled during the initial rollout period (when any objection
+    # coming from a Chromium engineer would get a lint disabled):
+    "-Aclippy::needless_return",
+  ]
 }
 
 # prevent_unsafe_narrowing ----------------------------------------------------

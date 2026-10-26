@@ -139,11 +139,20 @@ Readability.prototype = {
     // Readability-readerable.js. Please keep both copies in sync.
     unlikelyCandidates:
       /-ad-|ai2html|banner|breadcrumbs|combx|comment|community|cover-wrap|disqus|extra|footer|gdpr|header|legends|menu|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|ad-break|agegate|pagination|pager|popup|yom-remote/i,
-    okMaybeItsACandidate:
-      /and|article|body|column|content|main|mathjax|shadow/i,
+    okMaybeItsACandidate: new RegExp(
+      "and|article|body|column|content|main|mathjax|" +
+        "shadow|recipe|ingredients|instructions|" +
+        "directions|steps",
+      "i"
+    ),
 
-    positive:
-      /article|body|content|entry|hentry|h-entry|main|page|pagination|post|text|blog|story/i,
+    positive: new RegExp(
+      "article|body|content|entry|hentry|h-entry|" +
+        "main|page|pagination|post|text|blog|story|" +
+        "recipe|ingredients|instructions|" +
+        "directions|steps",
+      "i"
+    ),
     negative:
       /-ad-|hidden|^hid$| hid$| hid |^hid |banner|combx|comment|com-|contact|footer|gdpr|masthead|media|meta|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|widget/i,
     extraneous:
@@ -380,6 +389,25 @@ Readability.prototype = {
   },
 
   /**
+   * Check if the provided candidate has any significant siblings.
+   *
+   * @param  Element candidate The candidate element.
+   * @param  Number  threshold The content score threshold.
+   * @return Boolean
+   */
+  _hasSignificantSibling(candidate, threshold) {
+    return this._someNode(candidate.parentNode.children, function (sibling) {
+      if (sibling === candidate) {
+        return false;
+      }
+      if (sibling.readability) {
+        return sibling.readability.contentScore >= threshold;
+      }
+      return sibling.textContent.trim().length > 25;
+    });
+  },
+
+  /**
    * Iterate over a NodeList, return true if all of the provided iterate
    * function calls return true, false otherwise.
    *
@@ -566,6 +594,26 @@ Readability.prototype = {
   },
 
   /**
+   * Get the document title.
+   *
+   * @return string
+   **/
+  _getDocTitle() {
+    var doc = this._doc;
+    var docTitle = "";
+
+    try {
+      docTitle = typeof doc.title === "string" ?
+          doc.title.trim() :
+          this._getInnerText(doc.getElementsByTagName("title")[0]);
+    } catch (e) {
+      /* ignore exceptions setting the title. */
+    }
+
+    return docTitle;
+  },
+
+  /**
    * Get the article title as an H1.
    *
    * @return string
@@ -575,18 +623,7 @@ Readability.prototype = {
     var curTitle = "";
     var origTitle = "";
 
-    try {
-      curTitle = origTitle = doc.title.trim();
-
-      // If they had an element with id "title" in their HTML
-      if (typeof curTitle !== "string") {
-        curTitle = origTitle = this._getInnerText(
-          doc.getElementsByTagName("title")[0]
-        );
-      }
-    } catch (e) {
-      /* ignore exceptions setting the title. */
-    }
+    curTitle = origTitle = this._getDocTitle();
 
     var titleHadHierarchicalSeparators = false;
     function wordCount(str) {
@@ -1424,13 +1461,19 @@ Readability.prototype = {
           parentOfTopCandidate = parentOfTopCandidate.parentNode;
         }
 
-        // If the top candidate is the only child, use parent instead. This will help sibling
-        // joining logic when adjacent content is actually located in parent's sibling node.
+        // If the top candidate is the only child (or only child with
+        // significant content), use parent instead. This will help sibling
+        // joining logic when adjacent content is actually located in parent's
+        // sibling node.
         parentOfTopCandidate = topCandidate.parentNode;
-        while (
-          parentOfTopCandidate.tagName != "BODY" &&
-          parentOfTopCandidate.children.length == 1
-        ) {
+        const promotionThreshold = Math.max(
+          10,
+          topCandidate.readability.contentScore * 0.2
+        );
+        while (parentOfTopCandidate.tagName !== "BODY") {
+          if (this._hasSignificantSibling(topCandidate, promotionThreshold)) {
+            break;
+          }
           topCandidate = parentOfTopCandidate;
           parentOfTopCandidate = topCandidate.parentNode;
         }
@@ -1750,12 +1793,23 @@ Readability.prototype = {
 
             const TITLE_SIMILARITY_THRESHOLD = 0.75;
             const title = this._getArticleTitle();
-            const nameMatches =
+            let nameMatches =
                 this._textSimilarity(parsed.name, title) >
                     TITLE_SIMILARITY_THRESHOLD;
-            const headlineMatches =
+            let headlineMatches =
                 this._textSimilarity(parsed.headline, title) >
                     TITLE_SIMILARITY_THRESHOLD;
+
+            if (!nameMatches && !headlineMatches) {
+              let docTitle = this._getDocTitle();
+              if (docTitle) {
+                const docTitleLower = docTitle.toLowerCase();
+                nameMatches = docTitleLower.includes(parsed.name.toLowerCase());
+                headlineMatches =
+                    docTitleLower.includes(parsed.headline.toLowerCase());
+              }
+            }
+
             const useName = (nameMatches !== headlineMatches) ? nameMatches :
                 (parsed.name.length >= parsed.headline.length);
             metadata.title = useName ? parsed.name : parsed.headline;
@@ -2001,7 +2055,7 @@ Readability.prototype = {
     // Penalize element that has a lot of text.
     const textContent = el.textContent.trim();
     if (textContent.length > 300) {
-      score -= 50;
+      score -= 0.25 * (textContent.length - 300);
     }
     return {score, bestImg};
   },
@@ -2052,15 +2106,15 @@ Readability.prototype = {
    *     contain this data, or null if no suitable lead image is found.
    */
   _getLeadImageData(topCandidate) {
-    const NUM_SIBLINGS_TO_SCAN = 4;
-    const MIN_LEAD_IMAGE_SCORE = 40;
+    const PREVIOUS_SCAN_COUNT = 10;
+    const MIN_LEAD_IMAGE_SCORE = 30;
     const leadCandidates =
-        this._getPreviousElements(topCandidate, NUM_SIBLINGS_TO_SCAN);
+        this._getPreviousElements(topCandidate, PREVIOUS_SCAN_COUNT);
     if (leadCandidates.length === 0) {
       return null;
     }
 
-    // First pass: Find the best image.
+    // First pass: Find the best lead image.
     const imageRatings = leadCandidates.map((el) => this._rateLeadImageIn(el));
     const [bestImageRating, bestImageRatingIndex] =
         this._argmax(imageRatings, (rating) => rating?.score ?? -1);

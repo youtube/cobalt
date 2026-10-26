@@ -21,19 +21,21 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  * Protocol defining ability to render RTCVideoFrame in Metal enabled views.
  */
-@protocol RTCMTLRenderer <NSObject>
+@protocol RTC_OBJC_TYPE
+(RTCMTLRenderer)<NSObject>
 
 /**
- * Method to be implemented to perform actual rendering of the provided frame.
+ * Method to be implemented to perform actual rendering of the provided
+ * frame.
  *
  * @param frame The frame to be rendered.
  */
-- (void)drawFrame:(RTC_OBJC_TYPE(RTCVideoFrame) *)frame;
+- (void)drawFrame : (RTC_OBJC_TYPE(RTCVideoFrame) *)frame;
 
 /**
  * Sets the provided view as rendering destination if possible.
  *
- * If not possible method returns NO and callers of the method are responisble
+ * If not possible method returns NO and callers of the method are responsible
  * for performing cleanups.
  */
 
@@ -49,7 +51,7 @@ NS_ASSUME_NONNULL_BEGIN
  * Implementation of RTCMTLRenderer protocol.
  */
 NS_AVAILABLE(10_11, 9_0)
-@interface RTCMTLRenderer : NSObject <RTCMTLRenderer>
+@interface RTC_OBJC_TYPE (RTCMTLRenderer) : NSObject <RTC_OBJC_TYPE(RTCMTLRenderer)>
 
 /** @abstract   A wrapped RTCVideoRotation, or nil.
     @discussion When not nil, the rotation of the actual frame is ignored when

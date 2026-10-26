@@ -51,7 +51,6 @@ import org.chromium.chrome.browser.app.tabmodel.TabModelOrchestrator;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsUtils;
 import org.chromium.chrome.browser.browserservices.InstalledWebappDataRegister;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
-import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.CustomTabProfileType;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.CustomTabsUiType;
 import org.chromium.chrome.browser.browserservices.intents.WebappExtras;
 import org.chromium.chrome.browser.browserservices.trustedwebactivityui.TwaFinishHandler;
@@ -102,6 +101,7 @@ import org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarC
 import org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarCoordinator;
 import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.flags.CustomTabProfileType;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager.Observer;
 import org.chromium.chrome.browser.fullscreen.FullscreenOptions;
@@ -399,7 +399,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                         getLayoutManagerSupplier(),
                         /* menuOrKeyboardActionController= */ this,
                         this::getActivityThemeColor,
-                        getModalDialogManagerSupplier(),
+                        getModalDialogManagerSupplier().asNonNull(),
                         /* appMenuBlocker= */ this,
                         this::supportsAppMenu,
                         this::supportsFindInPage,
@@ -407,7 +407,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                         getFullscreenManager(),
                         getCompositorViewHolderSupplier(),
                         getTabContentManagerSupplier(),
-                        this::getSnackbarManager,
+                        getSnackbarManagerSupplier(),
                         mEdgeToEdgeControllerSupplier,
                         getActivityType(),
                         this::isInOverviewMode,
@@ -1536,6 +1536,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
             mTabFactory =
                     new CustomTabActivityTabFactory(
                             this,
+
                             getCustomTabTabPersistencePolicy(),
                             getWindowAndroid(),
                             getProfileProviderSupplier(),
@@ -1716,21 +1717,28 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
     @Nullable
     @BrowserWindowType
     Integer getSupportedBrowserWindowType() {
-        // PWA
-        if (mIntentDataProvider.getActivityType() == ActivityType.WEBAPP) {
+        final boolean browserWindowInterfaceEnabled =
+                ChromeFeatureList.sEnableBrowserWindowInterfaceForCustomTabActivity.isEnabled();
+        // Progressive web apps.
+        if (browserWindowInterfaceEnabled
+                && mIntentDataProvider.getActivityType() == ActivityType.WEBAPP) {
             return BrowserWindowType.APP;
         }
-
         @CustomTabsUiType int type = mIntentDataProvider.getUiType();
         switch (type) {
-            // Popups
+            case CustomTabsUiType.DEFAULT:
+                if (browserWindowInterfaceEnabled) {
+                    return BrowserWindowType.NORMAL;
+                }
+                break;
+            // Popups.
             case CustomTabsUiType.POPUP:
                 return BrowserWindowType.POPUP;
-            // PWA and TWA
+            // Progressive web apps.
             case CustomTabsUiType.MINIMAL_UI_WEBAPP:
-            /* fallthrough */
+            /* Fallthrough */
             case CustomTabsUiType.TRUSTED_WEB_ACTIVITY:
-                return BrowserWindowType.APP;
+                return browserWindowInterfaceEnabled ? BrowserWindowType.APP : null;
             default:
                 break;
         }

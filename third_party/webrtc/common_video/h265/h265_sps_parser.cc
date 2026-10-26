@@ -53,19 +53,18 @@
     }                                                                    \
   } while (0)
 
+namespace webrtc {
+
 namespace {
-using OptionalSps = std::optional<webrtc::H265SpsParser::SpsState>;
+using OptionalSps = std::optional<H265SpsParser::SpsState>;
 using OptionalShortTermRefPicSet =
-    std::optional<webrtc::H265SpsParser::ShortTermRefPicSet>;
-using OptionalProfileTierLevel =
-    std::optional<webrtc::H265SpsParser::ProfileTierLevel>;
+    std::optional<H265SpsParser::ShortTermRefPicSet>;
+using OptionalProfileTierLevel = std::optional<H265SpsParser::ProfileTierLevel>;
 
 constexpr int kMaxNumSizeIds = 4;
 constexpr int kMaxNumMatrixIds = 6;
 constexpr int kMaxNumCoefs = 64;
 }  // namespace
-
-namespace webrtc {
 
 H265SpsParser::ShortTermRefPicSet::ShortTermRefPicSet() = default;
 

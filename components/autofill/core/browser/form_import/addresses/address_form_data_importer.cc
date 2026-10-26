@@ -56,8 +56,7 @@ using AddressImportRequirement =
 struct ValueForImport {
   // The return value of `AutofillField::value_for_import()`.
   std::u16string value_for_import;
-  // The value of the selected option. Only set for <select> fields and where
-  // `FormFieldData::selected_option()` doesn't return std::nullopt.
+  // The value of the selected option. Only set for <select> fields.
   std::optional<std::u16string> selected_option_value;
 };
 
@@ -192,14 +191,6 @@ void AddressFormDataImporter::OnAddressDataChanged() {
   multistep_importer_.OnAddressDataChanged(address_data_manager());
 }
 
-void AddressFormDataImporter::AddMultiStepImportCandidate(
-    const AutofillProfile& profile,
-    const ProfileImportMetadata& import_metadata,
-    bool is_imported) {
-  multistep_importer_.AddMultiStepImportCandidate(profile, import_metadata,
-                                                  is_imported);
-}
-
 size_t AddressFormDataImporter::ExtractAddressProfiles(
     const FormStructure& form,
     std::vector<ExtractedAddressProfile>* extracted_address_profiles) {
@@ -240,9 +231,9 @@ size_t AddressFormDataImporter::ExtractAddressProfiles(
           << CTag{};
       // Try to extract an address profile from the form fields of this section.
       // Only allow for a prompt if no other complete profile was found so far.
-      if (ExtractAddressProfileFromSection(fields, form.source_url(),
-                                           extracted_address_profiles,
-                                           &import_log_buffer)) {
+      if (ExtractAddressProfileFromSection(
+              fields, form.source_url(), form.submission_source(),
+              extracted_address_profiles, &import_log_buffer)) {
         num_complete_profiles++;
       }
       // And close the div of the section import log.
@@ -291,7 +282,7 @@ AddressFormDataImporter::ExtractGUIDsOfProfilesWithoutManualEdits(
     const FormStructure& submitted_form) const {
   base::flat_set<std::string> unedited_source_profile_guids;
   for (const std::unique_ptr<AutofillField>& field : submitted_form) {
-    if (field->is_user_edited()) {
+    if (field->all_modifiers().contains(FieldModifier::kUser)) {
       return {};
     }
     if (const std::optional<std::string>& guid =
@@ -358,6 +349,14 @@ AddressFormDataImporter::GetAddressObservedFieldValues(
     }
     has_address_related_fields = true;
 
+    // Skip common placeholder values (e.g. "select", "optional").
+    if (base::FeatureList::IsEnabled(
+            features::kAutofillFilterPlaceholderValuesOnImport) &&
+        IsPlaceholder(value)) {
+      autofill_metrics::LogRemovedPlaceholderValue(field_type);
+      continue;
+    }
+
     // There can be multiple email fields (e.g. in the case of 'confirm email'
     // fields) but they must all contain the same value, else the profile is
     // invalid.
@@ -371,10 +370,12 @@ AddressFormDataImporter::GetAddressObservedFieldValues(
         has_multiple_distinct_email_addresses = true;
       }
     }
-    std::optional<std::u16string> selected_option_value = std::nullopt;
-    if (base::optional_ref<const SelectOption> o = field->selected_option()) {
-      selected_option_value = o->value;
-    }
+    // This is different from `value = field->value_for_import()` because in
+    // case of select fields this can be equal to the SelectOption::text and not
+    // SelectOption::value of the selected option (see `SelectOption`
+    // documentation and `AutofillField::value_for_import()` for more details).
+    std::optional<std::u16string> selected_option_value =
+        field->IsSelectElement() ? std::optional(field->value()) : std::nullopt;
     // If the field type and |value| don't pass basic validity checks then
     // abandon the import.
     if (!IsValidFieldTypeAndValue(
@@ -499,6 +500,7 @@ AutofillProfile AddressFormDataImporter::ConstructProfileFromObservedValues(
 bool AddressFormDataImporter::ExtractAddressProfileFromSection(
     base::span<const AutofillField* const> section_fields,
     const GURL& source_url,
+    mojom::SubmissionSource submission_source,
     std::vector<ExtractedAddressProfile>* extracted_address_profiles,
     LogBuffer* import_log_buffer) {
   // Tracks if the form section contains multiple distinct email addresses.
@@ -510,6 +512,7 @@ bool AddressFormDataImporter::ExtractAddressProfileFromSection(
   // Metadata about the way we construct candidate_profile.
   ProfileImportMetadata import_metadata;
   import_metadata.origin = url::Origin::Create(source_url);
+  import_metadata.submission_source = submission_source;
 
   // Tracks if any of the fields belongs to FormType::kAddressForm.
   bool has_address_related_fields = false;

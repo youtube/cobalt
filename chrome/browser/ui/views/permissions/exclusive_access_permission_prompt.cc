@@ -17,12 +17,15 @@ ExclusiveAccessPermissionPrompt::ExclusiveAccessPermissionPrompt(
     : PermissionPromptDesktop(browser, web_contents, delegate),
       delegate_(delegate) {
   if (ShowPrompt()) {
-    LocationBarView* lbv = GetLocationBarView();
+    LocationBar* lb = GetLocationBar();
 
     // Before showing a chip make sure the LocationBar is in a valid state. That
-    // fixes a bug when a chip overlays the padlock icon.
-    lbv->InvalidateLayout();
-    lbv->GetChipController()->ShowPermissionChip(delegate->GetWeakPtr());
+    // fixes a bug when a chip overlays the padlock icon. The LocationBarView
+    // may be null for non-BrowserView windows (e.g., WebUIBrowserWindow).
+    if (lb) {
+      lb->InvalidateLayout();
+      lb->GetChipController()->ShowPermissionChip(delegate->GetWeakPtr());
+    }
   }
 }
 

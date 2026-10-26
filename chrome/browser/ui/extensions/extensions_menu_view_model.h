@@ -5,6 +5,9 @@
 #ifndef CHROME_BROWSER_UI_EXTENSIONS_EXTENSIONS_MENU_VIEW_MODEL_H_
 #define CHROME_BROWSER_UI_EXTENSIONS_EXTENSIONS_MENU_VIEW_MODEL_H_
 
+#include <optional>
+#include <string>
+
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
@@ -16,6 +19,7 @@
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_id.h"
+#include "ui/base/models/image_model.h"
 
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
@@ -91,13 +95,15 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
     // icon updates because (a) icons are loaded asynchronously and (b) they
     // only require updating the icon and no other fields (e.g an action update
     // can include a permissions change which affects other views apart from the
-    // action menu entry).
-    virtual void OnActionUpdated(
-        const ToolbarActionsModel::ActionId& action_id) = 0;
+    // action menu entry). An action update could affect the action order in the
+    // menu entries. Therefore, we pass the new `index`.
+    virtual void OnActionUpdated(const ToolbarActionsModel::ActionId& action_id,
+                                 int index) = 0;
 
     // Called when an action icon is updated.
     virtual void OnActionIconUpdated(
-        const ToolbarActionsModel::ActionId& action_id) = 0;
+        const ToolbarActionsModel::ActionId& action_id,
+        int index) = 0;
 
     // Called after all actions are added in the menu model after menu model
     // construction.
@@ -113,15 +119,15 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
 
   // The type of optional section to display in the menu.
   enum class OptionalSection {
-    // A section alerting the user that a page reload is required for changes to
-    // take effect.
-    kReloadPage,
     // A section listing extensions that have host access requests to the
     // current
     // site.
     kHostAccessRequests,
     // No optional section should be displayed.
-    kNone
+    kNone,
+    // A section alerting the user that a page reload is required for changes to
+    // take effect.
+    kReloadPage
   };
 
   // A generic structure for UI controls (buttons, toggles, radio buttons).
@@ -273,6 +279,9 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
   ControlState GetActionButtonState(const extensions::ExtensionId& extension_id,
                                     const gfx::Size& icon_size);
 
+  // Returns the icon for an extension's action at `action_index`.
+  ui::ImageModel GetActionIcon(int action_index, const gfx::Size& icon_size);
+
   // Returns the state for the extension's context menu button.
   ControlState GetContextMenuButtonState(
       const extensions::ExtensionId& extension_id);
@@ -354,7 +363,9 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
   // Sometimes, menu can stay open when tab changes (e.g keyboard shortcuts) or
   // due to the extension (e.g extension switching the active tab). Thus, we
   // listen for active tab changes to properly update the menu content.
-  void OnActiveTabChanged(tabs::TabInterface* tab) override;
+  void OnActiveTabChanged(TabListInterface& tab_list,
+                          tabs::TabInterface* tab) override;
+  void OnTabListDestroyed(TabListInterface& tab_list) override;
 
   // content::WebContentsObserver:
   void DidFinishNavigation(content::NavigationHandle* handle) override;
@@ -379,6 +390,11 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
 
   // Returns the extension action view model for the given `extension_id`.
   ExtensionActionViewModel* GetActionViewModel(
+      const extensions::ExtensionId& extension_id) const;
+
+  // Returns the index of the action with `extension_id` in `action_models_`, if
+  // existent.
+  std::optional<int> GetActionIndex(
       const extensions::ExtensionId& extension_id) const;
 
   // Callback for when an icon in `action_models_` updates.

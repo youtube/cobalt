@@ -27,9 +27,6 @@ public class FakePrivacySandboxBridge implements PrivacySandboxBridge.Natives {
     private final Set<Topic> mChildTopics = new LinkedHashSet<>();
     private final Set<String> mCurrentFledgeSites = new LinkedHashSet<>();
     private final Set<String> mBlockedFledgeSites = new LinkedHashSet<>();
-    private @PromptType int mPromptType = PromptType.NONE;
-    private Integer mLastPromptAction;
-    private Integer mLastSurfaceType;
     private boolean mLastTopicsToggleValue;
     private static final String GOOGLE_EMBEDDED_PRIVACY_POLICY_U_R_L =
             "https://policies.google.com/privacy/embedded";
@@ -192,38 +189,6 @@ public class FakePrivacySandboxBridge implements PrivacySandboxBridge.Natives {
         }
     }
 
-    public void setRequiredPromptType(@PromptType int type) {
-        mPromptType = type;
-    }
-
-    public int getRequiredPromptType(@SurfaceType int surfaceType) {
-        return mPromptType;
-    }
-
-    @Override
-    public int getRequiredPromptType(Profile profile, @SurfaceType int surfaceType) {
-        return getRequiredPromptType(surfaceType);
-    }
-
-    @Override
-    public void promptActionOccurred(
-            Profile profile, @PromptAction int action, @SurfaceType int surfaceType) {
-        mLastPromptAction = action;
-        mLastSurfaceType = surfaceType;
-    }
-
-    public Integer getLastPromptAction() {
-        return mLastPromptAction;
-    }
-
-    public Integer getLastSurfaceType() {
-        return mLastSurfaceType;
-    }
-
-    public void resetLastPromptAction() {
-        mLastPromptAction = null;
-    }
-
     @Override
     public void topicsToggleChanged(Profile profile, boolean newValue) {
         mLastTopicsToggleValue = newValue;
@@ -235,9 +200,6 @@ public class FakePrivacySandboxBridge implements PrivacySandboxBridge.Natives {
 
     @Override
     public void setAllPrivacySandboxAllowedForTesting(Profile profile) {}
-
-    @Override
-    public void recordActivityType(Profile profile, int activityType) {}
 
     @Override
     public boolean privacySandboxPrivacyGuideShouldShowAdTopicsCard(Profile profile) {

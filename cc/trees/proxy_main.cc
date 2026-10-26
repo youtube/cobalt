@@ -491,6 +491,8 @@ void ProxyMain::BeginMainFrame(
 
   current_pipeline_stage_ = NO_PIPELINE_STAGE;
 
+  layer_tree_host_->WillBeginImplCommit();
+
   // Notify the impl thread that the main thread is ready to commit. This will
   // begin the commit process, which is blocking from the main thread's
   // point of view, but asynchronously performed on the impl thread,
@@ -523,10 +525,12 @@ void ProxyMain::BeginMainFrame(
       layer_tree_host_->WaitForProtectedSequenceCompletion();
   }
 
-  // For Blink implementations, this updates frame throttling and
-  // delivers IntersectionObserver events for Chromium-internal customers
-  // but *not* script-created IntersectionObserver. See
+  // For Blink implementations, this is the typical hook that will deliver
+  // intersection observer events for chromium-internal customers, see:
   // blink::LocalFrameView::RunPostLifecycleSteps.
+  // Canvas.onpaint requires running post lifecycle steps before the commit, so
+  // there are some scenarios where the post lifecycle steps are run above, via
+  // WillBeginImplCommit.
   layer_tree_host_->DidBeginMainFrame();
   if (blocking)
     layer_tree_host_->CommitComplete(source_frame_number, commit_timestamps);
@@ -1017,20 +1021,10 @@ bool ProxyMain::ShouldBeginMainFrameNotExpectedSoon() const {
   return true;
 }
 
-// When kMainIdleBypassScheduler is enabled, requesting
-// BeginMainFrameNotExpected bypasses updating scheduler state and performs the
-// calculation in place.
 void ProxyMain::RequestBeginMainFrameNotExpected(bool new_state) {
   TRACE_EVENT("cc", "ProxyMain::RequestBeginMainFrameNotExpected", "paused",
               new_state);
   DCHECK(IsMainThread());
-  if (!base::FeatureList::IsEnabled(features::kMainIdleBypassScheduler)) {
-    ImplThreadTaskRunner()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&ProxyImpl::RequestBeginMainFrameNotExpectedOnImpl,
-                       base::Unretained(proxy_impl_.get()), new_state));
-    return;
-  }
   request_begin_main_frame_not_expected_ = new_state;
   did_notify_begin_main_frame_not_expected_until_ = false;
 

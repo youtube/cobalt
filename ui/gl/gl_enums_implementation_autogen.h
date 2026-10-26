@@ -625,6 +625,10 @@ static constexpr EnumToString kEnumToStringTable[] = {
         "GL_RELATIVE_SMOOTH_QUADRATIC_CURVE_TO_NV",
     },
     {
+        0x1,
+        "GL_PIXEL_LOCAL_USAGE_ALWAYS_NONCOHERENT_BIT_ANGLE",
+    },
+    {
         0x10,
         "GL_SMOOTH_CUBIC_CURVE_TO_NV",
     },
@@ -6997,7 +7001,7 @@ static constexpr EnumToString kEnumToStringTable[] = {
     },
     {
         0x96E7,
-        "GL_PIXEL_LOCAL_FORMAT_ANGLE",
+        "GL_PIXEL_LOCAL_INTERNAL_FORMAT_ANGLE",
     },
     {
         0x96E8,
@@ -7013,14 +7017,18 @@ static constexpr EnumToString kEnumToStringTable[] = {
     },
     {
         0x96EB,
-        "GL_PIXEL_LOCAL_CLEAR_VALUE_FLOAT_ANGLE",
+        "GL_PIXEL_LOCAL_USAGE_ANGLE",
     },
     {
         0x96EC,
-        "GL_PIXEL_LOCAL_CLEAR_VALUE_INT_ANGLE",
+        "GL_PIXEL_LOCAL_CLEAR_VALUE_FLOAT_ANGLE",
     },
     {
         0x96ED,
+        "GL_PIXEL_LOCAL_CLEAR_VALUE_INT_ANGLE",
+    },
+    {
+        0x96EE,
         "GL_PIXEL_LOCAL_CLEAR_VALUE_UNSIGNED_INT_ANGLE",
     },
     {

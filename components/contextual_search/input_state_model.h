@@ -18,6 +18,7 @@
 #include "third_party/omnibox_proto/searchbox_config.pb.h"
 #include "third_party/omnibox_proto/tool_mode.pb.h"
 
+class GURL;
 class PrefService;
 namespace contextual_search {
 
@@ -37,7 +38,9 @@ class InputStateModel {
   // info.
   explicit InputStateModel(
       contextual_search::ContextualSearchSessionHandle& session_handle,
-      const SearchboxConfig& config);
+      const SearchboxConfig& config,
+      const GURL& active_url,
+      bool is_off_the_record);
   InputStateModel(
       const InputStateModel& other,
       contextual_search::ContextualSearchSessionHandle& new_session_handle);
@@ -58,8 +61,18 @@ class InputStateModel {
   // Called when an input of type `InputType` is added or deleted.
   void OnContextChanged();
 
+  // Sets the tools that should be forced to be disabled.
+  void SetPermanentlyDisabledTools(const std::vector<ToolMode>& tools);
+
+  // Sets the input types that should be forced to be disabled.
+  void SetPermanentlyDisabledInputTypes(
+      const std::vector<InputType>& input_types);
+
   // Gets additional query params for the current state.
   std::map<std::string, std::string> GetAdditionalQueryParams();
+
+  // Returns the current state.
+  const InputState& GetInputState() const;
 
   // Methods for testing.
   void set_state_for_testing(const InputState& state) { state_ = state; }
@@ -91,13 +104,27 @@ class InputStateModel {
   // user preference from enterprise policy.
   bool IsSearchContentSharingEnabled() const;
 
+  // Returns the rule for a given `model`.
+  const omnibox::ModelRule* GetModelRule(ModelMode model) const;
+
+  // Returns a rule for a given `tool`.
+  const omnibox::ToolRule* GetToolRule(ToolMode tool) const;
+
   InputState state_;
   omnibox::RuleSet rule_set_;
-  base::raw_ref<contextual_search::ContextualSearchSessionHandle>
+  base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
       session_handle_;
   base::RepeatingCallbackList<void(const InputState&)> subscribers_;
 
   raw_ptr<const PrefService> pref_service_ = nullptr;
+  const bool is_off_the_record_;
+
+  // Stores tools that are permanently disabled by an external trigger and must
+  // persist through state updates. Persists after Initialize() is called.
+  std::vector<ToolMode> permanently_disabled_tools_;
+  // Stores input_types that are permanently disabled by an external trigger and
+  // must persist through state updates. Persists after Initialize() is called.
+  std::vector<InputType> permanently_disabled_input_types_;
 };
 
 }  // namespace contextual_search

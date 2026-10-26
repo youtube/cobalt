@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/check.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
@@ -84,6 +85,7 @@
 #include "net/third_party/quiche/src/quiche/quic/core/crypto/quic_crypto_client_config.h"
 #include "net/third_party/quiche/src/quiche/quic/core/frames/quic_blocked_frame.h"
 #include "net/third_party/quiche/src/quiche/quic/core/frames/quic_window_update_frame.h"
+#include "net/third_party/quiche/src/quiche/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quiche/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quiche/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_connection.h"
@@ -175,8 +177,8 @@ class WebSocketClientSocketHandleAdapterTest : public TestWithTaskEnvironment {
         socks_params, /*proxy_annotation_tag=*/TRAFFIC_ANNOTATION_FOR_TESTS,
         MEDIUM, SocketTag(), ClientSocketPool::RespectLimits::ENABLED,
         callback.callback(), ClientSocketPool::ProxyAuthCallback(),
-        network_session_->GetSocketPool(HttpNetworkSession::NORMAL_SOCKET_POOL,
-                                        ProxyChain::Direct()),
+        network_session_->GetSocketPool(
+            HttpNetworkSession::SocketPoolType::kNormal, ProxyChain::Direct()),
         NetLogWithSource());
     rv = callback.GetResult(rv);
     return rv == OK;
@@ -451,7 +453,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, Disconnect) {
                                      NetLogWithSource());
   EXPECT_TRUE(adapter.is_initialized());
 
-  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(base::test::RunUntil([&] { return data.IsIdle(); }));
 
   EXPECT_TRUE(stream);
   adapter.Disconnect();
@@ -460,8 +462,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, Disconnect) {
   // Read EOF.
   EXPECT_TRUE(session);
   data.Resume();
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(session);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !session; }));
 
   EXPECT_TRUE(data.AllReadDataConsumed());
   EXPECT_TRUE(data.AllWriteDataConsumed());
@@ -490,7 +491,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, SendRequestHeadersThenDisconnect) {
 
   // First read is a pause and it has lower sequence number than first write.
   // Therefore writing headers does not complete while |data| is paused.
-  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(base::test::RunUntil([&] { return data.IsPaused(); }));
 
   // Reset the stream before writing completes.
   // OnHeadersSent() will never be called.
@@ -501,8 +502,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, SendRequestHeadersThenDisconnect) {
   // Resume |data|, finish writing headers, and read EOF.
   EXPECT_TRUE(session);
   data.Resume();
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(session);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !session; }));
 
   EXPECT_TRUE(data.AllReadDataConsumed());
   EXPECT_TRUE(data.AllWriteDataConsumed());
@@ -531,7 +531,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, OnHeadersSentThenDisconnect) {
   EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
 
   // Finish asynchronous write of headers.  This calls OnHeadersSent().
-  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(base::test::RunUntil([&] { return data.IsIdle(); }));
 
   EXPECT_TRUE(stream);
   adapter.Disconnect();
@@ -539,8 +539,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, OnHeadersSentThenDisconnect) {
 
   // Read EOF.
   EXPECT_TRUE(session);
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(session);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !session; }));
 
   EXPECT_TRUE(data.AllReadDataConsumed());
   EXPECT_TRUE(data.AllWriteDataConsumed());
@@ -573,7 +572,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, OnHeadersReceivedThenDisconnect) {
   int rv = stream->SendRequestHeaders(RequestHeaders(), MORE_DATA_TO_SEND);
   EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
 
-  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(base::test::RunUntil([&] { return data.IsIdle(); }));
 
   EXPECT_TRUE(stream);
   adapter.Disconnect();
@@ -581,8 +580,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, OnHeadersReceivedThenDisconnect) {
 
   // Read EOF.
   EXPECT_TRUE(session);
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(session);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !session; }));
 
   EXPECT_TRUE(data.AllReadDataConsumed());
   EXPECT_TRUE(data.AllWriteDataConsumed());
@@ -604,8 +602,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, ServerClosesConnection) {
 
   EXPECT_TRUE(session);
   EXPECT_TRUE(stream);
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(session);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !session; }));
   EXPECT_FALSE(stream);
 
   EXPECT_TRUE(data.AllReadDataConsumed());
@@ -636,8 +633,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest,
 
   EXPECT_TRUE(session);
   EXPECT_TRUE(stream);
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(session);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !session; }));
   EXPECT_FALSE(stream);
 
   EXPECT_TRUE(data.AllReadDataConsumed());
@@ -672,8 +668,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest,
 
   EXPECT_TRUE(session);
   EXPECT_TRUE(stream);
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(session);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !session; }));
   EXPECT_FALSE(stream);
 
   EXPECT_TRUE(data.AllReadDataConsumed());
@@ -731,10 +726,9 @@ TEST_F(WebSocketSpdyStreamAdapterTest, OnHeadersReceivedThenStreamEnd) {
   // Close the session.
   data.Resume();
 
-  base::RunLoop().RunUntilIdle();
-
-  EXPECT_TRUE(data.AllReadDataConsumed());
-  EXPECT_TRUE(data.AllWriteDataConsumed());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return data.AllReadDataConsumed() && data.AllWriteDataConsumed();
+  }));
 }
 
 TEST_F(WebSocketSpdyStreamAdapterTest, DetachDelegate) {
@@ -763,8 +757,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, DetachDelegate) {
 
   EXPECT_TRUE(session);
   EXPECT_TRUE(stream);
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(session);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !session; }));
   EXPECT_FALSE(stream);
 
   EXPECT_TRUE(data.AllReadDataConsumed());
@@ -813,12 +806,17 @@ TEST_F(WebSocketSpdyStreamAdapterTest, Read) {
   ASSERT_EQ(3, rv);
   EXPECT_EQ("foo", std::string_view(read_buf->data(), rv));
 
-  // Read EOF to destroy the connection and the stream.
-  // This calls SpdySession::Delegate::OnClose().
   EXPECT_TRUE(session);
   EXPECT_TRUE(stream);
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(session);
+
+  // HTTP/2 raw_received_bytes() includes the 9-byte frame header for each
+  // frame received so far (at least a HEADERS frame and a DATA frame).
+  EXPECT_GE(stream->raw_received_bytes().InBytes(),
+            spdy::kFrameHeaderSize + rv);
+
+  // Read EOF to destroy the connection and the stream.
+  // This calls SpdySession::Delegate::OnClose().
+  ASSERT_TRUE(base::test::RunUntil([&] { return !session; }));
   EXPECT_FALSE(stream);
 
   // Two socket reads are concatenated by WebSocketSpdyStreamAdapter.
@@ -835,10 +833,9 @@ TEST_F(WebSocketSpdyStreamAdapterTest, Read) {
   // buffered data are read.
   EXPECT_CALL(mock_delegate_, OnClose(ERR_CONNECTION_CLOSED));
 
-  base::RunLoop().RunUntilIdle();
-
-  EXPECT_TRUE(data.AllReadDataConsumed());
-  EXPECT_TRUE(data.AllWriteDataConsumed());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return data.AllReadDataConsumed() && data.AllWriteDataConsumed();
+  }));
 }
 
 TEST_F(WebSocketSpdyStreamAdapterTest, CallDelegateOnCloseShouldNotCrash) {
@@ -887,8 +884,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, CallDelegateOnCloseShouldNotCrash) {
   // This calls SpdySession::Delegate::OnClose().
   EXPECT_TRUE(session);
   EXPECT_TRUE(stream);
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(session);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !session; }));
   EXPECT_FALSE(stream);
 
   // Read remaining buffered data.  This will PostTask CallDelegateOnClose().
@@ -900,10 +896,9 @@ TEST_F(WebSocketSpdyStreamAdapterTest, CallDelegateOnCloseShouldNotCrash) {
 
   // Run CallDelegateOnClose(), which should not crash
   // even if |delegate_| is null.
-  base::RunLoop().RunUntilIdle();
-
-  EXPECT_TRUE(data.AllReadDataConsumed());
-  EXPECT_TRUE(data.AllWriteDataConsumed());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return data.AllReadDataConsumed() && data.AllWriteDataConsumed();
+  }));
 }
 
 TEST_F(WebSocketSpdyStreamAdapterTest, Write) {
@@ -929,7 +924,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, Write) {
   int rv = stream->SendRequestHeaders(RequestHeaders(), MORE_DATA_TO_SEND);
   EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
 
-  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(base::test::RunUntil([&] { return data.IsIdle(); }));
 
   auto write_buf = base::MakeRefCounted<StringIOBuffer>("foo");
   TestCompletionCallback callback;
@@ -939,11 +934,14 @@ TEST_F(WebSocketSpdyStreamAdapterTest, Write) {
   rv = callback.WaitForResult();
   ASSERT_EQ(3, rv);
 
-  // Read EOF.
-  base::RunLoop().RunUntilIdle();
+  // raw_sent_bytes() should include the HEADERS frame + DATA frame sent.
+  EXPECT_GE(stream->raw_sent_bytes().InBytes(),
+            spdy::kFrameHeaderSize + write_buf->size());
 
-  EXPECT_TRUE(data.AllReadDataConsumed());
-  EXPECT_TRUE(data.AllWriteDataConsumed());
+  // Read EOF.
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return data.AllReadDataConsumed() && data.AllWriteDataConsumed();
+  }));
 }
 
 // Test that if both Read() and Write() returns asynchronously,
@@ -974,7 +972,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, AsyncReadAndWrite) {
   int rv = stream->SendRequestHeaders(RequestHeaders(), MORE_DATA_TO_SEND);
   EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
 
-  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(base::test::RunUntil([&] { return data.IsIdle(); }));
 
   constexpr int kReadBufSize = 1024;
   auto read_buf = base::MakeRefCounted<IOBufferWithSize>(kReadBufSize);
@@ -996,10 +994,9 @@ TEST_F(WebSocketSpdyStreamAdapterTest, AsyncReadAndWrite) {
   ASSERT_EQ(3, rv);
 
   // Read EOF.
-  base::RunLoop().RunUntilIdle();
-
-  EXPECT_TRUE(data.AllReadDataConsumed());
-  EXPECT_TRUE(data.AllWriteDataConsumed());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return data.AllReadDataConsumed() && data.AllWriteDataConsumed();
+  }));
 }
 
 TEST_F(WebSocketSpdyStreamAdapterTest, ReadCallbackDestroysAdapter) {
@@ -1028,7 +1025,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, ReadCallbackDestroysAdapter) {
   EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
 
   // Send headers.
-  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(base::test::RunUntil([&] { return data.IsIdle(); }));
 
   WebSocketSpdyStreamAdapter* adapter_raw = adapter.get();
   DeleterCallback callback(std::move(adapter));
@@ -1044,8 +1041,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, ReadCallbackDestroysAdapter) {
   rv = callback.WaitForResult();
   EXPECT_THAT(rv, IsError(ERR_CONNECTION_CLOSED));
 
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(session);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !session; }));
   EXPECT_FALSE(stream);
 
   EXPECT_TRUE(data.AllReadDataConsumed());
@@ -1078,7 +1074,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, WriteCallbackDestroysAdapter) {
   EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
 
   // Send headers.
-  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(base::test::RunUntil([&] { return data.IsIdle(); }));
 
   WebSocketSpdyStreamAdapter* adapter_raw = adapter.get();
   DeleterCallback callback(std::move(adapter));
@@ -1094,8 +1090,7 @@ TEST_F(WebSocketSpdyStreamAdapterTest, WriteCallbackDestroysAdapter) {
   rv = callback.WaitForResult();
   EXPECT_THAT(rv, IsError(ERR_CONNECTION_CLOSED));
 
-  base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(session);
+  ASSERT_TRUE(base::test::RunUntil([&] { return !session; }));
   EXPECT_FALSE(stream);
 
   EXPECT_TRUE(data.AllReadDataConsumed());
@@ -1330,6 +1325,9 @@ class WebSocketQuicStreamAdapterTest
         NetLogWithSource::Make(NetLogSourceType::NONE));
 
     session_->Initialize();
+
+    // Enable extended CONNECT protocol (required for WebSocket over HTTP/3).
+    session_->OnSetting(quic::SETTINGS_ENABLE_CONNECT_PROTOCOL, 1);
 
     // Blackhole QPACK decoder stream instead of constructing mock writes.
     session_->qpack_decoder()->set_qpack_stream_sender_delegate(
@@ -1604,6 +1602,11 @@ TEST_P(WebSocketQuicStreamAdapterTest, OnHeadersReceivedThenDisconnect) {
   run_loop.Run();
 
   adapter->Disconnect();
+
+  // After disconnect, the underlying stream is cleared, so byte counts
+  // should return 0.
+  EXPECT_EQ(0u, adapter->stream_bytes_read());
+  EXPECT_EQ(0u, adapter->stream_bytes_written());
 }
 
 TEST_P(WebSocketQuicStreamAdapterTest, Read) {
@@ -1663,6 +1666,11 @@ TEST_P(WebSocketQuicStreamAdapterTest, Read) {
   session_->StartReading();
   run_loop.Run();
 
+  // After receiving response headers, stream_bytes_read() already reflects
+  // the HTTP/3 HEADERS frame bytes received at the QUIC stream level.
+  uint64_t bytes_after_headers = adapter->stream_bytes_read();
+  EXPECT_GT(bytes_after_headers, 0u);
+
   // Buffer larger than each MockRead.
   constexpr int kReadBufSize = 1024;
   auto read_buf = base::MakeRefCounted<IOBufferWithSize>(kReadBufSize);
@@ -1674,11 +1682,16 @@ TEST_P(WebSocketQuicStreamAdapterTest, Read) {
   ASSERT_EQ(ERR_IO_PENDING, rv);
 
   mock_quic_data_.Resume();
-  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return read_callback.have_result(); }));
 
   rv = read_callback.WaitForResult();
   ASSERT_EQ(3, rv);
   EXPECT_EQ("foo", std::string_view(read_buf->data(), rv));
+
+  // After reading "foo", stream_bytes_read() should have increased by the
+  // HTTP/3 DATA frame size: varint frame header + 3-byte payload.
+  EXPECT_GT(adapter->stream_bytes_read(), bytes_after_headers);
 
   rv = adapter->Read(read_buf.get(), kReadBufSize, CompletionOnceCallback());
   ASSERT_EQ(8, rv);
@@ -1756,7 +1769,8 @@ TEST_P(WebSocketQuicStreamAdapterTest, ReadIntoSmallBuffer) {
   ASSERT_EQ(ERR_IO_PENDING, rv);
 
   mock_quic_data_.Resume();
-  base::RunLoop().RunUntilIdle();
+  ASSERT_TRUE(
+      base::test::RunUntil([&] { return read_callback.have_result(); }));
 
   rv = read_callback.WaitForResult();
   ASSERT_EQ(3, rv);
@@ -1868,12 +1882,19 @@ TEST_P(WebSocketQuicStreamAdapterTest, Write) {
   }));
 
   auto write_buf = base::MakeRefCounted<StringIOBuffer>("test data");
+  // Before writing data, record stream_bytes_written().
+  uint64_t bytes_before_write = adapter->stream_bytes_written();
+
   // Perform the write. Since the mock socket write is synchronous, this should
   // complete synchronously.
   int rv = adapter->Write(write_buf.get(), write_buf->size(), base::DoNothing(),
                           TRAFFIC_ANNOTATION_FOR_TESTS);
 
   EXPECT_EQ(9, rv);
+
+  // After writing "test data" (9 bytes), stream_bytes_written() should
+  // increase.
+  EXPECT_GT(adapter->stream_bytes_written(), bytes_before_write);
 
   // Run the loop to process pending events, such as the server's ACK for the
   // recently written data. This ensures the mock socket is not in a stopped
@@ -1889,9 +1910,6 @@ TEST_P(WebSocketQuicStreamAdapterTest, Write) {
     return mock_quic_data_.AllReadDataConsumed() &&
            mock_quic_data_.AllWriteDataConsumed();
   }));
-
-  EXPECT_TRUE(mock_quic_data_.AllReadDataConsumed());
-  EXPECT_TRUE(mock_quic_data_.AllWriteDataConsumed());
 }
 
 // Tests that the adapter correctly handles being destroyed from within its own
@@ -2263,9 +2281,6 @@ TEST_P(WebSocketQuicStreamAdapterTest, WritePendingWhenBufferFull) {
     return mock_quic_data_.AllReadDataConsumed() &&
            mock_quic_data_.AllWriteDataConsumed();
   }));
-
-  EXPECT_TRUE(mock_quic_data_.AllReadDataConsumed());
-  EXPECT_TRUE(mock_quic_data_.AllWriteDataConsumed());
 }
 
 // Tests that receiving a RST_STREAM from the server while a Write() is pending

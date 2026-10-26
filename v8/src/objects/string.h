@@ -210,7 +210,7 @@ V8_OBJECT class String : public Name {
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  void MakeThin(IsolateT* isolate, Tagged<String> canonical);
+  void MakeThin(IsolateT* isolate, Tagged<InternalizedString> canonical);
 
   template <typename Char>
   V8_INLINE base::Vector<const Char> GetCharVector(
@@ -328,6 +328,13 @@ V8_OBJECT class String : public Name {
   static inline HandleType<String> Share(Isolate* isolate,
                                          HandleType<T> string);
 
+  // Creates an unshared copy of the string. Assumes the string is allocated in
+  // shared space.
+  template <typename T, template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<String>>)
+  static inline HandleType<String> Unshare(Isolate* isolate,
+                                           HandleType<T> string);
+
   // String relational comparison, implemented according to ES6 section 7.2.11
   // Abstract Relational Comparison (step 5): The comparison of Strings uses a
   // simple lexicographic ordering on sequences of code unit values. There is no
@@ -380,7 +387,7 @@ V8_OBJECT class String : public Name {
     virtual ~Match() = default;
   };
 
-  // ES#sec-getsubstitution
+  // https://tc39.es/ecma262/#sec-getsubstitution
   // GetSubstitution(matched, str, position, captures, replacement)
   // Expand the $-expressions in the string and return a new string with
   // the result.
@@ -1099,8 +1106,8 @@ struct ObjectTraits<ConsString> {
 // ThinStrings can be thought of as "one-part cons strings".
 V8_OBJECT class ThinString : public String {
  public:
-  inline Tagged<String> actual() const;
-  inline void set_actual(Tagged<String> value,
+  inline Tagged<InternalizedString> actual() const;
+  inline void set_actual(Tagged<InternalizedString> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<HeapObject> unchecked_actual() const;
@@ -1127,7 +1134,7 @@ V8_OBJECT class ThinString : public String {
 
   friend Tagged<String> String::GetUnderlying() const;
 
-  TaggedMember<String> actual_;
+  TaggedMember<InternalizedString> actual_;
 } V8_OBJECT_END;
 
 template <>

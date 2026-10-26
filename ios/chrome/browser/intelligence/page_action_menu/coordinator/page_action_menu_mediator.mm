@@ -71,7 +71,10 @@ const CGFloat kFeatureRowIconSize = 20;
   raw_ptr<TemplateURLService> _templateURLService;
 
   // The service for the Gemini floaty.
-  raw_ptr<BwgService> _BWGService;
+  raw_ptr<BwgService> _geminiService;
+
+  // The tab helper for the Gemini floaty.
+  raw_ptr<BwgTabHelper> _geminiTabHelper;
 
   // The tab helper for Reader mode.
   raw_ptr<ReaderModeTabHelper> _readerModeTabHelper;
@@ -84,7 +87,8 @@ const CGFloat kFeatureRowIconSize = 20;
            authenticationService:(AuthenticationService*)authenticationService
               profilePrefService:(PrefService*)profilePrefs
               templateURLService:(TemplateURLService*)templateURLService
-                      BWGService:(BwgService*)BWGService
+                   geminiService:(BwgService*)geminiService
+                 geminiTabHelper:(BwgTabHelper*)geminiTabHelper
              readerModeTabHelper:(ReaderModeTabHelper*)readerModeTabHelper
           hostContentSettingsMap:
               (HostContentSettingsMap*)hostContentSettingsMap {
@@ -94,7 +98,8 @@ const CGFloat kFeatureRowIconSize = 20;
     _authenticationService = authenticationService;
     _profilePrefs = profilePrefs;
     _templateURLService = templateURLService;
-    _BWGService = BWGService;
+    _geminiService = geminiService;
+    _geminiTabHelper = geminiTabHelper;
     _readerModeTabHelper = readerModeTabHelper;
     _hostContentSettingsMap = hostContentSettingsMap;
     _webStateObserver = std::make_unique<web::WebStateObserverBridge>(self);
@@ -139,16 +144,12 @@ const CGFloat kFeatureRowIconSize = 20;
 }
 
 - (BOOL)isGeminiAvailable {
-  if (!_BWGService) {
+  if (!_geminiService || !_geminiTabHelper) {
     return NO;
   }
 
-  if (IsGeminiImmediateOverlayEnabled()) {
-    return _BWGService->IsBwgAvailableForWebState(_webState);
-  } else {
-    return !_webState->IsLoading() &&
-           _BWGService->IsBwgAvailableForWebState(_webState);
-  }
+  return _geminiTabHelper->IsGeminiAvailableForWebState() &&
+         _geminiService->IsProfileEligibleForGemini();
 }
 
 - (BOOL)isReaderModeAvailable {
@@ -197,7 +198,7 @@ const CGFloat kFeatureRowIconSize = 20;
 
       // Show row only if blocking is active AND there are blocked popups.
       BlockedPopupTabHelper* helper =
-          BlockedPopupTabHelper::GetOrCreateForWebState(_webState);
+          BlockedPopupTabHelper::FromWebState(_webState);
       bool hasBlockedPopups = helper && helper->GetBlockedPopupCount() > 0;
 
       return setting == CONTENT_SETTING_BLOCK && hasBlockedPopups;
@@ -266,7 +267,7 @@ const CGFloat kFeatureRowIconSize = 20;
     return 0;
   }
   BlockedPopupTabHelper* helper =
-      BlockedPopupTabHelper::GetOrCreateForWebState(_webState);
+      BlockedPopupTabHelper::FromWebState(_webState);
   return helper ? helper->GetBlockedPopupCount() : 0;
 }
 
@@ -432,7 +433,7 @@ const CGFloat kFeatureRowIconSize = 20;
   }
 
   BlockedPopupTabHelper* helper =
-      BlockedPopupTabHelper::GetOrCreateForWebState(_webState);
+      BlockedPopupTabHelper::FromWebState(_webState);
   if (!helper) {
     return;
   }

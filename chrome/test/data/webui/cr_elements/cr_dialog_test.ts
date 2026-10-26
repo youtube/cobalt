@@ -332,9 +332,9 @@ suite('cr-dialog', function() {
   // within a <cr-dialog show-on-attach> which itself resides in a conditional
   // Lit template. Regression test for crbug/341327469.
   test('FocusesCrLitElementsWithAutofocus', async function() {
-    class TestElement extends CrLitElement {
+    class TestDummyElement extends CrLitElement {
       static get is() {
-        return 'test-element';
+        return 'test-dummy';
       }
 
       override render() {
@@ -365,11 +365,11 @@ suite('cr-dialog', function() {
       accessor autofocusCrTextarea: boolean = false;
     }
 
-    customElements.define(TestElement.is, TestElement);
+    customElements.define(TestDummyElement.is, TestDummyElement);
 
     async function assertAutofocus(useTextarea: boolean) {
       document.body.innerHTML = window.trustedTypes!.emptyHTML;
-      const element = document.createElement('test-element') as TestElement;
+      const element = document.createElement('test-dummy') as TestDummyElement;
       useTextarea ? element.autofocusCrTextarea = true :
                     element.autofocusCrInput = true;
       const whenOpen = eventToPromise('cr-dialog-open', document.body);
@@ -404,7 +404,9 @@ suite('cr-dialog', function() {
     const borderTopValue = '1px solid rgb(0, 255, 0)';
     dialog.style.setProperty('--cr-dialog-body-border-top', borderTopValue);
     assertTrue(isVisible(scrollableTop), 'border is now visible');
-    assertEquals(borderTopValue, getComputedStyle(scrollableTop).borderTop);
+    const style = getComputedStyle(scrollableTop);
+    assertEquals('solid', style.borderTopStyle);
+    assertEquals('rgb(0, 255, 0)', style.borderTopColor);
   });
 
   test(
@@ -446,7 +448,7 @@ suite('cr-dialog', function() {
     crDialog.noCancel = false;
     await microtasksFinished();
     assertFalse(crDialog.noCancel);
-    assertEquals('any', nativeDialog.getAttribute('closedby'));
+    assertFalse(nativeDialog.hasAttribute('closedby'));
   });
 
   test('dialog close button shown when showCloseButton is true', function() {

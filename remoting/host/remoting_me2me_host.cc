@@ -54,6 +54,7 @@
 #include "net/base/network_change_notifier.h"
 #include "remoting/base/authentication_method.h"
 #include "remoting/base/auto_thread_task_runner.h"
+#include "remoting/base/branding.h"
 #include "remoting/base/cloud_session_authz_service_client_factory.h"
 #include "remoting/base/corp_session_authz_service_client_factory.h"
 #include "remoting/base/cpu_utils.h"
@@ -69,12 +70,11 @@
 #include "remoting/base/rsa_key_pair.h"
 #include "remoting/base/service_urls.h"
 #include "remoting/base/session_policies.h"
+#include "remoting/base/username.h"
 #include "remoting/host/base/desktop_environment_options.h"
 #include "remoting/host/base/host_exit_codes.h"
 #include "remoting/host/base/switches.h"
-#include "remoting/host/base/username.h"
 #include "remoting/host/basic_desktop_environment.h"
-#include "remoting/host/branding.h"
 #include "remoting/host/chromoting_host.h"
 #include "remoting/host/chromoting_host_context.h"
 #include "remoting/host/cloud_heartbeat_service_client.h"
@@ -118,13 +118,13 @@
 #include "remoting/protocol/jingle_session_manager.h"
 #include "remoting/protocol/me2me_host_authenticator_factory.h"
 #include "remoting/protocol/pairing_registry.h"
-#include "remoting/protocol/session_config.h"
 #include "remoting/protocol/transport.h"
 #include "remoting/protocol/transport_context.h"
 #include "remoting/signaling/corp_messaging_constants.h"
 #include "remoting/signaling/corp_signal_strategy.h"
 #include "remoting/signaling/ftl_host_device_id_provider.h"
 #include "remoting/signaling/ftl_signal_strategy.h"
+#include "remoting/signaling/session_config.h"
 #include "remoting/signaling/signal_strategy.h"
 #include "remoting/signaling/signaling_id_util.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_capture_types.h"
@@ -394,7 +394,7 @@ class HostProcess : public ConfigWatcher::Delegate,
   bool OnAllowPinAuthenticationUpdate(const base::DictValue& policies);
 
   std::optional<ErrorCode> OnSessionPoliciesReceived(
-      const SessionPolicies& session_policies) const;
+      const SessionPolicies& session_policies);
 
   void InitializeSignaling();
 
@@ -441,6 +441,11 @@ class HostProcess : public ConfigWatcher::Delegate,
   void OnAgentProcessBrokerDisconnected();
 #endif
 
+  // Sets the required username on the daemon process based on
+  // `require_host_username_match_` and `current_host_owner_email_`. Must be
+  // called when `multi_process_` is true.
+  void SetRequiredUsernameOnDaemonProcess();
+
   std::unique_ptr<ChromotingHostContext> context_;
 
 #if BUILDFLAG(IS_MAC)
@@ -470,6 +475,7 @@ class HostProcess : public ConfigWatcher::Delegate,
   std::string service_account_email_;
   base::DictValue config_;
   std::set<std::string> host_owner_emails_;
+  std::string current_host_owner_email_;
 
   std::unique_ptr<PolicyWatcher> policy_watcher_;
   PolicyState policy_state_ = POLICY_INITIALIZING;
@@ -482,6 +488,7 @@ class HostProcess : public ConfigWatcher::Delegate,
   bool is_cloud_host_ = false;
   bool is_corp_host_ = false;
   bool require_session_authorization_ = false;
+  bool require_host_username_match_ = false;
   LocalSessionPoliciesProvider local_session_policies_provider_;
 
   DesktopEnvironmentOptions desktop_environment_options_;
@@ -491,17 +498,17 @@ class HostProcess : public ConfigWatcher::Delegate,
   // Used to specify which window to stream, if enabled.
   webrtc::WindowId window_id_ = 0;
 
-  // Must outlive |signal_strategy_| and |ftl_signaling_connector_|.
+  // Must outlive |ftl_signal_strategy_| and |ftl_signaling_connector_|.
   std::unique_ptr<OAuthTokenGetterImpl> oauth_token_getter_;
 
   // Must outlive |heartbeat_sender_| and |host_|.
   std::unique_ptr<InstanceIdentityTokenGetter> instance_identity_token_getter_;
 
-  // Must outlive |signal_strategy_| and |heartbeat_sender_|.
+  // Must outlive |ftl_signal_strategy_| and |heartbeat_sender_|.
   std::unique_ptr<ZombieHostDetector> zombie_host_detector_;
 
-  // |signal_strategy_| must outlive |ftl_signaling_connector_|.
-  std::unique_ptr<SignalStrategy> signal_strategy_;
+  // |ftl_signal_strategy_| must outlive |ftl_signaling_connector_|.
+  std::unique_ptr<FtlSignalStrategy> ftl_signal_strategy_;
   std::unique_ptr<FtlSignalingConnector> ftl_signaling_connector_;
 
   // |corp_signal_strategy_| must outlive |corp_signaling_connector_|.
@@ -1190,13 +1197,17 @@ void HostProcess::OnUpdateHostOwner(const std::string& owner_email) {
   DCHECK(!owner_email.empty());
 
   // Use a canonical email form here for matching against FTL signaling IDs.
-  auto new_owner_email = GetCanonicalEmail(owner_email);
-  if (host_owner_emails_.contains(new_owner_email)) {
+  current_host_owner_email_ = GetCanonicalEmail(owner_email);
+  if (multi_process_) {
+    SetRequiredUsernameOnDaemonProcess();
+  }
+  if (host_owner_emails_.contains(current_host_owner_email_)) {
     return;
   }
 
-  LOG(INFO) << "Adding '" << new_owner_email << "' to host owner emails.";
-  host_owner_emails_.emplace(std::move(new_owner_email));
+  LOG(INFO) << "Adding '" << current_host_owner_email_
+            << "' to host owner emails.";
+  host_owner_emails_.emplace(current_host_owner_email_);
 
   ApplyHostDomainListPolicy();
 }
@@ -1345,6 +1356,26 @@ void HostProcess::OnAgentProcessBrokerDisconnected() {
 }
 
 #endif  // BUILDFLAG(IS_MAC)
+
+void HostProcess::SetRequiredUsernameOnDaemonProcess() {
+  DCHECK(multi_process_);
+
+  if (current_host_owner_email_.empty()) {
+    // SetRequiredUsernameOnDaemonProcess() will be called again once
+    // `current_host_owner_email_` is set.
+    return;
+  }
+  if (!require_host_username_match_) {
+    desktop_session_connector_->SetRequiredUsername({});
+    return;
+  }
+  auto email_parts = base::SplitStringOnce(current_host_owner_email_, '@');
+  if (!email_parts.has_value()) {
+    LOG(ERROR) << current_host_owner_email_ << " is not a valid email address";
+    return;
+  }
+  desktop_session_connector_->SetRequiredUsername(email_parts->first);
+}
 
 // Applies the host config, returning true if successful.
 bool HostProcess::ApplyConfig(const base::DictValue& config) {
@@ -1714,20 +1745,27 @@ bool HostProcess::OnAllowRemoteAccessConnections(
 }
 
 std::optional<ErrorCode> HostProcess::OnSessionPoliciesReceived(
-    const SessionPolicies& session_policies) const {
+    const SessionPolicies& session_policies) {
   DCHECK(context_->network_task_runner()->BelongsToCurrentThread());
 
   // We currently only validate the host_username_match_required policy here.
   // Other policies are validated by ClientSession.
 
-  if (!session_policies.host_username_match_required.value_or(false)) {
+  require_host_username_match_ =
+      session_policies.host_username_match_required.value_or(false);
+  if (multi_process_) {
+    // For multi-process hosts, the host username match policy will be enforced
+    // by the daemon process.
+    SetRequiredUsernameOnDaemonProcess();
+    return std::nullopt;
+  }
+  if (!require_host_username_match_) {
     return std::nullopt;
   }
 
 #if BUILDFLAG(IS_WIN)
-  VLOG(1) << "Policy host_username_match_required ignored since it is not "
-          << "supported on Windows.";
-  return std::nullopt;
+  // The Windows host is always multi-process.
+  NOTREACHED();
 #else  // BUILDFLAG(IS_WIN) #else
 
 #if BUILDFLAG(IS_APPLE)
@@ -1764,7 +1802,7 @@ std::optional<ErrorCode> HostProcess::OnSessionPoliciesReceived(
 
 void HostProcess::InitializeSignaling() {
   DCHECK(!host_id_.empty());  // ApplyConfig() should already have been run.
-  DCHECK(!signal_strategy_);
+  DCHECK(!ftl_signal_strategy_);
   DCHECK(!corp_signal_strategy_);
   DCHECK(!oauth_token_getter_);
   DCHECK(!ftl_signaling_connector_);
@@ -1796,14 +1834,14 @@ void HostProcess::InitializeSignaling() {
   }
 #endif
 
-  auto ftl_signal_strategy = std::make_unique<FtlSignalStrategy>(
+  ftl_signal_strategy_ = std::make_unique<FtlSignalStrategy>(
       std::make_unique<OAuthTokenGetterProxy>(
           oauth_token_getter_->GetWeakPtr()),
       context_->url_loader_factory(),
       std::make_unique<FtlHostDeviceIdProvider>(host_id_),
       zombie_host_detector_.get());
   ftl_signaling_connector_ = std::make_unique<FtlSignalingConnector>(
-      ftl_signal_strategy.get(),
+      ftl_signal_strategy_.get(),
       base::BindOnce(&HostProcess::OnAuthFailed, base::Unretained(this)));
   ftl_signaling_connector_->Start();
 
@@ -1835,10 +1873,9 @@ void HostProcess::InitializeSignaling() {
   }
 
   heartbeat_sender_ = std::make_unique<HeartbeatSender>(
-      this, host_id_, ftl_signal_strategy.get(), oauth_token_getter_.get(),
+      this, host_id_, ftl_signal_strategy_.get(), oauth_token_getter_.get(),
       std::move(service_client), zombie_host_detector_.get(),
       context_->url_loader_factory(), is_corp_host_);
-  signal_strategy_ = std::move(ftl_signal_strategy);
 
   zombie_host_detector_->Start();
 }
@@ -1932,15 +1969,14 @@ void HostProcess::StartHost() {
           webrtc::ThreadWrapper::current()->SocketServer(),
           std::move(ice_config_fetcher), protocol::TransportRole::SERVER);
   std::unique_ptr<protocol::SessionManager> session_manager(
-      new protocol::JingleSessionManager(signal_strategy_.get()));
+      new protocol::JingleSessionManager(ftl_signal_strategy_.get()));
   std::unique_ptr<protocol::SessionManager> corp_session_manager;
   if (corp_signal_strategy_) {
     corp_session_manager = std::make_unique<protocol::JingleSessionManager>(
         corp_signal_strategy_.get());
   }
 
-  std::unique_ptr<protocol::CandidateSessionConfig> protocol_config =
-      protocol::CandidateSessionConfig::CreateDefault();
+  auto protocol_config = CandidateSessionConfig::CreateDefault();
   if (!desktop_environment_factory_->SupportsAudioCapture()) {
     protocol_config->DisableAudioChannel();
   }
@@ -2005,11 +2041,11 @@ void HostProcess::StartHost() {
 
   ftl_host_change_notification_listener_ =
       std::make_unique<FtlHostChangeNotificationListener>(
-          this, signal_strategy_.get());
+          this, ftl_signal_strategy_.get());
 
   ftl_echo_message_listener_ = std::make_unique<FtlEchoMessageListener>(
       base::BindRepeating(&HostProcess::CheckAccessPermission, this),
-      signal_strategy_.get());
+      ftl_signal_strategy_.get());
 
   // Set up reporting the host status notifications.
   if (multi_process_) {
@@ -2111,7 +2147,7 @@ void HostProcess::GoOffline(const std::string& host_offline_reason) {
     OnHostOfflineReasonAck(true);
     return;
   } else if (!config_.empty()) {
-    if (!signal_strategy_) {
+    if (!ftl_signal_strategy_) {
       InitializeSignaling();
     }
 
@@ -2138,7 +2174,7 @@ void HostProcess::OnHostOfflineReasonAck(bool success) {
   instance_identity_token_getter_.reset();
   ftl_signaling_connector_.reset();
   ftl_echo_message_listener_.reset();
-  signal_strategy_.reset();
+  ftl_signal_strategy_.reset();
   corp_signal_strategy_.reset();
   corp_signaling_connector_.reset();
   zombie_host_detector_.reset();

@@ -9,7 +9,6 @@ source_set("commerce") {
     "commerce_page_action_controller.h",
     "commerce_ui_tab_helper.h",
     "discounts_page_action_controller.h",
-    "price_tracking_page_action_controller.h",
   ]
   public_deps = [
     "//base",
@@ -36,7 +35,6 @@ source_set("impl") {
     "commerce_page_action_controller.cc",
     "commerce_ui_tab_helper.cc",
     "discounts_page_action_controller.cc",
-    "price_tracking_page_action_controller.cc",
   ]
 
   public_deps = [ "//chrome/browser:browser_public_dependencies" ]
@@ -47,6 +45,8 @@ source_set("impl") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/side_panel",
+    "//chrome/browser/ui/side_panel:side_panel_views_dependent",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/toasts",
     "//chrome/browser/ui/toasts/api:toasts",
@@ -84,6 +84,7 @@ source_set("test_support") {
   deps = [
     ":commerce",
     "//base",
+    "//chrome/browser/ui/side_panel:side_panel_views_dependent",
     "//chrome/browser/ui/tabs:tabs_public",
     "//skia:skia_core_public_headers",
     "//testing/gmock",
@@ -96,11 +97,12 @@ source_set("unit_tests") {
   sources = [
     "commerce_ui_tab_helper_unittest.cc",
     "discounts_page_action_controller_unittest.cc",
-    "price_tracking_page_action_controller_unittest.cc",
   ]
   deps = [
     ":commerce",
     "//base/test:test_support",
+    "//chrome/browser/ui/call_to_action",
+    "//chrome/browser/ui/side_panel:side_panel_views_dependent",
     "//chrome/browser/ui/toasts",
     "//chrome/browser/ui/views/page_action:test_support",
     "//chrome/test:test_support",

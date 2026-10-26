@@ -83,6 +83,7 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
         container_type_(other.container_type_),
         main_gaps_(std::move(new_main_gaps)),
         cross_gaps_(other.cross_gaps_),
+        flex_cross_gap_sizes_(other.flex_cross_gap_sizes_),
         content_inline_start_(other.content_inline_start_),
         content_inline_end_(other.content_inline_end_),
         content_block_start_(new_content_block_start),
@@ -91,6 +92,18 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
         main_gap_running_index_(other.main_gap_running_index_) {}
 
   void Trace(Visitor* visitor) const {}
+
+  bool operator==(const GapGeometry& other) const {
+    return inline_gap_size_ == other.inline_gap_size_ &&
+           block_gap_size_ == other.block_gap_size_ &&
+           container_type_ == other.container_type_ &&
+           main_gaps_ == other.main_gaps_ && cross_gaps_ == other.cross_gaps_ &&
+           content_inline_start_ == other.content_inline_start_ &&
+           content_inline_end_ == other.content_inline_end_ &&
+           content_block_start_ == other.content_block_start_ &&
+           content_block_end_ == other.content_block_end_ &&
+           main_direction_ == other.main_direction_;
+  }
 
   // Computes the physical bounding rect for gap decorations ink overflow.
   PhysicalRect ComputeInkOverflowForGaps(WritingDirectionMode writing_direction,
@@ -106,6 +119,17 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
   void SetBlockGapSize(LayoutUnit size) { block_gap_size_ = size; }
   LayoutUnit GetBlockGapSize() const { return block_gap_size_; }
 
+  // Per-line main axis gap sizes for flex containers.
+  // This is needed because different lines in a flex container can have
+  // different effective gap sizes due to content distribution space.
+  void SetFlexCrossGapSizes(Vector<LayoutUnit>&& sizes) {
+    flex_cross_gap_sizes_ = std::move(sizes);
+  }
+  LayoutUnit GetFlexCrossGapSize(wtf_size_t line_index) const {
+    CHECK(flex_cross_gap_sizes_.has_value());
+    CHECK_GT(flex_cross_gap_sizes_->size(), line_index);
+    return (*flex_cross_gap_sizes_)[line_index];
+  }
 
   void SetContentInlineOffsets(LayoutUnit start_offset, LayoutUnit end_offset);
   LayoutUnit GetContentInlineStart() const { return content_inline_start_; }
@@ -173,6 +197,33 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
                           wtf_size_t intersection_count,
                           bool is_main_gap,
                           const Vector<GapIntersection>& intersections) const;
+
+  // Returns the base width used to resolve percentage inset values at the
+  // intersection located at `intersection_index`. Edge intersections return 0.
+  // For most interior intersections, this is the cross width at that point (via
+  // `GetCrossWidthForIntersection()`). For flex main-direction overlap
+  // intersections, this instead returns the overlap window size. Takes
+  // `intersections` list because logic here depends on neighboring entries to
+  // detect overlaps.
+  LayoutUnit GetMaxInsetWidth(
+      GridTrackSizingDirection track_direction,
+      wtf_size_t gap_index,
+      wtf_size_t intersection_index,
+      bool is_main_gap,
+      const Vector<GapIntersection>& intersections) const;
+
+  // Returns the cross gap width at the intersection located at
+  // `intersection_index`. Returns 0 for edge intersections. For interior
+  // intersections in grid and multicol, returns the cross gutter width. For
+  // flex main-direction intersections, returns the per-line cross gap size.
+  // Takes `intersections` list because logic here depends on neighboring
+  // entries to identify edge and spanner-adjacent intersections.
+  LayoutUnit GetCrossWidthForIntersection(
+      GridTrackSizingDirection track_direction,
+      wtf_size_t gap_index,
+      wtf_size_t intersection_index,
+      bool is_main_gap,
+      const Vector<GapIntersection>& intersections) const;
 
   // Returns the `GapSegmentState` for the intersection at `secondary_index`
   // within the gap at `primary_index` in the `track_direction`.
@@ -296,17 +347,6 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
                                              GridTrackSizingDirection direction,
                                              bool cross_gap_is_at_end) const;
 
-  // In multicol, the intersections of a given `CrossGap` will be spanner
-  // adjacent if and only if there are 3 intersections in the gap, and we are at
-  // the middle intersection. This is because all multicol `CrossGap` will have
-  // only 2 intersections, except if they are adjacent to a spanner, in which
-  // case they will have 3 intersections: One at the start of the gap, one at
-  // the start of the spanner, and one at the end of the spanner. The middle
-  // intersection is the one that is spanner adjacent.
-  bool MulticolCrossGapIntersectionsEndAtSpanner(
-      wtf_size_t intersection_index,
-      const Vector<GapIntersection>& intersections) const;
-
   // In flex it refers to the gap between flex items, and in grid it
   // refers to the column gutter size.
   LayoutUnit inline_gap_size_;
@@ -325,6 +365,11 @@ class CORE_EXPORT GapGeometry : public GarbageCollected<GapGeometry> {
 
   MainGaps main_gaps_;
   CrossGaps cross_gaps_;
+
+  // Per-line effective gap sizes for flex containers.
+  // Each flex line corresponds to one entry in this vector, indexed by
+  // fragment-relative line index.
+  std::optional<Vector<LayoutUnit>> flex_cross_gap_sizes_;
 
   // These represent the offsets of the content where the gaps begin and end.
   // We use separate LayoutUnits instead of LogicalOffsets, since these are more

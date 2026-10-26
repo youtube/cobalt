@@ -562,6 +562,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     eor3(vd, vn, vm, va);
   }
 
+  void Xar(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+           unsigned imm) {
+    DCHECK(allow_macro_instructions());
+    xar(vd, vn, vm, imm);
+  }
+
   void Bic(const VRegister& vd, const int imm8, const int left_shift = 0) {
     DCHECK(allow_macro_instructions());
     bic(vd, imm8, left_shift);
@@ -634,6 +640,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void SmiUntag(Register dst, Register src);
   inline void SmiUntag(Register dst, const MemOperand& src);
   inline void SmiUntag(Register smi);
+
+  inline void SmiUntagUnsigned(Register dst, Register src);
+  inline void SmiUntagUnsigned(Register dst, const MemOperand& src);
+  inline void SmiUntagUnsigned(Register smi);
 
   inline void SmiTag(Register dst, Register src);
   inline void SmiTag(Register smi);
@@ -1188,6 +1198,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                          DoubleRegister double_input, StubCallMode stub_mode,
                          LinkRegisterStatus lr_status);
 
+  void Float64Mod(VRegister out, VRegister left, VRegister right);
+
   inline void Mul(const Register& rd, const Register& rn, const Register& rm);
 
   inline void Fcvtzs(const Register& rd, const VRegister& fn);
@@ -1609,6 +1621,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Loads a field containing smi value and untags it.
   void SmiUntagField(Register dst, const MemOperand& src);
+  void SmiUntagFieldUnsigned(Register dst, const MemOperand& src);
 
   // Compresses and stores tagged value to given on-heap location.
   void StoreTaggedField(const Register& value,

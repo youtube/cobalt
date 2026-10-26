@@ -3,12 +3,15 @@
 // found in the LICENSE file.
 
 // https://wicg.github.io/navigation-api/
+[SupportsTaskAttribution]
 callback NavigationInterceptHandler = Promise<undefined>();
+
+[SupportsTaskAttribution]
 callback NavigationInterceptPrecommitHandler = Promise<undefined>(NavigationPrecommitController controller);
 
 dictionary NavigationInterceptOptions {
   NavigationInterceptHandler handler;
-  [RuntimeEnabled=NavigateEventCommitBehavior] NavigationInterceptPrecommitHandler precommitHandler;
+  NavigationInterceptPrecommitHandler precommitHandler;
   NavigationFocusReset focusReset;
   NavigationScrollBehavior scroll;
 };

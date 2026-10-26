@@ -21,12 +21,15 @@
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_network_state.h"
-#include "chrome/browser/ui/tabs/tab_renderer_data.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_icon.h"
+#include "chrome/browser/ui/views/tabs/tab_hover_card_bubble_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/root_tab_collection_node.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
+#include "chrome/browser/ui/views/tabs/vertical/vertical_split_tab_view.h"
 #include "chrome/browser/ui/views/test/vertical_tabs_browser_test_mixin.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -335,9 +338,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, AlertIndicatorMute) {
   histogram_tester.ExpectBucketCount("Media.Audio.TabAudioMuted", false, 1);
 }
 
-IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonDataChanged) {
-  // The initial tab is the first child of the unpinned collection which is the
-  // second child of the root node.
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonVisibilityActiveTab) {
   TabCollectionNode* tab_node = unpinned_collection_node()->children()[0].get();
   VerticalTabView* tab_view =
       views::AsViewClass<VerticalTabView>(tab_node->view());
@@ -348,6 +349,18 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonDataChanged) {
 
   // After adding a new tab, the old tab is no longer activated so the close
   // button should no longer be showing.
+  AppendTab();
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !close_button->GetVisible(); }));
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonVisibilityHover) {
+  TabCollectionNode* tab_node = unpinned_collection_node()->children()[0].get();
+  VerticalTabView* tab_view =
+      views::AsViewClass<VerticalTabView>(tab_node->view());
+  TabCloseButton* close_button = tab_view->close_button_for_testing();
+
+  // Deactivate the tab.
   AppendTab();
   ASSERT_TRUE(
       base::test::RunUntil([&]() { return !close_button->GetVisible(); }));
@@ -365,17 +378,66 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonDataChanged) {
   event_generator.MoveMouseTo(gfx::Point());
   WaitForLayout(tab_view);
   EXPECT_FALSE(close_button->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonVisibilityCollapsed) {
+  TabCollectionNode* tab_node = unpinned_collection_node()->children()[0].get();
+  VerticalTabView* tab_view =
+      views::AsViewClass<VerticalTabView>(tab_node->view());
+  TabCloseButton* close_button = tab_view->close_button_for_testing();
+
+  // Deactivate the tab.
+  AppendTab();
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !close_button->GetVisible(); }));
 
   // Collapse the tab strip.
   tabs::VerticalTabStripStateController::From(browser())->SetCollapsed(true);
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return tab_view->collapsed_for_testing(); }));
 
+  // After collapsing the tab strip, the close button should be hidden because
+  // the tab is not hovered.
+  EXPECT_FALSE(close_button->GetVisible());
+
+  ui::test::EventGenerator event_generator(
+      views::GetRootWindow(browser()->GetBrowserView().GetWidget()),
+      browser()->GetBrowserView().GetNativeWindow());
+
   // After the mouse enters the tab, the close button should still be hidden
-  // since the tab is not active.
+  // because the tab is not active.
   event_generator.MoveMouseTo(tab_view->GetBoundsInScreen().CenterPoint());
   WaitForLayout(tab_view);
   EXPECT_FALSE(close_button->GetVisible());
+
+  // After the mouse exits the tab, the close button should be hidden.
+  event_generator.MoveMouseTo(gfx::Point());
+  WaitForLayout(tab_view);
+  EXPECT_FALSE(close_button->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest,
+                       CloseButtonVisibilityActiveCollapsed) {
+  TabCollectionNode* tab_node = unpinned_collection_node()->children()[0].get();
+  VerticalTabView* tab_view =
+      views::AsViewClass<VerticalTabView>(tab_node->view());
+  TabCloseButton* close_button = tab_view->close_button_for_testing();
+
+  // Collapse the tab strip.
+  tabs::VerticalTabStripStateController::From(browser())->SetCollapsed(true);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return tab_view->collapsed_for_testing(); }));
+
+  // Now that the tab is collapsed the close button should be hidden.
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !close_button->GetVisible(); }));
+
+  // Hovering the active tab while collapsed should show the close button.
+  // TODO(crbug.com/492603554): Investigate why using EventGenerator here
+  // flakes.
+  tab_view->UpdateHovered(true);
+  WaitForLayout(tab_view);
+  EXPECT_TRUE(close_button->GetVisible());
 }
 
 IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonPressed) {
@@ -395,6 +457,29 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonPressed) {
   // After pressing the close button, there should only be 1 tab remaining.
   close_button->button_controller()->NotifyClick();
   EXPECT_EQ(1, tab_strip_model()->count());
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, RenderInactiveWhenClosing) {
+  // Add a second tab.
+  AppendTab();
+  ASSERT_EQ(2, tab_strip_model()->count());
+
+  // The second tab is active.
+  TabCollectionNode* tab_node = unpinned_collection_node()->children()[1].get();
+  VerticalTabView* tab_view =
+      views::AsViewClass<VerticalTabView>(tab_node->view());
+  tab_view->UpdateHovered(true);
+
+  ASSERT_TRUE(tab_view->IsActive());
+  EXPECT_TRUE(tab_view->IsHoverAnimationActive());
+
+  // Close the tab.
+  tab_strip_model()->CloseWebContentsAt(1, TabCloseTypes::CLOSE_USER_GESTURE);
+
+  // The tab_view should now be inactive despite being the active tab
+  // just before closing.
+  EXPECT_FALSE(tab_view->IsActive());
+  EXPECT_TRUE(tab_view->IsHoverAnimationActive());
 }
 
 IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, PinnedTabsHideCloseButton) {
@@ -543,6 +628,72 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, LogsTabCloseMetrics_SplitView) {
   EXPECT_EQ(user_action_tester.GetActionCount("CloseTab_EndTabInSplit"), 1);
 }
 
+// Mouse over split tab. Check the content matches the hover card.
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest,
+                       HoverCardAnchorToSplitViewParentContainer) {
+  AppendSplitTab();
+
+  // Get the view for both tabs in the split.
+  // Note: tab at index 0 is a normal tab.
+  tabs::TabInterface* tab_1 = tab_strip_model()->GetTabAtIndex(1);
+  tabs::TabInterface* tab_2 = tab_strip_model()->GetTabAtIndex(2);
+
+  TabCollectionNode* split_tab_node =
+      unpinned_collection_node()->GetChildNodeOfType(
+          TabCollectionNode::Type::SPLIT);
+  VerticalSplitTabView* split_tab_view =
+      views::AsViewClass<VerticalSplitTabView>(split_tab_node->view());
+
+  VerticalTabView* tab_1_view = views::AsViewClass<VerticalTabView>(
+      split_tab_node->GetNodeForHandle(tab_1->GetHandle())->view());
+  ASSERT_EQ(tab_1_view->GetAnchorView(), split_tab_view);
+
+  VerticalTabView* tab_2_view = views::AsViewClass<VerticalTabView>(
+      split_tab_node->GetNodeForHandle(tab_2->GetHandle())->view());
+  ASSERT_EQ(tab_2_view->GetAnchorView(), split_tab_view);
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest,
+                       HoverCardControllerSetsCorrectAnchorTarget) {
+  AppendSplitTab();
+  // Get the view for the non split tab, and both tabs in the split.
+  // Tab at 0 is the ordinary non-split tab.
+  tabs::TabInterface* tab_0 = tab_strip_model()->GetTabAtIndex(0);
+  tabs::TabInterface* tab_1 = tab_strip_model()->GetTabAtIndex(1);
+  tabs::TabInterface* tab_2 = tab_strip_model()->GetTabAtIndex(2);
+
+  VerticalTabView* tab_0_target = AsViewClass<VerticalTabView>(
+      unpinned_collection_node()->GetNodeForHandle(tab_0->GetHandle())->view());
+
+  TabCollectionNode* split_tab_node =
+      unpinned_collection_node()->GetChildNodeOfType(
+          TabCollectionNode::Type::SPLIT);
+
+  VerticalTabView* tab_1_target = AsViewClass<VerticalTabView>(
+      split_tab_node->GetNodeForHandle(tab_1->GetHandle())->view());
+
+  VerticalTabView* tab_2_target = AsViewClass<VerticalTabView>(
+      split_tab_node->GetNodeForHandle(tab_2->GetHandle())->view());
+
+  // Show hover card for each tab and then check that we set the
+  // target tab is set correctly.
+  hover_card_controller()->UpdateHoverCard(
+      tab_0_target, TabSlotController::HoverCardUpdateType::kHover);
+  EXPECT_EQ(tab_0_target, hover_card_controller()->target_tab());
+
+  hover_card_controller()->UpdateHoverCard(
+      tab_1_target, TabSlotController::HoverCardUpdateType::kHover);
+  EXPECT_EQ(tab_1_target, hover_card_controller()->target_tab());
+
+  hover_card_controller()->UpdateHoverCard(
+      tab_2_target, TabSlotController::HoverCardUpdateType::kHover);
+  EXPECT_EQ(tab_2_target, hover_card_controller()->target_tab());
+
+  hover_card_controller()->UpdateHoverCard(
+      nullptr, TabSlotController::HoverCardUpdateType::kTabRemoved);
+  EXPECT_EQ(nullptr, hover_card_controller()->target_tab());
+}
+
 class VerticalTabViewDataSharingEnabledTest : public VerticalTabViewTest {
  public:
   const std::vector<base::test::FeatureRefAndParams> GetEnabledFeatures()
@@ -605,4 +756,48 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewDataSharingEnabledTest,
   EXPECT_EQ(1, user_action_tester.GetActionCount(
                    "TabGroups.Shared.SwitchGroupedTab"));
   EXPECT_EQ(1, user_action_tester.GetActionCount("SwitchTab_Click"));
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, AlertIndicatorDecorateOnCollapse) {
+  tabs::VerticalTabStripStateController::From(browser())->SetCollapsed(true);
+
+  // Wait for the collapse animation to finish and ensure the width reaches
+  // kCollapsedWidth.
+  VerticalTabStripRegionView* const region_view =
+      browser()->GetBrowserView().vertical_tab_strip_region_view_for_testing();
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return !region_view->is_animating() &&
+           region_view->width() <= VerticalTabStripRegionView::kCollapsedWidth;
+  }));
+
+  TabCollectionNode* tab_node = unpinned_collection_node()->children()[0].get();
+  VerticalTabView* tab_view =
+      views::AsViewClass<VerticalTabView>(tab_node->view());
+
+  // Ensure the tab is active and hovered so that the close button is visible.
+  tab_strip_model()->ActivateTabAt(0);
+  ui::test::EventGenerator event_generator(
+      views::GetRootWindow(browser()->GetBrowserView().GetWidget()),
+      browser()->GetBrowserView().GetNativeWindow());
+  event_generator.MoveMouseTo(tab_view->GetBoundsInScreen().CenterPoint());
+
+  auto* alert_indicator =
+      tab_view->GetViewByElementId(kTabAlertIndicatorButtonElementId);
+
+  // Set alert state to audio playing.
+  content::WebContents* web_contents =
+      tab_strip_model()->GetActiveWebContents();
+  base::ScopedClosureRunner scoped_closure_runner = web_contents->MarkAudible();
+  tab_strip_model()->NotifyTabChanged(tab_strip_model()->GetTabAtIndex(0),
+                                      TabChangeType::kAll);
+  WaitForLayout(tab_view);
+
+  // In collapsed mode, the active and hovered tab shows the close button as the
+  // first visible child. The alert indicator is the second visible child, so it
+  // should be hidden from normal rendering and instead trigger the
+  // decorate_on_collapse logic.
+  const gfx::Rect tab_bounds = tab_view->GetLocalBounds();
+  const gfx::Rect expected_bounds(tab_bounds.width() / 2,
+                                  tab_bounds.height() / 2, 0, 0);
+  EXPECT_EQ(expected_bounds, alert_indicator->bounds());
 }

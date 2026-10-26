@@ -78,9 +78,8 @@ class Tracker;
 // Decides if AI Hub new badge should show.
 - (BOOL)shouldShowAIHubNewFeatureBadge;
 
-// Edit state required `height` changed.
-- (void)locationBarViewController:(LocationBarViewController*)controller
-         didChangeEditStateHeight:(CGFloat)height;
+// Notifies the delegate about a tap on the Hide Toolbar context menu action.
+- (void)locationBarHideToolbarTapped;
 
 @end
 

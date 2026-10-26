@@ -94,7 +94,9 @@ bool IsCorsUnsafeRequestHeaderByte(char c) {
 }
 
 // |value| should be lower case.
-bool IsCorsSafelistedLowerCaseContentType(const std::string& value) {
+bool IsCorsSafelistedLowerCaseContentType(
+    const std::string& value,
+    bool is_ad_auction_trusted_signals_request) {
   DCHECK_EQ(value, base::ToLowerASCII(value));
   if (std::ranges::any_of(value, IsCorsUnsafeRequestHeaderByte)) {
     return false;
@@ -110,8 +112,7 @@ bool IsCorsSafelistedLowerCaseContentType(const std::string& value) {
   return *mime_type == "application/x-www-form-urlencoded" ||
          *mime_type == "multipart/form-data" || *mime_type == "text/plain" ||
          (*mime_type == "message/ad-auction-trusted-signals-request" &&
-          base::FeatureList::IsEnabled(
-              features::kProtectedAudienceCorsSafelistKVv2Signals));
+          is_ad_auction_trusted_signals_request);
 }
 
 bool IsNoCorsSafelistedHeaderNameLowerCase(const std::string& lower_name) {
@@ -219,27 +220,6 @@ base::expected<void, CorsErrorStatus> CheckAccess(
   return base::ok();
 }
 
-base::expected<void, CorsErrorStatus> CheckAccessAndReportMetrics(
-    const GURL& response_url,
-    const std::optional<std::string>& allow_origin_header,
-    const std::optional<std::string>& allow_credentials_header,
-    mojom::CredentialsMode credentials_mode,
-    const url::Origin& origin) {
-  auto check_result =
-      CheckAccess(response_url, allow_origin_header, allow_credentials_header,
-                  credentials_mode, origin);
-  cors::AccessCheckResult result = check_result.has_value()
-                                       ? cors::AccessCheckResult::kPermitted
-                                       : cors::AccessCheckResult::kNotPermitted;
-
-  base::UmaHistogramEnumeration("Net.Cors.AccessCheckResult", result);
-  if (!IsOriginPotentiallyTrustworthy(origin)) {
-    base::UmaHistogramEnumeration(
-        "Net.Cors.AccessCheckResult.NotSecureRequestor", result);
-  }
-  return check_result;
-}
-
 bool ShouldCheckCors(const GURL& request_url,
                      const std::optional<url::Origin>& request_initiator,
                      mojom::RequestMode request_mode) {
@@ -272,10 +252,14 @@ bool IsCorsSafelistedMethod(const std::string& method) {
 }
 
 bool IsCorsSafelistedContentType(const std::string& media_type) {
-  return IsCorsSafelistedLowerCaseContentType(base::ToLowerASCII(media_type));
+  return IsCorsSafelistedLowerCaseContentType(
+      base::ToLowerASCII(media_type),
+      /*is_ad_auction_trusted_signals_request=*/false);
 }
 
-bool IsCorsSafelistedHeader(const std::string& name, const std::string& value) {
+bool IsCorsSafelistedHeader(const std::string& name,
+                            const std::string& value,
+                            bool is_ad_auction_trusted_signals_request) {
   const std::string lower_name = base::ToLowerASCII(name);
 
   // If |value|’s length is greater than 128, then return false.
@@ -389,7 +373,8 @@ bool IsCorsSafelistedHeader(const std::string& name, const std::string& value) {
              c == 0x2d || c == 0x2e || c == 0x3b || c == 0x3d;
     });
   } else if (lower_name == "content-type") {
-    return IsCorsSafelistedLowerCaseContentType(lower_value);
+    return IsCorsSafelistedLowerCaseContentType(
+        lower_value, is_ad_auction_trusted_signals_request);
   } else if (lower_name == "range") {
     // A 'simple' range value is of the following form: 'bytes=\d+-(\d+)?'.
     // We can use the regular range header parser with the following caveats:
@@ -458,7 +443,9 @@ std::vector<std::string> CorsUnsafeRequestHeaderNames(
   size_t safe_list_value_size = 0;
 
   for (const auto& header : headers) {
-    if (!IsCorsSafelistedHeader(header.key, header.value)) {
+    if (!IsCorsSafelistedHeader(
+            header.key, header.value,
+            /*is_ad_auction_trusted_signals_request=*/false)) {
       header_names.push_back(base::ToLowerASCII(header.key));
     } else {
       potentially_unsafe_names.push_back(base::ToLowerASCII(header.key));

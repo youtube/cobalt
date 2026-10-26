@@ -164,7 +164,7 @@ String HTMLFormControlElementWithState::IDLExposedAutofillValue() const {
 
   // 2. Let tokens be the result of splitting the attribute's value on ASCII
   // whitespace.
-  SpaceSplitString tokens(value.LowerASCII());
+  SpaceSplitString tokens(value.ToAsciiLower());
 
   // 3. If tokens is empty, then jump to the step labeled default.
   if (tokens.size() == 0)
@@ -297,8 +297,9 @@ String HTMLFormControlElementWithState::IDLExposedAutofillValue() const {
     // an ASCII case-insensitive match for the string "section-", then jump to
     // the step labeled default.
     AtomicString section = tokens[index];
-    if (!section.StartsWith("section-"))
+    if (!section.starts_with("section-")) {
       return g_empty_string;
+    }
     // 25. Let IDL value be the concatenation of section, a U+0020 SPACE
     // character, and the previous value of IDL value.
     idl_value = StrCat({section, " ", idl_value});
@@ -329,7 +330,7 @@ bool HTMLFormControlElementWithState::ShouldSaveAndRestoreFormControlState()
   if (Form() && !Form()->ShouldAutocomplete()) {
     return false;
   }
-  if (EqualIgnoringASCIICase(FastGetAttribute(html_names::kAutocompleteAttr),
+  if (EqualIgnoringAsciiCase(FastGetAttribute(html_names::kAutocompleteAttr),
                              "off")) {
     return false;
   }

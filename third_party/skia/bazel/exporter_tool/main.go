@@ -31,6 +31,11 @@ var gniExportDescs = []exporter.GNIExportDesc{
 				"//include/codec:any_codec_hdrs",
 			},
 		},
+		{Var: "skia_codec_icc_chromium",
+			Rules: []string{
+				"//include/private/chromium:codec_icc_chromium_hdrs",
+			},
+		},
 		{Var: "skia_codec_decode_bmp",
 			Rules: []string{
 				"//src/codec:bmp_decode",
@@ -738,7 +743,11 @@ var gniExportDescs = []exporter.GNIExportDesc{
 			Rules: []string{
 				"//src/gpu/ganesh/vk:vk_chromium_srcs",
 			}},
-		{Var: "skia_direct3d_sources",
+		{Var: "skia_ganesh_d3d_public",
+			Rules: []string{
+				"//include/gpu/ganesh/d3d:public_hdrs",
+			}},
+		{Var: "skia_ganesh_d3d_private",
 			Rules: []string{
 				"//include/private/gpu/ganesh:d3d_private_hdrs",
 				"//src/gpu/ganesh/d3d:d3d_hdrs",

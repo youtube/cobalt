@@ -35,8 +35,10 @@
 
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/loader/referrer_utils.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -253,7 +255,7 @@ TEST_F(ImageResourceTest, MultipartImage) {
   // Send the multipart response. No image or data buffer is created. Note that
   // the response must be routed through ResourceLoader to ensure the load is
   // flagged as multipart.
-  ResourceResponse multipart_response(NullURL());
+  ResourceResponse multipart_response(NullUrl());
   multipart_response.SetMimeType(AtomicString("multipart/x-mixed-replace"));
   multipart_response.SetHttpHeaderField(
       http_names::kContentType,
@@ -341,7 +343,7 @@ TEST_F(ImageResourceTest, BitmapMultipartImage) {
       ImageResource::Create(resource_request, nullptr /* world */);
   fetcher->StartLoad(image_resource);
 
-  ResourceResponse multipart_response(NullURL());
+  ResourceResponse multipart_response(NullUrl());
   multipart_response.SetMimeType(AtomicString("multipart/x-mixed-replace"));
   multipart_response.SetHttpHeaderField(
       http_names::kContentType,
@@ -435,7 +437,7 @@ TEST_F(ImageResourceTest, CancelWithImageAndFinishObserver) {
                                     fetcher->GetTaskRunner().get());
 
   // Send the image response.
-  ResourceResponse resource_response(NullURL());
+  ResourceResponse resource_response(NullUrl());
   resource_response.SetMimeType(AtomicString("image/jpeg"));
   resource_response.SetExpectedContentLength(sizeof(kJpegImage));
   image_resource->ResponseReceived(resource_response);
@@ -455,14 +457,14 @@ TEST_F(ImageResourceTest, CancelWithImageAndFinishObserver) {
 }
 
 TEST_F(ImageResourceTest, DecodedDataRemainsWhileHasClients) {
-  ImageResource* image_resource = ImageResource::CreateForTest(NullURL());
+  ImageResource* image_resource = ImageResource::CreateForTest(NullUrl());
   image_resource->NotifyStartLoad();
 
   auto* observer = MakeGarbageCollected<MockImageResourceObserver>(
       image_resource->GetContent());
 
   // Send the image response.
-  ResourceResponse resource_response(NullURL());
+  ResourceResponse resource_response(NullUrl());
   resource_response.SetMimeType(AtomicString("multipart/x-mixed-replace"));
   image_resource->ResponseReceived(resource_response);
 
@@ -494,7 +496,7 @@ TEST_F(ImageResourceTest, DecodedDataRemainsWhileHasClients) {
 }
 
 TEST_F(ImageResourceTest, UpdateBitmapImages) {
-  ImageResource* image_resource = ImageResource::CreateForTest(NullURL());
+  ImageResource* image_resource = ImageResource::CreateForTest(NullUrl());
   image_resource->NotifyStartLoad();
 
   auto* observer = MakeGarbageCollected<MockImageResourceObserver>(
@@ -502,7 +504,7 @@ TEST_F(ImageResourceTest, UpdateBitmapImages) {
 
   // Send the image response.
 
-  ResourceResponse resource_response(NullURL());
+  ResourceResponse resource_response(NullUrl());
   resource_response.SetMimeType(AtomicString("image/jpeg"));
   resource_response.SetExpectedContentLength(sizeof(kJpegImage));
   image_resource->ResponseReceived(resource_response);
@@ -959,7 +961,7 @@ TEST_F(ImageResourceTest, PeriodicFlushTest) {
       image_resource->GetContent());
 
   // Send the image response.
-  ResourceResponse resource_response(NullURL());
+  ResourceResponse resource_response(NullUrl());
   resource_response.SetMimeType(AtomicString("image/jpeg"));
   resource_response.SetExpectedContentLength(sizeof(kJpegImage2));
   image_resource->ResponseReceived(resource_response);
@@ -1027,12 +1029,12 @@ TEST_F(ImageResourceTest, PeriodicFlushTest) {
 }
 
 TEST_F(ImageResourceTest, DeferredInvalidation) {
-  ImageResource* image_resource = ImageResource::CreateForTest(NullURL());
+  ImageResource* image_resource = ImageResource::CreateForTest(NullUrl());
   auto* obs = MakeGarbageCollected<MockImageResourceObserver>(
       image_resource->GetContent());
 
   // Image loaded.
-  ReceiveResponse(image_resource, NullURL(), "image/jpeg",
+  ReceiveResponse(image_resource, NullUrl(), "image/jpeg",
                   base::as_chars(base::span(kJpegImage)));
   EXPECT_EQ(obs->ImageChangedCount(), 2);
   EXPECT_EQ(obs->Defer(), ImageResourceObserver::CanDeferInvalidation::kNo);
@@ -1091,6 +1093,88 @@ TEST_F(ImageResourceTest, WebPSniffing) {
   image_resource = ImageResource::CreateForTest(test_url);
   image_resource->AppendData(base::as_chars(base::span(kExtendedWebPImage)));
   EXPECT_EQ(1, image_resource->GetContent()->GetCompressionFormat());
+}
+
+TEST_F(ImageResourceTest, ReuseNoStoreImageInSameFetcher) {
+  KURL test_url(kTestURL);
+  ScopedMockedURLLoad scoped_mocked_url_load(test_url, GetTestFilePath());
+
+  ResourceFetcher* fetcher = CreateFetcher();
+  FetchParameters fetch_params =
+      FetchParameters::CreateForTest(ResourceRequest(test_url));
+  ImageResource* first_resource = ImageResource::Fetch(fetch_params, fetcher);
+  ASSERT_TRUE(first_resource);
+
+  // Complete the load with a no-store response.
+  ResourceResponse response(test_url);
+  response.SetMimeType(AtomicString("image/jpeg"));
+  response.SetHttpStatusCode(200);
+  response.SetHttpHeaderField(http_names::kCacheControl,
+                              AtomicString("no-store"));
+  first_resource->Loader()->DidReceiveResponse(
+      WrappedResourceResponse(response),
+      /*body=*/mojo::ScopedDataPipeConsumerHandle(),
+      /*cached_metadata=*/std::nullopt);
+  first_resource->Loader()->DidReceiveDataForTesting(
+      base::as_chars(base::span(kJpegImage)));
+  first_resource->Loader()->DidFinishLoading(
+      base::TimeTicks(), sizeof(kJpegImage), sizeof(kJpegImage),
+      sizeof(kJpegImage));
+  ASSERT_TRUE(first_resource->IsLoaded());
+  ASSERT_TRUE(first_resource->HasCacheControlNoStoreHeader());
+
+  // Same fetcher should reuse the no-store image (available-image match).
+  FetchParameters fetch_params2 =
+      FetchParameters::CreateForTest(ResourceRequest(test_url));
+  Resource* same_fetcher_resource =
+      ImageResource::Fetch(fetch_params2, fetcher);
+  EXPECT_EQ(first_resource, same_fetcher_resource);
+
+  // Different fetcher should NOT reuse the no-store image.
+  ResourceFetcher* second_fetcher = CreateFetcher();
+  FetchParameters fetch_params3 =
+      FetchParameters::CreateForTest(ResourceRequest(test_url));
+  Resource* other_fetcher_resource =
+      ImageResource::Fetch(fetch_params3, second_fetcher);
+  EXPECT_NE(first_resource, other_fetcher_resource);
+}
+
+TEST_F(ImageResourceTest,
+       NoStoreImageNotReusedInSameFetcherWhenFeatureDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kReuseNoStoreImageOnSameSrcReassignment);
+
+  KURL test_url(kTestURL);
+  ScopedMockedURLLoad scoped_mocked_url_load(test_url, GetTestFilePath());
+
+  ResourceFetcher* fetcher = CreateFetcher();
+  FetchParameters fetch_params =
+      FetchParameters::CreateForTest(ResourceRequest(test_url));
+  ImageResource* first_resource = ImageResource::Fetch(fetch_params, fetcher);
+  ASSERT_TRUE(first_resource);
+
+  ResourceResponse response(test_url);
+  response.SetMimeType(AtomicString("image/jpeg"));
+  response.SetHttpStatusCode(200);
+  response.SetHttpHeaderField(http_names::kCacheControl,
+                              AtomicString("no-store"));
+  first_resource->Loader()->DidReceiveResponse(
+      WrappedResourceResponse(response),
+      /*body=*/mojo::ScopedDataPipeConsumerHandle(),
+      /*cached_metadata=*/std::nullopt);
+  first_resource->Loader()->DidReceiveDataForTesting(
+      base::as_chars(base::span(kJpegImage)));
+  first_resource->Loader()->DidFinishLoading(
+      base::TimeTicks(), sizeof(kJpegImage), sizeof(kJpegImage),
+      sizeof(kJpegImage));
+  ASSERT_TRUE(first_resource->IsLoaded());
+
+  FetchParameters fetch_params2 =
+      FetchParameters::CreateForTest(ResourceRequest(test_url));
+  Resource* same_fetcher_resource =
+      ImageResource::Fetch(fetch_params2, fetcher);
+  EXPECT_NE(first_resource, same_fetcher_resource);
 }
 
 }  // namespace

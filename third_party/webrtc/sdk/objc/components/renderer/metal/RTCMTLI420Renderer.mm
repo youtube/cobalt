@@ -70,7 +70,7 @@ static NSString *const shaderSource = MTL_STRINGIFY(
       return half4(out);
     });
 
-@implementation RTCMTLI420Renderer {
+@implementation RTC_OBJC_TYPE (RTCMTLI420Renderer) {
   // Textures.
   id<MTLTexture> _yTexture;
   id<MTLTexture> _uTexture;

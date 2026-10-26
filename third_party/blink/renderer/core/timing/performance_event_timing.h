@@ -29,6 +29,8 @@ enum class FallbackReason {
   kSwapPromiseBroken,
   kMacOSArtificialEvent,
   kDoesNotNeedNextPaint,
+  kWindowDestroyed,
+  kInteractionInterruptedByContextMenu,
 };
 
 class CORE_EXPORT PerformanceEventTiming final : public PerformanceEntry {
@@ -40,12 +42,13 @@ class CORE_EXPORT PerformanceEventTiming final : public PerformanceEntry {
     // The reason(s) why fallback time was used.
     FallbackReason fallback_reason = FallbackReason::kNone;
 
-    // Presentation promise index in which the entry in |event_timing_| was
-    // added.
-    uint64_t presentation_index = 0;
+    // |frane_index| in which the entry in |event_timing_| was first created.
+    // This value starts at 1, and increments with each new "frame group".  See
+    // the documentation for |current_frame_index_| in window_performance.cc.
+    uint64_t frame_index = 0;
 
     // The event creation timestamp. This and the times below are the
-    // exact (non-rounded) monotonic timestamps. They are used for repoerting.
+    // exact (non-rounded) monotonic timestamps. They are used for reporting.
     // They should not be exposed to performance observer API entries for
     // security and privacy reasons.
     base::TimeTicks creation_time;
@@ -96,7 +99,6 @@ class CORE_EXPORT PerformanceEventTiming final : public PerformanceEntry {
       const AtomicString& event_type,
       EventTimingReportingInfo,
       bool cancelable,
-      EventTarget*,
       DOMWindow*,
       uint64_t navigation_id,
       std::optional<PerformanceTimelineEntryIdInfo> interaction_id =
@@ -111,7 +113,6 @@ class CORE_EXPORT PerformanceEventTiming final : public PerformanceEntry {
                          const AtomicString& entry_type,
                          EventTimingReportingInfo,
                          bool cancelable,
-                         EventTarget*,
                          DOMWindow*,
                          uint64_t navigation_id,
                          std::optional<PerformanceTimelineEntryIdInfo>
@@ -130,19 +131,26 @@ class CORE_EXPORT PerformanceEventTiming final : public PerformanceEntry {
   Node* target() const;
 
   void SetTarget(EventTarget* target);
+  void SetTargetSelector(const AtomicString& selector);
 
   uint64_t interactionId() const;
 
   std::optional<PerformanceTimelineEntryIdInfo> GetInteractionIdInfo() const {
+    if (reporting_info_.prevent_counting_as_interaction) {
+      return PerformanceTimelineEntryIdInfo::kNone;
+    }
     return interaction_id_;
   }
 
-  void SetInteractionIdInfo(
-      std::optional<PerformanceTimelineEntryIdInfo> interaction_id) {
+  void SetInteractionIdInfo(PerformanceTimelineEntryIdInfo interaction_id) {
     interaction_id_ = interaction_id;
   }
 
   bool HasKnownInteractionID() const;
+  bool IsKnownToBeAnInteraction() const {
+    return GetInteractionIdInfo().has_value() &&
+           GetInteractionIdInfo() != PerformanceTimelineEntryIdInfo::kNone;
+  }
 
   const AtomicString& targetSelector() const;
 
@@ -150,7 +158,17 @@ class CORE_EXPORT PerformanceEventTiming final : public PerformanceEntry {
 
   bool IsReadyForReporting() const;
 
+  // TODO(crbug.com/328902994): Temporary method for kill-switch purposes.
+  // Returns true if the entry has an end time, even if interactionId is not yet
+  // assigned.
+  bool IsReadyForReportingForIssue328902994() const;
+
+  base::TimeTicks GetStartTime() const;
   base::TimeTicks GetEndTime() const;
+
+  base::TimeDelta GetExactDuration() const {
+    return GetEndTime() - GetStartTime();
+  }
 
   void UpdateFallbackTime(base::TimeTicks fallback_time, FallbackReason reason);
 
@@ -169,6 +187,9 @@ class CORE_EXPORT PerformanceEventTiming final : public PerformanceEntry {
 
   // Getters and setters of the EventTimingReportingInfo object.
   EventTimingReportingInfo* GetEventTimingReportingInfo() {
+    return &reporting_info_;
+  }
+  const EventTimingReportingInfo* GetEventTimingReportingInfo() const {
     return &reporting_info_;
   }
 

@@ -100,7 +100,7 @@ bool WebElement::IsEditable() const {
       return true;
   }
 
-  return EqualIgnoringASCIICase(
+  return EqualIgnoringAsciiCase(
       element->FastGetAttribute(html_names::kRoleAttr), "textbox");
 }
 
@@ -116,7 +116,7 @@ bool WebElement::HasHTMLTagName(const WebString& tag_name) const {
   const auto* html_element =
       blink::DynamicTo<HTMLElement>(ConstUnwrap<Element>());
   return html_element &&
-         html_element->localName() == String(tag_name).LowerASCII();
+         html_element->localName() == String(tag_name).ToAsciiLower();
 }
 
 bool WebElement::HasAttribute(const WebString& attr_name) const {
@@ -156,7 +156,7 @@ bool WebElement::WritingSuggestions() const {
   const auto* html_element =
       blink::DynamicTo<HTMLElement>(ConstUnwrap<Element>());
   return html_element &&
-         !EqualIgnoringASCIICase(html_element->writingSuggestions(),
+         !EqualIgnoringAsciiCase(html_element->writingSuggestions(),
                                  keywords::kFalse);
 }
 
@@ -219,6 +219,11 @@ void WebElement::SelectText(bool select_all) {
         SelectionInDOMTree::Builder().SetBaseAndExtent(base, extent).Build(),
         SetSelectionOptions());
   }
+}
+
+void WebElement::Click() {
+  auto* element = Unwrap<Element>();
+  element->DispatchSimulatedClick(nullptr);
 }
 
 void WebElement::PasteText(const WebString& text, bool replace_all) {
@@ -440,7 +445,7 @@ bool WebElement::SetScrollOffset(const gfx::Vector2dF& offset) {
   scroll_to_options->setLeft(offset.x());
   scroll_to_options->setTop(offset.y());
   scroll_to_options->setBehavior(V8ScrollBehavior::Enum::kInstant);
-  return element->SetScrollOffset(scroll_to_options);
+  return element->ScrollTo(scroll_to_options);
 }
 
 void WebElement::ScrollIntoViewIfNeeded() {

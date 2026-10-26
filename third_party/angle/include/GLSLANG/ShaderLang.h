@@ -26,7 +26,7 @@
 
 // Version number for shader translation API.
 // It is incremented every time the API changes.
-#define ANGLE_SH_VERSION 400
+#define ANGLE_SH_VERSION 404
 
 enum ShShaderSpec
 {
@@ -105,7 +105,7 @@ enum class ShPixelLocalStorageType : uint8_t
 };
 
 // For ANGLE_shader_pixel_local_storage.
-// Used to track the PLS format at each binding index in a shader.
+// Used to track the formats of PLS bindings.
 enum class ShPixelLocalStorageFormat : uint8_t
 {
     NotPLS,  // Indicates that no PLS uniform was declared at the binding index in question.
@@ -115,6 +115,14 @@ enum class ShPixelLocalStorageFormat : uint8_t
     R32F,
     R32I,
     R32UI,
+};
+
+// For ANGLE_shader_pixel_local_storage.
+// Used to track the PLS layout information at each binding index in a shader.
+struct ShPixelLocalStorageLayout
+{
+    ShPixelLocalStorageFormat format = ShPixelLocalStorageFormat::NotPLS;
+    bool noncoherent                 = false;
 };
 
 // For ANGLE_shader_pixel_local_storage_coherent.
@@ -201,7 +209,8 @@ struct ShCompileOptions
     // This flag works around bug in Intel Mac drivers related to abs(i) where i is an integer.
     uint64_t emulateAbsIntFunction : 1;
 
-    uint64_t unused : 1;
+    // Whether SPV_EXT_demote_to_helper_invocation can be used.
+    uint64_t useDemoteToHelperInvocation : 1;
 
     // This flag ensures all indirect (expression-based) array indexing is clamped to the bounds of
     // the array. This ensures, for example, that you cannot read off the end of a uniform, whether
@@ -895,7 +904,7 @@ sh::WorkGroupSize GetComputeShaderLocalGroupSize(const ShHandle handle);
 int GetVertexShaderNumViews(const ShHandle handle);
 // Returns the pixel local storage uniform format at each binding index, or "NotPLS" if there is
 // not one.
-const std::vector<ShPixelLocalStorageFormat> *GetPixelLocalStorageFormats(const ShHandle handle);
+const std::vector<ShPixelLocalStorageLayout> *GetPixelLocalStorageLayouts(const ShHandle handle);
 
 // Returns specialization constant usage bits
 uint32_t GetShaderSpecConstUsageBits(const ShHandle handle);

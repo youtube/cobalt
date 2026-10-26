@@ -38,6 +38,8 @@ class TabModelJniBridge : public TabModel {
                     const jni_zero::JavaRef<jobject>& jobj,
                     Profile* profile,
                     chrome::android::ActivityType activity_type,
+                    std::optional<chrome::android::CustomTabProfileType>
+                        custom_tab_profile_type,
                     TabModelType tab_model_type);
   void Destroy(JNIEnv* env);
 
@@ -119,6 +121,11 @@ class TabModelJniBridge : public TabModel {
   tabs::TabInterface* OpenTab(const GURL& url, int index) override;
   void SetOpenerForTab(tabs::TabHandle target, tabs::TabHandle opener) override;
   tabs::TabInterface* GetOpenerForTab(tabs::TabHandle target) override;
+  tabs::TabInterface* InsertWebContentsAt(
+      int index,
+      std::unique_ptr<content::WebContents> web_contents,
+      bool should_pin,
+      std::optional<tab_groups::TabGroupId> group) override;
   content::WebContents* DiscardTab(tabs::TabHandle tab) override;
   tabs::TabInterface* DuplicateTab(tabs::TabHandle tab) override;
   tabs::TabInterface* GetTab(int index) override;

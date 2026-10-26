@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google Inc.
+ * Copyright 2021 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -46,11 +46,13 @@ protected:
     Buffer(const SharedContext* sharedContext,
            size_t size,
            Protected isProtected,
+           std::string_view label,
            bool reusableRequiresPurgeable = false,
            bool requiresPrepareForReturnToCache = false)
             : Resource(sharedContext,
                        Ownership::kOwned,
                        size,
+                       label,
                        reusableRequiresPurgeable,
                        requiresPrepareForReturnToCache)
             , fSize(size)

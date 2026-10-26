@@ -5,23 +5,28 @@
 #include <string>
 
 #include "base/files/file_util.h"
+#include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_expected_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
+#include "base/test/test_future.h"
+#include "build/build_config.h"
 #include "content/browser/indexed_db/file_path_util.h"
 #include "content/browser/indexed_db/instance/backing_store.h"
 #include "content/browser/indexed_db/instance/backing_store_test_base.h"
 #include "content/browser/indexed_db/instance/sqlite/backing_store_database_impl.h"
+#include "content/browser/indexed_db/instance/sqlite/backing_store_impl.h"
 #include "content/browser/indexed_db/instance/sqlite/database_connection.h"
-#include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/cpp/system/data_pipe_drainer.h"
+#include "content/browser/indexed_db/instance/test_blob_consumer.h"
 #include "sql/database.h"
 #include "sql/statement.h"
 #include "sql/test/test_helpers.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
+#include "third_party/blink/public/common/indexeddb/indexeddb_key.h"
 #include "third_party/blink/public/mojom/blob/blob.mojom.h"
+#include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom-shared.h"
 
 namespace content::indexed_db::sqlite {
 
@@ -29,54 +34,6 @@ namespace {
 
 using blink::IndexedDBKey;
 using blink::IndexedDBKeyPath;
-
-class WholeBlobReader : public mojo::DataPipeDrainer::Client,
-                        public blink::mojom::BlobReaderClient {
- public:
-  WholeBlobReader(base::OnceCallback<void(std::string)> on_complete)
-      : on_complete_(std::move(on_complete)) {}
-
-  ~WholeBlobReader() override = default;
-
-  void Start(mojo::Remote<blink::mojom::Blob>& blob) {
-    mojo::ScopedDataPipeProducerHandle producer_handle;
-    mojo::ScopedDataPipeConsumerHandle consumer_handle;
-    MojoResult result =
-        CreateDataPipe(/*options=*/nullptr, producer_handle, consumer_handle);
-    EXPECT_EQ(result, MOJO_RESULT_OK);
-
-    drainer_ = std::make_unique<mojo::DataPipeDrainer>(
-        this, std::move(consumer_handle));
-
-    blob->ReadAll(std::move(producer_handle),
-                  receiver_.BindNewPipeAndPassRemote());
-  }
-
-  // mojo::DataPipeDrainer::Client
-  void OnDataAvailable(base::span<const uint8_t> data) override {
-    data_.append(reinterpret_cast<const char*>(data.data()), data.size());
-  }
-  void OnDataComplete() override {
-    std::move(on_complete_).Run(std::move(data_));
-    delete this;
-  }
-
-  // blink::mojom::BlobReaderClient
-  void OnCalculatedSize(uint64_t total_size,
-                        uint64_t expected_content_size) override {}
-  void OnComplete(int32_t status, uint64_t data_length) override {}
-
- private:
-  mojo::Receiver<blink::mojom::BlobReaderClient> receiver_{this};
-  base::OnceCallback<void(std::string)> on_complete_;
-  std::unique_ptr<mojo::DataPipeDrainer> drainer_;
-  std::string data_;
-};
-
-void ReadWholeBlob(mojo::Remote<blink::mojom::Blob>& blob,
-                   base::OnceCallback<void(std::string)> on_complete) {
-  (new WholeBlobReader(std::move(on_complete)))->Start(blob);
-}
 
 }  // namespace
 
@@ -99,7 +56,7 @@ class BackingStoreSqliteTest : public BackingStoreTestBase {
     transaction->Begin(CreateDummyLock());
     EXPECT_TRUE(transaction->PutRecord(object_store_id, key, value.Clone())
                     .has_value());
-    CommitTransactionAndVerify(*transaction);
+    CommitTransactionAndVerify(std::move(transaction));
   }
 
   // Gets the value pointed to by `key` and reads and returns its first blob.
@@ -119,22 +76,23 @@ class BackingStoreSqliteTest : public BackingStoreTestBase {
         transaction->BuildMojoValue(std::move(result_value), base::DoNothing());
     mojo::Remote<blink::mojom::Blob> blob(
         std::move(mojo_value->external_objects[0]->get_blob_or_file()->blob));
-    CommitTransactionAndVerify(*transaction);
+    CommitTransactionAndVerify(std::move(transaction));
 
-    std::string output_blob_contents;
-    base::RunLoop run_loop;
-    ReadWholeBlob(blob, base::BindLambdaForTesting([&](std::string data) {
-                    output_blob_contents = std::move(data);
-                    run_loop.Quit();
-                  }));
-    run_loop.Run();
+    // This loop blocks until some of the data has been read, but not all.
+    // This allows verifying what happens if a blob is actively being read.
+    base::RunLoop some_loop;
+    base::test::TestFuture<std::string> output_future;
+    TestBlobConsumer::ReadWholeBlob(blob, output_future.GetCallback(),
+                                    some_loop.QuitClosure());
+    some_loop.Run();
+
+    std::string output_blob_contents = output_future.Get();
 
     // Verify that it's possible to checkpoint the database. This makes sure
     // that the `ActiveBlobStreamer` represented by `blob` is not holding onto
     // database resources that prevent this operation.
-    EXPECT_TRUE(reinterpret_cast<BackingStoreDatabaseImpl&>(db)
-                    .db_->db_->CheckpointDatabase());
-
+    EXPECT_TRUE(
+        reinterpret_cast<BackingStoreDatabaseImpl&>(db).db_->Checkpoint(false));
     return output_blob_contents;
   }
 
@@ -150,11 +108,9 @@ class BackingStoreSqliteTest : public BackingStoreTestBase {
       std::u16string_view name) {
     AcquireDatabaseLocks(std::u16string(name));
     base::FilePath db_path = GetDatabasePath(name);
-    sql::Database db(sql::DatabaseOptions()
-                         .set_exclusive_locking(true)
-                         .set_wal_mode(true)
-                         .set_enable_triggers(true),
-                     sql::test::kTestTag);
+    sql::Database db(
+        sql::DatabaseOptions().set_wal_mode(true).set_enable_triggers(true),
+        sql::test::kTestTag);
 
     EXPECT_TRUE(db.Open(db_path));
 
@@ -238,7 +194,7 @@ TEST_F(BackingStoreSqliteTest, LegacyBlobBasics) {
                     .has_value());
     EXPECT_TRUE(transaction->PutRecord(object_store_id, key3, value.Clone())
                     .has_value());
-    CommitTransactionAndVerify(*transaction);
+    CommitTransactionAndVerify(std::move(transaction));
   }
 
   // Test hack: convert these blobs to standalone files, as if they'd been
@@ -333,7 +289,7 @@ TEST_F(BackingStoreSqliteTest, DeleteDatabaseCleansUpLegacyBlobs) {
                          {CreateBlobInfo(u"type", payload)});
     EXPECT_TRUE(transaction->PutRecord(object_store_id, key, value.Clone())
                     .has_value());
-    CommitTransactionAndVerify(*transaction);
+    CommitTransactionAndVerify(std::move(transaction));
   }
 
   // Convert this blob to a standalone file, as if it had been migrated from a
@@ -381,7 +337,7 @@ TEST_F(BackingStoreSqliteTest, PutPutCommitBlob) {
   // *In the same transaction*, put the record again (replace the blob).
   EXPECT_TRUE(
       transaction->PutRecord(object_store_id, key, value2.Clone()).has_value());
-  CommitTransactionAndVerify(*transaction);
+  CommitTransactionAndVerify(std::move(transaction));
 
   EXPECT_EQ(ReadBlobContents(*db, object_store_id, key), payload + payload);
 }
@@ -416,7 +372,7 @@ TEST_F(BackingStoreSqliteTest, PutDeleteCommitBlob) {
                                                     /*lower_open=*/false,
                                                     /*upper_open=*/false))
           .ok());
-  CommitTransactionAndVerify(*transaction);
+  CommitTransactionAndVerify(std::move(transaction));
 }
 
 // Verifies that chunking of blobs too big to fit in a single row works. The
@@ -440,6 +396,7 @@ TEST_F(BackingStoreSqliteTest, BlobChunking) {
                         1543, 2053, 3079, 4099, 6151, 8209};
   std::string data;
   data.reserve(blob_sizes.back());
+  EXPECT_GT(blob_sizes.back(), TestBlobConsumer::kPipeCapacity);
   for (int i = 0; i < blob_sizes.back(); ++i) {
     data += static_cast<char>('A' + (i % 26));
   }
@@ -454,6 +411,204 @@ TEST_F(BackingStoreSqliteTest, BlobChunking) {
     PutRecord(*db, object_store_id, key, value);
     EXPECT_EQ(ReadBlobContents(*db, object_store_id, key), payload);
   }
+}
+
+TEST_F(BackingStoreSqliteTest,
+       LeftoverDatabaseCleanedAfterGetDatabaseNamesAndVersions) {
+  base::HistogramTester histogram_tester;
+
+  // Create a valid database.
+  {
+    ASSERT_OK_AND_ASSIGN(std::unique_ptr<BackingStore::Database> db,
+                         backing_store()->CreateOrOpenDatabase(u"basic_db"));
+    std::unique_ptr<BackingStore::Transaction> transaction =
+        CreateAndBeginTransaction(
+            *db, blink::mojom::IDBTransactionMode::VersionChange);
+    EXPECT_TRUE(transaction
+                    ->CreateObjectStore(1, u"object_store_name",
+                                        IndexedDBKeyPath(u"object_store_key"),
+                                        /*auto_increment=*/true)
+                    .ok());
+    EXPECT_TRUE(transaction->SetDatabaseVersion(1).ok());
+    CommitTransactionAndVerify(std::move(transaction));
+  }
+
+  // Create a database that's left in a zygotic state. Since we don't run the
+  // cleanup task, the database is left behind despite being zygotic. This
+  // simulates a previous crash.
+  const std::u16string kDbName = u"leftover_db";
+  base::FilePath db_path = GetDatabasePath(kDbName);
+  EXPECT_FALSE(base::PathExists(db_path));
+  BackingStoreImpl* backing_store_impl =
+      reinterpret_cast<BackingStoreImpl*>(backing_store());
+  ASSERT_OK_AND_ASSIGN(
+      std::unique_ptr<DatabaseConnection> connection,
+      DatabaseConnection::Open(kDbName, db_path, *backing_store_impl));
+  EXPECT_TRUE(base::PathExists(db_path));
+  std::ignore = std::move(*connection).GetCleanupTask(/*force_closing=*/true);
+  EXPECT_TRUE(base::PathExists(db_path));
+
+  // `GetDatabaseNamesAndVersions()` won't return the zygotic database, and
+  // furthermore erases it.
+  ASSERT_OK_AND_ASSIGN(
+      std::vector<blink::mojom::IDBNameAndVersionPtr> names_and_versions,
+      backing_store()->GetDatabaseNamesAndVersions());
+  ASSERT_EQ(names_and_versions.size(), 1U);
+  EXPECT_EQ(names_and_versions[0]->name, u"basic_db");
+  EXPECT_FALSE(base::PathExists(db_path));
+
+  // Verify that the histogram was logged when opening the leftover database.
+  // Nothing is logged for "basic_db" since it reads from `cached_versions_`.
+  histogram_tester.ExpectUniqueSample(
+      "IndexedDB.SQLite.OpenToReadMetadataResult.OnDisk", 2 /*kCorruption*/, 1);
+}
+
+TEST_F(BackingStoreSqliteTest, VacuumOnClose) {
+  base::HistogramTester histograms;
+
+  const std::u16string db_name(u"vacuum_test");
+  const int64_t object_store_id = 1;
+
+  // Create an object store and write enough data to create many pages.
+  {
+    ASSERT_OK_AND_ASSIGN(std::unique_ptr<BackingStore::Database> db,
+                         backing_store()->CreateOrOpenDatabase(db_name));
+    std::unique_ptr<BackingStore::Transaction> transaction =
+        CreateAndBeginTransaction(
+            *db, blink::mojom::IDBTransactionMode::VersionChange);
+    EXPECT_TRUE(transaction
+                    ->CreateObjectStore(object_store_id, u"store",
+                                        IndexedDBKeyPath(u"key"),
+                                        /*auto_increment=*/true)
+                    .ok());
+    EXPECT_TRUE(transaction->SetDatabaseVersion(1).ok());
+    // Blobs are not compressed, so this will increase page usage.
+    std::string blob_data(1000, 'x');
+    for (int i = 0; i < 100; ++i) {
+      EXPECT_TRUE(
+          transaction
+              ->PutRecord(object_store_id,
+                          IndexedDBKey(i, blink::mojom::IDBKeyType::Number),
+                          IndexedDBValue("non_blob_payload",
+                                         {CreateBlobInfo(u"type", blob_data)}))
+              .has_value());
+    }
+    CommitTransactionAndVerify(std::move(transaction));
+  }
+
+  // Wait for database close and measure the size of the database file.
+  AcquireDatabaseLocks(db_name);
+  base::FilePath db_path = GetDatabasePath(db_name);
+  int64_t initial_size = 0;
+  ASSERT_OK_AND_ASSIGN(initial_size, base::GetFileSize(db_path));
+
+  histograms.ExpectBucketCount("IndexedDB.SQLite.FreelistPercentageAtClose", 0,
+                               1);
+  histograms.ExpectTotalCount("IndexedDB.SQLite.VacuumEvent", 0);
+
+  // Now clear the object store to create freelist pages.
+  {
+    ASSERT_OK_AND_ASSIGN(std::unique_ptr<BackingStore::Database> db,
+                         backing_store()->CreateOrOpenDatabase(db_name));
+
+    std::unique_ptr<BackingStore::Transaction> transaction =
+        db->CreateTransaction(blink::mojom::IDBTransactionDurability::Relaxed,
+                              blink::mojom::IDBTransactionMode::ReadWrite);
+    transaction->Begin(CreateDummyLock());
+    EXPECT_TRUE(transaction->ClearObjectStore(object_store_id).ok());
+    CommitTransactionAndVerify(std::move(transaction));
+  }
+
+  // The database size should have reduced.
+  AcquireDatabaseLocks(db_name);
+  int64_t post_vacuum_size = 0;
+  ASSERT_OK_AND_ASSIGN(post_vacuum_size, base::GetFileSize(db_path));
+  EXPECT_LT(post_vacuum_size, initial_size);
+
+  histograms.ExpectTotalCount("IndexedDB.SQLite.FreelistPercentageAtClose", 2);
+#if BUILDFLAG(IS_ANDROID)
+  // Autovacuum is enabled by default on Android.
+  histograms.ExpectBucketCount("IndexedDB.SQLite.FreelistPercentageAtClose", 0,
+                               2);
+  histograms.ExpectTotalCount("IndexedDB.SQLite.VacuumEvent", 0);
+#else
+  histograms.ExpectBucketCount("IndexedDB.SQLite.FreelistPercentageAtClose", 0,
+                               1);
+  histograms.ExpectTotalCount("IndexedDB.SQLite.VacuumEvent", 3);
+  histograms.ExpectBucketCount("IndexedDB.SQLite.VacuumEvent", 0 /*kNeeded*/,
+                               1);
+  histograms.ExpectBucketCount("IndexedDB.SQLite.VacuumEvent", 2 /*kRequested*/,
+                               1);
+  histograms.ExpectBucketCount("IndexedDB.SQLite.VacuumEvent", 3 /*kSucceeded*/,
+                               1);
+#endif
+}
+
+// Verifies that writing enough to a database will cause a checkpoint
+// independently of "idle" maintenance.
+TEST_F(BackingStoreSqliteTest, NonIdleCheckpoint) {
+  const std::u16string db_name(u"wal_checkpoint_test");
+  const int64_t object_store_id = 1;
+
+  // Create the database and object store.
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<BackingStore::Database> db,
+                       backing_store()->CreateOrOpenDatabase(db_name));
+  {
+    std::unique_ptr<BackingStore::Transaction> transaction =
+        CreateAndBeginTransaction(
+            *db, blink::mojom::IDBTransactionMode::VersionChange);
+    EXPECT_TRUE(transaction
+                    ->CreateObjectStore(object_store_id, u"store",
+                                        IndexedDBKeyPath(u"key"),
+                                        /*auto_increment=*/true)
+                    .ok());
+    EXPECT_TRUE(transaction->SetDatabaseVersion(1).ok());
+    CommitTransactionAndVerify(std::move(transaction));
+  }
+
+  base::FilePath db_path = GetDatabasePath(db_name);
+  base::FilePath wal_path =
+      base::FilePath(db_path.value() + FILE_PATH_LITERAL("-wal"));
+
+  // Get the initial database size.
+  ASSERT_OK_AND_ASSIGN(int64_t initial_db_size, base::GetFileSize(db_path));
+
+  std::string large_payload = base::RandBytesAsString(50000);
+  int64_t wal_size = 0;
+  int64_t max_wal_size = 0;
+
+  // Keep writing until we observe the WAL being truncated.
+  for (int iteration = 0; iteration < 1000; ++iteration) {
+    std::unique_ptr<BackingStore::Transaction> transaction =
+        db->CreateTransaction(blink::mojom::IDBTransactionDurability::Relaxed,
+                              blink::mojom::IDBTransactionMode::ReadWrite);
+    transaction->Begin(CreateDummyLock());
+
+    for (int i = 0; i < 10; ++i) {
+      EXPECT_TRUE(
+          transaction
+              ->PutRecord(
+                  object_store_id,
+                  IndexedDBKey(iteration, blink::mojom::IDBKeyType::Number),
+                  IndexedDBValue(large_payload, {}))
+              .has_value());
+    }
+    CommitTransactionAndVerify(std::move(transaction));
+
+    // Check WAL file size.
+    ASSERT_OK_AND_ASSIGN(wal_size, base::GetFileSize(wal_path));
+    max_wal_size = std::max(max_wal_size, wal_size);
+    if (max_wal_size > 0 && wal_size == 0) {
+      break;
+    }
+  }
+
+  EXPECT_GT(max_wal_size, 10000 * 4096);
+  EXPECT_EQ(wal_size, 0U);
+
+  ASSERT_OK_AND_ASSIGN(int64_t final_db_size, base::GetFileSize(db_path));
+  EXPECT_GT(final_db_size, initial_db_size)
+      << "Database file should have grown after checkpoint";
 }
 
 }  // namespace content::indexed_db::sqlite

@@ -27,6 +27,7 @@
 #include "content/browser/webid/url_computations.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/document_user_data.h"
+#include "content/public/browser/navigation_ui_data.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/webid/autofill_source.h"
 #include "content/public/browser/webid/federated_identity_api_permission_context_delegate.h"
@@ -34,6 +35,7 @@
 #include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "third_party/blink/public/mojom/credentialmanagement/credential_manager.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-shared.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
 #include "url/gurl.h"
 
@@ -114,8 +116,10 @@ class CONTENT_EXPORT RequestService
     force_allow_redirect_to_for_testing_ = allow;
   }
 
-  // An overload of the mojo version of RequestToken. If |navigation_handle|
-  // is provided, that handle is checked to see if user activation is present.
+  // An overload of the mojo version of RequestToken. |navigation_handle|
+  // is passed when this request was triggered by navigation interception, so
+  // that we can use this handle for user activation checking and setting up
+  // parameters for a later redirect.
   // This is virtual so that it can be mocked.MockNavigationThrottleRegistry
   virtual void RequestToken(
       std::vector<blink::mojom::IdentityProviderGetParametersPtr>
@@ -133,8 +137,7 @@ class CONTENT_EXPORT RequestService
                        RequestUserInfoCallback) override;
   void CancelTokenRequest() override;
   void ResolveTokenRequest(const std::optional<std::string>& account_id,
-                           const std::optional<GURL>& redirect_to,
-                           base::Value token,
+                           blink::mojom::ResolveTokenParamsPtr params,
                            ResolveTokenRequestCallback callback) override;
   void SetIdpSigninStatus(
       const url::Origin& origin,
@@ -162,8 +165,7 @@ class CONTENT_EXPORT RequestService
   void OnClose() override;
   bool OnResolve(GURL idp_config_url,
                  const std::optional<std::string>& account_id,
-                 const std::optional<GURL>& redirect_to,
-                 const base::Value& token) override;
+                 blink::mojom::ResolveTokenParamsPtr params) override;
   void OnOriginMismatch(Method method,
                         const url::Origin& expected,
                         const url::Origin& actual) override;
@@ -323,6 +325,8 @@ class CONTENT_EXPORT RequestService
 
  private:
   friend class RequestServiceTest;
+  friend class IdentityCredentialSourceImpl;  // for OnAccountSelected
+  friend class TestIdentityCredentialSourceImpl;
 
   struct FetchData {
     FetchData();
@@ -393,8 +397,13 @@ class CONTENT_EXPORT RequestService
   void OnRedirectToResponseReceived(
       blink::mojom::IdentityProviderRequestOptionsPtr idp,
       FetchStatus status,
-      const GURL& redirect_to);
-  void RedirectTo(const GURL& idp_config_url, const GURL& redirect_to);
+      blink::mojom::RedirectParams::Tag method,
+      const GURL& redirect_to,
+      const std::string& request_body);
+  void RedirectTo(const GURL& idp_config_url,
+                  blink::mojom::RedirectParams::Tag method,
+                  const GURL& redirect_to,
+                  const std::string& request_body);
 
   // Called after we get at token (either from the ID assertion endpoint or
   // from IdentityProvider.resolve) to update our various permissions.
@@ -487,12 +496,12 @@ class CONTENT_EXPORT RequestService
       RegisterIdPCallback callback,
       const GURL& idp,
       std::vector<ConfigFetcher::FetchResult> fetch_results);
-  void OnRegisterIdPPermissionResponse(RegisterIdPCallback callback,
-                                       const GURL& idp,
-                                       bool accepted);
   std::unique_ptr<Metrics> CreateFedCmMetrics();
 
   bool IsNewlyLoggedIn(const IdentityRequestAccount& account);
+
+  // Returns whether we'll be using an ambient UI for a passive call.
+  bool IsUsingAmbient() const;
 
   RpMode GetRpMode() const { return rp_mode_; }
 
@@ -520,8 +529,12 @@ class CONTENT_EXPORT RequestService
   // IDP. Used to later set accounts_ in the order in which the IDPs are
   // requested.
   base::flat_map<GURL, std::vector<IdentityRequestAccountPtr>> idp_accounts_;
+  base::flat_map<GURL, std::vector<IdentityRequestAccountPtr>>
+      idp_filtered_accounts_;
   // The accounts to be displayed by the UI.
   std::vector<IdentityRequestAccountPtr> accounts_;
+  // The accounts that were filtered out during fetching.
+  std::vector<IdentityRequestAccountPtr> filtered_accounts_;
 
   // Contains the set of account IDs of an IDP before a login URL is displayed
   // to the user. Used to compute the account ID of the account that the user
@@ -661,13 +674,22 @@ class CONTENT_EXPORT RequestService
   // currently only for interception-initiated requests.
   bool can_accept_redirect_to_{false};
 
+  // Stores the URL that we intercepted. This will be used as the referrer when
+  // loading the redirect target so that to the RP this looks like the load was
+  // initiated by the IDP.
+  GURL intercepted_url_;
+
+  // A clone of the NavigationUIData from the intercepted navigation, for use in
+  // the redirect load.
+  std::unique_ptr<NavigationUIData> intercepted_navigation_ui_data_;
+
   // Whether the callback for the current request has been delayed.
   bool complete_request_delayed_{false};
 
   // Can be set to true in tests.
   bool force_allow_redirect_to_for_testing_{false};
 
-  mojo::Receiver<blink::mojom::FederatedAuthRequest> receiver_{this};
+  mojo::ReceiverSet<blink::mojom::FederatedAuthRequest> receivers_;
 
   base::WeakPtrFactory<RequestService> weak_ptr_factory_{this};
 };

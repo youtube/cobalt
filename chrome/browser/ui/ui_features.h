@@ -10,7 +10,6 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/common/buildflags.h"
 #include "extensions/buildflags/buildflags.h"
@@ -30,6 +29,13 @@ BASE_DECLARE_FEATURE(kCreateNewTabGroupAppMenuTopLevel);
 BASE_DECLARE_FEATURE(kDseIntegrity);
 BASE_DECLARE_FEATURE(kFewerUpdateConfirmations);
 #endif
+
+BASE_DECLARE_FEATURE(kTabStripDeclutter);
+BASE_DECLARE_FEATURE(kGlassToolbar);
+
+BASE_DECLARE_FEATURE(kToolbarGlowUp);
+
+BASE_DECLARE_FEATURE(kDetachedTabs);
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 
@@ -52,11 +58,6 @@ BASE_DECLARE_FEATURE(kOfferPinToTaskbarInSettings);
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 BASE_DECLARE_FEATURE(kOfferPinToTaskbarInfoBar);
 BASE_DECLARE_FEATURE(kPdfInfoBar);
-
-enum class PdfInfoBarTrigger { kPdfLoad = 0, kStartup = 1 };
-
-BASE_DECLARE_FEATURE_PARAM(PdfInfoBarTrigger, kPdfInfoBarTrigger);
-
 BASE_DECLARE_FEATURE(kSeparateDefaultAndPinPrompt);
 BASE_DECLARE_FEATURE_PARAM(int, kSeparateDefaultAndPinPromptRandSeed);
 BASE_DECLARE_FEATURE_PARAM(int, kSeparateDefaultAndPinPromptPinMaxCount);
@@ -151,11 +152,14 @@ BASE_DECLARE_FEATURE(kPreloadTopChromeWebUILessNavigations);
 
 BASE_DECLARE_FEATURE(kPressAndHoldEscToExitBrowserFullscreen);
 
+#if BUILDFLAG(IS_WIN)
+BASE_DECLARE_FEATURE(kProcessIsolationSettings);
+#endif  // BUILDFLAG(IS_WIN)
+
 BASE_DECLARE_FEATURE(kScrimForBrowserWindowModal);
 
-BASE_DECLARE_FEATURE(kSideBySide);
-
-BASE_DECLARE_FEATURE(kSideBySideLinkMenuNewBadge);
+BASE_DECLARE_FEATURE(kSplitViewTabDraggingUpdates);
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kShowDropTargetForTabDelay);
 
 BASE_DECLARE_FEATURE(kTabDuplicateMetrics);
 
@@ -225,26 +229,6 @@ BASE_DECLARE_FEATURE_PARAM(double, kTabOrganizationTriggerSensitivityThreshold);
 // predictably and frequently.
 BASE_DECLARE_FEATURE_PARAM(bool, KTabOrganizationTriggerDemoMode);
 
-BASE_DECLARE_FEATURE(kTabstripDeclutter);
-bool IsTabstripDeclutterEnabled();
-
-// Duration of inactivity after which a tab is considered stale for declutter.
-BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
-                           kTabstripDeclutterStaleThresholdDuration);
-
-// Interval between a recomputation of stale tabs for declutter.
-BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kTabstripDeclutterTimerInterval);
-
-// Default interval after showing a nudge to prevent another nudge from being
-// shown for declutter.
-BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
-                           kTabstripDeclutterNudgeTimerInterval);
-
-BASE_DECLARE_FEATURE(kTabstripDedupe);
-bool IsTabstripDedupeEnabled();
-
-BASE_DECLARE_FEATURE(kTabOrganizationAppMenuItem);
-
 BASE_DECLARE_FEATURE(kTabOrganizationModelStrategy);
 
 BASE_DECLARE_FEATURE(kTabOrganizationEnableNudgeForEnterprise);
@@ -265,11 +249,16 @@ BASE_DECLARE_FEATURE(kThreeButtonPasswordSaveDialog);
 // of the browser.
 BASE_DECLARE_FEATURE(kToolbarHeightSidePanel);
 
+// Feature which uses a flyover animation for animating side panels (and
+// expansion/contraction of the Vertical Tab Strip).
+//
+// Call `UseSidePanelFlyoverAnimation()` instead of checking this feature
+// directly.
+BASE_DECLARE_FEATURE(kSidePanelFlyoverAnimation);
+bool UseSidePanelFlyoverAnimation();
+
 // TODO(crbug.com/460764864): Cleanup all the enterprise badging feature flags.
 BASE_DECLARE_FEATURE(kEnterpriseProfileBadgingForMenu);
-BASE_DECLARE_FEATURE(kEnterpriseBadgingForNtpFooter);
-BASE_DECLARE_FEATURE(kEnterpriseBadgingForLocalManagemenetNtpFooter);
-BASE_DECLARE_FEATURE(kEnterpriseBadgingForNtpFooterWithOverThreePolicies);
 BASE_DECLARE_FEATURE(kNTPFooterBadgingPolicies);
 
 BASE_DECLARE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel);
@@ -298,10 +287,6 @@ BASE_DECLARE_FEATURE(kPageSpecificDataDialogRelatedInstalledAppsSection);
 // Feature for the promotion banner on the top of chrome://management page
 BASE_DECLARE_FEATURE(kEnableManagementPromotionBanner);
 
-// Enable display for the Chrome Enterprise Core promotion banner on
-// the chrome://policy page.
-BASE_DECLARE_FEATURE(kEnablePolicyPromotionBanner);
-
 // Controls whether a performance improvement in browser feature support
 // checking is enabled.
 BASE_DECLARE_FEATURE(kInlineFullscreenPerfExperiment);
@@ -315,24 +300,14 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationEnableAll);
 
 // The following feature params indicate whether individual features should
 // have their page actions controlled using the new framework.
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationLensOverlay);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationMemorySaver);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationTranslate);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationIntentPicker);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationZoom);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationOfferNotification);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationFileSystemAccess);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationPwaInstall);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationPriceInsights);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationDiscounts);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationManagePasswords);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationCookieControls);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAutofillAddress);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationFind);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationCollaborationMessaging);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationPriceTracking);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAutofillMandatoryReauth);
-BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationClickToCall);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationSharingHub);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAiMode);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationVirtualCard);
@@ -370,6 +345,8 @@ bool IsWebUIHomeButtonEnabled();
 
 bool IsWebUIBackForwardButtonEnabled();
 
+bool IsWebUIPinnedToolbarActionsEnabled();
+
 bool IsWebUISplitTabsButtonEnabled();
 
 bool IsWebUILocationBarEnabled();
@@ -394,8 +371,11 @@ bool IsAndroidAnimatedProgressBarInBrowserEnabled();
 // Controls whether the updated What's New page is enabled.
 BASE_DECLARE_FEATURE(kWhatsNewDesktopRefresh);
 
+BASE_DECLARE_FEATURE(kAiOverlayDialog);
+
 BASE_DECLARE_FEATURE(kTabGroupsFocusing);
 BASE_DECLARE_FEATURE_PARAM(bool, kTabGroupsFocusingPinnedTabs);
+BASE_DECLARE_FEATURE_PARAM(bool, kTabGroupsFocusingDefaultToFocused);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_DECLARE_FEATURE(kUpdaterUI);

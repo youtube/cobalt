@@ -130,6 +130,12 @@ export interface PageElementTypes {
   selectCredential: HTMLSelectElement;
   credentialOnce: HTMLButtonElement;
   credentialAlways: HTMLButtonElement;
+  selectedCredentialUsername: HTMLSpanElement;
+  selectedCredentialSource: HTMLSpanElement;
+  selectedCredentialRequestOrigin: HTMLSpanElement;
+  selectedCredentialIcon: HTMLImageElement;
+  selectedCredentialType: HTMLSpanElement;
+  selectedCredentialAccountPicture: HTMLImageElement;
   actionProtoEncodedText: HTMLInputElement;
   actionStatus: HTMLSpanElement;
   autofillSuggestionsDialogSection: HTMLElement;
@@ -157,9 +163,6 @@ export interface PageElementTypes {
   shareCandidates: HTMLElement;
   enableShareCandidates: HTMLInputElement;
   unpin: HTMLButtonElement;
-  viewChangedBtn: HTMLButtonElement;
-  viewChangedCurrentView: HTMLSelectElement;
-  viewChangedAutomaticallyAccept: HTMLInputElement;
   mqlsClientIdBtn: HTMLButtonElement;
   additionalContextResult: HTMLTextAreaElement;
   additionalContextImages: HTMLDivElement;
@@ -180,6 +183,7 @@ export interface PageElementTypes {
   updateSkillBtn: HTMLButtonElement;
   getSkillBtn: HTMLButtonElement;
   manageSkillsBtn: HTMLButtonElement;
+  skillsList: HTMLUListElement;
   stressTestEngageBtn: HTMLButtonElement;
   stressTestEngageRetainBtn: HTMLButtonElement;
   invocationLog: HTMLDivElement;

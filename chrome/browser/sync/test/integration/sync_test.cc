@@ -33,7 +33,6 @@
 #include "build/build_config.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/chrome_browser_main.h"
 #include "chrome/browser/chrome_browser_main_extra_parts.h"
 #include "chrome/browser/gcm/gcm_profile_service_factory.h"
@@ -57,6 +56,7 @@
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
+#include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/test/bookmark_test_helpers.h"
 #include "components/browser_sync/browser_sync_switches.h"
 #include "components/commerce/core/commerce_feature_list.h"
@@ -72,6 +72,8 @@
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/base/signin_switches.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/skills/features.h"
 #include "components/sync/base/command_line_switches.h"
 #include "components/sync/base/data_type.h"
@@ -94,6 +96,7 @@
 #include "extensions/buildflags/buildflags.h"
 #include "google_apis/gaia/fake_oauth2_token_response.h"
 #include "google_apis/gaia/gaia_urls.h"
+#include "google_apis/gaia/google_service_auth_error.h"
 #include "net/base/port_util.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
@@ -122,6 +125,7 @@
 #else  // BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
@@ -467,7 +471,13 @@ Browser* SyncTest::AddBrowser(int profile_index) {
   profiles_.push_back(profile);
   DCHECK_EQ(browsers_.size(), profiles_.size());
 
-  return browsers_[browsers_.size() - 1];
+  // Show the browser window. Otherwise, the rendering pipeline might not
+  // initialize or produce frames (e.g., on Wayland headless bots), which
+  // can cause tests relying on hit test data or visual state to time out.
+  Browser* browser = browsers_.back();
+  browser->window()->Show();
+
+  return browser;
 }
 
 void SyncTest::OnBrowserRemoved(Browser* browser) {
@@ -642,6 +652,10 @@ void SyncTest::InitializeProfile(int index, Profile* profile) {
 #if !BUILDFLAG(IS_ANDROID)
   browsers_.push_back(Browser::Create(Browser::CreateParams(profile, true)));
   DCHECK_EQ(static_cast<size_t>(index), browsers_.size() - 1);
+  // Show the browser window. Otherwise, the rendering pipeline might not
+  // initialize or produce frames (e.g., on Wayland headless bots), which
+  // can cause tests relying on hit test data or visual state to time out.
+  browsers_.back()->window()->Show();
 #endif
 
   if (server_type_ == IN_PROCESS_FAKE_SERVER) {
@@ -861,28 +875,43 @@ void SyncTest::TearDownOnMainThread() {
     fake_server_.reset();
   }
 
-  for (size_t index = 0; index < profiles_.size(); ++index) {
+  for (Profile* profile : profiles_) {
     // Profile could be removed earlier.
-    if (profiles_[index]) {
-      profiles_[index]->RemoveObserver(this);
+    if (profile) {
+      profile->RemoveObserver(this);
 
 #if BUILDFLAG(IS_ANDROID)
-      // A profile could have backend tasks from the associate sync engine.
-      // In browser tests, on non-Android platforms, these tasks are cancelled
-      // during the browser process shutdown.
-      // On Android, however, browser process is not shutdown after test run.
-      // As a result, these backend tasks could keep running and cause timeout
-      // error during test shutdown.
-      // To fix this issue, we explicitly mimic a dashboard reset to cancel
-      // any ongoing sync engine's backend tasks.
-      // Skip cleanup for PRE_ tests to allow data persistence.
-      // TODO(crbug.com/479828012): Find a better solution that doesn't require
-      // explicitly disabling sync.
-      if (!content::IsPreTest()) {
-        if (auto* service = GetSyncService(index)) {
-          service->OnActionableProtocolError(
-              {.error_type = syncer::NOT_MY_BIRTHDAY,
-               .action = syncer::DISABLE_SYNC_ON_CLIENT});
+      // In Android browser tests, the Profile and thus the SyncService does not
+      // get shut down in an orderly fashion. This can interfere with subsequent
+      // tests. To work around that, produce an auth error here, which results
+      // in the engine being shut down. (Note that auth errors are not
+      // persisted, so this does not interfere with PRE_ tests.)
+      signin::IdentityManager* identity_manager =
+          IdentityManagerFactory::GetForProfile(profile);
+      CoreAccountId primary_account =
+          identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
+      if (!primary_account.empty()) {
+        signin::UpdatePersistentErrorOfRefreshTokenForAccount(
+            identity_manager, primary_account,
+            GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+                GoogleServiceAuthError::InvalidGaiaCredentialsReason::
+                    CREDENTIALS_REJECTED_BY_CLIENT));
+      }
+
+      // On Android, the Profile does not get shut down in an orderly fashion.
+      // In PRE_ tests, ensure that all relevant state is persisted to disk (in
+      // non-PRE_ tests, it doesn't matter since nothing will use it again).
+      if (content::IsPreTest()) {
+        base::test::TestFuture<void> prefs_write_done;
+        profile->GetPrefs()->CommitPendingWrite(prefs_write_done.GetCallback());
+        ASSERT_TRUE(prefs_write_done.Wait());
+
+        BookmarkModelFactory::GetForBrowserContext(profile)
+            ->CommitPendingWriteForTest();
+
+        fake_server::FakeServer* fake_server = GetFakeServer();
+        if (fake_server) {
+          fake_server->FlushToDisk();
         }
       }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -948,10 +977,9 @@ void SyncTest::OnProfileAdded(Profile* profile) {
   // early, and ProfileImpl's constructor would override it once again when
   // invoking ash::InitializeAccountManager().
   if (server_type_ == IN_PROCESS_FAKE_SERVER) {
-    ash::AccountManagerFactory* factory =
-        g_browser_process->platform_part()->GetAccountManagerFactory();
     account_manager::AccountManager* account_manager =
-        factory->GetAccountManager(profile->GetPath().value());
+        ash::AccountManagerFactory::Get()->GetAccountManager(
+            profile->GetPath().value());
     account_manager->SetUrlLoaderFactoryForTests(
         test_url_loader_factory_.GetSafeWeakWrapper());
   }
@@ -1214,7 +1242,7 @@ std::string SetupSyncModeAsString(SyncTest::SetupSyncMode sync_test_mode) {
 // enabled by default, e.g. HISTORY requires a dedicated opt-in via
 // SyncUserSettings::SetSelectedTypes().
 syncer::DataTypeSet AllowedTypesInStandaloneTransportMode() {
-  static_assert(62 == syncer::GetNumDataTypes(),
+  static_assert(63 == syncer::GetNumDataTypes(),
                 "Add new types below if they can run in transport mode");
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1301,9 +1329,7 @@ syncer::DataTypeSet AllowedTypesInStandaloneTransportMode() {
     }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
   }
-  if (base::FeatureList::IsEnabled(syncer::kSyncAutofillLoyaltyCard)) {
-    allowed_types.Put(syncer::AUTOFILL_VALUABLE);
-  }
+  allowed_types.Put(syncer::AUTOFILL_VALUABLE);
 
   if (base::FeatureList::IsEnabled(syncer::kSyncAutofillValuableMetadata)) {
     allowed_types.Put(syncer::AUTOFILL_VALUABLE_METADATA);
@@ -1319,6 +1345,10 @@ syncer::DataTypeSet AllowedTypesInStandaloneTransportMode() {
 
   if (base::FeatureList::IsEnabled(syncer::kSyncThemesIos)) {
     allowed_types.Put(syncer::THEMES_IOS);
+  }
+
+  if (base::FeatureList::IsEnabled(syncer::kSyncAccessibilityAnnotation)) {
+    allowed_types.Put(syncer::ACCESSIBILITY_ANNOTATION);
   }
 
   if (base::FeatureList::IsEnabled(syncer::kSyncAccountSettings)) {

@@ -17,6 +17,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "components/affiliations/core/browser/affiliation_utils.h"
 #include "components/autofill/core/browser/autofill_browser_util.h"
+#include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/valuables/valuables_data_manager.h"
 #include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
@@ -56,17 +57,21 @@ bool IsFieldFocusableAndEmpty(const AutofillField& field) {
 // The form is considered correctly filled if all autofilled fields were not
 // edited by user afterwards.
 bool IsFillingCorrect(const FormStructure& form) {
-  return !std::ranges::any_of(form.fields(), [](const auto& field) {
-    return field->previously_autofilled();
-  });
+  return std::ranges::none_of(
+      form.fields(), [](const std::unique_ptr<AutofillField>& field) {
+        return field->last_modifier() != FieldModifier::kAutofill &&
+               field->all_modifiers().contains(FieldModifier::kAutofill);
+      });
 }
 
 // The form is considered perfectly filled if all non-empty fields are
 // autofilled without further edits.
 bool IsFillingPerfect(const FormStructure& form) {
-  return std::ranges::all_of(form.fields(), [](const auto& field) {
-    return field->value().empty() || field->is_autofilled();
-  });
+  return std::ranges::all_of(
+      form.fields(), [](const std::unique_ptr<AutofillField>& field) {
+        return field->value().empty() ||
+               field->last_modifier() == FieldModifier::kAutofill;
+      });
 }
 
 // Checks if the credit card form is already filled with values. The form is
@@ -84,7 +89,9 @@ bool IsFormPrefilled(const FormStructure& form) {
 
 bool HasAnyAutofilledFields(const FormStructure& form) {
   return std::ranges::any_of(
-      form.fields(), [](const auto& field) { return field->is_autofilled(); });
+      form.fields(), [](const std::unique_ptr<AutofillField>& field) {
+        return field->last_modifier() == FieldModifier::kAutofill;
+      });
 }
 
 }  // namespace
@@ -254,21 +261,21 @@ bool TouchToFillDelegateAndroidImpl::TryToShowTouchToFill(
     payments::PaymentsAutofillClient& payments_client =
         *manager_->client().GetPaymentsAutofillClient();
     const bool shown = std::visit(
-        absl::Overload{[&](std::vector<CreditCard> items_to_suggest) {
-                         return payments_client.ShowTouchToFillCreditCard(
-                             GetWeakPtr(),
-                             GetCreditCardSuggestionsForTouchToFill(
-                                 std::move(items_to_suggest), *manager_));
-                       },
-                       [&](std::vector<Iban> items_to_suggest) {
-                         return payments_client.ShowTouchToFillIban(
-                             GetWeakPtr(), std::move(items_to_suggest));
-                       },
-                       [&](std::vector<LoyaltyCard> items_to_suggest) {
-                         return payments_client
-                             .ShowTouchToFillAffiliatedLoyaltyCard(
-                                 GetWeakPtr(), std::move(items_to_suggest));
-                       }},
+        absl::Overload{
+            [&](std::vector<CreditCard> items_to_suggest) {
+              return payments_client.ShowTouchToFillCreditCard(
+                  GetWeakPtr(), GetCreditCardSuggestionsForTouchToFill(
+                                    std::move(items_to_suggest), *manager_,
+                                    form.global_id()));
+            },
+            [&](std::vector<Iban> items_to_suggest) {
+              return payments_client.ShowTouchToFillIban(
+                  GetWeakPtr(), std::move(items_to_suggest));
+            },
+            [&](std::vector<LoyaltyCard> items_to_suggest) {
+              return payments_client.ShowTouchToFillAffiliatedLoyaltyCard(
+                  GetWeakPtr(), std::move(items_to_suggest));
+            }},
         std::move(dry_run.items_to_suggest));
     if (!shown) {
       dry_run.outcome = TriggerOutcome::kFailedToDisplayBottomSheet;
@@ -410,7 +417,7 @@ void TouchToFillDelegateAndroidImpl::BnplSuggestionSelected(
     std::optional<int64_t> extracted_amount) {
   payments::BnplManager* bnpl_manager = manager_->GetPaymentsBnplManager();
   CHECK(bnpl_manager);
-  bnpl_manager->OnDidAcceptBnplSuggestion(
+  bnpl_manager->OnUserDecisionToUseBnpl(
       extracted_amount,
       /*on_bnpl_vcn_fetched_callback=*/base::BindOnce(
           [](base::WeakPtr<TouchToFillDelegateAndroidImpl> delegate,

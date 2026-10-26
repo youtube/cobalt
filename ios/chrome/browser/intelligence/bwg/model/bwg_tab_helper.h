@@ -25,6 +25,10 @@
 @protocol LocationBarBadgeCommands;
 @class GeminiPageContext;
 
+namespace gemini {
+enum class FloatyUpdateSource;
+}
+
 // Tab helper controlling the BWG feature and its current state for a given tab.
 class BwgTabHelper : public web::WebStateObserver,
                      public web::WebStateUserData<BwgTabHelper> {
@@ -73,8 +77,8 @@ class BwgTabHelper : public web::WebStateObserver,
   // Removes the associated WebState's session from storage.
   void DeleteBwgSessionInStorage();
 
-  // Whether BWG is available for the current web state.
-  bool IsBwgAvailableForWebState();
+  // Whether Gemini is available for the current web state.
+  bool IsGeminiAvailableForWebState();
 
   // Prepares the WebState for the BWG FRE (first run experience) backgrounding.
   // Takes a fullscreen screenshot and sets the session to active.
@@ -119,15 +123,21 @@ class BwgTabHelper : public web::WebStateObserver,
   // Sets a callback to be run when the page has finished loading.
   void SetPageLoadedCallback(base::RepeatingClosure callback);
 
-  // Getter `contextual_cue_label_`.
-  NSString* GetContextualCueLabel();
-
-  // Setter for `contextual_cue_label_`.
-  void SetContextualCueLabel(NSString* cue_label);
-
   // Returns the partial PageContext for the current WebState, including URL,
   // Title, and Favicon.
   GeminiPageContext* GetPartialPageContext();
+
+  // Returns true if a show floaty trigger should be blocked resulting in an
+  // early return and the floaty remaining hidden. Used when the floaty is
+  // forced to be hidden such as an overlay, alert, or banner being presented
+  bool ShouldBlockFloatyFromShowing();
+
+  // Updates the state of a `source` that `is_presented`.
+  void UpdatePresentedSource(gemini::FloatyUpdateSource source,
+                             bool is_presented);
+
+  // Notifies observers of the web state that the page context changed.
+  void NotifyPageContextUpdated(web::WebState* web_state);
 
   // WebStateObserver:
   void WasShown(web::WebState* web_state) override;
@@ -157,9 +167,6 @@ class BwgTabHelper : public web::WebStateObserver,
 
   // Clears the zero-state suggestions and resets the service.
   void ClearZeroStateSuggestions();
-
-  // Notifies observers of the web state that the page context changed.
-  void NotifyPageContextUpdated(web::WebState* web_state);
 
   // Populates the page context fields if the wrapper exists.
   void PopulatePageContextFields();
@@ -205,12 +212,6 @@ class BwgTabHelper : public web::WebStateObserver,
   // Removes the BWG session from the prefs.
   void CleanupSessionFromPrefs();
 
-  // Updates the snapshot in storage for the associated Web State. If a snapshot
-  // is cached (cropped fullscreen screenshot), use it to update the storage,
-  // otherwise generate one normally for the content area.
-  void UpdateWebStateSnapshotInStorage();
-
-
   // Parses the response of a zero state suggestions execution.
   void ParseSuggestionsResponse(
       base::OnceCallback<void(NSArray<NSString*>*)> callback,
@@ -221,10 +222,6 @@ class BwgTabHelper : public web::WebStateObserver,
 
   // Whether the BWG UI is currently showing.
   bool is_bwg_ui_showing_ = false;
-
-  // The cached WebState snapshot. Written to disk when the WebState is hidden.
-  // If non-nil, stores a cropped fullscreen snapshot which includes the BWG UI.
-  __strong UIImage* cached_snapshot_;
 
   // Whether the BWG session is currently active in the "background", i.e. the
   // UI is not present since another  WebState is being shown, but the current
@@ -269,9 +266,6 @@ class BwgTabHelper : public web::WebStateObserver,
   // Callback to be run when the page has finished loading.
   base::RepeatingClosure page_loaded_callback_;
 
-  // Contextual cue label generated for Gemini contextual cue metadata.
-  NSString* contextual_cue_label_;
-
   // List of observers.
   base::ObserverList<GeminiTabHelperObserver> observers_;
 
@@ -283,6 +277,24 @@ class BwgTabHelper : public web::WebStateObserver,
   // The callback to be run when the page context is ready.
   base::RepeatingCallback<void(PageContextWrapperCallbackResponse)>
       page_context_wrapper_response_ready_callback_;
+
+  // Whether an external overlay is currently presented e.g. Lens Overlay. Used
+  // to avoid showing the floaty when view controllers are presented/dismissed
+  // while an overlay is presented.
+  bool is_external_overlay_presented_ = false;
+
+  // Whether an alert is currently presented. Used to avoid showing the floaty
+  // when view controllers are presented/dismissed while an alert is presented.
+  bool is_alert_presented_ = false;
+
+  // Whether a banner is currently presented. Used to avoid showing the floaty
+  // when view controllers are presented/dismissed while a banner is presented.
+  bool is_banner_presented_ = false;
+
+  // Whether a snackbar is currently presented. Used to avoid showing the floaty
+  // when view controllers are presented/dismissed while a snackbar is
+  // presented.
+  bool is_snackbar_presented_ = false;
 
   // Weak pointer factory.
   base::WeakPtrFactory<BwgTabHelper> weak_ptr_factory_{this};

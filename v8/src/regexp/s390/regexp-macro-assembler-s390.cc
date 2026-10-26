@@ -149,7 +149,7 @@ void RegExpMacroAssemblerS390::AdvanceRegister(int reg, int by) {
   DCHECK_LE(0, reg);
   DCHECK_GT(num_registers_, reg);
   if (by != 0) {
-    if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT) && is_int8(by)) {
+    if (is_int8(by)) {
       __ agsi(register_location(reg), Operand(by));
     } else {
       __ LoadU64(r2, register_location(reg), r0);
@@ -704,7 +704,7 @@ void RegExpMacroAssemblerS390::PopRegExpBasePointer(Register stack_pointer_out,
 }
 
 DirectHandle<HeapObject> RegExpMacroAssemblerS390::GetCode(
-    DirectHandle<String> source, RegExpFlags flags) {
+    DirectHandle<RegExpData> re_data, RegExpFlags flags) {
   Label return_r2;
 
   // Finalize code - write the entry point code now we know how many
@@ -1120,8 +1120,7 @@ DirectHandle<HeapObject> RegExpMacroAssemblerS390::GetCode(
           .set_self_reference(masm_->CodeObject())
           .set_empty_source_position_table()
           .Build();
-  PROFILE(masm_->isolate(),
-          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
+  LogCode(masm_->isolate(), code, re_data, flags);
   return Cast<HeapObject>(code);
 }
 

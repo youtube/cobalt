@@ -36,7 +36,6 @@ rtc_library("fifo_buffer") {
     "..:checks",
     "..:macromagic",
     "..:stream",
-    "../../api:array_view",
     "../../api:sequence_checker",
     "../../api/task_queue",
     "../../api/task_queue:pending_task_safety_flag",
@@ -60,7 +59,6 @@ rtc_library("unittests") {
     ":fifo_buffer",
     "..:stream",
     "..:threading",
-    "../../api:array_view",
     "../../test:test_support",
   ]
 }

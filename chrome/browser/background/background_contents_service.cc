@@ -242,6 +242,7 @@ void BackgroundContentsService::ShowBalloonForTesting(
 std::vector<BackgroundContents*>
 BackgroundContentsService::GetBackgroundContents() const {
   std::vector<BackgroundContents*> contents;
+  contents.reserve(contents_map_.size());
   for (auto it = contents_map_.begin(); it != contents_map_.end(); ++it)
     contents.push_back(it->second.contents.get());
   return contents;
@@ -670,11 +671,12 @@ void BackgroundContentsService::AddWebContents(
     WindowOpenDisposition disposition,
     const blink::mojom::WindowFeatures& window_features,
     bool* was_blocked) {
-  Browser* browser = chrome::FindLastActiveWithProfile(
+  BrowserWindowInterface* const browser = chrome::FindLastActiveWithProfile(
       Profile::FromBrowserContext(new_contents->GetBrowserContext()));
   if (browser) {
-    chrome::AddWebContents(browser, nullptr, std::move(new_contents),
-                           target_url, disposition, window_features);
+    chrome::AddWebContents(browser->GetBrowserForMigrationOnly(), nullptr,
+                           std::move(new_contents), target_url, disposition,
+                           window_features);
   }
 }
 

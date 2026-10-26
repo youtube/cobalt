@@ -19,6 +19,13 @@ export enum SpeechControls {
   PREVIOUS = 'PreviousButton',
 }
 
+export enum LinkStatus {
+  SUCCESS = 'Success',
+  NO_HREF = 'NoHref',
+  NO_MATCH = 'NoMatch',
+  TOO_MANY_MATCHES = 'TooManyMatches',
+}
+
 // Handles the business logic for logging.
 export class ReadAnythingLogger {
   private metrics: MetricsBrowserProxy = MetricsBrowserProxyImpl.getInstance();
@@ -61,6 +68,9 @@ export class ReadAnythingLogger {
       case 'network':
         error = ReadAnythingSpeechError.NETWORK;
         break;
+      case 'timeout-engine-stalled':
+        error = ReadAnythingSpeechError.TIMEOUT_ENGINE_STALLED;
+        break;
       default:
         return;
     }
@@ -71,8 +81,8 @@ export class ReadAnythingLogger {
   }
 
   logTimeFrom(from: TimeFrom, startTime: number, endTime: number) {
-    const umaName = 'Accessibility.ReadAnything.' +
-        'TimeFrom' + from + 'StartedToConstructor';
+    const umaName =
+        `Accessibility.ReadAnything.TimeFrom${from}StartedToConstructor`;
     this.metrics.recordTime(umaName, endTime - startTime);
   }
 
@@ -150,7 +160,7 @@ export class ReadAnythingLogger {
 
   logSpeechControlClick(control: SpeechControls) {
     this.metrics.incrementMetricCount(
-        'Accessibility.ReadAnything.ReadAloud' + control + 'SessionCount');
+        `Accessibility.ReadAnything.ReadAloud${control}SessionCount`);
   }
 
   logLineFocusSession() {
@@ -163,6 +173,12 @@ export class ReadAnythingLogger {
     if (chrome.readingMode.isLineFocusEnabled) {
       this.metrics.recordLineFocusToggled(enabled);
     }
+  }
+
+  logLinkStatusCount(status: LinkStatus, count: number) {
+    const umaName =
+        `Accessibility.ReadAnything.Readability.PageLinks${status}Count`;
+    this.metrics.recordCount(umaName, count);
   }
 
   static getInstance(): ReadAnythingLogger {

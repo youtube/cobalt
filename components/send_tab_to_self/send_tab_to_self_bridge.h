@@ -6,6 +6,7 @@
 #define COMPONENTS_SEND_TAB_TO_SELF_SEND_TAB_TO_SELF_BRIDGE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,6 +18,7 @@
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_service_observer.h"
 #include "components/prefs/pref_service.h"
+#include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
 #include "components/send_tab_to_self/send_tab_to_self_model.h"
 #include "components/sync/base/data_type.h"
@@ -78,6 +80,8 @@ class SendTabToSelfBridge : public syncer::DataTypeSyncBridge,
       const syncer::EntityData& entity_data) const override;
   std::string GetStorageKey(
       const syncer::EntityData& entity_data) const override;
+  sync_pb::EntitySpecifics TrimAllSupportedFieldsFromRemoteSpecifics(
+      const sync_pb::EntitySpecifics& entity_specifics) const override;
   bool IsEntityDataValid(const syncer::EntityData& entity_data) const override;
   void ApplyDisableSyncChanges(std::unique_ptr<syncer::MetadataChangeList>
                                    delete_metadata_change_list) override;
@@ -89,7 +93,8 @@ class SendTabToSelfBridge : public syncer::DataTypeSyncBridge,
   const SendTabToSelfEntry* AddEntry(
       const GURL& url,
       const std::string& title,
-      const std::string& target_device_cache_guid) override;
+      const std::string& target_device_cache_guid,
+      const PageContext& context) override;
   void DeleteEntry(const std::string& guid) override;
   void DismissEntry(const std::string& guid) override;
   void MarkEntryOpened(const std::string& guid) override;
@@ -132,7 +137,6 @@ class SendTabToSelfBridge : public syncer::DataTypeSyncBridge,
   void OnStoreCreated(const std::optional<syncer::ModelError>& error,
                       std::unique_ptr<syncer::DataTypeStore> store);
   void OnReadAllData(std::unique_ptr<SendTabToSelfEntries> initial_entries,
-                     std::unique_ptr<std::string> local_device_name,
                      const std::optional<syncer::ModelError>& error);
   void OnReadAllMetadata(const std::optional<syncer::ModelError>& error,
                          std::unique_ptr<syncer::MetadataBatch> metadata_batch);
@@ -144,6 +148,9 @@ class SendTabToSelfBridge : public syncer::DataTypeSyncBridge,
   // Returns a specific entry for editing. Returns null if the entry does not
   // exist.
   SendTabToSelfEntry* GetMutableEntryByGUID(const std::string& guid) const;
+
+  // Returns the name of the local device.
+  std::string GetLocalFullName() const;
 
   // Returns true if the device should be included in the target list.
   bool ShouldIncludeDevice(const syncer::DeviceInfo& device) const;
@@ -188,8 +195,8 @@ class SendTabToSelfBridge : public syncer::DataTypeSyncBridge,
   // `pref_service_` isn't owned.
   const raw_ptr<PrefService> pref_service_;
 
-  // The name of this local device.
-  std::string local_device_name_;
+  // The name of this local device, set only for testing.
+  std::optional<std::string> local_device_name_for_testing_;
 
   // In charge of actually persisting changes to disk, or loading previous data.
   std::unique_ptr<syncer::DataTypeStore> store_;

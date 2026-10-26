@@ -261,7 +261,7 @@ public class ActivityTabWebContentsDelegateAndroid extends TabWebContentsDelegat
             }
 
             return PopupCreator.moveWebContentsToNewDocumentPictureInPictureWindow(
-                    webContents, pictureInPictureWindowOptions);
+                    mActivity, webContents, pictureInPictureWindowOptions);
         }
 
         final CompletableFuture<Boolean> addTabToModel = new CompletableFuture<Boolean>();
@@ -761,12 +761,18 @@ public class ActivityTabWebContentsDelegateAndroid extends TabWebContentsDelegat
     public void requestPointerLock(
             WebContents webContents, boolean userGesture, boolean lastUnlockedByTarget) {
         assert mExclusiveAccessManager != null;
+        if (mExclusiveAccessManager == null) {
+            return;
+        }
         mExclusiveAccessManager.requestPointerLock(webContents, userGesture, lastUnlockedByTarget);
     }
 
     @Override
     public void lostPointerLock() {
         assert mExclusiveAccessManager != null;
+        if (mExclusiveAccessManager == null) {
+            return;
+        }
         mExclusiveAccessManager.lostPointerLock();
     }
 

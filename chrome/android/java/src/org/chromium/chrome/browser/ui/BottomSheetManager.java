@@ -13,8 +13,8 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsVisibilityManager;
-import org.chromium.chrome.browser.compositor.bottombar.OverlayPanel;
-import org.chromium.chrome.browser.compositor.bottombar.OverlayPanelManager;
+import org.chromium.chrome.browser.compositor.overlay_panel.OverlayPanel;
+import org.chromium.chrome.browser.compositor.overlay_panel.OverlayPanelManager;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider.LayoutStateObserver;
 import org.chromium.chrome.browser.layouts.LayoutType;
@@ -71,7 +71,7 @@ class BottomSheetManager extends EmptyBottomSheetObserver implements DestroyObse
     private final ActivityTabProvider mTabProvider;
 
     /** A supplier of a snackbar manager for the bottom sheet. */
-    private final Supplier<SnackbarManager> mSnackbarManager;
+    private final MonotonicObservableSupplier<SnackbarManager> mSnackbarManager;
 
     /** The manager for overlay panels to attach listeners to. */
     private final Supplier<OverlayPanelManager> mOverlayPanelManager;
@@ -96,7 +96,7 @@ class BottomSheetManager extends EmptyBottomSheetObserver implements DestroyObse
             ActivityTabProvider tabProvider,
             BrowserControlsVisibilityManager controlsVisibilityManager,
             ExpandedSheetHelper expandedSheetHelper,
-            Supplier<SnackbarManager> snackbarManagerSupplier,
+            MonotonicObservableSupplier<SnackbarManager> snackbarManagerSupplier,
             MonotonicObservableSupplier<Boolean> omniboxFocusStateSupplier,
             Supplier<OverlayPanelManager> overlayManager,
             OneshotSupplier<LayoutStateProvider> layoutStateProviderSupplier) {
@@ -175,11 +175,11 @@ class BottomSheetManager extends EmptyBottomSheetObserver implements DestroyObse
                     @Override
                     public void onBottomControlsHeightChanged(
                             int bottomControlsHeight, int bottomControlsMinHeight) {
-                        mSheetController.setBottomControlsHeight(bottomControlsHeight);
+                        mSheetController.setBottomControlsOffset(bottomControlsHeight);
                     }
                 };
         mBrowserControlsVisibilityManager.addObserver(mBrowserControlsObserver);
-        mSheetController.setBottomControlsHeight(
+        mSheetController.setBottomControlsOffset(
                 controlsVisibilityManager.getBottomControlsHeight());
 
         mOmniboxFocusObserver =
@@ -270,8 +270,9 @@ class BottomSheetManager extends EmptyBottomSheetObserver implements DestroyObse
 
     @Override
     public void onSheetOffsetChanged(float heightFraction, float offsetPx) {
-        if (mSnackbarManager.get() != null) {
-            mSnackbarManager.get().dismissAllSnackbars();
+        SnackbarManager snackbarManager = mSnackbarManager.get();
+        if (snackbarManager != null) {
+            snackbarManager.dismissAllSnackbars();
         }
     }
 

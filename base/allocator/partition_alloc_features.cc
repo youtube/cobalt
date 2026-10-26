@@ -188,7 +188,7 @@ BASE_FEATURE_ENUM_PARAM(BackupRefPtrEnabledProcesses,
                         kBackupRefPtrEnabledProcessesParam,
                         &kPartitionAllocBackupRefPtr,
                         kPAFeatureEnabledProcessesStr,
-#if PA_BUILDFLAG(IS_ANDROID) && !PA_BUILDFLAG(IS_DESKTOP_ANDROID)
+#if PA_BUILDFLAG(IS_ANDROID)
                         BackupRefPtrEnabledProcesses::kNonRenderer,
 #else
                         BackupRefPtrEnabledProcesses::kAllProcesses,
@@ -411,7 +411,7 @@ BASE_FEATURE(kPartitionAllocUsePriorityInheritanceLocks,
              FEATURE_DISABLED_BY_DEFAULT);
 #endif  // PA_BUILDFLAG(ENABLE_PARTITION_LOCK_PRIORITY_INHERITANCE)
 
-BASE_FEATURE(kPartitionAllocFreeWithSize, FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPartitionAllocFreeWithSize, FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
                    kPartitionAllocStrictFreeSizeCheck,
                    &kPartitionAllocFreeWithSize,

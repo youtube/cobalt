@@ -9,9 +9,11 @@
 #include <variant>
 
 #include "base/check.h"
+#include "base/feature_list.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
+#include "components/content_settings/core/common/features.h"
 #include "components/permissions/permission_decision.h"
 #include "components/permissions/permission_prompt_decision.h"
 #include "components/permissions/permission_util.h"
@@ -20,12 +22,22 @@
 #include "components/url_formatter/elide_url.h"
 #include "content/public/browser/permission_controller.h"
 #include "content/public/browser/render_frame_host.h"
+#include "services/device/public/cpp/device_features.h"
+#include "third_party/blink/public/mojom/permissions/permission.mojom.h"
 #include "ui/base/device_form_factor.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/text_elider.h"
 #include "ui/strings/grit/ui_strings.h"
 
 namespace permissions {
+
+namespace {
+
+bool AreGenericSensorExtraClassesEnabled() {
+  return base::FeatureList::IsEnabled(::features::kGenericSensorExtraClasses);
+}
+
+}  // namespace
 
 PermissionRequest::PermissionRequest(
     std::unique_ptr<PermissionRequestData> request_data,
@@ -93,9 +105,28 @@ PermissionRequest::GetDialogAnnotatedMessageText(
     case RequestType::kHandTracking:
       message_id = IDS_HAND_TRACKING_INFOBAR_TEXT;
       break;
-    case RequestType::kGeolocation:
+    case RequestType::kGeolocation: {
       message_id = IDS_GEOLOCATION_INFOBAR_TEXT;
+      if (base::FeatureList::IsEnabled(
+              content_settings::features::kApproximateGeolocationPermission)) {
+        std::optional<GeolocationPromptType> type = GetGeolocationPromptType();
+        CHECK(type.has_value());
+        switch (*type) {
+          case GeolocationPromptType::kApproximateOrPrecise:
+            message_id = IDS_GEOLOCATION_INFOBAR_TEXT;
+            break;
+          case GeolocationPromptType::kApproximateOnly:
+            message_id = IDS_GEOLOCATION_APPROXIMATE_INFOBAR_TEXT;
+            break;
+          // TODO(crbug.com/417894145): Add support for the upgrade to precise
+          // prompt.
+          case GeolocationPromptType::kUpgradeToPrecise:
+          default:
+            NOTREACHED();
+        }
+      }
       break;
+    }
     case RequestType::kIdleDetection:
       message_id = IDS_IDLE_DETECTION_INFOBAR_TEXT;
       break;
@@ -122,6 +153,11 @@ PermissionRequest::GetDialogAnnotatedMessageText(
       break;
     case RequestType::kNotifications:
       message_id = IDS_NOTIFICATIONS_INFOBAR_TEXT;
+      break;
+    case RequestType::kSensors:
+      message_id = AreGenericSensorExtraClassesEnabled()
+                       ? IDS_MOTION_AND_LIGHT_SENSORS_INFOBAR_TEXT
+                       : IDS_MOTION_SENSORS_INFOBAR_TEXT;
       break;
 #if BUILDFLAG(IS_ANDROID)
     case RequestType::kProtectedMediaIdentifier:
@@ -301,6 +337,23 @@ std::optional<std::u16string> PermissionRequest::GetRequestChipText(
          IDS_PERMISSIONS_POINTER_LOCK_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT,
          IDS_PERMISSIONS_PERMISSION_ALLOWED_ONCE_CONFIRMATION,
          IDS_PERMISSIONS_POINTER_LOCK_NOT_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT}},
+       {RequestType::kSensors,
+        {AreGenericSensorExtraClassesEnabled()
+             ? IDS_MOTION_AND_LIGHT_SENSORS_PERMISSION_CHIP
+             : IDS_MOTION_SENSORS_PERMISSION_CHIP,
+         -1 /* QUIET_REQUEST not supported */,
+         IDS_PERMISSIONS_PERMISSION_ALLOWED_CONFIRMATION,
+         IDS_PERMISSIONS_PERMISSION_ALLOWED_ONCE_CONFIRMATION,
+         IDS_PERMISSIONS_PERMISSION_NOT_ALLOWED_CONFIRMATION,
+         AreGenericSensorExtraClassesEnabled()
+             ? IDS_PERMISSIONS_MOTION_AND_LIGHT_SENSORS_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT
+             : IDS_PERMISSIONS_MOTION_SENSORS_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT,
+         AreGenericSensorExtraClassesEnabled()
+             ? IDS_PERMISSIONS_MOTION_AND_LIGHT_SENSORS_ALLOWED_ONCE_CONFIRMATION_SCREENREADER_ANNOUNCEMENT
+             : IDS_PERMISSIONS_MOTION_SENSORS_ALLOWED_ONCE_CONFIRMATION_SCREENREADER_ANNOUNCEMENT,
+         AreGenericSensorExtraClassesEnabled()
+             ? IDS_PERMISSIONS_MOTION_AND_LIGHT_SENSORS_NOT_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT
+             : IDS_PERMISSIONS_MOTION_SENSORS_NOT_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT}},
        {RequestType::kStorageAccess,
         {IDS_SAA_PERMISSION_CHIP, -1,
          IDS_PERMISSIONS_PERMISSION_ALLOWED_CONFIRMATION, -1,
@@ -392,6 +445,11 @@ std::u16string PermissionRequest::GetMessageTextFragment() const {
     case RequestType::kNotifications:
       message_id = IDS_NOTIFICATION_PERMISSIONS_FRAGMENT;
       break;
+    case RequestType::kSensors:
+      message_id = AreGenericSensorExtraClassesEnabled()
+                       ? IDS_MOTION_AND_LIGHT_SENSORS_PERMISSION_FRAGMENT
+                       : IDS_MOTION_SENSORS_PERMISSION_FRAGMENT;
+      break;
     case RequestType::kPointerLock:
       message_id = IDS_POINTER_LOCK_PERMISSIONS_FRAGMENT;
       break;
@@ -445,6 +503,11 @@ std::optional<std::u16string> PermissionRequest::GetBlockText() const {
 
 bool PermissionRequest::ShouldUseTwoOriginPrompt() const {
   return request_type() == RequestType::kStorageAccess;
+}
+
+std::optional<GeolocationPromptType>
+PermissionRequest::GetGeolocationPromptType() const {
+  return data_->geolocation_prompt_type;
 }
 
 void PermissionRequest::PermissionGranted(const PromptOptions& prompt_options,

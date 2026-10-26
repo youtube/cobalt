@@ -129,6 +129,8 @@ class CORE_EXPORT WebLocalFrameImpl final
   WebLocalFrameClient* Client() const override { return client_; }
   void SetAutofillClient(WebAutofillClient*) override;
   WebAutofillClient* AutofillClient() override;
+  void SetRecordReplayClient(WebRecordReplayClient*) override;
+  WebRecordReplayClient* RecordReplayClient() override;
   void SetContentCaptureClient(WebContentCaptureClient*) override;
   WebContentCaptureClient* ContentCaptureClient() const override;
   BrowserInterfaceBrokerProxy& GetBrowserInterfaceBroker() override;
@@ -448,7 +450,8 @@ class CORE_EXPORT WebLocalFrameImpl final
       const StorageKey& storage_key,
       const KURL& creator_base_url,
       network::mojom::blink::WebSandboxFlags sandbox_flags =
-          network::mojom::blink::WebSandboxFlags::kNone);
+          network::mojom::blink::WebSandboxFlags::kNone,
+      std::unique_ptr<base::UnguessableToken> sandbox_origin_token = nullptr);
   LocalFrame* GetFrame() const { return frame_.Get(); }
 
   void WillBeDetached();
@@ -466,7 +469,8 @@ class CORE_EXPORT WebLocalFrameImpl final
       network::mojom::blink::WebSandboxFlags,
       const DocumentToken& document_token,
       std::unique_ptr<WebPolicyContainer>,
-      const WebURL& creator_base_url);
+      const WebURL& creator_base_url,
+      std::unique_ptr<base::UnguessableToken> sandbox_origin_token);
   static WebLocalFrameImpl* CreateProvisional(
       WebLocalFrameClient*,
       InterfaceRegistry*,
@@ -664,7 +668,8 @@ class CORE_EXPORT WebLocalFrameImpl final
       ukm::SourceId document_ukm_source_id,
       const KURL& creator_base_url,
       network::mojom::blink::WebSandboxFlags sandbox_flags =
-          network::mojom::blink::WebSandboxFlags::kNone);
+          network::mojom::blink::WebSandboxFlags::kNone,
+      std::unique_ptr<base::UnguessableToken> sandbox_origin_token = nullptr);
 
   // This function converts mojom::BackForwardCacheNotRestoredReasonsPtr to
   // mojom::blink::BackForwardCacheNotRestoredReasonsPtr.
@@ -691,6 +696,8 @@ class CORE_EXPORT WebLocalFrameImpl final
   Member<WebDevToolsAgentImpl> dev_tools_agent_;
 
   WebAutofillClient* autofill_client_ = nullptr;
+
+  WebRecordReplayClient* record_replay_client_ = nullptr;
 
   WebContentCaptureClient* content_capture_client_ = nullptr;
 

@@ -14,17 +14,21 @@
 #include <cstdint>
 #include <optional>
 
+#include "api/rtp_parameters.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/ecn_marking.h"
 #include "api/units/time_delta.h"
 #include "call/rtp_demuxer.h"
+#include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "p2p/test/fake_packet_transport.h"
+#include "pc/session_description.h"
 #include "pc/test/rtp_transport_test_util.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/containers/flat_set.h"
 #include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/logging.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/thread.h"
@@ -282,6 +286,83 @@ TEST(RtpTransportTest, ChangingReadyToSendStateOnlySignalsWhenChanged) {
   // State changes, so we should signal.
   transport.SetRtcpMuxEnabled(false);
   EXPECT_EQ(observer.ready_to_send_signal_count(), 2);
+}
+
+TEST(RtpTransportTest, RegisterAndUnregisterRtpHeaderExtensionMap) {
+  AutoThread thread;
+  RtpTransport transport(kMuxDisabled, CreateTestFieldTrials());
+  RtpHeaderExtensions extensions1 = {
+      RtpExtension("urn:ietf:params:rtp-hdrext:ssrc-audio-level", 1)};
+  RtpHeaderExtensions extensions2 = {
+      RtpExtension("urn:ietf:params:rtp-hdrext:ssrc-audio-level", 1),
+      RtpExtension("http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
+                   2)};
+
+  // Register the first map.
+  transport.RegisterRtpHeaderExtensionMap("audio", extensions1);
+
+  // Parse a packet with an extension from the first map.
+  const unsigned char kRtpData1[] = {0x90, 0x11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                     0xBE, 0xDE, 0, 1,
+                                     // ID=1, len=0 (1 byte payload)
+                                     0x10, 0x00, 0x00, 0x00};
+  CopyOnWriteBuffer rtp_packet1(kRtpData1, sizeof(kRtpData1));
+  RtpPacketReceived parsed_packet1;
+  FakePacketTransport fake_rtp("fake_rtp");
+  fake_rtp.SetDestination(&fake_rtp, true);
+  transport.SetRtpPacketTransport(&fake_rtp);
+  TransportObserver observer(&transport);
+
+  // Register sink so the packet can be "demuxed" and surfaced to the observer.
+  RtpDemuxerCriteria demuxer_criteria;
+  demuxer_criteria.payload_types().insert(0x11);
+  transport.RegisterRtpDemuxerSink(demuxer_criteria, &observer);
+
+  // Send the packet.
+  fake_rtp.SendPacket(rtp_packet1.data<char>(), rtp_packet1.size(),
+                      AsyncSocketPacketOptions(), 0);
+  EXPECT_THAT(WaitUntil([&] { return observer.rtp_count(); }, Eq(1)),
+              IsRtcOk());
+  RTC_LOG(LS_INFO) << "Packet 1 received: " << observer.rtp_count();
+  RTC_LOG(LS_INFO)
+      << "Packet 1 has AudioLevelExtension: "
+      << observer.last_recv_rtp_packet().HasExtension<AudioLevelExtension>();
+  EXPECT_TRUE(
+      observer.last_recv_rtp_packet().HasExtension<AudioLevelExtension>());
+
+  // Register the second map (simulating BUNDLE).
+  transport.RegisterRtpHeaderExtensionMap("video", extensions2);
+
+  // Parse a packet with an extension from the second map.
+  const unsigned char kRtpData2[] = {0x90, 0x11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                     0xBE, 0xDE, 0, 1,
+                                     // ID=2, len=2 (3 byte payload)
+                                     0x22, 0x01, 0x02, 0x03};
+  CopyOnWriteBuffer rtp_packet2(kRtpData2, sizeof(kRtpData2));
+
+  fake_rtp.SendPacket(rtp_packet2.data<char>(), rtp_packet2.size(),
+                      AsyncSocketPacketOptions(), 0);
+  EXPECT_THAT(WaitUntil([&] { return observer.rtp_count(); }, Eq(2)),
+              IsRtcOk());
+  RTC_LOG(LS_INFO) << "Packet 2 received: " << observer.rtp_count();
+  RTC_LOG(LS_INFO)
+      << "Packet 2 has AbsoluteSendTime: "
+      << observer.last_recv_rtp_packet().HasExtension<AbsoluteSendTime>();
+  EXPECT_TRUE(observer.last_recv_rtp_packet().HasExtension<AbsoluteSendTime>());
+
+  // Unregister the second map.
+  transport.UnregisterRtpHeaderExtensionMap("video");
+
+  // A packet with the second map's extension should no longer parse the
+  // extension.
+  fake_rtp.SendPacket(rtp_packet2.data<char>(), rtp_packet2.size(),
+                      AsyncSocketPacketOptions(), 0);
+  EXPECT_THAT(WaitUntil([&] { return observer.rtp_count(); }, Eq(3)),
+              IsRtcOk());
+  EXPECT_FALSE(
+      observer.last_recv_rtp_packet().HasExtension<AbsoluteSendTime>());
+
+  transport.UnregisterRtpDemuxerSink(&observer);
 }
 
 // Test that SignalPacketReceived fires with rtcp=true when a RTCP packet is

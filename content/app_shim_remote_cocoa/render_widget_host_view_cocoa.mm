@@ -127,6 +127,19 @@ BOOL EventIsReservedBySystem(NSEvent* event) {
   return content::GetSystemHotkeyMap()->IsEventReserved(event);
 }
 
+NSEvent* CreateContextMenuKeyDownEvent(NSEvent* source_event) {
+  return [NSEvent keyEventWithType:NSEventTypeKeyDown
+                          location:source_event.locationInWindow
+                     modifierFlags:0
+                         timestamp:source_event.timestamp
+                      windowNumber:source_event.windowNumber
+                           context:nil
+                        characters:@""
+       charactersIgnoringModifiers:@""
+                         isARepeat:source_event.isARepeat
+                           keyCode:kVK_ContextualMenu];
+}
+
 // Extract underline information from an attributed string. Inspired by
 // `extractUnderlines` in
 // https://github.com/WebKit/WebKit/blob/main/Source/WebKitLegacy/mac/WebView/WebHTMLView.mm
@@ -1023,8 +1036,32 @@ static NSWindow* __weak _deferredResignKeyWindow;
 
   // Because |updateCursor:| changes the current cursor, we have to reset it to
   // the default cursor on mouse exit.
-  if (type == NSEventTypeMouseExited)
+  if (type == NSEventTypeMouseExited) {
     [[NSCursor arrowCursor] set];
+  }
+
+  // In macOS immersive fullscreen, the browser UI is held in an AppKit-managed
+  // `NSToolbarFullScreenWindow`. When this toolbar auto-hides, the window
+  // becomes invisible but remains positioned at the top of the screen.
+  // Mouse events pass through it to this view, but a macOS bug causes the OS
+  // to forcefully reset the system cursor to the default arrow when the mouse
+  // crosses the bottom boundary of that invisible window.
+  //
+  // To fix this, this code detect spurious cursor resets during mouse move by
+  // checking if `currentSystemCursor` diverged from Chrome's `_currentCursor`
+  // state. If it did, we forcefully re-apply our cursor.
+  //
+  // This is safe for overlapping UI (like popups or context menus), which will
+  // intercept the mouse event before it reaches here, meaning we won't
+  // improperly override their cursors.
+  if (type == NSEventTypeMouseMoved || type == NSEventTypeLeftMouseDragged ||
+      type == NSEventTypeRightMouseDragged ||
+      type == NSEventTypeOtherMouseDragged) {
+    if ([self shouldChangeCurrentCursor] &&
+        [NSCursor currentSystemCursor] != _currentCursor) {
+      [_currentCursor set];
+    }
+  }
 
   if ([self shouldIgnoreMouseEvent:theEvent]) {
     // If this is the first such event, send a mouse exit to the host view.
@@ -1211,6 +1248,22 @@ static NSWindow* __weak _deferredResignKeyWindow;
   // equivalent that Cocoa uses for toggling the input language. In this case,
   // that's actually a good thing, though -- see http://crbug.com/26115 .)
   return YES;
+}
+
+- (void)contextMenuKeyDown:(NSEvent*)event {
+  // Preserve existing Ctrl+Return behavior while typing in inputs.
+  if (_textInputType == ui::TEXT_INPUT_TYPE_NONE) {
+    NSEvent* context_menu_event = CreateContextMenuKeyDownEvent(event);
+
+    if (context_menu_event) {
+      [self keyEvent:context_menu_event wasKeyEquivalent:NO];
+      return;
+    }
+  }
+
+  if (@available(macOS 15.0, *)) {
+    [super contextMenuKeyDown:event];
+  }
 }
 
 - (EventHandled)keyEvent:(NSEvent*)theEvent {

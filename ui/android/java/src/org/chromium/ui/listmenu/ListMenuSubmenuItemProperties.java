@@ -8,16 +8,19 @@ import static org.chromium.ui.listmenu.ListMenuItemProperties.CLICK_LISTENER;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.CONTENT_DESCRIPTION;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.ENABLED;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.HOVER_LISTENER;
+import static org.chromium.ui.listmenu.ListMenuItemProperties.ICON_TINT_COLOR_STATE_LIST_ID;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.IS_HIGHLIGHTED;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.IS_TEXT_ELLIPSIZED_AT_END;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.KEY_LISTENER;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.START_ICON_BITMAP;
+import static org.chromium.ui.listmenu.ListMenuItemProperties.TEXT_APPEARANCE_ID;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TOOLTIP;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.PropertyKey;
+import org.chromium.ui.modelutil.PropertyModel.WritableBooleanPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 
 import java.util.List;
@@ -27,6 +30,8 @@ import java.util.List;
 public class ListMenuSubmenuItemProperties {
     public static final WritableObjectPropertyKey<List<ListItem>> SUBMENU_ITEMS =
             new WritableObjectPropertyKey<>();
+
+    public static final WritableBooleanPropertyKey IS_EXPANDED = new WritableBooleanPropertyKey();
 
     public static final PropertyKey[] ALL_KEYS = {
         TITLE,
@@ -38,7 +43,10 @@ public class ListMenuSubmenuItemProperties {
         IS_HIGHLIGHTED,
         ENABLED,
         SUBMENU_ITEMS,
+        IS_EXPANDED,
         IS_TEXT_ELLIPSIZED_AT_END,
-        KEY_LISTENER
+        KEY_LISTENER,
+        TEXT_APPEARANCE_ID,
+        ICON_TINT_COLOR_STATE_LIST_ID
     };
 }

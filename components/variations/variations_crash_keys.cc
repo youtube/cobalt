@@ -9,6 +9,7 @@
 
 #include "base/command_line.h"
 #include "base/debug/leak_annotations.h"
+#include "base/functional/bind.h"
 #include "base/metrics/field_trial_list_including_low_anonymity.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/sequence_checker.h"
@@ -323,8 +324,14 @@ void UpdateCrashKeysWithSyntheticTrials(
   g_variations_crash_keys->OnSyntheticTrialsChanged(synthetic_trials);
 }
 
-void SetVariationsSeedVersionCrashKey(const std::string& seed_version) {
+void SetVariationsSeedVersionCrashKey(std::string_view seed_version) {
   g_variations_seed_version_crash_key.Set(seed_version);
+}
+
+base::ScopedClosureRunner InitCrashKeysForTesting() {
+  variations::InitCrashKeys();
+  return base::ScopedClosureRunner(
+      base::BindOnce(&variations::ClearCrashKeysInstanceForTesting));
 }
 
 void ClearCrashKeysInstanceForTesting() {

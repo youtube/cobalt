@@ -3660,6 +3660,16 @@ void GL_APIENTRY glGetFramebufferPixelLocalStorageParameterivRobustANGLE(GLint p
                                                                     length, params);
 }
 
+void GL_APIENTRY glGetFramebufferPixelLocalStorageParameteruivRobustANGLE(GLint plane,
+                                                                          GLenum pname,
+                                                                          GLsizei paramCount,
+                                                                          GLsizei *length,
+                                                                          GLuint *params)
+{
+    return GL_GetFramebufferPixelLocalStorageParameteruivRobustANGLE(plane, pname, paramCount,
+                                                                     length, params);
+}
+
 // GL_ANGLE_robust_fragment_shader_output
 
 // GL_ANGLE_robust_resource_initialization
@@ -3675,17 +3685,20 @@ void GL_APIENTRY glImportSemaphoreZirconHandleANGLE(GLuint semaphore,
 // GL_ANGLE_shader_binary
 
 // GL_ANGLE_shader_pixel_local_storage
-void GL_APIENTRY glFramebufferMemorylessPixelLocalStorageANGLE(GLint plane, GLenum internalformat)
+void GL_APIENTRY glFramebufferMemorylessPixelLocalStorageANGLE(GLint plane,
+                                                               GLenum internalformat,
+                                                               GLbitfield usage)
 {
-    return GL_FramebufferMemorylessPixelLocalStorageANGLE(plane, internalformat);
+    return GL_FramebufferMemorylessPixelLocalStorageANGLE(plane, internalformat, usage);
 }
 
 void GL_APIENTRY glFramebufferTexturePixelLocalStorageANGLE(GLint plane,
                                                             GLuint backingtexture,
                                                             GLint level,
-                                                            GLint layer)
+                                                            GLint layer,
+                                                            GLbitfield usage)
 {
-    return GL_FramebufferTexturePixelLocalStorageANGLE(plane, backingtexture, level, layer);
+    return GL_FramebufferTexturePixelLocalStorageANGLE(plane, backingtexture, level, layer, usage);
 }
 
 void GL_APIENTRY glFramebufferPixelLocalClearValuefvANGLE(GLint plane, const GLfloat *value)
@@ -3711,6 +3724,11 @@ void GL_APIENTRY glBeginPixelLocalStorageANGLE(GLsizei n, const GLenum *loadops)
 void GL_APIENTRY glEndPixelLocalStorageANGLE(GLsizei n, const GLenum *storeops)
 {
     return GL_EndPixelLocalStorageANGLE(n, storeops);
+}
+
+void GL_APIENTRY glEndPixelLocalStorageImplicitANGLE()
+{
+    return GL_EndPixelLocalStorageImplicitANGLE();
 }
 
 void GL_APIENTRY glPixelLocalStorageBarrierANGLE()
@@ -3742,6 +3760,12 @@ void GL_APIENTRY glGetFramebufferPixelLocalStorageParameterivANGLE(GLint plane,
     return GL_GetFramebufferPixelLocalStorageParameterivANGLE(plane, pname, params);
 }
 
+void GL_APIENTRY glGetFramebufferPixelLocalStorageParameteruivANGLE(GLint plane,
+                                                                    GLenum pname,
+                                                                    GLuint *params)
+{
+    return GL_GetFramebufferPixelLocalStorageParameteruivANGLE(plane, pname, params);
+}
 
 // GL_ANGLE_stencil_texturing
 

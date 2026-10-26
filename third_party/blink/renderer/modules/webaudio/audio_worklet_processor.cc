@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/compiler_specific.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_microtasks_scope.h"
 #include "third_party/blink/renderer/bindings/core/v8/worker_or_worklet_script_controller.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_blink_audio_worklet_process_callback.h"
 #include "third_party/blink/renderer/core/messaging/message_port.h"
@@ -461,9 +462,7 @@ bool AudioWorkletProcessor::Process(
   ScriptState::Scope scope(script_state);
   v8::Isolate* isolate = script_state->GetIsolate();
   v8::Local<v8::Context> context = script_state->GetContext();
-  v8::MicrotasksScope microtasks_scope(
-      isolate, ToMicrotaskQueue(script_state),
-      v8::MicrotasksScope::kDoNotRunMicrotasks);
+  V8DoNotRunMicrotasksScope microtasks_scope(script_state);
 
   // 1st JS arg `inputs_`. Compare `inputs` and `inputs_`. Then allocates the
   // data container if necessary.
@@ -520,7 +519,14 @@ bool AudioWorkletProcessor::Process(
   // could fail if the getter of parameterDescriptors is overridden by user code
   // and returns incompatible data. (crbug.com/1151069)
   if (!CopyParamValueMapToObject(isolate, context, param_value_map, params_)) {
-    SetErrorState(AudioWorkletProcessorErrorState::kProcessError);
+    AudioWorkletProcessorErrorDetails error_details(
+        AudioWorkletProcessorErrorState::kProcessError,
+        name_ + " process(): Failed to copy parameter data.",
+        /*source_url=*/"",
+        /*line_number=*/0,
+        /*column_number=*/0,
+        /*char_position=*/0);
+    SetErrorDetails(error_details);
     return false;
   }
 
@@ -539,8 +545,14 @@ bool AudioWorkletProcessor::Process(
              ->Get(context, V8AtomicString(isolate, "process"))
              .ToLocal(&process_v8_value) ||
         !process_v8_value->IsFunction()) {
-      SetErrorState(
-          AudioWorkletProcessorErrorState::kProcessMethodUndefinedError);
+      AudioWorkletProcessorErrorDetails error_details(
+          AudioWorkletProcessorErrorState::kProcessMethodUndefinedError,
+          name_ + " process() method undefined.",
+          /*source_url=*/"",
+          /*line_number=*/0,
+          /*column_number=*/0,
+          /*char_position=*/0);
+      SetErrorDetails(error_details);
       return false;
     }
     if (!cached_process_callback_ ||
@@ -554,7 +566,36 @@ bool AudioWorkletProcessor::Process(
                       ScriptValue(isolate, outputs_.Get(isolate)),
                       ScriptValue(isolate, params_.Get(isolate)))
              .To(&result)) {
-      SetErrorState(AudioWorkletProcessorErrorState::kProcessError);
+      AudioWorkletProcessorErrorDetails error_details;
+      error_details.error_state =
+          AudioWorkletProcessorErrorState::kProcessError;
+      if (try_catch.HasCaught()) {
+        v8::Local<v8::Message> message = try_catch.Message();
+        if (message.IsEmpty()) {
+          error_details.error_message =
+              "Unknown error in AudioWorkletProcessor::process()";
+        } else {
+          error_details.error_message =
+              ToCoreStringWithNullCheck(isolate, message->Get());
+          error_details.line_number =
+              message->GetLineNumber(context).FromMaybe(0);
+          error_details.column_number = message->GetStartColumn() + 1;
+          error_details.char_position = message->GetStartPosition();
+          v8::Local<v8::Value> script_resource_name =
+              message->GetScriptResourceName();
+          if (!script_resource_name.IsEmpty() &&
+              script_resource_name->IsString()) {
+            error_details.source_url = ToCoreStringWithNullCheck(
+                isolate, script_resource_name.As<v8::String>());
+          } else {
+            error_details.source_url = "Unknown Source";
+          }
+        }
+      } else {
+        error_details.error_message =
+            "Uncaught error in AudioWorkletProcessor::process()";
+      }
+      SetErrorDetails(error_details);
       return false;
     }
   }
@@ -568,17 +609,19 @@ bool AudioWorkletProcessor::Process(
   return result.V8Value()->IsTrue();
 }
 
-void AudioWorkletProcessor::SetErrorState(
-    AudioWorkletProcessorErrorState error_state) {
-  error_state_ = error_state;
+void AudioWorkletProcessor::SetErrorDetails(
+    const AudioWorkletProcessorErrorDetails& error_details) {
+  error_details_ = error_details;
 }
 
-AudioWorkletProcessorErrorState AudioWorkletProcessor::GetErrorState() const {
-  return error_state_;
+const AudioWorkletProcessorErrorDetails&
+AudioWorkletProcessor::GetErrorDetails() const {
+  return error_details_;
 }
 
 bool AudioWorkletProcessor::hasErrorOccurred() const {
-  return error_state_ != AudioWorkletProcessorErrorState::kNoError;
+  return error_details_.error_state !=
+         AudioWorkletProcessorErrorState::kNoError;
 }
 
 MessagePort* AudioWorkletProcessor::port() const {

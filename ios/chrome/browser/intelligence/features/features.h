@@ -218,28 +218,12 @@ bool IsZeroStateSuggestionsAIHubEnabled();
 // overlay.
 bool IsZeroStateSuggestionsAskGeminiEnabled();
 
-// Feature flag for showing full chat history in the floaty.
-BASE_DECLARE_FEATURE(kGeminiFullChatHistory);
-bool IsGeminiFullChatHistoryEnabled();
-
-// Feature flag for the redesigned loading state UI.
-BASE_DECLARE_FEATURE(kGeminiLoadingStateRedesign);
-bool IsGeminiLoadingStateRedesignEnabled();
-
-// Feature flag for the floaty latency improvements.
-BASE_DECLARE_FEATURE(kGeminiLatencyImprovement);
-bool IsGeminiLatencyImprovementEnabled();
-
-// Feature flag for showing the Gemini floaty immediately.
-//
-// This feature exists so the overlay can open without having to wait for the
-// page to finish loading.
-BASE_DECLARE_FEATURE(kGeminiImmediateOverlay);
-bool IsGeminiImmediateOverlayEnabled();
-
 // Feature flag to use the new refactored version of the page context extractor.
 // Acts as a killswitch where the feature is enabled by default.
 BASE_DECLARE_FEATURE(kPageContextExtractorRefactored);
+
+// Returns true if the refactored page context extractor is enabled.
+bool IsPageContextExtractorRefactoredEnabled();
 
 // Feature flag to enable the refactored FRE flow (Gemini architecture).
 BASE_DECLARE_FEATURE(kGeminiRefactoredFRE);
@@ -271,6 +255,10 @@ extern const char kGeminiImageRemixToolShowAboveSearchImage[];
 bool IsGeminiImageRemixToolShowBelowSearchImageEnabled();
 extern const char kGeminiImageRemixToolShowBelowSearchImage[];
 
+// Returns true if the image remix tool should remove/disable PageContext.
+bool IsGeminiImageRemixToolRemovePageContextEnabled();
+extern const char kGeminiImageRemixToolRemovePageContext[];
+
 // Feature flag for enabling the Gemini eligibility ablation experiment.
 BASE_DECLARE_FEATURE(kGeminiEligibilityAblation);
 bool IsGeminiEligibilityAblationEnabled();
@@ -279,10 +267,6 @@ bool IsGeminiEligibilityAblationEnabled();
 BASE_DECLARE_FEATURE(kGeminiLive);
 bool IsGeminiLiveEnabled();
 
-// Feature flag for Gemini Personalization.
-BASE_DECLARE_FEATURE(kGeminiPersonalization);
-bool IsGeminiPersonalizationEnabled();
-
 // Feature flag for Gemini Copresence.
 BASE_DECLARE_FEATURE(kGeminiCopresence);
 bool IsGeminiCopresenceEnabled();
@@ -290,6 +274,18 @@ bool IsGeminiCopresenceEnabled();
 // The threshold interval for displaying the response ready state in seconds.
 extern const char kGeminiCopresenceResponseReadyInterval[];
 double GetGeminiCopresenceResponseReadyInterval();
+
+// Returns true if the Gemini chat persistence is enabled.
+bool IsGeminiChatPersistenceEnabled();
+BASE_DECLARE_FEATURE(kGeminiChatPersistence);
+
+// Returns true if the fullscreen disabler is enabled with Gemini Copresence.
+bool IsGeminiCopresenceWithFullscreenDisablerEnabled();
+extern const char kGeminiCopresenceWithFullscreenDisabler[];
+
+// Returns true if Gemini Copresence tracks multiple hiding sources.
+bool IsGeminiCopresenceTrackSourcesEnabled();
+extern const char kGeminiCopresenceTrackSources[];
 
 // Feature flag for Gemini Dynamic Resizing.
 BASE_DECLARE_FEATURE(kGeminiResponseViewDynamicResizing);
@@ -334,5 +330,39 @@ enum class PageActionMenuIconVariations {
 };
 
 PageActionMenuIconVariations GetPageActionMenuIcon();
+
+// Feature flag for enabling Gemini backend migration.
+BASE_DECLARE_FEATURE(kGeminiBackendMigration);
+bool IsGeminiBackendMigrationEnabled();
+
+// Feature flag for enabling Gemini actor.
+BASE_DECLARE_FEATURE(kGeminiActor);
+bool IsGeminiActorEnabled();
+
+// Feature flag for enabling rich APC (v2) extraction for Gemini.
+BASE_DECLARE_FEATURE(kGeminiRichAPCExtraction);
+bool IsGeminiRichAPCExtractionEnabled();
+
+// Feature flag to enable Gemini Floaty on all pages.
+BASE_DECLARE_FEATURE(kGeminiFloatyAllPages);
+bool IsGeminiFloatyAllPagesEnabled();
+
+// Enables the GeminiMapsRichUI feature.
+BASE_DECLARE_FEATURE(kGeminiMapsRichUI);
+
+// Returns true if the GeminiMapsRichUI feature is enabled.
+bool IsGeminiMapsRichUIEnabled();
+
+// Enables the GeminiUnaryMigration feature.
+BASE_DECLARE_FEATURE(kGeminiUnaryMigration);
+
+// Returns true if the GeminiUnaryMigration feature is enabled.
+bool IsGeminiUnaryMigrationEnabled();
+
+// Enables the GeminiBinaryMigration feature.
+BASE_DECLARE_FEATURE(kGeminiBinaryMigration);
+
+// Returns true if the GeminiBinaryMigration feature is enabled.
+bool IsGeminiBinaryMigrationEnabled();
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

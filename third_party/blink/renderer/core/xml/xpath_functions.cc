@@ -499,7 +499,7 @@ Value FunStartsWith::Evaluate(EvaluationContext& context) const {
   if (s2.empty())
     return true;
 
-  return s1.StartsWith(s2);
+  return s1.starts_with(s2);
 }
 
 Value FunContains::Evaluate(EvaluationContext& context) const {
@@ -510,7 +510,7 @@ Value FunContains::Evaluate(EvaluationContext& context) const {
   if (s2.empty())
     return true;
 
-  return s1.Contains(s2) != 0;
+  return s1.contains(s2) != 0;
 }
 
 Value FunSubstringBefore::Evaluate(EvaluationContext& context) const {
@@ -538,7 +538,7 @@ Value FunSubstringAfter::Evaluate(EvaluationContext& context) const {
   if (i == kNotFound)
     return "";
 
-  return s1.Substring(i + s2.length());
+  return s1.substr(i + s2.length());
 }
 
 // Computes the 1-based start and end (exclusive) string indices for

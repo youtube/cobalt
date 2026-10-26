@@ -6,6 +6,9 @@
 
 #include <array>
 
+#include "ash/constants/chrome_url_constants.h"
+#include "ash/constants/chrome_webui_url_constants.h"
+#include "ash/constants/url_constants.h"
 #include "ash/constants/webui_url_constants.h"
 #include "base/command_line.h"
 #include "base/containers/span.h"
@@ -28,8 +31,6 @@
 #include "chrome/browser/ui/webui/settings/about_handler.h"
 #include "chrome/browser/ui/webui/version/version_ui.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/common/url_constants.h"
-#include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/dbus/constants/dbus_switches.h"
@@ -176,10 +177,10 @@ std::string GetSafetyInfoLink() {
   const std::vector<std::string_view> board = base::SplitStringPiece(
       release_board, "-", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
   if (board[0] == "nocturne") {
-    return chrome::kChromeUISafetyPixelSlateURL;
+    return ash::external_urls::kSafetyPixelSlateURL;
   }
   if (board[0] == "eve" || board[0] == "atlas") {
-    return chrome::kChromeUISafetyPixelbookURL;
+    return ash::external_urls::kSafetyPixelbookURL;
   }
 
   return std::string();
@@ -362,7 +363,7 @@ void AboutSection::AddLoadTimeData(content::WebUIDataSource* html_source) {
   html_source->AddLocalizedStrings(kLocalizedStrings);
 
   html_source->AddString("aboutTPMFirmwareUpdateLearnMoreURL",
-                         chrome::kTPMFirmwareUpdateLearnMoreURL);
+                         ash::external_urls::kTPMFirmwareUpdateLearnMoreURL);
   html_source->AddString(
       "aboutUpgradeUpToDate",
       ui::SubstituteChromeOSDeviceType(IDS_SETTINGS_UPGRADE_UP_TO_DATE));
@@ -396,10 +397,10 @@ void AboutSection::AddLoadTimeData(content::WebUIDataSource* html_source) {
           l10n_util::GetStringUTF16(IDS_ABOUT_VERSION_COPYRIGHT),
           base::Time::Now()));
 
-  html_source->AddString(
-      "aboutProductLicenseChromium",
-      l10n_util::GetStringFUTF16(IDS_VERSION_UI_LICENSE_CHROMIUM,
-                                 chrome::kChromiumProjectURL));
+  html_source->AddString("aboutProductLicenseChromium",
+                         l10n_util::GetStringFUTF16(
+                             IDS_VERSION_UI_LICENSE_CHROMIUM,
+                             ash::chrome_external_urls::kChromiumProjectURL));
   html_source->AddString(
       "aboutProductLicenseOther",
       l10n_util::GetStringUTF16(IDS_VERSION_UI_LICENSE_OTHER));
@@ -425,7 +426,7 @@ void AboutSection::AddLoadTimeData(content::WebUIDataSource* html_source) {
       "endOfLifeMessage",
       l10n_util::GetStringFUTF16(IDS_SETTINGS_ABOUT_PAGE_LAST_UPDATE_MESSAGE,
                                  ui::GetChromeOSDeviceName(),
-                                 chrome::kEolNotificationURL));
+                                 ash::external_urls::kEolNotificationURL));
 
   html_source->AddString("eolIncentiveOfferTitle",
                          l10n_util::GetStringUTF16(
@@ -453,13 +454,13 @@ void AboutSection::AddLoadTimeData(content::WebUIDataSource* html_source) {
       "extendedUpdatesSecondaryMessage",
       l10n_util::GetStringFUTF16(
           IDS_SETTINGS_ABOUT_PAGE_EXTENDED_UPDATES_SECONDARY_MESSAGE,
-          chrome::kDeviceExtendedUpdatesLearnMoreURL));
+          ash::external_urls::kDeviceExtendedUpdatesLearnMoreURL));
 
   std::string safetyInfoLink = GetSafetyInfoLink();
   html_source->AddBoolean("shouldShowSafetyInfo", !safetyInfoLink.empty());
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  html_source->AddString("aboutTermsURL", chrome::kChromeUITermsURL);
+  html_source->AddString("aboutTermsURL", ash::chrome_urls::kChromeUITermsURL);
   html_source->AddLocalizedString("aboutProductTos",
                                   IDS_ABOUT_TERMS_OF_SERVICE);
   html_source->AddString(

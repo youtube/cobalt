@@ -31,7 +31,7 @@ SchemeMatchingResult SchemeMatches(
     const network::mojom::blink::CSPSource& source,
     const String& protocol,
     const String& self_protocol) {
-  DCHECK_EQ(protocol, protocol.DeprecatedLower());
+  DCHECK(protocol.ContainsNoAsciiUpper());
   const String& scheme =
       (source.scheme.empty() ? self_protocol : source.scheme);
 
@@ -86,10 +86,11 @@ bool PathMatches(const network::mojom::blink::CSPSource& source,
     return true;
 
   String path =
-      DecodeURLEscapeSequences(url_path, DecodeURLMode::kUTF8OrIsomorphic);
+      DecodeUrlEscapeSequences(url_path, DecodeUrlMode::kUtf8OrIsomorphic);
 
-  if (source.path.EndsWith("/"))
-    return path.StartsWith(source.path);
+  if (source.path.ends_with('/')) {
+    return path.starts_with(source.path);
+  }
 
   return path == source.path;
 }

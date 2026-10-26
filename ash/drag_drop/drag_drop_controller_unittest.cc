@@ -38,6 +38,7 @@
 #include "ui/aura/window_tree_host.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/clipboard/test/clipboard_test_util.h"
 #include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
 #include "ui/base/data_transfer_policy/data_transfer_policy_controller.h"
 #include "ui/base/data_transfer_policy/mock_data_transfer_policy_controller.h"
@@ -324,6 +325,7 @@ class EventTargetTestDelegate : public aura::client::DragDropDelegate {
     return base::BindOnce(&EventTargetTestDelegate::PerformDrop,
                           base::Unretained(this));
   }
+  void ResetWindow() { window_ = nullptr; }
 
  private:
   void PerformDrop(std::unique_ptr<ui::OSExchangeData> data,
@@ -335,7 +337,7 @@ class EventTargetTestDelegate : public aura::client::DragDropDelegate {
     output_drag_op = DragOperation::kMove;
   }
 
-  const raw_ptr<aura::Window, DanglingUntriaged> window_;
+  raw_ptr<aura::Window> window_;
   State state_{State::kNotInvoked};
 };
 
@@ -481,6 +483,7 @@ class DragDropControllerTest : public AshTestBase {
   void TearDown() override {
     aura::client::SetDragDropClient(Shell::GetPrimaryRootWindow(), NULL);
     drag_drop_controller_.reset();
+    mock_shell_delegate_ = nullptr;
     AshTestBase::TearDown();
   }
 
@@ -546,8 +549,7 @@ class DragDropControllerTest : public AshTestBase {
   }
 
   std::unique_ptr<TestDragDropController> drag_drop_controller_;
-  raw_ptr<NiceMock<MockShellDelegate>, DanglingUntriaged> mock_shell_delegate_ =
-      nullptr;
+  raw_ptr<NiceMock<MockShellDelegate>> mock_shell_delegate_ = nullptr;
   NiceMock<MockNewWindowDelegate> new_window_delegate_;
   bool quit_ = false;
   std::optional<gfx::ScopedAnimationDurationScaleMode> normal_duration_;
@@ -775,9 +777,9 @@ TEST_F(DragDropControllerTest, DragLeavesClipboardAloneTest) {
     ui::ScopedClipboardWriter scw(ui::ClipboardBuffer::kCopyPaste);
     scw.WriteText(base::ASCIIToUTF16(clip_str));
   }
-  EXPECT_TRUE(cb->IsFormatAvailable(ui::ClipboardFormatType::PlainTextType(),
-                                    ui::ClipboardBuffer::kCopyPaste,
-                                    /* data_dst = */ nullptr));
+  EXPECT_TRUE(ui::clipboard_test_util::IsFormatAvailable(
+      cb, ui::ClipboardFormatType::PlainTextType(),
+      ui::ClipboardBuffer::kCopyPaste, /*data_dst=*/nullptr));
 
   std::unique_ptr<views::Widget> widget = CreateFramelessWidget();
   DragTestView* drag_view = new DragTestView;
@@ -792,12 +794,11 @@ TEST_F(DragDropControllerTest, DragLeavesClipboardAloneTest) {
   base::RunLoop().RunUntilIdle();
 
   // Verify the clipboard contents haven't changed
-  std::string result;
-  EXPECT_TRUE(cb->IsFormatAvailable(ui::ClipboardFormatType::PlainTextType(),
-                                    ui::ClipboardBuffer::kCopyPaste,
-                                    /* data_dst = */ nullptr));
-  cb->ReadAsciiText(ui::ClipboardBuffer::kCopyPaste, /* data_dst = */ nullptr,
-                    &result);
+  EXPECT_TRUE(ui::clipboard_test_util::IsFormatAvailable(
+      cb, ui::ClipboardFormatType::PlainTextType(),
+      ui::ClipboardBuffer::kCopyPaste, /*data_dst=*/nullptr));
+  std::string result = ui::clipboard_test_util::ReadAsciiText(
+      cb, ui::ClipboardBuffer::kCopyPaste, /*data_dst=*/nullptr);
   EXPECT_EQ(clip_str, result);
   // Destroy the clipboard here because ash doesn't delete it.
   // crbug.com/158150.
@@ -835,6 +836,7 @@ TEST_F(DragDropControllerTest, DragCanceledThenWindowDestroyedDuringDragDrop) {
 
     if (n == 18) {
       drag_drop_controller_->DragCancel();
+      delegate.ResetWindow();
       widget->CloseNow();
       EXPECT_FALSE(this->GetDragWindow());
       window = nullptr;
@@ -1996,6 +1998,7 @@ TEST_P(MouseOrTouchDragDropControllerTest, WindowDestroyedDuringDragDrop) {
     }
 
     if (n == 18) {
+      delegate.ResetWindow();
       widget->CloseNow();
       EXPECT_FALSE(this->GetDragWindow());
       window = nullptr;

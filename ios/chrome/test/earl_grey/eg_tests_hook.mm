@@ -60,6 +60,7 @@
 #import "ios/chrome/browser/signin/model/signin_util.h"
 #import "ios/chrome/browser/sync/model/data_type_store_service_factory.h"
 #import "ios/chrome/browser/sync/model/device_info_sync_service_factory.h"
+#import "ios/chrome/common/ui/reauthentication/mock_reauthentication_module.h"
 #import "ios/chrome/test/app/chrome_test_util.h"
 #import "ios/chrome/test/app/signin_test_util.h"
 #import "ios/chrome/test/earl_grey/test_switches.h"
@@ -454,6 +455,14 @@ std::unique_ptr<AimEligibilityService> CreateAimEligibilityService(
 std::unique_ptr<contextual_search::ContextualSearchService>
 CreateContextualSearchService(ProfileIOS* profile) {
   return MockIOSContextualSearchService::CreateTestingProfileService(profile);
+}
+
+void InjectFakeTabsInBrowser(Browser* browser) {
+  // No-op for internal EG2 tests.
+}
+
+id<ReauthenticationProtocol> GetFakeReauthenticationModule() {
+  return [[MockReauthenticationModule alloc] init];
 }
 
 }  // namespace tests_hook

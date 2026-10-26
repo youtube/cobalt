@@ -8,6 +8,7 @@
 
 #include <optional>
 
+#include "base/android/android_info.h"
 #include "base/bits.h"
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
@@ -19,6 +20,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
@@ -32,6 +34,7 @@
 #include "media/base/media_serializers_base.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_frame.h"
+#include "media/gpu/android/ndk_video_encode_accelerator_svc_api.h"
 #include "media/gpu/android/video_accelerator_util.h"
 #include "media/gpu/command_buffer_helper.h"
 #include "media/gpu/gpu_video_encode_accelerator_helpers.h"
@@ -70,6 +73,86 @@ struct AMediaFormatDeleter {
     }
   }
 };
+
+std::vector<std::string> GetSupportedLayeringSchemas(
+    const std::string& codec_name) {
+  const auto* api = NdkVideoEncodeAcceleratorSvcApi::Get();
+  if (!api->AMediaCodecStore_getCodecInfo) {
+    return {};
+  }
+
+  const AMediaCodecInfo* info = nullptr;
+  media_status_t status =
+      api->AMediaCodecStore_getCodecInfo(codec_name.c_str(), &info);
+  if (status != AMEDIA_OK || !info) {
+    LOG(ERROR) << "AMediaCodecStore_getCodecInfo failed for " << codec_name
+               << " status: " << status;
+    return {};
+  }
+
+  const ACodecEncoderCapabilities* encoder_caps = nullptr;
+  status = api->AMediaCodecInfo_getEncoderCapabilities(info, &encoder_caps);
+  if (status != AMEDIA_OK || !encoder_caps) {
+    LOG(ERROR) << "AMediaCodecInfo_getEncoderCapabilities failed status: "
+               << status;
+    return {};
+  }
+
+  const char* const* schemas = nullptr;
+  size_t count = 0;
+  status = api->ACodecEncoderCapabilities_getSupportedLayeringSchemas(
+      encoder_caps, &schemas, &count);
+  if (status != AMEDIA_OK) {
+    LOG(ERROR) << "ACodecEncoderCapabilities_getSupportedLayeringSchemas "
+                  "failed status: "
+               << status;
+    return {};
+  }
+
+  std::vector<std::string> supported_schemas;
+  if (count > 0 && schemas) {
+    // SAFETY: The NDK API guarantees that `schemas` points to an array of
+    // `count` elements.
+    auto schemas_span = UNSAFE_BUFFERS(base::span(schemas, count));
+    for (const char* schema : schemas_span) {
+      if (schema) {
+        supported_schemas.emplace_back(schema);
+      }
+    }
+  }
+
+  return supported_schemas;
+}
+
+std::string GetOptimalLayeringSchema(MediaLog* log,
+                                     const std::string& codec_name,
+                                     int num_temporal_layers) {
+  std::vector<std::string> supported = GetSupportedLayeringSchemas(codec_name);
+  std::string android_schema =
+      base::StringPrintf("android.generic.%d", num_temporal_layers);
+
+  if (supported.empty()) {
+    return android_schema;
+  }
+
+  // Preference: webrtc.svc.l1tN > android.generic.N
+  std::string webrtc_schema =
+      base::StringPrintf("webrtc.svc.l1t%d", num_temporal_layers);
+  for (const auto& s : supported) {
+    if (s == webrtc_schema) {
+      MEDIA_LOG(INFO, log) << "Using SVC layering schema: " << webrtc_schema;
+      return webrtc_schema;
+    }
+  }
+
+  // Fallback to android.generic.N if webrtc schema not found.
+  // We use this even if it's not explicitly in the supported list, as it's
+  // the platform default fallback.
+  MEDIA_LOG(INFO, log)
+      << "No exact match for WebRTC SVC layering schema found. Fallback to "
+      << android_schema;
+  return android_schema;
+}
 
 enum class CodecProfileLevel {
   // Subset of MediaCodecInfo.CodecProfileLevel
@@ -309,6 +392,8 @@ bool SetFormatColorSpace(AMediaFormat* format, const gfx::ColorSpace& cs) {
 using MediaFormatPtr = std::unique_ptr<AMediaFormat, AMediaFormatDeleter>;
 
 MediaFormatPtr CreateVideoFormat(const VideoEncodeAccelerator::Config& config,
+                                 MediaLog* log,
+                                 const std::string& codec_name,
                                  int framerate,
                                  const gfx::Size& frame_size,
                                  const Bitrate& bitrate,
@@ -388,9 +473,32 @@ MediaFormatPtr CreateVideoFormat(const VideoEncodeAccelerator::Config& config,
     AMediaFormat_setInt32(result.get(), AMEDIAFORMAT_KEY_MAX_B_FRAMES, 0);
 
     auto svc_layer_config =
-        base::StringPrintf("android.generic.%d", num_temporal_layers);
+        GetOptimalLayeringSchema(log, codec_name, num_temporal_layers);
     AMediaFormat_setString(result.get(), AMEDIAFORMAT_KEY_TEMPORAL_LAYERING,
                            svc_layer_config.c_str());
+
+    // Signal that we want to receive the temporal layer ID in the output
+    // format.
+    if (NdkVideoEncodeAcceleratorSvcApi::IsTemporalLayerIdSupported()) {
+      AMediaFormat_setInt32(
+          result.get(),
+          NdkVideoEncodeAcceleratorSvcApi::AMEDIAFORMAT_KEY_TEMPORAL_LAYER_ID,
+          0);
+    }
+
+    if (NdkVideoEncodeAcceleratorSvcApi::IsBitrateLayeringSupported()) {
+      std::vector<double> ratios =
+          NdkVideoEncodeAccelerator::GetDefaultSvcBitrateRatios(
+              num_temporal_layers);
+      if (!ratios.empty()) {
+        AMediaFormat_setString(
+            result.get(),
+            NdkVideoEncodeAcceleratorSvcApi::
+                AMEDIAFORMAT_KEY_VIDEO_BITRATE_LAYERING,
+            NdkVideoEncodeAccelerator::GetSvcBitrateRatiosString(ratios)
+                .c_str());
+      }
+    }
   }
 
   return result;
@@ -510,6 +618,55 @@ std::string GetInitStatusHistogramName(VideoCodecProfile profile) {
        GetCodecNameForUMA(VideoCodecProfileToVideoCodec(profile))});
 }
 }  // namespace
+
+// static
+// Returns per-layer bitrate allocation factors (summing to 1.0).
+// These ratios are standard for Chromium encoders and are also used in
+// media/gpu/gpu_video_encode_accelerator_helpers.cc.
+std::vector<double> NdkVideoEncodeAccelerator::GetDefaultSvcBitrateRatios(
+    int num_temporal_layers) {
+  if (num_temporal_layers == 2) {
+    return {0.6, 0.4};
+  } else if (num_temporal_layers == 3) {
+    return {0.5, 0.2, 0.3};
+  }
+  return {};
+}
+
+// static
+/**
+ * Converts per-layer bitrate distribution factors into the cumulative string
+ * format expected by Android MediaCodec (KEY_VIDEO_BITRATE_LAYERING).
+ *
+ * The format is "ratio1;ratio2;...;ratioN", where N is the number of temporal
+ * layers - 1. Each ratio represents the cumulative bitrate allocation for the
+ * current layer and all lower layers, as a fraction of the total bitrate.
+ *
+ * For example, if there are 3 temporal layers with 50%, 20%, and 30%
+ * distribution:
+ * - Layer 0 (base): 50% -> ratio1 = "0.5"
+ * - Layer 0 + 1: 70% -> ratio2 = "0.7"
+ * - Resulting string: "0.5;0.7"
+ *
+ * Layer 2 (highest) is implicitly 1.0.
+ */
+std::string NdkVideoEncodeAccelerator::GetSvcBitrateRatiosString(
+    const std::vector<double>& ratios) {
+  if (ratios.empty()) {
+    return "";
+  }
+  std::string ratios_str;
+  double cumulative = 0;
+  // Android expects N-1 cumulative ratios for N layers.
+  for (size_t i = 0; i < ratios.size() - 1; ++i) {
+    cumulative += ratios[i];
+    ratios_str += base::NumberToString(cumulative);
+    if (i < ratios.size() - 2) {
+      ratios_str += ";";
+    }
+  }
+  return ratios_str;
+}
 
 NdkVideoEncodeAccelerator::PendingEncode::PendingEncode(
     scoped_refptr<VideoFrame> frame,
@@ -714,6 +871,9 @@ void NdkVideoEncodeAccelerator::RequestEncodingParametersChange(
     const Bitrate& bitrate,
     uint32_t framerate,
     const std::optional<gfx::Size>& size) {
+  // TODO(crbug.com/469819308): Support dynamic layered bitrate changes via
+  // VideoBitrateAllocation overload of RequestEncodingParametersChange().
+
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (size.has_value()) {
     NotifyErrorStatus({EncoderStatus::Codes::kEncoderUnsupportedConfig,
@@ -1483,25 +1643,59 @@ void NdkVideoEncodeAccelerator::DrainOutput() {
       input_since_keyframe_count_ = 0;
     }
 
-    TemporalScalabilityIdExtractor::BitstreamMetadata bits_md;
-    if (!svc_parser_->ParseChunk(out_buffer_data, input_since_keyframe_count_,
-                                 bits_md)) {
-      NotifyErrorStatus({EncoderStatus::Codes::kEncoderHardwareDriverError,
-                         "Parse bitstream failed"});
+    int32_t temporal_id = -1;
+    if (NdkVideoEncodeAcceleratorSvcApi::IsTemporalLayerIdSupported()) {
+      // For supported Android versions, retrieve the temporal layer ID
+      // natively from the output buffer format.
+      MediaFormatPtr buffer_format(AMediaCodec_getBufferFormat(
+          media_codec_->codec(), output_buffer.buffer_index));
+      if (buffer_format) {
+        AMediaFormat_getInt32(
+            buffer_format.get(),
+            NdkVideoEncodeAcceleratorSvcApi::AMEDIAFORMAT_KEY_TEMPORAL_LAYER_ID,
+            &temporal_id);
+      }
+    }
+
+    if (temporal_id < 0 && VideoCodecProfileToVideoCodec(
+                               config_.output_profile) == VideoCodec::kH264) {
+      // For H.264, if native retrieval is not supported or failed,
+      // fallback to parsing the bitstream.
+      TemporalScalabilityIdExtractor::BitstreamMetadata bits_md;
+      if (!svc_parser_->ParseChunk(out_buffer_data, input_since_keyframe_count_,
+                                   bits_md)) {
+        NotifyErrorStatus({EncoderStatus::Codes::kEncoderHardwareDriverError,
+                           "Parse bitstream failed"});
+        return;
+      }
+      temporal_id = bits_md.temporal_id;
+    }
+
+    if (temporal_id < 0 &&
+        NdkVideoEncodeAcceleratorSvcApi::IsTemporalLayerIdSupported()) {
+      // If native retrieval was expected but failed, treat it as a hardware
+      // error. For AV1/VP9 on older Android versions, we don't error out
+      // because these codecs follow standard scalability modes
+      // (follow_svc_spec = true), where layer information is available in the
+      // bitstream itself.
+      NotifyErrorStatus(
+          {EncoderStatus::Codes::kEncoderHardwareDriverError,
+           "Failed to retrieve temporal layer ID for SVC stream"});
       return;
     }
 
     switch (VideoCodecProfileToVideoCodec(config_.output_profile)) {
       case VideoCodec::kH264:
-        metadata.h264.emplace().temporal_idx = bits_md.temporal_id;
+        metadata.h264.emplace().temporal_idx = temporal_id;
         break;
       case VideoCodec::kAV1:
       case VideoCodec::kVP9:
-        // TODO(b/432558680): We should query for this from the new temporal
-        // layer encoding API once it's available. Currently, the only encoders
-        // on Android that implement AV1 and VP9 temporal layer encoding are the
-        // cros-codecs ones, which we know to support SVC spec.
         metadata.svc_generic.emplace().follow_svc_spec = true;
+        if (NdkVideoEncodeAcceleratorSvcApi::IsTemporalLayerIdSupported()) {
+          // Native temporal ID is only expected for AV1/VP9 when supported
+          // by the platform.
+          metadata.svc_generic->temporal_idx = temporal_id;
+        }
         break;
       default:
         NOTIMPLEMENTED() << "SVC is only supported for AV1, H.264, and VP9.";
@@ -1548,8 +1742,9 @@ EncoderStatus NdkVideoEncodeAccelerator::ResetMediaCodec() {
   // if it doesn't unaligned resolutions.
   do {
     auto media_format = CreateVideoFormat(
-        config_, effective_framerate_, configured_size, effective_bitrate_,
-        encoder_color_space_, num_temporal_layers_, pixel_format);
+        config_, log_.get(), *name, effective_framerate_, configured_size,
+        effective_bitrate_, encoder_color_space_, num_temporal_layers_,
+        pixel_format);
     if (!media_format) {
       MEDIA_LOG(ERROR, log_) << "Fail to create media format for: "
                              << config_.AsHumanReadableString();

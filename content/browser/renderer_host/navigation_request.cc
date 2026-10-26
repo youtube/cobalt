@@ -650,9 +650,10 @@ void RecordReadyToCommitMetrics(
 
   // Guest (<webview> tag) metrics.
   {
-    base::UmaHistogramBoolean("Navigation.IsGuest",
-                              new_rfh->GetSiteInstance()->IsGuest());
-    if (new_rfh->GetSiteInstance()->IsGuest()) {
+    base::UmaHistogramBoolean(
+        "Navigation.IsGuest",
+        new_rfh->GetSiteInstance()->GetSecurityPrincipal().IsGuest());
+    if (new_rfh->GetSiteInstance()->GetSecurityPrincipal().IsGuest()) {
       base::UmaHistogramBoolean("Navigation.Guest.IsHTTPOrHTTPS",
                                 common_params.url.SchemeIsHTTPOrHTTPS());
       base::UmaHistogramBoolean("Navigation.Guest.IsMainFrame", is_main_frame);
@@ -1460,7 +1461,8 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateRendererInitiated(
           /*navigation_metrics_token=*/base::UnguessableToken::Create(),
           /*commit_target_frame_token=*/std::nullopt,
           /*is_initial_webui=*/false,
-          /*isolated_app_policy=*/std::nullopt);
+          /*isolated_app_policy=*/std::nullopt,
+          /*internal_scroll_to_text_fragment=*/std::nullopt);
 #if !BUILDFLAG(IS_ANDROID)
   CHECK(!GetContentClient()->browser()->IsInitialWebUIURL(common_params->url));
 #endif
@@ -1617,7 +1619,8 @@ NavigationRequest::CreateForSynchronousRendererCommit(
           /*navigation_metrics_token=*/base::UnguessableToken::Create(),
           /*commit_target_frame_token=*/std::nullopt,
           /*is_initial_webui=*/false,
-          /*isolated_app_policy=*/std::nullopt);
+          /*isolated_app_policy=*/std::nullopt,
+          /*internal_scroll_to_text_fragment=*/std::nullopt);
   blink::mojom::BeginNavigationParamsPtr begin_params =
       blink::mojom::BeginNavigationParams::New();
   std::unique_ptr<NavigationRequest> navigation_request(new NavigationRequest(
@@ -2143,13 +2146,13 @@ NavigationRequest::NavigationRequest(
   if (NeedsUrlLoader() && common_params_->url.SchemeIsHTTPOrHTTPS()) {
     if (GetContentClient()->browser()->ShouldPreconnectNavigation(
             frame_tree_node_->current_frame_host()) &&
-        IsAllowedByConnectionAllowlist()) {
+        IsAllowedByConnectionAllowlist(/*is_redirect=*/false)) {
       auto* storage_partition =
           frame_tree_node_->current_frame_host()->GetStoragePartition();
 
       // Initiator frame's `network_restriction_id` is not passed because the
       // preconnection has already been checked against the connection-allowlist
-      // by the `IsAllowedByConnectionAllowlist()` call above.
+      // by the `IsAllowedByConnectionAllowlist(false)` call above.
       storage_partition->GetNetworkContext()->PreconnectSockets(
           1, common_params_->url, network::mojom::CredentialsMode::kInclude,
           GetIsolationInfo().network_anonymization_key(),
@@ -2179,7 +2182,7 @@ NavigationRequest::NavigationRequest(
             frame_tree_node_->navigator()
                 .controller()
                 .GetBrowserContext()
-                ->GetStoragePartition(site_info_.storage_partition_config())
+                ->GetStoragePartition(site_info_.GetStoragePartitionConfig())
                 ->GetServiceWorkerContext()) {
       const blink::StorageKey key = blink::StorageKey::CreateFirstParty(
           GetTentativeOriginAtRequestTime());
@@ -2905,7 +2908,7 @@ void NavigationRequest::BeginNavigationImpl() {
   }
 
   // Connection Allowlist: check whether navigation to the url is allowed.
-  if (!IsAllowedByConnectionAllowlist()) {
+  if (!IsAllowedByConnectionAllowlist(/*is_redirect=*/false)) {
     // Create a navigation handle so that the correct error code can be set on
     // it by OnRequestFailedInternal().
     StartNavigation();
@@ -3566,6 +3569,19 @@ void NavigationRequest::OnRequestRedirected(
               perfetto::Flow::FromPointer(this));
   ScopedCrashKeys crash_keys(*this);
 
+  if (!was_redirected_ &&
+      !IsAllowedByConnectionAllowlist(/*is_redirect=*/true)) {
+    auto completion_status =
+        network::URLLoaderCompletionStatus(net::ERR_UNSAFE_REDIRECT);
+    error_navigation_trigger_ = ErrorNavigationTrigger::kRedirectNotAllowed;
+    OnRequestFailedInternal(completion_status, false /* skip_throttles */,
+                            std::nullopt /* error_page_content */,
+                            false /* collapse_frame */);
+    // DO NOT ADD CODE after this. The previous call to OnRequestFailedInternal
+    // has destroyed the NavigationRequest.
+    return;
+  }
+
   // Sanity check - this can only be set at commit time.
   DCHECK(!auth_challenge_info_);
 
@@ -4152,6 +4168,17 @@ void NavigationRequest::DetermineAgentClusterKeyForCommit() {
         /*cross_origin_isolated_through_dip=*/false);
   }
 
+  // If the PolicyContainer has an override for the CrossOriginIsolationKey,
+  // apply it. This happens on Android WebView, where it is currently impossible
+  // to switch SiteInstances and we cannot rely on SiteInstances to track the
+  // cross-origin isolation state.
+  // TODO(crbug.com/419595581): Remove this once default SiteInstanceGroups
+  // ships on Android WebView.
+  if (const auto& override_key = policy_container_builder_->FinalPolicies()
+                                     .cross_origin_isolation_key_override) {
+    coi_key = *override_key;
+  }
+
   // Update the AgentClusterKey in CommitNavigationParams to the correct
   // AgentClusterKey to use for navigation. Unfortunately, we cannot use the
   // AgentClusterKey of the SiteInstance directly, as there are many edge cases
@@ -4330,10 +4357,6 @@ UrlInfo NavigationRequest::GetUrlInfo() {
                 IsProcessIsolationForOriginAgentClusterEnabled());
   }
 
-  // Compute the CrossOriginIsolationKey for the navigation.
-  std::optional<AgentClusterKey::CrossOriginIsolationKey>
-      cross_origin_isolation_key = ComputeCrossOriginIsolationKey();
-
   // Compute the WebExposedIsolationInfo that will be bundled into UrlInfo.
   auto web_exposed_isolation_info = ComputeWebExposedIsolationInfo();
 
@@ -4341,8 +4364,27 @@ UrlInfo NavigationRequest::GetUrlInfo() {
   url_info_init.WithOACHeaderRequest(oac_header_request)
       .WithCOOPSiteIsolation(ShouldRequestSiteIsolationForCOOP())
       .WithWebExposedIsolationInfo(web_exposed_isolation_info)
-      .WithCrossOriginIsolationKey(cross_origin_isolation_key)
       .WithIsPdf(is_pdf_);
+
+  // Compute the CrossOriginIsolationKey for the navigation.
+  std::optional<AgentClusterKey::CrossOriginIsolationKey>
+      cross_origin_isolation_key = ComputeCrossOriginIsolationKey();
+
+  // If the process model supports SiteInstance switching, pass the
+  // CrossOriginIsolationKey to the URLinfo.
+  if (SiteIsolationPolicy::UseDedicatedProcessesForAllSites() ||
+      SiteIsolationPolicy::AreDynamicIsolatedOriginsEnabled() ||
+      ShouldUseDefaultSiteInstanceGroup()) {
+    url_info_init.WithCrossOriginIsolationKey(cross_origin_isolation_key);
+  } else if (cross_origin_isolation_key.has_value()) {
+    // On Android WebView, we cannot switch SiteInstances. Instead of passing
+    // the CrossOriginIsolationKey to URLInfo to have it be used to select a
+    // SiteInstance, we store it in the PolicyContainer. It will be picked up in
+    // DetermineCrossOriginIsolationKey for commit, and sent to the renderer
+    // process.
+    policy_container_builder_->SetCrossOriginIsolationKeyOverride(
+        cross_origin_isolation_key.value());
+  }
 
   // Navigations with SiteInstances which have fixed storage partition (e.g.
   // <webview> tags) should always stay in the current StoragePartition.
@@ -4350,15 +4392,16 @@ UrlInfo NavigationRequest::GetUrlInfo() {
       frame_tree_node_->current_frame_host()->GetSiteInstance();
   if (current_instance->IsFixedStoragePartition()) {
     url_info_init.WithStoragePartitionConfig(
-        current_instance->GetStoragePartitionConfig());
+        current_instance->GetSecurityPrincipal().GetStoragePartitionConfig());
   }
 
   // Child frames (including fenced frames) should always use the
   // same StoragePartition as their parent.
   RenderFrameHostImpl* parent = GetParentFrameOrOuterDocument();
   if (parent) {
-    url_info_init.WithStoragePartitionConfig(
-        parent->GetSiteInstance()->GetStoragePartitionConfig());
+    url_info_init.WithStoragePartitionConfig(parent->GetSiteInstance()
+                                                 ->GetSecurityPrincipal()
+                                                 .GetStoragePartitionConfig());
   }
 
   if (IsLoadDataWithBaseURL()) {
@@ -6163,6 +6206,8 @@ void NavigationRequest::OnWillProcessResponseChecksComplete(
           common_params_->has_possibly_filtered_user_gesture;
       resource_request->mode = network::mojom::RequestMode::kNavigate;
       resource_request->transition_type = common_params_->transition;
+      resource_request->is_reload_navigation =
+          NavigationTypeUtils::IsReload(common_params_->navigation_type);
       resource_request->trusted_params =
           network::ResourceRequest::TrustedParams();
       resource_request->trusted_params->isolation_info = GetIsolationInfo();
@@ -6516,6 +6561,13 @@ void NavigationRequest::CommitErrorPage(
   // Use a separate cache shard, and no cookies, for error pages.
   isolation_info_for_subresources_ =
       net::IsolationInfo::CreateTransient(/*nonce=*/std::nullopt);
+
+  // Before sending the commit parameters to the renderer process, sanitize
+  // the redirect URLs to avoid leaking potentially sensitive data into
+  // processes which are cross-site. There is no dependency on the
+  // cross-site-ness, therefore just sanitize unilaterally.
+  SanitizeRedirectsForCommit(commit_params_);
+
   GetRenderFrameHost()->FailedNavigation(
       this, *common_params_, *commit_params_, has_stale_copy_in_cache_,
       net_error_, extended_error_code_, error_page_content, *document_token_);
@@ -7300,6 +7352,8 @@ void NavigationRequest::UpdateNavigationHandleTimingsOnResponseReceived(
         response_head_->load_timing_internal_info->create_stream_delay;
     navigation_handle_timing_.connected_callback_delay =
         response_head_->load_timing_internal_info->connected_callback_delay;
+    navigation_handle_timing_.accept_ch_frame_received =
+        response_head_->load_timing_internal_info->accept_ch_frame_received;
     navigation_handle_timing_.initialize_stream_delay =
         response_head_->load_timing_internal_info->initialize_stream_delay;
     navigation_handle_timing_.session_details = {
@@ -7353,13 +7407,15 @@ void NavigationRequest::UpdateSiteInfo(
   SetExpectedProcess(post_redirect_process);
 }
 
-bool NavigationRequest::IsAllowedByConnectionAllowlist() {
+bool NavigationRequest::IsAllowedByConnectionAllowlist(bool is_redirect) {
   if (!base::FeatureList::IsEnabled(network::features::kConnectionAllowlists)) {
     return true;
   }
 
-  // Determine the PolicyContainerPolicies to use based on navigation type.
-  const PolicyContainerPolicies* policies = nullptr;
+  if (is_redirect && connection_allowlists_blocks_redirect_) {
+    // TODO(crbug.com/447954811): Implement reporting.
+    return false;
+  }
 
   // If it is renderer-initiated, initiator_frame_token_ will be set and
   // connection allowlist should be checked unless it is a same-document
@@ -7404,6 +7460,9 @@ bool NavigationRequest::IsAllowedByConnectionAllowlist() {
           navigation_state->policy_container_host();
     }
   }
+
+  // Determine the PolicyContainerPolicies to use based on navigation type.
+  const PolicyContainerPolicies* policies = nullptr;
   if (initiator_policy_container_host) {
     policies = &initiator_policy_container_host->policies();
   }
@@ -7412,8 +7471,18 @@ bool NavigationRequest::IsAllowedByConnectionAllowlist() {
     return true;
   }
 
-  return network::ConnectionAllowlistMatchesUrl(
-      policies->connection_allowlists.enforced.value(), common_params_->url);
+  if (network::ConnectionAllowlistMatchesUrl(
+          policies->connection_allowlists.enforced.value(),
+          common_params_->url)) {
+    // Default-block any server-side redirects.
+    // TODO(crbug.com/447954811): Implement allowing server-side redirects
+    // based on an attribute. Consider not having a bool on the
+    // NavigationRequest as part of that change.
+    connection_allowlists_blocks_redirect_ = true;
+    return true;
+  }
+
+  return false;
 }
 
 bool NavigationRequest::IsAllowedByCSPDirective(
@@ -9074,8 +9143,9 @@ url::Origin NavigationRequest::GetOriginForURLLoaderFactoryBeforeResponse(
 // `ancestor`: the initiator is the ancestor of the navigating frame.
 // `descendant`: the initiator is the descendant of the navigating frame.
 // `other`: any other scenarios.
-std::string DetermineInitiatorRelationship(RenderFrameHost* initiator_frame,
-                                           RenderFrameHost* current_frame) {
+std::string_view DetermineInitiatorRelationship(
+    RenderFrameHost* initiator_frame,
+    RenderFrameHost* current_frame) {
   if (!current_frame || !initiator_frame) {
     return "other";
   }
@@ -11169,6 +11239,12 @@ NavigationRequest::ComputeCrossOriginIsolationKey() {
   // if the navigation is same-origin.
   if (!policy_container_builder_->HasComputedPolicies()) {
     if (origin.IsSameOriginWith(frame_tree_node_->current_origin())) {
+      // Note: we do not return the override CrossOriginIsolationKey of the
+      // PolicyContainer here because it is only set in contexts where
+      // SiteInstance switching is impossible (Android WebView). In those cases,
+      // spurious speculative RFHs are never created, and it is fine to just
+      // return the CrossOriginIsolationKey of the SiteInstance, which should
+      // always be null.
       return frame_tree_node_->current_frame_host()
           ->GetSiteInstance()
           ->GetSiteInfo()
@@ -11437,7 +11513,7 @@ NavigationRequest::GetMutableRuntimeFeatureStateContext() {
 }
 
 const blink::RuntimeFeatureStateContext&
-NavigationRequest::GetRuntimeFeatureStateContext() {
+NavigationRequest::GetRuntimeFeatureStateContext() const {
   return runtime_feature_state_context_;
 }
 
@@ -11542,7 +11618,7 @@ StoragePartition* NavigationRequest::GetStoragePartitionWithCurrentSiteInfo() {
   return frame_tree_node_->navigator()
       .controller()
       .GetBrowserContext()
-      ->GetStoragePartition(site_info_.storage_partition_config());
+      ->GetStoragePartition(site_info_.GetStoragePartitionConfig());
 }
 
 void NavigationRequest::CreateWebUIIfNeeded(RenderFrameHostImpl* frame_host) {
@@ -12220,20 +12296,13 @@ void NavigationRequest::SanitizeDocumentIsolationPolicyHeader() {
       SiteIsolationPolicy::UseDedicatedProcessesForAllSites();
 
   // When kDocumentIsolationPolicyWithoutSiteIsolation is enabled,
-  // DocumentIsolationPolicy is also supported in some modes without full
-  // SiteIsolation.
+  // DocumentIsolationPolicy is also supported without full SiteIsolation.
   if (base::FeatureList::IsEnabled(
           features::kDocumentIsolationPolicyWithoutSiteIsolation)) {
-    // DocumentIsolationPolicy is supported in partial SiteIsolation mode.
-    document_isolation_policy_supported |=
-        SiteIsolationPolicy::AreDynamicIsolatedOriginsEnabled();
-
-    // DocumentIsolationPolicy is supported in no-SiteIsolation mode iff
-    // default SiteInstanceGroups are enabled.
-    document_isolation_policy_supported |= ShouldUseDefaultSiteInstanceGroup();
+    document_isolation_policy_supported = true;
   }
 
-  // If the process model cannot support DocumentIoslationPolicy, set the header
+  // If the process model cannot support DocumentIsolationPolicy, set the header
   // to its default value.
   if (!document_isolation_policy_supported) {
     response_head_->parsed_headers->document_isolation_policy =
@@ -12315,17 +12384,18 @@ PrerenderHostId NavigationRequest::GetPrerenderHostId() const {
   return prerender_host_id_;
 }
 
+bool NavigationRequest::IsInitialWebUISyncNavigation() {
+  return IsInitialWebUINavigation() &&
+         base::FeatureList::IsEnabled(
+             features::kInitialWebUISyncNavStartToCommit);
+}
+
 bool NavigationRequest::IsInitialWebUINavigation() {
 #if !BUILDFLAG(IS_ANDROID)
   return GetContentClient()->browser()->IsInitialWebUIURL(GetURL());
 #else
   return false;
 #endif
-}
-bool NavigationRequest::IsInitialWebUISyncNavigation() {
-  return IsInitialWebUINavigation() &&
-         base::FeatureList::IsEnabled(
-             features::kInitialWebUISyncNavStartToCommit);
 }
 
 }  // namespace content

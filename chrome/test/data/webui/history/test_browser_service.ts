@@ -7,8 +7,8 @@ import {HistorySignInState, SyncState} from 'chrome://history/history.js';
 import {
   PageCallbackRouter,
   PageHandlerRemote,
-  type PageRemote,
 } from 'chrome://resources/cr_components/history/history.mojom-webui.js';
+import type {PageRemote} from 'chrome://resources/cr_components/history/history.mojom-webui.js';
 import {assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
@@ -34,6 +34,7 @@ export class TestBrowserService extends TestBrowserProxy implements
       'navigateToUrl',
       'openForeignSessionTab',
       'otherDevicesInitialized',
+      'recordAction',
       'recordBooleanHistogram',
       'recordHistogram',
       'recordLongTime',
@@ -124,6 +125,8 @@ export class TestBrowserService extends TestBrowserProxy implements
     }
 
     this.actionMap[action]!++;
+
+    this.methodCalled('recordAction', action);
   }
 
   recordHistogram(histogram: string, value: number, max: number) {

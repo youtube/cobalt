@@ -1265,12 +1265,8 @@ RUNTIME_FUNCTION(Runtime_TakeHeapSnapshot) {
   }
 
   HeapProfiler* heap_profiler = isolate->heap()->heap_profiler();
-  // Since this API is intended for V8 devs, we do not treat globals as roots
-  // here on purpose.
-  v8::HeapProfiler::HeapSnapshotOptions options;
-  options.numerics_mode = v8::HeapProfiler::NumericsMode::kExposeNumericValues;
-  options.snapshot_mode = v8::HeapProfiler::HeapSnapshotMode::kExposeInternals;
-  heap_profiler->TakeSnapshotToFile(options, filename);
+  heap_profiler->TakeSnapshotToFile(
+      HeapProfiler::GetDefaultHeapSnapshotOptionsForTestingUsage(), filename);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -2800,6 +2796,22 @@ RUNTIME_FUNCTION(Runtime_InstallBytecode) {
                        *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
 
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AllocateHeapNumberWithValue) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  MaybeHandle<Number> result =
+      Object::ToNumber(isolate, handle(args[0], isolate));
+  DirectHandle<Number> result_handle;
+  if (!result.ToHandle(&result_handle)) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+  // Force HeapNumber, even if the value is representable as a Smi.
+  if (IsSmi(*result_handle)) {
+    return *isolate->factory()->NewHeapNumber(i::Smi::ToInt(*result_handle));
+  }
+  return *result_handle;
 }
 
 }  // namespace internal

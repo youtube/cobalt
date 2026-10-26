@@ -132,8 +132,6 @@ TEST_F(ReadAnythingNodeUtilsTest, GetPrefixText_ReturnsPreviousText) {
   root_data.child_ids = {kId1, kId2, childId};
 
   ui::AXTree tree;
-  ui::AXNode root(&tree, nullptr, 1, 0);
-  root.SetData(std::move(root_data));
   ui::AXTreeUpdate update;
   update.root_id = root_data.id;
   update.nodes = {root_data, static_text1, static_text2, child_data,
@@ -188,8 +186,6 @@ TEST_F(ReadAnythingNodeUtilsTest, GetPrefixText_SkipsDuplicateText) {
   root_data.child_ids = {kId1, kId2, childId};
 
   ui::AXTree tree;
-  ui::AXNode root(&tree, nullptr, 1, 0);
-  root.SetData(std::move(root_data));
   ui::AXTreeUpdate update;
   update.root_id = root_data.id;
   update.nodes = {root_data, static_text1, static_text2, child_data,
@@ -243,8 +239,6 @@ TEST_F(ReadAnythingNodeUtilsTest, GetPrefixText_SkipsShortText) {
   root_data.child_ids = {kId1, kId2, childId};
 
   ui::AXTree tree;
-  ui::AXNode root(&tree, nullptr, 1, 0);
-  root.SetData(std::move(root_data));
   ui::AXTreeUpdate update;
   update.root_id = root_data.id;
   update.nodes = {root_data, static_text1, static_text2, child_data,
@@ -471,6 +465,16 @@ TEST_F(ReadAnythingNodeUtilsTest, GetHtmlTagForPdf_SpanTagReturned) {
   EXPECT_EQ(a11y::GetHtmlTagForPDF(&node, "p"), "span");
 }
 
+TEST_F(ReadAnythingNodeUtilsTest, GetHtmlTagForPdf_ReturnsDivForTextField) {
+  ui::AXNodeData data;
+  data.id = 2;
+  data.role = ax::mojom::Role::kTextField;
+  ui::AXTree tree;
+  ui::AXNode node(&tree, nullptr, 2, 0);
+  node.SetData(std::move(data));
+  EXPECT_EQ(a11y::GetHtmlTagForPDF(&node, ""), "div");
+}
+
 TEST_F(ReadAnythingNodeUtilsTest, GetHtmlTagForPdf_LinkTagReturned) {
   ui::AXNodeData data = test::TextNode(2);
   data.role = ax::mojom::Role::kLink;
@@ -608,8 +612,6 @@ TEST_F(ReadAnythingNodeUtilsTest, GetNameAttributeText_GetsChildText) {
   root_data.child_ids = {kId1, kId2, childId};
 
   ui::AXTree tree;
-  ui::AXNode root(&tree, nullptr, 1, 0);
-  root.SetData(std::move(root_data));
   ui::AXTreeUpdate update;
   update.root_id = root_data.id;
   update.nodes = {root_data, static_text1, static_text2, child_data,
@@ -626,8 +628,6 @@ TEST_F(ReadAnythingNodeUtilsTest,
   ui::AXNodeData root_data = test::TextNode(rootId, sentence1);
 
   ui::AXTree tree;
-  ui::AXNode root(&tree, nullptr, 1, 0);
-  root.SetData(std::move(root_data));
   ui::AXTreeUpdate update;
   update.root_id = root_data.id;
   update.nodes = {root_data};

@@ -1605,7 +1605,10 @@ View* View::GetEventHandlerForRect(const gfx::Rect& rect) {
 }
 
 bool View::GetCanProcessEventsWithinSubtree() const {
-  return can_process_events_within_subtree_;
+  if (!can_process_events_within_subtree_) {
+    return false;
+  }
+  return parent() ? parent()->GetCanProcessEventsWithinSubtree() : true;
 }
 
 void View::SetCanProcessEventsWithinSubtree(bool can_process) {
@@ -1722,9 +1725,10 @@ bool View::OnMouseWheel(const ui::MouseWheelEvent& event) {
 }
 
 void View::OnEvent(ui::Event* event) {
-  if (!GetEnabledInViewsSubtree()) {
-    // if this view or any of it parent is disabled, we should "eat" events
-    // without processing
+  if (!GetEnabledInViewsSubtree() || !GetCanProcessEventsWithinSubtree()) {
+    // If this view or any of it parent is disabled, we should "eat" events
+    // without processing. Similarly we should honor views configured to
+    // ignore events within its subtree.
     return;
   }
   ui::EventHandler::OnEvent(event);
@@ -1833,7 +1837,7 @@ WordLookupClient* View::GetWordLookupClient() {
 }
 
 bool View::CanAcceptEvent(const ui::Event& event) {
-  return IsDrawn();
+  return IsDrawn() && GetCanProcessEventsWithinSubtree();
 }
 
 ui::EventTarget* View::GetParentTarget() {

@@ -97,22 +97,21 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         break;
       }
       case 12: {
-        std::u16string_view result;
-        std::ignore = iter.ReadStringPiece16(&result);
+        std::ignore = iter.ReadData();
         break;
       }
       case 13: {
-        const char* data_result = nullptr;
-        size_t length_result = 0;
-        std::ignore = iter.ReadData(&data_result, &length_result);
-        break;
-      }
-      case 14: {
         const char* data_result = nullptr;
         int read_length =
             data_provider.ConsumeIntegralInRange(0, kMaxReadLength);
         std::ignore =
             iter.ReadBytes(&data_result, static_cast<size_t>(read_length));
+        break;
+      }
+      case 14: {
+        int read_length =
+            data_provider.ConsumeIntegralInRange(0, kMaxReadLength);
+        std::ignore = iter.ReadBytes(static_cast<size_t>(read_length));
         break;
       }
       case 15: {

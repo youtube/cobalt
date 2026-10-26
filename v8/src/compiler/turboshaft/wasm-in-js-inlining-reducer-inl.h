@@ -57,14 +57,19 @@ class WasmInJSInliningReducer : public Next {
       goto non_inlined_call;
     }
 
-    wasm::NativeModule* native_module =
-        descriptor->js_wasm_call_parameters->native_module();
-    uint32_t func_idx = descriptor->js_wasm_call_parameters->function_index();
-
-    if (v8_flags.turbolev_inline_js_wasm_wrappers && frame_state.has_value()) {
-      // TODO(353475584): Wrapper inlining in Turboshaft is only implemented for
-      // the Turbolev frontend right now.
+    if (v8_flags.turbolev_inline_js_wasm_wrappers) {
+      // TODO(353475584): Wrapper and body inlining in Turboshaft is only
+      // implemented for the Turbolev frontend right now.
       CHECK(v8_flags.turbolev);
+
+      // We need a `FrameState` for building correct stack traces when inlining
+      // potentially trapping Wasm operations.
+      DCHECK(frame_state.has_value());
+
+      wasm::NativeModule* native_module =
+          descriptor->js_wasm_call_parameters->native_module();
+      uint32_t func_idx = descriptor->js_wasm_call_parameters->function_index();
+
       V<JSFunction> js_closure = V<JSFunction>::Cast(callee);
       V<Context> js_context = V<Context>::Cast(arguments[arguments.size() - 1]);
 
@@ -87,43 +92,16 @@ class WasmInJSInliningReducer : public Next {
       } else {
         goto non_inlined_call;
       }
-    } else if (descriptor->lazy_deopt_on_throw != LazyDeoptOnThrow::kYes) {
-      // TODO(mliedtke,dlehmann): Support lazy deopts in Wasm in order to allow
-      // inlining calls that have LazyDeoptOnThrow::kYes.
-
-      // TODO(dlehmann): Investigate if we need to prevent inlining into
-      // try-blocks (due to wasm traps ignoring catch handlers in the inlined JS
-      // frame).
-
-      // We shouldn't have attached `JSWasmCallParameters` at this call in the
-      // Turbofan frontend, unless we have TS Wasm-in-JS inlining enabled.
-      CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
-
-      WasmBodyInliningResult inlining_result =
-          TryInlineWasmCall(native_module, func_idx, arguments);
-
-      switch (inlining_result.type) {
-        case WasmBodyInliningResult::Type::kSuccessWithValue:
-          return inlining_result.value.value();
-        case WasmBodyInliningResult::Type::kSuccessVoid:
-          // Inlining succeeded for a void function. The original call had no
-          // outputs, so the result is an invalid value (but unlike in the next
-          // case, the original call is reduced away).
-          return V<Any>::Invalid();
-        case WasmBodyInliningResult::Type::kFailed:
-          // Inlining failed. Simply generate the unmodified Wasm call.
-          goto non_inlined_call;
-      }
     }
 
-    // Inlining not supported for this particular call (e.g., because of lazy
-    // deopts or else, see above).
+    // Inlining not supported for this particular call or bailed out.
     goto non_inlined_call;
   }
 
-  WasmBodyInliningResult TryInlineWasmCall(
+  WasmBodyInliningResult TryInlineWasmBody(
       wasm::NativeModule* native_module, uint32_t func_idx,
-      base::Vector<const OpIndex> arguments);
+      base::Vector<const OpIndex> arguments,
+      compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
  private:
   V<Any> TryInlineJSWasmCallWrapperAndBody(
@@ -717,8 +695,11 @@ class WasmInJsInliningInterface {
     Bailout(decoder);
   }
 
-  void ResumeHandler(FullDecoder* decoder,
-                     base::Vector<const wasm::HandlerCase> handlers,
+  void BeginEffectHandlers(FullDecoder* decoder) { Bailout(decoder); }
+
+  void EndEffectHandlers(FullDecoder* decoder) { Bailout(decoder); }
+
+  void ResumeHandler(FullDecoder* decoder, const wasm::HandlerCase& handler,
                      size_t handler_index, Value* cont_val, Value* tag_params) {
     Bailout(decoder);
   }
@@ -797,6 +778,18 @@ class WasmInJsInliningInterface {
                                    const Value& expected_value,
                                    const Value& new_value,
                                    AtomicMemoryOrder order, Value* result) {
+    Bailout(decoder);
+  }
+
+  void StructWait(FullDecoder* decoder, const Value& struct_obj,
+                  const FieldImmediate& imm, const Value& expected_value,
+                  const Value& timeout_ns, Value* result) {
+    Bailout(decoder);
+  }
+
+  void StructNotify(FullDecoder* decoder, const Value& struct_obj,
+                    const FieldImmediate& imm, const Value& max_waiters,
+                    Value* result) {
     Bailout(decoder);
   }
 
@@ -1354,9 +1347,10 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
 }
 
 template <class Next>
-WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmCall(
+WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
     wasm::NativeModule* native_module, uint32_t func_idx,
-    base::Vector<const OpIndex> arguments) {
+    base::Vector<const OpIndex> arguments,
+    compiler::LazyDeoptOnThrow lazy_deopt_on_throw) {
   const wasm::WasmModule* module = native_module->module();
   const wasm::WasmFunction& func = module->functions[func_idx];
 
@@ -1389,6 +1383,29 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmCall(
   bool is_shared = module->type(func.sig_index).is_shared;
   if (is_shared) {
     TRACE("- not inlining: shared everything is not supported");
+    return WasmBodyInliningResult::Failed();
+  }
+
+  const bool has_current_catch_block = __ current_catch_block();
+  const bool has_lazy_deopt_on_throw =
+      lazy_deopt_on_throw == LazyDeoptOnThrow::kYes;
+
+  if (has_lazy_deopt_on_throw) {
+    // Maglev either emits a catch block or uses lazy deopt on throw, but never
+    // both.
+    DCHECK(!has_current_catch_block);
+    // TODO(mliedtke,dlehmann): Support lazy deopts in Wasm in order to allow
+    // inlining calls that have LazyDeoptOnThrow::kYes.
+    TRACE("- not inlining: call marked with LazyDeoptOnThrow::kYes");
+    return WasmBodyInliningResult::Failed();
+  }
+
+  if (has_current_catch_block) {
+    // TODO(dlehmann): Currently, we never inline into try-blocks due to Wasm
+    // traps ignoring catch handlers in the inlined JS frame.
+    // Relax this in the future (but this would be an extension over the old
+    // Turbofan inlining, so it's not in the MVP.)
+    TRACE("- not inlining: a current catch block is set");
     return WasmBodyInliningResult::Failed();
   }
 

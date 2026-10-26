@@ -21,7 +21,6 @@ class ScrollButtonPseudoElement : public PseudoElement,
   void DefaultEventHandler(Event&) override;
   bool HasActivationBehavior() const final { return true; }
   bool WillRespondToMouseClickEvents() override { return true; }
-  Node* InnerNodeForHitTesting() final { return this; }
 
   bool IsEnabled() const { return enabled_; }
   bool IsDisabledFormControl() const final { return !IsEnabled(); }
@@ -34,7 +33,9 @@ class ScrollButtonPseudoElement : public PseudoElement,
   void Trace(Visitor* v) const final;
 
  private:
-  void HandleButtonActivation();
+  // Returns true if activation behavior was performed and the event should be
+  // considered handled.
+  bool HandleButtonActivation();
 
   bool enabled_ = true;
 };

@@ -44,6 +44,7 @@
 #include "ui/gfx/switches.h"
 #include "ui/gl/buildflags.h"
 #include "ui/gl/gl_display.h"
+#include "ui/gl/gl_features.h"
 #include "ui/gl/gl_implementation.h"
 #include "ui/gl/gl_surface.h"
 #include "ui/gl/gl_switches.h"
@@ -683,7 +684,17 @@ bool GpuInit::InitializeAndStartSandbox(base::CommandLine* command_line,
 
     base::FilePath module_path;
     if (base::PathService::Get(base::DIR_MODULE, &module_path)) {
-      {
+      // Preload vk_swiftshader.dll when SwiftShader may be needed:
+      // - IsSwiftShaderAllowed() covers ANGLE/GL flags like
+      //   --enable-unsafe-swiftshader and --use-angle=swiftshader.
+      // - use_webgpu_adapter covers --use-webgpu-adapter=swiftshader for
+      //   WebGPU fallback adapter selection.
+      // - DefaultForceFallbackAdapter() covers Graphite/Dawn using
+      //   SwiftShader via --skia-graphite-dawn-backend=swiftshader.
+      if (features::IsSwiftShaderAllowed(command_line) ||
+          gpu_preferences_.use_webgpu_adapter ==
+              WebGPUAdapterName::kSwiftShader ||
+          DawnContextProvider::DefaultForceFallbackAdapter()) {
         TRACE_EVENT("gpu,startup", "Load vk_swiftshader.dll");
         base::LoadNativeLibrary(module_path.Append(L"vk_swiftshader.dll"),
                                 nullptr);
@@ -798,18 +809,10 @@ bool GpuInit::InitializeAndStartSandbox(base::CommandLine* command_line,
 #if BUILDFLAG(IS_OZONE)
   // We need to get supported formats before sandboxing to avoid an known
   // issue which breaks the camera preview. (b/166850715)
-  bool supports_nv12_for_allocation_and_texturing;
-  bool supports_p010_for_allocation_and_texturing;
   {
     TRACE_EVENT("gpu,startup", "ui::ozone::IsFormatSupportedForTexturing");
     auto* surface_factory =
         ui::OzonePlatform::GetInstance()->GetSurfaceFactoryOzone();
-    supports_nv12_for_allocation_and_texturing =
-        surface_factory->IsFormatSupportedForTexturing(
-            viz::MultiPlaneFormat::kNV12);
-    supports_p010_for_allocation_and_texturing =
-        surface_factory->IsFormatSupportedForTexturing(
-            viz::MultiPlaneFormat::kP010);
     auto* gl_ozone = surface_factory->GetCurrentGLOzone();
     if (gl_ozone) {
       gpu_feature_info_.supports_nv12_gl_native_pixmap =
@@ -958,10 +961,6 @@ bool GpuInit::InitializeAndStartSandbox(base::CommandLine* command_line,
   SetSkiaBackendType();
 #if BUILDFLAG(IS_OZONE)
   ui::OzonePlatform::GetInstance()->AfterSandboxEntry();
-  gpu_feature_info_.supports_nv12_for_allocation_and_texturing =
-      supports_nv12_for_allocation_and_texturing;
-  gpu_feature_info_.supports_p010_for_allocation_and_texturing =
-      supports_p010_for_allocation_and_texturing;
   [[maybe_unused]] auto* factory =
       ui::OzonePlatform::GetInstance()->GetSurfaceFactoryOzone();
 #if BUILDFLAG(ENABLE_VULKAN) || (BUILDFLAG(SKIA_USE_DAWN) && BUILDFLAG(IS_CHROMEOS))
@@ -1177,12 +1176,6 @@ void GpuInit::InitializeInProcess(base::CommandLine* command_line,
 #if BUILDFLAG(IS_OZONE)
   auto* surface_factory =
       ui::OzonePlatform::GetInstance()->GetSurfaceFactoryOzone();
-  gpu_feature_info_.supports_nv12_for_allocation_and_texturing =
-      surface_factory->IsFormatSupportedForTexturing(
-          viz::MultiPlaneFormat::kNV12);
-  gpu_feature_info_.supports_p010_for_allocation_and_texturing =
-      surface_factory->IsFormatSupportedForTexturing(
-          viz::MultiPlaneFormat::kP010);
   auto* gl_ozone = surface_factory->GetCurrentGLOzone();
   if (gl_ozone) {
     gpu_feature_info_.supports_nv12_gl_native_pixmap =
@@ -1284,6 +1277,9 @@ void GpuInit::SetSkiaBackendType() {
           break;
         case wgpu::BackendType::Metal:
           skia_backend_type = SkiaBackendType::kGraphiteDawnMetal;
+          break;
+        case wgpu::BackendType::OpenGLES:
+          skia_backend_type = SkiaBackendType::kGraphiteDawnOpenGLES;
           break;
         default:
           break;

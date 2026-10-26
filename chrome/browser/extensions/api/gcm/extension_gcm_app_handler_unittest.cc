@@ -27,7 +27,6 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/api/gcm/gcm_api.h"
-#include "chrome/browser/extensions/crx_installer.h"
 #include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/browser/extensions/test_extension_service.h"
 #include "chrome/browser/extensions/test_extension_system.h"
@@ -54,6 +53,7 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_utils.h"
+#include "extensions/browser/crx_installer.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_system.h"
@@ -97,8 +97,9 @@ void RequestProxyResolvingSocketFactoryOnUIThread(
     base::WeakPtr<gcm::GCMProfileService> service,
     mojo::PendingReceiver<network::mojom::ProxyResolvingSocketFactory>
         receiver) {
-  if (!service)
+  if (!service) {
     return;
+  }
   network::mojom::NetworkContext* network_context =
       profile->GetDefaultStoragePartition()->GetNetworkContext();
   network_context->CreateProxyResolvingSocketFactory(std::move(receiver));
@@ -135,8 +136,9 @@ class Waiter {
 
   // Signals that the asynchronous operation finishes.
   void SignalCompleted() {
-    if (run_loop_ && run_loop_->running())
+    if (run_loop_ && run_loop_->running()) {
       run_loop_->Quit();
+    }
   }
 
   // Runs until UI loop becomes idle.
@@ -212,8 +214,9 @@ class FakeExtensionGCMAppHandler : public ExtensionGCMAppHandler {
 
   void RemoveAppHandler(const std::string& app_id) override {
     ExtensionGCMAppHandler::RemoveAppHandler(app_id);
-    if (GetGCMDriver()->app_handlers().empty())
+    if (GetGCMDriver()->app_handlers().empty()) {
       app_handler_count_drop_to_zero_ = true;
+    }
   }
 
   gcm::GCMClient::Result unregistration_result() const {
@@ -326,8 +329,9 @@ class ExtensionGCMAppHandlerTest : public testing::Test {
     waiter_.PumpUILoop();
     gcm_app_handler_->Shutdown();
     auto* partition = profile()->GetDefaultStoragePartition();
-    if (partition)
+    if (partition) {
       partition->WaitForDeletionTasksForTesting();
+    }
 
 #if BUILDFLAG(IS_CHROMEOS)
     gcm_app_handler_.reset();

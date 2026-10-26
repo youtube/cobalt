@@ -90,6 +90,7 @@ FORWARD_DECLARE_TEST(MainThreadSchedulerImplTest,
 }  // namespace main_thread_scheduler_impl_unittest
 
 PLATFORM_EXPORT BASE_DECLARE_FEATURE(kLowerPriorityForCompositorGestures);
+PLATFORM_EXPORT BASE_DECLARE_FEATURE(kBusyLoopAggressiveAfterCommittedLoad);
 
 class AgentGroupSchedulerImpl;
 class CPUTimeBudgetPool;
@@ -688,6 +689,8 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
 
   bool AllPagesFrozen() const;
 
+  void MaybeSetBusyLoop();
+
   // Indicates that scheduler has been shutdown.
   // It should be accessed only on the main thread, but couldn't be a member
   // of MainThreadOnly struct because last might be destructed before we
@@ -752,6 +755,8 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
       back_forward_cache_ipc_tracking_task_runner_;
 
   MemoryPurgeManager memory_purge_manager_;
+
+  base::TimeTicks last_input_use_case_time_ = base::TimeTicks::Min();
 
   base::RepeatingClosure update_policy_closure_;
   DeadlineTaskRunner delayed_update_policy_runner_;
@@ -856,6 +861,16 @@ class PLATFORM_EXPORT MainThreadSchedulerImpl
     // enabled.
     std::unique_ptr<ThreadAffinityBoost> affinity_boost = nullptr;
 #endif  // BUILDFLAG(IS_ANDROID)
+
+    // Multiplier to apply to the message busy loop maximum duration
+    float busy_loop_scale_factor = 0.f;
+
+    // When busy looping is enabled, and the feature
+    // kBusyLoopAggressiveAfterCommittedLoad is enabled, holds the time of the
+    // last commit (unless it's too far in the past). When `is_null()`, this
+    // either means that the feature is not enabled, or the commit is too far in
+    // the past.
+    base::TimeTicks last_committed_load_time;
   };
 
   struct AnyThread {

@@ -49,6 +49,11 @@ class GatedRecurrentLayer {
   // Returns the size of the output buffer.
   int size() const { return output_size_; }
 
+  // Returns the output buffer.
+  ArrayView<const float> output() const {
+    return MakeArrayView(state_.data(), output_size_);
+  }
+
   // Resets the GRU state.
   void Reset();
   // Computes the recurrent layer output and updates the status.

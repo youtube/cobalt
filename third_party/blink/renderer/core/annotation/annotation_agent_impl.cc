@@ -6,6 +6,7 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/typed_macros.h"
 #include "cc/base/features.h"
@@ -167,7 +168,7 @@ bool ShouldUseIsValidRangeAndMarkable(mojom::blink::AnnotationType type) {
     case mojom::blink::AnnotationType::kGlic:
       return true;
     case mojom::blink::AnnotationType::kSharedHighlight:
-    case mojom::blink::AnnotationType::kUserNote:
+    case mojom::blink::AnnotationType::kScrollOnly:
       return false;
   }
 }
@@ -186,11 +187,11 @@ std::optional<DocumentMarker::MarkerTypes> GetMarkerTypesForAnnotationType(
     mojom::blink::AnnotationType annotation_type) {
   switch (annotation_type) {
     case mojom::blink::AnnotationType::kSharedHighlight:
-    case mojom::blink::AnnotationType::kUserNote:
       return DocumentMarker::MarkerTypes::TextFragment();
     case mojom::blink::AnnotationType::kGlic:
       return DocumentMarker::MarkerTypes::Glic();
     case mojom::blink::AnnotationType::kTextFinder:
+    case mojom::blink::AnnotationType::kScrollOnly:
       return std::nullopt;
   }
 }
@@ -378,8 +379,9 @@ void AnnotationAgentImpl::Reset(base::PassKey<AnnotationAgentContainerImpl>) {
 void AnnotationAgentImpl::ScrollIntoView(bool applies_focus) const {
   DCHECK(!IsRemoved());
 
-  if (!IsAttached())
+  if (!IsAttached()) {
     return;
+  }
 
   EphemeralRangeInFlatTree range = attached_range_->ToEphemeralRange();
   CHECK(range.Nodes().begin() != range.Nodes().end());
@@ -582,7 +584,6 @@ void AnnotationAgentImpl::ProcessAttachmentFinished() {
     DCHECK(document);
 
     switch (type_) {
-      case mojom::blink::AnnotationType::kUserNote:
       case mojom::blink::AnnotationType::kSharedHighlight: {
         document->Markers().AddTextFragmentMarker(dom_range);
         document->Markers().MergeOverlappingMarkers(
@@ -593,19 +594,19 @@ void AnnotationAgentImpl::ProcessAttachmentFinished() {
         document->Markers().AddGlicMarker(dom_range);
         break;
       }
-      case mojom::blink::AnnotationType::kTextFinder: {
-        // TextFinder type is used only to determine whether a given text can be
-        // found in the page, it should have no side-effects.
+      case mojom::blink::AnnotationType::kTextFinder:
+      case mojom::blink::AnnotationType::kScrollOnly: {
+        // TextFinder and ScrollOnly types are used only to determine whether a
+        // given text can be found in the page (and scrolled to), they should
+        // have no marker side-effects.
         break;
       }
     }
 
-    if (type_ != mojom::blink::AnnotationType::kUserNote) {
-      Node* anchor_node = attached_range_->StartPosition().AnchorNode();
-      CHECK(anchor_node);
-      if (anchor_node->IsInShadowTree()) {
-        UseCounter::Count(document, WebFeature::kTextDirectiveInShadowDOM);
-      }
+    Node* anchor_node = attached_range_->StartPosition().AnchorNode();
+    CHECK(anchor_node);
+    if (anchor_node->IsInShadowTree()) {
+      UseCounter::Count(document, WebFeature::kTextDirectiveInShadowDOM);
     }
   } else {
     TRACE_EVENT_INSTANT("blink", "NotAttached");
@@ -667,8 +668,11 @@ mojom::blink::ScrollBehavior AnnotationAgentImpl::ComputeScrollIntoViewBehavior(
   switch (type_) {
     case AnnotationType::kSharedHighlight:
     case AnnotationType::kTextFinder:
-    case AnnotationType::kUserNote:
       return ScrollBehavior::kAuto;
+    case AnnotationType::kScrollOnly:
+      // Use kInstant to match the behavior of browser-initiated scroll
+      // restoration.
+      return ScrollBehavior::kInstant;
     case AnnotationType::kGlic:
       // Use kInstant for long scroll distances, kSmooth otherwise.
       if (LocalFrameView* view = document->GetFrame()->View()) {

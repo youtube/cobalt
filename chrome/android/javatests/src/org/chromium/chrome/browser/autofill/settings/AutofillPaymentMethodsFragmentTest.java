@@ -103,9 +103,7 @@ import java.util.concurrent.TimeoutException;
 
 /** Instrumentation tests for AutofillPaymentMethodsFragment. */
 @RunWith(ChromeJUnit4ClassRunner.class)
-@EnableFeatures({
-    ChromeFeatureList.AUTOFILL_ENABLE_LOYALTY_CARDS_FILLING,
-})
+@EnableFeatures({})
 @DisableFeatures({
     ChromeFeatureList.AUTOFILL_ENABLE_CARD_BENEFITS_FOR_AMERICAN_EXPRESS,
     ChromeFeatureList.AUTOFILL_ENABLE_CARD_BENEFITS_FOR_BMO,
@@ -1819,9 +1817,6 @@ public class AutofillPaymentMethodsFragmentTest {
 
     @Test
     @MediumTest
-    @EnableFeatures({
-        ChromeFeatureList.AUTOFILL_ENABLE_LOYALTY_CARDS_FILLING,
-    })
     public void testLoyaltyCards_showsGoogleWalletLink() throws Exception {
         SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
 
@@ -1836,9 +1831,6 @@ public class AutofillPaymentMethodsFragmentTest {
 
     @Test
     @MediumTest
-    @EnableFeatures({
-        ChromeFeatureList.AUTOFILL_ENABLE_LOYALTY_CARDS_FILLING,
-    })
     public void testLoyaltyCards_linkOpensNewActivity() throws Exception {
         SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
 
@@ -2164,6 +2156,30 @@ public class AutofillPaymentMethodsFragmentTest {
 
         // Verify that the Autofill options fragment is opened.
         assertTrue(mAutofillTestRule.getLastestShownFragment() instanceof AutofillOptionsFragment);
+    }
+
+    @Test
+    @MediumTest
+    @DisableFeatures({ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID})
+    public void testTitle_HoTDisabled_showsPaymentMethods() throws Exception {
+        SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
+
+        AutofillPaymentMethodsFragment fragment =
+                (AutofillPaymentMethodsFragment) activity.getMainFragment();
+        assertThat(fragment.getPageTitle().get())
+                .isEqualTo(activity.getString(R.string.autofill_payment_methods));
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures({ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID})
+    public void testTitle_HoTEnabled_showsPayments() throws Exception {
+        SettingsActivity activity = mSettingsActivityTestRule.startSettingsActivity();
+
+        AutofillPaymentMethodsFragment fragment =
+                (AutofillPaymentMethodsFragment) activity.getMainFragment();
+        assertThat(fragment.getPageTitle().get())
+                .isEqualTo(activity.getString(R.string.autofill_payments_title));
     }
 
     private void setUpBiometricAuthenticationResult(boolean success) {

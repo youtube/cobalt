@@ -16,7 +16,6 @@ constexpr char kSyncName[] = "sync";
 constexpr char kWallpaperGooglePhotosFetcherName[] =
     "wallpaper_google_photos_fetcher";
 constexpr char kWallpaperFetcherDelegateName[] = "wallpaper_fetcher_delegate";
-constexpr char kIpProtectionServiceName[] = "ip_protection_service";
 constexpr char kSanitizedImageSourceName[] = "sanitized_image_source";
 constexpr char kOptimizationGuideGetHintsName[] =
     "optimization_guide_get_hints";
@@ -100,6 +99,7 @@ constexpr char kExtensionsIdentityAPIName[] = "extensions_identity_api";
 constexpr char kMantaName[] = "manta";
 constexpr char kChromeMemexName[] = "chrome_memex";
 constexpr char kDevtoolsAidaName[] = "devtools_aida_client";
+constexpr char kDevtoolsAiCodeName[] = "devtools_aicode_client";
 constexpr char kChromeOsBabelOrcaName[] = "chromeos_babel_orca";
 constexpr char kChromeOsBocaSchoolToolsAuthName[] =
     "chromeos_boca_school_tools_auth";
@@ -119,8 +119,10 @@ constexpr char kAshScannerKeyedServiceName[] = "ash_scanner_keyed_service";
 constexpr char kAshAutotestPrivateApiName[] = "ash_autotest_private_api";
 constexpr char kSyncDeviceStatisticsMetricsName[] =
     "sync_device_statistics_metrics";
-constexpr char kLegionServiceName[] = "legion_service";
+constexpr char kPrivateAiServiceName[] = "private_ai_service";
 constexpr char kWalletPassesName[] = "wallet_passes";
+constexpr char kAimEligibilityServiceName[] = "aim_eligibility_service";
+constexpr char kAccessibilityAnnotatorName[] = "accessibility_annotator";
 
 }  // namespace
 
@@ -157,10 +159,6 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
       return OAuthConsumer(
           /*name=*/kWallpaperFetcherDelegateName,
           /*scopes=*/{GaiaConstants::kPhotosModuleImageOAuth2Scope});
-    case OAuthConsumerId::kIpProtectionService:
-      return OAuthConsumer(
-          /*name=*/kIpProtectionServiceName,
-          /*scopes=*/{GaiaConstants::kIpProtectionAuthScope});
     case OAuthConsumerId::kSanitizedImageSource:
       return OAuthConsumer(
           /*name=*/kSanitizedImageSourceName,
@@ -535,10 +533,10 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
       return OAuthConsumer(
           /*name=*/kSyncDeviceStatisticsMetricsName,
           /*scopes=*/{GaiaConstants::kChromeSyncOAuth2Scope});
-    case OAuthConsumerId::kLegionService:
+    case OAuthConsumerId::kPrivateAiService:
       return OAuthConsumer(
-          /*name=*/kLegionServiceName,
-          /*scopes=*/{GaiaConstants::kLegionAuthScope});
+          /*name=*/kPrivateAiServiceName,
+          /*scopes=*/{GaiaConstants::kPrivateAiAuthScope});
     case OAuthConsumerId::kWalletPasses: {
       CHECK(base::FeatureList::IsEnabled(
           wallet::features::kWalletApiPrivatePassesEnabled));
@@ -546,6 +544,19 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
           /*name=*/kWalletPassesName,
           /*scopes=*/{GaiaConstants::kWalletPassesOAuth2Scope});
     }
+    case OAuthConsumerId::kAimEligibilityService:
+      return OAuthConsumer(
+          /*name=*/kAimEligibilityServiceName,
+          /*scopes=*/{GaiaConstants::kSearchResultsOAuth2Scope});
+    case OAuthConsumerId::kDevtoolsAiCode:
+      return OAuthConsumer(
+          /*name=*/kDevtoolsAiCodeName,
+          /*scopes=*/{GaiaConstants::kAiCodeOAuth2Scope});
+    case OAuthConsumerId::kAccessibilityAnnotator:
+      // TODO(b/493530228): Use narrow scope for the accessibility annotator.
+      return OAuthConsumer(
+          /*name=*/kAccessibilityAnnotatorName,
+          /*scopes=*/{GaiaConstants::kChromeSyncOAuth2Scope});
   }
 }
 

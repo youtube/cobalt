@@ -334,7 +334,7 @@ base::CancelableTaskTracker::TaskId HistoryService::GetAnnotatedVisits(
 }
 
 base::CancelableTaskTracker::TaskId HistoryService::ReplaceClusters(
-    const std::vector<int64_t>& ids_to_delete,
+    const std::vector<ClusterId>& ids_to_delete,
     const std::vector<Cluster>& clusters_to_add,
     base::OnceClosure callback,
     base::CancelableTaskTracker* tracker) {
@@ -362,7 +362,7 @@ HistoryService::ReserveNextClusterIdWithVisit(
 }
 
 base::CancelableTaskTracker::TaskId HistoryService::AddVisitsToCluster(
-    int64_t cluster_id,
+    ClusterId cluster_id,
     const std::vector<ClusterVisit>& visits,
     base::OnceClosure callback,
     base::CancelableTaskTracker* tracker) {
@@ -558,11 +558,11 @@ void HistoryService::AddPage(const GURL& url,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   bool consider_for_ntp_most_visited = true;
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_IOS)
   consider_for_ntp_most_visited =
       !history::IsBrowsingHistoryActorIntegrationM2Enabled() ||
       visit_source != VisitSource::SOURCE_ACTOR;
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#endif
 
   AddPage(HistoryAddPageArgs(url, time, context_id, nav_entry_id,
                              /*local_navigation_id=*/std::nullopt, referrer,
@@ -578,11 +578,11 @@ void HistoryService::AddPage(const GURL& url,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   bool consider_for_ntp_most_visited = true;
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_IOS)
   consider_for_ntp_most_visited =
       !history::IsBrowsingHistoryActorIntegrationM2Enabled() ||
       visit_source != VisitSource::SOURCE_ACTOR;
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#endif
 
   // This function will construct the following "self-links" entry in the
   // VisitedLinkDatabase: `<url, url, url>`.

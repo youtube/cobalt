@@ -88,14 +88,6 @@ public class PrivacySandboxBridge {
         PrivacySandboxBridgeJni.get().setFledgeJoiningAllowed(mProfile, topFrameEtldPlus1, allowed);
     }
 
-    public @PromptType int getRequiredPromptType(@SurfaceType int surfaceType) {
-        return PrivacySandboxBridgeJni.get().getRequiredPromptType(mProfile, surfaceType);
-    }
-
-    public void promptActionOccurred(@PromptAction int action, @SurfaceType int surfaceType) {
-        PrivacySandboxBridgeJni.get().promptActionOccurred(mProfile, action, surfaceType);
-    }
-
     public boolean isRelatedWebsiteSetsDataAccessEnabled() {
         return PrivacySandboxBridgeJni.get().isRelatedWebsiteSetsDataAccessEnabled(mProfile);
     }
@@ -128,10 +120,6 @@ public class PrivacySandboxBridge {
 
     public void setAllPrivacySandboxAllowedForTesting() {
         PrivacySandboxBridgeJni.get().setAllPrivacySandboxAllowedForTesting(mProfile); // IN-TEST
-    }
-
-    public void recordActivityType(@PrivacySandboxStorageActivityType int activityType) {
-        PrivacySandboxBridgeJni.get().recordActivityType(mProfile, activityType);
     }
 
     public boolean privacySandboxPrivacyGuideShouldShowAdTopicsCard() {
@@ -189,15 +177,9 @@ public class PrivacySandboxBridge {
 
         void setFledgeJoiningAllowed(Profile profile, String topFrameEtldPlus1, boolean allowed);
 
-        int getRequiredPromptType(Profile profile, int surfaceType);
-
-        void promptActionOccurred(Profile profile, int action, int surfaceType);
-
         void topicsToggleChanged(Profile profile, boolean newValue);
 
         void setAllPrivacySandboxAllowedForTesting(Profile profile); // IN-TEST
-
-        void recordActivityType(Profile profile, int activityType);
 
         boolean privacySandboxPrivacyGuideShouldShowAdTopicsCard(Profile profile);
 

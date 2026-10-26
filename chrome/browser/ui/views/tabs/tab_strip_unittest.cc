@@ -17,7 +17,7 @@
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/features.h"
-#include "chrome/browser/ui/tabs/tab_renderer_data.h"
+#include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_root_view.h"
@@ -147,7 +147,7 @@ class TabStripTestBase : public ChromeViewsTestBase {
         tab_strip_parent.get()));
 
     widget_ =
-        CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
+        CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
     tab_strip_parent_ = widget_->SetContentsView(std::move(tab_strip_parent));
 
     // Prevent hover cards from appearing when the mouse is over the tab. Tests
@@ -532,9 +532,9 @@ TEST_P(TabStripTest, TabNeedsAttentionBlocked) {
   Tab* tab1 = tab_strip_->tab_at(1);
 
   // Block tab1.
-  TabRendererData data;
+  tabs::TabData data;
   data.blocked = true;
-  tab1->SetData(data);
+  tab1->SetDataForTesting(data);
 
   EXPECT_FALSE(IsShowingAttentionIndicator(tab1));
   controller_->SelectTab(0, dummy_event_);
@@ -551,9 +551,9 @@ TEST_P(TabStripTest, TabNeedsAttentionGeneric) {
   Tab* tab1 = tab_strip_->tab_at(1);
 
   // Set needs attention.
-  TabRendererData data;
+  tabs::TabData data;
   data.needs_attention = true;
-  tab1->SetData(data);
+  tab1->SetDataForTesting(data);
 
   EXPECT_TRUE(IsShowingAttentionIndicator(tab1));
   controller_->SelectTab(0, dummy_event_);

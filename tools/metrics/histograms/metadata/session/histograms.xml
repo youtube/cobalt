@@ -23,7 +23,7 @@ chromium-metrics-reviews@google.com.
 <histograms>
 
 <histogram name="Session.Android.TabbedSessionContainedGoogleSearch"
-    enum="Boolean" expires_after="2026-07-05">
+    enum="Boolean" expires_after="2026-09-06">
   <owner>nafisabedin@google.com</owner>
   <owner>yfriedman@chromium.org</owner>
   <summary>
@@ -35,7 +35,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.Background.TotalDuration" units="ms"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>asvitkine@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -79,7 +79,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.IsActive" enum="BooleanActive"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>rogerm@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -101,7 +101,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.IsActive2" enum="BooleanActive"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>rogerm@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>
@@ -122,8 +122,48 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Session.LockedDuration" units="ms" expires_after="2026-10-01">
+  <owner>victortan@chromium.org</owner>
+  <owner>chrome-analysis-team@google.com</owner>
+  <summary>
+    The duration the screen was locked (OS-level lock) while Chrome was running.
+    Recorded when the screen is unlocked or the session ends.
+  </summary>
+</histogram>
+
+<histogram name="Session.LockedDuration.Restartability.{SmartRestartDuration}"
+    enum="SmartRestartability" expires_after="2026-10-01">
+  <owner>victortan@chromium.org</owner>
+  <owner>chrome-analysis-team@google.com</owner>
+  <summary>
+    Records the combination of reasons a potential restart during OS lock screen
+    was blocked, or 'None' if it was viable. Recorded when the zero-window state
+    ends while an update is pending.
+
+    The value is recorded as a bitmask of SmartRestartBlockReason flags. This
+    histogram is sliced by the duration the OS was in the Locked state.
+  </summary>
+  <token key="SmartRestartDuration">
+    <variant name="1To5Min"/>
+    <variant name="5To10Min"/>
+    <variant name="Over10Min"/>
+    <variant name="Under1Min"/>
+  </token>
+</histogram>
+
+<histogram name="Session.LockedDuration.WithUpdate" units="ms"
+    expires_after="2026-10-01">
+  <owner>victortan@chromium.org</owner>
+  <owner>chrome-analysis-team@google.com</owner>
+  <summary>
+    The duration the screen was locked (OS-level lock) while Chrome was running
+    AND an update was pending (UpgradeDetector). Recorded when the screen is
+    unlocked or the session ends.
+  </summary>
+</histogram>
+
 <histogram name="Session.OpenedTabCounts" units="operations"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>rohitrao@chromium.org</owner>
   <owner>marq@chromium.org</owner>
   <summary>
@@ -496,7 +536,6 @@ chromium-metrics-reviews@google.com.
 <histogram name="Session.TotalDuration.TimeInTabletMode" units="times"
     expires_after="2026-07-08">
   <owner>robliao@chromium.org</owner>
-  <owner>arakeri@microsoft.com</owner>
   <owner>gerchiko@microsoft.com</owner>
   <owner>wangsongjin@microsoft.com</owner>
   <owner>input-dev@chromium.org</owner>
@@ -1030,17 +1069,6 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Session.WebStates.AllSerializedCertPolicyCachesSize"
-    units="KB" expires_after="2026-08-25">
-  <owner>justincohen@chromium.org</owner>
-  <owner>bling-fundamentals@google.com</owner>
-  <summary>
-    The size of all cert policy caches for all open tabs. Recorded when
-    SessionServiceIOS encodes the data, which happens on page loads, tab changes
-    and app backgrounding.
-  </summary>
-</histogram>
-
 <histogram name="Session.WebStates.LoadingTimeOnMainThread" units="ms"
     expires_after="2026-08-09">
   <owner>fedegermi@google.com</owner>
@@ -1111,16 +1139,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Session.WebStates.ReadFromFileTime" units="ms"
-    expires_after="2025-04-20">
-  <owner>justincohen@chromium.org</owner>
-  <owner>rohitrao@chromium.org</owner>
-  <summary>
-    The time needed to read iOS session webState data from a file. It's recorded
-    every time a webState is restored, typically on app startup.
-  </summary>
-</histogram>
-
 <histogram name="Session.WebStates.SavingTimeOnMainThread" units="ms"
     expires_after="2026-05-17">
   <owner>fedegermi@google.com</owner>
@@ -1138,74 +1156,55 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Session.WebStates.SerializedCertPolicyCacheSize" units="KB"
-    expires_after="2026-08-25">
-  <owner>justincohen@chromium.org</owner>
-  <owner>bling-fundamentals@google.com</owner>
+<histogram name="Session.ZeroWindowDuration" units="ms"
+    expires_after="2026-10-01">
+  <owner>victortan@chromium.org</owner>
+  <owner>chrome-analysis-team@google.com</owner>
   <summary>
-    The size of a single cert policy cache for one tab. Recorded when
-    CRWNavigationItemStorage encodes the data, which happens on page loads, tab
-    changes and app backgrounding.
+    The duration Chrome was running with zero open browser windows (specifically
+    TYPE_NORMAL). Recorded when a new window is opened or Chrome quits.
+
+    This metric is only recorded on macOS.
   </summary>
 </histogram>
 
-<histogram name="Session.WebStates.StorageFormat" enum="SessionStorageFormat"
-    expires_after="2026-04-05">
-  <owner>fedegermi@google.com</owner>
-  <owner>sdefresne@chromium.org</owner>
+<histogram
+    name="Session.ZeroWindowDuration.Restartability.{SmartRestartDuration}"
+    enum="SmartRestartability" expires_after="2026-10-01">
+  <owner>victortan@chromium.org</owner>
+  <owner>chrome-analysis-team@google.com</owner>
   <summary>
-    The format used for the session storage. Recorded during every startup of
-    the application (after the migration if one is needed). Corresponds to the
-    actual format of the storage.
+    Records the combination of reasons a potential restart with zero windows
+    open on macOS was blocked, or 'None' if it was viable. Recorded when the
+    zero-window state ends while an update is pending.
+
+    The value is recorded as a bitmask of SmartRestartBlockReason flags. This
+    histogram is sliced by the duration the browser was in the Zero Window
+    state.
   </summary>
+  <token key="SmartRestartDuration">
+    <variant name="1To5Min"/>
+    <variant name="5To10Min"/>
+    <variant name="Over10Min"/>
+    <variant name="Under1Min"/>
+  </token>
 </histogram>
 
-<histogram name="Session.WebStates.StorageMigrationDuration" units="ms"
-    expires_after="2026-04-19">
-  <owner>fedegermi@google.com</owner>
-  <owner>sdefresne@chromium.org</owner>
+<histogram name="Session.ZeroWindowDuration.WithUpdate" units="ms"
+    expires_after="2026-10-01">
+  <owner>victortan@chromium.org</owner>
+  <owner>chrome-analysis-team@google.com</owner>
   <summary>
-    The time spent to migrate the session storage. This corresponds to the time
-    the user has to wait during the application startup (and includes the time
-    spent to wait for the background processing to complete).
+    The duration Chrome was running with zero open browser windows (specifically
+    TYPE_NORMAL) AND an update was pending. Recorded when a new window is opened
+    or Chrome quits.
 
-    This is recorded only when the storage may require migration (either because
-    the storage needs to be converted or the format is unknown).
-
-    The application is unresponsive (but won't be killed by the watchdog) during
-    the migration, so large value for this histogram are bad.
-  </summary>
-</histogram>
-
-<histogram name="Session.WebStates.StorageMigrationStatus"
-    enum="SessionStorageMigrationStatus" expires_after="2026-04-05">
-  <owner>fedegermi@google.com</owner>
-  <owner>sdefresne@chromium.org</owner>
-  <summary>
-    The status of the session storage format migration (from legacy to optimized
-    or from optimized to legacy). Recorded during every startup of the
-    application (except if the storage format is undetermined), even if no
-    migration is attempted (in that case, the status of the previous migration
-    attempt will be reported).
-
-    See go/bling-session-restoration for information about the session storage
-    refactoring. This details the different storage format.
-  </summary>
-</histogram>
-
-<histogram name="Session.WebStates.WriteToFileTime" units="ms"
-    expires_after="2025-04-20">
-  <owner>justincohen@chromium.org</owner>
-  <owner>rohitrao@chromium.org</owner>
-  <summary>
-    The time needed to write iOS session webState data to a file. It's recorded
-    every time the file is written to storage, which happens on page loads, tab
-    changes and app backgrounding.
+    This metric is only recorded on macOS.
   </summary>
 </histogram>
 
 <histogram name="SessionRestore.ForegroundTabFirstPaint4.FinishReason"
-    enum="SessionRestoreFinishReason" expires_after="2026-06-28">
+    enum="SessionRestoreFinishReason" expires_after="2026-08-30">
   <owner>joenotcharles@google.com</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -1220,7 +1219,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="SessionRestore.ForegroundTabFirstPaint4{SessionRestoreTabCounts}"
-    units="ms" expires_after="2026-06-28">
+    units="ms" expires_after="2026-08-30">
   <owner>joenotcharles@google.com</owner>
   <owner>catan-team@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1266,7 +1265,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SessionRestore.PageStateOldVersions" units="version"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>creis@chromium.org</owner>
   <owner>chrome-security-architecture@google.com</owner>
   <summary>
@@ -1279,7 +1278,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SessionRestore.TabCount{TabType}" units="tabs"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>joenotcharles@google.com</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -1352,18 +1351,6 @@ chromium-metrics-reviews@google.com.
     cache. Recorded each time a new database is opened in memory.
 
     Warning: Histogram expired between M95-M110. Data may be missing.
-  </summary>
-</histogram>
-
-<histogram name="SessionStorageDatabase.Open" enum="SessionStorageDatabaseOpen"
-    expires_after="never">
-<!-- expires-never: core storage metric; consumed in separate dashboard (go/chrome-storage-dashboard) -->
-
-  <owner>ayui@chromium.org</owner>
-  <owner>chrome-owp-storage@google.com</owner>
-  <summary>
-    The result (success, failure, or database recreated) of trying to open the
-    LevelDB database for sessionStorage.
   </summary>
 </histogram>
 

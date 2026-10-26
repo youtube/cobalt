@@ -598,7 +598,7 @@ class SequentialStringKey final : public StringTableKey {
     }
   }
 
-  DirectHandle<String> GetHandleForInsertion(Isolate* isolate) {
+  DirectHandle<InternalizedString> GetHandleForInsertion(Isolate* isolate) {
     DCHECK(!internalized_string_.is_null());
     return internalized_string_;
   }
@@ -606,7 +606,7 @@ class SequentialStringKey final : public StringTableKey {
  private:
   base::Vector<const Char> chars_;
   bool convert_;
-  DirectHandle<String> internalized_string_;
+  DirectHandle<InternalizedString> internalized_string_;
 };
 
 using OneByteStringKey = SequentialStringKey<uint8_t>;
@@ -651,7 +651,7 @@ class SeqSubStringKey final : public StringTableKey {
       DisallowGarbageCollection no_gc;
       CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
                 length());
-      internalized_string_ = result;
+      internalized_string_ = Cast<InternalizedString>(result);
     } else {
       DirectHandle<SeqTwoByteString> result =
           isolate->factory()->AllocateRawTwoByteInternalizedString(
@@ -659,11 +659,11 @@ class SeqSubStringKey final : public StringTableKey {
       DisallowGarbageCollection no_gc;
       CopyChars(result->GetChars(no_gc), string_->GetChars(no_gc) + from_,
                 length());
-      internalized_string_ = result;
+      internalized_string_ = Cast<InternalizedString>(result);
     }
   }
 
-  DirectHandle<String> GetHandleForInsertion(Isolate* isolate) {
+  DirectHandle<InternalizedString> GetHandleForInsertion(Isolate* isolate) {
     DCHECK(!internalized_string_.is_null());
     return internalized_string_;
   }
@@ -672,7 +672,7 @@ class SeqSubStringKey final : public StringTableKey {
   DirectHandle<typename CharTraits<Char>::String> string_;
   int from_;
   bool convert_;
-  DirectHandle<String> internalized_string_;
+  DirectHandle<InternalizedString> internalized_string_;
 };
 
 using SeqOneByteSubStringKey = SeqSubStringKey<SeqOneByteString>;
@@ -1093,6 +1093,26 @@ HandleType<String> String::Share(Isolate* isolate, HandleType<T> string) {
   }
 }
 
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<String>>)
+HandleType<String> String::Unshare(Isolate* isolate, HandleType<T> string) {
+  DCHECK(HeapLayout::InWritableSharedSpace(*string));
+  uint32_t length = string->length();
+  if (string->IsOneByteRepresentation()) {
+    HandleType<SeqOneByteString> copy =
+        isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    WriteToFlat(*string, copy->GetChars(no_gc), 0, length);
+    return copy;
+  } else {
+    HandleType<SeqTwoByteString> copy =
+        isolate->factory()->NewRawTwoByteString(length).ToHandleChecked();
+    DisallowGarbageCollection no_gc;
+    WriteToFlat(*string, copy->GetChars(no_gc), 0, length);
+    return copy;
+  }
+}
+
 uint16_t String::Get(uint32_t index) const {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(this));
   return GetImpl(index, SharedStringAccessGuardIfNeeded::NotNeeded());
@@ -1422,8 +1442,10 @@ Tagged<Object> ConsString::unchecked_second() const {
 
 bool ConsString::IsFlat() const { return second()->length() == 0; }
 
-inline Tagged<String> ThinString::actual() const { return actual_.load(); }
-inline void ThinString::set_actual(Tagged<String> value,
+inline Tagged<InternalizedString> ThinString::actual() const {
+  return actual_.load();
+}
+inline void ThinString::set_actual(Tagged<InternalizedString> value,
                                    WriteBarrierMode mode) {
   actual_.store(this, value, mode);
 }
@@ -1772,7 +1794,8 @@ bool String::AsArrayIndex(uint32_t* index) {
   DisallowGarbageCollection no_gc;
   uint32_t field = raw_hash_field();
   if (ContainsCachedArrayIndex(field)) {
-    *index = ArrayIndexValueBits::decode(field);
+    *index = StringHasher::DecodeArrayIndexFromHashField(
+        field, HashSeed(EarlyGetReadOnlyRoots()));
     return true;
   }
   if (IsHashFieldComputed(field) && !IsIntegerIndex(field)) {
@@ -1784,7 +1807,8 @@ bool String::AsArrayIndex(uint32_t* index) {
 bool String::AsIntegerIndex(size_t* index) {
   uint32_t field = raw_hash_field();
   if (ContainsCachedArrayIndex(field)) {
-    *index = ArrayIndexValueBits::decode(field);
+    *index = StringHasher::DecodeArrayIndexFromHashField(
+        field, HashSeed(EarlyGetReadOnlyRoots()));
     return true;
   }
   if (IsHashFieldComputed(field) && !IsIntegerIndex(field)) {

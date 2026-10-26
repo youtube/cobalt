@@ -1376,10 +1376,10 @@ TEST_P(PeerConnectionMediaTest, RedFmtpPayloadTypeMustMatchBaseCodecs) {
       CreateAudioCodec(120, "foo", kDefaultAudioClockRateHz, 1));
   callee_fake_codecs.push_back(
       CreateAudioCodec(121, kRedCodecName, kDefaultAudioClockRateHz, 1));
-  callee_fake_codecs.push_back(
-      CreateAudioCodec(122, "bar", kDefaultAudioClockRateHz, 1));
   callee_fake_codecs.back().SetParam(kCodecParamNotInNameValueFormat,
                                      "122/122");
+  callee_fake_codecs.push_back(
+      CreateAudioCodec(122, "bar", kDefaultAudioClockRateHz, 1));
   auto callee_fake_engine = std::make_unique<FakeMediaEngine>();
   callee_fake_engine->SetAudioCodecs(callee_fake_codecs);
   auto callee = CreatePeerConnectionWithAudio(std::move(callee_fake_engine));

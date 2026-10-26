@@ -114,6 +114,7 @@ class MODULES_EXPORT ManifestParser {
   enum class ParseURLRestrictions {
     kNoRestrictions = 0,
     kSameOriginOnly,  // Parsed URLs must be same origin as the document URL.
+    kSameSiteOnly,    // Parsed URLs must be same site as the document URL.
     kWithinScope,     // Parsed URLs must be within scope of the manifest scope
                       // (implies same origin as document URL).
   };
@@ -549,15 +550,18 @@ class MODULES_EXPORT ManifestParser {
   // Returns the parsed string if any, a null string if the parsing failed.
   String ParseGCMSenderID(const JSONObject* object);
 
-  // Parses the 'permissions_policy' field of the manifest.
-  // This outsources semantic parsing of the policy to the
-  // PermissionsPolicyParser.
-  Vector<network::ParsedPermissionsPolicyDeclaration>
-  ParseIsolatedAppPermissions(const JSONObject* object);
+  // Checks the structure of the 'permissions_policy' field of the manifest.
+  // This check is fatal for the manifest parsing.
+  //
+  // Note: This parses the JSON field but doesn't actually save the result
+  // anywhere. This field is sent to the renderer responsible for parsing
+  // permissions policies from headers through the `isolated_app_policy` field
+  // of the `CommitNavigationParams` Mojo struct rather than as a piece of
+  // `Manifest`, unlike other manifest fields.
+  void CheckIsolatedAppPermissions(const JSONObject* object);
+
   std::optional<KURL> ParseIsolatedAppUpdateManifestUrl(
       const JSONObject* object);
-  Vector<String> ParseOriginAllowlist(const JSONArray* allowlist,
-                                      const String& feature);
 
   // Parses the 'launch_handler' field of the manifest as defined in:
   // https://github.com/WICG/web-app-launch/blob/main/launch_handler.md

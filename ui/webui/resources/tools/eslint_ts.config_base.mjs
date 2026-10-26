@@ -39,6 +39,7 @@ export const defaultConfig = [
       // https://google.github.io/styleguide/tsguide.html#export-type
       '@typescript-eslint/consistent-type-exports': 'error',
 
+      '@webui-eslint/lit-element-invalid-interface': 'error',
       '@webui-eslint/lit-element-structure': 'error',
       '@webui-eslint/lit-property-accessor': 'error',
       '@webui-eslint/polymer-property-declare': 'error',
@@ -58,6 +59,7 @@ export const defaultConfig = [
       'eslint-plugin-lit/no-private-properties': ['error', {'private': '_$'}],
       // https://chromium.googlesource.com/chromium/src/+/HEAD/docs/webui/webui_lit_style_guide.md#Inline-Lambdas
       '@webui-eslint/inline-event-handler': 'error',
+      '@webui-eslint/lit-element-expressions': 'error',
       '@webui-eslint/lit-element-template-structure': 'error',
     },
   },
@@ -74,5 +76,33 @@ export const webComponentMissingDepsConfig = {
   },
   rules: {
     '@webui-eslint/web-component-missing-deps': 'error',
+  },
+};
+
+export const noChromeSendConfig = {
+  files: ['**/*.ts'],
+  rules: {
+    'no-restricted-properties': [
+      'error',
+      {
+        object: 'chrome',
+        property: 'send',
+        message: 'Use Mojo instead.',
+      },
+    ],
+    'no-restricted-imports': [
+      'error', {
+        paths: [
+          {
+            name: '//resources/js/cr.js',
+            message: 'Use Mojo instead.',
+          },
+          {
+            name: 'chrome://resources/js/cr.js',
+            message: 'Use Mojo instead.',
+          },
+        ],
+      },
+    ],
   },
 };

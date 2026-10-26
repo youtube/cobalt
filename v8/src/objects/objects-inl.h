@@ -369,8 +369,9 @@ template <typename T>
 struct CastTraits<TrustedPodArray<T>> : public CastTraits<TrustedByteArray> {};
 template <typename T, typename Base>
 struct CastTraits<FixedIntegerArrayBase<T, Base>> : public CastTraits<Base> {};
-template <typename Base>
-struct CastTraits<FixedAddressArrayBase<Base>> : public CastTraits<Base> {};
+template <>
+struct CastTraits<TrustedFixedAddressArray>
+    : public CastTraits<TrustedByteArray> {};
 
 template <>
 struct CastTraits<JSRegExpResultIndices> : public CastTraits<JSArray> {};
@@ -630,11 +631,12 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
   // a deoptimization data array.  Since this is used for asserts we can
   // check that the length is zero or else the fixed size plus a multiple of
   // the entry size.
-  int length = array->length();
+  uint32_t length = array->ulength().value();
   if (length == 0) return true;
 
+  if (length < DeoptimizationData::kFirstDeoptEntryIndex) return false;
   length -= DeoptimizationData::kFirstDeoptEntryIndex;
-  return length >= 0 && length % DeoptimizationData::kDeoptEntrySize == 0;
+  return length % DeoptimizationData::kDeoptEntrySize == 0;
 }
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsHandlerTable) {
@@ -1620,7 +1622,9 @@ void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
                            UPDATE_WRITE_BARRIER);
   } else {
     DCHECK_EQ(emit_write_barrier, EmitWriteBarrier::kNo);
+#if V8_VERIFY_WRITE_BARRIERS
     DCHECK(!WriteBarrier::IsRequired(*this, value));
+#endif
   }
 #endif
 }
@@ -1737,6 +1741,10 @@ bool HeapObject::relaxed_compare_and_swap_map_word_forwarded(
 }
 
 int HeapObjectLayout::Size() const { return Tagged<HeapObject>(this)->Size(); }
+
+SafeHeapObjectSize HeapObjectLayout::SafeSize() const {
+  return Tagged<HeapObject>(this)->SafeSize();
+}
 
 // TODO(v8:11880): consider dropping parameterless version.
 int HeapObject::Size() const {

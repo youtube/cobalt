@@ -94,6 +94,7 @@
 
   /// Controller for the omnibox autocomplete.
   OmniboxAutocompleteController* _omniboxAutocompleteController;
+
   /// Controller for the omnibox text.
   OmniboxTextController* _omniboxTextController;
 
@@ -256,12 +257,12 @@
       autocompleteResultWrapper;
   autocompleteResultWrapper.delegate = _omniboxAutocompleteController;
 
-  self.popupCoordinator = [self createPopupCoordinator:self.presenterDelegate];
-  [self.popupCoordinator start];
-  if (IsMultilineBrowserOmniboxEnabled()) {
-    // Pre-render the input accessory view to make sure it shows on first launch
-    // crbug.com/458003863.
-    [self updateInputAccessoryView];
+  // NOTE: Suggestions are currently disabled for Cobrowse. If they are
+  // requested in the future, remove this conditional branch.
+  if (_presentationContext != OmniboxPresentationContext::kCobrowse) {
+    self.popupCoordinator =
+        [self createPopupCoordinator:self.presenterDelegate];
+    [self.popupCoordinator start];
   }
 }
 
@@ -273,6 +274,7 @@
   _client.reset();
 
   self.viewController = nil;
+  [self.mediator disconnect];
   self.mediator.templateURLService = nullptr;  // Unregister the observer.
   if (self.keyboardAccessoryView) {
     // Unregister the observer.
@@ -411,9 +413,16 @@
 #pragma mark - Private
 
 - (void)updateInputAccessoryView {
-  BOOL showKeyboardAccessory =
-      !self.searchOnlyUI &&
-      _presentationContext != OmniboxPresentationContext::kComposebox;
+  BOOL showKeyboardAccessory = YES;
+  if (self.searchOnlyUI) {
+    showKeyboardAccessory = NO;
+  }
+
+  if (_presentationContext == OmniboxPresentationContext::kComposebox ||
+      _presentationContext == OmniboxPresentationContext::kCobrowse) {
+    showKeyboardAccessory =
+        base::FeatureList::IsEnabled(kEnableFuseboxKeyboardAccessory);
+  }
 
   if (!self.keyboardAccessoryView && showKeyboardAccessory) {
     TemplateURLService* templateURLService =
@@ -421,6 +430,12 @@
     self.keyboardAccessoryView = ConfigureAssistiveKeyboardViews(
         self.viewController.textInput, kDotComTLD, _keyboardMediator,
         templateURLService);
+
+    if (base::FeatureList::IsEnabled(kEnableFuseboxKeyboardAccessory)) {
+      dispatch_async(dispatch_get_main_queue(), ^{
+        [self.viewController.textInput reloadInputViews];
+      });
+    }
   }
 }
 

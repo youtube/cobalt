@@ -29,14 +29,16 @@ include_rules = [
   "+chrome/browser/signin",
   "+chrome/browser/ui/ash/multi_user",
   "+chrome/browser/ui/chrome_pages.h",
-  "+chrome/browser/ui/settings_window_manager_chromeos.h",
   "+chrome/browser/ui/webui/signin/ash",
   "+chrome/common/chrome_switches.h",
   "+chrome/test/base",
 ]
 
 specific_include_rules = {
-  "arc_robot_auth_code_fetcher_browsertest\.cc": [
+  "arc_robot_auth_code_fetcher_browsertest\\.cc": [
     "+chrome/browser/ash/test",
+  ],
+  "arc_auth_service_browsertest\\.cc": [
+    "+chrome/browser/global_features.h",
   ]
 }

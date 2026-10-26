@@ -6,9 +6,9 @@
 
 #include <android/keycodes.h>
 
+#include "base/android/callback_android.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
-#include "base/android/jni_callback.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_hardware_buffer_handle.h"
 #include "base/android/scoped_java_ref.h"
@@ -45,7 +45,7 @@
 #include "url/gurl.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
-#include "components/embedder_support/android/web_contents_delegate_jni_headers/WebContentsDelegateAndroid_jni.h"
+#include "components/embedder_support/android/web_contents_delegate_jni/WebContentsDelegateAndroid_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::ConvertUTF16ToJavaString;
@@ -63,14 +63,21 @@ namespace web_contents_delegate_android {
 
 WebContentsDelegateAndroid::WebContentsDelegateAndroid(
     JNIEnv* env,
-    const jni_zero::JavaRef<jobject>& obj)
-    : weak_java_delegate_(env, obj) {}
+    const jni_zero::JavaRef<jobject>& obj) {
+  Java_WebContentsDelegateAndroid_registerRef(
+      env, reinterpret_cast<intptr_t>(this), obj);
+}
 
-WebContentsDelegateAndroid::~WebContentsDelegateAndroid() = default;
+WebContentsDelegateAndroid::~WebContentsDelegateAndroid() {
+  JNIEnv* env = AttachCurrentThread();
+  Java_WebContentsDelegateAndroid_unregisterRef(
+      env, reinterpret_cast<intptr_t>(this));
+}
 
 ScopedJavaLocalRef<jobject> WebContentsDelegateAndroid::GetJavaDelegate(
     JNIEnv* env) const {
-  return weak_java_delegate_.get(env);
+  return Java_WebContentsDelegateAndroid_getDelegate(
+      env, reinterpret_cast<intptr_t>(this));
 }
 
 // ----------------------------------------------------------------------------

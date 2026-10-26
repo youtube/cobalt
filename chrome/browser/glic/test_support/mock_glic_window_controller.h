@@ -31,7 +31,8 @@ class MockGlicWindowController
                bool,
                mojom::InvocationSource,
                std::optional<std::string>,
-               bool),
+               bool,
+               std::optional<std::string>),
               (override));
   MOCK_METHOD(void, ShowAfterSignIn, (base::WeakPtr<Browser>), (override));
   MOCK_METHOD(void, Attach, (), ());
@@ -115,6 +116,7 @@ class MockGlicWindowController
               (PanelStateObserver*),
               (override));
   MOCK_METHOD(glic::GlicInstanceMetrics*, instance_metrics, (), (override));
+  MOCK_METHOD(void, BindTabForTesting, (tabs::TabInterface * tab), (override));
 
   MOCK_METHOD(void,
               CreateNewConversationForTabs,

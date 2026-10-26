@@ -37,7 +37,7 @@ class WebUIDataSource;
 namespace searchbox_internal {
 // Internal constants for icon resource paths shared by SearchboxHandler and its
 // subclasses.
-extern const char* kSearchIconResourceName;
+extern const char* kSearchSparkIconResourceName;
 }  // namespace searchbox_internal
 
 // Base class for browser-side handlers that handle bi-directional communication
@@ -69,8 +69,8 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   // Notifies the WebUI that the contextual input status has changed.
   void OnContextualInputStatusChanged(
       base::UnguessableToken token,
-      contextual_search::FileUploadStatus status,
-      std::optional<contextual_search::FileUploadErrorType> error_type);
+      contextual_search::ContextUploadStatus status,
+      std::optional<contextual_search::ContextUploadErrorType> error_type);
 
   // AutocompleteController::Observer:
   void OnResultChanged(AutocompleteController* controller,
@@ -91,6 +91,11 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
                              bool ctrl_key,
                              bool meta_key,
                              bool shift_key) override;
+  void SetPopupSelection(
+      searchbox::mojom::OmniboxPopupSelectionPtr selection) override;
+  void OpenPopupSelection(uint32_t result_sequence_id,
+                          searchbox::mojom::OmniboxPopupSelectionPtr selection,
+                          WindowOpenDisposition disposition) override;
   void OnNavigationLikely(
       uint8_t line,
       const GURL& url,
@@ -100,7 +105,6 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
                        const GURL& url,
                        base::TimeTicks match_selection_timestamp,
                        bool is_mouse_event) override;
-  void ShowContextMenu(const gfx::Point& point) override;
   void ExecuteAction(uint8_t line,
                      uint8_t action_index,
                      const GURL& url,
@@ -124,7 +128,7 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
                      AddTabContextCallback) override {}
   void DeleteContext(const base::UnguessableToken& file_token,
                      bool from_automatic_chip) override {}
-  void ClearFiles() override {}
+  void ClearFiles(bool should_block_auto_suggested_tabs) override {}
   void SubmitQuery(const std::string& query_text,
                    uint8_t mouse_button,
                    bool alt_key,
@@ -133,7 +137,9 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
                    bool shift_key) override {}
   void OpenLensSearch() override {}
   void SetActiveToolMode(omnibox::ToolMode tool) override {}
+  void RecordToolSelectionAction(omnibox::ToolMode tool) override {}
   void SetActiveModelMode(omnibox::ModelMode model) override {}
+  void RecordModelSelectionAction(omnibox::ModelMode model) override {}
   void ActivateMetricsFunnel(const std::string& funnel_name) override {}
 
   // Stores `callback` to be run when the page remote is bound and ready to
@@ -145,6 +151,10 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   FRIEND_TEST_ALL_PREFIXES(RealboxHandlerTest, RealboxUpdatesEditModelInput);
   FRIEND_TEST_ALL_PREFIXES(LensSearchboxHandlerTest,
                            Lens_AutocompleteController_Start);
+  FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerTest,
+                           QueryAutocomplete_SetsLensInputs);
+  FRIEND_TEST_ALL_PREFIXES(ContextualSearchboxHandlerTest,
+                           QueryAutocomplete_SkipsLensInputs_InToolModes);
   SearchboxHandler(
       mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler,
       Profile* profile,

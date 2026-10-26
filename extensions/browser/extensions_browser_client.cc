@@ -15,6 +15,7 @@
 #include "components/update_client/configurator.h"
 #include "components/update_client/update_client.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/storage_partition_config.h"
 #include "extensions/browser/extension_api_frame_id_map.h"
@@ -89,6 +90,11 @@ void ExtensionsBrowserClient::ReportError(
 }
 
 bool ExtensionsBrowserClient::IsActivityLoggingEnabled(
+    content::BrowserContext* context) {
+  return false;
+}
+
+bool ExtensionsBrowserClient::IsTelemetryLoggingEnabled(
     content::BrowserContext* context) {
   return false;
 }
@@ -223,8 +229,10 @@ void ExtensionsBrowserClient::GetWebViewStoragePartitionConfig(
   auto partition_config = content::StoragePartitionConfig::Create(
       browser_context, owner_site_url.GetHost(), partition_name, in_memory);
 
-  if (owner_site_url.SchemeIs(extensions::kExtensionScheme)) {
-    const auto& owner_config = owner_site_instance->GetStoragePartitionConfig();
+  if (owner_site_instance->GetSecurityPrincipal().SchemeIs(
+          extensions::kExtensionScheme)) {
+    const auto& owner_config =
+        owner_site_instance->GetSecurityPrincipal().GetStoragePartitionConfig();
 #if DCHECK_IS_ON()
     if (browser_context->IsOffTheRecord()) {
       DCHECK(owner_config.in_memory());
@@ -315,5 +323,28 @@ ExtensionAssetsManager* ExtensionsBrowserClient::GetAssetsManager() {
   }
   return assets_manager_.get();
 }
+
+Blocklist* ExtensionsBrowserClient::GetBlocklist(
+    content::BrowserContext* context) {
+  return nullptr;
+}
+
+InstallStageTracker* ExtensionsBrowserClient::GetInstallStageTracker(
+    content::BrowserContext* context) {
+  return nullptr;
+}
+
+InstallTracker* ExtensionsBrowserClient::GetInstallTracker(
+    content::BrowserContext* context) {
+  return nullptr;
+}
+
+SharedModuleService* ExtensionsBrowserClient::GetSharedModuleService(
+    content::BrowserContext* context) {
+  return nullptr;
+}
+
+void ExtensionsBrowserClient::UpdateCheckIfEnabled(
+    content::BrowserContext* context) {}
 
 }  // namespace extensions

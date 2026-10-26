@@ -21,6 +21,7 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt_switch_defaults.h"
+#include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
 #include "media/base/media_switches.h"
@@ -68,9 +69,31 @@ TEST(CobaltSwitchDefaultsTest, MergeEnabledFeatures) {
                         "SmallerInterestArea, "
                         "ReclaimPrepaintTilesWhenIdle, "
                         "ReclaimOldPrepaintTiles, "
-                        "WebAudioRemoveAudioDestinationResampler, "
-                        "DomStorageSmartFlushing"),
+                        "WebAudioRemoveAudioDestinationResampler"),
             enabled_features);
+}
+
+TEST(CobaltSwitchDefaultsTest, MergeEnabledBlinkFeatures) {
+  const auto input_argv =
+      std::to_array<const char*>({"PROGRAM", "--enable-blink-features=UseFoo"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  EXPECT_EQ(std::string("UseFoo,PreciseMemoryInfo"),
+            GetSwitchValue(cmd_line_pxr, ::switches::kEnableBlinkFeatures));
+}
+
+TEST(CobaltSwitchDefaultsTest, MergeJavaScriptFlags) {
+  const auto input_argv =
+      std::to_array<const char*>({"PROGRAM", "--js-flags=--expose-gc"});
+  const int input_argc = static_cast<int>(input_argv.size());
+  CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
+
+  // V8 flags are last-wins, so defaults are prepended and the caller's flags
+  // come last.
+  EXPECT_EQ(std::string("--no-decommit-pooled-pages --no-concurrent-marking,"
+                        "--expose-gc"),
+            GetSwitchValue(cmd_line_pxr, blink::switches::kJavaScriptFlags));
 }
 
 TEST(CobaltSwitchDefaultsTest, ConsistentWindowSizes) {
@@ -121,11 +144,14 @@ TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
   std::vector<const char*> always_on_switches{
-      ::switches::kSingleProcess, ::switches::kIgnoreGpuBlocklist,
+      ::switches::kSingleProcess,
+      ::switches::kIgnoreGpuBlocklist,
 #if BUILDFLAG(IS_ANDROID)
       ::switches::kUserLevelMemoryPressureSignalParams,
+      ::switches::kDisableQuic,
 #endif  // BUILDFLAG(IS_ANDROID)
-      sandbox::policy::switches::kNoSandbox, ::switches::kHideScrollbars};
+      sandbox::policy::switches::kNoSandbox,
+      ::switches::kHideScrollbars};
 
   for (const auto& switch_key : always_on_switches) {
     EXPECT_TRUE(HasSwitch(cmd_line_pxr, switch_key));

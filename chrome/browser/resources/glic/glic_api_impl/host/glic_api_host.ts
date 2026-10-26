@@ -227,7 +227,7 @@ export class GlicApiHost implements PostMessageRequestHandler {
     this.webClientErrorTimer.reset();
     this.messageHandler.destroy();
     this.pinCandidatesObserver?.disconnectFromSource();
-    this.captureRegionObserver?.destroy();
+    this.captureRegionObserver?.disconnectFromSource();
   }
 
   setInitialState(initialState: WebClientInitialState) {
@@ -244,7 +244,7 @@ export class GlicApiHost implements PostMessageRequestHandler {
 
     if (shouldGate) {
       // Becoming inactive, cancel capture.
-      this.captureRegionObserver?.destroy();
+      this.captureRegionObserver?.disconnectFromSource();
       this.captureRegionObserver = undefined;
     }
     this.sender.setGating(shouldGate);
@@ -267,7 +267,7 @@ export class GlicApiHost implements PostMessageRequestHandler {
     this.clientActiveObs.assignAndSignal(this.isClientActive());
     if (state === PanelOpenState.CLOSED) {
       this.pinCandidatesObserver?.disconnectFromSource();
-      this.captureRegionObserver?.destroy();
+      this.captureRegionObserver?.disconnectFromSource();
       this.captureRegionObserver = undefined;
     } else {
       this.pinCandidatesObserver?.connectToSource();
@@ -348,7 +348,7 @@ export class GlicApiHost implements PostMessageRequestHandler {
           this.sender.getRawSender().messageQueueLength() +
           this.sender.getRawSender().inFlightRequestCount();
       if (hostSendMessageQueueLength >= SMALL_QUEUE_SIZE) {
-        chrome.metricsPrivate.recordMediumCount(
+        chrome.histograms.recordMediumCount(
             'Glic.Host.HostSendMessageQueueLength', hostSendMessageQueueLength);
       }
 
@@ -359,7 +359,7 @@ export class GlicApiHost implements PostMessageRequestHandler {
               .then((response: {clientSendMessageQueueLength: number}) => {
                 gotResponse = true;
                 if (response.clientSendMessageQueueLength >= SMALL_QUEUE_SIZE) {
-                  chrome.metricsPrivate.recordMediumCount(
+                  chrome.histograms.recordMediumCount(
                       'Glic.Host.ClientSendMessageQueueLength',
                       response.clientSendMessageQueueLength);
                 }
@@ -524,23 +524,23 @@ export class GlicApiHost implements PostMessageRequestHandler {
           `reportRequestCountEvent: invalid requestType ${histogramSuffix}`);
       return;
     }
-    chrome.metricsPrivate.recordEnumerationValue(
+    chrome.histograms.recordEnumerationValue(
         `Glic.Api.RequestCounts.${histogramSuffix}`, event,
         GlicRequestEvent.MAX_VALUE + 1);
 
     switch (event) {
       case GlicRequestEvent.REQUEST_HANDLER_EXCEPTION:
-        chrome.metricsPrivate.recordEnumerationValue(
+        chrome.histograms.recordEnumerationValue(
             `Glic.Api.RequestCounts.Error`, requestTypeNumber,
             HOST_REQUEST_TYPES.MAX_VALUE + 1);
         break;
       case GlicRequestEvent.REQUEST_RECEIVED_WHILE_HIDDEN:
-        chrome.metricsPrivate.recordEnumerationValue(
+        chrome.histograms.recordEnumerationValue(
             `Glic.Api.RequestCounts.Hidden`, requestTypeNumber,
             HOST_REQUEST_TYPES.MAX_VALUE + 1);
         break;
       case GlicRequestEvent.REQUEST_RECEIVED:
-        chrome.metricsPrivate.recordEnumerationValue(
+        chrome.histograms.recordEnumerationValue(
             `Glic.Api.RequestCounts.Received`, requestTypeNumber,
             HOST_REQUEST_TYPES.MAX_VALUE + 1);
         break;

@@ -4,24 +4,36 @@
 
 #include "remoting/host/linux/desktop_session_factory_linux.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "base/base_paths.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
+#include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notimplemented.h"
 #include "base/path_service.h"
 #include "base/process/process.h"
+#include "base/rand_util.h"
 #include "base/sequence_checker.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
+#include "base/uuid.h"
+#include "base/values.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
+#include "remoting/base/async_file_util.h"
 #include "remoting/base/auto_thread_task_runner.h"
+#include "remoting/base/branding.h"
 #include "remoting/base/logging.h"
 #include "remoting/host/base/switches.h"
 #include "remoting/host/desktop_session.h"
@@ -37,8 +49,26 @@ namespace remoting {
 
 namespace {
 
-std::string IdToDisplayName(int id) {
-  return base::NumberToString(id);
+// Delay to throttle writes to the remote displays file. This prevents bursts of
+// remote display changes during creation and greeter->user switchover.
+constexpr base::TimeDelta kWriteRemoteDisplaysDelay = base::Seconds(5);
+
+std::string GenerateRandomDisplayName() {
+  std::string out;
+  // GDM does not allow hyphens in the RemoteDisplay remote_id, so we just
+  // remove it.
+  base::RemoveChars(base::Uuid::GenerateRandomV4().AsLowercaseString(), "-",
+                    &out);
+  return out;
+}
+
+base::FilePath GetRemoteDisplaysConfigFilePath() {
+  base::FilePath config_dir = GetConfigDir();
+  if (config_dir.empty()) {
+    LOG(ERROR) << "Failed to get config directory.";
+    return {};
+  }
+  return config_dir.Append("remote_displays.json");
 }
 
 }  // namespace
@@ -52,19 +82,25 @@ class DesktopSessionFactoryLinux::DesktopSessionLinux
       DaemonProcess* daemon_process,
       int id,
       std::string_view display_name,
+      std::string_view required_username,
+      std::string_view client_id,
       scoped_refptr<base::SingleThreadTaskRunner> io_task_runner,
       base::OnceClosure remove_from_factory);
   ~DesktopSessionLinux() override;
 
   void OnRemoteDisplaySessionChanged(
-      const RemoteDisplaySessionManager::RemoteDisplayInfo& info);
+      const RemoteDisplaySessionManager::RemoteDisplaySession& info);
 
   // Notifies the daemon process and terminates the desktop session. Note that
   // `this` will be deleted during the call.
   void TerminateSession();
 
+  const std::string& client_id() const { return client_id_; }
+
   // DesktopSession implementation.
   void SetScreenResolution(const ScreenResolution& resolution) override;
+  void ReconnectNetworkChannel(
+      const mojom::DesktopSessionOptions& options) override;
 
   // WorkerProcessIpcDelegate implementation.
   void OnChannelConnected(int32_t peer_pid) override;
@@ -85,9 +121,18 @@ class DesktopSessionFactoryLinux::DesktopSessionLinux
  private:
   void CrashDesktopProcess(const base::Location& location);
 
+  // Returns whether the current desktop session is allowed based on
+  // `required_username_`. If the session info is not ready yet, this method
+  // will still return true, since it will be called again once the session info
+  // is ready.
+  bool IsSessionUsernameAllowed(
+      const RemoteDisplaySessionManager::RemoteDisplaySession& session);
+
   SEQUENCE_CHECKER(sequence_checker_);
 
   std::string display_name_ GUARDED_BY_CONTEXT(sequence_checker_);
+  std::string required_username_ GUARDED_BY_CONTEXT(sequence_checker_);
+  std::string client_id_ GUARDED_BY_CONTEXT(sequence_checker_);
   scoped_refptr<base::SingleThreadTaskRunner> io_task_runner_
       GUARDED_BY_CONTEXT(sequence_checker_);
   base::OnceClosure remove_from_factory_ GUARDED_BY_CONTEXT(sequence_checker_);
@@ -96,6 +141,8 @@ class DesktopSessionFactoryLinux::DesktopSessionLinux
   mojo::AssociatedReceiver<mojom::DesktopSessionRequestHandler>
       desktop_session_request_handler_ GUARDED_BY_CONTEXT(sequence_checker_){
           this};
+  mojo::AssociatedRemote<mojom::DesktopProcessControl> desktop_process_control_
+      GUARDED_BY_CONTEXT(sequence_checker_);
 
   base::WeakPtrFactory<DesktopSessionLinux> weak_ptr_factory_{this};
 };
@@ -104,10 +151,14 @@ DesktopSessionFactoryLinux::DesktopSessionLinux::DesktopSessionLinux(
     DaemonProcess* daemon_process,
     int id,
     std::string_view display_name,
+    std::string_view required_username,
+    std::string_view client_id,
     scoped_refptr<base::SingleThreadTaskRunner> io_task_runner,
     base::OnceClosure remove_from_factory)
     : DesktopSession(daemon_process, id),
       display_name_(display_name),
+      required_username_(required_username),
+      client_id_(client_id),
       io_task_runner_(io_task_runner),
       remove_from_factory_(std::move(remove_from_factory)) {}
 
@@ -119,7 +170,7 @@ DesktopSessionFactoryLinux::DesktopSessionLinux::~DesktopSessionLinux() {
 
 void DesktopSessionFactoryLinux::DesktopSessionLinux::
     OnRemoteDisplaySessionChanged(
-        const RemoteDisplaySessionManager::RemoteDisplayInfo& info) {
+        const RemoteDisplaySessionManager::RemoteDisplaySession& info) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (!info.session_info.has_value() || !info.user_info.has_value() ||
@@ -130,12 +181,22 @@ void DesktopSessionFactoryLinux::DesktopSessionLinux::
     return;
   }
 
+  if (!IsSessionUsernameAllowed(info)) {
+    LOG(ERROR) << "User " << info.user_info->username
+               << " is not allowed for local login.";
+    // TODO: crbug.com/475611769 - Pass the SESSION_REJECTED error code to the
+    // network process so that the client can see the correct error message.
+    TerminateSession();
+    return;
+  }
+
   if (!IsLocalLoginAllowed(info.user_info->username)) {
     LOG(ERROR) << "User " << info.user_info->username
                << " is not allowed for local login.";
     // TODO: crbug.com/475611769 - Pass the SESSION_REJECTED error code to the
     // network process so that the client can see the correct error message.
     TerminateSession();
+    return;
   }
 
   // TODO: crbug.com/475611769 - See if we need a dedicated desktop process
@@ -163,6 +224,9 @@ void DesktopSessionFactoryLinux::DesktopSessionLinux::
       std::make_unique<LinuxWorkerProcessLauncherDelegate>(std::move(options),
                                                            io_task_runner_),
       this);
+  desktop_process_control_.reset();
+  launcher_->GetRemoteAssociatedInterface(
+      desktop_process_control_.BindNewEndpointAndPassReceiver());
 }
 
 void DesktopSessionFactoryLinux::DesktopSessionLinux::TerminateSession() {
@@ -180,6 +244,30 @@ void DesktopSessionFactoryLinux::DesktopSessionLinux::SetScreenResolution(
   NOTIMPLEMENTED_LOG_ONCE();
 }
 
+void DesktopSessionFactoryLinux::DesktopSessionLinux::ReconnectNetworkChannel(
+    const mojom::DesktopSessionOptions& options) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (options.required_username != required_username_) {
+    LOG(ERROR) << "Required username has changed.";
+    TerminateSession();
+    return;
+  }
+
+  if (options.client_id != client_id_) {
+    LOG(ERROR) << "Client ID has changed.";
+    TerminateSession();
+    return;
+  }
+
+  if (desktop_process_control_.is_bound()) {
+    desktop_process_control_->ReconnectNetworkChannel();
+  }
+  // If `desktop_process_control_` is not bound, then it means the desktop
+  // process isn't launched yet. It will send the desktop pipe after it is
+  // launched anyway so we don't need to do anything.
+}
+
 void DesktopSessionFactoryLinux::DesktopSessionLinux::OnChannelConnected(
     int32_t peer_pid) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -195,6 +283,9 @@ void DesktopSessionFactoryLinux::DesktopSessionLinux::OnPermanentError(
 }
 
 void DesktopSessionFactoryLinux::DesktopSessionLinux::OnWorkerProcessStopped() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  desktop_process_control_.reset();
 }
 
 void DesktopSessionFactoryLinux::DesktopSessionLinux::
@@ -256,11 +347,42 @@ void DesktopSessionFactoryLinux::DesktopSessionLinux::CrashDesktopProcess(
   launcher_->Crash(location);
 }
 
+bool DesktopSessionFactoryLinux::DesktopSessionLinux::IsSessionUsernameAllowed(
+    const RemoteDisplaySessionManager::RemoteDisplaySession& info) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (required_username_.empty()) {
+    return true;
+  }
+  if (!info.user_info.has_value() || !info.session_info.has_value()) {
+    // The session info is not ready yet. This method will be called again when
+    // it is ready, so we just return true here.
+    return true;
+  }
+  if (info.session_info->session_class == "greeter") {
+    HOST_LOG << "Login username check skipped for greeter session.";
+    return true;
+  }
+  if (base::EqualsCaseInsensitiveASCII(required_username_,
+                                       info.user_info->username)) {
+    return true;
+  }
+  LOG(ERROR) << "User " << info.user_info->username
+             << " does not match the required username: " << required_username_;
+  return false;
+}
+
 // DesktopSessionFactoryLinux implementation.
 
 DesktopSessionFactoryLinux::DesktopSessionFactoryLinux(
     scoped_refptr<base::SingleThreadTaskRunner> io_task_runner)
-    : io_task_runner_(io_task_runner) {}
+    : io_task_runner_(io_task_runner),
+      write_remote_displays_timer_(
+          FROM_HERE,
+          kWriteRemoteDisplaysDelay,
+          base::BindRepeating(
+              &DesktopSessionFactoryLinux::WriteRemoteDisplaysToFile,
+              base::Unretained(this))) {}
 
 DesktopSessionFactoryLinux::~DesktopSessionFactoryLinux() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -278,24 +400,53 @@ void DesktopSessionFactoryLinux::Start(Callback callback) {
 std::unique_ptr<DesktopSession>
 DesktopSessionFactoryLinux::CreateDesktopSession(
     int id,
-    DaemonProcess* daemon_process) {
+    DaemonProcess* daemon_process,
+    const mojom::DesktopSessionOptions& options) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  std::string display_name = IdToDisplayName(id);
-  if (desktop_sessions_.contains(display_name)) {
-    LOG(ERROR) << "Desktop session ID " << id << " is already in use.";
-    return nullptr;
+  std::string display_name;
+  auto recovered_it = recovered_displays_.find(options.client_id);
+  if (recovered_it != recovered_displays_.end()) {
+    display_name = std::move(recovered_it->second);
+    recovered_displays_.erase(recovered_it);
+    HOST_LOG << "Reusing recovered remote display name " << display_name
+             << " for " << options.client_id;
+  } else {
+    display_name = GenerateRandomDisplayName();
   }
+
   auto desktop_session = std::make_unique<DesktopSessionLinux>(
-      daemon_process, id, display_name, io_task_runner_,
+      daemon_process, id, display_name, options.required_username,
+      options.client_id, io_task_runner_,
       base::BindOnce(&DesktopSessionFactoryLinux::RemoveDesktopSession,
                      weak_ptr_factory_.GetWeakPtr(), display_name));
-  // TODO: crbug.com/475611769 - Add timeout mechanism for waiting for the
-  // desktop session.
-  remote_display_session_manager_.CreateRemoteDisplay(
-      display_name,
-      base::BindOnce(&DesktopSessionFactoryLinux::OnCreateRemoteDisplayResult,
-                     weak_ptr_factory_.GetWeakPtr(), display_name));
+
+  if (auto* info =
+          remote_display_session_manager_.GetRemoteDisplayInfo(display_name)) {
+    // The remote display already exists. Find a ready session and notify, which
+    // will launch the desktop process.
+    LOG_IF(WARNING, info->sessions.size() > 1)
+        << "There are more than one remote display session for the remote "
+        << "display " << display_name;
+    for (const auto& [path, session] : info->sessions) {
+      if (session.session_info.has_value() && session.user_info.has_value() &&
+          !session.environment_variables.empty()) {
+        desktop_session->OnRemoteDisplaySessionChanged(session);
+        break;
+      }
+    }
+  } else {
+    // Note that this code path will be reached if the recovered remote display
+    // has been terminated externally. In this case a new remote display with
+    // the same display name will be created.
+    // TODO: crbug.com/475611769 - Add timeout mechanism for waiting for the
+    // desktop session.
+    remote_display_session_manager_.CreateRemoteDisplay(
+        display_name,
+        base::BindOnce(&DesktopSessionFactoryLinux::OnCreateRemoteDisplayResult,
+                       weak_ptr_factory_.GetWeakPtr(), display_name));
+  }
+
   desktop_sessions_[display_name] = desktop_session->GetWeakPtr();
   return desktop_session;
 }
@@ -305,16 +456,71 @@ void DesktopSessionFactoryLinux::OnStartResult(
     base::expected<void, Loggable> result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (result.has_value()) {
-    // If there are any pre-existing remote displays with the CRD prefix, then
-    // they are probably leaked from the previous CRD host incarnation. We can't
-    // reuse them so we just terminate them to prevent collisions of the remote
-    // display names.
-    // TODO: crbug.com/475611769 - see how we can recover these sessions. We may
-    // need to write something to the disk.
-    for (const auto& [display_name, _] :
-         remote_display_session_manager_.remote_displays()) {
-      HOST_LOG << "Terminating pre-existing remote display: " << display_name;
+  if (!result.has_value()) {
+    std::move(callback).Run(std::move(result));
+    return;
+  }
+
+  base::FilePath file_path = GetRemoteDisplaysConfigFilePath();
+  if (file_path.empty()) {
+    // Just don't attempt to recover remote displays in this case.
+    std::move(callback).Run(base::ok());
+    return;
+  }
+
+  ReadFileAsync(
+      file_path,
+      base::BindOnce(&DesktopSessionFactoryLinux::OnRemoteDisplaysFileLoaded,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void DesktopSessionFactoryLinux::OnRemoteDisplaysFileLoaded(
+    Callback callback,
+    base::FileErrorOr<std::string> load_result) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (load_result.has_value()) {
+    std::optional<base::Value> json =
+        base::JSONReader::Read(*load_result, base::JSON_PARSE_RFC);
+    if (json && json->is_dict()) {
+      for (const auto [client_id, display_name_value] : json->GetDict()) {
+        if (!display_name_value.is_string()) {
+          continue;
+        }
+        const std::string& display_name = display_name_value.GetString();
+        if (remote_display_session_manager_.GetRemoteDisplayInfo(
+                display_name)) {
+          HOST_LOG << "Recovering remote display " << display_name << " for "
+                   << client_id;
+          // The entry may still be invalid, e.g. if the file has been tampered
+          // with such that a user is associated with another user's graphical
+          // session. This will be validated in
+          // DesktopSessionLinux::OnRemoteDisplaySessionChanged when the client
+          // connects.
+          recovered_displays_[client_id] = display_name;
+        } else {
+          LOG(WARNING) << "Ignored remote display " << display_name
+                       << " which no longer exists.";
+        }
+      }
+    } else {
+      LOG(ERROR) << "Failed to parse remote displays file.";
+    }
+  } else if (load_result.error() != base::File::FILE_ERROR_NOT_FOUND) {
+    LOG(ERROR) << "Failed to read remote displays file: "
+               << base::File::ErrorToString(load_result.error());
+  }
+
+  for (const auto& [display_name, info] :
+       remote_display_session_manager_.remote_displays()) {
+    bool is_recovered = std::ranges::any_of(
+        recovered_displays_, [&display_name](const auto& pair) {
+          return pair.second == display_name;
+        });
+
+    if (!is_recovered) {
+      HOST_LOG << "Terminating unknown CRD-managed remote display: "
+               << display_name;
       remote_display_session_manager_.TerminateRemoteDisplay(
           display_name,
           base::BindOnce([](base::expected<void, Loggable> result) {
@@ -324,7 +530,8 @@ void DesktopSessionFactoryLinux::OnStartResult(
           }));
     }
   }
-  std::move(callback).Run(std::move(result));
+
+  std::move(callback).Run(base::ok());
 }
 
 void DesktopSessionFactoryLinux::OnCreateRemoteDisplayResult(
@@ -333,7 +540,7 @@ void DesktopSessionFactoryLinux::OnCreateRemoteDisplayResult(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (result.has_value()) {
-    // No need to do anything. OnRemoteDisplaySessionChanged() will be called
+    // No need to do anything. OnRemoteDisplayChanged() will be called
     // once the session is ready.
     return;
   }
@@ -346,15 +553,56 @@ void DesktopSessionFactoryLinux::OnCreateRemoteDisplayResult(
   }
 }
 
-void DesktopSessionFactoryLinux::OnRemoteDisplaySessionChanged(
+void DesktopSessionFactoryLinux::OnRemoteDisplayChanged(
     std::string_view display_name,
     const RemoteDisplaySessionManager::RemoteDisplayInfo& info) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  auto session = FindSession(display_name);
-  if (session) {
-    session->OnRemoteDisplaySessionChanged(info);
+  if (info.sessions.empty()) {
+    LOG(WARNING) << "Remote display " << display_name << " has no sessions.";
+    return;
   }
+
+  if (info.sessions.size() == 1) {
+    auto session = FindSession(display_name);
+    if (!session) {
+      return;
+    }
+    session->OnRemoteDisplaySessionChanged(info.sessions.begin()->second);
+    RequestWriteRemoteDisplaysToFile();
+    return;
+  }
+
+  // There are multiple sessions with the same display name. This usually
+  // happens during greeter->user transition. This is mostly for GRD to do the
+  // RDP handover before they terminate the greeter. CRD doesn't do RDP
+  // handover, so we just find and terminate the greeter session.
+  auto greeter_it = std::ranges::find_if(info.sessions, [](const auto& pair) {
+    return pair.second.session_info->session_class == "greeter";
+  });
+  const RemoteDisplaySessionManager::RemoteDisplaySession* session = nullptr;
+  if (greeter_it != info.sessions.end()) {
+    session = &greeter_it->second;
+    HOST_LOG << "Terminating greeter session "
+             << session->session_info->session_id
+             << "for remote display: " << display_name;
+  } else {
+    session = &info.sessions.begin()->second;
+    LOG(WARNING) << "Cannot find greeter session. Terminating the first "
+                 << session->session_info->session_class << " session "
+                 << session->session_info->session_id
+                 << " for remote display: " << display_name;
+  }
+  // We just terminate one session, since terminating multiple sessions at a
+  // time will result in multiple OnRemoteDisplayChanged() calls.
+  // OnRemoteDisplayChanged() will be called once the session is removed.
+  remote_display_session_manager_.TerminateRemoteDisplaySession(
+      *session, base::BindOnce([](base::expected<void, Loggable> result) {
+        // TODO: crbug.com/475611769 - See what to do with the callback.
+        if (!result.has_value()) {
+          LOG(ERROR) << result.error();
+        }
+      }));
 }
 
 void DesktopSessionFactoryLinux::OnRemoteDisplayTerminated(
@@ -365,6 +613,8 @@ void DesktopSessionFactoryLinux::OnRemoteDisplayTerminated(
   // session may be nullptr if the desktop session has already been removed by
   // RemoveDesktopSession().
   if (session) {
+    // TODO: crbug.com/475611769 - Pass the SESSION_REJECTED error code to the
+    // network process so that the client can see the correct error message.
     session->TerminateSession();
   }
 }
@@ -374,6 +624,7 @@ void DesktopSessionFactoryLinux::RemoveDesktopSession(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   desktop_sessions_.erase(display_name);
+  RequestWriteRemoteDisplaysToFile();
   if (!remote_display_session_manager_.GetRemoteDisplayInfo(display_name)) {
     // The remote display has already been terminated.
     return;
@@ -393,6 +644,73 @@ DesktopSessionFactoryLinux::FindSession(std::string_view display_name) {
 
   auto it = desktop_sessions_.find(display_name);
   return it == desktop_sessions_.end() ? nullptr : it->second;
+}
+
+void DesktopSessionFactoryLinux::RequestWriteRemoteDisplaysToFile() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  // This either starts or delays the timer.
+  write_remote_displays_timer_.Reset();
+}
+
+void DesktopSessionFactoryLinux::WriteRemoteDisplaysToFile() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  base::DictValue dict;
+  for (const auto& [display_name, session] : desktop_sessions_) {
+    if (!session) {
+      continue;
+    }
+    const auto* info =
+        remote_display_session_manager_.GetRemoteDisplayInfo(display_name);
+    if (!info) {
+      continue;
+    }
+
+    // Only write a remote display with a user session. There is no value to
+    // recover a greeter session, and it is not recoverable on GNOME 48 or older
+    // since we can't launch the session reporter process ourselves.
+    bool has_user_session =
+        std::ranges::any_of(info->sessions, [](const auto& pair) {
+          return pair.second.session_info.has_value() &&
+                 pair.second.session_info->session_class == "user";
+        });
+    if (!has_user_session) {
+      continue;
+    }
+
+    if (dict.contains(session->client_id())) {
+      LOG(WARNING) << "Multiple remote displays found for "
+                   << session->client_id() << ". Using "
+                   << *dict.FindString(session->client_id()) << " and ignoring "
+                   << display_name;
+    } else {
+      dict.Set(session->client_id(), display_name);
+    }
+  }
+
+  base::FilePath file_path = GetRemoteDisplaysConfigFilePath();
+  if (file_path.empty()) {
+    return;
+  }
+
+  std::string json_output;
+  if (!base::JSONWriter::Write(dict, &json_output)) {
+    LOG(ERROR) << "Failed to serialize remote displays to JSON.";
+    return;
+  }
+
+  // Only root is allowed to read or write this file.
+  WriteFileWithPermissionsAsync(
+      file_path, std::move(json_output), 0o600,
+      base::BindOnce(
+          [](const base::FilePath& path, base::FileErrorOr<void> result) {
+            if (!result.has_value()) {
+              LOG(ERROR) << "Failed to write remote displays to " << path
+                         << ": " << base::File::ErrorToString(result.error());
+            }
+          },
+          file_path));
 }
 
 }  // namespace remoting

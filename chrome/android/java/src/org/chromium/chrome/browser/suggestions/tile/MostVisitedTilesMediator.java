@@ -12,6 +12,9 @@ import static org.chromium.chrome.browser.suggestions.tile.MostVisitedTilesPrope
 import android.content.Context;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewGroup.MarginLayoutParams;
 
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
@@ -19,8 +22,10 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.native_page.ContextMenuManager;
+import org.chromium.chrome.browser.ntp.NewTabPageUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager.HomepageStateListener;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.offlinepages.OfflinePageBridge;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.suggestions.SiteSuggestion;
@@ -46,6 +51,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
     private final Context mContext;
     private final Resources mResources;
     private final UiConfig mUiConfig;
+    private final View mMvTilesContainerLayout;
     private final MostVisitedTilesLayout mMvTilesLayout;
     private final PropertyModel mModel;
     private final boolean mIsTablet;
@@ -61,6 +67,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
     private TileRenderer mRenderer;
     private TileGroup mTileGroup;
     private UserEducationHelper mUserEducationHelper;
+    private boolean mMvtContentFits;
 
     private final int mLateralMarginSum;
     private final int mTileViewEdgePaddingForTablet;
@@ -69,7 +76,7 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
     public MostVisitedTilesMediator(
             Context context,
             UiConfig uiConfig,
-            MostVisitedTilesLayout mvTilesLayout,
+            View mvTilesContainerLayout,
             TileRenderer renderer,
             PropertyModel propertyModel,
             boolean isTablet,
@@ -83,7 +90,8 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
         mIsTablet = isTablet;
         mSnapshotTileGridChangedRunnable = snapshotTileGridChangedRunnable;
         mTileCountChangedRunnable = tileCountChangedRunnable;
-        mMvTilesLayout = mvTilesLayout;
+        mMvTilesContainerLayout = mvTilesContainerLayout;
+        mMvTilesLayout = mvTilesContainerLayout.findViewById(R.id.mv_tiles_layout);
 
         mTileViewLandscapePadding =
                 mResources.getDimensionPixelSize(R.dimen.tile_view_padding_landscape);
@@ -246,6 +254,47 @@ public class MostVisitedTilesMediator implements TileGroup.Observer {
 
     public boolean isMVTilesCleanedUp() {
         return mTileGroup == null;
+    }
+
+    /**
+     * Updates whether the MV tiles layout stays in the center of the container when used in NTP on
+     * the tablet by changing the width of its container. Also updates the lateral margins.
+     *
+     * @param totalWidth The total width of the MV tiles layout. If it isn't null, we will
+     *     recalculate the value of |mMvtContentFits|.
+     */
+    void updateMvtOnTablet(@Nullable Integer totalWidth) {
+        if (totalWidth != null) {
+            mMvtContentFits = mMvTilesLayout.contentFitsOnTablet(totalWidth);
+        }
+
+        MarginLayoutParams marginLayoutParams =
+                (MarginLayoutParams) mMvTilesContainerLayout.getLayoutParams();
+        marginLayoutParams.width =
+                mMvtContentFits
+                        ? ViewGroup.LayoutParams.WRAP_CONTENT
+                        : ViewGroup.LayoutParams.MATCH_PARENT;
+
+        int lateralPaddingId =
+                NtpCustomizationUtils.isInNarrowWindowOnTablet(mIsTablet, mUiConfig)
+                        ? R.dimen.ntp_search_box_lateral_margin_narrow_window_tablet
+                        : R.dimen.mvt_container_lateral_margin;
+        int lateralPaddingsForNtp = mResources.getDimensionPixelSize(lateralPaddingId);
+        marginLayoutParams.leftMargin = lateralPaddingsForNtp;
+        marginLayoutParams.rightMargin = lateralPaddingsForNtp;
+    }
+
+    /**
+     * Updates the margins for the most visited tiles layout based on what is shown above it.
+     *
+     * @param shouldShowLogo Whether the logo is shown.
+     * @param isWhiteBackgroundOnSearchBoxApplied Whether a white background is applied to the fake
+     *     search box.
+     * @param isTablet Whether the device is a tablet.
+     */
+    void updateTilesLayoutMargins(boolean shouldShowLogo, boolean isTablet) {
+        NewTabPageUtils.updateTilesLayoutTopMargin(
+                mMvTilesContainerLayout, shouldShowLogo, isTablet);
     }
 
     public void onSwitchToForeground() {

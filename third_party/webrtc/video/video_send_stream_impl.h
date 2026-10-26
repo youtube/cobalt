@@ -17,11 +17,11 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "api/adaptation/resource.h"
-#include "api/array_view.h"
 #include "api/call/bitrate_allocation.h"
 #include "api/environment/environment.h"
 #include "api/fec_controller.h"
@@ -41,6 +41,7 @@
 #include "api/video/video_frame.h"
 #include "api/video/video_layers_allocation.h"
 #include "api/video/video_source_interface.h"
+#include "api/video/video_stream_encoder_settings.h"
 #include "api/video_codecs/video_encoder.h"
 #include "call/bitrate_allocator.h"
 #include "call/rtp_config.h"
@@ -88,23 +89,25 @@ class VideoSendStreamImpl : public webrtc::VideoSendStream,
   using RtpStateMap = std::map<uint32_t, RtpState>;
   using RtpPayloadStateMap = std::map<uint32_t, RtpPayloadState>;
 
-  VideoSendStreamImpl(const Environment& env,
-                      int num_cpu_cores,
-                      RtcpRttStats* call_stats,
-                      RtpTransportControllerSendInterface* transport,
-                      Metronome* metronome,
-                      BitrateAllocatorInterface* bitrate_allocator,
-                      SendDelayStats* send_delay_stats,
-                      VideoSendStream::Config config,
-                      VideoEncoderConfig encoder_config,
-                      const RtpStateMap& suspended_ssrcs,
-                      const RtpPayloadStateMap& suspended_payload_states,
-                      std::unique_ptr<FecController> fec_controller,
-                      std::unique_ptr<VideoStreamEncoderInterface>
-                          video_stream_encoder_for_test = nullptr);
+  VideoSendStreamImpl(
+      const Environment& env,
+      int num_cpu_cores,
+      RtcpRttStats* call_stats,
+      RtpTransportControllerSendInterface* transport,
+      Metronome* metronome,
+      BitrateAllocatorInterface* bitrate_allocator,
+      SendDelayStats* send_delay_stats,
+      VideoSendStream::Config config,
+      VideoEncoderConfig encoder_config,
+      const RtpStateMap& suspended_ssrcs,
+      const RtpPayloadStateMap& suspended_payload_states,
+      std::unique_ptr<FecController> fec_controller,
+      EncoderSwitchRequestCallback encoder_switch_request_callback = nullptr,
+      std::unique_ptr<VideoStreamEncoderInterface>
+          video_stream_encoder_for_test = nullptr);
   ~VideoSendStreamImpl() override;
 
-  void DeliverRtcp(ArrayView<const uint8_t> packet);
+  void DeliverRtcp(std::span<const uint8_t> packet);
 
   // webrtc::VideoSendStream implementation.
   void Start() override;
@@ -123,7 +126,7 @@ class VideoSendStreamImpl : public webrtc::VideoSendStream,
   Stats GetStats() override;
   void SetStats(const Stats& stats) override;
 
-  void SetCsrcs(ArrayView<const uint32_t> csrcs) override;
+  void SetCsrcs(std::span<const uint32_t> csrcs) override;
 
   void StopPermanentlyAndGetRtpStates(RtpStateMap* rtp_state_map,
                                       RtpPayloadStateMap* payload_state_map);
@@ -186,6 +189,9 @@ class VideoSendStreamImpl : public webrtc::VideoSendStream,
 
   // Implements EncodedImageCallback.
   void OnDroppedFrame(EncodedImageCallback::DropReason reason) override;
+  void OnFrameDropped(uint32_t rtp_timestamp,
+                      int spatial_id,
+                      bool is_end_of_temporal_unit) override;
 
   // Starts monitoring and sends a keyframe.
   void StartupVideoSendStream();

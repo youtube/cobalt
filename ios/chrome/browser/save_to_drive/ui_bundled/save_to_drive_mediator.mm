@@ -116,8 +116,11 @@ void StorageQuotaCompletionHelper(__weak SaveToDriveMediator* mediator,
                            ? FileDestination::kDrive
                            : FileDestination::kFiles;
 
-    CHECK(_identityManager->HasPrimaryAccount(signin::ConsentLevel::kSignin),
-          base::NotFatalUntil::M152);
+    CHECK(
+        base::FeatureList::IsEnabled(kIOSSaveToDriveSignedOut) ||
+            _identityManager->HasPrimaryAccount(signin::ConsentLevel::kSignin),
+        base::NotFatalUntil::M152);
+
     _identityManagerObserver =
         std::make_unique<signin::IdentityManagerObserverBridge>(
             _identityManager, self);
@@ -336,8 +339,7 @@ void StorageQuotaCompletionHelper(__weak SaveToDriveMediator* mediator,
   // upload the file, add the download task to the Drive tab helper, start the
   // task through the Download Manager tab helper and hide the account picker
   // view.
-  DriveTabHelper* driveTabHelper =
-      DriveTabHelper::GetOrCreateForWebState(_webState);
+  DriveTabHelper* driveTabHelper = DriveTabHelper::FromWebState(_webState);
   driveTabHelper->AddDownloadToSaveToDrive(_downloadTask,
                                            _fileUploader->GetIdentity());
   DownloadManagerTabHelper* downloadManagerTabHelper =

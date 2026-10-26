@@ -43,7 +43,7 @@ impl BenchmarkStats {
             })
             .sum();
         let variance = if num_runs > 1 { sum_squared_diffs / (num_runs - 1) as f64 } else { 0.0 };
-        BenchmarkStats { average: average, std_dev: variance.sqrt() }
+        BenchmarkStats { average, std_dev: variance.sqrt() }
     }
 }
 
@@ -57,13 +57,13 @@ fn main() {
 
     let input_path = Path::new(&args[1]);
     let output_path = Path::new(&args[2]);
-    let etc1_output_path = args.get(3).map(|s| Path::new(s));
+    let etc1_output_path = args.get(3).map(Path::new);
 
     let decoder = png::Decoder::new(BufReader::new(
         File::open(input_path).expect("Failed to open input file"),
     ));
     let mut reader = decoder.read_info().expect("Failed to read PNG info");
-    let mut buf = vec![0; reader.output_buffer_size()];
+    let mut buf = vec![0; reader.output_buffer_size().expect("Output too big")];
     let first_frame = reader.next_frame(&mut buf).expect("Failed to read PNG frame");
     let input_rgba = &buf[..first_frame.buffer_size()];
     let etc1_data_width = first_frame.width.div_ceil(4);

@@ -2,16 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
+#include <fuzzer/FuzzedDataProvider.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#include <fuzzer/FuzzedDataProvider.h>
-
+#include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
 #include "sandbox/win/src/broker_services.h"
 #include "sandbox/win/src/ipc_tags.h"
@@ -76,7 +71,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
 
   // As parameters are created by Chromium code the format of the variables must
-  // be correct, and any wstrings will be validly null-terminated.
+  // be correct.
 
   FuzzedDataProvider data_provider(data, size);
   params.count = maxParams;
@@ -87,28 +82,26 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
           sandbox::ArgType::WCHAR_TYPE, sandbox::ArgType::LAST_TYPE));
   auto pointed_at_bytes = data_provider.ConsumeBytes<uint8_t>(sizeof(void*));
   // These variables must  remain in scope past the EvalPolicy call later.
-  std::wstring param_1_wstring;
+  std::wstring_view param_1_wstring;
   const unsigned char* param_data = nullptr;
   if (params.params[1].real_type_ == sandbox::ArgType::WCHAR_TYPE) {
-    param_1_wstring =
-        std::wstring(reinterpret_cast<wchar_t*>(pointed_at_bytes.data()),
-                     pointed_at_bytes.size() / sizeof(wchar_t));
-
-    param_data =
-        reinterpret_cast<const unsigned char*>(param_1_wstring.c_str());
+    param_1_wstring = std::wstring_view(
+        UNSAFE_TODO(reinterpret_cast<wchar_t*>(pointed_at_bytes.data())),
+        pointed_at_bytes.size() / sizeof(wchar_t));
+    params.params[1].address_ = &param_1_wstring;
   } else {
     param_data = pointed_at_bytes.data();
+    params.params[1].address_ = &param_data;
   }
-  params.params[1].address_ = static_cast<void*>(&param_data);
 
-  // param[0] is usually the filename. It must be a valid terminated wstring.
+  // param[0] is usually the filename. It must be a wstring_view.
   params.params[0].real_type_ = sandbox::ArgType::WCHAR_TYPE;
   auto string_bytes =
       data_provider.ConsumeBytes<uint8_t>(data_provider.remaining_bytes());
-  std::wstring valid_wstr(reinterpret_cast<wchar_t*>(string_bytes.data()),
-                          string_bytes.size() / sizeof(wchar_t));
-  const wchar_t* wcharstar_variable = valid_wstr.c_str();
-  params.params[0].address_ = static_cast<void*>(&wcharstar_variable);
+  std::wstring_view wcharview_variable(
+      UNSAFE_TODO(reinterpret_cast<wchar_t*>(string_bytes.data())),
+      string_bytes.size() / sizeof(wchar_t));
+  params.params[0].address_ = &wcharview_variable;
 
   // Overlay the real type.
   sandbox::CountedParameterSetBase* real_params =

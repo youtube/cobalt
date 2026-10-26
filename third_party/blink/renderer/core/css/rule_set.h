@@ -231,7 +231,7 @@ class RuleMap {
 
  public:
   // Returns false on failure (which should be very rare).
-  bool Add(const AtomicString& key, const RuleData& rule_data);
+  [[nodiscard]] bool Add(const AtomicString& key, const RuleData& rule_data);
   void AddFilteredRulesFromOtherSet(
       const RuleMap& other,
       const HeapHashSet<Member<StyleRule>>& only_include,
@@ -657,9 +657,13 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
                      CascadeLayer*,
                      const StyleScope*,
                      ApplyMixinsStack& apply_mixins_stack);
-  void FlattenMixinLocals(base::span<const Member<StyleRuleBase>> rules,
-                          const MediaQueryEvaluator& medium,
-                          HeapHashMap<String, Member<CSSVariableData>>& locals);
+  void FlattenMixinLocals(
+      base::span<const Member<StyleRuleBase>> rules,
+      const MediaQueryEvaluator& medium,
+      const ContainerQuery* container_query,
+      HeapHashMap<String, Member<CSSVariableData>>& locals,
+      HeapHashMap<String, HeapVector<MixinParameterBindings::CQDependentValue>>&
+          cq_dependent_locals);
 
   // Determines whether or not CSSSelector::is_covered_by_bucketing_ should
   // be computed during calls to FindBestBucketAndAdd.

@@ -21,7 +21,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/webid/account_selection_view.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/browser/webid/identity_request_account.h"
 #include "content/public/browser/webid/identity_request_dialog_controller.h"
@@ -59,6 +58,8 @@ class MockAccountSelectionView : public AccountSelectionView {
 
   MockAccountSelectionView(const MockAccountSelectionView&) = delete;
   MockAccountSelectionView& operator=(const MockAccountSelectionView&) = delete;
+
+  MOCK_METHOD(void, OnPageActionClicked, (), (override));
 
   MOCK_METHOD(
       bool,
@@ -179,8 +180,8 @@ class IdentityDialogControllerBrowserTest : public InProcessBrowserTest {
         actor::ActorKeyedService::Get(browser()->profile());
     CHECK(actor_service);
 
-    actor::TaskId task_id =
-        actor_service->CreateTask(actor::NoEnterprisePolicyChecker());
+    actor::TaskId task_id = actor_service->CreateTask(
+        actor::TestTaskSourceInfo(), actor::NoEnterprisePolicyChecker());
 
     // Perform an arbitrary action in a tab to put the task into
     // UnderActorControl state and add the tab to the task.
@@ -256,7 +257,8 @@ IN_PROC_BROWSER_TEST_F(IdentityDialogControllerBrowserTest,
   controller->ShowAccountsDialog(
       content::RelyingPartyData(kTopFrameEtldPlusOne,
                                 /*iframe_for_display=*/u""),
-      {idp_data}, accounts, blink::mojom::RpMode::kActive,
+      {idp_data}, accounts, /*filtered_accounts=*/{},
+      blink::mojom::RpMode::kActive,
       /*on_selected=*/base::DoNothing(),
       /*on_add_account=*/base::DoNothing(),
       /*dismiss_callback=*/base::DoNothing(),

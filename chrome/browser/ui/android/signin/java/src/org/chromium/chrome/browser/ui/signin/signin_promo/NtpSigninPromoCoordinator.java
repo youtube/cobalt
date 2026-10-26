@@ -22,7 +22,7 @@ import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
-import java.util.function.Supplier;
+import java.util.function.BooleanSupplier;
 
 /** Coordinator for the seamless sign-in promo card in NTP. */
 @NullMarked
@@ -55,10 +55,11 @@ public class NtpSigninPromoCoordinator {
             ActivityResultTracker activityResultTracker,
             SigninAndHistorySyncActivityLauncher launcher,
             BottomSheetController bottomSheetController,
-            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
+            ModalDialogManager modalDialogManager,
             SnackbarManager snackbarManager,
             DeviceLockActivityLauncher deviceLockActivityLauncher,
-            ViewStub signinPromoViewContainerStub) {
+            ViewStub signinPromoViewContainerStub,
+            BooleanSupplier isSetupListActiveSupplier) {
         mSigninPromoCoordinator =
                 new SigninPromoCoordinator(
                         windowAndroid,
@@ -67,11 +68,15 @@ public class NtpSigninPromoCoordinator {
                         activityResultTracker,
                         launcher,
                         SupplierUtils.of(bottomSheetController),
-                        modalDialogManagerSupplier,
+                        modalDialogManager,
                         snackbarManager,
                         deviceLockActivityLauncher,
                         new NtpSigninPromoDelegate(
-                                activity, profile, launcher, this::onPromoStateChange));
+                                activity,
+                                profile,
+                                launcher,
+                                this::onPromoStateChange,
+                                isSetupListActiveSupplier));
 
         mSigninPromoViewContainerStub = signinPromoViewContainerStub;
         onPromoStateChange();

@@ -185,6 +185,7 @@ class CONTENT_EXPORT SiteInfo : public SecurityPrincipal {
   // Initializes |storage_partition_config_| with a value appropriate for
   // |browser_context|.
   explicit SiteInfo(BrowserContext* browser_context);
+
   // The SiteInfo constructor should take in all values needed for comparing two
   // SiteInfos, to help ensure all creation sites are updated accordingly when
   // new values are added. The private function MakeSecurityPrincipalKey()
@@ -209,6 +210,9 @@ class CONTENT_EXPORT SiteInfo : public SecurityPrincipal {
   // SecurityPrincipal overrides.
   ~SiteInfo() override;
   bool IsSandboxed() const override;
+  bool IsGuest() const override;
+  const StoragePartitionConfig& GetStoragePartitionConfig() const override;
+  bool SchemeIs(std::string_view scheme) const override;
 
   // This function returns a new SiteInfo which is equivalent to the original,
   // except that its AgentClusterKey is made site-keyed if it had been created
@@ -329,7 +333,6 @@ class CONTENT_EXPORT SiteInfo : public SecurityPrincipal {
     return web_exposed_isolation_level_;
   }
 
-  bool is_guest() const { return is_guest_; }
   bool is_error_page() const;
   bool is_jit_disabled() const { return is_jit_disabled_; }
   bool are_v8_optimizations_disabled() const {
@@ -404,13 +407,6 @@ class CONTENT_EXPORT SiteInfo : public SecurityPrincipal {
   // RenderProcessHost per site for the entire browser context.
   bool ShouldUseProcessPerSite(BrowserContext* browser_context) const;
 
-  // Get the StoragePartitionConfig, which describes the StoragePartition this
-  // SiteInfo is associated with.  For example, this will correspond to a
-  // non-default StoragePartition for <webview> guests.
-  const StoragePartitionConfig& storage_partition_config() const {
-    return storage_partition_config_;
-  }
-
   // Write a representation of this object into a trace.
   void WriteIntoTrace(perfetto::TracedValue context) const;
 
@@ -443,6 +439,27 @@ class CONTENT_EXPORT SiteInfo : public SecurityPrincipal {
       const IsolationContext& isolation_context,
       const UrlInfo& url_info,
       std::optional<GURL> effective_url);
+
+  // The following functions are helpers for GetAgentClusterKeyForURL that
+  // covers the various fetch and local schemes.
+  static AgentClusterKey GetAgentClusterKeyForNonOpaqueOrigin(
+      const IsolationContext& isolation_context,
+      const UrlInfo& url_info,
+      const url::Origin origin,
+      AgentClusterKey::OACStatus oac_status,
+      bool requires_origin_keyed_process,
+      bool is_origin_isolated_sandboxed_data_iframe);
+  static AgentClusterKey GetAgentClusterKeyForSchemeOnlyOrigin(
+      const UrlInfo& url_info,
+      const url::Origin& origin,
+      AgentClusterKey::OACStatus oac_status);
+  static AgentClusterKey GetAgentClusterKeyForDataURL(
+      const UrlInfo& url_info,
+      const url::Origin& origin,
+      AgentClusterKey::OACStatus oac_status);
+  static AgentClusterKey GetAgentClusterKeyForBlobURL(
+      const GURL& url,
+      AgentClusterKey::OACStatus oac_status);
 
   // Helper function for ProcessLockCompareTo(). Returns a std::tie of the
   // SiteInfo elements required for doing a ProcessLock comparison.

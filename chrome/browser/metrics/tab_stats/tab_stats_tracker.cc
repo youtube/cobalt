@@ -67,6 +67,7 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #endif
 
 namespace metrics {
@@ -105,9 +106,9 @@ void UmaHistogramCounts10000WithTabStripModeVariant(
     return;
   }
 
-  const char* suffix = tabs::IsVerticalTabsFeatureEnabled() &&
-                               tab_strip.GetProfile()->GetPrefs()->GetBoolean(
-                                   prefs::kVerticalTabsEnabled)
+  auto* controller = tabs::VerticalTabStripStateController::From(
+      tab_strip.browser_window_interface());
+  const char* suffix = controller && controller->ShouldDisplayVerticalTabs()
                            ? ".VerticalTabStrip"
                            : ".HorizontalTabStrip";
 
@@ -247,6 +248,9 @@ const char
 const char
     TabStatsTracker::UmaStatsReportingDelegate::kWindowWidthHistogramName[] =
         "Tabs.WindowWidth";
+const char TabStatsTracker::UmaStatsReportingDelegate::
+    kVerticalTabStripCollapseStateHistogramName[] =
+        "Tabs.VerticalTabs.CollapseState";
 
 // Daily discard/reload histograms.
 const char TabStatsTracker::UmaStatsReportingDelegate::
@@ -332,6 +336,11 @@ class TabStatsTracker::TabWatcher final : public TabModelListObserver,
   }
 
   void OnTabModelRemoved(TabModel* tab_model) final {
+    for (int i = 0; i < tab_model->GetTabCount(); ++i) {
+      if (TabAndroid* tab = tab_model->GetTabAt(i)) {
+        TabRemoved(tab);
+      }
+    }
     tab_model_observations_.RemoveObservation(tab_model);
     tracker_->OnTabStripRemoved();
   }
@@ -345,6 +354,14 @@ class TabStatsTracker::TabWatcher final : public TabModelListObserver,
   }
 
   void TabRemoved(TabAndroid* tab) final {
+    // The tab was removed from the model, either because it closed or moved to
+    // a different model. Either way stop watching for the WebContents.
+    if (tab_android_observations_.IsObservingSource(tab)) {
+      tab_android_observations_.RemoveObservation(tab);
+    }
+  }
+
+  void DidRemoveTabForClosure(TabAndroid* tab) final {
     // The tab was removed from the model, either because it closed or moved to
     // a different model. Either way stop watching for the WebContents.
     if (tab_android_observations_.IsObservingSource(tab)) {
@@ -896,6 +913,15 @@ void TabStatsTracker::UmaStatsReportingDelegate::ReportHeartbeatMetrics(
 
     UmaHistogramCounts10000WithTabStripModeVariant(kTabCountHistogramName,
                                                    tab_strip);
+
+    auto* controller = tabs::VerticalTabStripStateController::From(
+        tab_strip.browser_window_interface());
+    if (controller && controller->ShouldDisplayVerticalTabs()) {
+      base::UmaHistogramEnumeration(
+          kVerticalTabStripCollapseStateHistogramName,
+          controller->IsCollapsed() ? VerticalTabStripCollapseState::kCollapsed
+                                    : VerticalTabStripCollapseState::kExpanded);
+    }
 
     // Record the width of all open browser windows with tabs.
     const ui::BaseWindow* window =

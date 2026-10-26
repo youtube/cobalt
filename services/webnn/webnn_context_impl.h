@@ -17,6 +17,7 @@
 #include "base/sequence_checker.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/thread_annotations.h"
+#include "base/trace_event/memory_dump_manager.h"
 #include "base/types/expected.h"
 #include "base/types/optional_ref.h"
 #include "base/types/pass_key.h"
@@ -56,8 +57,26 @@ class ScopedGpuSequence;
 class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
     : public WebNNObjectBase<mojom::WebNNContext,
                              blink::WebNNContextToken,
-                             mojo::Receiver<mojom::WebNNContext>> {
+                             mojo::Receiver<mojom::WebNNContext>>,
+      public base::trace_event::MemoryDumpProvider {
  public:
+  // These values are persisted to logs. Entries should not be renumbered or
+  // removed and numeric values should never be reused.
+  //
+  // LINT.IfChange(ContextBackendUma)
+  enum class ContextBackendUma {
+    kNotSupported = 0,
+    kCoreML = 1,
+    kTFLite = 2,
+    kLiteRT = 3,
+    kONNXRuntime = 4,
+    kDirectML = 5,
+    kMaxValue = kDirectML,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/webnn/enums.xml:ContextBackendUma)
+
+  static void RecordContextBackendUma(ContextBackendUma backend_uma);
+
   using CreateGraphImplCallback = base::OnceCallback<void(
       base::expected<scoped_refptr<WebNNGraphImpl>, mojom::ErrorPtr>)>;
 
@@ -67,6 +86,7 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
   WebNNContextImpl(
       mojo::PendingReceiver<mojom::WebNNContext> receiver,
       base::WeakPtr<WebNNContextProviderImpl> context_provider,
+      WebNNContextImpl::ContextBackendUma backend_uma,
       ContextProperties properties,
       mojom::CreateContextOptionsPtr options,
       mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
@@ -80,8 +100,7 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
   WebNNContextImpl(const WebNNContextImpl&) = delete;
   WebNNContextImpl& operator=(const WebNNContextImpl&) = delete;
 
-  virtual base::WeakPtr<WebNNContextImpl> AsWeakPtr()
-      VALID_CONTEXT_REQUIRED(gpu_sequence_checker_) = 0;
+  virtual base::WeakPtr<WebNNContextImpl> AsWeakPtr() = 0;
 
   // Disassociates a `WebNNTensor` instance owned by this context by its handle.
   // Called when a `WebNNTensor` instance has a connection error. After this
@@ -116,7 +135,8 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
       WebNNGraphImpl::ComputeResourceInfo compute_resource_info,
       base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
           constant_operands,
-      base::flat_map<OperandId, WebNNTensorImpl*> constant_tensor_operands,
+      base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
+          constant_tensor_operands,
       CreateGraphImplCallback callback) = 0;
 
   // Pass ownership of a newly-created `graph_impl` to this context.
@@ -144,12 +164,14 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
   // sequence. Does not support nested loops or delayed tasks.
   const scoped_refptr<gpu::SchedulerTaskRunner>& scheduler_task_runner() const;
 
-  // Waits for the given SyncToken to release before executing WebNN operations.
-  void WaitSyncToken(const gpu::SyncToken& fence);
+  // Exposes the ScopedGpuSequence which can be used to schedule tasks
+  // in sequence with this WebNNContext -- that is, on the same gpu::Scheduler
+  // sequence.
+  ScopedGpuSequence* gpu_sequence() const;
 
   // Generates a verified SyncToken that will be released once pending WebNN
   // operations complete execution.
-  gpu::SyncToken GenVerifiedSyncToken();
+  gpu::SyncToken GenVerifiedSyncToken() const;
 
   // Returns true if the data pipe consumer handle for WriteTensor() is valid.
   bool HasValidWriteTensorConsumer() const;
@@ -198,12 +220,14 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
     return main_task_runner_;
   }
 
-  // Posts `task` to `scheduler_task_runner()`, passing it a reference to this
+  // Schedules `task` to `gpu_sequence()`, passing it a reference to this
   // context. This allows arbitrary logic to be safely executed on the context's
   // task runner. The context is guaranteed to remain alive for the duration of
   // the task.
-  using ScheduleTaskCallback = base::OnceCallback<void(WebNNContextImpl&)>;
-  void ScheduleTaskWithThisContext(ScheduleTaskCallback task);
+  using ScheduleGpuTaskCallback = base::OnceCallback<void(WebNNContextImpl&)>;
+  void ScheduleGpuTaskWithThisContext(ScheduleGpuTaskCallback task);
+  void ScheduleGpuTaskWithThisContext(ScheduleGpuTaskCallback task,
+                                      const gpu::SyncToken& fence);
 
  protected:
   friend struct OnTaskRunnerDeleter;
@@ -256,6 +280,11 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
   // context.
   mojom::CreateContextOptionsPtr options_;
 
+  // The MemoryTypeTracker is used to track creation of tensors.
+  // It is stored on the context because only the tracker it was created with
+  // is thread safe.
+  gpu::MemoryTypeTracker memory_type_tracker_;
+
   // TensorImpls owned by the context so the WebNN service can look them up
   // by token and use them during MLContext operations from the renderer
   // process. This cache only contains valid TensorImpls whose size is managed
@@ -272,12 +301,15 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
 
   void OnDisconnect() override;
 
+  bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
+                    base::trace_event::ProcessMemoryDump* pmd) override;
+
   // Graph builders owned by this context.
   mojo::UniqueAssociatedReceiverSet<mojom::WebNNGraphBuilder>
       graph_builder_impls_;
 
   // GraphImpls owned by the context. Graphs use a WeakPtr to safely access the
-  // context during operations.
+  // context during build operations.
   base::flat_set<
       scoped_refptr<WebNNGraphImpl>,
       WebNNObjectImpl<mojom::WebNNGraph,
@@ -293,11 +325,6 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
   // Data pipe handles for transferring tensor data across processes.
   mojo::ScopedDataPipeConsumerHandle write_tensor_consumer_;
   mojo::ScopedDataPipeProducerHandle read_tensor_producer_;
-
-  // The MemoryTypeTracker is used for creating tensors from shared images.
-  // It is stored on the context because only the tracker it was created with
-  // is thread safe.
-  gpu::MemoryTypeTracker memory_type_tracker_;
 
   // The SharedImageManager is used for creating tensors from shared images.
   // It is provided by the provider but stored per context, because only the
@@ -315,6 +342,10 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
   // The owning_task_runner is the underlying single-thread runner for the GPU
   // sequence.
   scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner_;
+
+  // A process-unique ID used for disambiguating memory dumps from different
+  // WebNN contexts.
+  const int tracing_id_;
 };
 
 }  // namespace webnn

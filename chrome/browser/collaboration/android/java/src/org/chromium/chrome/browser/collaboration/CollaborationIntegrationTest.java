@@ -19,6 +19,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import static org.chromium.base.test.transit.ViewFinder.waitForView;
 import static org.chromium.chrome.browser.collaboration.CollaborationTestUtils.accountInfoToGroupMember;
 import static org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper.addBlankTabs;
 import static org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper.clickFirstCardFromTabSwitcher;
@@ -50,6 +51,7 @@ import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
@@ -283,8 +285,7 @@ public class CollaborationIntegrationTest {
         mActivityTestRule.loadUrlInNewTab(mUrl);
 
         // Verify that the fullscreen sign-in promo is shown and cancel.
-        onViewWaiting(withText(R.string.collaboration_signin_description))
-                .check(matches(isDisplayed()));
+        waitForView(withText(R.string.collaboration_signin_description));
         onView(withText(R.string.collaboration_cancel)).perform(scrollTo(), click());
 
         // The new data sharing url was intercepted and the tab closed.
@@ -298,8 +299,7 @@ public class CollaborationIntegrationTest {
                 mUrl, /* incognito= */ false, TabLaunchType.FROM_EXTERNAL_APP);
 
         // Verify that the fullscreen sign-in promo is shown and cancel.
-        onViewWaiting(withText(R.string.collaboration_signin_description))
-                .check(matches(isDisplayed()));
+        waitForView(withText(R.string.collaboration_signin_description));
         onView(withText(R.string.collaboration_cancel)).perform(scrollTo(), click());
 
         // The new data sharing url was intercepted and the tab closed.
@@ -312,8 +312,7 @@ public class CollaborationIntegrationTest {
         mActivityTestRule.loadUrlInNewTab(mUrl);
 
         // Verify that the fullscreen sign-in promo is shown and accept.
-        onViewWaiting(withText(R.string.collaboration_signin_description))
-                .check(matches(isDisplayed()));
+        waitForView(withText(R.string.collaboration_signin_description));
         final String continueAsText =
                 mActivityTestRule
                         .getActivity()
@@ -321,8 +320,7 @@ public class CollaborationIntegrationTest {
         onView(withText(continueAsText)).perform(click());
 
         // Verify that the history opt-in dialog is shown and refuse.
-        onViewWaiting(withText(R.string.collaboration_sync_description))
-                .check(matches(isDisplayed()));
+        waitForView(withText(R.string.collaboration_sync_description));
         onViewWaiting(withId(R.id.button_secondary)).perform(click());
 
         // The user is signed out.
@@ -340,8 +338,7 @@ public class CollaborationIntegrationTest {
         setFakePreviewData();
 
         // Verify that the fullscreen sign-in promo is shown and accept.
-        onViewWaiting(withText(R.string.collaboration_signin_description))
-                .check(matches(isDisplayed()));
+        waitForView(withText(R.string.collaboration_signin_description));
         final String continueAsText =
                 mActivityTestRule
                         .getActivity()
@@ -349,8 +346,7 @@ public class CollaborationIntegrationTest {
         onView(withText(continueAsText)).perform(click());
 
         // Verify that the history opt-in dialog is shown and accept.
-        onViewWaiting(withText(R.string.collaboration_sync_description))
-                .check(matches(isDisplayed()));
+        waitForView(withText(R.string.collaboration_sync_description));
         onViewWaiting(withId(R.id.button_primary)).perform(click());
 
         CriteriaHelper.pollInstrumentationThread(
@@ -359,6 +355,7 @@ public class CollaborationIntegrationTest {
 
     @Test
     @MediumTest
+    @DisableIf.Device(DeviceFormFactor.TABLET_OR_DESKTOP) // crbug.com/489072280
     public void testCollaborationCreateFlow() {
         final ChromeTabbedActivity cta = mActivityTestRule.getActivity();
         final AtomicBoolean createCalled = new AtomicBoolean();
@@ -385,11 +382,7 @@ public class CollaborationIntegrationTest {
         onView(withText(continueAsText)).perform(click());
 
         // Verify that the history opt-in dialog is shown and accept.
-        onViewWaiting(
-                        withText(R.string.collaboration_sync_description),
-                        // checkRootDialog=true ensures dialog is in focus, avoid flakiness.
-                        true)
-                .check(matches(isDisplayed()));
+        waitForView(withText(R.string.collaboration_sync_description));
         onViewWaiting(withId(R.id.button_primary)).perform(click());
 
         CriteriaHelper.pollInstrumentationThread(
@@ -404,8 +397,7 @@ public class CollaborationIntegrationTest {
         mActivityTestRule.loadUrlInNewTab(
                 mUrl, /* incognito= */ false, TabLaunchType.FROM_EXTERNAL_APP);
         // Verify that the history opt-in dialog is shown and refuse.
-        onViewWaiting(withText(R.string.collaboration_sync_description))
-                .check(matches(isDisplayed()));
+        waitForView(withText(R.string.collaboration_sync_description));
     }
 
     @Test

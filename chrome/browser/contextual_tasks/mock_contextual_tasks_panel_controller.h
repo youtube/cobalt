@@ -40,7 +40,10 @@ class MockContextualTasksPanelController
               (content::WebContents*, base::Uuid),
               (override));
   MOCK_METHOD(void, OnAiInteraction, (), (override));
-  MOCK_METHOD(content::WebContents*, GetActiveWebContents, (), (override));
+  MOCK_METHOD(content::WebContents*,
+              GetActiveWebContents,
+              (),
+              (const override));
   MOCK_METHOD(std::vector<content::WebContents*>,
               GetPanelWebContentsList,
               (),
@@ -60,10 +63,15 @@ class MockContextualTasksPanelController
   MOCK_METHOD(std::optional<ContextualTask>, GetCurrentTask, (), (override));
   MOCK_METHOD((std::pair<std::optional<base::Uuid>,
                          contextual_search::ContextualSearchSessionHandle*>),
-              GetSessionHandleForActiveTabOrSidePanel,
+              GetSessionHandleForActiveTabOrPanel,
               (),
               (override));
   MOCK_METHOD(size_t, GetNumberOfActiveTasks, (), (const, override));
+  MOCK_METHOD(void, MoveTaskUiToNewTab, (), (override));
+  MOCK_METHOD(void, NotifyExpandToFullTabStateChanged, (), (override));
+  MOCK_METHOD(bool, CanExpandToFullTab, (), (const, override));
+  MOCK_METHOD(void, AddObserver, (Observer*), (override));
+  MOCK_METHOD(void, RemoveObserver, (Observer*), (override));
 };
 
 }  // namespace contextual_tasks

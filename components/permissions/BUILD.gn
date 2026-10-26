@@ -351,6 +351,7 @@ source_set("unit_tests") {
     "contexts/nfc_permission_context_unittest.cc",
     "contexts/wake_lock_permission_context_unittest.cc",
     "permission_indicators_tab_data_unittest.cc",
+    "permission_request_data_unittest.cc",
     "permission_request_queue_unittest.cc",
     "resolvers/geolocation_permission_resolver_unittest.cc",
   ]
@@ -384,6 +385,7 @@ source_set("unit_tests") {
       "android/bluetooth_chooser_android_unittest.cc",
       "android/bluetooth_scanning_prompt_android_unittest.cc",
       "android/permission_prompt/permission_dialog_delegate_unittest.cc",
+      "android/permission_prompt/permission_prompt_android_factory_unittest.cc",
       "android/permissions_reprompt_controller_android_unittest.cc",
     ]
   }

@@ -105,19 +105,21 @@ bool DeserializeSection1(base::PickleIterator* iter,
   std::u16string value;
   std::string autocomplete_attribute;
   uint64_t max_length = 0;
-  bool is_autofilled = false;
-  bool success =
-      iter->ReadString16(&label) && iter->ReadString16(&name) &&
-      iter->ReadString16(&value) && iter->ReadString(&form_control_type) &&
-      iter->ReadString(&autocomplete_attribute) &&
-      iter->ReadUInt64(&max_length) && iter->ReadBool(&is_autofilled);
+  bool is_autofilled_according_to_renderer = false;
+  bool success = iter->ReadString16(&label) && iter->ReadString16(&name) &&
+                 iter->ReadString16(&value) &&
+                 iter->ReadString(&form_control_type) &&
+                 iter->ReadString(&autocomplete_attribute) &&
+                 iter->ReadUInt64(&max_length) &&
+                 iter->ReadBool(&is_autofilled_according_to_renderer);
   if (success) {
     field_data->set_label(std::move(label));
     field_data->set_name(std::move(name));
     field_data->set_value(std::move(value));
     field_data->set_autocomplete_attribute(std::move(autocomplete_attribute));
     field_data->set_max_length(max_length);
-    field_data->set_is_autofilled(std::move(is_autofilled));
+    field_data->set_is_autofilled_according_to_renderer(
+        std::move(is_autofilled_according_to_renderer));
     // Form control types are serialized as strings for legacy reasons.
     // TODO(crbug.com/1353392,crbug.com/1482526): Why does the Password Manager
     // (de)serialize form control types? Remove it or migrate it to the enum
@@ -288,15 +290,6 @@ FormFieldData& FormFieldData::operator=(FormFieldData&&) = default;
 
 FormFieldData::~FormFieldData() = default;
 
-base::optional_ref<const SelectOption> FormFieldData::selected_option() const {
-  for (const SelectOption& option : options()) {
-    if (option.value == value()) {
-      return option;
-    }
-  }
-  return std::nullopt;
-}
-
 bool FormFieldData::IsTextInputElement() const {
   return form_control_type() == FormControlType::kInputText ||
          form_control_type() == FormControlType::kInputPassword ||
@@ -345,6 +338,8 @@ bool FormFieldData::IdenticalAndEquivalentDomElements(
     static const std::optional<AutocompleteParsingResult> kNoParsingResult =
         std::nullopt;
     static const FormRendererId kNoFormId = FormRendererId();
+    static const std::optional<std::u16string> kNoSelectedOptionText =
+        std::nullopt;
     // LINT.IfChange(IdenticalAndEquivalentDomElements)
     // clang-format off
     return std::tie(
@@ -353,6 +348,7 @@ bool FormFieldData::IdenticalAndEquivalentDomElements(
         !e.contains(kNotRefillRelated) ? f.name_attribute_ : base::EmptyString16(),
         f.label_,
         !e.contains_any({kValue, kNotRefillRelated}) ? f.value_ : base::EmptyString16(),
+        !e.contains_any({kValue, kNotRefillRelated}) ? f.selected_option_text_ : kNoSelectedOptionText,
         !e.contains_any({kValue, kNotRefillRelated}) ? f.selected_text_ : base::EmptyString16(),
         f.form_control_type_,
         f.autocomplete_attribute_,
@@ -372,8 +368,7 @@ bool FormFieldData::IdenticalAndEquivalentDomElements(
         // origin (a random number).
         !e.contains(kNotRefillRelated) ? f.form_control_ax_id_ : kNullId,
         f.max_length_,
-        !e.contains_any({kValue, kNotRefillRelated}) ? f.is_autofilled_ : kFalse,
-        !e.contains_any({kValue, kNotRefillRelated}) ? f.is_user_edited_ : kFalse,
+        !e.contains_any({kValue, kNotRefillRelated}) ? f.is_autofilled_according_to_renderer_ : kFalse,
         !e.contains_any({kValue, kNotRefillRelated}) ? f.check_status_ : kNotCheckable,
         f.is_focusable_,
         !e.contains(kNotRefillRelated) ? f.is_visible_ : kFalse,
@@ -406,9 +401,10 @@ FormFieldData::FillData::~FillData() = default;
 
 FormFieldData::FillData::FillData(const FormFieldData& field)
     : value(field.value()),
+      selected_option_text(field.selected_option_text()),
       renderer_id(field.renderer_id()),
       host_form_id(field.host_form_id()),
-      is_autofilled(field.is_autofilled()),
+      is_autofilled(field.is_autofilled_according_to_renderer()),
       force_override(field.force_override()) {}
 
 FormFieldData::FillData::FillData(const FillData&) = default;
@@ -477,7 +473,7 @@ void SerializeFormFieldData(const FormFieldData& field_data,
   // We don't serialize the `parsed_autocomplete`. See http://crbug.com/1353392.
   pickle->WriteString(field_data.autocomplete_attribute());
   pickle->WriteUInt64(field_data.max_length());
-  pickle->WriteBool(field_data.is_autofilled());
+  pickle->WriteBool(field_data.is_autofilled_according_to_renderer());
   pickle->WriteInt(static_cast<int>(field_data.check_status()));
   pickle->WriteBool(field_data.is_focusable());
   pickle->WriteBool(field_data.should_autocomplete());
@@ -686,8 +682,7 @@ std::ostream& PrintWithIndentation(std::ostream& os,
   PRINT_PROPERTY(placeholder);
   PRINT_PROPERTY(max_length);
   PRINT_PROPERTY(css_classes);
-  PRINT_PROPERTY(is_autofilled);
-  PRINT_PROPERTY(is_user_edited);
+  PRINT_PROPERTY(is_autofilled_according_to_renderer);
   PRINT_PROPERTY(check_status);
   PRINT_PROPERTY(should_autocomplete);
   PRINT_PROPERTY(role);

@@ -16,11 +16,11 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
 #include "absl/memory/memory.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/metronome/test/fake_metronome.h"
@@ -107,7 +107,6 @@ constexpr uint8_t kH264PayloadType = 99;
 constexpr uint8_t kH265PayloadType = 100;
 constexpr uint8_t kAv1PayloadType = 101;
 constexpr uint32_t kRemoteSsrc = 1111;
-constexpr uint32_t kLocalSsrc = 2222;
 
 class FakeVideoRenderer : public VideoSinkInterface<VideoFrame> {
  public:
@@ -213,7 +212,7 @@ class VideoReceiveStream2Test : public ::testing::TestWithParam<bool> {
         .WillByDefault(Invoke(&fake_decoder_, &test::FakeDecoder::Release));
     ON_CALL(mock_transport_, SendRtcp)
         .WillByDefault(
-            [this](ArrayView<const uint8_t> packet, ::testing::Unused) {
+            [this](std::span<const uint8_t> packet, ::testing::Unused) {
               return rtcp_packet_parser_.Parse(packet);
             });
   }
@@ -228,7 +227,6 @@ class VideoReceiveStream2Test : public ::testing::TestWithParam<bool> {
 
   void SetUp() override {
     config_.rtp.remote_ssrc = kRemoteSsrc;
-    config_.rtp.local_ssrc = kLocalSsrc;
     config_.renderer = &fake_renderer_;
     VideoReceiveStreamInterface::Decoder h264_decoder;
     h264_decoder.payload_type = kH264PayloadType;

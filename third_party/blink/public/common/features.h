@@ -54,11 +54,16 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 // Avoids copying ResourceRequest::TrustedParams when possible.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAvoidTrustedParamsCopies);
 
-// Sends touch moves async once the scroll has already started. This means the
-// generation of GestureScrollUpdate is not blocked on touch moves being handled
-// by RendererMain.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kAsyncTouchMovesImmediatelyAfterScroll);
+// Whether async touch moves are sent unthrottled to javascript handlers.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUnthrottleAsyncTouchMoves);
+
+enum class AsyncTouchMoveThrottlingPolicy {
+  kUnthrottledWhenGsuUnconsumed,
+  kUnthrottledAlways
+};
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    AsyncTouchMoveThrottlingPolicy,
+    kAsyncTouchMoveThrottlingPolicyParam);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLowerHighResolutionTimerThreshold);
 
@@ -117,9 +122,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAudioWorkletThreadRealtimePeriodMac);
 #endif
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAudioWorkletThreadPool);
-
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kAutofillEnableSyntheticSelectMetricsLogging);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kAutofillFixFieldsAssociatedWithNestedFormsByParser);
@@ -259,6 +261,7 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassBufferingBytesConsumer);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassHTMLPreloadScanner);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassResourceLoadScheduler);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltPreserveTrivial3DTransform);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltSkipHiddenMediaControlsWork);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kEvictMemoryCacheOnCriticalMemoryPressure);
 #endif  // BUILDFLAG(IS_COBALT)
@@ -296,6 +299,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kContentCaptureConstantStreaming);
+
+// If enabled, content:// URLs are considered local, and won't be allowed
+// to be downloaded.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kContentSchemeIsLocal);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCreateImageBitmapOrientationNone);
 
@@ -404,6 +411,8 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDevToolsImprovedNetworkError);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDevToolsAllowPopoverForcing);
+
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDevToolsWebMCPSupport);
 
 // Enables input IPC to directly target the renderer's compositor thread without
 // hopping through the IO thread first.
@@ -727,6 +736,9 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kIgnoreInputWhileHidden);
 // If enabled, a fix for image loading prioritization based on visibility is
 // applied. See https://crbug.com/1369823.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kImageLoadingPrioritizationFix);
+
+// If enabled, allows the browser to render new content in place of an image.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kImageReplacement);
 
 #if !BUILDFLAG(IS_ANDROID)
 // If enabled, the initial WebUI will not interact with extensions. This feature
@@ -1233,9 +1245,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLoadingTasksUnfreezable);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kLogUnexpectedIPCPostedToBackForwardCachedDocuments);
 
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLowLatencyCanvas2dImageChromium);
-
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLowLatencyWebGLImageChromium);
+#if BUILDFLAG(IS_ANDROID)
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLowLatencyUsageSupportedForCanvas2D);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLowLatencyUsageSupportedForWebGL);
+#endif
 
 // If enabled, async scripts will be run on a lower priority task queue.
 // See https://crbug.com/1348467.
@@ -1428,6 +1441,8 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUpdatedDeviceMemoryLimitsFor2026);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseAncestorRenderFrameForWorker);
 
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseSandboxTokenForOriginDerivation);
+
 // Whether first-party to third-party different-bucket same-origin post messages
 // are blocked.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
@@ -1538,10 +1553,6 @@ BLINK_COMMON_EXPORT extern const char
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kPrerender2EarlyDocumentLifecycleUpdate);
 
-// Firing pagehide events for intended prerender cancellation. See
-// crbug.com/353628449 for more details.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kPageHideEventForPrerender2);
-
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kPrivateAggregationApi);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
@@ -1617,6 +1628,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRemoveCommitRedirectUrlsArray);
 // header.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRemovePurposeHeaderForPrefetch);
 
+// Allows same-document available-image reuse for no-store images.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kReuseNoStoreImageOnSameSrcReassignment);
+
 // Makes preloaded fonts render-blocking up to the limits below.
 // See https://crbug.com/1412861
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRenderBlockingFonts);
@@ -1641,6 +1656,9 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kResamplingInputEvents);
 // Uses the kPredictorName* values in ui_base_features.h as the 'predictor'
 // feature param.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kResamplingScrollEvents);
+// Max timeout for synthetic scroll prediction.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                                               kScrollPredictorMaxResampleTime);
 
 // This bypasses restrictions on selection sources and allows the spelling and
 // grammar checks to proceed for testing purposes.
@@ -1669,6 +1687,9 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kRestrictLinkHeaderOnSubresourceResourceLoad);
 
+// Enables the Rust-based BMP image decoder.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kRustyBmpFeature);
+
 // When enabled, it adds Payto URI Scheme to the safe list for
 // registerProtocolHandler. This feature is disabled by default
 // Payto URI Scheme explanation https://datatracker.ietf.org/doc/html/rfc8905
@@ -1685,6 +1706,16 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kShowHudDisplayForPausedPages);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kScriptStreaming);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kScriptStreamingForNonHTTP);
+
+// Bypasses the 1 Euro filter for synthetic (Kalman) frames in ScrollPredictor.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kScrollPredictorFilteringBypassOnSynthetic);
+
+// Enables the refined timeout logic in ScrollPredictor::HasPrediction.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kScrollPredictorRefinedHasPrediction);
+
+// Enables the synthetic predictor (Kalman) for scroll gap-filling.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kScrollPredictorSyntheticKalman);
 
 // If enabled, prefetches from NoStatePrefetchURLLoaderThrottle will be sent
 // with the Sec-Purpose: "prefetch" header.
@@ -1810,8 +1841,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kBoostRenderProcessForLoadingPrioritizeRestore);
-
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kBypassRequestForbiddenHeadersCheck);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kStopInBackground);
 
@@ -1982,6 +2011,8 @@ BLINK_COMMON_EXPORT bool IsCanvas2DHibernationEnabled();
 BLINK_COMMON_EXPORT bool DisplayWarningDeprecateURNIframesUseFencedFrames();
 
 BLINK_COMMON_EXPORT bool IsFencedFramesEnabled();
+
+BLINK_COMMON_EXPORT bool IsMemoryPurgeOnBackgroundingEnabled();
 
 BLINK_COMMON_EXPORT bool IsParkableStringsToDiskEnabled();
 

@@ -10,6 +10,7 @@ import android.text.TextUtils;
 import androidx.core.text.BidiFormatter;
 
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.library_loader.LibraryLoader;
@@ -17,7 +18,6 @@ import org.chromium.build.annotations.Contract;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.url_formatter.UrlFormatter;
-import org.chromium.content_public.common.ContentUrlConstants;
 import org.chromium.url.GURL;
 
 import java.util.ArrayList;
@@ -30,9 +30,6 @@ import java.util.regex.Pattern;
  * Utilities for working with URIs (and URLs). These methods may be used in security-sensitive
  * contexts (after all, origins are the security boundary on the web), and so the correctness bar
  * must be high.
- *
- * Use ShadowUrlUtilities to mock out native-dependent methods in tests.
- * TODO(pshmakov): we probably should just make those methods non-static.
  */
 @JNINamespace("embedder_support")
 @NullMarked
@@ -44,7 +41,7 @@ public class UrlUtilities {
     private static final List<String> SUPPORTED_SCHEMES =
             new ArrayList<String>(
                     Arrays.asList(
-                            ContentUrlConstants.ABOUT_SCHEME,
+                            UrlConstants.ABOUT_SCHEME,
                             UrlConstants.DATA_SCHEME,
                             UrlConstants.FILE_SCHEME,
                             UrlConstants.HTTP_SCHEME,
@@ -67,7 +64,7 @@ public class UrlUtilities {
             Set.of(
                     UrlConstants.CHROME_SCHEME,
                     UrlConstants.CHROME_NATIVE_SCHEME,
-                    ContentUrlConstants.ABOUT_SCHEME);
+                    UrlConstants.ABOUT_SCHEME);
 
     private static final String TEL_SCHEME = "tel";
 
@@ -216,7 +213,6 @@ public class UrlUtilities {
      *     subcomponent (i.e. no dots other than leading/trailing ones), or is itself a recognized
      *     registry identifier.
      */
-    // TODO(crbug.com/40549331): Convert to GURL.
     @Contract("null, _ -> null")
     public static @Nullable String getDomainAndRegistry(
             @Nullable String uri, boolean includePrivateRegistries) {
@@ -363,7 +359,7 @@ public class UrlUtilities {
      * @return null if the key doesn't exist in the query string for the URL. Otherwise, returns the
      * value for the key in the query string.
      */
-    public static String getValueForKeyInQuery(GURL url, String key) {
+    public static @Nullable String getValueForKeyInQuery(GURL url, String key) {
         return UrlUtilitiesJni.get().getValueForKeyInQuery(url, key);
     }
 
@@ -373,35 +369,67 @@ public class UrlUtilities {
                 || url.getScheme().equals(UrlConstants.INTENT_SCHEME);
     }
 
+    /** Returns whether the given URL uses the Google.com domain. */
+    public static boolean isGoogleDomainUrl(String url, boolean allowNonStandardPort) {
+        return UrlUtilitiesJni.get().isGoogleDomainUrl(url, allowNonStandardPort);
+    }
+
+    /** Returns whether the given URL is a Google.com domain or sub-domain. */
+    public static boolean isGoogleSubDomainUrl(String url) {
+        return UrlUtilitiesJni.get().isGoogleSubDomainUrl(url);
+    }
+
+    /** Returns whether the given URL is a Google.com Search URL. */
+    public static boolean isGoogleSearchUrl(@Nullable String url) {
+        return UrlUtilitiesJni.get().isGoogleSearchUrl(url);
+    }
+
+    /** Returns whether the given URL is the Google Web Search URL. */
+    public static boolean isGoogleHomePageUrl(String url) {
+        return UrlUtilitiesJni.get().isGoogleHomePageUrl(url);
+    }
+
+    public static void setNativesForTesting(Natives natives) {
+        UrlUtilitiesJni.setInstanceForTesting(natives);
+    }
+
     @NativeMethods
     public interface Natives {
         boolean sameDomainOrHost(
-                String primaryUrl, String secondaryUrl, boolean includePrivateRegistries);
+                @JniType("std::string") String primaryUrl,
+                @JniType("std::string") String secondaryUrl,
+                boolean includePrivateRegistries);
 
-        String getDomainAndRegistry(String url, boolean includePrivateRegistries);
+        @JniType("std::string")
+        String getDomainAndRegistry(
+                @JniType("std::string") String url, boolean includePrivateRegistries);
 
-        /** Returns whether the given URL uses the Google.com domain. */
-        boolean isGoogleDomainUrl(String url, boolean allowNonStandardPort);
+        boolean isGoogleDomainUrl(@JniType("std::string") String url, boolean allowNonStandardPort);
 
-        /** Returns whether the given URL is a Google.com domain or sub-domain. */
-        boolean isGoogleSubDomainUrl(String url);
+        boolean isGoogleSubDomainUrl(@JniType("std::string") String url);
 
-        /** Returns whether the given URL is a Google.com Search URL. */
-        boolean isGoogleSearchUrl(@Nullable String url);
+        boolean isGoogleSearchUrl(@Nullable @JniType("std::string") String url);
 
-        /** Returns whether the given URL is the Google Web Search URL. */
-        boolean isGoogleHomePageUrl(String url);
+        boolean isGoogleHomePageUrl(@JniType("std::string") String url);
 
-        boolean isUrlWithinScope(String url, String scopeUrl);
+        boolean isUrlWithinScope(
+                @JniType("std::string") String url, @JniType("std::string") String scopeUrl);
 
-        boolean urlsMatchIgnoringFragments(@Nullable String url, @Nullable String url2);
+        boolean urlsMatchIgnoringFragments(
+                @Nullable @JniType("std::string") String url,
+                @Nullable @JniType("std::string") String url2);
 
-        boolean urlsFragmentsDiffer(String url, String url2);
+        boolean urlsFragmentsDiffer(
+                @JniType("std::string") String url, @JniType("std::string") String url2);
 
-        String escapeQueryParamValue(String url, boolean usePlus);
+        @JniType("std::string")
+        String escapeQueryParamValue(@JniType("std::string") String url, boolean usePlus);
 
-        String getValueForKeyInQuery(GURL url, String key);
+        @JniType("std::optional<std::string>")
+        @Nullable String getValueForKeyInQuery(
+                @JniType("GURL") GURL url, @JniType("std::string") String key);
 
-        GURL clearPort(GURL url);
+        @JniType("GURL")
+        GURL clearPort(@JniType("GURL") GURL url);
     }
 }

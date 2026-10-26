@@ -56,6 +56,7 @@
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
+#include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/ash/components/browser_context_helper/annotated_account_id.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
@@ -411,7 +412,7 @@ MultiUserWindowManagerBrowserAdaptorTest::SetUpOneWindowEachDeskForUser() {
   const int kActiveDeskIndex = 0;
   for (int i = 0; i < desks_controller->GetNumberOfDesks(); i++) {
     widgets.push_back(
-        CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+        CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET,
                          nullptr, container_ids[i], gfx::Rect(700, 0, 50, 50)));
     aura::Window* win = widgets[i]->GetNativeWindow();
     windows_.push_back(win);
@@ -1668,7 +1669,7 @@ TEST_F(MultiUserWindowManagerBrowserAdaptorTest, FindBrowserWithActiveWindow) {
       CreateTestWindowInShell({.window_id = 0}), {16, 32, 640, 320}, &params));
   browser->window()->Activate();
   // Manually set last active browser in BrowserList for testing.
-  BrowserList::GetInstance()->SetLastActive(browser.get());
+  ui_test_utils::DeprecatedFakeActivateBrowser(browser.get());
   EXPECT_EQ(browser.get(), GetLastActiveBrowserWindowInterfaceWithAnyProfile());
   EXPECT_TRUE(browser->window()->IsActive());
   EXPECT_EQ(browser.get(), chrome::FindBrowserWithActiveWindow());

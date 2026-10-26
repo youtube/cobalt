@@ -346,11 +346,15 @@ bool AddDescriptorsByTemplate(
     DCHECK(Object::FitsRepresentation(value, details.representation()));
     if (details.location() == PropertyLocation::kDescriptor &&
         details.kind() == PropertyKind::kData) {
+      bool is_inobject = field_index < in_object_field_count;
+      int field_offset = is_inobject
+                             ? map->GetInObjectPropertyOffset(field_index)
+                             : FixedArray::OffsetOfElementAt(
+                                   field_index - in_object_field_count);
       details =
           PropertyDetails(details.kind(), details.attributes(),
                           PropertyLocation::kField, PropertyConstness::kConst,
-                          details.representation(), field_index,
-                          field_index < in_object_field_count)
+                          details.representation(), field_offset, is_inobject)
               .set_pointer(details.pointer());
 
       property_array->set(field_index, value);
@@ -371,13 +375,16 @@ bool AddDescriptorsByTemplate(
     }
     map->set_elements_kind(DICTIONARY_ELEMENTS);
   }
+  if (count > 0) {
+    map->SetOutOfObjectUnusedPropertyFields(0);
+  }
 
   // Atomically commit the changes.
   receiver->set_map(isolate, *map, kReleaseStore);
   if (elements_dictionary->NumberOfElements() > 0) {
     receiver->set_elements(*elements_dictionary);
   }
-  if (property_array->length() > 0) {
+  if (property_array->length().value() > 0) {
     receiver->SetProperties(*property_array);
   }
   return true;

@@ -6,6 +6,7 @@
 
 #include "chrome/browser/feedback/report_unsafe_site_dialog.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/webui/feedback/report_unsafe_site/report_unsafe_site_handler.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
@@ -24,6 +25,8 @@
 #include "chrome/browser/ash/arc/arc_util.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+namespace feedback_mojom = feedback::report_unsafe_site::mojom;
 
 void AddStringResources(content::WebUIDataSource* source,
                         const Profile* profile) {
@@ -49,9 +52,16 @@ void AddStringResources(content::WebUIDataSource* source,
       {"pageTitle", IDS_FEEDBACK_REPORT_PAGE_TITLE},
       {"pageUrl", IDS_FEEDBACK_REPORT_URL_LABEL},
       {"privacyNote", IDS_FEEDBACK_PRIVACY_NOTE},
-      {"reportUnsafeSiteDescription",
+      {"reportUnsafeSiteDialogDescription",
        IDS_REPORT_UNSAFE_SITE_DIALOG_DESCRIPTION},
-      {"reportUnsafeSiteTitle", IDS_REPORT_UNSAFE_SITE_DIALOG_TITLE},
+      {"reportUnsafeSiteDialogFooter", IDS_REPORT_UNSAFE_SITE_DIALOG_FOOTER},
+      {"reportUnsafeSiteDialogIncludeScreenshotCheckboxLabel",
+       IDS_REPORT_UNSAFE_SITE_DIALOG_INCLUDE_SCREENSHOT_CHECKBOX_LABEL},
+      {"reportUnsafeSiteDialogSendButtonLabel",
+       IDS_REPORT_UNSAFE_SITE_DIALOG_SEND_BUTTON_LABEL},
+      {"reportUnsafeSiteDialogTitle", IDS_REPORT_UNSAFE_SITE_DIALOG_TITLE},
+      {"reportUnsafeSiteDialogUrlLabel",
+       IDS_REPORT_UNSAFE_SITE_DIALOG_URL_LABEL},
       {"screenshot", IDS_FEEDBACK_SCREENSHOT_LABEL},
       {"screenshotA11y", IDS_FEEDBACK_SCREENSHOT_A11Y_TEXT},
       {"sendReport", IDS_FEEDBACK_SEND_REPORT},
@@ -75,9 +85,8 @@ void AddStringResources(content::WebUIDataSource* source,
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   if (feedback::ReportUnsafeSiteDialog::IsEnabled(*profile)) {
-    source->AddResourcePath(
-        "report-unsafe-site",
-        IDR_FEEDBACK_REPORT_UNSAFE_SITE_REPORT_UNSAFE_SITE_HTML);
+    source->AddResourcePath("report-unsafe-site",
+                            IDR_FEEDBACK_REPORT_UNSAFE_SITE_HTML);
   }
 }
 
@@ -90,7 +99,7 @@ void CreateAndAddFeedbackHTMLSource(Profile* profile) {
   AddStringResources(source, profile);
 }
 
-FeedbackUI::FeedbackUI(content::WebUI* web_ui) : WebDialogUI(web_ui) {
+FeedbackUI::FeedbackUI(content::WebUI* web_ui) : MojoWebDialogUI(web_ui) {
   CreateAndAddFeedbackHTMLSource(Profile::FromWebUI(web_ui));
 }
 
@@ -98,6 +107,22 @@ FeedbackUI::~FeedbackUI() = default;
 
 bool FeedbackUI::IsFeedbackEnabled(Profile* profile) {
   return profile->GetPrefs()->GetBoolean(prefs::kUserFeedbackAllowed);
+}
+
+void FeedbackUI::BindInterface(
+    mojo::PendingReceiver<feedback_mojom::PageHandlerFactory> receiver) {
+  if (report_unsafe_site_factory_receiver_.is_bound()) {
+    report_unsafe_site_factory_receiver_.reset();
+  }
+  report_unsafe_site_factory_receiver_.Bind(std::move(receiver));
+}
+
+void FeedbackUI::CreatePageHandler(
+    mojo::PendingReceiver<feedback_mojom::PageHandler> handler) {
+  report_unsafe_site_page_handler_ =
+      std::make_unique<ReportUnsafeSitePageHandler>(
+          embedder_, triggering_web_contents_, std::move(screenshot_taker_),
+          std::move(handler));
 }
 
 FeedbackUIConfig::FeedbackUIConfig()

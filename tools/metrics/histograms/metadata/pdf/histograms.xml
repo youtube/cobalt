@@ -23,7 +23,7 @@ chromium-metrics-reviews@google.com.
 <histograms>
 
 <histogram name="PDF.Actions" enum="ChromePDFViewerActions"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>andyphan@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -49,7 +49,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PDF.DefaultState" enum="DefaultBrowserState"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>jessemckenna@google.com</owner>
   <owner>davidbienvenu@chromium.org</owner>
   <summary>
@@ -58,7 +58,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.EngineLifetime" units="ms" expires_after="2026-07-12">
+<histogram name="PDF.EngineLifetime" units="ms" expires_after="2026-09-13">
   <owner>rhalavati@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -68,7 +68,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.FirstPaintTime" units="ms" expires_after="2026-07-12">
+<histogram name="PDF.FirstPaintTime" units="ms" expires_after="2026-09-13">
   <owner>rhalavati@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -80,13 +80,43 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.FormType" enum="PDFFormTypes" expires_after="2026-07-12">
+<histogram name="PDF.FormType" enum="PDFFormTypes" expires_after="2026-09-13">
   <owner>dhoss@chromium.org</owner>
   <owner>kmoon@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
     Tracks what types of forms are present in PDF document, logged when the
     document finishes loading.
+  </summary>
+</histogram>
+
+<histogram name="PDF.GlicEnabled" enum="Boolean" expires_after="2027-01-01">
+  <owner>erikchen@chromium.org</owner>
+  <owner>thestig@chromium.org</owner>
+  <summary>
+    Emitted once each time a pdf (not print preview) is loaded. The boolean
+    indicates whether glic was enabled for the profile.
+  </summary>
+</histogram>
+
+<histogram name="PDF.GlicSummarizeButtonClicked" enum="Boolean"
+    expires_after="2027-01-01">
+  <owner>erikchen@chromium.org</owner>
+  <owner>thestig@chromium.org</owner>
+  <summary>
+    Emitted once each time the glic summarize button is clicked. Records true on
+    success and false on any failure.
+  </summary>
+</histogram>
+
+<histogram name="PDF.GlicSummarizeButtonEnabled" enum="Boolean"
+    expires_after="2027-01-01">
+  <owner>erikchen@chromium.org</owner>
+  <owner>thestig@chromium.org</owner>
+  <summary>
+    Emitted once each time a pdf (not print preview) is loaded. The boolean
+    indicates whether the summarize button was enabled for the profile. Note
+    that embedded pdfs if too small may still not show the summarize button.
   </summary>
 </histogram>
 
@@ -100,7 +130,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PDF.InfoBar.SettingsResult" enum="PdfInfoBarSettingsResult"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>jessemckenna@google.com</owner>
   <owner>davidbienvenu@chromium.org</owner>
   <summary>
@@ -111,14 +141,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PDF.InfoBar.Shown" enum="BooleanShown"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>jessemckenna@google.com</owner>
   <owner>davidbienvenu@chromium.org</owner>
   <summary>Recorded every time the PDF infobar is shown.</summary>
 </histogram>
 
 <histogram name="PDF.InfoBar.UserInteraction" enum="PDFInfoBarUserInteraction"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>jessemckenna@google.com</owner>
   <owner>davidbienvenu@chromium.org</owner>
   <summary>
@@ -235,7 +265,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PDF.LoadStatus2" enum="ChromePDFViewerLoadStatus"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>kmoon@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -245,7 +275,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.PageCount" units="pages" expires_after="2026-06-28">
+<histogram name="PDF.PageCount" units="pages" expires_after="2026-08-30">
   <owner>andyphan@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -253,7 +283,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.PageHasText" enum="Boolean" expires_after="2026-07-12">
+<histogram name="PDF.PageHasText" enum="Boolean" expires_after="2026-09-13">
   <owner>rhalavati@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -263,7 +293,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PDF.PostMessageDataType" enum="PDFPostMessageDataType"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>andyphan@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -403,7 +433,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PDF.SearchifyAddedText" enum="Boolean"
-    expires_after="2026-06-30">
+    expires_after="2026-08-30">
   <owner>rhalavati@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -414,7 +444,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PDF.SearchifySuccessful2" enum="Boolean"
-    expires_after="2026-06-30">
+    expires_after="2026-08-30">
   <owner>rhalavati@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>

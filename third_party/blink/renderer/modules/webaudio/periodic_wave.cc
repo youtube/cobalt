@@ -32,6 +32,7 @@
 #include <array>
 #include <memory>
 
+#include "base/bit_cast.h"
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "build/build_config.h"
@@ -102,8 +103,9 @@ PeriodicWave* PeriodicWave::Create(BaseAudioContext& context,
 
   PeriodicWave* periodic_wave =
       MakeGarbageCollected<PeriodicWave>(context.sampleRate());
-  periodic_wave->impl()->CreateBandLimitedTables(
-      real.data(), imag.data(), real.size(), disable_normalization);
+  periodic_wave->impl()->CreateBandLimitedTables(base::span<const float>(real),
+                                                 base::span<const float>(imag),
+                                                 disable_normalization);
   return periodic_wave;
 }
 
@@ -268,13 +270,13 @@ void PeriodicWaveImpl::WaveDataForFundamentalFrequency(
   // v_ratio is 0.5 if freq <= 0.  Otherwise preserve v_ratio.
   v_ratio = _mm_or_ps(v_ratio, _mm_andnot_ps(pos, _mm_set1_ps(0.5)));
 
-  const float* ratio = reinterpret_cast<float*>(&v_ratio);
+  const std::array<float, 4> ratio =
+      base::bit_cast<std::array<float, 4>>(v_ratio);
 
-  std::array<float, 4> cents_above_lowest_frequency
-      __attribute__((aligned(16)));
+  alignas(16) std::array<float, 4> cents_above_lowest_frequency;
 
   for (int k = 0; k < 4; ++k) {
-    cents_above_lowest_frequency[k] = log2f(UNSAFE_TODO(ratio[k])) * 1200;
+    cents_above_lowest_frequency[k] = log2f(ratio[k]) * 1200;
   }
 
   __m128 v_pitch_range =
@@ -304,16 +306,17 @@ void PeriodicWaveImpl::WaveDataForFundamentalFrequency(
 
   const __m128 table_factor =
       _mm_sub_ps(v_pitch_range, _mm_cvtepi32_ps(v_index1));
-  _mm_storeu_ps(table_interpolation_factor.data(), table_factor);
+  table_interpolation_factor =
+      base::bit_cast<std::array<float, 4>>(table_factor);
 
-  const unsigned* range_index1 = reinterpret_cast<const unsigned*>(&v_index1);
-  const unsigned* range_index2 = reinterpret_cast<const unsigned*>(&v_index2);
+  const std::array<unsigned, 4> range_index1 =
+      base::bit_cast<std::array<unsigned, 4>>(v_index1);
+  const std::array<unsigned, 4> range_index2 =
+      base::bit_cast<std::array<unsigned, 4>>(v_index2);
 
   for (unsigned k = 0; k < 4; ++k) {
-    lower_wave_data[k] =
-        band_limited_tables_[UNSAFE_TODO(range_index2[k])]->as_span();
-    higher_wave_data[k] =
-        band_limited_tables_[UNSAFE_TODO(range_index1[k])]->as_span();
+    lower_wave_data[k] = band_limited_tables_[range_index2[k]]->as_span();
+    higher_wave_data[k] = band_limited_tables_[range_index1[k]]->as_span();
   }
 }
 #elif defined(CPU_ARM_NEON)
@@ -339,19 +342,19 @@ void PeriodicWaveImpl::WaveDataForFundamentalFrequency(
   // zeroes.
   v_ratio = vbslq_f32(pos, v_ratio, vdupq_n_f32(0.5));
 
-  float ratio[4] __attribute__((aligned(16)));
-  vst1q_f32(ratio, v_ratio);
+  const std::array<float, 4> ratio =
+      base::bit_cast<std::array<float, 4>>(v_ratio);
 
-  float cents_above_lowest_frequency[4] __attribute__((aligned(16)));
+  alignas(16) std::array<float, 4> cents_above_lowest_frequency;
 
   for (int k = 0; k < 4; ++k) {
-    UNSAFE_TODO(cents_above_lowest_frequency[k]) =
-        log2f(UNSAFE_TODO(ratio[k])) * 1200;
+    cents_above_lowest_frequency[k] = log2f(ratio[k]) * 1200;
   }
 
-  float32x4_t v_pitch_range = vaddq_f32(
-      vdupq_n_f32(1.0), vmulq_f32(vld1q_f32(cents_above_lowest_frequency),
-                                  vdupq_n_f32(1 / cents_per_range_)));
+  float32x4_t v_pitch_range =
+      vaddq_f32(vdupq_n_f32(1.0),
+                vmulq_f32(vld1q_f32(cents_above_lowest_frequency.data()),
+                          vdupq_n_f32(1 / cents_per_range_)));
 
   v_pitch_range = vmaxq_f32(v_pitch_range, vdupq_n_f32(0));
   v_pitch_range = vminq_f32(v_pitch_range, vdupq_n_f32(NumberOfRanges() - 1));
@@ -360,21 +363,19 @@ void PeriodicWaveImpl::WaveDataForFundamentalFrequency(
   uint32x4_t v_index2 = vaddq_u32(v_index1, vdupq_n_u32(1));
   v_index2 = vminq_u32(v_index2, vdupq_n_u32(NumberOfRanges() - 1));
 
-  uint32_t range_index1[4] __attribute__((aligned(16)));
-  uint32_t range_index2[4] __attribute__((aligned(16)));
-
-  vst1q_u32(range_index1, v_index1);
-  vst1q_u32(range_index2, v_index2);
+  const std::array<uint32_t, 4> range_index1 =
+      base::bit_cast<std::array<uint32_t, 4>>(v_index1);
+  const std::array<uint32_t, 4> range_index2 =
+      base::bit_cast<std::array<uint32_t, 4>>(v_index2);
 
   const float32x4_t table_factor =
       vsubq_f32(v_pitch_range, vcvtq_f32_u32(v_index1));
-  vst1q_f32(table_interpolation_factor.data(), table_factor);
+  table_interpolation_factor =
+      base::bit_cast<std::array<float, 4>>(table_factor);
 
   for (int k = 0; k < 4; ++k) {
-    lower_wave_data[k] =
-        band_limited_tables_[UNSAFE_TODO(range_index2[k])]->as_span();
-    higher_wave_data[k] =
-        band_limited_tables_[UNSAFE_TODO(range_index1[k])]->as_span();
+    lower_wave_data[k] = band_limited_tables_[range_index2[k]]->as_span();
+    higher_wave_data[k] = band_limited_tables_[range_index1[k]]->as_span();
   }
 }
 #else
@@ -408,10 +409,10 @@ unsigned PeriodicWaveImpl::NumberOfPartialsForRange(
 // Convert into time-domain wave buffers.  One table is created for each range
 // for non-aliasing playback at different playback rates.  Thus, higher ranges
 // have more high-frequency partials culled out.
-void PeriodicWaveImpl::CreateBandLimitedTables(const float* real_data,
-                                               const float* imag_data,
-                                               unsigned number_of_components,
-                                               bool disable_normalization) {
+void PeriodicWaveImpl::CreateBandLimitedTables(
+    base::span<const float> real_data,
+    base::span<const float> imag_data,
+    bool disable_normalization) {
   // The default scale factor for when normalization is disabled.
   float normalization_scale = 0.5;
 
@@ -419,7 +420,8 @@ void PeriodicWaveImpl::CreateBandLimitedTables(const float* real_data,
   unsigned half_size = fft_size / 2;
   unsigned i;
 
-  number_of_components = std::min(number_of_components, half_size);
+  unsigned number_of_components =
+      std::min(static_cast<unsigned>(real_data.size()), half_size);
 
   band_limited_tables_.reserve(NumberOfRanges());
 
@@ -437,11 +439,11 @@ void PeriodicWaveImpl::CreateBandLimitedTables(const float* real_data,
     // arrays.  Need to scale the data by fftSize to remove the scaling that the
     // inverse IFFT would do.
     float scale = fft_size;
-    vector_math::Vsmul(
-        real_data, 1, &scale, real.Data(), 1, number_of_components);
+    vector_math::Vsmul(real_data.data(), 1, &scale, real.Data(), 1,
+                       number_of_components);
     scale = -scale;
-    vector_math::Vsmul(
-        imag_data, 1, &scale, imag.Data(), 1, number_of_components);
+    vector_math::Vsmul(imag_data.data(), 1, &scale, imag.Data(), 1,
+                       number_of_components);
 
     // Find the starting bin where we should start culling.  We need to clear
     // out the highest frequencies to band-limit the waveform.
@@ -496,12 +498,10 @@ void PeriodicWaveImpl::GenerateBasicWaveform(int shape) {
 
   AudioFloatArray real(half_size);
   AudioFloatArray imag(half_size);
-  float* real_p = real.Data();
-  float* imag_p = imag.Data();
 
   // Clear DC and Nyquist.
-  real_p[0] = 0;
-  imag_p[0] = 0;
+  real[0] = 0;
+  imag[0] = 0;
 
   for (unsigned n = 1; n < half_size; ++n) {
     float pi_factor = 2 / (n * kPiFloat);
@@ -562,11 +562,11 @@ void PeriodicWaveImpl::GenerateBasicWaveform(int shape) {
         NOTREACHED();
     }
 
-    UNSAFE_TODO(real_p[n]) = 0;
-    UNSAFE_TODO(imag_p[n]) = b;
+    real[n] = 0;
+    imag[n] = b;
   }
 
-  CreateBandLimitedTables(real_p, imag_p, half_size, false);
+  CreateBandLimitedTables(real.as_span(), imag.as_span(), false);
 }
 
 }  // namespace blink

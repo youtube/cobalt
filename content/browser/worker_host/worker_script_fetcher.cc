@@ -176,7 +176,8 @@ void DidCreateScriptLoader(
     if (final_response_url.SchemeIsLocal() && creator_policies) {
       policies.connection_allowlists =
           std::move(creator_policies->connection_allowlists);
-    } else {
+    } else if (main_script_load_params->response_head &&
+               main_script_load_params->response_head->parsed_headers) {
       policies.connection_allowlists =
           main_script_load_params->response_head->parsed_headers
               ->connection_allowlists;
@@ -192,20 +193,25 @@ void DidCreateScriptLoader(
 }
 
 bool ShouldCreateWebUILoader(RenderFrameHostImpl* creator_render_frame_host) {
-  if (!creator_render_frame_host)
+  if (!creator_render_frame_host) {
     return false;
+  }
 
-  if (creator_render_frame_host->GetWebUI() == nullptr)
+  if (creator_render_frame_host->GetWebUI() == nullptr) {
     return false;
+  }
 
   auto requesting_scheme =
       creator_render_frame_host->GetLastCommittedOrigin().scheme();
-  if (requesting_scheme == kChromeUIScheme)
+  if (requesting_scheme == kChromeUIScheme) {
     return true;
-  if (requesting_scheme == kChromeUIUntrustedScheme)
+  }
+  if (requesting_scheme == kChromeUIUntrustedScheme) {
     return true;
-  if (requesting_scheme == kChromeDevToolsScheme)
+  }
+  if (requesting_scheme == kChromeDevToolsScheme) {
     return true;
+  }
   return false;
 }
 
@@ -311,7 +317,8 @@ void WorkerScriptFetcher::CreateAndStart(
   Referrer sanitized_referrer = Referrer::SanitizeForRequest(
       initial_request_url,
       Referrer(outside_fetch_client_settings_object->outgoing_referrer,
-               outside_fetch_client_settings_object->referrer_policy));
+               outside_fetch_client_settings_object->policy_container_policies
+                   ->referrer_policy));
 
   resource_request = std::make_unique<network::ResourceRequest>();
   resource_request->url = initial_request_url;
@@ -319,7 +326,8 @@ void WorkerScriptFetcher::CreateAndStart(
   resource_request->request_initiator = request_initiator;
   resource_request->referrer = sanitized_referrer.url,
   resource_request->referrer_policy = Referrer::ReferrerPolicyForUrlRequest(
-      outside_fetch_client_settings_object->referrer_policy);
+      outside_fetch_client_settings_object->policy_container_policies
+          ->referrer_policy);
   resource_request->destination = request_destination;
   resource_request->credentials_mode = credentials_mode;
   // To be used for the first party context check.
@@ -545,7 +553,9 @@ void WorkerScriptFetcher::CreateScriptLoader(
 
   if (worker_network_restrictions_id && creator_policies) {
     if (auto throttle = NetworkRestrictionsWorkerThrottle::Create(
-            factory_process->GetStoragePartition(),
+            static_cast<StoragePartitionImpl*>(
+                factory_process->GetStoragePartition())
+                ->GetWeakPtr(),
             *worker_network_restrictions_id, creator_policies->Clone())) {
       throttles.push_back(std::move(throttle));
     }
@@ -559,10 +569,11 @@ void WorkerScriptFetcher::CreateScriptLoader(
                           std::move(service_worker_context));
 
   // This fetcher will delete itself. See the class level comment.
+  // TODO(crbug.com/379869738) Remove FromUnsafeValue.
   auto* script_fetcher = new WorkerScriptFetcher(
       std::make_unique<WorkerScriptLoaderFactory>(
-          worker_process_id, worker_token, trusted_isolation_info,
-          service_worker_handle, browser_context_getter,
+          ChildProcessId::FromUnsafeValue(worker_process_id), worker_token,
+          trusted_isolation_info, service_worker_handle, browser_context_getter,
           std::move(url_loader_factory)),
       std::move(resource_request),
       base::BindOnce(DidCreateScriptLoader, std::move(callback),
@@ -666,8 +677,9 @@ GURL WorkerScriptFetcher::DetermineFinalResponseUrl(
   }
 
   // Then check the list of redirects.
-  if (!main_script_load_params->redirect_infos.empty())
+  if (!main_script_load_params->redirect_infos.empty()) {
     return main_script_load_params->redirect_infos.back().new_url;
+  }
 
   // No redirection happened. The initial request URL was used for the response.
   return initial_request_url;
@@ -714,8 +726,9 @@ void WorkerScriptFetcher::OnReceiveResponse(
     std::optional<mojo_base::BigBuffer> cached_metadata) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(!cached_metadata);
-  if (!body)
+  if (!body) {
     return;
+  }
 
   CHECK(!main_script_load_params_);
   CHECK(url_loader_);

@@ -67,7 +67,9 @@ MaglevPhiRepresentationSelector::MaglevPhiRepresentationSelector(Graph* graph)
     : graph_(graph),
       reducer_(this, graph),
       phi_taggings_(zone()),
-      predecessors_(zone()) {}
+      predecessors_(zone()),
+      enable_truncated_int32_phis_(
+          graph->compilation_info()->flags().enable_truncated_int32_phis) {}
 
 BlockProcessResult MaglevPhiRepresentationSelector::PreProcessBasicBlock(
     BasicBlock* block) {
@@ -126,6 +128,11 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     return ProcessPhiResult::kNone;
   }
 
+  if (node->cannot_be_untagged()) {
+    TRACE_UNTAGGING("  Skipping because node is marked as cannot be untagged");
+    return ProcessPhiResult::kNone;
+  }
+
   if (node->is_exception_phi()) {
     // Exception phis have no inputs (or, at least, none accessible through
     // `node->input(...)`), so we don't know if the inputs could be untagged or
@@ -134,6 +141,17 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
   }
 
   TRACE_UNTAGGING("Considering for untagging: " << PrintNodeLabel(node));
+
+  if (node->uses_require_smi() && node->uses_require_heap_object()) {
+    // Some uses expect a Smi from this Phi and other uses expect a HeapObject
+    // (it's likely that those uses are on different control paths). We thus
+    // just skip this untagging. We could still untag and properly retag
+    // correctly on a per-use basis, but we currently don't have fine-enough
+    // knowledge of which uses require which representation exactly.
+    TRACE_UNTAGGING(
+        "  Skipping because uses require both 31-bit and HeapObject");
+    return ProcessPhiResult::kNone;
+  }
 
   // {input_mask} represents the ValueRepresentation that {node} could have,
   // based on the ValueRepresentation of its inputs.
@@ -290,6 +308,19 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     TRACE_UNTAGGING("  + use_reprs  : " << use_reprs << " (all uses)");
   }
 
+  bool has_ignored_tagged_use = false;
+  if (!input_reprs.contains_any({ValueRepresentation::kFloat64,
+                                 ValueRepresentation::kHoleyFloat64})) {
+    // If we don't have any Float64/HoleyFloat64 inputs, we ignore Tagged uses
+    // because retagging should be cheap. This isn't fully accurate: it's
+    // possible for Int32 phis to not fit in Smi range, but we're trying to be
+    // optimistic here!
+    use_reprs.Remove(UseRepresentation::kTagged);
+    // We need to remember that we removed a Tagged use when we later consider
+    // untagging to TruncatedInt32: tagged uses prevent this untagging.
+    has_ignored_tagged_use = true;
+  }
+
   TRACE_UNTAGGING("  + input_reprs: " << input_reprs);
 
   if (V8_UNLIKELY(v8_flags.trace_maglev_phi_untagging &&
@@ -310,9 +341,6 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     // them later). We also ignore phis that are used as Uint32, because this is
     // a fairly rare case and supporting it doesn't improve performance all that
     // much but will increase code complexity.
-    // TODO(dmercadier): consider taking into account where those Tagged uses
-    // are: Tagged uses outside of a loop or for a Return could probably be
-    // ignored.
     TRACE_UNTAGGING("  => Leaving tagged [incompatible uses]");
     EnsurePhiInputsTagged(node);
     return default_result;
@@ -402,7 +430,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     TRACE_UNTAGGING("  => Untagging to Int32");
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, untagging_kinds);
     return ProcessPhiResult::kChanged;
-  } else if (v8_flags.maglev_truncated_int32_phis && is_turbolev() &&
+  } else if (enable_truncated_int32_phis_ && !has_ignored_tagged_use &&
              use_reprs.contains_only(UseRepresentation::kTruncatedInt32)) {
     TRACE_UNTAGGING("  => Untagging to TruncatedInt32");
     ConvertTaggedPhiTo(node, ValueRepresentation::kInt32, untagging_kinds,
@@ -1013,7 +1041,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
     return ProcessResult::kContinue;
   }
 
-  if (phi->uses_require_31_bit_value() &&
+  if (SmiValuesAre31Bits() && phi->uses_require_smi() &&
       old_untagging->Is<CheckedSmiUntag>()) {
     // CheckedSmiUntag serves a dual-purpose: it untags a Smi but it also
     // ensures that this value is a Smi (and is therefore in Smi range). We need
@@ -1040,8 +1068,8 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
   }
 
   if (from_repr == to_repr) {
-    // CheckedSmiUntag needs special handling, cf above.
-    DCHECK(!(phi->uses_require_31_bit_value() &&
+    // CheckedSmiUntag needs special handling when Smis are 31 bits, cf above.
+    DCHECK(!(SmiValuesAre31Bits() && phi->uses_require_smi() &&
              old_untagging->Is<CheckedSmiUntag>()));
 
     old_untagging->OverwriteWith<Identity>();
@@ -1178,6 +1206,51 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   }
 }
 
+ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
+    CheckMaglevType* node, Phi* phi, int input_index,
+    const ProcessingState* state) {
+  DCHECK_EQ(input_index, 0);
+  NodeType expected_type = node->expected_type();
+  switch (phi->value_representation()) {
+    case ValueRepresentation::kTagged:
+      return ProcessResult::kContinue;
+    case ValueRepresentation::kInt32:
+    case ValueRepresentation::kUint32:
+      // Int32/Uint32 phis can have HeapNumber inputs, if either the HeapNumber
+      // is actually a 32-bit integer, or we've untagged a phi based on
+      // TruncatedInt32.
+
+      // Retagging a Int32/Uint32 phi can produce an integer outside of Smi
+      // range, but if this is covered by AllowWideningSmiToInt32::kAllow below.
+      if (NodeTypeCanBe(expected_type, NodeType::kHeapNumber)) {
+        expected_type = RemoveType(UnionType(expected_type, NodeType::kSmi),
+                                   NodeType::kHeapNumber);
+
+        node->set_expected_type(expected_type);
+        node->set_allow_widening_smi_to_int32(AllowWideningSmiToInt32::kAllow);
+      }
+      break;
+    case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kHoleyFloat64:
+      // EnsurePhiTagged below inserts a node which can change HeapNumbers to
+      // Smis.
+      if (NodeTypeCanBe(expected_type, NodeType::kHeapNumber) &&
+          !phi->uses_require_heap_object()) {
+        expected_type = UnionType(expected_type, NodeType::kSmi);
+        node->set_expected_type(expected_type);
+      }
+      break;
+    case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
+  }
+  node->change_input(input_index,
+                     EnsurePhiTagged(phi, reducer_.current_block(),
+                                     BasicBlockPosition::Start(), state));
+  return ProcessResult::kContinue;
+}
+
 void MaglevPhiRepresentationSelector::PostProcessBasicBlock(BasicBlock* block) {
   DCHECK_EQ(block, reducer_.current_block());
   reducer_.FlushNodesToBlock();
@@ -1211,13 +1284,40 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
                   StoreTaggedFieldWithWriteBarrier::kObjectIndex);
     static_assert(StoreTaggedFieldNoWriteBarrier::kValueIndex ==
                   StoreTaggedFieldWithWriteBarrier::kValueIndex);
-    node->OverwriteWith<StoreTaggedFieldWithWriteBarrier>();
+    node->OverwriteWith<StoreTaggedFieldWithWriteBarrier>(
+        node->offset(),
+        node->initializing_or_transitioning() ? StoreTaggedMode::kInitializing
+                                              : StoreTaggedMode::kDefault,
+        /*value_can_be_smi*/ true, node->property_key(),
+        node->maybe_assigned());
     // This store could be storing a Smi, since Int32 phis will be tagged to Smi
     // if they fit in a Smi, and even Float64 phis will be tagged to Smis if
     // this doesn't lose precision.
     static constexpr bool kRetaggedPhiCouldBeSmi = true;
     node->Cast<StoreTaggedFieldWithWriteBarrier>()->set_can_be_smi(
         kRetaggedPhiCouldBeSmi);
+  }
+
+  return ProcessResult::kContinue;
+}
+
+// StoreTaggedFieldWithWriteBarrier tracks whether its value input can be a Smi
+// or not, in order to elide the smi-check from its write-barrier when its input
+// is definitely not a Smi. However, because we do HeapNumber canonicalization
+// in Float64ToTagged, it's possible that its input is a HeapNumber that got
+// untagged to Float64 and that will become a Smi when we retag.
+ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
+    StoreTaggedFieldWithWriteBarrier* node, Phi* phi, int input_index,
+    const ProcessingState* state) {
+  UpdateNodePhiInput(static_cast<NodeBase*>(node), phi, input_index, state);
+
+  if (input_index == StoreTaggedFieldWithWriteBarrier::kValueIndex &&
+      phi->value_representation() != ValueRepresentation::kTagged) {
+    // This store could be storing a Smi, since Int32 phis will be tagged to Smi
+    // if they fit in a Smi, and even Float64 phis will be tagged to Smis if
+    // this doesn't lose precision.
+    static constexpr bool kRetaggedPhiCouldBeSmi = true;
+    node->set_can_be_smi(kRetaggedPhiCouldBeSmi);
   }
 
   return ProcessResult::kContinue;
@@ -1286,6 +1386,62 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
   }
 }
 
+// When a ToBoolean/ToBooleanLogicalNot has an untagged Int32/Float64 Phi as
+// input, we convert it to a Int32ToBoolean/Float6ToBoolean to avoid retagging
+// the Phi. Note that it's not only for performance but also has a correctness
+// aspect: the CheckType of the ToBoolean could become wrong because of phi
+// untagging because retagging Float64s can produce Smis due to
+// canonicalization.
+ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
+    ToBoolean* node, Phi* phi, int input_index, const ProcessingState* state) {
+  return UpdateNodePhiInputForToBoolean(node, phi, input_index,
+                                        /*flip=*/false);
+}
+ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
+    ToBooleanLogicalNot* node, Phi* phi, int input_index,
+    const ProcessingState* state) {
+  return UpdateNodePhiInputForToBoolean(node, phi, input_index,
+                                        /*flip=*/true);
+}
+
+// When a BranchIfToBooleanTrue has an untagged Int32/Float64 Phi as input, we
+// convert it to a BranchIfInt32ToBooleanTrue/BranchIfFloat6ToBooleanTrue to
+// avoid retagging the Phi.
+ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInputForToBoolean(
+    ValueNode* node, Phi* phi, int input_index, bool flip) {
+  DCHECK_EQ(input_index, 0);
+  switch (phi->value_representation()) {
+    case ValueRepresentation::kInt32:
+      node->OverwriteWith<Int32ToBoolean>()->set_flip(flip);
+      return ProcessResult::kContinue;
+
+    case ValueRepresentation::kFloat64:
+      node->OverwriteWith<Float64ToBoolean>()->set_flip(flip);
+      return ProcessResult::kContinue;
+
+    case ValueRepresentation::kHoleyFloat64: {
+      // Note that the ToBoolean of the_hole is False, and
+      // UnsafeHoleyFloat64ToFloat64(the_hole) produces NaN, whose ToBoolean is
+      // also False.
+      ValueNode* input =
+          AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>(
+              reducer_.current_block(), BasicBlockPosition::Start(), {phi});
+      node->OverwriteWith<Float64ToBoolean>()->set_flip(flip);
+      node->change_input(0, input);
+      return ProcessResult::kContinue;
+    }
+
+    case ValueRepresentation::kTagged:
+      return ProcessResult::kContinue;
+
+    case ValueRepresentation::kUint32:
+    case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kRawPtr:
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
+  }
+}
+
 // {node} was using {phi} without any untagging, which means that it was using
 // {phi} as a tagged value, so, if we've untagged {phi}, we need to re-tag it
 // for {node}.
@@ -1305,10 +1461,9 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
     // nodes will not reach this function. Furthermore, since the Phi is known
     // to be untagged (due to the prior DCHECK), and there are no Uint32 Phis,
     // any IsTruncatingToInt32 node that reaches here must be a Float64->Int32
-    // truncation.
-    DCHECK_IMPLIES(
-        IsTruncatingToInt32(node->opcode()),
-        phi->value_representation() == ValueRepresentation::kFloat64);
+    // or a HoleyFloat64->Int32 truncation.
+    DCHECK_IMPLIES(IsTruncatingToInt32(node->opcode()),
+                   phi->is_float64_or_holey_float64());
     DCHECK_NE(new_nodes_.find(node), new_nodes_.end());
   } else {
     node->change_input(input_index,
@@ -1354,7 +1509,9 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
         // otherwise, we could end up storing HeapNumbers in Smi fields.
         tagged = AddNewNodeNoInputConversion<Float64ToTagged>(
             block, pos, {phi},
-            Float64ToTagged::ConversionMode::kCanonicalizeSmi);
+            phi->uses_require_heap_object()
+                ? NumberConversionMode::kForceHeapNumber
+                : NumberConversionMode::kCanonicalizeSmi);
       }
       break;
     case ValueRepresentation::kHoleyFloat64:
@@ -1366,7 +1523,9 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
         // otherwise, we could end up storing HeapNumbers in Smi fields.
         tagged = AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
             block, pos, {phi},
-            HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi);
+            phi->uses_require_heap_object()
+                ? NumberConversionMode::kForceHeapNumber
+                : NumberConversionMode::kCanonicalizeSmi);
       }
       break;
     case ValueRepresentation::kInt32:
@@ -1374,19 +1533,16 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
         tagged =
             AddNewNodeNoInputConversion<CheckedSmiTagInt32>(block, pos, {phi});
       } else {
-        tagged = AddNewNodeNoInputConversion<Int32ToNumber>(block, pos, {phi});
-      }
-      break;
-    case ValueRepresentation::kUint32:
-      if (force_smi) {
-        tagged =
-            AddNewNodeNoInputConversion<CheckedSmiTagUint32>(block, pos, {phi});
-      } else {
-        tagged = AddNewNodeNoInputConversion<Uint32ToNumber>(block, pos, {phi});
+        tagged = AddNewNodeNoInputConversion<Int32ToNumber>(
+            block, pos, {phi},
+            phi->uses_require_heap_object()
+                ? NumberConversionMode::kForceHeapNumber
+                : NumberConversionMode::kCanonicalizeSmi);
       }
       break;
     case ValueRepresentation::kTagged:
       // Already handled at the begining of this function.
+    case ValueRepresentation::kUint32:
     case ValueRepresentation::kIntPtr:
     case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:

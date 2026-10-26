@@ -133,6 +133,11 @@ BASE_FEATURE(kClientSideDetectionKillswitch, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kClientSideDetectionLlamaForcedTriggerInfoForScamDetection,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kClientSideDetectionNewObservers,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+constexpr base::FeatureParam<double> kCsdClassificationDelay{
+    &kClientSideDetectionNewObservers, "ClassificationDelay", 0.0};
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kClientSideDetectionOnDeviceModelLazyDownloadAndroid,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -174,7 +179,7 @@ BASE_FEATURE(kClientSideDetectionShowScamVerdictWarningAndroid,
 #endif
 
 BASE_FEATURE(kClientSideDetectionSkipErrorPage,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kConditionalImageResize, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -250,6 +255,8 @@ constexpr base::FeatureParam<int>
 BASE_FEATURE(kExternalAppRedirectTelemetry,
              "SafeBrowsingExternalAppRedirectTelemetry",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kForceSecureDnsDohFallback, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGeminiAntiscamProtectionForMetricsCollection,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -438,6 +445,7 @@ base::ListValue GetFeatureStatusList() {
       &kEnterprisePasswordReuseUiRefresh,
       &kEsbAsASyncedSetting,
       &kExternalAppRedirectTelemetry,
+      &kForceSecureDnsDohFallback,
       &kHashPrefixRealTimeLookups,
       &kLocalListsUseSBv5,
       &kMigrateEnhancedSbUserToEnhancedBundle,

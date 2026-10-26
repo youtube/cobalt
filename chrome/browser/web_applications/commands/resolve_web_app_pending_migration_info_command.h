@@ -12,9 +12,9 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/web_applications/commands/web_app_command.h"
 #include "chrome/browser/web_applications/locks/all_apps_lock.h"
+#include "chrome/browser/web_applications/model/pending_migration_info.h"
 
 namespace web_app {
-
 // This command finds all apps that have a validated migration 'source' (e.g.,
 // they are the target of the migration), and ensures that all of those 'source'
 // apps have the target app as a pending migration.

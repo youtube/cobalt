@@ -47,8 +47,11 @@ extern const char kLoginSessionReporterMessagePipeId[];
 const mojo::NamedPlatformChannel::ServerName&
 GetLoginSessionReporterServerName();
 
-// Returns the username that the network process is run as.
-base::cstring_view GetNetworkProcessUsername();
+// Message pipe ID used for LoginSessionInfo.
+extern const char kLoginSessionServerMessagePipeId[];
+
+// Returns the server name for LoginSessionServer.
+const mojo::NamedPlatformChannel::ServerName& GetLoginSessionServerName();
 #endif  // BUILDFLAG(IS_LINUX)
 
 }  // namespace remoting

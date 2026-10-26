@@ -17,12 +17,12 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/field_trials_view.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
@@ -191,9 +191,9 @@ class SSLStreamAdapter : public StreamInterface {
   // Returns SSLPeerCertificateDigestError::NONE if successful.
   virtual SSLPeerCertificateDigestError SetPeerCertificateDigest(
       absl::string_view digest_alg,
-      ArrayView<const uint8_t> digest_val) = 0;
+      std::span<const uint8_t> digest_val) = 0;
   [[deprecated(
-      "Use SetPeerCertificateDigest with ArrayView instead")]] virtual bool
+      "Use SetPeerCertificateDigest with std::span instead")]] virtual bool
   SetPeerCertificateDigest(absl::string_view digest_alg,
                            const unsigned char* digest_val,
                            size_t digest_len,

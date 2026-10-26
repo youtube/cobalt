@@ -31,6 +31,7 @@
 #include "components/prefs/pref_service.h"
 #include "media/capture/video/chromeos/mojom/cros_camera_service.mojom-shared.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/views/controls/button/label_button.h"
 
 namespace ash {
 
@@ -272,7 +273,7 @@ TEST_F(VideoConferenceTrayControllerTest,
   EXPECT_FALSE(IsNudgeShown(nudge_id));
 
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kCamera, app_name);
+      VideoConferenceMediaDevice::kCamera, app_name);
 
   // After `kHandleDeviceUsedWhileDisabledWaitTime`, nudge should be displayed.
   // Showing that app is accessing while camera is software-muted.
@@ -306,7 +307,7 @@ TEST_F(VideoConferenceTrayControllerTest,
   EXPECT_FALSE(IsNudgeShown(nudge_id));
 
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kMicrophone, app_name);
+      VideoConferenceMediaDevice::kMicrophone, app_name);
 
   // After `kHandleDeviceUsedWhileDisabledWaitTime`, nudge should be displayed.
   // Showing that app is accessing while microphone is software-muted.
@@ -340,7 +341,7 @@ TEST_F(VideoConferenceTrayControllerTest,
   EXPECT_FALSE(IsNudgeShown(nudge_id));
 
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kCamera, app_name);
+      VideoConferenceMediaDevice::kCamera, app_name);
 
   // After `kHandleDeviceUsedWhileDisabledWaitTime`, nudge should be displayed.
   // Showing that app is accessing while camera is hardware-muted.
@@ -375,7 +376,7 @@ TEST_F(VideoConferenceTrayControllerTest,
   EXPECT_FALSE(IsNudgeShown(nudge_id));
 
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kMicrophone, app_name);
+      VideoConferenceMediaDevice::kMicrophone, app_name);
 
   // After `kHandleDeviceUsedWhileDisabledWaitTime`, nudge should be displayed.
   // Showing that app is accessing while microphone is hardware-muted.
@@ -412,7 +413,7 @@ TEST_F(VideoConferenceTrayControllerTest,
   EXPECT_FALSE(IsNudgeShown(nudge_id));
 
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kMicrophone, app_name);
+      VideoConferenceMediaDevice::kMicrophone, app_name);
 
   task_environment()->FastForwardBy(base::Milliseconds(20));
 
@@ -421,7 +422,7 @@ TEST_F(VideoConferenceTrayControllerTest,
   EXPECT_FALSE(IsNudgeShown(nudge_id));
 
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kCamera, app_name);
+      VideoConferenceMediaDevice::kCamera, app_name);
 
   // Nudge should be displayed when receiving signal for both camera and
   // microphone.
@@ -441,9 +442,9 @@ TEST_F(VideoConferenceTrayControllerTest,
   SetTrayAndButtonsVisible();
 
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kMicrophone, app_name);
+      VideoConferenceMediaDevice::kMicrophone, app_name);
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kCamera, app_name);
+      VideoConferenceMediaDevice::kCamera, app_name);
 
   ASSERT_TRUE(IsNudgeShown(nudge_id));
 
@@ -454,9 +455,9 @@ TEST_F(VideoConferenceTrayControllerTest,
 
   // Test the same thing for hw-unmuting camera.
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kMicrophone, app_name);
+      VideoConferenceMediaDevice::kMicrophone, app_name);
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kCamera, app_name);
+      VideoConferenceMediaDevice::kCamera, app_name);
 
   ASSERT_TRUE(IsNudgeShown(nudge_id));
 
@@ -473,9 +474,9 @@ TEST_F(VideoConferenceTrayControllerTest,
   SetTrayAndButtonsVisible();
 
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kMicrophone, app_name);
+      VideoConferenceMediaDevice::kMicrophone, app_name);
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kCamera, app_name);
+      VideoConferenceMediaDevice::kCamera, app_name);
 
   ASSERT_TRUE(IsNudgeShown(nudge_id));
 
@@ -486,9 +487,9 @@ TEST_F(VideoConferenceTrayControllerTest,
 
   // Test the same thing for hw-unmuting microphone.
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kMicrophone, app_name);
+      VideoConferenceMediaDevice::kMicrophone, app_name);
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kCamera, app_name);
+      VideoConferenceMediaDevice::kCamera, app_name);
 
   ASSERT_TRUE(IsNudgeShown(nudge_id));
 
@@ -811,7 +812,7 @@ TEST_F(VideoConferenceTrayControllerTest, NudgeBlocksOtherNudges) {
   controller()->OnCameraHWPrivacySwitchStateChanged(
       /*device_id=*/"device_id", cros::mojom::CameraPrivacySwitchState::ON);
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kCamera, app_name);
+      VideoConferenceMediaDevice::kCamera, app_name);
   task_environment()->FastForwardBy(kHandleDeviceUsedWhileDisabledWaitTime);
   EXPECT_TRUE(IsNudgeShown(use_while_disabled_nudge_id));
 
@@ -834,7 +835,7 @@ TEST_F(VideoConferenceTrayControllerTest, NudgeBlocksOtherNudges) {
   controller()->OnCameraHWPrivacySwitchStateChanged(
       /*device_id=*/"device_id", cros::mojom::CameraPrivacySwitchState::ON);
   controller()->HandleDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice::kCamera, app_name);
+      VideoConferenceMediaDevice::kCamera, app_name);
   task_environment()->FastForwardBy(kHandleDeviceUsedWhileDisabledWaitTime);
   EXPECT_TRUE(IsNudgeShown(use_while_disabled_nudge_id));
 

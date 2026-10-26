@@ -50,7 +50,6 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.ObservableSuppliers;
@@ -58,10 +57,13 @@ import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.hub.HubToolbarMediator.HubSearchEntrypoint;
 import org.chromium.chrome.browser.hub.HubToolbarProperties.PaneButtonLookup;
+import org.chromium.chrome.browser.ui.actions.DisplayButtonData;
+import org.chromium.chrome.browser.ui.actions.FullButtonData;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient.IntentBuilder;
 import org.chromium.components.feature_engagement.Tracker;
@@ -834,16 +836,16 @@ public class HubToolbarMediatorUnitTest {
                         mExitHubRunnable);
 
         mFocusedPaneSupplier.set(mTabSwitcherPane);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertFalse(mModel.get(MANUAL_SEARCH_BOX_ANIMATION));
 
         mManualSearchBoxAnimationSupplier.set(true);
         mFocusedPaneSupplier.set(mTabSwitcherPane);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertTrue(mModel.get(MANUAL_SEARCH_BOX_ANIMATION));
 
         mManualSearchBoxAnimationSupplier.set(false);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         mediator.destroy();
         assertFalse(mManualSearchBoxAnimationSupplier.hasObservers());
@@ -861,16 +863,16 @@ public class HubToolbarMediatorUnitTest {
                         mExitHubRunnable);
 
         mFocusedPaneSupplier.set(mTabSwitcherPane);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertEquals(0.0f, mModel.get(SEARCH_BOX_VISIBILITY_FRACTION), 0.0f);
 
         mSearchBoxVisibilityFractionSupplier.set(0.5f);
         mFocusedPaneSupplier.set(mTabSwitcherPane);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertEquals(0.5f, mModel.get(SEARCH_BOX_VISIBILITY_FRACTION), 0.0f);
 
         mSearchBoxVisibilityFractionSupplier.set(1.0f);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         mediator.destroy();
         assertFalse(mSearchBoxVisibilityFractionSupplier.hasObservers());
@@ -882,31 +884,31 @@ public class HubToolbarMediatorUnitTest {
                 mActivity, mModel, mPaneManager, mTracker, mSearchActivityClient, mExitHubRunnable);
 
         mFocusedPaneSupplier.set(mTabSwitcherPane);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertFalse(mModel.get(MANUAL_SEARCH_BOX_ANIMATION));
         assertEquals(0.0f, mModel.get(SEARCH_BOX_VISIBILITY_FRACTION), 0.0f);
 
         mManualSearchBoxAnimationSupplier.set(true);
         mSearchBoxVisibilityFractionSupplier.set(0.5f);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertTrue(mModel.get(MANUAL_SEARCH_BOX_ANIMATION));
         assertEquals(0.5f, mModel.get(SEARCH_BOX_VISIBILITY_FRACTION), 0.0f);
 
         mFocusedPaneSupplier.set(mIncognitoTabSwitcherPane);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertFalse(mModel.get(MANUAL_SEARCH_BOX_ANIMATION));
         assertEquals(0.0f, mModel.get(SEARCH_BOX_VISIBILITY_FRACTION), 0.0f);
 
         mIncognitoManualSearchBoxAnimationSupplier.set(true);
         mIncognitoSearchBoxVisibilityFractionSupplier.set(0.75f);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertTrue(mModel.get(MANUAL_SEARCH_BOX_ANIMATION));
         assertEquals(0.75f, mModel.get(SEARCH_BOX_VISIBILITY_FRACTION), 0.0f);
 
         // Make sure we're no longer observing the other pane.
         mManualSearchBoxAnimationSupplier.set(false);
         mSearchBoxVisibilityFractionSupplier.set(0.25f);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertTrue(mModel.get(MANUAL_SEARCH_BOX_ANIMATION));
         assertEquals(0.75f, mModel.get(SEARCH_BOX_VISIBILITY_FRACTION), 0.0f);
     }

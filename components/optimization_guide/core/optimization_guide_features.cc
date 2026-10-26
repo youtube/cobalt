@@ -145,10 +145,6 @@ const base::FeatureParam<std::string> kPerformanceClassListForImageInput{
     &kOnDeviceModelPerformanceParams,
     "compatible_on_device_performance_classes_image_input", "3,4,5,6"};
 
-const base::FeatureParam<std::string> kPerformanceClassListForAudioInput{
-    &kOnDeviceModelPerformanceParams,
-    "compatible_on_device_performance_classes_audio_input", "5,6"};
-
 BASE_FEATURE(kOnDeviceModelBackgroundDownload,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -195,7 +191,7 @@ const base::FeatureParam<base::TimeDelta> kGetAIPageContentSubframeTimeoutParam{
     &kGetAIPageContentSubframeTimeoutEnabled, "timeout", base::Seconds(10)};
 
 // Controls whether to enforce a timeout for main frame page content extraction.
-// If enabled, defaults to 10 seconds. If disabled, wait indefinitely for the
+// If enabled, defaults to 30 seconds. If disabled, wait indefinitely for the
 // main frame to respond.
 BASE_FEATURE(kGetAIPageContentMainFrameTimeoutEnabled,
              base::FEATURE_ENABLED_BY_DEFAULT);

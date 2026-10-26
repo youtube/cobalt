@@ -29,6 +29,7 @@
 #include "content/public/common/content_constants.h"
 #include "extensions/buildflags/buildflags.h"
 #include "services/network/public/mojom/network_service.mojom.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/chrome_content_browser_client_extensions_part.h"
@@ -248,6 +249,7 @@ void ProcessMonitor::SampleAllProcesses(Observer* observer) {
   // Aggregate all metrics into a single sum, but also per their process type.
   Metrics aggregated_metrics;
   std::array<Metrics, MonitoredProcessType::kCount> per_type_metrics;
+  absl::flat_hash_map<ProcessInfo::Key, Metrics> per_utility_subtype_metrics;
   for (auto* process_info : process_infos) {
     Metrics metrics = SampleMetrics(*process_info->process_metrics);
 
@@ -266,18 +268,41 @@ void ProcessMonitor::SampleAllProcesses(Observer* observer) {
 
     aggregated_metrics += metrics;
     per_type_metrics[process_info->key.type] += metrics;
+
+    if (process_info->key.type == MonitoredProcessType::kUtility) {
+      per_utility_subtype_metrics[process_info->key] += metrics;
+    }
   }
 
   for (auto& [key, metrics] : exited_processes_metrics_) {
-    // Add the metrics for the processes that exited during this interval and
-    // zero out.
+    // Add the metrics for the processes that exited during this interval.
     per_type_metrics[key.type] += metrics;
+    if (key.type == MonitoredProcessType::kUtility) {
+      per_utility_subtype_metrics[key] += metrics;
+    }
     metrics = Metrics();
+  }
 
-    observer->OnMetricsSampled(key, per_type_metrics[key.type]);
+  for (int type = 0; type < MonitoredProcessType::kCount; ++type) {
+    observer->OnMetricsSampled(
+        ProcessInfo::Key(static_cast<MonitoredProcessType>(type), std::nullopt),
+        per_type_metrics[type]);
+  }
+
+  for (auto& [key, metrics] : per_utility_subtype_metrics) {
+    observer->OnMetricsSampled(key, metrics);
   }
 
   observer->OnAggregatedMetricsSampled(aggregated_metrics);
+}
+
+void ProcessMonitor::AddChildProcessInfoForTesting(
+    int id,
+    ProcessInfo::Key key,
+    std::unique_ptr<base::ProcessMetrics> process_metrics) {
+  browser_child_process_infos_.emplace(
+      std::piecewise_construct, std::forward_as_tuple(id),
+      std::forward_as_tuple(key, std::move(process_metrics)));
 }
 
 void ProcessMonitor::OnRenderProcessHostCreated(

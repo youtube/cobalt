@@ -191,8 +191,6 @@ void ProfileManagementDisclaimerService::
   if (account_id.empty()) {
     return;
   }
-  // We should always know the access point that triggered the profile creation.
-  CHECK_NE(access_point, signin_metrics::AccessPoint::kUnknown);
 
   if (!AllowDisclaimer(access_point)) {
     return;
@@ -258,10 +256,11 @@ void ProfileManagementDisclaimerService::
     return;
   }
 
-  Browser* browser = chrome::FindLastActiveWithProfile(&profile_.get());
+  BrowserWindowInterface* const browser =
+      chrome::FindLastActiveWithProfile(&profile_.get());
   bool has_browser_with_tab =
-      browser &&
-      browser->SupportsWindowFeature(Browser::WindowFeature::kFeatureTabStrip);
+      browser && browser->GetBrowserForMigrationOnly()->SupportsWindowFeature(
+                     Browser::WindowFeature::kFeatureTabStrip);
   // If there is no browser and we are not in tests, abort.
   if (!has_browser_with_tab && !profile_separation_policies_for_testing_ &&
       !user_choice_for_testing_) {
@@ -304,7 +303,7 @@ void ProfileManagementDisclaimerService::
       base::BindOnce(&ProfileManagementDisclaimerService::OnRegisteredForPolicy,
                      weak_ptr_factory_.GetWeakPtr(),
                      /*is_from_cached_registration_result=*/false),
-      !IsSigninRegistration(state_->access_point));
+      !IsSigninRegistration(*state_->access_point));
 }
 
 void ProfileManagementDisclaimerService::OnRegisteredForPolicy(
@@ -345,7 +344,8 @@ void ProfileManagementDisclaimerService::OnRegisteredForPolicy(
     state_->profile_creation_controller =
         ManagedProfileCreationController::CreateManagedProfileForTesting(
             &profile_.get(), GetExtendedAccountInfo(state_->account_id),
-            state_->access_point,
+            // The access point always has a value if the account_id is set.
+            *state_->access_point,
             base::BindOnce(&ProfileManagementDisclaimerService::
                                OnManagedProfileCreationResult,
                            weak_ptr_factory_.GetWeakPtr()),
@@ -357,7 +357,8 @@ void ProfileManagementDisclaimerService::OnRegisteredForPolicy(
   state_->profile_creation_controller =
       ManagedProfileCreationController::CreateManagedProfile(
           &profile_.get(), GetExtendedAccountInfo(state_->account_id),
-          state_->access_point,
+          // The access point always has a value if the account_id is set.
+          *state_->access_point,
           base::BindOnce(&ProfileManagementDisclaimerService::
                              OnManagedProfileCreationResult,
                          weak_ptr_factory_.GetWeakPtr()));
@@ -429,15 +430,13 @@ void ProfileManagementDisclaimerService::OnExtendedAccountInfoUpdated(
     return;
   }
   state_->extended_account_info_wait_timeout.Stop();
-  MaybeShowEnterpriseManagementDisclaimer(info.account_id,
-                                          state_->access_point);
+  // The access point always has a value if the account_id is set.
+  MaybeShowEnterpriseManagementDisclaimer(state_->account_id,
+                                          *state_->access_point);
 }
 
 void ProfileManagementDisclaimerService::OnRefreshTokenUpdatedForAccount(
     const CoreAccountInfo& account_info) {
-  if (state_->access_point == signin_metrics::AccessPoint::kUnknown) {
-    return;
-  }
   // This would most likely happen at startup after all refresh tokens are
   // loaded.
   if (state_->account_id.empty() &&
@@ -448,8 +447,11 @@ void ProfileManagementDisclaimerService::OnRefreshTokenUpdatedForAccount(
       account_info.account_id != state_->account_id) {
     return;
   }
-  MaybeShowEnterpriseManagementDisclaimer(account_info.account_id,
-                                          state_->access_point);
+  MaybeShowEnterpriseManagementDisclaimer(
+      account_info.account_id,
+      state_->access_point.value_or(
+          signin_metrics::AccessPoint::
+              kEnterpriseManagementDisclaimerAfterSignin));
   state_->refresh_token_wait_timeout.Stop();
 }
 
@@ -458,10 +460,8 @@ void ProfileManagementDisclaimerService::OnBrowserActivated(
   CoreAccountId account_id = state_->account_id.empty()
                                  ? GetPrimaryAccountInfo().account_id
                                  : state_->account_id;
-  signin_metrics::AccessPoint access_point =
-      state_->access_point != signin_metrics::AccessPoint::kUnknown
-          ? state_->access_point
-          : signin_metrics::AccessPoint::
-                kEnterpriseManagementDisclaimerAfterBrowserFocus;
+  signin_metrics::AccessPoint access_point = state_->access_point.value_or(
+      signin_metrics::AccessPoint::
+          kEnterpriseManagementDisclaimerAfterBrowserFocus);
   MaybeShowEnterpriseManagementDisclaimer(account_id, access_point);
 }

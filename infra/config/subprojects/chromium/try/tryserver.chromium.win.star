@@ -173,6 +173,7 @@ try_.orchestrator_builder(
             "use_clang_coverage",
             "partial_code_coverage_instrumentation",
             "enable_dangling_raw_ptr_feature_flag",
+            "enable_rust_clippy",
         ],
     ),
     compilator = "win-rel-compilator",
@@ -462,6 +463,20 @@ try_.builder(
     ],
     gn_args = "ci/win-treesinviz-enabled-rel",
     contact_team_email = "chrome-gpu-team@google.com",
+)
+
+try_.builder(
+    name = "win-webium-product-rel",
+    mirrors = [
+        "ci/win-webium-product-rel",
+    ],
+    gn_args = gn_args.config(
+        configs = [
+            "ci/Win x64 Builder",
+            "release_try_builder",
+        ],
+    ),
+    contact_team_email = "chrome-webium-product-eng@google.com",
 )
 
 gpu.try_.optional_tests_builder(

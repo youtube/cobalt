@@ -92,6 +92,7 @@ class SafeBrowsingDatabaseManager;
 
 namespace extensions {
 
+class Blocklist;
 class ComponentExtensionResourceManager;
 class Extension;
 class ExtensionAssetsManager;
@@ -103,6 +104,8 @@ class ExtensionSet;
 class ExtensionSystem;
 class ExtensionSystemProvider;
 class ExtensionWebContentsObserver;
+class InstallStageTracker;
+class InstallTracker;
 class KioskDelegate;
 class PermissionSet;
 class ProcessManagerDelegate;
@@ -111,6 +114,7 @@ class RuntimeAPIDelegate;
 class SafeBrowsingDelegate;
 class ScopedBrowserContextKeepAlive;
 class ScriptExecutor;
+class SharedModuleService;
 class SitePermissionsHelper;
 class UserScriptListener;
 
@@ -416,6 +420,9 @@ class ExtensionsBrowserClient {
   // Returns true if activity logging is enabled for the given `context`.
   virtual bool IsActivityLoggingEnabled(content::BrowserContext* context);
 
+  // Returns true if telemetry logging is enabled for the given `context`.
+  virtual bool IsTelemetryLoggingEnabled(content::BrowserContext* context);
+
   // Retrives the embedder's notion of tab and window ID for a given
   // WebContents. May return -1 for either or both values if the embedder does
   // not implement any such concepts. This is used to support the WebRequest API
@@ -622,6 +629,23 @@ class ExtensionsBrowserClient {
   // On ChromeOS, this provides a platform-specific implementation, while
   // other platforms fall back to a trivial default implementation.
   virtual ExtensionAssetsManager* GetAssetsManager();
+
+  // Returns GetBlocklist associated with `context`.
+  virtual Blocklist* GetBlocklist(content::BrowserContext* context);
+
+  // Returns InstallStageTracker associated with `context`.
+  virtual InstallStageTracker* GetInstallStageTracker(
+      content::BrowserContext* context);
+
+  // Returns InstallTracker associated with `context`.
+  virtual InstallTracker* GetInstallTracker(content::BrowserContext* context);
+
+  // Returns SharedModuleService associated with `context`.
+  virtual SharedModuleService* GetSharedModuleService(
+      content::BrowserContext* context);
+
+  // Run an update check if the updater is enabled.
+  virtual void UpdateCheckIfEnabled(content::BrowserContext* context);
 
  protected:
   std::unique_ptr<ExtensionAssetsManager> assets_manager_;

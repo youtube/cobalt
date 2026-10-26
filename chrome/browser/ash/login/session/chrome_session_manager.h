@@ -10,6 +10,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ash/login/oobe_configuration.h"
 #include "chrome/browser/ash/login/session/user_session_initializer.h"
@@ -21,6 +22,16 @@ namespace base {
 class CommandLine;
 }
 
+namespace network {
+class SharedURLLoaderFactory;
+}  // namespace network
+
+namespace policy {
+class BrowserPolicyConnectorAsh;
+}  // namespace policy
+
+class ApplicationLocaleStorage;
+class PrefService;
 class Profile;
 
 namespace ash {
@@ -29,8 +40,11 @@ class SessionLengthLimiter;
 
 class ChromeSessionManager : public session_manager::SessionManagerObserver {
  public:
-  // `session_manager` must not be nullptr, and must outlive this instance.
-  explicit ChromeSessionManager(
+  // `local_state`, `browser_policy_connector_ash`, and `session_manager` must
+  // not be nullptr, and must outlive this instance.
+  ChromeSessionManager(
+      PrefService* local_state,
+      policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
       session_manager::SessionManager* session_manager);
 
   ChromeSessionManager(const ChromeSessionManager&) = delete;
@@ -47,9 +61,14 @@ class ChromeSessionManager : public session_manager::SessionManagerObserver {
   //   - Launches the auto launched kiosk app;
   //   - Resumes user sessions on crash-and-restart;
   //   - Starts a stub login session for dev or test;
-  void Initialize(const base::CommandLine& parsed_command_line,
-                  Profile* profile,
-                  bool is_running_test);
+  // `application_locale_storage` must not be nullptr, and must be valid while
+  // main RunLoop is running. `shared_url_loader_factory` must not be nullptr.
+  void Initialize(
+      ApplicationLocaleStorage* application_locale_storage,
+      scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+      const base::CommandLine& parsed_command_line,
+      Profile* profile,
+      bool is_running_test);
 
   // Shuts down the session manager.
   void Shutdown();
@@ -65,6 +84,9 @@ class ChromeSessionManager : public session_manager::SessionManagerObserver {
   }
 
  private:
+  const raw_ref<PrefService> local_state_;
+  const raw_ref<policy::BrowserPolicyConnectorAsh>
+      browser_policy_connector_ash_;
   const raw_ref<session_manager::SessionManager> session_manager_;
   std::unique_ptr<OobeConfiguration> oobe_configuration_;
   std::unique_ptr<UserSessionInitializer> user_session_initializer_;

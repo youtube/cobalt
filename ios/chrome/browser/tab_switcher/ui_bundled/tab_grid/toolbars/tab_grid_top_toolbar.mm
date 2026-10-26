@@ -13,12 +13,11 @@
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "base/task/sequenced_task_runner.h"
-#import "ios/chrome/browser/incognito_reauth/ui_bundled/features.h"
 #import "ios/chrome/browser/intelligence/page_action_menu/ui/page_action_menu_entrypoint_view.h"
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
 #import "ios/chrome/browser/menu/ui_bundled/action_factory.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
-#import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
+#import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
@@ -93,6 +92,7 @@ CGFloat HorizontalMargin() {
 
   BOOL _undoActive;
   BOOL _selectTabsActionEnabled;
+  BOOL _closeAllActionEnabled;
   BOOL _closeOtherTabsEnabled;
 
   BOOL _scrolledToEdge;
@@ -178,6 +178,11 @@ CGFloat HorizontalMargin() {
   _overflowMenuButton.menu = [self createOverflowMenu];
 }
 
+- (void)setCloseAllActionEnabled:(BOOL)enabled {
+  _closeAllActionEnabled = enabled;
+  _overflowMenuButton.menu = [self createOverflowMenu];
+}
+
 - (void)setCloseOtherTabsEnabled:(BOOL)enabled {
   _closeOtherTabsEnabled = enabled;
   _overflowMenuButton.menu = [self createOverflowMenu];
@@ -233,18 +238,18 @@ CGFloat HorizontalMargin() {
 
 - (void)hide {
   if (@available(iOS 26, *)) {
-  } else {
-    self.backgroundColor = UIColor.blackColor;
+    return;
   }
+  self.backgroundColor = UIColor.blackColor;
 
   self.pageControl.alpha = 0.0;
 }
 
 - (void)show {
   if (@available(iOS 26, *)) {
-  } else {
-    self.backgroundColor = UIColor.clearColor;
+    return;
   }
+  self.backgroundColor = UIColor.clearColor;
 
   self.pageControl.alpha = 1.0;
 }
@@ -334,15 +339,18 @@ CGFloat HorizontalMargin() {
   NSArray<UITrait>* traits = TraitCollectionSetForTraits(
       @[ UITraitVerticalSizeClass.class, UITraitHorizontalSizeClass.class ]);
   __weak TabGridTopToolbar* weakSelf = self;
-  [weakSelf
-      registerForTraitChanges:traits
-                  withHandler:^(id<UITraitEnvironment> traitEnvironment,
-                                UITraitCollection* previousCollection) {
-                    [weakSelf
-                        setButtonsForTraitCollection:weakSelf.traitCollection];
-                  }];
+  [weakSelf registerForTraitChanges:traits
+                         withAction:@selector(setNeedsLayout)];
 
   [super didMoveToSuperview];
+}
+
+- (void)layoutSubviews {
+  [super layoutSubviews];
+  // Perform updates during the layout phase to avoid re-entrancy issues
+  // during trait collection changes.
+  __weak TabGridTopToolbar* weakSelf = self;
+  [weakSelf setButtonsForTraitCollection:weakSelf.traitCollection];
 }
 
 #pragma mark - Private
@@ -488,9 +496,9 @@ CGFloat HorizontalMargin() {
   [self setStandardAppearance:appearance];
 
   self.translatesAutoresizingMaskIntoConstraints = NO;
+  self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
   if (@available(iOS 26, *)) {
   } else {
-    self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
     [self createScrolledBackgrounds];
     [self setShadowImage:[[UIImage alloc] init]
         forToolbarPosition:UIBarPositionAny];
@@ -619,15 +627,18 @@ CGFloat HorizontalMargin() {
                     }]];
     }
 
-    UIButton* currentOverflowMenuButton = _overflowMenuButton;
-    [menuElements addObject:[actionFactory actionToCloseAllTabsWithBlock:^{
-                    TabGridTopToolbar* strongSelf = weakSelf;
-                    if (!strongSelf) {
-                      return;
-                    }
-                    [strongSelf.buttonsDelegate
-                        closeAllButtonTapped:currentOverflowMenuButton];
-                  }]];
+    // Only display the Close All Tabs button if there are open tabs or groups.
+    if (_closeAllActionEnabled) {
+      UIButton* currentOverflowMenuButton = _overflowMenuButton;
+      [menuElements addObject:[actionFactory actionToCloseAllTabsWithBlock:^{
+                      TabGridTopToolbar* strongSelf = weakSelf;
+                      if (!strongSelf) {
+                        return;
+                      }
+                      [strongSelf.buttonsDelegate
+                          closeAllButtonTapped:currentOverflowMenuButton];
+                    }]];
+    }
 
     if (_closeOtherTabsEnabled) {
       UIAction* closeOtherTabsAction =

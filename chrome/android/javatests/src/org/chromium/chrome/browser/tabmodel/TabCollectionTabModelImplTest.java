@@ -182,7 +182,6 @@ public class TabCollectionTabModelImplTest {
 
     @Test
     @MediumTest
-    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testPinAndUnpinTab() throws Exception {
         Tab tab0 = getTabAt(0);
         Tab tab1 = createTab();
@@ -1216,7 +1215,6 @@ public class TabCollectionTabModelImplTest {
 
     @Test
     @MediumTest
-    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testPinTabInGroup() throws Exception {
         Tab tab0 = getTabAt(0);
         Tab tab1 = createTab();
@@ -1272,7 +1270,6 @@ public class TabCollectionTabModelImplTest {
 
     @Test
     @MediumTest
-    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testPinTabInGroup_ActionListener_Accept() throws Exception {
         Tab tab0 = getTabAt(0);
         Tab tab1 = createTab();
@@ -1287,8 +1284,7 @@ public class TabCollectionTabModelImplTest {
                     mCollectionModel.pinTab(tab1.getId(), /* showUngroupDialog= */ true, listener);
                 });
 
-        onViewWaiting(withText(R.string.delete_tab_group_action), /* checkRootDialog= */ true)
-                .perform(click());
+        onViewWaiting(withText(R.string.delete_tab_group_action)).perform(click());
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -1304,7 +1300,6 @@ public class TabCollectionTabModelImplTest {
 
     @Test
     @MediumTest
-    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testPinTabInGroup_ActionListener_Reject() throws Exception {
         Tab tab0 = getTabAt(0);
         Tab tab1 = createTab();
@@ -1319,7 +1314,7 @@ public class TabCollectionTabModelImplTest {
                     mCollectionModel.pinTab(tab1.getId(), /* showUngroupDialog= */ true, listener);
                 });
 
-        onViewWaiting(withText(R.string.cancel), /* checkRootDialog= */ true).perform(click());
+        onViewWaiting(withText(R.string.cancel)).perform(click());
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -1335,7 +1330,6 @@ public class TabCollectionTabModelImplTest {
 
     @Test
     @MediumTest
-    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testPinTabInMultiTabGroup() throws Exception {
         Tab tab0 = getTabAt(0);
         Tab tab1 = createTab();
@@ -3250,7 +3244,6 @@ public class TabCollectionTabModelImplTest {
 
     @Test
     @MediumTest
-    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testCloseTab_UndoPinnedTab() {
         Tab tab0 = getTabAt(0);
         Tab tab1 = createTab();
@@ -4439,7 +4432,10 @@ public class TabCollectionTabModelImplTest {
     public void testIsClosingAllTabsIsFalse() throws Exception {
         Tab tab0 = getTabAt(0);
         Tab tab1 = createTab();
-        assertFalse(mCollectionModel.isClosingAllTabs());
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertFalse(mCollectionModel.isClosingAllTabs());
+                });
 
         CallbackHelper willCloseTabHelper = new CallbackHelper();
         TabModelObserver observer =

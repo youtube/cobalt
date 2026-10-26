@@ -50,10 +50,10 @@ void FormDataAndroid::OnFormFieldDidChange(size_t index,
   fields_[index]->OnFormFieldDidChange(value);
 }
 
-bool FormDataAndroid::GetFieldIndex(const FormFieldData& field, size_t* index) {
+bool FormDataAndroid::GetSimilarFieldIndex(const FormFieldData& field,
+                                           size_t* index) {
   for (size_t i = 0; i < form_.fields().size(); ++i) {
-    if (FormFieldData::IdenticalAndEquivalentDomElements(
-            form_.fields()[i], field, {FormFieldData::Exclusion::kValue})) {
+    if (fields_[i]->SimilarFieldAs(field)) {
       *index = i;
       return true;
     }
@@ -61,10 +61,10 @@ bool FormDataAndroid::GetFieldIndex(const FormFieldData& field, size_t* index) {
   return false;
 }
 
-bool FormDataAndroid::GetSimilarFieldIndex(const FormFieldData& field,
-                                           size_t* index) {
+bool FormDataAndroid::GetFieldByGlobalId(const FormFieldData& field,
+                                         size_t* index) {
   for (size_t i = 0; i < form_.fields().size(); ++i) {
-    if (fields_[i]->SimilarFieldAs(field)) {
+    if (fields_[i]->global_id() == field.global_id()) {
       *index = i;
       return true;
     }

@@ -67,10 +67,8 @@
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "components/webapps/common/web_app_id.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
-#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
 #include "third_party/blink/public/common/manifest/manifest_util.h"
-#include "third_party/blink/public/common/permissions_policy/policy_helper_public.h"
 #include "third_party/blink/public/common/safe_url_pattern.h"
 #include "third_party/liburlpattern/options.h"
 #include "third_party/liburlpattern/pattern.h"
@@ -271,12 +269,11 @@ WebApp::CachedDerivedData& WebApp::CachedDerivedData::operator=(
   return *this;
 }
 
-WebApp::WebApp(const webapps::AppId& app_id,
-               const webapps::ManifestId& manifest_id,
+WebApp::WebApp(const webapps::ManifestId& manifest_id,
                const GURL& start_url,
                const GURL& scope,
                std::optional<webapps::AppId> parent_app_id)
-    : app_id_(app_id),
+    : app_id_(GenerateAppIdFromManifestId(manifest_id)),
       start_url_(start_url),
       scope_(scope),
       chromeos_data_(IsChromeOsDataMandatory()
@@ -284,6 +281,14 @@ WebApp::WebApp(const webapps::AppId& app_id,
                          : std::nullopt),
       manifest_id_(manifest_id),
       parent_app_id_(parent_app_id) {
+  // Fix invalid scope values.
+  if (!scope_.is_valid() || !url::IsSameOriginWith(scope_, start_url_) ||
+      !base::StartsWith(start_url_.spec(), scope_.spec(),
+                        base::CompareCase::SENSITIVE)) {
+    DLOG(ERROR) << "Invalid scope " << scope_.possibly_invalid_spec()
+                << " for start_url " << start_url_;
+    scope_ = start_url_.GetWithoutFilename();
+  }
   // Must drop the fragments and queries per `scope` rules
   // https://w3c.github.io/manifest/#scope-member
   GURL::Replacements replacements;
@@ -297,22 +302,6 @@ WebApp::WebApp(const webapps::AppId& app_id,
   SetStartUrl(start_url_);
   SetManifestId(manifest_id_);
   SetScope(scope_);
-}
-
-WebApp::WebApp(const webapps::ManifestId& manifest_id,
-               const GURL& start_url,
-               const GURL& scope,
-               std::optional<webapps::AppId> parent_app_id,
-               std::optional<webapps::ManifestId> parent_manifest_id)
-    : WebApp(GenerateAppIdFromManifestId(manifest_id, parent_manifest_id),
-             manifest_id,
-             start_url,
-             scope,
-             parent_app_id) {
-  if (parent_app_id_.has_value()) {
-    CHECK(!parent_app_id_->empty());
-  }
-  CHECK(!!parent_app_id == !!parent_manifest_id);
 }
 
 WebApp::WebApp(const sync_pb::WebAppSpecifics& sync_proto)
@@ -726,22 +715,6 @@ void WebApp::SetManifestUrl(const GURL& manifest_url) {
   manifest_url_ = manifest_url;
 }
 
-void WebApp::SetManifestId(const webapps::ManifestId& manifest_id) {
-  CHECK(manifest_id.is_valid());
-  CHECK(start_url_.is_empty() || url::IsSameOriginWith(start_url_, manifest_id))
-      << start_url_.spec() << " vs " << manifest_id.spec();
-  CHECK(!manifest_id.has_ref());
-  manifest_id_ = manifest_id;
-
-  // Ensure sync proto is initialized and remains consistent.
-  std::string relative_manifest_id_path = RelativeManifestIdPath(manifest_id_);
-  if (sync_proto_.has_relative_manifest_id()) {
-    CHECK_EQ(sync_proto_.relative_manifest_id(), relative_manifest_id_path);
-  } else {
-    sync_proto_.set_relative_manifest_id(relative_manifest_id_path);
-  }
-}
-
 void WebApp::SetWindowControlsOverlayEnabled(bool enabled) {
   window_controls_overlay_enabled_ = enabled;
 }
@@ -753,11 +726,6 @@ void WebApp::SetLaunchHandler(std::optional<LaunchHandler> launch_handler) {
 void WebApp::SetParentAppId(
     const std::optional<webapps::AppId>& parent_app_id) {
   parent_app_id_ = parent_app_id;
-}
-
-void WebApp::SetPermissionsPolicy(
-    network::ParsedPermissionsPolicy permissions_policy) {
-  permissions_policy_ = std::move(permissions_policy);
 }
 
 void WebApp::SetLatestInstallSource(
@@ -933,36 +901,17 @@ void WebApp::SetStoredTrustedIconSizes(IconPurpose purpose,
   }
 }
 
-namespace {
-void ValidateMigrationSources(
-    const std::vector<proto::WebAppMigrationSource>& sources) {
-  for (const auto& source : sources) {
-    GURL manifest_id(source.manifest_id());
-    CHECK(manifest_id.is_valid());
-    CHECK(!url::Origin::Create(manifest_id).opaque());
-    if (source.has_install_url()) {
-      GURL install_url(source.install_url());
-      CHECK(install_url.is_valid());
-      CHECK(url::IsSameOriginWith(manifest_id, install_url));
-    }
-  }
-}
-}  // namespace
-
 void WebApp::SetUnvalidatedMigrationSources(
-    std::vector<proto::WebAppMigrationSource> sources) {
-  ValidateMigrationSources(sources);
+    std::vector<MigrationSource> sources) {
   unvalidated_migration_sources_ = std::move(sources);
 }
 
 void WebApp::SetValidatedMigrationSources(
-    std::vector<proto::WebAppMigrationSource> sources) {
-  ValidateMigrationSources(sources);
+    std::vector<MigrationSource> sources) {
   validated_migration_sources_ = std::move(sources);
 }
 
-void WebApp::SetPendingMigrationInfo(
-    std::optional<proto::PendingMigrationInfo> info) {
+void WebApp::SetPendingMigrationInfo(std::optional<PendingMigrationInfo> info) {
   if (info.has_value()) {
     GURL manifest_id(info->manifest_id());
     CHECK(manifest_id.is_valid());
@@ -1231,7 +1180,6 @@ bool WebApp::operator==(const WebApp& other) const {
         app.window_controls_overlay_enabled_,
         app.launch_handler_,
         app.parent_app_id_,
-        app.permissions_policy_,
         app.latest_install_source_,
         app.app_size_in_bytes_,
         app.data_size_in_bytes_,
@@ -1384,29 +1332,6 @@ base::Value WebApp::AsDebugValueWithOnlyPlatformAgnosticFields() const {
 
   root.Set("parent_app_id", OptionalToStringValue(parent_app_id_));
 
-  if (!permissions_policy_.empty()) {
-    base::ListValue policy_list;
-    const auto& feature_to_name_map =
-        blink::GetPermissionsPolicyFeatureToNameMap();
-    for (const auto& decl : permissions_policy_) {
-      base::DictValue json_decl;
-      const auto& feature_name = feature_to_name_map.find(decl.feature);
-      if (feature_name == feature_to_name_map.end()) {
-        continue;
-      }
-      json_decl.Set("feature", feature_name->second);
-      base::ListValue allowlist_json;
-      for (const auto& allowlist_item : GetSerializedAllowedOrigins(decl)) {
-        allowlist_json.Append(allowlist_item);
-      }
-      json_decl.Set("allowed_origins", std::move(allowlist_json));
-      json_decl.Set("matches_all_origins", decl.matches_all_origins);
-      json_decl.Set("matches_opaque_src", decl.matches_opaque_src);
-      policy_list.Append(std::move(json_decl));
-    }
-    root.Set("permissions_policy", std::move(policy_list));
-  }
-
   root.Set("protocol_handlers", ConvertDebugValueList(protocol_handlers_));
 
   root.Set("run_on_os_login_mode", base::ToString(run_on_os_login_mode_));
@@ -1481,16 +1406,11 @@ base::Value WebApp::AsDebugValueWithOnlyPlatformAgnosticFields() const {
   root.Set("installed_by", std::move(installed_by_list));
 
   root.Set("unvalidated_migration_sources",
-           base::ToValueList(unvalidated_migration_sources_,
-                             [](const proto::WebAppMigrationSource& source) {
-                               return proto::ToValue(source);
-                             }));
+           ConvertDebugValueList(unvalidated_migration_sources_));
   root.Set("validated_migration_sources",
-           base::ToValueList(validated_migration_sources_,
-                             [](const proto::WebAppMigrationSource& source) {
-                               return proto::ToValue(source);
-                             }));
-  proto::MaybeToValue(pending_migration_info_, "pending_migration_info", root);
+           ConvertDebugValueList(validated_migration_sources_));
+  root.Set("pending_migration_info",
+           OptionalAsDebugValue(pending_migration_info_));
 
   base::DictValue stored_trusted_icon_sizes_json;
   for (IconPurpose purpose : kIconPurposes) {
@@ -1526,6 +1446,22 @@ base::Value WebApp::AsDebugValue() const {
   return value;
 }
 
+void WebApp::SetManifestId(const webapps::ManifestId& manifest_id) {
+  CHECK(manifest_id.is_valid());
+  CHECK(start_url_.is_empty() || url::IsSameOriginWith(start_url_, manifest_id))
+      << start_url_.spec() << " vs " << manifest_id.spec();
+  CHECK(!manifest_id.has_ref());
+  manifest_id_ = manifest_id;
+
+  // Ensure sync proto is initialized and remains consistent.
+  std::string relative_manifest_id_path = RelativeManifestIdPath(manifest_id_);
+  if (sync_proto_.has_relative_manifest_id()) {
+    CHECK_EQ(sync_proto_.relative_manifest_id(), relative_manifest_id_path);
+  } else {
+    sync_proto_.set_relative_manifest_id(relative_manifest_id_path);
+  }
+}
+
 std::ostream& operator<<(std::ostream& out, const WebApp& app) {
   return out << app.AsDebugValue();
 }
@@ -1534,22 +1470,6 @@ std::ostream& operator<<(
     std::ostream& out,
     const WebApp::ExternalManagementConfig& management_config) {
   return out << management_config.AsDebugValue().DebugString();
-}
-
-std::vector<std::string> GetSerializedAllowedOrigins(
-    const network::ParsedPermissionsPolicyDeclaration
-        permissions_policy_declaration) {
-  std::vector<std::string> allowed_origins;
-  if (permissions_policy_declaration.self_if_matches) {
-    CHECK(!permissions_policy_declaration.self_if_matches->opaque());
-    allowed_origins.push_back(
-        permissions_policy_declaration.self_if_matches->Serialize());
-  }
-  for (const auto& origin_with_possible_wildcards :
-       permissions_policy_declaration.allowed_origins) {
-    allowed_origins.push_back(origin_with_possible_wildcards.Serialize());
-  }
-  return allowed_origins;
 }
 
 }  // namespace web_app

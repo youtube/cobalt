@@ -4,6 +4,7 @@
 
 #include "components/policy/core/common/features.h"
 
+#include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/time/time.h"
 #include "build/android_buildflags.h"
@@ -45,10 +46,10 @@ BASE_FEATURE(kSafeSitesCaptivePortalCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kFuturePoliciesOnDesktopAndroid,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// An allowlist of policies supported on Desktop Android.
+// A blocklist of policies to be blocked/ignored on Desktop Android.
 BASE_FEATURE(kDesktopAndroidPolicy, base::FEATURE_DISABLED_BY_DEFAULT);
-const base::FeatureParam<std::string> kDesktopAndroidPolicyAllowlist{
-    &kDesktopAndroidPolicy, "allowlist", ""};
+const base::FeatureParam<std::string> kDesktopAndroidPolicyBlocklist{
+    &kDesktopAndroidPolicy, "blocklist", ""};
 #endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
 
 // Used to enable extension install policy support.
@@ -60,5 +61,13 @@ BASE_FEATURE(kEnableExtensionInstallPolicyFetching,
 // behavior.
 BASE_FEATURE(kUseManagementServiceForSensitivePolicies,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Modifies behavior of policies utilizing URLBlocklistManager.
+// When enabled, bypasses the wildcard "*" in the blocklist for internal
+// chrome:// URLs such as chrome://ntp, chrome://bookmarks, etc.
+BASE_FEATURE(kBypassURLBlocklistWildcardForInternalChromeUrls,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kPolicyPageMojoMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace policy::features

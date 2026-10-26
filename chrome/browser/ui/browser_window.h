@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "base/functional/callback_forward.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/apps/link_capturing/intent_picker_info.h"
 #include "chrome/browser/lifetime/browser_close_manager.h"
@@ -592,16 +591,8 @@ class BrowserWindow : public ui::BaseWindow {
   // Shows a confirmation dialog about enabling caret browsing.
   virtual void ShowCaretBrowsingDialog() = 0;
 
-  // Create and open the tab search bubble. Optionally force it to open to the
-  // given section and organization feature.
-  virtual void CreateTabSearchBubble(
-      tab_search::mojom::TabSearchSection section,
-      tab_search::mojom::TabOrganizationFeature organization_feature) = 0;
-  void CreateTabSearchBubble(tab_search::mojom::TabSearchSection section =
-                                 tab_search::mojom::TabSearchSection::kSearch) {
-    CreateTabSearchBubble(section,
-                          tab_search::mojom::TabOrganizationFeature::kNone);
-  }
+  // Create and open the tab search bubble.
+  virtual void CreateTabSearchBubble() = 0;
 
   // Closes the tab search bubble if open for the given browser instance.
   virtual void CloseTabSearchBubble() = 0;

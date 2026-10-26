@@ -5,26 +5,25 @@
 #ifndef REMOTING_SIGNALING_FAKE_SIGNAL_STRATEGY_H_
 #define REMOTING_SIGNALING_FAKE_SIGNAL_STRATEGY_H_
 
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "remoting/signaling/iq_sender.h"
 #include "remoting/signaling/signal_strategy.h"
 #include "remoting/signaling/signaling_address.h"
 
-namespace base {
-class SingleThreadTaskRunner;
-}  // namespace base
-
 namespace remoting {
 
 class FakeSignalStrategy : public SignalStrategy {
  public:
-  using PeerCallback = base::RepeatingCallback<void(
-      std::unique_ptr<jingle_xmpp::XmlElement> message)>;
+  using PeerCallback =
+      base::RepeatingCallback<void(SignalStrategy::Message message)>;
 
   // Calls ConnectTo() to connect |peer1| and |peer2|. Both |peer1| and |peer2|
   // must belong to the current thread.
@@ -37,8 +36,7 @@ class FakeSignalStrategy : public SignalStrategy {
 
   ~FakeSignalStrategy() override;
 
-  const std::vector<std::unique_ptr<jingle_xmpp::XmlElement>>&
-  received_messages() {
+  const std::vector<SignalStrategy::Message>& received_messages() {
     return received_messages_;
   }
 
@@ -64,8 +62,8 @@ class FakeSignalStrategy : public SignalStrategy {
   // to DISCONNECTED.
   void SimulateTwoStageConnect();
 
-  // Called by the |peer_|. Takes ownership of |stanza|.
-  void OnIncomingMessage(std::unique_ptr<jingle_xmpp::XmlElement> stanza);
+  // Called by the |peer_|.
+  void OnIncomingMessage(SignalStrategy::Message message);
 
   void ProceedConnect();
 
@@ -77,21 +75,23 @@ class FakeSignalStrategy : public SignalStrategy {
   const SignalingAddress& GetLocalAddress() const override;
   void AddListener(Listener* listener) override;
   void RemoveListener(Listener* listener) override;
-  bool SendStanza(std::unique_ptr<jingle_xmpp::XmlElement> stanza) override;
-  bool SendMessage(const SignalingAddress& destination_address,
-                   SignalingMessage&& message) override;
+  bool SendMessage(JingleMessage&& message) override;
+  bool SendReply(JingleMessageReply&& message) override;
   std::string GetNextId() override;
   bool IsSignInError() const override;
 
  private:
+  template <typename T>
+  bool Send(T&& message);
   static void DeliverMessageOnThread(
       scoped_refptr<base::SingleThreadTaskRunner> thread,
       base::WeakPtr<FakeSignalStrategy> target,
-      std::unique_ptr<jingle_xmpp::XmlElement> stanza);
+      SignalStrategy::Message message);
 
-  void NotifyListeners(std::unique_ptr<jingle_xmpp::XmlElement> stanza);
+  void NotifyListeners(SignalStrategy::Message message);
 
-  scoped_refptr<base::SingleThreadTaskRunner> main_thread_;
+  scoped_refptr<base::SingleThreadTaskRunner> main_thread_{
+      base::SingleThreadTaskRunner::GetCurrentDefault()};
 
   Error error_ = OK;
   bool is_sign_in_error_ = false;
@@ -101,16 +101,16 @@ class FakeSignalStrategy : public SignalStrategy {
   PeerCallback peer_callback_;
   base::ObserverList<Listener, true> listeners_;
 
-  int last_id_;
+  int last_id_ = 0;
 
   base::TimeDelta send_delay_;
 
   bool simulate_reorder_ = false;
   bool simulate_two_stage_connect_ = false;
-  std::unique_ptr<jingle_xmpp::XmlElement> pending_stanza_;
+  std::optional<SignalStrategy::Message> pending_message_;
 
-  // All received messages, includes thouse still in |pending_messages_|.
-  std::vector<std::unique_ptr<jingle_xmpp::XmlElement>> received_messages_;
+  // All received messages, includes those still in |pending_messages_|.
+  std::vector<SignalStrategy::Message> received_messages_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

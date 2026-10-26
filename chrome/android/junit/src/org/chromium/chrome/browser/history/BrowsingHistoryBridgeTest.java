@@ -67,14 +67,17 @@ public class BrowsingHistoryBridgeTest {
         HistoryContentManager contentManager = mock(HistoryContentManager.class);
         HistoryAdapter adapter =
                 new HistoryAdapter(
-                        contentManager, mBrowsingHistoryBridge, mHistorySyncPromoCoordinator);
+                        contentManager,
+                        mBrowsingHistoryBridge,
+                        mHistorySyncPromoCoordinator,
+                        false);
         mBrowsingHistoryBridge.setObserver(adapter);
 
         List<HistoryItem> items = new ArrayList<>();
         long[] timestamps = new long[0];
         String appId = "org.chromium.dino.Trex";
         BrowsingHistoryBridge.createHistoryItemAndAddToList(
-                items, GURL.emptyGURL(), "domain.com", "title", appId, 0, timestamps, false);
+                items, GURL.emptyGURL(), "domain.com", "title", appId, 0, timestamps, false, false);
         mBrowsingHistoryBridge.onQueryHistoryComplete(items, false);
 
         adapter.markItemForRemoval(items.get(0));

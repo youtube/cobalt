@@ -18,6 +18,9 @@ FakePageLoadMetricsObserverDelegate::FakePageLoadMetricsObserverDelegate()
       page_end_user_initiated_info_(UserInitiatedInfo::NotUserInitiated()),
       visibility_tracker_(base::DefaultTickClock::GetInstance(),
                           /*is_shown=*/true),
+      soft_navigation_contentful_paint_candidate_(
+          false,
+          blink::LargestContentfulPaintType::kNone),
       navigation_id_(g_next_navigation_id_++),
       navigation_start_(base::TimeTicks::Now()) {}
 FakePageLoadMetricsObserverDelegate::~FakePageLoadMetricsObserverDelegate() =
@@ -190,6 +193,12 @@ const LargestContentfulPaintHandler& FakePageLoadMetricsObserverDelegate::
   return experimental_largest_contentful_paint_handler_;
 }
 
+const ContentfulPaintTimingInfo&
+FakePageLoadMetricsObserverDelegate::GetSoftNavigationLargestContentfulPaint()
+    const {
+  return soft_navigation_contentful_paint_candidate_.MergeTextAndImageTiming();
+}
+
 ukm::SourceId FakePageLoadMetricsObserverDelegate::GetPageUkmSourceId() const {
   return ukm::kInvalidSourceId;
 }
@@ -197,6 +206,10 @@ ukm::SourceId FakePageLoadMetricsObserverDelegate::GetPageUkmSourceId() const {
 mojom::SoftNavigationMetrics&
 FakePageLoadMetricsObserverDelegate::GetSoftNavigationMetrics() const {
   return *mojom::SoftNavigationMetrics::New();
+}
+
+uint64_t FakePageLoadMetricsObserverDelegate::GetSoftNavigationCount() const {
+  return 0;
 }
 
 ukm::SourceId

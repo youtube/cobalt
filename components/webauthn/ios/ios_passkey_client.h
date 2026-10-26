@@ -10,12 +10,6 @@
 
 #import "components/webauthn/ios/passkey_types.h"
 
-class IOSPasswordManagerDriver;
-
-namespace password_manager {
-class WebAuthnCredentialsDelegate;
-}
-
 @protocol IOSPasskeyClientCommands;
 
 namespace webauthn {
@@ -39,6 +33,8 @@ class IOSPasskeyClient {
     std::string request_id;
   };
 
+  using InterstitialCallback = base::OnceCallback<void(bool)>;
+
   virtual ~IOSPasskeyClient() = default;
 
   // Sets the passkey command handler.
@@ -59,13 +55,14 @@ class IOSPasskeyClient {
   // Shows the bottom sheet to confirm passkey creation.
   virtual void ShowCreationBottomSheet(RequestInfo request_info) = 0;
 
+  // Shows a warning that passkeys created in Incognito persist beyond
+  // the session. Executes the callback with the user's decision.
+  virtual void ShowInterstitial(InterstitialCallback callback) = 0;
+
   // Sets whether showing the passkey creation infobar is allowed. Should be
   // enabled before passkey creation happens within the passkey model and
   // disabled after passkey creation is completed.
   virtual void AllowPasskeyCreationInfobar(bool allowed) = 0;
-
-  virtual password_manager::WebAuthnCredentialsDelegate*
-  GetWebAuthnCredentialsDelegateForDriver(IOSPasswordManagerDriver* driver) = 0;
 
  protected:
   IOSPasskeyClient() = default;

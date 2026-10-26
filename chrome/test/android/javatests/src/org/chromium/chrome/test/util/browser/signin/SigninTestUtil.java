@@ -21,6 +21,7 @@ import org.junit.Assert;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CallbackHelper;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.signin.SigninFirstRunFragment;
@@ -34,6 +35,7 @@ import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.signin.metrics.SignoutReason;
 import org.chromium.components.sync.SyncService;
 import org.chromium.components.sync.UserSelectableType;
+import org.chromium.google_apis.gaia.CoreAccountId;
 import org.chromium.ui.base.WindowAndroid;
 
 import java.util.concurrent.TimeoutException;
@@ -49,11 +51,11 @@ public final class SigninTestUtil {
         @Override
         public void launchDeviceLockActivity(
                 Context context,
-                String selectedAccount,
+                @Nullable CoreAccountId selectedAccountId,
                 boolean requireDeviceLockReauthentication,
                 WindowAndroid windowAndroid,
                 WindowAndroid.IntentCallback callback,
-                @DeviceLockActivityLauncher.Source String source) {
+                @Source String source) {
             mCallback = callback;
             mLaunched = true;
         }
@@ -99,7 +101,7 @@ public final class SigninTestUtil {
                                     .getSigninManager(ProfileManager.getLastUsedRegularProfile());
                     signinManager.signin(
                             coreAccountInfo,
-                            SigninAccessPoint.UNKNOWN,
+                            SigninAccessPoint.WEB_SIGNIN,
                             new SigninManager.SignInCallback() {
                                 @Override
                                 public void onSignInComplete() {
@@ -142,7 +144,8 @@ public final class SigninTestUtil {
                     SigninManager signinManager =
                             IdentityServicesProvider.get()
                                     .getSigninManager(ProfileManager.getLastUsedRegularProfile());
-                    signinManager.turnOnSyncForTesting(coreAccountInfo, SigninAccessPoint.UNKNOWN);
+                    signinManager.turnOnSyncForTesting(
+                            coreAccountInfo, SigninAccessPoint.WEB_SIGNIN);
                     Assert.assertEquals(coreAccountInfo, getPrimaryAccount(ConsentLevel.SYNC));
                 });
     }
@@ -162,7 +165,7 @@ public final class SigninTestUtil {
                                     .getSigninManager(ProfileManager.getLastUsedRegularProfile());
                     signinManager.signin(
                             coreAccountInfo,
-                            SigninAccessPoint.UNKNOWN,
+                            SigninAccessPoint.WEB_SIGNIN,
                             new SigninManager.SignInCallback() {
                                 @Override
                                 public void onSignInComplete() {

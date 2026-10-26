@@ -66,6 +66,11 @@ class InitialWebUIWindowMetricsManager {
   // This handles reload button metrics in both startup window and new window.
   void OnReloadButtonFirstContentfulPaint(base::TimeTicks timestamp);
 
+  // Called when the renderer process is created and launched.
+  void OnReloadButtonRendererProcessCreatedAndLaunched(
+      base::TimeTicks created_timestamp,
+      base::TimeTicks launched_timestamp);
+
   // Skips recording startup metrics for testing.
   void SkipStartupForTesting();
 
@@ -90,6 +95,16 @@ class InitialWebUIWindowMetricsManager {
   bool is_new_window_first_paint_recorded_ = false;
   bool is_new_window_reload_button_first_paint_recorded_ = false;
   bool is_new_window_reload_button_first_contentful_paint_recorded_ = false;
+
+  bool startup_delta_recorded_ = false;
+  bool new_window_delta_recorded_ = false;
+
+  // Track timestamps to calculate the delta between the two paint events.
+  std::optional<base::TimeTicks> browser_window_first_paint_time_;
+  std::optional<base::TimeTicks> reload_button_first_paint_time_;
+
+  // Helper to emit the delta metric once both timestamps are available.
+  void RecordPaintDeltaIfAvailable();
 
   bool skip_startup_metrics_for_testing_ = false;
 };

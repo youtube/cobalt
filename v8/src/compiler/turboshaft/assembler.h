@@ -1481,7 +1481,9 @@ class ReducerBase : public Next {
       Asm().AddPredecessor(saved_current_block, catch_block, true);
     }
     for (auto& effect_handler : effect_handlers) {
-      Asm().AddPredecessor(saved_current_block, effect_handler.block, true);
+      if (!effect_handler.is_switch()) {
+        Asm().AddPredecessor(saved_current_block, effect_handler.block, true);
+      }
     }
     return new_opindex;
   }
@@ -2226,6 +2228,8 @@ class AssemblerOpInterface : public Next {
             k##input_interpretation,                                     \
         CheckForMinusZeroMode::kDontCheckForMinusZero));                 \
   }
+  CONVERT_PRIMITIVE_TO_OBJECT(ConvertInt32ToHeapNumber, HeapNumber, Word32,
+                              Signed)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertInt32ToNumber, Number, Word32, Signed)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertUint32ToNumber, Number, Word32, Unsigned)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertIntPtrToNumber, Number, WordPtr, Signed)
@@ -3060,13 +3064,25 @@ class AssemblerOpInterface : public Next {
   void Store(
       OpIndex base, OptionalOpIndex index, OpIndex value, StoreOp::Kind kind,
       MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
+      std::optional<AtomicMemoryOrder> memory_order, int32_t offset = 0,
+      uint8_t element_size_log2 = 0,
+      bool maybe_initializing_or_transitioning = false,
+      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+    DCHECK_EQ(kind.is_atomic, memory_order.has_value());
+    ReduceIfReachableStore(base, index, value, kind, stored_rep, write_barrier,
+                           memory_order, offset, element_size_log2,
+                           maybe_initializing_or_transitioning,
+                           maybe_indirect_pointer_tag);
+  }
+  void Store(
+      OpIndex base, OptionalOpIndex index, OpIndex value, StoreOp::Kind kind,
+      MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
       int32_t offset = 0, uint8_t element_size_log2 = 0,
       bool maybe_initializing_or_transitioning = false,
       IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
-    ReduceIfReachableStore(base, index, value, kind, stored_rep, write_barrier,
-                           offset, element_size_log2,
-                           maybe_initializing_or_transitioning,
-                           maybe_indirect_pointer_tag);
+    Store(base, index, value, kind, stored_rep, write_barrier, std::nullopt,
+          offset, element_size_log2, maybe_initializing_or_transitioning,
+          maybe_indirect_pointer_tag);
   }
   void Store(
       OpIndex base, OpIndex value, StoreOp::Kind kind,
@@ -3075,6 +3091,17 @@ class AssemblerOpInterface : public Next {
       IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
     Store(base, OpIndex::Invalid(), value, kind, stored_rep, write_barrier,
           offset, 0, maybe_initializing_or_transitioning,
+          maybe_indirect_pointer_tag);
+  }
+  void Store(
+      OpIndex base, OpIndex value, StoreOp::Kind kind,
+      MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
+      std::optional<AtomicMemoryOrder> memory_order, int32_t offset = 0,
+      uint8_t element_size_log2 = 0,
+      bool maybe_initializing_or_transitioning = false,
+      IndirectPointerTag maybe_indirect_pointer_tag = kIndirectPointerNullTag) {
+    Store(base, OpIndex::Invalid(), value, kind, stored_rep, write_barrier,
+          memory_order, offset, 0, maybe_initializing_or_transitioning,
           maybe_indirect_pointer_tag);
   }
 
@@ -4160,6 +4187,15 @@ class AssemblerOpInterface : public Next {
                  TrapId trap_id) {
     ReduceIfReachableTrapIf(resolve(condition), frame_state, true, trap_id);
   }
+
+  void WasmTrap(TrapId trap_id) {
+    WasmTrap(OptionalV<turboshaft::FrameState>{}, trap_id);
+  }
+
+  void WasmTrap(OptionalV<turboshaft::FrameState> frame_state, TrapId trap_id) {
+    ReduceIfReachableWasmTrap(frame_state, trap_id);
+  }
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void MajorGCForCompilerTesting() {
@@ -4238,9 +4274,10 @@ class AssemblerOpInterface : public Next {
                                                   successful);
   }
 
-  void CheckMaglevType(V<Object> input, maglev::NodeType type) {
+  void CheckMaglevType(V<Object> input, maglev::NodeType type,
+                       bool allow_widening_smi_to_int32) {
     CHECK(v8_flags.maglev_assert_types);
-    ReduceIfReachableCheckMaglevType(input, type);
+    ReduceIfReachableCheckMaglevType(input, type, allow_widening_smi_to_int32);
   }
 
   // This is currently only usable during graph building on the main thread.
@@ -5064,9 +5101,10 @@ class AssemblerOpInterface : public Next {
   void StructSet(V<WasmStructNullable> object, V<Any> value,
                  const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
                  int field_index, CheckForNull null_check,
-                 std::optional<AtomicMemoryOrder> memory_order) {
+                 std::optional<AtomicMemoryOrder> memory_order,
+                 WriteBarrierKind write_barrier) {
     ReduceIfReachableStructSet(object, value, type, type_index, field_index,
-                               null_check, memory_order);
+                               null_check, memory_order, write_barrier);
   }
 
   V<Any> StructAtomicRMW(V<WasmStructNullable> object, V<Any> value,
@@ -5099,8 +5137,10 @@ class AssemblerOpInterface : public Next {
 
   void ArraySet(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
                 wasm::ValueType element_type,
-                std::optional<AtomicMemoryOrder> memory_order) {
-    ReduceIfReachableArraySet(array, index, value, element_type, memory_order);
+                std::optional<AtomicMemoryOrder> memory_order,
+                WriteBarrierKind write_barrier) {
+    ReduceIfReachableArraySet(array, index, value, element_type, memory_order,
+                              write_barrier);
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check) {

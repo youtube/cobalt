@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">Rhedeg prawf Gwefru</translation>
 <translation id="1622402072367425417">swigod disglair</translation>
 <translation id="1626590945318984973">Nid yw'r llwybr byr ar gael. Pwyswch lwybr byr newydd heb ddefnyddio bysellau swyddogaeth a <ph name="META_KEY" />.</translation>
+<translation id="163774412591892664">Mae eich gweinyddwr wedi analluogi'ch dyfais a gall gael mynediad at ei lleoliad.</translation>
 <translation id="1639239467298939599">Wrthi'n llwytho</translation>
 <translation id="1641857168437328880">Bwydydd Dogfennau (Un ochr)</translation>
 <translation id="1642396894598555413">beiciau</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814">Model trawsgrifio <ph name="LANGUAGE_NAME" /> wedi'i gwblhau</translation>
 <translation id="42126664696688958">Allforio</translation>
 <translation id="4213104098953699324">Bysellfwrdd USB</translation>
+<translation id="4217571870635786043">Arddweud</translation>
 <translation id="4227825898293920515">Mae'r cyfrinair yn darfod mewn <ph name="TIME" /></translation>
 <translation id="4238516577297848345">Nid oes unrhyw dasgau argraffu ar y gweill</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1685,6 +1687,7 @@ Lawrlwythwch y model trawsgrifio (hyd at 100MB) i gael y trawsgrifiadau hyn.</tr
 <translation id="8420955526972171689">Rhedeg profion a datrys problemau ar gyfer problemau caledwedd</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">i lawr</translation>
+<translation id="8427213022735114808">Mae Arddweud yn anfon eich llais at Google i ganiatáu teipio â llais mewn unrhyw faes testun.</translation>
 <translation id="8428213095426709021">Gosodiadau</translation>
 <translation id="8431300646573772016">Diweddariadau ChromeOS</translation>
 <translation id="8433186206711564395">Gosodiadau rhwydwaith</translation>
@@ -1723,6 +1726,7 @@ Lawrlwythwch y model trawsgrifio (hyd at 100MB) i gael y trawsgrifiadau hyn.</tr
 <translation id="8584654835905316966">Mae angen ailgychwyn i gwblhau gosod cadarnwedd ar gyfer <ph name="DEVICE_NAME" /> i fersiwn <ph name="VERSION" />. Mae'n bosib y bydd eich cyfrifiadur yn ailgychwyn sawl gwaith. Disgwylir yr ymddygiad hwn.</translation>
 <translation id="8593058461203131755">seibio'r cyfryngau</translation>
 <translation id="8620617069779373398">Statws crwydro</translation>
+<translation id="8624524972189162859">Mae eich gweinyddwr <ph name="DOMAIN_NAME" /> wedi analluogi'ch dyfais a gall gael mynediad at ei lleoliad.</translation>
 <translation id="8626489604350149811">Rhagor o weithredoedd ar gyfer <ph name="APN_NAME" /></translation>
 <translation id="86356131183441916">Porffor golau</translation>
 <translation id="8647595191512746911">Trawsgrifio sain</translation>

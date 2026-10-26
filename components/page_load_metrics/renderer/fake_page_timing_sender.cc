@@ -28,10 +28,14 @@ void FakePageTimingSender::SendTiming(
     std::vector<mojom::EventTimingPtr> event_timings,
     const std::optional<blink::SubresourceLoadMetrics>&
         subresource_load_metrics,
-    const mojom::SoftNavigationMetricsPtr& soft_navigation_metrics) {
+    std::vector<mojom::SoftNavigationMetricsPtr> soft_navigation_metrics,
+    std::vector<mojom::LargestContentfulPaintTimingPtr>
+        soft_largest_contentful_paint,
+    std::vector<mojom::CustomUserTimingMarkPtr> user_timings) {
   validator_->UpdateTiming(timing, metadata, new_features, resources,
                            render_data, cpu_timing, event_timings,
-                           subresource_load_metrics, soft_navigation_metrics);
+                           subresource_load_metrics, soft_navigation_metrics,
+                           soft_largest_contentful_paint);
 }
 
 void FakePageTimingSender::SetUpDroppedFramesReporting(
@@ -91,6 +95,33 @@ void FakePageTimingSender::PageTimingValidator::
                   << DebugString(*actual_soft_navigation_metrics_.at(i))
                   << "\nExpected: "
                   << DebugString(*expected_soft_navigation_metrics_.at(i));
+  }
+}
+
+void FakePageTimingSender::PageTimingValidator::
+    ExpectSoftLargestContentfulPaint(const mojom::LargestContentfulPaintTiming&
+                                         soft_largest_contentful_paint) {
+  VerifyExpectedSoftLargestContentfulPaint();
+  expected_soft_largest_contentful_paint_.push_back(
+      soft_largest_contentful_paint.Clone());
+}
+
+void FakePageTimingSender::PageTimingValidator::
+    VerifyExpectedSoftLargestContentfulPaint() const {
+  ASSERT_EQ(actual_soft_largest_contentful_paint_.size(),
+            expected_soft_largest_contentful_paint_.size());
+  for (size_t i = 0; i < actual_soft_largest_contentful_paint_.size(); ++i) {
+    if (actual_soft_largest_contentful_paint_.at(i)->Equals(
+            *expected_soft_largest_contentful_paint_.at(i))) {
+      continue;
+    }
+    ADD_FAILURE()
+        << "Actual soft largest contentful paint != expected at index " << i
+        << "\n"
+        << "Actual: "
+        << DebugString(*actual_soft_largest_contentful_paint_.at(i))
+        << "\nExpected: "
+        << DebugString(*expected_soft_largest_contentful_paint_.at(i));
   }
 }
 
@@ -183,10 +214,16 @@ void FakePageTimingSender::PageTimingValidator::UpdateTiming(
     const std::vector<mojom::EventTimingPtr>& event_timings,
     const std::optional<blink::SubresourceLoadMetrics>&
         subresource_load_metrics,
-    const mojom::SoftNavigationMetricsPtr& soft_navigation_metrics) {
+    const std::vector<mojom::SoftNavigationMetricsPtr>& soft_navigation_metrics,
+    const std::vector<mojom::LargestContentfulPaintTimingPtr>&
+        soft_largest_contentful_paint) {
   actual_timings_.push_back(timing.Clone());
-  actual_soft_navigation_metrics_.push_back(soft_navigation_metrics->Clone());
-
+  for (const auto& s : soft_navigation_metrics) {
+    actual_soft_navigation_metrics_.push_back(s->Clone());
+  }
+  for (const auto& s : soft_largest_contentful_paint) {
+    actual_soft_largest_contentful_paint_.push_back(s.Clone());
+  }
   if (!cpu_timing->task_time.is_zero()) {
     actual_cpu_timings_.push_back(cpu_timing.Clone());
   }

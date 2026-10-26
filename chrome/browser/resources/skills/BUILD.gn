@@ -11,11 +11,6 @@ build_webui("build") {
   grd_prefix = "skills"
 
   static_files = [
-    "images/skills_empty.svg",
-    "images/skills_empty_dark.svg",
-    "images/skills_undo.svg",
-    "images/skills_redo.svg",
-    "images/skills_pen_spark.svg",
     "skills.html",
     "skills_dialog.html",
   ]
@@ -36,6 +31,8 @@ build_webui("build") {
     "skills_dialog_app.html.ts",
     "skills_dialog_app.ts",
     "skills_dialog_browser_proxy.ts",
+    "skills_empty.html.ts",
+    "skills_empty.ts",
     "skills_page_browser_proxy.ts",
     "user_skills_page.html.ts",
     "user_skills_page.ts",
@@ -62,6 +59,7 @@ build_webui("build") {
   mojo_files = [
     "$root_gen_dir/chrome/browser/ui/webui/skills/skills.mojom-webui.ts",
     "$root_gen_dir/components/skills/public/skill.mojom-webui.ts",
+    "$root_gen_dir/components/skills/public/skill_metrics.mojom-webui.ts",
   ]
 
   ts_deps = [

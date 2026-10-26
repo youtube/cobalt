@@ -17,10 +17,10 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/environment/environment.h"
 #include "api/frame_transformer_interface.h"
@@ -150,13 +150,9 @@ class VideoReceiveStream2
   }
 
   void SignalNetworkState(NetworkState state);
-  bool DeliverRtcp(ArrayView<const uint8_t> packet);
+  bool DeliverRtcp(std::span<const uint8_t> packet);
 
   void SetSync(Syncable* audio_syncable);
-
-  // Updates the `rtp_video_stream_receiver_`'s `local_ssrc` when the default
-  // sender has been created, changed or removed.
-  void SetLocalSsrc(uint32_t local_ssrc);
 
   // Implements webrtc::VideoReceiveStreamInterface.
   void Start() override;

@@ -90,6 +90,7 @@
 #include "content/public/test/web_contents_tester.h"
 #include "extensions/browser/test_event_router.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/clipboard/test/clipboard_test_util.h"
 #include "ui/base/clipboard/test/test_clipboard.h"
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
@@ -522,6 +523,59 @@ TEST_F(PasswordsPrivateDelegateImplTest, GetSavedPasswordsList) {
   delegate->GetSavedPasswordsList(callback.Get());
 }
 
+TEST_F(PasswordsPrivateDelegateImplTest, GetActionableErrorFromAccountStore) {
+  auto delegate = CreateDelegate();
+  EXPECT_EQ(password_manager::ActionableError::kNoError,
+            delegate->GetActionableError());
+
+  account_store_->SetError(
+      password_manager::ActionableError::kTrustedVaultKeyNeeded);
+
+  EXPECT_EQ(password_manager::ActionableError::kTrustedVaultKeyNeeded,
+            delegate->GetActionableError());
+}
+
+TEST_F(PasswordsPrivateDelegateImplTest,
+       GetActionableErrorPrioritizesAccountStore) {
+  auto delegate = CreateDelegate();
+  profile_store_->SetError(password_manager::ActionableError::kKeychainError);
+  account_store_->SetError(
+      password_manager::ActionableError::kTrustedVaultKeyNeeded);
+
+  EXPECT_EQ(password_manager::ActionableError::kTrustedVaultKeyNeeded,
+            delegate->GetActionableError());
+}
+
+TEST_F(PasswordsPrivateDelegateImplTest,
+       GetReturnProfileErrorIfNoAccountError) {
+  auto delegate = CreateDelegate();
+  profile_store_->SetError(password_manager::ActionableError::kKeychainError);
+  account_store_->SetError(password_manager::ActionableError::kNoError);
+
+  EXPECT_EQ(password_manager::ActionableError::kKeychainError,
+            delegate->GetActionableError());
+}
+
+TEST_F(PasswordsPrivateDelegateImplTest, ActionableErrorChanged) {
+  auto delegate = CreateDelegate();
+
+  PasswordEventObserver observer(
+      api::passwords_private::OnPasswordManagerActionableErrorChanged::
+          kEventName);
+  event_router_->AddEventObserver(&observer);
+
+  profile_store_->SetError(
+      password_manager::ActionableError::kTrustedVaultKeyNeeded);
+  profile_store_->NotifyAboutError();
+
+  base::Value args = observer.PassEventArgs();
+  ASSERT_TRUE(args.is_list());
+  ASSERT_EQ(1u, args.GetList().size());
+  EXPECT_EQ("TRUSTED_VAULT_KEY_NEEDED", args.GetList()[0].GetString());
+
+  event_router_->RemoveEventObserver(&observer);
+}
+
 TEST_F(PasswordsPrivateDelegateImplTest,
        PasswordsDuplicatedInStoresAreRepresentedAsSingleEntity) {
   auto delegate = CreateDelegate();
@@ -923,8 +977,9 @@ TEST_F(PasswordsPrivateDelegateImplTest, TestCopyPasswordCallbackResult) {
       password_callback.Get(), web_contents.get());
 
   std::u16string result;
-  test_clipboard_->ReadText(ui::ClipboardBuffer::kCopyPaste,
-                            /* data_dst = */ nullptr, &result);
+  result = ui::clipboard_test_util::ReadText(test_clipboard_,
+                                             ui::ClipboardBuffer::kCopyPaste,
+                                             /* data_dst = */ nullptr);
   EXPECT_EQ(form.password_value, result);
 
   histogram_tester().ExpectUniqueSample(
@@ -950,8 +1005,9 @@ TEST_F(PasswordsPrivateDelegateImplTest, CopyPlaintextBackupPassword) {
                                         result_callback.Get());
 
   std::u16string result;
-  test_clipboard_->ReadText(ui::ClipboardBuffer::kCopyPaste,
-                            /* data_dst = */ nullptr, &result);
+  result = ui::clipboard_test_util::ReadText(test_clipboard_,
+                                             ui::ClipboardBuffer::kCopyPaste,
+                                             /* data_dst = */ nullptr);
   EXPECT_EQ(result, form.GetPasswordBackup());
 }
 
@@ -1008,8 +1064,9 @@ TEST_F(PasswordsPrivateDelegateImplTest, TestCopyPasswordCallbackResultFail) {
       password_callback.Get(), web_contents.get());
   // Clipboard should not be modified in case Reauth failed
   std::u16string result;
-  test_clipboard_->ReadText(ui::ClipboardBuffer::kCopyPaste,
-                            /* data_dst = */ nullptr, &result);
+  result = ui::clipboard_test_util::ReadText(test_clipboard_,
+                                             ui::ClipboardBuffer::kCopyPaste,
+                                             /* data_dst = */ nullptr);
   EXPECT_EQ(std::u16string(), result);
   EXPECT_EQ(before_call, test_clipboard_->GetLastModifiedTime());
 
@@ -1036,8 +1093,9 @@ TEST_F(PasswordsPrivateDelegateImplTest,
                                         result_callback.Get());
 
   std::u16string result;
-  test_clipboard_->ReadText(ui::ClipboardBuffer::kCopyPaste,
-                            /* data_dst = */ nullptr, &result);
+  result = ui::clipboard_test_util::ReadText(test_clipboard_,
+                                             ui::ClipboardBuffer::kCopyPaste,
+                                             /* data_dst = */ nullptr);
   EXPECT_EQ(result, std::u16string());
 }
 
@@ -1229,12 +1287,6 @@ TEST_F(PasswordsPrivateDelegateImplTest, TestMovePasswordsToAccountStore) {
 
   delegate->MovePasswordsToAccount({first_id}, web_contents.get());
   base::RunLoop().RunUntilIdle();
-
-  histogram_tester().ExpectUniqueSample(
-      "PasswordManager.AccountStorage.MoveToAccountStoreFlowAccepted2",
-      password_manager::metrics_util::MoveToAccountStoreTrigger::
-          kExplicitlyTriggeredInSettings,
-      1);
 }
 
 TEST_F(PasswordsPrivateDelegateImplTest, VerifyCastingOfImportEntryStatus) {

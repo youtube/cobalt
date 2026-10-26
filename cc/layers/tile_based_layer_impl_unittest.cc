@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/check_deref.h"
+#include "cc/base/tiling_data.h"
 #include "cc/debug/layer_tree_debug_state.h"
 #include "cc/layers/append_quads_context.h"
 #include "cc/layers/append_quads_data.h"
@@ -32,6 +33,12 @@ class FakeTile {
   TileDrawInfo::Mode draw_mode() { return TileDrawInfo::SOLID_COLOR_MODE; }
 
   bool IsReadyToDraw() const { return true; }
+
+  std::optional<viz::ResourceId> GetResourceId() const { return std::nullopt; }
+
+  std::optional<SkColor4f> GetSolidColor() const { return std::nullopt; }
+
+  bool IsOOM() const { return false; }
 };
 
 class FakeTilingCoverageIterator;
@@ -49,14 +56,20 @@ class FakeTiling {
 
   Tile* TileAt(const TileIndex& index) const { return nullptr; }
   float contents_scale_key() const { return 1.0f; }
-  const TilingData* tiling_data() const { return nullptr; }
+  TileResolution resolution() const { return HIGH_RESOLUTION; }
+  const TilingData* tiling_data() const { return &tiling_data_; }
   gfx::Size raster_size() const { return gfx::Size{100, 100}; }
   const gfx::AxisTransform2d& raster_transform() const {
     return raster_transform_;
   }
 
+  void SetTilingRect(const gfx::Rect& rect) {
+    tiling_data_.SetTilingRect(rect);
+  }
+
  private:
   gfx::AxisTransform2d raster_transform_;
+  TilingData tiling_data_{gfx::Size(100, 100), gfx::Rect(0, 0, 100, 100), 0};
 };
 
 class FakeTilingCoverageIterator : public TilingCoverageIterator<FakeTiling> {
@@ -67,23 +80,20 @@ class FakeTilingCoverageIterator : public TilingCoverageIterator<FakeTiling> {
 class TestTileBasedLayerImpl : public TileBasedLayerImpl<FakeTiling> {
  public:
   TestTileBasedLayerImpl(LayerTreeImpl* tree_impl, int id)
-      : TileBasedLayerImpl<FakeTiling>(tree_impl, id) {}
+      : TileBasedLayerImpl<FakeTiling>(tree_impl, id) {
+    tilings_.push_back(std::make_unique<FakeTiling>());
+  }
 
  private:
   // TileBasedLayerImpl:
-  int AppendQuadsSpecialization(const AppendQuadsContext& context,
-                                viz::CompositorRenderPass* render_pass,
-                                AppendQuadsData* append_quads_data,
-                                viz::SharedQuadState* shared_quad_state,
-                                const Occlusion& scaled_occlusion,
-                                const gfx::Vector2d& quad_offset,
-                                float max_contents_scale) override {
-    return 0;
-  }
+  gfx::Rect RecordedBounds() const override { return gfx::Rect(bounds()); }
+
+  bool ComputeCheckerboardedNeedsRecord() override { return false; }
   float GetMaximumContentsScaleForUseInAppendQuads() const override {
     return 1.f;
   }
   bool IsDirectlyCompositedImage() const override { return false; }
+  bool GetNearestNeighbor() const override { return false; }
   TilingResolution GetTilingResolutionForDebugBorders(
       const FakeTiling* tiling) const override {
     return TilingResolution::kHigh;
@@ -98,20 +108,21 @@ class TestTileBasedLayerImpl : public TileBasedLayerImpl<FakeTiling> {
       const gfx::Rect& coverage_rect,
       float coverage_scale,
       float ideal_contents_scale) override {
+    tilings_[0]->SetTilingRect(gfx::Rect(bounds()));
     return TilingSetCoverageIterator<FakeTiling>(
-        empty_tilings_, coverage_rect, coverage_scale, ideal_contents_scale);
+        tilings_, coverage_rect, coverage_scale, ideal_contents_scale);
   }
   float GetIdealContentsScaleKey() const override { return 1.f; }
 
   // Note: TilingSetCoverageIterator stores its passed-in container as a const
   // ref, so it's necessary to pass in an object that outlives the
   // TilingSetCoverageIterator instance.
-  std::vector<std::unique_ptr<FakeTiling>> empty_tilings_;
+  std::vector<std::unique_ptr<FakeTiling>> tilings_;
 };
 
 FakeTiling::CoverageIterator FakeTiling::Cover(const gfx::Rect& coverage_rect,
                                                float coverage_scale) const {
-  return CoverageIterator();
+  return CoverageIterator(this, coverage_scale, coverage_rect);
 }
 
 class TileBasedLayerImplTest : public TestLayerTreeHostBase {};
@@ -399,20 +410,14 @@ class OcclusionTestTileBasedLayerImpl : public TestTileBasedLayerImpl {
   void set_max_contents_scale(float scale) { max_contents_scale_ = scale; }
 
  private:
-  int AppendQuadsSpecialization(const AppendQuadsContext& context,
-                                viz::CompositorRenderPass* render_pass,
-                                AppendQuadsData* append_quads_data,
-                                viz::SharedQuadState* shared_quad_state,
-                                const Occlusion& scaled_occlusion,
-                                const gfx::Vector2d& quad_offset,
-                                float max_contents_scale) override {
-    scaled_occlusion_ = scaled_occlusion;
-    // Create a dummy quad to avoid tripping debug checks.
-    auto* quad =
-        render_pass->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
-    quad->SetNew(shared_quad_state, gfx::Rect(1, 1), gfx::Rect(1, 1),
-                 SkColors::kTransparent, false);
-    return 0;
+  void DidAppendQuad(viz::DrawQuad* quad,
+                     const TilingSetCoverageIterator<FakeTiling>& iter,
+                     AppendQuadsData* append_quads_data,
+                     bool is_checkerboard) override {
+    scaled_occlusion_ =
+        draw_properties()
+            .occlusion_in_content_space.GetOcclusionWithGivenDrawTransform(
+                quad->shared_quad_state->quad_to_target_transform);
   }
   float GetMaximumContentsScaleForUseInAppendQuads() const override {
     return max_contents_scale_;
@@ -553,20 +558,11 @@ class QuadOffsetTestTileBasedLayerImpl : public TestTileBasedLayerImpl {
   const gfx::Vector2d& quad_offset() const { return quad_offset_; }
 
  private:
-  int AppendQuadsSpecialization(const AppendQuadsContext& context,
-                                viz::CompositorRenderPass* render_pass,
-                                AppendQuadsData* append_quads_data,
-                                viz::SharedQuadState* shared_quad_state,
-                                const Occlusion& scaled_occlusion,
-                                const gfx::Vector2d& quad_offset,
-                                float max_contents_scale) override {
-    quad_offset_ = quad_offset;
-    // Create a dummy quad to avoid tripping debug checks.
-    auto* quad =
-        render_pass->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
-    quad->SetNew(shared_quad_state, gfx::Rect(1, 1), gfx::Rect(1, 1),
-                 SkColors::kTransparent, false);
-    return 0;
+  void DidAppendQuad(viz::DrawQuad* quad,
+                     const TilingSetCoverageIterator<FakeTiling>& iter,
+                     AppendQuadsData* append_quads_data,
+                     bool is_checkerboard) override {
+    quad_offset_ = quad->rect.origin() - iter.geometry_rect().origin();
   }
   float GetIdealContentsScaleKey() const override { return 1.f; }
 
@@ -621,49 +617,13 @@ TEST_F(TileBasedLayerImplTest, AppendQuadsComputesQuadOffset) {
             expected_visible_quad_layer_rect);
 }
 
-class QuadOffsetOrderTestTileBasedLayerImpl : public TestTileBasedLayerImpl {
- public:
-  QuadOffsetOrderTestTileBasedLayerImpl(LayerTreeImpl* tree_impl, int id)
-      : TestTileBasedLayerImpl(tree_impl, id) {}
-
-  const viz::SharedQuadState* shared_quad_state_at_specialization() const {
-    return shared_quad_state_at_specialization_.get();
-  }
-
- private:
-  int AppendQuadsSpecialization(const AppendQuadsContext& context,
-                                viz::CompositorRenderPass* render_pass,
-                                AppendQuadsData* append_quads_data,
-                                viz::SharedQuadState* shared_quad_state,
-                                const Occlusion& scaled_occlusion,
-                                const gfx::Vector2d& quad_offset,
-                                float max_contents_scale) override {
-    shared_quad_state_at_specialization_ =
-        std::make_unique<viz::SharedQuadState>(*shared_quad_state);
-    // Create a dummy quad to avoid tripping debug checks.
-    auto* quad =
-        render_pass->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
-    quad->SetNew(shared_quad_state, gfx::Rect(1, 1), gfx::Rect(1, 1),
-                 SkColors::kTransparent, false);
-    return 0;
-  }
-  float GetIdealContentsScaleKey() const override { return 1.f; }
-
-  std::unique_ptr<viz::SharedQuadState> shared_quad_state_at_specialization_;
-};
-
 // Verifies that AppendQuads() updates the shared quad state for the computed
-// quad offset only *after* invoking AppendQuadsSpecialization(). This is part
-// of the method's contract and is necessary AppendQuadsSpecialization()
-// implementations need to operate on the original values of the shared quad
-// state (e.g., to find which tiles to draw).
-TEST_F(
-    TileBasedLayerImplTest,
-    AppendQuadsUpdatesSharedQuadStateWithOffsetOnlyAfterCallingSpecialization) {
+// quad offset.
+TEST_F(TileBasedLayerImplTest, AppendQuadsUpdatesSharedQuadStateWithOffset) {
   const gfx::Size layer_bounds(100, 100);
   const gfx::Rect visible_layer_rect(10, 20, 50, 60);
 
-  auto layer = std::make_unique<QuadOffsetOrderTestTileBasedLayerImpl>(
+  auto layer = std::make_unique<TestTileBasedLayerImpl>(
       host_impl()->active_tree(), /*id=*/1);
   auto* raw_layer = layer.get();
   host_impl()->active_tree()->AddLayer(std::move(layer));
@@ -678,18 +638,7 @@ TEST_F(
   raw_layer->AppendQuads(AppendQuadsContext{DRAW_MODE_SOFTWARE, {}, false},
                          render_pass.get(), &data);
 
-  const viz::SharedQuadState* sqs_at_specialization =
-      raw_layer->shared_quad_state_at_specialization();
-  ASSERT_TRUE(sqs_at_specialization);
-
-  // The SharedQuadState should not have been adjusted by the quad offset at the
-  // time of being passed into AppendQuadsSpecialization().
-  EXPECT_EQ(sqs_at_specialization->quad_to_target_transform,
-            raw_layer->draw_properties().target_space_transform);
-  EXPECT_EQ(sqs_at_specialization->quad_layer_rect, gfx::Rect(layer_bounds));
-  EXPECT_EQ(sqs_at_specialization->visible_quad_layer_rect, visible_layer_rect);
-
-  // Now check the final SQS to ensure the offset was applied later.
+  // Check the final SQS to ensure the offset was applied.
   ASSERT_EQ(render_pass->shared_quad_state_list.size(), 1u);
   const viz::SharedQuadState* final_sqs =
       render_pass->shared_quad_state_list.front();

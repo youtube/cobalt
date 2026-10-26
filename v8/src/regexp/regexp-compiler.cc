@@ -335,13 +335,10 @@ RegExpCompiler::RegExpCompiler(Isolate* isolate, Zone* zone, int capture_count,
 
 RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
     Isolate* isolate, RegExpMacroAssembler* macro_assembler, RegExpNode* start,
-    int capture_count, DirectHandle<String> pattern) {
+    int capture_count, DirectHandle<RegExpData> re_data) {
   macro_assembler_ = macro_assembler;
 
   auto ReportError = [this]() {
-    if (v8_flags.correctness_fuzzer_suppressions) {
-      FATAL("Aborting on excess zone allocation");
-    }
     macro_assembler_->AbortedCodeGeneration();
     return CompilationResult::RegExpTooBig();
   };
@@ -352,6 +349,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
   macro_assembler_->PushBacktrack(&fail);
   Trace new_trace;
   if (start->Emit(this, &new_trace).IsError()) {
+    work_list_ = nullptr;
     return ReportError();
   }
   macro_assembler_->BindJumpTarget(&fail);
@@ -363,13 +361,17 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
     node->set_on_work_list(false);
     if (!node->label()->is_bound()) {
       if (node->Emit(this, &new_trace).IsError()) {
+        work_list_ = nullptr;
         return ReportError();
       }
     }
   }
-  if (IsRegExpTooBig()) return ReportError();
+  if (IsRegExpTooBig()) {
+    work_list_ = nullptr;
+    return ReportError();
+  }
 
-  DirectHandle<HeapObject> code = macro_assembler_->GetCode(pattern, flags_);
+  DirectHandle<HeapObject> code = macro_assembler_->GetCode(re_data, flags_);
   isolate->IncreaseTotalRegexpCodeGenerated(code);
   work_list_ = nullptr;
 
@@ -3789,9 +3791,6 @@ class Analysis : public NodeVisitor {
   void EnsureAnalyzed(RegExpNode* that) {
     StackLimitCheck check(isolate());
     if (check.HasOverflowed()) {
-      if (v8_flags.correctness_fuzzer_suppressions) {
-        FATAL("Analysis: Aborting on stack overflow");
-      }
       fail(RegExpError::kAnalysisStackOverflow);
       return;
     }
@@ -4054,7 +4053,8 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
   RegExpNode* captured_body =
       RegExpCapture::ToNode(data->tree, 0, this, accept());
   RegExpNode* node = captured_body;
-  if (!data->tree->IsAnchoredAtStart() && !IsSticky(flags())) {
+  if (!data->tree->IsCertainlyAnchoredAtStart(RegExpNode::kRecursionBudget) &&
+      !IsSticky(flags())) {
     // Add a .*? at the beginning, outside the body capture, unless
     // this expression is anchored at the beginning or sticky.
     TRACE_GRAPH("* Add .*? at beginning of unanchored, non-sticky RegExp");

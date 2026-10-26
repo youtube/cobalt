@@ -15,11 +15,11 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <span>
 #include <utility>
 
 #include "absl/base/nullability.h"
 #include "absl/memory/memory.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/byte_order.h"
@@ -127,7 +127,7 @@ int AsyncTCPSocketBase::SendTo(const void* pv,
 
 int AsyncTCPSocketBase::FlushOutBuffer() {
   RTC_DCHECK_GT(outbuf_.size(), 0);
-  ArrayView<uint8_t> view = outbuf_;
+  std::span<uint8_t> view = outbuf_;
   int res;
   while (!view.empty()) {
     res = socket_->Send(view.data(), view.size());
@@ -156,8 +156,7 @@ int AsyncTCPSocketBase::FlushOutBuffer() {
       res = outbuf_.size() - view.size();
     }
     if (view.size() < outbuf_.size()) {
-      memmove(outbuf_.data(), view.data(), view.size());
-      outbuf_.SetSize(view.size());
+      outbuf_.SetData(view);
     }
   }
   return res;
@@ -212,9 +211,11 @@ void AsyncTCPSocketBase::OnReadEvent(Socket* socket) {
     inbuf_.Clear();
   } else {
     if (bytes_remaining > 0) {
-      memmove(inbuf_.data(), inbuf_.data() + processed, bytes_remaining);
+      // Move remaining bytes to beginning of buffer.
+      inbuf_.SetData(std::span<uint8_t>(inbuf_).subspan(processed));
+    } else {
+      inbuf_.Clear();
     }
-    inbuf_.SetSize(bytes_remaining);
   }
 }
 
@@ -271,7 +272,7 @@ int AsyncTCPSocket::Send(const void* pv,
   return static_cast<int>(cb);
 }
 
-size_t AsyncTCPSocket::ProcessInput(ArrayView<const uint8_t> data) {
+size_t AsyncTCPSocket::ProcessInput(std::span<const uint8_t> data) {
   SocketAddress remote_addr(GetRemoteAddress());
 
   size_t processed_bytes = 0;

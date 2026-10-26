@@ -2,20 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/callback_list.h"
+#include "base/functional/bind.h"
+#include "base/test/bind.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/history_embeddings/history_embeddings_service_factory.h"
 #include "chrome/browser/optimization_guide/browser_test_util.h"
 #include "chrome/browser/page_content_annotations/page_content_annotations_service_factory.h"
+#include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
+#include "chrome/browser/page_content_annotations/page_embeddings_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/feedback/feedback_dialog.h"
 #include "chrome/browser/ui/webui/test_support/webui_interactive_test_mixin.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "components/history/core/browser/history_service.h"
-#include "components/history_embeddings/history_embeddings_features.h"
-#include "components/history_embeddings/history_embeddings_service.h"
+#include "components/history_embeddings/content/history_embeddings_service.h"
+#include "components/history_embeddings/core/history_embeddings_features.h"
+#include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/optimization_guide/core/delivery/test_model_info_builder.h"
 #include "components/page_content_annotations/core/page_content_annotations_features.h"
 #include "components/page_content_annotations/core/page_content_annotations_service.h"
@@ -34,18 +40,18 @@ DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kHistoryTabId);
 class HistoryEmbeddingsInteractiveTest
     : public WebUiInteractiveTestMixin<InteractiveBrowserTest> {
  public:
-  void SetUp() override {
-    scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{history_embeddings::kHistoryEmbeddings, {{}}},
-         {page_content_annotations::features::kPageContentAnnotations, {{}}}},
-        /*disabled_features=*/{});
-
-    InteractiveBrowserTest::SetUp();
+  HistoryEmbeddingsInteractiveTest() {
+    dependency_manager_subscription_ =
+        BrowserContextDependencyManager::GetInstance()
+            ->RegisterCreateServicesCallbackForTesting(
+                base::BindRepeating(&HistoryEmbeddingsInteractiveTest::
+                                        RegisterTestingServiceFactory,
+                                    base::Unretained(this)));
   }
 
-  void SetUpOnMainThread() override {
+  void RegisterTestingServiceFactory(content::BrowserContext* context) {
     HistoryEmbeddingsServiceFactory::GetInstance()->SetTestingFactory(
-        browser()->profile(),
+        context,
         base::BindLambdaForTesting([this](content::BrowserContext* context) {
           return HistoryEmbeddingsServiceFactory::
               BuildServiceInstanceForBrowserContextForTesting(
@@ -55,7 +61,40 @@ class HistoryEmbeddingsInteractiveTest
                   /*answerer=*/nullptr, /*intent_classifier=*/nullptr);
         }));
 
-    InteractiveBrowserTest::SetUpOnMainThread();
+    const auto generate_embeddings_candidates =
+        [](const optimization_guide::proto::AnnotatedPageContent&,
+           int page_content_passages_to_generate) {
+          return std::vector<std::pair<
+              std::string, page_content_annotations::EmbeddingPassageType>>{
+              std::make_pair("A a B C b a 2 D",
+                             page_content_annotations::EmbeddingPassageType::
+                                 kPageContent)};
+        };
+
+    page_content_annotations::PageEmbeddingsServiceFactory::GetInstance()
+        ->SetTestingFactory(
+            context,
+            base::BindLambdaForTesting([this, generate_embeddings_candidates](
+                                           content::BrowserContext* context)
+                                           -> std::unique_ptr<KeyedService> {
+              return std::make_unique<
+                  page_content_annotations::PageEmbeddingsService>(
+                  base::BindLambdaForTesting(generate_embeddings_candidates),
+                  page_content_annotations::
+                      PageContentExtractionServiceFactory::GetForProfile(
+                          Profile::FromBrowserContext(context)),
+                  passage_embeddings_test_env_.embedder(),
+                  passage_embeddings_test_env_.embedder_metadata_provider());
+            }));
+  }
+
+  void SetUp() override {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{history_embeddings::kHistoryEmbeddings, {{}}},
+         {page_content_annotations::features::kPageContentAnnotations, {{}}}},
+        /*disabled_features=*/{});
+
+    InteractiveBrowserTest::SetUp();
   }
 
  protected:
@@ -85,6 +124,7 @@ class HistoryEmbeddingsInteractiveTest
   }
 
  private:
+  base::CallbackListSubscription dependency_manager_subscription_;
   base::test::ScopedFeatureList scoped_feature_list_;
   page_content_annotations::TestPageContentAnnotator page_content_annotator_;
   passage_embeddings::TestEnvironment passage_embeddings_test_env_;

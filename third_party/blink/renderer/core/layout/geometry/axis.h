@@ -5,16 +5,26 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_GEOMETRY_AXIS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_GEOMETRY_AXIS_H_
 
+#include <iosfwd>
+
 #include "base/types/strong_alias.h"
+#include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/platform/text/writing_mode.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
 enum class LogicalAxis : uint8_t { kInline = 0b01, kBlock = 0b10 };
 enum class PhysicalAxis : uint8_t { kHorizontal = 0b01, kVertical = 0b10 };
 
-using PhysicalAxes = base::StrongAlias<class PhysicalAxesTag, uint8_t>;
-using LogicalAxes = base::StrongAlias<class LogicalAxesTag, uint8_t>;
+struct PhysicalAxes : public base::StrongAlias<class PhysicalAxesTag, uint8_t> {
+  using StrongAlias::StrongAlias;
+  explicit constexpr operator bool() const { return value() != 0; }
+};
+struct LogicalAxes : public base::StrongAlias<class LogicalAxesTag, uint8_t> {
+  using StrongAlias::StrongAlias;
+  explicit constexpr operator bool() const { return value() != 0; }
+};
 
 inline constexpr LogicalAxes operator|(LogicalAxes a, LogicalAxes b) {
   return LogicalAxes(a.value() | b.value());
@@ -126,6 +136,12 @@ inline PhysicalAxes ToPhysicalAxes(LogicalAxes logical, WritingMode mode) {
 inline LogicalAxes ToLogicalAxes(PhysicalAxes physical, WritingMode mode) {
   return ConvertAxes<PhysicalAxes, LogicalAxes>(physical, mode);
 }
+
+CORE_EXPORT String ToString(LogicalAxes axes);
+CORE_EXPORT String ToString(PhysicalAxes axes);
+
+CORE_EXPORT std::ostream& operator<<(std::ostream& os, LogicalAxes axes);
+CORE_EXPORT std::ostream& operator<<(std::ostream& os, PhysicalAxes axes);
 
 }  // namespace blink
 

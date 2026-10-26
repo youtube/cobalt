@@ -12,6 +12,7 @@
 #include "ios/public/provider/chrome/browser/user_feedback/user_feedback_sender.h"
 
 enum class AccountMenuAccessPoint;
+@class CobrowseContext;
 class GURL;
 @class OpenNewTabCommand;
 @protocol SafariDataImportUIHandler;
@@ -40,6 +41,8 @@ enum class TabGridOpeningMode {
   kIncognito,
   // Force to display the regular mode.
   kRegular,
+  // Force to display the Tab Groups page in regular mode.
+  kTabGroups,
 };
 
 // Protocol for commands that will generally be handled by the application,
@@ -50,6 +53,12 @@ enum class TabGridOpeningMode {
 // Dismisses all modal dialogs with a completion block that is called when
 // modals are dismissed (animations done).
 - (void)dismissModalDialogsWithCompletion:(ProceduralBlock)completion;
+
+// Dismisses all modal dialogs and calls the completion block. Optionally does
+// not dismiss the omnibox or snackbars.
+- (void)dismissModalDialogsWithCompletion:(ProceduralBlock)completion
+                           dismissOmnibox:(BOOL)dismissOmnibox
+                         dismissSnackbars:(BOOL)dismissSnackbars;
 
 // Dismisses all modal dialogs (if any) before showing the Password Checkup page
 // for `referrer`.
@@ -83,8 +92,8 @@ enum class TabGridOpeningMode {
 - (void)showSafeBrowsingSettingsFromViewController:
     (UIViewController*)baseViewController;
 
-// Starts a voice search on the current BVC.
-- (void)startVoiceSearch;
+// Stops voice search on all browsers (regular and incognito) in the scene.
+- (void)stopAllVoiceSearch;
 
 // Shows the History UI.
 - (void)showHistory;
@@ -166,8 +175,11 @@ enum class TabGridOpeningMode {
 // Opens a debug menu for AI prototyping.
 - (void)openAIMenu;
 
-// Opens the assistant sheet.
-- (void)showAssistant;
+// Opens the assistant sheet with a specific context.
+- (void)showAssistantWithContext:(CobrowseContext*)context;
+
+// Hides the assistant sheet if it is currently presented.
+- (void)hideAssistant;
 
 // Shows the fullscreen sign-in promo with a completion block that is called
 // when the promo is dismissed.

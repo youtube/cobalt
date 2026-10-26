@@ -35,13 +35,13 @@
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "remoting/base/auto_thread.h"
 #include "remoting/base/auto_thread_task_runner.h"
+#include "remoting/base/branding.h"
 #include "remoting/base/crash/crash_reporting_breakpad.h"
 #include "remoting/base/logging.h"
 #include "remoting/base/scoped_sc_handle_win.h"
 #include "remoting/host/base/host_exit_codes.h"
 #include "remoting/host/base/screen_resolution.h"
 #include "remoting/host/base/switches.h"
-#include "remoting/host/branding.h"
 #include "remoting/host/chromoting_host_services_server.h"
 #include "remoting/host/crash/minidump_handler.h"
 #include "remoting/host/desktop_session_win.h"
@@ -134,8 +134,7 @@ class DaemonProcessWin : public DaemonProcess {
   // DaemonProcess implementation.
   std::unique_ptr<DesktopSession> DoCreateDesktopSession(
       int terminal_id,
-      const ScreenResolution& resolution,
-      bool is_curtained) override;
+      const mojom::DesktopSessionOptions& options) override;
   void DoCrashNetworkProcess(const base::Location& location) override;
   void LaunchNetworkProcess() override;
   void SendHostConfigToNetworkProcess(
@@ -259,16 +258,15 @@ bool DaemonProcessWin::OnDesktopSessionAgentAttached(
 
 std::unique_ptr<DesktopSession> DaemonProcessWin::DoCreateDesktopSession(
     int terminal_id,
-    const ScreenResolution& resolution,
-    bool is_curtained) {
+    const mojom::DesktopSessionOptions& options) {
   DCHECK(caller_task_runner()->BelongsToCurrentThread());
 
-  if (is_curtained) {
+  if (options.is_curtained) {
     return DesktopSessionWin::CreateForVirtualTerminal(
-        caller_task_runner(), io_task_runner(), this, terminal_id, resolution);
+        caller_task_runner(), io_task_runner(), this, terminal_id, options);
   } else {
     return DesktopSessionWin::CreateForConsole(
-        caller_task_runner(), io_task_runner(), this, terminal_id, resolution);
+        caller_task_runner(), io_task_runner(), this, terminal_id, options);
   }
 }
 

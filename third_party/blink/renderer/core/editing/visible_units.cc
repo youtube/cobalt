@@ -239,9 +239,20 @@ AdjustBackwardPositionToAvoidCrossingEditingBoundariesTemplate(
 
   ContainerNode* highest_root = HighestEditableRoot(anchor);
 
-  // Return empty position if |pos| is not somewhere inside the editable
-  // region containing this position
+  // Return first position in the anchor's text node if |pos| is not somewhere
+  // inside the editable region containing this position.
   if (highest_root && !highest_root->contains(pos.AnchorNode())) {
+    if (RuntimeEnabledFeatures::
+            ClampWordBoundaryToContentEditableScopeEnabled()) {
+      const Node* first_editable = anchor.ComputeContainerNode();
+      if (first_editable->IsTextNode()) {
+        PositionTemplate<Strategy> first_position =
+            PositionTemplate<Strategy>::FirstPositionInNode(*first_editable);
+        if (anchor != first_position) {
+          return PositionWithAffinityTemplate<Strategy>(first_position);
+        }
+      }
+    }
     return PositionWithAffinityTemplate<Strategy>();
   }
 
@@ -1231,7 +1242,7 @@ static UChar32 CharacterAfterAlgorithm(
   if (offset >= length)
     return 0;
 
-  return text_node->data().CharacterStartingAt(offset);
+  return text_node->data().CodePointAtOrZero(offset);
 }
 
 UChar32 CharacterAfter(const VisiblePosition& visible_position) {

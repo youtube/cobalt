@@ -66,6 +66,7 @@
 #include "services/network/public/cpp/network_quality_tracker.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/blink/public/common/performance/largest_contentful_paint_type.h"
+#include "third_party/blink/public/mojom/navigation/navigation_type_for_navigation_api.mojom-shared.h"
 #include "third_party/metrics_proto/system_profile.pb.h"
 
 using content::NavigationSimulator;
@@ -146,7 +147,9 @@ class UkmPageLoadMetricsObserverTest
     HistoryTabHelper::FromWebContents(web_contents())
         ->SetForceEligibleTabForTesting(true);
 
-    HistoryClustersTabHelper::CreateForWebContents(web_contents());
+    HistoryTabHelper::CreateForWebContents(web_contents());
+    HistoryClustersTabHelper::CreateForWebContents(
+        web_contents(), HistoryTabHelper::FromWebContents(web_contents()));
   }
 
   TestingProfile::TestingFactories GetTestingFactories() const override {
@@ -1850,8 +1853,10 @@ TEST_F(UkmPageLoadMetricsObserverTest, SoftNavigationCount) {
 
   auto soft_navigation_metrics =
       page_load_metrics::mojom::SoftNavigationMetrics(
-          1, base::Milliseconds(12), 42000, base::UnguessableToken::Create(),
-          page_load_metrics::mojom::LargestContentfulPaintTiming::New());
+          1, base::Milliseconds(12),
+          base::TimeTicks::UnixEpoch() + base::Milliseconds(12),
+          blink::mojom::NavigationTypeForNavigationApi::kPush,
+          base::UnguessableToken::Create());
 
   content::MockNavigationHandle navigation_handle;
   navigation_handle.set_has_committed(true);

@@ -100,14 +100,13 @@ namespace extensions {
 class ExtensionSidePanelManager;
 }  // namespace extensions
 
-#if BUILDFLAG(ENABLE_GLIC)
 namespace glic {
 class GlicInstanceHelper;
 class GlicTabIndicatorHelper;
 class GlicSidePanelCoordinator;
+class GlicSelectionObserver;
 class SelectionOverlayController;
 }  // namespace glic
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
 namespace memory_saver {
 class MemorySaverChipController;
@@ -121,15 +120,11 @@ namespace permissions {
 class PermissionIndicatorsTabData;
 }  // namespace permissions
 
-namespace privacy_sandbox {
-class PrivacySandboxTabObserver;
-}  // namespace privacy_sandbox
-
-#if BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
 namespace skills {
 class SkillsUpdateObserver;
 }  // namespace skills
-#endif  // BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 namespace sync_sessions {
 class SyncSessionsRouterTabHelper;
@@ -170,6 +165,15 @@ namespace web_app {
 class ProtocolHandlerPickerCoordinator;
 }  // namespace web_app
 #endif
+
+namespace indigo {
+class IndigoPageActionController;
+}  // namespace indigo
+
+namespace multistep_filter {
+class ChromeFilterNavigationObserver;
+class FilterUiController;
+}  // namespace multistep_filter
 
 namespace tabs {
 
@@ -215,12 +219,6 @@ class TabFeatures {
       std::unique_ptr<customize_chrome::SidePanelController>
           customize_chrome_side_panel_controller);
 
-  // This side-panel registry is tab-scoped. It is different from the browser
-  // window scoped SidePanelRegistry.
-  SidePanelRegistry* side_panel_registry() {
-    return side_panel_registry_.get();
-  }
-
   // TODO(crbug.com/447418049): This will be removed in the future when
   // ownership of this controller is migrated to ReadAnythingController.
   ReadAnythingSidePanelController* read_anything_side_panel_controller() {
@@ -234,10 +232,6 @@ class TabFeatures {
   contextual_tasks::ContextualTasksTabVisitTracker*
   contextual_tasks_tab_visit_tracker() {
     return contextual_tasks_tab_visit_tracker_.get();
-  }
-
-  privacy_sandbox::PrivacySandboxTabObserver* privacy_sandbox_tab_observer() {
-    return privacy_sandbox_tab_observer_.get();
   }
 
   extensions::ExtensionSidePanelManager* extension_side_panel_manager() {
@@ -402,9 +396,6 @@ class TabFeatures {
   std::unique_ptr<PinnedTranslateActionListener>
       pinned_translate_action_listener_;
 
-  std::unique_ptr<privacy_sandbox::PrivacySandboxTabObserver>
-      privacy_sandbox_tab_observer_;
-
   // The tab-scoped extension side-panel manager. There is a separate
   // window-scoped extension side-panel manager.
   std::unique_ptr<extensions::ExtensionSidePanelManager>
@@ -507,13 +498,12 @@ class TabFeatures {
   std::unique_ptr<BookmarkPageActionController>
       bookmark_page_action_controller_;
 
-#if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<glic::GlicInstanceHelper> glic_instance_helper_;
   std::unique_ptr<glic::GlicTabIndicatorHelper> glic_tab_indicator_helper_;
   std::unique_ptr<glic::GlicSidePanelCoordinator> glic_side_panel_coordinator_;
+  std::unique_ptr<glic::GlicSelectionObserver> glic_selection_observer_;
   std::unique_ptr<glic::SelectionOverlayController>
       glic_selection_overlay_controller_;
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
   std::unique_ptr<memory_saver::MemorySaverChipController>
       memory_saver_chip_controller_;
@@ -579,9 +569,9 @@ class TabFeatures {
   std::unique_ptr<contextual_tasks::ContextualTasksTabVisitTracker>
       contextual_tasks_tab_visit_tracker_;
 
-#if BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<skills::SkillsUpdateObserver> skills_update_observer_;
-#endif  // BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
+#endif  //  !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   std::unique_ptr<enterprise_reporting::SaasUsageNavigationObserver>
@@ -590,6 +580,15 @@ class TabFeatures {
 
   std::unique_ptr<accessibility_annotator::ContentAnnotatorTabHelper>
       content_annotator_tab_helper_;
+
+#if !BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<indigo::IndigoPageActionController>
+      indigo_page_action_controller_;
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+  std::unique_ptr<multistep_filter::FilterUiController> filter_ui_controller_;
+  std::unique_ptr<multistep_filter::ChromeFilterNavigationObserver>
+      filter_navigation_observer_;
 
   // Must be the last member.
   base::WeakPtrFactory<TabFeatures> weak_factory_{this};

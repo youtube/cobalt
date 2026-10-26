@@ -9,15 +9,18 @@
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/tabs/tab_renderer_data.h"
+#include "chrome/browser/ui/tabs/tab_data.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/tabs/shared/drop_arrow.h"
 #include "chrome/browser/ui/views/tabs/tab_hover_card_controller.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_view.h"
+#include "ui/base/interaction/element_tracker.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/animation/animation_delegate.h"
 #include "ui/gfx/animation/slide_animation.h"
+#include "ui/gfx/geometry/point.h"
 #include "ui/views/accessible_pane_view.h"
 #include "ui/views/controls/resize_area_delegate.h"
 
@@ -28,6 +31,7 @@ class VerticalPinnedTabContainerView;
 class VerticalTabStripBottomContainer;
 class VerticalTabStripTopContainer;
 class TabDragContext;
+class HoverTabSelector;
 
 namespace tabs {
 class VerticalTabStripStateController;
@@ -48,7 +52,6 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
   METADATA_HEADER(VerticalTabStripRegionView, TabStripRegionView)
 
  public:
-  static constexpr int kResizeAreaWidth = 6;
   // TODO(crbug.com/465833741): Replace constant with derived value based on
   // caption buttons.
   static constexpr int kUncollapsedMinWidth = 126;
@@ -59,6 +62,8 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
   // TODO(crbug.com/465833741): Determine snapping behavior.
   static constexpr int kCollapseSnapWidth =
       (kUncollapsedMinWidth + kCollapsedWidth) / 2;
+
+  DECLARE_CLASS_CUSTOM_ELEMENT_EVENT_TYPE(kAnimationCompletedEvent);
 
   explicit VerticalTabStripRegionView(
       tabs::VerticalTabStripStateController* state_controller,
@@ -82,7 +87,7 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
     return target_collapse_state_;
   }
 
-  bool is_animating_for_testing() { return resize_animation_.is_animating(); }
+  bool is_animating() { return resize_animation_.is_animating(); }
 
   VerticalTabStripTopContainer* GetTopContainer() {
     return top_button_container_;
@@ -107,6 +112,7 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
   gfx::Size GetMinimumSize() const override;
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
+  bool OnKeyPressed(const ui::KeyEvent& event) override;
 
   // TabStripRegionView
   void InitializeTabStrip() override;
@@ -116,7 +122,7 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
   bool IsTabStripCloseable() const override;
   void UpdateLoadingAnimations(const base::TimeDelta& elapsed_time) override;
   std::optional<int> GetFocusedTabIndex() const override;
-  const TabRendererData& GetTabRendererData(int tab_index) override;
+  const tabs::TabData& GetTabData(int tab_index) override;
   views::View* GetTabAnchorViewAt(int tab_index) override;
   views::View* GetTabGroupAnchorView(
       const tab_groups::TabGroupId& group) override;
@@ -129,15 +135,28 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
   BrowserRootView::DropTarget* GetDropTarget(
       gfx::Point loc_in_local_coords) override;
   views::View* GetViewForDrop() override;
+  bool CanDrop(const OSExchangeData& data) override;
+  bool GetDropFormats(int* formats,
+                      std::set<ui::ClipboardFormatType>* format_types) override;
+  void OnDragEntered(const ui::DropTargetEvent& event) override;
+  int OnDragUpdated(const ui::DropTargetEvent& event) override;
+  void OnDragExited() override;
   void SetTabStripObserver(TabStripObserver* observer) override;
   views::View* GetTabStripView() override;
   bool TraverseUsingUpDownKeys() override;
+
+  // BrowserRootView::DropTarget:
+  void HandleDragUpdate(
+      const std::optional<BrowserRootView::DropIndex>& index) override;
+  void HandleDragExited() override;
 
   // views::ResizeAreaDelegate:
   void OnResize(int resize_amount, bool done_resizing) override;
 
   // gfx::AnimationDelegate:
   void AnimationProgressed(const gfx::Animation* animation) override;
+  void AnimationEnded(const gfx::Animation* animation) override;
+  void AnimationCanceled(const gfx::Animation* animation) override;
 
   bool IsPositionInWindowCaption(const gfx::Point& point);
 
@@ -163,8 +182,28 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
 
   bool IsFrameActive() const;
 
+  // Returns the bounds within which tabs can be dragged in the vertical tab
+  // strip.
+  gfx::Rect GetTabStripDraggableBounds() const;
+
   void RecordNewTabButtonPressed();
   void OnChildrenAdded();
+  void OnChildrenRemoved();
+  void OnChildMoved();
+
+  void SetLinkDropArrow(const std::optional<BrowserRootView::DropIndex>& index);
+  gfx::Rect GetLinkDropBounds(const BrowserRootView::DropIndex& drop_index,
+                              DropArrow::Direction* direction);
+
+  // Returns the position that the link drop arrow should be pointing at.
+  gfx::Point GetLinkDropArrowPosition(
+      const BrowserRootView::DropIndex& drop_index,
+      DropArrow::Direction* direction);
+
+  // Returns the link drop bounds needed for an arrow pointing at `position`
+  // with the specified position.
+  gfx::Rect GetLinkDropBoundsFromPosition(gfx::Point position,
+                                          DropArrow::Direction direction);
 
   raw_ptr<BrowserView> browser_view_;
 
@@ -177,21 +216,32 @@ class VerticalTabStripRegionView final : public TabStripRegionView,
   raw_ptr<VerticalTabStripBottomContainer> bottom_button_container_ = nullptr;
   raw_ptr<views::View> gemini_button_ = nullptr;
   raw_ptr<views::ResizeArea> resize_area_ = nullptr;
+  int resize_area_width_;
   raw_ptr<views::FlexLayout> flex_layout_ = nullptr;
 
   // The drag handler is a view (required for capturing mouse inputs during
   // a drag loop) owned by the tab strip's View.
   raw_ptr<VerticalTabDragHandler> drag_handler_ = nullptr;
 
+  std::unique_ptr<DropArrow> drop_arrow_;
+
   std::unique_ptr<VerticalTabStripController> tab_strip_controller_;
   std::unique_ptr<RootTabCollectionNode> root_node_;
 
   const raw_ptr<TabStripModel> tab_strip_model_ = nullptr;
   const raw_ptr<tabs::VerticalTabStripStateController> state_controller_;
+  raw_ptr<actions::ActionItem> root_action_item_ = nullptr;
   std::unique_ptr<TabHoverCardController> hover_card_controller_;
+  std::unique_ptr<HoverTabSelector> hover_tab_selector_;
+
   base::CallbackListSubscription collapsed_state_changed_subscription_;
   base::CallbackListSubscription paint_as_active_subscription_;
   std::optional<base::CallbackListSubscription> on_children_added_subscription_;
+  std::optional<base::CallbackListSubscription>
+      on_children_removed_subscription_;
+  std::optional<base::CallbackListSubscription> on_child_moved_subscription_;
+  std::optional<base::CallbackListSubscription>
+      on_active_tab_changed_subscription_;
 
   // The width of the vertical tabstrip at the beginning of the current resize
   // operation. Is std::nullopt when not resizing.

@@ -171,18 +171,19 @@ class ServiceWorkerCacheWriterTest : public ::testing::Test {
     response_head->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
         std::string(data, std::size(data)));
     response_head->content_length = len;
-    net::Error error = cache_writer_->MaybeWriteHeaders(
-        std::move(response_head), CreateWriteCallback());
-    return error;
+    write_complete_ = false;
+    cache_writer_->MaybeWriteHeaders(std::move(response_head),
+                                     CreateWriteCallback());
+    return write_complete_ ? last_error_ : net::ERR_IO_PENDING;
   }
 
   net::Error WriteData(const std::string& data) {
     scoped_refptr<net::IOBuffer> buf =
         base::MakeRefCounted<net::StringIOBuffer>(data);
-    net::Error error = cache_writer_->MaybeWriteData(buf.get(), data.size(),
-                                                     CreateWriteCallback());
-    base::RunLoop().RunUntilIdle();
-    return error;
+    write_complete_ = false;
+    cache_writer_->MaybeWriteData(buf.get(), data.size(),
+                                  CreateWriteCallback());
+    return write_complete_ ? last_error_ : net::ERR_IO_PENDING;
   }
 };
 
@@ -206,7 +207,7 @@ TEST_F(ServiceWorkerCacheWriterTest, PassthroughHeadersAsync) {
   EXPECT_TRUE(write_complete_);
   EXPECT_EQ(net::OK, last_error_);
   EXPECT_TRUE(writer->AllExpectedWritesDone());
-  EXPECT_EQ(0U, cache_writer_->bytes_written());
+  EXPECT_TRUE(cache_writer_->bytes_written().is_zero());
 }
 
 TEST_F(ServiceWorkerCacheWriterTest, PassthroughDataAsync) {
@@ -257,7 +258,7 @@ TEST_F(ServiceWorkerCacheWriterTest, PassthroughHeadersFailAsync) {
   EXPECT_TRUE(write_complete_);
   EXPECT_EQ(net::ERR_FAILED, last_error_);
   EXPECT_TRUE(writer->AllExpectedWritesDone());
-  EXPECT_EQ(0U, cache_writer_->bytes_written());
+  EXPECT_TRUE(cache_writer_->bytes_written().is_zero());
 }
 
 TEST_F(ServiceWorkerCacheWriterTest, PassthroughDataFailAsync) {
@@ -308,7 +309,7 @@ TEST_F(ServiceWorkerCacheWriterTest, CompareDataOkAsync) {
   reader->CompletePendingRead();
 
   EXPECT_TRUE(reader->AllExpectedReadsDone());
-  EXPECT_EQ(0U, cache_writer_->bytes_written());
+  EXPECT_TRUE(cache_writer_->bytes_written().is_zero());
 }
 
 TEST_F(ServiceWorkerCacheWriterTest, CompareDataManyOkAsync) {
@@ -348,7 +349,7 @@ TEST_F(ServiceWorkerCacheWriterTest, CompareDataManyOkAsync) {
   }
 
   EXPECT_TRUE(reader->AllExpectedReadsDone());
-  EXPECT_EQ(0U, cache_writer_->bytes_written());
+  EXPECT_TRUE(cache_writer_->bytes_written().is_zero());
 }
 
 // This test writes headers and three data blocks data1, data2, data3; data2
@@ -706,14 +707,13 @@ TEST_F(ServiceWorkerCacheWriterTest, PauseWhenNotIdentical_AsyncWriteData) {
   compare_reader->CompletePendingRead();
   EXPECT_TRUE(write_complete_);
   EXPECT_EQ(net::ERR_IO_PENDING, last_error_);
-  EXPECT_EQ(0U, cache_writer_->bytes_written());
+  EXPECT_TRUE(cache_writer_->bytes_written().is_zero());
 
   // Resume |cache_writer_| with a callback which updates |write_complete_| and
   // |last_error_| when it's called.
   // |copy_reader| does an asynchronous read here.
   write_complete_ = false;
-  error = cache_writer_->Resume(CreateWriteCallback());
-  EXPECT_EQ(net::ERR_IO_PENDING, error);
+  cache_writer_->Resume(CreateWriteCallback());
   EXPECT_FALSE(write_complete_);
 
   // Complete the asynchronous read of the header. Since there's nothing to copy
@@ -732,7 +732,7 @@ TEST_F(ServiceWorkerCacheWriterTest, PauseWhenNotIdentical_AsyncWriteData) {
   writer->CompletePendingWrite();
   EXPECT_TRUE(write_complete_);
   EXPECT_EQ(net::OK, last_error_);
-  EXPECT_EQ(bytes_expected, cache_writer_->bytes_written());
+  EXPECT_EQ(bytes_expected, cache_writer_->bytes_written().InBytes());
 
   EXPECT_TRUE(writer->AllExpectedWritesDone());
   EXPECT_TRUE(compare_reader->AllExpectedReadsDone());
@@ -770,8 +770,7 @@ TEST_F(ServiceWorkerCacheWriterTest, CopyScript_Async) {
   Initialize(CacheWriterUsage::kForCopy, false /* pause_when_not_identical */);
 
   write_complete_ = false;
-  net::Error error = cache_writer_->StartCopy(CreateWriteCallback());
-  EXPECT_EQ(net::ERR_IO_PENDING, error);
+  cache_writer_->StartCopy(CreateWriteCallback());
   EXPECT_FALSE(write_complete_);
 
   // Complete the asynchronous read of the header. This doesn't finish all the
@@ -796,7 +795,7 @@ TEST_F(ServiceWorkerCacheWriterTest, CopyScript_Async) {
   writer->CompletePendingWrite();
   EXPECT_TRUE(write_complete_);
   EXPECT_EQ(net::OK, last_error_);
-  EXPECT_EQ(bytes_expected, cache_writer_->bytes_written());
+  EXPECT_EQ(bytes_expected, cache_writer_->bytes_written().InBytes());
   EXPECT_TRUE(writer->AllExpectedWritesDone());
 }
 
@@ -832,8 +831,7 @@ TEST_F(ServiceWorkerCacheWriterTest, CopyScript_AsyncMultipleRead) {
   Initialize(CacheWriterUsage::kForCopy, false /* pause_when_not_identical */);
 
   write_complete_ = false;
-  net::Error error = cache_writer_->StartCopy(CreateWriteCallback());
-  EXPECT_EQ(net::ERR_IO_PENDING, error);
+  cache_writer_->StartCopy(CreateWriteCallback());
   EXPECT_FALSE(write_complete_);
 
   // Complete the asynchronous read of the header. This doesn't finish all the
@@ -878,7 +876,7 @@ TEST_F(ServiceWorkerCacheWriterTest, CopyScript_AsyncMultipleRead) {
   writer->CompletePendingWrite();
   EXPECT_TRUE(write_complete_);
   EXPECT_EQ(net::OK, last_error_);
-  EXPECT_EQ(bytes_expected, cache_writer_->bytes_written());
+  EXPECT_EQ(bytes_expected, cache_writer_->bytes_written().InBytes());
   EXPECT_TRUE(writer->AllExpectedWritesDone());
 }
 
@@ -915,7 +913,7 @@ TEST_F(ServiceWorkerCacheWriterTest, ObserverSyncResponseWriterAsync) {
   cache_writer_->set_write_observer(nullptr);
 
   EXPECT_TRUE(writer->AllExpectedWritesDone());
-  EXPECT_EQ(response_size, cache_writer_->bytes_written());
+  EXPECT_EQ(response_size, cache_writer_->bytes_written().InBytes());
 }
 
 // The observer and response writer all run asynchronously.
@@ -953,7 +951,7 @@ TEST_F(ServiceWorkerCacheWriterTest, ObserverAsyncResponseWriterAsync) {
   cache_writer_->set_write_observer(nullptr);
 
   EXPECT_TRUE(writer->AllExpectedWritesDone());
-  EXPECT_EQ(response_size, cache_writer_->bytes_written());
+  EXPECT_EQ(response_size, cache_writer_->bytes_written().InBytes());
 }
 
 // Observer's OnWillWriteData() runs synchronously but fails.
@@ -978,7 +976,7 @@ TEST_F(ServiceWorkerCacheWriterTest, ObserverSyncFail) {
   observer.set_result(net::ERR_FAILED);
   error = WriteData(data);
   EXPECT_EQ(net::ERR_FAILED, error);
-  EXPECT_EQ(0U, cache_writer_->bytes_written());
+  EXPECT_TRUE(cache_writer_->bytes_written().is_zero());
 
   cache_writer_->set_write_observer(nullptr);
 }
@@ -1008,7 +1006,7 @@ TEST_F(ServiceWorkerCacheWriterTest, ObserverAsyncFail) {
   observer.Complete(net::ERR_FAILED);
   EXPECT_TRUE(write_complete_);
   EXPECT_EQ(last_error_, net::ERR_FAILED);
-  EXPECT_EQ(0U, cache_writer_->bytes_written());
+  EXPECT_TRUE(cache_writer_->bytes_written().is_zero());
 
   cache_writer_->set_write_observer(nullptr);
 }
@@ -1294,8 +1292,10 @@ TEST_F(ServiceWorkerCacheWriterDisconnectionTest, CopyBeforeStart) {
 
   SimulateDisconnection();
 
-  net::Error error = cache_writer_->StartCopy(CreateWriteCallback());
-  EXPECT_EQ(error, net::ERR_FAILED);
+  write_complete_ = false;
+  cache_writer_->StartCopy(CreateWriteCallback());
+  EXPECT_TRUE(write_complete_);
+  EXPECT_EQ(last_error_, net::ERR_FAILED);
 }
 
 TEST_F(ServiceWorkerCacheWriterDisconnectionTest, CopyBeforeHeaderRead) {
@@ -1308,8 +1308,8 @@ TEST_F(ServiceWorkerCacheWriterDisconnectionTest, CopyBeforeHeaderRead) {
   writer_->ExpectWriteResponseHeadOk(response_size);
   writer_->ExpectWriteDataOk(data1.size());
 
-  net::Error error = cache_writer_->StartCopy(CreateWriteCallback());
-  EXPECT_EQ(error, net::ERR_IO_PENDING);
+  write_complete_ = false;
+  cache_writer_->StartCopy(CreateWriteCallback());
   EXPECT_FALSE(write_complete_);
 
   SimulateDisconnection();
@@ -1328,8 +1328,8 @@ TEST_F(ServiceWorkerCacheWriterDisconnectionTest, CopyBeforeDataRead) {
   writer_->ExpectWriteResponseHeadOk(response_size);
   writer_->ExpectWriteDataOk(data1.size());
 
-  net::Error error = cache_writer_->StartCopy(CreateWriteCallback());
-  EXPECT_EQ(error, net::ERR_IO_PENDING);
+  write_complete_ = false;
+  cache_writer_->StartCopy(CreateWriteCallback());
   EXPECT_FALSE(write_complete_);
 
   // Completes the header read.
@@ -1361,8 +1361,8 @@ TEST_F(ServiceWorkerCacheWriterDisconnectionTest, CopyDuringDataRead) {
   writer_->ExpectWriteDataOk(data1.size());
   writer_->ExpectWriteDataOk(data2.size());
 
-  net::Error error = cache_writer_->StartCopy(CreateWriteCallback());
-  EXPECT_EQ(error, net::ERR_IO_PENDING);
+  write_complete_ = false;
+  cache_writer_->StartCopy(CreateWriteCallback());
   EXPECT_FALSE(write_complete_);
 
   // Completes the header read.

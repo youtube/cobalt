@@ -25,6 +25,7 @@
 #include "ui/views/layout/proposed_layout.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 
 VerticalSplitTabView::VerticalSplitTabView(TabCollectionNode* collection_node)
@@ -86,9 +87,9 @@ void VerticalSplitTabView::OnPaint(gfx::Canvas* canvas) {
         collection_node_ ? collection_node_->GetDirectChildren()
                          : std::vector<views::View*>();
     std::optional<SkColor> background_color =
-        !children.empty()
-            ? static_cast<VerticalTabView*>(children[0])->GetBackgroundColor()
-            : std::nullopt;
+        !children.empty() ? views::AsViewClass<VerticalTabView>(children[0])
+                                ->GetBackgroundColor()
+                          : std::nullopt;
     if (background_color.has_value()) {
       cc::PaintFlags flags;
       flags.setAntiAlias(true);
@@ -136,12 +137,13 @@ views::ProposedLayout VerticalSplitTabView::CalculateProposedLayout(
       bounds.set_x(x);
       // Fill available width if bounded.
       if (size_bounds.width().is_bounded()) {
-        bounds.set_width(x == 0 ? (std::floor(size_bounds.width().value() +
-                                              2 * border_thickness) /
-                                   2)
-                                : size_bounds.width().value() - x);
+        bounds.set_width(
+            x == 0 ? (std::floor(size_bounds.width().value() +
+                                 2 * border_thickness - kSplitViewGap) /
+                      2)
+                   : size_bounds.width().value() - x);
       }
-      x += bounds.width() - 2 * border_thickness;
+      x += bounds.width() - 2 * border_thickness + (x == 0 ? kSplitViewGap : 0);
       height = std::max(height, bounds.height());
       layouts.child_layouts.emplace_back(child, child->GetVisible(), bounds);
     }
@@ -153,7 +155,8 @@ views::ProposedLayout VerticalSplitTabView::CalculateProposedLayout(
       bounds.set_y(y);
       bounds.set_width(size_bounds.width().value());
       bounds.set_height(bounds.height());
-      y += bounds.height() - 2 * border_thickness;
+      y +=
+          bounds.height() - 2 * border_thickness + (y == 0 ? kSplitViewGap : 0);
       layouts.child_layouts.emplace_back(child, child->GetVisible(), bounds);
     }
     width = size_bounds.width().value();
@@ -161,6 +164,35 @@ views::ProposedLayout VerticalSplitTabView::CalculateProposedLayout(
   }
   layouts.host_size = gfx::Size(width, height);
   return layouts;
+}
+
+std::optional<BrowserRootView::DropIndex>
+VerticalSplitTabView::GetLinkDropIndex(const gfx::Point& loc_in_view) {
+  if (!collection_node_ || !collection_node_->GetController()) {
+    return std::nullopt;
+  }
+
+  CHECK_EQ(collection_node_->children().size(), 2ul);
+
+  const auto& start_node = collection_node_->children()[0];
+  gfx::Point start_loc = views::View::ConvertPointToTarget(
+      start_node->view(), this,
+      start_node->view()->GetLocalBounds().CenterPoint());
+  const auto& end_node = collection_node_->children()[1];
+  gfx::Point end_loc = views::View::ConvertPointToTarget(
+      end_node->view(), this, end_node->view()->GetLocalBounds().CenterPoint());
+
+  VerticalTabDragHandler& drag_handler =
+      collection_node_->GetController()->GetDragHandler();
+
+  // Links can't be dropped between tabs in a split view so just determine the
+  // closest tab to the drop point.
+  if ((start_loc - loc_in_view).LengthSquared() <
+      (end_loc - loc_in_view).LengthSquared()) {
+    return drag_handler.GetLinkDropIndexForNode(*start_node, std::nullopt);
+  } else {
+    return drag_handler.GetLinkDropIndexForNode(*end_node, std::nullopt);
+  }
 }
 
 double VerticalSplitTabView::GetHoverAnimationValue() const {

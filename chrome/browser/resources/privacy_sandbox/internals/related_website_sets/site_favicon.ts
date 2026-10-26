@@ -80,18 +80,16 @@ export class SiteFaviconElement extends CrLitElement {
     return getFaviconForPageURL(url, false);
   }
 
-  protected onLoadSuccess_() {
+  protected onLoad_() {
     this.showDownloadedIcon_ = true;
     this.faviconDownloadTimeout_ && clearTimeout(this.faviconDownloadTimeout_);
     this.faviconDownloadTimeout_ = null;
-    this.dispatchEvent(new CustomEvent(
-        'site-favicon-loaded', {bubbles: true, composed: true}));
+    this.fire('site-favicon-loaded');
   }
 
   protected onLoadError_() {
     this.showDownloadedIcon_ = false;
-    this.dispatchEvent(
-        new CustomEvent('site-favicon-error', {bubbles: true, composed: true}));
+    this.fire('site-favicon-error');
   }
 
   protected onUrlChanged_() {

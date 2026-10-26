@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "partition_alloc/address_space_randomization.h"
+#include "partition_alloc/bounds_checks.h"
 #include "partition_alloc/build_config.h"
 #include "partition_alloc/buildflags.h"
 #include "partition_alloc/dangling_raw_ptr_checks.h"
@@ -54,6 +55,7 @@
 #include "partition_alloc/partition_stats.h"
 #include "partition_alloc/reservation_offset_table.h"
 #include "partition_alloc/scheduler_loop_quarantine_support.h"
+#include "partition_alloc/slot_address_and_size.h"
 #include "partition_alloc/tagging.h"
 #include "partition_alloc/thread_isolation/thread_isolation.h"
 #include "partition_alloc/use_death_tests.h"
@@ -1504,8 +1506,7 @@ TEST_P(PartitionAllocTest, AllocGetSizeAndStart) {
   if (UseBRPPool()) {
     uintptr_t address = UntagPtr(ptr);
     for (size_t offset = 0; offset < requested_size; ++offset) {
-      EXPECT_EQ(PartitionAllocGetSlotStartAndSizeInBRPPool(address + offset)
-                    .slot_start,
+      EXPECT_EQ(SlotAddressAndSize::FromBRPPool(address + offset).slot_start,
                 slot_start.Untag());
     }
   }
@@ -1528,8 +1529,7 @@ TEST_P(PartitionAllocTest, AllocGetSizeAndStart) {
   if (UseBRPPool()) {
     uintptr_t address = UntagPtr(ptr);
     for (size_t offset = 0; offset < requested_size; offset += 877) {
-      EXPECT_EQ(PartitionAllocGetSlotStartAndSizeInBRPPool(address + offset)
-                    .slot_start,
+      EXPECT_EQ(SlotAddressAndSize::FromBRPPool(address + offset).slot_start,
                 slot_start.Untag());
     }
   }
@@ -1558,8 +1558,7 @@ TEST_P(PartitionAllocTest, AllocGetSizeAndStart) {
   if (UseBRPPool()) {
     uintptr_t address = UntagPtr(ptr);
     for (size_t offset = 0; offset < requested_size; offset += 4999) {
-      EXPECT_EQ(PartitionAllocGetSlotStartAndSizeInBRPPool(address + offset)
-                    .slot_start,
+      EXPECT_EQ(SlotAddressAndSize::FromBRPPool(address + offset).slot_start,
                 slot_start.Untag());
     }
   }
@@ -1582,8 +1581,7 @@ TEST_P(PartitionAllocTest, AllocGetSizeAndStart) {
   if (UseBRPPool()) {
     uintptr_t address = UntagPtr(ptr);
     for (size_t offset = 0; offset < requested_size; offset += 4999) {
-      EXPECT_EQ(PartitionAllocGetSlotStartAndSizeInBRPPool(address + offset)
-                    .slot_start,
+      EXPECT_EQ(SlotAddressAndSize::FromBRPPool(address + offset).slot_start,
                 slot_start.Untag());
     }
   }
@@ -1612,8 +1610,7 @@ TEST_P(PartitionAllocTest, AllocGetSizeAndStart) {
     if (UseBRPPool()) {
       uintptr_t address = UntagPtr(ptr);
       for (size_t offset = 0; offset < requested_size; offset += 16111) {
-        EXPECT_EQ(PartitionAllocGetSlotStartAndSizeInBRPPool(address + offset)
-                      .slot_start,
+        EXPECT_EQ(SlotAddressAndSize::FromBRPPool(address + offset).slot_start,
                   slot_start.Untag());
       }
     }
@@ -1730,88 +1727,98 @@ TEST_P(PartitionAllocTest, IsPtrWithinSameAlloc) {
       }
 
       uintptr_t address = UntagPtr(ptr);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address, address - kFarFarAwayDelta, 0u),
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address,
+                                              address - kFarFarAwayDelta, 0u),
                 PtrPosWithinAlloc::kFarOOB);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address, address - kSuperPageSize, 0u),
+      EXPECT_EQ(
+          IsPtrWithinSameAllocInBRPPool(address, address - kSuperPageSize, 0u),
+          PtrPosWithinAlloc::kFarOOB);
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address, address - 1, 0u),
                 PtrPosWithinAlloc::kFarOOB);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address, address - 1, 0u),
-                PtrPosWithinAlloc::kFarOOB);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address, address, 0u),
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address, address, 0u),
                 PtrPosWithinAlloc::kInBounds);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address, address + requested_size / 2, 0u),
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address,
+                                              address + requested_size / 2, 0u),
                 PtrPosWithinAlloc::kInBounds);
 #if PA_BUILDFLAG(BACKUP_REF_PTR_POISON_OOB_PTR)
-      EXPECT_EQ(IsPtrWithinSameAlloc(address, address + requested_size - 1, 1u),
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address,
+                                              address + requested_size - 1, 1u),
                 PtrPosWithinAlloc::kInBounds);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address, address + requested_size, 1u),
-                PtrPosWithinAlloc::kAllocEnd);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address, address + requested_size - 4, 4u),
+      EXPECT_EQ(
+          IsPtrWithinSameAllocInBRPPool(address, address + requested_size, 1u),
+          PtrPosWithinAlloc::kAllocEnd);
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address,
+                                              address + requested_size - 4, 4u),
                 PtrPosWithinAlloc::kInBounds);
       for (size_t subtrahend = 0; subtrahend < 4; subtrahend++) {
-        EXPECT_EQ(IsPtrWithinSameAlloc(
+        EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(
                       address, address + requested_size - subtrahend, 4u),
                   PtrPosWithinAlloc::kAllocEnd);
       }
 #else  // PA_BUILDFLAG(BACKUP_REF_PTR_POISON_OOB_PTR)
-      EXPECT_EQ(IsPtrWithinSameAlloc(address, address + requested_size, 0u),
-                PtrPosWithinAlloc::kInBounds);
+      EXPECT_EQ(
+          IsPtrWithinSameAllocInBRPPool(address, address + requested_size, 0u),
+          PtrPosWithinAlloc::kInBounds);
 #endif
-      EXPECT_EQ(IsPtrWithinSameAlloc(address, address + requested_size + 1, 0u),
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address,
+                                              address + requested_size + 1, 0u),
                 PtrPosWithinAlloc::kFarOOB);
-      EXPECT_EQ(IsPtrWithinSameAlloc(
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(
                     address, address + requested_size + kSuperPageSize, 0u),
                 PtrPosWithinAlloc::kFarOOB);
-      EXPECT_EQ(IsPtrWithinSameAlloc(
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(
                     address, address + requested_size + kFarFarAwayDelta, 0u),
                 PtrPosWithinAlloc::kFarOOB);
-      EXPECT_EQ(
-          IsPtrWithinSameAlloc(address + requested_size,
-                               address + requested_size + kFarFarAwayDelta, 0u),
-          PtrPosWithinAlloc::kFarOOB);
-      EXPECT_EQ(
-          IsPtrWithinSameAlloc(address + requested_size,
-                               address + requested_size + kSuperPageSize, 0u),
-          PtrPosWithinAlloc::kFarOOB);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address + requested_size,
-                                     address + requested_size + 1, 0u),
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(
+                    address + requested_size,
+                    address + requested_size + kFarFarAwayDelta, 0u),
+                PtrPosWithinAlloc::kFarOOB);
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(
+                    address + requested_size,
+                    address + requested_size + kSuperPageSize, 0u),
+                PtrPosWithinAlloc::kFarOOB);
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address + requested_size,
+                                              address + requested_size + 1, 0u),
                 PtrPosWithinAlloc::kFarOOB);
 #if PA_BUILDFLAG(BACKUP_REF_PTR_POISON_OOB_PTR)
-      EXPECT_EQ(IsPtrWithinSameAlloc(address + requested_size - 1,
-                                     address + requested_size - 1, 1u),
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address + requested_size - 1,
+                                              address + requested_size - 1, 1u),
                 PtrPosWithinAlloc::kInBounds);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address + requested_size - 1,
-                                     address + requested_size, 1u),
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address + requested_size - 1,
+                                              address + requested_size, 1u),
                 PtrPosWithinAlloc::kAllocEnd);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address + requested_size,
-                                     address + requested_size, 1u),
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address + requested_size,
+                                              address + requested_size, 1u),
                 PtrPosWithinAlloc::kAllocEnd);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address + requested_size - 4,
-                                     address + requested_size - 4, 4u),
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address + requested_size - 4,
+                                              address + requested_size - 4, 4u),
                 PtrPosWithinAlloc::kInBounds);
       for (size_t addend = 1; addend < 4; addend++) {
-        EXPECT_EQ(
-            IsPtrWithinSameAlloc(address + requested_size - 4,
-                                 address + requested_size - 4 + addend, 4u),
-            PtrPosWithinAlloc::kAllocEnd);
+        EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(
+                      address + requested_size - 4,
+                      address + requested_size - 4 + addend, 4u),
+                  PtrPosWithinAlloc::kAllocEnd);
       }
 #else  // PA_BUILDFLAG(BACKUP_REF_PTR_POISON_OOB_PTR)
-      EXPECT_EQ(IsPtrWithinSameAlloc(address + requested_size,
-                                     address + requested_size, 0u),
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address + requested_size,
+                                              address + requested_size, 0u),
                 PtrPosWithinAlloc::kInBounds);
 #endif
-      EXPECT_EQ(IsPtrWithinSameAlloc(
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(
                     address + requested_size,
                     address + requested_size - (requested_size / 2), 0u),
                 PtrPosWithinAlloc::kInBounds);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address + requested_size, address, 0u),
-                PtrPosWithinAlloc::kInBounds);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address + requested_size, address - 1, 0u),
+      EXPECT_EQ(
+          IsPtrWithinSameAllocInBRPPool(address + requested_size, address, 0u),
+          PtrPosWithinAlloc::kInBounds);
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address + requested_size,
+                                              address - 1, 0u),
                 PtrPosWithinAlloc::kFarOOB);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address + requested_size,
-                                     address - kSuperPageSize, 0u),
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address + requested_size,
+                                              address - kSuperPageSize, 0u),
                 PtrPosWithinAlloc::kFarOOB);
-      EXPECT_EQ(IsPtrWithinSameAlloc(address + requested_size,
-                                     address - kFarFarAwayDelta, 0u),
+      EXPECT_EQ(IsPtrWithinSameAllocInBRPPool(address + requested_size,
+                                              address - kFarFarAwayDelta, 0u),
                 PtrPosWithinAlloc::kFarOOB);
     }
 
@@ -1873,8 +1880,7 @@ TEST_P(PartitionAllocTest, GetSlotStartMultiplePages) {
         allocator.root()->AllocationCapacityFromSlotStart(slot_start.Untag()),
         requested_size);
     for (size_t offset = 0; offset < requested_size; offset += 13) {
-      EXPECT_EQ(PartitionAllocGetSlotStartAndSizeInBRPPool(address + offset)
-                    .slot_start,
+      EXPECT_EQ(SlotAddressAndSize::FromBRPPool(address + offset).slot_start,
                 slot_start.Untag());
     }
     allocator.root()->Free(ptr);
@@ -3055,7 +3061,8 @@ TEST_P(PartitionAllocTest, DumpMemoryStats) {
   {
     void* ptr = allocator.root()->Alloc(kTestAllocSize, type_name);
     MockPartitionStatsDumper mock_stats_dumper;
-    allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
+    allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                /*populate_discardable_bytes=*/true,
                                 &mock_stats_dumper);
     EXPECT_TRUE(mock_stats_dumper.IsMemoryAllocationRecorded());
     allocator.root()->Free(ptr);
@@ -3067,8 +3074,8 @@ TEST_P(PartitionAllocTest, DumpMemoryStats) {
       void* ptr =
           allocator.root()->Alloc(2048 - ExtraAllocSize(allocator), type_name);
       MockPartitionStatsDumper dumper;
-      allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                  &dumper);
+      allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                  /*populate_discardable_bytes=*/true, &dumper);
       EXPECT_TRUE(dumper.IsMemoryAllocationRecorded());
 
       const PartitionBucketMemoryStats* stats = dumper.GetBucketStats(2048);
@@ -3089,8 +3096,8 @@ TEST_P(PartitionAllocTest, DumpMemoryStats) {
 
     {
       MockPartitionStatsDumper dumper;
-      allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                  &dumper);
+      allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                  /*populate_discardable_bytes=*/true, &dumper);
       EXPECT_FALSE(dumper.IsMemoryAllocationRecorded());
 
       const PartitionBucketMemoryStats* stats = dumper.GetBucketStats(2048);
@@ -3115,8 +3122,8 @@ TEST_P(PartitionAllocTest, DumpMemoryStats) {
 
     {
       MockPartitionStatsDumper dumper;
-      allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                  &dumper);
+      allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                  /*populate_discardable_bytes=*/true, &dumper);
       EXPECT_FALSE(dumper.IsMemoryAllocationRecorded());
 
       const PartitionBucketMemoryStats* stats = dumper.GetBucketStats(2048);
@@ -3149,8 +3156,8 @@ TEST_P(PartitionAllocTest, DumpMemoryStats) {
 
     {
       MockPartitionStatsDumper dumper;
-      allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                  &dumper);
+      allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                  /*populate_discardable_bytes=*/true, &dumper);
       EXPECT_TRUE(dumper.IsMemoryAllocationRecorded());
 
       const PartitionBucketMemoryStats* stats =
@@ -3184,8 +3191,8 @@ TEST_P(PartitionAllocTest, DumpMemoryStats) {
 
     {
       MockPartitionStatsDumper dumper;
-      allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                  &dumper);
+      allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                  /*populate_discardable_bytes=*/true, &dumper);
       EXPECT_TRUE(dumper.IsMemoryAllocationRecorded());
 
       const PartitionBucketMemoryStats* stats =
@@ -3238,8 +3245,8 @@ TEST_P(PartitionAllocTest, DumpMemoryStats) {
 
     {
       MockPartitionStatsDumper dumper;
-      allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                  &dumper);
+      allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                  /*populate_discardable_bytes=*/true, &dumper);
       EXPECT_TRUE(dumper.IsMemoryAllocationRecorded());
 
       size_t slot_size = SizeToBucketSize(requested_size);
@@ -3267,8 +3274,8 @@ TEST_P(PartitionAllocTest, DumpMemoryStats) {
 
     {
       MockPartitionStatsDumper dumper;
-      allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                  &dumper);
+      allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                  /*populate_discardable_bytes=*/true, &dumper);
       EXPECT_FALSE(dumper.IsMemoryAllocationRecorded());
 
       size_t slot_size = SizeToBucketSize(requested_size);
@@ -3294,8 +3301,8 @@ TEST_P(PartitionAllocTest, DumpMemoryStats) {
 
     {
       MockPartitionStatsDumper dumper;
-      allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                  &dumper);
+      allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                  /*populate_discardable_bytes=*/true, &dumper);
       EXPECT_TRUE(dumper.IsMemoryAllocationRecorded());
 
       size_t slot_size = SizeToBucketSize(requested_size);
@@ -3330,8 +3337,8 @@ TEST_P(PartitionAllocTest, Purge) {
   allocator.root()->Free(ptr);
   {
     MockPartitionStatsDumper dumper;
-    allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                &dumper);
+    allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                /*populate_discardable_bytes=*/true, &dumper);
     EXPECT_FALSE(dumper.IsMemoryAllocationRecorded());
 
     const PartitionBucketMemoryStats* stats = dumper.GetBucketStats(2048);
@@ -3343,8 +3350,8 @@ TEST_P(PartitionAllocTest, Purge) {
   allocator.root()->PurgeMemory(PurgeFlags::kDecommitEmptySlotSpans);
   {
     MockPartitionStatsDumper dumper;
-    allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                &dumper);
+    allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                /*populate_discardable_bytes=*/true, &dumper);
     EXPECT_FALSE(dumper.IsMemoryAllocationRecorded());
 
     const PartitionBucketMemoryStats* stats = dumper.GetBucketStats(2048);
@@ -3434,8 +3441,8 @@ TEST_P(PartitionAllocTest, PurgeDiscardableSecondPage) {
   EXPECT_EQ(2u, slot_span->num_unprovisioned_slots);
   {
     MockPartitionStatsDumper dumper;
-    allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                &dumper);
+    allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                /*populate_discardable_bytes=*/true, &dumper);
     EXPECT_TRUE(dumper.IsMemoryAllocationRecorded());
 
     const PartitionBucketMemoryStats* stats =
@@ -3464,8 +3471,8 @@ TEST_P(PartitionAllocTest, PurgeDiscardableFirstPage) {
   allocator.root()->Free(ptr1);
   {
     MockPartitionStatsDumper dumper;
-    allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                &dumper);
+    allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                /*populate_discardable_bytes=*/true, &dumper);
     EXPECT_TRUE(dumper.IsMemoryAllocationRecorded());
 
     const PartitionBucketMemoryStats* stats =
@@ -3504,8 +3511,8 @@ TEST_P(PartitionAllocTest, PurgeDiscardableNonPageSizedAlloc) {
   allocator.root()->Free(ptr2);
   {
     MockPartitionStatsDumper dumper;
-    allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                &dumper);
+    allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                /*populate_discardable_bytes=*/true, &dumper);
     EXPECT_TRUE(dumper.IsMemoryAllocationRecorded());
 
     const PartitionBucketMemoryStats* stats =
@@ -3556,8 +3563,8 @@ TEST_P(PartitionAllocTest, PurgeDiscardableNonPageSizedAllocOnSlotBoundary) {
   allocator.root()->Free(ptr1);
   {
     MockPartitionStatsDumper dumper;
-    allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                &dumper);
+    allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                /*populate_discardable_bytes=*/true, &dumper);
     EXPECT_TRUE(dumper.IsMemoryAllocationRecorded());
 
     const PartitionBucketMemoryStats* stats =
@@ -3614,8 +3621,8 @@ TEST_P(PartitionAllocTest, PurgeDiscardableManyPages) {
   ScopedPageAllocation p(allocator, kSecondAllocPages);
 
   MockPartitionStatsDumper dumper;
-  allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                              &dumper);
+  allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                              /*populate_discardable_bytes=*/true, &dumper);
   EXPECT_TRUE(dumper.IsMemoryAllocationRecorded());
 
   const PartitionBucketMemoryStats* stats =
@@ -3666,8 +3673,8 @@ TEST_P(PartitionAllocTest, PurgeDiscardableWithFreeListStraightening) {
 
   {
     MockPartitionStatsDumper dumper;
-    allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                &dumper);
+    allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                /*populate_discardable_bytes=*/true, &dumper);
     EXPECT_TRUE(dumper.IsMemoryAllocationRecorded());
 
     const PartitionBucketMemoryStats* stats =
@@ -3804,8 +3811,8 @@ TEST_P(PartitionAllocTest, PurgeDiscardableDoubleTruncateFreeList) {
 
   {
     MockPartitionStatsDumper dumper;
-    allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                &dumper);
+    allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                /*populate_discardable_bytes=*/true, &dumper);
     EXPECT_TRUE(dumper.IsMemoryAllocationRecorded());
 
     const PartitionBucketMemoryStats* stats =
@@ -3851,8 +3858,8 @@ TEST_P(PartitionAllocTest, PurgeDiscardableSmallSlotsWithTruncate) {
   EXPECT_EQ(4u, slot_span->num_unprovisioned_slots);
   {
     MockPartitionStatsDumper dumper;
-    allocator.root()->DumpStats("mock_allocator", false /* detailed dump */,
-                                &dumper);
+    allocator.root()->DumpStats("mock_allocator", /*is_light_dump=*/false,
+                                /*populate_discardable_bytes=*/true, &dumper);
     EXPECT_TRUE(dumper.IsMemoryAllocationRecorded());
 
     const PartitionBucketMemoryStats* stats =
@@ -4750,7 +4757,7 @@ TEST_P(PartitionAllocTest, RefCountBasic) {
   // quarantine.
   in_slot_metadata = TagPtr(in_slot_metadata);
   EXPECT_TRUE(in_slot_metadata->ReleaseFromUnprotectedPtr());
-  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+  auto slot_info = partition_alloc::SlotAddressAndSize::FromBRPPool(
       reinterpret_cast<uintptr_t>(ptr1));
   PartitionRoot::FreeAfterBRPQuarantine(
       internal::UntaggedSlotStart(slot_info.slot_start), slot_info.size);
@@ -4800,9 +4807,8 @@ void PartitionAllocTest::RunRefCountReallocSubtest(size_t orig_size,
 
     EXPECT_TRUE(in_slot_metadata1->ReleaseFromUnprotectedPtr());
 
-    auto slot_info =
-        partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
-            reinterpret_cast<uintptr_t>(ptr1));
+    auto slot_info = partition_alloc::SlotAddressAndSize::FromBRPPool(
+        reinterpret_cast<uintptr_t>(ptr1));
     PartitionRoot::FreeAfterBRPQuarantine(
         internal::UntaggedSlotStart(slot_info.slot_start), slot_info.size);
   }
@@ -4987,7 +4993,7 @@ TEST_P(UnretainedDanglingRawPtrTest, UnretainedDanglingPtrShouldReport) {
   EXPECT_EQ(g_unretained_dangling_raw_ptr_detected_count, 1);
   EXPECT_TRUE(in_slot_metadata->ReleaseFromUnprotectedPtr());
 
-  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+  auto slot_info = partition_alloc::SlotAddressAndSize::FromBRPPool(
       reinterpret_cast<uintptr_t>(ptr));
   PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
@@ -5063,7 +5069,7 @@ TEST_P(PartitionAllocTest, DanglingPtr) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 2);
 
-  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+  auto slot_info = partition_alloc::SlotAddressAndSize::FromBRPPool(
       reinterpret_cast<uintptr_t>(ptr));
   PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
@@ -5111,7 +5117,7 @@ TEST_P(PartitionAllocTest, DanglingDanglingPtr) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
 
-  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+  auto slot_info = partition_alloc::SlotAddressAndSize::FromBRPPool(
       reinterpret_cast<uintptr_t>(ptr));
   PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
@@ -5150,7 +5156,7 @@ TEST_P(PartitionAllocTest, DanglingMixedReleaseRawPtrFirst) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 1);
 
-  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+  auto slot_info = partition_alloc::SlotAddressAndSize::FromBRPPool(
       reinterpret_cast<uintptr_t>(ptr));
   PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
@@ -5191,7 +5197,7 @@ TEST_P(PartitionAllocTest, DanglingMixedReleaseDanglingPtrFirst) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 1);
 
-  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+  auto slot_info = partition_alloc::SlotAddressAndSize::FromBRPPool(
       reinterpret_cast<uintptr_t>(ptr));
   PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
@@ -5235,7 +5241,7 @@ TEST_P(PartitionAllocTest, DanglingPtrUsedToAcquireNewRawPtr) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
 
-  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+  auto slot_info = partition_alloc::SlotAddressAndSize::FromBRPPool(
       reinterpret_cast<uintptr_t>(ptr));
   PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
@@ -5278,7 +5284,7 @@ TEST_P(PartitionAllocTest, DanglingPtrUsedToAcquireNewRawPtrVariant) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
 
-  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+  auto slot_info = partition_alloc::SlotAddressAndSize::FromBRPPool(
       reinterpret_cast<uintptr_t>(ptr));
   PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
@@ -5318,7 +5324,7 @@ TEST_P(PartitionAllocTest, RawPtrReleasedBeforeFree) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 0);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 0);
 
-  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+  auto slot_info = partition_alloc::SlotAddressAndSize::FromBRPPool(
       reinterpret_cast<uintptr_t>(ptr));
   PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 }
@@ -5379,7 +5385,7 @@ TEST_P(PartitionAllocTest, DanglingPtrReleaseToSchedulerLoopQuarantine) {
   EXPECT_EQ(g_dangling_raw_ptr_detected_count, 1);
   EXPECT_EQ(g_dangling_raw_ptr_released_count, 2);
 
-  auto slot_info = partition_alloc::PartitionAllocGetSlotStartAndSizeInBRPPool(
+  auto slot_info = partition_alloc::SlotAddressAndSize::FromBRPPool(
       reinterpret_cast<uintptr_t>(ptr));
   PartitionRoot::FreeAfterBRPQuarantine(slot_info.slot_start, slot_info.size);
 

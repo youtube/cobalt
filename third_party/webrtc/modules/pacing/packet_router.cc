@@ -342,6 +342,18 @@ void PacketRouter::SendCombinedRtcpPacket(
   rtcp_sender->SendCombinedRtcpPacket(std::move(packets));
 }
 
+std::optional<uint32_t> PacketRouter::SsrcOfFirstSender() {
+  RTC_DCHECK_RUN_ON(&thread_checker_);
+  // Prefer send modules.
+  for (RtpRtcpInterface* rtp_module : send_modules_list_) {
+    if (rtp_module->RTCP() == RtcpMode::kOff) {
+      continue;
+    }
+    return rtp_module->SSRC();
+  }
+  return std::nullopt;
+}
+
 void PacketRouter::AddRembModuleCandidate(
     RtcpFeedbackSenderInterface* candidate_module,
     bool media_sender) {

@@ -55,15 +55,12 @@ std::vector<std::string> GetSupportedLinks(const std::string& app_id,
   }
 
   std::vector<std::string> supported_links;
-  if (base::FeatureList::IsEnabled(
-          features::kPwaNavigationCapturingWithScopeExtensions)) {
-    for (const auto& scope_extension :
-         effective_scope->validated_scope_extensions()) {
-      std::string formatted_scope = FormatScope(scope_extension.scope);
-      supported_links.push_back(formatted_scope);
-      if (scope_extension.has_origin_wildcard) {
-        supported_links.push_back("*." + formatted_scope);
-      }
+  for (const auto& scope_extension :
+       effective_scope->validated_scope_extensions()) {
+    std::string formatted_scope = FormatScope(scope_extension.scope);
+    supported_links.push_back(formatted_scope);
+    if (scope_extension.has_origin_wildcard) {
+      supported_links.push_back("*." + formatted_scope);
     }
   }
 
@@ -215,9 +212,11 @@ void WebAppSettingsPageHandler::GetOverlappingPreferredApps(
 
 void WebAppSettingsPageHandler::SetWindowMode(const std::string& app_id,
                                               apps::WindowMode window_mode) {
-  // Changing window mode is not allowed for isolated web apps.
+  // Changing window mode is not allowed for isolated web apps and isolated sub
+  // apps.
   if (provider().registrar_unsafe().AppMatches(
-          app_id, web_app::WebAppFilter::IsIsolatedApp())) {
+          app_id, web_app::WebAppFilter::IsIsolatedApp() |
+                      web_app::WebAppFilter::IsIsolatedSubApp())) {
     return;
   }
 

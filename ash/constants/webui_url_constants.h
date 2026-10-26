@@ -52,6 +52,7 @@ inline constexpr char kChromeUIBorealisInstallerURL[] =
 inline constexpr char kChromeUIBorealisMOTDHost[] = "borealis-motd";
 inline constexpr char kChromeUIBorealisMOTDURL[] = "chrome://borealis-motd";
 
+inline constexpr char kChromeUIChromeOSAssetHost[] = "chromeos-asset";
 inline constexpr char kChromeUICloudUploadHost[] = "cloud-upload";
 inline constexpr char kChromeUICloudUploadURL[] = "chrome://cloud-upload/";
 inline constexpr char kChromeUIConfirmPasswordChangeHost[] =
@@ -67,6 +68,12 @@ inline constexpr char kChromeUICrostiniInstallerURL[] =
 inline constexpr char kChromeUICryptohomeHost[] = "cryptohome";
 inline constexpr char kChromeUIDeviceEmulatorHost[] = "device-emulator";
 inline constexpr char kChromeUIDlpInternalsHost[] = "dlp-internals";
+inline constexpr char kChromeUIDriveInternalsHost[] = "drive-internals";
+
+// The URL for the help center article about redeeming Chromebook offers.
+inline constexpr char kChromeUIEchoLearnMoreURL[] =
+    "chrome://help-app/help/sub/3399709/id/2703646";
+
 inline constexpr char kChromeUIEmojiPickerHost[] = "emoji-picker";
 inline constexpr char kChromeUIEmojiPickerURL[] = "chrome://emoji-picker/";
 inline constexpr char kChromeUIEnterpriseReportingHost[] =
@@ -75,6 +82,10 @@ inline constexpr char kChromeUIExtendedUpdatesDialogHost[] =
     "extended-updates-dialog";
 inline constexpr char kChromeUIExtendedUpdatesDialogURL[] =
     "chrome://extended-updates-dialog";
+inline constexpr char kChromeUIFloatingWorkspaceDialogHost[] =
+    "floating-workspace";
+inline constexpr char kChromeUIFloatingWorkspaceDialogURL[] =
+    "chrome://floating-workspace";
 
 // The host and URL for the Focus Mode media player.
 inline constexpr char kChromeUIFocusModeMediaHost[] = "focus-mode-media";
@@ -85,9 +96,6 @@ inline constexpr char kChromeUIFocusModePlayerURL[] =
     "chrome-untrusted://focus-mode-player/";
 
 inline constexpr char kChromeUIHealthdInternalsHost[] = "healthd-internals";
-// TODO(crbug.com/481835800): This is the URL of the page provided by Chrome.
-// Consider to remove from here.
-inline constexpr char kChromeUIHistogramsURL[] = "chrome://histograms";
 inline constexpr char kChromeUIInternetConfigDialogHost[] =
     "internet-config-dialog";
 inline constexpr char kChromeUIInternetConfigDialogURL[] =
@@ -99,6 +107,7 @@ inline constexpr char kChromeUIInternetDetailDialogURL[] =
 inline constexpr char kChromeUIKerberosInBrowserHost[] = "kerberos-in-browser";
 inline constexpr char kChromeUIKerberosInBrowserURL[] =
     "chrome://kerberos-in-browser";
+inline constexpr char kChromeUILauncherInternalsHost[] = "launcher-internals";
 inline constexpr char kChromeUILocalFilesMigrationHost[] =
     "local-files-migration";
 inline constexpr char kChromeUILocalFilesMigrationURL[] =
@@ -128,9 +137,14 @@ inline constexpr char kChromeUIOobeURL[] = "chrome://oobe/";
 inline constexpr char kChromeUIOSCreditsHost[] = "os-credits";
 inline constexpr char kChromeUIOSCreditsURL[] = "chrome://os-credits/";
 inline constexpr char16_t kChromeUIOSCreditsURL16[] = u"chrome://os-credits/";
-// TODO(crbug.com/481835800): This is the URL of the page provided by Chrome.
-// Consider to remove from here.
-inline constexpr char kChromeUIOSFlagsAppURL[] = "chrome://flags/";
+
+// Chrome OS tablet gestures education help link for Chrome.
+// TODO(carpenterr): Have a solution for plink mapping in Help App.
+// The magic numbers in this url are the topic and article ids currently
+// required to navigate directly to a help article in the Help App.
+inline constexpr char kChromeUIOSGestureEducationHelpURL[] =
+    "chrome://help-app/help/sub/3399710/id/9739838";
+
 inline constexpr char kChromeUIOSSettingsHost[] = "os-settings";
 inline constexpr char kChromeUIOSSettingsURL[] = "chrome://os-settings/";
 inline constexpr char kChromeUIParentAccessHost[] = "parent-access";
@@ -140,7 +154,9 @@ inline constexpr char kChromeUIPasswordChangeURL[] = "chrome://password-change";
 inline constexpr char kChromeUIPowerHost[] = "power";
 inline constexpr char kChromeUIRemoteManagementCurtainHost[] =
     "security-curtain";
+inline constexpr char kChromeUISanitizeAppHost[] = "sanitize";
 inline constexpr char kChromeUISanitizeAppURL[] = "chrome://sanitize";
+inline constexpr char kChromeUISensorInfoHost[] = "sensor-info";
 inline constexpr char kChromeUISetTimeHost[] = "set-time";
 inline constexpr char kChromeUISetTimeURL[] = "chrome://set-time/";
 inline constexpr char kChromeUISlowHost[] = "slow";
@@ -152,6 +168,17 @@ inline constexpr char kChromeUISmbCredentialsURL[] =
 inline constexpr char kChromeUISmbShareHost[] = "smb-share-dialog";
 inline constexpr char kChromeUISmbShareURL[] = "chrome://smb-share-dialog/";
 inline constexpr char kChromeUISysInternalsHost[] = "sys-internals";
+
+// The URL path to offline OEM EULA, under chrome://terms.
+inline constexpr char kChromeUITermsOemEulaURLPath[] = "oem";
+
+// The URL path to offline ARC++ Terms of Service under chrome://terms.
+inline constexpr char kChromeUITermsArcTermsURLPath[] = "arc/terms";
+
+// The URL path to offline ARC++ Privacy Policy under chrome://terms.
+inline constexpr char kChromeUITermsArcPrivacyPolicyURLPath[] =
+    "arc/privacy_policy";
+
 inline constexpr char kChromeUIUntrustedCroshHost[] = "crosh";
 inline constexpr char kChromeUIUntrustedCroshURL[] =
     "chrome-untrusted://crosh/";

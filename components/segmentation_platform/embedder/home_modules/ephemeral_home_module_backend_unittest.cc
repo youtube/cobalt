@@ -12,6 +12,7 @@
 #include "components/segmentation_platform/embedder/home_modules/card_selection_signals.h"
 #include "components/segmentation_platform/embedder/home_modules/constants.h"
 #include "components/segmentation_platform/embedder/home_modules/home_modules_card_registry.h"
+#include "components/segmentation_platform/embedder/home_modules/test_home_modules_card_registry.h"
 #include "components/segmentation_platform/public/features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -74,8 +75,13 @@ class EphemeralHomeModuleBackendTest : public DefaultModelTestBase {
         profile_pref_service_.registry());
     HomeModulesCardRegistry::RegisterLocalStatePrefs(
         local_state_pref_service_.registry());
-    registry_ = std::make_unique<HomeModulesCardRegistry>(
-        &profile_pref_service_, &local_state_pref_service_);
+    registry_ = HomeModulesCardRegistry::Create(&profile_pref_service_,
+                                                &local_state_pref_service_);
+    if (!registry_) {
+      registry_ = std::make_unique<TestHomeModulesCardRegistry>(
+          &profile_pref_service_, &local_state_pref_service_,
+          std::vector<std::unique_ptr<CardSelectionInfo>>());
+    }
     static_cast<EphemeralHomeModuleBackend*>(model_.get())
         ->set_home_modules_card_registry_for_testing(registry_.get());
   }
@@ -124,8 +130,10 @@ class EphemeralHomeModuleBackendWithTestCard : public DefaultModelTestBase {
             std::make_unique<EphemeralHomeModuleBackend>(nullptr)) {
     std::vector<std::unique_ptr<CardSelectionInfo>> cards;
     cards.emplace_back(std::make_unique<TestCardInfo>());
-    registry_ = std::make_unique<HomeModulesCardRegistry>(
+
+    registry_ = std::make_unique<TestHomeModulesCardRegistry>(
         &profile_pref_service_, &local_state_pref_service_, std::move(cards));
+
     static_cast<EphemeralHomeModuleBackend*>(model_.get())
         ->set_home_modules_card_registry_for_testing(registry_.get());
   }

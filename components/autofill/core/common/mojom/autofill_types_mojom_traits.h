@@ -156,6 +156,11 @@ struct StructTraits<autofill::mojom::FormFieldDataDataView,
     return r.value();
   }
 
+  static const std::optional<std::u16string>& selected_option_text(
+      const autofill::FormFieldData& r) {
+    return r.selected_option_text();
+  }
+
   static const std::u16string& selected_text(const autofill::FormFieldData& r) {
     return r.selected_text();
   }
@@ -222,12 +227,10 @@ struct StructTraits<autofill::mojom::FormFieldDataDataView,
     return r.max_length();
   }
 
-  static bool is_user_edited(const autofill::FormFieldData& r) {
-    return r.is_user_edited();
-  }
 
-  static bool is_autofilled(const autofill::FormFieldData& r) {
-    return r.is_autofilled();
+  static bool is_autofilled_according_to_renderer(
+      const autofill::FormFieldData& r) {
+    return r.is_autofilled_according_to_renderer();
   }
 
   static autofill::FormFieldData::CheckStatus check_status(
@@ -306,6 +309,11 @@ struct StructTraits<autofill::mojom::FormFieldData_FillDataDataView,
   static const std::u16string& value(
       const autofill::FormFieldData::FillData& r) {
     return r.value;
+  }
+
+  static const std::optional<std::u16string>& selected_option_text(
+      const autofill::FormFieldData::FillData& r) {
+    return r.selected_option_text;
   }
 
   static autofill::FieldRendererId renderer_id(

@@ -32,12 +32,14 @@ import androidx.annotation.Nullable;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowContentResolver;
 
@@ -52,6 +54,8 @@ import org.chromium.url.JUnitTestGURLs;
 /** Unit tests for {@link DragAndDropDelegateImpl}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class DragAndDropDelegateImplUnitTest {
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+
     /** Using a window size of 1000*600 for the ease of dp / pixel calculation. */
     private static final int WINDOW_WIDTH = 1000;
 
@@ -70,7 +74,6 @@ public class DragAndDropDelegateImplUnitTest {
 
     @Before
     public void setup() {
-        MockitoAnnotations.openMocks(this);
 
         Context context = ContextUtils.getApplicationContext();
         mDropDataProviderImpl = new DropDataProviderImpl();
@@ -335,6 +338,26 @@ public class DragAndDropDelegateImplUnitTest {
                         /* dragObjRectWidth= */ 100,
                         /* dragObjRectHeight= */ 200));
         Assert.assertTrue("Drag should be started.", mDragAndDropDelegateImpl.isDragStarted());
+    }
+
+    @Test
+    public void testStartDragAndDrop_NoImageProvider() {
+        ShadowContentResolver.registerProviderInternal(
+                DropDataProviderImpl.FULL_AUTH_URI.getAuthority(), null);
+        final DropDataAndroid imageDropData =
+                DropDataAndroid.create(null, null, new byte[] {1, 2, 3, 4}, "png", IMAGE_FILENAME);
+
+        Assert.assertFalse(
+                "Drag and drop should not start.",
+                mDragAndDropDelegateImpl.startDragAndDrop(
+                        mContainerView,
+                        Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888),
+                        imageDropData,
+                        mContainerView.getContext(),
+                        /* cursorOffsetX= */ 0,
+                        /* cursorOffsetY= */ 0,
+                        /* dragObjRectWidth= */ 100,
+                        /* dragObjRectHeight= */ 200));
     }
 
     @Test

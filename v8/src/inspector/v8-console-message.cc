@@ -258,7 +258,7 @@ V8ConsoleMessage::wrapArguments(V8InspectorSessionImpl* session,
   int contextGroupId = session->contextGroupId();
   int contextId = m_contextId;
   if (m_arguments.empty() || !contextId) return nullptr;
-  InspectedContext* inspectedContext =
+  std::shared_ptr<InspectedContext> inspectedContext =
       inspector->getContext(contextGroupId, contextId);
   if (!inspectedContext) return nullptr;
 
@@ -423,7 +423,7 @@ V8ConsoleMessage::wrapException(V8InspectorSessionImpl* session,
                                 bool generatePreview) const {
   if (m_arguments.empty() || !m_contextId) return nullptr;
   DCHECK_EQ(1u, m_arguments.size());
-  InspectedContext* inspectedContext =
+  std::shared_ptr<InspectedContext> inspectedContext =
       session->inspector()->getContext(session->contextGroupId(), m_contextId);
   if (!inspectedContext) return nullptr;
 
@@ -460,10 +460,9 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
   message->m_type = type;
   message->m_contextId = contextId;
   for (v8::Local<v8::Value> arg : arguments) {
-    std::unique_ptr<v8::Global<v8::Value>> argument(
-        new v8::Global<v8::Value>(isolate, arg));
+    auto argument = std::make_shared<v8::Global<v8::Value>>(isolate, arg);
     argument->AnnotateStrongRetainer(kGlobalConsoleMessageHandleLabel);
-    message->m_arguments.push_back(std::move(argument));
+    message->m_arguments.push_back(argument);
     message->m_v8Size += v8::debug::EstimatedValueSize(isolate, arg);
   }
   bool sep = false;
@@ -517,8 +516,7 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForException(
   if (contextId && !exception.IsEmpty()) {
     consoleMessage->m_contextId = contextId;
     consoleMessage->m_arguments.push_back(
-        std::unique_ptr<v8::Global<v8::Value>>(
-            new v8::Global<v8::Value>(isolate, exception)));
+        std::make_shared<v8::Global<v8::Value>>(isolate, exception));
     consoleMessage->m_v8Size +=
         v8::debug::EstimatedValueSize(isolate, exception);
   }
@@ -539,8 +537,7 @@ void V8ConsoleMessage::contextDestroyed(int contextId) {
   if (contextId != m_contextId) return;
   m_contextId = 0;
   if (m_message.isEmpty()) m_message = "<message collected>";
-  Arguments empty;
-  m_arguments.swap(empty);
+  m_arguments.clear();
   m_v8Size = 0;
 }
 

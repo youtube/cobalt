@@ -7,13 +7,25 @@
 
 #include <vector>
 
+#include "base/callback_list.h"
 #include "base/gtest_prod_util.h"
 #include "base/task/cancelable_task_tracker.h"
-#include "components/history/core/browser/history_service.h"
-#include "components/history/core/browser/history_types.h"
 #include "components/page_load_metrics/common/page_end_reason.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
+
+namespace base {
+class Time;
+class TimeDelta;
+}  // namespace base
+
+namespace history {
+class HistoryService;
+struct VisitContextAnnotations;
+}  // namespace history
+
+class GURL;
+class HistoryTabHelper;
 
 namespace history_clusters {
 class HistoryClustersService;
@@ -33,11 +45,12 @@ class HistoryClustersTabHelper
   // Called when the user shares the URL via mobile sharing hub.
   void OnOmniboxUrlShared();
 
-  // Called by `HistoryTabHelper` right after submitting a new navigation for
-  // `web_contents()` to HistoryService. We need close coordination with
-  // History's conception of the visit lifetime.
+  // Called right after submitting a new navigation for `web_contents()` to
+  // HistoryService. Allows close coordination with History's conception of the
+  // visit lifetime.
   // Virtual for testing.
   virtual void OnUpdatedHistoryForNavigation(int64_t navigation_id,
+                                             bool is_in_primary_main_frame,
                                              base::Time timestamp,
                                              const GURL& url);
 
@@ -70,14 +83,14 @@ class HistoryClustersTabHelper
   void OnVisibilityChanged(content::Visibility visibility) override;
 
  protected:
-  // `protected` instead of `private` for mocking in tests.
-  explicit HistoryClustersTabHelper(content::WebContents* web_contents);
+  HistoryClustersTabHelper(content::WebContents* web_contents,
+                           HistoryTabHelper* history_tab_helper);
 
  private:
+  friend class content::WebContentsUserData<HistoryClustersTabHelper>;
+
   FRIEND_TEST_ALL_PREFIXES(UkmPageLoadMetricsObserverTest,
                            DurationSinceLastVisitSeconds);
-
-  friend class content::WebContentsUserData<HistoryClustersTabHelper>;
 
   void StartNewNavigationIfNeeded(int64_t navigation_id);
 
@@ -104,6 +117,10 @@ class HistoryClustersTabHelper
 
   // Task tracker for calls for the history service.
   base::CancelableTaskTracker task_tracker_;
+
+  base::CallbackListSubscription history_tab_helper_subscription_;
+
+  base::WeakPtrFactory<HistoryClustersTabHelper> weak_factory_{this};
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };

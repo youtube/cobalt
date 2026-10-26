@@ -128,18 +128,25 @@ export class BatchUploadAppElement extends BatchUploadAppElementBase {
 
   // Request the browser to update the native view to match the current height
   // of the web view.
-  protected async updateViewHeight_() {
+  private async updateViewHeight_() {
     await this.updateComplete;
 
     const height = this.$.batchUploadDialog.clientHeight;
     this.batchUploadBrowserProxy_.handler.updateViewHeight(height);
   }
 
-  protected onSectionToggleChanged_(e: Event) {
-    const customEvent = e as CustomEvent;
+  protected onSectionToggleChanged_(e: CustomEvent<{toggle: boolean}>) {
     const sectionIndex = Number((e.target as HTMLElement).dataset['index']);
-    this.dataSectionsToggles_[sectionIndex] = customEvent.detail.toggle;
+    this.dataSectionsToggles_[sectionIndex] = e.detail.toggle;
     this.updateSaveEnabled_();
+  }
+
+  protected onUpdateViewHeight_() {
+    this.updateViewHeight_();
+  }
+
+  protected onSaveClick_() {
+    this.saveToAccount_();
   }
 
   // Initializes the input structure that the Ui uses for display.
@@ -159,7 +166,7 @@ export class BatchUploadAppElement extends BatchUploadAppElementBase {
         'There should at least be one section to show.');
   }
 
-  protected close_() {
+  protected onCancelClick_() {
     this.batchUploadBrowserProxy_.handler.close();
   }
 

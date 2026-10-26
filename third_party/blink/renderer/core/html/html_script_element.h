@@ -61,7 +61,7 @@ class CORE_EXPORT HTMLScriptElement final : public HTMLElement,
   void setSrc(
       const V8UnionTrustedScriptURLOrUSVString* string_or_trusted_script_url,
       ExceptionState& exception_state);
-  V8UnionTrustedScriptURLOrUSVString* src();
+  String src();
 
   void setText(V8UnionStringOrTrustedScript*, ExceptionState&);
   V8UnionStringOrTrustedScript* text();
@@ -69,13 +69,12 @@ class CORE_EXPORT HTMLScriptElement final : public HTMLElement,
 
   void setScriptTextContentForBinding(const V8UnionStringOrTrustedScript*,
                                       ExceptionState&);
-  V8UnionStringOrTrustedScript* scriptTextContentForBinding();
+  String scriptTextContentForBinding();
   void setScriptInnerTextForBinding(
       const V8UnionStringLegacyNullToEmptyStringOrTrustedScript*
           string_or_trusted_script,
       ExceptionState& exception_state);
-  V8UnionStringLegacyNullToEmptyStringOrTrustedScript*
-  scriptInnerTextForBinding();
+  String scriptInnerTextForBinding();
 
   void setAsync(bool);
   bool async() const;

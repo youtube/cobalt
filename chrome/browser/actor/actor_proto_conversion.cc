@@ -57,6 +57,7 @@
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/content_features.h"
 #include "ui/base/window_open_disposition.h"
 
 #if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
@@ -501,8 +502,7 @@ std::unique_ptr<ToolRequest> CreateAttemptLoginRequest(
 
   std::optional<PageTarget> password_button;
   std::optional<PageTarget> sign_in_with_google_button;
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::kActorLoginFederatedLoginSupport)) {
+  if (base::FeatureList::IsEnabled(features::kFedCmEmbedderInitiatedLogin)) {
     for (const auto& login_target : action.login_targets()) {
       if (!login_target.has_login_type() || !login_target.has_target()) {
         return nullptr;
@@ -688,6 +688,9 @@ class ActorJournalFetchPageProgressListener
       screenshot_entry_->EndEntry({});
     }
   }
+
+  void ScreenshotCaptured(const SkBitmap& bitmap) override {}
+  void ScreenshotRedacted(const SkBitmap& bitmap) override {}
 
   void BeginAPC() override {
     apc_entry_ = journal_->CreatePendingAsyncEntry(
@@ -890,7 +893,8 @@ apc::TabObservation::TabObservationResult ToTabObservationResult(
       return apc::TabObservation::TAB_OBSERVATION_WEB_CONTENTS_CHANGED;
     case FetchPageContextError::kPageContextNotEligible:
       return apc::TabObservation::TAB_OBSERVATION_PAGE_CONTEXT_NOT_ELIGIBLE;
-      ;
+    case FetchPageContextError::kWebContentsWentAway:
+      return apc::TabObservation::TAB_OBSERVATION_TAB_WENT_AWAY;
   }
 }
 
@@ -1021,21 +1025,95 @@ void FetchCallback(
 
 }  // namespace
 
+std::optional<
+    page_content_annotations::ScreenshotOptions::ScreenshotCollectionOptions>
+GetScreenshotCollectionOptions(
+    const optimization_guide::proto::Actions& actions) {
+  if (!actions.has_screenshot_options()) {
+    return std::nullopt;
+  }
+  const auto& screenshot_collection_options = actions.screenshot_options();
+  page_content_annotations::ScreenshotOptions::ScreenshotCollectionOptions
+      screenshot_collection_options_value;
+  screenshot_collection_options_value.max_width =
+      screenshot_collection_options.max_width();
+  screenshot_collection_options_value.max_height =
+      screenshot_collection_options.max_height();
+  if (screenshot_collection_options.has_compression_quality()) {
+    switch (screenshot_collection_options.compression_quality()) {
+      case optimization_guide::proto::CompressionQuality::
+          COMPRESSION_QUALITY_LOW:
+        screenshot_collection_options_value.screenshot_compression_quality =
+            page_content_annotations::ScreenshotOptions::
+                ScreenshotCompressionQuality::kLow;
+        break;
+      case optimization_guide::proto::CompressionQuality::
+          COMPRESSION_QUALITY_MEDIUM:
+        screenshot_collection_options_value.screenshot_compression_quality =
+            page_content_annotations::ScreenshotOptions::
+                ScreenshotCompressionQuality::kMedium;
+        break;
+      case optimization_guide::proto::CompressionQuality::
+          COMPRESSION_QUALITY_HIGH:
+        screenshot_collection_options_value.screenshot_compression_quality =
+            page_content_annotations::ScreenshotOptions::
+                ScreenshotCompressionQuality::kHigh;
+        break;
+      case optimization_guide::proto::CompressionQuality::
+          COMPRESSION_QUALITY_NONE:
+        screenshot_collection_options_value.screenshot_compression_quality =
+            page_content_annotations::ScreenshotOptions::
+                ScreenshotCompressionQuality::kNone;
+        break;
+      default:
+        break;
+    }
+  }
+  if (screenshot_collection_options.has_screenshot_format()) {
+    switch (screenshot_collection_options.screenshot_format()) {
+      case optimization_guide::proto::ScreenshotImageFormat::
+          SCREENSHOT_IMAGE_FORMAT_JPEG:
+        screenshot_collection_options_value.screenshot_image_format =
+            page_content_annotations::ScreenshotOptions::ScreenshotImageFormat::
+                kJpeg;
+        break;
+      case optimization_guide::proto::ScreenshotImageFormat::
+          SCREENSHOT_IMAGE_FORMAT_PNG:
+        screenshot_collection_options_value.screenshot_image_format =
+            page_content_annotations::ScreenshotOptions::ScreenshotImageFormat::
+                kPng;
+        break;
+      case optimization_guide::proto::ScreenshotImageFormat::
+          SCREENSHOT_IMAGE_FORMAT_WEBP:
+        screenshot_collection_options_value.screenshot_image_format =
+            page_content_annotations::ScreenshotOptions::ScreenshotImageFormat::
+                kWebp;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return screenshot_collection_options_value;
+}
+
 void BuildActionsResultWithObservations(
     content::BrowserContext& browser_context,
     base::TimeTicks actions_start_time,
-    mojom::ActionResultCode result_code,
-    std::optional<size_t> index_of_failed_action,
     std::vector<actor::ActionResultWithLatencyInfo> action_results,
     const ActorTask& task,
     bool skip_async_observation_information,
+    std::optional<page_content_annotations::ScreenshotOptions::
+                      ScreenshotCollectionOptions>
+        screenshot_collection_options,
     base::OnceCallback<
         void(base::TimeTicks actions_start_time,
-             mojom::ActionResultCode result_code,
-             std::optional<size_t> index_of_failed_action,
              std::vector<actor::ActionResultWithLatencyInfo> action_results,
              actor::TaskId task_id,
              bool skip_async_observation_information,
+             std::optional<page_content_annotations::ScreenshotOptions::
+                               ScreenshotCollectionOptions>
+                 screenshot_collection_options,
              std::unique_ptr<apc::ActionsResult>,
              std::unique_ptr<actor::AggregatedJournal::PendingAsyncEntry>)>
         callback) {
@@ -1043,6 +1121,10 @@ void BuildActionsResultWithObservations(
   auto* profile = Profile::FromBrowserContext(&browser_context);
   auto* actor_service = actor::ActorKeyedService::Get(profile);
   CHECK(actor_service);
+
+  mojom::ActionResultCode result_code = mojom::ActionResultCode::kOk;
+  std::optional<size_t> index_of_failed_action;
+  ExtractErrorResult(action_results, &result_code, index_of_failed_action);
 
   std::unique_ptr<actor::AggregatedJournal::PendingAsyncEntry> journal_entry =
       actor_service->GetJournal().CreatePendingAsyncEntry(
@@ -1093,6 +1175,10 @@ void BuildActionsResultWithObservations(
               .InMilliseconds());
       latency_step->set_latency_stop_ms(
           (action_result.end_time - actions_start_time).InMilliseconds());
+    }
+    if (!actor::IsOk(*action_result.result)) {
+      CHECK_EQ(*index_of_failed_action, i);
+      response->set_error_message(action_result.result->message);
     }
   }
 
@@ -1190,6 +1276,24 @@ void BuildActionsResultWithObservations(
     }
   }
 
+  // TODO(b/484078735): Consider hooking into the tab observation infrastructure
+  // here rather than re-implementing it in the tool. This would require
+  // supporting a new 'finalization' phase after observation where we can close
+  // the tabs.
+  for (const apc::TabObservation& tab_observation :
+       task.GetAdditionalTabObservations()) {
+    // These observations should be additional to the above, i.e. no overlap,
+    // because they're intended to be used only from the LoadAndExtractTool,
+    // which doesn't add any tabs to the task's set, and is always the only
+    // action in the task. Still, if there is overlap, use the new observation.
+    tabs::TabHandle handle(tab_observation.id());
+    if (last_acted_tabs.contains(handle)) {
+      continue;
+    }
+
+    *response->add_tabs() = tab_observation;
+  }
+
   actor_service->GetJournal().Log(
       GURL(), task.id(), "Observing Tabs",
       JournalDetailsBuilder()
@@ -1200,23 +1304,23 @@ void BuildActionsResultWithObservations(
   RecordPageContextTabCount(tabs_to_fetch.size());
 
   if (skip_async_observation_information) {
-    std::move(callback).Run(actions_start_time, result_code,
-                            index_of_failed_action, std::move(action_results),
+    std::move(callback).Run(actions_start_time, std::move(action_results),
                             task.id(), skip_async_observation_information,
-                            std::move(response), std::move(journal_entry));
+                            screenshot_collection_options, std::move(response),
+                            std::move(journal_entry));
     return;
   }
   base::RepeatingClosure barrier = base::BarrierClosure(
       tabs_to_fetch.size(),
-      base::BindOnce(std::move(callback), actions_start_time, result_code,
-                     index_of_failed_action, action_results, task.id(),
-                     skip_async_observation_information, std::move(response),
+      base::BindOnce(std::move(callback), actions_start_time, action_results,
+                     task.id(), skip_async_observation_information,
+                     screenshot_collection_options, std::move(response),
                      std::move(journal_entry)));
   for (auto& [tab, tab_observation] : tabs_to_fetch) {
     // tab_observation can be Unretained because the underlying APC is owned
     // by the barrier which is ref-counted.
     actor_service->RequestTabObservation(
-        *tab, task.id(),
+        *tab, task.id(), screenshot_collection_options,
         base::BindOnce(FetchCallback, tab->GetHandle(), profile->GetWeakPtr(),
                        task.id(), barrier, base::Unretained(tab_observation),
                        action_results, actions_start_time,

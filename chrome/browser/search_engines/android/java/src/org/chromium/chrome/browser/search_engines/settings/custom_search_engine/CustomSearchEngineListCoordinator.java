@@ -4,52 +4,86 @@
 
 package org.chromium.chrome.browser.search_engines.settings.custom_search_engine;
 
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 
-import androidx.recyclerview.widget.DividerItemDecoration;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.R;
+import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
+import org.chromium.chrome.browser.search_engines.settings.common.SearchEngineListPreference;
+import org.chromium.chrome.browser.search_engines.settings.common.SiteSearchProperties;
+import org.chromium.chrome.browser.search_engines.settings.common.SiteSearchViewBinder;
+import org.chromium.chrome.browser.search_engines.settings.dialog.SiteSearchDialogCoordinator;
+import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
+import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 
 @NullMarked
 public class CustomSearchEngineListCoordinator {
     private final ModelList mModelList = new ModelList();
     private final SimpleRecyclerViewAdapter mAdapter;
+    private final CustomSearchEngineListMediator mMediator;
 
-    public CustomSearchEngineListCoordinator() {
+    private final PropertyModel mModel;
+    private final PropertyModelChangeProcessor mPropertyModelChangeProcessor;
+
+    private final Context mContext;
+    private final ModalDialogManager mModalDialogManager;
+    private final SiteSearchDialogCoordinator mSiteSearchDialogCoordinator;
+
+    public CustomSearchEngineListCoordinator(
+            Context context,
+            Profile profile,
+            SearchEngineListPreference pref,
+            ModalDialogManager modalDialogManager) {
+        mContext = context;
+        mModalDialogManager = modalDialogManager;
+        mSiteSearchDialogCoordinator =
+                new SiteSearchDialogCoordinator(
+                        mContext,
+                        mModalDialogManager,
+                        TemplateUrlServiceFactory.getForProfile(profile));
+
         mAdapter = new SimpleRecyclerViewAdapter(mModelList);
         mAdapter.registerType(
-                0,
-                parent ->
-                        LayoutInflater.from(parent.getContext())
-                                .inflate(R.layout.custom_search_engine_item, parent, false),
-                CustomSearchEngineViewBinder::bind);
+                SiteSearchProperties.ViewType.SEARCH_ENGINE,
+                parent -> {
+                    View view =
+                            LayoutInflater.from(parent.getContext())
+                                    .inflate(R.layout.site_search_engine_item, parent, false);
+                    view.setTag(new SiteSearchViewBinder.ViewHolder(view));
+                    return view;
+                },
+                SiteSearchViewBinder::bind);
 
-        // Todo: Replace with Template URL data.
+        mMediator =
+                new CustomSearchEngineListMediator(
+                        context,
+                        mModelList,
+                        profile,
+                        /* onEditSearchEngine= */ mSiteSearchDialogCoordinator::showEditDialog,
+                        /* onRemoveSearchEngine= */ mSiteSearchDialogCoordinator
+                                ::removeTemplateUrl);
+
+        mModel =
+                new PropertyModel.Builder(SiteSearchProperties.ALL_KEYS)
+                        .with(SiteSearchProperties.ADAPTER, mAdapter)
+                        .build();
+
+        mPropertyModelChangeProcessor =
+                PropertyModelChangeProcessor.create(
+                        mModel, pref, SiteSearchViewBinder::bindPreference);
     }
 
-    public void onViewBound(View rootView) {
-        RecyclerView recyclerView;
-        if (rootView instanceof RecyclerView) {
-            recyclerView = (RecyclerView) rootView;
-        } else {
-            // rootView should be bound to recycler view in
-            // CustomSearchEngineListPreference::onBindViewHolder.
-            return;
-        }
-        if (recyclerView.getAdapter() == mAdapter) return;
-
-        LinearLayoutManager layoutManager = new LinearLayoutManager(recyclerView.getContext());
-        recyclerView.setLayoutManager(layoutManager);
-        DividerItemDecoration divider =
-                new DividerItemDecoration(
-                        recyclerView.getContext(), layoutManager.getOrientation());
-        recyclerView.addItemDecoration(divider);
-        recyclerView.setAdapter(mAdapter);
+    public void destroy() {
+        mSiteSearchDialogCoordinator.dismiss();
+        mModel.set(SiteSearchProperties.ADAPTER, null);
+        mPropertyModelChangeProcessor.destroy();
+        mMediator.destroy();
+        mAdapter.destroy();
     }
 }

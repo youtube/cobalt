@@ -37,7 +37,7 @@ namespace {
 Vector<uint8_t> GetUTF8DataFromString(const String& string) {
   StringUtf8Adaptor utf8_string(string);
   Vector<uint8_t> data;
-  data.AppendSpan(base::span(utf8_string));
+  data.append_range(utf8_string);
   return data;
 }
 
@@ -81,7 +81,7 @@ bool GetBytesOfBufferSource(const V8BufferSource* buffer_source,
         "The provided buffer source exceeds the maximum supported length");
     return false;
   }
-  target->AppendSpan(array_piece.ByteSpan());
+  target->append_range(array_piece.ByteSpan());
   return true;
 }
 
@@ -89,8 +89,9 @@ bool GetBytesOfBufferSource(const V8BufferSource* buffer_source,
 // Validates |input| as an external type.
 bool IsValidExternalType(const String& input) {
   // Ensure |input| is an ASCII string.
-  if (!input.ContainsOnlyASCIIOrEmpty())
+  if (!input.ContainsOnlyAsciiOrEmpty()) {
     return false;
+  }
 
   // As all characters in |input| is ASCII, limiting its length within 255 just
   // limits the length of its utf-8 encoded bytes we finally write into the
@@ -104,13 +105,13 @@ bool IsValidExternalType(const String& input) {
     return false;
 
   // Validates the domain (the part before ':').
-  String domain = input.Left(colon_index);
+  StringView domain(input, 0, colon_index);
   if (domain.empty())
     return false;
   // TODO(https://crbug.com/520391): Validate |domain|.
 
   // Validates the type (the part after ':').
-  String type = input.Substring(colon_index + 1);
+  StringView type(input, colon_index + 1);
   if (type.empty())
     return false;
 
@@ -129,8 +130,9 @@ bool IsValidExternalType(const String& input) {
 // Validates |input| as an local type.
 bool IsValidLocalType(const String& input) {
   // Ensure |input| is an ASCII string.
-  if (!input.ContainsOnlyASCIIOrEmpty())
+  if (!input.ContainsOnlyAsciiOrEmpty()) {
     return false;
+  }
 
   // The prefix ':' will be omitted when we actually write the record type into
   // the nfc tag. We're taking it into consideration for validating the length
@@ -139,8 +141,9 @@ bool IsValidLocalType(const String& input) {
     return false;
   if (input[0] != ':')
     return false;
-  if (!IsASCIILower(input[1]) && !IsASCIIDigit(input[1]))
+  if (!IsASCIILower(input[1]) && !IsAsciiDigit(input[1])) {
     return false;
+  }
 
   // TODO(https://crbug.com/520391): Validate |input| is not equal to the record
   // type of any NDEF record defined in its containing NDEF message.
@@ -249,7 +252,7 @@ NDEFRecord* CreateUrlRecord(const ScriptState* script_state,
       isolate, GetPayloadDataOrUndefined(isolate, record), exception_state);
   if (exception_state.HadException())
     return nullptr;
-  if (!KURL(NullURL(), url).IsValid()) {
+  if (!KURL(NullUrl(), url).IsValid()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kSyntaxError,
                                       "Cannot parse data for url record.");
     return nullptr;

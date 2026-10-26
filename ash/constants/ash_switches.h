@@ -375,6 +375,21 @@ COMPONENT_EXPORT(ASH_CONSTANTS)
 extern const char kAllowDefaultShelfPinLayoutIgnoringSync[];
 COMPONENT_EXPORT(ASH_CONSTANTS)
 extern const char kForceRefreshRateThrottle[];
+COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kAppModeAuthCode[];
+COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kAppModeOAuth2Token[];
+COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kMonitoringDestinationID[];
+COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kSystemLogUploadFrequency[];
+COMPONENT_EXPORT(ASH_CONSTANTS)
+extern const char kCustomAndroidMessagesDomain[];
+COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kNearbyShareVerboseLogging[];
+COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kCroshCommand[];
+COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kTestName[];
+COMPONENT_EXPORT(ASH_CONSTANTS)
+extern const char kNearbyShareCertificateValidityPeriodHours[];
+COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kNearbyShareDeviceID[];
+COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kNearbyShareHTTPHost[];
+COMPONENT_EXPORT(ASH_CONSTANTS)
+extern const char kNearbyShareNumPrivateCertificates[];
 
 ////////////////////////////////////////////////////////////////////////////////
 

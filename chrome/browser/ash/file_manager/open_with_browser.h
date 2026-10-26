@@ -12,7 +12,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
-#include "chrome/browser/apps/app_service/launch_result_type.h"
+#include "components/services/app_service/public/cpp/launch_result.h"
 #include "url/gurl.h"
 
 class Profile;
@@ -24,7 +24,7 @@ class FileSystemURL;
 namespace file_manager::util {
 
 using LaunchAppCallback =
-    base::OnceCallback<void(std::optional<apps::LaunchResult::State>)>;
+    base::OnceCallback<void(std::optional<apps::LaunchResult>)>;
 
 // Opens the file specified by `file_path` with the browser for `profile`. In
 // the event the `file_path` refers to a hosted document AND the document has an

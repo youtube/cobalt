@@ -26,7 +26,6 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/search_test_utils.h"
 #include "components/omnibox/browser/actions/tab_switch_action.h"
@@ -60,6 +59,10 @@
 #include "ui/views/test/widget_test.h"
 #include "ui/views/widget/widget.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
 
 #if defined(USE_AURA)
 #include "ui/aura/window.h"
@@ -1103,3 +1106,36 @@ IN_PROC_BROWSER_TEST_F(OmniboxPopupSuggestionGroupHeadersTest,
     EXPECT_TRUE(popup_view()->result_view_at(2)->GetVisible());
   }
 }
+
+// Verifies that the TopChromeUI metrics are recorded for native UI.
+IN_PROC_BROWSER_TEST_F(OmniboxPopupViewViewsTest,
+                       EmitTopChromeWebUIMetricsNative) {
+#if BUILDFLAG(IS_OZONE)
+  // TODO(crbug.com/491337216): This is flaky on Wayland because presentation
+  // feedback can be dropped if it arrives before the submission ACK (race
+  // condition in GbmSurfacelessWayland).
+  if (ui::OzonePlatform::RunningOnWaylandForTest()) {
+    GTEST_SKIP()
+        << "Flaky on Wayland due to presentation feedback race condition.";
+  }
+#endif
+  base::HistogramTester histogram_tester;
+
+  CreatePopupForTestQuery();
+  popup_view()->UpdatePopupAppearance();
+
+  // For native popup, metrics are recorded via a presentation callback.
+  // Wait for the presentation to be processed.
+  base::RunLoop run_loop;
+  GetPopupWidget()
+      ->GetCompositor()
+      ->RequestSuccessfulPresentationTimeForNextFrame(
+          base::BindOnce(base::IgnoreArgs<const viz::FrameTimingDetails&>(
+              run_loop.QuitClosure())));
+  run_loop.Run();
+
+  // Check consolidated metric.
+  histogram_tester.ExpectTotalCount(
+      "TopChromeUI.OmniboxPopup.RequestToFirstContentfulPaint", 1);
+}
+

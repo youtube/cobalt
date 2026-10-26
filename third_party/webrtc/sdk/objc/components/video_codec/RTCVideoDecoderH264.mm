@@ -13,6 +13,8 @@
 
 #import <VideoToolbox/VideoToolbox.h>
 
+#include <span>
+
 #import "base/RTCVideoFrame.h"
 #import "base/RTCVideoFrameBuffer.h"
 #import "components/video_frame_buffer/RTCCVPixelBuffer.h"
@@ -23,7 +25,6 @@
 #import "helpers/UIDevice+RTCDevice.h"
 #endif
 
-#include "api/array_view.h"
 #include "modules/video_coding/include/video_error_codes.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
@@ -116,7 +117,7 @@ void decompressionOutputCallback(void *decoderRef,
 
   webrtc::ScopedCFTypeRef<CMVideoFormatDescriptionRef> inputFormat =
       webrtc::ScopedCF(
-          webrtc::CreateVideoFormatDescription(webrtc::MakeArrayView(
+          webrtc::CreateVideoFormatDescription(std::span<const uint8_t>(
               (uint8_t *)inputImage.buffer.bytes, inputImage.buffer.length)));
   if (inputFormat) {
     // Check if the video format has changed, and reinitialize decoder if
@@ -140,8 +141,8 @@ void decompressionOutputCallback(void *decoderRef,
   }
   CMSampleBufferRef sampleBuffer = nullptr;
   if (!webrtc::H264AnnexBBufferToCMSampleBuffer(
-          webrtc::MakeArrayView((uint8_t *)inputImage.buffer.bytes,
-                                inputImage.buffer.length),
+          std::span<const uint8_t>((uint8_t *)inputImage.buffer.bytes,
+                                   inputImage.buffer.length),
           _videoFormat,
           &sampleBuffer,
           _memoryPool)) {

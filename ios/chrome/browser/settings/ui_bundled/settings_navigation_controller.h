@@ -93,9 +93,10 @@ extern NSString* const kSettingsDoneButtonId;
                                   (id<SettingsNavigationControllerDelegate>)
                                       delegate;
 
-// Creates a new SettingsNavigationController that displays the sync management
-// UI. `browser` is the browser where settings are being displayed and
-// should not be nil. `delegate` may be nil.
+// Creates a new SettingsNavigationController that contains only the sync
+// management UI. `browser` is the browser where settings are being displayed
+// and should not be nil. `delegate` may be nil. The user must be signed-in and
+// sign-in must be enabled.
 + (instancetype)
     syncSettingsControllerForBrowser:(Browser*)browser
                             delegate:(id<SettingsNavigationControllerDelegate>)
@@ -161,17 +162,6 @@ extern NSString* const kSettingsDoneButtonId;
                                     (id<SettingsNavigationControllerDelegate>)
                                         delegate
                                     UUID:(NSUUID*)UUID API_AVAILABLE(ios(26.0));
-
-// Creates and displays a new UIViewController for user to report an issue.
-// `browser` is the browser where settings are being displayed and should not be
-// nil. `dataSource` is used to populate the UIViewController. `dispatcher`,
-// which can be nil, is an object that can perform operations for the view
-// controller. `delegate` may be nil.
-+ (instancetype)
-    userFeedbackControllerForBrowser:(Browser*)browser
-                            delegate:(id<SettingsNavigationControllerDelegate>)
-                                         delegate
-                    userFeedbackData:(UserFeedbackData*)userFeedbackData;
 
 // Creates a new AutofillProfileEditTableViewHelper and the
 // chrome around it. `browser` is the browser where settings are being displayed

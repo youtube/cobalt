@@ -48,7 +48,8 @@ static void SetReferrerForRequest(LocalDOMWindow* origin_window,
 
   request.SetReferrerString(referrer.referrer);
   request.SetReferrerPolicy(referrer.referrer_policy);
-  request.SetHTTPOriginToMatchReferrerIfNeeded();
+  request.SetHTTPOriginToMatchReferrerPolicyIfNeeded(
+      origin_window->GetSecurityOrigin());
 }
 
 void LogDanglingMarkupHistogram(LocalDOMWindow* origin_window,
@@ -56,9 +57,9 @@ void LogDanglingMarkupHistogram(LocalDOMWindow* origin_window,
   DCHECK(origin_window);
 
   origin_window->CountUse(WebFeature::kDanglingMarkupInTarget);
-  if (!target.EndsWith('>')) {
+  if (!target.ends_with('>')) {
     origin_window->CountUse(WebFeature::kDanglingMarkupInTargetNotEndsWithGT);
-    if (!target.EndsWith('\n')) {
+    if (!target.ends_with('\n')) {
       origin_window->CountUse(
           WebFeature::kDanglingMarkupInTargetNotEndsWithNewLineOrGT);
     }
@@ -66,9 +67,9 @@ void LogDanglingMarkupHistogram(LocalDOMWindow* origin_window,
 }
 
 bool ContainsNewLineAndLessThan(const AtomicString& target) {
-  return (target.Contains('\n') || target.Contains('\r') ||
-          target.Contains('\t')) &&
-         target.Contains('<');
+  return (target.contains('\n') || target.contains('\r') ||
+          target.contains('\t')) &&
+         target.contains('<');
 }
 
 }  // namespace
@@ -98,8 +99,8 @@ FrameLoadRequest::FrameLoadRequest(LocalDOMWindow* origin_window,
     // Note: `resource_request_` is owned by this FrameLoadRequest instance, and
     // its url doesn't change after this point, so it's ok to check for
     // about:blank and about:srcdoc here.
-    if (resource_request_.Url().IsAboutBlankURL() ||
-        resource_request_.Url().IsAboutSrcdocURL() ||
+    if (resource_request_.Url().IsAboutBlankUrl() ||
+        resource_request_.Url().IsAboutSrcdocUrl() ||
         resource_request_.Url().IsEmpty()) {
       requestor_base_url_ = origin_window->BaseURL();
     }

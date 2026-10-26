@@ -50,8 +50,6 @@ BlockType GetBlockType(TQualifier qualifier)
             return BlockType::kBlockUniform;
         case EvqBuffer:
             return BlockType::kBlockBuffer;
-        case EvqPixelLocalEXT:
-            return BlockType::kPixelLocalExt;
         default:
             UNREACHABLE();
             return BlockType::kBlockUniform;
@@ -1072,8 +1070,6 @@ void CollectVariablesTraverser::recordInterfaceBlock(const char *instanceName,
     if (interfaceBlock->blockType == BlockType::kBlockUniform ||
         interfaceBlock->blockType == BlockType::kBlockBuffer)
     {
-        // TODO(oetuaho): Remove setting isRowMajorLayout.
-        interfaceBlock->isRowMajorLayout = false;
         interfaceBlock->binding          = blockType->blockBinding();
         interfaceBlock->layout           = GetBlockLayoutType(blockType->blockStorage());
     }
@@ -1194,10 +1190,6 @@ bool CollectVariablesTraverser::visitDeclaration(Visit, TIntermDeclaration *node
             continue;
         }
 
-        // SpirvTransformer::transform uses a map of ShaderVariables, it needs member variables and
-        // (named or unnamed) structure as ShaderVariable. at link between two shaders, validation
-        // between of named and unnamed, needs the same structure, its members, and members order
-        // except instance name.
         if (typedNode.getBasicType() == EbtInterfaceBlock && !IsShaderIoBlock(qualifier) &&
             qualifier != EvqPatchIn && qualifier != EvqPatchOut)
         {
@@ -1207,8 +1199,6 @@ bool CollectVariablesTraverser::visitDeclaration(Visit, TIntermDeclaration *node
             recordInterfaceBlock(isUnnamed ? nullptr : variable.getName().data(), type,
                                  &interfaceBlock);
 
-            // all fields in interface block will be added for updating interface variables because
-            // the temporal structure variable will be ignored.
             switch (qualifier)
             {
                 case EvqUniform:
@@ -1216,10 +1206,6 @@ bool CollectVariablesTraverser::visitDeclaration(Visit, TIntermDeclaration *node
                     break;
                 case EvqBuffer:
                     mShaderStorageBlocks->push_back(interfaceBlock);
-                    break;
-                case EvqPixelLocalEXT:
-                    // EXT_shader_pixel_local_storage is completely self-contained within the
-                    // shader, so we don't need to gather any info on it.
                     break;
                 default:
                     UNREACHABLE();
@@ -1284,9 +1270,7 @@ bool CollectVariablesTraverser::visitBinary(Visit, TIntermBinary *binaryNode)
         // NOTE: we do not determine static use / activeness for individual blocks of an array.
         TIntermTyped *blockNode = binaryNode->getLeft()->getAsTyped();
         ASSERT(blockNode);
-
-        TIntermConstantUnion *constantUnion = binaryNode->getRight()->getAsConstantUnion();
-        ASSERT(constantUnion);
+        ASSERT(binaryNode->getRight()->getAsConstantUnion());
 
         InterfaceBlock *namedBlock = nullptr;
 
@@ -1333,19 +1317,24 @@ bool CollectVariablesTraverser::visitBinary(Visit, TIntermBinary *binaryNode)
         {
             MarkActive(ioBlockVar);
         }
-        else if (qualifier != EvqPixelLocalEXT)
+        else
         {
             namedBlock = findNamedInterfaceBlock(interfaceBlock->name());
             ASSERT(namedBlock);
             ASSERT(namedBlock->staticUse);
             namedBlock->active      = true;
-            unsigned int fieldIndex = static_cast<unsigned int>(constantUnion->getIConst(0));
-            ASSERT(fieldIndex < namedBlock->fields.size());
-            // TODO(oetuaho): Would be nicer to record static use of fields of named interface
-            // blocks more accurately at parse time - now we only mark the fields statically used if
-            // they are active. http://anglebug.com/42261150 We need to mark this field and all of
-            // its sub-fields, as static/active
-            MarkActive(&namedBlock->fields[fieldIndex]);
+            // Even though a single field is identified to be active, mark all the fields active.
+            // The layout of the block cannot be changed by the translator based on which fields are
+            // active, and there isn't anything else that ANGLE or the application would
+            // realistically do with a knowledge that some fields may be inactive.
+            for (size_t fieldIndex = 0; fieldIndex < namedBlock->fields.size(); ++fieldIndex)
+            {
+                // TODO(oetuaho): Would be nicer to record static use of fields of named interface
+                // blocks more accurately at parse time - now we only mark the fields statically
+                // used if they are active. http://anglebug.com/42261150 We need to mark this field
+                // and all of its sub-fields, as static/active
+                MarkActive(&namedBlock->fields[fieldIndex]);
+            }
         }
 
         if (traverseIndexExpression)
@@ -1385,6 +1374,19 @@ void CollectVariables(TIntermBlock *root,
                                       symbolTable, shaderType, extensionBehavior, resources,
                                       tessControlShaderOutputVertices, transformFloatUniformToFP16);
     root->traverse(&collect);
+
+    // Attributes are simply vertex shader inputs (and compute shader attributes),
+    // and are exclusive with input varyings.
+    ASSERT(shaderType != GL_VERTEX_SHADER || inputVaryings->empty());
+    ASSERT((shaderType == GL_VERTEX_SHADER || shaderType == GL_COMPUTE_SHADER) ||
+           attributes->empty());
+
+    // Outputs are simply fragment shader outputs, and are exclusive with output varyings.
+    ASSERT(shaderType != GL_FRAGMENT_SHADER || outputVaryings->empty());
+    ASSERT(shaderType == GL_FRAGMENT_SHADER || outputVariables->empty());
+
+    // Shared variables exist only in compute shaders.
+    ASSERT(shaderType == GL_COMPUTE_SHADER || sharedVariables->empty());
 }
 
 }  // namespace sh

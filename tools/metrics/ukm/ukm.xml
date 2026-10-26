@@ -571,6 +571,108 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="AccessibilityAnnotator.ContentAnnotator.ClassifierResults"
+    singular="True">
+  <owner>qiaoli@google.com</owner>
+  <owner>akvuong@google.com</owner>
+  <owner>igoralsky@google.com</owner>
+  <summary>
+    Recorded when a page load is evaluated for annotation, which happens when a
+    page is loaded and sufficient data (content, language, sensitivity score)
+    has been gathered.
+  </summary>
+  <metric name="IsTargetLanguage" enum="Boolean">
+    <summary>
+      Records whether the page is in one of the target language(s).
+    </summary>
+  </metric>
+  <metric name="TitleKeywordResult" enum="ContentClassifierRelevanceValue">
+    <summary>
+      Records the level of interest in the web page content based on the results
+      of the title keyword value classifier.
+    </summary>
+  </metric>
+  <metric name="UrlMatchResult" enum="ContentClassifierRelevanceValue">
+    <summary>
+      Indicates the level of interest in the web page content based on the
+      results of the URL match classifier.
+    </summary>
+  </metric>
+</event>
+
+<event name="Actor.Login">
+  <owner>npm@google.com</owner>
+  <owner>web-identity-eng@google.com</owner>
+  <summary>
+    Metrics recorded for an actor login request. Recorded once per request when
+    it completes or reaches a significant milestone.
+  </summary>
+  <metric name="AccountAutoSelected">
+    <summary>
+      Recorded when the account used to login is automatically selected due to a
+      previous user choice to always allow logging in with that account.
+    </summary>
+  </metric>
+  <metric name="AccountTypesShown">
+    <summary>
+      An enum of the result from a query to get credentials.
+    </summary>
+  </metric>
+  <metric name="DeduplicationOccurred">
+    <summary>
+      Recorded when there was some deduplication performed in order to show the
+      accounts. Recorded at most once per actor request to show accounts to sign
+      in.
+    </summary>
+  </metric>
+  <metric name="FederatedContinuationShown">
+    <summary>
+      Recorded when the FedCM continuation API is invoked during an actor
+      autologin flow.
+    </summary>
+  </metric>
+  <metric name="FederatedHangingFedCmRequestExists">
+    <summary>
+      Recorded when there is a hanging FedCM request during an actor login
+      request.
+    </summary>
+  </metric>
+  <metric name="FederatedLoginResult">
+    <summary>
+      An enum with the final result from a federated actor login request.
+    </summary>
+  </metric>
+  <metric name="FederatedLoginStatus">
+    <summary>
+      Enum recorded when there is an identity provider requested by the
+      embedder.
+    </summary>
+  </metric>
+  <metric name="GetCredentialsCompletedToAccountChosen">
+    <summary>
+      Returns the time (ms) from when a &quot;get credentials&quot; request
+      completes until an account is chosen.
+    </summary>
+  </metric>
+  <metric name="GetCredentialsLatency">
+    <summary>
+      Returns the time (ms) from actor login request to when the &quot;get
+      credentials&quot; request is completed.
+    </summary>
+  </metric>
+  <metric name="NumAccountsShown">
+    <summary>
+      The number of accounts shown to the user during an actor login request.
+    </summary>
+  </metric>
+  <metric name="SelectedAccountType">
+    <summary>
+      An enum of the type of account chosen by the user to login during an actor
+      login request.
+    </summary>
+  </metric>
+</event>
+
 <event name="AdFrameLoad">
   <owner>johnidel@chromium.org</owner>
   <owner>jkarlin@chromium.org</owner>
@@ -14224,6 +14326,61 @@ be describing additional metrics about the same event.
       </history>
     </aggregation>
   </metric>
+  <metric name="KeySystemDataBool1">
+    <summary>
+      Whether or not the Key System is reporting true for bool 1. This is a
+      general metric that is mapped to specific Key System data.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="KeySystemDataTime1">
+    <summary>
+      The time in seconds since the unix epoch for the date of the creation of
+      time 1. This is a general metric that is mapped to specific Key System
+      data.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="KeySystemDataTime2">
+    <summary>
+      The time in seconds since the unix epoch for the date of the creation of
+      time 2. This is a general metric that is mapped to specific Key System
+      data.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="KeySystemDataTime3">
+    <summary>
+      The time in seconds since the unix epoch for the date of the creation of
+      time 3. This is a general metric that is mapped to specific Key System
+      data.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
   <metric name="LicenseSdkVersion">
     <summary>
       The SDK version of the license server of the URL that communicates with
@@ -15776,6 +15933,11 @@ be describing additional metrics about the same event.
   <metric name="WebMediaPlayer.Video">
     <summary>
       Measure of total memory used by media/webmediaplayer/video.
+    </summary>
+  </metric>
+  <metric name="WebNN">
+    <summary>
+      Measure of the backing memory consumed by the WebNN service.
     </summary>
   </metric>
 </event>
@@ -17633,6 +17795,26 @@ be describing additional metrics about the same event.
     commit and has an annotation calculated on it. The metrics are recorded in a
     RAPPOR-style with low-entropy so only aggregate analysis can be performed.
   </summary>
+  <metric name="CategoryClassifier.EducationScore">
+    <summary>
+      Records a low entropy representation of the education category score from
+      the output of a page classifier model. The raw score is between 0 and 1,
+      which is scaled to between 0 and 100, then placed into one of 16 linearly
+      spaced buckets by dividing the score by the bucket size and taking the
+      floor. The resulting bucket value has noise added with a probability of .5
+      where the noise is randomly applied to each individual bit.
+    </summary>
+  </metric>
+  <metric name="CategoryClassifier.ShoppingScore">
+    <summary>
+      Records a low entropy representation of the shopping category score from
+      the output of a page classifier model. The raw score is between 0 and 1,
+      which is scaled to between 0 and 100, then placed into one of 16 linearly
+      spaced buckets by dividing the score by the bucket size and taking the
+      floor. The resulting bucket value has noise added with a probability of .5
+      where the noise is randomly applied to each individual bit.
+    </summary>
+  </metric>
   <metric name="VisibilityScore">
     <summary>
       Records a low entropy respresentation of the visibility score output by a
@@ -18743,6 +18925,18 @@ be describing additional metrics about the same event.
       </history>
     </aggregation>
   </metric>
+  <metric name="CaptchaProvider" enum="CaptchaProvider">
+    <summary>
+      Records the CAPTCHA provider for the frame.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
 </event>
 
 <event name="PageLoad.CaptchaFrameLoad">
@@ -18760,6 +18954,18 @@ be describing additional metrics about the same event.
       This metric is split by whether an AI agent was active on the tab at the
       time of the frame load. AI agent activity is determined by
       ActorKeyedService::IsActiveOnTab(), which is used by the Glic Agent.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="CaptchaProvider" enum="CaptchaProvider">
+    <summary>
+      Records the CAPTCHA provider for the frame.
     </summary>
     <aggregation>
       <history>
@@ -23571,7 +23777,7 @@ be describing additional metrics about the same event.
     <summary>
       Record the type of source for the current navigation, which has text
       fragments. At the moment, this maps to identifying whether the source is a
-      known search engine or not.
+      known search engine, Send Tab To Self, or unknown.
     </summary>
   </metric>
   <metric name="Success" enum="Boolean">
@@ -24418,8 +24624,13 @@ be describing additional metrics about the same event.
   </metric>
   <metric name="NavigationId">
     <summary>
-      Records the navigation id of a soft navigation. It is used to
-      differentiate soft navigations.
+      Deprecated as of 2026/02/17. Records the navigation id of a soft
+      navigation. It is used to differentiate soft navigations.
+    </summary>
+  </metric>
+  <metric name="NavigationType" enum="NavigationTypeForNavigationApi">
+    <summary>
+      Type of the soft navigation. Corresponds to the first URL change.
     </summary>
   </metric>
   <metric name="PaintTiming.LargestContentfulPaint">

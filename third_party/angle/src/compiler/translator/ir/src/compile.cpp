@@ -119,6 +119,8 @@ void SetEnabledExtensions(const TExtensionBehavior &behavior, ffi::ExtensionsEna
 
 void SetLimits(const ShBuiltInResources &resources, ffi::Limits *limits)
 {
+    limits->max_draw_buffers             = resources.MaxDrawBuffers;
+    limits->max_dual_source_draw_buffers = resources.MaxDualSourceDrawBuffers;
     limits->max_combined_draw_buffers_and_pixel_local_storage_planes =
         resources.MaxCombinedDrawBuffersAndPixelLocalStoragePlanes;
     limits->min_point_size = resources.MinPointSize;
@@ -137,9 +139,13 @@ void SetOptions(TCompiler *compiler, const ShCompileOptions &options, ffi::Compi
     opt->initializer_allowed_on_non_constant_global_variables =
         !options.forceDeferNonConstGlobalInitializers;
     opt->pass_highp_to_pack_unorm_snorm_built_ins = options.passHighpToPackUnormSnormBuiltins;
-    opt->clamp_point_size                         = options.clampPointSize;
     opt->emulate_instanced_multiview              = options.initializeBuiltinsForInstancedMultiview;
     opt->select_viewport_layer_in_emulated_multiview = options.selectViewInNvGLSLVertexShader;
+    opt->emulate_draw_id                             = options.emulateGLDrawID;
+    opt->emulate_base_vertex_instance                = options.emulateGLBaseVertexBaseInstance;
+    opt->add_base_vertex_to_vertex_id                = options.addBaseVertexToVertexID;
+    opt->clamp_point_size                            = options.clampPointSize;
+    opt->clamp_frag_depth                            = options.clampFragDepth;
 
     opt->rewrite_pixel_local_storage = compiler->hasPixelLocalStorageUniforms();
     opt->pls_options.implementation  = static_cast<ffi::PixelLocalStorageImpl>(options.pls.type);
@@ -148,6 +154,9 @@ void SetOptions(TCompiler *compiler, const ShCompileOptions &options, ffi::Compi
     opt->pls_options.supports_noncoherent = options.pls.supportsNoncoherent;
     opt->pls_options.supports_native_rgba8_image_formats =
         options.pls.supportsNativeRGBA8ImageFormats;
+
+    // MSL-specific flags
+    opt->ensure_loop_forward_progress = options.ensureLoopForwardProgress;
 }
 }  // namespace
 

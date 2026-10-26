@@ -150,7 +150,9 @@ void BrowserProcessPlatformPart::InitializeUserManager() {
           ash::DeviceSettingsService::Get(),
           browser_policy_connector_ash()->GetMinimumVersionPolicyHandler());
   user_image_manager_registry_ =
-      std::make_unique<ash::UserImageManagerRegistry>(user_manager_.get());
+      std::make_unique<ash::UserImageManagerRegistry>(
+          g_browser_process->local_state(),
+          g_browser_process->shared_url_loader_factory(), user_manager_.get());
   multi_user_sign_in_policy_controller_ =
       std::make_unique<user_manager::MultiUserSignInPolicyController>(
           local_state, user_manager_.get());
@@ -209,7 +211,8 @@ void BrowserProcessPlatformPart::InitializeDeviceDisablingManager() {
       std::make_unique<ash::system::DeviceDisablingManagerDefaultDelegate>();
   device_disabling_manager_ =
       std::make_unique<ash::system::DeviceDisablingManager>(
-          g_browser_process->local_state(),
+          g_browser_process->local_state(), browser_policy_connector_ash(),
+          device_restriction_schedule_controller_.get(),
           device_disabling_manager_delegate_.get(), ash::CrosSettings::Get(),
           user_manager::UserManager::Get());
   device_disabling_manager_->Init();
@@ -226,8 +229,9 @@ void BrowserProcessPlatformPart::InitializeSessionManager() {
   CHECK(!chrome_session_manager_);
   session_manager_ = std::make_unique<session_manager::SessionManager>(
       std::make_unique<ash::SessionManagerDelegateImpl>());
-  chrome_session_manager_ =
-      std::make_unique<ash::ChromeSessionManager>(session_manager_.get());
+  chrome_session_manager_ = std::make_unique<ash::ChromeSessionManager>(
+      g_browser_process->local_state(), browser_policy_connector_ash(),
+      session_manager_.get());
   // Registers BootTimesRecorder as an observer *after* ChromeSessionManager
   // creation to include ChromeSessionManager operations in UserLoggedIn
   // metrics. ChromeSessionManager registers itself as an observer, too,
@@ -306,7 +310,8 @@ void BrowserProcessPlatformPart::InitializePrimaryProfileServices(
 
   DCHECK(!in_session_password_change_manager_);
   in_session_password_change_manager_ =
-      ash::InSessionPasswordChangeManager::CreateIfEnabled(primary_profile);
+      ash::InSessionPasswordChangeManager::CreateIfEnabled(
+          g_browser_process->local_state(), primary_profile);
 
   primary_profile_shutdown_subscription_ =
       PrimaryProfileServicesShutdownNotifierFactory::GetInstance()
@@ -408,11 +413,6 @@ void BrowserProcessPlatformPart::CreateProfileHelper() {
   DCHECK(!created_profile_helper_ && !profile_helper_);
   created_profile_helper_ = true;
   profile_helper_ = ash::ProfileHelper::CreateInstance();
-}
-
-ash::AccountManagerFactory*
-BrowserProcessPlatformPart::GetAccountManagerFactory() {
-  return account_manager_factory_.get();
 }
 
 // static

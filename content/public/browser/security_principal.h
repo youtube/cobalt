@@ -5,7 +5,11 @@
 #ifndef CONTENT_PUBLIC_BROWSER_SECURITY_PRINCIPAL_H_
 #define CONTENT_PUBLIC_BROWSER_SECURITY_PRINCIPAL_H_
 
+#include "content/common/content_export.h"
+
 namespace content {
+
+class StoragePartitionConfig;
 
 // SecurityPrincipal is an abstraction used by Chromium's process model to
 // divide documents, workers, and other web content into processes.
@@ -35,6 +39,24 @@ class CONTENT_EXPORT SecurityPrincipal {
   // Returns true if this SecurityPrincipal is for process-isolated sandboxed
   // documents only.
   virtual bool IsSandboxed() const = 0;
+
+  // Returns true if this SecurityPrincipal is used for a <webview> guest.
+  virtual bool IsGuest() const = 0;
+
+  // Get the StoragePartitionConfig, which describes the StoragePartition this
+  // SecurityPrincipal is associated with.  For example, this will correspond to
+  // a non-default StoragePartition for <webview> guests.
+  virtual const StoragePartitionConfig& GetStoragePartitionConfig() const = 0;
+
+  // Returns true if the scheme of this SecurityPrincipal's associated URL
+  // matches the given |scheme|. For example, SchemeIs("https") returns true
+  // if the principal represents content loaded from an HTTPS URL.
+  // Note that when a principal uses an effective URL, the scheme will
+  // correspond to that effective URL rather than the original. For example,
+  // a hosted app at https://example.com has an effective URL of
+  // chrome-extension://<extension-id>/, so SchemeIs("chrome-extension")
+  // returns true and SchemeIs("https") returns false.
+  virtual bool SchemeIs(std::string_view scheme) const = 0;
 };
 
 }  // namespace content

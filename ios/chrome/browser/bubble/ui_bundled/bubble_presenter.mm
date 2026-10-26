@@ -30,7 +30,7 @@
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/animated_scoped_fullscreen_disabler.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_recorder.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presenter.h"
@@ -187,6 +187,7 @@ BOOL CanGestureInProductHelpViewFitInGuide(GestureInProductHelpView* view,
   [self disconnectOverlayPresenters];
   _webStateList = nullptr;
   _engagementTracker = nullptr;
+  self.geminiHandler = nil;
 }
 
 - (void)hideAllHelpBubbles {
@@ -736,7 +737,9 @@ BOOL CanGestureInProductHelpViewFitInGuide(GestureInProductHelpView* view,
   toolbarSwipeGestureIPH.delegate = self;
   [self.rootViewController.view addSubview:toolbarSwipeGestureIPH];
   AddSameConstraints(toolbarSwipeGestureIPH, guide);
-
+  [self.geminiHandler
+      hideFloatyIfInvokedAnimated:NO
+                       fromSource:gemini::FloatyUpdateSource::GestureIph];
   [toolbarSwipeGestureIPH startAnimation];
   _toolbarSwipeGestureIPH = toolbarSwipeGestureIPH;
 }
@@ -917,7 +920,9 @@ BOOL CanGestureInProductHelpViewFitInGuide(GestureInProductHelpView* view,
           base::RecordAction(
               base::UserMetricsAction("MobileGeminiImageRemixIPHTapped"));
           [BWGHandler
-              startGeminiFlowWithEntryPoint:gemini::EntryPoint::ImageRemixIPH];
+              startGeminiFlowWithStartupState:
+                  [[GeminiStartupState alloc]
+                      initWithEntryPoint:gemini::EntryPoint::ImageRemixIPH]];
         }
       }];
 
@@ -951,6 +956,10 @@ BOOL CanGestureInProductHelpViewFitInGuide(GestureInProductHelpView* view,
       !dismissButtonTappedEvent.empty()) {
     _engagementTracker->NotifyEvent(dismissButtonTappedEvent);
   }
+  [self.geminiHandler
+      updateFloatyVisibilityIfEligibleAnimated:NO
+                                    fromSource:gemini::FloatyUpdateSource::
+                                                   GestureIph];
 }
 
 - (void)gestureInProductHelpView:(GestureInProductHelpView*)view
@@ -1300,6 +1309,9 @@ BOOL CanGestureInProductHelpViewFitInGuide(GestureInProductHelpView* view,
     [self.rootViewController.view addSubview:gestureIPHView];
     gestureIPHView.delegate = self;
     AddSameConstraints(gestureIPHView, contentAreaGuide);
+    [self.geminiHandler
+        hideFloatyIfInvokedAnimated:NO
+                         fromSource:gemini::FloatyUpdateSource::GestureIph];
     return gestureIPHView;
   }
   return nil;

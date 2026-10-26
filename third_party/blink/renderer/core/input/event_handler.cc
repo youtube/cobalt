@@ -46,6 +46,7 @@
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/flat_tree_traversal.h"
+#include "third_party/blink/renderer/core/dom/pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/editing/editing_utilities.h"
 #include "third_party/blink/renderer/core/editing/editor.h"
@@ -391,7 +392,7 @@ void EventHandler::PerformHitTest(const HitTestLocation& location,
   const HitTestRequest& request = result.GetHitTestRequest();
   if (!request.ReadOnly()) {
     frame_->GetDocument()->UpdateHoverActiveState(
-        request.Active(), !request.Move(), result.InnerElement());
+        request.Active(), !request.Move(), result.InnerPossiblyPseudoElement());
   }
 }
 
@@ -638,15 +639,6 @@ std::optional<ui::Cursor> EventHandler::SelectCursor(
       // one).
       CHECK(style_image->CachedImage());
 
-      // Compute the concrete object size in DIP based on the
-      // default cursor size obtained from the OS.
-      const gfx::SizeF size_in_css_pixels =
-          style_image->ImageSize(1,
-                                 gfx::SizeF(page->GetChromeClient()
-                                                .GetScreenInfos(*frame_)
-                                                .system_cursor_size),
-                                 kRespectImageOrientation);
-
       float scale = style_image->ImageScaleFactor();
       Image* image = style_image->CachedImage()->GetImage();
 
@@ -654,68 +646,39 @@ std::optional<ui::Cursor> EventHandler::SelectCursor(
           page->GetChromeClient().GetScreenInfo(*frame_).device_scale_factor;
 
       scoped_refptr<Image> svg_image_holder;
-      if (RuntimeEnabledFeatures::CSSCursorSizeCheckFixEnabled()) {
-        // If the image is an SVG, then adjust the scale to reflect the device
-        // scale factor so that the SVG can be rasterized in the native
-        // resolution and scaled down to the correct size for the cursor.
-        if (auto* svg_image = DynamicTo<SVGImage>(image)) {
-          // Adjust the total scale factor. The image scale factor doesn't
-          // really affect SVG images though (as is evident below), so this
-          // should probably be dropped (scale should be set to the DPR).
-          scale *= device_scale_factor;
+      // If the image is an SVG, then adjust the scale to reflect the device
+      // scale factor so that the SVG can be rasterized in the native
+      // resolution and scaled down to the correct size for the cursor.
+      if (auto* svg_image = DynamicTo<SVGImage>(image)) {
+        // Adjust the total scale factor. The image scale factor doesn't
+        // really affect SVG images though (as is evident below), so this
+        // should probably be dropped (scale should be set to the DPR).
+        scale *= device_scale_factor;
 
-          // Scale from DIP to device pixels.
-          const gfx::SizeF size_in_device_pixels =
-              gfx::ScaleSize(size_in_css_pixels, device_scale_factor);
+        // Get the default cursor size in DIP from the OS.
+        const gfx::SizeF default_cursor_size_in_dip(
+            page->GetChromeClient().GetScreenInfos(*frame_).system_cursor_size);
+        // Compute the concrete object size in device pixels.
+        const gfx::SizeF size_in_device_pixels = style_image->ImageSize(
+            device_scale_factor,
+            gfx::ScaleSize(default_cursor_size_in_dip, device_scale_factor),
+            kRespectImageOrientation);
 
-          // TODO(fs): Should pass proper URL. Use StyleImage::GetImage.
-          svg_image_holder = SVGImageForContainer::Create(
-              *svg_image, size_in_device_pixels, device_scale_factor, nullptr,
-              frame_->GetDocument()
-                  ->GetStyleEngine()
-                  .ResolveColorSchemeForEmbedding(&style));
-          image = svg_image_holder.get();
-        }
+        // TODO(fs): Should pass proper URL. Use StyleImage::GetImage.
+        svg_image_holder = SVGImageForContainer::Create(
+            *svg_image, size_in_device_pixels, device_scale_factor, nullptr,
+            frame_->GetDocument()
+                ->GetStyleEngine()
+                .ResolveColorSchemeForEmbedding(&style));
+        image = svg_image_holder.get();
+      }
 
-        // Reject empty and too large cursors.
-        const gfx::Size size_in_device_pixels =
-            image->Size(kRespectImageOrientation);
-        if (size_in_device_pixels.IsEmpty() ||
-            !ui::Cursor::AreDimensionsValidForWeb(size_in_device_pixels,
-                                                  scale)) {
-          continue;
-        }
-      } else {
-        gfx::SizeF size = size_in_css_pixels;
-        if (image->IsSVGImage()) {
-          // `StyleImage::ImageSize` does not take
-          // `StyleImage::ImageScaleFactor` into account when computing the size
-          // for SVG images.
-          size.Scale(1 / scale);
-        }
-
-        if (size.IsEmpty() ||
-            !ui::Cursor::AreDimensionsValidForWeb(
-                gfx::ToCeiledSize(gfx::ScaleSize(size, scale)), scale)) {
-          continue;
-        }
-
-        // If the image is an SVG, then adjust the scale to reflect the device
-        // scale factor so that the SVG can be rasterized in the native
-        // resolution and scaled down to the correct size for the cursor.
-        if (auto* svg_image = DynamicTo<SVGImage>(image)) {
-          scale *= device_scale_factor;
-          // Re-scale back from DIP to device pixels.
-          size.Scale(scale);
-
-          // TODO(fs): Should pass proper URL. Use StyleImage::GetImage.
-          svg_image_holder = SVGImageForContainer::Create(
-              *svg_image, size, device_scale_factor, nullptr,
-              frame_->GetDocument()
-                  ->GetStyleEngine()
-                  .ResolveColorSchemeForEmbedding(&style));
-          image = svg_image_holder.get();
-        }
+      // Reject empty and too large cursors.
+      const gfx::Size size_in_device_pixels =
+          image->Size(kRespectImageOrientation);
+      if (size_in_device_pixels.IsEmpty() ||
+          !ui::Cursor::AreDimensionsValidForWeb(size_in_device_pixels, scale)) {
+        continue;
       }
 
       // Convert from DIP to physical pixels.
@@ -960,14 +923,14 @@ WebInputEventResult EventHandler::HandleMousePressEvent(
   }
 
   mouse_event_manager_->SetClickCount(mouse_event.click_count);
-  mouse_event_manager_->SetMouseDownElement(mev.InnerElement());
+  mouse_event_manager_->SetMouseDownElement(mev.InnerPossiblyPseudoElement());
 
   if (!mouse_event.FromTouch())
     frame_->Selection().SetCaretBlinkingSuspended(true);
 
   WebInputEventResult event_result = DispatchMousePointerEvent(
-      WebInputEvent::Type::kPointerDown, mev.InnerElement(), mev.Event(),
-      Vector<WebMouseEvent>(), Vector<WebMouseEvent>());
+      WebInputEvent::Type::kPointerDown, mev.InnerPossiblyPseudoElement(),
+      mev.Event(), Vector<WebMouseEvent>(), Vector<WebMouseEvent>());
 
   // Disabled form controls still need to resize the scrollable area.
   if ((event_result == WebInputEventResult::kNotHandled ||
@@ -1214,7 +1177,8 @@ WebInputEventResult EventHandler::HandleMouseMoveOrLeaveEvent(
   if (current_subframe) {
     // Update over/out state before passing the event to the subframe.
     pointer_event_manager_->SendMouseAndPointerBoundaryEvents(
-        EffectiveMouseEventTargetElement(mev.InnerElement()), mev.Event());
+        EffectiveMouseEventTargetElement(mev.InnerPossiblyPseudoElement()),
+        mev.Event());
 
     // Event dispatch in sendMouseAndPointerBoundaryEvents may have caused the
     // subframe of the target node to be detached from its LocalFrameView, in
@@ -1253,9 +1217,9 @@ WebInputEventResult EventHandler::HandleMouseMoveOrLeaveEvent(
     return event_result;
   }
 
-  event_result = DispatchMousePointerEvent(WebInputEvent::Type::kPointerMove,
-                                           mev.InnerElement(), mev.Event(),
-                                           coalesced_events, predicted_events);
+  event_result = DispatchMousePointerEvent(
+      WebInputEvent::Type::kPointerMove, mev.InnerPossiblyPseudoElement(),
+      mev.Event(), coalesced_events, predicted_events);
   // Since there is no default action for the mousemove event, MouseEventManager
   // handles drag for text selection even when js cancels the mouse move event.
   // https://w3c.github.io/uievents/#event-type-mousemove
@@ -1338,8 +1302,8 @@ WebInputEventResult EventHandler::HandleMouseReleaseEvent(
     event_result = WebInputEventResult::kHandledSuppressed;
   } else {
     event_result = DispatchMousePointerEvent(
-        WebInputEvent::Type::kPointerUp, mev.InnerElement(), mev.Event(),
-        Vector<WebMouseEvent>(), Vector<WebMouseEvent>(),
+        WebInputEvent::Type::kPointerUp, mev.InnerPossiblyPseudoElement(),
+        mev.Event(), Vector<WebMouseEvent>(), Vector<WebMouseEvent>(),
         (GetSelectionController().HasExtendedSelection() &&
          IsSelectionOverLink(mev)));
   }
@@ -1395,6 +1359,15 @@ WebInputEventResult EventHandler::UpdateDragAndDrop(
   // Drag events should never go to text nodes (following IE, and proper
   // mouseover/out dispatch)
   Element* new_target = mev.InnerElement();
+
+  // Pseudo-elements without activation behavior (::before, ::after, ::marker)
+  // are visual decorations; for drag targeting resolve them to their
+  // ultimate originating element so that drag events reach the actual content
+  // element.
+  if (auto* pseudo = DynamicTo<PseudoElement>(new_target);
+      pseudo && !pseudo->HasActivationBehavior()) {
+    new_target = &pseudo->UltimateOriginatingElement();
+  }
 
   // The drag target could be something inside a UA shadow root, in which case
   // it should be retargeted to the shadow host.
@@ -2054,8 +2027,8 @@ GestureEventWithHitTestResults EventHandler::TargetGestureEvent(
   HitTestRequest request(hit_type | HitTestRequest::kAllowChildFrameContent);
   if (!request.ReadOnly()) {
     UpdateCrossFrameHoverActiveState(
-        request.Active(),
-        event_with_hit_test_results.GetHitTestResult().InnerElement());
+        request.Active(), event_with_hit_test_results.GetHitTestResult()
+                              .InnerPossiblyPseudoElement());
   }
 
   if (should_keep_active_for_min_interval) {
@@ -2200,8 +2173,9 @@ WebInputEventResult EventHandler::SendContextMenuEvent(
   // |SelectionController::sendContextMenuEvent()|.
   document.UpdateStyleAndLayout(DocumentUpdateReason::kContextMenu);
 
-  Element* target_element =
-      override_target_element ? override_target_element : mev.InnerElement();
+  Element* target_element = override_target_element
+                                ? override_target_element
+                                : mev.InnerPossiblyPseudoElement();
   WebInputEventResult result =
       mouse_event_manager_
           ->DispatchMouseEvent(
@@ -2232,7 +2206,7 @@ static bool ShouldShowContextMenuAtSelection(const FrameSelection& selection) {
 
 WebInputEventResult EventHandler::ShowNonLocatedContextMenu(
     Element* override_target_element,
-    WebMenuSourceType source_type) {
+    ui::mojom::blink::MenuSourceType source_type) {
   LocalFrameView* view = frame_->View();
   if (!view)
     return WebInputEventResult::kNotHandled;
@@ -2423,7 +2397,8 @@ void EventHandler::HoverTimerFired(TimerBase*) {
       HitTestResult result(request, location);
       layout_object->HitTest(location, result);
       frame_->GetDocument()->UpdateHoverActiveState(
-          request.Active(), !request.Move(), result.InnerElement());
+          request.Active(), !request.Move(),
+          result.InnerPossiblyPseudoElement());
     }
   }
 }
@@ -2650,7 +2625,8 @@ MouseEventWithHitTestResults EventHandler::GetMouseEventTarget(
 
       if (!request.ReadOnly()) {
         frame_->GetDocument()->UpdateHoverActiveState(
-            request.Active(), !request.Move(), result.InnerElement());
+            request.Active(), !request.Move(),
+            result.InnerPossiblyPseudoElement());
       }
 
       return MouseEventWithHitTestResults(

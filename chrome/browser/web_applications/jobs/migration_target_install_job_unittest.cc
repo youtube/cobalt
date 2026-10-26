@@ -30,6 +30,7 @@
 #include "services/network/test/test_url_loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
+#include "third_party/blink/public/mojom/manifest/manifest_migration_behavior.mojom.h"
 
 namespace web_app {
 
@@ -69,7 +70,8 @@ class MigrationTargetInstallJobTest : public WebAppTest {
     auto data_retriever = web_contents_manager().CreateDataRetriever();
     auto job = MigrationTargetInstallJob::CreateAndStart(
         std::move(manifest), web_contents()->GetWeakPtr(), profile(),
-        data_retriever.get(), &debug_value, lock.get(), future.GetCallback());
+        data_retriever.get(), &debug_value, lock.get(), lock.get(),
+        future.GetCallback());
     return future.Get();
   }
 };
@@ -80,6 +82,7 @@ TEST_F(MigrationTargetInstallJobTest, InstallNewApp) {
   manifest->scope = GURL("https://example.com/");
   manifest->name = u"New App";
   manifest->id = GURL("https://example.com/start");
+  manifest->manifest_url = GURL("https://example.com/start");
 
   auto migrate_from = blink::mojom::ManifestMigrateFrom::New();
   migrate_from->id = GURL("https://example.com/old_app");
@@ -106,6 +109,7 @@ TEST_F(MigrationTargetInstallJobTest, UpdateInstalledApp) {
   manifest->scope = GURL("https://example.com/");
   manifest->name = u"Old App Name";
   manifest->id = GURL("https://example.com/start");
+  manifest->manifest_url = GURL("https://example.com/start");
 
   blink::Manifest::ImageResource icon_info;
   icon_info.src = GURL("https://example.com/icon.png");
@@ -154,6 +158,7 @@ TEST_F(MigrationTargetInstallJobTest, NoUpdateSuggestedApp) {
   manifest->scope = GURL("https://example.com/");
   manifest->name = u"Old App Name";
   manifest->id = GURL("https://example.com/start");
+  manifest->manifest_url = GURL("https://example.com/start");
 
   blink::Manifest::ImageResource icon_info;
   icon_info.src = GURL("https://example.com/icon.png");

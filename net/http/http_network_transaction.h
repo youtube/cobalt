@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
@@ -441,11 +442,11 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
 
   // Total number of bytes received on all destroyed HttpStreams for this
   // transaction.
-  int64_t total_received_bytes_ = 0;
+  base::ByteSize total_received_bytes_;
 
   // Total number of bytes sent on all destroyed HttpStreams for this
   // transaction.
-  int64_t total_sent_bytes_ = 0;
+  base::ByteSize total_sent_bytes_;
 
   // When the transaction started / finished creating a stream.
   base::TimeTicks create_stream_start_time_;
@@ -507,6 +508,13 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   // behaved server may time those out and thus the number
   // of times we can retry a request on reused sockets is limited.
   size_t retry_attempts_ = 0;
+
+  // Number of retries made for connection errors on reused sockets like
+  // ERR_CONNECTION_RESET, ERR_CONNECTION_CLOSED, ERR_CONNECTION_ABORTED,
+  // ERR_SOCKET_NOT_CONNECTED and ERR_EMPTY_RESPONSE.
+  // If this count reaches kMaxRetryAttemptsOnConnectionErrors, we crash via
+  // NOTREACHED() as it indicates a potential infinite retry loop.
+  size_t retry_attempts_on_connection_errors_ = 0;
 
   // Number of times the transaction was restarted via a RestartWith* call.
   size_t num_restarts_ = 0;

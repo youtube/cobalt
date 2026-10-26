@@ -19,10 +19,10 @@
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "remoting/base/auto_thread_task_runner.h"
+#include "remoting/base/branding.h"
 #include "remoting/base/constants.h"
 #include "remoting/host/base/host_exit_codes.h"
 #include "remoting/host/base/screen_resolution.h"
-#include "remoting/host/branding.h"
 #include "remoting/host/config_file_watcher.h"
 #include "remoting/host/desktop_session.h"
 #include "remoting/host/host_event_logger.h"
@@ -86,6 +86,7 @@ void DaemonProcess::OnPermanentError(int exit_code) {
 void DaemonProcess::OnWorkerProcessStopped() {
   desktop_session_manager_.reset();
   host_status_observer_.reset();
+  DeleteAllDesktopSessions();
 }
 
 void DaemonProcess::OnAssociatedInterfaceRequest(
@@ -182,9 +183,9 @@ DaemonProcess::DaemonProcess(
   }
 }
 
-void DaemonProcess::CreateDesktopSession(int terminal_id,
-                                         const ScreenResolution& resolution,
-                                         bool is_curtained) {
+void DaemonProcess::CreateDesktopSession(
+    int terminal_id,
+    mojom::DesktopSessionOptionsPtr options) {
   DCHECK(caller_task_runner()->BelongsToCurrentThread());
 
   // Validate the supplied terminal ID. An attempt to create a desktop session
@@ -201,7 +202,7 @@ void DaemonProcess::CreateDesktopSession(int terminal_id,
 
   // Create the desktop session.
   std::unique_ptr<DesktopSession> session =
-      DoCreateDesktopSession(terminal_id, resolution, is_curtained);
+      DoCreateDesktopSession(terminal_id, *options);
   if (!session) {
     LOG(ERROR) << "Failed to create a desktop session.";
     SendTerminalDisconnected(terminal_id);
@@ -210,6 +211,25 @@ void DaemonProcess::CreateDesktopSession(int terminal_id,
 
   VLOG(1) << "Daemon: opened desktop session " << terminal_id;
   desktop_sessions_.push_back(session.release());
+}
+
+void DaemonProcess::ReconnectDesktopSession(
+    int terminal_id,
+    mojom::DesktopSessionOptionsPtr options) {
+  DCHECK(caller_task_runner()->BelongsToCurrentThread());
+
+  auto it = std::ranges::find_if(desktop_sessions_,
+                                 [terminal_id](DesktopSession* session) {
+                                   return session->id() == terminal_id;
+                                 });
+
+  if (it == desktop_sessions_.end()) {
+    LOG(ERROR) << "Invalid terminal ID: " << terminal_id;
+    CrashNetworkProcess(FROM_HERE);
+    return;
+  }
+  VLOG(1) << "Daemon: reconnecting desktop session " << terminal_id;
+  (*it)->ReconnectNetworkChannel(*options);
 }
 
 void DaemonProcess::SetScreenResolution(int terminal_id,

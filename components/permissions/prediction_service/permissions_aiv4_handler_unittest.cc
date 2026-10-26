@@ -58,7 +58,8 @@ constexpr int kTestTextInputSize = 768;
 
 PermissionsAiv4ModelMetadata BuildMetadataFromValues(
     const std::array<float, 4>& thresholds,
-    std::optional<int> text_embeddings_input_size = std::nullopt) {
+    std::optional<int> text_embeddings_input_size = std::nullopt,
+    std::optional<int32_t> passage_count = std::nullopt) {
   PermissionsAiv4ModelMetadata metadata;
   std::string serialized_metadata;
   metadata.mutable_relevance_thresholds()->set_min_low_relevance(thresholds[0]);
@@ -70,6 +71,9 @@ PermissionsAiv4ModelMetadata BuildMetadataFromValues(
       thresholds[3]);
   if (text_embeddings_input_size.has_value()) {
     metadata.set_text_embeddings_input_size(text_embeddings_input_size.value());
+  }
+  if (passage_count.has_value()) {
+    metadata.set_passage_count(passage_count.value());
   }
   return metadata;
 }
@@ -372,7 +376,7 @@ TEST_F(Aiv4HandlerTest, ModelHandlerTimeoutExecutions) {
           /*request_type=*/RequestType::kNotifications,
           std::move(geolocation_executor_mock));
 
-  // Because of `PermissionsAiv3ExecutorFake` the first execution will be hold
+  // Because of `PermissionsAiv4ExecutorFake` the first execution will be hold
   // until manually released. In this case we release the callback before we
   // try to execute the model again.
   ModelCallbackFuture future1;
@@ -528,6 +532,27 @@ TEST_F(Aiv4HandlerTest, PredictionThresholdsHistogram_UseMetadata) {
 
   histograms.ExpectBucketCount(kUseHardcodedThresholdsHistogram, true, 0);
   histograms.ExpectBucketCount(kUseHardcodedThresholdsHistogram, false, 1);
+}
+
+TEST_F(Aiv4HandlerTest, GetPassageCountReturnsCorrectValue) {
+  PermissionsAiv4ModelMetadata metadata = BuildMetadataFromValues(
+      {0.1, 0.2, 0.3, 0.4}, /*text_embeddings_input_size=*/std::nullopt,
+      /*passage_count=*/5);
+  PushModelFileToModelExecutor(kOptTargetNotifications,
+                               test::ModelFilePath(kZeroReturnModel), metadata);
+
+  auto* aiv4_handler = model_handler();
+  EXPECT_EQ(aiv4_handler->GetPassageCount(), 5);
+}
+
+TEST_F(Aiv4HandlerTest, GetPassageCountReturnsNulloptWhenNotSet) {
+  PermissionsAiv4ModelMetadata metadata =
+      BuildMetadataFromValues({0.1, 0.2, 0.3, 0.4});
+  PushModelFileToModelExecutor(kOptTargetNotifications,
+                               test::ModelFilePath(kZeroReturnModel), metadata);
+
+  auto* aiv4_handler = model_handler();
+  EXPECT_EQ(aiv4_handler->GetPassageCount(), std::nullopt);
 }
 
 }  // namespace

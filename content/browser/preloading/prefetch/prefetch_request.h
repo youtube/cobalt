@@ -252,6 +252,18 @@ class CONTENT_EXPORT PrefetchRequest final {
   const PrefetchRendererInitiatorInfo* GetRendererInitiatorInfo() const;
   const PrefetchBrowserInitiatorInfo* GetBrowserInitiatorInfo() const;
 
+  // Whether or not the prefetch proxy would be required to fetch the given url
+  // based on `prefetch_type_`.
+  bool IsProxyRequiredForURL(const GURL& url) const;
+
+  // Whether or not the given origin would become a cross-site/cross-origin
+  // request.
+  bool IsCrossSiteRequest(const url::Origin& origin) const;
+  bool IsCrossOriginRequest(const url::Origin& origin) const;
+
+  // Whether or not an isolated network context is required to prefetch `url`.
+  bool IsIsolatedNetworkContextRequired(const GURL& url) const;
+
  private:
   // The type of this prefetch. This controls some specific details about how
   // the prefetch is handled, including whether an isolated network context or

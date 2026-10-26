@@ -33,6 +33,7 @@
   --composebox-submit-container-inline-end:
       var(--composebox-last-icon-inline-end);
   --composebox-last-icon-inline-end: 12px;
+  --cr-composebox-tool-chip-height: var(--icon-menu-button-size);
   --cr-searchbox-height: 52px;
   --cr-searchbox-min-width: min(calc(100%), 1100px);
   --icon-menu-spacing: 6px;
@@ -45,6 +46,7 @@
    */
   --pdf-icon-border-radius: 12px;
   --pdf-icon-size: 16px;
+  --injected-input-icon-size: 24px;
 }
 
 /* Composebox default colors are for light mode on AIM results. */
@@ -118,17 +120,23 @@
   border-radius: var(--composebox-border-radius);
   box-sizing: border-box;
   pointer-events: none;
+  transition: opacity 2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 2;
 }
 
+:host([in-voice-search-mode_]) #composebox::after {
+  opacity: 0;
+}
+
 #composebox {
+  --cr-composebox-font-size: 16px;
   --expanded-border-radius: var(--composebox-border-radius);
   --input-bottom-spacing: 16px;
-  --text-input-left-spacing: 24px;
+  --text-input-inline-start-spacing: 20px;
   --text-input-top-spacing: 16px;
   --composebox-context-menu-entrypoint-button-color:
       var(--color-composebox-voice-lens-button);
-  --contextual-entrypoint-and-carousel-context-entrypoint-padding-inline: 0;
+  --contextual-entrypoint-and-carousel-context-entrypoint-padding-inline-start: 0;
 
   box-shadow: none;
   box-sizing: border-box;
@@ -170,11 +178,13 @@
 
 #composebox::part(input),
 #composebox::part(tool-chip-label),
-#composebox::part(file-thumbnail-title) {
+#composebox::part(file-thumbnail-title),
+#composebox::part(mirror) {
   font-family: var(--google-sans-font);
 }
 
 #composebox::part(input-container) {
+  --input-bottom-spacing: 12px;
   transition: padding-top var(--emphasized-curve);
   transition-duration: var(--collapse-duration);
 }
@@ -219,19 +229,23 @@
 
 #composebox::part(input),
 #composebox::part(smart-compose) {
+  min-height: 48px;
   padding-inline-start: var(--g-input-left-spacing);
+}
+
+#composebox::part(context-menu-and-tools) {
+  min-height: var(--cr-icon-button-size);
 }
 
 #composebox::part(input)::placeholder {
   color: revert;
 }
 
-#composebox::part(upload-container) {
-  display: none;
-}
-
 #composebox::part(context-menu-entrypoint-icon) {
   --cr-icon-button-fill-color: var(--composebox-context-menu-entrypoint-button-color);
+  --cr-icon-button-icon-size: var(--icon-menu-icon-size);
+  --cr-icon-button-margin-start: 4px;
+  --cr-icon-button-size: var(--icon-menu-button-size);
 }
 
 /* Controls cancel and submit buttons. */
@@ -249,6 +263,7 @@
   display: none;
   inset-inline-end: var(--cancel-button-inline-end);
   top: var(--cancel-button-top);
+  z-index: 2;
 }
 
 /* Only show when text is in there (when can submit). */
@@ -267,6 +282,11 @@
   inset-inline-end: var(--composebox-last-icon-inline-end);
   position: absolute;
   transition: ease-out 100ms;
+}
+
+:host([is-overlay-open-for-aim-visual-search]) #composebox::part(lens-icon) {
+  background-color: var(--color-composebox-lens-active-background);
+  border-radius: 50%;
 }
 
 #composebox[submit-enabled_]::part(lens-icon) {
@@ -421,7 +441,10 @@
 }
 
 :host([is-zero-state]) #contextualTasksSuggestionsContainer {
+  --cr-composebox-match-height: 100%;
+  --cr-composebox-match-line-height: 18px;
   --cr-composebox-match-match-padding-bottom: 0px;
+
   --color-searchbox-results-background-hovered: transparent;
   --color-searchbox-results-background-selected: transparent;
   --match-border-size: 2px;
@@ -433,6 +456,14 @@
   margin-top: 16px;
   padding-inline-end: 8px;
   padding-inline-start: 8px;
+  /* Start inline from .flex-center is 20px.
+   * Inner padding is 8px from above line.
+   * The first item in each suggestions block
+   * is the icon, which has 8px indent. This means
+   * that suggestions have full indentation of 20px from .flex-center,
+   * then 16px total within suggestions container after that,
+   * totaling 36px total indent.
+   */
   pointer-events: auto;
   /* Do not set width since we are using padding + fitting children content. */
 }
@@ -440,9 +471,8 @@
 :host([is-zero-state][is-side-panel]) #contextualTasksSuggestionsContainer  {
   margin-bottom: 24px;
   margin-top: 24px;
-  /* Becomes 44px from the 28px ending padding in child. */
-  padding-inline-end: 16px;
-  /* Start inline from .flex-center is 16px. */
+  /* Becomes 18px ending from width padding in child. */
+  padding-inline-end: 10px;
 }
 
 
@@ -457,24 +487,13 @@
   align-items: center;
   border-radius: 8px;
   box-sizing: border-box;
-  /* With bottom padding of host = 44px. */
-  height: 43px;
-  padding: 0 0 1px 0;
-  /* With right padding from dropdow (parent),
-   * and 8px right padding of this container's wrapper (:host),
-   * it is 44px.
-   */
-  padding-inline-end: 20px;
+  height: 100%;
+  padding: 6px 0 6px 0;
   width: calc(100% - 8px);
 }
 
 :host([is-zero-state]) #contextualTasksSuggestionsContainer::part(match-wrapper) {
   width: 100%;
-}
-
-:host([is-zero-state][is-side-panel]) #contextualTasksSuggestionsContainer::part(match-container) {
-  /* With bottom padding of host = 56px. */
-  height: 55px;
 }
 
 :host([is-loading_]) #contextualTasksSuggestionsContainer::part(match-container) {
@@ -491,11 +510,22 @@
     --color-searchbox-results-icon-focused-outline: Highlight;
     --select-color_: Highlight;
   }
+
+  #composebox::part(context-menu-entrypoint-icon),
+  #composebox::part(cancel-icon),
+  #composebox::part(lens-icon),
+  #composebox::part(voice-icon) {
+    --cr-icon-button-fill-color: ButtonText;
+  }
 }
 
 :host([is-zero-state]) #contextualTasksSuggestionsContainer::part(match-icon-container) {
   height: 24px;
+  /* Keep in mind .flex-container and the outer suggestions container
+   * indentation when changing this. */
   padding-inline-end: 8px;
+  /* This + 8px from suggestion container's
+   * indent start = 16px. */
   padding-inline-start: 8px;
   width: 24px;
 }
@@ -503,11 +533,10 @@
 :host([is-zero-state][is-side-panel])
     #contextualTasksSuggestionsContainer::part(match-icon-container) {
   padding-inline-end: 12px;
-  padding-inline-start: 12px;
 }
 
 :host([is-zero-state]) #contextualTasksSuggestionsContainer::part(match-icon) {
-  background-color: var(--color-composebox-font-dark);
+  background-color: var(--color-zero-state-match-icon);
   height: 20px;
   margin: 2px;
   width: 20px;
@@ -515,11 +544,13 @@
 
 :host([is-zero-state]) #contextualTasksSuggestionsContainer::part(match-text-container) {
   border-radius: 4px;
-  color: var(--color-composebox-font-dark);
+  color: var(--color-zero-state-match-text);
   font-family: var(--google-sans-font);
   font-size: 16px;
   letter-spacing: 1%;
   inset-inline-start: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   width: 100%;
 }
 
@@ -538,6 +569,34 @@
   width: calc(100% - 8px);
 }
 
-#composeboxContainer:not(:has(#composebox[show-dropdown_])) ~ #contextualTasksSuggestionsContainer {
+:host([is-zero-state])
+    #contextualTasksSuggestionsContainer::part(match-remove-button) {
+  --cr-composebox-dropdown-match-margin-end: -8px;
+  --cr-composebox-dropdown-match-margin-start: 16px;
+  --cr-composebox-match-remove-button-top: 0;
   display: none;
+}
+
+#suggestionActivity {
+  color: var(--color-composebox-suggestion-activity);
+  display: flex;
+  font-family: var(--google-sans-font);
+  font-size: 12px;
+  font-weight: 400;
+  justify-content: flex-start;
+  line-height: 16px;
+  padding-bottom: 10px;
+  padding-inline-end: 8px;
+  padding-inline-start: 20px;
+  padding-top: 8px;
+  position: relative;
+}
+
+:host:has(#composebox:not([show-dropdown_])) #contextualTasksSuggestionsContainer {
+  display: none;
+}
+
+/* Needed for space between header and composebox. */
+:host([is-side-panel]) #composebox:not([show-dropdown_]) {
+  margin-top: 24px;
 }

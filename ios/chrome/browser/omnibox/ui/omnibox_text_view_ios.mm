@@ -7,6 +7,7 @@
 #import <CoreText/CoreText.h>
 
 #import "base/apple/foundation_util.h"
+#import "base/check_is_test.h"
 #import "base/check_op.h"
 #import "base/command_line.h"
 #import "base/ios/ios_util.h"
@@ -17,13 +18,14 @@
 #import "components/omnibox/browser/autocomplete_input.h"
 #import "components/open_from_clipboard/clipboard_async_wrapper_ios.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_scheme_classifier_impl.h"
+#import "ios/chrome/browser/omnibox/public/omnibox_constants.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_util.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_input.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_input_delegate.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/shared/ui/util/animation_util.h"
-#import "ios/chrome/browser/shared/ui/util/dynamic_type_util.h"
 #import "ios/chrome/browser/shared/ui/util/reversed_animation.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -44,9 +46,6 @@
 using enum OmniboxKeyboardAction;
 
 namespace {
-
-/// Minimum vertical inset, defaults from UITextView.
-const CGFloat kMinVerticalInset = 8.0;
 
 /// The placeholder leading padding.
 const CGFloat kPlaceholderLeadingPadding = 5.0;
@@ -182,6 +181,7 @@ const CGFloat kVerticalOffset = 1;
 - (void)setPlaceholderLabel:(UILabel*)placeholderLabel {
   placeholderLabel.font = self.font;
   placeholderLabel.textColor = [UIColor colorNamed:kTextfieldPlaceholderColor];
+  placeholderLabel.isAccessibilityElement = NO;
   _placeholderLabel = placeholderLabel;
 
   // Align placeholder with the text view's content area by constraining it
@@ -561,11 +561,6 @@ const CGFloat kVerticalOffset = 1;
 - (void)beginFloatingCursorAtPoint:(CGPoint)point {
   // Exit preedit because it blocks the view of the textfield.
   [self exitPreEditState];
-  // Remove selection and put the caret at the end of the string.
-  if (!base::FeatureList::IsEnabled(kBeginCursorAtPointTentativeFix)) {
-    self.selectedTextRange = [self textRangeFromPosition:self.endOfDocument
-                                              toPosition:self.endOfDocument];
-  }
   [super beginFloatingCursorAtPoint:point];
 }
 
@@ -820,10 +815,8 @@ const CGFloat kVerticalOffset = 1;
 #pragma mark - UIAccessibilityElement
 
 - (NSString*)accessibilityValue {
-  if (NSClassFromString(@"XCTest")) {
-    return [NSString stringWithFormat:@"%@||||%@||||%@", self.userText ?: @"",
-                                      self.autocompleteText ?: @"",
-                                      self.attributedAdditionalText ?: @""];
+  if (self.text.length == 0) {
+    return self.placeholderLabel.text;
   }
   return self.text;
 }
@@ -1169,20 +1162,27 @@ const CGFloat kVerticalOffset = 1;
   self.placeholderLabel.font = self.font;
   [self setAttributedText:self.attributedText];
   [self updateOmniboxTypingAttributes];
+  [self.heightDelegate textViewContentChanged:self];
 }
 
 - (void)updateTextContainerInset {
+  BOOL isComposeboxIpad =
+      IsComposeboxIpadEnabled() &&
+      ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_PHONE;
+  CGFloat minVerticalInset =
+      isComposeboxIpad ? kOmniboxTextViewMinVerticalInsetIPadComposebox
+                       : kOmniboxTextViewMinVerticalInset;
   if (self.minimumHeight <= 0) {
     // Reset to default values.
     self.textContainerInset =
-        UIEdgeInsetsMake(kMinVerticalInset, 0, kMinVerticalInset, 0);
-    _placeholderTopConstraint.constant = kMinVerticalInset;
+        UIEdgeInsetsMake(minVerticalInset, 0, minVerticalInset, 0);
+    _placeholderTopConstraint.constant = minVerticalInset;
     return;
   }
   CGFloat lineHeight = [self singleLineHeight];
   CGFloat minHeight = self.minimumHeight;
   CGFloat verticalPadding =
-      MAX(kMinVerticalInset * 2.0, (minHeight - lineHeight));
+      MAX(minVerticalInset * 2.0, (minHeight - lineHeight));
   // Distribute padding.
   CGFloat topPadding = verticalPadding / 2.0 + kVerticalOffset;
   CGFloat bottomPadding = verticalPadding - topPadding;
@@ -1252,6 +1252,14 @@ const CGFloat kVerticalOffset = 1;
 - (void)setCustomPlaceholderText:(NSString*)customPlaceholderText {
   _customPlaceholderText = [customPlaceholderText copy];
   [self updatePlaceholder];
+}
+
+- (NSString*)textValueForTesting {
+  CHECK_IS_TEST();
+  return
+      [NSString stringWithFormat:@"%@||||%@||||%@", self.userText ?: @"",
+                                 self.autocompleteText ?: @"",
+                                 self.attributedAdditionalText.string ?: @""];
 }
 
 #pragma mark - UITextViewDelegate

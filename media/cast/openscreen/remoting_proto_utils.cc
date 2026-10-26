@@ -125,7 +125,10 @@ scoped_refptr<media::DecoderBuffer> ByteArrayToDecoderBuffer(
     // it may be EOS buffer.
     scoped_refptr<media::DecoderBuffer> decoder_buffer =
         ConvertProtoToDecoderBuffer(
-            segment, media::DecoderBuffer::CopyFrom(buffer_span));
+            segment,
+            media::DecoderBuffer::FromExternalMemory(
+                std::make_unique<media::DecoderBuffer::UnownedExternalMemory>(
+                    buffer_span)));
     return decoder_buffer;
   }
 
@@ -198,10 +201,12 @@ bool ConvertProtoToAudioDecoderConfig(
   DCHECK(audio_config);
 
   const auto extra_data = base::span(audio_message.extra_data());
+  const media::ChannelLayout layout =
+      ToMediaChannelLayout(audio_message.channel_layout()).value();
   audio_config->Initialize(
       ToMediaAudioCodec(audio_message.codec()).value(),
       ToMediaSampleFormat(audio_message.sample_format()).value(),
-      ToMediaChannelLayout(audio_message.channel_layout()).value(),
+      media::ChannelLayoutConfig::FromLayout(layout),
       audio_message.samples_per_second(),
       std::vector<uint8_t>(extra_data.begin(), extra_data.end()),
       media::EncryptionScheme::kUnencrypted,

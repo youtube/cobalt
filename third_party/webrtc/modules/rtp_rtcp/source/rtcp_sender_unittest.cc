@@ -14,10 +14,10 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
@@ -75,11 +75,11 @@ class TestTransport : public Transport {
  public:
   TestTransport() {}
 
-  bool SendRtp(ArrayView<const uint8_t> /*data*/,
+  bool SendRtp(std::span<const uint8_t> /*data*/,
                const PacketOptions& /* options */) override {
     return false;
   }
-  bool SendRtcp(ArrayView<const uint8_t> data,
+  bool SendRtcp(std::span<const uint8_t> data,
                 const PacketOptions& options) override {
     EXPECT_FALSE(options.is_media);
     parser_.Parse(data);
@@ -669,7 +669,7 @@ TEST_F(RtcpSenderTest, SendsTmmbnIfSetAndEmpty) {
 TEST_F(RtcpSenderTest, ByeMustBeLast) {
   MockTransport mock_transport;
   EXPECT_CALL(mock_transport, SendRtcp(_, _))
-      .WillOnce([](ArrayView<const uint8_t> data, ::testing::Unused) {
+      .WillOnce([](std::span<const uint8_t> data, ::testing::Unused) {
         const uint8_t* next_packet = data.data();
         const uint8_t* const packet_end = data.data() + data.size();
         rtcp::CommonHeader packet;

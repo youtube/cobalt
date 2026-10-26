@@ -16,6 +16,7 @@
 #include <utility>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/strings/string_view.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/transport/ecn_marking.h"
 #include "api/units/timestamp.h"
@@ -133,8 +134,11 @@ class RtpTransportInternal {
   //   UpdateSendEncryptedHeaderExtensionIds,
   //   UpdateRecvEncryptedHeaderExtensionIds,
   //   CacheRtpAbsSendTimeHeaderExtension,
-  virtual void UpdateRtpHeaderExtensionMap(
+  virtual void RegisterRtpHeaderExtensionMap(
+      absl::string_view mid,
       const RtpHeaderExtensions& header_extensions) = 0;
+
+  virtual void UnregisterRtpHeaderExtensionMap(absl::string_view mid) = 0;
 
   virtual bool IsSrtpActive() const = 0;
 

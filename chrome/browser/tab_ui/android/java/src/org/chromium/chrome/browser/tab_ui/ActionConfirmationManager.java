@@ -5,10 +5,8 @@
 package org.chromium.chrome.browser.tab_ui;
 
 import android.content.Context;
-import android.content.res.Resources;
 
 import androidx.annotation.StringRes;
-import androidx.core.util.Function;
 
 import org.chromium.base.Callback;
 import org.chromium.base.metrics.RecordUserAction;
@@ -54,6 +52,8 @@ public class ActionConfirmationManager {
             TAB_GROUP_CONFIRMATION + "CollaborationOwnerRemoveLastTab.";
     private static final String COLLABORATION_MEMBER_REMOVE_LAST_TAB =
             TAB_GROUP_CONFIRMATION + "CollaborationMemberRemoveLastTab.";
+    private static final String STOP_ACTOR_TASK_USER_ACTION =
+            "ActorTaskTabConfirmation.StopActorTask.";
 
     private final Profile mProfile;
     private final Context mContext;
@@ -208,6 +208,31 @@ public class ActionConfirmationManager {
                 onResult);
     }
 
+    /**
+     * Process closing an actor task actuating tab. The caller is responsible for deciding this.
+     *
+     * @param onResult The callback to receive the result of the confirmation.
+     */
+    public void processActorTaskDeletionAttempt(
+            Callback<@ActionConfirmationResult Integer> onResult) {
+
+        ConfirmationDialogHandler onDialogInteracted =
+                (dismissHandler, buttonClickResult, resultStopShowing) -> {
+                    handleDialogResult(buttonClickResult, STOP_ACTOR_TASK_USER_ACTION, onResult);
+                    return DialogDismissType.DISMISS_IMMEDIATELY;
+                };
+        ActionConfirmationDialog dialog =
+                new ActionConfirmationDialog(mContext, mModalDialogManager);
+        dialog.show(
+                dialog.createDialogParams()
+                        .withTitle(R.string.stop_actor_task_dialog_title)
+                        .withDescription(R.string.stop_actor_task_dialog_description)
+                        .withPositiveButton(R.string.leave_tab_group_menu_item)
+                        .withNegativeButton(R.string.cancel)
+                        .withSupportStopShowing(false),
+                onDialogInteracted);
+    }
+
     private void processMaybeSyncAndPrefAction(
             String userActionBaseString,
             String stopShowingPref,
@@ -224,15 +249,10 @@ public class ActionConfirmationManager {
         }
 
         @Nullable CoreAccountInfo coreAccountInfo = getCoreAccountInfo();
-        final Function<Resources, String> titleResolver = (res) -> res.getString(titleRes);
-        final Function<Resources, String> descriptionResolver;
-        if (syncingTabGroups && coreAccountInfo != null) {
-            descriptionResolver =
-                    resources ->
-                            resources.getString(withSyncDescriptionRes, coreAccountInfo.getEmail());
-        } else {
-            descriptionResolver = resources -> resources.getString(noSyncDescriptionRes);
-        }
+        String description =
+                syncingTabGroups && coreAccountInfo != null
+                        ? mContext.getString(withSyncDescriptionRes, coreAccountInfo.getEmail())
+                        : mContext.getString(noSyncDescriptionRes);
 
         if (shouldSkipDialog(stopShowingPref)) {
             onResult.onResult(ActionConfirmationResult.IMMEDIATE_CONTINUE);
@@ -252,11 +272,12 @@ public class ActionConfirmationManager {
         ActionConfirmationDialog dialog =
                 new ActionConfirmationDialog(mContext, mModalDialogManager);
         dialog.show(
-                titleResolver,
-                descriptionResolver,
-                actionRes,
-                R.string.cancel,
-                /* supportStopShowing= */ true,
+                dialog.createDialogParams()
+                        .withTitle(titleRes)
+                        .withDescription(description)
+                        .withPositiveButton(actionRes)
+                        .withNegativeButton(R.string.cancel)
+                        .withSupportStopShowing(true),
                 onDialogInteracted);
     }
 
@@ -278,9 +299,7 @@ public class ActionConfirmationManager {
             String formatArg,
             @StringRes int actionRes,
             Callback<MaybeBlockingResult> onResult) {
-        final Function<Resources, String> titleResolver = (res) -> res.getString(titleRes);
-        final Function<Resources, String> descriptionResolver =
-                resources -> resources.getString(descriptionRes, formatArg);
+        String desription = mContext.getString(descriptionRes, formatArg);
         ConfirmationDialogHandler onDialogInteracted =
                 (dismissHandler, buttonClickResult, resultStopShowing) -> {
                     boolean takePositiveAction = buttonClickResult == ButtonClickResult.POSITIVE;
@@ -295,11 +314,12 @@ public class ActionConfirmationManager {
         ActionConfirmationDialog dialog =
                 new ActionConfirmationDialog(mContext, mModalDialogManager);
         dialog.show(
-                titleResolver,
-                descriptionResolver,
-                actionRes,
-                R.string.cancel,
-                /* supportStopShowing= */ false,
+                dialog.createDialogParams()
+                        .withTitle(titleRes)
+                        .withDescription(desription)
+                        .withPositiveButton(actionRes)
+                        .withNegativeButton(R.string.cancel)
+                        .withSupportStopShowing(false),
                 onDialogInteracted);
     }
 
@@ -351,9 +371,7 @@ public class ActionConfirmationManager {
             @StringRes int positiveButtonRes,
             @StringRes int negativeButtonRes,
             Callback<MaybeBlockingResult> onResult) {
-        final Function<Resources, String> titleResolver = (res) -> res.getString(titleRes);
-        final Function<Resources, String> descriptionResolver =
-                resources -> resources.getString(descriptionRes, formatArg);
+        String desription = mContext.getString(descriptionRes, formatArg);
         ConfirmationDialogHandler onDialogInteracted =
                 (dismissHandler, buttonClickResult, resultStopShowing) -> {
                     boolean takePositiveAction =
@@ -372,11 +390,12 @@ public class ActionConfirmationManager {
         ActionConfirmationDialog dialog =
                 new ActionConfirmationDialog(mContext, mModalDialogManager);
         dialog.show(
-                titleResolver,
-                descriptionResolver,
-                positiveButtonRes,
-                negativeButtonRes,
-                /* supportStopShowing= */ false,
+                dialog.createDialogParams()
+                        .withTitle(titleRes)
+                        .withDescription(desription)
+                        .withPositiveButton(positiveButtonRes)
+                        .withNegativeButton(negativeButtonRes)
+                        .withSupportStopShowing(false),
                 onDialogInteracted);
     }
 

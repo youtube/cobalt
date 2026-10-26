@@ -17,7 +17,7 @@ import sys
 
 from gn_helpers import ToGNString
 
-# VS 2022 17.13.4 with 10.0.26100.4654 SDK with ARM64 libraries and UWP support.
+# VS 2026 17.13.4 with 10.0.26100.7705 SDK with ARM64 libraries and UWP support.
 # See go/win-toolchain-reference for instructions about how to update the
 # toolchain.
 #
@@ -59,7 +59,7 @@ from gn_helpers import ToGNString
 # * docs/windows_build_instructions.md
 #   Make sure any version numbers in the documentation match the code.
 #
-TOOLCHAIN_HASH = 'e4305f407e'
+TOOLCHAIN_HASH = 'e66617bc68'
 SDK_VERSION = '10.0.26100.0'
 
 # Visual Studio versions are listed in descending order of priority.
@@ -67,7 +67,8 @@ SDK_VERSION = '10.0.26100.0'
 # which makes a difference for the arm64 runtime.
 # The second number is an alternate version number, only used in an error string
 MSVS_VERSIONS = collections.OrderedDict([
-    ('2022', '17.0'),  # The VS version in our packaged toolchain.
+    ('2026', '18.0'),  # The VS version in our packaged toolchain.
+    ('2022', '17.0'),
     ('2019', '16.0'),
     ('2017', '15.0'),
 ])
@@ -75,6 +76,7 @@ MSVS_VERSIONS = collections.OrderedDict([
 # List of preferred VC toolset version based on MSVS
 # Order is not relevant for this dictionary.
 MSVC_TOOLSET_VERSION = {
+    '2026': 'VC145',
     '2022': 'VC143',
     '2019': 'VC142',
     '2017': 'VC141',
@@ -183,6 +185,41 @@ def _RegistryGetValue(key, value):
   except ImportError:
     raise Exception('The python library _winreg not found.')
 
+def _GenerateCandidatePaths(version):
+  """Generates a list of possible VS installation locations
+  """
+
+  # Checking vs%s_install environment variable.
+  # For example, vs2019_install could have the value
+  # "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community".
+  # Only vs2017_install, vs2019_install, vs2022_install, and vs2026_install
+  # are supported.
+  path = os.environ.get('vs%s_install' % version)
+  if path:
+    yield path
+
+  MSVC_LOCATION = {
+    '2026': ['%ProgramFiles%', '18'],
+    '2022': ['%ProgramFiles%', '2022'],
+    '2019': ['%ProgramFiles(x86)%', '2019'],
+    '2017': ['%ProgramFiles(x86)%', '2017'],
+  }
+  MSVC_EDITIONS = ['Enterprise', 'Professional', 'Community', 'Preview', 'BuildTools']
+  path = os.path.expandvars(MSVC_LOCATION[version][0] +
+                            '/Microsoft Visual Studio/%s' % MSVC_LOCATION[version][1])
+  if path:
+    for edition in MSVC_EDITIONS:
+      yield os.path.join(path, edition)
+
+
+def _CheckIfVersionInstalled(version):
+  """Returns True iff any edition of Visual Studio `version` is installed/hinted via env.
+  """
+  # Detecting VS under possible paths.
+  return any(
+    os.path.exists(path)
+    for path in _GenerateCandidatePaths(version))
+
 
 def GetVisualStudioVersion():
   """Return best available version of Visual Studio.
@@ -198,28 +235,9 @@ def GetVisualStudioVersion():
       for k,v in MSVS_VERSIONS.items())
   available_versions = []
   for version in supported_versions:
-    # Checking vs%s_install environment variables.
-    # For example, vs2019_install could have the value
-    # "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community".
-    # Only vs2017_install, vs2019_install and vs2022_install are supported.
-    path = os.environ.get('vs%s_install' % version)
-    if path and os.path.exists(path):
+    if _CheckIfVersionInstalled(version):
       available_versions.append(version)
       break
-    # Detecting VS under possible paths.
-    if version >= '2022':
-      program_files_path_variable = '%ProgramFiles%'
-    else:
-      program_files_path_variable = '%ProgramFiles(x86)%'
-    path = os.path.expandvars(program_files_path_variable +
-                              '/Microsoft Visual Studio/%s' % version)
-    if path and any(
-        os.path.exists(os.path.join(path, edition))
-        for edition in ('Enterprise', 'Professional', 'Community', 'Preview',
-                        'BuildTools')):
-      available_versions.append(version)
-      break
-
   if not available_versions:
     raise Exception('No supported Visual Studio can be found.'
                     ' Supported versions are: %s.' % supported_versions_str)
@@ -238,26 +256,7 @@ def DetectVisualStudioPath():
   # the registry. For details see:
   # https://blogs.msdn.microsoft.com/heaths/2016/09/15/changes-to-visual-studio-15-setup/
   # For now we use a hardcoded default with an environment variable override.
-  if version_as_year >= '2022':
-    program_files_path_variable = '%ProgramFiles%'
-  else:
-    program_files_path_variable = '%ProgramFiles(x86)%'
-  for path in (os.environ.get('vs%s_install' % version_as_year),
-               os.path.expandvars(program_files_path_variable +
-                                  '/Microsoft Visual Studio/%s/Enterprise' %
-                                  version_as_year),
-               os.path.expandvars(program_files_path_variable +
-                                  '/Microsoft Visual Studio/%s/Professional' %
-                                  version_as_year),
-               os.path.expandvars(program_files_path_variable +
-                                  '/Microsoft Visual Studio/%s/Community' %
-                                  version_as_year),
-               os.path.expandvars(program_files_path_variable +
-                                  '/Microsoft Visual Studio/%s/Preview' %
-                                  version_as_year),
-               os.path.expandvars(program_files_path_variable +
-                                  '/Microsoft Visual Studio/%s/BuildTools' %
-                                  version_as_year)):
+  for path in _GenerateCandidatePaths(version_as_year):
     if path and os.path.exists(path):
       return path
 

@@ -2228,6 +2228,11 @@ void GenerateCaps(const FunctionsGL *functions,
         // Restore previous state
         functions->blendColor(oldColor[0], oldColor[1], oldColor[2], oldColor[3]);
     }
+
+    if (features.limitMaxBufferSizeTo1gb.enabled)
+    {
+        limitations->bufferSizeLimit = 1 << 30;
+    }
 }
 
 bool GetSystemInfoVendorIDAndDeviceID(const FunctionsGL *functions,
@@ -2513,6 +2518,10 @@ void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *feature
     // Replace copyTexImage2D with texImage2D + copyTexSubImage2D to bypass driver bug.
     ANGLE_FEATURE_CONDITION(features, emulateCopyTexImage2D, isApple);
 
+    // anglebug.com/486067696
+    ANGLE_FEATURE_CONDITION(features, forceLumaWorkaroundForSameTextureCopyTexImage2D,
+                            isHuaweiMaleoon && functions->isAtLeastGLES(gl::Version(3, 0)));
+
     // Don't attempt to use the discrete GPU on NVIDIA-based MacBook Pros, since the
     // driver is unstable in this situation.
     //
@@ -2769,6 +2778,9 @@ void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *feature
     // IMG GL drivers crash while compiling shaders with more than the limit of uniform blocks.
     ANGLE_FEATURE_CONDITION(features, validateMaxPerStageUniformBlocksAtCompileTime,
                             IsPowerVR(vendor));
+
+    // Mac Intel drivers are unable to allocate buffers larger than ~1gb
+    ANGLE_FEATURE_CONDITION(features, limitMaxBufferSizeTo1gb, isApple && isIntel);
 }
 
 void InitializeFrontendFeatures(const FunctionsGL *functions, angle::FrontendFeatures *features)

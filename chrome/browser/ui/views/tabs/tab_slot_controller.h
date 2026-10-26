@@ -120,6 +120,9 @@ class TabSlotController {
 
   virtual void TabKeyboardFocusChangedTo(const tabs::TabInterface* tab) = 0;
 
+  // Returns the number of tabs in the tabstrip.
+  virtual int GetTabCount() const = 0;
+
   // Returns whether `tab` is the active tab. The active tab is the one whose
   // content is shown in the browser.
   virtual bool IsActiveTab(const TabSlotView* tab) const = 0;
@@ -163,6 +166,10 @@ class TabSlotController {
   // Invoked when a mouse event occurs on `source`.
   virtual void OnMouseEventInTab(views::View* source,
                                  const ui::MouseEvent& event) = 0;
+
+  // Updates the group's contents and metadata when its tab membership changes.
+  // This should be called when a tab is added to or removed from a group.
+  virtual void OnGroupContentsChanged(const tab_groups::TabGroupId& group) = 0;
 
   // Updates hover-card content, anchoring and visibility based on what tab is
   // hovered and whether the card should be shown. Providing a nullptr for `tab`

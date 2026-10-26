@@ -1084,7 +1084,6 @@ sh::InterfaceBlockField TestHelper::ConstructInterfaceBlockField(
 sh::InterfaceBlock TestHelper::ConstructInterfaceBlock(
     GLint array_size,
     sh::BlockLayoutType layout,
-    bool is_row_major_layout,
     bool static_use,
     const std::string& name,
     const std::string& instance_name,
@@ -1092,7 +1091,6 @@ sh::InterfaceBlock TestHelper::ConstructInterfaceBlock(
   sh::InterfaceBlock var;
   var.arraySize = array_size;
   var.layout = layout;
-  var.isRowMajorLayout = is_row_major_layout;
   var.staticUse = static_use;
   var.name = name;
   var.mappedName = name;  // No name hashing.

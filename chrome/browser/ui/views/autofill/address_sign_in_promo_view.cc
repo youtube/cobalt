@@ -13,15 +13,16 @@
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/image_view.h"
+#include "ui/views/layout/layout_provider.h"
 #include "ui/views/view_class_properties.h"
 
 namespace autofill {
 
 AddressSignInPromoView::AddressSignInPromoView(
-    views::View* anchor_view,
+    views::BubbleAnchor anchor,
     content::WebContents* web_contents,
     const AutofillProfile& autofill_profile)
-    : AddressBubbleBaseView(anchor_view, web_contents) {
+    : AddressBubbleBaseView(anchor, web_contents) {
   SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
   SetTitle(IDS_AUTOFILL_SIGNIN_PROMO_TITLE_ADDRESS);
   SetShowCloseButton(true);

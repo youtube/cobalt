@@ -124,13 +124,13 @@ bool WindowCanOpenTabs(const NavigateParams& params) {
 // Finds an existing Browser compatible with |profile|, making a new one if no
 // such Browser is located.
 Browser* GetOrCreateBrowser(Profile* profile, bool user_gesture) {
-  Browser* browser = chrome::FindTabbedBrowser(profile, false);
+  BrowserWindowInterface* browser = chrome::FindTabbedBrowser(profile, false);
 
   if (!browser && Browser::GetCreationStatusForProfile(profile) ==
                       Browser::CreationStatus::kOk) {
     browser = Browser::Create(Browser::CreateParams(profile, user_gesture));
   }
-  return browser;
+  return browser ? browser->GetBrowserForMigrationOnly() : nullptr;
 }
 
 bool IncognitoModeForced(const Profile* profile) {
@@ -774,12 +774,9 @@ base::WeakPtr<content::NavigationHandle> Navigate(NavigateParams* params) {
     tab_to_insert = std::make_unique<tabs::TabModel>(
         std::move(params->contents_to_insert),
         params->browser->GetBrowserForMigrationOnly()->tab_strip_model());
-    if (params->opener) {
-      tab_to_insert->set_opener(tabs::TabInterface::GetFromContents(
-          content::WebContents::FromRenderFrameHost(params->opener)));
-    } else if (params->source_contents && ((params->tabstrip_add_types &
-                                            AddTabTypes::ADD_INHERIT_OPENER) ||
-                                           params->user_gesture)) {
+    if (params->source_contents &&
+        ((params->tabstrip_add_types & AddTabTypes::ADD_INHERIT_OPENER) ||
+         params->user_gesture)) {
       tab_to_insert->set_opener(
           tabs::TabInterface::MaybeGetFromContents(params->source_contents));
     }
@@ -794,13 +791,9 @@ base::WeakPtr<content::NavigationHandle> Navigate(NavigateParams* params) {
       tab_to_insert = std::make_unique<tabs::TabModel>(
           CreateTargetContents(*params, params->url),
           params->browser->GetBrowserForMigrationOnly()->tab_strip_model());
-      if (params->opener) {
-        tab_to_insert->set_opener(tabs::TabInterface::GetFromContents(
-            content::WebContents::FromRenderFrameHost(params->opener)));
-      } else if (params->source_contents &&
-                 ((params->tabstrip_add_types &
-                   AddTabTypes::ADD_INHERIT_OPENER) ||
-                  params->user_gesture)) {
+      if (params->source_contents &&
+          ((params->tabstrip_add_types & AddTabTypes::ADD_INHERIT_OPENER) ||
+           params->user_gesture)) {
         tab_to_insert->set_opener(
             tabs::TabInterface::MaybeGetFromContents(params->source_contents));
       }

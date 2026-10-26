@@ -6830,7 +6830,6 @@
       }
     ]
   },
-  "Mac64 Builder": {},
   "Mac64 Debug": {
     "isolated_scripts": [
       {

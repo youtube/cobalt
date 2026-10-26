@@ -78,7 +78,8 @@ public class SafeModeController {
         SafeModeActionName.DISABLE_SAFE_BROWSING,
         SafeModeActionName.RESET_COMPONENT_UPDATER,
         SafeModeActionName.DISABLE_SUPERVISION_CHECKS,
-        SafeModeActionName.DISABLE_STARTUP_TASKS_LOGIC
+        SafeModeActionName.DISABLE_STARTUP_TASKS_LOGIC,
+        SafeModeActionName.DISABLE_CRASHY_CLASS
     })
     private @interface SafeModeActionName {
         int DELETE_VARIATIONS_SEED = 0;
@@ -91,7 +92,8 @@ public class SafeModeController {
         int RESET_COMPONENT_UPDATER = 7;
         int DISABLE_SUPERVISION_CHECKS = 8;
         int DISABLE_STARTUP_TASKS_LOGIC = 9;
-        int COUNT = 10;
+        int DISABLE_CRASHY_CLASS = 10;
+        int COUNT = 11;
     }
 
     // Maps the SafeModeAction ID to its histogram enum
@@ -121,6 +123,7 @@ public class SafeModeController {
         map.put(
                 SafeModeActionIds.DISABLE_STARTUP_TASKS_LOGIC,
                 SafeModeActionName.DISABLE_STARTUP_TASKS_LOGIC);
+        map.put(SafeModeActionIds.DISABLE_CRASHY_CLASS, SafeModeActionName.DISABLE_CRASHY_CLASS);
         return map;
     }
 
@@ -170,11 +173,17 @@ public class SafeModeController {
         mRegisteredActions = null;
     }
 
+    /** Overload for queryActions which gets the Context from ContextUtils. */
+    public Set<String> queryActions(String webViewPackageName) {
+        final Context appContext = ContextUtils.getApplicationContext();
+        return queryActions(appContext, webViewPackageName);
+    }
+
     /**
      * Queries SafeModeContentProvider for the set of actions which should be applied. Returns the
      * empty set if SafeMode is disabled. This should only be called from embedded WebView contexts.
      */
-    public Set<String> queryActions(String webViewPackageName) {
+    public Set<String> queryActions(Context appContext, String webViewPackageName) {
         Set<String> actions = new HashSet<>();
 
         Uri uri =
@@ -184,7 +193,6 @@ public class SafeModeController {
                         .path(SAFE_MODE_ACTIONS_URI_PATH)
                         .build();
 
-        final Context appContext = ContextUtils.getApplicationContext();
         try (Cursor cursor =
                 appContext
                         .getContentResolver()
@@ -307,6 +315,18 @@ public class SafeModeController {
      */
     public boolean isSafeModeEnabled(String webViewPackageName) {
         final Context context = ContextUtils.getApplicationContext();
+        return isSafeModeEnabled(context, webViewPackageName);
+    }
+
+    /**
+     * Quickly determine whether SafeMode is enabled. SafeMode is off-by-default.
+     *
+     * @param context the WebView context. This overload is used by early startup before
+     *     ContextUtils has been initialized.
+     * @param webViewPackageName the package name of the WebView implementation to query about
+     *     SafeMode (generally this is the current WebView provider).
+     */
+    public boolean isSafeModeEnabled(Context context, String webViewPackageName) {
         ComponentName safeModeComponent =
                 new ComponentName(webViewPackageName, SAFE_MODE_STATE_COMPONENT);
         int enabledState =

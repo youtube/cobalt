@@ -16,6 +16,7 @@
 
 #include "base/component_export.h"
 #include "build/build_config.h"
+#include "google_apis/gaia/device_management_error_details.h"
 #include "net/base/net_errors.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -94,8 +95,11 @@ class COMPONENT_EXPORT(GOOGLE_APIS) GoogleServiceAuthError {
     // with a binding key and sent back.
     CHALLENGE_RESPONSE_REQUIRED = 15,
 
+    // Indicates the service responded with a device management error
+    DEVICE_MANAGEMENT_ERROR = 16,
+
     // The number of known error states.
-    NUM_STATES = 16,
+    NUM_STATES = 17,
   };
 
   static constexpr size_t kDeprecatedStateCount = 6;
@@ -134,8 +138,9 @@ class COMPONENT_EXPORT(GOOGLE_APIS) GoogleServiceAuthError {
     kAccessDenied
   };
 
+  COMPONENT_EXPORT(GOOGLE_APIS)
   friend bool operator==(const GoogleServiceAuthError&,
-                         const GoogleServiceAuthError&) = default;
+                         const GoogleServiceAuthError&);
 
   // Construct a GoogleServiceAuthError from a State with no additional data.
   explicit GoogleServiceAuthError(State s);
@@ -180,7 +185,19 @@ class COMPONENT_EXPORT(GOOGLE_APIS) GoogleServiceAuthError {
   // Provided for convenience for clients needing to reset an instance to NONE.
   // (avoids err_ = GoogleServiceAuthError(GoogleServiceAuthError::NONE), due
   // to explicit class and State enum relation. Note: shouldn't be inlined!
+  // TODO(crbug.com/7633106): Rename to CreateNone().
   static GoogleServiceAuthError AuthErrorNone();
+
+  // Create a GoogleServiceAuthError for DEVICE_MANAGEMENT_ERROR with the given
+  // details
+  static GoogleServiceAuthError FromDeviceManagementError(
+      std::unique_ptr<gaia::DeviceManagementErrorDetails> details);
+
+  // Construct an ACCOUNT_NOT_FOUND error.
+  static GoogleServiceAuthError CreateAccountNotFound();
+
+  // Construct a REQUEST_CANCELED error.
+  static GoogleServiceAuthError CreateRequestCanceled();
 
   static bool IsValid(State state);
 
@@ -222,6 +239,16 @@ class COMPONENT_EXPORT(GOOGLE_APIS) GoogleServiceAuthError {
   // Except for the NONE case, errors are either transient or persistent but not
   // both.
   bool IsTransientError() const;
+
+  // Check if a mobile device management (mdm) error requires user interaction
+  // to resolve
+  bool IsDeviceManagementErrorUserActionable() const;
+
+  // Returns the details for a device management error. The returned reference
+  // is valid as long as the GoogleServiceAuthError object is alive.
+  // Should only be used when the error state is DEVICE_MANAGEMENT_ERROR.
+  const gaia::DeviceManagementErrorDetails& GetDeviceManagementErrorDetails()
+      const;
 
 #if BUILDFLAG(IS_ANDROID)
   static GoogleServiceAuthError FromJavaObject(
@@ -279,6 +306,20 @@ class COMPONENT_EXPORT(GOOGLE_APIS) GoogleServiceAuthError {
                            const ChallengeResponseRequired&) = default;
   };
 
+  struct DeviceManagementError {
+    explicit DeviceManagementError(
+        std::unique_ptr<gaia::DeviceManagementErrorDetails> detail);
+    ~DeviceManagementError();
+    DeviceManagementError(const DeviceManagementError& other);
+    DeviceManagementError& operator=(const DeviceManagementError& other);
+    DeviceManagementError(DeviceManagementError&& other) noexcept;
+    DeviceManagementError& operator=(DeviceManagementError&& other) noexcept;
+
+    std::unique_ptr<gaia::DeviceManagementErrorDetails> details;
+
+    bool operator==(const DeviceManagementError& other) const;
+  };
+
   using Details = std::variant<None,
                                InvalidGaiaCredentials,
                                AccountNotFound,
@@ -288,7 +329,8 @@ class COMPONENT_EXPORT(GOOGLE_APIS) GoogleServiceAuthError {
                                UnexpectedServiceResponse,
                                ServiceError,
                                ScopeLimitedUnrecoverableError,
-                               ChallengeResponseRequired>;
+                               ChallengeResponseRequired,
+                               DeviceManagementError>;
 
   explicit GoogleServiceAuthError(Details details);
 

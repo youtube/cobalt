@@ -11,8 +11,8 @@
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/promos/ios_promo_trigger_service.h"
-#include "chrome/browser/ui/promos/ios_promo_trigger_service_factory.h"
+#include "chrome/browser/ui/desktop_to_mobile_promos/ios_promo_trigger_service.h"
+#include "chrome/browser/ui/desktop_to_mobile_promos/ios_promo_trigger_service_factory.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "components/desktop_to_mobile_promos/desktop_to_mobile_promos_metrics.h"
@@ -135,10 +135,9 @@ class IOSPromoBubbleViewTest : public ChromeViewsTestBase {
   void CreateAndShowBubble(PromoType promo_type = PromoType::kLens,
                            BubbleType bubble_type = BubbleType::kQRCode) {
     auto bubble = std::make_unique<IOSPromoBubbleView>(
-        GetProfile(), promo_type, bubble_type, anchor_view_,
+        nullptr, GetProfile(), promo_type, bubble_type, anchor_view_,
         views::BubbleBorder::TOP_RIGHT);
     bubble_view_ = bubble.get();
-
     user_action_subscription_ =
         bubble_view_->AddUserActionCallback(user_action_callback_.Get());
 

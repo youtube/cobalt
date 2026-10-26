@@ -630,6 +630,12 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   FOREACH_SIMD_MEM_1_OPERAND_OPCODE(V) \
   FOREACH_SIMD_CONST_OPCODE(V)
 
+#define FOREACH_NUMERIC_OPCODE_WIDE(V)        \
+  V(I64Add128, 0xfc13, _, "i64.add128")       \
+  V(I64Sub128, 0xfc14, _, "i64.sub128")       \
+  V(I64MulWideS, 0xfc15, _, "i64.mul_wide_s") \
+  V(I64MulWideU, 0xfc16, _, "i64.mul_wide_u")
+
 #define FOREACH_NUMERIC_OPCODE_WITH_SIG(V)                 \
   V(I32SConvertSatF32, 0xfc00, i_f, "i32.trunc_sat_f32_s") \
   V(I32UConvertSatF32, 0xfc01, i_f, "i32.trunc_sat_f32_u") \
@@ -656,8 +662,10 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   /* It's whatever the table type is. */                  \
   V(TableFill, 0xfc11, _, "table.fill")
 
-#define FOREACH_NUMERIC_OPCODE(V) \
-  FOREACH_NUMERIC_OPCODE_WITH_SIG(V) FOREACH_NUMERIC_OPCODE_VARIADIC(V)
+#define FOREACH_NUMERIC_OPCODE(V)    \
+  FOREACH_NUMERIC_OPCODE_WITH_SIG(V) \
+  FOREACH_NUMERIC_OPCODE_WIDE(V)     \
+  FOREACH_NUMERIC_OPCODE_VARIADIC(V)
 
 // kExprName, binary, signature for memory32, wat name, signature for memory64.
 #define FOREACH_ATOMIC_OPCODE(V)                                              \
@@ -828,6 +836,9 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
 
 #define FOREACH_ATOMIC_GC_OPCODE(V) /*          Force 80 columns            */ \
   V(Pause, 0xfe04, _, "pause")                                                 \
+  /* The next two are placeholders, adjust them when the spec defines them. */ \
+  V(StructWait, 0xfe05, _, "struct.wait")                                      \
+  V(StructNotify, 0xfe06, _, "struct.notify")                                  \
   V(StructAtomicGet, 0xfe5c, _, "struct.atomic.get")                           \
   V(StructAtomicGetS, 0xfe5d, _, "struct.atomic.get_s")                        \
   V(StructAtomicGetU, 0xfe5e, _, "struct.atomic.get_u")                        \

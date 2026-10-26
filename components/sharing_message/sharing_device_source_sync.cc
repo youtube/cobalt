@@ -4,15 +4,13 @@
 
 #include "components/sharing_message/sharing_device_source_sync.h"
 
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
+#include "base/containers/to_vector.h"
 #include "base/functional/callback.h"
 #include "base/stl_util.h"
 #include "base/task/thread_pool.h"
 #include "base/trace_event/trace_event.h"
-#include "components/send_tab_to_self/target_device_info.h"
 #include "components/sharing_message/features.h"
 #include "components/sharing_message/proto/sharing_message.pb.h"
 #include "components/sharing_message/sharing_constants.h"
@@ -20,6 +18,7 @@
 #include "components/sharing_message/sharing_utils.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync_device_info/device_info.h"
+#include "components/sync_device_info/device_name_util.h"
 #include "components/sync_device_info/local_device_info_provider.h"
 #include "components/sync_device_info/local_device_info_util.h"
 
@@ -33,22 +32,6 @@ bool IsStale(const syncer::DeviceInfo& device) {
   return device.last_updated_timestamp() < min_updated_time;
 }
 
-SharingTargetDeviceInfo ConvertDeviceInfo(const syncer::DeviceInfo* device,
-                                          bool use_short_name) {
-  CHECK(device);
-
-  const send_tab_to_self::SharingDeviceNames device_names =
-      send_tab_to_self::GetSharingDeviceNames(device);
-
-  const std::string& client_name =
-      use_short_name ? device_names.short_name : device_names.full_name;
-
-  return SharingTargetDeviceInfo(
-      device->guid(), client_name, GetDevicePlatform(*device),
-      device->pulse_interval(), device->form_factor(),
-      device->last_updated_timestamp());
-}
-
 }  // namespace
 
 SharingDeviceSourceSync::SharingDeviceSourceSync(
@@ -58,14 +41,6 @@ SharingDeviceSourceSync::SharingDeviceSourceSync(
     : sync_service_(sync_service),
       local_device_info_provider_(local_device_info_provider),
       device_info_tracker_(device_info_tracker) {
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE,
-      {base::MayBlock(), base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
-      base::BindOnce(syncer::GetPersonalizableDeviceNameBlocking),
-      base::BindOnce(
-          &SharingDeviceSourceSync::InitPersonalizableLocalDeviceName,
-          weak_ptr_factory_.GetWeakPtr()));
-
   if (!device_info_tracker_->IsSyncing()) {
     device_info_tracker_->AddObserver(this);
   }
@@ -95,7 +70,10 @@ std::optional<SharingTargetDeviceInfo> SharingDeviceSourceSync::GetDeviceByGuid(
     return std::nullopt;
   }
 
-  return ConvertDeviceInfo(device_info, /*use_short_name=*/false);
+  return SharingTargetDeviceInfo(
+      device_info->guid(), syncer::GetDeviceDisplayNames(device_info).full_name,
+      GetDevicePlatform(*device_info), device_info->pulse_interval(),
+      device_info->form_factor(), device_info->last_updated_timestamp());
 }
 
 std::vector<SharingTargetDeviceInfo>
@@ -111,8 +89,7 @@ SharingDeviceSourceSync::GetDeviceCandidates(
 
 bool SharingDeviceSourceSync::IsReady() {
   return IsSyncDisabledForSharing(sync_service_) ||
-         (personalizable_local_device_name_ &&
-          device_info_tracker_->IsSyncing() &&
+         (device_info_tracker_->IsSyncing() &&
           local_device_info_provider_->GetLocalDeviceInfo());
 }
 
@@ -131,13 +108,6 @@ void SharingDeviceSourceSync::SetDeviceInfoTrackerForTesting(
   if (!device_info_tracker_->IsSyncing()) {
     device_info_tracker_->AddObserver(this);
   }
-  MaybeRunReadyCallbacks();
-}
-
-void SharingDeviceSourceSync::InitPersonalizableLocalDeviceName(
-    std::string personalizable_local_device_name) {
-  personalizable_local_device_name_ =
-      std::move(personalizable_local_device_name);
   MaybeRunReadyCallbacks();
 }
 
@@ -196,49 +166,24 @@ SharingDeviceSourceSync::ConvertAndDeduplicateDevices(
                      device2->last_updated_timestamp();
             });
 
-  std::unordered_map<const syncer::DeviceInfo*,
-                     send_tab_to_self::SharingDeviceNames>
-      device_names_map;
-  std::unordered_set<std::string> full_names;
-  std::unordered_map<std::string, int> short_names_counter;
-
-  // To prevent adding candidates with same full name as local device.
-  full_names.insert(send_tab_to_self::GetSharingDeviceNames(
-                        local_device_info_provider_->GetLocalDeviceInfo())
-                        .full_name);
-  // To prevent M78- instances of Chrome with same device model from showing up.
-  full_names.insert(*personalizable_local_device_name_);
-
-  for (const syncer::DeviceInfo* device : devices) {
-    send_tab_to_self::SharingDeviceNames device_names =
-        send_tab_to_self::GetSharingDeviceNames(device);
-
-    // Only insert the first occurrence of each device name.
-    auto inserted = full_names.insert(device_names.full_name);
-    if (!inserted.second) {
-      continue;
-    }
-
-    short_names_counter[device_names.short_name]++;
-    device_names_map.insert({device, std::move(device_names)});
+  const syncer::DeviceInfo* local_device =
+      local_device_info_provider_->GetLocalDeviceInfo();
+  std::optional<std::string> local_full_name;
+  if (local_device) {
+    local_full_name = syncer::GetDeviceDisplayNames(local_device).full_name;
   }
 
-  // Filter duplicates and convert devices.
-  std::vector<SharingTargetDeviceInfo> converted_devices;
+  // Resolve display names for the filtered list. This handles de-duplication
+  // by name and chooses between short/full names based on collisions.
+  std::vector<syncer::DeviceInfoWithName> device_names =
+      syncer::DetermineDisplayNamesAndDeduplicate(devices, local_full_name);
 
-  for (const syncer::DeviceInfo* device : devices) {
-    auto it = device_names_map.find(device);
-    if (it == device_names_map.end()) {
-      continue;
-    }
-
-    const send_tab_to_self::SharingDeviceNames& device_names = it->second;
-    bool unique_short_name = short_names_counter[device_names.short_name] == 1;
-
-    converted_devices.push_back(
-        ConvertDeviceInfo(device,
-                          /*use_short_name=*/unique_short_name));
-  }
-
-  return converted_devices;
+  // Convert to SharingTargetDeviceInfo, filtering out any devices that were
+  // de-duplicated by the naming utility.
+  return base::ToVector(device_names, [](const auto& info) {
+    return SharingTargetDeviceInfo(
+        info.device->guid(), info.display_name, GetDevicePlatform(*info.device),
+        info.device->pulse_interval(), info.device->form_factor(),
+        info.device->last_updated_timestamp());
+  });
 }

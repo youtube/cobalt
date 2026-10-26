@@ -94,8 +94,9 @@ bool IsValidContextName(const String& name_or_keyword) {
   // an underscore are reserved for special keywords.)"
   if (name_or_keyword.empty())
     return false;
-  if (name_or_keyword.StartsWith("_"))
+  if (name_or_keyword.starts_with('_')) {
     return false;
+  }
   return true;
 }
 
@@ -105,17 +106,17 @@ bool IsValidBrowsingContextNameOrKeyword(const String& name_or_keyword) {
   // valid browsing context name or that is an ASCII case-insensitive match for
   // one of: _blank, _self, _parent, or _top."
   if (IsValidContextName(name_or_keyword) ||
-      EqualIgnoringASCIICase(name_or_keyword, "_blank") ||
-      EqualIgnoringASCIICase(name_or_keyword, "_self") ||
-      EqualIgnoringASCIICase(name_or_keyword, "_parent") ||
-      EqualIgnoringASCIICase(name_or_keyword, "_top")) {
+      EqualIgnoringAsciiCase(name_or_keyword, "_blank") ||
+      EqualIgnoringAsciiCase(name_or_keyword, "_self") ||
+      EqualIgnoringAsciiCase(name_or_keyword, "_parent") ||
+      EqualIgnoringAsciiCase(name_or_keyword, "_top")) {
     return true;
   }
   return false;
 }
 
 bool IsValidTag(const String& tag) {
-  if (!tag.ContainsOnlyASCIIOrEmpty()) {
+  if (!tag.ContainsOnlyAsciiOrEmpty()) {
     return false;
   }
 
@@ -255,8 +256,9 @@ SpeculationRule* ParseSpeculationRule(JSONObject* input,
       // Let parsedURL be the result of parsing urlString with baseURL.
       // If parsedURL is failure, then continue.
       KURL parsed_url(base_url_to_parse, url_string);
-      if (!parsed_url.IsValid() || !parsed_url.ProtocolIsInHTTPFamily())
+      if (!parsed_url.IsValid() || !parsed_url.ProtocolIsInHttpFamily()) {
         continue;
+      }
 
       urls.push_back(std::move(parsed_url));
     }
@@ -609,7 +611,7 @@ void SpeculationRuleSet::SetTag(String tag) {
 
 void SpeculationRuleSet::AddWarnings(
     base::span<const String> warning_messages) {
-  warning_messages_.AppendSpan(warning_messages);
+  warning_messages_.append_range(warning_messages);
 }
 
 // static
@@ -768,7 +770,7 @@ SpeculationRuleSet* SpeculationRuleSet::Parse(Source* source,
 
           if (rule->predicate()) {
             result->has_document_rule_ = true;
-            result->selectors_.AppendVector(rule->predicate()->GetStyleRules());
+            result->selectors_.append_range(rule->predicate()->GetStyleRules());
           }
 
           if (rule->eagerness() !=
@@ -834,9 +836,9 @@ SpeculationRuleSet::SpeculationTargetHintFromString(
   // Currently only "_blank" and "_self" are supported.
   // TODO(https://crbug.com/1354049): Support more browsing context names and
   // keywords.
-  if (EqualIgnoringASCIICase(target_hint_str, "_blank")) {
+  if (EqualIgnoringAsciiCase(target_hint_str, "_blank")) {
     return mojom::blink::SpeculationTargetHint::kBlank;
-  } else if (EqualIgnoringASCIICase(target_hint_str, "_self")) {
+  } else if (EqualIgnoringAsciiCase(target_hint_str, "_self")) {
     return mojom::blink::SpeculationTargetHint::kSelf;
   } else {
     return mojom::blink::SpeculationTargetHint::kNoHint;

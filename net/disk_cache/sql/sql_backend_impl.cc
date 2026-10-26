@@ -442,18 +442,13 @@ void SqlBackendImpl::OnInitialized(CompletionOnceCallback callback,
 }
 
 void SqlBackendImpl::RunDelayedPostInitializationTasks() {
-  if (store_->MaybeLoadInMemoryIndex(base::BindOnce(
-          [](base::WeakPtr<SqlBackendImpl> self,
-             SqlPersistentStore::Error result) {
-            if (self && result == SqlPersistentStore::Error::kOk) {
-              self->store_->MaybeRunCleanupDoomedEntries(base::DoNothing());
-            }
-          },
-          weak_factory_.GetWeakPtr()))) {
-    return;
-  }
-  // The in-memory index has been already read. So trigger clean up task.
-  store_->MaybeRunCleanupDoomedEntries(base::DoNothing());
+  store_->MaybeLoadInMemoryIndex(base::BindOnce(
+      [](base::WeakPtr<SqlBackendImpl> self, SqlPersistentStore::Error result) {
+        if (self && result == SqlPersistentStore::Error::kOk) {
+          self->store_->MaybeRunCleanupDoomedEntries(base::DoNothing());
+        }
+      },
+      weak_factory_.GetWeakPtr()));
 }
 
 int64_t SqlBackendImpl::MaxFileSize() const {
@@ -463,6 +458,9 @@ int64_t SqlBackendImpl::MaxFileSize() const {
 
 base::expected<int32_t, net::Error> SqlBackendImpl::GetEntryCount(
     GetEntryCountCallback callback) const {
+  // Flush buffers so that the GetEntryCountAsync call can see entries not yet
+  // written to the DB.
+  FlushActiveEntriesBuffers();
   // The entry count must be retrieved asynchronously to ensure that all
   // pending database operations are reflected in the result.
   store_->GetEntryCountAsync(std::move(callback));
@@ -565,6 +563,12 @@ SqlEntryImpl* SqlBackendImpl::GetActiveEntry(const CacheEntryKey& key) {
     return &it->second.get();
   }
   return nullptr;
+}
+
+void SqlBackendImpl::FlushActiveEntriesBuffers() const {
+  for (const auto& it : active_entries_) {
+    it.second->FlushBuffer(/*force_flush_for_creation=*/true);
+  }
 }
 
 void SqlBackendImpl::DoomActiveEntry(SqlEntryImpl& entry) {
@@ -816,6 +820,10 @@ int64_t SqlBackendImpl::CalculateSizeOfEntriesBetween(
     base::Time initial_time,
     base::Time end_time,
     Int64CompletionOnceCallback callback) {
+  // Flush buffers so that the CalculateSizeOfEntriesBetween call can see
+  // entries not yet written to the DB.
+  FlushActiveEntriesBuffers();
+
   exclusive_operation_coordinator_.PostOrRunExclusiveOperation(base::BindOnce(
       &SqlBackendImpl::HandleCalculateSizeOfEntriesBetweenOperation,
       weak_factory_.GetWeakPtr(), initial_time, end_time, std::move(callback)));
@@ -846,9 +854,7 @@ void SqlBackendImpl::HandleCalculateSizeOfEntriesBetweenOperation(
 std::unique_ptr<Backend::Iterator> SqlBackendImpl::CreateIterator() {
   // Flush buffers so that the Iterator can see entries not yet written to the
   // DB.
-  for (const auto& it : active_entries_) {
-    it.second->FlushBuffer(/*force_flush_for_creation=*/true);
-  }
+  FlushActiveEntriesBuffers();
   return std::make_unique<IteratorImpl>(weak_factory_.GetWeakPtr());
 }
 
@@ -1455,23 +1461,30 @@ void SqlBackendImpl::ApplyInFlightEntryModifications(
 }
 
 int SqlBackendImpl::FlushQueueForTest(CompletionOnceCallback callback) {
-  exclusive_operation_coordinator_.PostOrRunExclusiveOperation(base::BindOnce(
-      [](std::vector<scoped_refptr<base::SequencedTaskRunner>>
-             background_task_runners,
-         CompletionOnceCallback callback,
-         std::unique_ptr<ExclusiveOperationCoordinator::OperationHandle>
-             handle) {
-        auto barrier_closure = base::BarrierClosure(
-            background_task_runners.size(),
-            base::BindOnce(std::move(callback), net::OK)
-                .Then(OnceClosureWithBoundArgs(std::move(handle))));
-        for (auto& runner : background_task_runners) {
-          runner->PostTaskAndReply(
-              // Post a no-op task to the background runner.
-              FROM_HERE, base::BindOnce([]() {}), barrier_closure);
-        }
-      },
-      background_task_runners_, std::move(callback)));
+  // `FlushQueueForTest` posts an exclusive operation to wait for all queued
+  // operations to complete. However, if this operation sets the "has pending
+  // task" flag, it would pause the eviction process (which checks this flag)
+  // that we might be waiting for. To avoid this, post the operation with
+  // `low_priority=true`.
+  exclusive_operation_coordinator_.PostOrRunExclusiveOperation(
+      base::BindOnce(
+          [](std::vector<scoped_refptr<base::SequencedTaskRunner>>
+                 background_task_runners,
+             CompletionOnceCallback callback,
+             std::unique_ptr<ExclusiveOperationCoordinator::OperationHandle>
+                 handle) {
+            auto barrier_closure = base::BarrierClosure(
+                background_task_runners.size(),
+                base::BindOnce(std::move(callback), net::OK)
+                    .Then(OnceClosureWithBoundArgs(std::move(handle))));
+            for (auto& runner : background_task_runners) {
+              runner->PostTaskAndReply(
+                  // Post a no-op task to the background runner.
+                  FROM_HERE, base::BindOnce([]() {}), barrier_closure);
+            }
+          },
+          background_task_runners_, std::move(callback)),
+      /*low_priority=*/true);
 
   return net::ERR_IO_PENDING;
 }
@@ -1482,9 +1495,9 @@ void SqlBackendImpl::MaybeTriggerEviction(bool is_idle_time_eviction) {
     return;
   }
   eviction_operation_queued_ = true;
-  exclusive_operation_coordinator_.PostOrRunExclusiveOperation(base::BindOnce(
+  exclusive_operation_coordinator_.PostOrRunExclusiveOperation(
       base::BindOnce(&SqlBackendImpl::HandleTriggerEvictionOperation,
-                     weak_factory_.GetWeakPtr(), is_idle_time_eviction)));
+                     weak_factory_.GetWeakPtr(), is_idle_time_eviction));
 }
 
 void SqlBackendImpl::HandleTriggerEvictionOperation(
@@ -1503,9 +1516,11 @@ void SqlBackendImpl::HandleTriggerEvictionOperation(
                                  store_->GetShardIdForHash(it.first.hash()));
     }
   }
-  store_->StartEviction(std::move(excluded_list), is_idle_time_eviction,
-                        base::BindOnce([](SqlPersistentStore::Error result) {
-                        }).Then(OnceClosureWithBoundArgs(std::move(handle))));
+  store_->StartEviction(
+      std::move(excluded_list), is_idle_time_eviction,
+      exclusive_operation_coordinator_.GetHasPendingTaskFlag(),
+      base::BindOnce([](SqlPersistentStore::Error result) {
+      }).Then(OnceClosureWithBoundArgs(std::move(handle))));
 }
 
 void SqlBackendImpl::EnableStrictCorruptionCheckForTesting() {

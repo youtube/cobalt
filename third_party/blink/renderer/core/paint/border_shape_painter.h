@@ -5,8 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_BORDER_SHAPE_PAINTER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_PAINT_BORDER_SHAPE_PAINTER_H_
 
-#include <optional>
-
 #include "base/memory/stack_allocated.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 
@@ -47,11 +45,35 @@ class BorderShapePainter {
   static Path OuterPath(const ComputedStyle&,
                         const PhysicalRect& outer_reference_rect);
 
+  // Returns the inner path to use for overflow clipping. For single-shape
+  // border-shape, this contracts the path inward by half the border stroke
+  // width, since the border is drawn as a stroke centered on the path and
+  // children should not paint over the inner half of the border.
+  static Path OverflowClipInnerPath(const ComputedStyle&,
+                                    const PhysicalRect& inner_reference_rect);
+
   // Returns an outer path offset by the given amount (positive = outward).
   static Path OuterPathWithOffset(const ComputedStyle&,
                                   const PhysicalRect& outer_reference_rect,
                                   float offset);
 
+  // Returns the union of |path| and its stroke at |stroke_thickness|,
+  // matching the shape used when painting border-shape shadows. Shared
+  // between painting (BoxPainterBase) and ink overflow (VisualOutsets).
+  static Path ExpandPathWithStroke(const Path& path, float stroke_thickness);
+
+  // Returns the complete ink overflow outsets for a border-shape element:
+  // both the visual extent of the border path (where the border stroke/fill
+  // draws outside the border box) and the visual extent of any normal
+  // (non-inset) box-shadows.
+  //
+  // Shadow outsets are computed by replicating the exact path the painter
+  // builds — ExpandPathWithStroke(OuterPath, (spread+blur)*2) — then outset
+  // by sigma_3 = ceil(3*sigma), which is how Skia bounds a box blur.
+  // This is more precise than BoxDecorationOutsets(), which omits the blur
+  // term from the path expansion. Callers should Unite (not Expand/add) with
+  // existing outsets so that these path-based shadow bounds supersede the
+  // approximate bounds from BoxDecorationOutsets().
   static PhysicalBoxStrut VisualOutsets(
       const ComputedStyle&,
       const PhysicalRect& border_rect,

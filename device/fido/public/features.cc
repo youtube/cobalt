@@ -130,13 +130,6 @@ BASE_FEATURE(kWebAuthnHelloSignal,
              "WebAuthenticationHelloSignal",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_ANDROID)
-// Enabled by default in M144 Remove in or after M146.
-BASE_FEATURE(kWebAuthnAndroidSignal,
-             "WebAuthenticationAndroidSignal",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_ANDROID)
-
 // Disabled by default.
 BASE_FEATURE(kDigitalCredentialsHybridLinking,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -179,12 +172,6 @@ BASE_FEATURE_PARAM(int,
                    "timeout_ms",
                    kDefaultImmediateMediationTimeoutMs);
 
-// Enabled by default. Remove the flag and the logic (as if the flag is in
-// disabled state) when the WebAuthenticationImmediateGet origin trial is over.
-BASE_FEATURE(kWebAuthnImmediateGetAutoselect,
-             "WebAuthenticationImmediateGetAutoselect",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Deprecation flag. Disabled by default in M142. Remove in or after M145.
 BASE_FEATURE(kWebAuthnSendPinGeneration,
              "WebAuthenticationSendPinGeneration",
@@ -199,18 +186,19 @@ BASE_FEATURE(kWebAuthnNewRefreshFlow,
              "WebAuthenticationNewRefreshFlow",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enabled by default in M142. Remove in or after M145.
-BASE_FEATURE(kWebAuthenticationHashClientDataJsonForEnclave,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enabled by default in M143. Remove in or after M146.
-BASE_FEATURE(kWebAuthnOpportunisticRetrieval, base::FEATURE_ENABLED_BY_DEFAULT);
+// Disabled by default.
+BASE_FEATURE(kWebAuthnOpportunisticRetrieval,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(int,
                    kWebAuthnOpportunisticRetrievalTimeToKeepCachedKeySeconds,
                    &kWebAuthnOpportunisticRetrieval,
                    "cached_key_ttl",
                    kDefaultOpportunisticRetrievalTimeToKeepCachedKeySeconds);
+
+// Enabled by default in M148. Remove in or after M152.
+BASE_FEATURE(kWebAuthnDoNotAlwaysTerminateStateMachineDuringIdentityChange,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enabled by default in M143. Remove in or after M146.
 BASE_FEATURE(kWebAuthenticationWindowsHints, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -229,5 +217,10 @@ BASE_FEATURE(kFedCmInAuthenticator, base::FEATURE_DISABLED_BY_DEFAULT);
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_FEATURE(kWebAuthnCreatePinWhenSystemUvDisabled,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_WIN)
+// Enabled by default in M147. Remove in or after M150.
+BASE_FEATURE(kWebAuthnWinPrfOnCreate, base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace device

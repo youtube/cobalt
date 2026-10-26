@@ -94,7 +94,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="Notifications.Actions" enum="NotificationActionType"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>dewittj@chromium.org</owner>
   <owner>newcomer@chromium.org</owner>
   <owner>cros-status-area-eng@google.com</owner>
@@ -212,7 +212,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Notifications.Android.JobNativeStartupDuration{IntentAction}"
-    units="ms" expires_after="2026-07-05">
+    units="ms" expires_after="2026-09-06">
   <owner>peter@chromium.org</owner>
   <owner>engedy@chromium.org</owner>
   <summary>
@@ -267,7 +267,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Notifications.Android.JobStage{IntentAction}"
-    enum="NotificationJobStage" expires_after="2026-07-12">
+    enum="NotificationJobStage" expires_after="2026-09-13">
   <owner>peter@chromium.org</owner>
   <owner>engedy@chromium.org</owner>
   <summary>
@@ -493,8 +493,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Notifications.ChromeFinds.OptInEvent"
+    enum="ChromeFindsOptInEvent" expires_after="2026-08-25">
+  <owner>wylieb@google.com</owner>
+  <owner>evanluo@google.com</owner>
+  <summary>
+    Records everything around the opt-in flow journey for the Chrome Finds.
+    Recorded when the bottom sheet is shown, accepted (first-time vs re-opt-in),
+    declined, or when the action in the confirmation snackbar is clicked.
+  </summary>
+</histogram>
+
 <histogram name="Notifications.Cros.Actions.{NotificationAction}"
-    enum="NotificationTypeDetailed" expires_after="2026-07-12">
+    enum="NotificationTypeDetailed" expires_after="2026-09-13">
   <owner>newcomer@chromium.org</owner>
   <owner>cros-status-area-eng@google.com</owner>
   <summary>
@@ -746,7 +757,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Notifications.macOS.AppShimProcess.UptimeOnDisconnect"
-    units="ms" expires_after="2026-03-01">
+    units="ms" expires_after="2027-03-01">
   <owner>mek@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -758,7 +769,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Notifications.macOS.AppShimProcess.UptimeOnUnexpectedDisconnect"
-    units="ms" expires_after="2026-03-01">
+    units="ms" expires_after="2027-03-01">
   <owner>mek@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -803,7 +814,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Notifications.NonPersistentNotificationThirdPartyCount"
-    enum="Boolean" expires_after="2026-07-05">
+    enum="Boolean" expires_after="2026-09-06">
   <owner>awillia@chromium.org</owner>
   <owner>peter@chromium.org</owner>
   <summary>
@@ -906,7 +917,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Notifications.Permissions.UNNotification.{Style}.PermissionRequest"
-    enum="UNNotificationPermissionRequestResult" expires_after="2026-03-01">
+    enum="UNNotificationPermissionRequestResult" expires_after="2027-03-01">
   <owner>mek@chromium.org</owner>
   <owner>peter@chromium.org</owner>
   <summary>
@@ -920,7 +931,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Notifications.Permissions.UNNotification.{Style}.PermissionStatus"
-    enum="UNNotificationPermissionStatus" expires_after="2026-03-01">
+    enum="UNNotificationPermissionStatus" expires_after="2027-03-01">
   <owner>mek@chromium.org</owner>
   <owner>peter@chromium.org</owner>
   <summary>
@@ -933,7 +944,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Notifications.Permissions.UNNotification.{Style}.Style"
-    enum="UNNotificationStyle" expires_after="2026-03-01">
+    enum="UNNotificationStyle" expires_after="2027-03-01">
   <owner>mek@chromium.org</owner>
   <owner>peter@chromium.org</owner>
   <summary>
@@ -969,7 +980,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Notifications.PersistentNotificationDisplayResult"
-    enum="PersistentNotificationDisplayResult" expires_after="2026-07-12">
+    enum="PersistentNotificationDisplayResult" expires_after="2026-09-13">
   <owner>knollr@chromium.org</owner>
   <owner>peter@chromium.org</owner>
   <summary>
@@ -983,7 +994,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Notifications.PersistentNotificationThirdPartyCount"
-    enum="Boolean" expires_after="2026-07-12">
+    enum="Boolean" expires_after="2026-09-13">
   <owner>awillia@chromium.org</owner>
   <owner>peter@chromium.org</owner>
   <summary>
@@ -1072,9 +1083,14 @@ chromium-metrics-reviews@google.com.
   <token key="NotificationTipsFeatureType">
     <variant name=""/>
     <variant name=".BottomOmnibox"/>
+    <variant name=".CreateTabGroups"/>
+    <variant name=".CustomizeMVT"/>
     <variant name=".EnhancedSafeBrowsing"/>
     <variant name=".GoogleLens"/>
+    <variant name=".PasswordAutofill"/>
     <variant name=".QuickDelete"/>
+    <variant name=".RecentTabs"/>
+    <variant name=".Signin"/>
   </token>
 </histogram>
 
@@ -1103,9 +1119,14 @@ chromium-metrics-reviews@google.com.
   <token key="NotificationTipsFeatureType">
     <variant name=""/>
     <variant name=".BottomOmnibox"/>
+    <variant name=".CreateTabGroups"/>
+    <variant name=".CustomizeMVT"/>
     <variant name=".EnhancedSafeBrowsing"/>
     <variant name=".GoogleLens"/>
+    <variant name=".PasswordAutofill"/>
     <variant name=".QuickDelete"/>
+    <variant name=".RecentTabs"/>
+    <variant name=".Signin"/>
   </token>
 </histogram>
 

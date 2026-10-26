@@ -913,9 +913,9 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
     return vector()->GetLanguageMode(slot());
   }
 
-  static inline Builtin GetLoadICHandlerForFieldIndex(int field_index,
-                                                      bool is_inobject,
-                                                      bool is_double);
+  static inline Builtin GetLoadICHandlerForStorageOffset(int storage_offset,
+                                                         bool is_inobject,
+                                                         bool is_double);
 
   InlineCacheState ic_state() const;
   static Builtin ic_handler(Tagged<MaybeObject> feedback_extra,
@@ -924,6 +924,9 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   bool IsUninitialized() const {
     return ic_state() == InlineCacheState::UNINITIALIZED;
+  }
+  bool IsHomomorphic() const {
+    return ic_state() == InlineCacheState::HOMOMORPHIC;
   }
   bool IsMegamorphic() const {
     return ic_state() == InlineCacheState::MEGAMORPHIC;
@@ -973,6 +976,10 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   void ConfigurePolymorphic(DirectHandle<Name> name,
                             MapsAndHandlers const& maps_and_handlers);
 
+  void ConfigureHomomorphic(DirectHandle<WeakHomomorphicFixedArray> maps,
+                            const MaybeObjectDirectHandle& handler);
+  MaybeObjectDirectHandle ExtractHomomorphicHandler();
+
   void ConfigureMegaDOM(const MaybeObjectDirectHandle& handler);
   MaybeObjectHandle ExtractMegaDOMHandler();
 
@@ -1018,7 +1025,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   void ConfigureHandlerMode(const MaybeObjectDirectHandle& handler);
 
   // For CloneObject ICs
-  static constexpr int kCloneObjectPolymorphicEntrySize = 2;
+  static constexpr uint32_t kCloneObjectPolymorphicEntrySize = 2;
   void ConfigureCloneObject(DirectHandle<Map> source_map,
                             const MaybeObjectHandle& handler);
 
@@ -1048,7 +1055,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   inline Tagged<MaybeObject> MegaDOMSentinel() const;
 
   // Create an array. The caller must install it in a feedback vector slot.
-  DirectHandle<WeakFixedArray> CreateArrayOfSize(int length);
+  DirectHandle<WeakFixedArray> CreateArrayOfSize(uint32_t length);
 
   // Helpers to maintain feedback_cache_.
   inline Tagged<MaybeObject> FromHandle(MaybeObjectDirectHandle slot) const;

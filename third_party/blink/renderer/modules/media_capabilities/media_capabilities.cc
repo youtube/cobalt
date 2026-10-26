@@ -240,12 +240,13 @@ bool IsValidMimeType(const String& content_type,
   if (!parsed_content_type.IsValid())
     return false;
 
+  String mime_type = parsed_content_type.MimeType();
   // Valid ParsedContentType implies we have a mime type.
-  DCHECK(parsed_content_type.MimeType());
-  if (!parsed_content_type.MimeType().StartsWith(prefix) &&
-      (is_webrtc ||
-       !parsed_content_type.MimeType().StartsWith(kApplicationMimeTypePrefix)))
+  DCHECK(mime_type);
+  if (!mime_type.starts_with(prefix) &&
+      (is_webrtc || !mime_type.starts_with(kApplicationMimeTypePrefix))) {
     return false;
+  }
 
   // No requirement on parameters for RTP MIME types.
   if (is_webrtc)
@@ -261,7 +262,7 @@ bool IsValidMimeType(const String& content_type,
     return true;
 
   for (const auto& param : parameters) {
-    if (EqualIgnoringASCIICase(param.name, kCodecsMimeTypeParam))
+    if (EqualIgnoringAsciiCase(param.name, kCodecsMimeTypeParam))
       return true;
   }
   return false;
@@ -272,7 +273,7 @@ bool IsValidMimeType(const String& content_type,
   if (parameters.ParameterCount() == 0)
     return true;
 
-  return EqualIgnoringASCIICase(parameters.begin()->name, kCodecsMimeTypeParam);
+  return EqualIgnoringAsciiCase(parameters.begin()->name, kCodecsMimeTypeParam);
 #endif // BUILDFLAG(IS_COBALT)
 }
 
@@ -403,7 +404,7 @@ WebAudioConfiguration ToWebAudioConfiguration(
   DCHECK(parsed_content_type.IsValid());
   DCHECK(!parsed_content_type.GetParameters().HasDuplicatedNames());
 
-  web_configuration.mime_type = parsed_content_type.MimeType().LowerASCII();
+  web_configuration.mime_type = parsed_content_type.MimeType().ToAsciiLower();
   web_configuration.codec =
       parsed_content_type.ParameterValueForName(kCodecsMimeTypeParam);
 
@@ -430,7 +431,7 @@ WebVideoConfiguration ToWebVideoConfiguration(
   ParsedContentType parsed_content_type(configuration->contentType());
   DCHECK(parsed_content_type.IsValid());
   DCHECK(!parsed_content_type.GetParameters().HasDuplicatedNames());
-  web_configuration.mime_type = parsed_content_type.MimeType().LowerASCII();
+  web_configuration.mime_type = parsed_content_type.MimeType().ToAsciiLower();
   web_configuration.codec =
       parsed_content_type.ParameterValueForName(kCodecsMimeTypeParam);
 
@@ -742,15 +743,15 @@ bool ParseContentType(const String& content_type,
     return false;
   }
 
-  *mime_type = parsed_content_type.MimeType().LowerASCII();
+  *mime_type = parsed_content_type.MimeType().ToAsciiLower();
   *codec = parsed_content_type.ParameterValueForName(kCodecsMimeTypeParam);
   return true;
 }
 
 #if BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION)
 bool IsDolbyVisionVideoCodec(const String& video_codec_str) {
-  return video_codec_str.StartsWith("dvh1.", kTextCaseSensitive) ||
-         video_codec_str.StartsWith("dvhe.", kTextCaseSensitive);
+  return video_codec_str.starts_with("dvh1.") ||
+         video_codec_str.starts_with("dvhe.");
 }
 #endif  // BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION)
 

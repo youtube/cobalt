@@ -27,7 +27,6 @@
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/ssl/model/captive_portal_tab_helper.h"
 #import "ios/chrome/browser/web/model/error_page_util.h"
-#import "ios/chrome/browser/web/model/features.h"
 #import "ios/components/security_interstitials/https_only_mode/https_only_mode_container.h"
 #import "ios/components/security_interstitials/https_only_mode/https_only_mode_error.h"
 #import "ios/components/security_interstitials/ios_blocking_page_tab_helper.h"
@@ -274,7 +273,7 @@ TEST_F(ChromeWebClientTest, PrepareErrorPageWithSSLInfo) {
       base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
           &test_loader_factory));
 
-  CaptivePortalTabHelper::GetOrCreateForWebState(&web_state);
+  CaptivePortalTabHelper::CreateForWebState(&web_state);
   web_state.SetBrowserState(profile());
   web_client.PrepareErrorPage(&web_state, GURL(kTestUrl), error,
                               /*is_post=*/false,

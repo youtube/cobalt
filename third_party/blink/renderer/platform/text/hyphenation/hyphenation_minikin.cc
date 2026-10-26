@@ -276,7 +276,7 @@ AtomicString HyphenationMinikin::MapLocale(const AtomicString& locale) {
         return AtomicString(it->value->locale_for_exact_match);
       return AtomicString(it->value->locale);
     }
-    const wtf_size_t last_hyphen = mapped_locale.ReverseFind('-');
+    const wtf_size_t last_hyphen = mapped_locale.rfind('-');
     if (last_hyphen == kNotFound || !last_hyphen)
       return mapped_locale;
     mapped_locale = AtomicString(mapped_locale.GetString().Left(last_hyphen));
@@ -286,12 +286,13 @@ AtomicString HyphenationMinikin::MapLocale(const AtomicString& locale) {
 scoped_refptr<Hyphenation> Hyphenation::PlatformGetHyphenation(
     const AtomicString& locale) {
   const AtomicString mapped_locale = HyphenationMinikin::MapLocale(locale);
-  if (!EqualIgnoringASCIICase(mapped_locale, locale))
+  if (!EqualIgnoringAsciiCase(mapped_locale, locale)) {
     return LayoutLocale::Get(mapped_locale)->GetHyphenation();
+  }
 
   scoped_refptr<HyphenationMinikin> hyphenation(
       base::AdoptRef(new HyphenationMinikin));
-  const AtomicString lower_ascii_locale = locale.LowerASCII();
+  const AtomicString lower_ascii_locale = locale.ToAsciiLower();
   if (!hyphenation->OpenDictionary(lower_ascii_locale))
     return nullptr;
   hyphenation->Initialize(lower_ascii_locale);

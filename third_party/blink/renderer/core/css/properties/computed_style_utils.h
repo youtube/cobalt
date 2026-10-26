@@ -105,7 +105,8 @@ class CORE_EXPORT ComputedStyleUtils {
       const ComputedStyle&,
       const FillLayer*);
   static cssvalue::CSSBorderImageSliceValue* ValueForNinePieceImageSlice(
-      const NinePieceImage&);
+      const NinePieceImage&,
+      float zoom);
   static CSSQuadValue* ValueForNinePieceImageQuad(const BorderImageLengthBox&,
                                                   const ComputedStyle&);
   static CSSValue* ValueForNinePieceImageRepeat(const NinePieceImage&);
@@ -177,9 +178,7 @@ class CORE_EXPORT ComputedStyleUtils {
   static CSSValue* ValueForTextOverflow(const TextOverflowData&,
                                         const ComputedStyle&);
   static CSSValue* TouchActionFlagsToCSSValue(TouchAction);
-  static CSSValue* ValueForWillChange(const Vector<CSSPropertyID>&,
-                                      bool will_change_contents,
-                                      bool will_change_scroll_position);
+  static CSSValue* ValueForWillChange(const StyleWillChangeData*);
 
   static CSSValue* ValueForAnimationDelay(const Timing::Delay& delay);
   static CSSValue* ValueForAnimationDirection(Timing::PlaybackDirection);
@@ -360,6 +359,12 @@ class CORE_EXPORT ComputedStyleUtils {
       bool is_edge,
       CSSValuePhase value_phase,
       CSSGapDecorationPropertyDirection direction);
+  static const CSSValue* ValuesForGapDecorationRuleInsetStartEndShorthand(
+      const StylePropertyShorthand&,
+      const ComputedStyle&,
+      const LayoutObject*,
+      bool allow_visited_style,
+      CSSValuePhase value_phase);
   static CSSValueList* ValuesForGapDecorationRuleInsetShorthand(
       const StylePropertyShorthand&,
       const ComputedStyle&,
@@ -403,6 +408,13 @@ class CORE_EXPORT ComputedStyleUtils {
 
   static const CSSValue*
   ValuesForBidirectionalGapRuleEdgeInteriorInsetShorthand(
+      const StylePropertyShorthand&,
+      const ComputedStyle&,
+      const LayoutObject*,
+      bool allow_visited_style,
+      CSSValuePhase value_phase);
+
+  static const CSSValue* ValuesForBidirectionalGapRuleInsetStartEndShorthand(
       const StylePropertyShorthand&,
       const ComputedStyle&,
       const LayoutObject*,

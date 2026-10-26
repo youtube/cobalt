@@ -104,7 +104,7 @@ class SyncServiceFactoryTest : public testing::Test {
 
   // Returns the collection of default datatypes.
   syncer::DataTypeSet DefaultDatatypes() {
-    static_assert(62 == syncer::GetNumDataTypes(),
+    static_assert(63 == syncer::GetNumDataTypes(),
                   "When adding a new type, you probably want to add it here as "
                   "well (assuming it is already enabled). Check similar "
                   "function in "
@@ -212,9 +212,7 @@ class SyncServiceFactoryTest : public testing::Test {
     // because GoogleGroupsManagerFactory is null for testing and hence no
     // controller gets instantiated for the type.
 
-    if (base::FeatureList::IsEnabled(syncer::kSyncAutofillLoyaltyCard)) {
-      datatypes.Put(syncer::AUTOFILL_VALUABLE);
-    }
+    datatypes.Put(syncer::AUTOFILL_VALUABLE);
 
     if (base::FeatureList::IsEnabled(syncer::kSyncAutofillValuableMetadata)) {
       datatypes.Put(syncer::AUTOFILL_VALUABLE_METADATA);
@@ -242,6 +240,10 @@ class SyncServiceFactoryTest : public testing::Test {
 
     if (base::FeatureList::IsEnabled(syncer::kSyncThemesIos)) {
       datatypes.Put(syncer::THEMES_IOS);
+    }
+
+    if (base::FeatureList::IsEnabled(syncer::kSyncAccessibilityAnnotation)) {
+      datatypes.Put(syncer::ACCESSIBILITY_ANNOTATION);
     }
 
     return datatypes;

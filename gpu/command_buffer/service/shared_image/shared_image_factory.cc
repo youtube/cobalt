@@ -7,7 +7,6 @@
 #include <inttypes.h>
 
 #include <memory>
-#include <utility>
 
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
@@ -104,9 +103,6 @@
 namespace gpu {
 
 namespace {
-
-BASE_FEATURE(kUseCompoundImageBackingAsDefault,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char* GmbTypeToString(gfx::GpuMemoryBufferType type) {
   switch (type) {
@@ -240,7 +236,6 @@ SharedImageFactory::SharedImageFactory(
         shared_image_manager_->dxgi_shared_handle_manager(),
         context_state_->GetGLFormatCaps(), workarounds_,
         enable_webnn_only_d3d_factory);
-    d3d_backing_factory_ = d3d_factory.get();
     factories_.push_back(std::move(d3d_factory));
   }
   {
@@ -374,8 +369,10 @@ bool SharedImageFactory::CreateSharedImage(
     SharedImageUsageSet usage,
     std::string debug_label,
     std::optional<SharedImagePoolId> pool_id) {
-  auto* factory = GetFactoryByUsage(usage, format, size,
-                                    /*pixel_data=*/{}, gfx::EMPTY_BUFFER);
+  auto* factory =
+      GetFactoryByUsage(usage, format, size,
+                        /*pixel_data=*/{}, gfx::EMPTY_BUFFER,
+                        /*stream=*/std::nullopt, /*params=*/nullptr);
   if (!factory) {
     LogGetFactoryFailed(usage, format, gfx::EMPTY_BUFFER, size, debug_label);
     return false;
@@ -387,7 +384,7 @@ bool SharedImageFactory::CreateSharedImage(
       IsSharedBetweenThreads(usage));
 
   std::unique_ptr<SharedImageBacking> backing =
-      base::FeatureList::IsEnabled(kUseCompoundImageBackingAsDefault)
+      base::FeatureList::IsEnabled(features::kUseCompoundImageBackingAsDefault)
           ? CompoundImageBacking::WrapExternalBacking(this, copy_manager(),
                                                       std::move(temp_backing))
           : std::move(temp_backing);
@@ -497,11 +494,13 @@ bool SharedImageFactory::CreateSharedImage(const Mailbox& mailbox,
       IsNativeBufferSupported(format, buffer_usage, gpu_extra_info_);
   std::unique_ptr<SharedImageBacking> backing;
   const bool force_compound_backing =
-      base::FeatureList::IsEnabled(kUseCompoundImageBackingAsDefault);
+      base::FeatureList::IsEnabled(features::kUseCompoundImageBackingAsDefault);
 
   if (native_buffer_supported) {
     auto* factory = GetFactoryByUsage(usage, format, size,
-                                      /*pixel_data=*/{}, GetNativeBufferType());
+                                      /*pixel_data=*/{}, GetNativeBufferType(),
+                                      /*stream=*/std::nullopt,
+                                      /*params=*/nullptr);
     if (!factory) {
       LogGetFactoryFailed(usage, format, GetNativeBufferType(), size,
                           debug_label);
@@ -534,7 +533,8 @@ bool SharedImageFactory::CreateSharedImage(const Mailbox& mailbox,
       }
       auto* factory =
           GetFactoryByUsage(usage, format, size,
-                            /*pixel_data=*/{}, gfx::SHARED_MEMORY_BUFFER);
+                            /*pixel_data=*/{}, gfx::SHARED_MEMORY_BUFFER,
+                            /*stream=*/std::nullopt, /*params=*/nullptr);
 
       bool use_compound = false;
       if (!factory && !IsSharedBetweenThreads(usage)) {
@@ -590,7 +590,8 @@ bool SharedImageFactory::CreateSharedImage(const Mailbox& mailbox,
   }
 
   SharedImageBackingFactory* const factory =
-      GetFactoryByUsage(usage, format, size, data, gfx::EMPTY_BUFFER);
+      GetFactoryByUsage(usage, format, size, data, gfx::EMPTY_BUFFER,
+                        /*stream=*/std::nullopt, /*params=*/nullptr);
   if (!factory) {
     LogGetFactoryFailed(usage, format, gfx::EMPTY_BUFFER, size, debug_label);
     return false;
@@ -601,18 +602,8 @@ bool SharedImageFactory::CreateSharedImage(const Mailbox& mailbox,
       SharedImageUsageSet(usage), std::move(debug_label),
       IsSharedBetweenThreads(usage), data);
 
-#if BUILDFLAG(IS_ANDROID)
-  LOG_IF(ERROR, !temp_backing)
-      << "Could not CreateSharedImagePixels type="
-      << std::to_underlying(factory->GetBackingType())
-      << " with params: usage: " << CreateLabelForSharedImageUsage(usage)
-      << ", format: " << format.ToString()
-      << ", share_between_threads: " << IsSharedBetweenThreads(usage)
-      << ", size: " << size.ToString() << ", debug_label: " << debug_label;
-#endif  // BUILDFLAG(IS_ANDROID)
-
   std::unique_ptr<SharedImageBacking> backing =
-      base::FeatureList::IsEnabled(kUseCompoundImageBackingAsDefault)
+      base::FeatureList::IsEnabled(features::kUseCompoundImageBackingAsDefault)
           ? CompoundImageBacking::WrapExternalBacking(this, copy_manager(),
                                                       std::move(temp_backing))
           : std::move(temp_backing);
@@ -648,7 +639,9 @@ bool SharedImageFactory::CreateSharedImage(
   }
 #endif  // BUILDFLAG(IS_ANDROID)
   if (!factory) {
-    factory = GetFactoryByUsage(usage, format, size, {}, gmb_type);
+    factory = GetFactoryByUsage(usage, format, size, /*pixel_data=*/{},
+                                gmb_type, /*stream=*/std::nullopt,
+                                /*params=*/nullptr);
   }
   if (!factory && gmb_type == gfx::SHARED_MEMORY_BUFFER &&
       !IsSharedBetweenThreads(usage)) {
@@ -672,7 +665,8 @@ bool SharedImageFactory::CreateSharedImage(
         std::move(debug_label), IsSharedBetweenThreads(usage),
         std::move(buffer_handle));
 
-    backing = base::FeatureList::IsEnabled(kUseCompoundImageBackingAsDefault)
+    backing = base::FeatureList::IsEnabled(
+                  features::kUseCompoundImageBackingAsDefault)
                   ? CompoundImageBacking::WrapExternalBacking(
                         this, copy_manager(), std::move(temp_backing))
                   : std::move(temp_backing);
@@ -687,20 +681,10 @@ bool SharedImageFactory::CreateSharedImage(
   return RegisterBacking(std::move(backing), std::move(pool_id));
 }
 
-bool SharedImageFactory::UpdateSharedImage(const Mailbox& mailbox) {
-  return UpdateSharedImage(mailbox, nullptr);
-}
-
 bool SharedImageFactory::UpdateSharedImage(
     const Mailbox& mailbox,
     std::unique_ptr<gfx::GpuFence> in_fence) {
-  auto* shared_image = GetFactoryRef(mailbox);
-  if (!shared_image) {
-    LOG(ERROR) << "UpdateSharedImage: Could not find shared image mailbox";
-    return false;
-  }
-  shared_image->Update(std::move(in_fence));
-  return true;
+  return shared_image_manager_->UpdateSharedImage(mailbox, std::move(in_fence));
 }
 
 bool SharedImageFactory::DestroySharedImage(const Mailbox& mailbox) {
@@ -713,16 +697,10 @@ bool SharedImageFactory::DestroySharedImage(const Mailbox& mailbox) {
   return true;
 }
 
-bool SharedImageFactory::SetSharedImagePurgeable(const Mailbox& mailbox,
+void SharedImageFactory::SetSharedImagePurgeable(const Mailbox& mailbox,
                                                  bool purgeable) {
-  auto* shared_image = GetFactoryRef(mailbox);
-  if (!shared_image) {
-    LOG(ERROR)
-        << "SetSharedImagePurgeable: Could not find shared image mailbox";
-    return false;
-  }
-  shared_image->SetPurgeable(purgeable);
-  return true;
+  return shared_image_manager_->SetPurgeable(mailbox,
+                                             memory_type_tracker_.get());
 }
 
 void SharedImageFactory::DestroyAllSharedImages(bool have_context) {
@@ -880,10 +858,24 @@ gpu::SharedImageCapabilities SharedImageFactory::MakeCapabilities() {
       !is_angle_metal && !is_skia_graphite;
   shared_image_caps.supports_r16_shared_images =
       is_angle_metal || is_skia_graphite;
-  shared_image_caps.supports_native_nv12_mappable_shared_images =
-      IsNativeBufferSupported(viz::MultiPlaneFormat::kNV12,
-                              gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
-                              gpu_extra_info_);
+  if (context_state_) {
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
+    auto* surface_factory =
+        ui::OzonePlatform::GetInstance()->GetSurfaceFactoryOzone();
+    shared_image_caps.supports_ycbcr_nv12_sampling =
+        surface_factory->IsFormatSupportedForTexturing(
+            viz::MultiPlaneFormat::kNV12) &&
+        IsNativeBufferSupported(viz::MultiPlaneFormat::kNV12,
+                                gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
+                                gpu_extra_info_);
+    shared_image_caps.supports_ycbcr_p010_sampling =
+        surface_factory->IsFormatSupportedForTexturing(
+            viz::MultiPlaneFormat::kP010);
+#elif BUILDFLAG(IS_APPLE)
+    shared_image_caps.supports_ycbcr_nv12_sampling = true;
+    shared_image_caps.supports_ycbcr_p010_sampling = true;
+#endif
+  }
   shared_image_caps.disable_r8_shared_images =
       workarounds_.r8_egl_images_broken;
   shared_image_caps.disable_webgpu_shared_images =
@@ -990,7 +982,9 @@ SharedImageBackingFactory* SharedImageFactory::GetFactoryByUsage(
     viz::SharedImageFormat format,
     const gfx::Size& size,
     base::span<const uint8_t> pixel_data,
-    gfx::GpuMemoryBufferType gmb_type) {
+    gfx::GpuMemoryBufferType gmb_type,
+    std::optional<SharedImageAccessStream> stream,
+    const AccessParams* params) {
   if (backing_factory_for_testing_)
     return backing_factory_for_testing_;
 
@@ -999,6 +993,13 @@ SharedImageBackingFactory* SharedImageFactory::GetFactoryByUsage(
     if (factory->CanCreateSharedImage(SharedImageUsageSet(usage), format, size,
                                       share_between_threads, gmb_type,
                                       gr_context_type_, pixel_data)) {
+      // If a specific stream is being requested (for dynamic allocation),
+      // perform an additional check using the factory's
+      // `IsSupportedForAccessStream`.
+      if (stream.has_value() &&
+          !factory->IsSupportedForAccessStream(*stream, params)) {
+        continue;
+      }
       return factory.get();
     }
   }

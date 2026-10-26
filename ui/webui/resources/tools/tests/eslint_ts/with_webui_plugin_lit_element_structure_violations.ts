@@ -68,7 +68,12 @@ declare global {
 
 customElements.define(TestError5Element.is, TestError5Element);
 
-// Case1.6: Class with incorrect order method definition order.
+// Case1.6: Class with
+//  1) Inconsistent DOM name suffix.
+//  2) Incorrect order method definition order
+//  3) Usage of this.dispatchEvent(new CustomEvent(...))
+//  4) Usage of incorrect dollar sign notation.
+//  5) Usage of CustomEvent type without a type parameter.
 export class TestError6Element extends CrLitElement {
   override render() {
     return '';
@@ -79,7 +84,7 @@ export class TestError6Element extends CrLitElement {
   }
 
   static get is() {
-    return 'test-error6';
+    return 'test-error6-element';
   }
 
   static override get properties() {
@@ -104,14 +109,31 @@ export class TestError6Element extends CrLitElement {
 
   override updated() {
     super.updated();
+
+    this.dispatchEvent(
+        new CustomEvent('foo1-updated', {bubbles: true, composed: true}));
+    this.dispatchEvent(new CustomEvent(
+        'foo2-updated', {bubbles: true, composed: true, detail: 'foo'}));
+
+    const FOO3_UPDATED = 'foo3-updated';
+    this.dispatchEvent(new CustomEvent(
+        FOO3_UPDATED, {bubbles: true, composed: true, detail: 'foo'}));
+
+    this.$['hello-button'].focus();
   }
 
   override firstUpdated() {}
+
+  // Test case where CustomEvent is used with a function parameter.
+  protected onFoo_(someEvent: CustomEvent) {
+    // Test case where CustomEvent is used with a type assertion.
+    const _otherEvent = someEvent as CustomEvent;
+  }
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'test-error6': TestError6Element;
+    'test-error6-element': TestError6Element;
   }
 }
 
@@ -150,9 +172,9 @@ declare global {
 customElements.define(TestError8ElementFoo.is, TestError8ElementFoo);
 
 // Case1.9: Class with incorrect class name, using "extends
-// TestError9ElementFooBase".
-const TestError9ElementFooBase = FooMixin(CrLitElement);
-export class TestError9ElementFoo extends TestError9ElementFooBase {
+// FooMixinLit(CrLitElement)" (note the "Lit" suffix in the Mixin name).
+export class TestError9ElementFoo extends FooMixinLit
+(CrLitElement) {
   static get is() {
     return 'test-error9';
   }
@@ -165,6 +187,38 @@ declare global {
 }
 
 customElements.define(TestError9ElementFoo.is, TestError9ElementFoo);
+
+// Case1.10: Class with incorrect class name, using "extends
+// TestError10ElementFooBase".
+const TestError10ElementFooBase = FooMixin(CrLitElement);
+export class TestError10ElementFoo extends TestError10ElementFooBase {
+  static get is() {
+    return 'test-error10';
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'test-error10': TestError10ElementFoo;
+  }
+}
+
+customElements.define(TestError10ElementFoo.is, TestError10ElementFoo);
+
+// Case1.11: Class with inconsistent class name.
+export class TestError11Element extends CrLitElement {
+  static get is() {
+    return 'test-other-error11';
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'test-other-error11': TestError11Element;
+  }
+}
+
+customElements.define(TestError11Element.is, TestError11Element);
 
 
 /* Cases with no violations below. */
@@ -213,6 +267,25 @@ export class TestNoError3Element extends CrLitElement {
 
   override updated() {
     super.updated();
+
+    // Case where bubbles, composed are not specified.
+    this.dispatchEvent(new CustomEvent('bar-updated', {detail: 'bar'}));
+    // Case where bubbles, composed are specified but one of them is false.
+    this.dispatchEvent(new CustomEvent(
+        'bar-updated', {bubbles: true, composed: false, detail: 'bar'}));
+    // Case where options besides bubbles, composed, detail are specifiied.
+    this.dispatchEvent(new CustomEvent(
+        'bar-updated',
+        {bubbles: true, composed: true, cancelable: true, detail: 'bar'}));
+
+    this.fire('bar-updated', 'bar');
+    this.$.helloOtherButton.focus();
+  }
+
+  // Test case where CustomEvent is used with a function parameter.
+  protected onFoo_(someEvent2: CustomEvent<string>) {
+    // Test case where CustomEvent is used with a type assertion.
+    const _otherEvent2 = someEvent2 as CustomEvent<string>;
   }
 }
 

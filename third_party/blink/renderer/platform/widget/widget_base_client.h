@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cc/metrics/begin_main_frame_metrics.h"
 #include "cc/metrics/frame_sequence_tracker_collection.h"
 #include "cc/paint/element_id.h"
@@ -22,6 +23,10 @@
 #include "third_party/blink/renderer/platform/widget/input/input_handler_proxy.h"
 #include "ui/base/mojom/menu_source_type.mojom-blink-forward.h"
 #include "ui/display/mojom/screen_orientation.mojom-blink.h"
+
+namespace viz {
+class FrameTimingDetails;
+}
 
 namespace cc {
 class LayerTreeFrameSink;
@@ -94,6 +99,12 @@ class WidgetBaseClient {
   virtual void EndCommitCompositorFrame(base::TimeTicks commit_start_time,
                                         base::TimeTicks commit_finish_time) {}
 
+#if BUILDFLAG(IS_COBALT)
+  virtual void DidPresentCobaltFrame(
+      uint32_t frame_token,
+      const viz::FrameTimingDetails& frame_timing_details) {}
+#endif
+
   // Applies viewport related properties during a commit from the compositor
   // thread.
   virtual void ApplyViewportChanges(const cc::ApplyViewportChangesArgs& args) {}
@@ -111,6 +122,8 @@ class WidgetBaseClient {
       base::TimeTicks first_scroll_timestamp) {}
 
   virtual void WillBeginMainFrame() {}
+  // Called immediately before the commit task is posted to the impl thread.
+  virtual void WillBeginImplCommit() {}
   virtual void DidCompletePageScaleAnimation() {}
 
   // Allocates a LayerTreeFrameSink to submit CompositorFrames to. Only

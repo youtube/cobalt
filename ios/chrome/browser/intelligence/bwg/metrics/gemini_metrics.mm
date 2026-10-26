@@ -8,7 +8,7 @@
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "base/time/time.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/public/provider/chrome/browser/bwg/bwg_api.h"
 
 namespace {
@@ -74,6 +74,11 @@ IneligibilityReasons& IneligibilityReasons::set_authentication(bool value) {
 const char kEligibilityHistogram[] = "IOS.Gemini.Eligibility";
 
 const char kEntryPointHistogram[] = "IOS.Gemini.EntryPoint";
+
+const char kEntryPointImpressionHistogram[] =
+    "IOS.Gemini.EntryPoint.Impression";
+
+const char kEntryPointAvailableHistogram[] = "IOS.Gemini.EntryPoint.Available";
 
 const char kFeedbackHistogram[] = "IOS.Gemini.Feedback";
 
@@ -157,6 +162,9 @@ const char kFloatyShownFromSourceHistogram[] =
 const char kFloatyHiddenFromSourceHistogram[] =
     "IOS.Gemini.Floaty.HiddenFromSource";
 
+const char kFloatyDismissedStateHistogram[] =
+    "IOS.Gemini.Floaty.DismissedState";
+
 const char kImageRemixContextMenuEntryPointAspectRatioTappedHistogram[] =
     "IOS.Gemini.ImageRemix.ContextMenuEntryPoint.AspectRatio.Tapped";
 
@@ -177,6 +185,9 @@ const char kCameraFlowGeminiCameraPermissionAlertResultHistogram[] =
 
 const char kCameraFlowCameraPickerResultHistogram[] =
     "IOS.Gemini.CameraFlow.CameraPicker.Result";
+
+const char kEditMenuSelectedTextLengthHistogram[] =
+    "IOS.Gemini.EditMenuPrompt.SelectedText.Length";
 
 void RecordFREPromoAction(IOSGeminiFREAction action) {
   switch (action) {
@@ -277,7 +288,7 @@ void RecordGeminiSessionLengthByType(base::TimeDelta session_duration,
   }
 }
 
-void RecordGeminiEntryPointImpression() {
+void RecordGeminiEntryPointImpression(gemini::EntryPoint entry_point) {
   base::TimeTicks now = base::TimeTicks::Now();
   base::TimeTicks& last_impression_time = GetLastGeminiImpressionTime();
 
@@ -286,8 +297,15 @@ void RecordGeminiEntryPointImpression() {
       (now - last_impression_time) >= kGeminiImpressionThrottleInterval) {
     base::RecordAction(
         base::UserMetricsAction("MobileGeminiEntryPointImpression"));
+    base::UmaHistogramEnumeration(kEntryPointImpressionHistogram, entry_point);
     last_impression_time = now;
   }
+}
+
+void RecordGeminiEntryPointAvailable(gemini::EntryPoint entry_point) {
+  base::RecordAction(
+      base::UserMetricsAction("MobileGeminiEntryPointAvailable"));
+  base::UmaHistogramEnumeration(kEntryPointAvailableHistogram, entry_point);
 }
 
 void RecordFREShown() {
@@ -374,9 +392,16 @@ void RecordFloatyCollapsedToExpanded() {
       IOSGeminiViewStateTransition::kCollapsedToExpanded);
 }
 
-void RecordFloatyDismissedWhileCollapsed() {
-  base::RecordAction(
-      base::UserMetricsAction("MobileGeminiFloatyCollapsedToDismissed"));
+void RecordFloatyDismissedState(ios::provider::GeminiViewState state) {
+  base::UmaHistogramEnumeration(kFloatyDismissedStateHistogram, state);
+
+  if (state == ios::provider::GeminiViewState::kCollapsed) {
+    base::RecordAction(
+        base::UserMetricsAction("MobileGeminiFloatyCollapsedToDismissed"));
+  } else if (state == ios::provider::GeminiViewState::kExpanded) {
+    base::RecordAction(
+        base::UserMetricsAction("MobileGeminiFloatyExpandedToDismissed"));
+  }
 }
 
 void RecordFloatyMinimizedTime(base::TimeTicks elapsed_minimized_floaty_time) {
@@ -585,4 +610,8 @@ void RecordGeminiInputPlateAttachmentOptionTapped(
   base::RecordAction(
       base::UserMetricsAction("MobileGeminiInputPlateAttachmentOptionTapped"));
   base::UmaHistogramEnumeration(kInputPlateAttachmentOptionHistogram, option);
+}
+
+void RecordGeminiEditMenuSelectedTextLength(int length) {
+  base::UmaHistogramCounts1000(kEditMenuSelectedTextLengthHistogram, length);
 }

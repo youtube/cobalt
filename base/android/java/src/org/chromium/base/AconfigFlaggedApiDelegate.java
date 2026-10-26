@@ -12,13 +12,14 @@ import android.content.ServiceConnection;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.hardware.display.DisplayManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.OutcomeReceiver;
+import android.os.ParcelFileDescriptor;
 import android.util.Pair;
 import android.util.SparseArray;
 import android.view.Display;
 import android.view.ViewConfiguration;
-import android.view.Window;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.TextAttribute;
@@ -132,18 +133,6 @@ public interface AconfigFlaggedApiDelegate {
             Executor executor,
             DisplayTopologyListener displayTopologyListener) {}
 
-    /**
-     * Calls the {@link android.view.WindowManager.LayoutParams#setKeyboardCaptureEnabled(boolean
-     * hasCapture)} method if supported.
-     *
-     * @param window {@link android.view.Window} on which the method should be called.
-     * @param hasCapture whether keyboard capture should be enabled or disabled.
-     * @return boolean indicating whether the android API was invoked.
-     */
-    default boolean setKeyboardCaptureEnabled(Window window, boolean hasCapture) {
-        return false;
-    }
-
     /** Returns whether rebindService() is available or not. */
     default boolean isUpdateServiceBindingApiAvailable() {
         return false;
@@ -191,13 +180,15 @@ public interface AconfigFlaggedApiDelegate {
     }
 
     /**
-     * Calls the {@link android.view.ViewConfiguration#getTextCursorBlinkIntervalMillis()} method if
-     * an implementation is available, otherwise returns a default value.
-     *
-     * @param viewConfiguration The {@link android.view.ViewConfiguration} instance to use.
+     * Gets the system text cursor blink interval in milliseconds if available, otherwise returns a
+     * default value.
      */
-    default int getTextCursorBlinkInterval(ViewConfiguration viewConfiguration) {
+    default int getTextCursorBlinkInterval() {
         return DEFAULT_TEXT_CURSOR_BLINK_INTERVAL_MS;
+    }
+
+    default int getTextCursorBlinkInterval(ViewConfiguration viewConfiguration) {
+        return getTextCursorBlinkInterval();
     }
 
     /**
@@ -366,6 +357,14 @@ public interface AconfigFlaggedApiDelegate {
     }
 
     /**
+     * Returns the {@link PasswordEchoSettingDelegate} if the feature to split the Android setting
+     * 'Show passwords' is enabled. the feature is enabled. Returns null otherwise.
+     */
+    default @Nullable PasswordEchoSettingDelegate getPasswordEchoSettingDelegate() {
+        return null;
+    }
+
+    /**
      * Constructs {@link WebAppQueryRequest} and calls {@link
      * android.content.pm.webapp.WebAppManager#query(@NonNull WebAppQueryRequest
      * request, @NonNull @CallbackExecutor Executor executor, @NonNull IntConsumer callback)} with
@@ -460,5 +459,32 @@ public interface AconfigFlaggedApiDelegate {
     /** Gets an Android SerialManager wrapped in an intermediary object. */
     default @Nullable SerialManager getSerialManager() {
         return null;
+    }
+
+    /** Checks whether content restriction is supported and enabled for WebViews. */
+    default boolean isContentRestrictionEnabled() {
+        return false;
+    }
+
+    /**
+     * Calls the platform to determine if the content should be allowed or blocked.
+     *
+     * @param uri The URI of the content to be classified.
+     * @param requestBody The request body of the content to be classified. Can be null for requests
+     *     that have no body (for ex. GET requests).
+     * @param mimeType The MIME type of the content to be classified.
+     * @param executor The executor to run the callback on.
+     * @return A promise fulfilled with the boolean classification result (true if allowed),
+     *     rejected otherwise with {@link UnsupportedOperationException} if not supported or with
+     *     the exception received from the API call.
+     */
+    default Promise<Boolean> requestContentRestrictionClassification(
+            Uri uri,
+            @Nullable ParcelFileDescriptor requestBody,
+            String mimeType,
+            Executor executor) {
+        Promise<Boolean> promise = new Promise<>();
+        promise.reject(new UnsupportedOperationException("Not supported"));
+        return promise;
     }
 }

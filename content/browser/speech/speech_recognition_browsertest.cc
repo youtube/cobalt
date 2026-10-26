@@ -180,8 +180,9 @@ std::string MakeGoodResponse() {
 
   // Prepend 4 byte prefix length indication to the protobuf message as
   // envisaged by the google streaming recognition webservice protocol.
-  msg_string.insert(0u, base::as_string_view(base::U32ToBigEndian(
-                            base::checked_cast<uint32_t>(msg_string.size()))));
+  auto msg_size_bytes =
+      base::U32ToBigEndian(base::checked_cast<uint32_t>(msg_string.size()));
+  msg_string.insert(0u, base::as_string_view(msg_size_bytes));
   return msg_string;
 }
 
@@ -506,13 +507,17 @@ IN_PROC_BROWSER_TEST_F(SpeechRecognitionBrowserTest,
         shell->web_contents()->GetSiteInstance());
   };
 
-  EXPECT_EQ(GetSiteInstance(shell)->GetStoragePartitionConfig(),
+  EXPECT_EQ(GetSiteInstance(shell)
+                ->GetSecurityPrincipal()
+                .GetStoragePartitionConfig(),
             storage_partition_config);
   EXPECT_TRUE(GetSiteInstance(shell)->IsFixedStoragePartition());
 
   ASSERT_TRUE(
       NavigateToURL(shell, embedded_test_server()->GetURL("/title1.html")));
-  EXPECT_EQ(GetSiteInstance(shell)->GetStoragePartitionConfig(),
+  EXPECT_EQ(GetSiteInstance(shell)
+                ->GetSecurityPrincipal()
+                .GetStoragePartitionConfig(),
             storage_partition_config);
   EXPECT_TRUE(GetSiteInstance(shell)->IsFixedStoragePartition());
 

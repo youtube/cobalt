@@ -53,6 +53,7 @@
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/form_import/form_data_importer.h"
+#include "components/autofill/core/browser/form_import/payments/payments_form_data_importer.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/foundations/test_autofill_manager_waiter.h"
 #include "components/autofill/core/browser/metrics/payments/credit_card_save_metrics.h"
@@ -180,17 +181,13 @@ class SaveCardBubbleViewsFullFormBrowserTest
     std::vector<base::test::FeatureRefAndParams> enabled_features = {};
     std::vector<base::test::FeatureRef> disabled_features = {};
 
-    if (is_page_action_migration_enabled) {
-      enabled_features.push_back({
-          ::features::kPageActionsMigration,
-          {{
-              ::features::kPageActionsMigrationSavePayments.name,
-              "true",
-          }},
-      });
-    } else {
-      disabled_features.emplace_back(::features::kPageActionsMigration);
-    }
+    enabled_features.push_back({
+        ::features::kPageActionsMigration,
+        {{
+            ::features::kPageActionsMigrationSavePayments.name,
+            is_page_action_migration_enabled ? "true" : "false",
+        }},
+    });
     feature_list_.InitWithFeaturesAndParameters(enabled_features,
                                                 disabled_features);
     CHECK_EQ(IsPageActionMigrationEnabled(), is_page_action_migration_enabled);
@@ -300,7 +297,8 @@ class SaveCardBubbleViewsFullFormBrowserTest
     return autofill_manager() ? autofill_manager()
                                     ->client()
                                     .GetFormDataImporter()
-                                    ->GetCreditCardSaveManager()
+                                    ->GetPaymentsFormDataImporter()
+                                    .GetCreditCardSaveManager()
                               : nullptr;
   }
 

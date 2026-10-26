@@ -19,13 +19,12 @@
 #include "base/task/cancelable_task_tracker.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
-#include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/translate/partial_translate_bubble_model.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
@@ -52,7 +51,7 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "ui/base/accelerators/accelerator.h"
-#include "ui/base/interaction/typed_identifier.h"
+#include "ui/base/identifier/typed_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/base/pointer/touch_ui_controller.h"
@@ -124,6 +123,8 @@ namespace webapps {
 enum class InstallableWebAppCheckResult;
 struct WebAppBannerData;
 }  // namespace webapps
+
+class CustomFloatingCorner;
 
 ///////////////////////////////////////////////////////////////////////////////
 // BrowserView
@@ -286,6 +287,10 @@ class BrowserView : public BrowserWindow,
     return vertical_tab_strip_region_view_.get();
   }
 
+  ProjectsPanelView* projects_panel_container_for_testing() const {
+    return projects_panel_container_;
+  }
+
   // Accessor for the TabStrip.
   TabStrip* horizontal_tab_strip_for_testing() {
     return horizontal_tab_strip_region_view_->tab_strip();
@@ -325,9 +330,7 @@ class BrowserView : public BrowserWindow,
     return weak_ptr_factory_.GetWeakPtr();
   }
 
-#if BUILDFLAG(ENABLE_GLIC)
   views::LabelButton* GetGlicButton();
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
   // Accessor for the BrowserView's TabSearchBubbleHost instance.
   TabSearchBubbleHost* GetTabSearchBubbleHost();
@@ -804,10 +807,7 @@ class BrowserView : public BrowserWindow,
   // feature is enabled).
   std::vector<views::NativeViewHost*> GetNativeViewHostsForTopControlsSlide();
 
-  using BrowserWindow::CreateTabSearchBubble;
-  void CreateTabSearchBubble(
-      tab_search::mojom::TabSearchSection section,
-      tab_search::mojom::TabOrganizationFeature organization_feature) override;
+  void CreateTabSearchBubble() override;
   void CloseTabSearchBubble() override;
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -1139,9 +1139,6 @@ class BrowserView : public BrowserWindow,
   // `frame_timing_details` contains the paint timing information of the frame.
   void OnFirstPresentation(const viz::FrameTimingDetails& frame_timing_details);
 
-  // Called when the initial WebUI components are ready.
-  void OnInitialWebUIReady();
-
   // TODO(crbug.com/461955649): Move ExclusiveAccessContextImpl out of
   // BrowserView and make it shared so BrowserWindowFeatures can own it
   // directly.
@@ -1303,8 +1300,8 @@ class BrowserView : public BrowserWindow,
   raw_ptr<VerticalTabStripRegionView> vertical_tab_strip_region_view_ = nullptr;
 
   // Outward-projecting corners of the vertical tab strip.
-  raw_ptr<views::View> vertical_tab_strip_top_corner_ = nullptr;
-  raw_ptr<views::View> vertical_tab_strip_bottom_corner_ = nullptr;
+  raw_ptr<CustomFloatingCorner> vertical_tab_strip_top_corner_ = nullptr;
+  raw_ptr<CustomFloatingCorner> vertical_tab_strip_bottom_corner_ = nullptr;
 
   // The view responsible for housing the contents of the projects panel.
   raw_ptr<ProjectsPanelView> projects_panel_container_ = nullptr;
@@ -1442,6 +1439,9 @@ class BrowserView : public BrowserWindow,
   PrefChangeRegistrar registrar_;
 
   base::CallbackListSubscription vertical_tab_subscription_;
+
+  std::unique_ptr<tabs::VerticalTabStripStateController::ScopedEnableStateLock>
+      vertical_tabs_enable_state_lock_;
 
   base::CallbackListSubscription projects_panel_subscription_;
 

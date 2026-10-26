@@ -103,17 +103,17 @@ KURL NormalizeValue(const String& key,
       // <spec step="2.5.2">Set normalized[specifierKey] to null.</spec>
       //
       // <spec step="2.5.3">Continue.</spec>
-      return NullURL();
+      return NullUrl();
 
     case ParsedSpecifier::Type::kBare:
       AddIgnoredValueMessage(logger, key,
                              StrCat({"Bare specifier: ", value_string}));
-      return NullURL();
+      return NullUrl();
 
     case ParsedSpecifier::Type::kURL:
       // <spec step="2.6">If specifierKey ends with U+002F (/), and the
       // serialization of addressURL does not end with U+002F (/), then:</spec>
-      if (key.EndsWith("/") && !value.GetUrl().GetString().EndsWith("/")) {
+      if (key.ends_with('/') && !value.GetUrl().GetString().ends_with("/")) {
         // <spec step="2.6.1">Report a warning to the console that an invalid
         // address was given for the specifier key specifierKey; since
         // specifierKey ended in a slash, so must the address.</spec>
@@ -126,7 +126,7 @@ KURL NormalizeValue(const String& key,
         // <spec step="2.6.2">Set normalized[specifierKey] to null.</spec>
         //
         // <spec step="2.6.3">Continue.</spec>
-        return NullURL();
+        return NullUrl();
       }
 
       DCHECK(value.GetUrl().IsValid());
@@ -438,7 +438,7 @@ ImportMap::SpecifierMap ImportMap::SortAndNormalizeSpecifierMap(
         if (!imports->GetString(entry.first, &value_string)) {
           AddIgnoredValueMessage(logger, entry.first,
                                  "Internal error in GetString().");
-          normalized.Set(normalized_specifier_key, NullURL());
+          normalized.Set(normalized_specifier_key, NullUrl());
           break;
         }
 
@@ -461,7 +461,7 @@ ImportMap::SpecifierMap ImportMap::SortAndNormalizeSpecifierMap(
         AddIgnoredValueMessage(logger, entry.first, "Invalid value type.");
 
         // <spec step="2.3.2">Set normalized[specifierKey] to null.</spec>
-        normalized.Set(normalized_specifier_key, NullURL());
+        normalized.Set(normalized_specifier_key, NullUrl());
 
         // <spec step="2.3.3">Continue.</spec>
         break;
@@ -495,11 +495,13 @@ std::optional<ImportMap::MatchResult> ImportMap::MatchPrefix(
   for (auto it = specifier_map.begin(); it != specifier_map.end(); ++it) {
     // <spec step="1.2">If specifierKey ends with U+002F (/) and
     // normalizedSpecifier starts with specifierKey, then:</spec>
-    if (!it->key.EndsWith('/'))
+    if (!it->key.ends_with('/')) {
       continue;
+    }
 
-    if (!key.StartsWith(it->key))
+    if (!key.starts_with(it->key)) {
       continue;
+    }
 
     // https://wicg.github.io/import-maps/#longer-or-code-unit-less-than
     // We omit code unit comparison, because there can be at most one
@@ -537,7 +539,7 @@ std::optional<KURL> ImportMap::Resolve(const ParsedSpecifier& parsed_specifier,
     // <spec step="8.1">If scopePrefix is baseURLString, or if scopePrefix ends
     // with U+002F (/) and baseURLString starts with scopePrefix, then:</spec>
     if (scope == base_url.GetString() ||
-        (scope.EndsWith("/") && base_url.GetString().StartsWith(scope))) {
+        (scope.ends_with('/') && base_url.GetString().starts_with(scope))) {
       // <spec step="8.1.1">Let scopeImportsMatch be the result of resolving an
       // imports match given normalizedSpecifier and scopeImports.</spec>
       std::optional<KURL> scope_match =
@@ -613,7 +615,7 @@ KURL ImportMap::ResolveImportsMatchInternal(const String& key,
     *debug_message =
         StrCat({"Import Map: \"", key, "\" matches with \"", matched->key,
                 "\" but is blocked by a null value"});
-    return NullURL();
+    return NullUrl();
   }
 
   // <spec step="1.1">If specifierKey is normalizedSpecifier, then:</spec>
@@ -633,18 +635,18 @@ KURL ImportMap::ResolveImportsMatchInternal(const String& key,
     *debug_message =
         StrCat({"Import Map: \"", key, "\" matches with \"", matched->key,
                 "\" but is blocked due to relative URL parse failure"});
-    return NullURL();
+    return NullUrl();
   }
 
   // <spec step="1.2.8">If the serialization of url does not start with the
   // serialization of resolutionResult, then throw a TypeError indicating that
   // resolution of normalizedSpecifier was blocked due to it backtracking above
   // its prefix specifierKey.</spec>
-  if (!url.GetString().StartsWith(matched->value.GetString())) {
+  if (!url.GetString().starts_with(matched->value.GetString())) {
     *debug_message =
         StrCat({"Import Map: \"", key, "\" matches with \"", matched->key,
                 "\" but is blocked due to backtracking"});
-    return NullURL();
+    return NullUrl();
   }
 
   // <spec step="1.2.9">Return url.</spec>

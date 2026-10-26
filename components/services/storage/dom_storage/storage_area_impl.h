@@ -16,11 +16,11 @@
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "components/services/storage/dom_storage/async_dom_storage_database.h"
+#include "components/services/storage/dom_storage/db_status.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
-#include "storage/common/database/db_status.h"
 #include "third_party/blink/public/mojom/dom_storage/storage_area.mojom.h"
 
 namespace base {
@@ -178,14 +178,14 @@ class StorageAreaImpl : public blink::mojom::StorageArea,
   void Put(const std::vector<uint8_t>& key,
            const std::vector<uint8_t>& value,
            const std::optional<std::vector<uint8_t>>& client_old_value,
-           const std::string& source,
+           blink::mojom::StorageAreaSourcePtr source,
            PutCallback callback) override;
   void Delete(const std::vector<uint8_t>& key,
               const std::optional<std::vector<uint8_t>>& client_old_value,
-              const std::string& source,
+              blink::mojom::StorageAreaSourcePtr source,
               DeleteCallback callback) override;
   void DeleteAll(
-      const std::string& source,
+      blink::mojom::StorageAreaSourcePtr source,
       mojo::PendingRemote<blink::mojom::StorageAreaObserver> new_observer,
       DeleteAllCallback callback) override;
   void GetAll(

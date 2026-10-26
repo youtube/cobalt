@@ -74,15 +74,14 @@ std::optional<std::string> SerializeDict(const base::DictValue& value) {
 }
 
 // Tests for chrome.printerProvider API.
-class PrinterProviderApiTest : public ExtensionApiTest,
-                               public testing::WithParamInterface<ContextType> {
+class PrinterProviderApiTest : public ExtensionApiTest {
  public:
   enum PrintRequestDataType {
     PRINT_REQUEST_DATA_TYPE_NOT_SET,
     PRINT_REQUEST_DATA_TYPE_BYTES
   };
 
-  PrinterProviderApiTest() : ExtensionApiTest(GetParam()) {}
+  PrinterProviderApiTest() = default;
   ~PrinterProviderApiTest() override = default;
   PrinterProviderApiTest(const PrinterProviderApiTest&) = delete;
   PrinterProviderApiTest& operator=(const PrinterProviderApiTest&) = delete;
@@ -169,8 +168,9 @@ class PrinterProviderApiTest : public ExtensionApiTest,
     ExtensionId extension_id;
     InitializePrinterProviderTestExtension("printer_provider/request_print",
                                            test_param, &extension_id);
-    if (extension_id.empty())
+    if (extension_id.empty()) {
       return;
+    }
 
     base::RunLoop run_loop;
     bool success;
@@ -188,8 +188,9 @@ class PrinterProviderApiTest : public ExtensionApiTest,
         break;
     }
 
-    if (data_type != PRINT_REQUEST_DATA_TYPE_NOT_SET)
+    if (data_type != PRINT_REQUEST_DATA_TYPE_NOT_SET) {
       ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
+    }
 
     run_loop.Run();
     EXPECT_EQ(expected_result, status);
@@ -207,8 +208,9 @@ class PrinterProviderApiTest : public ExtensionApiTest,
     ExtensionId extension_id;
     InitializePrinterProviderTestExtension(
         "printer_provider/request_capability", test_param, &extension_id);
-    if (extension_id.empty())
+    if (extension_id.empty()) {
       return;
+    }
 
     base::test::TestFuture<base::DictValue> capability_future;
     StartCapabilityRequest(extension_id, capability_future.GetCallback());
@@ -225,8 +227,9 @@ class PrinterProviderApiTest : public ExtensionApiTest,
 
     scoped_refptr<const Extension> extension =
         extension_registry->enabled_extensions().GetByID(extension_id);
-    if (!extension)
+    if (!extension) {
       return false;
+    }
 
     extension_registry->RemoveEnabled(extension_id);
     extension_registry->TriggerOnUnloaded(extension.get(),
@@ -250,44 +253,37 @@ class PrinterProviderApiTest : public ExtensionApiTest,
   }
 };
 
-INSTANTIATE_TEST_SUITE_P(EventPage,
-                         PrinterProviderApiTest,
-                         ::testing::Values(ContextType::kEventPage));
-INSTANTIATE_TEST_SUITE_P(ServiceWorker,
-                         PrinterProviderApiTest,
-                         ::testing::Values(ContextType::kServiceWorker));
-
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, PrintJobSuccess) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, PrintJobSuccess) {
   RunPrintRequestTestExtension("OK", PRINT_REQUEST_DATA_TYPE_BYTES, "OK");
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, PrintJobAsyncSuccess) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, PrintJobAsyncSuccess) {
   RunPrintRequestTestExtension("ASYNC_RESPONSE", PRINT_REQUEST_DATA_TYPE_BYTES,
                                "OK");
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, PrintJobFailed) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, PrintJobFailed) {
   RunPrintRequestTestExtension("INVALID_TICKET", PRINT_REQUEST_DATA_TYPE_BYTES,
                                "INVALID_TICKET");
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, NoPrintEventListener) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, NoPrintEventListener) {
   RunPrintRequestTestExtension("NO_LISTENER", PRINT_REQUEST_DATA_TYPE_BYTES,
                                "FAILED");
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest,
                        PrintRequestInvalidCallbackParam) {
   RunPrintRequestTestExtension("INVALID_VALUE", PRINT_REQUEST_DATA_TYPE_BYTES,
                                "FAILED");
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, PrintRequestDataNotSet) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, PrintRequestDataNotSet) {
   RunPrintRequestTestExtension("IGNORE_CALLBACK",
                                PRINT_REQUEST_DATA_TYPE_NOT_SET, "FAILED");
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, PrintRequestExtensionUnloaded) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, PrintRequestExtensionUnloaded) {
   ResultCatcher catcher;
 
   ExtensionId extension_id;
@@ -313,28 +309,28 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, PrintRequestExtensionUnloaded) {
   EXPECT_EQ("FAILED", status);
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetCapabilitySuccess) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, GetCapabilitySuccess) {
   RunPrinterCapabilitiesRequestTest("OK", "{\"capability\":\"value\"}");
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetCapabilityAsyncSuccess) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, GetCapabilityAsyncSuccess) {
   RunPrinterCapabilitiesRequestTest("ASYNC_RESPONSE",
                                     "{\"capability\":\"value\"}");
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, EmptyCapability) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, EmptyCapability) {
   RunPrinterCapabilitiesRequestTest("EMPTY", "{}");
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, NoCapabilityEventListener) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, NoCapabilityEventListener) {
   RunPrinterCapabilitiesRequestTest("NO_LISTENER", "{}");
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, CapabilityInvalidValue) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, CapabilityInvalidValue) {
   RunPrinterCapabilitiesRequestTest("INVALID_VALUE", "{}");
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetCapabilityExtensionUnloaded) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, GetCapabilityExtensionUnloaded) {
   ResultCatcher catcher;
 
   ExtensionId extension_id;
@@ -352,7 +348,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetCapabilityExtensionUnloaded) {
   EXPECT_EQ("{}", *result);
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersSuccess) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, GetPrintersSuccess) {
   ResultCatcher catcher;
 
   ExtensionId extension_id;
@@ -387,7 +383,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersSuccess) {
   ValidatePrinterListValue(printers, expected_printers);
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersAsyncSuccess) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, GetPrintersAsyncSuccess) {
   ResultCatcher catcher;
 
   ExtensionId extension_id;
@@ -415,7 +411,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersAsyncSuccess) {
   ValidatePrinterListValue(printers, expected_printers);
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersTwoExtensions) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, GetPrintersTwoExtensions) {
   ResultCatcher catcher;
 
   ExtensionId extension_id_1;
@@ -470,7 +466,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersTwoExtensions) {
   ValidatePrinterListValue(printers, expected_printers);
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest,
                        GetPrintersTwoExtensionsBothUnloaded) {
   ResultCatcher catcher;
 
@@ -500,7 +496,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
   EXPECT_TRUE(printers.empty());
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest,
                        GetPrintersTwoExtensionsOneFails) {
   ResultCatcher catcher;
 
@@ -542,7 +538,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
   ValidatePrinterListValue(printers, expected_printers);
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest,
                        GetPrintersTwoExtensionsOneWithNoListener) {
   ResultCatcher catcher;
 
@@ -584,7 +580,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
   ValidatePrinterListValue(printers, expected_printers);
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersNoListener) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, GetPrintersNoListener) {
   ResultCatcher catcher;
 
   ExtensionId extension_id;
@@ -603,7 +599,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersNoListener) {
   EXPECT_TRUE(printers.empty());
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersNotArray) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, GetPrintersNotArray) {
   ResultCatcher catcher;
 
   ExtensionId extension_id;
@@ -622,7 +618,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersNotArray) {
   EXPECT_TRUE(printers.empty());
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest,
                        GetPrintersInvalidPrinterValueType) {
   ResultCatcher catcher;
 
@@ -642,7 +638,7 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest,
   EXPECT_TRUE(printers.empty());
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderApiTest, GetPrintersInvalidPrinterValue) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderApiTest, GetPrintersInvalidPrinterValue) {
   ResultCatcher catcher;
 
   ExtensionId extension_id;
@@ -706,11 +702,8 @@ class PrinterProviderUsbApiTest : public PrinterProviderApiTest {
 };
 
 // These are only instantiated for event page-based packaged apps.
-INSTANTIATE_TEST_SUITE_P(EventPage,
-                         PrinterProviderUsbApiTest,
-                         ::testing::Values(ContextType::kEventPage));
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderUsbApiTest, GetUsbPrinterInfo) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderUsbApiTest, GetUsbPrinterInfo) {
   ResultCatcher catcher;
   device::mojom::UsbDeviceInfoPtr device =
       usb_manager_.CreateAndAddDevice(0, 0, "Google", "USB Printer", "");
@@ -737,12 +730,12 @@ IN_PROC_BROWSER_TEST_P(PrinterProviderUsbApiTest, GetUsbPrinterInfo) {
   ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderUsbApiTest,
+IN_PROC_BROWSER_TEST_F(PrinterProviderUsbApiTest,
                        GetUsbPrinterInfoEmptyResponse) {
   RunUsbPrinterInfoRequestTest("EMPTY_RESPONSE");
 }
 
-IN_PROC_BROWSER_TEST_P(PrinterProviderUsbApiTest, GetUsbPrinterInfoNoListener) {
+IN_PROC_BROWSER_TEST_F(PrinterProviderUsbApiTest, GetUsbPrinterInfoNoListener) {
   RunUsbPrinterInfoRequestTest("NO_LISTENER");
 }
 

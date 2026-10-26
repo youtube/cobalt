@@ -58,6 +58,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_scroll_result.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_scroll_to_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_void_function.h"
 #include "third_party/blink/renderer/bindings/core/v8/window_proxy.h"
@@ -137,9 +138,11 @@
 #include "third_party/blink/renderer/core/scheduler/scripted_idle_task_controller.h"
 #include "third_party/blink/renderer/core/scheduler/task_attribution_util.h"
 #include "third_party/blink/renderer/core/script/modulator.h"
+#include "third_party/blink/renderer/core/scroll/scoped_scroll_promise_resolver.h"
 #include "third_party/blink/renderer/core/scroll/scroll_types.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
+#include "third_party/blink/renderer/core/timing/event_timing.h"
 #include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/core/timing/window_performance.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_type_policy_factory.h"
@@ -195,22 +198,6 @@ int RequestAnimationFrame(Document* document,
   auto* frame_callback = MakeGarbageCollected<V8FrameCallback>(callback);
   frame_callback->SetUseLegacyTimeBase(legacy);
   return document->RequestAnimationFrame(frame_callback);
-}
-
-// TODO(https://crbug.com/41406914): Ad-hoc method until we hook up with scroll
-// animation end.
-ScriptPromise<IDLUndefined> CreateScrollResolvedPromise(
-    ScriptState* script_state) {
-  // Internal scroll calls sometimes pass a null `script_state`.
-  if (!script_state ||
-      !RuntimeEnabledFeatures::ProgrammaticScrollPromiseEnabled()) {
-    return EmptyPromise();  // This is exposed to JS as `undefined`.
-  }
-
-  auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(script_state);
-  resolver->Resolve();
-  return resolver->Promise();
 }
 
 }  // namespace
@@ -524,8 +511,8 @@ bool LocalDOMWindow::AllowInlineJavascriptUrl(const DOMWrapperWorld* world,
   // AllowInline below will check the source's hash against CSP, which is why
   // it needs an exact script_source.
   const int kJavascriptSchemeLength = sizeof("javascript:") - 1;
-  String decoded_url = DecodeURLEscapeSequences(
-      url.GetString(), DecodeURLMode::kUTF8OrIsomorphic);
+  String decoded_url = DecodeUrlEscapeSequences(
+      url.GetString(), DecodeUrlMode::kUtf8OrIsomorphic);
   String script_source = decoded_url.Substring(kJavascriptSchemeLength);
 
   // Check the CSP of the caller (the "source browsing context") if required,
@@ -541,8 +528,8 @@ String LocalDOMWindow::CheckAndGetJavascriptUrl(
     Element* element,
     network::mojom::CSPDisposition csp_disposition) {
   const int kJavascriptSchemeLength = sizeof("javascript:") - 1;
-  String decoded_url = DecodeURLEscapeSequences(
-      url.GetString(), DecodeURLMode::kUTF8OrIsomorphic);
+  String decoded_url = DecodeUrlEscapeSequences(
+      url.GetString(), DecodeUrlMode::kUtf8OrIsomorphic);
   String script_source = decoded_url.Substring(kJavascriptSchemeLength);
 
   if (csp_disposition == network::mojom::CSPDisposition::DO_NOT_CHECK)
@@ -996,13 +983,6 @@ void LocalDOMWindow::DispatchPersistedPageshowEvent(
 
 void LocalDOMWindow::DispatchPagehideEvent(
     PageTransitionEventPersistence persistence) {
-  if (!base::FeatureList::IsEnabled(features::kPageHideEventForPrerender2)) {
-    if (document_->IsPrerendering()) {
-      // Do not dispatch the event while prerendering.
-      return;
-    }
-  }
-
   if (document_->UnloadStarted()) {
     // We've already dispatched pagehide (since it's the first thing we do when
     // starting unload) and shouldn't dispatch it again. We might get here on
@@ -1017,25 +997,25 @@ void LocalDOMWindow::DispatchPagehideEvent(
       document_.Get());
 }
 
-void LocalDOMWindow::EnqueueHashchangeEvent(const String& old_url,
-                                            const String& new_url) {
+void LocalDOMWindow::EnqueueHashchangeEvent(
+    const String& old_url,
+    const String& new_url,
+    UserNavigationInvolvement involvement) {
   // https://html.spec.whatwg.org/C/#history-traversal
-  EnqueueWindowEvent(*HashChangeEvent::Create(old_url, new_url),
+  EnqueueWindowEvent(*HashChangeEvent::Create(old_url, new_url, involvement),
                      TaskType::kDOMManipulation);
 }
 
 void LocalDOMWindow::DispatchPopstateEvent(
     scoped_refptr<SerializedScriptValue> state_object,
-    scheduler::TaskAttributionInfo* task_state,
-    bool has_ua_visual_transition) {
+    bool has_ua_visual_transition,
+    UserNavigationInvolvement involvement) {
   DCHECK(GetFrame());
-  std::optional<scheduler::TaskAttributionTracker::TaskScope>
-      task_attribution_scope(SetCurrentTaskStateIfTopLevel(
-          task_state, this, TaskScopeType::kPopState));
-  DispatchEvent(*PopStateEvent::Create(std::move(state_object), history(),
-                                       has_ua_visual_transition));
+  auto* event = PopStateEvent::Create(std::move(state_object), history(),
+                                      has_ua_visual_transition, involvement);
+  NavigationEventTiming event_timing_scope(GetFrame(), *event);
+  DispatchEvent(*event);
 }
-
 LocalDOMWindow::~LocalDOMWindow() = default;
 
 void LocalDOMWindow::Dispose() {
@@ -1825,7 +1805,7 @@ double LocalDOMWindow::devicePixelRatio() const {
   return GetFrame()->DevicePixelRatio();
 }
 
-ScriptPromise<IDLUndefined> LocalDOMWindow::scrollBy(ScriptState* script_state,
+ScriptPromise<ScrollResult> LocalDOMWindow::scrollBy(ScriptState* script_state,
                                                      double x,
                                                      double y) const {
   ScrollToOptions* options = ScrollToOptions::Create();
@@ -1834,17 +1814,28 @@ ScriptPromise<IDLUndefined> LocalDOMWindow::scrollBy(ScriptState* script_state,
   return scrollBy(script_state, options);
 }
 
-ScriptPromise<IDLUndefined> LocalDOMWindow::scrollBy(
+ScriptPromise<ScrollResult> LocalDOMWindow::scrollBy(
     ScriptState* script_state,
     const ScrollToOptions* scroll_to_options) const {
+  ScriptPromiseResolver<ScrollResult>* resolver = nullptr;
+  if (script_state &&
+      RuntimeEnabledFeatures::ProgrammaticScrollPromiseEnabled()) {
+    resolver =
+        MakeGarbageCollected<ScriptPromiseResolver<ScrollResult>>(script_state);
+  }
+  ScriptPromise<ScrollResult> promise =
+      resolver ? resolver->Promise() : EmptyPromise();
+  auto scoped_resolver =
+      std::make_unique<ScopedScrollPromiseResolver>(resolver);
+
   if (!IsCurrentlyDisplayedInFrame()) {
-    return CreateScrollResolvedPromise(script_state);
+    return promise;
   }
 
   LocalFrameView* view = GetFrame()->View();
   Page* page = GetFrame()->GetPage();
   if (!view || !page) {
-    return CreateScrollResolvedPromise(script_state);
+    return promise;
   }
 
   // TODO(crbug.com/1499981): This should be removed once synchronized scrolling
@@ -1881,15 +1872,15 @@ ScriptPromise<IDLUndefined> LocalDOMWindow::scrollBy(
   mojom::blink::ScrollBehavior scroll_behavior =
       ScrollableArea::V8EnumToScrollBehavior(
           scroll_to_options->behavior().AsEnum());
-  viewport->SetScrollOffset(
+  viewport->SetProgrammaticScrollOffset(
       viewport->ScrollPositionToOffset(new_scaled_position),
-      mojom::blink::ScrollType::kProgrammatic,
-      cc::ScrollSourceType::kRelativeScroll, scroll_behavior);
+      cc::ScrollSourceType::kRelativeScroll, scroll_behavior,
+      std::move(scoped_resolver));
 
-  return CreateScrollResolvedPromise(script_state);
+  return promise;
 }
 
-ScriptPromise<IDLUndefined> LocalDOMWindow::scrollTo(ScriptState* script_state,
+ScriptPromise<ScrollResult> LocalDOMWindow::scrollTo(ScriptState* script_state,
                                                      double x,
                                                      double y) const {
   ScrollToOptions* options = ScrollToOptions::Create();
@@ -1898,17 +1889,28 @@ ScriptPromise<IDLUndefined> LocalDOMWindow::scrollTo(ScriptState* script_state,
   return scrollTo(script_state, options);
 }
 
-ScriptPromise<IDLUndefined> LocalDOMWindow::scrollTo(
+ScriptPromise<ScrollResult> LocalDOMWindow::scrollTo(
     ScriptState* script_state,
     const ScrollToOptions* scroll_to_options) const {
+  ScriptPromiseResolver<ScrollResult>* resolver = nullptr;
+  if (script_state &&
+      RuntimeEnabledFeatures::ProgrammaticScrollPromiseEnabled()) {
+    resolver =
+        MakeGarbageCollected<ScriptPromiseResolver<ScrollResult>>(script_state);
+  }
+  ScriptPromise<ScrollResult> promise =
+      resolver ? resolver->Promise() : EmptyPromise();
+  auto scoped_resolver =
+      std::make_unique<ScopedScrollPromiseResolver>(resolver);
+
   if (!IsCurrentlyDisplayedInFrame()) {
-    return CreateScrollResolvedPromise(script_state);
+    return promise;
   }
 
   LocalFrameView* view = GetFrame()->View();
   Page* page = GetFrame()->GetPage();
   if (!view || !page) {
-    return CreateScrollResolvedPromise(script_state);
+    return promise;
   }
 
   // TODO(crbug.com/1499981): This should be removed once synchronized scrolling
@@ -1955,12 +1957,12 @@ ScriptPromise<IDLUndefined> LocalDOMWindow::scrollTo(
   mojom::blink::ScrollBehavior scroll_behavior =
       ScrollableArea::V8EnumToScrollBehavior(
           scroll_to_options->behavior().AsEnum());
-  viewport->SetScrollOffset(
+  viewport->SetProgrammaticScrollOffset(
       viewport->ScrollPositionToOffset(new_scaled_position),
-      mojom::blink::ScrollType::kProgrammatic,
-      cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior);
+      cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior,
+      std::move(scoped_resolver));
 
-  return CreateScrollResolvedPromise(script_state);
+  return promise;
 }
 
 void LocalDOMWindow::scrollByForTesting(double x, double y) const {
@@ -2441,9 +2443,9 @@ DOMWindow* LocalDOMWindow::open(v8::Isolate* isolate,
   // the special case target names (_top, _parent, _self) ignore opener
   // policy (by always returning a non-null window, and by never overriding
   // the opener). The spec doesn't mention this.
-  if (EqualIgnoringASCIICase(target, "_top") ||
-      EqualIgnoringASCIICase(target, "_parent") ||
-      EqualIgnoringASCIICase(target, "_self")) {
+  if (EqualIgnoringAsciiCase(target, "_top") ||
+      EqualIgnoringAsciiCase(target, "_parent") ||
+      EqualIgnoringAsciiCase(target, "_self")) {
     return result.frame->DomWindow();
   }
 
@@ -2745,20 +2747,9 @@ bool LocalDOMWindow::CheckGuardrailsPolicyForAssetSize(
 }
 
 void LocalDOMWindow::SetStorageAccessApiStatus(
-    net::StorageAccessApiStatus status,
-    StorageAccessApiNotifyEmbedder notify) {
+    net::StorageAccessApiStatus status) {
   CHECK_GE(status, storage_access_api_status_);
   storage_access_api_status_ = status;
-  switch (notify) {
-    case StorageAccessApiNotifyEmbedder::kNone:
-      break;
-    case StorageAccessApiNotifyEmbedder::kBrowserProcess: {
-      LocalFrame* frame = GetFrame();
-      CHECK(frame);
-      frame->SetStorageAccessApiStatus(status);
-      break;
-    }
-  }
 }
 
 void LocalDOMWindow::SetHasBeenRevealed(bool revealed) {

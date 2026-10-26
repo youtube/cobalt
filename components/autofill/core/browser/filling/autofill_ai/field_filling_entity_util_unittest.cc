@@ -14,11 +14,13 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "components/autofill/core/browser/autofill_field.h"
+#include "components/autofill/core/browser/autofill_format_string.h"
 #include "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/data_quality/addresses/address_normalizer_impl.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/filling/field_filling_util.h"
 #include "components/autofill/core/browser/form_processing/autofill_ai/determine_attribute_types.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/form_structure_test_api.h"
@@ -101,6 +103,8 @@ std::u16string GetFillValueForEntity(
             return AttributeType(AttributeTypeName::kRedressNumberName);
           case EntityTypeName::kVehicle:
             return AttributeType(AttributeTypeName::kVehicleOwner);
+          case EntityTypeName::kOrder:
+            return AttributeType(AttributeTypeName::kOrderAccount);
         }
         return std::nullopt;
       }();
@@ -111,9 +115,10 @@ std::u16string GetFillValueForEntity(
     }
   }
 
-  return GetFillValueForEntity(entity, fields_and_types, *fields[0],
-                               action_persistence, app_locale,
-                               address_normalizer);
+  return GetFillingValueAndTypeForEntity(entity, fields_and_types, *fields[0],
+                                         action_persistence, app_locale,
+                                         address_normalizer)
+      .value;
 }
 
 // Wrapper for GetFillValueForEntity() that calls DetermineAttributeTypes() for
@@ -137,7 +142,7 @@ class FieldFillingEntityUtilTest : public testing::Test {
         client().GetSyncService(), helper_.autofill_webdata_service(),
         /*history_service=*/nullptr,
         /*strike_database=*/nullptr,
-        /*accessibility_annotator_data_adapter=*/nullptr,
+        /*accessibility_annotator_service=*/nullptr,
         /*variation_country_code=*/GeoIpCountryCode("US")));
     client().SetUpPrefsAndIdentityForAutofillAi();
 
@@ -244,9 +249,16 @@ TEST_F(FieldFillingEntityUtilTest, FillingUnavailable) {
 }
 
 class GetFillValueForEntityTest : public testing::Test {
+ public:
+  GetFillValueForEntityTest() {
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/{features::kAutofillAiWithDataSchema,
+                              features::kAutofillAiWalletPrivatePasses},
+        /*disabled_features=*/{});
+  }
+
  private:
-  base::test::ScopedFeatureList feature_list_{
-      features::kAutofillAiWithDataSchema};
+  base::test::ScopedFeatureList feature_list_;
   test::AutofillUnitTestEnvironment autofill_test_environment_;
 };
 
@@ -286,9 +298,10 @@ TEST_F(GetFillValueForEntityTest, ObfuscatedAttributes) {
   constexpr char16_t kNumber[] = u"12";
   EntityInstance passport =
       test::GetPassportEntityInstance({.number = kNumber});
+
   EXPECT_EQ(GetFillValueForEntity(passport, field,
                                   mojom::ActionPersistence::kPreview),
-            u"\u2022\u2060\u2006\u2060\u2022\u2060\u2006\u2060");
+            GetObfuscatedValue(kNumber));
   EXPECT_EQ(
       GetFillValueForEntity(passport, field, mojom::ActionPersistence::kFill),
       kNumber);

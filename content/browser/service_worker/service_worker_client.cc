@@ -11,6 +11,7 @@
 #include "base/containers/adapters.h"
 #include "base/debug/alias.h"
 #include "base/debug/crash_logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/optional_util.h"
@@ -1238,6 +1239,27 @@ void ServiceWorkerClient::SetNetworkURLLoaderFactoryForTesting(
   network_url_loader_factory_override_for_testing_ = url_loader_factory;
 }
 
+std::optional<ContentBrowserClient::URLLoaderRequestHandler>
+ServiceWorkerClient::TakeInterceptingPreloadHandler(
+    const network::ResourceRequest& resource_request) {
+  CHECK(!is_response_committed());
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+
+  if (is_initiated_by_prefetch_) {
+    return std::nullopt;
+  }
+
+  if (ContentBrowserClient::URLLoaderRequestHandler embedder_url_loader_handler =
+          GetContentClient()
+              ->browser()
+              ->CreateURLLoaderHandlerForServiceWorkerInitiatedNavigationRequest(
+                  ongoing_navigation_frame_tree_node_id_, resource_request)) {
+    return std::move(embedder_url_loader_handler);
+  }
+
+  return std::nullopt;
+}
+
 scoped_refptr<network::SharedURLLoaderFactory>
 ServiceWorkerClient::CreateNetworkURLLoaderFactory(
     CreateNetworkURLLoaderFactoryType type,
@@ -1255,37 +1277,33 @@ ServiceWorkerClient::CreateNetworkURLLoaderFactory(
     // We skip `WillCreateURLLoaderFactory` below, because it is already
     // included in `network_url_loader_factory_for_prefetch_` (see
     // `PrefetchNetworkContext::CreateNewURLLoaderFactory()`).
-    // We also skip `CreateURLLoaderHandlerForServiceWorkerNavigationPreload`,
+    // We also skip
+    // `CreateURLLoaderHandlerForServiceWorkerInitiatedNavigationRequest`,
     // because this is a prefetch request and don't have to consult with search
     // prefetch cache via
-    // `CreateURLLoaderHandlerForServiceWorkerNavigationPreload`.
+    // `CreateURLLoaderHandlerForServiceWorkerInitiatedNavigationRequest`.
     return network_url_loader_factory_for_prefetch_;
   }
 
   switch (type) {
     case CreateNetworkURLLoaderFactoryType::kNavigationPreload:
-    case CreateNetworkURLLoaderFactoryType::kSyntheticNetworkRequest:
       // Allow the embedder to intercept the URLLoader request if necessary.
       // This must be a synchronous decision by the embedder. In the future, we
       // may wish to support asynchronous decisions using
       // |URLLoaderRequestInterceptor| in the same fashion that they are used
       // for navigation requests.
-      //
-      // TODO(crbug.com/352578800): Rename
-      // `CreateURLLoaderHandlerForServiceWorkerNavigationPreload`. This is used
-      // by not only navigation preload, but also synthetic response.
-      if (ContentBrowserClient::URLLoaderRequestHandler
-              embedder_url_loader_handler =
-                  GetContentClient()
-                      ->browser()
-                      ->CreateURLLoaderHandlerForServiceWorkerNavigationPreload(
-                          ongoing_navigation_frame_tree_node_id_,
-                          resource_request)) {
+      if (ContentBrowserClient::URLLoaderRequestHandler embedder_url_loader_handler =
+              GetContentClient()
+                  ->browser()
+                  ->CreateURLLoaderHandlerForServiceWorkerInitiatedNavigationRequest(
+                      ongoing_navigation_frame_tree_node_id_,
+                      resource_request)) {
         return base::MakeRefCounted<network::SingleRequestURLLoaderFactory>(
             std::move(embedder_url_loader_handler));
       }
       break;
     case CreateNetworkURLLoaderFactoryType::kRaceNetworkRequest:
+    case CreateNetworkURLLoaderFactoryType::kSyntheticNetworkRequest:
       break;
   }
 
@@ -1309,11 +1327,6 @@ ServiceWorkerClient::CreateNetworkURLLoaderFactory(
         std::move(network_factory));
   }
 
-  // We ignore the value of |bypass_redirect_checks_unused| since a redirect is
-  // just relayed to the service worker where preloadResponse is resolved as
-  // redirect.
-  bool bypass_redirect_checks_unused;
-
   // Consult the embedder.
   mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>
       header_client;
@@ -1329,9 +1342,15 @@ ServiceWorkerClient::CreateNetworkURLLoaderFactory(
       frame_tree_node->navigation_request()->GetNavigationId(),
       ukm::SourceIdObj::FromInt64(
           frame_tree_node->navigation_request()->GetNextPageUkmSourceId()),
-      factory_builder, &header_client, &bypass_redirect_checks_unused,
+      factory_builder, &header_client, &bypass_redirect_checks_,
       /*disable_secure_dns=*/nullptr, /*factory_override=*/nullptr,
       GetUIThreadTaskRunner({BrowserTaskType::kNavigationNetworkResponse}));
+
+  // Record the number of interceptors for metrics.
+  factory_interceptor_count_ = factory_builder.num_interceptors();
+  base::UmaHistogramCounts100(
+      "ServiceWorker.URLLoaderFactoryInterceptorCountForMainResource",
+      factory_builder.num_interceptors());
 
   // Make the network factory.
   return base::MakeRefCounted<network::WrapperSharedURLLoaderFactory>(

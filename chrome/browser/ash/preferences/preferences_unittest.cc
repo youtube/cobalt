@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "base/containers/to_vector.h"
 #include "base/json/json_string_value_serializer.h"
 #include "base/memory/ptr_util.h"
@@ -153,9 +154,7 @@ class PreferencesTest : public testing::Test {
         TestingBrowserProcess::GetGlobal());
     ASSERT_TRUE(profile_manager_->SetUp());
 
-    user_manager_ = new FakeChromeUserManager();
-    user_manager_enabler_ = std::make_unique<user_manager::ScopedUserManager>(
-        base::WrapUnique(user_manager_.get()));
+    user_manager_.Reset(std::make_unique<FakeChromeUserManager>());
 
     const char test_user_email[] = "test_user@example.com";
     const AccountId test_account_id(AccountId::FromUserEmail(test_user_email));
@@ -167,11 +166,11 @@ class PreferencesTest : public testing::Test {
         chrome::kInitialProfile);
     pref_service_ = test_profile_->GetTestingPrefService();
 
-    previous_input_method_.Init(
-        prefs::kLanguagePreviousInputMethod, pref_service_);
+    previous_input_method_.Init(ash::prefs::kLanguagePreviousInputMethod,
+                                pref_service_);
     previous_input_method_.SetValue("KeyboardA");
-    current_input_method_.Init(
-        prefs::kLanguageCurrentInputMethod, pref_service_);
+    current_input_method_.Init(ash::prefs::kLanguageCurrentInputMethod,
+                               pref_service_);
     current_input_method_.SetValue("KeyboardB");
     consumer_auto_update_toggle_.Init(::prefs::kConsumerAutoUpdateToggle,
                                       g_browser_process->local_state());
@@ -189,13 +188,24 @@ class PreferencesTest : public testing::Test {
   void TearDown() override {
     // `prefs_` accesses UpdateEngineClient in its destructor.
     prefs_.reset();
+
+    fake_update_engine_client_ = nullptr;
     UpdateEngineClient::Shutdown();
 
+    mock_manager_ = nullptr;
     input_method::Shutdown();
+
+    pref_service_ = nullptr;
+    test_profile_ = nullptr;
+    profile_manager_.reset();
+
     // UserSessionManager doesn't listen to profile destruction, so make sure
     // the default IME state isn't still cached in case test_profile_ is
     // given the same address in the next test.
     UserSessionManager::GetInstance()->RemoveProfileForTesting(test_profile_);
+
+    test_user_ = nullptr;
+    user_manager_.Reset();
   }
 
   void InitPreferences() {
@@ -206,20 +216,18 @@ class PreferencesTest : public testing::Test {
 
   content::BrowserTaskEnvironment task_environment_;
   std::unique_ptr<TestingProfileManager> profile_manager_;
-  std::unique_ptr<user_manager::ScopedUserManager> user_manager_enabler_;
+  user_manager::TypedScopedUserManager<FakeChromeUserManager> user_manager_;
   std::unique_ptr<Preferences> prefs_;
   StringPrefMember previous_input_method_;
   StringPrefMember current_input_method_;
   BooleanPrefMember consumer_auto_update_toggle_;
 
   // Not owned.
-  raw_ptr<FakeChromeUserManager> user_manager_;
-  raw_ptr<const user_manager::User> test_user_;
-  raw_ptr<TestingProfile> test_profile_;
-  raw_ptr<sync_preferences::TestingPrefServiceSyncable> pref_service_;
-  raw_ptr<input_method::MyMockInputMethodManager, DanglingUntriaged>
-      mock_manager_;
-  raw_ptr<FakeUpdateEngineClient, DanglingUntriaged> fake_update_engine_client_;
+  raw_ptr<const user_manager::User> test_user_ = nullptr;
+  raw_ptr<TestingProfile> test_profile_ = nullptr;
+  raw_ptr<sync_preferences::TestingPrefServiceSyncable> pref_service_ = nullptr;
+  raw_ptr<input_method::MyMockInputMethodManager> mock_manager_ = nullptr;
+  raw_ptr<FakeUpdateEngineClient> fake_update_engine_client_ = nullptr;
 };
 
 TEST_F(PreferencesTest, TestUpdatePrefOnBrowserScreenDetails) {
@@ -283,11 +291,11 @@ class InputMethodPreferencesTest : public PreferencesTest {
                               pref_service_);
     preferred_languages_syncable_.Init(
         language::prefs::kPreferredLanguagesSyncable, pref_service_);
-    preload_engines_.Init(prefs::kLanguagePreloadEngines, pref_service_);
-    preload_engines_syncable_.Init(prefs::kLanguagePreloadEnginesSyncable,
+    preload_engines_.Init(ash::prefs::kLanguagePreloadEngines, pref_service_);
+    preload_engines_syncable_.Init(ash::prefs::kLanguagePreloadEnginesSyncable,
                                    pref_service_);
-    enabled_imes_.Init(prefs::kLanguageEnabledImes, pref_service_);
-    enabled_imes_syncable_.Init(prefs::kLanguageEnabledImesSyncable,
+    enabled_imes_.Init(ash::prefs::kLanguageEnabledImes, pref_service_);
+    enabled_imes_syncable_.Init(ash::prefs::kLanguageEnabledImesSyncable,
                                 pref_service_);
 
     // Initialize component and 3rd-party input method extensions.

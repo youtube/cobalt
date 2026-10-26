@@ -37,13 +37,14 @@ import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.settings.ChromeManagedPreferenceDelegate;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.settings.search.ChromeBaseSearchIndexProvider;
+import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherImpl;
+import org.chromium.chrome.browser.signin.services.BadgeConfig;
 import org.chromium.chrome.browser.signin.services.DisplayableProfileData;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
 import org.chromium.chrome.browser.signin.services.SigninManager;
 import org.chromium.chrome.browser.signin.services.SigninManager.SignInStateObserver;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
-import org.chromium.chrome.browser.sync.TrustedVaultClient;
 import org.chromium.chrome.browser.sync.ui.PassphraseDialogFragment;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.signin.SignOutCoordinator;
@@ -63,6 +64,7 @@ import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.metrics.SignoutReason;
 import org.chromium.components.sync.SyncService;
 import org.chromium.components.sync.UserActionableError;
+import org.chromium.components.trusted_vault.TrustedVaultClient;
 import org.chromium.components.trusted_vault.TrustedVaultUserActionTriggerForUMA;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.UiUtils;
@@ -252,6 +254,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
                                 getActivity().getSupportFragmentManager(),
                                 ((ModalDialogManagerHolder) getActivity()).getModalDialogManager(),
                                 assertNonNull(assumeNonNull(mSnackbarManagerSupplier).get()),
+                                SigninAndHistorySyncActivityLauncherImpl.get(),
                                 SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS,
                                 /* showConfirmDialog= */ false,
                                 CallbackUtils.emptyRunnable());
@@ -317,6 +320,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
             }
         }
         accountsCategory.addPreference(createAddAccountPreference());
+        notifyPreferencesUpdated();
     }
 
     private Preference createAccountPreference(CoreAccountInfo coreAccountInfo) {
@@ -332,10 +336,7 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
 
         accountPreference.setOnPreferenceClickListener(
                 SyncSettingsUtils.toOnClickListener(
-                        this,
-                        () ->
-                                SigninUtils.openSettingsForAccount(
-                                        getActivity(), coreAccountInfo.getEmail())));
+                        this, () -> SigninUtils.openSettingsForAllAccounts(getActivity())));
 
         return accountPreference;
     }
@@ -428,10 +429,9 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
                                 if (isChild && context != null) {
                                     mProfileDataCache.setBadge(
                                             assumeNonNull(childAccount).getId(),
-                                            ProfileDataCache
-                                                    .createDefaultSizeChildAccountBadgeConfig(
-                                                            context,
-                                                            R.drawable.ic_account_child_20dp));
+                                            BadgeConfig.create(R.drawable.ic_account_child_20dp)
+                                                    .withDefaultSizeChildAccountConfig()
+                                                    .build(context));
                                 }
                             });
         }
@@ -498,6 +498,11 @@ public class AccountManagementFragment extends ChromeBaseSettingsFragment
             default:
                 return;
         }
+    }
+
+    @Override
+    public void onIdentityErrorCardVisibilityChanged() {
+        notifyPreferencesUpdated();
     }
 
     /**

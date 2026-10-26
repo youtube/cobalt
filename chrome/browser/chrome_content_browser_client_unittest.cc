@@ -34,7 +34,9 @@
 #include "chrome/browser/browsing_data/chrome_browsing_data_remover_delegate.h"
 #include "chrome/browser/captive_portal/captive_portal_service_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/devtools/features.h"
 #include "chrome/browser/enterprise/reporting/prefs.h"
+#include "chrome/browser/global_features.h"
 #include "chrome/browser/media/prefs/capture_device_ranking.h"
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -58,6 +60,7 @@
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/file_access/scoped_file_access.h"
 #include "components/file_access/test/mock_scoped_file_access_delegate.h"
+#include "components/guest_view/buildflags/buildflags.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/testing_pref_service.h"
@@ -86,6 +89,7 @@
 #include "content/public/test/test_web_ui.h"
 #include "content/public/test/web_contents_tester.h"
 #include "crypto/crypto_buildflags.h"
+#include "extensions/buildflags/buildflags.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "media/media_buildflags.h"
 #include "net/base/url_util.h"
@@ -98,6 +102,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/common/switches.h"
+#include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -126,6 +131,17 @@
 #if BUILDFLAG(ENABLE_CAPTIVE_PORTAL_DETECTION)
 #include "components/captive_portal/content/captive_portal_tab_helper.h"
 #endif
+
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/android/tab_android.h"
+#include "chrome/browser/android/tab_web_contents_delegate_android.h"
+
+#if BUILDFLAG(ENABLE_GUEST_VIEW) && !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#include "chrome/browser/android/guest_view/chrome_guest_view_manager_delegate.h"
+#include "components/guest_view/browser/slim_web_view/slim_web_view_guest.h"  // nogncheck
+#include "components/guest_view/browser/test_guest_view_manager.h"
+#endif  // BUILDFLAG(ENABLE_GUEST_VIEW)  && !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
@@ -191,7 +207,11 @@ class ChromeContentBrowserClientTest : public testing::Test {
     // Unit tests need SWAs from production. Creates real SystemWebAppManager
     // instead of `TestSystemWebAppManager::BuildDefault()` for
     // `TestingProfile`.
-    auto swa_manager = std::make_unique<ash::SystemWebAppManager>(profile);
+    auto swa_manager = std::make_unique<ash::SystemWebAppManager>(
+        TestingBrowserProcess::GetGlobal()
+            ->GetFeatures()
+            ->application_locale_storage(),
+        profile);
     return swa_manager;
   }
   // The custom manager creator should be constructed before `TestingProfile`.
@@ -1945,6 +1965,197 @@ TEST_P(GrantCookieAccessDueToHeuristicTest,
   ASSERT_FALSE(client.IsFullCookieAccessAllowed(
       profile(), web_contents(), url, FirstPartyStorageKey(top_level_url2),
       /*overrides=*/{}));
+}
+
+#if BUILDFLAG(IS_ANDROID)
+
+class MockTabWebContentsDelegateAndroid
+    : public android::TabWebContentsDelegateAndroid {
+ public:
+  MockTabWebContentsDelegateAndroid()
+      : android::TabWebContentsDelegateAndroid(
+            base::android::AttachCurrentThread(),
+            base::android::ScopedJavaLocalRef<jobject>()) {}
+  ~MockTabWebContentsDelegateAndroid() override = default;
+
+  MOCK_METHOD(bool, IsNightModeEnabled, (), (const, override));
+};
+
+class ChromeContentBrowserClientPreferredColorSchemeAndroidTest
+    : public ChromeRenderViewHostTestHarness,
+      public testing::WithParamInterface<bool> {
+ public:
+  ChromeContentBrowserClientPreferredColorSchemeAndroidTest() = default;
+
+  bool IsDarkMode() const { return GetParam(); }
+
+ protected:
+  void SetUp() override { ChromeRenderViewHostTestHarness::SetUp(); }
+
+  ChromeContentBrowserClient client_;
+};
+
+TEST_P(ChromeContentBrowserClientPreferredColorSchemeAndroidTest,
+       RootWebContents) {
+  std::unique_ptr<TabAndroid> tab =
+      TabAndroid::CreateForTesting(profile(), 1, CreateTestWebContents());
+  content::WebContents* web_contents = tab->web_contents();
+  tabs::TabLookupFromWebContents::CreateForWebContents(web_contents,
+                                                        tab.get());
+
+  bool is_dark_mode = IsDarkMode();
+  auto delegate = std::make_unique<MockTabWebContentsDelegateAndroid>();
+  EXPECT_CALL(*delegate, IsNightModeEnabled())
+      .WillRepeatedly(testing::Return(is_dark_mode));
+  web_contents->SetDelegate(delegate.get());
+
+  blink::web_pref::WebPreferences web_preferences;
+  content::SiteInstance* site_instance = web_contents->GetSiteInstance();
+  client_.OverrideWebPreferences(web_contents, *site_instance,
+                                 &web_preferences);
+
+  auto expected_color_scheme = is_dark_mode
+                                   ? blink::mojom::PreferredColorScheme::kDark
+                                   : blink::mojom::PreferredColorScheme::kLight;
+  EXPECT_EQ(expected_color_scheme, web_preferences.preferred_color_scheme);
+  EXPECT_EQ(expected_color_scheme,
+            web_preferences.preferred_root_scrollbar_color_scheme);
+}
+
+#if BUILDFLAG(ENABLE_GUEST_VIEW) && !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+TEST_P(ChromeContentBrowserClientPreferredColorSchemeAndroidTest,
+       SlimWebViewGuest) {
+  if (base::FeatureList::IsEnabled(features::kGuestViewMPArch)) {
+    GTEST_SKIP() << "MPArch based guests do not have inner WebContents.";
+  }
+  guest_view::TestGuestViewManagerFactory factory;
+  factory.GetOrCreateTestGuestViewManager(
+      profile(), std::make_unique<android::ChromeGuestViewManagerDelegate>());
+
+  // Create Owner WebContents
+  std::unique_ptr<TabAndroid> owner_tab =
+      TabAndroid::CreateForTesting(profile(), 1, CreateTestWebContents());
+  content::WebContents* owner_contents = owner_tab->web_contents();
+  tabs::TabLookupFromWebContents::CreateForWebContents(owner_contents,
+                                                       owner_tab.get());
+
+  // Set Color Scheme in Owner
+  bool is_dark_mode = IsDarkMode();
+  auto delegate = std::make_unique<MockTabWebContentsDelegateAndroid>();
+  EXPECT_CALL(*delegate, IsNightModeEnabled())
+      .WillRepeatedly(testing::Return(is_dark_mode));
+  owner_contents->SetDelegate(delegate.get());
+
+  // Create Guest WebContents
+  std::unique_ptr<content::WebContents> guest_contents =
+      CreateTestWebContents();
+
+  // Associate Guest with Owner
+  std::unique_ptr<guest_view::GuestViewBase> slim_webview_guest =
+      guest_view::SlimWebViewGuest::Create(
+          owner_contents->GetPrimaryMainFrame());
+  slim_webview_guest->InitWithWebContents(base::DictValue(),
+                                          guest_contents.get());
+
+  // Verify Color Scheme
+  blink::web_pref::WebPreferences web_preferences;
+  content::SiteInstance* site_instance = guest_contents->GetSiteInstance();
+  client_.OverrideWebPreferences(guest_contents.get(), *site_instance,
+                                 &web_preferences);
+
+  auto expected_color_scheme = is_dark_mode
+                                   ? blink::mojom::PreferredColorScheme::kDark
+                                   : blink::mojom::PreferredColorScheme::kLight;
+  EXPECT_EQ(expected_color_scheme, web_preferences.preferred_color_scheme);
+  EXPECT_EQ(expected_color_scheme,
+            web_preferences.preferred_root_scrollbar_color_scheme);
+}
+#endif  // BUILDFLAG(ENABLE_GUEST_VIEW) && !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    ChromeContentBrowserClientPreferredColorSchemeAndroidTest,
+    testing::Bool(),
+    [](const testing::TestParamInfo<bool>& info) {
+      return info.param ? "DarkMode" : "LightMode";
+    });
+
+#endif  // BUILDFLAG(IS_ANDROID)
+
+class ChromeContentBrowserClientAIPrefsTest
+    : public ChromeRenderViewHostTestHarness {
+ public:
+  ChromeContentBrowserClientAIPrefsTest() = default;
+
+ protected:
+  void SetUp() override { ChromeRenderViewHostTestHarness::SetUp(); }
+
+  void RunOverrideWebPreferences(
+      content::WebContents* web_contents,
+      blink::web_pref::WebPreferences* web_preferences) {
+    content::SiteInstance* site_instance = web_contents->GetSiteInstance();
+    client_.OverrideWebPreferences(web_contents, *site_instance,
+                                   web_preferences);
+  }
+
+  ChromeContentBrowserClient client_;
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// Verifies the web preference is enabled in DevTools when
+// kDevToolsAiOriginTrialsApis is enabled.
+TEST_F(ChromeContentBrowserClientAIPrefsTest, DevToolsScheme_BothFlagsEnabled) {
+  feature_list_.InitWithFeatures(
+      /*enabled_features=*/{features::kDevToolsAiOriginTrialsApis},
+      /*disabled_features=*/{});
+
+  const GURL devtools_url(
+      base::StrCat({content::kChromeDevToolsScheme, "://foo"}));
+  auto web_contents = CreateTestWebContents();
+  content::WebContentsTester::For(web_contents.get())
+      ->NavigateAndCommit(devtools_url);
+
+  blink::web_pref::WebPreferences web_preferences;
+  RunOverrideWebPreferences(web_contents.get(), &web_preferences);
+
+  EXPECT_TRUE(web_preferences.ai_ot_apis_enabled);
+}
+
+// Verifies the web preference is set to false in DevTools when
+// kDevToolsAiOriginTrialsApis is disabled.
+TEST_F(ChromeContentBrowserClientAIPrefsTest, DevToolsScheme_OTFlagEnabled) {
+  feature_list_.InitWithFeatures(
+      /*enabled_features=*/{},
+      /*disabled_features=*/{features::kDevToolsAiOriginTrialsApis});
+
+  const GURL devtools_url(
+      base::StrCat({content::kChromeDevToolsScheme, "://foo"}));
+  auto web_contents = CreateTestWebContents();
+  content::WebContentsTester::For(web_contents.get())
+      ->NavigateAndCommit(devtools_url);
+
+  blink::web_pref::WebPreferences web_preferences;
+  RunOverrideWebPreferences(web_contents.get(), &web_preferences);
+
+  EXPECT_FALSE(web_preferences.ai_ot_apis_enabled);
+}
+
+// Verifies the web preference is set to false for non-DevTools schemes.
+TEST_F(ChromeContentBrowserClientAIPrefsTest, NonDevToolsScheme) {
+  feature_list_.InitWithFeatures(
+      /*enabled_features=*/{features::kDevToolsAiOriginTrialsApis},
+      /*disabled_features=*/{});
+
+  const GURL normal_url("https://www.example.com");
+  auto web_contents = CreateTestWebContents();
+  content::WebContentsTester::For(web_contents.get())
+      ->NavigateAndCommit(normal_url);
+
+  blink::web_pref::WebPreferences web_preferences;
+
+  RunOverrideWebPreferences(web_contents.get(), &web_preferences);
+
+  EXPECT_FALSE(web_preferences.ai_ot_apis_enabled);
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

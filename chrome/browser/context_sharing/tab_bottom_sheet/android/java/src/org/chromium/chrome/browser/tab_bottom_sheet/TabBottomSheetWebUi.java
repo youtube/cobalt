@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.tab_bottom_sheet;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.view.View;
 
@@ -34,10 +35,12 @@ public class TabBottomSheetWebUi {
         resetThinWebView();
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     void setWebContents(@Nullable WebContents webContents) {
         mWebContents = webContents;
         if (mWebContents != null) {
             ContentView contentView = ContentView.createContentView(mContext, null);
+
             mWebContents.setDelegates(
                     VersionInfo.getProductVersion(),
                     ViewAndroidDelegate.createBasicDelegate(contentView),
@@ -45,7 +48,12 @@ public class TabBottomSheetWebUi {
                     mWindowAndroid,
                     WebContents.createDefaultInternalsHolder());
             contentView.setWebContents(mWebContents);
-            mThinWebView.attachWebContents(mWebContents, contentView, null);
+            mThinWebView.attachWebContents(
+                    mWebContents,
+                    contentView,
+                    /* delegate= */ null,
+                    /* contextMenuPopulatorFactory= */ null,
+                    /* selectionDropdownMenuDelegate= */ null);
         } else {
             resetThinWebView();
         }

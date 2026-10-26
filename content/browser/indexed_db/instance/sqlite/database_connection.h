@@ -61,11 +61,17 @@ class CONTENT_EXPORT DatabaseConnection {
   // Opens a connection to the specified database. When `name` is present, it
   // will create a new DB if one does not exist. When `name` is null and a DB
   // does not exist or is not already initialized, returns an error. When `path`
-  // is empty, the database will be opened in-memory.
+  // is empty, the database will be opened in-memory. If `erase_if_zygotic` is
+  // true, then the database will be wiped from disk if opening it reveals it to
+  // be in a zygotic state, which could be the result of a previous problem; no
+  // `DatabaseConnection` object will be returned. This is not true when opening
+  // a database connection for normal use because in that case it will simply be
+  // reused.
   static StatusOr<std::unique_ptr<DatabaseConnection>> Open(
       std::optional<std::u16string_view> name,
       base::FilePath path,
-      BackingStoreImpl& backing_store);
+      BackingStoreImpl& backing_store,
+      bool erase_if_zygotic = false);
 
   // Destroys the DatabaseConnection pointed to by `db`, if appropriate, i.e. if
   // `db` is the last weak pointer.
@@ -89,7 +95,7 @@ class CONTENT_EXPORT DatabaseConnection {
   // Callers are free to run the closure synchronously or on a background
   // thread as appropriate. Some "optional" cleanup steps are skipped if the
   // backing store is `force_closing`.
-  base::OnceClosure DestroySoon(bool force_closing) &&;
+  base::OnceClosure GetCleanupTask(bool force_closing) &&;
 
   // Gets the version of the database that is actually committed. This can be
   // different from the version in `metadata_` during a version change
@@ -106,6 +112,12 @@ class CONTENT_EXPORT DatabaseConnection {
   // Get the size of the database, calculated as the number of pages in use
   // (i.e., excluding free pages) multiplied by the page size.
   uint64_t GetSize() const;
+
+  // Called when the BucketContext is not currently serving requests. Relatively
+  // low-cost maintenance such as WAL checkpointing and memory trimming are
+  // performed here but NOT vacuuming since the "idle time" is shared by all
+  // open `DatabaseConnection` instances.
+  void PerformIdleMaintenance();
 
   std::unique_ptr<BackingStoreDatabaseImpl> CreateDatabaseWrapper();
 
@@ -270,6 +282,9 @@ class CONTENT_EXPORT DatabaseConnection {
   // Changes the size at which blobs are chunked.
   static void OverrideMaxBlobSizeForTesting(base::ByteSize size);
 
+  // Overrides the VFS used for databases.
+  static void OverrideVfsNameForTesting(const char* vfs_name);
+
  private:
   friend class BackingStoreSqliteTest;
   FRIEND_TEST_ALL_PREFIXES(DatabaseConnectionTest, TooNew);
@@ -280,6 +295,7 @@ class CONTENT_EXPORT DatabaseConnection {
       const base::FilePath& legacy_blob_directory,
       bool should_delete,
       bool should_attempt_recovery,
+      bool should_vacuum,
       std::optional<std::set<int64_t>> known_legacy_blob_ids);
 
   DatabaseConnection(base::FilePath path, BackingStoreImpl& backing_store);
@@ -340,6 +356,18 @@ class CONTENT_EXPORT DatabaseConnection {
   // `metadata_`).
   StatusOr<blink::IndexedDBDatabaseMetadata> GenerateIndexedDbMetadata();
 
+  // Serves as the checkpoint callback. This is static because it may be
+  // called on a different thread, and it's not possible to check the validity
+  // of a WeakPtr-bound callback on a different sequence.
+  static void OnWalFileWritten(base::WeakPtr<DatabaseConnection> db,
+                               int wal_file_page_count);
+
+  // Executes a checkpoint. This needs to first drop resources that would block
+  // a complete checkpoint. Returns true if the checkpoint finished
+  // successfully, i.e. all frames in the WAL file were written to the main DB
+  // file.
+  bool Checkpoint(bool truncate);
+
   // This enum is used to track various events of interest, mostly errors.
   //
   // LINT.IfChange(SpecificEvent)
@@ -360,7 +388,7 @@ class CONTENT_EXPORT DatabaseConnection {
     kAddActiveBlobReferenceFailed = 4,
     kRemoveActiveBlobReferenceFailed = 5,
     kPragmaPageCountFailed = 6,
-    kPragmaPageSizeFailed = 7,
+    kPragmaPageSizeFailed = 7,  // Not logged currently.
 
     // Events associated with various callers of `Fatal()`.
     kMissingMetadataTable = 8,
@@ -509,8 +537,6 @@ class CONTENT_EXPORT DatabaseConnection {
   // attempting to open this database.
   IndexedDBDataLossInfo data_loss_info_;
 
-  // TODO(crbug.com/419203257): this should invalidate its weak pointers when
-  // `db_` is closed.
   base::WeakPtrFactory<DatabaseConnection> cursor_weak_factory_{this};
 
   // Only used for the callbacks passed to `blob_writers_`.
@@ -519,6 +545,8 @@ class CONTENT_EXPORT DatabaseConnection {
   // Used to vend pointers to the interfaces within `BackingStore`.
   base::WeakPtrFactory<DatabaseConnection> interface_wrapper_weak_factory_{
       this};
+
+  base::WeakPtrFactory<DatabaseConnection> wal_checkpoint_weak_factory_{this};
 };
 
 }  // namespace sqlite

@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -44,6 +45,7 @@
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node.h"
 #include "ui/accessibility/ax_node_id_forward.h"
+#include "ui/accessibility/ax_range.h"
 #include "ui/accessibility/ax_selection.h"
 #include "ui/accessibility/platform/ax_android_constants.h"
 #include "ui/accessibility/platform/browser_accessibility.h"
@@ -74,6 +76,14 @@ using RangePairs = AXStyleData::RangePairs;
 // correct predicate.
 using SearchKeyToPredicateMap =
     absl::flat_hash_map<std::u16string, ui::AccessibilityMatchPredicate>;
+
+int GetMaxContentChangedEventsToFire() {
+  if (base::FeatureList::IsEnabled(
+          features::kAccessibilityRequestScopedContentChangedEvents)) {
+    return features::kMaxContentChangedEventsToFireParam.Get();
+  }
+  return kMaxContentChangedEventsToFire;
+}
 
 static const char kHtmlTypeRow[] = "ROW";
 static const char kHtmlTypeColumn[] = "COLUMN";
@@ -528,37 +538,108 @@ ScopedJavaLocalRef<jobject> ToJavaStringRangesMap(
       ranges_count);
 }
 
-// Calculates the number of characters from the beginning of the first leaf
-// descendent of the `ancestor` to the beginning of `descendent`.
-// TODO(crbug.com/443078007): Refactor to perform all the tree walking and
-// offset recomputation using AXPosition. The node should be adjusted downward
-// to the last leaf node (not the first) and add more test coverage. e.g. where
-// the selection lands on ignored nodes at the anchor, focus, or both, and line
-// break nodes, inline vs block, etc. Also, perhaps a more deeply nested ignored
-// structure.
-int CalculateOffsetInAncestor(ui::BrowserAccessibility* ancestor,
-                              ui::BrowserAccessibility* descendent) {
-  // Expected to be called only when ancestor and node are different.
-  CHECK_NE(ancestor, descendent);
+bool DoesNodeSupportExtendedSelection(ui::BrowserAccessibility* node) {
+  return node->IsText() || node->IsTextField() ||
+         static_cast<BrowserAccessibilityAndroid*>(node)->IsAndroidTextView();
+}
 
-  // First descendent is acquired through `node()` since ancestor has no child
-  // from platform's point of view.
-  ui::AXNode* node = ancestor->node();
-  while (node->GetFirstChild()) {
-    node = node->GetFirstChild();
+// In case the `node` does not exist on Android, updates node and offset to the
+// highest leaf node (ancestor of node).
+void UpdateTextPositionForSelection(ui::BrowserAccessibility*& node,
+                                    int& offset) {
+  ui::BrowserAccessibility* platform_ancestor =
+      node->PlatformGetLowestPlatformAncestor();
+  if (platform_ancestor == node) {
+    return;
   }
-  ui::BrowserAccessibility* first_leaf_descendant =
-      ancestor->manager()->GetFromAXNode(node);
+  ui::BrowserAccessibility::AXPosition position =
+      node->CreatePositionForSelectionAt(offset);
+  while (position->GetAnchor()->id() != platform_ancestor->GetId()) {
+    position = position->CreateParentPosition();
+  }
 
-  ui::BrowserAccessibility::AXPosition start =
-      first_leaf_descendant->CreatePositionForSelectionAt(0);
-  ui::BrowserAccessibility::AXPosition end =
-      descendent->CreatePositionForSelectionAt(0);
-  if (start->IsNullPosition() || end->IsNullPosition()) {
-    return 0;
+  CHECK_EQ(ui::AXPositionKind::TEXT_POSITION, position->kind());
+  node = platform_ancestor;
+  offset = position->text_offset();
+}
+
+// Updates selection anchor and offset to ensure both nodes are leaf text nodes
+// within the original selection range. Returns true if successful.
+bool ConvertToTextSelectionForAndroid(ui::BrowserAccessibility*& anchor_node,
+                                      int& anchor_offset,
+                                      ui::BrowserAccessibility*& focus_node,
+                                      int& focus_offset) {
+  // TODO(crbug.com/443078007): Consider getting position kind from upstream.
+  bool anchor_is_text_node =
+      anchor_node->IsText() || anchor_node->IsTextField();
+  bool focus_is_text_node = focus_node->IsText() || focus_node->IsTextField();
+
+  ui::BrowserAccessibility::AXPosition anchor_position =
+      anchor_is_text_node
+          ? anchor_node->CreatePositionForSelectionAt(anchor_offset)
+          : ui::AXNodePosition::CreateTreePosition(*anchor_node->node(),
+                                                   anchor_offset);
+
+  ui::BrowserAccessibility::AXPosition focus_position =
+      focus_is_text_node
+          ? focus_node->CreatePositionForSelectionAt(focus_offset)
+          : ui::AXNodePosition::CreateTreePosition(*focus_node->node(),
+                                                   focus_offset);
+
+  ui::BrowserAccessibility::AXRange range = ui::BrowserAccessibility::AXRange(
+      anchor_position->Clone(), focus_position->Clone());
+  std::optional<int> range_direction =
+      ui::BrowserAccessibility::AXRange::CompareEndpoints(range.anchor(),
+                                                          range.focus());
+  if (!range_direction.has_value()) {
+    return false;
   }
-  ui::BrowserAccessibility::AXRange range(std::move(start), std::move(end));
-  return range.GetText().length();
+
+  BrowserAccessibilityManagerAndroid* manager =
+      static_cast<BrowserAccessibilityManagerAndroid*>(anchor_node->manager());
+  CHECK(manager);
+
+  bool found = false;
+  // Range iterator only moves in forward direction. Hence the text leaves in
+  // the entire range are iterated, the first suitable leaf is selected for
+  // anchor, and the last one for focus. Anchor and focus are swapped afterwards
+  // if range direction is backward.
+  // TODO(crbug.com/443078007): Add a backward iterator for AxRange and optimize
+  // here.
+  for (const auto& pos : range) {
+    ui::BrowserAccessibility* android_node =
+        manager->GetFromAXNode(pos.anchor()->GetAnchor())
+            ->PlatformGetLowestPlatformAncestor();
+    if (DoesNodeSupportExtendedSelection(android_node)) {
+      if (!found) {
+        anchor_position = pos.anchor()->Clone();
+        found = true;
+      }
+      focus_position = pos.focus()->Clone();
+    }
+  }
+  if (!found) {
+    return false;
+  }
+
+  // Swap anchor and focus if original selection was backward.
+  if (range_direction.value() > 0) {
+    std::swap(anchor_position, focus_position);
+  }
+
+  CHECK_EQ(ui::AXPositionKind::TEXT_POSITION, anchor_position->kind());
+  anchor_node = manager->GetFromAXNode(anchor_position->GetAnchor());
+  anchor_offset = anchor_position->text_offset();
+  // TODO(crbug.com/490266495): Remove the following when range iterator returns
+  // platform leaf positions.
+  UpdateTextPositionForSelection(anchor_node, anchor_offset);
+
+  CHECK_EQ(ui::AXPositionKind::TEXT_POSITION, focus_position->kind());
+  focus_node = manager->GetFromAXNode(focus_position->GetAnchor());
+  focus_offset = focus_position->text_offset();
+  UpdateTextPositionForSelection(focus_node, focus_offset);
+
+  return true;
 }
 
 }  // anonymous namespace
@@ -612,7 +693,8 @@ WebContentsAccessibilityAndroid::WebContentsAccessibilityAndroid(
     : java_ref_(env, obj),
       java_anib_ref_(env, jaccessibility_node_info_builder),
       web_contents_(static_cast<WebContentsImpl*>(web_contents)),
-      frame_info_initialized_(false) {
+      frame_info_initialized_(false),
+      max_content_changed_events_to_fire_(GetMaxContentChangedEventsToFire()) {
   // We must initialize this after weak_ptr_factory_ because it can result in
   // calling UpdateBrowserAccessibilityManager() which accesses
   // weak_ptr_factory_.
@@ -839,7 +921,9 @@ WebContentsAccessibilityAndroid::GetAccessibilityFocus() const {
   return GetAXFromUniqueID(id);
 }
 
-void WebContentsAccessibilityAndroid::HandleContentChanged(int32_t unique_id) {
+void WebContentsAccessibilityAndroid::HandleContentChanged(
+    int32_t unique_id,
+    bool set_subtree_changed) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
   if (obj.is_null()) {
@@ -852,7 +936,8 @@ void WebContentsAccessibilityAndroid::HandleContentChanged(int32_t unique_id) {
   if (content_changed_events_ < max_content_changed_events_to_fire_) {
     // If it's less than the max event count, fire the event on the specific
     // node that changed.
-    Java_WebContentsAccessibilityImpl_handleContentChanged(env, obj, unique_id);
+    Java_WebContentsAccessibilityImpl_handleContentChanged(env, obj, unique_id,
+                                                           set_subtree_changed);
   } else if (content_changed_events_ == max_content_changed_events_to_fire_) {
     // If it's equal to the max event count, fire the event on the
     // root instead.
@@ -863,7 +948,7 @@ void WebContentsAccessibilityAndroid::HandleContentChanged(int32_t unique_id) {
           root_manager->GetBrowserAccessibilityRoot());
       if (root_node) {
         Java_WebContentsAccessibilityImpl_handleContentChanged(
-            env, obj, root_node->GetUniqueId());
+            env, obj, root_node->GetUniqueId(), /* set_subtree_changed */ true);
       }
     }
   }
@@ -1231,6 +1316,17 @@ void WebContentsAccessibilityAndroid::HandleNavigate(int32_t root_id) {
   Java_WebContentsAccessibilityImpl_handleNavigate(env, obj, root_id);
 }
 
+void WebContentsAccessibilityAndroid::HandleInitialLoadComplete(
+    int32_t root_id) {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
+  if (obj.is_null()) {
+    return;
+  }
+  Java_WebContentsAccessibilityImpl_handleInitialLoadComplete(env, obj,
+                                                              root_id);
+}
+
 void WebContentsAccessibilityAndroid::UpdateMaxNodesInCache() {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
@@ -1251,6 +1347,18 @@ void WebContentsAccessibilityAndroid::ClearNodeInfoCacheForGivenId(
 
   Java_WebContentsAccessibilityImpl_clearNodeInfoCacheForGivenId(env, obj,
                                                                  unique_id);
+}
+
+// TODO(crbug.com/485227837): Remove experiment's methods
+void WebContentsAccessibilityAndroid::ValidateA11yCacheForExperiment() {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> obj = java_ref_.get(env);
+  if (obj.is_null()) {
+    return;
+  }
+
+  Java_WebContentsAccessibilityImpl_validateAccessibilityFakeCacheForExperiment(
+      env, obj);
 }
 
 std::u16string
@@ -1285,6 +1393,42 @@ int32_t WebContentsAccessibilityAndroid::GetRootId(JNIEnv* env) {
     }
   }
   return ui::kAXAndroidInvalidViewId;
+}
+
+// TODO(crbug.com/485227837): Remove experiment's methods
+size_t WebContentsAccessibilityAndroid::GetAccessibilityTreeSizeForExperiment(
+    JNIEnv* env) {
+  BrowserAccessibilityManagerAndroid* root_manager =
+      GetRootBrowserAccessibilityManager();
+  if (!root_manager) {
+    return 0;
+  }
+
+  size_t count = 0;
+  std::vector<ui::BrowserAccessibilityManager*> managers_to_process;
+  managers_to_process.push_back(root_manager);
+
+  while (!managers_to_process.empty()) {
+    ui::BrowserAccessibilityManager* manager = managers_to_process.back();
+    managers_to_process.pop_back();
+
+    if (!manager->ax_tree()) {
+      continue;
+    }
+
+    count += manager->ax_tree()->size();
+
+    for (const ui::AXTreeID& child_tree_id :
+         manager->ax_tree()->GetAllChildTreeIds()) {
+      ui::BrowserAccessibilityManager* child_manager =
+          ui::BrowserAccessibilityManager::FromID(child_tree_id);
+      if (child_manager) {
+        managers_to_process.push_back(child_manager);
+      }
+    }
+  }
+
+  return count;
 }
 
 bool WebContentsAccessibilityAndroid::IsNodeValid(JNIEnv* env,
@@ -1508,13 +1652,14 @@ void WebContentsAccessibilityAndroid::
       env, obj, info, unique_id, parent_id,
       GetCanonicalJNIString(env, node->GetClassName()),
       GetCanonicalJNIString(env, node->GetRoleString()),
-      GetCanonicalJNIString(env, node->GetRoleDescription()),
-      base::android::ConvertUTF16ToJavaString(env, node->GetHint()),
-      base::android::ConvertUTF16ToJavaString(env, node->GetTooltipText()),
+      GetCanonicalJNIString(env, node->GetAndroidRoleDescription()),
+      base::android::ConvertUTF16ToJavaString(env, node->GetAndroidHint()),
+      base::android::ConvertUTF16ToJavaString(env,
+                                              node->GetAndroidTooltipText()),
       base::android::ConvertUTF16ToJavaString(env, node->GetTargetUrl()),
       node->CanOpenPopup(), node->IsMultiLine(), node->AndroidInputType(),
       node->AndroidLiveRegionType(),
-      GetCanonicalJNIString(env, node->GetContentInvalidErrorMessage()),
+      GetCanonicalJNIString(env, node->GetAndroidContentInvalidErrorMessage()),
       node->ClickableScore(), GetCanonicalJNIString(env, node->GetCSSDisplay()),
       base::android::ConvertUTF16ToJavaString(env, node->GetBrailleLabel()),
       GetCanonicalJNIString(env, node->GetBrailleRoleDescription()),
@@ -1582,13 +1727,15 @@ void WebContentsAccessibilityAndroid::
   recorder.StartTimer(TextFormattingMetric::kSetAniTextDuration);
   Java_AccessibilityNodeInfoBuilder_setAccessibilityNodeInfoText(
       env, obj, info, base::android::ConvertUTF16ToJavaString(env, text),
-      is_link, node->IsTextField(),
-      base::android::ConvertUTF16ToJavaString(env, node->GetStateDescription()),
-      base::android::ConvertUTF16ToJavaString(env, node->GetContainerTitle()),
-      base::android::ConvertUTF16ToJavaString(env,
-                                              node->GetContentDescription()),
+      is_link,
       base::android::ConvertUTF16ToJavaString(
-          env, node->GetSupplementalDescription()),
+          env, node->GetAndroidStateDescription()),
+      base::android::ConvertUTF16ToJavaString(env,
+                                              node->GetAndroidContainerTitle()),
+      base::android::ConvertUTF16ToJavaString(
+          env, node->GetAndroidContentDescription()),
+      base::android::ConvertUTF16ToJavaString(
+          env, node->GetAndroidSupplementalDescription()),
       java_suggestions, java_links, java_text_sizes, java_text_styles,
       java_text_positions, java_fg_colors, java_bg_colors, java_font_families,
       java_locales);
@@ -1651,16 +1798,18 @@ void WebContentsAccessibilityAndroid::
       is_link
           ? base::android::ConvertUTF16ToJavaString(env, node->GetTargetUrl())
           : base::android::ConvertUTF16ToJavaString(env, std::u16string()),
-      is_link, node->IsTextField(),
+      is_link,
       GetCanonicalJNIString(env, node->GetInheritedString16Attribute(
                                      ax::mojom::StringAttribute::kLanguage)),
       java_suggestion_starts, java_suggestion_ends, java_suggestion_text,
-      base::android::ConvertUTF16ToJavaString(env, node->GetStateDescription()),
-      base::android::ConvertUTF16ToJavaString(env, node->GetContainerTitle()),
-      base::android::ConvertUTF16ToJavaString(env,
-                                              node->GetContentDescription()),
       base::android::ConvertUTF16ToJavaString(
-          env, node->GetSupplementalDescription()));
+          env, node->GetAndroidStateDescription()),
+      base::android::ConvertUTF16ToJavaString(env,
+                                              node->GetAndroidContainerTitle()),
+      base::android::ConvertUTF16ToJavaString(
+          env, node->GetAndroidContentDescription()),
+      base::android::ConvertUTF16ToJavaString(
+          env, node->GetAndroidSupplementalDescription()));
   recorder.StopTimer(TextFormattingMetric::kSetAniTextDuration);
   recorder.StopTimer(TextFormattingMetric::kTotalDuration);
 
@@ -1706,8 +1855,8 @@ void WebContentsAccessibilityAndroid::
   if (node->IsCollection()) {
     Java_AccessibilityNodeInfoBuilder_setAccessibilityNodeInfoCollectionInfo(
         env, obj, info,
-        /* rowCount= */ node->RowCount(),
-        /* columnCount= */ node->ColumnCount(),
+        /* rowCount= */ node->RowCount().value_or(0),
+        /* columnCount= */ node->ColumnCount().value_or(0),
         /* isHierarchical= */ node->IsHierarchical(),
         /* selectionMode= */ node->GetSelectionMode());
   }
@@ -1724,10 +1873,10 @@ void WebContentsAccessibilityAndroid::
   if (node->IsCollectionItem() || node->IsTableHeader()) {
     Java_AccessibilityNodeInfoBuilder_setAccessibilityNodeInfoCollectionItemInfo(
         env, obj, info,
-        /* rowIndex= */ node->RowIndex(),
-        /* rowSpan= */ node->RowSpan(),
-        /* columnIndex= */ node->ColumnIndex(),
-        /* columnSpan= */ node->ColumnSpan(),
+        /* rowIndex= */ node->RowIndex().value_or(0),
+        /* rowSpan= */ node->RowSpan().value_or(0),
+        /* columnIndex= */ node->ColumnIndex().value_or(0),
+        /* columnSpan= */ node->ColumnSpan().value_or(0),
         /* sortDirection= */ node->GetSortDirection());
   }
 }
@@ -1763,8 +1912,39 @@ void WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfoPaneTitle(
   if (node->ShouldUsePaneTitle()) {
     Java_AccessibilityNodeInfoBuilder_setAccessibilityNodeInfoPaneTitle(
         env, obj, info,
-        base::android::ConvertUTF16ToJavaString(env, node->GetPaneTitle()));
+        base::android::ConvertUTF16ToJavaString(env,
+                                                node->GetAndroidPaneTitle()));
   }
+}
+
+std::optional<ui::AXSelection>
+WebContentsAccessibilityAndroid::GetSelectionInternal(
+    BrowserAccessibilityManagerAndroid* root_manager) {
+  if (!root_manager) {
+    return std::nullopt;
+  }
+
+  ui::AXSelection selection = root_manager->ax_tree()->GetUnignoredSelection();
+
+  ui::BrowserAccessibility* anchor_node =
+      root_manager->GetFromID(selection.anchor_object_id);
+  ui::BrowserAccessibility* focus_node =
+      root_manager->GetFromID(selection.focus_object_id);
+
+  if (!anchor_node || !focus_node) {
+    return std::nullopt;
+  }
+
+  if (!ConvertToTextSelectionForAndroid(anchor_node, selection.anchor_offset,
+                                        focus_node, selection.focus_offset)) {
+    return std::nullopt;
+  }
+
+  // TODO(accessibility): awkward packing/unpacking of args everywhere; pick a
+  // firm representation.
+  selection.anchor_object_id = anchor_node->GetId();
+  selection.focus_object_id = focus_node->GetId();
+  return selection;
 }
 
 void WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfoSelection(
@@ -1786,8 +1966,18 @@ void WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfoSelection(
     return;
   }
 
-  BrowserAccessibilityManagerAndroid* root_manager =
-      static_cast<BrowserAccessibilityManagerAndroid*>(node->manager());
+  // When children are exposed for contenteditables, we fetch the top-level
+  // manager, so we can set the extended selection data in the top-level root
+  // node that represents the web view.
+  BrowserAccessibilityManagerAndroid* root_manager;
+  if (base::FeatureList::IsEnabled(
+          features::kAccessibilityExposeNonAtomicTextFieldChildren)) {
+    root_manager = GetRootBrowserAccessibilityManager();
+  } else {
+    root_manager =
+        static_cast<BrowserAccessibilityManagerAndroid*>(node->manager());
+  }
+
   if (!root_manager) {
     return;
   }
@@ -1797,45 +1987,60 @@ void WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfoSelection(
     return;
   }
 
-  ui::AXSelection selection = root_manager->ax_tree()->GetUnignoredSelection();
+  std::optional<ui::AXSelection> selection = GetSelectionInternal(root_manager);
 
-  ui::BrowserAccessibility* anchor_node =
-      root_manager->GetFromID(selection.anchor_object_id);
-  ui::BrowserAccessibility* focus_node =
-      root_manager->GetFromID(selection.focus_object_id);
-
-  if (!anchor_node || !focus_node) {
+  if (!selection.has_value()) {
     Java_AccessibilityNodeInfoBuilder_clearAccessibilityNodeInfoExtendedSelectionAttrs(
         env, obj, info);
     return;
   }
 
-  int anchor_offset = selection.anchor_offset;
-  int focus_offset = selection.focus_offset;
-
-  // Update nodes if they don't exist in Android accessibility tree.
-  // TODO(crbug.com/443078007): Ensure nodes have actual text before trying to
-  // update offset.
-  ui::BrowserAccessibility* platform_ancestor =
-      anchor_node->PlatformGetLowestPlatformAncestor();
-  if (platform_ancestor != anchor_node) {
-    anchor_offset += CalculateOffsetInAncestor(platform_ancestor, anchor_node);
-    anchor_node = platform_ancestor;
-  }
-
-  platform_ancestor = focus_node->PlatformGetLowestPlatformAncestor();
-  if (platform_ancestor != focus_node) {
-    focus_offset += CalculateOffsetInAncestor(platform_ancestor, focus_node);
-    focus_node = platform_ancestor;
-  }
+  ui::BrowserAccessibility* anchor_node =
+      root_manager->GetFromID(selection->anchor_object_id);
+  CHECK(anchor_node);
+  ui::BrowserAccessibility* focus_node =
+      root_manager->GetFromID(selection->focus_object_id);
+  CHECK(focus_node);
 
   const int anchor_unique_id =
       static_cast<BrowserAccessibilityAndroid*>(anchor_node)->GetUniqueId();
   const int focus_unique_id =
       static_cast<BrowserAccessibilityAndroid*>(focus_node)->GetUniqueId();
   Java_AccessibilityNodeInfoBuilder_setAccessibilityNodeInfoExtendedSelectionAttrs(
-      env, obj, info, anchor_unique_id, anchor_offset, focus_unique_id,
-      focus_offset);
+      env, obj, info, anchor_unique_id, selection->anchor_offset,
+      focus_unique_id, selection->focus_offset);
+}
+
+ScopedJavaLocalRef<jintArray>
+WebContentsAccessibilityAndroid::GetExtendedSelection(JNIEnv* env,
+                                                      int32_t unique_id) {
+  BrowserAccessibilityAndroid* node = GetAXFromUniqueID(unique_id);
+  if (!node) {
+    return nullptr;
+  }
+
+  auto* root_manager =
+      static_cast<BrowserAccessibilityManagerAndroid*>(node->manager());
+  std::optional<ui::AXSelection> selection = GetSelectionInternal(root_manager);
+  if (!selection.has_value()) {
+    return nullptr;
+  }
+
+  ui::BrowserAccessibility* anchor_node =
+      root_manager->GetFromID(selection->anchor_object_id);
+  CHECK(anchor_node);
+  ui::BrowserAccessibility* focus_node =
+      root_manager->GetFromID(selection->focus_object_id);
+  CHECK(focus_node);
+
+  const int anchor_unique_id =
+      static_cast<BrowserAccessibilityAndroid*>(anchor_node)->GetUniqueId();
+  const int focus_unique_id =
+      static_cast<BrowserAccessibilityAndroid*>(focus_node)->GetUniqueId();
+
+  int selection_data[] = {anchor_unique_id, selection->anchor_offset,
+                          focus_unique_id, selection->focus_offset};
+  return ToJavaIntArray(env, selection_data);
 }
 
 bool WebContentsAccessibilityAndroid::PopulateAccessibilityNodeInfo(
@@ -1897,10 +2102,10 @@ bool WebContentsAccessibilityAndroid::PopulateAccessibilityEvent(
   // We will always set boolean, classname, list and scroll attributes.
   Java_WebContentsAccessibilityImpl_setAccessibilityEventBaseAttributes(
       env, obj, event, node->IsChecked(), node->IsEnabled(),
-      node->IsPasswordField(), node->IsScrollable(), node->GetItemIndex(),
-      node->GetItemCount(), node->GetScrollX(), node->GetScrollY(),
-      node->GetMaxScrollX(), node->GetMaxScrollY(),
-      GetCanonicalJNIString(env, node->GetClassName()));
+      node->IsPasswordField(), node->IsScrollable(),
+      node->GetItemIndex().value_or(0), node->GetItemCount().value_or(0),
+      node->GetScrollX(), node->GetScrollY(), node->GetMaxScrollX(),
+      node->GetMaxScrollY(), GetCanonicalJNIString(env, node->GetClassName()));
 
   switch (event_type) {
     case ANDROID_ACCESSIBILITY_EVENT_TEXT_CHANGED: {
@@ -1961,6 +2166,22 @@ void WebContentsAccessibilityAndroid::Click(JNIEnv* env, int32_t unique_id) {
   }
 }
 
+void WebContentsAccessibilityAndroid::Expand(JNIEnv* env, int32_t id) {
+  BrowserAccessibilityAndroid* node = GetAXFromUniqueID(id);
+  if (!node) {
+    return;
+  }
+  node->manager()->Expand(*node);
+}
+
+void WebContentsAccessibilityAndroid::Collapse(JNIEnv* env, int32_t id) {
+  BrowserAccessibilityAndroid* node = GetAXFromUniqueID(id);
+  if (!node) {
+    return;
+  }
+  node->manager()->Collapse(*node);
+}
+
 void WebContentsAccessibilityAndroid::Focus(JNIEnv* env, int32_t unique_id) {
   BrowserAccessibilityAndroid* node = GetAXFromUniqueID(unique_id);
   if (node) {
@@ -2008,7 +2229,7 @@ void WebContentsAccessibilityAndroid::SetSelection(JNIEnv* env,
   }
 }
 
-void WebContentsAccessibilityAndroid::SetExtendedSelection(
+bool WebContentsAccessibilityAndroid::SetExtendedSelection(
     JNIEnv* env,
     int32_t id,
     int32_t start_node_id,
@@ -2020,17 +2241,22 @@ void WebContentsAccessibilityAndroid::SetExtendedSelection(
 
   BrowserAccessibilityAndroid* node = GetAXFromUniqueID(id);
   if (!node) {
-    return;
+    return false;
   }
 
   BrowserAccessibilityAndroid* start_node = GetAXFromUniqueID(start_node_id);
   BrowserAccessibilityAndroid* end_node = GetAXFromUniqueID(end_node_id);
   if (!start_node || !end_node) {
-    return;
+    return false;
   }
 
-  // TODO(crbug.com/443078007): Add test cases and explore when selection is
-  // on non-text nodes or higher up in the tree, like the root.
+  // Extended selection is currently only supported for text nodes.
+  // TODO(crbug.com/488168548): Cover all node types.
+  if (!DoesNodeSupportExtendedSelection(start_node) ||
+      !DoesNodeSupportExtendedSelection(end_node)) {
+    return false;
+  }
+
   ui::BrowserAccessibility::AXPosition start_position =
       start_node->CreatePositionForSelectionAt(start_node_offset);
   ui::BrowserAccessibility::AXPosition end_position =
@@ -2038,6 +2264,7 @@ void WebContentsAccessibilityAndroid::SetExtendedSelection(
 
   node->manager()->SetSelection(ui::BrowserAccessibility::AXRange(
       std::move(start_position), std::move(end_position)));
+  return true;
 }
 
 void WebContentsAccessibilityAndroid::ClearExtendedSelection(JNIEnv* env,
@@ -2436,10 +2663,12 @@ void WebContentsAccessibilityAndroid::OnAutofillPopupDisplayed(JNIEnv* env) {
 
   DeleteAutofillPopupProxy();
 
-  // The node is isolated (tree is nullptr) and its id is not important,
-  // it should only be not equal to kInvalidAXNodeID to be considered valid.
+  // The node has no parent in the tree, and its id is not important as long as
+  // it is valid.
   ui::AXNodeID id = ~ui::kInvalidAXNodeID;
-  g_autofill_popup_proxy_node_ax_node = new ui::AXNode(nullptr, nullptr, id, 0);
+  g_autofill_popup_proxy_node_ax_node =
+      new ui::AXNode(root_manager->ax_tree(), /*parent=*/nullptr, id,
+                     /*index_in_parent=*/0);
   ui::AXNodeData ax_node_data;
   ax_node_data.id = id;
   ax_node_data.role = ax::mojom::Role::kMenu;
@@ -2910,6 +3139,13 @@ WebContentsAccessibilityAndroid::GetChildIdsForTesting(JNIEnv* env,
     child_ids.push_back(android_node.GetUniqueId());
   }
   return base::android::ToJavaIntArray(env, child_ids);
+}
+
+// TODO(crbug.com/485227837): Rename experiment's methods
+ScopedJavaLocalRef<jintArray>
+WebContentsAccessibilityAndroid::GetChildIdsForExperiment(JNIEnv* env,
+                                                          int32_t unique_id) {
+  return GetChildIdsForTesting(env, unique_id);
 }
 
 jint WebContentsAccessibilityAndroid::GetParentIdForTesting(  // IN-TEST

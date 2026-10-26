@@ -30,10 +30,12 @@
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/managed_installation_mode.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/safe_browsing/extension_telemetry/activity_log_ingester.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/cookies_get_all_signal_processor.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/cookies_get_signal_processor.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/declarative_net_request_action_signal_processor.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/declarative_net_request_signal_processor.h"
+#include "chrome/browser/safe_browsing/extension_telemetry/dom_access_signal_processor.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/extension_js_callstacks.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/extension_signal.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/extension_telemetry_config_manager.h"
@@ -43,6 +45,7 @@
 #include "chrome/browser/safe_browsing/extension_telemetry/extension_telemetry_uploader.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/potential_password_theft_signal_processor.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/remote_host_contacted_signal_processor.h"
+#include "chrome/browser/safe_browsing/extension_telemetry/script_injection_signal_processor.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/search_hijacking_detector.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/tabs_api_signal_processor.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/tabs_execute_script_signal_processor.h"
@@ -68,6 +71,7 @@
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/install_prefs_helper.h"
 #include "extensions/browser/path_util.h"
+#include "extensions/common/extension_features.h"
 #include "extensions/common/file_util.h"
 #include "extensions/common/mojom/manifest.mojom-shared.h"
 #include "extensions/common/switches.h"
@@ -435,14 +439,6 @@ GetExtensionTelemetryEventRouter(Profile* profile) {
 }
 #endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
 
-// Returns true if the signal type should be collected for enterprise telemetry.
-bool CollectForEnterprise(ExtensionSignalType type) {
-  return type == ExtensionSignalType::kCookiesGet ||
-         type == ExtensionSignalType::kCookiesGetAll ||
-         type == ExtensionSignalType::kRemoteHostContacted ||
-         type == ExtensionSignalType::kTabsApi;
-}
-
 }  // namespace
 
 // Adds extension installation mode and managed status to extension telemetry
@@ -477,6 +473,11 @@ ExtensionTelemetryService::ExtensionTelemetryService(
       prefs::kSafeBrowsingEnhanced,
       base::BindRepeating(&ExtensionTelemetryService::OnESBPrefChanged,
                           base::Unretained(this)));
+  pref_change_registrar_.Add(
+      prefs::kExtensionDOMActivityLoggingEnabled,
+      base::BindRepeating(
+          &ExtensionTelemetryService::OnExtensionDOMActivityLoggingPrefChanged,
+          base::Unretained(this)));
 
   // Set initial enable/disable state for ESB.
   SetEnabledForESB(IsEnhancedProtectionEnabled(*pref_service_));
@@ -494,6 +495,8 @@ ExtensionTelemetryService::ExtensionTelemetryService(
     SetEnabledForEnterprise(
         GetExtensionTelemetryEventRouter(profile_)->IsPolicyEnabled());
 #endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
+
+    UpdateDOMActivityLoggingState();
 }
 
 void ExtensionTelemetryService::RecordSignalType(
@@ -523,6 +526,10 @@ void ExtensionTelemetryService::OnEnterprisePolicyChanged() {
 #else
   SetEnabledForEnterprise(false);
 #endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
+}
+
+void ExtensionTelemetryService::OnExtensionDOMActivityLoggingPrefChanged() {
+  UpdateDOMActivityLoggingState();
 }
 
 // Telemetry features for ESB include:
@@ -653,6 +660,7 @@ void ExtensionTelemetryService::SetEnabledForEnterprise(bool enable) {
     enterprise_signal_processors_.clear();
     StopOffstoreFileDataCollection();
   }
+  UpdateDOMActivityLoggingState();
 }
 
 bool ExtensionTelemetryService::enabled() const {
@@ -676,6 +684,7 @@ void ExtensionTelemetryService::Shutdown() {
   enterprise_timer_.Stop();
   pref_change_registrar_.RemoveAll();
   StopOffstoreFileDataCollection();
+  activity_log_ingester_.reset();
 }
 
 bool ExtensionTelemetryService::SignalDataPresent() const {
@@ -692,12 +701,13 @@ void ExtensionTelemetryService::AddSignal(
     std::unique_ptr<ExtensionSignal> signal) {
   ExtensionSignalType signal_type = signal->GetType();
 
-  if (esb_enabled_) {
+  if (esb_enabled_ && signal_subscribers_.contains(signal_type)) {
     RecordSignalType(signal_type);
     AddSignalHelper(*signal, extension_store_, signal_subscribers_);
   }
 
-  if (enterprise_enabled_ && CollectForEnterprise(signal_type)) {
+  if (enterprise_enabled_ &&
+      enterprise_signal_subscribers_.contains(signal_type)) {
     RecordSignalTypeForEnterprise(signal_type);
     AddSignalHelper(*signal, enterprise_extension_store_,
                     enterprise_signal_subscribers_);
@@ -1551,6 +1561,12 @@ void ExtensionTelemetryService::
   enterprise_signal_processors_.emplace(
       ExtensionSignalType::kTabsApi,
       std::make_unique<TabsApiSignalProcessor>());
+  enterprise_signal_processors_.emplace(
+      ExtensionSignalType::kDOMAccess,
+      std::make_unique<DOMAccessSignalProcessor>());
+  enterprise_signal_processors_.emplace(
+      ExtensionSignalType::kScriptInjection,
+      std::make_unique<ScriptInjectionSignalProcessor>());
 
   // Create subscriber lists for each telemetry signal type.
   // Map the signal processors to the signals that they consume.
@@ -1570,6 +1586,13 @@ void ExtensionTelemetryService::
   std::vector<raw_ptr<ExtensionSignalProcessor, VectorExperimental>>
       enterprise_subscribers_for_tabs_api = {
           enterprise_signal_processors_[ExtensionSignalType::kTabsApi].get()};
+  std::vector<raw_ptr<ExtensionSignalProcessor, VectorExperimental>>
+      enterprise_subscribers_for_dom_access = {
+          enterprise_signal_processors_[ExtensionSignalType::kDOMAccess].get()};
+  std::vector<raw_ptr<ExtensionSignalProcessor, VectorExperimental>>
+      enterprise_subscribers_for_script_injection = {
+          enterprise_signal_processors_[ExtensionSignalType::kScriptInjection]
+              .get()};
 
   enterprise_signal_subscribers_.emplace(
       ExtensionSignalType::kCookiesGet,
@@ -1583,6 +1606,12 @@ void ExtensionTelemetryService::
   enterprise_signal_subscribers_.emplace(
       ExtensionSignalType::kTabsApi,
       std::move(enterprise_subscribers_for_tabs_api));
+  enterprise_signal_subscribers_.emplace(
+      ExtensionSignalType::kDOMAccess,
+      std::move(enterprise_subscribers_for_dom_access));
+  enterprise_signal_subscribers_.emplace(
+      ExtensionSignalType::kScriptInjection,
+      std::move(enterprise_subscribers_for_script_injection));
 }
 
 ExtensionTelemetryService::OffstoreExtensionFileDataContext::
@@ -1759,6 +1788,21 @@ void ExtensionTelemetryService::OnOffstoreFileDataCollected(
   // Remove context and repeat.
   offstore_extension_file_data_contexts_.erase(context);
   CollectOffstoreFileData();
+}
+
+void ExtensionTelemetryService::UpdateDOMActivityLoggingState() {
+  bool dom_telemetry_allowed =
+      enterprise_enabled_ &&
+      base::FeatureList::IsEnabled(
+          extensions_features::kEnterpriseExtensionDOMActivityTelemetry) &&
+      pref_service_->GetBoolean(prefs::kExtensionDOMActivityLoggingEnabled);
+
+  if (dom_telemetry_allowed && !activity_log_ingester_) {
+    activity_log_ingester_ =
+        std::make_unique<ActivityLogIngester>(profile_, this);
+  } else if (!dom_telemetry_allowed && activity_log_ingester_) {
+    activity_log_ingester_.reset();
+  }
 }
 
 void ExtensionTelemetryService::StopOffstoreFileDataCollection() {

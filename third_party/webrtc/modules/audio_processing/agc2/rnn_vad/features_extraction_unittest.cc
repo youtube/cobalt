@@ -61,7 +61,7 @@ bool FeedTestData(FeaturesExtractor& features_extractor,
   const int num_frames = samples.size() / kFrameSize10ms24kHz;
   for (int i = 0; i < num_frames; ++i) {
     is_silence = features_extractor.CheckSilenceComputeFeatures(
-        {samples.data() + i * kFrameSize10ms24kHz, kFrameSize10ms24kHz},
+        samples.subspan(i * kFrameSize10ms24kHz).first<kFrameSize10ms24kHz>(),
         feature_vector);
   }
   return is_silence;

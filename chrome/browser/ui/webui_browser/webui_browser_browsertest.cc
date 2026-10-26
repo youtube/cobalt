@@ -2,24 +2,37 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <vector>
+
+#include "base/functional/callback.h"
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/bookmarks/bookmark_model_factory.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/webui_browser/bookmark_bar.mojom.h"
+#include "chrome/browser/ui/webui_browser/bookmark_bar_page_handler.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/bookmarks/browser/bookmark_model.h"
+#include "components/bookmarks/browser/bookmark_node.h"
 #include "components/surface_embed/buildflags/buildflags.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/receiver.h"
 #include "net/dns/mock_host_resolver.h"
 
 #if BUILDFLAG(ENABLE_SURFACE_EMBED)
@@ -59,6 +72,28 @@ class WebUIBrowserTest : public InProcessBrowserTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+class FakeBookmarkBarPage : public bookmark_bar::mojom::Page {
+ public:
+  mojo::PendingRemote<bookmark_bar::mojom::Page> BindAndGetRemote() {
+    return receiver_.BindNewPipeAndPassRemote();
+  }
+
+  void BookmarkLoaded() override {}
+
+  void FavIconChanged(
+      bookmark_bar::mojom::BookmarkDataPtr bookmark_data) override {
+    favicon_changed_ids_.push_back(bookmark_data->id);
+  }
+
+  void Show() override {}
+  void Hide() override {}
+
+  void FlushForTesting() { receiver_.FlushForTesting(); }
+
+  std::vector<int64_t> favicon_changed_ids_;
+  mojo::Receiver<bookmark_bar::mojom::Page> receiver_{this};
+};
+
 #if BUILDFLAG(ENABLE_SURFACE_EMBED)
 // A WebUIBrowserTest with the SurfaceEmbed feature enabled and pixel output
 // enabled for visual verification.
@@ -95,6 +130,28 @@ IN_PROC_BROWSER_TEST_F(WebUIBrowserTest, StartupAndShutdown) {
       browser()->tab_strip_model()->GetActiveWebContents();
   ASSERT_TRUE(web_contents);
   EXPECT_TRUE(content::WaitForLoadStop(web_contents));
+}
+
+// Verifies that WebUIBrowserWindow allows keyboard lock for tab WebContents.
+// Tabs in WebUIBrowserWindow are inner WebContents, so this must return true
+// for keyboard lock to work.
+#if BUILDFLAG(IS_CHROMEOS)
+// TODO(crbug.com/451876195): Fix and re-enable this test for CrOS.
+#define MAYBE_AllowKeyboardLockForInnerContents \
+  DISABLED_AllowKeyboardLockForInnerContents
+#else
+#define MAYBE_AllowKeyboardLockForInnerContents \
+  AllowKeyboardLockForInnerContents
+#endif
+IN_PROC_BROWSER_TEST_F(WebUIBrowserTest,
+                       MAYBE_AllowKeyboardLockForInnerContents) {
+  auto* capabilities = DesktopBrowserWindowCapabilities::From(browser());
+  ASSERT_TRUE(capabilities);
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+  EXPECT_TRUE(capabilities->AllowKeyboardLockForInnerContents(web_contents));
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -281,6 +338,42 @@ IN_PROC_BROWSER_TEST_F(WebUIBrowserTest, MAYBE_TabFullscreenEnterAndExit) {
   EXPECT_FALSE(window->IsFullscreen());
 }
 
+IN_PROC_BROWSER_TEST_F(WebUIBrowserTest, BookmarkNodeFaviconChangedRegression) {
+  bookmarks::BookmarkModel* model =
+      BookmarkModelFactory::GetForBrowserContext(browser()->profile());
+  ASSERT_TRUE(base::test::RunUntil([&]() { return model->loaded(); }));
+
+  FakeBookmarkBarPage page;
+  mojo::PendingRemote<bookmark_bar::mojom::PageHandler> page_handler;
+  WebUIBrowserBookmarkBarPageHandler handler(
+      page_handler.InitWithNewPipeAndPassReceiver(), page.BindAndGetRemote(),
+      /*web_ui=*/nullptr, browser());
+
+  const bookmarks::BookmarkNode* other_child =
+      model->AddURL(model->other_node(), 0, u"Other", GURL("http://other.com"));
+  const bookmarks::BookmarkNode* bar_child = model->AddURL(
+      model->bookmark_bar_node(), 0, u"Bar", GURL("http://bar.com"));
+
+  // Trigger favicon loads. This will asynchronously notify observers.
+  model->GetFavicon(other_child);
+  model->GetFavicon(bar_child);
+
+  // Wait for both favicons to finish loading.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return other_child->is_favicon_loaded() && bar_child->is_favicon_loaded();
+  }));
+
+  // Flush any pending mojo messages to ensure we've received all IPCs.
+  page.FlushForTesting();
+
+  // We expect FavIconChanged to be called for `bar_child`, but NOT for
+  // `other_child` since it is not a direct child of the bookmark bar.
+  EXPECT_EQ(page.favicon_changed_ids_.size(), 1u);
+  if (!page.favicon_changed_ids_.empty()) {
+    EXPECT_EQ(page.favicon_changed_ids_[0], bar_child->id());
+  }
+}
+
 #if BUILDFLAG(ENABLE_SURFACE_EMBED)
 #if BUILDFLAG(IS_CHROMEOS)
 // TODO(crbug.com/451876195): Enable this test for CrOS.
@@ -306,6 +399,15 @@ IN_PROC_BROWSER_TEST_F(WebUIBrowserSurfaceEmbedPixelTest,
           ->GetWebContents();
 
   EXPECT_TRUE(content::WaitForLoadStop(ui_web_contents));
+
+  content::WebContents* tab_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(tab_contents);
+
+  // Wait for the connector to be attached to the tab before expecting visual
+  // output.
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return tab_contents->GetSurfaceEmbedConnector() != nullptr; }));
 
   // Attempt to capture pixels from the WebContents until we get the expected
   // output color. The test will timeout if that doesn't happen.

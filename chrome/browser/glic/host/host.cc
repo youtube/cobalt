@@ -30,7 +30,7 @@
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/chrome_features.h"
-#include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
+#include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/render_process_host.h"
@@ -131,6 +131,14 @@ class EmptyInstanceDelegate : public Host::InstanceDelegate {
   class MetricsBackwardsCompatibilityStub
       : public GlicInstanceMetricsBackwardsCompatibility {
    public:
+    void OnUserInputSubmitted(mojom::WebClientMode mode) override {}
+    void DidRequestContextFromTab(tabs::TabInterface& tab) override {}
+    void OnResponseStarted() override {}
+    void OnResponseStopped(mojom::ResponseStopCause cause) override {}
+    void OnTurnCompleted(mojom::WebClientModel model,
+                         base::TimeDelta duration) override {}
+    void OnReaction(mojom::MetricUserInputReactionType reaction_type) override {
+    }
     void OnGlicScrollAttempt() override {}
     void OnGlicScrollComplete(bool success) override {}
   };
@@ -228,6 +236,18 @@ void Host::NotifyContextualSkillsChanged(
 }
 
 void Host::Invoke(mojom::InvokeOptionsPtr options, base::OnceClosure callback) {
+  CHECK(!options->auto_submit) << "Use InvokeWithAutoSubmit instead.";
+  InvokeInternal(std::move(options), std::move(callback));
+}
+
+void Host::InvokeWithAutoSubmit(InvokeWithAutoSubmitPasskey auto_submit_passkey,
+                                mojom::InvokeOptionsPtr options,
+                                base::OnceClosure callback) {
+  InvokeInternal(std::move(options), std::move(callback));
+}
+
+void Host::InvokeInternal(mojom::InvokeOptionsPtr options,
+                          base::OnceClosure callback) {
   if (auto* client = GetPrimaryWebClient()) {
     client->Invoke(std::move(options), std::move(callback));
   } else {
@@ -247,12 +267,21 @@ void Host::Reload() {
 
   if (GlicEnabling::IsMultiInstanceEnabled() &&
       base::FeatureList::IsEnabled(kGlicReloadUsesFreshWebContents)) {
+    if (handler_info_ && handler_info_->web_client) {
+      UnsetWebClient(handler_info_->web_client);
+    }
     Shutdown();
     CreateContents(/*initially_hidden=*/false);
     delegate_->OnReload();
   } else {
     contents->GetController().Reload(content::ReloadType::BYPASSING_CACHE,
                                      /*check_for_repost=*/false);
+  }
+}
+
+void Host::OnWebContentsNavigated() {
+  if (delegate_) {
+    delegate_->OnReload();
   }
 }
 
@@ -265,8 +294,8 @@ void Host::CreateContents(bool initially_hidden) {
   if (base::FeatureList::IsEnabled(features::kGlicWebContentsWarming)) {
     contents_ = glic_service().web_contents_warming_pool().TakeContainer();
   } else {
-    contents_ =
-        std::make_unique<WebUIContentsContainer>(profile_, initially_hidden);
+    contents_ = std::make_unique<WebUIContentsContainerImpl>(profile_,
+                                                             initially_hidden);
   }
   contents_->AttachToHost(this);
   glic::GlicProfileManager::GetInstance()->OnLoadingClientForService(
@@ -310,6 +339,14 @@ void Host::PanelWasClosed() {
   if (handler_info_ && handler_info_->web_client) {
     handler_info_->web_client->PanelWasClosed(base::DoNothing());
     handler_info_->open_complete = false;
+  }
+}
+
+void Host::StopMicrophone(base::OnceClosure done) {
+  if (auto* client = GetPrimaryWebClient()) {
+    client->StopMicrophone(std::move(done));
+  } else {
+    std::move(done).Run();
   }
 }
 
@@ -449,6 +486,12 @@ void Host::NotifyWindowIntentToShow() {
   }
 }
 
+void Host::Zoom(mojom::ZoomAction zoom_action) {
+  if (GlicPageHandler* handler = page_handler()) {
+    handler->Zoom(zoom_action);
+  }
+}
+
 void Host::UnsetWebClient(GlicWebClientAccess* web_client) {
   if (!handler_info_ || handler_info_->web_client != web_client) {
     return;
@@ -499,6 +542,11 @@ void Host::SetWebClient(GlicWebClientAccess* web_client) {
             // Unretained is safe because web_client is calling us.
             base::Unretained(web_client)));
   }
+#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
+  skills_manager().UpdateSkillPreviews(std::nullopt);
+#endif
+
+  observers_.Notify(&Observer::WebClientConnected);
 }
 
 void Host::WebClientInitializeFailed(GlicWebClientAccess* web_client) {
@@ -635,24 +683,14 @@ content::RenderProcessHost* Host::GetWebClientRenderProcessHost() const {
   return nullptr;
 }
 
-void Host::OnViewChanged(GlicWebClientAccess* client,
-                         mojom::CurrentView new_view) {
-  if (client != GetPrimaryWebClient()) {
-    return;
-  }
-  if (primary_current_view_ != new_view) {
-    primary_current_view_ = new_view;
-    observers_.Notify(&Observer::OnViewChanged, primary_current_view_);
-  }
-}
-
 void Host::OnInteractionModeChange(GlicPageHandler* page_handler,
                                    mojom::WebClientMode new_mode) {
   instance_delegate_->OnInteractionModeChange(new_mode);
 }
 
-mojom::CurrentView Host::GetPrimaryCurrentView() {
-  return primary_current_view_;
+void Host::OnMicrophoneStatusChanged(mojom::MicrophoneStatus status) {
+  microphone_status_ = status;
+  delegate_->OnMicrophoneStatusChanged(status);
 }
 
 void Host::ResizePanel(GlicPageHandler* page_handler,
@@ -758,6 +796,7 @@ void Host::RequestToConfirmNavigation(
 void Host::RequestToShowAutofillSuggestionsDialog(
     actor::TaskId task_id,
     std::vector<autofill::ActorFormFillingRequest> requests,
+    base::WeakPtr<actor::AutofillSelectionDialogEventHandler> event_handler,
     actor::ActorTaskDelegate::AutofillSuggestionSelectedCallback callback) {
   if (!IsReady()) {
     std::move(callback).Run(
@@ -770,7 +809,8 @@ void Host::RequestToShowAutofillSuggestionsDialog(
     return;
   }
   handler_info_->web_client->RequestToShowAutofillSuggestionsDialog(
-      task_id, std::move(requests), std::move(callback));
+      task_id, std::move(requests), std::move(event_handler),
+      std::move(callback));
 }
 
 void Host::FloatingPanelCanAttachChanged(bool can_attach) {
@@ -891,7 +931,7 @@ void HostManager::WebUIPageHandlerRemoved(GlicPageHandler* page_handler) {
   for (Host* host : GetAllHosts()) {
     if (host->page_handler() == page_handler) {
       host->WebUIPageHandlerRemoved(page_handler);
-      if (std::ranges::contains(instance_hosts, host)) {
+      if (!std::ranges::contains(instance_hosts, host)) {
         std::erase_if(tab_hosts_, [host](std::unique_ptr<Host>& h) {
           return h.get() == host;
         });

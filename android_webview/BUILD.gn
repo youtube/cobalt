@@ -39,7 +39,8 @@ assert(!is_cronet_build)
 if (android_64bit_target_cpu) {
   # We are assuming that all webview targets have the same Java - if this
   # is no longer true, we should add more targets to this array.
-  webview_java_for_jni_targets = [ ":system_webview_64_bundle($default_toolchain)" ]
+  webview_java_for_jni_targets =
+      [ ":system_webview_64_bundle($default_toolchain)" ]
 } else {
   webview_java_for_jni_targets = [ ":system_webview_bundle" ]
 }
@@ -473,6 +474,7 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/android_webview/AwClassPreloader.java",
       "java/src/org/chromium/android_webview/AwComputedFlags.java",
       "java/src/org/chromium/android_webview/AwConsoleMessage.java",
+      "java/src/org/chromium/android_webview/AwContentRestrictionManagerBridge.java",
       "java/src/org/chromium/android_webview/AwContents.java",
       "java/src/org/chromium/android_webview/AwContentsClient.java",
       "java/src/org/chromium/android_webview/AwContentsClientBridge.java",
@@ -504,6 +506,7 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/android_webview/AwNetworkChangeNotifierRegistrationPolicy.java",
       "java/src/org/chromium/android_webview/AwNoVarySearchData.java",
       "java/src/org/chromium/android_webview/AwOriginMatchedHeader.java",
+      "java/src/org/chromium/android_webview/AwOverScrollHelper.java",
       "java/src/org/chromium/android_webview/AwPacProcessor.java",
       "java/src/org/chromium/android_webview/AwPage.java",
       "java/src/org/chromium/android_webview/AwPasswordEchoSettingController.java",
@@ -603,11 +606,13 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/android_webview/permission/AwGeolocationCallback.java",
       "java/src/org/chromium/android_webview/permission/AwPermissionRequest.java",
       "java/src/org/chromium/android_webview/policy/AwPolicyProvider.java",
+      "java/src/org/chromium/android_webview/safe_browsing/AwAdvancedProtectionStatusManagerBridge.java",
       "java/src/org/chromium/android_webview/safe_browsing/AwSafeBrowsingConfigHelper.java",
       "java/src/org/chromium/android_webview/safe_browsing/AwSafeBrowsingConversionHelper.java",
       "java/src/org/chromium/android_webview/safe_browsing/AwSafeBrowsingResponse.java",
       "java/src/org/chromium/android_webview/safe_browsing/AwSafeBrowsingSafeModeAction.java",
       "java/src/org/chromium/android_webview/safe_mode/BrowserSafeModeActionList.java",
+      "java/src/org/chromium/android_webview/safe_mode/DisableCrashyClassSafeModeAction.java",
       "java/src/org/chromium/android_webview/safe_mode/DisableStartupTasksSafeModeAction.java",
       "java/src/org/chromium/android_webview/safe_mode/NoopSafeModeAction.java",
       "java/src/org/chromium/android_webview/selection/AwSelectionActionMenuDelegate.java",
@@ -635,6 +640,7 @@ if (_is_default_toolchain) {
       "//base:base_java",
       "//base:content_uri_utils_java",
       "//base:flagged_apis_java",
+      "//base:service_loader_java",
       "//base/version_info/android:version_constants_java",
       "//build/android:build_java",
       "//cc/mojom:mojom_java",
@@ -1220,6 +1226,7 @@ generate_jni("browser_jni_headers") {
     "java/src/org/chromium/android_webview/AwBrowserContextStore.java",
     "java/src/org/chromium/android_webview/AwBrowserMainParts.java",
     "java/src/org/chromium/android_webview/AwBrowserProcess.java",
+    "java/src/org/chromium/android_webview/AwContentRestrictionManagerBridge.java",
     "java/src/org/chromium/android_webview/AwContents.java",
     "java/src/org/chromium/android_webview/AwContentsClientBridge.java",
     "java/src/org/chromium/android_webview/AwContentsIoThreadClient.java",
@@ -1266,6 +1273,7 @@ generate_jni("browser_jni_headers") {
     "java/src/org/chromium/android_webview/metrics/AwMetricsServiceClient.java",
     "java/src/org/chromium/android_webview/metrics/AwSiteVisitLogger.java",
     "java/src/org/chromium/android_webview/permission/AwPermissionRequest.java",
+    "java/src/org/chromium/android_webview/safe_browsing/AwAdvancedProtectionStatusManagerBridge.java",
     "java/src/org/chromium/android_webview/safe_browsing/AwSafeBrowsingConfigHelper.java",
     "java/src/org/chromium/android_webview/safe_browsing/AwSafeBrowsingSafeModeAction.java",
     "java/src/org/chromium/android_webview/supervised_user/AwSupervisedUserHelper.java",
@@ -1373,7 +1381,9 @@ if (!(_is_default_toolchain && use_webview_pgo_profile)) {
   }
 } else {
   copy("copy_webview_lib_unstripped") {
-    _webview_toolchain_out_dir = get_label_info(":libwebviewchromium($webview_toolchain)", "root_out_dir")
+    _webview_toolchain_out_dir =
+        get_label_info(":libwebviewchromium($webview_toolchain)",
+                       "root_out_dir")
     _sofile = "$_webview_toolchain_out_dir/lib.unstripped/libwebviewchromium$shlib_extension"
     sources = [ _sofile ]
     outputs = [ "$root_out_dir/lib.unstripped/{{source_file_part}}" ]

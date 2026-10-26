@@ -14,10 +14,11 @@
 #include "chrome/browser/ash/app_list/search/common/icon_constants.h"
 #include "chrome/browser/ash/app_list/search/common/search_result_util.h"
 #include "chrome/browser/ash/app_list/search/common/string_util.h"
+#include "chrome/browser/ash/app_list/search/omnibox/omnibox_types.h"
 #include "chrome/browser/ash/app_list/search/omnibox/omnibox_util.h"
 #include "chromeos/ash/components/string_matching/tokenized_string.h"
 #include "chromeos/ash/components/string_matching/tokenized_string_match.h"
-#include "chromeos/crosapi/mojom/launcher_search.mojom.h"
+#include "components/omnibox/browser/favicon_cache.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -32,7 +33,6 @@ namespace {
 
 using ::ash::string_matching::TokenizedString;
 using ::ash::string_matching::TokenizedStringMatch;
-using CrosApiSearchResult = ::crosapi::mojom::SearchResult;
 
 constexpr char kOpenTabScheme[] = "opentab://";
 
@@ -44,19 +44,20 @@ constexpr char16_t kA11yDelimiter[] = u", ";
 
 OpenTabResult::OpenTabResult(Profile* profile,
                              AppListControllerDelegate* list_controller,
-                             crosapi::mojom::SearchResultPtr search_result,
-                             const TokenizedString& query)
-    : consumer_receiver_(this, std::move(search_result->receiver)),
-      profile_(profile),
+                             std::unique_ptr<OmniboxResultData> search_result,
+                             const TokenizedString& query,
+                             FaviconCache* favicon_cache)
+    : profile_(profile),
       list_controller_(list_controller),
       search_result_(std::move(search_result)),
-      drive_id_(GetDriveId(*search_result_->destination_url)),
+      drive_id_(GetDriveId(search_result_->destination_url)),
       description_(search_result_->description.value_or(u"")) {
-  DCHECK(search_result_->destination_url->is_valid());
+  CHECK(favicon_cache);
+  DCHECK(search_result_->destination_url.is_valid());
 
   // TODO(crbug.com/1293702): This may not be unique. Once we have a mechanism
   // for opening a specific tab, add that info too to ensure uniqueness.
-  set_id(kOpenTabScheme + search_result_->destination_url->spec());
+  set_id(kOpenTabScheme + search_result_->destination_url.spec());
 
   SetDisplayType(DisplayType::kList);
   SetResultType(ResultType::kOpenTab);
@@ -70,7 +71,9 @@ OpenTabResult::OpenTabResult(Profile* profile,
   set_relevance(string_match.Calculate(query, title));
 
   UpdateText();
+  FetchFavicon(favicon_cache);
   UpdateIcon();
+
   if (auto* dark_light_mode_controller = ash::DarkLightModeController::Get())
     dark_light_mode_controller->AddObserver(this);
 }
@@ -82,14 +85,14 @@ OpenTabResult::~OpenTabResult() {
 
 void OpenTabResult::Open(int event_flags) {
   list_controller_->OpenURL(
-      profile_, *search_result_->destination_url,
-      PageTransitionToUiPageTransition(search_result_->page_transition),
+      profile_, search_result_->destination_url,
+      search_result_->page_transition,
       ui::DispositionFromEventFlags(event_flags,
                                     WindowOpenDisposition::SWITCH_TO_TAB));
 }
 
 std::optional<GURL> OpenTabResult::url() const {
-  return *search_result_->destination_url;
+  return search_result_->destination_url;
 }
 
 std::optional<std::string> OpenTabResult::DriveId() const {
@@ -101,12 +104,35 @@ void OpenTabResult::OnColorModeChanged(bool dark_mode_enabled) {
     SetGenericIcon();
 }
 
+void OpenTabResult::FetchFavicon(FaviconCache* favicon_cache) {
+  CHECK(favicon_cache);
+  CHECK(search_result_->favicon.isNull());
+  CHECK(IsEligibleForFavicon(search_result_->omnibox_type));
+  gfx::Image favicon = favicon_cache->GetFaviconForPageUrl(
+      search_result_->destination_url,
+      base::BindOnce(&OpenTabResult::OnFetchedFavicon,
+                     weak_factory_.GetWeakPtr()));
+  if (!favicon.IsEmpty()) {
+    OnFetchedFavicon(favicon);
+  }
+}
+
+void OpenTabResult::OnFetchedFavicon(const gfx::Image& icon) {
+  CHECK(search_result_->favicon.isNull());
+  auto image_skia = icon.AsImageSkia();
+  CHECK(!image_skia.isNull());
+  search_result_->favicon = image_skia;
+  CHECK(!search_result_->favicon.isNull());
+  SetIcon(
+      IconInfo(ui::ImageModel::FromImageSkia(image_skia), kFaviconDimension));
+}
+
 void OpenTabResult::UpdateText() {
   // URL results from the Omnibox have the page title stored in the description.
   SetTitle(description_);
 
   const std::u16string url =
-      base::UTF8ToUTF16(search_result_->destination_url->spec());
+      base::UTF8ToUTF16(search_result_->destination_url.spec());
   SetDetailsTextVector(
       {CreateStringTextItem(url).SetTextTags({Tag(Tag::URL, 0, url.length())}),
        CreateStringTextItem(l10n_util::GetStringFUTF16(
@@ -139,13 +165,6 @@ void OpenTabResult::SetGenericIcon() {
       ui::ImageModel::FromVectorIcon(omnibox::kSwitchIcon, kGenericIconColorId,
                                      kSystemIconDimension),
       kSystemIconDimension));
-}
-
-void OpenTabResult::OnFaviconReceived(const gfx::ImageSkia& icon) {
-  // By contract, this is never called with an empty `icon`.
-  DCHECK(!icon.isNull());
-  search_result_->favicon = icon;
-  SetIcon(IconInfo(ui::ImageModel::FromImageSkia(icon), kFaviconDimension));
 }
 
 }  // namespace app_list

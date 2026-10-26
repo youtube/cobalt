@@ -53,6 +53,8 @@ class TextFieldInputType : public InputType,
   bool CanSetSuggestedValue() override;
   void HandleKeydownEvent(KeyboardEvent&) override;
 
+  bool SupportsBaseAppearance(Element::BaseAppearanceValue) const override;
+
   bool IsInnerEditorValueEmpty() const final;
   void CreateShadowSubtree() override;
   void DestroyShadowSubtree() override;
@@ -80,6 +82,8 @@ class TextFieldInputType : public InputType,
   virtual void DidSetValueByUserEdit();
 
   void HandleKeydownEventForSpinButton(KeyboardEvent&);
+  bool HandleKeydownForCustomizableCombobox(KeyboardEvent&);
+  bool HandleKeydownForFilterableSelect(KeyboardEvent&);
   Element* ContainerElement() const;
 
  private:
@@ -103,6 +107,10 @@ class TextFieldInputType : public InputType,
 
   SpinButtonElement* GetSpinButtonElement() const;
   void DisabledOrReadonlyAttributeChanged();
+
+  // Applies the :filtered pseudo-class to the options of the corresponding
+  // datalist or filterable select this input is linked to, if there is one.
+  void FilterOptions();
 };
 
 template <>

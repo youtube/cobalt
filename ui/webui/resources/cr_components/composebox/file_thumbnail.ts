@@ -12,7 +12,7 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {ComposeboxFile} from './common.js';
-import {FileUploadStatus} from './composebox_query.mojom-webui.js';
+import {ContextUploadStatus, InputType} from './composebox_query.mojom-webui.js';
 import {getCss} from './file_thumbnail.css.js';
 import {getHtml} from './file_thumbnail.html.js';
 
@@ -50,29 +50,36 @@ export class ComposeboxFileThumbnailElement extends CrLitElement {
   accessor file: ComposeboxFile = {
     name: '',
     type: '',
+    inputType: InputType.kLensFile,
     objectUrl: null,
     dataUrl: null,
     uuid: '',
-    status: FileUploadStatus.kNotUploaded,
+    status: ContextUploadStatus.kNotUploaded,
     url: null,
     tabId: null,
     isDeletable: true,
+    iconName: null,
+    supportsUnimodal: true,
   };
+
+  getIsUploadingForTesting(): boolean {
+    return this.isUploading_;
+  }
 
   protected accessor isUploading_: boolean = false;
 
   override willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
     if (changedProperties.has('file')) {
-      this.isUploading_ = this.file.status === FileUploadStatus.kNotUploaded ||
-          this.file.status === FileUploadStatus.kProcessing ||
+      this.isUploading_ =
+          this.file.status === ContextUploadStatus.kProcessing ||
           this.file.status ===
-              FileUploadStatus.kProcessingSuggestSignalsReady ||
-          this.file.status === FileUploadStatus.kUploadStarted;
+              ContextUploadStatus.kProcessingSuggestSignalsReady ||
+          this.file.status === ContextUploadStatus.kUploadStarted;
     }
   }
 
-  protected deleteFile_() {
+  protected onRemoveButtonClick_() {
     // TODO(crbug.com/422559977): Send call to handler to delete file from
     // cache.
     this.fire('delete-file', {uuid: this.file.uuid, fromUserAction: true});

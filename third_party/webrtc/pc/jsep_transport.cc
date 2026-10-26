@@ -13,13 +13,13 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/dtls_transport_interface.h"
 #include "api/ice_transport_interface.h"
@@ -57,18 +57,15 @@ JsepTransportDescription::JsepTransportDescription() {}
 JsepTransportDescription::JsepTransportDescription(
     bool rtcp_mux_enabled,
     const std::vector<int>& encrypted_header_extension_ids,
-    int rtp_abs_sendtime_extn_id,
     const TransportDescription& transport_desc)
     : rtcp_mux_enabled(rtcp_mux_enabled),
       encrypted_header_extension_ids(encrypted_header_extension_ids),
-      rtp_abs_sendtime_extn_id(rtp_abs_sendtime_extn_id),
       transport_desc(transport_desc) {}
 
 JsepTransportDescription::JsepTransportDescription(
     const JsepTransportDescription& from)
     : rtcp_mux_enabled(from.rtcp_mux_enabled),
       encrypted_header_extension_ids(from.encrypted_header_extension_ids),
-      rtp_abs_sendtime_extn_id(from.rtp_abs_sendtime_extn_id),
       transport_desc(from.transport_desc) {}
 
 JsepTransportDescription::~JsepTransportDescription() = default;
@@ -80,7 +77,6 @@ JsepTransportDescription& JsepTransportDescription::operator=(
   }
   rtcp_mux_enabled = from.rtcp_mux_enabled;
   encrypted_header_extension_ids = from.encrypted_header_extension_ids;
-  rtp_abs_sendtime_extn_id = from.rtp_abs_sendtime_extn_id;
   transport_desc = from.transport_desc;
 
   return *this;
@@ -222,8 +218,6 @@ RTCError JsepTransport::SetRemoteJsepTransportDescription(
   if (auto* dtls_srtp_transport = rtp_transport_->AsDtlsSrtpTransport()) {
     dtls_srtp_transport->UpdateSendEncryptedHeaderExtensionIds(
         jsep_description.encrypted_header_extension_ids);
-    dtls_srtp_transport->CacheRtpAbsSendTimeHeaderExtension(
-        jsep_description.rtp_abs_sendtime_extn_id);
   }
 
   remote_description_.reset(new JsepTransportDescription(jsep_description));
@@ -439,7 +433,7 @@ RTCError JsepTransport::NegotiateAndSetDtlsParameters(
   } else {
     // We are not doing DTLS
     remote_fingerprint =
-        std::make_unique<SSLFingerprint>("", ArrayView<const uint8_t>());
+        std::make_unique<SSLFingerprint>("", std::span<const uint8_t>());
   }
   // Now that we have negotiated everything, push it downward.
   // Note that we cache the result so that if we have race conditions

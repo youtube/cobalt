@@ -45,6 +45,8 @@
 #include "components/safe_browsing/core/browser/referring_app_info.h"  // nogncheck
 #endif
 
+class SkBitmap;
+
 namespace base {
 class TickClock;
 }
@@ -55,6 +57,26 @@ class ClientSideDetectionService;
 class VerdictCacheManager;
 
 using HostInnerTextCallback = base::OnceCallback<void(std::string)>;
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class ClientSideDetectionEvent {
+  kTriggerStartsPreClassification = 0,
+  kPreClassificationCheckComplete = 1,
+  kImageClassificationBegin = 2,
+  kImageClassificationComplete = 3,
+  kVerdictProtoParseComplete = 4,
+  kLocalModelResultComplete = 5,
+  kImageEmbeddingBegin = 6,
+  kImageEmbeddingComplete = 7,
+  kIntelligentScanBegin = 8,
+  kIntelligentScanComplete = 9,
+  kMiscellaneousFieldsAdded = 10,
+  kNetworkRequestSent = 11,
+  kNetworkResponseReceived = 12,
+  kWarningShown = 13,
+  kMaxValue = kWarningShown,
+};
 
 // This class is used to receive the IPC from the renderer which
 // notifies the browser that a URL was classified as phishing.  This
@@ -77,9 +99,21 @@ class ClientSideDetectionHost
     kMaxValue = kSkippedTriggerModelsPingSentAsForceRequest,
   };
 
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  enum class CSDObserverCalled {
+    kOnFirstContentfulPaint = 0,
+    kDidFirstVisuallyNonEmptyPaint = 1,
+    kMaxValue = kDidFirstVisuallyNonEmptyPaint,
+  };
+
   // A callback via which the client of this component indicates whether the
   // primary account is signed in.
   using PrimaryAccountSignedIn = base::RepeatingCallback<bool()>;
+
+  // Callback for when preclassification is started.
+  using PreclassificationStarted =
+      base::RepeatingCallback<void(ClientSideDetectionType)>;
 
   // Delegate which allows to provide embedder specific implementations.
   class Delegate {
@@ -120,6 +154,9 @@ class ClientSideDetectionHost
 #endif
   };
 
+  static const int kMaxHighResScreenshotWidth;
+  static const int kMaxHighResScreenshotHeight;
+
   // The caller keeps ownership of the tab object and is responsible for
   // ensuring that it stays valid until WebContentsDestroyed is called.
   // The caller also keeps ownership of pref_service. The
@@ -153,6 +190,8 @@ class ClientSideDetectionHost
   void VibrationRequested() override;
   void OnTextCopiedToClipboard(content::RenderFrameHost* render_frame_host,
                                const std::u16string& copied_text) override;
+  void DidFirstVisuallyNonEmptyPaint() override;
+  void OnFirstContentfulPaintInPrimaryMainFrame() override;
 
   // permissions::PermissionRequestManager::Observer methods:
   void OnPromptAdded() override;
@@ -177,6 +216,16 @@ class ClientSideDetectionHost
 
   void RegisterAutofillManager();
 
+  // User requests to report a site as unsafe. The screenshot values come from
+  // the report dialog view.
+  void ReportUnsafeSite(SkBitmap screenshot);
+
+  // Sets a callback to be notified when preclassification is started.
+  void set_preclassification_started_callback_for_testing(
+      const PreclassificationStarted& callback) {
+    preclassification_started_cb_for_testing_ = callback;
+  }
+
  protected:
   explicit ClientSideDetectionHost(
       content::WebContents* tab,
@@ -199,6 +248,7 @@ class ClientSideDetectionHost
   friend class ClientSideDetectionHostCreditCardFormTest;
   friend class ClientSideDetectionHostClipboardDataTest;
   friend class ClientSideDetectionHostGeminiAntiscamProtectionTest;
+  friend class ClientSideDetectionHostPrerenderBrowserTest_Screenshot;
   class ShouldClassifyUrlRequest;
   friend class ShouldClassifyUrlRequest;
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostPrerenderBrowserTest,
@@ -390,6 +440,10 @@ class ClientSideDetectionHost
       std::optional<net::HttpStatusCode> response_code,
       std::optional<IntelligentScanVerdict> intelligent_scan_verdict);
 
+  // Logs the ClientSideDetectionEvent event.
+  void LogClientSideDetectionEvent(ClientSideDetectionEvent event,
+                                   ClientSideDetectionType request_type);
+
   // Whether request is forced for |current_url_|. This function also checks
   // whether enhanced protection is enabled.
   bool HasForceRequestFromRtUrlLookup();
@@ -436,17 +490,9 @@ class ClientSideDetectionHost
   void set_history_service_for_testing(
       history::HistoryService* history_service);
 
-  // Callbacks for when preclassification is started/done.
-  using PreclassificationStarted =
-      base::RepeatingCallback<void(ClientSideDetectionType)>;
+  // Callback for when preclassification is done.
   using PreclassificationDone =
       base::RepeatingCallback<void(ClientSideDetectionType)>;
-
-  // Sets a callback to be notified when preclassification is started.
-  void set_preclassification_started_callback_for_testing(
-      const PreclassificationStarted& callback) {
-    preclassification_started_cb_for_testing_ = callback;
-  }
 
   // Sets a callback to be notified when preclassification is done.
   void set_preclassification_done_callback_for_testing(
@@ -510,6 +556,10 @@ class ClientSideDetectionHost
       credit_card_form::FieldDetectionHeuristic field_heuristic,
       history::VisibleVisitCountToHostResult history_result);
 
+  // Fills in the screenshot data for the given `request`. Only fill if the
+  // report type is USER_REPORT.
+  void MaybeFillScreenshotData(ClientPhishingRequest* request);
+
   // This pointer may be nullptr if client-side phishing detection is
   // disabled.
   base::WeakPtr<ClientSideDetectionService> csd_service_;
@@ -532,6 +582,18 @@ class ClientSideDetectionHost
   // DidToggleFullscreenModeForTab can be called for both entering and exiting
   // fullscreen.
   GURL last_fullscreen_url_;
+
+  // `did_first_visually_non_empty_paint_` becomes true after the first paint
+  // that is not the background color. `on_first_contentful_paint_` becomes
+  // true after the browser renders the first content from the DOM (e.g.,
+  // text or an image).
+  //
+  // Client-side detection for TRIGGER_MODELS will only start after both events
+  // have occurred. This ensures that classification doesn't begin before the
+  // page has meaningfully rendered. These flags are reset on each new main
+  // frame navigation.
+  bool did_first_visually_non_empty_paint_ = false;
+  bool on_first_contentful_paint_ = false;
 
   // Records the start time of when image embedding started.
   base::TimeTicks image_embedding_start_time_;
@@ -613,6 +675,17 @@ class ClientSideDetectionHost
 
   // The last text that was copied to the clipboard.
   std::u16string last_copied_text_;
+
+  // The high resolution screenshot of the current tab. Should only be populated
+  // when a user reports a site as unsafe.
+  std::optional<SkBitmap> screenshot_;
+
+  // Tracks the state of the process running and the currently running
+  // ClientSideDetectionType. This begins at the CLASSIFY bucket in
+  // PreClassificationCheck until just prior to the network request being sent.
+  bool is_csd_running_ = false;
+  ClientSideDetectionType last_request_type_ =
+      ClientSideDetectionType::CLIENT_SIDE_DETECTION_TYPE_UNSPECIFIED;
 
   base::CancelableTaskTracker task_tracker_;
 

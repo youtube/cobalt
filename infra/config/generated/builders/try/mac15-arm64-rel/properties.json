@@ -31,7 +31,8 @@
               },
               "legacy_gclient_config": {
                 "apply_configs": [
-                  "chromium_with_telemetry_dependencies"
+                  "chromium_with_telemetry_dependencies",
+                  "use_clang_coverage"
                 ],
                 "config": "chromium"
               }
@@ -85,10 +86,6 @@
       "targets_spec_directory": "infra/config/generated/builders/try/mac15-arm64-rel/targets"
     }
   },
-  "$build/flakiness": {
-    "check_for_flakiness": true,
-    "check_for_flakiness_with_resultdb": true
-  },
   "$build/siso": {
     "configs": [
       "builder"
@@ -109,6 +106,5 @@
     ]
   },
   "builder_group": "tryserver.chromium.mac",
-  "cq": "required",
   "recipe": "chromium/orchestrator"
 }

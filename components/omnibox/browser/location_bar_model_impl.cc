@@ -4,6 +4,8 @@
 
 #include "components/omnibox/browser/location_bar_model_impl.h"
 
+#include <string>
+
 #include "base/check.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
@@ -11,6 +13,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/dom_distiller/core/url_constants.h"
 #include "components/dom_distiller/core/url_utils.h"
 #include "components/omnibox/browser/buildflags.h"
@@ -26,7 +29,9 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/text_elider.h"
 #include "ui/gfx/vector_icon_types.h"
+#include "url/gurl.h"
 #include "url/origin.h"
+#include "url/url_canon.h"
 
 #if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_VR)) && !BUILDFLAG(IS_IOS)
 #include "components/omnibox/browser/vector_icons.h"  // nogncheck
@@ -48,6 +53,28 @@ std::u16string LocationBarModelImpl::GetFormattedFullURL() const {
 }
 
 std::u16string LocationBarModelImpl::GetURLForDisplay() const {
+  // For the contextual tasks page, apply "origin-swapping" logic in order to
+  // display the proper URL in the Omnibox.
+  const auto inner_frame_url = delegate_->GetContextualTasksInnerFrameURL();
+  if (inner_frame_url.is_valid()) {
+    GURL::Replacements replacements;
+
+    std::string display_url_scheme =
+        contextual_tasks::GetContextualTasksDisplayUrlScheme();
+    replacements.SetSchemeStr(display_url_scheme);
+
+    std::string display_url_host =
+        contextual_tasks::GetContextualTasksDisplayUrlHost();
+    replacements.SetHostStr(display_url_host);
+
+    std::string display_url_path =
+        contextual_tasks::GetContextualTasksDisplayUrlPath();
+    replacements.SetPathStr(display_url_path);
+
+    const auto display_url = inner_frame_url.ReplaceComponents(replacements);
+    return display_url.is_valid() ? base::UTF8ToUTF16(display_url.spec()) : u"";
+  }
+
   url_formatter::FormatUrlTypes format_types =
       url_formatter::kFormatUrlOmitDefaults;
   if (delegate_->ShouldTrimDisplayUrlAfterHostName()) {
@@ -143,6 +170,14 @@ GURL LocationBarModelImpl::GetURL() const {
   return (ShouldDisplayURL() && delegate_->GetURL(&url))
              ? url
              : GURL(url::kAboutBlankURL);
+}
+
+bool LocationBarModelImpl::IsContextualTasksPage() const {
+  return delegate_->IsContextualTasksPage();
+}
+
+GURL LocationBarModelImpl::GetContextualTasksInnerFrameURL() const {
+  return delegate_->GetContextualTasksInnerFrameURL();
 }
 
 security_state::SecurityLevel LocationBarModelImpl::GetSecurityLevel() const {

@@ -23,8 +23,7 @@ chromium-metrics-reviews@google.com.
 <histograms>
 
 <histogram name="Chrome.AppMenu.MenuHostInitToNextFramePresented" units="ms"
-    expires_after="2026-07-05">
-  <owner>temao@chromium.org</owner>
+    expires_after="2026-09-06">
   <owner>robliao@chromium.org</owner>
   <summary>
     Records time from when Widget::Show() is called to when the first frame is
@@ -33,12 +32,46 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Chrome.BuildState.BuildStateUpdateType"
-    enum="BuildStateUpdateType" expires_after="2026-06-06">
+    enum="BuildStateUpdateType" expires_after="2027-02-02">
   <owner>ajgo@chromium.org</owner>
   <owner>anunoy@chromium.org</owner>
   <summary>
     Result of polling for the installed version of Chrome. Logged once at
     startup then approximately every two hours.
+  </summary>
+</histogram>
+
+<histogram name="Chrome.BuildState.PageBlockingUpdate"
+    enum="PageBlockingUpdate" expires_after="2027-02-02">
+  <owner>ajgo@chromium.org</owner>
+  <owner>ellyjones@chromium.org</owner>
+  <summary>
+    Emitted during every upload of UMA records for the current session when a
+    single tab and a single window are blocking an update from applying. The
+    chrome:// scheme value is not logged if a more specific value could be
+    logged. Only recorded on Windows, Linux and Mac.
+  </summary>
+</histogram>
+
+<histogram name="Chrome.BuildState.PendingUpdateState"
+    enum="PendingUpdateState" expires_after="2027-02-02">
+  <owner>ajgo@chromium.org</owner>
+  <owner>ellyjones@chromium.org</owner>
+  <summary>
+    Records if an update is available, and the state of the client that is
+    currently blocking an update from applying. Recorded on every upload of UMA
+    data for the current session. Only recorded on Windows, Linux and Mac.
+  </summary>
+</histogram>
+
+<histogram name="Chrome.BuildState.TimeSinceUpdateAvailable" units="minutes"
+    expires_after="2027-02-02">
+  <owner>ajgo@chromium.org</owner>
+  <owner>ellyjones@chromium.org</owner>
+  <summary>
+    The time since an update has been available. Recorded on every upload of UMA
+    data for the current session when an update is available. Only recorded on
+    Windows, Linux and Mac.
   </summary>
 </histogram>
 
@@ -238,7 +271,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Chrome.ProcessSingleton.TerminateProcessTime" units="ms"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>gab@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <summary>
@@ -326,7 +359,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Chrome.SystemNetworkContextManager.NetworkSandboxState"
-    enum="NetworkSandboxState" expires_after="2026-07-05">
+    enum="NetworkSandboxState" expires_after="2026-09-06">
   <owner>wfh@chromium.org</owner>
   <owner>mmenke@chromium.org</owner>
   <summary>
@@ -339,7 +372,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Chrome.Tabs.AnimationSmoothness.HoverCard.FadeIn" units="%"
-    expires_after="2026-04-14">
+    expires_after="2027-03-02">
   <owner>yichenz@chromium.org</owner>
   <owner>chromeos-wmp@google.com</owner>
   <summary>
@@ -348,7 +381,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Chrome.Tabs.AnimationSmoothness.HoverCard.FadeOut" units="%"
-    expires_after="2026-04-14">
+    expires_after="2027-03-02">
   <owner>yichenz@chromium.org</owner>
   <owner>chromeos-wmp@google.com</owner>
   <summary>
@@ -370,7 +403,6 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Chrome.WrenchMenu.MenuButtonPressedToMenuShown" units="ms"
     expires_after="2024-11-06">
-  <owner>temao@chromium.org</owner>
   <owner>robliao@chromium.org</owner>
   <summary>
     Records the latency from when the app menu button is pressed to when the
@@ -384,7 +416,6 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Chrome.WrenchMenu.MenuHostInitToNextFramePresented" units="ms"
     expires_after="2024-11-06">
-  <owner>temao@chromium.org</owner>
   <owner>robliao@chromium.org</owner>
   <summary>
     Records time from when the menu host initialization is started to when the
@@ -412,7 +443,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ChromeColors.ColorType" enum="ChromeColorType"
-    expires_after="2026-06-28">
+    expires_after="2026-08-30">
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
   <summary>
@@ -427,7 +458,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ChromeColors.DynamicColorOnLoad"
-    enum="DynamicChromeColorsInfo" expires_after="2026-06-21">
+    enum="DynamicChromeColorsInfo" expires_after="2026-08-23">
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
   <summary>

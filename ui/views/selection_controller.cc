@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <vector>
 
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "build/build_config.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/events/event.h"
@@ -28,6 +30,8 @@ SelectionController::SelectionController(SelectionControllerDelegate* delegate)
 
   DCHECK(delegate);
 }
+
+SelectionController::~SelectionController() = default;
 
 bool SelectionController::OnMousePressed(
     const ui::MouseEvent& event,
@@ -81,6 +85,8 @@ bool SelectionController::OnMousePressed(
       SelectAll();
     } else if (PlatformStyle::kSelectWordOnRightClick &&
                !render_text->IsPointInSelection(event.location()) &&
+               !render_text->selection().EqualsIgnoringDirection(
+                   gfx::Range(0, render_text->text().length())) &&
                IsInsideText(event.location())) {
       SelectWord(event.location());
     }
@@ -91,11 +97,10 @@ bool SelectionController::OnMousePressed(
     delegate_->OnBeforePointerAction();
     const bool selection_changed =
         render_text->MoveCursorToPoint(event.location(), false);
-    const bool text_changed = ui::Clipboard::IsMiddleClickPasteEnabled()
-                                  ? delegate_->PasteSelectionClipboard()
-                                  : false;
-    delegate_->OnAfterPointerAction(text_changed,
-                                    selection_changed | text_changed);
+    delegate_->OnAfterPointerAction(false, selection_changed);
+    if (ui::Clipboard::IsMiddleClickPasteEnabled()) {
+      delegate_->PasteSelectionClipboard(base::DoNothing());
+    }
   }
 
   return true;

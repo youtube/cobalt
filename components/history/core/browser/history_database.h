@@ -117,6 +117,10 @@ class HistoryDatabase : public DownloadDatabase,
   // Returns the current version that we will generate history databases with.
   static int GetCurrentVersion();
 
+  // Returns the version number stored in the database's meta table.
+  // Must be called after Init().
+  int GetDatabaseVersionForTesting();
+
   // Creates a new inactive transaction for the history database. Caller is
   // responsible for calling `sql::Transaction::Begin()` and checking the return
   // value. Only call this after `Init()`.
@@ -153,9 +157,6 @@ class HistoryDatabase : public DownloadDatabase,
   // Vacuums the database. This will cause sqlite to defragment and collect
   // unused space in the file. It can be VERY SLOW.
   void Vacuum();
-
-  // Release all non-essential memory associated with this database connection.
-  void TrimMemory();
 
   // Razes the database. Returns true if successful.
   bool Raze();

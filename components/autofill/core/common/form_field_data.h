@@ -235,23 +235,43 @@ class FormFieldData {
   //   FormFieldData::value() may not be the ideal human-readable representation
   //   of a <select> element. The selected option's text is usually the better
   //   string to display to the user (e.g., during form import). For further
-  //   details, see SelectOption and FormFieldData::selected_option().
+  //   details, see `SelectOption` documentation.
   //
   // Truncated at `kMaxStringLength`.
   // TODO(crbug.com/40941640): Extract the value of contenteditables on iOS.
   const std::u16string& value() const { return value_; }
   void set_value(std::u16string value) { value_ = std::move(value); }
 
-  // Returns the (first) selected option. Returns std::nullopt if none is found.
-  // The only field types that come with options are FormControlType::kSelect*
-  // and FormControlType::kInput* with a datalist. But even their `value()` may
-  // mismatch all `options()`, e.g., when JavaScript set the value to a
-  // different value or when the number or string length of the options exceeded
-  // limits during extraction.
-  base::optional_ref<const SelectOption> selected_option() const LIFETIME_BOUND;
+  // The visible text of the currently selected <option> for <select> elements.
+  // Returns std::nullopt if no text is available or if the field is not a
+  // select element.
+  //
+  // Distinctions from similar properties:
+  //
+  // * vs. `value()`: `value()` returns the underlying technical value of the
+  //   option (the IDL "value" attribute), whereas `selected_option_text()`
+  //   returns the human-readable string displayed to the user in the UI.
+  //   For example, given `<option value="US">United States</option>`,
+  //   `value()` is "US", but `selected_option_text()` is "United States".
+  //   Effectively the difference is similar to the difference between
+  //   `SelectOption::value` and `SelectOption::text` (see `SelectOption`
+  //   documentation for more details).
+  //
+  // * vs. `selected_text()`: `selected_text()` refers to the string of text
+  //   actively highlighted by the user's cursor within a text field or
+  //   contenteditable. `selected_option_text()` strictly refers to the label
+  //   of a chosen dropdown option, regardless of the user's cursor.
+  const std::optional<std::u16string>& selected_option_text() const {
+    return selected_option_text_;
+  }
+  void set_selected_option_text(std::u16string selected_option_text) {
+    selected_option_text_ = std::move(selected_option_text);
+  }
 
-  // The selected text, or the empty string if no text is selected.
+  // The selected (highlighted text in a text input element or contenteditable)
+  // text, or the empty string if no text is selected.
   // Truncated at `50 * kMaxStringLength`.
+  //
   // This is not necessarily a substring of `value` because both strings are
   // truncated, and because for rich-text contenteditables the selection and
   // text content differ in whitespace.
@@ -372,31 +392,12 @@ class FormFieldData {
   uint64_t max_length() const { return max_length_; }
   void set_max_length(uint64_t max_length) { max_length_ = max_length; }
 
-  bool is_autofilled() const { return is_autofilled_; }
-  void set_is_autofilled(bool is_autofilled) { is_autofilled_ = is_autofilled; }
-
-  // Whether the user has edited this field since page load or resetting the
-  // field.
-  //
-  // Examples that count as edits:
-  // - Typing into a text control.
-  // - Pasting into a text control.
-  // - Clicking and selecting an option of a <select> counts.
-  // - Unfocusing a <select> using TAB (because of the keydown event).
-  //
-  // Examples that do not count as edits:
-  // - Autofill.
-  // - Typing into a contenteditable.
-  // - Setting the field's value directly in JavaScript.
-  // - Untrusted events (see JavaScript's Event.isTrusted).
-  //
-  // The property is sticky: a user-edited field becomes non-user-edited only
-  // when the form is reset (JavaScript's HTMLFormElement.reset()).
-  // TODO(crbug.com/40941928): On iOS, also non-trusted events reset the
-  // property.
-  bool is_user_edited() const { return is_user_edited_; }
-  void set_is_user_edited(bool is_user_edited) {
-    is_user_edited_ = is_user_edited;
+  bool is_autofilled_according_to_renderer() const {
+    return is_autofilled_according_to_renderer_;
+  }
+  void set_is_autofilled_according_to_renderer(
+      bool is_autofilled_according_to_renderer) {
+    is_autofilled_according_to_renderer_ = is_autofilled_according_to_renderer;
   }
 
   CheckStatus check_status() const { return check_status_; }
@@ -423,7 +424,7 @@ class FormFieldData {
   }
 
   // Data members from the next block are used for parsing only, they are not
-  // serialised for storage.
+  // serialized for storage.
   bool is_enabled() const { return is_enabled_; }
   void set_is_enabled(bool is_enabled) { is_enabled_ = is_enabled; }
   bool is_readonly() const { return is_readonly_; }
@@ -492,6 +493,7 @@ class FormFieldData {
   std::u16string name_attribute_;
   std::u16string label_;
   std::u16string value_;
+  std::optional<std::u16string> selected_option_text_;
   std::u16string selected_text_;
   FormControlType form_control_type_ = FormControlType::kInputText;
   std::string autocomplete_attribute_;
@@ -509,8 +511,7 @@ class FormFieldData {
   url::Origin origin_;
   int32_t form_control_ax_id_ = 0;
   uint64_t max_length_ = std::numeric_limits<uint32_t>::max();
-  bool is_autofilled_ = false;
-  bool is_user_edited_ = false;
+  bool is_autofilled_according_to_renderer_ = false;
   CheckStatus check_status_ = CheckStatus::kNotCheckable;
   bool is_focusable_ = true;
   bool is_visible_ = true;
@@ -538,11 +539,14 @@ struct FormFieldData::FillData {
   explicit FillData(const FormFieldData& field);
   FillData(const FillData&);
   FillData& operator=(const FillData&);
-
   ~FillData();
 
   // The field value to be set by the renderer.
   std::u16string value;
+
+  // The `SelectOption::text` value of the option to be selected in a select
+  // field.
+  std::optional<std::u16string> selected_option_text;
 
   // Uniquely identifies the DOM element that this field represents among the
   // field DOM elements in the same document.

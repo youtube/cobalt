@@ -144,7 +144,12 @@ class OmniboxEditModel {
 
   // Adjusts the copied text before writing it to the clipboard. If the copied
   // text is a URL with the scheme elided, this method reattaches the scheme.
+  //
   // Copied text that looks like a search query will not be modified.
+  //
+  // Copied text that looks like a "contextual tasks" URL will have
+  // "origin-swapping" logic applied to it, in order to ensure that users copy a
+  // valid, shareable URL.
   //
   // |sel_min| gives the minimum of the selection, e.g. min(sel_start, sel_end).
   // |text| is the currently selected text, and may be modified by this method.
@@ -181,10 +186,6 @@ class OmniboxEditModel {
   // ImageModel. If `dark_mode` is enabled, return the monochrome version of the
   // icon.
   ui::ImageModel GetSuperGIcon(int image_size, bool dark_mode) const;
-
-  // Whether the "Add Context" button should be shown in place of the location
-  // bar page info icon button.
-  bool ShouldShowAddContextButton() const;
 
   // Returns the "mega plus" icon associated with the "Add Context" button.
   ui::ImageModel GetAddContextIcon(int image_size) const;
@@ -281,7 +282,7 @@ class OmniboxEditModel {
 
   // A simplified version of `OpenSelection()` that opens the model's current
   // selection.
-  void OpenSelectionForTesting(
+  void OpenCurrentSelection(
       base::TimeTicks timestamp = base::TimeTicks(),
       WindowOpenDisposition disposition = WindowOpenDisposition::CURRENT_TAB,
       bool via_keyboard = false);
@@ -485,9 +486,11 @@ class OmniboxEditModel {
   // as well as updating the textfield with the new temporary text.
   // |reset_to_default| restores the original inline autocompletion.
   // |force_update_ui| updates the UI even if the selection has not changed.
+  // |native_update| cancels autocomplete query and notifies observers.
   void SetPopupSelection(OmniboxPopupSelection new_selection,
                          bool reset_to_default = false,
-                         bool force_update_ui = false);
+                         bool force_update_ui = false,
+                         bool native_update = true);
 
   // Returns true if popup selection is on the initial line, which is usually
   // the default match (except in the no-default-match case).

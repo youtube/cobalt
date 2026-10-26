@@ -11,12 +11,12 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
+#include "chrome/browser/ui/side_panel/side_panel_registry.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_test.h"
@@ -146,12 +146,9 @@ class SidePanelWebUIViewTest : public InProcessBrowserTest {
             },
             browser()->profile()),
         /*default_content_width_callback=*/base::NullCallback());
-    browser()
-        ->tab_strip_model()
-        ->GetActiveTab()
-        ->GetTabFeatures()
-        ->side_panel_registry()
-        ->Register(std::move(entry));
+    auto* registry =
+        SidePanelRegistry::From(browser()->GetActiveTabInterface());
+    registry->Register(std::move(entry));
   }
 };
 

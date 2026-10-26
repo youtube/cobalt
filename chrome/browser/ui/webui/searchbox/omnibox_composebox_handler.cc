@@ -36,7 +36,7 @@ class OmniboxPopupComposeboxClient : public ContextualOmniboxClient {
     // The OmniboxPopupWebContentsHelper should already be instantiated by this
     // point.
     auto* main_omnibox_controller =
-        OmniboxPopupWebContentsHelper::FromWebContents(web_contents_)
+        OmniboxPopupWebContentsHelper::GetOrCreateForWebContents(web_contents_)
             ->get_omnibox_controller();
 
     if (!main_omnibox_controller) {
@@ -83,7 +83,8 @@ OmniboxComposeboxHandler::OmniboxComposeboxHandler(
         pending_searchbox_handler,
     Profile* profile,
     content::WebContents* web_contents,
-    GetSessionHandleCallback get_session_callback)
+    GetSessionHandleCallback get_session_callback,
+    ClearSessionHandleCallback clear_session_callback)
     : ComposeboxHandler(
           std::move(pending_handler),
           std::move(pending_page),
@@ -94,7 +95,8 @@ OmniboxComposeboxHandler::OmniboxComposeboxHandler(
               std::make_unique<OmniboxPopupComposeboxClient>(profile,
                                                              web_contents,
                                                              this)),
-          std::move(get_session_callback)) {
+          std::move(get_session_callback),
+          std::move(clear_session_callback)) {
   auto* aim_eligibility_service =
       AimEligibilityServiceFactory::GetForProfile(profile);
   if (aim_eligibility_service) {

@@ -43,13 +43,15 @@ std::unique_ptr<KeyedService> BuildMockAimServiceEligibilityServiceInstance(
       std::make_unique<MockAimEligibilityService>(
           CHECK_DEREF(profile->GetPrefs()), /*template_url_service=*/nullptr,
           /*url_loader_factory=*/nullptr, /*identity_manager=*/nullptr,
-          /*is_off_the_record=*/false);
+          AimEligibilityService::Configuration{});
 
   EXPECT_CALL(*mock_aim_eligibility_service, IsServerEligibilityEnabled())
       .WillRepeatedly(testing::Return(true));
   EXPECT_CALL(*mock_aim_eligibility_service, IsAimEligible())
       .WillRepeatedly(testing::Return(true));
   EXPECT_CALL(*mock_aim_eligibility_service, IsAimLocallyEligible())
+      .WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(*mock_aim_eligibility_service, IsFuseboxEligible())
       .WillRepeatedly(testing::Return(true));
 
   return std::move(mock_aim_eligibility_service);

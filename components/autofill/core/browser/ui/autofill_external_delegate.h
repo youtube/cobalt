@@ -122,6 +122,9 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   // used to help record the metrics of when a new popup is shown.
   void DidEndTextFieldEditing();
 
+  // Triggered when the pay later tab is opened in the autofill dropdown.
+  void OnPayLaterTabOpened();
+
   const FormData& query_form() const { return query_form_; }
 
   void AttemptToDisplayAutofillSuggestionsForTest(
@@ -169,20 +172,6 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
                                AutofillSuggestionTriggerSource)>
   CreateUpdateSuggestionsCallback();
 
-  // Returns a callback that, when run, attempts to close the currently shown
-  // suggestion UI. If the `SuggestionUiSessionId` of the currently showing UI
-  // surface has changed between when this callback is created and when it is
-  // run, running it is a no-op. The callback is also safe to call even if
-  // `this` is no longer alive.
-  base::OnceCallback<void(SuggestionHidingReason)>
-  CreateHideSuggestionsCallback();
-
-  // Creates a callback that, when run, fills the field that was last queried
-  // when the callback was created.
-  base::RepeatingCallback<void(const std::u16string&)>
-  CreateSingleFieldFillCallback(SuggestionType suggestion_type,
-                                std::optional<FieldType> field_type_used);
-
   // Private handler for DidAcceptSuggestions for address related suggestions.
   void DidAcceptAddressSuggestion(const Suggestion& suggestion,
                                   const SuggestionMetadata& metadata);
@@ -190,9 +179,6 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   // Private handler for DidAcceptSuggestions for payments related suggestions.
   void DidAcceptPaymentsSuggestion(const Suggestion& suggestion,
                                    const SuggestionMetadata& metadata);
-
-  // Called when a credit card is scanned using device camera.
-  void OnCreditCardScanned(const CreditCard& card);
 
   // Returns the last Autofill triggering field. Derived from the `form` and
   // `field` parameters of `OnQuery(). Returns nullptr if called before
@@ -214,6 +200,11 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
                     std::optional<SuggestionMetadata> metadata,
                     bool is_preview,
                     AutofillTriggerSource trigger_source);
+
+  // Fills the queried form with the provided credit card using the specified
+  // trigger source. Used as a callback for asynchronous card fetches.
+  void FillFetchedCreditCard(AutofillTriggerSource trigger_source,
+                             const CreditCard& card);
 
   // Previews the value from `profile` specified in the `suggestion`.
   void PreviewAddressFieldByFieldFillingSuggestion(
@@ -259,6 +250,9 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
 
   // Attempts to fill an Autofill AI `suggestion` into for `query_field_`;
   void FillAutofillAiFormAndHidePopup(const Suggestion& suggestion);
+
+  // Returns if the Pay Now Pay Later tabs should be shown.
+  virtual bool ShouldShowPayNowPayLaterTabs();
 
   base::WeakPtr<AutofillExternalDelegate> GetWeakPtr();
 

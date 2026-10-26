@@ -47,8 +47,9 @@ bool PreloadRequest::ExclusionInfo::ShouldExclude(
   if (resources_.Contains(url))
     return true;
   for (const auto& scope : scopes_) {
-    if (url.GetString().StartsWith(scope.GetString()))
+    if (url.GetString().starts_with(scope.GetString())) {
       return true;
+    }
   }
   return false;
 }
@@ -77,7 +78,7 @@ std::unique_ptr<PreloadRequest> PreloadRequest::CreateIfNeeded(
   // data URLs if the document's URL is a data URL. We don't want to create
   // extra resource requests with data URLs to avoid copy / initialization
   // overhead, which can be significant for large URLs.
-  if (resource_url.empty() || resource_url.StartsWith("#") ||
+  if (resource_url.empty() || resource_url.starts_with('#') ||
       (ProtocolIs(resource_url, "data") &&
        (!RuntimeEnabledFeatures::PreloadLinkRelDataUrlsEnabled() ||
         request_type != PreloadRequest::kRequestTypeLinkRelPreload))) {

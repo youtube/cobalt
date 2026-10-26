@@ -5,16 +5,19 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_TABS_PROJECTS_PROJECTS_PANEL_UTILS_H_
 #define CHROME_BROWSER_UI_VIEWS_TABS_PROJECTS_PROJECTS_PANEL_UTILS_H_
 
-#include <memory>
+#include "components/contextual_tasks/public/contextual_task.h"
+#include "ui/gfx/vector_icon_types.h"
 
 namespace views {
-class HighlightPathGenerator;
+class Button;
 }  // namespace views
 
 namespace projects_panel {
 
-std::unique_ptr<views::HighlightPathGenerator>
-GetListItemHighlightPathGenerator();
+void ConfigureInkDropForButton(views::Button* view);
+
+const gfx::VectorIcon& GetIconForThreadType(
+    contextual_tasks::ThreadType thread_type);
 
 }  // namespace projects_panel
 

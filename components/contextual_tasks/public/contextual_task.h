@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/time/time.h"
 #include "base/uuid.h"
 #include "components/sessions/core/session_id.h"
 #include "url/gurl.h"
@@ -17,6 +18,7 @@ namespace contextual_tasks {
 enum class ThreadType {
   kUnknown,
   kAiMode,
+  kGemini,
 };
 
 // Represents the type of a resource attached to a task's context.
@@ -39,7 +41,8 @@ struct Thread {
   Thread(ThreadType type,
          const std::string& server_id,
          const std::string& title,
-         const std::string& conversation_turn_id);
+         int64_t last_turn_time_unix_epoch_millis,
+         std::optional<std::string> conversation_turn_id = std::nullopt);
   Thread(const Thread& other);
   ~Thread();
 
@@ -50,10 +53,13 @@ struct Thread {
   // Title of the thread that will be displayed to user.
   std::string title;
 
+  // Tracks the most recent turn time of the thread.
+  base::Time last_turn_time;
+
   // The unique server-side identifier for this specific conversation.
   // Since conversations can fork into a tree-like structure, this ID
   // represents a single path or branch within that tree.
-  std::string conversation_turn_id;
+  std::optional<std::string> conversation_turn_id;
 };
 
 struct UrlResource {

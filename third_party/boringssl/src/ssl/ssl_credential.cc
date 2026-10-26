@@ -16,6 +16,7 @@
 
 #include <assert.h>
 
+#include <openssl/hkdf.h>
 #include <openssl/span.h>
 
 #include "../crypto/internal.h"
@@ -105,7 +106,7 @@ BSSL_NAMESPACE_END
 
 using namespace bssl;
 
-static CRYPTO_EX_DATA_CLASS g_ex_data_class = CRYPTO_EX_DATA_CLASS_INIT;
+static ExDataClass g_ex_data_class;
 
 ssl_credential_st::ssl_credential_st(SSLCredentialType type_arg)
     : RefCounted(CheckSubClass()), type(type_arg) {
@@ -164,6 +165,7 @@ bool ssl_credential_st::UsesX509() const {
       return true;
     case SSLCredentialType::kSPAKE2PlusV1Client:
     case SSLCredentialType::kSPAKE2PlusV1Server:
+    case SSLCredentialType::kPreSharedKey:
       return false;
   }
   abort();
@@ -176,6 +178,7 @@ bool ssl_credential_st::UsesPrivateKey() const {
       return true;
     case SSLCredentialType::kSPAKE2PlusV1Client:
     case SSLCredentialType::kSPAKE2PlusV1Server:
+    case SSLCredentialType::kPreSharedKey:
       return false;
   }
   abort();
@@ -330,6 +333,31 @@ SSL_CREDENTIAL *SSL_CREDENTIAL_new_x509() {
   return New<SSL_CREDENTIAL>(SSLCredentialType::kX509);
 }
 
+SSL_CREDENTIAL *SSL_CREDENTIAL_new_pre_shared_key(
+    const uint8_t *key, size_t key_len, const uint8_t *id, size_t id_len,
+    const EVP_MD *md, const uint8_t *context, size_t context_len) {
+  if (id_len == 0) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_PSK_IDENTITY_NOT_FOUND);
+    return nullptr;
+  }
+
+  auto cred = MakeUnique<SSL_CREDENTIAL>(SSLCredentialType::kPreSharedKey);
+  size_t epskx_len;
+  if (cred == nullptr ||
+      // Precompute epskx, to avoid recomputing it on every use of the
+      // credential.
+      !cred->epskx.InitForOverwrite(EVP_MD_size(md)) ||
+      !HKDF_extract(cred->epskx.data(), &epskx_len, md, key, key_len,
+                    /*salt=*/nullptr, /*salt_len=*/0) ||
+      !cred->epsk_id.CopyFrom(Span(id, id_len)) ||
+      !cred->epsk_context.CopyFrom(Span(context, context_len))) {
+    return nullptr;
+  }
+  BSSL_CHECK(epskx_len == cred->epskx.size());
+  cred->epsk_md = md;
+  return cred.release();
+}
+
 SSL_CREDENTIAL *SSL_CREDENTIAL_new_delegated() {
   return New<SSL_CREDENTIAL>(SSLCredentialType::kDelegated);
 }
@@ -342,14 +370,13 @@ void SSL_CREDENTIAL_free(SSL_CREDENTIAL *cred) {
   }
 }
 
+int SSL_CREDENTIAL_is_complete(const SSL_CREDENTIAL *cred) {
+  return cred->IsComplete();
+}
+
 int SSL_CREDENTIAL_set1_private_key(SSL_CREDENTIAL *cred, EVP_PKEY *key) {
   if (!cred->UsesPrivateKey()) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-    return 0;
-  }
-
-  if (!EVP_PKEY_has_private(key)) {
-    OPENSSL_PUT_ERROR(SSL, SSL_R_NO_PRIVATE_KEY_ASSIGNED);
     return 0;
   }
 
@@ -357,7 +384,7 @@ int SSL_CREDENTIAL_set1_private_key(SSL_CREDENTIAL *cred, EVP_PKEY *key) {
   // have been extracted from the certificate, delegated credential, etc.
   if (cred->pubkey != nullptr &&
       !ssl_compare_public_and_private_key(cred->pubkey.get(), key)) {
-    return 0;
+    return false;
   }
 
   cred->privkey = UpRef(key);

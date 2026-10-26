@@ -216,10 +216,14 @@ const char* const kWebViewCrashKeyAllowList[] = {
     "SIFactory-Size",
 
     // crbug.com/453113611
+    "SubprocessMetricsProvider-merge_result",
     "SubprocessMetricsProvider-histogram",
 
     // crbug.com/456871291
     "BadHistogramArgs-name",
+
+    // crbug.com/40260662
+    "PersistentSampleMap-corrupted",
 
     nullptr};
 // clang-format on

@@ -32,8 +32,8 @@ static size_t kBufferHeight = 200;
 
 + (BOOL)isMetalAvailable;
 + (UIView *)createMetalView:(CGRect)frame;
-+ (id<RTCMTLRenderer>)createNV12Renderer;
-+ (id<RTCMTLRenderer>)createI420Renderer;
++ (id<RTC_OBJC_TYPE(RTCMTLRenderer)>)createNV12Renderer;
++ (id<RTC_OBJC_TYPE(RTCMTLRenderer)>)createI420Renderer;
 - (void)drawInMTKView:(id)view;
 @end
 
@@ -95,7 +95,7 @@ static size_t kBufferHeight = 200;
 }
 
 - (id)rendererMockWithSuccessfulSetup:(BOOL)success {
-  id rendererMock = OCMClassMock([RTCMTLRenderer class]);
+  id rendererMock = OCMClassMock([RTC_OBJC_TYPE(RTCMTLRenderer) class]);
   OCMStub([rendererMock addRenderingDestination:[OCMArg any]])
       .andReturn(success);
   return rendererMock;

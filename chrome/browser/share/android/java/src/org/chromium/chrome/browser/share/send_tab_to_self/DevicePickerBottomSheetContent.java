@@ -5,7 +5,8 @@
 package org.chromium.chrome.browser.share.send_tab_to_self;
 
 import android.content.Context;
-import android.content.res.Resources;
+import android.os.SystemClock;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,14 +17,24 @@ import android.widget.TextView;
 
 import androidx.annotation.StringRes;
 
+import org.chromium.base.task.PostTask;
+import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.share.link_to_text.LinkToTextHelper;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.content_public.browser.Page;
+import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.ui.widget.Toast;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Bottom sheet content to display a list of devices a user can send a tab to after they have chosen
@@ -31,6 +42,8 @@ import java.util.List;
  */
 @NullMarked
 class DevicePickerBottomSheetContent implements BottomSheetContent, OnItemClickListener {
+    private static final long SCROLL_POSITION_TIMEOUT_MS = 200;
+
     private final Context mContext;
     private final BottomSheetController mController;
     private ViewGroup mToolbarView;
@@ -39,20 +52,35 @@ class DevicePickerBottomSheetContent implements BottomSheetContent, OnItemClickL
     private final Profile mProfile;
     private final String mUrl;
     private final String mTitle;
+    private @Nullable PageContext mPageContext;
+    private final Supplier<@Nullable Tab> mTabProvider;
+    private long mScrollPositionGenerationStartTime = -1;
+
+    private enum CaptureState {
+        IDLE,
+        PENDING,
+        FINISHED
+    }
+
+    private CaptureState mCaptureState = CaptureState.IDLE;
 
     public DevicePickerBottomSheetContent(
             Context context,
             String url,
             String title,
+            @Nullable PageContext pageContext,
             BottomSheetController controller,
             List<TargetDeviceInfo> targetDevices,
-            Profile profile) {
+            Profile profile,
+            Supplier<@Nullable Tab> tabProvider) {
         mContext = context;
         mController = controller;
         mProfile = profile;
         mAdapter = new DevicePickerBottomSheetAdapter(targetDevices);
         mUrl = url;
         mTitle = title;
+        mPageContext = pageContext;
+        mTabProvider = tabProvider;
 
         createToolbarView();
         createContentView();
@@ -144,17 +172,136 @@ class DevicePickerBottomSheetContent implements BottomSheetContent, OnItemClickL
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        MetricsRecorder.recordCrossDeviceTabJourney();
-        TargetDeviceInfo targetDeviceInfo = mAdapter.getItem(position);
-
-        SendTabToSelfAndroidBridge.addEntry(mProfile, mUrl, mTitle, targetDeviceInfo.cacheGuid);
-
-        Resources res = mContext.getResources();
-
-        String toastMessage =
-                res.getString(R.string.send_tab_to_self_toast, targetDeviceInfo.deviceName);
-        Toast.makeText(mContext, toastMessage, Toast.LENGTH_SHORT).show();
+        // Only process the click once to avoid multiple entries being sent if the user
+        // taps multiple items quickly.
+        if (mCaptureState != CaptureState.IDLE) return;
+        mCaptureState = CaptureState.PENDING;
 
         mController.hideContent(this, true);
+
+        SendTabToSelfMetricsRecorder.recordCrossDeviceTabJourney();
+        TargetDeviceInfo targetDeviceInfo = mAdapter.getItem(position);
+
+        Tab tab = getTabIfScrollPositionCanBePropagated();
+        if (tab != null) {
+            captureScrollPositionAndSendEntry(tab, targetDeviceInfo);
+        } else {
+            sendEntry(targetDeviceInfo);
+        }
+    }
+
+    private @Nullable Tab getTabIfScrollPositionCanBePropagated() {
+        if (!ChromeFeatureList.isEnabled(
+                ChromeFeatureList.SEND_TAB_TO_SELF_PROPAGATE_SCROLL_POSITION)) {
+            return null;
+        }
+
+        Tab tab = mTabProvider.get();
+        if (tab == null) {
+            return null;
+        }
+
+        if (!TextUtils.equals(mUrl, tab.getUrl().getSpec())) {
+            return null;
+        }
+
+        return tab;
+    }
+
+    private void captureScrollPositionAndSendEntry(Tab tab, TargetDeviceInfo targetDeviceInfo) {
+        WebContents webContents = tab.getWebContents();
+        if (webContents == null) {
+            SendTabToSelfMetricsRecorder.recordScrollPositionGenerationOutcome(
+                    ScrollPositionGenerationOutcome.MAIN_FRAME_UNAVAILABLE);
+            sendEntry(targetDeviceInfo);
+            return;
+        }
+
+        mScrollPositionGenerationStartTime = SystemClock.elapsedRealtime();
+
+        WebContentsObserver observer =
+                new WebContentsObserver(webContents) {
+                    @Override
+                    public void primaryPageChanged(Page page) {
+                        selectorGeneratedForRequest(
+                                targetDeviceInfo,
+                                "",
+                                this,
+                                ScrollPositionGenerationOutcome.MAIN_FRAME_CHANGED);
+                    }
+
+                    @Override
+                    public void webContentsDestroyed() {
+                        selectorGeneratedForRequest(
+                                targetDeviceInfo,
+                                "",
+                                this,
+                                ScrollPositionGenerationOutcome.MAIN_FRAME_UNAVAILABLE);
+                    }
+                };
+
+        // A 200ms timeout is implemented to avoid delaying the sharing process. If the
+        // selector generation takes longer, or if the page is navigated or destroyed,
+        // the tab is sent without the scroll position information.
+        PostTask.postDelayedTask(
+                TaskTraits.UI_DEFAULT,
+                () -> {
+                    selectorGeneratedForRequest(
+                            targetDeviceInfo,
+                            "",
+                            observer,
+                            ScrollPositionGenerationOutcome.BROWSER_TIMEOUT);
+                },
+                SCROLL_POSITION_TIMEOUT_MS);
+
+        LinkToTextHelper.requestSelectorForViewportCenter(
+                webContents,
+                (selector) -> {
+                    selectorGeneratedForRequest(
+                            targetDeviceInfo,
+                            selector,
+                            observer,
+                            ScrollPositionGenerationOutcome.SUCCESS);
+                });
+    }
+
+    private void selectorGeneratedForRequest(
+            TargetDeviceInfo targetDeviceInfo,
+            String selector,
+            WebContentsObserver observer,
+            @ScrollPositionGenerationOutcome int outcome) {
+        if (mCaptureState == CaptureState.FINISHED) return;
+
+        observer.observe(null);
+
+        if (outcome == ScrollPositionGenerationOutcome.SUCCESS) {
+            if (TextUtils.isEmpty(selector)) {
+                outcome = ScrollPositionGenerationOutcome.EMPTY_SELECTOR;
+            } else {
+                mPageContext =
+                        SendTabToSelfAndroidBridge.addScrollPositionToPageContext(
+                                mPageContext, selector);
+                SendTabToSelfMetricsRecorder.recordScrollPositionSelectorLength(selector.length());
+            }
+        }
+
+        SendTabToSelfMetricsRecorder.recordScrollPositionGenerationOutcome(outcome);
+        assert mScrollPositionGenerationStartTime > 0;
+        SendTabToSelfMetricsRecorder.recordScrollPositionGenerationTime(
+                SystemClock.elapsedRealtime() - mScrollPositionGenerationStartTime);
+
+        sendEntry(targetDeviceInfo);
+    }
+
+    private void sendEntry(TargetDeviceInfo targetDeviceInfo) {
+        mCaptureState = CaptureState.FINISHED;
+
+        String toastMessage =
+                mContext.getResources()
+                        .getString(R.string.send_tab_to_self_toast, targetDeviceInfo.deviceName);
+        Toast.makeText(mContext, toastMessage, Toast.LENGTH_SHORT).show();
+
+        SendTabToSelfAndroidBridge.addEntry(
+                mProfile, mUrl, mTitle, targetDeviceInfo.cacheGuid, mPageContext);
     }
 }

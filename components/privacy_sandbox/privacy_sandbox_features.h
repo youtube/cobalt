@@ -129,44 +129,13 @@ BASE_DECLARE_FEATURE(kRelatedWebsiteSetsUi);
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 BASE_DECLARE_FEATURE(kPsDualWritePrefsToNoticeStorage);
 
-// Enables Activity Type Storage
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-BASE_DECLARE_FEATURE(kPrivacySandboxActivityTypeStorage);
-
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-extern const char kPrivacySandboxActivityTypeStorageLastNLaunchesName[];
-
-
 // Enables chrome://privacy-sandbox-internals/private-state-tokens DevUI
 // page. Relies on PrivacySandboxInternalsDevUI also being enabled.
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 BASE_DECLARE_FEATURE(kPrivateStateTokensDevUI);
 
 COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-extern const base::FeatureParam<int>
-    kPrivacySandboxActivityTypeStorageLastNLaunches;
-
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-extern const char kPrivacySandboxActivityTypeStorageWithinXDaysName[];
-
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-extern const base::FeatureParam<int>
-    kPrivacySandboxActivityTypeStorageWithinXDays;
-
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-extern const base::FeatureParam<bool>
-    kPrivacySandboxActivityTypeStorageSkipPreFirstTab;
-
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
 BASE_DECLARE_FEATURE(kPrivacySandboxAdTopicsContentParity);
-
-// Enables the `Always on` sentiment survey
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-BASE_DECLARE_FEATURE(kPrivacySandboxSentimentSurvey);
-
-COMPONENT_EXPORT(PRIVACY_SANDBOX_FEATURES)
-extern const base::FeatureParam<std::string>
-    kPrivacySandboxSentimentSurveyTriggerId;
 
 #if BUILDFLAG(IS_ANDROID)
 // The delay in milliseconds between the first click and the next accepted

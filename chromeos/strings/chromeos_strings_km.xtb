@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">ដំណើរការតេស្តសាកថ្ម</translation>
 <translation id="1622402072367425417">ពពុះដែល​បញ្ចេញពន្លឺ</translation>
 <translation id="1626590945318984973">មិនអាចប្រើ​ផ្លូវកាត់​បានទេ។ សូមចុច​ផ្លូវកាត់ថ្មី​ដោយមិនប្រើ​គ្រាប់ចុច Function និងគ្រាប់ចុច<ph name="META_KEY" />។</translation>
+<translation id="163774412591892664">អ្នកគ្រប់គ្រងរបស់អ្នកបានបិទឧបករណ៍របស់អ្នក និងអាចចូលប្រើទីតាំងរបស់ឧបករណ៍នេះ។</translation>
 <translation id="1639239467298939599">កំពុងដំណើរការ</translation>
 <translation id="1641857168437328880">ឧបករណ៍​បញ្ចូល​ឯកសារ (ម្ខាង)</translation>
 <translation id="1642396894598555413">កង់</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814">ការទាញយក​គំរូ​ប្រតិចារឹក​ជាភាសា<ph name="LANGUAGE_NAME" />បាន​ចប់​ហើយ</translation>
 <translation id="42126664696688958">នាំចេញ</translation>
 <translation id="4213104098953699324">ក្តារចុច USB</translation>
+<translation id="4217571870635786043">ការសរសេរ​តាមអាន​</translation>
 <translation id="4227825898293920515">ពាក្យសម្ងាត់ផុតកំណត់​ក្នុងរយៈពេល <ph name="TIME" /></translation>
 <translation id="4238516577297848345">មិនមានកិច្ចការបោះពុម្ពកំពុងដំណើរការទេ</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1685,6 +1687,7 @@
 <translation id="8420955526972171689">ដំណើរការ​តេស្ត និង​ការដោះស្រាយបញ្ហា​ហាតវែរ</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">ចុះក្រោម</translation>
+<translation id="8427213022735114808">ការសរសេរតាមអាន​បញ្ជូន​សំឡេង​របស់អ្នក​ទៅ Google ដើម្បី​អនុញ្ញាត​ឱ្យ​ប្រើការ​វាយ​បញ្ចូល​ដោយ​សំឡេង​​ទៅក្នុង​កន្លែងបញ្ចូលអក្សរ។</translation>
 <translation id="8428213095426709021">ការកំណត់</translation>
 <translation id="8431300646573772016">អ្វីដែលថ្មីក្នុង ChromeOS</translation>
 <translation id="8433186206711564395">ការ​កំណត់​បណ្ដាញ</translation>
@@ -1723,6 +1726,7 @@
 <translation id="8584654835905316966">តម្រូវឱ្យចាប់ផ្ដើម​ឡើងវិញ ដើម្បីបញ្ចប់ការដំឡើងកម្មវិធី​បង្កប់សម្រាប់ <ph name="DEVICE_NAME" /> ទៅកំណែ <ph name="VERSION" />។ កុំព្យូទ័ររបស់អ្នកប្រហែលជាចាប់​ផ្ដើម​ឡើង​វិញច្រើនដង។ លក្ខណៈដំណើរការនេះត្រូវបានរំពឹងទុក។</translation>
 <translation id="8593058461203131755">ផ្អាក​មេឌៀ</translation>
 <translation id="8620617069779373398">ស្ថានភាពរ៉ូមីង</translation>
+<translation id="8624524972189162859">អ្នកគ្រប់គ្រង <ph name="DOMAIN_NAME" /> របស់អ្នកបានបិទឧបករណ៍របស់អ្នក និងអាចចូលប្រើទីតាំងរបស់ឧបករណ៍នេះ។</translation>
 <translation id="8626489604350149811">សកម្មភាព​ច្រើន​ទៀត​សម្រាប់ <ph name="APN_NAME" /></translation>
 <translation id="86356131183441916">ស្វាយ​ខ្ចី</translation>
 <translation id="8647595191512746911">ការធ្វើប្រតិចារឹកសំឡេង</translation>

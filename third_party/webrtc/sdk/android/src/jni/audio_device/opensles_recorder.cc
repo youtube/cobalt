@@ -19,9 +19,9 @@
 #include <cstdint>
 #include <iterator>
 #include <memory>
+#include <span>
 #include <utility>
 
-#include "api/array_view.h"
 #include "api/audio/audio_device_defines.h"
 #include "api/environment/environment.h"
 #include "api/scoped_refptr.h"
@@ -394,7 +394,7 @@ void OpenSLESRecorder::ReadBufferQueue() {
   // OpenSL ES anyhow. Hence, as is, the WebRTC based AEC (which would use
   // these estimates) will never be active.
   fine_audio_buffer_->DeliverRecordedData(
-      webrtc::ArrayView<const int16_t>(
+      std::span<const int16_t>(
           audio_buffers_[buffer_index_].get(),
           audio_parameters_.frames_per_buffer() * audio_parameters_.channels()),
       25);

@@ -7,8 +7,6 @@ import("//extensions/buildflags/buildflags.gni")
 import("//ui/webui/resources/tools/build_webui.gni")
 import("//ui/webui/resources/tools/optimize_webui.gni")
 
-assert(enable_glic)
-
 build_webui("build") {
   grd_prefix = "glic"
 
@@ -27,6 +25,7 @@ build_webui("build") {
     "glic_api_impl/client/glic_api_client.ts",
     "glic_api_impl/client/image_utils.ts",
     "glic_api_impl/conversions.ts",
+    "glic_api_impl/enum_conversions.ts",
     "glic_api_impl/glic_api_injected_client.ts",
     "glic_api_impl/host/conversions.ts",
     "glic_api_impl/host/gated_sender.ts",
@@ -77,7 +76,7 @@ build_webui("build") {
     "//tools/typescript/definitions/chrome_event.d.ts",
     "//tools/typescript/definitions/context_menus.d.ts",
     "//tools/typescript/definitions/extension_types.d.ts",
-    "//tools/typescript/definitions/metrics_private.d.ts",
+    "//tools/typescript/definitions/chrome_histograms.d.ts",
     "//tools/typescript/definitions/tabs.d.ts",
     "//tools/typescript/definitions/web_request.d.ts",
     "//tools/typescript/definitions/webview_tag.d.ts",

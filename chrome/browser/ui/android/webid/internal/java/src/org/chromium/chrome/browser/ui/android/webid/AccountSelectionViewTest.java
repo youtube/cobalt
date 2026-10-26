@@ -27,9 +27,9 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.robolectric.ParameterizedRobolectricTestRunner;
 import org.robolectric.ParameterizedRobolectricTestRunner.Parameters;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.test.BaseRobolectricTestRule;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.ScalableTimeout;
 import org.chromium.blink.mojom.RpContext;
@@ -193,7 +193,7 @@ public class AccountSelectionViewTest extends AccountSelectionJUnitTestBase {
                         buildAccountItem(mNoOneAccount, /* showIdp= */ false),
                         buildAccountItem(mBobAccount, /* showIdp= */ false),
                         buildAccountItem(mNicolasAccount, /* showIdp= */ false)));
-        ShadowLooper.shadowMainLooper().idle();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         assertEquals(View.VISIBLE, mContentView.getVisibility());
         assertEquals("Incorrect account count", 4, getAccounts().getChildCount());
@@ -261,7 +261,7 @@ public class AccountSelectionViewTest extends AccountSelectionJUnitTestBase {
                         buildAccountItem(mAnaAccount, /* showIdp= */ true),
                         buildAccountItem(mAnaAccountWithoutBrandIcons, /* showIdp= */ true),
                         buildAccountItem(mNewUserAccount, /* showIdp= */ true)));
-        ShadowLooper.shadowMainLooper().idle();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         assertEquals(View.VISIBLE, mContentView.getVisibility());
         assertEquals("Incorrect account count", 3, getAccounts().getChildCount());
@@ -299,7 +299,7 @@ public class AccountSelectionViewTest extends AccountSelectionJUnitTestBase {
     public void testAccountsAreClickable() {
         mSheetAccountItems.addAll(
                 Collections.singletonList(buildAccountItem(mAnaAccount, /* showIdp= */ false)));
-        ShadowLooper.shadowMainLooper().idle();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         assertEquals(View.VISIBLE, mContentView.getVisibility());
 
@@ -325,7 +325,7 @@ public class AccountSelectionViewTest extends AccountSelectionJUnitTestBase {
                                 .with(AccountProperties.ACCOUNT, mAnaAccount)
                                 .with(AccountProperties.ON_CLICK_LISTENER, null)
                                 .build()));
-        ShadowLooper.shadowMainLooper().idle();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         mModel.set(
                 ItemProperties.CONTINUE_BUTTON,
@@ -431,7 +431,7 @@ public class AccountSelectionViewTest extends AccountSelectionJUnitTestBase {
 
     @Test
     public void testErrorText() {
-        final TokenError[] mErrors =
+        final TokenError[] errors =
                 new TokenError[] {
                     new TokenError(
                             AccountSelectionViewBinder.GENERIC,
@@ -531,7 +531,7 @@ public class AccountSelectionViewTest extends AccountSelectionJUnitTestBase {
                             /* clickableText= */ false)
                 };
 
-        for (TokenError error : mErrors) {
+        for (TokenError error : errors) {
             ErrorProperties.Properties properties = new ErrorProperties.Properties();
             properties.mIdpForDisplay = TEST_IDP_ETLD_PLUS_ONE;
             properties.mRpForDisplay = TEST_RP_ETLD_PLUS_ONE;
@@ -569,7 +569,7 @@ public class AccountSelectionViewTest extends AccountSelectionJUnitTestBase {
                 asList(
                         buildIdpLoginItem(mIdpData, /* showIdp= */ true),
                         buildIdpLoginItem(mIdpDataWithoutIcons, /* showIdp= */ true)));
-        ShadowLooper.shadowMainLooper().idle();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         assertEquals(View.VISIBLE, mContentView.getVisibility());
         RecyclerView buttons = mContentView.findViewById(R.id.sheet_item_list);

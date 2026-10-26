@@ -4,6 +4,7 @@
 
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_password_credentials_fetcher.h"
 
+#include <algorithm>
 #include <ranges>
 
 #include "base/strings/to_string.h"
@@ -108,7 +109,10 @@ Credential PasswordFormToCredential(
   credential.display_origin = url_formatter::FormatOriginForSecurityDisplay(
       request_origin, url_formatter::SchemeDisplay::OMIT_HTTP_AND_HTTPS);
   credential.immediatelyAvailableToLogin = immediately_available_to_login;
-  credential.has_persistent_permission = form.actor_login_approved;
+  credential.has_persistent_permission =
+      form.actor_login_approved &&
+      // Weak matches do not share the same permission.
+      !password_manager_util::IsCredentialWeakMatch(form);
   return credential;
 }
 
@@ -120,10 +124,11 @@ std::vector<Credential> ConstructCredentialsList(
     bool immediately_available_to_login) {
   std::vector<Credential> result;
   for (const auto& form : best_matches) {
-    if (form.actor_login_approved &&
-        !password_manager_util::IsCredentialWeakMatch(form)) {
-      return {PasswordFormToCredential(request_origin,
-                                       immediately_available_to_login, form)};
+    // Don't consider weakly affiliated (grouped) credentials because they are
+    // low confidence matches and would require additional user confirmation.
+    if (form.match_type.value() ==
+        password_manager::PasswordForm::MatchType::kGrouped) {
+      continue;
     }
     result.push_back(PasswordFormToCredential(
         request_origin, immediately_available_to_login, form));
@@ -131,22 +136,7 @@ std::vector<Credential> ConstructCredentialsList(
 
   return result;
 }
-
 }  // namespace
-
-std::optional<ActorLoginError>
-ActorLoginPasswordCredentialsFetcher::Status::GetGlobalError() const {
-  // `kFillingNotAllowed` is part of the general `ActorLoginError`, so the
-  // fetcher needs to report it.
-  // TODO(crbug.com/478799141): Remove this once we stop returning filling not
-  // allowed as an overall error.
-  switch (outcome_) {
-    case Outcome::kSuccess:
-      return std::nullopt;
-    case Outcome::kFillingNotAllowed:
-      return ActorLoginError::kFillingNotAllowed;
-  }
-}
 
 ActorLoginPasswordCredentialsFetcher::ActorLoginPasswordCredentialsFetcher(
     const url::Origin& origin,
@@ -187,7 +177,7 @@ void ActorLoginPasswordCredentialsFetcher::Fetch(FetchResultCallback callback) {
         FROM_HERE,
         base::BindOnce(
             std::move(callback_), std::vector<Credential>(),
-            std::make_unique<Status>(Status::Outcome::kFillingNotAllowed)));
+            ActorLoginCredentialsFetcher::Status::kFillingNotAllowed));
     return;
   }
 
@@ -265,7 +255,7 @@ void ActorLoginPasswordCredentialsFetcher::OnFetchCompleted() {
   }
 
   std::move(callback_).Run(std::move(credentials),
-                           std::make_unique<Status>(Status::Outcome::kSuccess));
+                           ActorLoginCredentialsFetcher::Status::kSuccess);
 }
 
 void ActorLoginPasswordCredentialsFetcher::BuildGetCredentialsOutcome(
@@ -288,7 +278,9 @@ void ActorLoginPasswordCredentialsFetcher::BuildGetCredentialsOutcome(
 
   // If there is a credential with permission that can be used, it will
   // be the only returned one.
-  if (result[0].has_persistent_permission) {
+  const bool has_permission =
+      std::ranges::any_of(result, &Credential::has_persistent_permission);
+  if (has_permission) {
     get_credentials_logs_.set_permission_details(PermissionEnumToProtoType(
         PermissionDetailsMqls::kHasPermanentPermission));
   } else {

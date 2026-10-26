@@ -52,14 +52,13 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 import org.robolectric.annotation.Config;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
-import org.chromium.base.task.test.ShadowPostTask;
-import org.chromium.base.test.BaseRobolectricTestRule;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.UserActionTester;
@@ -80,6 +79,8 @@ import org.chromium.chrome.browser.device_reauth.BiometricStatus;
 import org.chromium.chrome.browser.device_reauth.ReauthenticatorBridge;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.incognito.IncognitoUtils;
+import org.chromium.chrome.browser.incognito.IncognitoUtilsJni;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.price_tracking.PriceDropNotificationManager;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -176,6 +177,7 @@ public class BookmarkManagerMediatorTest {
     @Mock private BookmarkUndoController mBookmarkUndoController;
     @Mock private Runnable mHideKeyboardRunnable;
     @Mock private CurrencyFormatter.Natives mCurrencyFormatterJniMock;
+    @Mock private IncognitoUtils.Natives mIncognitoUtilsNatives;
     @Mock private Tracker mTracker;
     @Mock private BookmarkImageFetcher mBookmarkImageFetcher;
     @Mock private Drawable mDrawable;
@@ -362,6 +364,8 @@ public class BookmarkManagerMediatorTest {
 
     @SuppressWarnings("DirectInvocationOnMock")
     private void onActivity(Activity activity) {
+        IncognitoUtilsJni.setInstanceForTesting(mIncognitoUtilsNatives);
+        doReturn(false).when(mIncognitoUtilsNatives).getIncognitoModeEnabled(any());
         mActivity = spy(activity);
 
         // Setup CurrencyFormatter.
@@ -542,7 +546,7 @@ public class BookmarkManagerMediatorTest {
         mMediator.onAttachedToWindow();
         mMediator.addUiObserver(mBookmarkUiObserver);
 
-        BaseRobolectricTestRule.runAllBackgroundAndUi();
+        RobolectricUtil.runAllBackgroundAndUi();
     }
 
     private void finishLoading() {
@@ -982,6 +986,7 @@ public class BookmarkManagerMediatorTest {
     }
 
     @Test
+    @DisableFeatures({ChromeFeatureList.ANDROID_BOOKMARK_BAR_FAST_FOLLOW})
     public void testBuildImprovedBookmarkRow_SelectionStateCarriedOver() {
         doReturn(true).when(mSelectionDelegate).isItemSelected(mBookmarkItem21.getId());
         ListItem item =
@@ -1125,17 +1130,41 @@ public class BookmarkManagerMediatorTest {
                 BookmarkListEntry.createBookmarkEntry(
                         mBookmarkItem21, null, BookmarkRowDisplayPref.COMPACT);
         ModelList modelList = mMediator.createListMenuModelList(entry, Location.MIDDLE);
-        assertEquals(7, modelList.size());
+        assertEquals(8, modelList.size());
         verifyBookmarkListMenuItem(modelList.get(0), R.string.bookmark_item_select, true);
         verifyBookmarkListMenuItem(modelList.get(1), R.string.bookmark_item_edit, true);
         verifyBookmarkListMenuItem(modelList.get(2), R.string.bookmark_item_copy_link, true);
         verifyBookmarkListMenuItem(modelList.get(3), R.string.bookmark_item_move, true);
         verifyBookmarkListMenuItem(modelList.get(4), R.string.bookmark_item_delete, true);
+        verifyBookmarkListMenuItem(modelList.get(7), R.string.contextmenu_open_in_new_tab, true);
 
         mMediator.openSearchUi();
         modelList = mMediator.createListMenuModelList(entry, Location.MIDDLE);
-        assertEquals(6, modelList.size());
+        assertEquals(7, modelList.size());
         verifyBookmarkListMenuItem(modelList.get(5), R.string.bookmark_show_in_folder, true);
+        verifyBookmarkListMenuItem(modelList.get(6), R.string.contextmenu_open_in_new_tab, true);
+    }
+
+    @Test
+    public void testCreateListMenuModelList_OpenInNewWindow() {
+        doReturn(true).when(mBookmarkOpener).isOpenInNewWindowSupported();
+        finishLoading();
+        mMediator.openFolder(mFolderId2);
+
+        BookmarkListEntry entry =
+                BookmarkListEntry.createBookmarkEntry(
+                        mBookmarkItem21, null, BookmarkRowDisplayPref.COMPACT);
+        ModelList modelList = mMediator.createListMenuModelList(entry, Location.MIDDLE);
+
+        boolean found = false;
+        for (int i = 0; i < modelList.size(); i++) {
+            if (modelList.get(i).model.get(ListMenuItemProperties.TITLE_ID)
+                    == R.string.contextmenu_open_in_new_window) {
+                found = true;
+                break;
+            }
+        }
+        assertTrue(found);
     }
 
     @Test
@@ -1147,13 +1176,14 @@ public class BookmarkManagerMediatorTest {
                 BookmarkListEntry.createBookmarkEntry(
                         mReadingListItem, null, BookmarkRowDisplayPref.COMPACT);
         ModelList modelList = mMediator.createListMenuModelList(entry, Location.MIDDLE);
-        assertEquals(6, modelList.size());
+        assertEquals(7, modelList.size());
         verifyBookmarkListMenuItem(modelList.get(0), R.string.reading_list_mark_as_read, true);
         verifyBookmarkListMenuItem(modelList.get(1), R.string.bookmark_item_select, true);
         verifyBookmarkListMenuItem(modelList.get(2), R.string.bookmark_item_edit, true);
         verifyBookmarkListMenuItem(modelList.get(3), R.string.bookmark_item_copy_link, true);
         verifyBookmarkListMenuItem(modelList.get(4), R.string.bookmark_item_move, true);
         verifyBookmarkListMenuItem(modelList.get(5), R.string.bookmark_item_delete, true);
+        verifyBookmarkListMenuItem(modelList.get(6), R.string.contextmenu_open_in_new_tab, true);
     }
 
     @Test
@@ -1179,15 +1209,13 @@ public class BookmarkManagerMediatorTest {
                 BookmarkListEntry.createBookmarkEntry(
                         mBookmarkItem21, meta, BookmarkRowDisplayPref.COMPACT);
         ModelList modelList = mMediator.createListMenuModelList(entry, Location.MIDDLE);
-        assertEquals(8, modelList.size());
-        verifyBookmarkListMenuItem(
-                modelList.get(7), R.string.disable_price_tracking_menu_item, true);
+        assertEquals(9, modelList.size());
+        verifyBookmarkListMenuItem(modelList.get(8), R.string.contextmenu_open_in_new_tab, true);
 
         doReturn(false).when(mShoppingService).isSubscribedFromCache(any());
         modelList = mMediator.createListMenuModelList(entry, Location.MIDDLE);
-        assertEquals(8, modelList.size());
-        verifyBookmarkListMenuItem(
-                modelList.get(7), R.string.enable_price_tracking_menu_item, true);
+        assertEquals(9, modelList.size());
+        verifyBookmarkListMenuItem(modelList.get(8), R.string.contextmenu_open_in_new_tab, true);
     }
 
     @Test
@@ -1217,7 +1245,7 @@ public class BookmarkManagerMediatorTest {
                         mBookmarkItem21, meta, BookmarkRowDisplayPref.COMPACT);
         ModelList modelList = mMediator.createListMenuModelList(entry, Location.MIDDLE);
         // The 8th item would be the enable/disable price tracking.
-        assertEquals(7, modelList.size());
+        assertEquals(8, modelList.size());
     }
 
     @Test
@@ -1320,6 +1348,49 @@ public class BookmarkManagerMediatorTest {
         // Delete.
         clickChildAt(menu, 4);
         verify(mBookmarkModel).deleteBookmarks(mBookmarkId21);
+
+        // Open in new tab.
+        clickChildAt(menu, 5);
+        verify(mBookmarkOpener)
+                .openBookmarksInNewTabs(Collections.singletonList(mBookmarkId21), false);
+    }
+
+    @Test
+    public void testCreateListMenuForBookmark_incognito() {
+        doReturn(true).when(mProfile).isOffTheRecord();
+        doReturn(true).when(mBookmarkOpener).isOpenInNewWindowSupported();
+        finishLoading();
+        mMediator.openFolder(mFolderId2);
+
+        // This is the first item mFolderId2.
+        PropertyModel model = mModelList.get(1).model;
+        ModelList menuModelList =
+                mMediator.createListMenuModelList(
+                        model.get(BookmarkManagerProperties.BOOKMARK_LIST_ENTRY),
+                        model.get(BookmarkManagerProperties.LOCATION));
+        // Open in incognito tab should not be shown if we're already incognito.
+        verifyMenuListItemTitles(
+                menuModelList,
+                R.string.bookmark_item_select,
+                R.string.bookmark_item_edit,
+                R.string.bookmark_item_copy_link,
+                R.string.bookmark_item_move,
+                R.string.bookmark_item_delete,
+                R.string.contextmenu_open_in_new_tab,
+                R.string.contextmenu_open_in_new_window);
+
+        BasicListMenu menu = (BasicListMenu) mMediator.createListMenuForBookmark(model);
+        assertNotNull(menu);
+
+        // Open in new tab.
+        clickChildAt(menu, 5);
+        verify(mBookmarkOpener)
+                .openBookmarksInNewTabs(Collections.singletonList(mBookmarkId21), true);
+
+        // Open in other window.
+        clickChildAt(menu, 6);
+        verify(mBookmarkOpener)
+                .openBookmarksInNewWindow(Collections.singletonList(mBookmarkId21), true);
     }
 
     @Test
@@ -1355,7 +1426,8 @@ public class BookmarkManagerMediatorTest {
                 R.string.bookmark_item_copy_link,
                 R.string.bookmark_item_move,
                 R.string.bookmark_item_delete,
-                R.string.disable_price_tracking_menu_item);
+                R.string.disable_price_tracking_menu_item,
+                R.string.contextmenu_open_in_new_tab);
 
         BasicListMenu menu =
                 (BasicListMenu) mMediator.createListMenuForBookmark(mModelList.get(1).model);
@@ -1401,7 +1473,7 @@ public class BookmarkManagerMediatorTest {
                 .getValue()
                 .bookmarkNodeRemoved(mFolderItem2, 0, mBookmarkItem21, false);
 
-        BaseRobolectricTestRule.runAllBackgroundAndUi();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertEquals(3, mModelList.size());
         verify(mBookmarkUiObserver, times(1)).onUiModeChanged(BookmarkUiMode.FOLDER);
     }
@@ -1482,8 +1554,7 @@ public class BookmarkManagerMediatorTest {
                 .when(mSelectionDelegate)
                 .getSelectedItemsAsList();
 
-        // Pretend to delete folder 2 and folder 3. Pause the looper to get the removes to dedupe.
-        ShadowPostTask.reset();
+        // Pretend to delete folder 2 and folder 3.
         doReturn(Arrays.asList(mBookmarkId21)).when(mBookmarkModel).getChildIds(mFolderId1);
         verify(mBookmarkModel).addObserver(mBookmarkModelObserverArgumentCaptor.capture());
         when(mBookmarkModel.searchBookmarks(eq(queryString), anyInt()))
@@ -1497,7 +1568,7 @@ public class BookmarkManagerMediatorTest {
                 .bookmarkNodeRemoved(
                         mFolderItem1, 0, mFolderItem3, /* isDoingExtensiveChanges= */ false);
 
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         verifyCurrentBookmarkIds(null, mBookmarkId21);
         // Only 1 selection update should be sent out. This minimizes event notification spam and
         // complexity for observers.
@@ -2281,7 +2352,7 @@ public class BookmarkManagerMediatorTest {
         mBookmarkModelObserverArgumentCaptor.getValue().bookmarkModelChanged();
 
         // Should still be in search mode, and should have refreshed and picked up new results.
-        BaseRobolectricTestRule.runAllBackgroundAndUi();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertEquals(BookmarkUiMode.SEARCHING, mMediator.getCurrentUiMode());
         verifyCurrentBookmarkIds(null, mFolderId2);
     }
@@ -2311,9 +2382,6 @@ public class BookmarkManagerMediatorTest {
 
     @Test
     public void testModelChangesDeduped() {
-        // Remove test impl from setUp, to resume paused behavior.
-        ShadowPostTask.reset();
-
         finishLoading();
         mMediator.openFolder(mFolderId1);
         verify(mBookmarkModel, times(1)).getChildIds(mFolderId1);
@@ -2330,7 +2398,7 @@ public class BookmarkManagerMediatorTest {
             observer.bookmarkNodeChanged(mFolderItem1);
             observer.bookmarkNodeRemoved(mFolderItem1, 1, mFolderItem3, false);
         }
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         // Measure number of #setBookmarks by counting #getChildIds.
         verify(mBookmarkModel, times(2)).getChildIds(mFolderId1);
@@ -2339,9 +2407,6 @@ public class BookmarkManagerMediatorTest {
 
     @Test
     public void testDestroyDuringPendingRefresh() {
-        // Remove test impl from setUp, to resume paused behavior.
-        ShadowPostTask.reset();
-
         finishLoading();
         mMediator.openFolder(mFolderId1);
         verify(mBookmarkModel, times(1)).getChildIds(mFolderId1);
@@ -2357,7 +2422,7 @@ public class BookmarkManagerMediatorTest {
 
         mMediator.onDestroy();
         // Now give the pending task time to run. It should no-op, and not crash.
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
     }
 
     @Test
@@ -2384,7 +2449,7 @@ public class BookmarkManagerMediatorTest {
         verify(mBookmarkModel).addObserver(mBookmarkModelObserverArgumentCaptor.capture());
         BookmarkModelObserver observer = mBookmarkModelObserverArgumentCaptor.getValue();
         observer.bookmarkModelChanged();
-        BaseRobolectricTestRule.runAllBackgroundAndUi();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertBookmarkListEmpty();
 
         // Neither of these can do anything, the models are gone. But more importantly, they should

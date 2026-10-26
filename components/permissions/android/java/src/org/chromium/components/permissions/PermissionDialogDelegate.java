@@ -10,6 +10,7 @@ import androidx.core.util.Pair;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
@@ -123,6 +124,11 @@ public class PermissionDialogDelegate {
 
     public boolean isEmbeddedPromptVariant() {
         return mEmbeddedPromptVariant != EmbeddedPromptVariant.UNINITIALIZED;
+    }
+
+    public boolean shouldShowLocationPrecisionSelector() {
+        return PermissionDialogDelegateJni.get()
+                .shouldShowLocationPrecisionSelector(mNativeDelegatePtr);
     }
 
     public boolean isTablet() {
@@ -246,11 +252,11 @@ public class PermissionDialogDelegate {
             WindowAndroid window,
             int[] contentSettingsTypes,
             int iconId,
-            String message,
+            @JniType("std::u16string") String message,
             int[] boldedRanges,
-            String positiveButtonText,
-            String negativeButtonText,
-            String positiveEphemeralButtonText,
+            @JniType("std::u16string") String positiveButtonText,
+            @JniType("std::u16string") String negativeButtonText,
+            @JniType("std::u16string") String positiveEphemeralButtonText,
             boolean showPositiveNonEphemeralAsFirstButton,
             @EmbeddedPromptVariant int variant) {
         assert (boldedRanges.length % 2 == 0); // Contains a list of offset and length values
@@ -274,11 +280,11 @@ public class PermissionDialogDelegate {
             WindowAndroid window,
             int[] contentSettingsTypes,
             int iconId,
-            String message,
+            @JniType("std::u16string") String message,
             int[] boldedRanges,
-            String positiveButtonText,
-            String negativeButtonText,
-            String positiveEphemeralButtonText,
+            @JniType("std::u16string") String positiveButtonText,
+            @JniType("std::u16string") String negativeButtonText,
+            @JniType("std::u16string") String positiveEphemeralButtonText,
             boolean showPositiveNonEphemeralAsFirstButton,
             @EmbeddedPromptVariant int variant) {
         mNativeDelegatePtr = nativeDelegatePtr;
@@ -301,11 +307,11 @@ public class PermissionDialogDelegate {
     void updateDialog(
             int[] contentSettingsTypes,
             int iconId,
-            String message,
+            @JniType("std::u16string") String message,
             int[] boldedRanges,
-            String positiveButtonText,
-            String negativeButtonText,
-            String positiveEphemeralButtonText,
+            @JniType("std::u16string") String positiveButtonText,
+            @JniType("std::u16string") String negativeButtonText,
+            @JniType("std::u16string") String positiveEphemeralButtonText,
             boolean showPositiveNonEphemeralAsFirstButton,
             @EmbeddedPromptVariant int variant) {
         mContentSettingsTypes = contentSettingsTypes;
@@ -352,5 +358,7 @@ public class PermissionDialogDelegate {
 
         @LocationAccuracy
         int getInitialGeolocationAccuracySelection(long nativePermissionDialogDelegate);
+
+        boolean shouldShowLocationPrecisionSelector(long nativePermissionDialogDelegate);
     }
 }

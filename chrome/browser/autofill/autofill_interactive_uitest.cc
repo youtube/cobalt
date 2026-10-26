@@ -804,20 +804,8 @@ class AutofillInteractiveTestBase : public AutofillUiTest {
     ASSERT_TRUE(content::ExecJs(GetWebContents(), script));
 
     content::DOMMessageQueue msg_queue(GetWebContents());
-    for (char16_t character : value) {
-      ui::DomKey dom_key = ui::DomKey::FromCharacter(character);
-      const ui::PrintableCodeEntry* code_entry = std::ranges::find_if(
-          ui::kPrintableCodeMap,
-          [character](const ui::PrintableCodeEntry& entry) {
-            return entry.character[0] == character ||
-                   entry.character[1] == character;
-          });
-      ASSERT_TRUE(code_entry != std::end(ui::kPrintableCodeMap));
-      bool shift = code_entry->character[1] == character;
-      ui::DomCode dom_code = code_entry->dom_code;
-      content::SimulateKeyPress(GetWebContents(), dom_key, dom_code,
-                                ui::DomCodeToUsLayoutKeyboardCode(dom_code),
-                                false, shift, false, false);
+    for (char character : value) {
+      content::SimulateCharTyped(GetWebContents(), character);
     }
     std::string reply;
     ASSERT_TRUE(msg_queue.WaitForMessage(&reply));
@@ -1031,10 +1019,18 @@ IN_PROC_BROWSER_TEST_F(AutofillInteractiveTest, ModifyTextNotifiesObserver) {
   // OnAfterTextFieldValueChanged will eventually be called with the final text
   // "Montreal".
   EventWaiter<bool> waiter({true});
-  EXPECT_CALL(observer, OnAfterTextFieldValueChanged(_, _, _, _))
-      .WillRepeatedly([&](AutofillManager&, FormGlobalId, FieldGlobalId,
-                          std::u16string text_value) {
-        if (text_value == u"Montreal") {
+  EXPECT_CALL(observer, OnAfterTextFieldValueChanged)
+      .WillRepeatedly([&](AutofillManager& manager, FormGlobalId form_id,
+                          FieldGlobalId field_id) {
+        const FormStructure* form = manager.FindCachedFormById(form_id);
+        if (!form) {
+          return;
+        }
+        const AutofillField* field = form->GetFieldById(field_id);
+        if (!field) {
+          return;
+        }
+        if (field->value() == u"Montreal") {
           waiter.OnEvent(true);
         }
       });
@@ -1072,10 +1068,18 @@ IN_PROC_BROWSER_TEST_F(AutofillInteractiveTest,
   autofill_manager->AddObserver(&observer);
 
   EventWaiter<bool> waiter({true});
-  EXPECT_CALL(observer, OnAfterTextFieldValueChanged(_, _, _, _))
-      .WillRepeatedly([&](AutofillManager&, FormGlobalId, FieldGlobalId,
-                          std::u16string text_value) {
-        if (text_value == u"My Address") {
+  EXPECT_CALL(observer, OnAfterTextFieldValueChanged)
+      .WillRepeatedly([&](AutofillManager& manager, FormGlobalId form_id,
+                          FieldGlobalId field_id) {
+        const FormStructure* form = manager.FindCachedFormById(form_id);
+        if (!form) {
+          return;
+        }
+        const AutofillField* field = form->GetFieldById(field_id);
+        if (!field) {
+          return;
+        }
+        if (field->value() == u"My Address") {
           waiter.OnEvent(true);
         }
       });

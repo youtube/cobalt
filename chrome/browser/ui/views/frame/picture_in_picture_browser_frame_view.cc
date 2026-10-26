@@ -13,6 +13,7 @@
 #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_tracker.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/ui/browser_content_setting_bubble_model_delegate.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
@@ -1120,7 +1121,7 @@ bool PictureInPictureBrowserFrameView::ShowPageInfoDialog() {
 
   views::BubbleDialogDelegateView* const bubble =
       PageInfoBubbleView::CreatePageInfoBubble(std::move(specification));
-  bubble->SetHighlightedButton(location_icon_view_);
+  bubble->SetHighlightedElement(kLocationIconElementId);
   bubble->GetWidget()->Show();
 
   PictureInPictureOcclusionTracker* tracker =
@@ -1138,7 +1139,7 @@ LocationBarModel* PictureInPictureBrowserFrameView::GetLocationBarModel()
 }
 
 ui::ImageModel PictureInPictureBrowserFrameView::GetLocationIcon(
-    LocationIconView::Delegate::IconFetchedCallback on_icon_fetched) const {
+    LocationIconView::Delegate::IconFetchedCallback on_icon_fetched) {
   // If we're animating between colors, use the current color value.
   if (current_foreground_color_.has_value()) {
     return ui::ImageModel::FromVectorIcon(location_bar_model_->GetVectorIcon(),
@@ -1249,6 +1250,12 @@ void PictureInPictureBrowserFrameView::SetForcedTucking(bool tuck) {
     EnforceTucking();
   }
 }
+
+#if BUILDFLAG(IS_MAC)
+void PictureInPictureBrowserFrameView::OnAnyBrowserEnteredFullscreen() {
+  GetWidget()->MoveToActiveFullscreenSpace();
+}
+#endif  // BUILDFLAG(IS_MAC)
 
 void PictureInPictureBrowserFrameView::EnforceTucking() {
   // The `tucker_` will have been created if there's any tucking to be enforced.

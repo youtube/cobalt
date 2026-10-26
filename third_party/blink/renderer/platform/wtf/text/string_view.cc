@@ -42,29 +42,16 @@ class StackStringViewAllocator {
   StringView::StackBackingStore& backing_store_;
 };
 
-Vector<StringView> SplitInternal(StringView input,
-                                 UChar separator,
-                                 bool allow_empty_entries) {
-  Vector<StringView> result;
-
-  unsigned start_pos = 0;
-  wtf_size_t end_pos;
-  while ((end_pos = input.find(separator, start_pos)) != kNotFound) {
-    if (allow_empty_entries || start_pos != end_pos) {
-      result.push_back(StringView(input, start_pos, end_pos - start_pos));
-    }
-    start_pos = end_pos + 1;
-  }
-  if (allow_empty_entries || start_pos != input.length()) {
-    result.push_back(StringView(input, start_pos));
-  }
-  return result;
+template <typename CharType1, typename CharType2>
+int CodeUnitCompareIgnoringAsciiCase(base::span<const CharType1> c1,
+                                     base::span<const CharType2> c2) {
+  return CodeUnitCompare(c1, c2, [](auto c) { return ToAsciiLower(c); });
 }
 
 }  // namespace
 
 StringView::StringView(const UChar* chars)
-    // SAFETY: It's safe if `chars` points to a NUL-terminated string.
+    // SAFETY: length of `chars` determined by walking NUL-terminated string.
     : StringView(UNSAFE_BUFFERS(
           base::span(chars, chars ? LengthOfNullTerminatedString(chars) : 0))) {
 }
@@ -90,7 +77,7 @@ static inline void PutUTF8Triple(base::span<uint8_t, 3u> buffer, UChar ch) {
 std::string StringView::Utf8(Utf8ConversionMode mode) const {
   using unicode::ConversionResult;
   using unicode::ConversionStatus;
-  unsigned length = this->length();
+  size_type length = this->length();
 
   if (!length)
     return std::string();
@@ -105,8 +92,9 @@ std::string StringView::Utf8(Utf8ConversionMode mode) const {
   //  * We could allocate a std::string with an appropriate size to
   //    have a good chance of being able to write the string into the
   //    buffer without reallocing (say, 1.5 x length).
-  if (length > std::numeric_limits<unsigned>::max() / 3)
+  if (length > std::numeric_limits<size_type>::max() / 3) {
     return std::string();
+  }
   Vector<char, 1024> buffer_vector(length * 3);
   size_t buffer_written = 0;
 
@@ -180,16 +168,17 @@ std::string StringView::Utf8(Utf8ConversionMode mode) const {
   return std::string(buffer_vector.data(), buffer_written);
 }
 
-bool StringView::IsLowerASCII() const {
+bool StringView::ContainsNoAsciiUpper() const {
   if (StringImpl* impl = SharedImpl()) {
-    return impl->IsLowerASCII();
+    return impl->ContainsNoAsciiUpper();
   }
-  return VisitCharacters(*this, [](auto chars) { return IsLowerAscii(chars); });
+  return VisitCharacters(
+      *this, [](auto chars) { return blink::ContainsNoAsciiUpper(chars); });
 }
 
-bool StringView::ContainsOnlyASCIIOrEmpty() const {
+bool StringView::ContainsOnlyAsciiOrEmpty() const {
   if (StringImpl* impl = SharedImpl())
-    return impl->ContainsOnlyASCIIOrEmpty();
+    return impl->ContainsOnlyAsciiOrEmpty();
   if (empty())
     return true;
   AsciiStringAttributes attrs = VisitCharacters(
@@ -204,8 +193,8 @@ bool StringView::ContainsOnlyLatin1OrEmpty() const {
   return std::ranges::all_of(Span16(), [](UChar ch) { return ch < 0x0100; });
 }
 
-bool StringView::SubstringContainsOnlyWhitespaceOrEmpty(unsigned from,
-                                                        unsigned to) const {
+bool StringView::SubstringContainsOnlyWhitespaceOrEmpty(size_type from,
+                                                        size_type to) const {
   DCHECK_LE(from, to);
   return VisitCharacters(StringView(*this, from, to - from), [](auto chars) {
     for (size_t i = 0; i < chars.size(); ++i) {
@@ -217,29 +206,49 @@ bool StringView::SubstringContainsOnlyWhitespaceOrEmpty(unsigned from,
   });
 }
 
-wtf_size_t StringView::find(UChar ch, wtf_size_t start) const {
+StringView::size_type StringView::find(UChar ch, size_type start) const {
   if (empty()) {
-    return kNotFound;
+    return npos;
   }
   return Is8Bit() ? blink::Find(Span8(), ch, start)
                   : blink::Find(Span16(), ch, start);
 }
 
-wtf_size_t StringView::find(const StringView& match_string,
-                            wtf_size_t start) const {
+StringView::size_type StringView::find(const StringView& match_string,
+                                       size_type start) const {
   return internal::Find(*this, match_string, start);
 }
 
-wtf_size_t StringView::rfind(UChar ch, wtf_size_t start) const {
+StringView::size_type StringView::rfind(UChar ch, size_type start) const {
   if (empty()) {
-    return kNotFound;
+    return npos;
   }
-  return Is8Bit() ? blink::ReverseFind(Span8(), ch, start)
-                  : blink::ReverseFind(Span16(), ch, start);
+  return Is8Bit() ? internal::ReverseFind(Span8(), ch, start)
+                  : internal::ReverseFind(Span16(), ch, start);
+}
+
+StringView::size_type StringView::rfind(const StringView& value,
+                                        size_type start) const {
+  size_type value_length = value.length();
+  if (value_length == 0u) {
+    return std::min(start, length());
+  }
+  return VisitCharacters(*this, [&](auto chars) {
+    if (value_length == 1u) {
+      return internal::ReverseFind(chars, value[0], start);
+    }
+    return VisitCharacters(value, [&](auto value_chars) {
+      return internal::ReverseFind(chars, value_chars, start);
+    });
+  });
 }
 
 bool StringView::contains(UChar ch) const {
-  return find(ch) != kNotFound;
+  return find(ch) != npos;
+}
+
+bool StringView::contains(const StringView& other) const {
+  return find(other) != npos;
 }
 
 bool StringView::starts_with(const StringView& other) const {
@@ -288,7 +297,7 @@ String StringView::EncodeForDebugging() const {
 
   StringBuilder builder;
   builder.Append('"');
-  for (unsigned index = 0; index < length(); ++index) {
+  for (size_type index = 0; index < length(); ++index) {
     // Print shorthands for select cases.
     UChar character = (*this)[index];
     switch (character) {
@@ -349,7 +358,7 @@ bool DeprecatedEqualIgnoringCase(const StringView& a, const StringView& b) {
   return DeprecatedEqualIgnoringCaseAndNullity(a, b);
 }
 
-bool EqualIgnoringASCIICase(const StringView& a, const StringView& b) {
+bool EqualIgnoringAsciiCase(const StringView& a, const StringView& b) {
   if (a.IsNull() || b.IsNull())
     return a.IsNull() == b.IsNull();
   if (a.length() != b.length())
@@ -357,8 +366,8 @@ bool EqualIgnoringASCIICase(const StringView& a, const StringView& b) {
   if (a.Bytes() == b.Bytes() && a.Is8Bit() == b.Is8Bit())
     return true;
   return VisitCharacters(a, [b](auto chars) {
-    return b.Is8Bit() ? EqualIgnoringASCIICase(chars, b.Span8())
-                      : EqualIgnoringASCIICase(chars, b.Span16());
+    return b.Is8Bit() ? EqualIgnoringAsciiCase(chars, b.Span8())
+                      : EqualIgnoringAsciiCase(chars, b.Span16());
   });
 }
 
@@ -368,7 +377,7 @@ StringView StringView::LowerASCIIMaybeUsingBuffer(
                           StackStringViewAllocator(buffer));
 }
 
-int CodeUnitCompareIgnoringAsciiCase(StringView a, StringView b) {
+int CodeUnitCompareIgnoringAsciiCase(const StringView& a, const StringView& b) {
   if (a.Is8Bit()) {
     return b.Is8Bit() ? CodeUnitCompareIgnoringAsciiCase(a.Span8(), b.Span8())
                       : CodeUnitCompareIgnoringAsciiCase(a.Span8(), b.Span16());
@@ -377,16 +386,15 @@ int CodeUnitCompareIgnoringAsciiCase(StringView a, StringView b) {
                     : CodeUnitCompareIgnoringAsciiCase(a.Span16(), b.Span16());
 }
 
-UChar32 StringView::CodepointAt(unsigned i) const {
-  SECURITY_DCHECK(i < length());
+UChar32 StringView::CodePointAt(size_type i) const {
   if (Is8Bit())
     return (*this)[i];
   return blink::CodePointAt(Span16(), i);
 }
 
-unsigned StringView::NextCodePointOffset(unsigned i) const {
+StringView::size_type StringView::NextCodePointOffset(size_type i) const {
   DCHECK_LT(i, length());
-  unsigned next = i + 1;
+  size_type next = i + 1;
   if (Is8Bit())
     return next;
   auto str = Span16();
@@ -396,7 +404,7 @@ unsigned StringView::NextCodePointOffset(unsigned i) const {
   return next;
 }
 
-UChar32 StringView::CodePointAtAndNext(unsigned& i) const {
+UChar32 StringView::CodePointAtAndNext(size_type& i) const {
   if (Is8Bit()) {
     return (*this)[i++];
   }
@@ -411,17 +419,17 @@ CodePointIterator StringView::end() const {
   return CodePointIterator::End(*this);
 }
 
-StringView StringView::substr(wtf_size_t offset, wtf_size_t len) const {
+StringView StringView::substr(size_type offset, size_type len) const {
   CHECK_LE(offset, length());
   return StringView(*this, offset, std::min(len, length() - offset));
 }
 
-void StringView::remove_prefix(wtf_size_t len) {
+void StringView::remove_prefix(size_type len) {
   CHECK_LE(len, length());
   *this = substr(len);
 }
 
-void StringView::remove_suffix(wtf_size_t len) {
+void StringView::remove_suffix(size_type len) {
   CHECK_LE(len, length());
   *this = substr(0, length() - len);
 }
@@ -450,11 +458,11 @@ StringView StringView::StripWhiteSpace(
 }
 
 Vector<StringView> StringView::Split(UChar separator) const {
-  return SplitInternal(*this, separator, /* allow_empty_entries */ true);
+  return internal::Split(*this, separator, /* allow_empty_entries */ true);
 }
 
 Vector<StringView> StringView::SplitSkippingEmpty(UChar separator) const {
-  return SplitInternal(*this, separator, /* allow_empty_entries */ false);
+  return internal::Split(*this, separator, /* allow_empty_entries */ false);
 }
 
 std::ostream& operator<<(std::ostream& out, const StringView& string) {

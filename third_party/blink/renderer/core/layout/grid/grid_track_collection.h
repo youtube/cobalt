@@ -107,12 +107,8 @@ class CORE_EXPORT GridRangeBuilder {
   // Build the collection of ranges based on information provided through the
   // specified tracks and `EnsureTrackCoverage`. If `needs_intrinsic_track_size`
   // is true, that means we are in a track sizing pass to computed a repeat tack
-  // defintion of intrinsic sized tracks. If `collapsed_track_indexes` is
-  // not nullptr, this method with populate it with the track indexes of all
-  // collapsed tracks.
-  GridRangeVector FinalizeRanges(
-      bool needs_intrinsic_track_size = false,
-      Vector<wtf_size_t>* collapsed_track_indexes = nullptr);
+  // definition of intrinsic sized tracks.
+  GridRangeVector FinalizeRanges(bool needs_intrinsic_track_size = false);
 
  private:
   friend class GridTrackCollectionTest;
@@ -152,9 +148,9 @@ class CORE_EXPORT GridRangeBuilder {
   Vector<TrackBoundaryToRangePair, 16> end_lines_;
 };
 
-class CORE_EXPORT GridLayoutTrackCollection : public GridTrackCollectionBase {
-  USING_FAST_MALLOC(GridLayoutTrackCollection);
-
+class CORE_EXPORT GridLayoutTrackCollection
+    : public GarbageCollected<GridLayoutTrackCollection>,
+      public GridTrackCollectionBase {
  public:
   struct SetGeometry {
     explicit SetGeometry(LayoutUnit offset, wtf_size_t track_count = 0)
@@ -163,6 +159,9 @@ class CORE_EXPORT GridLayoutTrackCollection : public GridTrackCollectionBase {
     LayoutUnit offset;
     wtf_size_t track_count;
   };
+
+  explicit GridLayoutTrackCollection(GridTrackSizingDirection track_direction)
+      : track_direction_(track_direction) {}
 
   GridLayoutTrackCollection() = delete;
 
@@ -200,7 +199,10 @@ class CORE_EXPORT GridLayoutTrackCollection : public GridTrackCollectionBase {
   LayoutUnit MajorBaseline(wtf_size_t set_index) const;
   LayoutUnit MinorBaseline(wtf_size_t set_index) const;
 
-  // Increase by |delta| the offset of every set with index > |set_index|.
+  // Increase by `delta` the offset of the set at `set_index`.
+  void AdjustSingleSetOffset(wtf_size_t set_index, LayoutUnit delta);
+
+  // Increase by `delta` the offset of all sets starting from `set_index`.
   void AdjustSetOffsets(wtf_size_t set_index, LayoutUnit delta);
 
   // Returns the total size of all sets in the collection.
@@ -211,7 +213,7 @@ class CORE_EXPORT GridLayoutTrackCollection : public GridTrackCollectionBase {
 
   // Creates a track collection containing every |Range| with index in the range
   // [begin, end], including their respective |SetGeometry| and baselines.
-  GridLayoutTrackCollection CreateSubgridTrackCollection(
+  GridLayoutTrackCollection* CreateSubgridTrackCollection(
       wtf_size_t begin_range_index,
       wtf_size_t end_range_index,
       LayoutUnit subgrid_gutter_size,
@@ -231,6 +233,12 @@ class CORE_EXPORT GridLayoutTrackCollection : public GridTrackCollectionBase {
 
   wtf_size_t FirstNonCollapsedLineIndex() const;
 
+  const Vector<wtf_size_t>& CollapsedTrackIndexes() const {
+    return collapsed_track_indexes_;
+  }
+
+  virtual void Trace(Visitor* visitor) const {}
+
  protected:
   friend class GridLanesLayoutAlgorithmTest;
 
@@ -238,9 +246,6 @@ class CORE_EXPORT GridLayoutTrackCollection : public GridTrackCollectionBase {
     Vector<LayoutUnit, 16> major;
     Vector<LayoutUnit, 16> minor;
   };
-
-  explicit GridLayoutTrackCollection(GridTrackSizingDirection track_direction)
-      : track_direction_(track_direction) {}
 
   // Checks whether any set in the range [begin, end) is indefinite.
   bool IsSpanningIndefiniteSet(wtf_size_t begin_set_index,
@@ -282,6 +287,10 @@ class CORE_EXPORT GridLayoutTrackCollection : public GridTrackCollectionBase {
   LayoutUnit accumulated_gutter_size_delta_;
   LayoutUnit accumulated_start_extra_margin_;
   LayoutUnit accumulated_end_extra_margin_;
+
+  // Collapsed track indexes from auto-fit ranges, populated when
+  // `should_store_collapsed_track_indexes` is true at construction.
+  Vector<wtf_size_t> collapsed_track_indexes_;
 };
 
 // |GridRangeBuilder::EnsureTrackCoverage| may introduce a range start and/or
@@ -353,26 +362,16 @@ struct CORE_EXPORT GridSet {
   LayoutUnit fit_content_limit;
   LayoutUnit item_incurred_increase;
 
-  // Baseline tracking for grid-lanes layout on the stacking axis:
-  // - first_item_stacking_position: Position of the first item in this set,
-  //   used to decide whether this is the first item for baseline calculation
-  // - last_item_stacking_position: Position of the last item in this set,
-  //   used to decide whether this is the last item for baseline calculation
-  // - grid_lanes_last_baseline: The last baseline value for this set
-  std::optional<LayoutUnit> first_item_stacking_position;
-  std::optional<LayoutUnit> last_item_stacking_position;
-  std::optional<LayoutUnit> grid_lanes_last_baseline;
-
   bool is_infinitely_growable : 1;
 };
 
 class CORE_EXPORT GridSizingTrackCollection final
     : public GridLayoutTrackCollection {
-  USING_FAST_MALLOC(GridSizingTrackCollection);
-
  public:
   template <bool is_const>
   class CORE_EXPORT SetIteratorBase {
+    STACK_ALLOCATED();
+
    public:
     using TrackCollectionPtr =
         typename std::conditional<is_const,
@@ -417,16 +416,17 @@ class CORE_EXPORT GridSizingTrackCollection final
   typedef SetIteratorBase<true> ConstSetIterator;
 
   GridSizingTrackCollection() = delete;
-  GridSizingTrackCollection(GridSizingTrackCollection&&) = default;
+  GridSizingTrackCollection(GridSizingTrackCollection&&) = delete;
   GridSizingTrackCollection(const GridSizingTrackCollection&) = delete;
-  GridSizingTrackCollection& operator=(GridSizingTrackCollection&&) = default;
+  GridSizingTrackCollection& operator=(GridSizingTrackCollection&&) = delete;
   GridSizingTrackCollection& operator=(const GridSizingTrackCollection&) =
       delete;
 
   explicit GridSizingTrackCollection(
       GridRangeVector&& ranges,
       GridTrackSizingDirection track_direction = kForColumns,
-      bool must_create_baselines = false);
+      bool must_create_baselines = false,
+      bool should_store_collapsed_track_indexes = false);
 
   // This class should be specifically used for grid sizing.
   bool IsForSizing() const override { return true; }

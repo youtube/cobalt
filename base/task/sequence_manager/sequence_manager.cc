@@ -44,7 +44,7 @@ SequenceManager::PrioritySettings::CreateDefault() {
 
 ThreadType SequenceManager::PrioritySettings::DefaultTaskPriorityToThreadType(
     TaskQueue::QueuePriority priority) {
-  return ThreadType::kDefault;
+  return ThreadType::kMaxValue;
 }
 
 SequenceManager::PrioritySettings::PrioritySettings(

@@ -27,12 +27,11 @@
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
 #include "chrome/browser/extensions/mv2_experiment_stage.h"
-#include "chrome/browser/extensions/shared_module_service.h"
+#include "chrome/browser/extensions/shared_module_service_factory.h"
 #include "chrome/browser/extensions/sync/account_extension_tracker.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/webui/extensions/extension_icon_source.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/common/extensions/manifest_handlers/app_launch_info.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/branded_strings.h"
@@ -50,6 +49,7 @@
 #include "extensions/browser/image_loader.h"
 #include "extensions/browser/path_util.h"
 #include "extensions/browser/permissions/site_permissions_helper.h"
+#include "extensions/browser/shared_module_service.h"
 #include "extensions/browser/ui_util.h"
 #include "extensions/browser/user_script_manager.h"
 #include "extensions/browser/warning_service.h"
@@ -619,7 +619,7 @@ void ExtensionInfoGenerator::FillExtensionInfo(const Extension& extension,
   // Dependent extensions.
   if (extension.is_shared_module()) {
     std::unique_ptr<ExtensionSet> dependent_extensions =
-        SharedModuleService::Get(browser_context_)
+        SharedModuleServiceFactory::GetForBrowserContext(browser_context_)
             ->GetDependentExtensions(&extension);
     for (const scoped_refptr<const Extension>& dependent :
          *dependent_extensions) {

@@ -192,10 +192,7 @@ AudioBuffer::AudioBuffer(AudioBus* bus)
     if (!channel_data_array) {
       return;
     }
-
-    const float* src = bus->Channel(i)->Data();
-    float* dst = channel_data_array->Data();
-    UNSAFE_TODO(memmove(dst, src, length_ * sizeof(*dst)));
+    channel_data_array->AsSpan().copy_from(bus->Channel(i)->Span());
     channels_.push_back(channel_data_array);
   }
 }
@@ -315,8 +312,7 @@ void AudioBuffer::copyToChannel(NotShared<DOMFloat32Array> source,
 void AudioBuffer::Zero() {
   for (unsigned i = 0; i < channels_.size(); ++i) {
     if (NotShared<DOMFloat32Array> array = getChannelData(i)) {
-      float* data = array->Data();
-      UNSAFE_TODO(memset(data, 0, length() * sizeof(*data)));
+      std::ranges::fill(array->AsSpan(), 0.0f);
     }
   }
 }
@@ -336,8 +332,7 @@ SharedAudioBuffer::SharedAudioBuffer(AudioBuffer* buffer)
 
 void SharedAudioBuffer::Zero() {
   for (auto& channel : channels_) {
-    float* data = static_cast<float*>(channel.Data());
-    UNSAFE_TODO(memset(data, 0, length() * sizeof(*data)));
+    std::ranges::fill(channel.ByteSpan(), 0);
   }
 }
 

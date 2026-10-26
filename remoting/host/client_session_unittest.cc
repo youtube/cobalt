@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "remoting/host/client_session.h"
 
 #include <algorithm>
@@ -46,12 +45,10 @@
 #include "remoting/protocol/fake_session.h"
 #include "remoting/protocol/message_pipe.h"
 #include "remoting/protocol/protocol_mock_objects.h"
-#include "remoting/protocol/session_config.h"
 #include "remoting/protocol/test_event_matchers.h"
+#include "remoting/signaling/session_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/libjingle_xmpp/xmllite/qname.h"
-#include "third_party/libjingle_xmpp/xmllite/xmlelement.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_capture_types.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_geometry.h"
 #include "ui/events/types/event_type.h"
@@ -63,7 +60,6 @@ using protocol::MockClientStub;
 using protocol::MockHostStub;
 using protocol::MockInputStub;
 using protocol::MockVideoStub;
-using protocol::SessionConfig;
 using protocol::test::EqualsClipboardEvent;
 using protocol::test::EqualsKeyEvent;
 using protocol::test::EqualsMouseButtonEvent;
@@ -856,10 +852,10 @@ TEST_F(ClientSessionTest, DataChannelCallbackIsCalled) {
 
 TEST_F(ClientSessionTest, ForwardHostSessionOptions1) {
   auto session = std::make_unique<protocol::FakeSession>();
-  auto configuration = std::make_unique<jingle_xmpp::XmlElement>(
-      jingle_xmpp::QName(kChromotingXmlNamespace, "host-configuration"));
-  configuration->SetBodyText("Detect-Updated-Region:true");
-  session->SetAttachment(0, std::move(configuration));
+  Attachment attachment;
+  attachment.host_config.emplace();
+  attachment.host_config->settings["Detect-Updated-Region"] = "true";
+  session->SetAttachment(0, attachment);
   CreateClientSession(std::move(session));
   ConnectClientSession();
   ASSERT_TRUE(desktop_environment_factory_->last_desktop_environment()
@@ -870,10 +866,10 @@ TEST_F(ClientSessionTest, ForwardHostSessionOptions1) {
 
 TEST_F(ClientSessionTest, ForwardHostSessionOptions2) {
   auto session = std::make_unique<protocol::FakeSession>();
-  auto configuration = std::make_unique<jingle_xmpp::XmlElement>(
-      jingle_xmpp::QName(kChromotingXmlNamespace, "host-configuration"));
-  configuration->SetBodyText("Detect-Updated-Region:false");
-  session->SetAttachment(0, std::move(configuration));
+  Attachment attachment;
+  attachment.host_config.emplace();
+  attachment.host_config->settings["Detect-Updated-Region"] = "false";
+  session->SetAttachment(0, attachment);
   CreateClientSession(std::move(session));
   ConnectClientSession();
   ASSERT_FALSE(desktop_environment_factory_->last_desktop_environment()

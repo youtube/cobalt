@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.ui.signin;
 import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
-import android.accounts.Account;
 import android.app.Activity;
 import android.os.SystemClock;
 import android.view.LayoutInflater;
@@ -39,11 +38,14 @@ import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncView;
 import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncher;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler.BackPressResult;
+import org.chromium.components.signin.SigninFeatureMap;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.metrics.AccountConsistencyPromoAction;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.signin.metrics.SignoutReason;
+import org.chromium.google_apis.gaia.CoreAccountId;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
@@ -102,6 +104,7 @@ public final class FullscreenSigninAndHistorySyncCoordinator extends SigninAndHi
     private final PrivacyPreferencesManager mPrivacyPreferencesManager;
     private final FullscreenSigninAndHistorySyncConfig mConfig;
     private final @SigninAccessPoint int mSigninAccessPoint;
+    private final SigninManager mSigninManager;
     private final Delegate mDelegate;
     private final boolean mDidShowSignin;
     private final long mActivityStartTime;
@@ -138,6 +141,10 @@ public final class FullscreenSigninAndHistorySyncCoordinator extends SigninAndHi
         mActivityStartTime = activityStartTime;
         mDeviceLockActivityLauncher = deviceLockActivityLauncher;
         inflateViewBundle();
+        Profile profile = assumeNonNull(mProfileSupplier.get()).getOriginalProfile();
+        final SigninManager signinManager =
+                IdentityServicesProvider.get().getSigninManager(profile);
+        mSigninManager = assertNonNull(signinManager);
         if (isSignedIn()) {
             advanceToNextPage();
             mDidShowSignin = false;
@@ -205,12 +212,11 @@ public final class FullscreenSigninAndHistorySyncCoordinator extends SigninAndHi
     public @BackPressResult int handleBackPress() {
         switch (mCurrentView) {
             case ChildView.SIGNIN:
+                if (isSigninForced()) {
+                    return BackPressResult.IGNORED;
+                }
                 if (isSignedIn()) {
-                    Profile profile = assumeNonNull(mProfileSupplier.get()).getOriginalProfile();
-                    SigninManager signinManager =
-                            IdentityServicesProvider.get().getSigninManager(profile);
-                    assumeNonNull(signinManager);
-                    signinManager.signOut(SignoutReason.ABORT_SIGNIN);
+                    mSigninManager.signOut(SignoutReason.ABORT_SIGNIN);
                 }
                 mDelegate.onFlowComplete(SigninAndHistorySyncCoordinator.Result.aborted());
                 break;
@@ -253,11 +259,10 @@ public final class FullscreenSigninAndHistorySyncCoordinator extends SigninAndHi
     }
 
     @Override
-    public void displayDeviceLockPage(Account selectedAccount) {
-        String accountName = selectedAccount == null ? null : selectedAccount.name;
+    public void displayDeviceLockPage(CoreAccountId selectedAccountId) {
         mDeviceLockActivityLauncher.launchDeviceLockActivity(
                 mActivity,
-                accountName,
+                selectedAccountId,
                 /* requireDeviceLockReauthentication= */ true,
                 mWindowAndroid,
                 (resultCode, data) -> {
@@ -303,8 +308,9 @@ public final class FullscreenSigninAndHistorySyncCoordinator extends SigninAndHi
     /** Implements {@link FullscreenSigninCoordinator.Delegate}. */
     @Override
     public boolean shouldDisplayManagementNoticeOnManagedDevices() {
-        // Management notice shouldn't be shown in the Upgrade promo flow, even on managed devices.
-        return false;
+        // Management notice shouldn't be shown in the Upgrade promo flow, even on managed devices,
+        // unless the policy is forcing sign-in.
+        return isSigninForced();
     }
 
     /** Implements {@link FullscreenSigninCoordinator.Delegate} */
@@ -342,17 +348,6 @@ public final class FullscreenSigninAndHistorySyncCoordinator extends SigninAndHi
         mDelegate.onFlowComplete(flowResult);
     }
 
-    /** Implements {@link HistorySyncDelegate} */
-    @Override
-    public void recordHistorySyncOptIn(
-            @SigninAccessPoint int accessPoint, boolean isHistorySyncAccepted) {
-        if (isHistorySyncAccepted) {
-            SigninMetricsUtils.logHistorySyncAcceptButtonClicked(accessPoint);
-        } else {
-            SigninMetricsUtils.logHistorySyncDeclineButtonClicked(accessPoint);
-        }
-    }
-
     @EnsuresNonNull({"mFullscreenSigninView", "mHistorySyncView"})
     private void inflateViewBundle() {
         boolean useLandscapeLayout = SigninUtils.shouldShowDualPanesHorizontalLayout(mActivity);
@@ -379,6 +374,13 @@ public final class FullscreenSigninAndHistorySyncCoordinator extends SigninAndHi
                 IdentityServicesProvider.get().getIdentityManager(profile);
         assumeNonNull(identityManager);
         return identityManager.hasPrimaryAccount(ConsentLevel.SIGNIN);
+    }
+
+    private boolean isSigninForced() {
+        if (!SigninFeatureMap.isEnabled(SigninFeatures.SUPPORT_FORCED_SIGNIN_POLICY)) {
+            return false;
+        }
+        return mSigninManager.isForceSigninEnabled();
     }
 
     private void showChildView(@ChildView int child) {

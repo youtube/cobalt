@@ -17,6 +17,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/memory/memory_pressure_listener_registry.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/process/launch.h"
@@ -31,6 +32,7 @@
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/buildflags.h"
@@ -99,7 +101,6 @@
 #include "components/collaboration/public/messaging/empty_messaging_backend_service.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
-#include "components/memory_pressure/fake_memory_pressure_monitor.h"
 #include "components/prefs/pref_service.h"
 #include "components/saved_tab_groups/internal/saved_tab_group_model.h"
 #include "components/saved_tab_groups/public/features.h"
@@ -305,7 +306,7 @@ class SessionRestoreTest : public InProcessBrowserTest {
         base::BindLambdaForTesting([&](content::WebContents* contents) {
           if (!contents->GetPrimaryMainFrame()
                    ->GetProcess()
-                   ->IsForInitialWebUI()) {
+                   ->IsForTopChromeWebUI()) {
             queues.emplace_back(
                 std::make_unique<content::DOMMessageQueue>(contents));
           }
@@ -377,16 +378,8 @@ class SessionRestoreTest : public InProcessBrowserTest {
 
     // Stop loading anything more if we are running out of space.
     if (!no_memory_pressure) {
-      fake_memory_pressure_monitor_.SetAndNotifyMemoryPressure(
+      base::MemoryPressureListenerRegistry::SimulatePressureNotification(
           base::MEMORY_PRESSURE_LEVEL_CRITICAL);
-      // Wait for async memory notifications to be delivered to Performance
-      // Manager on the main thread.
-      // TODO(crbug.com/436324601): Remove once memory pressure notifications
-      // are synchronous.
-      base::RunLoop run_loop;
-      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, run_loop.QuitClosure());
-      run_loop.Run();
     }
     restore_observer.Wait();
 
@@ -457,9 +450,6 @@ class SessionRestoreTest : public InProcessBrowserTest {
 #if !BUILDFLAG(GOOGLE_CHROME_BRANDING)
   base::test::ScopedFeatureList scoped_feature_list_;
 #endif  // !BUILDFLAG(GOOGLE_CHROME_BRANDING)
-
-  memory_pressure::test::FakeMemoryPressureMonitor
-      fake_memory_pressure_monitor_;
 
   base::CallbackListSubscription dependency_manager_subscription_;
 };
@@ -845,13 +835,12 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestoreForeignTab) {
 
   // Restore in the current tab.
   content::WebContents* tab_content = nullptr;
-  {
-    content::CreateAndLoadWebContentsObserver observer;
-    tab_content = SessionRestore::RestoreForeignSessionTab(
-        browser()->tab_strip_model()->GetActiveWebContents(), tab,
-        WindowOpenDisposition::CURRENT_TAB);
-    observer.Wait();
-  }
+  tab_content = SessionRestore::RestoreForeignSessionTab(
+      browser()->tab_strip_model()->GetActiveWebContents(), tab,
+      WindowOpenDisposition::CURRENT_TAB);
+  ASSERT_TRUE(tab_content);
+  content::WaitForLoadStop(tab_content);
+
   ASSERT_EQ(1, browser()->tab_strip_model()->count());
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetWebContentsAt(0);
@@ -862,13 +851,12 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestoreForeignTab) {
 
   // Restore in a new tab.
   tab_content = nullptr;
-  {
-    content::CreateAndLoadWebContentsObserver observer;
-    tab_content = SessionRestore::RestoreForeignSessionTab(
-        browser()->tab_strip_model()->GetActiveWebContents(), tab,
-        WindowOpenDisposition::NEW_BACKGROUND_TAB);
-    observer.Wait();
-  }
+  tab_content = SessionRestore::RestoreForeignSessionTab(
+      browser()->tab_strip_model()->GetActiveWebContents(), tab,
+      WindowOpenDisposition::NEW_BACKGROUND_TAB);
+  ASSERT_TRUE(tab_content);
+  content::WaitForLoadStop(tab_content);
+
   ASSERT_EQ(2, browser()->tab_strip_model()->count());
   ASSERT_EQ(0, browser()->tab_strip_model()->active_index());
   web_contents = browser()->tab_strip_model()->GetWebContentsAt(1);
@@ -881,12 +869,12 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestoreForeignTab) {
   Browser* new_browser = nullptr;
   tab_content = nullptr;
   {
-    content::CreateAndLoadWebContentsObserver observer;
     ui_test_utils::BrowserCreatedObserver browser_created_observer;
     tab_content = SessionRestore::RestoreForeignSessionTab(
         browser()->tab_strip_model()->GetActiveWebContents(), tab,
         WindowOpenDisposition::NEW_WINDOW);
-    observer.Wait();
+    ASSERT_TRUE(tab_content);
+    content::WaitForLoadStop(tab_content);
     new_browser = browser_created_observer.Wait();
     ui_test_utils::WaitForBrowserSetLastActive(new_browser);
     EXPECT_NE(new_browser, browser());
@@ -3192,9 +3180,9 @@ class SessionRestoreWithIncompleteFileTest : public InProcessBrowserTest {
     base::FilePath user_data_dir;
     EXPECT_TRUE(base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir));
     base::FilePath sessions_dir =
-        user_data_dir.AppendASCII(TestingProfile::kTestUserProfileDir);
-    if (!base::DeletePathRecursively(
-            sessions_dir.Append(sessions::kSessionsDirectory))) {
+        user_data_dir.AppendASCII(TestingProfile::kTestUserProfileDir)
+            .Append(sessions::kSessionsDirectory);
+    if (!base::DeletePathRecursively(sessions_dir)) {
       ADD_FAILURE() << "Unable to delete sessions directory";
       return false;
     }
@@ -3202,8 +3190,7 @@ class SessionRestoreWithIncompleteFileTest : public InProcessBrowserTest {
       ADD_FAILURE() << "Unable to create sessions directory";
       return false;
     }
-    base::FilePath session_file_path = sessions_dir.Append(
-        base::FilePath(sessions::kLegacyCurrentSessionFileName));
+    base::FilePath session_file_path = sessions_dir.AppendUTF8("Session_1234");
     base::FilePath data_dir;
     if (!base::PathService::Get(chrome::DIR_TEST_DATA, &data_dir)) {
       ADD_FAILURE() << "Unable to get data dir";

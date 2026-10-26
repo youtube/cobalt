@@ -38,6 +38,7 @@
 #include <string_view>
 #include <utility>
 
+#include "base/containers/adapters.h"
 #include "base/containers/flat_map.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_macros.h"
@@ -446,7 +447,7 @@ inline bool SkipWhiteSpace(const String& str,
 
 template <typename CharType>
 inline bool IsASCIILowerAlphaOrDigit(CharType c) {
-  return IsASCIILower(c) || IsASCIIDigit(c);
+  return IsASCIILower(c) || IsAsciiDigit(c);
 }
 
 template <typename CharType>
@@ -464,7 +465,7 @@ bool ParseRefreshTime(const StringView& source, base::TimeDelta& delay) {
     if (ch == uchar::kFullStop) {
       if (++full_stop_count == 2)
         number_end = i;
-    } else if (!IsASCIIDigit(ch)) {
+    } else if (!IsAsciiDigit(ch)) {
       return false;
     }
   }
@@ -482,8 +483,8 @@ bool IsValidHTTPHeaderValue(const String& name) {
   // FIXME: This should really match name against
   // field-value in section 4.2 of RFC 2616.
 
-  return name.ContainsOnlyLatin1OrEmpty() && !name.Contains('\r') &&
-         !name.Contains('\n') && !name.Contains('\0');
+  return name.ContainsOnlyLatin1OrEmpty() && !name.contains('\r') &&
+         !name.contains('\n') && !name.contains('\0');
 }
 
 // See RFC 7230, Section 3.2.6.
@@ -545,7 +546,7 @@ bool ParseHTTPRefresh(const String& refresh,
   //   "Refresh: 0; url.html"
   //
   // in which case we let the URL be the entire string.
-  if (EqualIgnoringASCIICase(refresh_url.substr(0, 3), "url")) {
+  if (EqualIgnoringAsciiCase(refresh_url.substr(0, 3), "url")) {
     const wtf_size_t prefix_start = pos;
     pos += 3;
     SkipWhiteSpace(refresh, pos, matcher);
@@ -687,7 +688,7 @@ ContentTypeOptionsDisposition ParseContentTypeOptionsHeader(
         results[0].StripWhiteSpace(IsHTTPTabOrSpace);
   }
 
-  if (EqualIgnoringASCIICase(decoded_and_split_header_value, "nosniff")) {
+  if (EqualIgnoringAsciiCase(decoded_and_split_header_value, "nosniff")) {
     return kContentTypeOptionsNosniff;
   }
   return kContentTypeOptionsNone;
@@ -753,15 +754,15 @@ static bool RFC7234IsCacheHeaderSeparator(UChar c) {
 // functions. This eliminates code duplication between RFC 7234, RFC 2616,
 // and feature-flag-controlled parsing.
 template <typename SeparatorFunc>
-static void ParseCacheHeaderImpl(const String& header,
-                                 Vector<std::pair<String, String>>& result,
-                                 SeparatorFunc is_separator) {
-  auto trim_to_separator = [&](const String& str) {
-    return str.Substring(0, str.Find(is_separator));
+static void ParseCacheHeaderImpl(
+    const String& safe_header,
+    Vector<std::pair<StringView, StringView>>& result,
+    SeparatorFunc is_separator) {
+  auto trim_to_separator = [&](const StringView& str) {
+    return str.substr(0, str.Find(is_separator));
   };
 
-  const String safe_header = header.RemoveCharacters(IsControlCharacter);
-  wtf_size_t max = safe_header.length();
+  const wtf_size_t max = safe_header.length();
   for (wtf_size_t pos = 0; pos < max; /* pos incremented in loop */) {
     wtf_size_t next_comma_position = safe_header.find(',', pos);
     wtf_size_t next_equal_sign_position = safe_header.find('=', pos);
@@ -770,19 +771,20 @@ static void ParseCacheHeaderImpl(const String& header,
          next_comma_position == kNotFound)) {
       // Get directive name, parse right hand side of equal sign, then add to
       // map
-      String directive = trim_to_separator(
-          safe_header.Substring(pos, next_equal_sign_position - pos)
+      StringView directive = trim_to_separator(
+          StringView(safe_header, pos, next_equal_sign_position - pos)
               .StripWhiteSpace());
       pos += next_equal_sign_position - pos + 1;
 
-      String value = safe_header.Substring(pos, max - pos).StripWhiteSpace();
-      if (value[0] == '"') {
+      StringView value =
+          StringView(safe_header, pos, max - pos).StripWhiteSpace();
+      if (value.starts_with('"')) {
         // The value is a quoted string
         wtf_size_t next_double_quote_position = value.find('"', 1);
         if (next_double_quote_position != kNotFound) {
           // Store the value as a quoted string without quotes
-          result.push_back(std::pair<String, String>(
-              directive, value.Substring(1, next_double_quote_position - 1)
+          result.push_back(std::pair<StringView, StringView>(
+              directive, value.substr(1, next_double_quote_position - 1)
                              .StripWhiteSpace()));
           pos += (safe_header.find('"', pos) - pos) +
                  next_double_quote_position + 1;
@@ -795,10 +797,8 @@ static void ParseCacheHeaderImpl(const String& header,
           }
         } else {
           // Parse error; just use the rest as the value
-          result.push_back(std::pair<String, String>(
-              directive,
-              trim_to_separator(
-                  value.Substring(1, value.length() - 1).StripWhiteSpace())));
+          result.push_back(std::pair<StringView, StringView>(
+              directive, trim_to_separator(value.substr(1).StripWhiteSpace())));
           return;
         }
       } else {
@@ -806,15 +806,15 @@ static void ParseCacheHeaderImpl(const String& header,
         wtf_size_t next_comma_position2 = value.find(',');
         if (next_comma_position2 != kNotFound) {
           // The value is delimited by the next comma
-          result.push_back(std::pair<String, String>(
+          result.push_back(std::pair<StringView, StringView>(
               directive,
               trim_to_separator(
-                  value.Substring(0, next_comma_position2).StripWhiteSpace())));
+                  value.substr(0, next_comma_position2).StripWhiteSpace())));
           pos += (safe_header.find(',', pos) - pos) + 1;
         } else {
           // The rest is the value; no change to value needed
-          result.push_back(
-              std::pair<String, String>(directive, trim_to_separator(value)));
+          result.push_back(std::pair<StringView, StringView>(
+              directive, trim_to_separator(value)));
           return;
         }
       }
@@ -822,25 +822,26 @@ static void ParseCacheHeaderImpl(const String& header,
                (next_comma_position < next_equal_sign_position ||
                 next_equal_sign_position == kNotFound)) {
       // Add directive to map with empty string as value
-      result.push_back(std::pair<String, String>(
+      result.push_back(std::pair<StringView, StringView>(
           trim_to_separator(
-              safe_header.Substring(pos, next_comma_position - pos)
+              StringView(safe_header, pos, next_comma_position - pos)
                   .StripWhiteSpace()),
-          ""));
+          g_empty_string));
       pos += next_comma_position - pos + 1;
     } else {
       // Add last directive to map with empty string as value
-      result.push_back(std::pair<String, String>(
+      result.push_back(std::pair<StringView, StringView>(
           trim_to_separator(
-              safe_header.Substring(pos, max - pos).StripWhiteSpace()),
-          ""));
+              StringView(safe_header, pos, max - pos).StripWhiteSpace()),
+          g_empty_string));
       return;
     }
   }
 }
 
-static void ParseCacheHeader(const String& header,
-                             Vector<std::pair<String, String>>& result) {
+static void ParseCacheHeader(
+    const String& header,
+    Vector<std::pair<StringView, StringView>>& result) {
   if (RuntimeEnabledFeatures::CacheControlRFC7234ParsingEnabled()) {
     ParseCacheHeaderImpl(header, result, RFC7234IsCacheHeaderSeparator);
   } else {
@@ -863,18 +864,21 @@ CacheControlHeader ParseCacheControlDirectives(
   static const char kStaleWhileRevalidateDirective[] = "stale-while-revalidate";
 
   if (!cache_control_value.empty()) {
-    Vector<std::pair<String, String>> directives;
-    ParseCacheHeader(cache_control_value, directives);
+    const String safe_cache_control_value =
+        cache_control_value.GetString().RemoveCharacters(IsControlCharacter);
+
+    Vector<std::pair<StringView, StringView>> directives;
+    ParseCacheHeader(safe_cache_control_value, directives);
 
     // Compare RFC 7234 vs legacy RFC 2616 parsing for metrics.
     // TODO(hjanuschka): Remove after gathering sufficient metrics and
     // completing deprecation process.
     if (RuntimeEnabledFeatures::CacheControlRFC7234ParsingMetricsEnabled()) {
-      Vector<std::pair<String, String>> rfc7234_directives;
-      Vector<std::pair<String, String>> legacy_directives;
-      ParseCacheHeaderImpl(cache_control_value, rfc7234_directives,
+      Vector<std::pair<StringView, StringView>> rfc7234_directives;
+      Vector<std::pair<StringView, StringView>> legacy_directives;
+      ParseCacheHeaderImpl(safe_cache_control_value, rfc7234_directives,
                            RFC7234IsCacheHeaderSeparator);
-      ParseCacheHeaderImpl(cache_control_value, legacy_directives,
+      ParseCacheHeaderImpl(safe_cache_control_value, legacy_directives,
                            LegacyIsCacheHeaderSeparator);
 
       bool parsing_differs = rfc7234_directives != legacy_directives;
@@ -888,16 +892,16 @@ CacheControlHeader ParseCacheControlDirectives(
     for (wtf_size_t i = 0; i < directives_size; ++i) {
       // RFC2616 14.9.1: A no-cache directive with a value is only meaningful
       // for proxy caches.  It should be ignored by a browser level cache.
-      if (EqualIgnoringASCIICase(directives[i].first, kNoCacheDirective) &&
+      if (EqualIgnoringAsciiCase(directives[i].first, kNoCacheDirective) &&
           directives[i].second.empty()) {
         cache_control_header.contains_no_cache = true;
-      } else if (EqualIgnoringASCIICase(directives[i].first,
+      } else if (EqualIgnoringAsciiCase(directives[i].first,
                                         kNoStoreDirective)) {
         cache_control_header.contains_no_store = true;
-      } else if (EqualIgnoringASCIICase(directives[i].first,
+      } else if (EqualIgnoringAsciiCase(directives[i].first,
                                         kMustRevalidateDirective)) {
         cache_control_header.contains_must_revalidate = true;
-      } else if (EqualIgnoringASCIICase(directives[i].first,
+      } else if (EqualIgnoringAsciiCase(directives[i].first,
                                         kMaxAgeDirective)) {
         if (cache_control_header.max_age) {
           // First max-age directive wins if there are multiple ones.
@@ -907,7 +911,7 @@ CacheControlHeader ParseCacheControlDirectives(
         if (max_age) {
           cache_control_header.max_age = base::Seconds(*max_age);
         }
-      } else if (EqualIgnoringASCIICase(directives[i].first,
+      } else if (EqualIgnoringAsciiCase(directives[i].first,
                                         kStaleWhileRevalidateDirective)) {
         if (cache_control_header.stale_while_revalidate) {
           // First stale-while-revalidate directive wins if there are multiple
@@ -928,7 +932,7 @@ CacheControlHeader ParseCacheControlDirectives(
     // This is deprecated and equivalent to Cache-control: no-cache
     // Don't bother tokenizing the value, it is not important
     cache_control_header.contains_no_cache =
-        pragma_value.LowerASCII().Contains(kNoCacheDirective);
+        pragma_value.ToAsciiLower().contains(kNoCacheDirective);
   }
   return cache_control_header;
 }
@@ -1132,8 +1136,7 @@ ParseContentSecurityPolicyHeaders(
           network::mojom::blink::ContentSecurityPolicyType::kReport,
           network::mojom::blink::ContentSecurityPolicySource::kHTTP,
           headers.ResponseUrl());
-  parsed_csps.AppendRange(std::make_move_iterator(report_only_csps.begin()),
-                          std::make_move_iterator(report_only_csps.end()));
+  parsed_csps.append_range(base::RangeAsRvalues(std::move(report_only_csps)));
   return parsed_csps;
 }
 
@@ -1153,14 +1156,11 @@ network::mojom::blink::TimingAllowOriginPtr ParseTimingAllowOrigin(
 
 network::mojom::blink::NoVarySearchWithParseErrorPtr ParseNoVarySearch(
     const String& header_value) {
-  // Parse the No-Vary-Search hint value by making a header in order to
-  // reuse existing code.
-  auto headers =
-      base::MakeRefCounted<net::HttpResponseHeaders>("HTTP/1.1 200 OK\n");
-  headers->AddHeader("No-Vary-Search", header_value.Utf8());
-
-  auto parsed_nvs_with_error =
-      ConvertToBlink(network::ParseNoVarySearch(*headers));
+  // `header_value` is usually ASCII, so StringUtf8Adaptor avoids allocating a
+  // string.
+  StringUtf8Adaptor adaptor(header_value);
+  auto parsed_nvs_with_error = ConvertToBlink(
+      network::ParseNoVarySearchHeaderValue(adaptor.AsStringView()));
   // `parsed_nvs_with_error` cannot be null here. Because we know the header is
   // available, we will get a parse error or a No-Vary-Search.
   CHECK(parsed_nvs_with_error);

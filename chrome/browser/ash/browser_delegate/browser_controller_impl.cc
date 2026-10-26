@@ -11,6 +11,7 @@
 #include "chrome/browser/ash/browser_delegate/browser_delegate_impl.h"
 #include "chrome/browser/ash/browser_delegate/browser_type.h"
 #include "chrome/browser/ash/browser_delegate/browser_type_conversion.h"
+#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/profiles/profile.h"
@@ -25,6 +26,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/simple_web_view_dialog.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
@@ -57,7 +59,7 @@ bool BrowserMatches(BrowserWindowInterface* browser,
 namespace ash {
 
 BrowserControllerImpl::BrowserControllerImpl() {
-  observation_.Observe(BrowserList::GetInstance());
+  observation_.Observe(GlobalBrowserCollection::GetInstance());
 }
 
 BrowserControllerImpl::~BrowserControllerImpl() = default;
@@ -268,21 +270,22 @@ void BrowserControllerImpl::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-void BrowserControllerImpl::OnBrowserAdded(Browser* browser) {
+void BrowserControllerImpl::OnBrowserCreated(BrowserWindowInterface* browser) {
   ash::BrowserDelegate* browser_delegate = GetDelegate(browser);
   for (auto& observer : observers_) {
     observer.OnBrowserCreated(browser_delegate);
   }
 }
 
-void BrowserControllerImpl::OnBrowserSetLastActive(Browser* browser) {
+void BrowserControllerImpl::OnBrowserActivated(
+    BrowserWindowInterface* browser) {
   ash::BrowserDelegate* browser_delegate = GetDelegate(browser);
   for (auto& observer : observers_) {
     observer.OnBrowserActivated(browser_delegate);
   }
 }
 
-void BrowserControllerImpl::OnBrowserRemoved(Browser* browser) {
+void BrowserControllerImpl::OnBrowserClosed(BrowserWindowInterface* browser) {
   ash::BrowserDelegate* browser_delegate = GetDelegate(browser);
   for (auto& observer : observers_) {
     observer.OnBrowserClosed(browser_delegate);
@@ -298,6 +301,13 @@ void BrowserControllerImpl::OnBrowserRemoved(Browser* browser) {
 void BrowserControllerImpl::CreateAutofillClientForWebContents(
     content::WebContents* web_contents) {
   autofill::ChromeAutofillClient::CreateForWebContents(web_contents);
+}
+
+std::unique_ptr<views::SimpleWebView>
+BrowserControllerImpl::CreateSimpleWebViewForSigninScreen(
+    views::SimpleWebViewDialogDelegate* delegate) {
+  return std::make_unique<SimpleWebViewDialog>(
+      ash::ProfileHelper::GetSigninProfile(), delegate);
 }
 
 }  // namespace ash

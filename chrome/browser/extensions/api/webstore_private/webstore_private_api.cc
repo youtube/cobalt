@@ -23,7 +23,6 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/notimplemented.h"
 #include "base/scoped_multi_source_observation.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
 #include "base/version.h"
@@ -554,9 +553,11 @@ void WebstorePrivateBeginInstallWithManifest3Function::OnWebstoreParseSuccess(
 }
 
 void WebstorePrivateBeginInstallWithManifest3Function::OnInstallStatusCheckDone(
-    ExtensionInstallStatus install_status) {
+    ExtensionInstallStatus install_status,
+    std::u16string blocked_message) {
   content::WebContents* web_contents = GetSenderWebContents();
   if (install_status == kBlockedByPolicy) {
+    blocked_by_policy_error_message_ = std::move(blocked_message);
     ShowBlockedByPolicyDialog(
         dummy_extension_.get(), icon_, web_contents,
         base::BindOnce(&WebstorePrivateBeginInstallWithManifest3Function::
@@ -637,15 +638,75 @@ void WebstorePrivateBeginInstallWithManifest3Function::RequestExtensionApproval(
           ->Get(profile_)
           ->GetSupervisedUserExtensionsDelegate();
   CHECK(supervised_user_extensions_delegate);
+
+#if !BUILDFLAG(IS_ANDROID)
   auto extension_approval_callback =
       base::BindOnce(&WebstorePrivateBeginInstallWithManifest3Function::
                          OnExtensionApprovalDone,
                      this);
+#else
+  auto extension_approval_callback =
+      base::BindOnce(&WebstorePrivateBeginInstallWithManifest3Function::
+                         OnParentAuthenticationDone,
+                     this, web_contents);
+#endif
+
   supervised_user_extensions_delegate->RequestToAddExtensionOrShowError(
       *dummy_extension_, web_contents,
       gfx::ImageSkia::CreateFrom1xBitmap(icon_),
       std::move(extension_approval_callback));
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void WebstorePrivateBeginInstallWithManifest3Function::
+    OnParentAuthenticationDone(content::WebContents* web_contents,
+                               SupervisedExtensionApprovalResult result) {
+  if (!web_contents) {
+    // The browser window has gone away.
+    Respond(BuildResponse(api::webstore_private::Result::kUserCancelled,
+                          kWebstoreUserCancelledError));
+    // Matches the AddRef in Run().
+    Release();
+    return;
+  }
+
+  if (result != SupervisedExtensionApprovalResult::kApproved) {
+    OnExtensionApprovalDone(result);
+    return;
+  }
+
+  auto dialog_callback = base::BindOnce(
+      [](base::OnceCallback<void(SupervisedExtensionApprovalResult)> callback,
+         ExtensionInstallPrompt::DoneCallbackPayload payload) {
+        switch (payload.result) {
+          case ExtensionInstallPrompt::Result::ACCEPTED:
+            std::move(callback).Run(
+                SupervisedExtensionApprovalResult::kApproved);
+            break;
+          case ExtensionInstallPrompt::Result::USER_CANCELED:
+          case ExtensionInstallPrompt::Result::ABORTED:
+            std::move(callback).Run(
+                SupervisedExtensionApprovalResult::kBlocked);
+            break;
+          case ExtensionInstallPrompt::Result::
+              ACCEPTED_WITH_WITHHELD_PERMISSIONS:
+            // Parent approval dialog doesn't support
+            // `ACCEPTED_WITH_WITHHELD_PERMISSIONS` result.
+            NOTREACHED();
+        }
+      },
+      base::BindOnce(&WebstorePrivateBeginInstallWithManifest3Function::
+                         OnExtensionApprovalDone,
+                     this));
+
+  install_prompt_ = std::make_unique<ExtensionInstallPrompt>(web_contents);
+  install_prompt_->ShowDialog(
+      std::move(dialog_callback), dummy_extension_.get(), &icon_,
+      std::make_unique<ExtensionInstallPrompt::Prompt>(
+          ExtensionInstallPrompt::EXTENSION_PARENT_APPROVAL_PROMPT),
+      ExtensionInstallPrompt::GetDefaultShowDialogCallback());
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 void WebstorePrivateBeginInstallWithManifest3Function::OnExtensionApprovalDone(
     SupervisedExtensionApprovalResult result) {
@@ -709,6 +770,14 @@ void WebstorePrivateBeginInstallWithManifest3Function::
 
 void WebstorePrivateBeginInstallWithManifest3Function::
     OnExtensionApprovalBlocked() {
+  if (test_delegate) {
+    test_delegate->OnExtensionInstallFailure(
+        dummy_extension_->id(),
+        l10n_util::GetStringUTF8(
+            IDS_EXTENSIONS_SUPERVISED_USER_PARENTAL_PERMISSION_FAILURE),
+        WebstoreInstaller::FailureReason::FAILURE_REASON_CANCELLED);
+  }
+
   Respond(BuildResponse(api::webstore_private::Result::kBlockedForChildAccount,
                         l10n_util::GetStringUTF8(
                             IDS_EXTENSIONS_SUPERVISED_USER_BLOCKED_BY_PARENT)));
@@ -836,6 +905,14 @@ void WebstorePrivateBeginInstallWithManifest3Function::
 
 void WebstorePrivateBeginInstallWithManifest3Function::
     OnRequestParentApprovalPromptCancelled() {
+  if (test_delegate) {
+    test_delegate->OnExtensionInstallFailure(
+        dummy_extension_->id(),
+        l10n_util::GetStringUTF8(
+            IDS_EXTENSIONS_SUPERVISED_USER_PARENTAL_PERMISSION_FAILURE),
+        WebstoreInstaller::FailureReason::FAILURE_REASON_CANCELLED);
+  }
+
   Respond(BuildResponse(api::webstore_private::Result::kUserCancelled,
                         kWebstoreUserCancelledError));
   // Matches the AddRef in Run().
@@ -1019,18 +1096,6 @@ void WebstorePrivateBeginInstallWithManifest3Function::
                               content::WebContents* contents,
                               base::OnceClosure done_callback) {
   DCHECK(extension);
-  DCHECK(contents);
-
-  Profile* profile = Profile::FromBrowserContext(contents->GetBrowserContext());
-
-  std::string message_from_admin =
-      ExtensionManagementFactory::GetForBrowserContext(profile)
-          ->BlockedInstallMessage(extension->id());
-  if (!message_from_admin.empty()) {
-    blocked_by_policy_error_message_ =
-        l10n_util::GetStringFUTF16(IDS_EXTENSION_PROMPT_MESSAGE_FROM_ADMIN,
-                                   base::UTF8ToUTF16(message_from_admin));
-  }
 
   gfx::ImageSkia image = GetIconImage(icon, extension->is_app());
 
@@ -1041,6 +1106,7 @@ void WebstorePrivateBeginInstallWithManifest3Function::
     return;
   }
 
+  // `blocked_by_policy_error_message_` is set by OnInstallStatusCheckDone().
   ShowExtensionInstallBlockedDialog(extension->id(), extension->name(),
                                     blocked_by_policy_error_message_, image,
                                     contents, std::move(done_callback));
@@ -1407,7 +1473,8 @@ void WebstorePrivateGetExtensionStatusFunction::OnManifestParsed(
 }
 
 void WebstorePrivateGetExtensionStatusFunction::OnInstallStatusCheckDone(
-    ExtensionInstallStatus status) {
+    ExtensionInstallStatus status,
+    std::u16string blocked_message) {
   api::webstore_private::ExtensionInstallStatus api_status =
       ConvertExtensionInstallStatusForAPI(status);
   Respond(ArgumentList(GetExtensionStatus::Results::Create(api_status)));

@@ -20,8 +20,8 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.RuntimeEnvironment;
 
+import org.chromium.base.Token;
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.chrome.browser.compositor.layouts.phone.stack.StackScroller;
 import org.chromium.chrome.browser.dragdrop.ChromeDropDataAndroid;
 import org.chromium.chrome.browser.dragdrop.ChromeTabDropDataAndroid;
 import org.chromium.chrome.browser.tab.Tab;
@@ -213,9 +213,9 @@ public class ScrollDelegateUnitTest {
     private void setupDragDropState() {
         ChromeDropDataAndroid dropData =
                 new ChromeTabDropDataAndroid.Builder().withTab(mDraggedTab).build();
-        DragDropGlobalState.TrackerToken dragTrackerToken =
+        Token dragToken =
                 DragDropGlobalState.store(
                         /* dragSourceInstanceId= */ 1, dropData, /* dragShadowBuilder= */ null);
-        TabDragHandlerBase.setDragTrackerTokenForTesting(dragTrackerToken);
+        TabDragHandlerBase.setDragTokenForTesting(dragToken);
     }
 }

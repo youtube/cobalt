@@ -14,12 +14,14 @@
 
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
+#include <algorithm>
 #include <string>
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
+#include "base/features.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -77,6 +79,7 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/cookie_encryption_provider_impl.h"
 #include "services/network/public/cpp/features.h"
@@ -205,6 +208,16 @@ static void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
   }
   client->DispatchFocus();
 }
+
+static jboolean JNI_CobaltContentBrowserClient_IsFreezeOnBackgroundEnabled(
+    JNIEnv*) {
+  return base::FeatureList::IsEnabled(features::kCobaltFreezeOnBackground);
+}
+
+static jint JNI_CobaltContentBrowserClient_GetFreezeOnBackgroundDelayMs(
+    JNIEnv*) {
+  return std::max(0, features::kCobaltFreezeOnBackgroundDelayMs.Get());
+}
 #endif  // BUILDFLAG(IS_ANDROID)
 
 std::string GetCobaltUserAgent() {
@@ -272,23 +285,33 @@ CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
 
 #if BUILDFLAG(IS_ANDROID)
 base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
-  base::FilePath user_data_dir;
-  if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
-      !user_data_dir.empty()) {
-    return user_data_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
+  const int path_key =
+      base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)
+          ? static_cast<int>(base::DIR_CACHE)
+          : static_cast<int>(content::SHELL_DIR_USER_DATA);
+  base::FilePath base_dir;
+  if (base::PathService::Get(path_key, &base_dir) && !base_dir.empty()) {
+    return base_dir.Append(FILE_PATH_LITERAL("ShaderCache"));
   }
   return base::FilePath();
 }
 
 base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
-  base::FilePath user_data_dir;
-  if (base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) &&
-      !user_data_dir.empty()) {
-    return user_data_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
+  // Only Skia's GrShaderCache is persisted (see kCobaltGpuShaderDiskCache), and
+  // only under base::DIR_CACHE (Context.getCacheDir()): the OS can reclaim it
+  // under storage pressure and it does not count against persistent app data,
+  // unlike SHELL_DIR_USER_DATA, where Local Storage lives. This does not depend
+  // on kCobaltStorageCleanup so that the kCobaltGpuShaderDiskCache treatment
+  // arm always uses the same location.
+  base::FilePath cache_dir;
+  if (base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache) &&
+      base::PathService::Get(base::DIR_CACHE, &cache_dir) &&
+      !cache_dir.empty()) {
+    return cache_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
   }
   return base::FilePath();
 }
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
 
 std::unique_ptr<content::VideoOverlayWindow>
 CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(
@@ -478,10 +501,10 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 
 #if BUILDFLAG(IS_ANDROID)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "max-http-cache-size")) {
+          switches::kMaxHttpCacheSize)) {
     std::string size_str =
         base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-            "max-http-cache-size");
+            switches::kMaxHttpCacheSize);
     int parsed_size = 0;
     if (base::StringToInt(size_str, &parsed_size)) {
       network_context_params->http_cache_max_size = parsed_size;

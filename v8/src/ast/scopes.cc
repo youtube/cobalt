@@ -440,6 +440,10 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
   Scope* innermost_scope = nullptr;
   Scope* outer_scope = nullptr;
   while (!scope_info.is_null()) {
+    if (parse_info && IsGeneratorFunction(scope_info->function_kind())) {
+      parse_info->set_has_generator_in_scope_chain();
+    }
+
     if (scope_info->scope_type() == WITH_SCOPE) {
       if (scope_info->IsDebugEvaluateScope()) {
         outer_scope =
@@ -569,6 +573,11 @@ DeclarationScope* Scope::AsDeclarationScope() {
 const DeclarationScope* Scope::AsDeclarationScope() const {
   SBXCHECK(is_declaration_scope());
   return static_cast<const DeclarationScope*>(this);
+}
+
+FunctionKind Scope::scope_closure_function_kind() const {
+  if (!scope_info_.is_null()) return scope_info_->function_kind();
+  return GetClosureScope()->function_kind();
 }
 
 ModuleScope* Scope::AsModuleScope() {
@@ -797,13 +806,14 @@ void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
   arguments_ =
       Declare(zone(), ast_value_factory->arguments_string(), VariableMode::kVar,
               NORMAL_VARIABLE, kCreatedInitialized, kNotAssigned, &was_added);
-  // According to ES#sec-functiondeclarationinstantiation step 18
-  // we should set argumentsObjectNeeded to false if has lexical
+  // According to https://tc39.es/ecma262/#sec-functiondeclarationinstantiation
+  // step 18 we should set argumentsObjectNeeded to false if has lexical
   // declared arguments only when hasParameterExpressions is false
   if (!was_added && IsLexicalVariableMode(arguments_->mode()) &&
       has_simple_parameters()) {
     // Check if there's lexically declared variable named arguments to avoid
-    // redeclaration. See ES#sec-functiondeclarationinstantiation, step 20.
+    // redeclaration. See
+    // https://tc39.es/ecma262/#sec-functiondeclarationinstantiation, step 20.
     arguments_ = nullptr;
   }
 }
@@ -896,7 +906,7 @@ Scope* Scope::FinalizeBlockScope() {
 
   // Move unresolved variables
   if (!unresolved_list_.is_empty()) {
-    outer_scope()->unresolved_list_.Prepend(std::move(unresolved_list_));
+    outer_scope()->unresolved_list_.Append(std::move(unresolved_list_));
     unresolved_list_.Clear();
   }
 
@@ -978,13 +988,44 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
   }
 }
 
+void Scope::MarkUnresolvedVariablesAsInsideTryCatch() {
+  // While proxy marking is generic, we only actually call this when nested in a
+  // generator because that's the only place we care about variables escaping
+  // try-catch blocks (for hole check elision and resume logic).
+  for (VariableProxy* proxy : unresolved_list_) {
+    proxy->set_is_inside_try_catch();
+  }
+  for (Scope* inner = inner_scope_; inner; inner = inner->sibling_) {
+    if (inner->is_closure_scope()) continue;
+    inner->MarkUnresolvedVariablesAsInsideTryCatch();
+  }
+}
+
+void Scope::Snapshot::MarkUnresolvedVariablesAsInsideTryCatch() {
+  // While proxy marking is generic, we only actually call this when nested in a
+  // generator because that's the only place we care about variables escaping
+  // try-catch blocks (for hole check elision and resume logic).
+  auto it = top_unresolved_;
+  auto end = outer_scope_->unresolved_list_.end();
+
+  while (it != end) {
+    (*it)->set_is_inside_try_catch();
+    ++it;
+  }
+  for (Scope* inner = outer_scope_->inner_scope_; inner != top_inner_scope_;
+       inner = inner->sibling_) {
+    if (inner->is_closure_scope()) continue;
+    inner->MarkUnresolvedVariablesAsInsideTryCatch();
+  }
+}
+
 Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK(!scope_info_.is_null());
   DCHECK(this->IsOuterScopeOf(cache));
   DCHECK_NULL(cache->variables_.Lookup(name));
   DisallowGarbageCollection no_gc;
 
-  Tagged<String> name_handle = *name->string();
+  Tagged<String> tagged_name = *name->string();
   Tagged<ScopeInfo> scope_info = *scope_info_;
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
@@ -997,20 +1038,20 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 
   {
     location = VariableLocation::CONTEXT;
-    index = scope_info->ContextSlotIndex(name_handle, &lookup_result);
+    index = scope_info->ContextSlotIndex(tagged_name, &lookup_result);
     found = index >= 0;
   }
 
   if (!found && is_module_scope()) {
     location = VariableLocation::MODULE;
-    index = scope_info->ModuleIndex(name_handle, &lookup_result.mode,
+    index = scope_info->ModuleIndex(tagged_name, &lookup_result.mode,
                                     &lookup_result.init_flag,
                                     &lookup_result.maybe_assigned_flag);
     found = index != 0;
   }
 
   if (!found) {
-    index = scope_info->FunctionContextSlotIndex(name_handle);
+    index = scope_info->FunctionContextSlotIndex(tagged_name);
     if (index < 0) return nullptr;  // Nowhere found.
     Variable* var = AsDeclarationScope()->DeclareFunctionVar(name, cache);
     DCHECK_EQ(VariableMode::kConst, var->mode());
@@ -1020,6 +1061,16 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 
   if (!is_module_scope()) {
     DCHECK_NE(index, scope_info->ReceiverContextSlotIndex());
+  }
+
+  if (is_class_scope() && scope_info->HasSavedClassVariable()) {
+    Tagged<String> class_name;
+    int class_index;
+    std::tie(class_name, class_index) = scope_info->SavedClassVariable();
+    if (class_name == tagged_name) {
+      cache->variables_.Add(AsClassScope()->class_variable());
+      return AsClassScope()->class_variable();
+    }
   }
 
   bool was_added;
@@ -1489,7 +1540,7 @@ DeclarationScope* Scope::GetNonEvalDeclarationScope() {
 
 const DeclarationScope* Scope::GetClosureScope() const {
   const Scope* scope = this;
-  while (!scope->is_declaration_scope() || scope->is_block_scope()) {
+  while (!scope->is_closure_scope()) {
     scope = scope->outer_scope();
   }
   return scope->AsDeclarationScope();
@@ -1497,10 +1548,22 @@ const DeclarationScope* Scope::GetClosureScope() const {
 
 DeclarationScope* Scope::GetClosureScope() {
   Scope* scope = this;
-  while (!scope->is_declaration_scope() || scope->is_block_scope()) {
+  while (!scope->is_closure_scope()) {
     scope = scope->outer_scope();
   }
   return scope->AsDeclarationScope();
+}
+
+bool Scope::HasOuterGenerator() const {
+  const Scope* scope = GetClosureScope()->outer_scope();
+  while (scope != nullptr) {
+    scope = scope->GetClosureScope();
+    if (IsGeneratorFunction(scope->AsDeclarationScope()->function_kind())) {
+      return true;
+    }
+    scope = scope->outer_scope();
+  }
+  return false;
 }
 
 bool Scope::NeedsScopeInfo() const {
@@ -1615,6 +1678,18 @@ bool Scope::IsOuterScopeOf(Scope* other) const {
   return false;
 }
 
+bool Scope::IsOuterScopeUpToClosureScopeOf(Scope* scope) const {
+  for (Scope* s = scope;; s = s->outer_scope()) {
+    if (s == this) {
+      return true;
+    }
+    if (s->is_declaration_scope() &&
+        s->AsDeclarationScope()->is_closure_scope()) {
+      return false;
+    }
+  }
+}
+
 void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
                              AstNodeFactory* ast_node_factory,
                              UnresolvedList* new_unresolved_list,
@@ -1645,7 +1720,7 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
         }
       } else {
         var->set_is_used();
-        if (proxy->is_assigned()) var->SetMaybeAssigned();
+        UpdateVariableMaybeAssigned(var, proxy, scope);
       }
     }
 
@@ -2343,22 +2418,47 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
 
 }  // anonymous namespace
 
+void Scope::UpdateVariableMaybeAssigned(Variable* var, VariableProxy* proxy,
+                                        Scope* current_scope) {
+  if (proxy->is_assigned()) {
+    var->SetMaybeAssigned();
+    return;
+  }
+
+  if (proxy->is_inside_try_catch()) {
+    Variable* true_var = var;
+    while (true_var->has_local_if_not_shadowed()) {
+      true_var = true_var->local_if_not_shadowed();
+    }
+    if (!true_var->scope()->IsOuterScopeUpToClosureScopeOf(current_scope) &&
+        IsGeneratorFunction(true_var->scope()->scope_closure_function_kind())) {
+      // We treat variables captured by generator yields in a try-catch as
+      // maybe_assigned since the context allocation and assignment might be
+      // skipped when resuming from a yield.
+      // See test/mjsunit/maglev/context-inverted-generator2.js.
+      true_var->SetMaybeAssigned();
+    }
+  }
+}
+
 void Scope::ResolveTo(VariableProxy* proxy, Variable* var) {
   DCHECK_NOT_NULL(var);
   UpdateNeedsHoleCheck(var, proxy, this);
   proxy->BindTo(var);
+
+  UpdateVariableMaybeAssigned(var, proxy, this);
 }
 
 void Scope::ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
                                      Scope* end) {
   // Resolve the variable in all parsed scopes to force context allocation.
-  for (; scope != end; scope = scope->outer_scope_) {
-    Variable* var = scope->LookupLocal(proxy->raw_name());
+  for (Scope* s = scope->outer_scope_; s != end; s = s->outer_scope_) {
+    Variable* var = s->LookupLocal(proxy->raw_name());
     if (var != nullptr) {
       var->set_is_used();
       if (!var->is_dynamic()) {
         var->ForceContextAllocation();
-        if (proxy->is_assigned()) var->SetMaybeAssigned();
+        UpdateVariableMaybeAssigned(var, proxy, scope);
         return;
       }
     }
@@ -2375,7 +2475,7 @@ bool Scope::ResolveVariablesRecursively(Scope* end) {
     if (!end->is_script_scope()) end = end->outer_scope();
 
     for (VariableProxy* proxy : unresolved_list_) {
-      ResolvePreparsedVariable(proxy, outer_scope(), end);
+      ResolvePreparsedVariable(proxy, this, end);
     }
   } else {
     // Resolve unresolved variables for this scope.
@@ -2673,7 +2773,8 @@ void Scope::AllocateVariablesRecursively() {
 template <typename IsolateT>
 void Scope::AllocateScopeInfosRecursively(
     IsolateT* isolate, MaybeHandle<ScopeInfo> outer_scope,
-    std::unordered_map<int, Handle<ScopeInfo>>& scope_infos_to_reuse) {
+    std::unordered_map<int, IndirectHandle<ScopeInfo>>& scope_infos_to_reuse,
+    FunctionKind closure_function_kind) {
   DCHECK(scope_info_.is_null());
   MaybeHandle<ScopeInfo> next_outer_scope = outer_scope;
 
@@ -2689,7 +2790,8 @@ void Scope::AllocateScopeInfosRecursively(
     it->second = {};
 #endif
   } else if (NeedsScopeInfo()) {
-    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
+    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope,
+                                    closure_function_kind);
 #ifdef DEBUG
     // Mark this ID as being used.
     if (v8_flags.reuse_scope_infos) {
@@ -2712,8 +2814,12 @@ void Scope::AllocateScopeInfosRecursively(
 #endif
     if (!scope->is_function_scope() ||
         scope->AsDeclarationScope()->ShouldEagerCompile()) {
-      scope->AllocateScopeInfosRecursively(isolate, next_outer_scope,
-                                           scope_infos_to_reuse);
+      FunctionKind inner_closure_kind =
+          scope->is_closure_scope()
+              ? scope->AsDeclarationScope()->function_kind()
+              : closure_function_kind;
+      scope->AllocateScopeInfosRecursively(
+          isolate, next_outer_scope, scope_infos_to_reuse, inner_closure_kind);
     } else if (v8_flags.reuse_scope_infos) {
       auto scope_it = scope_infos_to_reuse.find(scope->UniqueIdInScript());
       if (scope_it != scope_infos_to_reuse.end()) {
@@ -2730,11 +2836,15 @@ void Scope::AllocateScopeInfosRecursively(
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Scope::
     AllocateScopeInfosRecursively<Isolate>(
         Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope,
-        std::unordered_map<int, Handle<ScopeInfo>>& scope_infos_to_reuse);
+        std::unordered_map<int, IndirectHandle<ScopeInfo>>&
+            scope_infos_to_reuse,
+        FunctionKind closure_function_kind);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Scope::
     AllocateScopeInfosRecursively<LocalIsolate>(
         LocalIsolate* isolate, MaybeHandle<ScopeInfo> outer_scope,
-        std::unordered_map<int, Handle<ScopeInfo>>& scope_infos_to_reuse);
+        std::unordered_map<int, IndirectHandle<ScopeInfo>>&
+            scope_infos_to_reuse,
+        FunctionKind closure_function_kind);
 
 void DeclarationScope::RecalcPrivateNameContextChain() {
   // The outermost scope in a class heritage expression is marked to skip the
@@ -2941,16 +3051,17 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
     }
   }
 
-  scope->AllocateScopeInfosRecursively(isolate, outer_scope,
-                                       scope_infos_to_reuse);
+  scope->AllocateScopeInfosRecursively(
+      isolate, outer_scope, scope_infos_to_reuse,
+      scope->GetClosureScope()->function_kind());
 
   // The debugger expects all shared function infos to contain a scope info.
   // Since the top-most scope will end up in a shared function info, make sure
   // it has one, even if it doesn't need a scope info.
   // TODO(yangguo): Remove this requirement.
   if (scope->scope_info_.is_null()) {
-    scope->scope_info_ =
-        ScopeInfo::Create(isolate, scope->zone(), scope, outer_scope);
+    scope->scope_info_ = ScopeInfo::Create(isolate, scope->zone(), scope,
+                                           outer_scope, scope->function_kind());
   }
 
   // Ensuring that the outer script scope has a scope info avoids having

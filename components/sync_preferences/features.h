@@ -13,6 +13,13 @@ namespace sync_preferences::features {
 // non-syncing Prefs across a user's devices.
 BASE_DECLARE_FEATURE(kEnableCrossDevicePrefTracker);
 
+// Enables additional logging for the CrossDevicePrefTracker and related code.
+//
+// TODO(crbug.com/485956752): Remove this flag and all associated log statements
+// once `CrossDevicePrefTracker` debugging is complete and the feature is
+// stable.
+BASE_DECLARE_FEATURE(kCrossDevicePrefTrackerExtraLogs);
+
 }  // namespace sync_preferences::features
 
 #endif  // COMPONENTS_SYNC_PREFERENCES_FEATURES_H_

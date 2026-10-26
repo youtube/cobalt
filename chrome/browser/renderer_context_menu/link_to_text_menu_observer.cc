@@ -147,7 +147,7 @@ void LinkToTextMenuObserver::InitMenu(
             l10n_util::GetStringUTF16(IDS_CONTENT_CONTEXT_REMOVELINKTOTEXT));
         break;
       case blink::mojom::AnnotationType::kTextFinder:
-      case blink::mojom::AnnotationType::kUserNote:
+      case blink::mojom::AnnotationType::kScrollOnly:
         NOTIMPLEMENTED();
     }
   }
@@ -411,7 +411,7 @@ void LinkToTextMenuObserver::RemoveHighlights() {
       return;
     }
     case blink::mojom::AnnotationType::kTextFinder:
-    case blink::mojom::AnnotationType::kUserNote:
+    case blink::mojom::AnnotationType::kScrollOnly:
       NOTIMPLEMENTED();
   }
 }

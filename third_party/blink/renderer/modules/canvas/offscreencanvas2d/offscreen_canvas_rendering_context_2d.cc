@@ -200,43 +200,50 @@ OffscreenCanvasRenderingContext2D::GetOrCreateResourceProvider() {
 
   std::unique_ptr<CanvasResourceProvider> provider;
   gfx::Size surface_size(host->width(), host->height());
-  const bool can_use_gpu =
+  const bool use_gpu_raster =
       SharedGpuContext::IsGpuCompositingEnabled() &&
       RuntimeEnabledFeatures::Accelerated2dCanvasEnabled() &&
       !(CreationAttributes().will_read_frequently ==
         CanvasContextCreationAttributesCore::WillReadFrequently::kTrue);
+
+  // TODO(crbug.com/479561824): The computation of whether it's possible to use
+  // a SharedImage provider with software raster here is not correct.
+  // Using a SharedImage provider with software raster and GPU compositing
+  // requires that the SharedImage can be mapped into software for raster and
+  // read out into GPU memory for display. This is true if native mappable
+  // buffers are supported (e.g., IOSurface), but is not generically true on all
+  // platforms. CanvasRenderingContext2D handles this by using a SharedImage
+  // provider with SW raster/GPU compositing *only if* native mappable buffers
+  // are provided. However, in that case the fallback usage of a bitmap provider
+  // is still able to display to the screen, which is not the case here. We need
+  // to determine a proper fix for this use case.
   const bool use_shared_image =
-      can_use_gpu || (host->HasPlaceholderCanvas() &&
-                      SharedGpuContext::IsGpuCompositingEnabled());
-  const bool use_scanout =
-      use_shared_image && host->HasPlaceholderCanvas() &&
-      SharedGpuContext::MaySupportImageChromium() &&
-      RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled();
-
-  gpu::SharedImageUsageSet shared_image_usage_flags =
-      gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
-  if (use_scanout) {
-    shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
-  }
-
+      use_gpu_raster || (host->HasPlaceholderCanvas() &&
+                         SharedGpuContext::IsGpuCompositingEnabled());
   const SkAlphaType alpha_type = GetAlphaType();
   const viz::SharedImageFormat format = GetSharedImageFormat();
   const gfx::ColorSpace color_space = GetColorSpace();
   if (use_shared_image) {
-    provider = Canvas2DResourceProviderSharedImage::Create(
+    gpu::SharedImageUsageSet shared_image_usage_flags =
+        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
+    if (host->HasPlaceholderCanvas() &&
+        SharedGpuContext::UseOverlaysForCanvas2D()) {
+      shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
+    }
+
+    provider = Canvas2DResourceProviderSharedImage::CreateWithClear(
         host->Size(), format, alpha_type, color_space,
-        CanvasResourceProvider::ShouldInitialize::kCallClear,
         SharedGpuContext::ContextProviderWrapper(),
-        can_use_gpu ? RasterMode::kGPU : RasterMode::kCPU,
+        use_gpu_raster ? RasterMode::kGPU : RasterMode::kCPU,
         shared_image_usage_flags, host);
   } else if (host->HasPlaceholderCanvas()) {
     // using the software compositor
     base::WeakPtr<CanvasResourceDispatcher> dispatcher_weakptr =
         host->GetOrCreateResourceDispatcher()->GetWeakPtr();
-    provider = Canvas2DResourceProviderSharedImage::CreateForSoftwareCompositor(
-        host->Size(), format, alpha_type, color_space,
-        CanvasResourceProvider::ShouldInitialize::kCallClear,
-        SharedGpuContext::SharedImageInterfaceProvider(), host);
+    provider = Canvas2DResourceProviderSharedImage::
+        CreateWithClearForSoftwareCompositor(
+            host->Size(), format, alpha_type, color_space,
+            SharedGpuContext::SharedImageInterfaceProvider(), host);
   }
 
   if (!provider) {
@@ -246,9 +253,8 @@ OffscreenCanvasRenderingContext2D::GetOrCreateResourceProvider() {
     // visible on screen, but at least readbacks will work. Failure to create
     // another type of resource prover above is a sign that the graphics
     // pipeline is in a bad state (e.g. gpu process crashed, out of memory)
-    provider = Canvas2DResourceProviderBitmap::Create(
-        host->Size(), format, alpha_type, color_space,
-        CanvasResourceProvider::ShouldInitialize::kCallClear, host);
+    provider = Canvas2DResourceProviderBitmap::CreateWithClear(
+        host->Size(), format, alpha_type, color_space, host);
   }
 
   resource_provider_ = std::move(provider);

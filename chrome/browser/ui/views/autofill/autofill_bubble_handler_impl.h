@@ -12,16 +12,12 @@
 #include "components/autofill/core/browser/ui/payments/payments_ui_closed_reasons.h"
 #include "components/autofill/core/browser/ui/payments/save_payment_method_and_virtual_card_enroll_confirmation_ui_params.h"
 #include "components/signin/public/base/signin_buildflags.h"
+#include "ui/views/bubble/bubble_dialog_delegate_view.h"
 
 class ToolbarButtonProvider;
 
 namespace content {
 class WebContents;
-}
-
-namespace views {
-class View;
-class Button;
 }
 
 namespace autofill {
@@ -101,10 +97,10 @@ class AutofillBubbleHandlerImpl : public AutofillBubbleHandler {
  private:
   // Show the save card and virtual card enrollment confirmation bubble.
   AutofillBubbleBase* ShowSaveCardAndVirtualCardEnrollConfirmationBubble(
-      views::View* anchor_view,
+      views::BubbleAnchor anchor,
       content::WebContents* web_contents,
       base::OnceCallback<void(PaymentsUiClosedReason)> controller_hide_callback,
-      views::Button* icon_view,
+      ui::ElementIdentifier highlight_element,
       SavePaymentMethodAndVirtualCardEnrollConfirmationUiParams ui_params);
 
   raw_ptr<ToolbarButtonProvider> toolbar_button_provider_ = nullptr;

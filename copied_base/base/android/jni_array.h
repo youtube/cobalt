@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/android/scoped_java_ref.h"
@@ -44,7 +45,7 @@ BASE_EXPORT ScopedJavaLocalRef<jbyteArray> ToJavaByteArray(
 // conversion is performed.
 BASE_EXPORT ScopedJavaLocalRef<jbyteArray> ToJavaByteArray(
     JNIEnv* env,
-    const std::string& str);
+    std::string_view str);
 
 // Returns a new Java boolean array converted from the given bool array.
 BASE_EXPORT ScopedJavaLocalRef<jbooleanArray>

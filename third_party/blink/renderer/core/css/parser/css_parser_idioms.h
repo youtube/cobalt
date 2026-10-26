@@ -58,12 +58,27 @@ bool IsNameStartCodePoint(CharacterType c) {
 // https://drafts.csswg.org/css-syntax/#name-code-point
 template <typename CharacterType>
 bool IsNameCodePoint(CharacterType c) {
-  return IsNameStartCodePoint(c) || IsASCIIDigit(c) || c == '-';
+  return IsNameStartCodePoint(c) || IsAsciiDigit(c) || c == '-';
 }
 
 // https://drafts.csswg.org/css-syntax/#check-if-two-code-points-are-a-valid-escape
 inline bool TwoCharsAreValidEscape(UChar first, UChar second) {
   return first == '\\' && !IsCSSNewLine(second);
+}
+
+// Returns true if |cc| is a UTF-16 surrogate code unit (U+D800–U+DFFF).
+inline bool IsSurrogate(UChar cc) {
+  return cc >= 0xD800 && cc <= 0xDFFF;
+}
+
+// Returns true if |cc| is a UTF-16 leading (high) surrogate (U+D800–U+DBFF).
+inline bool IsLeadingSurrogate(UChar cc) {
+  return cc >= 0xD800 && cc <= 0xDBFF;
+}
+
+// Returns true if |cc| is a UTF-16 trailing (low) surrogate (U+DC00–U+DFFF).
+inline bool IsTrailingSurrogate(UChar cc) {
+  return cc >= 0xDC00 && cc <= 0xDFFF;
 }
 
 // Consumes a single whitespace, if the stream is currently looking at a

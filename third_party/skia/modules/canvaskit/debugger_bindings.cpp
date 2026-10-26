@@ -429,8 +429,11 @@ class SkpDebugPlayer {
         // Attempt to deserialize with an image sharing serial proc.
         auto deserialContext = std::make_unique<SkSharingDeserialContext>();
         SkDeserialProcs procs;
-        procs.fImageProc = SkSharingDeserialContext::deserializeImage;
+        procs.fImageDataProc = SkSharingContext::deserializeImage;
         procs.fImageCtx = deserialContext.get();
+        sk_sp<SkFontMgr> fallback = SkFontMgr_New_Custom_Empty();
+        procs.fTypefaceCtx = &fallback;
+        procs.fTypefaceStreamProc = deserializeTypeface;
 
         int page_count = SkMultiPictureDocument::ReadPageCount(stream);
         if (!page_count) {

@@ -138,7 +138,6 @@ void ToolbarButton::SetHighlight(const std::u16string& highlight_text,
     ClearHighlight();
     return;
   }
-
   highlight_color_animation_.Show(highlight_color);
   SetText(highlight_text);
 }
@@ -169,6 +168,10 @@ float ToolbarButton::GetCornerRadiusFor(ToolbarButton::Edge edge) const {
   return GetRoundedCornerRadius();
 }
 
+void ToolbarButton::SetDefaultBackgroundColorId(ChromeColorIds color_id) {
+  default_background_color_id_ = color_id;
+}
+
 void ToolbarButton::UpdateColorsAndInsets() {
   // First, calculate new border insets assuming CalculatePreferredSize()
   // accurately reflects the desired content size.
@@ -196,6 +199,17 @@ void ToolbarButton::UpdateColorsAndInsets() {
     SetBackground(nullptr);
     const auto* cp = GetColorProvider();
     if (cp) {
+      if (default_background_color_id_ != kChromeColorsStart) {
+        int left_corner_radius = GetCornerRadiusFor(Edge::kLeft);
+        int right_corner_radius = GetCornerRadiusFor(Edge::kRight);
+
+        SetBackground(views::CreateBackgroundFromPainter(
+            views::Painter::CreateSolidRoundRectPainterWithVariableRadius(
+                cp->GetColor(default_background_color_id_),
+                gfx::RoundedCornersF(left_corner_radius, right_corner_radius,
+                                     right_corner_radius, left_corner_radius),
+                paint_insets)));
+      }
       label()->SetBackgroundColor(cp->GetColor(kColorToolbar));
     }
   }
@@ -262,11 +276,7 @@ std::optional<SkColor> ToolbarButton::GetBackgroundColor() const {
 }
 
 int ToolbarButton::GetIconSize() const {
-  if (ui::TouchUiController::Get()->touch_ui()) {
-    return kDefaultTouchableIconSize;
-  }
-
-  return kDefaultIconSizeChromeRefresh;
+  return GetLayoutConstant(LayoutConstant::kToolbarButtonIconSize);
 }
 
 bool ToolbarButton::ShouldPaintBorder() const {

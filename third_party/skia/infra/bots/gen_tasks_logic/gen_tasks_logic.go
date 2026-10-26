@@ -188,10 +188,8 @@ var (
 		Excludes: []string{rbe.ExcludeGitDir},
 	}
 
-	// TODO(borenet): This hacky and bad.
-	CIPD_PKG_LUCI_AUTH = cipd.MustGetPackage("infra/tools/luci-auth/${platform}")
-
-	CIPD_PKGS_GOLDCTL = cipd.MustGetPackage("skia/tools/goldctl/${platform}")
+	CIPD_PKG_LUCI_AUTH = getCIPDPackage("infra/tools/luci-auth/${platform}", "cipd_bin_packages")
+	CIPD_PKGS_GOLDCTL  = getCIPDPackage("skia/tools/goldctl/${platform}", "cipd_bin_packages")
 
 	// These properties are required by some tasks, eg. for running
 	// bot_update, but they prevent de-duplication, so they should only be
@@ -674,7 +672,7 @@ func marshalJson(data interface{}) string {
 // recipe bundle.
 func (b *TaskBuilder) kitchenTaskNoBundle(recipe string, outputDir string) {
 	b.usesLUCIAuth()
-	b.cipd(cipd.MustGetPackage("infra/tools/luci/kitchen/${platform}"))
+	b.cipd(getCIPDPackage("infra/tools/luci/kitchen/${platform}", "."))
 	b.env("RECIPES_USE_PY3", "true")
 	b.envPrefixes("VPYTHON_DEFAULT_SPEC", "skia/.vpython3")
 	b.usesPython()
@@ -843,6 +841,7 @@ var androidDeviceInfos = map[string][]string{
 	"GalaxyS9":        {"exynos9810", "QP1A.190711.020"},
 	"GalaxyS20":       {"exynos990", "QP1A.190711.020"},
 	"GalaxyS24":       {"pineapple", "UP1A.231005.007"},
+	"GalaxyS25Plus":   {"sun", "BP2A.250605.031.A3"},
 	"JioNext":         {"msm8937", "RKQ1.210602.002"},
 	"Mokey":           {"mokey", "UP1A.231105.001"},
 	"MokeyGo32":       {"mokey_go32", "UQ1A.240105.003.A1"},
@@ -864,6 +863,8 @@ var androidDeviceInfos = map[string][]string{
 	"Wembley":         {"wembley", "SP2A.220505.008"},
 }
 
+type dimensionMap map[string]string
+
 // defaultSwarmDimensions generates default swarming bot dimensions for the given task.
 func (b *TaskBuilder) defaultSwarmDimensions() {
 	d := map[string]string{
@@ -880,7 +881,7 @@ func (b *TaskBuilder) defaultSwarmDimensions() {
 			"Mac11":       "Mac-11",
 			"Mac12":       "Mac-12",
 			"Mac13":       "Mac-13",
-			"Mac14":       "Mac-14.7", // Builds run on 14.5, tests on 14.7.
+			"Mac14":       "Mac-14.7",
 			"Mac15":       "Mac-15.7",
 			"Mokey":       "Android",
 			"MokeyGo32":   "Android",
@@ -973,7 +974,7 @@ func (b *TaskBuilder) defaultSwarmDimensions() {
 			}
 			d["device"] = device
 		} else if b.CPU() || b.ExtraConfig("CanvasKit", "Docker", "SwiftShader") {
-			modelMapping, ok := map[string]map[string]map[string]string{
+			modelMapping, ok := map[string]map[string]dimensionMap{
 				"AppleM1": {
 					"MacMini9.1": {"cpu": "arm64-64-Apple_M1"},
 				},
@@ -1113,34 +1114,18 @@ func (b *TaskBuilder) defaultSwarmDimensions() {
 			}
 		}
 		if b.MatchOs("Mac") {
-			// TODO(borenet): Remove empty and nested entries after all Macs
-			// are migrated to the new lab.
-			if macModel, ok := map[string]interface{}{
-				"MacBookAir7.2":  "",
-				"MacBookPro11.5": "MacBookPro11,5",
-				"MacBookPro15.1": "MacBookPro15,1",
-				"MacBookPro15.3": "Mac15,3",
-				"MacBookPro16.2": "",
-				"MacMini7.1":     "",
-				"MacMini8.1":     "Macmini8,1",
-				"MacMini9.1": map[string]string{
-					"Mac12": "",
-					"Mac13": "",
-					"Mac14": "Macmini9,1",
-				},
-				"MacMini16.10": "Mac16,10",
-				// TODO(borenet): This is currently resolving to multiple
-				// different actual device types.
-				"VMware7.1": "",
+			// We sometimes have machines on different versions of Mac-N.x, so this lets us adjust
+			// those on the specific hardware.
+			if dims, ok := map[string]dimensionMap{
+				"MacBookPro11.5": {"mac_model": "MacBookPro11,5", "os": "Mac-11.7"},
+				"MacBookPro15.1": {"mac_model": "MacBookPro15,1", "os": "Mac-15.3"},
+				"MacBookPro15.3": {"mac_model": "Mac15,3", "os": "Mac-13.5"},
+				"MacMini8.1":     {"mac_model": "Macmini8,1"}, // on both 14.5 and 14.7
+				"MacMini9.1":     {"mac_model": "Macmini9,1", "os": "Mac-14.7"},
+				"MacMini16.10":   {"mac_model": "Mac16,10", "os": "Mac-15.7"},
 			}[b.Parts["model"]]; ok {
-				if macModel != "" {
-					macModelDim, ok := macModel.(string)
-					if !ok {
-						macModelDim = macModel.(map[string]string)[b.Parts["os"]]
-					}
-					if macModelDim != "" {
-						d["mac_model"] = macModelDim
-					}
+				for k, v := range dims {
+					d[k] = v
 				}
 			} else {
 				log.Fatalf("No mac_model found for %q", b.Parts["model"])
@@ -1171,7 +1156,7 @@ func (b *TaskBuilder) defaultSwarmDimensions() {
 				d["cores"] = "12"
 				delete(d, "gpu")
 			} else {
-				d["mac_model"] = "Mac16,10"
+				d["mac_model"] = "Mac16,11"
 				delete(d, "gpu")
 			}
 		}
@@ -1344,9 +1329,6 @@ func (b *jobBuilder) compile() string {
 				b.usesXCode()
 				// b.asset("ccache_mac")
 				// b.usesCCache()
-				if b.MatchExtraConfig("iOS.*") {
-					b.asset("provisioning_profile_ios")
-				}
 				if b.shellsOutToBazel() {
 					// All of our current Mac compile machines are arm64 Mac only.
 					b.usesBazel("mac_arm64")
@@ -2400,4 +2382,17 @@ func (b *jobBuilder) bazelTest() {
 		b.attempts(1)
 		b.serviceAccount(b.cfg.ServiceAccountCompile)
 	})
+}
+
+func getCIPDPackage(name string, path string) *cipd.Package {
+	pkg := cipd.MustGetPackage(name)
+	pkg.Path = path
+	return pkg
+}
+
+func setPkgPaths(path string, pkgs ...*cipd.Package) []*cipd.Package {
+	for _, pkg := range pkgs {
+		pkg.Path = path
+	}
+	return pkgs
 }

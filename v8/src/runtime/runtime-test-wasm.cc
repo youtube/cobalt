@@ -440,6 +440,10 @@ RUNTIME_FUNCTION(Runtime_GenerateWasmCompilationHints) {
       isolate, instance->trusted_data(isolate));
 
   if (v8_flags.trace_wasm_generate_compilation_hints) {
+    base::MutexGuard compilation_hints_mutex_guard(
+        &module->compilation_hints_mutex);
+    base::MutexGuard mutex(&module->type_feedback.mutex);
+
     int num_imported_functions = module->num_imported_functions;
     int num_total_functions = static_cast<int>(module->functions.size());
 
@@ -448,8 +452,6 @@ RUNTIME_FUNCTION(Runtime_GenerateWasmCompilationHints) {
       wasm::WasmCode* code = native_module->GetCode(i);
       if (code) {
         DCHECK(code->is_liftoff());
-        base::MutexGuard marked_for_tierup_mutex_guard(
-            &module->marked_for_tierup_mutex);
         if (module->marked_for_tierup.contains(i)) {
           PrintF("%d: optimized\n", i);
         } else {
@@ -459,8 +461,6 @@ RUNTIME_FUNCTION(Runtime_GenerateWasmCompilationHints) {
         PrintF("%d: uncompiled\n", i);
       }
     }
-
-    base::MutexGuard mutex(&module->type_feedback.mutex);
 
     std::unordered_map<uint32_t, wasm::FunctionTypeFeedback>& feedback =
         module->type_feedback.feedback_for_function;
@@ -567,9 +567,9 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
     return CrashUnlessFuzzing(isolate);
   }
   auto values = Cast<FixedArray>(values_obj);
+  const uint32_t values_len = values->length().value();
   DirectHandle<FixedArray> externalized_values =
-      isolate->factory()->NewFixedArray(values->length());
-  uint32_t values_len = values->ulength().value();
+      isolate->factory()->NewFixedArray(values_len);
   for (uint32_t i = 0; i < values_len; i++) {
     DirectHandle<Object> value(values->get(i), isolate);
     if (!IsSmi(*value)) {
@@ -777,7 +777,8 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   int func_index = func_data->function_index();
   wasm::NativeModule* native_module = trusted_data->native_module();
   const wasm::WasmModule* module = native_module->module();
-  if (static_cast<uint32_t>(func_index) < module->num_imported_functions) {
+  if (static_cast<uint32_t>(func_index) < module->num_imported_functions ||
+      static_cast<uint32_t>(func_index) >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
   if (!ValidateFunctionNowIfNeeded(isolate, native_module, func_index)) {
@@ -801,7 +802,8 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUpForTesting) {
   int func_index = func_data->function_index();
   wasm::NativeModule* native_module = trusted_data->native_module();
   const wasm::WasmModule* module = native_module->module();
-  if (static_cast<uint32_t>(func_index) < module->num_imported_functions) {
+  if (static_cast<uint32_t>(func_index) < module->num_imported_functions ||
+      static_cast<uint32_t>(func_index) >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
   if (!ValidateFunctionNowIfNeeded(isolate, native_module, func_index)) {
@@ -856,7 +858,8 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
   } else {
     DCHECK_EQ(module->array_type(type_index)->element_type(), wasm::kWasmI64);
     return *isolate->factory()->NewWasmArray(wasm::kWasmI64, 1, value,
-                                             direct_handle(map, isolate));
+                                             direct_handle(map, isolate),
+                                             SKIP_WRITE_BARRIER);
   }
 }
 
@@ -942,9 +945,10 @@ RUNTIME_FUNCTION(Runtime_IsWasmDebugFunction) {
   DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
+  const wasm::WasmModule* module = native_module->module();
   uint32_t func_index = data->function_index();
-  if (static_cast<uint32_t>(func_index) <
-      data->instance_data()->module()->num_imported_functions) {
+  if (func_index < module->num_imported_functions ||
+      func_index >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
   wasm::WasmCodeRefScope code_ref_scope;
@@ -962,9 +966,10 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
+  const wasm::WasmModule* module = native_module->module();
   uint32_t func_index = data->function_index();
-  if (static_cast<uint32_t>(func_index) <
-      data->instance_data()->module()->num_imported_functions) {
+  if (func_index < module->num_imported_functions ||
+      func_index >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
   wasm::WasmCodeRefScope code_ref_scope;
@@ -981,9 +986,10 @@ RUNTIME_FUNCTION(Runtime_IsTurboFanFunction) {
   DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
+  const wasm::WasmModule* module = native_module->module();
   uint32_t func_index = data->function_index();
-  if (static_cast<uint32_t>(func_index) <
-      data->instance_data()->module()->num_imported_functions) {
+  if (func_index < module->num_imported_functions ||
+      func_index >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
   wasm::WasmCodeRefScope code_ref_scope;
@@ -1000,9 +1006,10 @@ RUNTIME_FUNCTION(Runtime_IsUncompiledWasmFunction) {
   DirectHandle<WasmExportedFunction> exp_fun = args.at<WasmExportedFunction>(0);
   auto data = exp_fun->shared()->wasm_exported_function_data();
   wasm::NativeModule* native_module = data->instance_data()->native_module();
+  const wasm::WasmModule* module = native_module->module();
   uint32_t func_index = data->function_index();
-  if (static_cast<uint32_t>(func_index) <
-      data->instance_data()->module()->num_imported_functions) {
+  if (func_index < module->num_imported_functions ||
+      func_index >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
   return isolate->heap()->ToBoolean(!native_module->HasCode(func_index));
@@ -1058,8 +1065,8 @@ RUNTIME_FUNCTION(Runtime_WasmDeoptsExecutedForFunction) {
   const wasm::WasmModule* module =
       func_data->instance_data()->native_module()->module();
   uint32_t func_index = func_data->function_index();
-  if (static_cast<uint32_t>(func_index) <
-      func_data->instance_data()->module()->num_imported_functions) {
+  if (func_index < module->num_imported_functions ||
+      func_index >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
   const wasm::TypeFeedbackStorage& feedback = module->type_feedback;

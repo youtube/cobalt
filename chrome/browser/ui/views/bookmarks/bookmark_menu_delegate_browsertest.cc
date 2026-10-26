@@ -343,44 +343,81 @@ IN_PROC_BROWSER_TEST_F(BookmarkMenuDelegateTest, RemoveBookmarks) {
   bookmark_menu_delegate_->DidRemoveBookmarks();
 }
 
-// Verifies WillRemoveBookmarks() doesn't attempt to access MenuItemViews that
-// have since been deleted.
+// Verifies ShouldCloseOnRemove() for account bookmark bar, bookmark bar
+// (regular vs overflow menu), and the last item in "other bookmarks".
 IN_PROC_BROWSER_TEST_F(BookmarkMenuDelegateTest, CloseOnRemove) {
   NewDelegate();
   EXPECT_FALSE(ShouldCloseOnRemove(model()->account_bookmark_bar_node()));
 
   BookmarkParentFolder bookmark_bar_folder(
       BookmarkParentFolder::BookmarkBarFolder());
+  const BookmarkParentFolder other_folder(BookmarkParentFolder::OtherFolder());
 
-  const BookmarkNode* f1 =
+  const BookmarkNode* initial_f1 =
       bookmark_service()->GetNodeAtIndex(bookmark_bar_folder, 1u);
+  const BookmarkNode* bookmark_bar_node_to_remove =
+      bookmark_service()->GetNodeAtIndex(bookmark_bar_folder, 2u);
   bookmark_menu_delegate_->SetActiveMenu(
-      BookmarkParentFolder::FromFolderNode(f1), 0);
-  // Any nodes on the bookmark bar should close on remove.
-  EXPECT_TRUE(ShouldCloseOnRemove(
-      bookmark_service()->GetNodeAtIndex(bookmark_bar_folder, 2u)));
+      BookmarkParentFolder::FromFolderNode(initial_f1), 0);
+  // Nodes on the bookmark bar should close on remove when shown from a
+  // non-overflow menu.
+  EXPECT_TRUE(ShouldCloseOnRemove(bookmark_bar_node_to_remove));
 
   // Descendants of the bookmark should not close on remove.
-  EXPECT_FALSE(ShouldCloseOnRemove(f1->children()[0].get()));
-
-  BookmarkParentFolderChildren other_folder_children =
-      bookmark_service()->GetChildren(BookmarkParentFolder::OtherFolder());
-  EXPECT_FALSE(ShouldCloseOnRemove(other_folder_children[0]));
-
-  // Make it so the other node only has one child.
-  // Destroy the current delegate so that it doesn't have any references to
-  // deleted nodes.
+  EXPECT_FALSE(ShouldCloseOnRemove(initial_f1->children()[0].get()));
+  EXPECT_FALSE(ShouldCloseOnRemove(
+      bookmark_service()->GetNodeAtIndex(other_folder, 0u)));
   DestroyDelegate();
-  while (other_folder_children.size() > 1) {
-    model()->Remove(other_folder_children[other_folder_children.size() - 1],
+
+  NewDelegate();
+  bookmark_menu_delegate_->SetActiveMenu(bookmark_bar_folder, 1u);
+  // Nodes shown from the bookmark bar overflow menu should not close on remove.
+  EXPECT_FALSE(ShouldCloseOnRemove(bookmark_bar_node_to_remove));
+  DestroyDelegate();
+
+  // Remove "other bookmarks" children until only one remains.
+  // Keep no delegate alive while removing nodes.
+  for (size_t other_folder_children_count =
+           bookmark_service()->GetChildrenCount(other_folder);
+       other_folder_children_count > 1u; --other_folder_children_count) {
+    const size_t last_index = other_folder_children_count - 1u;
+    const BookmarkNode* last_other_folder_child =
+        bookmark_service()->GetNodeAtIndex(other_folder, last_index);
+    model()->Remove(last_other_folder_child,
                     bookmarks::metrics::BookmarkEditSource::kOther, FROM_HERE);
   }
 
   NewDelegate();
+  const BookmarkNode* f1_after_other_folder_removals =
+      bookmark_service()->GetNodeAtIndex(bookmark_bar_folder, 1u);
   bookmark_menu_delegate_->SetActiveMenu(
-      BookmarkParentFolder::FromFolderNode(f1), 0);
-  // Any nodes on the bookmark bar should close on remove.
-  EXPECT_TRUE(ShouldCloseOnRemove(other_folder_children[0]));
+      BookmarkParentFolder::FromFolderNode(f1_after_other_folder_removals), 0);
+  const BookmarkNode* last_other_folder_child =
+      bookmark_service()->GetNodeAtIndex(other_folder, 0u);
+  // The only remaining node in "other bookmarks" should close on remove.
+  EXPECT_TRUE(ShouldCloseOnRemove(last_other_folder_child));
+  DestroyDelegate();
+}
+
+// Verifies ShouldCloseOnRemove() stays correct when the active bookmark-bar
+// menu toggles between regular and overflow via start-index updates.
+IN_PROC_BROWSER_TEST_F(BookmarkMenuDelegateTest, CloseOnRemoveStateContinuity) {
+  NewDelegate();
+
+  const BookmarkParentFolder bookmark_bar_folder(
+      BookmarkParentFolder::BookmarkBarFolder());
+  const BookmarkNode* node_to_remove =
+      bookmark_service()->GetNodeAtIndex(bookmark_bar_folder, 2u);
+
+  bookmark_menu_delegate_->SetActiveMenu(bookmark_bar_folder, 0u);
+  EXPECT_TRUE(ShouldCloseOnRemove(node_to_remove));
+
+  bookmark_menu_delegate_->SetMenuStartIndex(bookmark_bar_folder, 1u);
+  EXPECT_FALSE(ShouldCloseOnRemove(node_to_remove));
+
+  bookmark_menu_delegate_->SetMenuStartIndex(bookmark_bar_folder, 0u);
+  EXPECT_TRUE(ShouldCloseOnRemove(node_to_remove));
+  DestroyDelegate();
 }
 
 // Tests that the "Bookmarks" title and separator are removed from the parent
@@ -1288,5 +1325,52 @@ IN_PROC_BROWSER_TEST_F(BookmarkMenuDelegateOpenAllTest,
       GetDirectChildByCommandId(f3_menu, IDC_BOOKMARK_BAR_OPEN_ALL);
   ASSERT_NE(open_all_item, nullptr);
   EXPECT_TRUE(open_all_item->GetEnabled());
+  EXPECT_EQ(open_all_item->title(), GetExpectedOpenAllTitle(1));
+}
+// Tests that the "Open all" count is updated correctly when a bookmark is
+// removed from a folder that is currently displayed as a nested submenu
+// (e.g., inside the bookmark bar overflow menu).
+IN_PROC_BROWSER_TEST_F(BookmarkMenuDelegateOpenAllTest,
+                       OpenAllCountUpdatedInNestedSubmenu) {
+  // Add an extra URL to F1 so it has 2 items initially.
+  AddExtraUrlToF1();
+  const BookmarkNode* f1 = GetF1();
+
+  NewDelegate();
+  // Set the Bookmark Bar as the active root menu.
+  bookmark_menu_delegate_->SetActiveMenu(
+      BookmarkParentFolder::BookmarkBarFolder(), 0);
+  views::MenuItemView* root_menu = menu();
+  LoadAllMenus(root_menu);
+
+  // Find the F1 submenu item inside the root menu.
+  views::MenuItemView* f1_item = nullptr;
+  for (views::MenuItemView* item : root_menu->GetSubmenu()->GetMenuItems()) {
+    if (item->title() == u"F1") {
+      f1_item = item;
+      break;
+    }
+  }
+  ASSERT_NE(f1_item, nullptr);
+
+  // Verify that the initial count for "Open all" is 2.
+  views::MenuItemView* open_all_item =
+      GetDirectChildByCommandId(f1_item, IDC_BOOKMARK_BAR_OPEN_ALL);
+  ASSERT_NE(open_all_item, nullptr);
+  EXPECT_EQ(open_all_item->title(), GetExpectedOpenAllTitle(2));
+
+  // Remove the first child (f1a) from the F1 node.
+  const BookmarkNode* f1a = f1->children()[0].get();
+  std::vector<raw_ptr<const BookmarkNode, VectorExperimental>> nodes_to_remove =
+      {f1a};
+
+  bookmark_menu_delegate_->WillRemoveBookmarks(nodes_to_remove);
+  model()->Remove(f1a, bookmarks::metrics::BookmarkEditSource::kOther,
+                  FROM_HERE);
+  bookmark_menu_delegate_->DidRemoveBookmarks();
+
+  // Verify that the count for "Open all" updates to 1 after the removal.
+  open_all_item = GetDirectChildByCommandId(f1_item, IDC_BOOKMARK_BAR_OPEN_ALL);
+  ASSERT_NE(open_all_item, nullptr);
   EXPECT_EQ(open_all_item->title(), GetExpectedOpenAllTitle(1));
 }

@@ -6,6 +6,7 @@ import {html} from '//resources/lit/v3_0/lit.rollup.js';
 import type {ProfileCustomizationAppElement} from './profile_customization_app.js';
 
 export function getHtml(this: ProfileCustomizationAppElement) {
+  // clang-format off
   return html`<!--_html_template_start_-->
 <cr-view-manager role="dialog" id="viewManager" class="in-dialog-design"
     aria-labelledby="title" aria-describedby="content">
@@ -37,15 +38,16 @@ export function getHtml(this: ProfileCustomizationAppElement) {
       <div id="body">
         <div id="title">${this.welcomeTitle_}</div>
       </div>
-        <div id="inputTitle" ?hidden="${!this.shouldShowDefaultProfileName_}">
+        <div id="inputTitle"
+          ?hidden="${!this.shouldShowInputLabels_}">
           $i18n{profileCustomizationInputTitle}
         </div>
         <cr-input id="nameInput" pattern=".*\\S.*" .value="${this.profileName_}"
-            @value-changed="${this.onProfileNameChanged_}"
+            @value-changed="${this.onProfileNameValueChanged_}"
             aria-label="$i18n{profileCustomizationInputLabel}" auto-validate
             placeholder="${this.getNameInputPlaceHolder_()}" autofocus
             error-message="$i18n{profileCustomizationInputErrorMessage}"
-            required spellcheck="false" @blur="${this.validateInputOnBlur_}"
+            required spellcheck="false" @blur="${this.onNameInputBlur_}"
             ?disabled="${this.hasEnterpriseLabel}">
               <cr-icon id="policyIcon" icon="cr:domain" slot="suffix"
                 ?hidden="${!this.hasEnterpriseLabel}">
@@ -56,6 +58,10 @@ export function getHtml(this: ProfileCustomizationAppElement) {
           $i18n{controlledSettingPolicy}
         </cr-tooltip>
 
+      <div id="themePickerTitle"
+          ?hidden="${!this.isRefreshedUI_}">
+        $i18n{profileCustomizationThemePickerLabel}
+      </div>
       <div id="pickThemeContainer">
         <cr-theme-color-picker columns="6"></cr-theme-color-picker>
       </div>
@@ -63,18 +69,18 @@ export function getHtml(this: ProfileCustomizationAppElement) {
       <div class="action-container">
         <cr-button id="doneButton" class="action-button"
             ?disabled="${this.isDoneButtonDisabled_()}"
-            @click="${this.onDoneCustomizationClicked_}">
+            @click="${this.onDoneCustomizationClick_}">
           $i18n{profileCustomizationDoneLabel}
         </cr-button>
         ${this.shouldShowCancelButton_() ? html`
           <cr-button id="skipButton"
-              @click="${this.onSkipCustomizationClicked_}">
+              @click="${this.onSkipCustomizationClick_}">
             $i18n{profileCustomizationSkipLabel}
           </cr-button>
         ` : ''}
         ${this.isLocalProfileCreation_ ? html`
           <cr-button id="deleteProfileButton"
-              @click="${this.onDeleteProfileClicked_}">
+              @click="${this.onDeleteProfileClick_}">
             $i18n{profileCustomizationDeleteProfileLabel}
           </cr-button>
         ` : ''}
@@ -88,7 +94,7 @@ export function getHtml(this: ProfileCustomizationAppElement) {
         <cr-icon-button iron-icon="cr:arrow-back" id="selectAvatarBackButton"
             title="$i18n{profileCustomizationAvatarSelectionBackButtonLabel}"
             aria-label="$i18n{profileCustomizationAvatarSelectionBackButtonLabel}"
-            @click="${this.onSelectAvatarBackClicked_}">
+            @click="${this.onSelectAvatarBackClick_}">
         </cr-icon-button>
         <div class="select-avatar-title">
           $i18n{profileCustomizationAvatarSelectionTitle}
@@ -103,7 +109,7 @@ export function getHtml(this: ProfileCustomizationAppElement) {
       </div>
       <div class="action-container">
         <cr-button id="selectAvatarConfirmButton" class="action-button"
-            @click="${this.onSelectAvatarConfirmClicked_}">
+            @click="${this.onSelectAvatarConfirmClick_}">
           $i18n{profileCustomizationDoneLabel}
         </cr-button>
       </div>
@@ -112,4 +118,5 @@ export function getHtml(this: ProfileCustomizationAppElement) {
 
 </cr-view-manager>
 <!--_html_template_end_-->`;
+  // clang-format on
 }

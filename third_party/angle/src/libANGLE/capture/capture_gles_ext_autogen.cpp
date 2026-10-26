@@ -885,20 +885,20 @@ CallCapture CaptureGetTexLevelParameterivANGLE(const State &glState,
                                                bool isCallValid,
                                                TextureTarget targetPacked,
                                                GLint level,
-                                               GLenum pname,
+                                               TextureImageParameter pnamePacked,
                                                GLint *params)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("targetPacked", ParamType::TTextureTarget, targetPacked);
     paramBuffer.addValueParam("level", ParamType::TGLint, level);
-    paramBuffer.addEnumParam("pname", GLESEnum::GetTextureParameter, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TTextureImageParameter, pnamePacked);
 
     ParamCapture paramsParam("params", ParamType::TGLintPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLintPointer, params, &paramsParam.value);
-        CaptureGetTexLevelParameterivANGLE_params(glState, targetPacked, level, pname, params,
+        CaptureGetTexLevelParameterivANGLE_params(glState, targetPacked, level, pnamePacked, params,
                                                   &paramsParam);
     }
     else
@@ -914,20 +914,20 @@ CallCapture CaptureGetTexLevelParameterfvANGLE(const State &glState,
                                                bool isCallValid,
                                                TextureTarget targetPacked,
                                                GLint level,
-                                               GLenum pname,
+                                               TextureImageParameter pnamePacked,
                                                GLfloat *params)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("targetPacked", ParamType::TTextureTarget, targetPacked);
     paramBuffer.addValueParam("level", ParamType::TGLint, level);
-    paramBuffer.addEnumParam("pname", GLESEnum::AllEnums, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TTextureImageParameter, pnamePacked);
 
     ParamCapture paramsParam("params", ParamType::TGLfloatPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLfloatPointer, params, &paramsParam.value);
-        CaptureGetTexLevelParameterfvANGLE_params(glState, targetPacked, level, pname, params,
+        CaptureGetTexLevelParameterfvANGLE_params(glState, targetPacked, level, pnamePacked, params,
                                                   &paramsParam);
     }
     else
@@ -1819,7 +1819,7 @@ CallCapture CaptureGetRenderbufferParameterivRobustANGLE(const State &glState,
 CallCapture CaptureGetShaderivRobustANGLE(const State &glState,
                                           bool isCallValid,
                                           ShaderProgramID shaderPacked,
-                                          GLenum pname,
+                                          ShaderParameter pnamePacked,
                                           GLsizei paramCount,
                                           GLsizei *length,
                                           GLint *params)
@@ -1827,14 +1827,14 @@ CallCapture CaptureGetShaderivRobustANGLE(const State &glState,
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("shaderPacked", ParamType::TShaderProgramID, shaderPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::ShaderParameterName, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TShaderParameter, pnamePacked);
     paramBuffer.addValueParam("paramCount", ParamType::TGLsizei, paramCount);
 
     ParamCapture lengthParam("length", ParamType::TGLsizeiPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLsizeiPointer, length, &lengthParam.value);
-        CaptureGetShaderivRobustANGLE_length(glState, shaderPacked, pname, paramCount, length,
+        CaptureGetShaderivRobustANGLE_length(glState, shaderPacked, pnamePacked, paramCount, length,
                                              params, &lengthParam);
     }
     else
@@ -1848,7 +1848,7 @@ CallCapture CaptureGetShaderivRobustANGLE(const State &glState,
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLintPointer, params, &paramsParam.value);
-        CaptureGetShaderivRobustANGLE_params(glState, shaderPacked, pname, paramCount, length,
+        CaptureGetShaderivRobustANGLE_params(glState, shaderPacked, pnamePacked, paramCount, length,
                                              params, &paramsParam);
     }
     else
@@ -2676,7 +2676,7 @@ CallCapture CaptureCompressedTexSubImage3DRobustANGLE(const State &glState,
 CallCapture CaptureGetQueryivRobustANGLE(const State &glState,
                                          bool isCallValid,
                                          QueryType targetPacked,
-                                         GLenum pname,
+                                         QueryParameter pnamePacked,
                                          GLsizei paramCount,
                                          GLsizei *length,
                                          GLint *params)
@@ -2684,14 +2684,14 @@ CallCapture CaptureGetQueryivRobustANGLE(const State &glState,
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("targetPacked", ParamType::TQueryType, targetPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::QueryParameterName, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TQueryParameter, pnamePacked);
     paramBuffer.addValueParam("paramCount", ParamType::TGLsizei, paramCount);
 
     ParamCapture lengthParam("length", ParamType::TGLsizeiPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLsizeiPointer, length, &lengthParam.value);
-        CaptureGetQueryivRobustANGLE_length(glState, targetPacked, pname, paramCount, length,
+        CaptureGetQueryivRobustANGLE_length(glState, targetPacked, pnamePacked, paramCount, length,
                                             params, &lengthParam);
     }
     else
@@ -2705,7 +2705,7 @@ CallCapture CaptureGetQueryivRobustANGLE(const State &glState,
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLintPointer, params, &paramsParam.value);
-        CaptureGetQueryivRobustANGLE_params(glState, targetPacked, pname, paramCount, length,
+        CaptureGetQueryivRobustANGLE_params(glState, targetPacked, pnamePacked, paramCount, length,
                                             params, &paramsParam);
     }
     else
@@ -2720,7 +2720,7 @@ CallCapture CaptureGetQueryivRobustANGLE(const State &glState,
 CallCapture CaptureGetQueryObjectuivRobustANGLE(const State &glState,
                                                 bool isCallValid,
                                                 QueryID idPacked,
-                                                GLenum pname,
+                                                QueryObjectParameter pnamePacked,
                                                 GLsizei paramCount,
                                                 GLsizei *length,
                                                 GLuint *params)
@@ -2728,16 +2728,15 @@ CallCapture CaptureGetQueryObjectuivRobustANGLE(const State &glState,
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("idPacked", ParamType::TQueryID, idPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::QueryObjectParameterName, ParamType::TGLenum,
-                             pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TQueryObjectParameter, pnamePacked);
     paramBuffer.addValueParam("paramCount", ParamType::TGLsizei, paramCount);
 
     ParamCapture lengthParam("length", ParamType::TGLsizeiPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLsizeiPointer, length, &lengthParam.value);
-        CaptureGetQueryObjectuivRobustANGLE_length(glState, idPacked, pname, paramCount, length,
-                                                   params, &lengthParam);
+        CaptureGetQueryObjectuivRobustANGLE_length(glState, idPacked, pnamePacked, paramCount,
+                                                   length, params, &lengthParam);
     }
     else
     {
@@ -2750,8 +2749,8 @@ CallCapture CaptureGetQueryObjectuivRobustANGLE(const State &glState,
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLuintPointer, params, &paramsParam.value);
-        CaptureGetQueryObjectuivRobustANGLE_params(glState, idPacked, pname, paramCount, length,
-                                                   params, &paramsParam);
+        CaptureGetQueryObjectuivRobustANGLE_params(glState, idPacked, pnamePacked, paramCount,
+                                                   length, params, &paramsParam);
     }
     else
     {
@@ -3037,7 +3036,7 @@ CallCapture CaptureGetActiveUniformBlockivRobustANGLE(const State &glState,
                                                       bool isCallValid,
                                                       ShaderProgramID programPacked,
                                                       UniformBlockIndex uniformBlockIndexPacked,
-                                                      GLenum pname,
+                                                      UniformBlockParameter pnamePacked,
                                                       GLsizei paramCount,
                                                       GLsizei *length,
                                                       GLint *params)
@@ -3047,7 +3046,7 @@ CallCapture CaptureGetActiveUniformBlockivRobustANGLE(const State &glState,
     paramBuffer.addValueParam("programPacked", ParamType::TShaderProgramID, programPacked);
     paramBuffer.addValueParam("uniformBlockIndexPacked", ParamType::TUniformBlockIndex,
                               uniformBlockIndexPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::UniformBlockPName, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TUniformBlockParameter, pnamePacked);
     paramBuffer.addValueParam("paramCount", ParamType::TGLsizei, paramCount);
 
     ParamCapture lengthParam("length", ParamType::TGLsizeiPointer);
@@ -3055,8 +3054,8 @@ CallCapture CaptureGetActiveUniformBlockivRobustANGLE(const State &glState,
     {
         InitParamValue(ParamType::TGLsizeiPointer, length, &lengthParam.value);
         CaptureGetActiveUniformBlockivRobustANGLE_length(glState, programPacked,
-                                                         uniformBlockIndexPacked, pname, paramCount,
-                                                         length, params, &lengthParam);
+                                                         uniformBlockIndexPacked, pnamePacked,
+                                                         paramCount, length, params, &lengthParam);
     }
     else
     {
@@ -3070,8 +3069,8 @@ CallCapture CaptureGetActiveUniformBlockivRobustANGLE(const State &glState,
     {
         InitParamValue(ParamType::TGLintPointer, params, &paramsParam.value);
         CaptureGetActiveUniformBlockivRobustANGLE_params(glState, programPacked,
-                                                         uniformBlockIndexPacked, pname, paramCount,
-                                                         length, params, &paramsParam);
+                                                         uniformBlockIndexPacked, pnamePacked,
+                                                         paramCount, length, params, &paramsParam);
     }
     else
     {
@@ -3219,22 +3218,22 @@ CallCapture CaptureGetBufferParameteri64vRobustANGLE(const State &glState,
 CallCapture CaptureSamplerParameterivRobustANGLE(const State &glState,
                                                  bool isCallValid,
                                                  SamplerID samplerPacked,
-                                                 GLuint pname,
+                                                 SamplerParameter pnamePacked,
                                                  GLsizei paramCount,
                                                  const GLint *param)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("samplerPacked", ParamType::TSamplerID, samplerPacked);
-    paramBuffer.addValueParam("pname", ParamType::TGLuint, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TSamplerParameter, pnamePacked);
     paramBuffer.addValueParam("paramCount", ParamType::TGLsizei, paramCount);
 
     ParamCapture paramParam("param", ParamType::TGLintConstPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLintConstPointer, param, &paramParam.value);
-        CaptureSamplerParameterivRobustANGLE_param(glState, samplerPacked, pname, paramCount, param,
-                                                   &paramParam);
+        CaptureSamplerParameterivRobustANGLE_param(glState, samplerPacked, pnamePacked, paramCount,
+                                                   param, &paramParam);
     }
     else
     {
@@ -3249,22 +3248,22 @@ CallCapture CaptureSamplerParameterivRobustANGLE(const State &glState,
 CallCapture CaptureSamplerParameterfvRobustANGLE(const State &glState,
                                                  bool isCallValid,
                                                  SamplerID samplerPacked,
-                                                 GLenum pname,
+                                                 SamplerParameter pnamePacked,
                                                  GLsizei paramCount,
                                                  const GLfloat *param)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("samplerPacked", ParamType::TSamplerID, samplerPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::AllEnums, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TSamplerParameter, pnamePacked);
     paramBuffer.addValueParam("paramCount", ParamType::TGLsizei, paramCount);
 
     ParamCapture paramParam("param", ParamType::TGLfloatConstPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLfloatConstPointer, param, &paramParam.value);
-        CaptureSamplerParameterfvRobustANGLE_param(glState, samplerPacked, pname, paramCount, param,
-                                                   &paramParam);
+        CaptureSamplerParameterfvRobustANGLE_param(glState, samplerPacked, pnamePacked, paramCount,
+                                                   param, &paramParam);
     }
     else
     {
@@ -3279,7 +3278,7 @@ CallCapture CaptureSamplerParameterfvRobustANGLE(const State &glState,
 CallCapture CaptureGetSamplerParameterivRobustANGLE(const State &glState,
                                                     bool isCallValid,
                                                     SamplerID samplerPacked,
-                                                    GLenum pname,
+                                                    SamplerParameter pnamePacked,
                                                     GLsizei paramCount,
                                                     GLsizei *length,
                                                     GLint *params)
@@ -3287,15 +3286,15 @@ CallCapture CaptureGetSamplerParameterivRobustANGLE(const State &glState,
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("samplerPacked", ParamType::TSamplerID, samplerPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::AllEnums, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TSamplerParameter, pnamePacked);
     paramBuffer.addValueParam("paramCount", ParamType::TGLsizei, paramCount);
 
     ParamCapture lengthParam("length", ParamType::TGLsizeiPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLsizeiPointer, length, &lengthParam.value);
-        CaptureGetSamplerParameterivRobustANGLE_length(glState, samplerPacked, pname, paramCount,
-                                                       length, params, &lengthParam);
+        CaptureGetSamplerParameterivRobustANGLE_length(glState, samplerPacked, pnamePacked,
+                                                       paramCount, length, params, &lengthParam);
     }
     else
     {
@@ -3308,8 +3307,8 @@ CallCapture CaptureGetSamplerParameterivRobustANGLE(const State &glState,
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLintPointer, params, &paramsParam.value);
-        CaptureGetSamplerParameterivRobustANGLE_params(glState, samplerPacked, pname, paramCount,
-                                                       length, params, &paramsParam);
+        CaptureGetSamplerParameterivRobustANGLE_params(glState, samplerPacked, pnamePacked,
+                                                       paramCount, length, params, &paramsParam);
     }
     else
     {
@@ -3324,7 +3323,7 @@ CallCapture CaptureGetSamplerParameterivRobustANGLE(const State &glState,
 CallCapture CaptureGetSamplerParameterfvRobustANGLE(const State &glState,
                                                     bool isCallValid,
                                                     SamplerID samplerPacked,
-                                                    GLenum pname,
+                                                    SamplerParameter pnamePacked,
                                                     GLsizei paramCount,
                                                     GLsizei *length,
                                                     GLfloat *params)
@@ -3332,15 +3331,15 @@ CallCapture CaptureGetSamplerParameterfvRobustANGLE(const State &glState,
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("samplerPacked", ParamType::TSamplerID, samplerPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::AllEnums, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TSamplerParameter, pnamePacked);
     paramBuffer.addValueParam("paramCount", ParamType::TGLsizei, paramCount);
 
     ParamCapture lengthParam("length", ParamType::TGLsizeiPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLsizeiPointer, length, &lengthParam.value);
-        CaptureGetSamplerParameterfvRobustANGLE_length(glState, samplerPacked, pname, paramCount,
-                                                       length, params, &lengthParam);
+        CaptureGetSamplerParameterfvRobustANGLE_length(glState, samplerPacked, pnamePacked,
+                                                       paramCount, length, params, &lengthParam);
     }
     else
     {
@@ -3353,8 +3352,8 @@ CallCapture CaptureGetSamplerParameterfvRobustANGLE(const State &glState,
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLfloatPointer, params, &paramsParam.value);
-        CaptureGetSamplerParameterfvRobustANGLE_params(glState, samplerPacked, pname, paramCount,
-                                                       length, params, &paramsParam);
+        CaptureGetSamplerParameterfvRobustANGLE_params(glState, samplerPacked, pnamePacked,
+                                                       paramCount, length, params, &paramsParam);
     }
     else
     {
@@ -3416,7 +3415,7 @@ CallCapture CaptureGetTexLevelParameterivRobustANGLE(const State &glState,
                                                      bool isCallValid,
                                                      TextureTarget targetPacked,
                                                      GLint level,
-                                                     GLenum pname,
+                                                     TextureImageParameter pnamePacked,
                                                      GLsizei paramCount,
                                                      GLsizei *length,
                                                      GLint *params)
@@ -3425,14 +3424,14 @@ CallCapture CaptureGetTexLevelParameterivRobustANGLE(const State &glState,
 
     paramBuffer.addValueParam("targetPacked", ParamType::TTextureTarget, targetPacked);
     paramBuffer.addValueParam("level", ParamType::TGLint, level);
-    paramBuffer.addEnumParam("pname", GLESEnum::AllEnums, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TTextureImageParameter, pnamePacked);
     paramBuffer.addValueParam("paramCount", ParamType::TGLsizei, paramCount);
 
     ParamCapture lengthParam("length", ParamType::TGLsizeiPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLsizeiPointer, length, &lengthParam.value);
-        CaptureGetTexLevelParameterivRobustANGLE_length(glState, targetPacked, level, pname,
+        CaptureGetTexLevelParameterivRobustANGLE_length(glState, targetPacked, level, pnamePacked,
                                                         paramCount, length, params, &lengthParam);
     }
     else
@@ -3446,7 +3445,7 @@ CallCapture CaptureGetTexLevelParameterivRobustANGLE(const State &glState,
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLintPointer, params, &paramsParam.value);
-        CaptureGetTexLevelParameterivRobustANGLE_params(glState, targetPacked, level, pname,
+        CaptureGetTexLevelParameterivRobustANGLE_params(glState, targetPacked, level, pnamePacked,
                                                         paramCount, length, params, &paramsParam);
     }
     else
@@ -3463,7 +3462,7 @@ CallCapture CaptureGetTexLevelParameterfvRobustANGLE(const State &glState,
                                                      bool isCallValid,
                                                      TextureTarget targetPacked,
                                                      GLint level,
-                                                     GLenum pname,
+                                                     TextureImageParameter pnamePacked,
                                                      GLsizei paramCount,
                                                      GLsizei *length,
                                                      GLfloat *params)
@@ -3472,14 +3471,14 @@ CallCapture CaptureGetTexLevelParameterfvRobustANGLE(const State &glState,
 
     paramBuffer.addValueParam("targetPacked", ParamType::TTextureTarget, targetPacked);
     paramBuffer.addValueParam("level", ParamType::TGLint, level);
-    paramBuffer.addEnumParam("pname", GLESEnum::AllEnums, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TTextureImageParameter, pnamePacked);
     paramBuffer.addValueParam("paramCount", ParamType::TGLsizei, paramCount);
 
     ParamCapture lengthParam("length", ParamType::TGLsizeiPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLsizeiPointer, length, &lengthParam.value);
-        CaptureGetTexLevelParameterfvRobustANGLE_length(glState, targetPacked, level, pname,
+        CaptureGetTexLevelParameterfvRobustANGLE_length(glState, targetPacked, level, pnamePacked,
                                                         paramCount, length, params, &lengthParam);
     }
     else
@@ -3493,7 +3492,7 @@ CallCapture CaptureGetTexLevelParameterfvRobustANGLE(const State &glState,
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLfloatPointer, params, &paramsParam.value);
-        CaptureGetTexLevelParameterfvRobustANGLE_params(glState, targetPacked, level, pname,
+        CaptureGetTexLevelParameterfvRobustANGLE_params(glState, targetPacked, level, pnamePacked,
                                                         paramCount, length, params, &paramsParam);
     }
     else
@@ -3510,7 +3509,7 @@ CallCapture CaptureGetTexLevelParameterfvRobustANGLE(const State &glState,
 CallCapture CaptureGetQueryObjectivRobustANGLE(const State &glState,
                                                bool isCallValid,
                                                QueryID idPacked,
-                                               GLenum pname,
+                                               QueryObjectParameter pnamePacked,
                                                GLsizei paramCount,
                                                GLsizei *length,
                                                GLint *params)
@@ -3518,16 +3517,15 @@ CallCapture CaptureGetQueryObjectivRobustANGLE(const State &glState,
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("idPacked", ParamType::TQueryID, idPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::QueryObjectParameterName, ParamType::TGLenum,
-                             pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TQueryObjectParameter, pnamePacked);
     paramBuffer.addValueParam("paramCount", ParamType::TGLsizei, paramCount);
 
     ParamCapture lengthParam("length", ParamType::TGLsizeiPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLsizeiPointer, length, &lengthParam.value);
-        CaptureGetQueryObjectivRobustANGLE_length(glState, idPacked, pname, paramCount, length,
-                                                  params, &lengthParam);
+        CaptureGetQueryObjectivRobustANGLE_length(glState, idPacked, pnamePacked, paramCount,
+                                                  length, params, &lengthParam);
     }
     else
     {
@@ -3540,8 +3538,8 @@ CallCapture CaptureGetQueryObjectivRobustANGLE(const State &glState,
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLintPointer, params, &paramsParam.value);
-        CaptureGetQueryObjectivRobustANGLE_params(glState, idPacked, pname, paramCount, length,
-                                                  params, &paramsParam);
+        CaptureGetQueryObjectivRobustANGLE_params(glState, idPacked, pnamePacked, paramCount,
+                                                  length, params, &paramsParam);
     }
     else
     {
@@ -3555,7 +3553,7 @@ CallCapture CaptureGetQueryObjectivRobustANGLE(const State &glState,
 CallCapture CaptureGetQueryObjecti64vRobustANGLE(const State &glState,
                                                  bool isCallValid,
                                                  QueryID idPacked,
-                                                 GLenum pname,
+                                                 QueryObjectParameter pnamePacked,
                                                  GLsizei paramCount,
                                                  GLsizei *length,
                                                  GLint64 *params)
@@ -3563,16 +3561,15 @@ CallCapture CaptureGetQueryObjecti64vRobustANGLE(const State &glState,
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("idPacked", ParamType::TQueryID, idPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::QueryObjectParameterName, ParamType::TGLenum,
-                             pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TQueryObjectParameter, pnamePacked);
     paramBuffer.addValueParam("paramCount", ParamType::TGLsizei, paramCount);
 
     ParamCapture lengthParam("length", ParamType::TGLsizeiPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLsizeiPointer, length, &lengthParam.value);
-        CaptureGetQueryObjecti64vRobustANGLE_length(glState, idPacked, pname, paramCount, length,
-                                                    params, &lengthParam);
+        CaptureGetQueryObjecti64vRobustANGLE_length(glState, idPacked, pnamePacked, paramCount,
+                                                    length, params, &lengthParam);
     }
     else
     {
@@ -3585,8 +3582,8 @@ CallCapture CaptureGetQueryObjecti64vRobustANGLE(const State &glState,
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLint64Pointer, params, &paramsParam.value);
-        CaptureGetQueryObjecti64vRobustANGLE_params(glState, idPacked, pname, paramCount, length,
-                                                    params, &paramsParam);
+        CaptureGetQueryObjecti64vRobustANGLE_params(glState, idPacked, pnamePacked, paramCount,
+                                                    length, params, &paramsParam);
     }
     else
     {
@@ -3601,7 +3598,7 @@ CallCapture CaptureGetQueryObjecti64vRobustANGLE(const State &glState,
 CallCapture CaptureGetQueryObjectui64vRobustANGLE(const State &glState,
                                                   bool isCallValid,
                                                   QueryID idPacked,
-                                                  GLenum pname,
+                                                  QueryObjectParameter pnamePacked,
                                                   GLsizei paramCount,
                                                   GLsizei *length,
                                                   GLuint64 *params)
@@ -3609,16 +3606,15 @@ CallCapture CaptureGetQueryObjectui64vRobustANGLE(const State &glState,
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("idPacked", ParamType::TQueryID, idPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::QueryObjectParameterName, ParamType::TGLenum,
-                             pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TQueryObjectParameter, pnamePacked);
     paramBuffer.addValueParam("paramCount", ParamType::TGLsizei, paramCount);
 
     ParamCapture lengthParam("length", ParamType::TGLsizeiPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLsizeiPointer, length, &lengthParam.value);
-        CaptureGetQueryObjectui64vRobustANGLE_length(glState, idPacked, pname, paramCount, length,
-                                                     params, &lengthParam);
+        CaptureGetQueryObjectui64vRobustANGLE_length(glState, idPacked, pnamePacked, paramCount,
+                                                     length, params, &lengthParam);
     }
     else
     {
@@ -3631,8 +3627,8 @@ CallCapture CaptureGetQueryObjectui64vRobustANGLE(const State &glState,
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLuint64Pointer, params, &paramsParam.value);
-        CaptureGetQueryObjectui64vRobustANGLE_params(glState, idPacked, pname, paramCount, length,
-                                                     params, &paramsParam);
+        CaptureGetQueryObjectui64vRobustANGLE_params(glState, idPacked, pnamePacked, paramCount,
+                                                     length, params, &paramsParam);
     }
     else
     {
@@ -3735,6 +3731,52 @@ CallCapture CaptureGetFramebufferPixelLocalStorageParameterivRobustANGLE(const S
                        std::move(paramBuffer));
 }
 
+CallCapture CaptureGetFramebufferPixelLocalStorageParameteruivRobustANGLE(const State &glState,
+                                                                          bool isCallValid,
+                                                                          GLint plane,
+                                                                          GLenum pname,
+                                                                          GLsizei paramCount,
+                                                                          GLsizei *length,
+                                                                          GLuint *params)
+{
+    ParamBuffer paramBuffer;
+
+    paramBuffer.addValueParam("plane", ParamType::TGLint, plane);
+    paramBuffer.addEnumParam("pname", GLESEnum::AllEnums, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("paramCount", ParamType::TGLsizei, paramCount);
+
+    ParamCapture lengthParam("length", ParamType::TGLsizeiPointer);
+    if (isCallValid)
+    {
+        InitParamValue(ParamType::TGLsizeiPointer, length, &lengthParam.value);
+        CaptureGetFramebufferPixelLocalStorageParameteruivRobustANGLE_length(
+            glState, plane, pname, paramCount, length, params, &lengthParam);
+    }
+    else
+    {
+        InitParamValue(ParamType::TGLsizeiPointer, static_cast<GLsizei *>(nullptr),
+                       &lengthParam.value);
+    }
+    paramBuffer.addParam(std::move(lengthParam));
+
+    ParamCapture paramsParam("params", ParamType::TGLuintPointer);
+    if (isCallValid)
+    {
+        InitParamValue(ParamType::TGLuintPointer, params, &paramsParam.value);
+        CaptureGetFramebufferPixelLocalStorageParameteruivRobustANGLE_params(
+            glState, plane, pname, paramCount, length, params, &paramsParam);
+    }
+    else
+    {
+        InitParamValue(ParamType::TGLuintPointer, static_cast<GLuint *>(nullptr),
+                       &paramsParam.value);
+    }
+    paramBuffer.addParam(std::move(paramsParam));
+
+    return CallCapture(angle::EntryPoint::GLGetFramebufferPixelLocalStorageParameteruivRobustANGLE,
+                       std::move(paramBuffer));
+}
+
 CallCapture CaptureImportSemaphoreZirconHandleANGLE(const State &glState,
                                                     bool isCallValid,
                                                     SemaphoreID semaphorePacked,
@@ -3754,13 +3796,15 @@ CallCapture CaptureImportSemaphoreZirconHandleANGLE(const State &glState,
 CallCapture CaptureFramebufferMemorylessPixelLocalStorageANGLE(const State &glState,
                                                                bool isCallValid,
                                                                GLint plane,
-                                                               GLenum internalformat)
+                                                               GLenum internalformat,
+                                                               GLbitfield usage)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("plane", ParamType::TGLint, plane);
     paramBuffer.addEnumParam("internalformat", GLESEnum::AllEnums, ParamType::TGLenum,
                              internalformat);
+    paramBuffer.addEnumParam("usage", GLESEnum::AllEnums, ParamType::TGLbitfield, usage);
 
     return CallCapture(angle::EntryPoint::GLFramebufferMemorylessPixelLocalStorageANGLE,
                        std::move(paramBuffer));
@@ -3771,7 +3815,8 @@ CallCapture CaptureFramebufferTexturePixelLocalStorageANGLE(const State &glState
                                                             GLint plane,
                                                             TextureID backingtexturePacked,
                                                             GLint level,
-                                                            GLint layer)
+                                                            GLint layer,
+                                                            GLbitfield usage)
 {
     ParamBuffer paramBuffer;
 
@@ -3779,6 +3824,7 @@ CallCapture CaptureFramebufferTexturePixelLocalStorageANGLE(const State &glState
     paramBuffer.addValueParam("backingtexturePacked", ParamType::TTextureID, backingtexturePacked);
     paramBuffer.addValueParam("level", ParamType::TGLint, level);
     paramBuffer.addValueParam("layer", ParamType::TGLint, layer);
+    paramBuffer.addEnumParam("usage", GLESEnum::AllEnums, ParamType::TGLbitfield, usage);
 
     return CallCapture(angle::EntryPoint::GLFramebufferTexturePixelLocalStorageANGLE,
                        std::move(paramBuffer));
@@ -3912,6 +3958,14 @@ CallCapture CaptureEndPixelLocalStorageANGLE(const State &glState,
     return CallCapture(angle::EntryPoint::GLEndPixelLocalStorageANGLE, std::move(paramBuffer));
 }
 
+CallCapture CaptureEndPixelLocalStorageImplicitANGLE(const State &glState, bool isCallValid)
+{
+    ParamBuffer paramBuffer;
+
+    return CallCapture(angle::EntryPoint::GLEndPixelLocalStorageImplicitANGLE,
+                       std::move(paramBuffer));
+}
+
 CallCapture CapturePixelLocalStorageBarrierANGLE(const State &glState, bool isCallValid)
 {
     ParamBuffer paramBuffer;
@@ -3945,7 +3999,7 @@ CallCapture CaptureGetFramebufferPixelLocalStorageParameterfvANGLE(const State &
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("plane", ParamType::TGLint, plane);
-    paramBuffer.addEnumParam("pname", GLESEnum::PLSQueryFloat, ParamType::TGLenum, pname);
+    paramBuffer.addEnumParam("pname", GLESEnum::PLSPlaneParameterName, ParamType::TGLenum, pname);
 
     ParamCapture paramsParam("params", ParamType::TGLfloatPointer);
     if (isCallValid)
@@ -3974,7 +4028,7 @@ CallCapture CaptureGetFramebufferPixelLocalStorageParameterivANGLE(const State &
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("plane", ParamType::TGLint, plane);
-    paramBuffer.addEnumParam("pname", GLESEnum::PLSQueryInt, ParamType::TGLenum, pname);
+    paramBuffer.addEnumParam("pname", GLESEnum::PLSPlaneParameterName, ParamType::TGLenum, pname);
 
     ParamCapture paramsParam("params", ParamType::TGLintPointer);
     if (isCallValid)
@@ -3990,6 +4044,35 @@ CallCapture CaptureGetFramebufferPixelLocalStorageParameterivANGLE(const State &
     paramBuffer.addParam(std::move(paramsParam));
 
     return CallCapture(angle::EntryPoint::GLGetFramebufferPixelLocalStorageParameterivANGLE,
+                       std::move(paramBuffer));
+}
+
+CallCapture CaptureGetFramebufferPixelLocalStorageParameteruivANGLE(const State &glState,
+                                                                    bool isCallValid,
+                                                                    GLint plane,
+                                                                    GLenum pname,
+                                                                    GLuint *params)
+{
+    ParamBuffer paramBuffer;
+
+    paramBuffer.addValueParam("plane", ParamType::TGLint, plane);
+    paramBuffer.addEnumParam("pname", GLESEnum::PLSPlaneParameterName, ParamType::TGLenum, pname);
+
+    ParamCapture paramsParam("params", ParamType::TGLuintPointer);
+    if (isCallValid)
+    {
+        InitParamValue(ParamType::TGLuintPointer, params, &paramsParam.value);
+        CaptureGetFramebufferPixelLocalStorageParameteruivANGLE_params(glState, plane, pname,
+                                                                       params, &paramsParam);
+    }
+    else
+    {
+        InitParamValue(ParamType::TGLuintPointer, static_cast<GLuint *>(nullptr),
+                       &paramsParam.value);
+    }
+    paramBuffer.addParam(std::move(paramsParam));
+
+    return CallCapture(angle::EntryPoint::GLGetFramebufferPixelLocalStorageParameteruivANGLE,
                        std::move(paramBuffer));
 }
 
@@ -5016,20 +5099,19 @@ CallCapture CaptureGetInteger64vEXT(const State &glState,
 CallCapture CaptureGetQueryObjecti64vEXT(const State &glState,
                                          bool isCallValid,
                                          QueryID idPacked,
-                                         GLenum pname,
+                                         QueryObjectParameter pnamePacked,
                                          GLint64 *params)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("idPacked", ParamType::TQueryID, idPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::QueryObjectParameterName, ParamType::TGLenum,
-                             pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TQueryObjectParameter, pnamePacked);
 
     ParamCapture paramsParam("params", ParamType::TGLint64Pointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLint64Pointer, params, &paramsParam.value);
-        CaptureGetQueryObjecti64vEXT_params(glState, idPacked, pname, params, &paramsParam);
+        CaptureGetQueryObjecti64vEXT_params(glState, idPacked, pnamePacked, params, &paramsParam);
     }
     else
     {
@@ -5044,20 +5126,19 @@ CallCapture CaptureGetQueryObjecti64vEXT(const State &glState,
 CallCapture CaptureGetQueryObjectivEXT(const State &glState,
                                        bool isCallValid,
                                        QueryID idPacked,
-                                       GLenum pname,
+                                       QueryObjectParameter pnamePacked,
                                        GLint *params)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("idPacked", ParamType::TQueryID, idPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::QueryObjectParameterName, ParamType::TGLenum,
-                             pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TQueryObjectParameter, pnamePacked);
 
     ParamCapture paramsParam("params", ParamType::TGLintPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLintPointer, params, &paramsParam.value);
-        CaptureGetQueryObjectivEXT_params(glState, idPacked, pname, params, &paramsParam);
+        CaptureGetQueryObjectivEXT_params(glState, idPacked, pnamePacked, params, &paramsParam);
     }
     else
     {
@@ -5071,20 +5152,19 @@ CallCapture CaptureGetQueryObjectivEXT(const State &glState,
 CallCapture CaptureGetQueryObjectui64vEXT(const State &glState,
                                           bool isCallValid,
                                           QueryID idPacked,
-                                          GLenum pname,
+                                          QueryObjectParameter pnamePacked,
                                           GLuint64 *params)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("idPacked", ParamType::TQueryID, idPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::QueryObjectParameterName, ParamType::TGLenum,
-                             pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TQueryObjectParameter, pnamePacked);
 
     ParamCapture paramsParam("params", ParamType::TGLuint64Pointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLuint64Pointer, params, &paramsParam.value);
-        CaptureGetQueryObjectui64vEXT_params(glState, idPacked, pname, params, &paramsParam);
+        CaptureGetQueryObjectui64vEXT_params(glState, idPacked, pnamePacked, params, &paramsParam);
     }
     else
     {
@@ -5099,20 +5179,19 @@ CallCapture CaptureGetQueryObjectui64vEXT(const State &glState,
 CallCapture CaptureGetQueryObjectuivEXT(const State &glState,
                                         bool isCallValid,
                                         QueryID idPacked,
-                                        GLenum pname,
+                                        QueryObjectParameter pnamePacked,
                                         GLuint *params)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("idPacked", ParamType::TQueryID, idPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::QueryObjectParameterName, ParamType::TGLenum,
-                             pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TQueryObjectParameter, pnamePacked);
 
     ParamCapture paramsParam("params", ParamType::TGLuintPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLuintPointer, params, &paramsParam.value);
-        CaptureGetQueryObjectuivEXT_params(glState, idPacked, pname, params, &paramsParam);
+        CaptureGetQueryObjectuivEXT_params(glState, idPacked, pnamePacked, params, &paramsParam);
     }
     else
     {
@@ -5127,19 +5206,19 @@ CallCapture CaptureGetQueryObjectuivEXT(const State &glState,
 CallCapture CaptureGetQueryivEXT(const State &glState,
                                  bool isCallValid,
                                  QueryType targetPacked,
-                                 GLenum pname,
+                                 QueryParameter pnamePacked,
                                  GLint *params)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("targetPacked", ParamType::TQueryType, targetPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::QueryParameterName, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TQueryParameter, pnamePacked);
 
     ParamCapture paramsParam("params", ParamType::TGLintPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLintPointer, params, &paramsParam.value);
-        CaptureGetQueryivEXT_params(glState, targetPacked, pname, params, &paramsParam);
+        CaptureGetQueryivEXT_params(glState, targetPacked, pnamePacked, params, &paramsParam);
     }
     else
     {
@@ -7783,19 +7862,19 @@ CallCapture CapturePatchParameteriEXT(const State &glState,
 CallCapture CaptureGetSamplerParameterIivEXT(const State &glState,
                                              bool isCallValid,
                                              SamplerID samplerPacked,
-                                             GLenum pname,
+                                             SamplerParameter pnamePacked,
                                              GLint *params)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("samplerPacked", ParamType::TSamplerID, samplerPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::SamplerParameterI, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TSamplerParameter, pnamePacked);
 
     ParamCapture paramsParam("params", ParamType::TGLintPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLintPointer, params, &paramsParam.value);
-        CaptureGetSamplerParameterIivEXT_params(glState, samplerPacked, pname, params,
+        CaptureGetSamplerParameterIivEXT_params(glState, samplerPacked, pnamePacked, params,
                                                 &paramsParam);
     }
     else
@@ -7810,19 +7889,19 @@ CallCapture CaptureGetSamplerParameterIivEXT(const State &glState,
 CallCapture CaptureGetSamplerParameterIuivEXT(const State &glState,
                                               bool isCallValid,
                                               SamplerID samplerPacked,
-                                              GLenum pname,
+                                              SamplerParameter pnamePacked,
                                               GLuint *params)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("samplerPacked", ParamType::TSamplerID, samplerPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::SamplerParameterI, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TSamplerParameter, pnamePacked);
 
     ParamCapture paramsParam("params", ParamType::TGLuintPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLuintPointer, params, &paramsParam.value);
-        CaptureGetSamplerParameterIuivEXT_params(glState, samplerPacked, pname, params,
+        CaptureGetSamplerParameterIuivEXT_params(glState, samplerPacked, pnamePacked, params,
                                                  &paramsParam);
     }
     else
@@ -7891,19 +7970,20 @@ CallCapture CaptureGetTexParameterIuivEXT(const State &glState,
 CallCapture CaptureSamplerParameterIivEXT(const State &glState,
                                           bool isCallValid,
                                           SamplerID samplerPacked,
-                                          GLenum pname,
+                                          SamplerParameter pnamePacked,
                                           const GLint *param)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("samplerPacked", ParamType::TSamplerID, samplerPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::SamplerParameterI, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TSamplerParameter, pnamePacked);
 
     ParamCapture paramParam("param", ParamType::TGLintConstPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLintConstPointer, param, &paramParam.value);
-        CaptureSamplerParameterIivEXT_param(glState, samplerPacked, pname, param, &paramParam);
+        CaptureSamplerParameterIivEXT_param(glState, samplerPacked, pnamePacked, param,
+                                            &paramParam);
     }
     else
     {
@@ -7918,19 +7998,20 @@ CallCapture CaptureSamplerParameterIivEXT(const State &glState,
 CallCapture CaptureSamplerParameterIuivEXT(const State &glState,
                                            bool isCallValid,
                                            SamplerID samplerPacked,
-                                           GLenum pname,
+                                           SamplerParameter pnamePacked,
                                            const GLuint *param)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("samplerPacked", ParamType::TSamplerID, samplerPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::SamplerParameterI, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TSamplerParameter, pnamePacked);
 
     ParamCapture paramParam("param", ParamType::TGLuintConstPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLuintConstPointer, param, &paramParam.value);
-        CaptureSamplerParameterIuivEXT_param(glState, samplerPacked, pname, param, &paramParam);
+        CaptureSamplerParameterIuivEXT_param(glState, samplerPacked, pnamePacked, param,
+                                             &paramParam);
     }
     else
     {
@@ -10302,19 +10383,19 @@ CallCapture CaptureTexSubImage3DOES(const State &glState,
 CallCapture CaptureGetSamplerParameterIivOES(const State &glState,
                                              bool isCallValid,
                                              SamplerID samplerPacked,
-                                             GLenum pname,
+                                             SamplerParameter pnamePacked,
                                              GLint *params)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("samplerPacked", ParamType::TSamplerID, samplerPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::SamplerParameterI, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TSamplerParameter, pnamePacked);
 
     ParamCapture paramsParam("params", ParamType::TGLintPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLintPointer, params, &paramsParam.value);
-        CaptureGetSamplerParameterIivOES_params(glState, samplerPacked, pname, params,
+        CaptureGetSamplerParameterIivOES_params(glState, samplerPacked, pnamePacked, params,
                                                 &paramsParam);
     }
     else
@@ -10329,19 +10410,19 @@ CallCapture CaptureGetSamplerParameterIivOES(const State &glState,
 CallCapture CaptureGetSamplerParameterIuivOES(const State &glState,
                                               bool isCallValid,
                                               SamplerID samplerPacked,
-                                              GLenum pname,
+                                              SamplerParameter pnamePacked,
                                               GLuint *params)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("samplerPacked", ParamType::TSamplerID, samplerPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::SamplerParameterI, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TSamplerParameter, pnamePacked);
 
     ParamCapture paramsParam("params", ParamType::TGLuintPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLuintPointer, params, &paramsParam.value);
-        CaptureGetSamplerParameterIuivOES_params(glState, samplerPacked, pname, params,
+        CaptureGetSamplerParameterIuivOES_params(glState, samplerPacked, pnamePacked, params,
                                                  &paramsParam);
     }
     else
@@ -10410,19 +10491,20 @@ CallCapture CaptureGetTexParameterIuivOES(const State &glState,
 CallCapture CaptureSamplerParameterIivOES(const State &glState,
                                           bool isCallValid,
                                           SamplerID samplerPacked,
-                                          GLenum pname,
+                                          SamplerParameter pnamePacked,
                                           const GLint *param)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("samplerPacked", ParamType::TSamplerID, samplerPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::SamplerParameterI, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TSamplerParameter, pnamePacked);
 
     ParamCapture paramParam("param", ParamType::TGLintConstPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLintConstPointer, param, &paramParam.value);
-        CaptureSamplerParameterIivOES_param(glState, samplerPacked, pname, param, &paramParam);
+        CaptureSamplerParameterIivOES_param(glState, samplerPacked, pnamePacked, param,
+                                            &paramParam);
     }
     else
     {
@@ -10437,19 +10519,20 @@ CallCapture CaptureSamplerParameterIivOES(const State &glState,
 CallCapture CaptureSamplerParameterIuivOES(const State &glState,
                                            bool isCallValid,
                                            SamplerID samplerPacked,
-                                           GLenum pname,
+                                           SamplerParameter pnamePacked,
                                            const GLuint *param)
 {
     ParamBuffer paramBuffer;
 
     paramBuffer.addValueParam("samplerPacked", ParamType::TSamplerID, samplerPacked);
-    paramBuffer.addEnumParam("pname", GLESEnum::SamplerParameterI, ParamType::TGLenum, pname);
+    paramBuffer.addValueParam("pnamePacked", ParamType::TSamplerParameter, pnamePacked);
 
     ParamCapture paramParam("param", ParamType::TGLuintConstPointer);
     if (isCallValid)
     {
         InitParamValue(ParamType::TGLuintConstPointer, param, &paramParam.value);
-        CaptureSamplerParameterIuivOES_param(glState, samplerPacked, pname, param, &paramParam);
+        CaptureSamplerParameterIuivOES_param(glState, samplerPacked, pnamePacked, param,
+                                             &paramParam);
     }
     else
     {

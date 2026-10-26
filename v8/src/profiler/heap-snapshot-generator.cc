@@ -823,18 +823,16 @@ void HeapObjectsMap::RemoveDeadEntries() {
          entries_map_.occupancy());
 }
 
-V8HeapExplorer::V8HeapExplorer(
-    HeapSnapshot* snapshot, SnapshottingProgressReportingInterface* progress,
-    v8::HeapProfiler::ObjectNameResolver* resolver,
-    v8::HeapProfiler::ContextNameResolver* context_resolver)
+V8HeapExplorer::V8HeapExplorer(HeapSnapshot* snapshot,
+                               SnapshottingProgressReportingInterface* progress,
+                               v8::HeapProfiler::ContextNameResolver* resolver)
     : heap_(snapshot->profiler()->heap_object_map()->heap()),
       snapshot_(snapshot),
       names_(snapshot_->profiler()->names()),
       heap_object_map_(snapshot_->profiler()->heap_object_map()),
       progress_(progress),
       generator_(nullptr),
-      global_object_name_resolver_(resolver),
-      native_context_name_resolver_(context_resolver) {}
+      native_context_name_resolver_(resolver) {}
 
 HeapEntry* V8HeapExplorer::AllocateEntry(HeapThing ptr) {
   return AddEntry(
@@ -912,7 +910,7 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
     if (InstanceTypeChecker::IsJSRegExp(instance_type)) {
       Tagged<JSRegExp> re = Cast<JSRegExp>(object);
       return AddEntry(object, HeapEntry::kRegExp,
-                      names_->GetName(re->source()));
+                      names_->GetName(re->source(isolate())));
     }
     // TODO(v8:12674) Fix and run full gcmole.
     DisableGCMole no_gcmole;
@@ -925,9 +923,10 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
       auto it =
           native_context_tag_map_.find(Cast<HeapObject>(maybe_context.value()));
       if (it != native_context_tag_map_.end() && it->second.tag) {
-        name = names_->GetFormatted("%s (global*) / %s", name, it->second.tag);
+        name = names_->GetFormatted("%s [JSGlobalObject] / %s", name,
+                                    it->second.tag);
       } else {
-        name = names_->GetFormatted("%s (global*)", name);
+        name = names_->GetFormatted("%s [JSGlobalObject]", name);
       }
     } else if (InstanceTypeChecker::IsJSGlobalProxy(instance_type)) {
       auto maybe_context = Cast<JSGlobalProxy>(object)->GetCreationContext();
@@ -935,12 +934,13 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
         auto it = native_context_tag_map_.find(
             Cast<HeapObject>(maybe_context.value()));
         if (it != native_context_tag_map_.end() && it->second.tag) {
-          name = names_->GetFormatted("%s (global) / %s", name, it->second.tag);
+          name = names_->GetFormatted("%s [JSGlobalProxy] / %s", name,
+                                      it->second.tag);
         } else {
-          name = names_->GetFormatted("%s (global)", name);
+          name = names_->GetFormatted("%s [JSGlobalProxy]", name);
         }
       } else {
-        name = names_->GetFormatted("%s (global) / <detached>", name);
+        name = names_->GetFormatted("%s [JSGlobalProxy] / <detached>", name);
       }
     }
     auto it = native_context_tag_map_.find(Cast<HeapObject>(object));
@@ -973,18 +973,23 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
   } else if (InstanceTypeChecker::IsBigInt(instance_type)) {
     return AddEntry(object, HeapEntry::kBigInt, "bigint");
 
-  } else if (InstanceTypeChecker::IsInstructionStream(instance_type) ||
-             InstanceTypeChecker::IsCode(instance_type)) {
-    return AddEntry(object, HeapEntry::kCode, "");
+  } else if (InstanceTypeChecker::IsInstructionStream(instance_type)) {
+    return AddEntry(object, HeapEntry::kCode, "system / InstructionStream");
+  } else if (InstanceTypeChecker::IsCode(instance_type)) {
+    return AddEntry(object, HeapEntry::kCode, "system / Code");
 
   } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
     Tagged<String> name = Cast<SharedFunctionInfo>(object)->Name();
     return AddEntry(object, HeapEntry::kCode, names_->GetName(name));
 
   } else if (InstanceTypeChecker::IsScript(instance_type)) {
-    Tagged<Object> name = Cast<Script>(object)->name();
-    return AddEntry(object, HeapEntry::kCode,
-                    IsString(name) ? names_->GetName(Cast<String>(name)) : "");
+    Tagged<Object> name_obj = Cast<Script>(object)->name();
+    const char* name = "system / Script";
+    if (IsString(name_obj)) {
+      name = names_->GetFormatted("%s / %s", name,
+                                  names_->GetName(Cast<String>(name_obj)));
+    }
+    return AddEntry(object, HeapEntry::kCode, name);
 
   } else if (InstanceTypeChecker::IsNativeContext(instance_type)) {
     const char* name = "system / NativeContext";
@@ -1049,9 +1054,6 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
       case kIcuBreakIteratorTag:
         name = "system / Managed<icu::BreakIterator>";
         break;
-      case kIcuUnicodeStringTag:
-        name = "system / Managed<icu::UnicodeString>";
-        break;
       case kIcuListFormatterTag:
         name = "system / Managed<icu::ListFormatter>";
         break;
@@ -1075,6 +1077,9 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
         break;
       case kIcuCollatorTag:
         name = "system / Managed<icu::Collator>";
+        break;
+      case kIcuBreakIteratorWithTextTag:
+        name = "system / Managed<IcuBreakIteratorWithText>";
         break;
       case kDisplayNamesInternalTag:
         name = "system / Managed<DisplayNamesInternal>";
@@ -1975,10 +1980,13 @@ void V8HeapExplorer::ExtractWeakCellReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::TagBuiltinCodeObject(Tagged<Code> code, const char* name) {
-  TagObject(code, names_->GetFormatted("(%s builtin code)", name));
+  TagObject(code, names_->GetFormatted("system / Code / %s (builtin)", name),
+            {}, true);
   if (code->has_instruction_stream()) {
-    TagObject(code->instruction_stream(),
-              names_->GetFormatted("(%s builtin instruction stream)", name));
+    TagObject(
+        code->instruction_stream(),
+        names_->GetFormatted("system / InstructionStream / %s (builtin)", name),
+        {}, true);
   }
 }
 
@@ -3027,9 +3035,7 @@ class NativeContextEnumerator : public RootVisitor {
 
 V8HeapExplorer::TemporaryNativeContextTags
 V8HeapExplorer::CollectTemporaryNativeContextTags() {
-  if (!global_object_name_resolver_ && !native_context_name_resolver_) {
-    return {};
-  }
+  if (!native_context_name_resolver_) return {};
 
   Isolate* isolate = heap_->isolate();
   TemporaryNativeContextTags native_context_tags;
@@ -3037,33 +3043,12 @@ V8HeapExplorer::CollectTemporaryNativeContextTags() {
   NativeContextEnumerator enumerator(
       isolate, [this, isolate, &native_context_tags](
                    DirectHandle<NativeContext> native_context) {
-        if (native_context_name_resolver_) {
-          v8::Local<v8::Context> context = Utils::ToLocal(native_context);
-          if (const char* tag =
-                  native_context_name_resolver_->GetName(context)) {
-            native_context_tags.emplace_back(
-                Global<v8::Context>(reinterpret_cast<v8::Isolate*>(isolate),
-                                    context),
-                tag);
-            native_context_tags.back().first.SetWeak();
-          }
-          return;
-        }
-
-        DirectHandle<JSObject> global(native_context->global_object(), isolate);
-        if (const char* tag =
-                global_object_name_resolver_->GetName(Utils::ToLocal(global))) {
-          native_context_tags.emplace_back(
-              Global<v8::Context>(reinterpret_cast<v8::Isolate*>(isolate),
-                                  Utils::ToLocal(native_context)),
-              tag);
-          native_context_tags.back().first.SetWeak();
-          return;
-        }
+        v8::Local<v8::Context> context = Utils::ToLocal(native_context);
+        const char* tag = native_context_name_resolver_->GetName(context);
         native_context_tags.emplace_back(
             Global<v8::Context>(reinterpret_cast<v8::Isolate*>(isolate),
-                                Utils::ToLocal(native_context)),
-            nullptr);
+                                context),
+            tag);
         native_context_tags.back().first.SetWeak();
       });
   isolate->global_handles()->IterateAllRoots(&enumerator);
@@ -3338,7 +3323,7 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
 
       if (auto* entry = EntryForEmbedderGraphNode(node.get())) {
         if (node->IsRootNode()) {
-          snapshot_->root()->SetIndexedAutoIndexReference(
+          snapshot_->gc_roots()->SetIndexedAutoIndexReference(
               HeapGraphEdge::kElement, entry, generator_,
               HeapEntry::kOffHeapPointer);
         }
@@ -3373,12 +3358,11 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
 
 HeapSnapshotGenerator::HeapSnapshotGenerator(
     HeapSnapshot* snapshot, v8::ActivityControl* control,
-    v8::HeapProfiler::ObjectNameResolver* resolver,
-    v8::HeapProfiler::ContextNameResolver* context_resolver, Heap* heap,
+    v8::HeapProfiler::ContextNameResolver* resolver, Heap* heap,
     cppgc::EmbedderStackState stack_state)
     : snapshot_(snapshot),
       control_(control),
-      v8_heap_explorer_(snapshot_, this, resolver, context_resolver),
+      v8_heap_explorer_(snapshot_, this, resolver),
       dom_explorer_(snapshot_, this),
       heap_(heap),
       stack_state_(stack_state) {}

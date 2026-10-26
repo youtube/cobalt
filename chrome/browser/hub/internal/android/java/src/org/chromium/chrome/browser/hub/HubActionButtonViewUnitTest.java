@@ -41,6 +41,10 @@ import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.test.BaseRobolectricTestRule;
 import org.chromium.base.test.util.Features;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.ui.actions.DelegateButtonData;
+import org.chromium.chrome.browser.ui.actions.DisplayButtonData;
+import org.chromium.chrome.browser.ui.actions.FullButtonData;
+import org.chromium.chrome.browser.ui.actions.ResourceButtonData;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
@@ -53,7 +57,6 @@ import java.util.Collection;
 @Features.DisableFeatures({
     ChromeFeatureList.ANDROID_SURFACE_COLOR_UPDATE,
     ChromeFeatureList.GRID_TAB_SWITCHER_SURFACE_COLOR_UPDATE,
-    ChromeFeatureList.GRID_TAB_SWITCHER_UPDATE
 })
 public class HubActionButtonViewUnitTest {
     // All the tests in this file will run twice, once for isXrDevice=true and once for
@@ -180,8 +183,13 @@ public class HubActionButtonViewUnitTest {
 
     @Test
     public void testColorMixer() {
-        // Verify that color mixer was set on the button
         mPropertyModel.set(COLOR_MIXER, mColorMixer);
-        verify(mColorMixer).registerBlend(any());
+
+        if (HubUtils.isGtsUpdateEnabled()) {
+            verify(mColorMixer, times(2)).registerBlend(any());
+        } else {
+            // Behaves differently on XR devices.
+            verify(mColorMixer).registerBlend(any());
+        }
     }
 }

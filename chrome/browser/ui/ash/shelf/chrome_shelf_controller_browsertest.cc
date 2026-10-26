@@ -30,6 +30,7 @@
 #include "ash/shelf/shelf_view_test_api.h"
 #include "ash/shelf/shelf_widget.h"
 #include "ash/shell.h"
+#include "ash/webui/settings/public/constants/routes_util.h"
 #include "ash/wm/desks/desk.h"
 #include "ash/wm/desks/desks_controller.h"
 #include "ash/wm/desks/desks_test_util.h"
@@ -79,7 +80,6 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
-#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/extensions/app_launch_params.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
@@ -1068,7 +1068,6 @@ IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTest, LaunchAppFromDisplayWithoutFocus0) {
 
   // Ensures that display 0 has one browser with focus and display 1 has two
   // browsers. Each browser only has one tab.
-  BrowserList* browser_list = BrowserList::GetInstance();
   BrowserWindowInterface* const browser0 = browser();
   BrowserWindowInterface* const browser1 = CreateBrowser(browser()->profile());
   BrowserWindowInterface* const browser2 = CreateBrowser(browser()->profile());
@@ -1076,8 +1075,8 @@ IN_PROC_BROWSER_TEST_F(ShelfAppBrowserTest, LaunchAppFromDisplayWithoutFocus0) {
   browser1->GetWindow()->SetBounds(displays[1].work_area());
   browser2->GetWindow()->SetBounds(displays[1].work_area());
   // Ensures browser 2 is above browser 1 in display 1.
-  browser_list->SetLastActive(browser2->GetBrowserForMigrationOnly());
-  browser_list->SetLastActive(browser0->GetBrowserForMigrationOnly());
+  ui_test_utils::DeprecatedFakeActivateBrowser(browser2);
+  ui_test_utils::DeprecatedFakeActivateBrowser(browser0);
   EXPECT_EQ(chrome::GetTotalBrowserCount(), 3U);
   EXPECT_EQ(displays[0].id(),
             GetDisplayIdForBrowserWindow(browser0->GetWindow()));
@@ -2347,10 +2346,10 @@ IN_PROC_BROWSER_TEST_F(ShelfWebAppBrowserTest, SettingsAndTaskManagerWindows) {
   // Open a settings window. Number of browser items should remain unchanged,
   // number of shelf items should increase.
   settings_manager->ShowChromePageForProfile(
-      browser()->profile(), chrome::GetOSSettingsUrl(std::string()),
+      browser()->profile(), chromeos::settings::GetOSSettingsUrl(std::string()),
       display::kInvalidDisplayId,
-      base::BindOnce([](apps::LaunchResult&& result) {
-        EXPECT_EQ(apps::State::kSuccess, result.state);
+      base::BindOnce([](apps::LaunchResult result) {
+        EXPECT_EQ(apps::LaunchResult::kSuccess, result);
       }).Then(run_loop.QuitClosure()));
   // Spin a run loop to sync Ash's ShelfModel change for the settings window.
   run_loop.Run();

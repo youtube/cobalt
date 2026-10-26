@@ -4333,6 +4333,99 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
 }
 #endif  // defined(USE_AURA)
 
+// Verify that existing forward entries are pruned when the setting is changed.
+IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
+                       FlushForwardEntriesOnSettingChange) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_b(embedded_test_server()->GetURL("b.com", "/title1.html"));
+
+  // Navigate A -> B.
+  EXPECT_TRUE(NavigateToURL(shell(), url_a));
+  RenderFrameHostImplWrapper rfh_a(current_frame_host());
+
+  EXPECT_TRUE(NavigateToURL(shell(), url_b));
+  RenderFrameHostImplWrapper rfh_b(current_frame_host());
+
+  // A should be in BFCache.
+  EXPECT_TRUE(rfh_a->IsInBackForwardCache());
+
+  // Go back to A.
+  ASSERT_TRUE(HistoryGoBack(web_contents()));
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), url_a);
+
+  // B should be in BFCache.
+  EXPECT_TRUE(rfh_b->IsInBackForwardCache());
+
+  // Disable forward caching via the embedder setting.
+  web_contents()
+      ->GetController()
+      .GetBackForwardCache()
+      .SetEmbedderSuppliedCacheForwardEntriesAllowed(false);
+
+  // B should be evicted immediately.
+  ASSERT_TRUE(rfh_b.WaitUntilRenderFrameDeleted());
+
+  // A is still active and should be unaffected.
+  EXPECT_EQ(rfh_a.get(), current_frame_host());
+
+  // Go forward to B to check if the NotRestoredReason is logged correctly.
+  base::HistogramTester histogram_tester;
+  ASSERT_TRUE(HistoryGoForward(web_contents()));
+  histogram_tester.ExpectBucketCount(
+      "BackForwardCache.HistoryNavigationOutcome.NotRestoredReason",
+      NotRestoredReason::kForwardCacheDisabled, 1);
+}
+
+// Verify that a page is not cached if it is a forward entry upon navigation.
+IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTest,
+                       DoNotCacheForwardEntryOnBackNavigation) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_b(embedded_test_server()->GetURL("b.com", "/title1.html"));
+  GURL url_c(embedded_test_server()->GetURL("c.com", "/title1.html"));
+
+  // Disable forward caching.
+  web_contents()
+      ->GetController()
+      .GetBackForwardCache()
+      .SetEmbedderSuppliedCacheForwardEntriesAllowed(false);
+
+  // Navigate A -> B.
+  EXPECT_TRUE(NavigateToURL(shell(), url_a));
+  RenderFrameHostImplWrapper rfh_a(current_frame_host());
+  EXPECT_TRUE(NavigateToURL(shell(), url_b));
+  RenderFrameHostImplWrapper rfh_b(current_frame_host());
+
+  // A should be in BFCache.
+  EXPECT_TRUE(rfh_a->IsInBackForwardCache());
+
+  // Go back to A, which should evict B.
+  ASSERT_TRUE(HistoryGoBack(web_contents()));
+  ASSERT_TRUE(rfh_b.WaitUntilRenderFrameDeleted());
+
+  // Navigate to B -> C.
+  ASSERT_TRUE(NavigateToURL(shell(), url_b));
+  RenderFrameHostImplWrapper rfh_b2(current_frame_host());
+  ASSERT_TRUE(NavigateToURL(shell(), url_c));
+  RenderFrameHostImplWrapper rfh_c(current_frame_host());
+
+  // Back to A, which should evict B and C.
+  ASSERT_TRUE(HistoryGoToOffset(web_contents(), -2));
+  ASSERT_TRUE(rfh_b2.WaitUntilRenderFrameDeleted());
+  ASSERT_TRUE(rfh_c.WaitUntilRenderFrameDeleted());
+  EXPECT_EQ(web_contents()->GetLastCommittedURL(), url_a);
+
+  // Go forward to B and C to check if the NotRestoredReason is logged
+  // correctly.
+  base::HistogramTester histogram_tester;
+  ASSERT_TRUE(HistoryGoForward(web_contents()));
+  ASSERT_TRUE(HistoryGoForward(web_contents()));
+  histogram_tester.ExpectBucketCount(
+      "BackForwardCache.HistoryNavigationOutcome.NotRestoredReason",
+      NotRestoredReason::kForwardCacheDisabled, 2);
+}
+
 class BackForwardCacheBrowserTestWithFencedFrames
     : public BackForwardCacheBrowserTest {
  public:
@@ -4611,7 +4704,8 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTestWithFencedFrames,
       web_contents()
           ->GetController()
           .GetBackForwardCache()
-          .GetCurrentBackForwardCacheEligibility(rfh_a.get());
+          .GetCurrentBackForwardCacheEligibility(
+              rfh_a.get(), /*is_becoming_forward_entry=*/false);
   ASSERT_TRUE(can_store_result.tree_reasons);
 
   // 4. Check that tree results refers only to the fenced frames. We should
@@ -4748,6 +4842,106 @@ IN_PROC_BROWSER_TEST_F(BackForwardCacheBrowserTestReloadHiddenTabsWithCrashedSub
     histograms.ExpectUniqueSample(
         "Navigation.LoadIfNecessaryType",
         NavigationControllerImpl::NeedsReloadType::kCrashedSubframe, 0);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(HighCacheSizeBackForwardCacheBrowserTest,
+                       RecordForwardEntriesCountMetrics) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_b(embedded_test_server()->GetURL("b.com", "/title1.html"));
+  GURL url_c(embedded_test_server()->GetURL("c.com", "/title1.html"));
+
+  // 1. Setup: A -> B -> C.
+  EXPECT_TRUE(NavigateToURL(shell(), url_a));
+  EXPECT_TRUE(NavigateToURL(shell(), url_b));
+  EXPECT_TRUE(NavigateToURL(shell(), url_c));
+
+  // 2. Go back to B (C is forward).
+  // Count should be 1.
+  {
+    base::HistogramTester histogram_tester;
+    ASSERT_TRUE(HistoryGoBack(web_contents()));
+    EXPECT_EQ(web_contents()->GetLastCommittedURL(), url_b);
+    histogram_tester.ExpectUniqueSample(
+        "BackForwardCache.History.ForwardEntriesCount", 1, 1);
+  }
+
+  // 3. Go back to A (B and C are forward).
+  // Count should be 2.
+  {
+    base::HistogramTester histogram_tester;
+    ASSERT_TRUE(HistoryGoBack(web_contents()));
+    EXPECT_EQ(web_contents()->GetLastCommittedURL(), url_a);
+    histogram_tester.ExpectUniqueSample(
+        "BackForwardCache.History.ForwardEntriesCount", 2, 1);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(HighCacheSizeBackForwardCacheBrowserTest,
+                       RecordEntryMatchMetrics) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_b(embedded_test_server()->GetURL("b.com", "/title1.html"));
+  GURL url_c(embedded_test_server()->GetURL("c.com", "/title1.html"));
+
+  // 1. Navigate to A. No entries in BFCache.
+  {
+    base::HistogramTester histogram_tester;
+    EXPECT_TRUE(NavigateToURL(shell(), url_a));
+    histogram_tester.ExpectUniqueSample(
+        "BackForwardCache.History.EntryMatch",
+        BackForwardCacheImpl::BackForwardCacheEntryMatchResult::kNoEntries, 1);
+  }
+
+  // 2. Navigate A -> B.
+  // A(0) in BFCache. Target is B(1). URL mismatch.
+  {
+    base::HistogramTester histogram_tester;
+    EXPECT_TRUE(NavigateToURL(shell(), url_b));
+    histogram_tester.ExpectUniqueSample(
+        "BackForwardCache.History.EntryMatch",
+        BackForwardCacheImpl::BackForwardCacheEntryMatchResult::kNoMatch, 1);
+  }
+
+  // 3. Navigate B -> C.
+  // A(0) and B(1) in BFCache. Target is C(2). URL mismatch.
+  {
+    base::HistogramTester histogram_tester;
+    EXPECT_TRUE(NavigateToURL(shell(), url_c));
+    histogram_tester.ExpectUniqueSample(
+        "BackForwardCache.History.EntryMatch",
+        BackForwardCacheImpl::BackForwardCacheEntryMatchResult::kNoMatch, 1);
+  }
+
+  // 4. Go back to A (History Navigation).
+  // Metric is NOT recorded for BFCache restores.
+  {
+    base::HistogramTester histogram_tester;
+    ASSERT_TRUE(HistoryGoToOffset(web_contents(), -2));
+    EXPECT_EQ(web_contents()->GetLastCommittedURL(), url_a);
+    histogram_tester.ExpectTotalCount("BackForwardCache.History.EntryMatch", 0);
+  }
+
+  // 5. Navigate to B (Exact Index Match).
+  // B(1) and C(2) in BFCache. Target is B(1). Exact match.
+  {
+    base::HistogramTester histogram_tester;
+    EXPECT_TRUE(NavigateToURL(shell(), url_b));
+    histogram_tester.ExpectUniqueSample(
+        "BackForwardCache.History.EntryMatch",
+        BackForwardCacheImpl::BackForwardCacheEntryMatchResult::kMatchIndex, 1);
+  }
+
+  // 6. Navigate to A (Index Mismatch).
+  // A(0) and B(1) in BFCache. Target is A(0). Index mismatch.
+  {
+    base::HistogramTester histogram_tester;
+    EXPECT_TRUE(NavigateToURL(shell(), url_a));
+    histogram_tester.ExpectUniqueSample(
+        "BackForwardCache.History.EntryMatch",
+        BackForwardCacheImpl::BackForwardCacheEntryMatchResult::kMatchNoIndex,
+        1);
   }
 }
 

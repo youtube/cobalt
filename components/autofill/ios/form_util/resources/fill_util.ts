@@ -23,6 +23,9 @@ class JsonSafeObject {
 // TODO(crbug.com/469457516): Update the variables in the classes to follow the
 // naming convention.
 /* eslint-disable @typescript-eslint/naming-convention */
+
+// TODO(crbug.com/493624186): Fix members asserted as non-null .
+/* eslint-disable no-restricted-syntax */
 export class AutofillFormFieldData extends JsonSafeObject {
   name!: string;
   value!: string;
@@ -31,7 +34,9 @@ export class AutofillFormFieldData extends JsonSafeObject {
   autocomplete_attribute!: string;
   max_length!: number;
   is_autofilled!: boolean;
-  is_user_edited!: boolean;
+  // TODO(crbug.com/393114125): Remove after fully launching
+  // `AutofillField::field_modifiers_`.
+  is_user_edited_deprecated!: boolean;
   is_checkable!: boolean;
   is_focusable!: boolean;
   should_autocomplete!: boolean;
@@ -59,6 +64,7 @@ export class AutofillFormData extends JsonSafeObject {
   name_attribute?: string;
   id_attribute?: string;
 }
+/* eslint-enable no-restricted-syntax */
 /* eslint-enable @typescript-eslint/naming-convention */
 
 export declare interface FrameTokenWithPredecessor {
@@ -70,7 +76,7 @@ export declare interface FrameTokenWithPredecessor {
  Name of the html attribute used for storing the remote frame token assigned to
  the current html document.
  */
-const REMOTE_FRAME_TOKEN_ATTRIBUTE = '__gChrome_remoteFrameToken';
+const REMOTE_FRAME_TOKEN_ATTRIBUTE = '__gCrRemoteFrameToken';
 
 /**
  * Acquires the specified DOM `attribute` from the DOM `element` and returns

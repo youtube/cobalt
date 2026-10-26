@@ -31,10 +31,6 @@ BASE_DECLARE_FEATURE(kContextualTasksContextMenu);
 // Enables context menu settings for contextual tasks.
 BASE_DECLARE_FEATURE(kContextualTasksSuggestionsEnabled);
 
-// Enables tab auto-chip for contextual tasks. When disabled, no suggested
-// chips will be shown in the composebox automatically.
-BASE_DECLARE_FEATURE(kContextualTasksTabAutoSuggestionChipEnabled);
-
 // Force the application locale to US and the gl query parameter to us.
 BASE_DECLARE_FEATURE(kContextualTasksForceCountryCodeUS);
 
@@ -47,9 +43,23 @@ BASE_DECLARE_FEATURE(
 // param.
 BASE_DECLARE_FEATURE(kEnableNotifyZeroStateRenderedCapability);
 
-// Replace the overflow menu in the side panel with an explicit button to move
-// the thread to a new tab.
-BASE_DECLARE_FEATURE(kContextualTasksExpandButton);
+// If enabled, adds the Sec-CH-UA-Full-Version-List header to all network
+// requests initiated from within an embedded Co-Browse <webview>.
+BASE_DECLARE_FEATURE(kContextualTasksSendFullVersionListEnabled);
+
+// When contextual tasks is disabled and this flag is enabled, intecept the
+// contextual tasks URL and redirect to aim URL.
+BASE_DECLARE_FEATURE(kContextualTasksUrlRedirectToAimUrl);
+
+// Enables the use of Stratus dark mode colors.
+BASE_DECLARE_FEATURE(kContextualTasksUseStratusDarkModeColors);
+
+// Enables use of TabListInterface::InsertWebContentsAt in
+// ContextualTasksUiService.
+BASE_DECLARE_FEATURE(kContextualTasksInsertWebContentsAt);
+
+// If enabled, animates the caret.
+BASE_DECLARE_FEATURE(kContextualTasksAnimatedCaret);
 
 // Enum denoting which entry point can show when enabled.
 enum class EntryPointOption {
@@ -57,6 +67,12 @@ enum class EntryPointOption {
   kPageActionRevisit,
   kToolbarRevisit,
   kToolbarPermanent
+};
+
+// Enum of expand button UI option
+enum class ExpandButtonOption {
+  kSidePanelExpandButton,
+  kToolbarCloseButton,
 };
 
 // Whether to only consider titles for similarity.
@@ -72,6 +88,9 @@ extern const base::FeatureParam<double>
 
 // Controls whether the contextual task page action should show
 extern const base::FeatureParam<EntryPointOption, true> kShowEntryPoint;
+
+// UI Options to expand the contextual tasks side panel to tab.
+extern const base::FeatureParam<ExpandButtonOption, true> kExpandButtonOptions;
 
 // If true, the side panel is task scoped. Meaning that for all tabs associated
 // with the same task, they will share the same side panel. If the side panel
@@ -153,6 +172,25 @@ extern bool ShouldForceBasicModeIfOpeningThreadHistory();
 // Returns the base URL for the AI page.
 extern std::string GetContextualTasksAiPageUrl();
 
+// Returns the base URL for a Gemini thread.
+extern std::string GetContextualTasksGeminiBaseUrl();
+
+// Returns scheme component of the "display url" associated with the contextual
+// tasks page.
+extern std::string GetContextualTasksDisplayUrlScheme();
+
+// Returns host component of the "display url" associated with the contextual
+// tasks page.
+extern std::string GetContextualTasksDisplayUrlHost();
+
+// Returns path component of the "display url" associated with the contextual
+// tasks page.
+extern std::string GetContextualTasksDisplayUrlPath();
+
+// Returns whether to show the expanded security chip in the location bar for
+// the contextual tasks page.
+extern bool ShouldShowExpandedSecurityChip();
+
 // Returns the host that all URLs loaded in the embedded page in the Contextual
 // Tasks WebUi should be routed to.
 extern std::string GetForcedEmbeddedPageHost();
@@ -162,6 +200,13 @@ extern std::vector<std::string> GetContextualTasksSignInDomains();
 
 // Whether the suggestions are enabled for Nextbox.
 extern bool GetIsContextualTasksSuggestionsEnabled();
+
+// Whether Smart Tab Sharing is enabled for the ContextualTasksContext feature.
+extern bool GetIsSmartTabSharingEnabled();
+
+// Enables tab auto-chip for contextual tasks. When disabled, no suggested
+// chips will be shown in the composebox automatically.
+extern bool GetIsTabAutoSuggestionChipEnabled();
 
 // Returns whether Lens is enabled in contextual tasks. When this is enabled,
 // Lens entry points will open results in the contextual tasks panels.
@@ -198,6 +243,9 @@ extern bool GetEnableNativeZeroStateSuggestions();
 // kChromeSyncOAuth2Scope.
 extern bool ShouldUseSearchResultsScope();
 
+// Returns whether basic mode should be enabled.
+extern bool GetIsBasicModeEnabled();
+
 // Returns whether the z-order of the composebox should be changed in basic mode.
 extern bool ShouldEnableBasicModeZOrder();
 
@@ -208,6 +256,15 @@ extern bool ShouldEnableCookieSync();
 // from AIM.
 extern bool ShouldEnableLockAndUnlockInputCapability();
 
+// Returns whether the Stratus dark mode colors should be used.
+extern bool ShouldUseStratusDarkModeColors();
+
+// Returns whether the file hint is enabled in the composebox.
+extern bool GetEnableFileHint();
+
+// Returns the UI option to expand contextual tasks side panel to tab.
+extern ExpandButtonOption GetExpandButtonOption();
+
 namespace flag_descriptions {
 
 extern const char kContextualTasksName[];
@@ -216,8 +273,6 @@ extern const char kContextualTasksContextLibraryName[];
 extern const char kContextualTasksContextLibraryDescription[];
 extern const char kContextualTasksContextName[];
 extern const char kContextualTasksContextDescription[];
-extern const char kContextualTasksExpandButtonName[];
-extern const char kContextualTasksExpandButtonDescription[];
 extern const char kContextualTasksSuggestionsEnabledName[];
 extern const char kContextualTasksSuggestionsEnabledDescription[];
 

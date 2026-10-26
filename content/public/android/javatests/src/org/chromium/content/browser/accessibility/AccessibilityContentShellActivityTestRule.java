@@ -378,6 +378,25 @@ public class AccessibilityContentShellActivityTestRule extends ContentShellActiv
         return returnValue;
     }
 
+    /**
+     * Helper method to set extended selection.
+     *
+     * @param viewId int virtualViewId of the node to which selection is assigned.
+     * @param startNodeId int virtualViewId of the start node.
+     * @param startNodeOffset int offset of the start node.
+     * @param endNodeId int virtualViewId of the end node.
+     * @param endNodeOffset int offset of the end node.
+     * @return boolean return value of setting selection.
+     */
+    public boolean setSelectionOnUiThread(
+            int viewId, int startNodeId, int startNodeOffset, int endNodeId, int endNodeOffset)
+            throws ExecutionException {
+        return ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        mWcax.setExtendedSelectionForTesting(
+                                viewId, startNodeId, startNodeOffset, endNodeId, endNodeOffset));
+    }
+
     /** Helper method for executing a given JS method for the current web contents. */
     public void executeJS(String method) {
         ThreadUtils.runOnUiThreadBlocking(

@@ -212,6 +212,14 @@ bool ElementAnimations::SetCompositedClipPathStatus(
     CompositedPaintStatus status) {
   if (status == ElementAnimations::CompositedPaintStatus::kNotComposited ||
       status == ElementAnimations::CompositedPaintStatus::kNoAnimation) {
+    if (clip_path_paint_worklet_candidate_ &&
+        clip_path_paint_worklet_candidate_->HasActiveAnimationsOnCompositor()) {
+      // This can some times be called during pre-paint, we need to ensure the
+      // animation is kept in sync!
+      clip_path_paint_worklet_candidate_->SetCompositorPending(
+          Animation::CompositorPendingReason::kPendingDowngrade);
+    }
+
     clip_path_paint_worklet_candidate_ = nullptr;
   }
 
@@ -229,6 +237,32 @@ bool ElementAnimations::SetCompositedBackgroundColorStatus(
     return true;
   }
   return false;
+}
+
+void ElementAnimations::CancelCompositedAnimationsAffectingProperties(
+    const CSSBitset& property_bitset) {
+  for (auto& entry : animations_) {
+    if (!entry.key->HasActiveAnimationsOnCompositor()) {
+      continue;
+    }
+    KeyframeEffect* effect = DynamicTo<KeyframeEffect>(entry.key->effect());
+    if (!effect) {
+      continue;
+    }
+
+    for (const auto& property : effect->Model()->DynamicProperties()) {
+      if (!property.IsCSSProperty()) {
+        continue;
+      }
+      if (property_bitset.Has(property.GetCSSProperty().PropertyID())) {
+        entry.key->SetCompositorPending(
+            Animation::CompositorPendingReason::kPendingCancel);
+        // No need to check the remaining properties once we have forced the
+        // fallback to a main-thread animation.
+        break;
+      }
+    }
+  }
 }
 
 }  // namespace blink

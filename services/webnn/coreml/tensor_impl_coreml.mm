@@ -25,6 +25,7 @@
 #include "services/webnn/public/mojom/webnn_tensor.mojom.h"
 #include "services/webnn/queueable_resource_state.h"
 #include "services/webnn/resource_task.h"
+#include "services/webnn/scoped_gpu_sequence.h"
 
 namespace webnn::coreml {
 
@@ -141,7 +142,7 @@ MLMultiArray* CreateMultiArrayBackedByIOSurface(OperandDescriptor descriptor) {
 base::expected<scoped_refptr<WebNNTensorImpl>, mojom::ErrorPtr>
 TensorImplCoreml::Create(
     mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
-    base::WeakPtr<WebNNContextImpl> context,
+    WebNNContextImpl& context,
     mojom::TensorInfoPtr tensor_info) {
   // TODO(crbug.com/329482489): Move this check to the renderer and throw a
   // TypeError.
@@ -179,7 +180,7 @@ TensorImplCoreml::Create(
       base::MakeRefCounted<QueueableResourceState<BufferContent>>(
           std::move(buffer_content));
   return base::MakeRefCounted<TensorImplCoreml>(
-      std::move(receiver), std::move(context), std::move(tensor_info),
+      std::move(receiver), context, std::move(tensor_info),
       std::move(buffer_state),
       /*representation=*/
       RepresentationPtr{nullptr, OnTaskRunnerDeleter(nullptr)},
@@ -190,7 +191,7 @@ TensorImplCoreml::Create(
 base::expected<scoped_refptr<WebNNTensorImpl>, mojom::ErrorPtr>
 TensorImplCoreml::Create(
     mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
-    base::WeakPtr<WebNNContextImpl> context,
+    WebNNContextImpl& context,
     mojom::TensorInfoPtr tensor_info,
     RepresentationPtr representation) {
   if (tensor_info->descriptor.data_type() != OperandDataType::kFloat16) {
@@ -249,20 +250,20 @@ TensorImplCoreml::Create(
       base::MakeRefCounted<QueueableResourceState<BufferContent>>(
           std::move(buffer_content));
   return base::MakeRefCounted<TensorImplCoreml>(
-      std::move(receiver), std::move(context), std::move(tensor_info),
+      std::move(receiver), context, std::move(tensor_info),
       std::move(buffer_state), std::move(representation),
       base::PassKey<TensorImplCoreml>());
 }
 
 TensorImplCoreml::TensorImplCoreml(
     mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
-    base::WeakPtr<WebNNContextImpl> context,
+    WebNNContextImpl& context,
     mojom::TensorInfoPtr tensor_info,
     scoped_refptr<QueueableResourceState<BufferContent>> buffer_state,
     RepresentationPtr representation,
     base::PassKey<TensorImplCoreml> /*pass_key*/)
     : WebNNTensorImpl(std::move(receiver),
-                      std::move(context),
+                      context,
                       std::move(tensor_info),
                       std::move(representation)),
       buffer_state_(std::move(buffer_state)) {}
@@ -384,19 +385,13 @@ void TensorImplCoreml::ExportTensorImpl(ScopedAccessPtr access,
               return;
             }
 
-            context->scheduler_task_runner()->PostTask(
-                FROM_HERE,
-                base::BindOnce(
-                    [](base::WeakPtr<WebNNContextImpl> context,
-                       ExportTensorCallback callback) {
-                      if (!context) {
-                        return;
-                      }
-                      std::move(callback).Run(context->GenVerifiedSyncToken());
-                    },
-                    context, std::move(callback)));
+            // Schedule a task first to ensure export waits until ResourceTask
+            // completes.
+            context->gpu_sequence()->ScheduleGpuTask(base::DoNothing());
+            std::move(callback).Run(
+                context->gpu_sequence()->GenVerifiedSyncToken());
           },
-          context_, std::move(callback)));
+          context_->AsWeakPtr(), std::move(callback)));
   task->Enqueue();
 }
 

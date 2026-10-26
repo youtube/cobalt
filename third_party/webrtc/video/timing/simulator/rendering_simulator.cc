@@ -19,6 +19,7 @@
 #include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
 #include "api/environment/environment.h"
+#include "api/numerics/samples_stats_counter.h"
 #include "api/sequence_checker.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
@@ -248,6 +249,21 @@ RenderingSimulator::Results RenderingSimulator::Simulate(
   // Return.
   SortByStreamOrder(results.streams);
   return results;
+}
+
+SamplesStatsCounter RenderingSimulator::Stream::InterRenderTimeMs() {
+  SortByRenderOrder(frames);
+  return BuildSamplesMs(&InterRenderTime);
+}
+
+SamplesStatsCounter RenderingSimulator::Stream::InterDecodedTimeMs() {
+  SortByDecodedOrder(frames);
+  return BuildSamplesMs(&InterDecodedTime);
+}
+
+SamplesStatsCounter RenderingSimulator::Stream::InterRenderedTimeMs() {
+  SortByRenderedOrder(frames);
+  return BuildSamplesMs(&InterRenderedTime);
 }
 
 }  // namespace webrtc::video_timing_simulator

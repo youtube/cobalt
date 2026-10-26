@@ -35,7 +35,9 @@ class RenderViewContextMenuViews : public RenderViewContextMenu {
   // Factory function to create an instance.
   static RenderViewContextMenuViews* Create(
       content::RenderFrameHost& render_frame_host,
-      const content::ContextMenuParams& params);
+      const content::ContextMenuParams& params,
+      bool is_paste_enabled,
+      bool is_paste_and_match_style_enabled);
 
   void RunMenuAt(views::Widget* parent,
                  const gfx::Point& point,
@@ -48,7 +50,9 @@ class RenderViewContextMenuViews : public RenderViewContextMenu {
 
  protected:
   RenderViewContextMenuViews(content::RenderFrameHost& render_frame_host,
-                             const content::ContextMenuParams& params);
+                             const content::ContextMenuParams& params,
+                             bool is_paste_enabled,
+                             bool is_paste_and_match_style_enabled);
 
   // RenderViewContextMenu implementation.
   bool GetAcceleratorForCommandId(int command_id,

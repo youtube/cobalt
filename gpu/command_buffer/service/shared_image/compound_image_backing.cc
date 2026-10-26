@@ -51,10 +51,6 @@
 namespace gpu {
 namespace {
 
-// Allows CompoundImageBacking to allocate backings during runtime if a
-// compatible backing to serve clients requested usage is not already present.
-BASE_FEATURE(kUseDynamicBackingAllocations, base::FEATURE_DISABLED_BY_DEFAULT);
-
 constexpr AccessStreamSet kMemoryStreamSet = {SharedImageAccessStream::kMemory};
 
 // Unique GUIDs for child backings.
@@ -320,6 +316,9 @@ class WrappedSkiaGraphiteCompoundImageRepresentation
   // SkiaGraphiteImageRepresentation implementation.
   bool SupportsMultipleConcurrentReadAccess() final {
     return wrapped_->SupportsMultipleConcurrentReadAccess();
+  }
+  bool SupportsDeferredGraphiteSubmit() final {
+    return wrapped_->SupportsDeferredGraphiteSubmit();
   }
 
   std::vector<sk_sp<SkSurface>> BeginWriteAccess(
@@ -736,7 +735,8 @@ std::unique_ptr<SharedImageBacking> CompoundImageBacking::Create(
 
   auto* gpu_backing_factory = shared_image_factory->GetFactoryByUsage(
       GetGpuSharedImageUsage(SharedImageUsageSet(usage)), format, size,
-      /*pixel_data=*/{}, gfx::EMPTY_BUFFER);
+      /*pixel_data=*/{}, gfx::EMPTY_BUFFER, /*stream=*/std::nullopt,
+      /*params=*/nullptr);
   if (!gpu_backing_factory) {
     return nullptr;
   }
@@ -776,7 +776,8 @@ std::unique_ptr<SharedImageBacking> CompoundImageBacking::Create(
 
   auto* gpu_backing_factory = shared_image_factory->GetFactoryByUsage(
       GetGpuSharedImageUsage(SharedImageUsageSet(usage)), format, size,
-      /*pixel_data=*/{}, gfx::EMPTY_BUFFER);
+      /*pixel_data=*/{}, gfx::EMPTY_BUFFER, /*stream=*/std::nullopt,
+      /*params=*/nullptr);
   if (!gpu_backing_factory) {
     return nullptr;
   }
@@ -926,7 +927,7 @@ CompoundImageBacking::CompoundImageBacking(
 
   // Whenever CompoundImageBacking is created with a shm backing, mark it as
   // fully cleared.
-  SetClearedRect(gfx::Rect(size));
+  SetClearedRectInternal(gfx::Rect(size));
 
   // Create placeholder for GPU-backed element (streams = all except kMemory).
   ElementHolder gpu_element;
@@ -938,7 +939,7 @@ CompoundImageBacking::CompoundImageBacking(
   gpu_element.create_callback =
       base::BindOnce(&CompoundImageBacking::CreateBackingFromBackingFactory,
                      base::Unretained(this), std::move(gpu_backing_factory),
-                     std::move(debug_label));
+                     std::move(debug_label), GetGpuSharedImageUsage(usage));
   elements_.push_back(std::move(gpu_element));
   max_elements_allocated_ = 2;
 }
@@ -982,7 +983,7 @@ CompoundImageBacking::CompoundImageBacking(
 
   // |backing| may have a cleared rect set (e.g. from initial pixel data).
   // Propagate this to the CompoundImageBacking to keep them in sync.
-  ClearTrackingSharedImageBacking::SetClearedRect(backing->ClearedRect());
+  SetClearedRectInternal(backing->ClearedRect());
 
   // The backing is already created, so this is not a lazy initialization.
   element.backing = std::move(backing);
@@ -1006,9 +1007,11 @@ CompoundImageBacking::~CompoundImageBacking() {
 void CompoundImageBacking::NotifyBeginAccess(SharedImageBacking* backing,
                                              RepresentationAccessMode mode,
                                              SharedImageAccessStream stream) {
+  AutoLock auto_lock(this);
   ElementHolder* access_element = GetElement(backing);
   if (!access_element) {
-    LOG(ERROR) << "backing not in the element list.";
+    LOG(ERROR) << "Backing (" << backing->GetName()
+               << ") not in the element list";
     return;
   }
 
@@ -1034,14 +1037,22 @@ void CompoundImageBacking::NotifyBeginAccess(SharedImageBacking* backing,
     if (copy_succeeded) {
       updated_backing = true;
 
-      // Propagate the clear rect from the source backing.
+      // Propagate the clear rect from the source backing to the destination
+      // backing as well as all the other child backings and
+      // CompoundImageBacking.
       const gfx::Rect src_cleared_rect =
           latest_content_element->GetBacking()->ClearedRect();
-      access_element->GetBacking()->SetClearedRect(src_cleared_rect);
-      SetClearedRect(src_cleared_rect);
+      SetClearedRectInternal(src_cleared_rect);
+      for (auto& element : elements_) {
+        if (element.backing) {
+          element.backing->SetClearedRect(src_cleared_rect);
+        }
+      }
     } else {
-      LOG(ERROR)
-          << "Failed to copy between backings. Backing can be using stale data";
+      LOG(ERROR) << "Failed to copy from "
+                 << latest_content_element->GetBacking()->GetName() << " to "
+                 << access_element->GetBacking()->GetName()
+                 << ". Backing can be using stale data";
     }
 
     UMA_HISTOGRAM_BOOLEAN("GPU.CompoundImageBacking.ContentSync.Success",
@@ -1079,6 +1090,7 @@ void CompoundImageBacking::NotifyBeginAccess(SharedImageBacking* backing,
 
 void CompoundImageBacking::NotifyEndAccess(SharedImageBacking* backing,
                                            RepresentationAccessMode mode) {
+  AutoLock auto_lock(this);
   CHECK(backing);
 
   // If the last access was a write and an underlying backing was accessed,
@@ -1086,13 +1098,50 @@ void CompoundImageBacking::NotifyEndAccess(SharedImageBacking* backing,
   if (mode == RepresentationAccessMode::kWrite) {
     auto cleared_rect = backing->ClearedRect();
     if (cleared_rect != ClearedRect()) {
-      ClearTrackingSharedImageBacking::SetClearedRect(cleared_rect);
+      SetClearedRectInternal(cleared_rect);
+    }
+
+    // When is_thread_safe() is true, multiple threads can access the backings.
+    // If a GL backing was written to, we proactively sync its content to all
+    // other backings. This is required to support multithreading scenarios
+    // where GL access happens on the GPU main thread and skia or other kind of
+    // access happens on a different thread. Note that this is only enabled when
+    // kUseDynamicBackingAllocations is enabled where CompoundImageBacking can
+    // dynamically allocate GL backing on a different thread during runtime.
+    // When dynamic allocations are not enabled, existing backings already
+    // handles the proactive sync where needed (eg:
+    // WrappedGraphiteTextureBacking via
+    // GLTexturePassthroughFallbackImageRepresentation). Note that this solution
+    // will not work if we start with GLTextureImageBacking and than want to
+    // reallocate on a different thread where we can't access GL texture. We
+    // will need to handle that case with another solution.
+    // Also note that we are copying back to all the backings here, even to
+    // those that will never be read. This can be a performance bottleneck when
+    // there are multiple backings.
+    if (base::FeatureList::IsEnabled(
+            features::kUseCompoundImageBackingAsDefault) &&
+        base::FeatureList::IsEnabled(features::kUseDynamicBackingAllocations) &&
+        is_thread_safe() &&
+        (backing->GetType() == SharedImageBackingType::kGLTexture)) {
+      for (auto& element : elements_) {
+        auto* dst_backing = element.GetBacking();
+        if (dst_backing && dst_backing != backing &&
+            element.content_id_ != latest_content_id_) {
+          if (copy_manager_->CopyImage(backing, dst_backing)) {
+            element.content_id_ = latest_content_id_;
+          } else {
+            LOG(ERROR) << "DCSI: Proactive copy from " << backing->GetName()
+                       << " to " << dst_backing->GetName() << " failed.";
+          }
+        }
+      }
     }
   }
 }
 
 void CompoundImageBacking::OnContextLost() {
   ClearTrackingSharedImageBacking::OnContextLost();
+  AutoLock auto_lock(this);
   for (const auto& element : elements_) {
     if (element.backing) {
       element.backing->OnContextLost();
@@ -1115,6 +1164,7 @@ void CompoundImageBacking::Update(std::unique_ptr<gfx::GpuFence> in_fence) {
   // created only at initialization time. Hence it is guaranteed to be at
   // elements_[0].
   // 3. |elements_| always contains at least one element.
+  AutoLock auto_lock(this);
   CHECK(!elements_.empty());
   auto& element = elements_[0];
   CHECK(element.backing);
@@ -1127,6 +1177,7 @@ void CompoundImageBacking::Update(std::unique_ptr<gfx::GpuFence> in_fence) {
 }
 
 bool CompoundImageBacking::CopyToGpuMemoryBuffer() {
+  AutoLock auto_lock(this);
   auto& shm_element = GetShmElement();
 
   if (HasLatestContent(shm_element)) {
@@ -1136,7 +1187,8 @@ bool CompoundImageBacking::CopyToGpuMemoryBuffer() {
   auto* gpu_backing = GetGpuBacking();
   if (!gpu_backing ||
       !copy_manager_->CopyImage(gpu_backing, shm_element.GetBacking())) {
-    DLOG(ERROR) << "Failed to copy from GPU backing to shared memory";
+    LOG(ERROR) << "Failed to copy from GPU backing (" << gpu_backing->GetName()
+               << ") to shared memory";
     return false;
   }
 
@@ -1146,6 +1198,7 @@ bool CompoundImageBacking::CopyToGpuMemoryBuffer() {
 
 void CompoundImageBacking::CopyToGpuMemoryBufferAsync(
     base::OnceCallback<void(bool)> callback) {
+  AutoLock auto_lock(this);
   auto& shm_element = GetShmElement();
 
   if (HasLatestContent(shm_element)) {
@@ -1161,7 +1214,8 @@ void CompoundImageBacking::CopyToGpuMemoryBufferAsync(
 
   auto* gpu_backing = GetGpuBacking();
   if (!gpu_backing) {
-    DLOG(ERROR) << "Failed to copy from GPU backing to shared memory";
+    LOG(ERROR) << "Failed to copy from GPU backing (" << gpu_backing->GetName()
+               << ") to shared memory";
     std::move(callback).Run(false);
     return;
   }
@@ -1175,6 +1229,7 @@ void CompoundImageBacking::CopyToGpuMemoryBufferAsync(
 }
 
 void CompoundImageBacking::OnCopyToGpuMemoryBufferComplete(bool success) {
+  AutoLock auto_lock(this);
   if (success) {
     auto& shm_element = GetShmElement();
     shm_element.content_id_ = latest_content_id_;
@@ -1185,11 +1240,12 @@ void CompoundImageBacking::OnCopyToGpuMemoryBufferComplete(bool success) {
 gfx::Rect CompoundImageBacking::ClearedRect() const {
   // If we have a shm_backing, we always copy on access and mark entire backing
   // as cleared.
-  return ClearTrackingSharedImageBacking::ClearedRect();
+  return ClearedRectInternal();
 }
 
 void CompoundImageBacking::SetClearedRect(const gfx::Rect& cleared_rect) {
-  ClearTrackingSharedImageBacking::SetClearedRect(cleared_rect);
+  AutoLock auto_lock(this);
+  SetClearedRectInternal(cleared_rect);
 
   // Propagate the cleared rect to all underlying backings. This is important
   // because SetClearedRect can be called on a CompoundImageBacking without a
@@ -1205,6 +1261,7 @@ void CompoundImageBacking::SetClearedRect(const gfx::Rect& cleared_rect) {
 }
 
 void CompoundImageBacking::MarkForDestruction() {
+  AutoLock auto_lock(this);
   for (const auto& element : elements_) {
     if (element.backing) {
       element.backing->MarkForDestruction();
@@ -1221,6 +1278,7 @@ gfx::GpuMemoryBufferHandle CompoundImageBacking::GetGpuMemoryBufferHandle() {
   // created only at initialization time and never allocated dynamically during
   // runtime. Hence it is guaranteed to be at elements_[0].
   // 2. |elements_| always contains at least one element.
+  AutoLock auto_lock(this);
   CHECK(!elements_.empty());
   auto& element = elements_[0];
   CHECK(element.backing);
@@ -1231,6 +1289,7 @@ scoped_refptr<gfx::NativePixmap> CompoundImageBacking::GetNativePixmap() {
   // The purpose of this function is to get NativePixmap for overlay testing,
   // so it needs be the same NativePixmap that we would later get from the
   // ProduceOverlay representation. Hence using Overlay stream backing here.
+  AutoLock auto_lock(this);
   for (const auto& element : elements_) {
     if (element.access_streams.Has(SharedImageAccessStream::kOverlay) &&
         element.backing) {
@@ -1247,7 +1306,11 @@ std::unique_ptr<DawnImageRepresentation> CompoundImageBacking::ProduceDawn(
     wgpu::BackendType backend_type,
     std::vector<wgpu::TextureFormat> view_formats,
     scoped_refptr<SharedContextState> context_state) {
-  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kDawn);
+  AccessParams access_params;
+  access_params.wgpu_device = device;
+  access_params.context_state = context_state;
+  auto* backing =
+      GetOrAllocateBacking(SharedImageAccessStream::kDawn, access_params);
   if (!backing)
     return nullptr;
 
@@ -1267,7 +1330,11 @@ CompoundImageBacking::ProduceDawnBuffer(
     const wgpu::Device& device,
     wgpu::BackendType backend_type,
     scoped_refptr<SharedContextState> context_state) {
-  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kDawnBuffer);
+  AccessParams access_params;
+  access_params.wgpu_device = device;
+  access_params.context_state = context_state;
+  auto* backing =
+      GetOrAllocateBacking(SharedImageAccessStream::kDawnBuffer, access_params);
   if (!backing) {
     return nullptr;
   }
@@ -1285,7 +1352,13 @@ CompoundImageBacking::ProduceDawnBuffer(
 std::unique_ptr<GLTextureImageRepresentation>
 CompoundImageBacking::ProduceGLTexture(SharedImageManager* manager,
                                        MemoryTypeTracker* tracker) {
-  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kGL);
+  // For GLTextureImageRepresentation, the SharedImageAccessStream::kGL is
+  // specific enough for backing selection. While AccessParams could be extended
+  // in the future to include GL context information for stricter correctness
+  // checks (e.g., ensuring a backing created on one GL context isn't used on
+  // another, unless it's an EglImageBacking), it is not currently needed.
+  auto* backing =
+      GetOrAllocateBacking(SharedImageAccessStream::kGL, AccessParams());
   if (!backing)
     return nullptr;
 
@@ -1300,7 +1373,12 @@ CompoundImageBacking::ProduceGLTexture(SharedImageManager* manager,
 std::unique_ptr<GLTexturePassthroughImageRepresentation>
 CompoundImageBacking::ProduceGLTexturePassthrough(SharedImageManager* manager,
                                                   MemoryTypeTracker* tracker) {
-  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kGL);
+  // For GLTexturePassthroughImageRepresentation, the
+  // SharedImageAccessStream::kGL is specific enough for backing selection.
+  // While AccessParams could be extended in the future to include GL context
+  // information for stricter correctness checks, it is not currently needed.
+  auto* backing =
+      GetOrAllocateBacking(SharedImageAccessStream::kGL, AccessParams());
   if (!backing)
     return nullptr;
 
@@ -1318,7 +1396,10 @@ CompoundImageBacking::ProduceSkiaGanesh(
     SharedImageManager* manager,
     MemoryTypeTracker* tracker,
     scoped_refptr<SharedContextState> context_state) {
-  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kSkia);
+  AccessParams access_params;
+  access_params.context_state = context_state;
+  auto* backing =
+      GetOrAllocateBacking(SharedImageAccessStream::kSkia, access_params);
   if (!backing)
     return nullptr;
 
@@ -1336,7 +1417,10 @@ CompoundImageBacking::ProduceSkiaGraphite(
     SharedImageManager* manager,
     MemoryTypeTracker* tracker,
     scoped_refptr<SharedContextState> context_state) {
-  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kSkia);
+  AccessParams access_params;
+  access_params.context_state = context_state;
+  auto* backing =
+      GetOrAllocateBacking(SharedImageAccessStream::kSkia, access_params);
   if (!backing) {
     return nullptr;
   }
@@ -1353,7 +1437,10 @@ CompoundImageBacking::ProduceSkiaGraphite(
 std::unique_ptr<OverlayImageRepresentation>
 CompoundImageBacking::ProduceOverlay(SharedImageManager* manager,
                                      MemoryTypeTracker* tracker) {
-  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kOverlay);
+  // For OverlayImageRepresentation, no specific context information is
+  // currently required for backing selection, so AccessParams is empty.
+  auto* backing =
+      GetOrAllocateBacking(SharedImageAccessStream::kOverlay, AccessParams());
   if (!backing)
     return nullptr;
 
@@ -1368,7 +1455,10 @@ CompoundImageBacking::ProduceOverlay(SharedImageManager* manager,
 std::unique_ptr<WebNNTensorRepresentation>
 CompoundImageBacking::ProduceWebNNTensor(SharedImageManager* manager,
                                          MemoryTypeTracker* tracker) {
-  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kWebNNTensor);
+  // For WebNNTensorRepresentation, no specific context information is
+  // currently required for backing selection, so AccessParams is empty.
+  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kWebNNTensor,
+                                       AccessParams());
   if (!backing) {
     return nullptr;
   }
@@ -1385,7 +1475,10 @@ CompoundImageBacking::ProduceWebNNTensor(SharedImageManager* manager,
 std::unique_ptr<MemoryImageRepresentation> CompoundImageBacking::ProduceMemory(
     SharedImageManager* manager,
     MemoryTypeTracker* tracker) {
-  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kMemory);
+  // For MemoryImageRepresentation, no specific context information is
+  // currently required for backing selection, so AccessParams is empty.
+  auto* backing =
+      GetOrAllocateBacking(SharedImageAccessStream::kMemory, AccessParams());
   if (!backing) {
     return nullptr;
   }
@@ -1403,7 +1496,8 @@ std::unique_ptr<VideoImageRepresentation> CompoundImageBacking::ProduceVideo(
     SharedImageManager* manager,
     MemoryTypeTracker* tracker,
     VideoDevice device) {
-  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kGL);
+  auto* backing =
+      GetOrAllocateBacking(SharedImageAccessStream::kGL, AccessParams());
   if (!backing) {
     return nullptr;
   }
@@ -1424,7 +1518,9 @@ std::unique_ptr<VulkanImageRepresentation> CompoundImageBacking::ProduceVulkan(
     gpu::VulkanDeviceQueue* vulkan_device_queue,
     gpu::VulkanImplementation& vulkan_impl,
     bool needs_detiling) {
-  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kVulkan);
+  // For VulkanImageRepresentation, AccessParams is not needed as of now.
+  auto* backing =
+      GetOrAllocateBacking(SharedImageAccessStream::kVulkan, AccessParams());
   if (!backing) {
     return nullptr;
   }
@@ -1448,6 +1544,7 @@ base::trace_event::MemoryAllocatorDump* CompoundImageBacking::OnMemoryDump(
     uint64_t client_tracing_id) {
   // Create dump but don't add scalar size. The size will be inferred from the
   // sizes of the sub-backings.
+  AutoLock auto_lock(this);
   base::trace_event::MemoryAllocatorDump* dump =
       pmd->CreateAllocatorDump(dump_name);
 
@@ -1470,7 +1567,26 @@ base::trace_event::MemoryAllocatorDump* CompoundImageBacking::OnMemoryDump(
     if (!backing)
       continue;
 
-    auto element_client_guid = GetSubBackingGUIDForTracing(mailbox(), i + 1);
+    // When CompoundImageBacking wraps a single backing, use the client's global
+    // Mailbox GUID instead of sub-backing GUID. This ensures correct effective
+    // size attribution to the client process where client claims all of the
+    // memory/effective_size(since client usually has higher
+    // TracingImportance(2) than service side (0)).
+    // This does not work well when CompoundImageBacking has multiple gpu
+    // backings. In that case, each child element creates its own sub-backing
+    // GUID and links to it rather than linking to global mailbox GUID. However,
+    // the client only knows about the single Global Mailbox GUID. As a result,
+    // the client claims the Global GUID, but the GPU service claims the memory
+    // for the individual Sub-Backing GUIDs. This leads to over-reporting
+    // (actual effective_size = Client Size + Sum of Sub-Backings instead of
+    // expected effective_size = Sum of Sub-Backings). This is currently a known
+    // architectural limitation that requires further design to unify memory
+    // attribution (e.g., via dynamic IPC updates to the client about total
+    // elements OR by shifting total ownership to the service with higher
+    // importance).
+    auto element_client_guid =
+        elements_.size() == 1 ? client_guid
+                              : GetSubBackingGUIDForTracing(mailbox(), i + 1);
     std::string element_dump_name =
         base::StringPrintf("%s/element_%d", dump_name.c_str(), i);
     backing->OnMemoryDump(element_dump_name, element_client_guid, pmd,
@@ -1480,6 +1596,7 @@ base::trace_event::MemoryAllocatorDump* CompoundImageBacking::OnMemoryDump(
 }
 
 const std::vector<SkPixmap>& CompoundImageBacking::GetSharedMemoryPixmaps() {
+  AutoLock auto_lock(this);
   auto* shm_backing = GetShmElement().GetBacking();
   DCHECK(shm_backing);
 
@@ -1522,7 +1639,9 @@ CompoundImageBacking::GetElementWithLatestContent() {
 }
 
 SharedImageBacking* CompoundImageBacking::GetOrAllocateBacking(
-    SharedImageAccessStream stream) {
+    SharedImageAccessStream stream,
+    const AccessParams& params) {
+  AutoLock auto_lock(this);
   ElementHolder* best_match = nullptr;
   ElementHolder* any_match = nullptr;
 
@@ -1531,7 +1650,8 @@ SharedImageBacking* CompoundImageBacking::GetOrAllocateBacking(
   // optimize this code by using better algorithm or more suitable data
   // structure later if needed.
   for (auto& element : elements_) {
-    if (element.access_streams.Has(stream) && element.GetBacking()) {
+    if (element.access_streams.Has(stream) && element.GetBacking() &&
+        element.GetBacking()->SupportsAccess(stream, params)) {
       if (element.content_id_ == latest_content_id_) {
         best_match = &element;
         break;
@@ -1550,18 +1670,18 @@ SharedImageBacking* CompoundImageBacking::GetOrAllocateBacking(
   // If no backing is found, we will try to create a new one. This feature is
   // disabled by default currently until SharedImageCopyManager is fully ready
   // to support all the existing gpu-gpu copy usages.
-  if (base::FeatureList::IsEnabled(kUseDynamicBackingAllocations) &&
+  if (base::FeatureList::IsEnabled(features::kUseDynamicBackingAllocations) &&
       shared_image_factory_) {
     SharedImageUsageSet usage = GetUsageFromAccessStream(stream);
     auto* gpu_backing_factory = shared_image_factory_->GetFactoryByUsage(
         usage, format(), size(),
-        /*pixel_data=*/{}, gfx::EMPTY_BUFFER);
+        /*pixel_data=*/{}, gfx::EMPTY_BUFFER, stream, &params);
 
     if (gpu_backing_factory) {
       ElementHolder element;
       element.access_streams.Put(stream);
       CreateBackingFromBackingFactory(gpu_backing_factory->GetWeakPtr(),
-                                      debug_label(), element.backing);
+                                      debug_label(), usage, element.backing);
       if (element.backing) {
         UMA_HISTOGRAM_ENUMERATION(
             "GPU.CompoundImageBacking.DynamicAllocation.BackingType",
@@ -1599,6 +1719,7 @@ SharedImageBacking* CompoundImageBacking::GetGpuBacking() {
 void CompoundImageBacking::CreateBackingFromBackingFactory(
     base::WeakPtr<SharedImageBackingFactory> factory,
     std::string debug_label,
+    SharedImageUsageSet usage,
     std::unique_ptr<SharedImageBacking>& backing) {
   if (!factory) {
     DLOG(ERROR) << "Can't allocate backing after image has been destroyed";
@@ -1607,9 +1728,8 @@ void CompoundImageBacking::CreateBackingFromBackingFactory(
 
   backing = factory->CreateSharedImage(
       mailbox(), format(), kNullSurfaceHandle, size(), color_space(),
-      surface_origin(), alpha_type(),
-      GetGpuSharedImageUsage(SharedImageUsageSet(usage())),
-      std::move(debug_label), /*is_thread_safe=*/false);
+      surface_origin(), alpha_type(), usage, std::move(debug_label),
+      /*is_thread_safe=*/false);
   if (!backing) {
     DLOG(ERROR) << "Failed to allocate GPU backing";
     return;
@@ -1639,7 +1759,6 @@ void CompoundImageBacking::CreateBackingFromBackingFactory(
       estimated_size += element.backing->GetEstimatedSize();
   }
 
-  AutoLock auto_lock(this);
   UpdateEstimatedSize(estimated_size);
 }
 
@@ -1652,6 +1771,7 @@ void CompoundImageBacking::OnAddSecondaryReference() {
   // SharedImage can outlive original factory ref and so potentially
   // SharedimageFactory. We should create all backings now as we might not have
   // access to corresponding SharedImageBackingFactories later.
+  AutoLock auto_lock(this);
   for (auto& element : elements_) {
     element.CreateBackingIfNecessary();
   }

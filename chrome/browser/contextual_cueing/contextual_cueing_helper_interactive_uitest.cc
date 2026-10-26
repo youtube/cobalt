@@ -10,7 +10,10 @@
 #include "chrome/browser/contextual_cueing/contextual_cueing_enums.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_features.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
+#include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
+#include "chrome/browser/glic/browser_ui/glic_nudge_delegate.h"
 #include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/test_support/interactive_glic_test.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
@@ -21,8 +24,6 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
-#include "chrome/browser/ui/tabs/glic_nudge_controller.h"
-#include "chrome/browser/ui/tabs/glic_nudge_delegate.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/glic/glic_button_interface.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
@@ -46,9 +47,7 @@
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "ui/base/l10n/l10n_util.h"
 
-#if BUILDFLAG(ENABLE_GLIC)
-
-class FakeGlicNudgeDelegate : public GlicNudgeDelegate {
+class FakeGlicNudgeDelegate : public glic::GlicNudgeDelegate {
  public:
   void OnTriggerGlicNudgeUI(std::string label) override {
     last_nudge_label_ = label;
@@ -115,12 +114,12 @@ class ContextualCueingHelperBrowserTest
             optimization_guide::proto::GLIC_CONTEXTUAL_CUEING, metadata);
   }
 
-  tabs::GlicNudgeController* glic_nudge_controller() {
+  glic::GlicNudgeController* glic_nudge_controller() {
     return browser()->browser_window_features()->glic_nudge_controller();
   }
 
   void SwapToFakeDelegate(FakeGlicNudgeDelegate& nudge_delegate) {
-    glic_nudge_controller()->SetDelegate(&nudge_delegate);
+    glic_nudge_controller()->SetTabStripDelegate(&nudge_delegate);
   }
 
   glic::TabStripGlicButton* GetGlicButtonForBrowser(Browser* browser) {
@@ -227,7 +226,7 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingHelperBrowserTest,
       static_cast<int64_t>(contextual_cueing::NudgeDecision::kSuccess));
   // Simulate nudge click.
   glic_nudge_controller()->OnNudgeActivity(
-      tabs::GlicNudgeActivity::kNudgeClicked);
+      glic::GlicNudgeActivity::kNudgeClicked);
 
   auto interaction_entries = ukm_recorder.GetEntriesByName(
       ukm::builders::ContextualCueing_NudgeInteraction::kEntryName);
@@ -687,4 +686,136 @@ IN_PROC_BROWSER_TEST_F(ContextualCueingHelperBrowserTest,
   }
 }
 
-#endif  // BUILDFLAG(ENABLE_GLIC)
+IN_PROC_BROWSER_TEST_F(ContextualCueingHelperBrowserTest,
+                       TestCueNotShownForMismatchedMimeType) {
+  base::HistogramTester histogram_tester;
+
+  optimization_guide::proto::GlicContextualCueingMetadata cueing_metadata;
+  auto* cueing_config = cueing_metadata.add_cueing_configurations();
+  cueing_config->set_cue_label("pdf cue label");
+  cueing_config->set_dynamic_cue_label("pdf dynamic cue label");
+  // This config only applies to PDF pages.
+  cueing_config->add_allowed_mime_types("application/pdf");
+  SetUpEnabledHints(cueing_metadata);
+
+  FakeGlicNudgeDelegate nudge_delegate;
+  SwapToFakeDelegate(nudge_delegate);
+
+  // Navigate to an HTML page - should NOT trigger the nudge since the
+  // config requires application/pdf.
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(),
+      https_server_.GetURL("enabled.com", "/optimization_guide/hello.html"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  EXPECT_FALSE(nudge_delegate.GetIsShowingGlicNudge());
+
+  histogram_tester.ExpectUniqueSample(
+      "ContextualCueing.NudgeDecision.GlicContextualCueing",
+      contextual_cueing::NudgeDecision::kClientConditionsUnmet, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualCueingHelperBrowserTest,
+                       TestCueShownForMatchingMimeType) {
+  base::HistogramTester histogram_tester;
+
+  optimization_guide::proto::GlicContextualCueingMetadata cueing_metadata;
+  auto* cueing_config = cueing_metadata.add_cueing_configurations();
+  cueing_config->set_cue_label("html cue label");
+  cueing_config->set_dynamic_cue_label("html dynamic cue label");
+  // This config applies to HTML pages, which matches our test navigation.
+  cueing_config->add_allowed_mime_types("text/html");
+  SetUpEnabledHints(cueing_metadata);
+
+  FakeGlicNudgeDelegate nudge_delegate;
+  SwapToFakeDelegate(nudge_delegate);
+
+  // Navigate to an HTML page - SHOULD trigger the nudge since the
+  // config allows text/html.
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(),
+      https_server_.GetURL("enabled.com", "/optimization_guide/hello.html"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  EXPECT_TRUE(nudge_delegate.GetIsShowingGlicNudge());
+
+  histogram_tester.ExpectUniqueSample(
+      "ContextualCueing.NudgeDecision.GlicContextualCueing",
+      contextual_cueing::NudgeDecision::kSuccess, 1);
+}
+
+// Test fixture to verify that auto-open for PDF bypasses nudge caps.
+class ContextualCueingBypassNudgeCapsTest
+    : public glic::test::InteractiveGlicTest {
+ public:
+  ContextualCueingBypassNudgeCapsTest() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{contextual_cueing::kContextualCueing,
+          {{"BackoffTime", "0h"},
+           {"BackoffMultiplierBase", "0.0"},
+           {"NudgeCapTime", "0h"},
+           {"NudgeCapCount", "10"},
+           {"MinPageCountBetweenNudges", "0"},
+           {"UseDynamicCues", "true"}}},
+         {contextual_cueing::kEnableAutoOpenGlicSidePanel, {}},
+         {features::kAutoOpenGlicForPdf, {}},
+         {features::kGlicTrustFirstOnboarding, {}},
+         {page_content_annotations::features::kAnnotatedPageContentExtraction,
+          {}},
+         {contextual_tasks::kContextualTasks, {}}},
+        /*disabled_features=*/{});
+  }
+
+  void SetUp() override {
+    https_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
+    https_server_.ServeFilesFromSourceDirectory(GetChromeTestDataDir());
+    ASSERT_TRUE(https_server_.Start());
+
+    glic::test::InteractiveGlicTest::SetUp();
+  }
+
+  void SetUpOnMainThread() override {
+    glic::test::InteractiveGlicTest::SetUpOnMainThread();
+    host_resolver()->AddRule("*", "127.0.0.1");
+  }
+
+  void SetUpBypassHints() {
+    optimization_guide::proto::GlicContextualCueingMetadata cueing_metadata;
+    auto* cueing_config = cueing_metadata.add_cueing_configurations();
+    cueing_config->set_cue_label("auto open label");
+    cueing_config->set_dynamic_cue_label("auto open dynamic label");
+    cueing_config->set_default_text("Summarize this page");
+    cueing_config->set_auto_open_eligible(true);
+
+    optimization_guide::OptimizationMetadata metadata;
+    metadata.set_any_metadata(
+        optimization_guide::AnyWrapProto(cueing_metadata));
+    OptimizationGuideKeyedServiceFactory::GetForProfile(browser()->profile())
+        ->AddHintForTesting(
+            https_server_.GetURL("autoopen.com",
+                                 "/optimization_guide/hello.html"),
+            optimization_guide::proto::GLIC_CONTEXTUAL_CUEING, metadata);
+  }
+
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
+  net::EmbeddedTestServer https_server_{net::EmbeddedTestServer::TYPE_HTTPS};
+};
+
+// Verify that kAutoOpenGlicForPdf + auto_open_eligible=true correctly
+// opens the panel via the auto-open path, bypassing nudge caps.
+IN_PROC_BROWSER_TEST_F(ContextualCueingBypassNudgeCapsTest,
+                       TestAutoOpenBypassesNudgeCaps) {
+  SetUpBypassHints();
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(),
+      https_server_.GetURL("autoopen.com", "/optimization_guide/hello.html"),
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+
+  // kAutoOpenGlicForPdf + auto_open_eligible should open the panel.
+  auto* glic_service = glic::GlicKeyedService::Get(browser()->profile());
+  ASSERT_TRUE(glic_service);
+  EXPECT_TRUE(glic_service->IsWindowShowing());
+}

@@ -11,6 +11,7 @@
 #include <type_traits>
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
@@ -27,6 +28,7 @@
 #include "ipc/ipc_message_attachment_set.h"
 #include "ipc/mojo_param_traits.h"
 #include "mojo/public/cpp/system/message_pipe.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
 
 #if BUILDFLAG(IS_APPLE)
@@ -64,12 +66,7 @@ template <typename CharType>
 void WriteCharVector(base::Pickle* m, const std::vector<CharType>& p) {
   static_assert(sizeof(CharType) == 1);
   static_assert(std::is_integral_v<CharType>);
-  if (p.empty()) {
-    m->WriteData(nullptr, 0);
-  } else {
-    const char* data = reinterpret_cast<const char*>(p.data());
-    m->WriteData(data, p.size());
-  }
+  m->WriteData(base::as_byte_span(p));
 }
 
 template <typename CharType>
@@ -78,14 +75,11 @@ bool ReadCharVector(const base::Pickle* m,
                     std::vector<CharType>* r) {
   static_assert(sizeof(CharType) == 1);
   static_assert(std::is_integral_v<CharType>);
-  const char* data;
-  size_t data_size = 0;
-  if (!iter->ReadData(&data, &data_size)) {
+  std::string_view data;
+  if (!iter->ReadStringPiece(&data)) {
     return false;
   }
-  const CharType* begin = reinterpret_cast<const CharType*>(data);
-  const CharType* end = UNSAFE_TODO(begin + data_size);
-  r->assign(begin, end);
+  r->assign_range(data);
   return true;
 }
 
@@ -111,7 +105,6 @@ void WriteListValue(const base::ListValue& value,
 }
 
 void WriteValue(const base::Value& value, int recursion, base::Pickle* pickle) {
-  bool result;
   if (recursion > kMaxRecursionDepth) {
     LOG(ERROR) << "Max recursion depth hit in WriteValue.";
     return;
@@ -119,46 +112,20 @@ void WriteValue(const base::Value& value, int recursion, base::Pickle* pickle) {
 
   pickle->WriteInt(static_cast<int>(value.type()));
 
-  switch (value.type()) {
-    case base::Value::Type::NONE:
-      break;
-    case base::Value::Type::BOOLEAN: {
-      WriteParam(pickle, value.GetBool());
-      break;
-    }
-    case base::Value::Type::INTEGER: {
-      DCHECK(value.is_int());
-      WriteParam(pickle, value.GetInt());
-      break;
-    }
-    case base::Value::Type::DOUBLE: {
-      DCHECK(value.is_int() || value.is_double());
-      WriteParam(pickle, value.GetDouble());
-      break;
-    }
-    case base::Value::Type::STRING: {
-      const std::string* val = value.GetIfString();
-      result = !!val;
-      DCHECK(result);
-      WriteParam(pickle, *val);
-      break;
-    }
-    case base::Value::Type::BINARY: {
-      pickle->WriteData(reinterpret_cast<const char*>(value.GetBlob().data()),
-                        value.GetBlob().size());
-      break;
-    }
-    case base::Value::Type::DICT: {
-      DCHECK(value.is_dict());
-      WriteDictValue(value.GetDict(), recursion, pickle);
-      break;
-    }
-    case base::Value::Type::LIST: {
-      DCHECK(value.is_list());
-      WriteListValue(value.GetList(), recursion, pickle);
-      break;
-    }
-  }
+  value.Visit(absl::Overload{
+      [](std::monostate) {},
+      [&](bool value) { WriteParam(pickle, value); },
+      [&](int value) { WriteParam(pickle, value); },
+      [&](double value) { WriteParam(pickle, value); },
+      [&](const std::string& value) { WriteParam(pickle, value); },
+      [&](const std::vector<uint8_t>& value) { pickle->WriteData(value); },
+      [&](const base::DictValue& value) {
+        WriteDictValue(value, recursion, pickle);
+      },
+      [&](const base::ListValue& value) {
+        WriteListValue(value, recursion, pickle);
+      },
+  });
 }
 
 bool ReadValue(const base::Pickle* pickle,
@@ -304,7 +271,7 @@ bool ReadValue(const base::Pickle* pickle,
 // -----------------------------------------------------------------------------
 
 void ParamTraits<signed char>::Write(base::Pickle* m, const param_type& p) {
-  m->WriteBytes(&p, sizeof(param_type));
+  m->WriteBytes(base::byte_span_from_ref(p));
 }
 
 bool ParamTraits<signed char>::Read(const base::Pickle* m,
@@ -319,7 +286,7 @@ bool ParamTraits<signed char>::Read(const base::Pickle* m,
 }
 
 void ParamTraits<unsigned char>::Write(base::Pickle* m, const param_type& p) {
-  m->WriteBytes(&p, sizeof(param_type));
+  m->WriteBytes(base::byte_span_from_ref(p));
 }
 
 bool ParamTraits<unsigned char>::Read(const base::Pickle* m,
@@ -334,7 +301,7 @@ bool ParamTraits<unsigned char>::Read(const base::Pickle* m,
 }
 
 void ParamTraits<unsigned short>::Write(base::Pickle* m, const param_type& p) {
-  m->WriteBytes(&p, sizeof(param_type));
+  m->WriteBytes(base::byte_span_from_ref(p));
 }
 
 bool ParamTraits<unsigned short>::Read(const base::Pickle* m,
@@ -349,7 +316,7 @@ bool ParamTraits<unsigned short>::Read(const base::Pickle* m,
 }
 
 void ParamTraits<double>::Write(base::Pickle* m, const param_type& p) {
-  m->WriteBytes(reinterpret_cast<const char*>(&p), sizeof(param_type));
+  m->WriteBytes(base::byte_span_from_ref(base::allow_nonunique_obj, p));
 }
 
 bool ParamTraits<double>::Read(const base::Pickle* m,
@@ -367,12 +334,12 @@ bool ParamTraits<double>::Read(const base::Pickle* m,
 bool ParamTraits<std::wstring>::Read(const base::Pickle* m,
                                      base::PickleIterator* iter,
                                      param_type* r) {
-  std::u16string_view piece16;
-  if (!iter->ReadStringPiece16(&piece16)) {
+  std::u16string str16;
+  if (!iter->ReadString16(&str16)) {
     return false;
   }
 
-  *r = base::AsWString(piece16);
+  *r = base::AsWString(str16);
   return true;
 }
 #endif
@@ -1123,13 +1090,12 @@ void ParamTraits<Message>::Write(base::Pickle* m, const Message& p) {
 bool ParamTraits<Message>::Read(const base::Pickle* m,
                                 base::PickleIterator* iter,
                                 Message* r) {
-  size_t payload_size;
-  const char* payload;
-  if (!iter->ReadData(&payload, &payload_size)) {
+  std::string_view payload;
+  if (!iter->ReadStringPiece(&payload)) {
     return false;
   }
 
-  r->WriteBytes(payload, payload_size);
+  r->WriteData(payload);
   return true;
 }
 
@@ -1158,11 +1124,10 @@ void ParamTraits<MSG>::Write(base::Pickle* m, const param_type& p) {
 bool ParamTraits<MSG>::Read(const base::Pickle* m,
                             base::PickleIterator* iter,
                             param_type* r) {
-  const char* data;
-  size_t data_size = 0;
-  bool result = iter->ReadData(&data, &data_size);
-  if (result && data_size == sizeof(MSG)) {
-    UNSAFE_TODO(memcpy(r, data, sizeof(MSG)));
+  std::string_view data;
+  bool result = iter->ReadStringPiece(&data);
+  if (result && data.size() == sizeof(MSG)) {
+    UNSAFE_TODO(memcpy(r, data.data(), data.size()));
   } else {
     NOTREACHED();
   }

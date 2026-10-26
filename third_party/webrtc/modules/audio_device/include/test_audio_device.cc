@@ -210,8 +210,8 @@ class BoundedWavFileWriter : public TestAudioDeviceModule::Renderer {
   bool Render(ArrayView<const int16_t> data) override {
     const int16_t kAmplitudeThreshold = 5;
 
-    const int16_t* begin = data.begin();
-    const int16_t* end = data.end();
+    const int16_t* begin = data.data();
+    const int16_t* end = data.data() + data.size();
     if (!started_writing_) {
       // Cut off silence at the beginning.
       while (begin < end) {
@@ -242,7 +242,7 @@ class BoundedWavFileWriter : public TestAudioDeviceModule::Renderer {
         wav_writer_.WriteSamples(begin, end - begin);
       }
       // Save the number of zeros we skipped in case this needs to be restored.
-      trailing_zeros_ += data.end() - end;
+      trailing_zeros_ += (data.data() + data.size()) - end;
     }
     return true;
   }
@@ -363,8 +363,8 @@ class RawFileWriter : public TestAudioDeviceModule::Renderer {
   bool Render(ArrayView<const int16_t> data) override {
     const int16_t kAmplitudeThreshold = 5;
 
-    const int16_t* begin = data.begin();
-    const int16_t* end = data.end();
+    const int16_t* begin = data.data();
+    const int16_t* end = data.data() + data.size();
     if (!started_writing_) {
       // Cut off silence at the beginning.
       while (begin < end) {
@@ -395,7 +395,7 @@ class RawFileWriter : public TestAudioDeviceModule::Renderer {
         WriteInt16(begin, end);
       }
       // Save the number of zeros we skipped in case this needs to be restored.
-      trailing_zeros_ += data.end() - end;
+      trailing_zeros_ += (data.data() + data.size()) - end;
     }
     return true;
   }

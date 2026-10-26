@@ -122,7 +122,7 @@ public class PageInfoDiscoverabilityTest {
             parameters.add(
                     new ParameterSet()
                             .name("RequestType.kGeolocation")
-                            .value(ContentSettingsType.GEOLOCATION, true));
+                            .value(ContentSettingsType.GEOLOCATION_WITH_OPTIONS, true));
             parameters.add(
                     new ParameterSet()
                             .name("RequestType.kHandTracking")
@@ -175,6 +175,10 @@ public class PageInfoDiscoverabilityTest {
                     new ParameterSet()
                             .name("RequestType.kProtectedMediaIdentifier")
                             .value(ContentSettingsType.PROTECTED_MEDIA_IDENTIFIER, true));
+            parameters.add(
+                    new ParameterSet()
+                            .name("RequestType.kSensors")
+                            .value(ContentSettingsType.SENSORS, true));
             parameters.add(
                     new ParameterSet()
                             .name("RequestType.kStorageAccess")

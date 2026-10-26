@@ -68,12 +68,31 @@ MATCHER_P(ContextualInputDataMatches,
       gfx::BitmapsAreEqual(arg->viewport_screenshot.value(),
                            expected.viewport_screenshot.value());
 
+  bool context_inputs_match = true;
+  if (arg->context_input.has_value() != expected.context_input.has_value()) {
+    context_inputs_match = false;
+  } else if (arg->context_input.has_value()) {
+    if (arg->context_input->size() != expected.context_input->size()) {
+      context_inputs_match = false;
+    } else {
+      for (size_t i = 0; i < arg->context_input->size(); ++i) {
+        if (arg->context_input.value()[i].bytes_ !=
+                expected.context_input.value()[i].bytes_ ||
+            arg->context_input.value()[i].content_type_ !=
+                expected.context_input.value()[i].content_type_) {
+          context_inputs_match = false;
+          break;
+        }
+      }
+    }
+  }
+
   return arg->page_url == expected.page_url &&
          arg->page_title == expected.page_title &&
          arg->primary_content_type == expected.primary_content_type &&
          arg->pdf_current_page == expected.pdf_current_page &&
          arg->is_page_context_eligible == expected.is_page_context_eligible &&
-         are_bitmaps_equal;
+         are_bitmaps_equal && context_inputs_match;
 }
 
 using CreateSearchUrlRequestInfo = contextual_search::
@@ -157,6 +176,20 @@ class TestLensQueryFlowRouter : public LensQueryFlowRouter {
     return LensQueryFlowRouter::GetContextualSearchSessionHandle();
   }
 
+  void SetTabContextualizationController(
+      TabContextualizationController* controller) {
+    tab_contextualization_controller_ = controller;
+  }
+
+ protected:
+  TabContextualizationController* GetTabContextualizationController()
+      const override {
+    if (tab_contextualization_controller_) {
+      return tab_contextualization_controller_;
+    }
+    return LensQueryFlowRouter::GetTabContextualizationController();
+  }
+
  private:
   SkBitmap viewport_screenshot_;
   std::unique_ptr<contextual_search::MockContextualSearchSessionHandle>
@@ -169,6 +202,8 @@ class TestLensQueryFlowRouter : public LensQueryFlowRouter {
       raw_mock_session_handle_;
   raw_ptr<contextual_search::ContextualSearchSessionHandle>
       side_panel_session_handle_ = nullptr;
+  raw_ptr<TabContextualizationController> tab_contextualization_controller_ =
+      nullptr;
 };
 
 class MockTabContextualizationController
@@ -213,6 +248,14 @@ class MockContextualTasksUiService
               (BrowserWindowInterface * browser_window_interface,
                tabs::TabInterface* tab_interface,
                const GURL& url,
+               std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
+                   session_handle),
+              (override));
+
+  MOCK_METHOD(void,
+              StartTaskUiInSidePanelWithErrorPage,
+              (BrowserWindowInterface * browser_window_interface,
+               tabs::TabInterface* tab_interface,
                std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
                    session_handle),
               (override));
@@ -299,6 +342,9 @@ class LensQueryFlowRouterTest : public testing::Test {
 
     ON_CALL(*mock_lens_search_controller_, gen204_controller())
         .WillByDefault(Return(mock_gen204_controller_.get()));
+    ON_CALL(*mock_lens_search_controller_,
+            lens_search_contextualization_controller())
+        .WillByDefault(Return(contextualization_controller_.get()));
   }
 
   void TearDown() override {
@@ -390,6 +436,38 @@ TEST_F(LensQueryFlowRouterTest, SendRegionSearch_RoutesToLensQueryController) {
                           lens::LensOverlayInvocationSource::kAppMenu);
 }
 
+TEST_F(LensQueryFlowRouterTest,
+       SendRegionSearch_NotEligible_DoesNotSendRequest) {
+  // Arrange: Set up and create the router.
+  LensQueryFlowRouter router(mock_lens_search_controller_.get());
+
+  // Set eligibility to false.
+  auto* test_controller =
+      static_cast<TestLensSearchContextualizationController*>(
+          contextualization_controller_.get());
+  test_controller->SetContextEligible(false);
+
+  // Arrange: Set up the parameters.
+  base::Time query_start_time = base::Time::Now();
+  auto region = lens::mojom::CenterRotatedBox::New();
+  lens::LensOverlaySelectionType selection_type =
+      lens::LensOverlaySelectionType::REGION_SEARCH;
+  std::map<std::string, std::string> additional_params;
+  SkBitmap region_bytes;
+  region_bytes.allocN32Pixels(10, 10);
+
+  // Assert: Expect SendRegionSearch to NOT be called.
+  EXPECT_CALL(*mock_query_controller_,
+              SendRegionSearch(testing::_, testing::_, testing::_, testing::_,
+                               testing::_))
+      .Times(0);
+
+  // Act: Call the method.
+  router.SendRegionSearch(query_start_time, std::move(region), selection_type,
+                          additional_params, region_bytes,
+                          lens::LensOverlayInvocationSource::kAppMenu);
+}
+
 TEST_F(LensQueryFlowRouterTest, SendTextOnlyQuery_RoutesToLensQueryController) {
   // Arrange: Set up and create the router.
   EXPECT_CALL(*mock_lens_search_controller_, lens_overlay_query_controller())
@@ -407,6 +485,35 @@ TEST_F(LensQueryFlowRouterTest, SendTextOnlyQuery_RoutesToLensQueryController) {
   EXPECT_CALL(*mock_query_controller_,
               SendTextOnlyQuery(query_start_time, query_text, selection_type,
                                 additional_params));
+
+  // Act: Call the method.
+  router.SendTextOnlyQuery(query_start_time, query_text, selection_type,
+                           additional_params,
+                           lens::LensOverlayInvocationSource::kAppMenu);
+}
+
+TEST_F(LensQueryFlowRouterTest,
+       SendTextOnlyQuery_NotEligible_DoesNotSendRequest) {
+  // Arrange: Set up and create the router.
+  LensQueryFlowRouter router(mock_lens_search_controller_.get());
+
+  // Set eligibility to false.
+  auto* test_controller =
+      static_cast<TestLensSearchContextualizationController*>(
+          contextualization_controller_.get());
+  test_controller->SetContextEligible(false);
+
+  // Arrange: Set up the parameters.
+  base::Time query_start_time = base::Time::Now();
+  std::string query_text = "test query";
+  lens::LensOverlaySelectionType selection_type =
+      lens::LensOverlaySelectionType::TRANSLATE_CHIP;
+  std::map<std::string, std::string> additional_params;
+
+  // Assert: Expect SendTextOnlyQuery to NOT be called.
+  EXPECT_CALL(*mock_query_controller_,
+              SendTextOnlyQuery(testing::_, testing::_, testing::_, testing::_))
+      .Times(0);
 
   // Act: Call the method.
   router.SendTextOnlyQuery(query_start_time, query_text, selection_type,
@@ -516,6 +623,36 @@ TEST_F(LensQueryFlowRouterTest,
 }
 
 TEST_F(LensQueryFlowRouterTest,
+       SendContextualTextQuery_NotEligible_DoesNotSendRequest) {
+  // Arrange: Set up and create the router.
+  LensQueryFlowRouter router(mock_lens_search_controller_.get());
+
+  // Set eligibility to false.
+  auto* test_controller =
+      static_cast<TestLensSearchContextualizationController*>(
+          contextualization_controller_.get());
+  test_controller->SetContextEligible(false);
+
+  // Arrange: Set up the parameters.
+  base::Time query_start_time = base::Time::Now();
+  std::string query_text = "test query";
+  lens::LensOverlaySelectionType selection_type =
+      lens::LensOverlaySelectionType::MULTIMODAL_SUGGEST_TYPEAHEAD;
+  std::map<std::string, std::string> additional_params;
+
+  // Assert: Expect SendContextualTextQuery to NOT be called.
+  EXPECT_CALL(
+      *mock_query_controller_,
+      SendContextualTextQuery(testing::_, testing::_, testing::_, testing::_))
+      .Times(0);
+
+  // Act: Call the method.
+  router.SendContextualTextQuery(query_start_time, query_text, selection_type,
+                                 additional_params,
+                                 lens::LensOverlayInvocationSource::kAppMenu);
+}
+
+TEST_F(LensQueryFlowRouterTest,
        SendMultimodalRequest_RoutesToLensQueryController) {
   // Arrange: Set up and create the router.
   EXPECT_CALL(*mock_lens_search_controller_, lens_overlay_query_controller())
@@ -544,6 +681,39 @@ TEST_F(LensQueryFlowRouterTest,
                                lens::LensOverlayInvocationSource::kAppMenu);
 }
 
+TEST_F(LensQueryFlowRouterTest,
+       SendMultimodalRequest_NotEligible_DoesNotSendRequest) {
+  // Arrange: Set up and create the router.
+  LensQueryFlowRouter router(mock_lens_search_controller_.get());
+
+  // Set eligibility to false.
+  auto* test_controller =
+      static_cast<TestLensSearchContextualizationController*>(
+          contextualization_controller_.get());
+  test_controller->SetContextEligible(false);
+
+  // Arrange: Set up the parameters.
+  base::Time query_start_time = base::Time::Now();
+  auto region = lens::mojom::CenterRotatedBox::New();
+  std::string query_text = "test query";
+  lens::LensOverlaySelectionType selection_type =
+      lens::LensOverlaySelectionType::MULTIMODAL_SEARCH;
+  std::map<std::string, std::string> additional_params;
+  SkBitmap region_bytes;
+  region_bytes.allocN32Pixels(10, 10);
+
+  // Assert: Expect SendMultimodalRequest to NOT be called.
+  EXPECT_CALL(*mock_query_controller_,
+              SendMultimodalRequest(testing::_, testing::_, testing::_,
+                                    testing::_, testing::_, testing::_))
+      .Times(0);
+
+  // Act: Call the method.
+  router.SendMultimodalRequest(query_start_time, std::move(region), query_text,
+                               selection_type, additional_params, region_bytes,
+                               lens::LensOverlayInvocationSource::kAppMenu);
+}
+
 class LensQueryFlowRouterContextualTaskEnabledTest
     : public LensQueryFlowRouterTest {
  protected:
@@ -558,6 +728,9 @@ class LensQueryFlowRouterContextualTaskEnabledTest
 
   void SetUp() override {
     LensQueryFlowRouterTest::SetUp();
+    PrefService* prefs = profile_->GetPrefs();
+    prefs->SetBoolean(lens::prefs::kLensSharingPageScreenshotEnabled, true);
+    prefs->SetBoolean(lens::prefs::kLensSharingPageContentEnabled, true);
     mock_context_controller_ = std::make_unique<
         contextual_search::MockContextualSearchContextController>();
     contextual_tasks::ContextualTasksUiServiceFactory::GetInstance()
@@ -583,10 +756,20 @@ class LensQueryFlowRouterContextualTaskEnabledTest
     LensQueryFlowRouterTest::TearDown();
   }
 
+  void SetFileInfoWithEligibility(const base::UnguessableToken& file_token,
+                                  bool is_eligible) {
+    file_info_.upload_status =
+        is_eligible ? contextual_search::ContextUploadStatus::kUploadSuccessful
+                    : contextual_search::ContextUploadStatus::kValidationFailed;
+    EXPECT_CALL(*mock_context_controller_, GetFileInfo(file_token))
+        .WillRepeatedly(Return(&file_info_));
+  }
+
   std::unique_ptr<MockTabContextualizationController>
       mock_tab_contextualization_controller_;
   std::unique_ptr<contextual_search::MockContextualSearchContextController>
       mock_context_controller_;
+  contextual_search::FileInfo file_info_;
 };
 
 TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
@@ -613,6 +796,7 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   expected_input_data.viewport_screenshot = router.GetViewportScreenshot();
   expected_input_data.pdf_current_page = std::nullopt;
   expected_input_data.is_page_context_eligible = true;
+  expected_input_data.context_input = std::vector<lens::ContextualInput>();
 
   // TODO(crbug.com/463400248): Use contextual tasks image upload config params
   // for Lens requests.
@@ -642,12 +826,241 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
                         ui_scale_factor, invocation_time);
 }
 
+TEST_F(
+    LensQueryFlowRouterContextualTaskEnabledTest,
+    StartQueryFlow_RoutesToContextualTasks_OnlyViewport_WhenComposeboxSource) {
+  // Arrange: Set up invocation source to composebox.
+  EXPECT_CALL(*mock_lens_search_controller_, invocation_source())
+      .WillRepeatedly(Return(
+          lens::LensOverlayInvocationSource::kContextualTasksComposebox));
+
+  // Arrange: Set up and create the router.
+  EXPECT_CALL(*mock_lens_search_controller_,
+              lens_search_contextualization_controller())
+      .WillOnce(Return(contextualization_controller_.get()));
+  TestLensQueryFlowRouter router(mock_lens_search_controller_.get(),
+                                 mock_context_controller_.get(),
+                                 profile_.get());
+
+  GURL example_url("https://example.com");
+  std::string page_title = "Title";
+  lens::MimeType primary_content_type = lens::MimeType::kAnnotatedPageContent;
+  float ui_scale_factor = 1.0f;
+  base::TimeTicks invocation_time = base::TimeTicks::Now();
+
+  // Arrange: Create some page content.
+  std::vector<uint8_t> bytes = {1, 2, 3};
+  std::vector<lens::PageContent> page_contents;
+  page_contents.push_back({bytes, lens::MimeType::kPlainText});
+
+  // Arrange: Create expected contextual input data.
+  lens::ContextualInputData expected_input_data;
+  // Expect empty page URL and title because we only upload viewport.
+  expected_input_data.page_url = GURL();
+  expected_input_data.page_title = std::nullopt;
+  // Expect kImage because we only upload viewport.
+  expected_input_data.primary_content_type = lens::MimeType::kImage;
+  expected_input_data.viewport_screenshot = router.GetViewportScreenshot();
+  expected_input_data.pdf_current_page = std::nullopt;
+  expected_input_data.is_page_context_eligible = true;
+  // Expect empty context input.
+  expected_input_data.context_input = std::vector<lens::ContextualInput>();
+  expected_input_data.context_input = std::vector<lens::ContextualInput>();
+
+  // Assert: Create expectation.
+  EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
+  EXPECT_CALL(*router.mock_session_handle(),
+              StartTabContextUploadFlow(
+                  _, ContextualInputDataMatches(expected_input_data), _));
+
+  // Act: Start query flow.
+  router.StartQueryFlow(router.GetViewportScreenshot(), example_url, page_title,
+                        {}, page_contents, primary_content_type, std::nullopt,
+                        ui_scale_factor, invocation_time);
+}
+
+TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
+       SendTextOnlyQuery_NotEligible_RoutesToContextualTasks) {
+  // Arrange: Set up and create the router.
+  EXPECT_CALL(*mock_lens_search_controller_,
+              lens_search_contextualization_controller())
+      .WillOnce(Return(contextualization_controller_.get()));
+  TestLensQueryFlowRouter router(mock_lens_search_controller_.get(),
+                                 mock_context_controller_.get(),
+                                 profile_.get());
+
+  // Initialize session handle and token via StartQueryFlow.
+  base::UnguessableToken file_token = base::UnguessableToken::Create();
+  EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
+  EXPECT_CALL(*router.mock_session_handle(), CreateContextToken())
+      .WillOnce(Return(file_token));
+  EXPECT_CALL(*router.mock_session_handle(),
+              StartTabContextUploadFlow(_, _, _));
+
+  GURL example_url("https://example.com");
+  router.StartQueryFlow(router.GetViewportScreenshot(), example_url, "Title",
+                        {}, {}, lens::MimeType::kAnnotatedPageContent,
+                        std::nullopt, 1.0f, base::TimeTicks::Now());
+
+  // Mock GetFileInfo to return validation failed status.
+  SetFileInfoWithEligibility(file_token, /*is_eligible=*/false);
+
+  // Arrange: Set up the parameters.
+  base::Time query_start_time = base::Time::Now();
+  std::string query_text = "test query";
+  lens::LensOverlaySelectionType selection_type =
+      lens::LensOverlaySelectionType::TRANSLATE_CHIP;
+  std::map<std::string, std::string> additional_params;
+
+  // Assert: Expect NotifyResultsPanelOpened to be called.
+  EXPECT_CALL(*mock_lens_overlay_controller_, NotifyResultsPanelOpened())
+      .Times(1);
+
+  // Assert: Expect StartTaskUiInSidePanelWithErrorPage to be called.
+  auto* service = static_cast<MockContextualTasksUiService*>(
+      contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(
+          profile_.get()));
+  EXPECT_CALL(*service,
+              StartTaskUiInSidePanelWithErrorPage(
+                  mock_browser_window_interface_.get(), &mock_tab_interface_,
+                  testing::Pointer(router.mock_session_handle())))
+      .WillOnce(testing::InvokeWithoutArgs(
+          [&router]() { router.ClearMockSessionHandle(); }));
+
+  // Assert: Expect CreateSearchUrl to NOT be called.
+  EXPECT_CALL(*router.mock_session_handle(), CreateSearchUrl(_, _)).Times(0);
+
+  // Act: Call the method.
+  router.SendTextOnlyQuery(query_start_time, query_text, selection_type,
+                           additional_params,
+                           lens::LensOverlayInvocationSource::kAppMenu);
+}
+
+TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
+       SendContextualTextQuery_NotEligible_RoutesToContextualTasks) {
+  // Arrange: Set up and create the router.
+  EXPECT_CALL(*mock_lens_search_controller_,
+              lens_search_contextualization_controller())
+      .WillOnce(Return(contextualization_controller_.get()));
+  TestLensQueryFlowRouter router(mock_lens_search_controller_.get(),
+                                 mock_context_controller_.get(),
+                                 profile_.get());
+
+  // Initialize session handle and token via StartQueryFlow.
+  base::UnguessableToken file_token = base::UnguessableToken::Create();
+  EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
+  EXPECT_CALL(*router.mock_session_handle(), CreateContextToken())
+      .WillOnce(Return(file_token));
+  EXPECT_CALL(*router.mock_session_handle(),
+              StartTabContextUploadFlow(_, _, _));
+
+  GURL example_url("https://example.com");
+  router.StartQueryFlow(router.GetViewportScreenshot(), example_url, "Title",
+                        {}, {}, lens::MimeType::kAnnotatedPageContent,
+                        std::nullopt, 1.0f, base::TimeTicks::Now());
+
+  // Mock GetFileInfo to return validation failed status.
+  SetFileInfoWithEligibility(file_token, /*is_eligible=*/false);
+
+  // Arrange: Set up the parameters.
+  base::Time query_start_time = base::Time::Now();
+  std::string query_text = "test query";
+  lens::LensOverlaySelectionType selection_type =
+      lens::LensOverlaySelectionType::MULTIMODAL_SUGGEST_TYPEAHEAD;
+  std::map<std::string, std::string> additional_params;
+
+  // Assert: Expect NotifyResultsPanelOpened to be called.
+  EXPECT_CALL(*mock_lens_overlay_controller_, NotifyResultsPanelOpened())
+      .Times(1);
+
+  // Assert: Expect StartTaskUiInSidePanelWithErrorPage to be called.
+  auto* service = static_cast<MockContextualTasksUiService*>(
+      contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(
+          profile_.get()));
+  EXPECT_CALL(*service,
+              StartTaskUiInSidePanelWithErrorPage(
+                  mock_browser_window_interface_.get(), &mock_tab_interface_,
+                  testing::Pointer(router.mock_session_handle())))
+      .WillOnce(testing::InvokeWithoutArgs(
+          [&router]() { router.ClearMockSessionHandle(); }));
+
+  // Assert: Expect CreateSearchUrl to NOT be called.
+  EXPECT_CALL(*router.mock_session_handle(), CreateSearchUrl(_, _)).Times(0);
+
+  // Act: Call the method.
+  router.SendContextualTextQuery(query_start_time, query_text, selection_type,
+                                 additional_params,
+                                 lens::LensOverlayInvocationSource::kAppMenu);
+}
+
+TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
+       SendMultimodalRequest_NotEligible_RoutesToContextualTasks) {
+  // Arrange: Set up and create the router.
+  EXPECT_CALL(*mock_lens_search_controller_,
+              lens_search_contextualization_controller())
+      .WillOnce(Return(contextualization_controller_.get()));
+  TestLensQueryFlowRouter router(mock_lens_search_controller_.get(),
+                                 mock_context_controller_.get(),
+                                 profile_.get());
+
+  // Initialize session handle and token via StartQueryFlow.
+  base::UnguessableToken file_token = base::UnguessableToken::Create();
+  EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
+  EXPECT_CALL(*router.mock_session_handle(), CreateContextToken())
+      .WillOnce(Return(file_token));
+  EXPECT_CALL(*router.mock_session_handle(),
+              StartTabContextUploadFlow(_, _, _));
+
+  GURL example_url("https://example.com");
+  router.StartQueryFlow(router.GetViewportScreenshot(), example_url, "Title",
+                        {}, {}, lens::MimeType::kAnnotatedPageContent,
+                        std::nullopt, 1.0f, base::TimeTicks::Now());
+
+  // Mock GetFileInfo to return validation failed status.
+  SetFileInfoWithEligibility(file_token, /*is_eligible=*/false);
+
+  // Arrange: Set up the parameters.
+  base::Time query_start_time = base::Time::Now();
+  auto region = lens::mojom::CenterRotatedBox::New();
+  std::string query_text = "test query";
+  lens::LensOverlaySelectionType selection_type =
+      lens::LensOverlaySelectionType::MULTIMODAL_SEARCH;
+  std::map<std::string, std::string> additional_params;
+  SkBitmap region_bytes;
+  region_bytes.allocN32Pixels(10, 10);
+
+  // Assert: Expect NotifyResultsPanelOpened to be called.
+  EXPECT_CALL(*mock_lens_overlay_controller_, NotifyResultsPanelOpened())
+      .Times(1);
+
+  // Assert: Expect StartTaskUiInSidePanelWithErrorPage to be called.
+  auto* service = static_cast<MockContextualTasksUiService*>(
+      contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(
+          profile_.get()));
+  EXPECT_CALL(*service,
+              StartTaskUiInSidePanelWithErrorPage(
+                  mock_browser_window_interface_.get(), &mock_tab_interface_,
+                  testing::Pointer(router.mock_session_handle())))
+      .WillOnce(testing::InvokeWithoutArgs(
+          [&router]() { router.ClearMockSessionHandle(); }));
+
+  // Assert: Expect CreateSearchUrl to NOT be called.
+  EXPECT_CALL(*router.mock_session_handle(), CreateSearchUrl(_, _)).Times(0);
+
+  // Act: Call the method.
+  router.SendMultimodalRequest(query_start_time, std::move(region), query_text,
+                               selection_type, additional_params, region_bytes,
+                               lens::LensOverlayInvocationSource::kAppMenu);
+}
+
 TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
        SendRegionSearch_RoutesToContextualTasks) {
   // Arrange: Set up and create the router.
   TestLensQueryFlowRouter router(mock_lens_search_controller_.get(),
                                  mock_context_controller_.get(),
                                  profile_.get());
+  router.SetTabContextualizationController(
+      mock_tab_contextualization_controller_.get());
 
   // Arrange: Set up the parameters.
   base::Time query_start_time = base::Time::Now();
@@ -666,6 +1079,10 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   // Assert: Expect NotifyResultsPanelOpened to be called.
   EXPECT_CALL(*mock_lens_overlay_controller_, NotifyResultsPanelOpened())
       .Times(1);
+
+  // Mock GetFileInfo to return valid status so IsActiveTabContextEligible
+  // returns true.
+  SetFileInfoWithEligibility(file_token, /*is_eligible=*/true);
 
   // Arrange: Create expected request info.
   auto expected_request_info = std::make_unique<CreateSearchUrlRequestInfo>();
@@ -716,6 +1133,65 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
 }
 
 TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
+       SendRegionSearch_NotEligible_RoutesToContextualTasks) {
+  // Arrange: Set up and create the router.
+  EXPECT_CALL(*mock_lens_search_controller_,
+              lens_search_contextualization_controller())
+      .WillOnce(Return(contextualization_controller_.get()));
+  TestLensQueryFlowRouter router(mock_lens_search_controller_.get(),
+                                 mock_context_controller_.get(),
+                                 profile_.get());
+
+  // Initialize session handle and token via StartQueryFlow.
+  base::UnguessableToken file_token = base::UnguessableToken::Create();
+  EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
+  EXPECT_CALL(*router.mock_session_handle(), CreateContextToken())
+      .WillOnce(Return(file_token));
+  EXPECT_CALL(*router.mock_session_handle(),
+              StartTabContextUploadFlow(_, _, _));
+
+  GURL example_url("https://example.com");
+  router.StartQueryFlow(router.GetViewportScreenshot(), example_url, "Title",
+                        {}, {}, lens::MimeType::kAnnotatedPageContent,
+                        std::nullopt, 1.0f, base::TimeTicks::Now());
+
+  // Mock GetFileInfo to return validation failed status.
+  SetFileInfoWithEligibility(file_token, /*is_eligible=*/false);
+
+  // Arrange: Set up the SendRegionSearch parameters.
+  base::Time query_start_time = base::Time::Now();
+  auto region = lens::mojom::CenterRotatedBox::New();
+  lens::LensOverlaySelectionType selection_type =
+      lens::LensOverlaySelectionType::REGION_SEARCH;
+  std::map<std::string, std::string> additional_params;
+  SkBitmap region_bytes;
+  region_bytes.allocN32Pixels(10, 10);
+
+  // Assert: Expect NotifyResultsPanelOpened to be called.
+  EXPECT_CALL(*mock_lens_overlay_controller_, NotifyResultsPanelOpened())
+      .Times(1);
+
+  // Assert: Expect StartTaskUiInSidePanelWithErrorPage to be called.
+  auto* service = static_cast<MockContextualTasksUiService*>(
+      contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(
+          profile_.get()));
+  EXPECT_CALL(*service,
+              StartTaskUiInSidePanelWithErrorPage(
+                  mock_browser_window_interface_.get(), &mock_tab_interface_,
+                  testing::Pointer(router.mock_session_handle())))
+      .WillOnce(testing::InvokeWithoutArgs(
+          [&router]() { router.ClearMockSessionHandle(); }));
+
+  // Assert: Expect CreateSearchUrl to NOT be called.
+  EXPECT_CALL(*router.mock_session_handle(), CreateSearchUrl(_, _)).Times(0);
+
+  // Act: Call the method.
+  router.SendRegionSearch(query_start_time, std::move(region), selection_type,
+                          additional_params, region_bytes,
+                          lens::LensOverlayInvocationSource::kAppMenu);
+}
+
+TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
        SendRegionSearch_WithExistingToken_RoutesToContextualTasks) {
   // Arrange: Set up and create the router.
   EXPECT_CALL(*mock_lens_search_controller_,
@@ -754,6 +1230,10 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   // Assert: Expect NotifyResultsPanelOpened to be called.
   EXPECT_CALL(*mock_lens_overlay_controller_, NotifyResultsPanelOpened())
       .Times(1);
+
+  // Mock GetFileInfo to return valid status so IsActiveTabContextEligible
+  // returns true.
+  SetFileInfoWithEligibility(file_token, /*is_eligible=*/true);
 
   // Arrange: Create expected request info.
   auto expected_request_info = std::make_unique<CreateSearchUrlRequestInfo>();
@@ -812,6 +1292,8 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   TestLensQueryFlowRouter router(mock_lens_search_controller_.get(),
                                  mock_context_controller_.get(),
                                  profile_.get());
+  router.SetTabContextualizationController(
+      mock_tab_contextualization_controller_.get());
 
   // Arrange: Set up the parameters.
   base::Time query_start_time = base::Time::Now();
@@ -840,6 +1322,10 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   // Assert: Expect NotifyResultsPanelOpened to be called.
   EXPECT_CALL(*mock_lens_overlay_controller_, NotifyResultsPanelOpened())
       .Times(1);
+
+  // Mock GetFileInfo to return valid status so IsActiveTabContextEligible
+  // returns true.
+  SetFileInfoWithEligibility(file_token, /*is_eligible=*/true);
 
   // Assert: Create expectation to call CreateSearchUrl.
   EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
@@ -971,6 +1457,8 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   TestLensQueryFlowRouter router(mock_lens_search_controller_.get(),
                                  mock_context_controller_.get(),
                                  profile_.get());
+  router.SetTabContextualizationController(
+      mock_tab_contextualization_controller_.get());
 
   // Arrange: Set up the parameters.
   base::Time query_start_time = base::Time::Now();
@@ -999,6 +1487,10 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   // Assert: Expect NotifyResultsPanelOpened to be called.
   EXPECT_CALL(*mock_lens_overlay_controller_, NotifyResultsPanelOpened())
       .Times(1);
+
+  // Mock GetFileInfo to return valid status so IsActiveTabContextEligible
+  // returns true.
+  SetFileInfoWithEligibility(file_token, /*is_eligible=*/true);
 
   // Assert: Create expectation to call CreateSearchUrl.
   EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
@@ -1041,6 +1533,8 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   TestLensQueryFlowRouter router(mock_lens_search_controller_.get(),
                                  mock_context_controller_.get(),
                                  profile_.get());
+  router.SetTabContextualizationController(
+      mock_tab_contextualization_controller_.get());
 
   // Arrange: Set up the parameters.
   base::Time query_start_time = base::Time::Now();
@@ -1072,6 +1566,10 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   // Assert: Expect NotifyResultsPanelOpened to be called.
   EXPECT_CALL(*mock_lens_overlay_controller_, NotifyResultsPanelOpened())
       .Times(1);
+
+  // Mock GetFileInfo to return valid status so IsActiveTabContextEligible
+  // returns true.
+  SetFileInfoWithEligibility(file_token, /*is_eligible=*/true);
 
   // Assert: Create expectation to call CreateSearchUrl. We also expect a call
   // to open the side panel, but that is harder to mock, so we omit it for now.
@@ -1185,7 +1683,7 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
 }
 
 TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
-       OnFileUploadStatusChanged_PassesTextAndObjectsToOverlay) {
+       OnContextUploadStatusChanged_PassesTextAndObjectsToOverlay) {
   // Arrange: Set up and create the router.
   EXPECT_CALL(*mock_lens_search_controller_,
               lens_search_contextualization_controller())
@@ -1238,14 +1736,14 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
       });
 
   // Act: Trigger file upload status changed.
-  router.OnFileUploadStatusChangedForTesting(
+  router.OnContextUploadStatusChangedForTesting(
       file_token, lens::MimeType::kPdf,
-      contextual_search::FileUploadStatus::kUploadSuccessful, std::nullopt);
+      contextual_search::ContextUploadStatus::kUploadSuccessful, std::nullopt);
 }
 
 TEST_F(
     LensQueryFlowRouterContextualTaskEnabledTest,
-    OnFileUploadStatusChanged_DoesNotPassTextAndObjectsToOverlayIfTokensDoNotMatch) {
+    OnContextUploadStatusChanged_DoesNotPassTextAndObjectsToOverlayIfTokensDoNotMatch) {
   // Arrange: Set up and create the router.
   EXPECT_CALL(*mock_lens_search_controller_,
               lens_search_contextualization_controller())
@@ -1275,9 +1773,9 @@ TEST_F(
       .Times(0);
 
   // Act: Trigger file upload status changed with a different token.
-  router.OnFileUploadStatusChangedForTesting(
+  router.OnContextUploadStatusChangedForTesting(
       base::UnguessableToken::Create(), lens::MimeType::kPdf,
-      contextual_search::FileUploadStatus::kUploadSuccessful, std::nullopt);
+      contextual_search::ContextUploadStatus::kUploadSuccessful, std::nullopt);
 }
 
 TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,

@@ -46,6 +46,7 @@
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/url_formatter/elide_url.h"
@@ -54,6 +55,7 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/events/test/test_event.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/skia_util.h"
@@ -126,7 +128,10 @@ class WebAppUpdateReviewDialog : public DialogBrowserTest {
           u"Definitely a longer title that is really really really really "
           u"long.";
     }
-    if (name.contains("IconChange")) {
+    if (name.contains("InsignificantIconChange")) {
+      update_.new_icon = gfx::Image::CreateFrom1xBitmap(new_icon_);
+      update_.icon_diff_is_insignificant = true;
+    } else if (name.contains("IconChange")) {
       update_.new_icon = gfx::Image::CreateFrom1xBitmap(new_icon_);
     }
     if (name.contains("UrlChange")) {
@@ -178,6 +183,11 @@ IN_PROC_BROWSER_TEST_F(WebAppUpdateReviewDialog,
 }
 
 IN_PROC_BROWSER_TEST_F(WebAppUpdateReviewDialog,
+                       InvokeUi_NameChange_InsignificantIconChange) {
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppUpdateReviewDialog,
                        InvokeUi_NameChange_UrlChange) {
   ShowAndVerifyUi();
 }
@@ -201,6 +211,15 @@ IN_PROC_BROWSER_TEST_F(WebAppUpdateReviewDialog, InvokeUi_UrlChange) {
 }
 
 IN_PROC_BROWSER_TEST_F(WebAppUpdateReviewDialog,
+                       InvokeUi_UrlChange_InsignificantIconChange) {
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppUpdateReviewDialog, InvokeUi_ForcedMigration) {
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppUpdateReviewDialog,
                        ForcedMigrationNoIgnoreButton) {
   views::NamedWidgetShownWaiter update_dialog_waiter(
       views::test::AnyWidgetTestPasskey(), "WebAppUpdateReviewDialog");
@@ -208,7 +227,6 @@ IN_PROC_BROWSER_TEST_F(WebAppUpdateReviewDialog,
   views::Widget* dialog_widget = update_dialog_waiter.WaitIfNeededAndGet();
   ASSERT_TRUE(dialog_widget != nullptr);
   ASSERT_FALSE(dialog_widget->IsClosed());
-
   views::ElementTrackerViews* tracker_views =
       views::ElementTrackerViews::GetInstance();
   ui::ElementContext context =

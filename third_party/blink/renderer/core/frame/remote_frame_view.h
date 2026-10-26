@@ -11,6 +11,7 @@
 #include "base/time/time.h"
 #include "third_party/blink/public/mojom/frame/lifecycle.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/frame/viewport_intersection_state.mojom-blink.h"
+#include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink-forward.h"
 #include "third_party/blink/renderer/core/frame/embedded_content_view.h"
 #include "third_party/blink/renderer/core/frame/frame_view.h"
 #include "third_party/blink/renderer/core/layout/natural_sizing_info.h"
@@ -29,7 +30,6 @@ class Vector2d;
 
 namespace blink {
 class CullRect;
-class GraphicsContext;
 class LocalFrameView;
 class RemoteFrame;
 
@@ -54,8 +54,7 @@ class CORE_EXPORT RemoteFrameView final
   void SetFrameRect(const gfx::Rect&) override;
   void PropagateFrameRects() override;
   void ZoomFactorChanged(float zoom_factor) override;
-  void Paint(GraphicsContext&,
-             PaintFlags,
+  void Paint(const PaintInfo&,
              const CullRect&,
              const gfx::Vector2d& paint_offset) const override;
   void UpdateGeometry() override;
@@ -95,6 +94,8 @@ class CORE_EXPORT RemoteFrameView final
   void Trace(Visitor*) const override;
 
   void ResetFrozenSize() { frozen_size_ = std::nullopt; }
+
+  mojom::blink::WebFeature SvgFilterPaintedCounter() const override;
 
  protected:
   bool NeedsViewportOffset() const override { return true; }

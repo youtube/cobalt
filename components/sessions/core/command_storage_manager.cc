@@ -16,10 +16,10 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/thread.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "components/sessions/core/command_storage_backend.h"
 #include "components/sessions/core/command_storage_manager_delegate.h"
 #include "components/sessions/core/session_command.h"
-#include "crypto/random.h"
 
 namespace sessions {
 namespace {
@@ -48,18 +48,22 @@ CommandStorageManager::CommandStorageManager(
     SessionType type,
     const base::FilePath& path,
     CommandStorageManagerDelegate* delegate,
-    bool enable_crypto,
-    const std::vector<uint8_t>& decryption_key,
+    os_crypt_async::OSCryptAsync* os_crypt_async,
     scoped_refptr<base::SequencedTaskRunner> backend_task_runner)
     : backend_(base::MakeRefCounted<CommandStorageBackend>(
           backend_task_runner ? backend_task_runner
                               : CreateDefaultBackendTaskRunner(),
           path,
-          type,
-          decryption_key)),
-      use_crypto_(enable_crypto),
+          type)),
       delegate_(delegate),
-      backend_task_runner_(backend_->owning_task_runner()) {}
+      backend_task_runner_(backend_->owning_task_runner()) {
+#if BUILDFLAG(IS_IOS)
+  CHECK(!os_crypt_async);
+#else
+  CHECK(os_crypt_async);
+#endif
+  // TODO(crbug.com/479420496): Use os_crypt_async to encrypt commands.
+}
 
 CommandStorageManager::~CommandStorageManager() = default;
 
@@ -68,11 +72,6 @@ scoped_refptr<base::SequencedTaskRunner>
 CommandStorageManager::CreateDefaultBackendTaskRunner() {
   return base::ThreadPool::CreateSequencedTaskRunner(
       {base::MayBlock(), base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
-}
-
-// static
-std::vector<uint8_t> CommandStorageManager::CreateCryptoKey() {
-  return crypto::RandBytesAsVector(32);
 }
 
 void CommandStorageManager::ScheduleCommand(
@@ -155,18 +154,12 @@ void CommandStorageManager::Save() {
   }
 #endif  // DCHECK_IS_ON()
 
-  std::vector<uint8_t> crypto_key;
-  if (use_crypto_ && pending_reset_) {
-    crypto_key = CreateCryptoKey();
-    delegate_->OnGeneratedNewCryptoKey(crypto_key);
-  }
   auto error_callback = base::BindOnce(
       &CommandStorageManager::OnErrorWritingToFile, weak_factory_.GetWeakPtr());
   backend_task_runner_->PostNonNestableTask(
-      FROM_HERE,
-      base::BindOnce(&CommandStorageBackend::AppendCommands, backend_,
-                     std::move(pending_commands_), pending_reset_,
-                     std::move(error_callback), crypto_key));
+      FROM_HERE, base::BindOnce(&CommandStorageBackend::AppendCommands,
+                                backend_, std::move(pending_commands_),
+                                pending_reset_, std::move(error_callback)));
   if (pending_reset_) {
     commands_since_reset_ = 0;
     pending_reset_ = false;
@@ -203,7 +196,6 @@ void CommandStorageManager::GetLastSessionCommands(
 #if DCHECK_IS_ON()
 base::Value CommandStorageManager::ToDebugValue() const {
   base::DictValue debug_value;
-  debug_value.Set("use_crypto", use_crypto_);
   for (const std::unique_ptr<SessionCommand>& command : pending_commands_) {
     debug_value.EnsureList("pending_commands")
         ->Append(CommandToDebugValue(*command));

@@ -10,7 +10,8 @@
 
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 
-import {type ActorLoginPermission, PageCallbackRouter, PageHandlerFactory, PageHandlerRemote} from './password_manager.mojom-webui.js';
+import {PageCallbackRouter, PageHandlerFactory, PageHandlerRemote} from './password_manager.mojom-webui.js';
+import type {ActorLoginPermission} from './password_manager.mojom-webui.js';
 
 export type BlockedSite = chrome.passwordsPrivate.ExceptionEntry;
 
@@ -447,6 +448,13 @@ export interface PasswordManagerProxy {
    * Revokes actor login permission for all credentials matching the site.
    */
   revokeActorLoginPermission(site: ActorLoginPermission): void;
+
+
+  /**
+   * Request a password change flow by invoking Glic.
+   * @param id The ID of the credential.
+   */
+  requestChangePassword(credential_id: number): void;
 }
 
 /**
@@ -768,6 +776,10 @@ export class PasswordManagerImpl implements PasswordManagerProxy {
 
   revokeActorLoginPermission(site: ActorLoginPermission) {
     this.handler.revokeActorLoginPermission(site);
+  }
+
+  requestChangePassword(credentialId: number): void {
+    this.handler.startPasswordChange(credentialId);
   }
 
   static getInstance(): PasswordManagerProxy {

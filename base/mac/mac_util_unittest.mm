@@ -189,8 +189,8 @@ TEST_F(MacUtilTest, ParseOSProductVersion) {
   EXPECT_DEATH_IF_SUPPORTED(ParseOSProductVersionForTesting("16.0"), "");
 }
 
-// Note: The `com.apple.quarantine` xattr is not API, and may break in future
-// macOS releases, but is used in test code to peek behind the curtain.
+// Note: The `com.apple.quarantine` xattr is not API, but is used in test code
+// to peek behind the curtain.
 constexpr char quarantine_xattr_name[] = "com.apple.quarantine";
 
 // Sample contents of a quarantine xattr. In reality this would refer to an
@@ -209,8 +209,7 @@ void VerifyNoQuarantineAttribute(NSURL* url) {
   EXPECT_FALSE(value);
   EXPECT_FALSE(error);
 
-  // Verify that the backing xattr is not present. (This is not API and might
-  // break.)
+  // Verify that the backing xattr is not present.
 
   EXPECT_EQ(-1, getxattr(url.fileSystemRepresentation, quarantine_xattr_name,
                          /*value=*/nullptr,

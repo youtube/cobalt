@@ -21,6 +21,7 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/user_education/mock_browser_user_education_interface.h"
 #include "components/content_settings/core/common/cookie_controls_state.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/strings/grit/privacy_sandbox_strings.h"
 #include "components/tabs/public/mock_tab_interface.h"
@@ -125,6 +126,7 @@ class CookieControlsPageActionControllerTestBase : public testing::Test {
         .WillByDefault([](user_education::FeaturePromoParams params) {
           std::move(params.show_promo_result_callback)
               .Run(user_education::FeaturePromoResult::Success());
+          return true;
         });
 
     ON_CALL(*fake_bubble_delegate_, HasBubble()).WillByDefault(Return(false));
@@ -278,6 +280,7 @@ TEST_F(CookieControlsPageActionControllerTest, ShowChipOnIPHFailure) {
       .WillOnce([](user_education::FeaturePromoParams params) {
         std::move(params.show_promo_result_callback)
             .Run(user_education::FeaturePromoResult::kError);
+        return false;
       });
   EXPECT_CALL(page_action_controller(),
               ShowSuggestionChip(kActionShowCookieControls, _))
@@ -292,6 +295,7 @@ TEST_F(CookieControlsPageActionControllerTest, SetActivityOnIPHShown) {
       .WillOnce([](user_education::FeaturePromoParams params) {
         std::move(params.show_promo_result_callback)
             .Run(user_education::FeaturePromoResult::Success());
+        return true;
       });
   EXPECT_CALL(page_action_controller(), AddActivity(kActionShowCookieControls))
       .Times(1)

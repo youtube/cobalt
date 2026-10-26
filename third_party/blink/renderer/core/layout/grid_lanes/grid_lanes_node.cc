@@ -12,10 +12,9 @@ namespace blink {
 
 namespace {
 
-void AdjustGridLanesItemSpan(
-    GridItemData& grid_lanes_item,
-    const GridLineResolver& line_resolver,
-    const GridTrackSizingDirection grid_axis_direction) {
+void AdjustGridItemSpan(GridItemData& grid_lanes_item,
+                        const GridLineResolver& line_resolver,
+                        const GridTrackSizingDirection grid_axis_direction) {
   // Resolve the positions of the items based on style. We can only resolve
   // the number of spans for each item based on the grid axis.
   GridSpan item_span = line_resolver.ResolveGridPositionsFromStyle(
@@ -105,14 +104,27 @@ GridLanesItemGroups GridLanesNode::CollectItemGroups(
   return item_groups;
 }
 
-GridItems GridLanesNode::ConstructGridLanesItems(
+// TODO(almaher): Similar to grid, we should eventually create an overloaded
+// method that takes `must_consider_for_columns` and `must_consider_for_rows`
+// so that we can pass that in for grid lanes subgrids.
+GridItems* GridLanesNode::ConstructGridItems(
     const GridLineResolver& line_resolver,
-    HeapVector<Member<LayoutBox>>* opt_oof_children) const {
+    bool* must_invalidate_placement_cache,
+    HeapVector<Member<LayoutBox>>* opt_oof_children,
+    bool* opt_has_nested_subgrid) const {
   const ComputedStyle& style = Style();
   const GridTrackSizingDirection grid_axis_direction =
       style.GridLanesTrackSizingDirection();
 
-  GridItems grid_lanes_items;
+  // For grid-lanes, we only consider subgridding in the grid axis.
+  const bool must_consider_for_columns = (grid_axis_direction == kForColumns);
+  const bool must_consider_for_rows = (grid_axis_direction == kForRows);
+
+  if (opt_has_nested_subgrid) {
+    *opt_has_nested_subgrid = false;
+  }
+
+  GridItems* grid_lanes_items = MakeGarbageCollected<GridItems>();
   {
     bool should_sort_grid_lanes_items_by_order_property = false;
     const int initial_order = ComputedStyleInitialValues::InitialOrder();
@@ -127,34 +139,29 @@ GridItems GridLanesNode::ConstructGridLanesItems(
       }
 
       GridItemData* grid_lanes_item = MakeGarbageCollected<GridItemData>(
-          To<BlockNode>(child), /*parent_style=*/style);
+          To<BlockNode>(child), /*parent_grid_style=*/style,
+          /*root_grid_style=*/style, must_consider_for_columns,
+          must_consider_for_rows);
 
       // We'll need to sort when we encounter a non-initial order property.
       should_sort_grid_lanes_items_by_order_property |=
           child.Style().Order() != initial_order;
 
-      AdjustGridLanesItemSpan(*grid_lanes_item, line_resolver,
-                              grid_axis_direction);
-      grid_lanes_items.Append(grid_lanes_item);
+      // Check whether we'll need to further append subgridded items.
+      if (opt_has_nested_subgrid) {
+        *opt_has_nested_subgrid |= grid_lanes_item->IsSubgrid();
+      }
+
+      AdjustGridItemSpan(*grid_lanes_item, line_resolver, grid_axis_direction);
+      grid_lanes_items->Append(grid_lanes_item);
     }
 
     // Sort items by order property if needed.
     if (should_sort_grid_lanes_items_by_order_property) {
-      grid_lanes_items.SortByOrderProperty();
+      grid_lanes_items->SortByOrderProperty();
     }
   }
   return grid_lanes_items;
-}
-
-void GridLanesNode::AdjustGridLanesItemSpans(
-    GridItems& grid_lanes_items,
-    const GridLineResolver& line_resolver) const {
-  const GridTrackSizingDirection grid_axis_direction =
-      Style().GridLanesTrackSizingDirection();
-  for (GridItemData& grid_lanes_item : grid_lanes_items) {
-    AdjustGridLanesItemSpan(grid_lanes_item, line_resolver,
-                            grid_axis_direction);
-  }
 }
 
 // TODO(almaher): We may be able to optimize this by caching the largest span

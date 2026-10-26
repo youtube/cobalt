@@ -45,11 +45,11 @@
 #include "third_party/blink/renderer/bindings/core/v8/local_window_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_evaluation_result.h"
+#include "third_party/blink/renderer/core/ad_tracker/ad_tracker.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/document_timing.h"
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/execution_context/agent.h"
-#include "third_party/blink/renderer/core/frame/ad_tracker.h"
 #include "third_party/blink/renderer/core/frame/frame.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -64,6 +64,7 @@
 #include "third_party/blink/renderer/core/html/html_frame_owner_element.h"
 #include "third_party/blink/renderer/core/html/parser/text_resource_decoder.h"
 #include "third_party/blink/renderer/core/html_names.h"
+#include "third_party/blink/renderer/core/inspector/ad_tagging_utils.h"
 #include "third_party/blink/renderer/core/inspector/identifiers_factory.h"
 #include "third_party/blink/renderer/core/inspector/inspected_frames.h"
 #include "third_party/blink/renderer/core/inspector/inspector_css_agent.h"
@@ -273,7 +274,7 @@ static std::unique_ptr<TextResourceDecoder> CreateResourceTextDecoder(
     options.SetUseLenientXMLDecoding();
     return std::make_unique<TextResourceDecoder>(options);
   }
-  if (EqualIgnoringASCIICase(mime_type, "text/html")) {
+  if (EqualIgnoringAsciiCase(mime_type, "text/html")) {
     return std::make_unique<TextResourceDecoder>(TextResourceDecoderOptions(
         TextResourceDecoderOptions::kHTMLContent, Utf8Encoding()));
   }
@@ -804,35 +805,10 @@ void InspectorPageAgent::getResourceContent(
 
 protocol::Response InspectorPageAgent::getAdScriptAncestry(
     const String& frame_id,
-    std::unique_ptr<protocol::Page::AdScriptAncestry>* out_ad_script_ancestry) {
+    std::unique_ptr<protocol::Network::AdAncestry>* out_ad_script_ancestry) {
   auto it = frame_ad_script_ancestry_.find(frame_id);
   if (it != frame_ad_script_ancestry_.end()) {
-    const AdTracker::AdScriptAncestry& ad_script_ancestry = it->value;
-    CHECK(!ad_script_ancestry.ancestry_chain.empty());
-
-    std::vector<std::unique_ptr<protocol::Page::AdScriptId>> ancestry_chain;
-    for (const auto& ad_script_identifier : ad_script_ancestry.ancestry_chain) {
-      ancestry_chain.push_back(
-          protocol::Page::AdScriptId::create()
-              .setScriptId(String::Number(ad_script_identifier.id))
-              .setDebuggerId(ToCoreString(
-                  ad_script_identifier.context_id.toString()->string()))
-              .build());
-    }
-
-    std::unique_ptr<protocol::Page::AdScriptAncestry> ancestry =
-        protocol::Page::AdScriptAncestry::create()
-            .setAncestryChain(
-                std::make_unique<protocol::Array<protocol::Page::AdScriptId>>(
-                    std::move(ancestry_chain)))
-            .build();
-
-    if (ad_script_ancestry.root_script_filterlist_rule.IsValid()) {
-      ancestry->setRootScriptFilterlistRule(
-          String(ad_script_ancestry.root_script_filterlist_rule.ToString()));
-    }
-
-    *out_ad_script_ancestry = std::move(ancestry);
+    *out_ad_script_ancestry = CreateAdAncestryProtocolObject(it->value);
   }
 
   return protocol::Response::Success();
@@ -1042,22 +1018,13 @@ DOMWrapperWorld* InspectorPageAgent::EnsureDOMWrapperWorld(
     LocalFrame* frame,
     const String& world_name,
     bool grant_universal_access) {
-  if (!isolated_worlds_.Contains(frame)) {
-    isolated_worlds_.Set(frame, MakeGarbageCollected<FrameIsolatedWorlds>());
-  }
-  FrameIsolatedWorlds& frame_worlds = *isolated_worlds_.find(frame)->value;
-
-  auto world_it = frame_worlds.find(world_name);
-  if (world_it != frame_worlds.end()) {
-    return world_it->value;
-  }
   LocalDOMWindow* window = frame->DomWindow();
   DOMWrapperWorld* world =
-      window->GetScriptController().CreateNewInspectorIsolatedWorld(world_name);
+      DOMWrapperWorld::EnsureInspectorIsolatedWorldWithName(
+          frame->DomWindow()->GetIsolate(), world_name);
   if (!world) {
     return nullptr;
   }
-  frame_worlds.Set(world_name, world);
   scoped_refptr<SecurityOrigin> security_origin =
       window->GetSecurityOrigin()->IsolatedCopy();
   if (grant_universal_access) {
@@ -1319,7 +1286,7 @@ void InspectorPageAgent::WindowOpen(const KURL& url,
                                     const AtomicString& window_name,
                                     const WebWindowFeatures& window_features,
                                     bool user_gesture) {
-  GetFrontend()->windowOpen(url.IsEmpty() ? BlankURL() : url, window_name,
+  GetFrontend()->windowOpen(url.IsEmpty() ? BlankUrl() : url, window_name,
                             GetEnabledWindowFeatures(window_features),
                             user_gesture);
   GetFrontend()->flush();
@@ -2069,7 +2036,6 @@ void InspectorPageAgent::Trace(Visitor* visitor) const {
   visitor->Trace(inspected_frames_);
   visitor->Trace(pending_isolated_worlds_);
   visitor->Trace(inspector_resource_content_loader_);
-  visitor->Trace(isolated_worlds_);
   InspectorBaseAgent::Trace(visitor);
 }
 

@@ -14,6 +14,7 @@
 #include "base/strings/string_util.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/media/webrtc/media_stream_capture_indicator.h"
+#include "components/optimization_guide/content/browser/media_transcript_provider.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/media_session.h"
 #include "content/public/browser/render_frame_host.h"
@@ -140,6 +141,16 @@ void GlicMediaContext::HandleFinalResult(Transcript* transcript,
     transcript->nonfinal_chunk_it_ = transcript->transcript_chunks_.end();
   }
 
+  if (transcript->next_sequence_number_ == 0) {
+    content::WebContents* web_contents =
+        content::WebContents::FromRenderFrameHost(&render_frame_host());
+
+    if (auto* provider =
+            optimization_guide::MediaTranscriptProvider::GetFor(web_contents)) {
+      provider->OnTranscriptionBeginForFrame(&render_frame_host());
+    }
+  }
+
   // Process final result.
   new_chunk.sequence_number = transcript->next_sequence_number_++;
 
@@ -229,26 +240,21 @@ void GlicMediaContext::TrimTranscript(Transcript* transcript) {
   }
 }
 
-std::string GlicMediaContext::GetContext() const {
-  const Transcript* transcript = GetTranscriptIfExists();
-  if (!transcript) {
-    return "";
-  }
-
-  std::vector<std::string_view> pieces;
-  for (const auto& chunk : transcript->transcript_chunks_) {
-    pieces.push_back(chunk.text);
-  }
-  return base::JoinString(pieces, "");
-}
-
 std::list<GlicMediaContext::TranscriptChunk>
 GlicMediaContext::GetTranscriptChunks() const {
   const Transcript* transcript = GetTranscriptIfExists();
-  if (!transcript) {
+  // Don't return transcripts if we don't have any final chunk.
+  if (!transcript || transcript->next_sequence_number_ == 0) {
     return {};
   }
   return transcript->transcript_chunks_;
+}
+
+bool GlicMediaContext::HasTranscriptChunks() const {
+  const Transcript* transcript = GetTranscriptIfExists();
+  // We don't have transcripts if we don't have any final chunk.
+  return transcript && transcript->next_sequence_number_ > 0 &&
+         !transcript->transcript_chunks_.empty();
 }
 
 void GlicMediaContext::OnPeerConnectionAdded() {

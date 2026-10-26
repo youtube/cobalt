@@ -7,9 +7,10 @@
 <translation id="1070329623210597193">Arquivos que este site pode ver ou editar</translation>
 <translation id="1073417869336441572">Ajude a melhorar o Chrome informando por que você permitiu cookies de terceiros. <ph name="BEGIN_LINK" />Enviar feedback<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Você pode pedir para ver a versão para computador dos sites</translation>
-<translation id="1085696779717592361">Usar o Chrome por padrão</translation>
+<translation id="1109482864356262001">Recursos que precisam de sensores de movimento ou de luz não vão funcionar</translation>
 <translation id="1126523729897810826">Para aproveitar o Chrome ao máximo, use as configurações sugeridas abaixo.</translation>
 <translation id="113098737392899175">Acessar páginas com um cursor de texto quando um teclado está conectado</translation>
+<translation id="1148624853678088576">Está tudo pronto!</translation>
 <translation id="1149644372535087155">Salvar senhas no Chrome</translation>
 <translation id="1178015372320901893">Página inferior "Meus atalhos"</translation>
 <translation id="1178581264944972037">Pausar</translation>
@@ -66,7 +67,6 @@
 <translation id="1677097821151855053">Os cookies e outros dados do site são usados para lembrar de você, por exemplo, para conectar sua conta ou personalizar anúncios. Para gerenciar os cookies de todos os sites, acesse <ph name="BEGIN_LINK" />Configurações<ph name="END_LINK" />.</translation>
 <translation id="1679305402657584804">Os sites podem pedir para usar dispositivos NFC</translation>
 <translation id="1686785653877010442">Sites costumam enviar notificações para avisar sobre as últimas notícias ou mensagens de chat.</translation>
-<translation id="169515064810179024">Impedir que sites acessem os sensores de movimento</translation>
 <translation id="1703666494654169921">Não permitir que os sites usem dispositivos ou dados de realidade virtual</translation>
 <translation id="1704230497453185209">Não permitir que os sites toquem sons</translation>
 <translation id="1717218214683051432">Sensores de movimento</translation>
@@ -125,10 +125,10 @@
 <translation id="2228071138934252756">Para permitir que o app <ph name="APP_NAME" /> acesse sua câmera, ative-a também nas <ph name="BEGIN_LINK" />configurações do Android<ph name="END_LINK" />.</translation>
 <translation id="2231160360698766265">Os sites podem abrir conteúdo protegido</translation>
 <translation id="2235344399760031203">Cookies de terceiros foram bloqueados</translation>
-<translation id="2238944249568001759">Pesquisas sugeridas com base na sua última guia</translation>
 <translation id="2241587408274973373">Cards da página Nova guia</translation>
 <translation id="2241634353105152135">Apenas uma vez</translation>
 <translation id="2253414712144136228">Remover <ph name="NAME_OF_LIST_ITEM" /></translation>
+<translation id="227763434929139750">Não permitir que os sites usem sensores de movimento ou luz</translation>
 <translation id="228293613124499805">A maioria dos sites que você visita provavelmente salva dados no seu dispositivo, muitas vezes para melhorar a experiência ao salvar suas preferências ou as informações que você compartilha com o site. Recomendamos manter essa configuração ativada.</translation>
 <translation id="2289270750774289114">Perguntar quando um site quer descobrir dispositivos Bluetooth nas proximidades (recomendado)</translation>
 <translation id="2315043854645842844">A seleção de certificado do cliente não é compatível com o sistema operacional.</translation>
@@ -193,12 +193,12 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="2802908157808345702">Não permitir que os sites exibam pop-ups e usem redirecionamentos</translation>
 <translation id="2814830417943086299">Agora, o Chrome mostra suas guias recentes na lista de apps e nos resultados da pesquisa do dispositivo. É possível desativar essa opção a qualquer momento nas configurações do Chrome.</translation>
 <translation id="2822354292072154809">Tem certeza de que quer redefinir todas as permissões de site para <ph name="CHOSEN_OBJECT_NAME" />?</translation>
+<translation id="2848335882304088250">Você já pode aproveitar tudo o que o Chrome tem a oferecer no seu dispositivo.</translation>
 <translation id="2850913818900871965">Solicitar versão para dispositivos móveis</translation>
 <translation id="2870560284913253234">Site</translation>
 <translation id="2874939134665556319">Faixa anterior</translation>
 <translation id="2891975107962658722">Impedir que sites salvem dados no seu dispositivo</translation>
 <translation id="2903493209154104877">Endereços</translation>
-<translation id="2910701580606108292">Perguntar antes de permitir que sites mostrem conteúdo protegido</translation>
 <translation id="2918484639460781603">Ir para as configurações</translation>
 <translation id="2932883381142163287">Denunciar abuso</translation>
 <translation id="2939338015096024043">Quando essa configuração está ativada, os sites podem pedir para rastrear a posição da câmera e saber mais sobre o ambiente à sua volta. Quando está desativada, os sites não podem rastrear a posição da câmera nem saber mais sobre o ambiente à sua volta.</translation>
@@ -212,7 +212,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="3065787901655140044">A Proteção Avançada está ativada</translation>
 <translation id="3069226013421428034">Permita o login de terceiros em um site específico.</translation>
 <translation id="310297983047869047">Slide anterior</translation>
-<translation id="3109724472072898302">Recolhido</translation>
+<translation id="3108122610701115301">Definir padrão</translation>
 <translation id="310979712355504754">Excluir tudo</translation>
 <translation id="311394601889664316">Não permitir que os sites editem arquivos e pastas no dispositivo</translation>
 <translation id="3114012059975132928">Player de vídeo</translation>
@@ -234,7 +234,6 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="3232293466644486101">Excluir dados de navegação…</translation>
 <translation id="3242646949159196181">Quando essa configuração está ativada, os sites podem tocar sons. Quando está desativada, os sites não podem tocar sons.</translation>
 <translation id="3273479183583863618">Guias mostrando reduções no preço</translation>
-<translation id="3277252321222022663">Permitir que sites acessem os sensores (recomendado)</translation>
 <translation id="3285500645985761267">Permitir que sites relacionados vejam sua atividade no grupo</translation>
 <translation id="3295019059349372795">Capítulo 11: A maravilhosa Cidade das Esmeraldas de Oz</translation>
 <translation id="3295602654194328831">Ocultar informações</translation>
@@ -261,13 +260,13 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="3602290021589620013">Prévia</translation>
 <translation id="3611658447322220736">Os sites fechados recentemente podem terminar de enviar e receber dados</translation>
 <translation id="3619294456800709762">Os sites podem entrar no modo picture-in-picture automaticamente</translation>
-<translation id="3628308229821498208">Pesquisas sugeridas</translation>
 <translation id="3632460243282703117">Inscreva-se</translation>
 <translation id="363748948745453283">Usando o local aproximado</translation>
 <translation id="3641456520301071208">Os sites podem solicitar sua localização</translation>
 <translation id="3658847490588580244">Página inferior de navegador padrão</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{Há <ph name="RWS_MEMBERS_COUNT" /> site que pode ver sua atividade no grupo <ph name="RWS_OWNER" />}one{Há <ph name="RWS_MEMBERS_COUNT" /> site que pode ver sua atividade no grupo <ph name="RWS_OWNER" />}other{Há <ph name="RWS_MEMBERS_COUNT" /> sites que podem ver sua atividade no grupo <ph name="RWS_OWNER" />}}</translation>
 <translation id="3676777756440746804">Os sites não podem pedir para usar as informações que salvaram sobre você</translation>
+<translation id="3677897809642449131">Os sites podem pedir para usar sensores de movimento</translation>
 <translation id="3678318839615834650">A página inferior de cards da página "Nova guia" está aberta no tamanho máximo</translation>
 <translation id="3697164069658504920">Quando essa configuração está ativada, os sites podem pedir para usar dispositivos USB. Quando está desativada, os sites não podem usar dispositivos USB.</translation>
 <translation id="3703430731944883733">Gerencie seu feed</translation>
@@ -299,8 +298,8 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="3922092564198021702">No smartphone, acesse as Configurações.</translation>
 <translation id="3924858949939391676">Mostrar links quando o Modo de Leitura estiver ativado</translation>
 <translation id="3933121352599513978">Fechar solicitações indesejadas (recomendado)</translation>
+<translation id="393417216277380082">Sensores de movimento e luz</translation>
 <translation id="3934905113567851655">Faça um gesto de pinça para redimensionar</translation>
-<translation id="3955193568934677022">Permitir que os sites mostrem conteúdo protegido (recomendado)</translation>
 <translation id="3955321697524543127">Não permitir que os sites se conectem a dispositivos USB</translation>
 <translation id="3965467402665811906">Os sites podem pedir para usar informações que salvaram sobre você</translation>
 <translation id="3967822245660637423">Download concluído</translation>
@@ -371,7 +370,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="4672315773691449562">Toque em "App de navegação" e em "Chrome"</translation>
 <translation id="4676059169848868271">Para permitir que o app <ph name="APP_NAME" /> use o rastreamento de mãos, ative o recurso nas <ph name="BEGIN_LINK" />configurações do sistema<ph name="END_LINK" />.</translation>
 <translation id="4688045258817337666">Gerenciar seus cartões</translation>
-<translation id="4751476147751820511">Sensores de luz ou movimento</translation>
+<translation id="4722332387043141878">Os sites geralmente usam os sensores de movimento e luz do dispositivo para recursos como realidade virtual ou monitoramento de atividade física</translation>
 <translation id="4755971844837804407">Quando essa configuração está ativada, os sites podem mostrar qualquer anúncio para você. Quando está desativada, os sites não podem mostrar anúncios invasivos ou enganosos.</translation>
 <translation id="4779083564647765204">Zoom</translation>
 <translation id="4807122856660838973">Ativar a Navegação segura</translation>
@@ -398,7 +397,6 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="5001526427543320409">Cookies de terceiros</translation>
 <translation id="5007392906805964215">Revisar</translation>
 <translation id="5039804452771397117">Permitir</translation>
-<translation id="5048398596102334565">Permitir o acesso de sites aos seus sensores de movimento (recomendado)</translation>
 <translation id="5048841907079026162">Gerenciar seus dados de navegação</translation>
 <translation id="5050380848339752099">Este site compartilhará informações com um app fora do modo de navegação anônima.</translation>
 <translation id="5063480226653192405">Uso</translation>
@@ -444,7 +442,6 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="5515432237048785579">A página inferior do feed do Discover está aberta no tamanho máximo</translation>
 <translation id="5516455585884385570">Abrir configurações de notificação</translation>
 <translation id="5527111080432883924">Perguntar antes de permitir que sites leiam textos e imagens da área de transferência (recomendado)</translation>
-<translation id="5553374991681107062">Mais recentes</translation>
 <translation id="5555115555607204100">Não tornar os sites mais rápidos com o mecanismo V8 do Chrome, mas deixar o navegador um pouco mais resistente a ataques</translation>
 <translation id="5556459405103347317">Recarregar</translation>
 <translation id="5591840828808741583"><ph name="SITE_NAME" /> bloqueado</translation>
@@ -490,6 +487,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="5922853908706496913">Compartilhando a tela</translation>
 <translation id="5922967540311291836">Bloquear cookies de terceiros:</translation>
 <translation id="5923512600150154850">Essa ação vai excluir <ph name="DATASIZE" /> de dados e cookies armazenados por sites.</translation>
+<translation id="5930707844513754220">Ver mais na lista de configuração</translation>
 <translation id="5939518447894949180">Redefinir</translation>
 <translation id="5948139900367969951">Acesse o que importa com facilidade</translation>
 <translation id="5964247741333118902">Conteúdo incorporado</translation>
@@ -498,6 +496,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="5976059395673079613"><ph name="PERMISSION" /> – <ph name="WARNING_MESSAGE" /></translation>
 <translation id="5998071268779572583">Ativar o feed do Discover</translation>
 <translation id="6012967556075291653">Atalho fixado</translation>
+<translation id="6013003831291591200">Tarefa concluída</translation>
 <translation id="6015775454662021376">Controle o acesso deste site ao seu dispositivo</translation>
 <translation id="6022659036123304283">Deixe o Chrome do seu jeito</translation>
 <translation id="6040143037577758943">Fechar</translation>
@@ -513,16 +512,15 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="6171020522141473435">Quando essa configuração está ativada, os sites podem pedir para usar dispositivos Bluetooth. Quando está desativada, os sites não podem usar dispositivos Bluetooth.</translation>
 <translation id="6177128806592000436">Sua conexão com esse site não é segura</translation>
 <translation id="6181444274883918285">Adicionar site às exceções</translation>
-<translation id="6192792657125177640">Exceções</translation>
 <translation id="6194967801833346599">{DAYS,plural, =1{O Chrome vai bloquear os cookies de novo amanhã}one{# dia até que os cookies sejam bloqueados de novo}other{# dias até que os cookies sejam bloqueados de novo}}</translation>
 <translation id="6196640612572343990">Bloquear cookies de terceiros</translation>
 <translation id="6205314730813004066">Privacidade de anúncios</translation>
 <translation id="6207207788774442484">Excluir dados e redefinir permissões</translation>
+<translation id="6211409961905616543">Os sites podem usar sensores de movimento e luz</translation>
 <translation id="6218508144653756827">Tema fúcsia</translation>
 <translation id="6231752747840485235">Desinstalar <ph name="APP_NAME" />?</translation>
 <translation id="6234351944623978659">Toque em App de navegação &gt; Chrome.</translation>
 <translation id="6260830281887654268">A página inferior de coleções de temas para a página "Nova guia" está aberta na metade da altura</translation>
-<translation id="6262191102408817757">Com base na sua última guia</translation>
 <translation id="6262279340360821358">Bloqueadas: <ph name="PERMISSION_1" /> e <ph name="PERMISSION_2" /></translation>
 <translation id="6270391203985052864">Os sites podem pedir para enviar notificações</translation>
 <translation id="6295158916970320988">Todos os sites</translation>
@@ -602,7 +600,6 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="7180611975245234373">Atualizar</translation>
 <translation id="7188508872042490670">Dados do site no dispositivo</translation>
 <translation id="7201549776650881587">Essa ação vai excluir todos os dados e cookies armazenados por todos os sites relacionados a <ph name="ORIGIN" /> ou pelo app na sua tela inicial</translation>
-<translation id="7203150201908454328">Expandido</translation>
 <translation id="7213166370492037743">Não permitir que os sites se conectem aos dispositivos na sua rede local</translation>
 <translation id="7219254577985949841">Excluir dados do site?</translation>
 <translation id="723171743924126238">Selecionar imagens</translation>
@@ -636,7 +633,6 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="7561196759112975576">Sempre</translation>
 <translation id="7573594921350120855">Os sites geralmente usam a câmera de vídeo para recursos de comunicação, como chat por vídeo</translation>
 <translation id="7574529565935733861">{NUM_MONTHS,plural, =1{<ph name="NUM_MONTHS_ONE" /> mês atrás}one{<ph name="NUM_MONTHS_MANY" /> mês atrás}other{<ph name="NUM_MONTHS_MANY" /> meses atrás}}</translation>
-<translation id="757524316907819857">Impedir que sites mostrem conteúdo protegido</translation>
 <translation id="7586676035079382730">Acesso às notificações não permitido</translation>
 <translation id="7594634374516752650">Conectado a um dispositivo Bluetooth</translation>
 <translation id="7617547684249261169">Você pode excluir alguns ou todos os dados do seu histórico, cookies, dados do sites e muito mais</translation>
@@ -677,7 +673,6 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="8007176423574883786">Desativado neste dispositivo</translation>
 <translation id="802154636333426148">Falha no download</translation>
 <translation id="8033047164036749181">Inscreva-se para receber notificações deste site</translation>
-<translation id="8042586301629853791">Ordenar por:</translation>
 <translation id="8051193500142930381">Recursos que precisam de câmera não funcionarão</translation>
 <translation id="8056330801132235235">Padrão do Chrome</translation>
 <translation id="8067883171444229417">Assistir vídeo</translation>
@@ -688,7 +683,6 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="8088603949666785339">Mais opções no <ph name="BANNER_TITLE" /></translation>
 <translation id="8112925981674547014">Ver guias na lista de apps</translation>
 <translation id="8116925261070264013">Com som desativado</translation>
-<translation id="8117244575099414087">Quando essa configuração está ativada, os sites podem usar os sensores do dispositivo. Quando está desativada, os sites não podem usar sensores.</translation>
 <translation id="813082847718468539">Ver informações do site</translation>
 <translation id="8131740175452115882">Confirmar</translation>
 <translation id="8148160259207090265">Essa configuração vai continuar ativada enquanto a Proteção Avançada estiver habilitada nas configurações do Android.</translation>
@@ -750,6 +744,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="8707904142362025782">Os sites podem pedir acesso à câmera</translation>
 <translation id="8712637175834984815">Entendi</translation>
 <translation id="8715862698998036666">Arraste da parte de cima da tela e deslize da borda esquerda ou direita para sair da tela cheia.</translation>
+<translation id="8716050156658570300">Os sites podem pedir para usar sensores de movimento e luz</translation>
 <translation id="8719283222052720129">Ative a permissão para o app <ph name="APP_NAME" /> nas <ph name="BEGIN_LINK" />configurações do Android<ph name="END_LINK" />.</translation>
 <translation id="8721719390026067591">Quando essa configuração está ativada, os sites podem pedir para procurar dispositivos Bluetooth. Quando está desativada, os sites não podem procurar dispositivos Bluetooth.</translation>
 <translation id="8725066075913043281">Tentar novamente</translation>
@@ -764,7 +759,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="8801657293260363985">V8 é o mecanismo JavaScript e WebAssembly do Chrome usado para melhorar o desempenho de sites</translation>
 <translation id="8803526663383843427">Quando ativado</translation>
 <translation id="8805385115381080995">A navegação fica mais rápida porque é menos provável que os sites peçam para verificar se você é uma pessoa</translation>
-<translation id="8816026460808729765">Impedir que sites acessem os sensores</translation>
+<translation id="881644524232657178">Quando essa configuração está ativada, os sites podem usar os sensores de movimento e luz do dispositivo. Quando está desativada, os sites não podem usar sensores.</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Permita o uso de cookies de terceiros temporariamente, o que diminui a proteção da navegação, mas os recursos do site têm mais chances de funcionar conforme o esperado.</translation>
 <translation id="8889294078294184559">Conforme você navega, eles podem verificar com o navegador e o site visitado anteriormente que você é uma pessoa real</translation>

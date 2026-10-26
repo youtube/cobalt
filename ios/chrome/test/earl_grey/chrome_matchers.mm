@@ -225,6 +225,10 @@ id<GREYMatcher> OmniboxPopupRowWithString(NSString* string) {
   return [ChromeMatchersAppInterface omniboxPopupRowWithString:string];
 }
 
+id<GREYMatcher> OmniboxPopupRowVisibleWithString(NSString* string) {
+  return [ChromeMatchersAppInterface omniboxPopupRowVisibleWithString:string];
+}
+
 id<GREYMatcher> OmniboxPopupList() {
   return [ChromeMatchersAppInterface omniboxPopupList];
 }
@@ -539,8 +543,14 @@ id<GREYMatcher> BrowsingDataButtonMatcher() {
   return [ChromeMatchersAppInterface browsingDataButtonMatcher];
 }
 
+// TODO(crbug.com/487269108): Delete the BrowsingDataConfirmButtonMatcher()
+// once the feature flag `kPasswordRemovalFromDeleteBrowsingData` is enabled.
 id<GREYMatcher> BrowsingDataConfirmButtonMatcher() {
   return [ChromeMatchersAppInterface browsingDataConfirmButtonMatcher];
+}
+
+id<GREYMatcher> BrowsingDataDoneButtonMatcher() {
+  return [ChromeMatchersAppInterface browsingDataDoneButtonMatcher];
 }
 
 id<GREYMatcher> ClearBrowsingHistoryButton() {

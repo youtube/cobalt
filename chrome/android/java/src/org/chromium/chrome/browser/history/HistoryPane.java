@@ -12,14 +12,15 @@ import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.hub.LoadHint;
 import org.chromium.chrome.browser.hub.Pane;
 import org.chromium.chrome.browser.hub.PaneBase;
 import org.chromium.chrome.browser.hub.PaneHubController;
 import org.chromium.chrome.browser.hub.PaneId;
-import org.chromium.chrome.browser.hub.ResourceButtonData;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.ui.actions.ResourceButtonData;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.ui.base.ActivityResultTracker;
@@ -37,7 +38,7 @@ public class HistoryPane extends PaneBase {
     private final Activity mActivity;
     private final SnackbarManager mSnackbarManager;
     private final ActivityResultTracker mActivityResultTracker;
-    private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
+    private final Supplier<ModalDialogManager> mModalDialogManagerSupplier;
     private final Supplier<BottomSheetController> mBottomSheetController;
     private final Supplier<@Nullable Tab> mTabSupplier;
 
@@ -62,7 +63,7 @@ public class HistoryPane extends PaneBase {
             Activity activity,
             SnackbarManager snackbarManager,
             Supplier<BottomSheetController> bottomSheetController,
-            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
+            Supplier<ModalDialogManager> modalDialogManagerSupplier,
             ActivityResultTracker activityResultTracker,
             Supplier<@Nullable Tab> tabSupplier) {
         super(PaneId.HISTORY, activity, onToolbarAlphaChange);
@@ -111,6 +112,8 @@ public class HistoryPane extends PaneBase {
                             /* shouldShowClearData= */ true,
                             /* launchedForApp= */ false,
                             /* showAppFilter= */ true,
+                            ChromeFeatureList.isEnabled(
+                                    ChromeFeatureList.ANDROID_HISTORY_CLUSTERING),
                             this::onHistoryItemOpened,
                             // TODO(crbug.com/427776544): make history pane support edge to edge.
                             /* edgeToEdgePadAdjusterGenerator= */ null);

@@ -208,19 +208,19 @@ int64_t NackTracker::TimeToPlay(uint32_t timestamp) const {
 }
 
 // We don't erase elements with time-to-play shorter than round-trip-time.
-std::vector<uint16_t> NackTracker::GetNackList(int64_t round_trip_time_ms) {
-  RTC_DCHECK_GE(round_trip_time_ms, 0);
+std::vector<uint16_t> NackTracker::GetNackList(
+    std::optional<TimeDelta> round_trip_time) {
   std::vector<uint16_t> sequence_numbers;
-  if (round_trip_time_ms == 0) {
+  if (!round_trip_time.has_value()) {
     if (config_.require_valid_rtt) {
-      return sequence_numbers;
+      return {};
     } else {
-      round_trip_time_ms = config_.default_rtt_ms;
+      round_trip_time = TimeDelta::Millis(config_.default_rtt_ms);
     }
   }
   for (NackList::const_iterator it = nack_list_.begin(); it != nack_list_.end();
        ++it) {
-    if (Nack(it->second, round_trip_time_ms)) {
+    if (Nack(it->second, round_trip_time->ms())) {
       sequence_numbers.push_back(it->first);
     }
   }

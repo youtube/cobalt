@@ -298,6 +298,12 @@ class QualityTestVideoEncoder : public VideoEncoder,
   void OnDroppedFrame(DropReason reason) override {
     callback_->OnDroppedFrame(reason);
   }
+  void OnFrameDropped(uint32_t rtp_timestamp,
+                      int spatial_id,
+                      bool is_end_of_temporal_unit) override {
+    callback_->OnFrameDropped(rtp_timestamp, spatial_id,
+                              is_end_of_temporal_unit);
+  }
 
   const std::unique_ptr<VideoEncoder> encoder_;
   const double overshoot_factor_;

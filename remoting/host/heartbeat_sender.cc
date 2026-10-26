@@ -121,7 +121,7 @@ HeartbeatSender::HeartbeatSender(
   DCHECK(observer_);
 
   signal_strategy_->AddListener(this);
-  OnSignalStrategyStateChange(signal_strategy_->GetState());
+  OnSignalingStateChanged(signal_strategy_->GetState());
   set_fqdn_ = set_fqdn;
 
   // Touch the unused traffic annotation value to avoid complaints.
@@ -149,7 +149,7 @@ void HeartbeatSender::SetHostOfflineReason(
   }
 }
 
-void HeartbeatSender::OnSignalStrategyStateChange(SignalStrategy::State state) {
+void HeartbeatSender::OnSignalingStateChanged(SignalStrategy::State state) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   switch (state) {
     case SignalStrategy::State::CONNECTED:
@@ -163,11 +163,6 @@ void HeartbeatSender::OnSignalStrategyStateChange(SignalStrategy::State state) {
       // Do nothing
       break;
   }
-}
-
-bool HeartbeatSender::OnSignalStrategyIncomingStanza(
-    const jingle_xmpp::XmlElement* stanza) {
-  return false;
 }
 
 void HeartbeatSender::OnHostOfflineReasonTimeout() {

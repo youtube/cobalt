@@ -3009,6 +3009,62 @@ void MacroAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   Uxtw(result.W(), result.W());
 }
 
+void MacroAssembler::Float64Mod(VRegister out, VRegister left,
+                                VRegister right) {
+  ASM_CODE_COMMENT(this);
+  DCHECK_EQ(left, d0);
+  DCHECK_EQ(right, d1);
+  DCHECK_EQ(out, d0);
+
+  Label slow, done_mod;
+  {
+    UseScratchRegisterScope temps(this);
+    VRegister d_temp = temps.AcquireD();
+    Register x_scratch = temps.AcquireX();
+
+    // Check if left is a positive integer.
+    Fcvtzu(x_scratch, left);
+    Scvtf(d_temp, x_scratch);
+    Fcmp(left, d_temp);
+    B(ne, &slow);
+    Fcmp(left, 0.0);
+    B(le, &slow);
+
+    // Check if right is a positive integer.
+    Fcvtzu(x_scratch, right);
+    Scvtf(d_temp, x_scratch);
+    Fcmp(right, d_temp);
+    B(ne, &slow);
+    Fcmp(right, 0.0);
+    B(le, &slow);
+
+    // Both are positive integers. The fast path is only valid if the computed
+    // remainder stays within the range [0, right).
+    Fdiv(d_temp, left, right);
+    Frintz(d_temp, d_temp);
+    Fmsub(d_temp, d_temp, right, left);
+
+    // If quotient rounding changed the integer truncation result, the computed
+    // remainder escapes [0, right) and we must fall back to the precise slow
+    // path.
+    Fcmp(d_temp, 0.0);
+    B(lt, &slow);
+    Fcmp(d_temp, right);
+    B(ge, &slow);
+
+    Fmov(out, d_temp);
+    B(&done_mod);
+  }
+
+  Bind(&slow);
+  {
+    FrameScope assume_frame(this, StackFrame::NO_FRAME_TYPE);
+    CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
+  }
+
+  Bind(&done_mod);
+}
+
 void MacroAssembler::Prologue() {
   ASM_CODE_COMMENT(this);
   Push<MacroAssembler::kSignLR>(lr, fp);
@@ -3471,6 +3527,11 @@ void MacroAssembler::LoadTaggedSignedField(const Register& destination,
 
 void MacroAssembler::SmiUntagField(Register dst, const MemOperand& src) {
   SmiUntag(dst, src);
+}
+
+void MacroAssembler::SmiUntagFieldUnsigned(Register dst,
+                                           const MemOperand& src) {
+  SmiUntagUnsigned(dst, src);
 }
 
 void MacroAssembler::StoreTwoTaggedFields(const Register& value,
@@ -4011,6 +4072,7 @@ void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
   // TODO(saelo): can the offset computation be done more efficiently?
   Mov(destination, Operand(destination, LSR, kCodePointerHandleShift));
   Mov(destination, Operand(destination, LSL, kCodePointerTableEntrySizeLog2));
+  static_assert(kCodePointerTableEntryEntrypointOffset == 0);
   Ldr(destination, MemOperand(scratch, destination));
   if (tag != 0) {
     Mov(scratch, Immediate(tag));
@@ -4991,6 +5053,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ JumpIfNotRoot(scratch, RootIndex::kTheHoleValue, &propagate_exception);
   }
 
+#ifndef V8_ENABLE_MEMORY_CORRUPTION_API
+  // This check doesn't make sense for sandbox testing since
+  // Sandbox.getObjectAt(..) might legitimately return non-JSAny values
+  // and this check just hinders debugging.
   if (v8_flags.debug_code) {
     Label ok;
     if (handle_interceptor_result) {
@@ -5001,6 +5067,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                    AbortReason::kAPICallReturnedInvalidObject);
     __ bind(&ok);
   }
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 
   if (argc_operand == nullptr) {
     DCHECK_NE(slots_to_drop_on_return, 0);

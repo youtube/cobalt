@@ -18,6 +18,7 @@
 #include "chrome/browser/web_applications/jobs/uninstall/remove_install_source_job.h"
 #include "chrome/browser/web_applications/jobs/uninstall/uninstall_job.h"
 #include "chrome/browser/web_applications/locks/all_apps_lock.h"
+#include "chrome/browser/web_applications/model/migration_behavior.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
 #include "chrome/browser/web_applications/os_integration/web_app_shortcut.h"
@@ -28,11 +29,14 @@
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
+#include "chrome/browser/web_applications/web_app_install_manager.h"
 #include "chrome/browser/web_applications/web_app_management_type.h"
 #include "chrome/browser/web_applications/web_app_proto_utils.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_registry_update.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
+#include "chrome/browser/web_applications/web_app_ui_manager.h"
+#include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/sync/protocol/web_app_specifics.pb.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "components/webapps/browser/uninstall_result_code.h"
@@ -53,10 +57,9 @@ bool IsSourceAppInDestinationAppMigrationSources(
   const WebApp* destination_app =
       all_apps_lock.registrar().GetAppById(destination_id);
   CHECK(destination_app);
-  for (const auto& migration_sources :
+  for (const auto& migration_source :
        destination_app->validated_migration_sources()) {
-    CHECK(migration_sources.has_manifest_id());
-    if (migration_sources.manifest_id() == source_manifest_id) {
+    if (migration_source.manifest_id() == source_manifest_id) {
       return true;
     }
   }
@@ -77,7 +80,7 @@ base::Value SynchronizeOptionsAsDebugValue(
 ApplyManifestMigrationCommand::ApplyManifestMigrationCommand(
     const webapps::AppId& source_app_id,
     const webapps::AppId& destination_app_id,
-    const proto::WebAppMigrationBehavior migration_behavior,
+    MigrationBehavior migration_behavior,
     Profile* profile,
     std::unique_ptr<ScopedKeepAlive> keep_alive,
     std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive,
@@ -99,7 +102,7 @@ ApplyManifestMigrationCommand::ApplyManifestMigrationCommand(
       profile_keep_alive_(std::move(profile_keep_alive)) {
   GetMutableDebugValue().Set("source_app_id", source_app_id_);
   GetMutableDebugValue().Set("destination_app_id", destination_app_id_);
-  GetMutableDebugValue().Set("migration_behavior_",
+  GetMutableDebugValue().Set("migration_behavior",
                              base::ToString(migration_behavior_));
 }
 
@@ -145,9 +148,7 @@ void ApplyManifestMigrationCommand::StartWithLock(
     return;
   }
 
-  bool is_forced_migration =
-      (migration_behavior_ ==
-       proto::WebAppMigrationBehavior::WEB_APP_MIGRATION_BEHAVIOR_FORCE);
+  bool is_forced_migration = (migration_behavior_ == MigrationBehavior::kForce);
 
   // Handle all the use-cases where the forced migration isn't necessary.
   if (!is_forced_migration) {
@@ -161,11 +162,13 @@ void ApplyManifestMigrationCommand::StartWithLock(
     // For migrations that are not forced, start collecting OS integration
     // state. The app and icon does not need to match the source app in this
     // case.
-    all_apps_lock_->os_integration_manager().GetShortcutInfoForAppFromRegistrar(
-        source_app_id_,
-        base::BindOnce(&ApplyManifestMigrationCommand::
-                           StartGatheringOsIntegrationInfoForSourceApp,
-                       weak_factory_.GetWeakPtr()));
+    gather_migration_source_info_job_ =
+        std::make_unique<GatherMigrationSourceInfoJob>(
+            *all_apps_lock_, source_app_id_, destination_app_id_,
+            base::BindOnce(
+                &ApplyManifestMigrationCommand::OnMigrationSourceInfoGathered,
+                weak_factory_.GetWeakPtr()));
+    gather_migration_source_info_job_->Start();
     return;
   }
 
@@ -201,35 +204,43 @@ void ApplyManifestMigrationCommand::StartWithLock(
   all_apps_lock_->icon_manager().CopyIconsFromOneAppToAnother(
       source_app_id_, destination_app_id_,
       base::PassKey<ApplyManifestMigrationCommand>(),
-      base::BindOnce(&ApplyManifestMigrationCommand::
-                         OnIconsCopiedGatherShortcutInfoForSourceApp,
+      base::BindOnce(&ApplyManifestMigrationCommand::OnIconsCopied,
                      weak_factory_.GetWeakPtr()));
 }
 
-void ApplyManifestMigrationCommand::OnIconsCopiedGatherShortcutInfoForSourceApp(
-    bool icon_copy_success) {
+void ApplyManifestMigrationCommand::OnIconsCopied(bool success) {
   GetMutableDebugValue().Set("icon_copy_successful_for_forced_migration",
-                             icon_copy_success);
-  if (!icon_copy_success) {
+                             success);
+
+  all_apps_lock_->install_manager().NotifyWebAppManifestUpdated(
+      destination_app_id_);
+
+  if (!success) {
     CompleteCommandAndSelfDestruct(
         ApplyManifestMigrationResult::kAppMigrationFailedDuringIconCopy);
     return;
   }
 
-  // Start gathering shortcut information for the source app.
-  all_apps_lock_->os_integration_manager().GetShortcutInfoForAppFromRegistrar(
-      source_app_id_,
-      base::BindOnce(&ApplyManifestMigrationCommand::
-                         StartGatheringOsIntegrationInfoForSourceApp,
-                     weak_factory_.GetWeakPtr()));
+  gather_migration_source_info_job_ =
+      std::make_unique<GatherMigrationSourceInfoJob>(
+          *all_apps_lock_, source_app_id_, destination_app_id_,
+          base::BindOnce(
+              &ApplyManifestMigrationCommand::OnMigrationSourceInfoGathered,
+              weak_factory_.GetWeakPtr()));
+  gather_migration_source_info_job_->Start();
 }
 
-void ApplyManifestMigrationCommand::StartGatheringOsIntegrationInfoForSourceApp(
-    std::unique_ptr<ShortcutInfo> source_app_shortcut_info) {
+void ApplyManifestMigrationCommand::OnMigrationSourceInfoGathered(
+    std::optional<GatherMigrationSourceInfoJobResult> migration_state) {
+  if (migration_state) {
+    GetMutableDebugValue().Set("migration_source_info",
+                               migration_state->ToDebugValue());
+  }
+
   // Recreate full shortcuts if current OS integration information is not found.
   GetMutableDebugValue().Set("shortcut_info_obtained_for_source_app",
-                             !!source_app_shortcut_info);
-  if (!source_app_shortcut_info) {
+                             migration_state.has_value());
+  if (!migration_state) {
     SynchronizeOsOptions os_options{.add_shortcut_to_desktop = true,
                                     .add_to_quick_launch_bar = true,
                                     .reason = SHORTCUT_CREATION_BY_USER};
@@ -237,42 +248,22 @@ void ApplyManifestMigrationCommand::StartGatheringOsIntegrationInfoForSourceApp(
     return;
   }
 
-  all_apps_lock_->os_integration_manager().GetAppExistingShortCutLocation(
-      base::BindOnce(
-          &ApplyManifestMigrationCommand::MigrateOsIntegrationFromSourceApp,
-          weak_factory_.GetWeakPtr()),
-      std::move(source_app_shortcut_info));
-}
-
-void ApplyManifestMigrationCommand::MigrateOsIntegrationFromSourceApp(
-    ShortcutLocations source_app_locations) {
-  GetMutableDebugValue().Set("shortcut_locations_for_source_app",
-                             source_app_locations.ToDebugValue());
-  // Platforms like Mac don't fetch the 'run on os login' property from the
-  // GetAppExistingShortCutLocation API, so query the registry for that.
-  bool run_on_os_login = source_app_locations.in_startup ||
-                         all_apps_lock_->registrar()
-                                 .GetAppRunOnOsLoginMode(source_app_id_)
-                                 .value == RunOnOsLoginMode::kWindowed;
-  ValueWithPolicy<RunOnOsLoginMode> destination_rool_allowed =
-      all_apps_lock_->registrar().GetAppRunOnOsLoginMode(destination_app_id_);
   {
     ScopedRegistryUpdate update = all_apps_lock_->sync_bridge().BeginUpdate();
     WebApp* destination_app = update->UpdateApp(destination_app_id_);
 
-    // Only allow run on OS login for the destination app if it is allowed by
-    // policy.
-    if (destination_rool_allowed.user_controllable) {
-      destination_app->SetRunOnOsLoginMode(run_on_os_login
-                                               ? RunOnOsLoginMode::kWindowed
-                                               : RunOnOsLoginMode::kNotRun);
+    if (migration_state->run_on_os_login_mode != RunOnOsLoginMode::kNotRun) {
+      destination_app->SetRunOnOsLoginMode(
+          migration_state->run_on_os_login_mode);
     }
     destination_app->SetInstallState(proto::INSTALLED_WITH_OS_INTEGRATION);
+    destination_app->SetUserDisplayMode(migration_state->user_display_mode);
   }
 
   SynchronizeOsOptions os_options{
-      .add_shortcut_to_desktop = source_app_locations.on_desktop,
-      .add_to_quick_launch_bar = source_app_locations.in_quick_launch_bar,
+      .add_shortcut_to_desktop = migration_state->shortcut_locations.on_desktop,
+      .add_to_quick_launch_bar =
+          migration_state->shortcut_locations.in_quick_launch_bar,
       .reason = SHORTCUT_CREATION_BY_USER};
   SynchronizeOsIntegration(os_options);
 }
@@ -331,11 +322,45 @@ void ApplyManifestMigrationCommand::AppUninstalledCompleteMigration(
   GetMutableDebugValue().Set("source_app_uninstall_code",
                              base::ToString(uninstall_code));
   if (!webapps::UninstallSucceeded(uninstall_code)) {
+    // Note: We could still launch the migrated-to app. Avoiding for simplicity
+    // - if this metric happens frequently, we can consider allowing the
+    // launch too.
     CompleteCommandAndSelfDestruct(
         ApplyManifestMigrationResult::kUnableToRemoveSourceApp);
     return;
   }
 
+  apps::AppLaunchParams params(destination_app_id_,
+                               // Note: This is overridden with the web app
+                               // config, as per kOverrideWithWebAppConfig.
+                               apps::LaunchContainer::kLaunchContainerWindow,
+                               // Note: This is overridden with the web app
+                               // config, as per kOverrideWithWebAppConfig.
+                               WindowOpenDisposition::NEW_WINDOW,
+                               apps::LaunchSource::kFromMigration);
+  LaunchWebAppWindowSetting launch_setting =
+      LaunchWebAppWindowSetting::kOverrideWithWebAppConfig;
+
+  all_apps_lock_->ui_manager().LaunchWebApp(
+      std::move(params), launch_setting, *profile_,
+      base::BindOnce(&ApplyManifestMigrationCommand::OnAppLaunched,
+                     weak_factory_.GetWeakPtr()),
+      *all_apps_lock_);
+}
+
+void ApplyManifestMigrationCommand::OnAppLaunched(
+    base::WeakPtr<Browser> browser,
+    base::WeakPtr<content::WebContents> web_contents,
+    apps::LaunchContainer container,
+    base::Value debug_value) {
+  GetMutableDebugValue().Set("launch_web_app_debug_value",
+                             std::move(debug_value));
+  if (!browser || !web_contents) {
+    CompleteCommandAndSelfDestruct(
+        ApplyManifestMigrationResult::
+            kAppMigrationAppliedSuccessfullyLaunchFailed);
+    return;
+  }
   CompleteCommandAndSelfDestruct(
       ApplyManifestMigrationResult::kAppMigrationAppliedSuccessfully);
 }
@@ -343,6 +368,22 @@ void ApplyManifestMigrationCommand::AppUninstalledCompleteMigration(
 void ApplyManifestMigrationCommand::CompleteCommandAndSelfDestruct(
     ApplyManifestMigrationResult result) {
   GetMutableDebugValue().Set("migration_result", base::ToString(result));
+  switch (result) {
+    case ApplyManifestMigrationResult::kAppMigrationAppliedSuccessfully:
+    case ApplyManifestMigrationResult::
+        kAppMigrationAppliedSuccessfullyLaunchFailed:
+      all_apps_lock_->install_manager().NotifyWebAppMigrated(
+          source_app_id_, destination_app_id_);
+      break;
+    case ApplyManifestMigrationResult::kSourceAppInvalidForMigration:
+    case ApplyManifestMigrationResult::kDestinationAppInvalid:
+    case ApplyManifestMigrationResult::kDestinationAppDoesNotLinkToSourceApp:
+    case ApplyManifestMigrationResult::kAppMigrationFailedDuringIconCopy:
+    case ApplyManifestMigrationResult::kUnableToRemoveSourceApp:
+      break;
+    case ApplyManifestMigrationResult::kSystemShutdown:
+      NOTREACHED();
+  }
   CompleteAndSelfDestruct(CommandResult::kSuccess, result);
 }
 

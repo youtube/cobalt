@@ -13,7 +13,6 @@ import("//mojo/public/tools/bindings/mojom.gni")
 import("//pdf/features.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//testing/test.gni")
-import("//third_party/closure_compiler/compile_js.gni")
 import("//third_party/inspector_protocol/inspector_protocol.gni")
 import("//tools/grit/grit_rule.gni")
 import("//tools/grit/repack.gni")
@@ -579,25 +578,6 @@ source_set("headless_browser") {
   } else {
     deps += [ "//ui/aura" ]
   }
-
-  if (headless_use_embedded_resources) {
-    defines += [ "HEADLESS_USE_EMBEDDED_RESOURCES" ]
-    deps += [
-      ":embedded_resource_pack_data",
-      ":embedded_resource_pack_strings",
-    ]
-    sources += [
-      "$root_gen_dir/headless/embedded_resource_pack_data.cc",
-      "$root_gen_dir/headless/embedded_resource_pack_data.h",
-      "$root_gen_dir/headless/embedded_resource_pack_strings.cc",
-      "$root_gen_dir/headless/embedded_resource_pack_strings.h",
-    ]
-  } else {
-    deps += [
-      ":resource_pack_data",
-      ":resource_pack_strings",
-    ]
-  }
 }
 
 group("headless_tests") {
@@ -789,6 +769,7 @@ test("headless_browsertests") {
     "//testing/gtest",
     "//tools/v8_context_snapshot:buildflags",
     "//ui/base/clipboard",
+    "//ui/base/clipboard:clipboard_test_support",
     "//ui/shell_dialogs",
   ]
 
@@ -867,6 +848,7 @@ component("headless_shell_lib") {
     "//content/public/common",
     "//content/public/utility",
     "//printing/buildflags",
+    "//v8",
   ]
 
   if (!is_fuchsia) {
@@ -893,6 +875,25 @@ component("headless_shell_lib") {
 
   if (headless_use_prefs) {
     deps += [ "//components/prefs" ]
+  }
+
+  if (headless_use_embedded_resources) {
+    defines += [ "HEADLESS_USE_EMBEDDED_RESOURCES" ]
+    deps += [
+      ":embedded_resource_pack_data",
+      ":embedded_resource_pack_strings",
+    ]
+    sources += [
+      "$root_gen_dir/headless/embedded_resource_pack_data.cc",
+      "$root_gen_dir/headless/embedded_resource_pack_data.h",
+      "$root_gen_dir/headless/embedded_resource_pack_strings.cc",
+      "$root_gen_dir/headless/embedded_resource_pack_strings.h",
+    ]
+  } else {
+    deps += [
+      ":resource_pack_data",
+      ":resource_pack_strings",
+    ]
   }
 }
 

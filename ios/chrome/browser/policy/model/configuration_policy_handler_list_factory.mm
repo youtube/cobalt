@@ -174,6 +174,9 @@ constexpr auto kSimplePolicyMap = std::to_array<PolicyToPreferenceMapEntry>({
   { policy::key::kGeminiSettings,
     prefs::kGeminiEnabledByPolicy,
     base::Value::Type::INTEGER },
+  { policy::key::kGenAiDefaultSettings,
+    prefs::kGenAiEnabledByPolicy,
+    base::Value::Type::INTEGER },
   { policy::key::kNTPCustomBackgroundEnabled,
     prefs::kNTPCustomBackgroundEnabledByPolicy,
     base::Value::Type::BOOLEAN },
@@ -314,6 +317,13 @@ std::unique_ptr<policy::ConfigurationPolicyHandlerList> BuildPolicyHandlerList(
           enterprise_connectors::kEnterpriseRealTimeUrlCheckMode,
           enterprise_connectors::kEnterpriseRealTimeUrlCheckScope,
           chrome_schema));
+
+  handlers->AddHandler(
+      std::make_unique<
+          enterprise_connectors::EnterpriseConnectorsPolicyHandler>(
+          policy::key::kOnFileDownloadedEnterpriseConnector,
+          enterprise_connectors::kOnFileDownloadedPref,
+          enterprise_connectors::kOnFileDownloadedScopePref, chrome_schema));
 
   handlers->AddHandler(
       std::make_unique<

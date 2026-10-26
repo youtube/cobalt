@@ -15,15 +15,15 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_observer.h"
+#include "chrome/browser/ui/side_panel/side_panel_registry.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator_impl.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_observer.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_test.h"
@@ -65,7 +65,6 @@ class GlicSidePanelCoordinatorTest : public InProcessBrowserTest {
         {
             features::kGlic,
             features::kGlicRollout,
-            features::kGlicMultiInstance,
 #if BUILDFLAG(IS_CHROMEOS)
             chromeos::features::kFeatureManagementGlic,
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -74,6 +73,7 @@ class GlicSidePanelCoordinatorTest : public InProcessBrowserTest {
         {
             features::kGlicLocaleFiltering,
             features::kGlicCountryFiltering,
+            features::kGlicDaisyChainNewTabs,
         });
   }
 
@@ -98,10 +98,7 @@ class GlicSidePanelCoordinatorTest : public InProcessBrowserTest {
   }
 
   SidePanelRegistry* registry() {
-    return browser()
-        ->GetActiveTabInterface()
-        ->GetTabFeatures()
-        ->side_panel_registry();
+    return SidePanelRegistry::From(browser()->GetActiveTabInterface());
   }
 
   GlicSidePanelCoordinatorImpl& coordinator() {

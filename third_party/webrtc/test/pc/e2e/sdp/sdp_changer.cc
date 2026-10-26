@@ -14,12 +14,12 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/rtp_parameters.h"
@@ -51,7 +51,7 @@ std::string CodecRequiredParamsToString(
 }
 
 std::string SupportedCodecsToString(
-    ArrayView<const RtpCodecCapability> supported_codecs) {
+    std::span<const RtpCodecCapability> supported_codecs) {
   StringBuilder out;
   for (const auto& codec : supported_codecs) {
     out << codec.name;
@@ -70,11 +70,11 @@ std::string SupportedCodecsToString(
 }  // namespace
 
 std::vector<RtpCodecCapability> FilterVideoCodecCapabilities(
-    ArrayView<const VideoCodecConfig> video_codecs,
+    std::span<const VideoCodecConfig> video_codecs,
     bool use_rtx,
     bool use_ulpfec,
     bool use_flexfec,
-    ArrayView<const RtpCodecCapability> supported_codecs) {
+    std::span<const RtpCodecCapability> supported_codecs) {
   std::vector<RtpCodecCapability> output_codecs;
   // Find requested codecs among supported and add them to output in the order
   // they were requested.
@@ -527,7 +527,7 @@ LocalAndRemoteSdp SignalingInterceptor::PatchVp9Answer(
 
 std::vector<std::unique_ptr<IceCandidate>>
 SignalingInterceptor::PatchOffererIceCandidates(
-    ArrayView<const IceCandidate* const> candidates) {
+    std::span<const IceCandidate* const> candidates) {
   std::vector<std::unique_ptr<IceCandidate>> out;
   for (auto* candidate : candidates) {
     auto simulcast_info_it =
@@ -551,7 +551,7 @@ SignalingInterceptor::PatchOffererIceCandidates(
 
 std::vector<std::unique_ptr<IceCandidate>>
 SignalingInterceptor::PatchAnswererIceCandidates(
-    ArrayView<const IceCandidate* const> candidates) {
+    std::span<const IceCandidate* const> candidates) {
   std::vector<std::unique_ptr<IceCandidate>> out;
   for (auto* candidate : candidates) {
     auto simulcast_info_it =

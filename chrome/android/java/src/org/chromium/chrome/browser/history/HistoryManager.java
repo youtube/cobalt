@@ -146,7 +146,7 @@ public class HistoryManager
             boolean isSeparateActivity,
             SnackbarManager snackbarManager,
             Supplier<BottomSheetController> bottomSheetControllerSupplier,
-            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
+            Supplier<ModalDialogManager> modalDialogManagerSupplier,
             ActivityResultTracker activityResultTracker,
             @Nullable Supplier<@Nullable Tab> tabSupplier,
             HistoryProvider historyProvider,
@@ -155,6 +155,7 @@ public class HistoryManager
             boolean shouldShowClearData,
             boolean launchedForApp,
             boolean showAppFilter,
+            boolean shouldClusterByDomain,
             @Nullable Runnable openHistoryItemCallback,
             @Nullable Function<View, EdgeToEdgePadAdjuster> edgeToEdgePadAdjusterGenerator) {
         mProfile = profile;
@@ -216,6 +217,7 @@ public class HistoryManager
                         clientPackageName,
                         launchedForApp,
                         showAppFilter,
+                        shouldClusterByDomain,
                         openHistoryItemCallback,
                         new ChromeAsyncTabLauncher(/* incognito= */ false),
                         new ChromeAsyncTabLauncher(/* incognito= */ true));

@@ -44,7 +44,6 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackUtils;
@@ -56,6 +55,7 @@ import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
@@ -63,8 +63,6 @@ import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.hub.DisplayButtonData;
-import org.chromium.chrome.browser.hub.FullButtonData;
 import org.chromium.chrome.browser.hub.HubContainerView;
 import org.chromium.chrome.browser.hub.HubLayoutAnimationListener;
 import org.chromium.chrome.browser.hub.HubLayoutAnimationType;
@@ -91,6 +89,8 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabLi
 import org.chromium.chrome.browser.tasks.tab_management.archived_tabs_auto_delete_promo.ArchivedTabsAutoDeletePromoManager;
 import org.chromium.chrome.browser.tasks.tab_management.archived_tabs_auto_delete_promo.ArchivedTabsAutoDeletePromoSheetContent;
 import org.chromium.chrome.browser.toolbar.TabSwitcherDrawable;
+import org.chromium.chrome.browser.ui.actions.DisplayButtonData;
+import org.chromium.chrome.browser.ui.actions.FullButtonData;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.user_education.IphCommand;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
@@ -308,7 +308,7 @@ public class TabSwitcherPaneUnitTest {
                         mUiFlow,
                         mMockArchivedTabsAutoDeletePromoManager,
                         /* xrSpaceModeObservableSupplier= */ ObservableSuppliers.alwaysFalse());
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
         verify(mSharedPreferences)
                 .registerOnSharedPreferenceChangeListener(
                         mPriceAnnotationsPrefListenerCaptor.capture());
@@ -352,25 +352,25 @@ public class TabSwitcherPaneUnitTest {
     @Test
     public void testLoadHintColdWarmCold() {
         mTabSwitcherPane.notifyLoadHint(LoadHint.COLD);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertNull(mTabSwitcherPane.getTabSwitcherPaneCoordinator());
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.WARM);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         TabSwitcherPaneCoordinator coordinator = mTabSwitcherPane.getTabSwitcherPaneCoordinator();
         assertNotNull(coordinator);
         verify(coordinator, never()).softCleanup();
         verify(coordinator, never()).hardCleanup();
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.WARM);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         coordinator = mTabSwitcherPane.getTabSwitcherPaneCoordinator();
         assertNotNull(coordinator);
         verify(coordinator).softCleanup();
         verify(coordinator, never()).hardCleanup();
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.COLD);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertNull(mTabSwitcherPane.getTabSwitcherPaneCoordinator());
         verify(coordinator, times(2)).softCleanup();
         verify(coordinator).hardCleanup();
@@ -381,11 +381,11 @@ public class TabSwitcherPaneUnitTest {
         mTabModel.setActive(true);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.COLD);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertNull(mTabSwitcherPane.getTabSwitcherPaneCoordinator());
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         TabSwitcherPaneCoordinator coordinator = mTabSwitcherPane.getTabSwitcherPaneCoordinator();
         assertNotNull(coordinator);
         verify(coordinator, never()).softCleanup();
@@ -395,7 +395,7 @@ public class TabSwitcherPaneUnitTest {
         verify(coordinator).requestAccessibilityFocusOnCurrentTab();
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.WARM);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         coordinator = mTabSwitcherPane.getTabSwitcherPaneCoordinator();
         assertNotNull(coordinator);
         verify(coordinator).softCleanup();
@@ -408,11 +408,11 @@ public class TabSwitcherPaneUnitTest {
         when(mTabGroupModelFilter.isTabModelRestored()).thenReturn(false);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.COLD);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertNull(mTabSwitcherPane.getTabSwitcherPaneCoordinator());
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         TabSwitcherPaneCoordinator coordinator = mTabSwitcherPane.getTabSwitcherPaneCoordinator();
         assertNotNull(coordinator);
         verify(coordinator, never()).resetWithListOfTabs(mTabList);
@@ -433,18 +433,18 @@ public class TabSwitcherPaneUnitTest {
         mTabModel.setActive(true);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.COLD);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertNull(mTabSwitcherPane.getTabSwitcherPaneCoordinator());
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.WARM);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         TabSwitcherPaneCoordinator coordinator = mTabSwitcherPane.getTabSwitcherPaneCoordinator();
         assertNotNull(coordinator);
         verify(coordinator, never()).softCleanup();
         verify(coordinator, never()).hardCleanup();
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         coordinator = mTabSwitcherPane.getTabSwitcherPaneCoordinator();
         assertNotNull(coordinator);
         verify(coordinator, never()).softCleanup();
@@ -454,7 +454,7 @@ public class TabSwitcherPaneUnitTest {
         verify(coordinator).requestAccessibilityFocusOnCurrentTab();
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.COLD);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertNull(mTabSwitcherPane.getTabSwitcherPaneCoordinator());
         verify(coordinator).softCleanup();
         verify(coordinator).hardCleanup();
@@ -479,6 +479,22 @@ public class TabSwitcherPaneUnitTest {
 
         buttonData.getOnPressRunnable().run();
         verify(mNewTabButtonClickListener).onClick(isNull());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR + ":show_bottom_bar_on_gts/true")
+    public void testNewTabButton_BottomBarEnabled() {
+        assertNull(mTabSwitcherPane.getActionButtonDataSupplier().get());
+        assertFalse(mTabSwitcherPane.getMenuButtonVisible());
+    }
+
+    @Test
+    @EnableFeatures(
+            ChromeFeatureList.ANDROID_BOTTOM_BAR
+                    + ":keep_app_menu_in_toolbar/true/show_bottom_bar_on_gts/true")
+    public void testMenuButton_BottomBarEnabled_KeepAppMenuInToolbar() {
+        assertNull(mTabSwitcherPane.getActionButtonDataSupplier().get());
+        assertTrue(mTabSwitcherPane.getMenuButtonVisible());
     }
 
     @Test
@@ -733,7 +749,7 @@ public class TabSwitcherPaneUnitTest {
         mTabModel.addTab(TAB_ID);
         mTabSwitcherPane.initWithNative();
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         mTabModel.setIndex(0, TabSelectionType.FROM_USER);
         assertEquals(1, mActionTester.getActionCount("Commerce.TabGridSwitched.NoPriceDrop"));
@@ -743,7 +759,7 @@ public class TabSwitcherPaneUnitTest {
         assertEquals(2, mActionTester.getActionCount("Commerce.TabGridSwitched.NoPriceDrop"));
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.COLD);
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         mTabModel.addTab(TAB_ID + 2);
         mTabModel.setIndex(2, TabSelectionType.FROM_USER);
@@ -952,7 +968,7 @@ public class TabSwitcherPaneUnitTest {
         when(mTabGroupSyncService.getAllGroupIds()).thenReturn(new String[] {""});
         when(mPaneHubController.getPaneButton(anyInt())).thenReturn(mAnchorView);
 
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mUserEducationHelper).requestShowIph(argThat(surfaceIph()));
     }
@@ -971,7 +987,7 @@ public class TabSwitcherPaneUnitTest {
         when(mTabSwitcherPaneCoordinator.getViewByIndex(anyInt())).thenReturn(mAnchorView);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mUserEducationHelper).requestShowIph(argThat(remoteGroupIph()));
     }
@@ -987,12 +1003,12 @@ public class TabSwitcherPaneUnitTest {
         when(mTabGroupSyncService.getGroup(any(LocalTabGroupId.class))).thenReturn(mSavedTabGroup);
         when(mTabGroupSyncService.isRemoteDevice(any())).thenReturn(true);
         when(mTabSwitcherPaneCoordinator.getViewByIndex(anyInt())).thenReturn(mAnchorView);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         reset(mUserEducationHelper);
 
         mIsScrollingSupplier.set(false);
         mIsScrollingSupplierSupplier.set(mIsScrollingSupplier);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mUserEducationHelper).requestShowIph(argThat(remoteGroupIph()));
     }
@@ -1010,11 +1026,11 @@ public class TabSwitcherPaneUnitTest {
         when(mTabGroupSyncService.getGroup(any(LocalTabGroupId.class))).thenReturn(mSavedTabGroup);
         when(mTabGroupSyncService.isRemoteDevice(any())).thenReturn(true);
         when(mTabSwitcherPaneCoordinator.getViewByIndex(anyInt())).thenReturn(mAnchorView);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         reset(mUserEducationHelper);
 
         mTabGroupModelFilterObserverCaptor.getValue().didCreateNewGroup(mTab, mTabGroupModelFilter);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mUserEducationHelper).requestShowIph(argThat(remoteGroupIph()));
     }
@@ -1031,7 +1047,7 @@ public class TabSwitcherPaneUnitTest {
         when(mTabSwitcherPaneCoordinator.getViewByIndex(anyInt())).thenReturn(mAnchorView);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mUserEducationHelper, never()).requestShowIph(any());
     }
@@ -1050,7 +1066,7 @@ public class TabSwitcherPaneUnitTest {
                 .thenReturn(() -> true);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mUserEducationHelper, never()).requestShowIph(any());
     }
@@ -1067,7 +1083,7 @@ public class TabSwitcherPaneUnitTest {
         when(mTabSwitcherPaneCoordinator.getViewByIndex(anyInt())).thenReturn(mAnchorView);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mUserEducationHelper, never()).requestShowIph(any());
     }
@@ -1086,7 +1102,7 @@ public class TabSwitcherPaneUnitTest {
         mSavedTabGroup.creatorCacheGuid = "creatorCacheGuid";
         when(mTabGroupSyncService.isRemoteDevice("creatorCacheGuid")).thenReturn(true);
         when(mTabSwitcherPaneCoordinator.getViewByIndex(0)).thenReturn(mAnchorView);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         reset(mUserEducationHelper);
 
         // For the following cases we set the tab at index 1 (since we iterate backward) to not
@@ -1095,20 +1111,20 @@ public class TabSwitcherPaneUnitTest {
         // Case 1: null tab.
         when(mTabGroupModelFilter.getRepresentativeTabAt(1)).thenReturn(null);
         mTabGroupModelFilterObserverCaptor.getValue().didCreateNewGroup(mTab, mTabGroupModelFilter);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verify(mUserEducationHelper).requestShowIph(argThat(remoteGroupIph()));
 
         // Case 2: not in group.
         Tab tab = mock(Tab.class);
         when(mTabGroupModelFilter.getRepresentativeTabAt(1)).thenReturn(tab);
         mTabGroupModelFilterObserverCaptor.getValue().didCreateNewGroup(mTab, mTabGroupModelFilter);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verify(mUserEducationHelper, times(2)).requestShowIph(argThat(remoteGroupIph()));
 
         // Case 3: no token.
         when(mTabGroupModelFilter.isTabInTabGroup(tab)).thenReturn(true);
         mTabGroupModelFilterObserverCaptor.getValue().didCreateNewGroup(mTab, mTabGroupModelFilter);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verify(mUserEducationHelper, times(3)).requestShowIph(argThat(remoteGroupIph()));
 
         // Case 4: token not in saved tab group.
@@ -1117,7 +1133,7 @@ public class TabSwitcherPaneUnitTest {
         when(tab.getTabGroupId()).thenReturn(tabGroupId);
         when(mTabGroupSyncService.getGroup(localTabGroupId)).thenReturn(null);
         mTabGroupModelFilterObserverCaptor.getValue().didCreateNewGroup(mTab, mTabGroupModelFilter);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verify(mUserEducationHelper, times(4)).requestShowIph(argThat(remoteGroupIph()));
 
         // Case 5: in collaboration.
@@ -1125,7 +1141,7 @@ public class TabSwitcherPaneUnitTest {
         savedTabGroup.collaborationId = "My collab";
         when(mTabGroupSyncService.getGroup(localTabGroupId)).thenReturn(savedTabGroup);
         mTabGroupModelFilterObserverCaptor.getValue().didCreateNewGroup(mTab, mTabGroupModelFilter);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verify(mUserEducationHelper, times(5)).requestShowIph(argThat(remoteGroupIph()));
 
         // Case 6: not remote device.
@@ -1133,13 +1149,13 @@ public class TabSwitcherPaneUnitTest {
         savedTabGroup.creatorCacheGuid = "test guid";
         when(mTabGroupSyncService.isRemoteDevice("test guid")).thenReturn(false);
         mTabGroupModelFilterObserverCaptor.getValue().didCreateNewGroup(mTab, mTabGroupModelFilter);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verify(mUserEducationHelper, times(6)).requestShowIph(argThat(remoteGroupIph()));
 
         // Case 7: no anchor view.
         savedTabGroup.creatorCacheGuid = null;
         mTabGroupModelFilterObserverCaptor.getValue().didCreateNewGroup(mTab, mTabGroupModelFilter);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         verify(mUserEducationHelper, times(7)).requestShowIph(argThat(remoteGroupIph()));
     }
 
@@ -1155,7 +1171,7 @@ public class TabSwitcherPaneUnitTest {
         when(mTabSwitcherPaneCoordinator.getViewByIndex(anyInt())).thenReturn(mAnchorView);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mUserEducationHelper, never()).requestShowIph(any());
     }
@@ -1172,7 +1188,7 @@ public class TabSwitcherPaneUnitTest {
         when(mTabSwitcherPaneCoordinator.getViewByIndex(anyInt())).thenReturn(mAnchorView);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mUserEducationHelper, never()).requestShowIph(any());
     }
@@ -1189,7 +1205,7 @@ public class TabSwitcherPaneUnitTest {
         when(mTabSwitcherPaneCoordinator.getViewByIndex(anyInt())).thenReturn(mAnchorView);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mUserEducationHelper, never()).requestShowIph(any());
     }
@@ -1206,7 +1222,7 @@ public class TabSwitcherPaneUnitTest {
         when(mTabSwitcherPaneCoordinator.getViewByIndex(anyInt())).thenReturn(mAnchorView);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mUserEducationHelper, never()).requestShowIph(any());
     }
@@ -1223,7 +1239,7 @@ public class TabSwitcherPaneUnitTest {
         when(mTabSwitcherPaneCoordinator.getViewByIndex(anyInt())).thenReturn(mAnchorView);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mUserEducationHelper, never()).requestShowIph(any());
     }
@@ -1241,7 +1257,7 @@ public class TabSwitcherPaneUnitTest {
         mSavedTabGroup.collaborationId = "Collab ID";
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mUserEducationHelper, never()).requestShowIph(any());
     }
@@ -1258,7 +1274,7 @@ public class TabSwitcherPaneUnitTest {
         when(mTabSwitcherPaneCoordinator.getViewByIndex(anyInt())).thenReturn(null);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mUserEducationHelper, never()).requestShowIph(any());
     }
@@ -1295,7 +1311,7 @@ public class TabSwitcherPaneUnitTest {
                 /* archivedTabCount= */ 1);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mMockBottomSheetController)
                 .requestShowContent(any(ArchivedTabsAutoDeletePromoSheetContent.class), eq(true));
@@ -1311,7 +1327,7 @@ public class TabSwitcherPaneUnitTest {
                 /* archivedTabCount= */ 1);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mMockBottomSheetController, never())
                 .requestShowContent(
@@ -1328,7 +1344,7 @@ public class TabSwitcherPaneUnitTest {
                 /* archivedTabCount= */ 1);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mMockBottomSheetController, never())
                 .requestShowContent(
@@ -1345,7 +1361,7 @@ public class TabSwitcherPaneUnitTest {
                 /* archivedTabCount= */ 1);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mMockBottomSheetController, never())
                 .requestShowContent(
@@ -1362,7 +1378,7 @@ public class TabSwitcherPaneUnitTest {
                 /* archivedTabCount= */ 0);
 
         mTabSwitcherPane.notifyLoadHint(LoadHint.HOT);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         verify(mMockBottomSheetController, never())
                 .requestShowContent(

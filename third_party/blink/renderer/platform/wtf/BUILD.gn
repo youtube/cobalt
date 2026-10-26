@@ -233,6 +233,7 @@ component("wtf") {
     "//third_party/blink/public/common",
     "//third_party/modp_b64",
     "//third_party/rapidhash",
+    "//third_party/simdutf",
 
     # TODO(tkent): WTF should not depend on it.
     "//third_party/blink/public/common:headers",
@@ -299,6 +300,7 @@ test("wtf_perf_tests") {
   sources = [
     "testing/run_all_tests.cc",
     "text/string_simd_perf_test.cc",
+    "text/utf8_perf_test.cc",
   ]
 
   configs += [
@@ -340,7 +342,6 @@ source_set("wtf_unittests_sources") {
     "linked_hash_set_test.cc",
     "math_extras_test.cc",
     "pod_arena_test.cc",
-    "pod_arena_test_helpers.h",
     "pod_free_list_arena_test.cc",
     "pod_interval_tree_test.cc",
     "pod_red_black_tree_test.cc",

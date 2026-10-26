@@ -906,7 +906,6 @@ def AddJUnitTestOptions(parser):
                       help='Path to search for native libraries.')
   parser.add_argument(
       '--resource-apk',
-      required=True,
       help='Path to .ap_ containing binary resources for Robolectric.')
   parser.add_argument('--shadows-allowlist',
                       help='Path to Allowlist file for Shadows.')
@@ -1328,8 +1327,12 @@ def RunTestsInPlatformMode(args, result_sink_client=None):
               match = re.search(r'^(.+\..+)#', r.GetName())
               test_file_name = test_class_to_file_name_dict.get(
                   match.group(1)) if match else None
-              _SinkTestResult(r, test_file_name, test_instance,
-                              result_sink_client)
+              _SinkTestResult(
+                  r,
+                  test_file_name or r.GetTestFile(),
+                  test_instance,
+                  result_sink_client,
+              )
 
   @contextlib.contextmanager
   def upload_logcats_file():

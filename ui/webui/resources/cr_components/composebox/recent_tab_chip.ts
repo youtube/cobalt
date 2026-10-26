@@ -61,9 +61,12 @@ export class RecentTabChipElement extends RecentTabChipBase {
     return `${htmlEscape(this.recentTab.title)} - ${htmlEscape(domain)}`;
   }
 
-  protected addTabContext_(e: Event) {
+  protected onRecentTabButtonClick_(e: Event) {
     e.stopPropagation();
     assert(this.recentTab);
+
+    chrome.histograms.recordUserAction(
+        `ContextualSearch.RecentTabChipClick.${this.composeboxSource_}`);
 
     this.fire('add-tab-context', {
       id: this.recentTab.tabId,

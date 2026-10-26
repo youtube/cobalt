@@ -13,6 +13,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "base/strings/string_view_util.h"
 #include "chrome/browser/optimization_guide/chrome_hints_manager.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
@@ -120,9 +121,9 @@ OptimizationGuideBridge::GetCachedNotifications(
   std::vector<proto::HintNotificationPayload> notifications;
   for (const auto& encoded_notification : encoded_notifications) {
     proto::HintNotificationPayload notification;
-    if (notification.ParseFromString(std::string(encoded_notification.begin(),
-                                                 encoded_notification.end()))) {
-      notifications.push_back(notification);
+    if (notification.ParseFromString(
+            base::as_string_view(encoded_notification))) {
+      notifications.push_back(std::move(notification));
     }
   }
 
@@ -201,13 +202,14 @@ OptimizationGuideBridge::OptimizationGuideBridge(
 
 OptimizationGuideBridge::~OptimizationGuideBridge() = default;
 
-ScopedJavaLocalRef<jobject> OptimizationGuideBridge::GetJavaObject() {
+ScopedJavaLocalRef<JOptimizationGuideBridge>
+OptimizationGuideBridge::GetJavaObject() {
   JNIEnv* env = AttachCurrentThread();
   if (!java_ref_) {
     java_ref_.Reset(Java_OptimizationGuideBridge_Constructor(
         env, reinterpret_cast<intptr_t>(this)));
   }
-  return ScopedJavaLocalRef<jobject>(java_ref_);
+  return ScopedJavaLocalRef<JOptimizationGuideBridge>(java_ref_);
 }
 
 void OptimizationGuideBridge::RegisterOptimizationTypes(
@@ -221,7 +223,7 @@ void OptimizationGuideBridge::RegisterOptimizationTypes(
 
 void OptimizationGuideBridge::CanApplyOptimization(
     JNIEnv* env,
-    GURL& url,
+    const GURL& url,
     int32_t optimization_type,
     const JavaRef<jobject>& java_callback) {
   optimization_guide_keyed_service_->CanApplyOptimization(
@@ -234,7 +236,7 @@ void OptimizationGuideBridge::CanApplyOptimization(
 
 base::android::ScopedJavaLocalRef<jobject>
 OptimizationGuideBridge::CanApplyOptimizationSync(JNIEnv* env,
-                                                  GURL& url,
+                                                  const GURL& url,
                                                   int32_t optimization_type) {
   optimization_guide::OptimizationMetadata metadata;
 
@@ -251,7 +253,7 @@ OptimizationGuideBridge::CanApplyOptimizationSync(JNIEnv* env,
 
 void OptimizationGuideBridge::CanApplyOptimizationOnDemand(
     JNIEnv* env,
-    std::vector<GURL>& urls,
+    const std::vector<GURL>& urls,
     const JavaRef<jintArray>& optimization_types,
     int32_t request_context,
     const JavaRef<jobject>& java_callback,

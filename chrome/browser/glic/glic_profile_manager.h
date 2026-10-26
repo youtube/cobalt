@@ -8,8 +8,10 @@
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list_types.h"
+#include "base/scoped_multi_source_observation.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/profiles/profile_manager_observer.h"
+#include "chrome/browser/profiles/profile_observer.h"
 #include "services/network/public/cpp/network_connection_tracker.h"
 
 class Profile;
@@ -22,6 +24,7 @@ enum class GlicPrewarmingChecksResult;
 // Among other things it is used for determining which profile to launch from an
 // OS Entry point and ensuring that just one panel is shown across all profiles.
 class GlicProfileManager : public ProfileManagerObserver,
+                           public ProfileObserver,
                            public base::MemoryPressureListener {
  public:
   GlicProfileManager();
@@ -73,10 +76,6 @@ class GlicProfileManager : public ProfileManagerObserver,
   void ShouldPreloadForProfile(Profile* profile,
                                ShouldPreloadCallback callback);
 
-  // Callback will be invoked with true if the given profile should be
-  // considered for preloading the FRE.
-  void ShouldPreloadFreForProfile(Profile* profile,
-                                  ShouldPreloadCallback callback);
 
   // Returns the active Glic service, nullptr if there is none.
   GlicKeyedService* GetLastActiveGlic() const;
@@ -93,7 +92,12 @@ class GlicProfileManager : public ProfileManagerObserver,
   bool IsShowing() const;
 
   // ProfileManagerObserver:
+  void OnProfileAdded(Profile* profile) override;
   void OnProfileMarkedForPermanentDeletion(Profile* profile) override;
+
+  // ProfileObserver:
+  void OnOffTheRecordProfileCreated(Profile* profile) override;
+  void OnProfileWillBeDestroyed(Profile* profile) override;
 
   // base::MemoryPressureListener:
   void OnMemoryPressure(base::MemoryPressureLevel level) override;
@@ -110,6 +114,8 @@ class GlicProfileManager : public ProfileManagerObserver,
  private:
   FRIEND_TEST_ALL_PREFIXES(GlicProfileManagerDidSelectProfileTest,
                            DidSelectProfile_NoConsent);
+  FRIEND_TEST_ALL_PREFIXES(GlicProfileManagerDidSelectProfileTest,
+                           DidSelectProfile_Consented);
 
   // Callback from ProfilePicker::Show().
   void DidSelectProfile(Profile* profile);
@@ -137,6 +143,9 @@ class GlicProfileManager : public ProfileManagerObserver,
 
   base::MemoryPressureLevel memory_pressure_level_ =
       base::MEMORY_PRESSURE_LEVEL_NONE;
+
+  base::ScopedMultiSourceObservation<Profile, ProfileObserver>
+      profile_observations_{this};
 
   base::WeakPtrFactory<GlicProfileManager> weak_ptr_factory_{this};
 };
@@ -191,7 +200,7 @@ enum class GlicPrewarmingChecksResult {
   // The browser is being shutdown.
   kBrowserShuttingDown = 14,
 
-  // The user already went through the Glic FRE (applicable to FRE warming).
+  // Deprecated.
   kUserAlreadyWentTroughFre = 15,
 
   // Used by tests to prevent premature preloading. Not a valid value for

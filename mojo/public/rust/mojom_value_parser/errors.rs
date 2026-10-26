@@ -43,7 +43,7 @@ pub enum ParsingErrorType {
     /// non-extensible enum or union type
     /// We don't carry the expected values because there isn't an easy way to
     /// show them to the user
-    InvalidDiscriminant { value: u32 },
+    InvalidDiscriminant { value: i32 },
     /// Indicates that a sized array had an incorrect number of elements
     WrongArraySize { expected: usize, actual: usize },
     /// Indicates that the bytes in a string weren't UTF-8 encoded
@@ -54,6 +54,8 @@ pub enum ParsingErrorType {
     MismatchedMap { key_len: usize, value_len: usize },
     /// Indicates that the corresponding mojom feature has yet to be implemented
     NotImplemented { feature_name: String },
+    /// Indicates that we failed to retrieve a handle from the given index
+    InvalidHandleIndex { idx: usize },
 }
 
 impl ParsingError {
@@ -97,7 +99,7 @@ impl ParsingError {
         ParsingError { offset, ty: ParsingErrorType::WrongSize { expected_size, actual_size } }
     }
 
-    pub fn invalid_discriminant(offset: usize, value: u32) -> ParsingError {
+    pub fn invalid_discriminant(offset: usize, value: i32) -> ParsingError {
         ParsingError { offset, ty: ParsingErrorType::InvalidDiscriminant { value } }
     }
 
@@ -119,6 +121,10 @@ impl ParsingError {
 
     pub fn not_implemented(offset: usize, feature_name: String) -> ParsingError {
         ParsingError { offset, ty: ParsingErrorType::NotImplemented { feature_name } }
+    }
+
+    pub fn invalid_handle_index(offset: usize, idx: usize) -> ParsingError {
+        ParsingError { offset, ty: ParsingErrorType::InvalidHandleIndex { idx } }
     }
 }
 
@@ -198,6 +204,13 @@ impl std::fmt::Display for ParsingError {
             }
             ParsingErrorType::NotImplemented { feature_name } => {
                 write!(f, "The rust bindings do not yet support {feature_name}")
+            }
+            ParsingErrorType::InvalidHandleIndex { idx } => {
+                write!(
+                    f,
+                    "Failed to retrieve the handle attached to the message at index {idx}. \
+                    Either the index was invalid or it was already retrieved."
+                )
             }
         }
     }

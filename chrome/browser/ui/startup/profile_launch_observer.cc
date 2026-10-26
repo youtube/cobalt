@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/startup/profile_launch_observer.h"
 
+#include "base/functional/bind.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/profiles/profile.h"
@@ -13,6 +14,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/waap/initial_web_ui_manager.h"
 #include "content/public/browser/browser_thread.h"
 
 ProfileLaunchObserver::ProfileLaunchObserver() {
@@ -117,6 +119,14 @@ void ProfileLaunchObserver::MaybeActivateProfile() {
     if (opened_profiles_.find(*i) == opened_profiles_.end()) {
       return;
     }
+    BrowserWindowInterface* browser = chrome::FindBrowserWithProfile(*i);
+    // Defer the profile activation if the initial WebUI is pending.
+    if (browser && InitialWebUIManager::From(browser) &&
+        InitialWebUIManager::From(browser)->RequestDeferShow(
+            base::BindOnce(&ProfileLaunchObserver::MaybeActivateProfile,
+                           weak_ptr_factory_.GetWeakPtr()))) {
+      return;
+    }
   }
   // Asynchronous post to give a chance to the last window to completely
   // open and activate before trying to activate |profile_to_activate_|.
@@ -131,12 +141,13 @@ void ProfileLaunchObserver::MaybeActivateProfile() {
 void ProfileLaunchObserver::ActivateProfile() {
   // We need to test again, in case the profile got deleted in the mean time.
   if (profile_to_activate_) {
-    Browser* browser = chrome::FindBrowserWithProfile(profile_to_activate_);
+    BrowserWindowInterface* browser =
+        chrome::FindBrowserWithProfile(profile_to_activate_);
     // |profile| may never get launched, e.g., if it only had
     // incognito Windows and one of them was used to exit Chrome.
     // So it won't have a browser in that case.
     if (browser) {
-      browser->window()->Activate();
+      browser->GetWindow()->Activate();
     }
     // No need try to activate this profile again.
     profile_to_activate_ = nullptr;

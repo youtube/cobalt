@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.autofill.editors.autofill_ai;
 
+import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.EditorItem;
 import org.chromium.ui.modelutil.ListModel;
@@ -35,8 +36,10 @@ public class EntityEditorProperties {
             new ReadableIntPropertyKey("delete_confirmation_primary_button_text");
     public static final ReadableBooleanPropertyKey ALLOW_DELETE =
             new ReadableBooleanPropertyKey("allow_delete");
-    public static final ReadableObjectPropertyKey<Runnable> DELETE_RUNNABLE =
+    public static final ReadableObjectPropertyKey<Callback<Boolean>> DELETE_CALLBACK =
             new ReadableObjectPropertyKey<>("delete_callback");
+    public static final WritableBooleanPropertyKey VALIDATE_ON_SHOW =
+            new WritableBooleanPropertyKey("validate_on_show");
 
     public static final ReadableObjectPropertyKey<ListModel<EditorItem>> EDITOR_FIELDS =
             new ReadableObjectPropertyKey<>("editor_fields");
@@ -50,7 +53,8 @@ public class EntityEditorProperties {
         DELETE_CONFIRMATION_TEXT,
         DELETE_CONFIRMATION_PRIMARY_BUTTON_TEXT_ID,
         ALLOW_DELETE,
-        DELETE_RUNNABLE,
+        DELETE_CALLBACK,
+        VALIDATE_ON_SHOW,
         EDITOR_FIELDS,
     };
 

@@ -696,12 +696,8 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
 
   // Used externally by blink for setting the PropertyTrees when
   // UseLayerLists() is true.
-  PropertyTrees* property_trees() {
-    return &thread_unsafe_commit_state().property_trees;
-  }
-  const PropertyTrees* property_trees() const {
-    return &thread_unsafe_commit_state().property_trees;
-  }
+  PropertyTrees* property_trees() { return &property_trees_; }
+  const PropertyTrees* property_trees() const { return &property_trees_; }
   MutatorHost* mutator_host() {
     return thread_unsafe_commit_state().mutator_host;
   }
@@ -790,6 +786,7 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
 
   // LayerTreeHost interface to Proxy.
   void WillBeginMainFrame();
+  void WillBeginImplCommit();
   void DidBeginMainFrame();
   void BeginMainFrame(const viz::BeginFrameArgs& args);
   void BeginMainFrameNotExpectedSoon();
@@ -1089,6 +1086,7 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
   std::unique_ptr<RenderingStatsInstrumentation>
       rendering_stats_instrumentation_;
 
+  PropertyTrees property_trees_;
   std::unique_ptr<CommitState> pending_commit_state_;
   ThreadUnsafeCommitState thread_unsafe_commit_state_;
 
@@ -1116,6 +1114,10 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
   // destroyed midway which causes a crash. crbug.com/654672
   bool inside_main_frame_ = false;
 
+  // Track when we're inside `WillBeginImplCommit` to ensure commit state is
+  // not modified.
+  bool inside_will_begin_impl_commit_ = false;
+
   // Set to force a commit during BeginMainFrame even if there are no actual
   // rendering changes, to ensure the bits in CommitState are propagated.
   bool force_commit_for_propagation_ = true;
@@ -1137,7 +1139,6 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
   // Layer id to Layer map.
   std::unordered_map<int, raw_ptr<Layer, CtnExperimental>> layer_id_map_;
 
-  // This is for layer tree mode only.
   std::unordered_map<ElementId, raw_ptr<Layer, CtnExperimental>, ElementIdHash>
       element_layers_map_;
 

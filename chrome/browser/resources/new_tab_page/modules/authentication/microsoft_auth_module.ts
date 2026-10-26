@@ -22,7 +22,7 @@ import {MicrosoftAuthProxyImpl} from './microsoft_auth_module_proxy.js';
 
 export interface MicrosoftAuthModuleElement {
   $: {
-    moduleHeaderElementV2: ModuleHeaderElement,
+    moduleHeader: ModuleHeaderElement,
     signInButton: HTMLButtonElement,
   };
 }
@@ -36,7 +36,7 @@ const MicrosoftAuthModuleElementBase = I18nMixinLit(CrLitElement);
  */
 export class MicrosoftAuthModuleElement extends MicrosoftAuthModuleElementBase {
   static get is() {
-    return 'ntp-microsoft-authentication-module';
+    return 'ntp-microsoft-auth-module';
   }
 
   static override get styles() {
@@ -84,16 +84,12 @@ export class MicrosoftAuthModuleElement extends MicrosoftAuthModuleElementBase {
 
   protected onDismissButtonClick_() {
     this.handler_.dismissModule();
-    this.dispatchEvent(new CustomEvent('dismiss-module-instance', {
-      bubbles: true,
-      composed: true,
-      detail: {
-        message: loadTimeData.getStringF(
-            'dismissModuleToastMessage',
-            loadTimeData.getString('modulesMicrosoftAuthName')),
-        restoreCallback: () => this.handler_.restoreModule(),
-      },
-    }));
+    this.fire('dismiss-module-instance', {
+      message: loadTimeData.getStringF(
+          'dismissModuleToastMessage',
+          loadTimeData.getString('modulesMicrosoftAuthName')),
+      restoreCallback: () => this.handler_.restoreModule(),
+    });
   }
 
   // Cause Login flow to begin within auth iframe.
@@ -110,7 +106,7 @@ export class MicrosoftAuthModuleElement extends MicrosoftAuthModuleElementBase {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'ntp-microsoft-authentication-module': MicrosoftAuthModuleElement;
+    'ntp-microsoft-auth-module': MicrosoftAuthModuleElement;
   }
 }
 

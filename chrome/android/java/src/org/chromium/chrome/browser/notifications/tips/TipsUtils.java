@@ -20,6 +20,7 @@ import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
@@ -38,6 +39,9 @@ import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
+import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig;
+import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
+import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
 import org.chromium.components.browser_ui.notifications.BaseNotificationManagerProxyFactory;
 import org.chromium.components.browser_ui.notifications.NotificationProxyUtils;
 import org.chromium.components.browser_ui.notifications.channels.ChannelsInitializer;
@@ -68,6 +72,7 @@ public class TipsUtils {
             "android.tips.notifications.create_tab_group_shown";
     public static final String CUSTOMIZE_MVT_SHOWN =
             "android.tips.notifications.customize_mvt_shown";
+    public static final String RECENT_TABS_SHOWN = "android.tips.notifications.recent_tabs_shown";
 
     // LINT.ThenChange(//chrome/common/pref_names.h:TipsShownPrefs)
 
@@ -77,9 +82,12 @@ public class TipsUtils {
      *
      * @param context The Android {@link Context}.
      * @param featureType The {@link TipsNotificationsFeatureType} to show a promo for.
+     * @param isUserSignedIn Whether the user is signed in, used for the Sign-in feature promo.
      */
     public static FeatureTipPromoData getFeatureTipPromoDataForType(
-            Context context, @TipsNotificationsFeatureType int featureType) {
+            Context context,
+            @TipsNotificationsFeatureType int featureType,
+            boolean isUserSignedIn) {
         final @StringRes int positiveButtonTextRes;
         final @StringRes int mainPageTitleRes;
         final @StringRes int mainPageDescriptionRes;
@@ -164,6 +172,73 @@ public class TipsUtils {
                         context.getString(
                                 R.string.tips_promo_bottom_sheet_third_step_password_autofill));
                 break;
+            case TipsNotificationsFeatureType.SIGNIN:
+                positiveButtonTextRes =
+                        isUserSignedIn
+                                ? R.string.tips_promo_bottom_sheet_positive_button_text_noop
+                                : R.string.signin_promo_signin;
+                mainPageTitleRes =
+                        isUserSignedIn
+                                ? R.string.tips_promo_bottom_sheet_title_signin_signed_in
+                                : R.string.educational_tip_sign_in_promo_title;
+                mainPageDescriptionRes = R.string.educational_tip_sign_in_promo_description;
+                mainPageLogoViewRes = R.drawable.tips_promo_signin_logo;
+                detailPageTitleRes = R.string.sign_in_to_chrome;
+                detailPageSteps.add(
+                        context.getString(R.string.tips_promo_bottom_sheet_first_step_signin));
+                detailPageSteps.add(
+                        context.getString(R.string.tips_promo_bottom_sheet_second_step_signin));
+                detailPageSteps.add(
+                        context.getString(R.string.tips_promo_bottom_sheet_third_step_signin));
+                break;
+            case TipsNotificationsFeatureType.CREATE_TAB_GROUPS:
+                positiveButtonTextRes =
+                        R.string.tips_promo_bottom_sheet_positive_button_text_try_now;
+                mainPageTitleRes = R.string.educational_tip_tab_group_title;
+                mainPageDescriptionRes = R.string.educational_tip_tab_group_description;
+                mainPageLogoViewRes = R.drawable.tips_promo_create_tab_groups_logo;
+                detailPageTitleRes = R.string.educational_tip_tab_group_title;
+                detailPageSteps.add(
+                        context.getString(
+                                R.string.tips_promo_bottom_sheet_first_step_create_tab_groups));
+                detailPageSteps.add(
+                        context.getString(
+                                R.string.tips_promo_bottom_sheet_second_step_create_tab_groups));
+                detailPageSteps.add(
+                        context.getString(
+                                R.string.tips_promo_bottom_sheet_third_step_create_tab_groups));
+                break;
+            case TipsNotificationsFeatureType.CUSTOMIZE_MVT:
+                positiveButtonTextRes = R.string.tips_promo_bottom_sheet_positive_button_text_noop;
+                mainPageTitleRes = R.string.tips_promo_bottom_sheet_title_customize_mvt;
+                mainPageDescriptionRes = R.string.tips_promo_bottom_sheet_description_customize_mvt;
+                mainPageLogoViewRes = R.drawable.tips_promo_customize_mvt_logo;
+                detailPageTitleRes = R.string.tips_promo_bottom_sheet_title_customize_mvt;
+                detailPageSteps.add(
+                        context.getString(
+                                R.string.tips_promo_bottom_sheet_first_step_customize_mvt));
+                detailPageSteps.add(
+                        context.getString(
+                                R.string.tips_promo_bottom_sheet_second_step_customize_mvt));
+                detailPageSteps.add(
+                        context.getString(
+                                R.string.tips_promo_bottom_sheet_third_step_customize_mvt));
+                break;
+            case TipsNotificationsFeatureType.RECENT_TABS:
+                positiveButtonTextRes =
+                        R.string.tips_promo_bottom_sheet_positive_button_text_recent_tabs;
+                mainPageTitleRes = R.string.tips_promo_bottom_sheet_title_recent_tabs;
+                mainPageDescriptionRes = R.string.tips_promo_bottom_sheet_description_recent_tabs;
+                mainPageLogoViewRes = R.drawable.tips_promo_recent_tabs_logo;
+                detailPageTitleRes = R.string.tips_promo_bottom_sheet_title_recent_tabs;
+                detailPageSteps.add(
+                        context.getString(R.string.tips_promo_bottom_sheet_first_step_recent_tabs));
+                detailPageSteps.add(
+                        context.getString(
+                                R.string.tips_promo_bottom_sheet_second_step_recent_tabs));
+                detailPageSteps.add(
+                        context.getString(R.string.tips_promo_bottom_sheet_third_step_recent_tabs));
+                break;
             default:
                 assert false : "Invalid feature type: " + featureType;
 
@@ -216,12 +291,12 @@ public class TipsUtils {
             Profile profile, WindowAndroid windowAndroid) {
         boolean isBottomOmnibox = isBottomOmniboxActive(windowAndroid);
 
-        TipsAgent.removePendingNotifications(profile);
         TipsUtils.areTipsNotificationsEnabled(
                 (enabled) -> {
                     // If the notification channel is enabled, check if a notification was actually
                     // scheduled before scheduling a task to run the reschedule logic.
                     if (enabled) {
+                        // This function includes rescheduling a notification if one is pending.
                         TipsAgent.maybeScheduleNotification(profile, isBottomOmnibox);
                         // Run this current function again in 1 hour since the scheduler will
                         // schedule a notification 4 hours out, so if the user is still active on
@@ -340,6 +415,10 @@ public class TipsUtils {
         UserPrefs.get(profile).setBoolean(GOOGLE_LENS_SHOWN, false);
         UserPrefs.get(profile).setBoolean(BOTTOM_OMNIBOX_SHOWN, false);
         UserPrefs.get(profile).setBoolean(PASSWORD_AUTOFILL_SHOWN, false);
+        UserPrefs.get(profile).setBoolean(SIGNIN_SHOWN, false);
+        UserPrefs.get(profile).setBoolean(CREATE_TAB_GROUP_SHOWN, false);
+        UserPrefs.get(profile).setBoolean(CUSTOMIZE_MVT_SHOWN, false);
+        UserPrefs.get(profile).setBoolean(RECENT_TABS_SHOWN, false);
     }
 
     /**
@@ -389,5 +468,43 @@ public class TipsUtils {
             return R.drawable.view_list_bottom_item_background;
         }
         return R.drawable.view_list_normal_item_background;
+    }
+
+    /**
+     * Assembles a {@link BottomSheetSigninAndHistorySyncConfig} for the account picker bottom sheet
+     * used in the Sign-in feature flow.
+     *
+     * @param context The current context.
+     */
+    public static BottomSheetSigninAndHistorySyncConfig getAccountPickerBottomSheetConfig(
+            Context context) {
+        String title = context.getString(R.string.signin_account_picker_bottom_sheet_title);
+        String subtitle =
+                context.getString(R.string.signin_account_picker_bottom_sheet_benefits_subtitle);
+        AccountPickerBottomSheetStrings accountPickerBottomSheetStrings =
+                new AccountPickerBottomSheetStrings.Builder(title)
+                        .setSubtitleString(subtitle)
+                        .build();
+        BottomSheetSigninAndHistorySyncConfig config =
+                new BottomSheetSigninAndHistorySyncConfig.Builder(
+                                accountPickerBottomSheetStrings,
+                                BottomSheetSigninAndHistorySyncConfig.NoAccountSigninMode
+                                        .BOTTOM_SHEET,
+                                BottomSheetSigninAndHistorySyncConfig.WithAccountSigninMode
+                                        .DEFAULT_ACCOUNT_BOTTOM_SHEET,
+                                HistorySyncConfig.OptInMode.OPTIONAL,
+                                context.getString(R.string.history_sync_title),
+                                context.getString(R.string.history_sync_subtitle))
+                        .build();
+        return config;
+    }
+
+    /**
+     * Checks if the current device type is supported. Tips notifications are not designed for
+     * Automotive, TV and XR form factors, but more specifically the activity used to handle
+     * notification settings is not supported so the opt in should not be triggered.
+     */
+    public static boolean isSupportedDeviceType() {
+        return !DeviceInfo.isAutomotive() && !DeviceInfo.isXr() && !DeviceInfo.isTV();
     }
 }

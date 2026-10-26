@@ -27,7 +27,7 @@
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
 #import "ios/chrome/browser/intelligence/zero_state_suggestions/model/zero_state_suggestions_service_impl.h"
@@ -365,7 +365,10 @@ TEST_F(BwgTabHelperTest, TestGetServerId_Expired) {
 
 TEST_F(BwgTabHelperTest, TestWasShown_RestoresSession) {
   OCMExpect([mock_bwg_handler_
-      startGeminiFlowWithEntryPoint:gemini::EntryPoint::TabReopen]);
+      startGeminiFlowWithStartupState:[OCMArg checkWithBlock:^BOOL(
+                                                  GeminiStartupState* state) {
+        return state.entryPoint == gemini::EntryPoint::TabReopen;
+      }]]);
 
   // Background a session and then show the tab.
   tab_helper_->PrepareBwgFreBackgrounding();
@@ -662,7 +665,6 @@ TEST_F(BwgTabHelperTest, TestGeneratePageContext) {
 }
 
 TEST_F(BwgTabHelperTest, TestGeneratePageContext_WaitsForLoad) {
-  feature_list_.InitAndEnableFeature(kGeminiImmediateOverlay);
   web_state_->SetLoading(true);
 
   id mockWrapperClass = OCMClassMock([PageContextWrapper class]);
@@ -725,7 +727,6 @@ TEST_F(BwgTabHelperTest,
 }
 
 TEST_F(BwgTabHelperTest, TestForcePageContextGeneration) {
-  feature_list_.InitAndEnableFeature(kGeminiImmediateOverlay);
   web_state_->SetLoading(true);
 
   id mockWrapperClass = OCMClassMock([PageContextWrapper class]);
@@ -743,4 +744,117 @@ TEST_F(BwgTabHelperTest, TestForcePageContextGeneration) {
   tab_helper_->ForcePageContextGeneration();
 
   EXPECT_TRUE(fakeWrapper.populateCalled);
+}
+
+// Tests that Gemini is available for a web state when the user is eligible and
+// the web state is not off the record.
+TEST_F(BwgTabHelperTest, IsGeminiAvailableForWebState_WhenUserIsEligible) {
+  web_state_->SetBrowserState(profile_.get());
+  web_state_->SetCurrentURL(GURL("https://www.google.com"));
+  web_state_->SetContentsMimeType("text/html");
+  BwgTabHelper::CreateForWebState(web_state_.get());
+  tab_helper_ = BwgTabHelper::FromWebState(web_state_.get());
+  EXPECT_TRUE(tab_helper_->IsGeminiAvailableForWebState());
+}
+
+// Tests that Gemini is not available for a web state when the user is not
+// eligible.
+TEST_F(BwgTabHelperTest, IsGeminiAvailableForWebState_WhenUserIsNotEligible) {
+  web_state_ = std::make_unique<web::FakeWebState>();
+  web_state_->SetBrowserState(profile_.get());
+  BwgTabHelper::CreateForWebState(web_state_.get());
+  tab_helper_ = BwgTabHelper::FromWebState(web_state_.get());
+  EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
+}
+
+// Tests that Gemini is not available for a web state when the web state is off
+// the record.
+TEST_F(BwgTabHelperTest,
+       IsGeminiAvailableForWebState_WhenWebStateIsOffTheRecord) {
+  web_state_ = std::make_unique<web::FakeWebState>();
+  web_state_->SetBrowserState(profile_->GetOffTheRecordProfile());
+  BwgTabHelper::CreateForWebState(web_state_.get());
+  tab_helper_ = BwgTabHelper::FromWebState(web_state_.get());
+  EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
+}
+
+// Tests that Gemini is not available for a web state when the URL is an AIM
+// URL.
+TEST_F(BwgTabHelperTest, IsGeminiAvailableForWebState_WhenUrlIsAimUrl) {
+  feature_list_.InitWithFeatures({kGeminiCopresence}, {});
+  web_state_ = std::make_unique<web::FakeWebState>();
+  web_state_->SetBrowserState(profile_.get());
+  web_state_->SetCurrentURL(
+      GURL("https://www.google.com/search?q=test&udm=50"));
+  web_state_->SetContentsMimeType("text/html");
+  BwgTabHelper::CreateForWebState(web_state_.get());
+  tab_helper_ = BwgTabHelper::FromWebState(web_state_.get());
+  EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
+}
+
+// Tests that Gemini is not available for a web state when the URL is the Google
+// home page.
+TEST_F(BwgTabHelperTest, IsGeminiAvailableForWebState_WhenUrlIsGoogleHomePage) {
+  feature_list_.InitWithFeatures({kGeminiCopresence}, {});
+  web_state_ = std::make_unique<web::FakeWebState>();
+  web_state_->SetBrowserState(profile_.get());
+  web_state_->SetCurrentURL(GURL("https://www.google.com"));
+  web_state_->SetContentsMimeType("text/html");
+  BwgTabHelper::CreateForWebState(web_state_.get());
+  tab_helper_ = BwgTabHelper::FromWebState(web_state_.get());
+  EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
+}
+
+// Tests that Gemini is not available for a web state when the URL is a Google
+// Search URL but not an AIM URL.
+TEST_F(BwgTabHelperTest,
+       IsGeminiAvailableForWebState_WhenUrlIsNotAimUrlButIsGoogleSearch) {
+  feature_list_.InitWithFeatures({kGeminiCopresence}, {});
+  web_state_ = std::make_unique<web::FakeWebState>();
+  web_state_->SetBrowserState(profile_.get());
+  web_state_->SetCurrentURL(GURL("https://www.google.com/search?q=test"));
+  web_state_->SetContentsMimeType("text/html");
+  BwgTabHelper::CreateForWebState(web_state_.get());
+  tab_helper_ = BwgTabHelper::FromWebState(web_state_.get());
+  EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
+}
+
+// Tests that Gemini is available for a web state when the URL is not a Google
+// Search URL and thus not an AIM URL.
+TEST_F(BwgTabHelperTest,
+       IsGeminiAvailableForWebState_WhenUrlIsNotAimUrlAndNotGoogleSearch) {
+  web_state_ = std::make_unique<web::FakeWebState>();
+  web_state_->SetBrowserState(profile_.get());
+  web_state_->SetCurrentURL(GURL("https://www.example.com"));
+  web_state_->SetContentsMimeType("text/html");
+  BwgTabHelper::CreateForWebState(web_state_.get());
+  tab_helper_ = BwgTabHelper::FromWebState(web_state_.get());
+  EXPECT_TRUE(tab_helper_->IsGeminiAvailableForWebState());
+}
+
+// Tests that Gemini is not available for a web state when the URL is a PDF and
+// the AllPages flag is disabled.
+TEST_F(BwgTabHelperTest,
+       IsGeminiAvailableForWebState_WhenUrlIsPdf_AllPagesDisabled) {
+  web_state_ = std::make_unique<web::FakeWebState>();
+  web_state_->SetBrowserState(profile_.get());
+  web_state_->SetCurrentURL(GURL("https://www.example.com/test.pdf"));
+  web_state_->SetContentsMimeType("application/pdf");
+  BwgTabHelper::CreateForWebState(web_state_.get());
+  tab_helper_ = BwgTabHelper::FromWebState(web_state_.get());
+  EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
+}
+
+// Tests that Gemini is available for a web state when the URL is a PDF and
+// the AllPages flag is enabled.
+TEST_F(BwgTabHelperTest,
+       IsGeminiAvailableForWebState_WhenUrlIsPdf_AllPagesEnabled) {
+  feature_list_.InitWithFeatures({kGeminiFloatyAllPages}, {});
+  web_state_ = std::make_unique<web::FakeWebState>();
+  web_state_->SetBrowserState(profile_.get());
+  web_state_->SetCurrentURL(GURL("https://www.example.com/test.pdf"));
+  web_state_->SetContentsMimeType("application/pdf");
+  BwgTabHelper::CreateForWebState(web_state_.get());
+  tab_helper_ = BwgTabHelper::FromWebState(web_state_.get());
+  EXPECT_TRUE(tab_helper_->IsGeminiAvailableForWebState());
 }

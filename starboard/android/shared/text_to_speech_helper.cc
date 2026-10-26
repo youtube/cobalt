@@ -16,9 +16,10 @@
 
 #include "starboard/android/shared/starboard_bridge.h"
 
-// TODO(b/492704919): enable on AOSP when the layering violation is fixed.
-#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#if !BUILDFLAG(IS_STARBOARD)
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
+#else
+#include "starboard/shared/starboard/application.h"
 #endif
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -45,11 +46,19 @@ bool TextToSpeechHelper::IsTextToSpeechEnabled(JNIEnv* env) const {
 }
 
 void TextToSpeechHelper::SendTextToSpeechChangeEvent(bool enabled) const {
-  // TODO(b/492704919): enable on AOSP when the layering violation is fixed.
-#if !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+  // TODO(b/492704919): Android TV shouldn't call into Cobalt here. Remove this.
+  // AOSP sends a Starboard event instead.
+#if !BUILDFLAG(IS_STARBOARD)
   cobalt::browser::H5vccAccessibilityManager::GetInstance()
       ->OnTextToSpeechStateChanged(enabled);
-#endif  // !BUILDFLAG(IS_PARTNER_TOOLCHAIN)
+#else
+  // This runs on an Android thread, which can run before the application
+  // exists or after it is gone. Cobalt reads the current state when it starts,
+  // so the change can be dropped then.
+  if (Application* application = Application::GetIfExists()) {
+    application->InjectAccessibilityTextToSpeechSettingsChangedEvent(enabled);
+  }
+#endif  // !BUILDFLAG(IS_STARBOARD)
 }
 
 void JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {

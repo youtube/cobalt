@@ -132,7 +132,7 @@
   position: relative;
 }
 
-#focus-indicator {
+#focusIndicator {
   --searchbox-match-focus-indicator-width_: 7px;
   background-color: var(--color-searchbox-results-focus-indicator);
   border-radius: 3px;
@@ -144,7 +144,7 @@
 }
 
 /* Focus indicator only shown for vertically rendered matches. */
-:host-context(.vertical):host(:is(:focus-visible, [selected]:not(:focus-within))) #focus-indicator:not(.selected-within) {
+:host-context(.vertical):host(:is(:focus-visible, [selected]:not(:focus-within))) #focusIndicator:not(.selected-within) {
   display: block;
 }
 
@@ -201,6 +201,12 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   white-space: normal;
+}
+
+:host([is-lens-searchbox_]) #suggestion {
+  /* The above "display: -webkit-box" doesn't get inherited properly, so
+     force to display inline to ensure the text clamps correctly. */
+  display: inline;
 }
 
 :host([has-action]) #text-container {

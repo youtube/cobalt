@@ -58,11 +58,9 @@ bool IsPaymentsBottomSheetTriggeringField(autofill::FieldType type) {
     case autofill::CREDIT_CARD_EXP_4_DIGIT_YEAR:
     case autofill::CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR:
     case autofill::CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR:
-      return true;
     case autofill::CREDIT_CARD_VERIFICATION_CODE:
     case autofill::CREDIT_CARD_STANDALONE_VERIFICATION_CODE:
-      return base::FeatureList::IsEnabled(
-          autofill::features::kAutofillEnableCvcStorageAndFilling);
+      return true;
     default:
       return false;
   }
@@ -104,6 +102,12 @@ void RecordPaymentsBottomSheetTriggerOutcome(bool did_trigger,
 bool UseV3() {
   return base::FeatureList::IsEnabled(kStatelessFormSuggestionController) &&
          base::FeatureList::IsEnabled(kAutofillPaymentsSheetV3Ios);
+}
+
+bool UseListenersInvalidation() {
+  return base::FeatureList::IsEnabled(kStatelessFormSuggestionController) &&
+         base::FeatureList::IsEnabled(
+             kAutofillPaymentsSheetDetachInvalidatedListenersIos);
 }
 
 }  // namespace
@@ -230,15 +234,15 @@ void AutofillBottomSheetTabHelper::MaybeShowPaymentsBottomSheet(
   if (!UseV3()) {
     // Use the status quo logic for triggering the payments bottom sheet if
     // V3 isn't enabled.
-    ShowPaymentsBottomSheet(params, /*detach=*/true);
+    ShowPaymentsBottomSheet(std::move(params), /*detach=*/true);
     return;
   }
 
-  // In V3, First try to retrieve credit card suggestions before considering
-  // triggering the payments bottom sheet. Credit card suggestions are a good
-  // proxy for knowing that the type of the field is "settled" since we known
-  // that the PWM was tested for suggestions (including the server predictions)
-  // before getting the credit card suggestions.
+  // In V3, first try to retrieve credit card suggestions before
+  // considering triggering the payments bottom sheet. Credit card suggestions
+  // are a good proxy for knowing that the type of the field is "settled" since
+  // we known that the PWM was tested for suggestions (including the server
+  // predictions) before getting the credit card suggestions.
 
   if (!web_state_) {
     return;
@@ -571,21 +575,28 @@ void AutofillBottomSheetTabHelper::OnAutofillManagerStateChanged(
   }
 }
 
-void AutofillBottomSheetTabHelper::AttachListenersForPaymentsForm(
+void AutofillBottomSheetTabHelper::UpdateListenersForPaymentsForm(
     autofill::AutofillManager& manager,
     autofill::FormGlobalId form_id,
     bool only_new) {
   const autofill::FormStructure* form_structure =
       manager.FindCachedFormById(form_id);
-  if (!form_structure ||
-      !form_structure->IsCompleteCreditCardForm(
-          autofill::FormStructure::CreditCardFormCompleteness::
-              kCompleteCreditCardForm)) {
+  if (!form_structure) {
     return;
   }
-  if (autofill::GetCreditCardsToSuggest(
-          manager.client().GetPersonalDataManager().payments_data_manager())
-          .empty()) {
+
+  bool is_cc_form = form_structure->IsCompleteCreditCardForm(
+      autofill::FormStructure::CreditCardFormCompleteness::
+          kCompleteCreditCardForm);
+  bool has_cc_cards =
+      !autofill::GetCreditCardsToSuggest(
+           manager.client().GetPersonalDataManager().payments_data_manager())
+           .empty();
+
+  bool should_attach_listeners = is_cc_form && has_cc_cards;
+
+  if (!should_attach_listeners && !UseListenersInvalidation()) {
+    // Do not detach listeners if they can't be invalidated.
     return;
   }
 
@@ -593,15 +604,43 @@ void AutofillBottomSheetTabHelper::AttachListenersForPaymentsForm(
           autofill::features::kAutofillAcrossIframesIos)) {
     // Partition the fields by their frames to attach the listeners.
     std::map<autofill::LocalFrameToken, std::vector<autofill::FieldRendererId>>
-        fields_by_frame;
+        fields_to_attach_by_frame;
+    std::map<autofill::LocalFrameToken, std::vector<autofill::FieldRendererId>>
+        fields_to_detach_by_frame;
+
     for (const auto& field : form_structure->fields()) {
-      if (IsPaymentsBottomSheetTriggeringField(
-              field->Type().GetCreditCardType())) {
-        autofill::FieldGlobalId field_id = field->global_id();
-        fields_by_frame[field_id.frame_token].push_back(field_id.renderer_id);
+      autofill::FieldGlobalId field_id = field->global_id();
+      if (should_attach_listeners && IsPaymentsBottomSheetTriggeringField(
+                                         field->Type().GetCreditCardType())) {
+        fields_to_attach_by_frame[field_id.frame_token].push_back(
+            field_id.renderer_id);
+      } else if (UseListenersInvalidation()) {
+        fields_to_detach_by_frame[field_id.frame_token].push_back(
+            field_id.renderer_id);
       }
     }
-    for (const auto& [frame, renderer_ids] : fields_by_frame) {
+
+    if (UseListenersInvalidation()) {
+      for (const auto& [frame, renderer_ids] : fields_to_detach_by_frame) {
+        std::string renderer_form_frame_id =
+            base::ToLowerASCII(frame.ToString());
+        auto& registered_ids =
+            registered_payments_renderer_ids_[renderer_form_frame_id];
+        std::set<autofill::FieldRendererId> ids_to_detach;
+        for (auto id : renderer_ids) {
+          if (registered_ids.contains(id)) {
+            ids_to_detach.insert(id);
+            registered_ids.erase(id);
+          }
+        }
+        if (!ids_to_detach.empty()) {
+          DetachListenersForFrame(renderer_form_frame_id, ids_to_detach,
+                                  /*refocus=*/false);
+        }
+      }
+    }
+
+    for (const auto& [frame, renderer_ids] : fields_to_attach_by_frame) {
       std::string renderer_form_frame_id = base::ToLowerASCII(frame.ToString());
       AttachListeners(renderer_ids,
                       registered_payments_renderer_ids_[renderer_form_frame_id],
@@ -609,16 +648,17 @@ void AutofillBottomSheetTabHelper::AttachListenersForPaymentsForm(
                       /*allow_autofocus=*/false, only_new);
     }
   } else {
-    std::vector<autofill::FieldRendererId> renderer_ids;
+    std::vector<autofill::FieldRendererId> fields_to_attach;
+    std::vector<autofill::FieldRendererId> fields_to_detach;
     for (const auto& field : form_structure->fields()) {
-      if (IsPaymentsBottomSheetTriggeringField(
-              field->Type().GetCreditCardType())) {
-        renderer_ids.push_back(field->renderer_id());
+      if (should_attach_listeners && IsPaymentsBottomSheetTriggeringField(
+                                         field->Type().GetCreditCardType())) {
+        fields_to_attach.push_back(field->renderer_id());
+      } else if (UseListenersInvalidation()) {
+        fields_to_detach.push_back(field->renderer_id());
       }
     }
-    if (renderer_ids.empty()) {
-      return;
-    }
+
     // TODO(crbug.com/40266699): Remove `frame` once `renderer_ids` are
     // FieldGlobalIds.
     web::WebFrame* frame =
@@ -627,8 +667,26 @@ void AutofillBottomSheetTabHelper::AttachListenersForPaymentsForm(
       return;
     }
     std::string frame_id = frame->GetFrameId();
-    AttachListeners(renderer_ids, registered_payments_renderer_ids_[frame_id],
-                    frame_id, /*allow_autofocus=*/false, only_new);
+
+    if (UseListenersInvalidation()) {
+      auto& registered_ids = registered_payments_renderer_ids_[frame_id];
+      std::set<autofill::FieldRendererId> ids_to_detach;
+      for (auto id : fields_to_detach) {
+        if (registered_ids.contains(id)) {
+          ids_to_detach.insert(id);
+          registered_ids.erase(id);
+        }
+      }
+      if (!ids_to_detach.empty()) {
+        DetachListenersForFrame(frame_id, ids_to_detach, /*refocus=*/false);
+      }
+    }
+
+    if (!fields_to_attach.empty()) {
+      AttachListeners(fields_to_attach,
+                      registered_payments_renderer_ids_[frame_id], frame_id,
+                      /*allow_autofocus=*/false, only_new);
+    }
   }
 }
 
@@ -637,7 +695,7 @@ void AutofillBottomSheetTabHelper::OnFieldTypesDetermined(
     autofill::FormGlobalId form_id,
     FieldTypeSource source,
     bool small_forms_were_parsed) {
-  AttachListenersForPaymentsForm(manager, form_id, /*only_new=*/true);
+  UpdateListenersForPaymentsForm(manager, form_id, /*only_new=*/true);
 }
 
 std::unique_ptr<autofill::CardUnmaskAuthenticationSelectionDialogControllerImpl>

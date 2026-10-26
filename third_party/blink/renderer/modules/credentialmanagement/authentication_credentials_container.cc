@@ -118,6 +118,34 @@ using payments::mojom::blink::PaymentCredentialStorageStatus;
 
 constexpr size_t kMaxLargeBlobSize = 2048;  // 2kb.
 
+void RecordWebAuthnCspMetric(ExecutionContext* context,
+                             const String& rp_id,
+                             const String& request_type) {
+  ContentSecurityPolicy* policy =
+      context->GetContentSecurityPolicyForCurrentWorld();
+  if (!policy) {
+    return;
+  }
+  String rp_url_string = "https://" + rp_id;
+  KURL rp_url(rp_url_string);
+  if (!rp_url.IsValid()) {
+    return;
+  }
+  // We use kNoRedirect because RP IDs are not URLs and don't involve redirects.
+  // We suppress reporting because this is just for a metric, not an actual
+  // resource request that should trigger a CSP violation report.
+  bool allowed =
+      policy->AllowConnectToSource(rp_url, rp_url, RedirectStatus::kNoRedirect,
+                                   ReportingDisposition::kSuppressReporting);
+  base::UmaHistogramBoolean(
+      std::string("WebAuthentication.CspAllow.") + request_type.Utf8(),
+      allowed);
+
+  if (!allowed) {
+    UseCounter::Count(context, WebFeature::kWebAuthenticationCspDisallowsRpId);
+  }
+}
+
 // RequiredOriginType enumerates the requirements on the environment to perform
 // an operation.
 enum class RequiredOriginType {
@@ -1484,7 +1512,7 @@ ScriptPromise<IDLNullable<Credential>> AuthenticationCredentialsContainer::get(
   Vector<KURL> providers;
   if (options->hasFederated() && options->federated()->hasProviders()) {
     for (const auto& provider : options->federated()->providers()) {
-      KURL url = KURL(NullURL(), provider);
+      KURL url = KURL(NullUrl(), provider);
       if (url.IsValid()) {
         providers.push_back(std::move(url));
       }
@@ -1747,13 +1775,6 @@ AuthenticationCredentialsContainer::create(
         }
       }
     }
-    if (options->publicKey()->extensions()->hasCableAuthentication()) {
-      resolver->Reject(MakeGarbageCollected<DOMException>(
-          DOMExceptionCode::kNotSupportedError,
-          "The 'cableAuthentication' extension is only valid when requesting "
-          "an assertion"));
-      return promise;
-    }
     if (options->publicKey()->extensions()->hasLargeBlob()) {
       if (options->publicKey()->extensions()->largeBlob()->hasRead()) {
         resolver->Reject(MakeGarbageCollected<DOMException>(
@@ -1912,6 +1933,9 @@ AuthenticationCredentialsContainer::create(
     mojo_options->relying_party->id =
         resolver->GetExecutionContext()->GetSecurityOrigin()->Domain();
   }
+
+  RecordWebAuthnCspMetric(resolver->GetExecutionContext(),
+                          mojo_options->relying_party->id, "Create");
 
   LogResidentKeyRequirement(options->publicKey());
 
@@ -2195,6 +2219,8 @@ void AuthenticationCredentialsContainer::ForwardRequestToAuthenticator(
         public_key_options->relying_party_id =
             context->GetSecurityOrigin()->Domain();
       }
+      RecordWebAuthnCspMetric(context, public_key_options->relying_party_id,
+                              "Get");
       get_credential_options->public_key = std::move(public_key_options);
     } else {
       resolver->Reject(MakeGarbageCollected<DOMException>(
@@ -2225,6 +2251,12 @@ void AuthenticationCredentialsContainer::GetForIdentity(
     ScriptPromiseResolver<IDLNullable<Credential>>* resolver,
     const CredentialRequestOptions& options,
     const IdentityCredentialRequestOptions& identity_options) {
+  // FedCM is disabled in webview, check this early to avoid unnecessary work.
+  if (!RuntimeEnabledFeatures::FedCmEnabled(resolver->GetExecutionContext())) {
+    resolver->Reject(MakeGarbageCollected<DOMException>(
+        DOMExceptionCode::kNotSupportedError, "FedCM is not supported."));
+    return;
+  }
   // Common errors for FedCM and WebIdentityDigitalCredential.
   if (identity_options.providers().size() == 0) {
     resolver->RejectWithTypeError("Need at least one identity provider.");

@@ -25,7 +25,6 @@
 #include "chrome/browser/web_applications/web_app_install_utils.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
@@ -238,6 +237,12 @@ IsolatedWebAppTrustChecker::IsResourceLoadingAllowed(
   // the responsibility of various per-management-type managers to ensure faulty
   // IWAs are removed.
   return base::ok();
+}
+
+// static
+bool IsolatedWebAppTrustChecker::IsTrustedForTesting(
+    const web_package::SignedWebBundleId& web_bundle_id) {
+  return GetTrustedWebBundleIdsForTesting().contains(web_bundle_id);
 }
 
 void SetTrustedWebBundleIdsForTesting(  // IN-TEST

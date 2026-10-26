@@ -90,10 +90,8 @@ class RemotingClient : public SignalStrategy::Listener,
   void OnRouteChanged(const std::string& channel_name,
                       const protocol::TransportRoute& route) override;
 
-  // SignalStrategy::StatusObserver interface.
-  void OnSignalStrategyStateChange(SignalStrategy::State state) override;
-  bool OnSignalStrategyIncomingStanza(
-      const jingle_xmpp::XmlElement* stanza) override;
+  // SignalStrategy::Listener interface.
+  void OnSignalingStateChanged(SignalStrategy::State state) override;
 
   void OnGetManagedChromeOsHostRetrieved(
       const HttpStatus& status,

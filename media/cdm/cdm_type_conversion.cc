@@ -6,8 +6,8 @@
 
 #include <stdint.h>
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/not_fatal_until.h"
 #include "build/build_config.h"
 #include "base/numerics/safe_conversions.h"
 #include "ui/gfx/color_space.h"
@@ -556,8 +556,7 @@ cdm::AudioDecoderConfig_2 ToCdmAudioDecoderConfig(
     const AudioDecoderConfig& config) {
   cdm::AudioDecoderConfig_2 cdm_config = {};
   cdm_config.codec = ToCdmAudioCodec(config.codec());
-  cdm_config.channel_count =
-      ChannelLayoutToChannelCount(config.channel_layout());
+  cdm_config.channel_count = config.channels();
   cdm_config.bits_per_channel = config.bytes_per_channel() * 8;
   cdm_config.samples_per_second = config.samples_per_second();
   cdm_config.extra_data = const_cast<uint8_t*>(config.extra_data().data());
@@ -639,6 +638,37 @@ void ToCdmInputBuffer(const DecoderBuffer& encrypted_buffer,
         decrypt_config->encryption_pattern()->crypt_byte_block(),
         decrypt_config->encryption_pattern()->skip_byte_block()};
   }
+}
+
+base::span<uint8_t> AsSpan(cdm::Buffer* buffer) {
+  CHECK(buffer);
+  // SAFETY: |buffer->Data()| must return a buffer of |buffer->Size()| bytes.
+  return UNSAFE_BUFFERS(base::span(buffer->Data(), buffer->Size()));
+}
+
+base::span<const uint8_t> AsSpan(const cdm::InputBuffer_2* input_buffer) {
+  CHECK(input_buffer);
+  // SAFETY: |input_buffer| is defined in the cdm interface submodule:
+  // https://chromium.googlesource.com/chromium/cdm
+  return UNSAFE_BUFFERS(
+      base::span(input_buffer->data, input_buffer->data_size));
+}
+
+base::span<const cdm::SubsampleEntry> SubsamplesFrom(
+    const cdm::InputBuffer_2* input_buffer) {
+  CHECK(input_buffer);
+  // SAFETY: |input_buffer| is defined in the cdm interface submodule:
+  // https://chromium.googlesource.com/chromium/cdm
+  return UNSAFE_BUFFERS(
+      base::span(input_buffer->subsamples, input_buffer->num_subsamples));
+}
+
+base::span<const uint8_t> KeyIdFrom(const cdm::InputBuffer_2* input_buffer) {
+  CHECK(input_buffer);
+  // SAFETY: |input_buffer| is defined in the cdm interface submodule:
+  // https://chromium.googlesource.com/chromium/cdm
+  return UNSAFE_BUFFERS(
+      base::span(input_buffer->key_id, input_buffer->key_id_size));
 }
 
 }  // namespace media

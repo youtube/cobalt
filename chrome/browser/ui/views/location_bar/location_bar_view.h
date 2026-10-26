@@ -61,6 +61,7 @@ class OmniboxContextMenu;
 enum class OmniboxPart;
 class OmniboxPopupAimPresenter;
 class OmniboxPopupFileSelector;
+class OmniboxPopupUI;
 class OmniboxPopupView;
 class OmniboxViewViews;
 class OmniboxChipButton;
@@ -142,10 +143,6 @@ class LocationBarView
 
   bool in_popup_state_transition() const { return in_popup_state_transition_; }
 
-  // True if this instance has been initialized by calling Init, which can only
-  // be called when the receiving instance is attached to a view container.
-  bool IsInitialized() const;
-
   // Returns a background that paints an (optionally stroked) rounded rect with
   // the given color.
   std::unique_ptr<views::Background> CreateRoundRectBackground(
@@ -218,9 +215,13 @@ class LocationBarView
       override;
   ui::TrackedElement* GetAnchorOrNull() override;
   Browser* GetBrowser() override;
+
+  // True if this instance has been initialized by calling Init, which can only
+  // be called when the receiving instance is attached to a view container.
+  bool IsInitialized() const override;
   bool IsVisible() const override;
   bool IsDrawn() const override;
-  bool IsTopLevelFullscreen() const override;
+  bool IsFullscreen() const override;
   void InvalidateLayout() override;
   gfx::Rect Bounds() const override;
   gfx::Size MinimumSize() const override;
@@ -296,8 +297,8 @@ class LocationBarView
   bool ShowPageInfoDialog() override;
   SkColor GetSecurityChipColor(
       security_state::SecurityLevel security_level) const override;
-  ui::ImageModel GetLocationIcon(LocationIconView::Delegate::IconFetchedCallback
-                                     on_icon_fetched) const override;
+  ui::ImageModel GetLocationIcon(
+      LocationIconView::Delegate::IconFetchedCallback on_icon_fetched) override;
   std::vector<raw_ptr<ContentSettingImageView, VectorExperimental>>&
   GetContentSettingViewsForTest() {
     return content_setting_views_;
@@ -325,6 +326,8 @@ class LocationBarView
                            IMEInlineAutocompletePosition);
   FRIEND_TEST_ALL_PREFIXES(LocationBarViewAddContextButtonBrowserTest,
                            AddContextButtonVisibilityAndClick);
+  FRIEND_TEST_ALL_PREFIXES(LocationBarViewAddContextButtonBrowserTest,
+                           PrefChangesAddContextButtonVisibility);
   using ContentSettingViews =
       std::vector<raw_ptr<ContentSettingImageView, VectorExperimental>>;
 
@@ -488,6 +491,18 @@ class LocationBarView
 
   bool OpenContextMenu();
 
+  // Whether the "Add Context" button should be shown in place of the location
+  // bar page info icon button.
+  bool ShouldShowAddContextButton();
+
+  // Whether the Omnibox context menu contains at least one menu item that can
+  // be shown to the user.
+  bool HasAllowedInputs();
+
+  OmniboxPopupUI* GetOmniboxPopupUI();
+
+  content::WebContents* GetWrappedWebContents();
+
 #if BUILDFLAG(IS_MAC)
   // Called when app shims change.
   void OnAppShimChanged(const webapps::AppId& app_id);
@@ -507,7 +522,7 @@ class LocationBarView
 #endif  // BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
 
   // The Browser this LocationBarView is in.  Note that at least
-  // ash::SimpleWebViewDialog uses a LocationBarView outside any browser
+  // SimpleWebViewDialog uses a LocationBarView outside any browser
   // window, so this may be NULL.
   const raw_ptr<Browser> browser_;
 
@@ -619,6 +634,8 @@ class LocationBarView
   // TODO(crbug.com/40251974): Remove this once state manager is proven
   //  reliable.
   bool in_popup_state_transition_ = false;
+
+  void OnMiddleClickPaste(base::TimeTicks event_timestamp, std::u16string text);
 
   base::WeakPtrFactory<LocationBarView> weak_factory_{this};
 };

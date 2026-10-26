@@ -557,7 +557,6 @@ bool GetCompressionFixedRate(VkImageCompressionControlEXT *compressionInfo,
 TextureVk::TextureVk(const gl::TextureState &state, vk::Renderer *renderer)
     : TextureImpl(state),
       mOwnsImage(false),
-      mRequiresMutableStorage(false),
       mFormatReinterpretability(vk::ImageFormatReinterpretability::ColorspaceOverrides),
       mRequiredFormatSupport(vk::ImageFormatSupport::SampleOnly),
       mImmutableSamplerDirty(false),
@@ -1778,8 +1777,9 @@ angle::Result TextureVk::copySubTextureImpl(ContextVk *contextVk,
     const angle::Format &srcTextureFormat = source->getImage().getActualFormat();
     const angle::Format &dstTextureFormat =
         dstVkFormat.getActualImageFormat(getRequiredFormatSupport());
-    size_t destinationAllocationSize =
-        sourceBox.width * sourceBox.height * sourceBox.depth * dstTextureFormat.pixelBytes;
+    const size_t destinationAllocationSize =
+        static_cast<size_t>(sourceBox.width) * static_cast<size_t>(sourceBox.height) *
+        static_cast<size_t>(sourceBox.depth) * dstTextureFormat.pixelBytes;
 
     // Allocate memory in the destination texture for the copy/conversion
     uint32_t stagingBaseLayer =
@@ -2467,7 +2467,6 @@ void TextureVk::releaseAndDeleteImageAndViews(ContextVk *contextVk)
         }
         releaseImage(contextVk);
         mImageObserverBinding.bind(nullptr);
-        mRequiresMutableStorage   = false;
         mFormatReinterpretability = vk::ImageFormatReinterpretability::ColorspaceOverrides;
         mRequiredFormatSupport    = vk::ImageFormatSupport::SampleOnly;
         mImageCreateFlags         = 0;
@@ -2587,7 +2586,6 @@ void TextureVk::setImageHelper(ContextVk *contextVk,
         // Inherit a few VkImage's create attributes from ImageHelper.
         mImageCreateFlags       = mImage->getCreateFlags();
         mImageUsageFlags        = mImage->getUsage();
-        mRequiresMutableStorage = (mImageCreateFlags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) != 0;
     }
 
     vk::Renderer *renderer = contextVk->getRenderer();
@@ -2888,9 +2886,9 @@ angle::Result TextureVk::generateMipmapsWithCPU(const gl::Context *context)
                                               &bufferHelper.get(), &imageData));
 
     const angle::Format &angleFormat = mImage->getActualFormat();
-    GLuint sourceRowPitch            = baseLevelExtents.width * angleFormat.pixelBytes;
-    GLuint sourceDepthPitch          = sourceRowPitch * baseLevelExtents.height;
-    size_t baseLevelAllocationSize   = sourceDepthPitch * baseLevelExtents.depth;
+    const size_t sourceRowPitch          = baseLevelExtents.width * angleFormat.pixelBytes;
+    const size_t sourceDepthPitch        = sourceRowPitch * baseLevelExtents.height;
+    const size_t baseLevelAllocationSize = sourceDepthPitch * baseLevelExtents.depth;
 
     // We now have the base level available to be manipulated in the imageData pointer. Generate all
     // the missing mipmaps with the slow path. For each layer, use the copied data to generate all
@@ -3164,8 +3162,9 @@ angle::Result TextureVk::reinitImageAsRenderable(ContextVk *contextVk, const vk:
         // invalidate must be called after wait for finish.
         ANGLE_TRY(srcBuffer->invalidate(renderer));
 
-        size_t dstBufferSize = sourceBox.width * sourceBox.height * sourceBox.depth *
-                               dstFormat.pixelBytes * layerCount;
+        size_t dstBufferSize =
+            static_cast<size_t>(sourceBox.width) * static_cast<size_t>(sourceBox.height) *
+            static_cast<size_t>(sourceBox.depth) * dstFormat.pixelBytes * layerCount;
 
         // Allocate memory in the destination texture for the copy/conversion.
         uint8_t *dstData = nullptr;
@@ -3618,7 +3617,7 @@ angle::Result TextureVk::respecifyImageStorageIfNecessary(ContextVk *contextVk, 
     if (mState.hasBeenBoundAsImage())
     {
         mImageUsageFlags |= VK_IMAGE_USAGE_STORAGE_BIT;
-        mRequiresMutableStorage   = true;
+        mImageCreateFlags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
         mFormatReinterpretability = vk::ImageFormatReinterpretability::Full;
     }
 
@@ -3626,11 +3625,6 @@ angle::Result TextureVk::respecifyImageStorageIfNecessary(ContextVk *contextVk, 
     // VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT. Vulkan requires this bit to be set in order to use
     // imageviews with a format that does not match the texture's internal format.
     if (isSRGBOverrideEnabled())
-    {
-        mRequiresMutableStorage = true;
-    }
-
-    if (mRequiresMutableStorage)
     {
         mImageCreateFlags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
     }
@@ -4180,7 +4174,7 @@ angle::Result TextureVk::initImage(ContextVk *contextVk,
     const VkImageType imageType     = gl_vk::GetImageType(mState.getType());
     const VkImageTiling imageTiling = mImage->getTilingMode();
 
-    if (mipLevels == ImageMipLevels::FullMipChainForGenerateMipmap &&
+    if (mipLevels == ImageMipLevels::FullMipChainForGenerateMipmap && levelCount > 1 &&
         CanGenerateMipmapWithCompute(renderer, imageType, actualImageFormatID, samples, mOwnsImage))
     {
         mImageUsageFlags |= VK_IMAGE_USAGE_STORAGE_BIT;
@@ -4310,7 +4304,6 @@ angle::Result TextureVk::initImage(ContextVk *contextVk,
 
     // Update create flags with mImage's create flags
     mImageCreateFlags |= mImage->getCreateFlags();
-    mRequiresMutableStorage = (mImageCreateFlags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) != 0;
 
     VkMemoryPropertyFlags flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     if (mState.hasProtectedContent())
@@ -4350,7 +4343,7 @@ angle::Result TextureVk::initImageViews(ContextVk *contextVk, uint32_t levelCoun
 
     // Use this as a proxy for the SRGB override & skip decode settings.
     bool createExtraSRGBViews =
-        mRequiresMutableStorage &&
+        (mImageCreateFlags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) != 0 &&
         mFormatReinterpretability != vk::ImageFormatReinterpretability::None;
 
     GLenum astcDecodePrecision = GL_NONE;
@@ -4802,12 +4795,11 @@ angle::Result TextureVk::refreshImageViews(ContextVk *contextVk)
 
 angle::Result TextureVk::ensureMutable(ContextVk *contextVk)
 {
-    if (mRequiresMutableStorage)
+    if ((mImageCreateFlags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) != 0)
     {
         return angle::Result::Continue;
     }
 
-    mRequiresMutableStorage = true;
     mImageCreateFlags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
 
     ANGLE_TRY(respecifyImageStorage(contextVk));

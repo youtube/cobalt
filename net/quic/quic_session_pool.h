@@ -18,7 +18,6 @@
 #include "base/containers/lru_cache.h"
 #include "base/containers/unique_ptr_adapters.h"
 #include "base/memory/memory_pressure_listener.h"
-#include "base/memory/memory_pressure_monitor.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -112,6 +111,9 @@ class QuicSessionPoolPeer;
 // prevalent. Whether or not NetworkAnonymizationKeys end up including subframe
 // URLs will also influence the ideal value.
 const int kMaxRecentCryptoConfigs = 100;
+
+// Default number of entries in the QUIC session cache.
+const size_t kDefaultQuicSessionCacheSize = 1024;
 
 enum QuicPlatformNotification {
   NETWORK_CONNECTED,
@@ -329,6 +331,14 @@ class NET_EXPORT_PRIVATE QuicSessionPool
   // |destination|.
   bool CanUseExistingSession(const QuicSessionKey& session_key,
                              const url::SchemeHostPort& destination) const;
+
+  // Returns true if there is an existing session that also advertises
+  // Extended CONNECT (SETTINGS_ENABLE_CONNECT_PROTOCOL). If true and
+  // `quic_version` is non-null, writes the negotiated version to it.
+  bool CanUseExistingSessionForWebSocket(
+      const QuicSessionKey& session_key,
+      const url::SchemeHostPort& destination,
+      quic::ParsedQuicVersion* quic_version = nullptr) const;
 
   // Returns a session for `session_key` or if the request can be pooled to an
   // existing session to the IP address of `destination`.
@@ -939,6 +949,7 @@ class QuicSessionPool::QuicCryptoClientConfigOwner
   QuicCryptoClientConfigOwner(
       std::unique_ptr<quic::ProofVerifier> proof_verifier,
       std::unique_ptr<quic::QuicClientSessionCache> session_cache,
+      size_t max_cache_entries,
       QuicSessionPool* quic_session_pool);
 
   QuicCryptoClientConfigOwner(const QuicCryptoClientConfigOwner&) = delete;
@@ -974,6 +985,7 @@ class QuicSessionPool::QuicCryptoClientConfigOwner
   int num_refs_ = 0;
   quic::QuicCryptoClientConfig config_;
   raw_ptr<base::Clock> clock_;
+  const size_t max_cache_entries_;
   std::unique_ptr<base::AsyncMemoryPressureListenerRegistration>
       memory_pressure_listener_registration_;
   const raw_ptr<QuicSessionPool> quic_session_pool_;

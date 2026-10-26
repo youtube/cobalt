@@ -67,11 +67,9 @@ static const char kBlackColorValue[] = "#000000";
 static const char kFallbackColorValue[] = "#000000";
 
 static bool IsValidColorString(const String& value) {
-  if (value.empty())
+  if (!value.starts_with('#')) {
     return false;
-  if (value[0] != '#')
-    return false;
-
+  }
   // We don't accept #rgb and #aarrggbb formats.
   if (value.length() != 7)
     return false;
@@ -127,7 +125,7 @@ String ColorInputType::SanitizeValue(const String& proposed_value) const {
       // it opaque). Convert to sRGB and serialize as #rrggbb.
       return Color::FromRGBA32(color.MakeOpaque().Rgb())
           .SerializeAsCanvasColor()
-          .LowerASCII();
+          .ToAsciiLower();
     }
     return kFallbackColorValue;
   }
@@ -135,7 +133,7 @@ String ColorInputType::SanitizeValue(const String& proposed_value) const {
   if (!IsValidColorString(proposed_value)) {
     return kFallbackColorValue;
   }
-  return proposed_value.LowerASCII();
+  return proposed_value.ToAsciiLower();
 }
 
 Color ColorInputType::ValueAsColor() const {
@@ -231,12 +229,13 @@ bool ColorInputType::TypeMismatchFor(const String& value) const {
 }
 
 void ColorInputType::WarnIfValueIsInvalid(const String& value) const {
-  if (!EqualIgnoringASCIICase(value, GetElement().SanitizeValue(value)))
+  if (!EqualIgnoringAsciiCase(value, GetElement().SanitizeValue(value))) {
     AddWarningToConsole(
         "The specified value %s does not conform to the required format.  The "
         "format is \"#rrggbb\" where rr, gg, bb are two-digit hexadecimal "
         "numbers.",
         value);
+  }
 }
 
 void ColorInputType::ValueAttributeChanged() {
@@ -329,5 +328,10 @@ ColorChooserClient* ColorInputType::GetColorChooserClient() {
   return this;
 }
 
+bool ColorInputType::SupportsBaseAppearance(
+    Element::BaseAppearanceValue value) const {
+  return RuntimeEnabledFeatures::AppearanceBaseEnabled() &&
+         value == Element::BaseAppearanceValue::kBase;
+}
 
 }  // namespace blink

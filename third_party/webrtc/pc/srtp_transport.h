@@ -77,30 +77,8 @@ class SrtpTransport : public RtpTransport {
 
   void ResetParams();
 
-  // If external auth is enabled, SRTP will write a dummy auth tag that then
-  // later must get replaced before the packet is sent out. Only supported for
-  // non-GCM crypto suites and can be checked through "IsExternalAuthActive"
-  // if it is actually used. This method is only valid before the RTP params
-  // have been set.
-  void EnableExternalAuth();
-  bool IsExternalAuthEnabled() const;
-
-  // A SrtpTransport supports external creation of the auth tag if a non-GCM
-  // cipher is used. This method is only valid after the RTP params have
-  // been set.
-  bool IsExternalAuthActive() const;
-
   // Returns srtp overhead for rtp packets.
   bool GetSrtpOverhead(int* srtp_overhead) const;
-
-  // Returns rtp auth params from srtp context.
-  bool GetRtpAuthParams(uint8_t** key, int* key_len, int* tag_len);
-
-  // Cache RTP Absoulute SendTime extension header ID. This is only used when
-  // external authentication is enabled.
-  void CacheRtpAbsSendTimeHeaderExtension(int rtp_abs_sendtime_extn_id) {
-    rtp_abs_sendtime_extn_id_ = rtp_abs_sendtime_extn_id;
-  }
 
   // In addition to unregistering the sink, the SRTP transport
   // disassociates all SSRCs of the sink from libSRTP.
@@ -136,6 +114,8 @@ class SrtpTransport : public RtpTransport {
 
   std::unique_ptr<SrtpSession> send_session_;
   std::unique_ptr<SrtpSession> recv_session_;
+  // Non-muxed RTCP requires different SRTP sessions as it leads to
+  // separate DTLS handshakes.
   std::unique_ptr<SrtpSession> send_rtcp_session_;
   std::unique_ptr<SrtpSession> recv_rtcp_session_;
 
@@ -145,10 +125,6 @@ class SrtpTransport : public RtpTransport {
   ZeroOnFreeBuffer<uint8_t> recv_key_;
 
   bool writable_ = false;
-
-  bool external_auth_enabled_ = false;
-
-  int rtp_abs_sendtime_extn_id_ = -1;
 
   int decryption_failure_count_ = 0;
 

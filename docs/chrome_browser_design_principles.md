@@ -54,7 +54,7 @@ documentation](http://go/chrome-project-bedrock). Public contributors can visit
 Public](https://docs.google.com/document/d/1aQRPDX9RjWHE48rAHntsV64VU1-4uZO_nkL6A7ohr2k/).
 
 To keep the dependency graph as precise as possible, we use a pattern called
-[UnownedUserData](ui/base/unowned_user_data/README.md). This allows consumers of
+[UnownedUserData](../ui/base/unowned_user_data/README.md). This allows consumers of
 `BrowserWindowInterface` and `TabInterface` to depend on a specific
 `BrowserWindowFeature` or `TabFeature` without depending on features. This also
 allows for easier unit and integration testing.
@@ -544,9 +544,9 @@ class Sparkles {
   }
 };
 ```
-* Most features should be gated by base::Feature, API keys and/or gn build
-  configuration, not C preprocessor conditionals e.g. `#if
-  BUILDFLAG(FEATURE_FOO)`.
+* Avoid C preprocessor conditionals e.g. `#if BUILDFLAG(FEATURE_FOO)`. Use
+  runtime logic (e.g. base::Feature or API keys) or build-time GN
+  conditionals, e.g. `if (is_win)`.
     * We ship a single product (Chrome) to multiple platforms. The purpose of
       preprocessor conditionals is:
         * (1) to allow platform-agnostic code to reference platform-specific
@@ -568,11 +568,21 @@ class Sparkles {
       accomplishing this goal.
     * In all cases, large segments of code should not be gated behind
       preprocessor conditionals. Instead, they should be pulled into separate
-      files via gn.
-    * In the event that a feature does have large swathes of code in separate
-      build files/translation units (e.g. extensions), using a custom feature
-      flag (e.g. `BUILDFLAG(ENABLE_EXTENSIONS)`) to glue this into the main source
-      is allowed. The glue code should be kept to a minimum.
+      files via GN.
+    * We have some grandfathered features that have large swathes of code in
+      separate build files/translation units (e.g. extensions). Using a custom
+      feature flag (e.g. `BUILDFLAG(ENABLE_EXTENSIONS)`) to glue this into the
+      main source is allowed. The glue code should be kept to a minimum.
+* New //chrome scoped GN arguments are disallowed.
+  * Each new argument exponentially increases the number of unique build
+    configurations. We are not scaling the number of test or production
+    configurations, so adding new arguments resulted in untested and unshipped
+    configurations. Use the existing platform build flags to control
+    compilation, and use runtime logic to control availability within a
+    platform. Reach out to //chrome OWNERS if you think your use case requires
+    an exception.
+  * GN variables are allowed. GN variables allow reduction of duplicated GN
+    code, but cannot be overridden by `gn args`.
 * Avoid run-time channel checking.
 * Macros are rarely appropriate. See google [style
   guide](https://google.github.io/styleguide/cppguide.html#Preprocessor_Macros)

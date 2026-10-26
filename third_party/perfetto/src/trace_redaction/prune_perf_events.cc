@@ -49,7 +49,7 @@ base::Status PrunePerfEvents::Transform(const Context& context,
   std::optional<int64_t> trace_packet_clock_id;
   std::optional<int64_t> trusted_packet_sequence_id;
   if (PERFETTO_UNLIKELY(packet_decoder.has_timestamp_clock_id())) {
-    // A clock id was overriden for the packet.
+    // A clock id was overridden for the packet.
     trace_packet_clock_id =
         static_cast<int64_t>(packet_decoder.timestamp_clock_id());
   } else {
@@ -127,7 +127,7 @@ base::Status PrunePerfEvents::OnPerfSample(
                       static_cast<uint32_t>(trusted_packet_sequence_id.value()),
                       RedactorClockConverter::DataSourceType::kPerfDataSource));
   } else {
-    clock_id = ClockId(trace_packet_clock_id.value());
+    clock_id = ClockId::Machine(trace_packet_clock_id.value());
   }
 
   ASSIGN_OR_RETURN(trace_ts,

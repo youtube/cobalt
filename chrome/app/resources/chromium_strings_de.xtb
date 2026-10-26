@@ -8,6 +8,7 @@
 <translation id="1051793555070215510">Hilf uns, den Inkognitomodus zu verbessern, indem du dir 1 Minute Zeit für diese Umfrage nimmst.</translation>
 <translation id="1065672644894730302">Deine Einstellungen können nicht gelesen werden. Einige Funktionen sind möglicherweise nicht verfügbar und Änderungen an Einstellungen werden nicht gespeichert.</translation>
 <translation id="1083934481477628225">Deine Eltern haben „Berechtigungen für Websites, Apps und Erweiterungen“ für Chromium deaktiviert</translation>
+<translation id="1090946077924227754">Wenn du nach einer bestimmten Chromium-Funktion oder ‑Erweiterung suchen möchtest, gib das Kürzel in die Adressleiste ein und drücke die von dir ausgewählte Taste</translation>
 <translation id="1104942323762546749">Chromium möchte deine Passwörter exportieren. Wenn du dies zulassen möchtest, gib dein Windows-Passwort ein.</translation>
 <translation id="112640046208448578">Du kannst Dinge oder Orte identifizieren und Text kopieren oder übersetzen. Wenn du die Bildersuche verwendest, wird ein Screenshot der Seite an den Server gesendet. <ph name="LEARN_MORE" /></translation>
 <translation id="113122355610423240">Chromium ist dein Standardbrowser</translation>
@@ -25,8 +26,10 @@
 <translation id="1262876892872089030">Während dieser Tab inaktiv war, wurde Arbeitsspeicher freigegeben, damit Chromium schnell bleibt. Du kannst festlegen, dass diese Website nie inaktiv sein soll.</translation>
 <translation id="1265577313130862557">Chromium hat diesen Download blockiert, weil die Datei gefährlich ist</translation>
 <translation id="126567311906253476">Wenn du dich mit <ph name="USER_EMAIL" /> in Google-Diensten wie Gmail oder YouTube anmeldest, kannst du dich mit demselben Konto automatisch in Chromium anmelden</translation>
+<translation id="1287534462498555020">Chromium auf deinem Smartphone installieren</translation>
 <translation id="1290883685122687410">Einrichtungsfehler: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Neues Chromium-Profil erstellen</translation>
+<translation id="132092532143527429">Mit Gemini in Chromium ausprobieren</translation>
 <translation id="1324107359134968521">Chromium benötigt Bluetooth-Zugriff, um Bluetooth-Geräte zu suchen. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Sprache erkennen</translation>
 <translation id="1330742950061766891">Empfohlene Browsereinstellungen von Chromium verwenden</translation>
@@ -238,7 +241,9 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="3509308970982693815">Schließe bitte alle Chromium-Fenster und versuche es erneut.</translation>
 <translation id="3522404737534491619">Wenn du dein Fenster teilen möchtest, musst du in den Systemeinstellungen die Bildschirmaufzeichnung für Chromium zulassen</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> ist bereits angemeldet.  Wenn du deine Browsingaktivitäten getrennt halten möchtest, melde dich mit <ph name="USER_EMAIL_ADDRESS" /> in deinem eigenen Profil in Chromium an.</translation>
+<translation id="3531741627422851418">QR-Code zum Herunterladen des Chromium-Browsers auf Mobilgeräte</translation>
 <translation id="3561853857681580870">Wenn du deinen Bildschirm teilen möchtest, musst du in den Systemeinstellungen die Bildschirmaufzeichnung für Chromium zulassen.</translation>
+<translation id="3588112919289558122">Durch den erweiterten Schutz wird die JavaScript-Optimierung für Websites deaktiviert, die von Chromium nicht erkannt werden</translation>
 <translation id="3597003331831379823">Die Einrichtung konnte nicht mit erhöhten Berechtigungen ausgeführt werden. <ph name="METAINSTALLER_ERROR" /></translation>
 <translation id="3600428265489994557">In Chromium anmelden</translation>
 <translation id="3639635944603682591">Die Browserdaten dieser Person werden von diesem Gerät gelöscht. Wenn du die Daten wiederherstellen möchtest, melde dich als <ph name="USER_EMAIL" /> in Chromium an.</translation>
@@ -372,11 +377,11 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="5174969993834422967">Normalerweise blockierst du Benachrichtigungen. Wenn du von dieser Website Benachrichtigungen erhalten möchtest, klicke auf das Benachrichtigungssymbol in der rechten Ecke der Adressleiste.</translation>
 <translation id="5174983315706567306">Nicht genügend Speicherplatz.</translation>
 <translation id="5187123684706427865">Chromium-Konto muss noch einmal authentifiziert werden</translation>
-<translation id="5219681158518957165">Empfohlene Browsereinstellungen verwenden</translation>
 <translation id="5224391634244552924">Keine gespeicherten Passwörter. Chromium kann deine Passwörter prüfen, wenn du sie speicherst.</translation>
 <translation id="5231355151045086930">Von Chromium abmelden</translation>
 <translation id="5234764350956374838">Schließen</translation>
 <translation id="5254739261293693943">Nach Infos zu diesem Video fragen</translation>
+<translation id="5276305953263010518">Mit der Chromium App kannst du Passwörter unterwegs speichern</translation>
 <translation id="5277894862589591112">Starte Chromium neu, um die Änderungen zu übernehmen</translation>
 <translation id="5286907366254680517">Erkannt</translation>
 <translation id="5289287148052354622">Chromium App herunterladen</translation>
@@ -583,9 +588,13 @@ Chromium kann deine Einstellungen nicht wiederherstellen.</translation>
 <translation id="7352651011704765696">Ein Problem ist aufgetreten</translation>
 <translation id="7368826207863345663">Du benötigst macOS 13 oder höher, um zukünftige Chromium-Updates zu erhalten. Auf diesem Computer wird macOS 12 ausgeführt.</translation>
 <translation id="7376384068949534168">Du hast diese Website in letzter Zeit nicht besucht. Chromium hat „<ph name="PERMISSION_1" />“ und „<ph name="PERMISSION_2" />“ entfernt.</translation>
+<translation id="73786666777299047">Chrome Web Store öffnen</translation>
 <translation id="7384121030444253939">Diese Erweiterung wird nicht mehr unterstützt. Chromium empfiehlt daher, sie zu entfernen.</translation>
 <translation id="7413153308467572558">Mach dort weiter, wo du aufgehört hast: Chromium stellt deine Tabs bei jedem Neustart wieder her. Wenn du diese Funktion deaktivieren möchtest, gehe zu</translation>
 <translation id="7427879960656355200">Passwörter in Chromium importieren</translation>
+<translation id="744815265653811511">1. Klicke unten auf <ph name="BUTTON_LABEL" />
+2. Klicke in den Windows-Einstellungen auf <ph name="BUTTON_2" />
+3. Klicke in der Windows-Benachrichtigung auf <ph name="BUTTON_3" />, um Chromium für den Schnellzugriff an die Taskleiste anzupinnen</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> – Chromium Dev</translation>
 <translation id="7450541714075000668">Text kopiert</translation>
 <translation id="7451052299415159299">Chromium benötigt für diese Website die Berechtigung, auf deine Kamera zuzugreifen</translation>
@@ -601,7 +610,9 @@ Chromium kann deine Einstellungen nicht wiederherstellen.</translation>
 <translation id="761356813943268536">Chromium verwendet deine Kamera und dein Mikrofon.</translation>
 <translation id="7617377681829253106">Chromium ist jetzt noch besser</translation>
 <translation id="7622753900276619808">Du hast jetzt Zugriff auf weitere Funktionen in Chromium</translation>
+<translation id="7624307931717240213">Wir verwenden Informationen, um diesen Dienst zu verbessern. Weitere Informationen findest du in der Datenschutzerklärung und den Nutzungsbedingungen.</translation>
 <translation id="7649070708921625228">Hilfe</translation>
+<translation id="7650134251917003571">Chromium App herunterladen</translation>
 <translation id="7656340475565475526">Chromium für dich suchen lassen</translation>
 <translation id="7658239707568436148">Abbrechen</translation>
 <translation id="7686590090926151193">Chromium ist nicht als dein Standardbrowser festgelegt</translation>
@@ -685,6 +696,7 @@ Chromium kann deine Einstellungen nicht wiederherstellen.</translation>
 <translation id="8522801943730206384">Chromium kann deine Passwörter prüfen, wenn du sie speicherst</translation>
 <translation id="8548787790260785208">Du wirst gewarnt, wenn Chromium eines deiner Passwörter bei einer öffentlichen Datenpanne findet</translation>
 <translation id="8555465886620020932">Dienstfehler: <ph name="SERVICE_ERROR" />.</translation>
+<translation id="8556055872671007529">Für bestimmte Chromium-Funktionen und -Erweiterungen sind Kürzel verfügbar. Du kannst sie wieder aktivieren.</translation>
 <translation id="8556420416730706394">Du kannst die Bildersuche anpinnen, um leichter darauf zuzugreifen. Klicke dazu oben in der Seitenleiste auf den Button „Anpinnen“.</translation>
 <translation id="856656450041460113">In Liste mit Sprachen suchen</translation>
 <translation id="8568283329061645092">Chromium kann deine Passwörter prüfen, wenn du dich mit deinem Google-Konto anmeldest</translation>
@@ -720,6 +732,7 @@ Chromium kann deine Einstellungen nicht wiederherstellen.</translation>
 <translation id="8988036198400390003">Chromium-Profile verwalten</translation>
 <translation id="9019929317751753759">Um Chromium sicherer zu machen, haben wir die folgende Erweiterung deaktiviert. Sie ist nicht im <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> aufgeführt und wurde möglicherweise ohne dein Wissen hinzugefügt.</translation>
 <translation id="904366664621834601">Chromium hat diesen Download blockiert, weil die Archivdatei weitere Dateien enthält, die möglicherweise Malware verbergen</translation>
+<translation id="9053882453960391422">Passwörter, Lesezeichen und Verlauf werden auf allen Geräten synchronisiert. Wenn du deinen Standardbrowser auf Chromium aktualisierst, kannst du ganz einfach auf die vertrauten Funktionen zugreifen. Chromium wird für den Schnellzugriff an die Taskleiste angepinnt.</translation>
 <translation id="9062666675513499497">In Chromium anmelden, wenn du dich in anderen Google-Diensten anmeldest</translation>
 <translation id="9078733879136747090">Chromium wurde automatisch geschlossen</translation>
 <translation id="9089354809943900324">Chromium ist veraltet.</translation>

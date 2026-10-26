@@ -4,6 +4,7 @@
 
 #include "chrome/browser/extensions/extension_commands_global_registry.h"
 
+#include "base/functional/bind.h"
 #include "base/lazy_instance.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
@@ -41,13 +42,13 @@ gfx::AcceleratedWidget GetAcceleratedWidgetForContext(
     return gfx::kNullAcceleratedWidget;
   }
 
-  Browser* browser =
+  BrowserWindowInterface* const browser =
       chrome::FindLastActiveWithProfile(Profile::FromBrowserContext(context));
-  if (!browser || !browser->window()) {
+  if (!browser || !browser->GetWindow()) {
     return gfx::kNullAcceleratedWidget;
   }
 
-  auto* native_window = browser->window()->GetNativeWindow();
+  auto* native_window = browser->GetWindow()->GetNativeWindow();
   if (!native_window || !native_window->GetHost()) {
     return gfx::kNullAcceleratedWidget;
   }
@@ -71,13 +72,20 @@ ExtensionCommandsGlobalRegistry::ExtensionCommandsGlobalRegistry(
 }
 
 ExtensionCommandsGlobalRegistry::~ExtensionCommandsGlobalRegistry() {
-  if (!IsEventTargetsEmpty()) {
-    ui::GlobalAcceleratorListener* global_shortcut_listener =
-        ui::GlobalAcceleratorListener::GetInstance();
-    if (!global_shortcut_listener) {
-      return;
-    }
+  ui::GlobalAcceleratorListener* global_shortcut_listener =
+      GetGlobalAcceleratorListener();
+  if (!global_shortcut_listener) {
+    return;
+  }
 
+  if (global_shortcut_listener->IsRegistrationHandledExternally()) {
+    // Eagerly cancel callbacks so PruneStaleCommands() can clear them before
+    // the WeakPtrFactory destructor runs.
+    weak_ptr_factory_.InvalidateWeakPtrs();
+    global_shortcut_listener->PruneStaleCommands();
+  }
+
+  if (!IsEventTargetsEmpty()) {
     // Resume GlobalShortcutListener before we clean up if the shortcut handling
     // is currently suspended.
     if (global_shortcut_listener->IsShortcutHandlingSuspended()) {
@@ -105,6 +113,11 @@ ExtensionCommandsGlobalRegistry* ExtensionCommandsGlobalRegistry::Get(
       context);
 }
 
+ui::GlobalAcceleratorListener*
+ExtensionCommandsGlobalRegistry::GetGlobalAcceleratorListener() const {
+  return ui::GlobalAcceleratorListener::GetInstance();
+}
+
 bool ExtensionCommandsGlobalRegistry::IsRegistered(
     const ui::Accelerator& accelerator) {
   return (registry_for_active_window() &&
@@ -115,7 +128,7 @@ bool ExtensionCommandsGlobalRegistry::IsRegistered(
 bool ExtensionCommandsGlobalRegistry::PopulateCommands(
     const Extension* extension,
     ui::CommandMap* commands) {
-  auto* instance = ui::GlobalAcceleratorListener::GetInstance();
+  auto* instance = GetGlobalAcceleratorListener();
   if (!instance) {
     return false;
   }
@@ -140,7 +153,9 @@ bool ExtensionCommandsGlobalRegistry::PopulateCommands(
 
     instance->OnCommandsChanged(
         extension->id(), profile_id, *commands,
-        GetAcceleratedWidgetForContext(browser_context_), this);
+        GetAcceleratedWidgetForContext(browser_context_),
+        base::BindRepeating(&ExtensionCommandsGlobalRegistry::ExecuteCommand,
+                            weak_ptr_factory_.GetWeakPtr()));
   }
 
   // Add all the active global keybindings, if any.
@@ -156,7 +171,7 @@ bool ExtensionCommandsGlobalRegistry::RegisterAccelerator(
     const ui::Accelerator& accelerator,
     const ExtensionId& extension_id,
     const std::string& command_name) {
-  auto* instance = ui::GlobalAcceleratorListener::GetInstance();
+  auto* instance = GetGlobalAcceleratorListener();
   if (!instance) {
     return false;
   }
@@ -165,7 +180,7 @@ bool ExtensionCommandsGlobalRegistry::RegisterAccelerator(
 
 void ExtensionCommandsGlobalRegistry::UnregisterAccelerator(
     const ui::Accelerator& accelerator) {
-  auto* instance = ui::GlobalAcceleratorListener::GetInstance();
+  auto* instance = GetGlobalAcceleratorListener();
   if (!instance) {
     return;
   }
@@ -174,7 +189,7 @@ void ExtensionCommandsGlobalRegistry::UnregisterAccelerator(
 
 void ExtensionCommandsGlobalRegistry::OnShortcutHandlingSuspended(
     bool suspended) {
-  auto* instance = ui::GlobalAcceleratorListener::GetInstance();
+  auto* instance = GetGlobalAcceleratorListener();
   if (!instance) {
     return;
   }

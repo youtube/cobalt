@@ -29,8 +29,6 @@
 #include "remoting/protocol/connection_tester.h"
 #include "remoting/protocol/errors.h"
 #include "remoting/protocol/fake_authenticator.h"
-#include "remoting/protocol/jingle_message_xml_converter.h"
-#include "remoting/protocol/jingle_messages.h"
 #include "remoting/protocol/jingle_session_manager.h"
 #include "remoting/protocol/network_settings.h"
 #include "remoting/protocol/protocol_mock_objects.h"
@@ -39,7 +37,8 @@
 #include "remoting/protocol/transport.h"
 #include "remoting/protocol/transport_context.h"
 #include "remoting/signaling/fake_signal_strategy.h"
-#include "remoting/signaling/xmpp_constants.h"
+#include "remoting/signaling/jingle_data_structures.h"
+#include "remoting/signaling/jingle_message_xml_converter.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -398,14 +397,11 @@ TEST_F(JingleSessionTest, Connect) {
 
   // Verify that the client specified correct initiator value.
   ASSERT_GT(host_signal_strategy_->received_messages().size(), 0U);
-  const jingle_xmpp::XmlElement* initiate_xml =
-      host_signal_strategy_->received_messages().front().get();
-  const jingle_xmpp::XmlElement* jingle_element = initiate_xml->FirstNamed(
-      jingle_xmpp::QName("urn:xmpp:jingle:1", "jingle"));
-  ASSERT_TRUE(jingle_element);
-  ASSERT_EQ(
-      client_signal_strategy_->GetLocalAddress().id(),
-      jingle_element->Attr(jingle_xmpp::QName(std::string(), "initiator")));
+  const auto* jingle_message = std::get_if<JingleMessage>(
+      &host_signal_strategy_->received_messages().front());
+  ASSERT_TRUE(jingle_message);
+  ASSERT_EQ(client_signal_strategy_->GetLocalAddress().id(),
+            jingle_message->initiator);
 }
 
 // Verify that we can connect two endpoints with multi-step authentication.
@@ -659,16 +655,16 @@ TEST_F(JingleSessionTest, CloseWithErrorDetailsAndLocation) {
   base::RunLoop().RunUntilIdle();
 
   ASSERT_EQ(host_signal_strategy_->received_messages().size(), 1U);
-  JingleMessage message;
-  std::string err;
-  ASSERT_TRUE(JingleMessageFromXml(
-      host_signal_strategy_->received_messages()[0].get(), &message, &err));
-  ASSERT_EQ(message.error_code, ErrorCode::HOST_OVERLOAD);
-  ASSERT_EQ(message.error_details, "fake_error_details");
+  const auto* jingle_message = std::get_if<JingleMessage>(
+      &host_signal_strategy_->received_messages().front());
+  ASSERT_TRUE(jingle_message);
+  ASSERT_EQ(jingle_message->error_code, ErrorCode::HOST_OVERLOAD);
+  ASSERT_EQ(jingle_message->error_details, "fake_error_details");
   // Make sure the error location captures the file name and the function name.
-  ASSERT_NE(message.error_location.find("jingle_session_unittest.cc"),
+  ASSERT_NE(jingle_message->error_location.find("jingle_session_unittest.cc"),
             std::string::npos);
-  ASSERT_NE(message.error_location.find("GetTestLocation"), std::string::npos);
+  ASSERT_NE(jingle_message->error_location.find("GetTestLocation"),
+            std::string::npos);
 }
 
 TEST_F(JingleSessionTest, AuthenticatorRejectedAfterAccepted) {

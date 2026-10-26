@@ -206,10 +206,11 @@ void GLTextureHolder::Initialize(
   } else {
     ScopedUnpackState scoped_unpack_state(!pixel_data.empty());
     gl::ScopedProgressReporter scoped_progress_reporter(progress_reporter_);
+    const void* data = pixel_data.empty() ? nullptr : pixel_data.data();
     api->glTexImage2DFn(
         format_desc_.target, /*level=*/0, format_desc_.image_internal_format,
         size_.width(), size_.height(), /*border=*/0,
-        format_info.adjusted_format, format_desc_.data_type, pixel_data.data());
+        format_info.adjusted_format, format_desc_.data_type, data);
   }
 
   if (!is_passthrough_) {
@@ -219,7 +220,8 @@ void GLTextureHolder::Initialize(
 
   // If the extension does not exist, do not pass debug label to avoid crashes.
   if (!debug_label.empty() && gl::g_current_gl_driver->ext.b_GL_KHR_debug) {
-    api->glObjectLabelFn(GL_TEXTURE, GetServiceId(), -1, debug_label.c_str());
+    api->glObjectLabelKHRFn(GL_TEXTURE, GetServiceId(), -1,
+                            debug_label.c_str());
   }
 }
 

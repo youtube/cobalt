@@ -46,6 +46,11 @@ enum class ModelBasedCapabilityKey {
   kSkills = proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_SKILLS,
   kGeminiAntiscamProtection = proto::ModelExecutionFeature::
       MODEL_EXECUTION_FEATURE_GEMINI_ANTISCAM_PROTECTION,
+  kContentAnnotation =
+      proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_CONTENT_ANNOTATION,
+  kFinds = proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_FINDS,
+  kAnnotationReducerQueryClassifier = proto::ModelExecutionFeature::
+      MODEL_EXECUTION_FEATURE_ANNOTATION_REDUCER_QUERY_CLASSIFIER,
 };
 
 inline std::ostream& operator<<(std::ostream& out,
@@ -83,6 +88,12 @@ inline std::ostream& operator<<(std::ostream& out,
       return out << "Skills";
     case ModelBasedCapabilityKey::kGeminiAntiscamProtection:
       return out << "GeminiAntiscamProtection";
+    case ModelBasedCapabilityKey::kContentAnnotation:
+      return out << "ContentAnnotation";
+    case ModelBasedCapabilityKey::kFinds:
+      return out << "Finds";
+    case ModelBasedCapabilityKey::kAnnotationReducerQueryClassifier:
+      return out << "AnnotationReducerQueryClassifier";
   }
   return out;
 }
@@ -173,6 +184,14 @@ inline proto::ModelExecutionFeature ToModelExecutionFeatureProto(
     case ModelBasedCapabilityKey::kGeminiAntiscamProtection:
       return proto::ModelExecutionFeature::
           MODEL_EXECUTION_FEATURE_GEMINI_ANTISCAM_PROTECTION;
+    case ModelBasedCapabilityKey::kContentAnnotation:
+      return proto::ModelExecutionFeature::
+          MODEL_EXECUTION_FEATURE_CONTENT_ANNOTATION;
+    case ModelBasedCapabilityKey::kFinds:
+      return proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_FINDS;
+    case ModelBasedCapabilityKey::kAnnotationReducerQueryClassifier:
+      return proto::ModelExecutionFeature::
+          MODEL_EXECUTION_FEATURE_ANNOTATION_REDUCER_QUERY_CLASSIFIER;
   }
 }
 

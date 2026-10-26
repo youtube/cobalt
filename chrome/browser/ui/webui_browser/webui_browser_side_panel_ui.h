@@ -7,8 +7,8 @@
 
 #include <optional>
 
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui_base.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui_base.h"
 
 class Browser;
 class WebUIBrowserWindow;
@@ -41,12 +41,12 @@ class WebUIBrowserSidePanelUI : public SidePanelUIBase {
  private:
   // SidePanelUIBase:
   void Show(const UniqueKey& entry,
-            std::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger,
+            std::optional<SidePanelOpenTrigger> open_trigger,
             bool suppress_animations) override;
   void PopulateSidePanel(
       bool suppress_animations,
       const UniqueKey& unique_key,
-      std::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger,
+      std::optional<SidePanelOpenTrigger> open_trigger,
       SidePanelEntry* entry,
       std::optional<std::unique_ptr<views::View>> content_view) override;
   void MaybeShowEntryOnTabStripModelChanged(

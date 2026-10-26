@@ -35,7 +35,7 @@ void CheckGeminiEligibility(AuthenticationService* auth_service,
 void ResetGemini() {}
 
 void UpdatePageAttachmentState(
-    BWGPageContextAttachmentState bwg_attachment_state) {}
+    GeminiPageContextAttachmentState gemini_attachment_state) {}
 
 bool IsProtectedUrl(std::string url) {
   return false;
@@ -58,6 +58,9 @@ void UpdateGeminiViewState(GeminiViewState view_state) {}
 
 void UpdateGeminiViewState(GeminiViewState view_state, bool animated) {}
 
+void UpdatePromptAction(gemini::EntryPoint entry_point,
+                        NSString* prepopulated_prompt) {}
+
 GeminiViewState GetCurrentGeminiViewState() {
   return GeminiViewState::kUnknown;
 }
@@ -65,5 +68,13 @@ GeminiViewState GetCurrentGeminiViewState() {
 void RequestUIChange(GeminiUIElementType ui_element_type) {}
 
 void AttachImage(UIImage* image) {}
+
+GeminiClientMode GetCurrentClientMode() {
+  return GeminiClientMode::kUnknown;
+}
+
+GeminiPageContextAttachmentState GetCurrentPageContextAttachmentState() {
+  return GeminiPageContextAttachmentState::kUnknown;
+}
 
 }  // namespace ios::provider

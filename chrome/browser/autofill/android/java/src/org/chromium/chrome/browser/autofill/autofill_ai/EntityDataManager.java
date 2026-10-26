@@ -14,13 +14,19 @@ import org.jni_zero.NativeMethods;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.autofill.autofill_ai.AutofillAiOptInStatus;
 import org.chromium.components.autofill.autofill_ai.EntityInstance;
 import org.chromium.components.autofill.autofill_ai.EntityInstanceWithLabels;
 import org.chromium.components.autofill.autofill_ai.EntityType;
 
+import java.text.Collator;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Android wrapper of the EntityDataManager which provides access from the Java layer.
@@ -33,7 +39,13 @@ import java.util.List;
 @NullMarked
 @JNINamespace("autofill")
 public class EntityDataManager implements Destroyable {
+    /** Observer of EntityDataManager events. */
+    public interface EntityDataManagerObserver {
+        /** Called when the entity instances are changed. */
+        void onEntityInstancesChanged();
+    }
 
+    private final List<EntityDataManagerObserver> mDataObservers = new ArrayList<>();
     private long mNativeEntityDataManagerAndroid;
 
     EntityDataManager(Profile profile) {
@@ -46,6 +58,20 @@ public class EntityDataManager implements Destroyable {
         mNativeEntityDataManagerAndroid = 0;
     }
 
+    /** Registers an EntityDataManagerObserver. */
+    public void registerDataObserver(EntityDataManagerObserver observer) {
+        ThreadUtils.assertOnUiThread();
+        assert !mDataObservers.contains(observer);
+        mDataObservers.add(observer);
+    }
+
+    /** Unregisters the provided observer. */
+    public void unregisterDataObserver(EntityDataManagerObserver observer) {
+        ThreadUtils.assertOnUiThread();
+        assert mDataObservers.contains(observer);
+        mDataObservers.remove(observer);
+    }
+
     /**
      * Removes the entity instance represented by the given GUID.
      *
@@ -54,6 +80,17 @@ public class EntityDataManager implements Destroyable {
     public void removeEntityInstance(String guid) {
         ThreadUtils.assertOnUiThread();
         EntityDataManagerJni.get().removeEntityInstance(mNativeEntityDataManagerAndroid, guid);
+    }
+
+    /**
+     * Returns the entity instance represented by the given GUID.
+     *
+     * @param guid The GUID of the entity instance to return.
+     * @return The entity instance.
+     */
+    public @Nullable EntityInstance getEntityInstance(String guid) {
+        ThreadUtils.assertOnUiThread();
+        return EntityDataManagerJni.get().getEntityInstance(mNativeEntityDataManagerAndroid, guid);
     }
 
     /** Saves or update an entity. */
@@ -78,18 +115,78 @@ public class EntityDataManager implements Destroyable {
         return EntityDataManagerJni.get().getWritableEntityTypes(mNativeEntityDataManagerAndroid);
     }
 
+    public List<EntityType> getSortedEntityTypesForListDisplay() {
+        ThreadUtils.assertOnUiThread();
+        return EntityDataManagerJni.get()
+                .getSortedEntityTypesForListDisplay(mNativeEntityDataManagerAndroid);
+    }
+
+    /**
+     * Returns a map of {@link EntityType} to a list of {@link EntityInstanceWithLabels}. The map is
+     * sorted based on the order of entity types returned by {@link
+     * #getSortedEntityTypesForListDisplay()}.
+     */
+    public LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> getInstancesToList() {
+        ThreadUtils.assertOnUiThread();
+        List<EntityInstanceWithLabels> allInstances = getEntitiesWithLabels();
+
+        Map<Integer, List<EntityInstanceWithLabels>> instancesByType = new HashMap<>();
+        for (EntityInstanceWithLabels instance : allInstances) {
+            int typeName = instance.getEntityType().getTypeName();
+            instancesByType.computeIfAbsent(typeName, k -> new ArrayList<>()).add(instance);
+        }
+
+        Collator collator = Collator.getInstance();
+        collator.setStrength(Collator.PRIMARY);
+
+        List<EntityType> sortedTypes = getSortedEntityTypesForListDisplay();
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> result = new LinkedHashMap<>();
+        for (EntityType type : sortedTypes) {
+            List<EntityInstanceWithLabels> typeInstances =
+                    instancesByType.getOrDefault(type.getTypeName(), new ArrayList<>());
+            typeInstances.sort(
+                    (a, b) -> {
+                        int labelComparison =
+                                collator.compare(
+                                        a.getEntityInstanceLabel(), b.getEntityInstanceLabel());
+
+                        if (labelComparison != 0) {
+                            return labelComparison;
+                        }
+
+                        // If the primary labels are the same, compare the sub-labels.
+                        return collator.compare(
+                                a.getEntityInstanceSubLabel(), b.getEntityInstanceSubLabel());
+                    });
+            result.put(type, typeInstances);
+        }
+        return result;
+    }
+
     /** Called by C++ when there is a change in the instances. */
     @CalledByNative
     public void onEntityInstancesChanged() {
         ThreadUtils.assertOnUiThread();
-        // TODO(crbug.com/411324196): Handle entities changes, this should recall
-        // `getEntitiesWithLabels()`.
+        for (EntityDataManagerObserver observer : mDataObservers) {
+            observer.onEntityInstancesChanged();
+        }
     }
 
     /** Returns whether the user is eligible for Autofill AI. */
     public boolean isEligibleToAutofillAi() {
         ThreadUtils.assertOnUiThread();
         return EntityDataManagerJni.get().isEligibleToAutofillAi(mNativeEntityDataManagerAndroid);
+    }
+
+    /**
+     * When default availability is on, this checks whether the user is eligible for Autofill AI
+     * features, such as to opt-into identity docs, travel etc. It runs high level checks such as
+     * address pref state, policies etc.
+     */
+    public boolean canEnableOrDisableAutofillAi() {
+        ThreadUtils.assertOnUiThread();
+        return EntityDataManagerJni.get()
+                .canEnableOrDisableAutofillAi(mNativeEntityDataManagerAndroid);
     }
 
     /** Returns the opt-in status for Autofill AI. */
@@ -110,6 +207,27 @@ public class EntityDataManager implements Destroyable {
                 .setAutofillAiOptInStatus(mNativeEntityDataManagerAndroid, optInStatus);
     }
 
+    /** Returns whether Autofill AI is disabled by enterprise policy. */
+    public boolean getIsAutofillAiDisabledByEnterprisePolicy() {
+        ThreadUtils.assertOnUiThread();
+        return EntityDataManagerJni.get()
+                .getIsAutofillAiDisabledByEnterprisePolicy(mNativeEntityDataManagerAndroid);
+    }
+
+    /** Returns whether Autofill AI is enabled by enterprise policy but without logging. */
+    public boolean getIsAutofillAiEnabledByEnterprisePolicyWithoutLogging() {
+        ThreadUtils.assertOnUiThread();
+        return EntityDataManagerJni.get()
+                .getIsAutofillAiEnabledByEnterprisePolicyWithoutLogging(
+                        mNativeEntityDataManagerAndroid);
+    }
+
+    public boolean isWalletPublicPassStorageEnabled() {
+        ThreadUtils.assertOnUiThread();
+        return EntityDataManagerJni.get()
+                .isWalletPublicPassStorageEnabled(mNativeEntityDataManagerAndroid);
+    }
+
     @NativeMethods
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public interface Natives {
@@ -119,13 +237,27 @@ public class EntityDataManager implements Destroyable {
 
         boolean isEligibleToAutofillAi(long nativeEntityDataManagerAndroid);
 
+        boolean canEnableOrDisableAutofillAi(long nativeEntityDataManagerAndroid);
+
         boolean getAutofillAiOptInStatus(long nativeEntityDataManagerAndroid);
 
         boolean setAutofillAiOptInStatus(
                 long nativeEntityDataManagerAndroid,
                 @JniType("autofill::AutofillAiOptInStatus") @AutofillAiOptInStatus int optInStatus);
 
+        boolean getIsAutofillAiDisabledByEnterprisePolicy(long nativeEntityDataManagerAndroid);
+
+        boolean getIsAutofillAiEnabledByEnterprisePolicyWithoutLogging(
+                long nativeEntityDataManagerAndroid);
+
+        boolean isWalletPublicPassStorageEnabled(long nativeEntityDataManagerAndroid);
+
         void removeEntityInstance(
+                long nativeEntityDataManagerAndroid, @JniType("std::string") String guid);
+
+        @Nullable
+        @JniType("autofill::EntityInstanceAndroid")
+        EntityInstance getEntityInstance(
                 long nativeEntityDataManagerAndroid, @JniType("std::string") String guid);
 
         void addOrUpdateEntityInstance(long nativeEntityDataManagerAndroid, EntityInstance entity);
@@ -135,5 +267,8 @@ public class EntityDataManager implements Destroyable {
 
         @JniType("std::vector<autofill::EntityTypeAndroid>")
         List<EntityType> getWritableEntityTypes(long nativeEntityDataManagerAndroid);
+
+        @JniType("std::vector<autofill::EntityTypeAndroid>")
+        List<EntityType> getSortedEntityTypesForListDisplay(long nativeEntityDataManagerAndroid);
     }
 }

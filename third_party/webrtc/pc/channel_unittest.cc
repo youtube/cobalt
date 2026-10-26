@@ -14,12 +14,12 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
-#include "api/array_view.h"
 #include "api/audio_options.h"
 #include "api/crypto/crypto_options.h"
 #include "api/field_trials.h"
@@ -68,7 +68,6 @@ namespace {
 using ::testing::AllOf;
 using ::testing::ElementsAre;
 using ::testing::Field;
-using ::webrtc::ArrayView;
 using ::webrtc::CreateTestFieldTrials;
 using ::webrtc::DtlsTransportInternal;
 using ::webrtc::FakeVoiceMediaReceiveChannel;
@@ -149,8 +148,8 @@ class ChannelTest : public ::testing::Test {
   };
 
   ChannelTest(bool verify_playout,
-              webrtc::ArrayView<const uint8_t> rtp_data,
-              webrtc::ArrayView<const uint8_t> rtcp_data,
+              std::span<const uint8_t> rtp_data,
+              std::span<const uint8_t> rtcp_data,
               NetworkIsWorker network_is_worker)
       : verify_playout_(verify_playout),
         rtp_packet_(rtp_data.data(), rtp_data.size()),
@@ -528,9 +527,8 @@ class ChannelTest : public ::testing::Test {
                                int pl_type) {
     webrtc::Buffer data(rtp_packet_.data(), rtp_packet_.size());
     // Set SSRC in the rtp packet copy.
-    webrtc::SetBE32(webrtc::ArrayView<uint8_t>(data).subspan(8, 4), ssrc);
-    webrtc::SetBE16(webrtc::ArrayView<uint8_t>(data).subspan(2, 2),
-                    sequence_number);
+    webrtc::SetBE32(std::span<uint8_t>(data).subspan(8, 4), ssrc);
+    webrtc::SetBE16(std::span<uint8_t>(data).subspan(2, 2), sequence_number);
     if (pl_type >= 0) {
       webrtc::Set8(data, 1, static_cast<uint8_t>(pl_type));
     }
@@ -704,6 +702,80 @@ class ChannelTest : public ::testing::Test {
                 ElementsAre(AllOf(Field("id", &RtpExtension::id, 1),
                                   Field("uri", &RtpExtension::uri,
                                         RtpExtension::kVideoRotationUri))));
+  }
+
+  void TestDuplicateRtpHeaderExtensionIds() {
+    typename T::Content local;
+    CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local);
+    local.set_rtp_header_extensions({
+        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 1),
+        RtpExtension(RtpExtension::kVideoRotationUri, 1),
+    });
+
+    CreateChannels(0, 0);
+    std::string err;
+    EXPECT_FALSE(channel1_->SetLocalContent(&local, SdpType::kOffer, err));
+    EXPECT_THAT(err, ::testing::HasSubstr("Duplicate RTP extension ID"));
+  }
+
+  void TestInvalidRtpHeaderExtensionIds() {
+    typename T::Content local;
+    CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local);
+    local.set_rtp_header_extensions({
+        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 256),
+    });
+
+    CreateChannels(0, 0);
+    std::string err;
+    EXPECT_FALSE(channel1_->SetLocalContent(&local, SdpType::kOffer, err));
+    EXPECT_THAT(err, ::testing::HasSubstr("Bad RTP extension ID"));
+  }
+
+  void TestRtpHeaderExtensionIdReassignment() {
+    typename T::Content local;
+    CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local);
+    local.set_rtp_header_extensions({
+        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 1),
+    });
+
+    CreateChannels(0, 0);
+    std::string err;
+    ASSERT_TRUE(channel1_->SetLocalContent(&local, SdpType::kOffer, err));
+
+    typename T::Content local_updated;
+    CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local_updated);
+    local_updated.set_rtp_header_extensions({
+        RtpExtension(RtpExtension::kVideoRotationUri, 1),
+    });
+    EXPECT_FALSE(
+        channel1_->SetLocalContent(&local_updated, SdpType::kOffer, err));
+    EXPECT_THAT(err, ::testing::HasSubstr("RTP extension ID reassignment"));
+  }
+
+  void TestRtpHeaderExtensionIdHistoryReassignment() {
+    typename T::Content local;
+    CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local);
+    local.set_rtp_header_extensions({
+        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 1),
+    });
+
+    CreateChannels(0, 0);
+    std::string err;
+    ASSERT_TRUE(channel1_->SetLocalContent(&local, SdpType::kOffer, err));
+
+    typename T::Content local_empty;
+    CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local_empty);
+    local_empty.set_rtp_header_extensions({});
+    ASSERT_TRUE(channel1_->SetLocalContent(&local_empty, SdpType::kOffer, err));
+
+    typename T::Content local_updated;
+    CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local_updated);
+    local_updated.set_rtp_header_extensions({
+        RtpExtension(RtpExtension::kVideoRotationUri, 1),
+    });
+    EXPECT_FALSE(
+        channel1_->SetLocalContent(&local_updated, SdpType::kOffer, err));
+    EXPECT_THAT(err, ::testing::HasSubstr("RTP extension ID reassignment"));
   }
 
   // Test that SetLocalContent and SetRemoteContent properly configure
@@ -1270,7 +1342,7 @@ class ChannelTest : public ::testing::Test {
     EXPECT_TRUE(CheckNoRtp2());
   }
 
-  void SendBundleToBundle(ArrayView<const int, 2> pl_types,
+  void SendBundleToBundle(std::span<const int, 2> pl_types,
                           bool rtcp_mux,
                           bool secure) {
     int sequence_number1_1 = 0, sequence_number2_2 = 0;
@@ -1553,9 +1625,7 @@ class ChannelTest : public ::testing::Test {
   }
 
  protected:
-  void WaitForThreads() {
-    WaitForThreads(webrtc::ArrayView<webrtc::Thread*>());
-  }
+  void WaitForThreads() { WaitForThreads(std::span<webrtc::Thread*>()); }
   static void ProcessThreadQueue(webrtc::Thread* thread) {
     RTC_DCHECK(thread->IsCurrent());
     while (!thread->empty()) {
@@ -1565,7 +1635,7 @@ class ChannelTest : public ::testing::Test {
   static void FlushCurrentThread() {
     webrtc::Thread::Current()->ProcessMessages(0);
   }
-  void WaitForThreads(webrtc::ArrayView<webrtc::Thread*> threads) {
+  void WaitForThreads(std::span<webrtc::Thread*> threads) {
     // `threads` and current thread post packets to network thread.
     for (webrtc::Thread* thread : threads) {
       SendTask(thread, [thread] { ProcessThreadQueue(thread); });
@@ -1946,6 +2016,23 @@ TEST_F(VoiceChannelSingleThreadTest, RemovesExtensionNotPresentInLocalAnswer) {
   Base::TestRemovesExtensionNotPresentInLocalAnswer();
 }
 
+TEST_F(VoiceChannelSingleThreadTest, DuplicateRtpHeaderExtensionIds) {
+  Base::TestDuplicateRtpHeaderExtensionIds();
+}
+
+TEST_F(VoiceChannelSingleThreadTest, InvalidRtpHeaderExtensionIds) {
+  Base::TestInvalidRtpHeaderExtensionIds();
+}
+
+TEST_F(VoiceChannelSingleThreadTest, RtpHeaderExtensionIdReassignment) {
+  Base::TestRtpHeaderExtensionIdReassignment();
+}
+
+TEST_F(VoiceChannelSingleThreadTest,
+       TestRtpHeaderExtensionIdHistoryReassignment) {
+  Base::TestRtpHeaderExtensionIdHistoryReassignment();
+}
+
 // VoiceChannelDoubleThreadTest
 TEST_F(VoiceChannelDoubleThreadTest, TestInit) {
   Base::TestInit();
@@ -2232,6 +2319,23 @@ TEST_F(VideoChannelSingleThreadTest, RemovesExtensionNotPresentInRemoteAnswer) {
 
 TEST_F(VideoChannelSingleThreadTest, RemovesExtensionNotPresentInLocalAnswer) {
   Base::TestRemovesExtensionNotPresentInLocalAnswer();
+}
+
+TEST_F(VideoChannelSingleThreadTest, DuplicateRtpHeaderExtensionIds) {
+  Base::TestDuplicateRtpHeaderExtensionIds();
+}
+
+TEST_F(VideoChannelSingleThreadTest, InvalidRtpHeaderExtensionIds) {
+  Base::TestInvalidRtpHeaderExtensionIds();
+}
+
+TEST_F(VideoChannelSingleThreadTest, RtpHeaderExtensionIdReassignment) {
+  Base::TestRtpHeaderExtensionIdReassignment();
+}
+
+TEST_F(VideoChannelSingleThreadTest,
+       TestRtpHeaderExtensionIdHistoryReassignment) {
+  Base::TestRtpHeaderExtensionIdHistoryReassignment();
 }
 
 TEST_F(VideoChannelSingleThreadTest, TestSetLocalOfferWithPacketization) {

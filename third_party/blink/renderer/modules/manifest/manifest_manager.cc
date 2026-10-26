@@ -202,7 +202,7 @@ void ManifestManager::FetchManifest() {
   if (manifest_url.IsEmpty()) {
     ResolveCallbacks(
         Result(mojom::blink::ManifestRequestResult::kNoManifestSpecified,
-               KURL(), DefaultManifest()));
+               NullUrl(), DefaultManifest()));
     return;
   }
 
@@ -358,7 +358,7 @@ bool ManifestManager::ManifestUseCredentials() const {
       GetSupplementable()->document()->LinkManifest();
   if (!link_element)
     return false;
-  return EqualIgnoringASCIICase(
+  return EqualIgnoringAsciiCase(
       link_element->FastGetAttribute(html_names::kCrossoriginAttr),
       "use-credentials");
 }

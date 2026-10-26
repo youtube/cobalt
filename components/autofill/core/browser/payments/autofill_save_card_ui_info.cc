@@ -18,6 +18,7 @@
 namespace autofill {
 
 using CardSaveType = payments::PaymentsAutofillClient::CardSaveType;
+using SourceFeature = payments::PaymentsAutofillClient::SourceFeature;
 
 AutofillSaveCardUiInfo::AutofillSaveCardUiInfo() = default;
 AutofillSaveCardUiInfo::~AutofillSaveCardUiInfo() = default;
@@ -47,6 +48,10 @@ static std::u16string GetConfirmButtonText(
     }
   }
 #elif BUILDFLAG(IS_IOS)
+  if (options.source_feature == SourceFeature::kScanCardSaveAndFill) {
+    // TODO(bug.com/485262126): Update the confirm button text for scan card
+    // flow.
+  }
   switch (options.card_save_type) {
     case CardSaveType::kCardSaveOnly:
     case CardSaveType::kCardSaveWithCvc: {
@@ -167,7 +172,8 @@ AutofillSaveCardUiInfo AutofillSaveCardUiInfo::CreateForLocalSave(
   // On iOS, the UI (infobar vs. bottom sheet) and title are determined by
   // whether the feature is enabled and the card's strike count.
   is_for_bottom_sheet = ShouldShowSaveCardBottomSheet(
-      options.card_save_type, options.num_strikes.value_or(0),
+      options.card_save_type, options.source_feature,
+      options.num_strikes.value_or(0),
       /*should_request_name_from_user=*/false,
       /*should_request_expiration_date_from_user=*/false);
 
@@ -307,8 +313,8 @@ AutofillSaveCardUiInfo AutofillSaveCardUiInfo::CreateForUploadSave(
   }
 #elif BUILDFLAG(IS_IOS)
   is_for_bottom_sheet = ShouldShowSaveCardBottomSheet(
-      options.card_save_type, options.num_strikes.value_or(0),
-      options.should_request_name_from_user,
+      options.card_save_type, options.source_feature,
+      options.num_strikes.value_or(0), options.should_request_name_from_user,
       options.should_request_expiration_date_from_user);
   switch (options.card_save_type) {
     case CardSaveType::kCardSaveWithCvc: {
@@ -320,7 +326,10 @@ AutofillSaveCardUiInfo AutofillSaveCardUiInfo::CreateForUploadSave(
       if (is_chrome_branding_enabled) {
         save_card_icon_id = IDR_AUTOFILL_GOOGLE_PAY;
         save_card_icon_description_text = l10n_util::GetStringUTF16(
-            IDS_AUTOFILL_GOOGLE_PAY_LOGO_ACCESSIBLE_NAME);
+            base::FeatureList::IsEnabled(
+                features::kAutofillEnableWalletBranding)
+                ? IDS_AUTOFILL_GOOGLE_WALLET_LOGO_ACCESSIBLE_NAME
+                : IDS_AUTOFILL_GOOGLE_PAY_LOGO_ACCESSIBLE_NAME);
         save_card_prompt_title_id =
             IDS_AUTOFILL_SAVE_CARD_PROMPT_TITLE_TO_CLOUD_SECURITY;
         description_text = l10n_util::GetStringUTF16(
@@ -364,15 +373,34 @@ AutofillSaveCardUiInfo AutofillSaveCardUiInfo::CreateForUploadSave(
       is_chrome_branding_enabled, is_for_bottom_sheet);
 }
 
+// static
+AutofillSaveCardUiInfo AutofillSaveCardUiInfo::CreateForLocalSave(
+    payments::PaymentsAutofillClient::SaveCreditCardOptions options) {
+  // Reuse the existing logic by passing an empty card internally.
+  return CreateForLocalSave(options, CreditCard());
+}
+
+// static
+AutofillSaveCardUiInfo AutofillSaveCardUiInfo::CreateForUploadSave(
+    payments::PaymentsAutofillClient::SaveCreditCardOptions options,
+    const LegalMessageLines& legal_message_lines,
+    const AccountInfo& displayed_target_account) {
+  // Reuse the existing logic by passing an empty card internally.
+  return CreateForUploadSave(options, CreditCard(), legal_message_lines,
+                             displayed_target_account);
+}
+
 #if BUILDFLAG(IS_IOS)
 bool ShouldShowSaveCardBottomSheet(
     CardSaveType card_save_type,
+    SourceFeature source_feature,
     int num_strikes,
     bool should_request_name_from_user,
     bool should_request_expiration_date_from_user) {
-  return card_save_type != CardSaveType::kCvcSaveOnly && num_strikes == 0 &&
-         !should_request_name_from_user &&
-         !should_request_expiration_date_from_user;
+  return source_feature == SourceFeature::kScanCardSaveAndFill ||
+         (card_save_type != CardSaveType::kCvcSaveOnly && num_strikes == 0 &&
+          !should_request_name_from_user &&
+          !should_request_expiration_date_from_user);
 }
 #endif  // BUILDFLAG(IS_IOS)
 

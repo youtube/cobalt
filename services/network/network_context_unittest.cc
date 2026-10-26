@@ -107,7 +107,10 @@
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/memory/mem_backend_impl.h"
+#include "net/dns/canary_domain_service.h"
 #include "net/dns/context_host_resolver.h"
+#include "net/dns/dns_config.h"
+#include "net/dns/dns_session.h"
 #include "net/dns/dns_test_util.h"
 #include "net/dns/host_resolver_manager.h"
 #include "net/dns/mock_host_resolver.h"
@@ -233,8 +236,6 @@ constexpr char kFrameOriginForFetchRequest[] = "https://xyz.com";
 constexpr char kSecFetchStorageAccess[] = "Sec-Fetch-Storage-Access";
 constexpr char kStorageAccessStatusHistogram[] =
     "API.StorageAccessHeader.StorageAccessStatusOutcome";
-constexpr char kSecFetchStorageAccessHistogram[] =
-    "API.StorageAccessHeader.SecFetchStorageAccessOutcome";
 
 #if BUILDFLAG(ENABLE_REPORTING)
 const base::FilePath::CharType kFilename[] =
@@ -306,7 +307,7 @@ std::unique_ptr<TestURLLoaderClient> FetchRequest(
     const ResourceRequest& request,
     NetworkContext* network_context,
     int url_loader_options = mojom::kURLLoadOptionNone,
-    OriginatingProcess process_id = OriginatingProcess::browser(),
+    OriginatingProcessId process_id = OriginatingProcessId::browser(),
     mojom::URLLoaderFactoryParamsPtr params = nullptr) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   if (!params) {
@@ -616,9 +617,8 @@ class NetworkContextTest : public testing::Test {
     return context->url_request_context()
         ->http_transaction_factory()
         ->GetSession()
-        ->GetSocketPool(
-            net::HttpNetworkSession::SocketPoolType::NORMAL_SOCKET_POOL,
-            net::ProxyChain::Direct())
+        ->GetSocketPool(net::HttpNetworkSession::SocketPoolType::kNormal,
+                        net::ProxyChain::Direct())
         ->GetInfoAsValue("", "")
         .GetDict()
         .FindInt(name)
@@ -653,9 +653,8 @@ class NetworkContextTest : public testing::Test {
         context->url_request_context()
             ->http_transaction_factory()
             ->GetSession()
-            ->GetSocketPool(
-                net::HttpNetworkSession::SocketPoolType::NORMAL_SOCKET_POOL,
-                net::ProxyChain::Direct())
+            ->GetSocketPool(net::HttpNetworkSession::SocketPoolType::kNormal,
+                            net::ProxyChain::Direct())
             ->GetInfoAsValue("", "")
             .TakeDict();
 
@@ -760,7 +759,7 @@ TEST_F(NetworkContextTest, DestroyContextWithLiveRequest) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   network_context->CreateURLLoaderFactory(
       loader_factory.BindNewPipeAndPassReceiver(), std::move(params));
@@ -1056,7 +1055,7 @@ TEST_F(NetworkContextTest, NetworkBoundURLLoaderFactory) {
       mojom::URLLoaderFactoryParams::New();
   // This needs to be different than mojom::kInvalidProcessId to stop Mojo
   // from yelling.
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->disable_web_security = true;
   network_context->CreateURLLoaderFactory(
       loader_factory.BindNewPipeAndPassReceiver(), std::move(params));
@@ -1093,7 +1092,7 @@ TEST_F(NetworkContextTest, UnhandedProtocols) {
     mojo::Remote<mojom::URLLoaderFactory> loader_factory;
     mojom::URLLoaderFactoryParamsPtr params =
         mojom::URLLoaderFactoryParams::New();
-    params->process_id = OriginatingProcess::browser();
+    params->process_id = OriginatingProcessId::browser();
     params->is_orb_enabled = false;
     network_context->CreateURLLoaderFactory(
         loader_factory.BindNewPipeAndPassReceiver(), std::move(params));
@@ -1969,7 +1968,7 @@ TEST_F(NetworkContextTest, HostResolutionFailure) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   network_context->CreateURLLoaderFactory(
       loader_factory.BindNewPipeAndPassReceiver(), std::move(params));
@@ -2171,7 +2170,7 @@ TEST_F(NetworkContextTest, Referrers) {
       mojo::Remote<mojom::URLLoaderFactory> loader_factory;
       mojom::URLLoaderFactoryParamsPtr params =
           mojom::URLLoaderFactoryParams::New();
-      params->process_id = OriginatingProcess::browser();
+      params->process_id = OriginatingProcessId::browser();
       network_context->CreateURLLoaderFactory(
           loader_factory.BindNewPipeAndPassReceiver(), std::move(params));
 
@@ -2328,6 +2327,25 @@ TEST_F(NetworkContextTest, MultipleClearHttpCacheCalls) {
   }
   run_loop.Run();
   // If all the callbacks were invoked, we should terminate.
+}
+
+TEST_F(NetworkContextTest, LogicalClearHttpCache) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(net::features::kLogicalClearHttpCache);
+
+  mojom::NetworkContextParamsPtr context_params =
+      CreateNetworkContextParamsForTesting();
+  context_params->http_cache_enabled = true;
+
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(context_params));
+
+  base::test::TestFuture<void> future;
+  network_context->ClearHttpCache(base::Time(), base::Time(), nullptr,
+                                  future.GetCallback());
+
+  // The callback should be called immediately.
+  EXPECT_TRUE(future.Wait());
 }
 
 #if BUILDFLAG(ENTERPRISE_CACHE_ENCRYPTION)
@@ -5615,6 +5633,189 @@ TEST_F(NetworkContextActivateDohProbesTest, NotPrimaryContext) {
   EXPECT_FALSE(state->IsDohProbeRunning());
 }
 
+class NetworkContextCanaryDomainTest
+    : public NetworkContextTest,
+      public testing::WithParamInterface</*is_positive=*/bool> {
+ public:
+  bool is_positive() const { return GetParam(); }
+};
+
+INSTANTIATE_TEST_SUITE_P(All, NetworkContextCanaryDomainTest, testing::Bool());
+
+TEST_P(NetworkContextCanaryDomainTest, CanaryDomainServiceProbe) {
+  base::test::ScopedFeatureList feature_list;
+  std::string host = "example.test";
+  feature_list.InitAndEnableFeatureWithParameters(
+      net::features::kProbeSecureDnsCanaryDomain,
+      {{"canary_domain_host", host}});
+
+  network_service_->set_host_resolver_factory_for_testing(
+      std::make_unique<net::MockHostResolverFactory>());
+
+  mojom::NetworkContextParamsPtr params =
+      CreateNetworkContextParamsForTesting();
+  net::ResolveContext resolve_context(/*url_request_context=*/nullptr,
+                                      /*enable_caching=*/false);
+
+  // Set up a DnsSession that allows DoH fallback probes.
+  net::DnsConfig config;
+  config.secure_dns_mode = net::SecureDnsMode::kAutomatic;
+  config.should_perform_doh_fallback_upgrade = true;
+  auto session = base::MakeRefCounted<net::DnsSession>(
+      config, base::BindRepeating([](int min, int max) -> int { return 0; }),
+      nullptr);
+  resolve_context.InvalidateCachesAndPerSessionData(session.get(),
+                                                    /*network_change=*/false);
+
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(params));
+
+  auto* mock_resolver = static_cast<net::MockHostResolverBase*>(
+      network_context->url_request_context()->host_resolver());
+  mock_resolver->set_ondemand_mode(true);
+  if (is_positive()) {
+    mock_resolver->rules()->AddRule(host, "1.2.3.4");
+  } else {
+    mock_resolver->rules()->AddRule(host, net::ERR_NAME_NOT_RESOLVED);
+  }
+  mock_resolver->SetResolveContextForTesting(&resolve_context);
+
+  // Creates CanaryDomainService and calls CanaryDomainService::Start().
+  network_context->ActivateDohProbes();
+
+  net::CanaryDomainService* canary_domain_service =
+      network_context->canary_domain_service_for_testing();
+  ASSERT_TRUE(canary_domain_service);
+
+  // Wait for canary domain probe to complete.
+  base::RunLoop run_loop;
+  canary_domain_service->SetOnProbeCompleteCallbackForTesting(
+      run_loop.QuitClosure());
+  mock_resolver->ResolveAllPending();
+  run_loop.Run();
+
+  // Verify that the expected canary domain probe result was recorded in the
+  // ResolveContext.
+  net::CanaryDomainCheckStatus expected_status =
+      is_positive() ? net::CanaryDomainCheckStatus::kPositive
+                    : net::CanaryDomainCheckStatus::kNegative;
+  EXPECT_EQ(expected_status,
+            resolve_context.doh_fallback_canary_domain_check_status());
+}
+
+TEST_F(NetworkContextTest, CanaryDomainServiceProbe_FeatureDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      net::features::kProbeSecureDnsCanaryDomain);
+
+  network_service_->set_host_resolver_factory_for_testing(
+      std::make_unique<net::MockHostResolverFactory>());
+
+  // Use a separate ResolveContext to control the DnsSession.
+  // Must outlive `network_context` because CanaryDomainService will hold a
+  // SafeRef to it.
+  net::ResolveContext resolve_context(nullptr, false);
+
+  mojom::NetworkContextParamsPtr params =
+      CreateNetworkContextParamsForTesting();
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(params));
+
+  auto* mock_resolver = static_cast<net::MockHostResolverBase*>(
+      network_context->url_request_context()->host_resolver());
+  mock_resolver->SetResolveContextForTesting(&resolve_context);
+
+  network_context->ActivateDohProbes();
+
+  net::CanaryDomainService* canary_domain_service =
+      network_context->canary_domain_service_for_testing();
+  ASSERT_TRUE(canary_domain_service);
+  EXPECT_EQ(mock_resolver->num_resolve(), 0u);
+}
+
+TEST_F(NetworkContextTest,
+       CanaryDomainServiceProbe_NotStartedIfConfigDisallows) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      net::features::kProbeSecureDnsCanaryDomain,
+      {{"canary_domain_host", "test.test"}});
+
+  network_service_->set_host_resolver_factory_for_testing(
+      std::make_unique<net::MockHostResolverFactory>());
+
+  // Use a separate ResolveContext to control the DnsSession.
+  // Must outlive `network_context` because CanaryDomainService will hold a
+  // SafeRef to it.
+  net::ResolveContext resolve_context(nullptr, false);
+
+  mojom::NetworkContextParamsPtr params =
+      CreateNetworkContextParamsForTesting();
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(params));
+
+  auto* mock_resolver = static_cast<net::MockHostResolverBase*>(
+      network_context->url_request_context()->host_resolver());
+  mock_resolver->SetResolveContextForTesting(&resolve_context);
+
+  // Case 1: Mode is not AUTOMATIC.
+  {
+    net::DnsConfig config;
+    config.secure_dns_mode = net::SecureDnsMode::kSecure;
+    config.should_perform_doh_fallback_upgrade = true;
+    auto session = base::MakeRefCounted<net::DnsSession>(
+        config, base::BindRepeating([](int min, int max) -> int { return 0; }),
+        nullptr);
+    resolve_context.InvalidateCachesAndPerSessionData(session.get(), false);
+
+    network_context->ActivateDohProbes();
+    EXPECT_TRUE(network_context->canary_domain_service_for_testing());
+    EXPECT_EQ(net::CanaryDomainCheckStatus::kNotStarted,
+              resolve_context.doh_fallback_canary_domain_check_status());
+    EXPECT_EQ(mock_resolver->num_resolve(), 0u);
+  }
+
+  // Case 2: should_perform_doh_fallback_upgrade is false.
+  {
+    net::DnsConfig config;
+    config.secure_dns_mode = net::SecureDnsMode::kAutomatic;
+    config.should_perform_doh_fallback_upgrade = false;
+    auto session = base::MakeRefCounted<net::DnsSession>(
+        config, base::BindRepeating([](int min, int max) -> int { return 0; }),
+        nullptr);
+    resolve_context.InvalidateCachesAndPerSessionData(session.get(), false);
+
+    network_context->ActivateDohProbes();
+    EXPECT_TRUE(network_context->canary_domain_service_for_testing());
+    EXPECT_EQ(net::CanaryDomainCheckStatus::kNotStarted,
+              resolve_context.doh_fallback_canary_domain_check_status());
+    EXPECT_EQ(mock_resolver->num_resolve(), 0u);
+  }
+}
+
+// Simulates a HostResolver that returns a nullptr CanaryDomainService.
+class NullCanaryDomainServiceHostResolver : public net::HangingHostResolver {
+ public:
+  std::unique_ptr<net::CanaryDomainService> CreateCanaryDomainService()
+      override {
+    return nullptr;
+  }
+};
+
+TEST_F(NetworkContextTest, CanaryDomainServiceProbe_NullService) {
+  auto resolver = std::make_unique<NullCanaryDomainServiceHostResolver>();
+  network_service_->set_host_resolver_factory_for_testing(
+      std::make_unique<HostResolverFactory>(std::move(resolver)));
+
+  mojom::NetworkContextParamsPtr params =
+      CreateNetworkContextParamsForTesting();
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(params));
+
+  // Should not crash if CreateCanaryDomainService returns nullptr.
+  network_context->ActivateDohProbes();
+  EXPECT_FALSE(network_context->canary_domain_service_for_testing());
+}
+
 TEST_F(NetworkContextTest, PrivacyModeDisabledByDefault) {
   const GURL kURL("http://foo.com");
   const GURL kOtherURL("http://other.com");
@@ -6384,7 +6585,7 @@ TEST_F(NetworkContextTrustedParamsTest, Basic) {
     mojo::Remote<mojom::URLLoaderFactory> loader_factory;
     mojom::URLLoaderFactoryParamsPtr params =
         mojom::URLLoaderFactoryParams::New();
-    params->process_id = OriginatingProcess::browser();
+    params->process_id = OriginatingProcessId::browser();
     params->is_orb_enabled = false;
     // URLLoaderFactories should not be trusted by default.
     EXPECT_FALSE(params->is_trusted);
@@ -6447,7 +6648,7 @@ TEST_F(NetworkContextTrustedParamsTest, DisableSecureDns) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->is_trusted = true;
   network_context->CreateURLLoaderFactory(
@@ -6504,7 +6705,7 @@ TEST_F(NetworkContextTest, FactoryParamsDisableSecureDns) {
     mojo::Remote<mojom::URLLoaderFactory> loader_factory;
     mojom::URLLoaderFactoryParamsPtr params =
         mojom::URLLoaderFactoryParams::New();
-    params->process_id = OriginatingProcess::browser();
+    params->process_id = OriginatingProcessId::browser();
     params->is_orb_enabled = false;
     params->disable_secure_dns = disable_secure_dns;
     network_context.CreateURLLoaderFactory(
@@ -6827,7 +7028,7 @@ TEST_F(NetworkContextTest, ProxyErrorClientNotifiedOfProxyConnection) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr loader_params =
       mojom::URLLoaderFactoryParams::New();
-  loader_params->process_id = OriginatingProcess::browser();
+  loader_params->process_id = OriginatingProcessId::browser();
   network_context->CreateURLLoaderFactory(
       loader_factory.BindNewPipeAndPassReceiver(), std::move(loader_params));
 
@@ -6883,7 +7084,7 @@ TEST_F(NetworkContextTest, ProxyErrorClientNotNotifiedOfUnreachableError) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr loader_params =
       mojom::URLLoaderFactoryParams::New();
-  loader_params->process_id = OriginatingProcess::browser();
+  loader_params->process_id = OriginatingProcessId::browser();
   network_context->CreateURLLoaderFactory(
       loader_factory.BindNewPipeAndPassReceiver(), std::move(loader_params));
 
@@ -6957,7 +7158,7 @@ TEST_F(NetworkContextTest, ProxyErrorClientNotifiedOfPacError) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr loader_params =
       mojom::URLLoaderFactoryParams::New();
-  loader_params->process_id = OriginatingProcess::browser();
+  loader_params->process_id = OriginatingProcessId::browser();
   network_context->CreateURLLoaderFactory(
       loader_factory.BindNewPipeAndPassReceiver(), std::move(loader_params));
 
@@ -7039,7 +7240,7 @@ TEST_F(NetworkContextTest, EnsureProperProxyChainIsUsed) {
     mojo::Remote<mojom::URLLoaderFactory> loader_factory;
     mojom::URLLoaderFactoryParamsPtr params =
         mojom::URLLoaderFactoryParams::New();
-    params->process_id = OriginatingProcess::browser();
+    params->process_id = OriginatingProcessId::browser();
     network_context->CreateURLLoaderFactory(
         loader_factory.BindNewPipeAndPassReceiver(), std::move(params));
 
@@ -7185,7 +7386,7 @@ TEST_F(NetworkContextTest, HeaderClientModifiesHeaders) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   TestURLLoaderHeaderClient header_client(
       params->header_client.InitWithNewPipeAndPassReceiver());
@@ -7256,7 +7457,7 @@ TEST_F(NetworkContextTest, HeaderClientReceivesSslInfo) {
     mojo::Remote<mojom::URLLoaderFactory> loader_factory;
     mojom::URLLoaderFactoryParamsPtr params =
         mojom::URLLoaderFactoryParams::New();
-    params->process_id = OriginatingProcess::browser();
+    params->process_id = OriginatingProcessId::browser();
     params->is_orb_enabled = false;
     TestURLLoaderHeaderClient header_client(
         params->header_client.InitWithNewPipeAndPassReceiver());
@@ -7286,7 +7487,7 @@ TEST_F(NetworkContextTest, HeaderClientReceivesSslInfo) {
     mojo::Remote<mojom::URLLoaderFactory> loader_factory;
     mojom::URLLoaderFactoryParamsPtr params =
         mojom::URLLoaderFactoryParams::New();
-    params->process_id = OriginatingProcess::browser();
+    params->process_id = OriginatingProcessId::browser();
     params->is_orb_enabled = false;
     TestURLLoaderHeaderClient header_client(
         params->header_client.InitWithNewPipeAndPassReceiver());
@@ -7324,7 +7525,7 @@ TEST_F(NetworkContextTest, HeaderClientFailsRequest) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   TestURLLoaderHeaderClient header_client(
       params->header_client.InitWithNewPipeAndPassReceiver());
@@ -7481,7 +7682,7 @@ TEST_F(NetworkContextTest, HangingHeaderClientModifiesHeadersAsynchronously) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   HangingTestURLLoaderHeaderClient header_client(
       params->header_client.InitWithNewPipeAndPassReceiver());
@@ -7531,7 +7732,7 @@ TEST_F(NetworkContextTest, HangingHeaderClientAbortDuringOnBeforeSendHeaders) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   HangingTestURLLoaderHeaderClient header_client(
       params->header_client.InitWithNewPipeAndPassReceiver());
@@ -7575,7 +7776,7 @@ TEST_F(NetworkContextTest, HangingHeaderClientAbortDuringOnHeadersReceived) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   HangingTestURLLoaderHeaderClient header_client(
       params->header_client.InitWithNewPipeAndPassReceiver());
@@ -7651,7 +7852,7 @@ TEST_F(NetworkContextIncludeRequestCookiesWithResponseTest, FailWhenUntrusted) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = false;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info =
       net::IsolationInfo::CreateForInternalRequest(test_server.GetOrigin());
@@ -7693,7 +7894,7 @@ TEST_F(NetworkContextIncludeRequestCookiesWithResponseTest,
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info =
       net::IsolationInfo::CreateForInternalRequest(test_server.GetOrigin());
@@ -7732,7 +7933,7 @@ TEST_F(NetworkContextIncludeRequestCookiesWithResponseTest, Cookie) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info =
       net::IsolationInfo::CreateForInternalRequest(test_server.GetOrigin());
@@ -7777,7 +7978,7 @@ TEST_F(NetworkContextIncludeRequestCookiesWithResponseTest,
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info =
       net::IsolationInfo::CreateForInternalRequest(test_server.GetOrigin());
@@ -7828,7 +8029,7 @@ TEST_F(NetworkContextIncludeRequestCookiesWithResponseTest,
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info =
       net::IsolationInfo::CreateForInternalRequest(test_server.GetOrigin());
@@ -7872,7 +8073,7 @@ TEST_F(NetworkContextIncludeRequestCookiesWithResponseTest, HeaderClient) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info =
       net::IsolationInfo::CreateForInternalRequest(test_server.GetOrigin());
@@ -7943,7 +8144,7 @@ TEST_F(NetworkContextIncludeRequestCookiesWithResponseTest,
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   network_context->CreateURLLoaderFactory(
       loader_factory.BindNewPipeAndPassReceiver(), std::move(params));
@@ -8088,7 +8289,7 @@ TEST_F(NetworkContextTest, MaximumCount) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   network_context->CreateURLLoaderFactory(
       loader_factory.BindNewPipeAndPassReceiver(), std::move(params));
@@ -8576,13 +8777,15 @@ TEST_F(NetworkContextTest, FactoriesDeletedWhenBindingsCleared) {
       CreateContextWithParams(CreateNetworkContextParamsForTesting());
 
   auto loader_params = mojom::URLLoaderFactoryParams::New();
-  loader_params->process_id = OriginatingProcess::renderer(RendererProcess(1));
+  loader_params->process_id =
+      OriginatingProcessId::renderer(RendererProcessId(1));
   mojo::Remote<mojom::URLLoaderFactory> remote1;
   network_context->CreateURLLoaderFactory(remote1.BindNewPipeAndPassReceiver(),
                                           std::move(loader_params));
 
   loader_params = mojom::URLLoaderFactoryParams::New();
-  loader_params->process_id = OriginatingProcess::renderer(RendererProcess(1));
+  loader_params->process_id =
+      OriginatingProcessId::renderer(RendererProcessId(1));
   mojo::Remote<mojom::URLLoaderFactory> remote2;
   network_context->CreateURLLoaderFactory(remote2.BindNewPipeAndPassReceiver(),
                                           std::move(loader_params));
@@ -8640,7 +8843,7 @@ class NetworkContextSplitCacheEnabledTest : public NetworkContextTest {
 
     mojo::Remote<mojom::URLLoaderFactory> loader_factory;
     auto params = mojom::URLLoaderFactoryParams::New();
-    params->process_id = OriginatingProcess::browser();
+    params->process_id = OriginatingProcessId::browser();
     params->is_orb_enabled = false;
     if (isolation_info.request_type() ==
         net::IsolationInfo::RequestType::kOther) {
@@ -9101,7 +9304,7 @@ TEST_F(NetworkContextExpectBadMessageTest,
       mojom::TrustTokenOperationPolicyVerdict::kForbid;
   std::unique_ptr<TestURLLoaderClient> client =
       FetchRequest(my_request, network_context.get(), mojom::kURLLoadOptionNone,
-                   OriginatingProcess::browser(), std::move(factory_params));
+                   OriginatingProcessId::browser(), std::move(factory_params));
 
   AssertBadMessage();
 }
@@ -9128,7 +9331,7 @@ TEST_F(NetworkContextExpectBadMessageTest,
       mojom::TrustTokenOperationPolicyVerdict::kForbid;
   std::unique_ptr<TestURLLoaderClient> client =
       FetchRequest(my_request, network_context.get(), mojom::kURLLoadOptionNone,
-                   OriginatingProcess::browser(), std::move(factory_params));
+                   OriginatingProcessId::browser(), std::move(factory_params));
 
   AssertBadMessage();
 }
@@ -9155,7 +9358,7 @@ TEST_F(NetworkContextExpectBadMessageTest,
       mojom::TrustTokenOperationPolicyVerdict::kForbid;
   std::unique_ptr<TestURLLoaderClient> client =
       FetchRequest(my_request, network_context.get(), mojom::kURLLoadOptionNone,
-                   OriginatingProcess::browser(), std::move(factory_params));
+                   OriginatingProcessId::browser(), std::move(factory_params));
 
   AssertBadMessage();
 }
@@ -9176,7 +9379,7 @@ TEST_F(NetworkContextTest,
   // Trust Tokens issuer, it should fail.
   std::unique_ptr<TestURLLoaderClient> client = FetchRequest(
       my_request, network_context.get(), mojom::kURLLoadOptionNone,
-      OriginatingProcess::browser(), mojom::URLLoaderFactoryParams::New());
+      OriginatingProcessId::browser(), mojom::URLLoaderFactoryParams::New());
   EXPECT_EQ(client->completion_status().error_code,
             net::ERR_TRUST_TOKEN_OPERATION_FAILED);
   EXPECT_EQ(client->completion_status().trust_token_operation_status,
@@ -9203,7 +9406,7 @@ TEST_F(NetworkContextTest,
 
   std::unique_ptr<TestURLLoaderClient> client = FetchRequest(
       my_request, network_context.get(), mojom::kURLLoadOptionNone,
-      OriginatingProcess::browser(), mojom::URLLoaderFactoryParams::New());
+      OriginatingProcessId::browser(), mojom::URLLoaderFactoryParams::New());
   EXPECT_EQ(client->completion_status().error_code,
             net::ERR_TRUST_TOKEN_OPERATION_FAILED);
   EXPECT_EQ(client->completion_status().trust_token_operation_status,
@@ -9233,7 +9436,7 @@ TEST_F(NetworkContextTest,
 
   std::unique_ptr<TestURLLoaderClient> client = FetchRequest(
       my_request, network_context.get(), mojom::kURLLoadOptionNone,
-      OriginatingProcess::browser(), mojom::URLLoaderFactoryParams::New());
+      OriginatingProcessId::browser(), mojom::URLLoaderFactoryParams::New());
   EXPECT_EQ(client->completion_status().error_code,
             net::ERR_TRUST_TOKEN_OPERATION_FAILED);
   EXPECT_EQ(client->completion_status().trust_token_operation_status,
@@ -9601,7 +9804,7 @@ TEST_F(NetworkContextTest,
 
   std::unique_ptr<TestURLLoaderClient> client = FetchRequest(
       my_request, network_context.get(), mojom::kURLLoadOptionNone,
-      OriginatingProcess::browser(), mojom::URLLoaderFactoryParams::New());
+      OriginatingProcessId::browser(), mojom::URLLoaderFactoryParams::New());
   // Operation status should be kOk.
   EXPECT_EQ(client->completion_status().trust_token_operation_status,
             mojom::TrustTokenOperationStatus::kOk);
@@ -9622,7 +9825,7 @@ TEST_F(NetworkContextTest,
 
   client = FetchRequest(
       my_request, network_context.get(), mojom::kURLLoadOptionNone,
-      OriginatingProcess::browser(), mojom::URLLoaderFactoryParams::New());
+      OriginatingProcessId::browser(), mojom::URLLoaderFactoryParams::New());
   // Authorizer should fail since kTopFrameOriginForFetchRequest is blocked
   // through content settings.
   EXPECT_EQ(client->completion_status().trust_token_operation_status,
@@ -9679,7 +9882,7 @@ TEST_F(NetworkContextTest,
 
   std::unique_ptr<TestURLLoaderClient> client = FetchRequest(
       my_request, network_context.get(), mojom::kURLLoadOptionNone,
-      OriginatingProcess::browser(), mojom::URLLoaderFactoryParams::New());
+      OriginatingProcessId::browser(), mojom::URLLoaderFactoryParams::New());
   // Operation status should be kOk.
   EXPECT_EQ(client->completion_status().trust_token_operation_status,
             mojom::TrustTokenOperationStatus::kOk);
@@ -9699,7 +9902,7 @@ TEST_F(NetworkContextTest,
 
   client = FetchRequest(
       my_request, network_context.get(), mojom::kURLLoadOptionNone,
-      OriginatingProcess::browser(), mojom::URLLoaderFactoryParams::New());
+      OriginatingProcessId::browser(), mojom::URLLoaderFactoryParams::New());
   // Authorizer should fail since a.test is blocked through content settings.
   EXPECT_EQ(client->completion_status().trust_token_operation_status,
             mojom::TrustTokenOperationStatus::kUnauthorized);
@@ -9785,7 +9988,7 @@ TEST_F(NetworkContextExpectBadMessageTest, DataUrl) {
   auto factory_params = mojom::URLLoaderFactoryParams::New();
   std::unique_ptr<TestURLLoaderClient> client =
       FetchRequest(request, network_context.get(), mojom::kURLLoadOptionNone,
-                   OriginatingProcess::browser(), std::move(factory_params));
+                   OriginatingProcessId::browser(), std::move(factory_params));
 
   AssertBadMessage();
 }
@@ -9876,7 +10079,7 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesDisablesNewRequestsTest) {
     params->isolation_info = net::IsolationInfo::CreateTransient(nonce);
     std::unique_ptr<TestURLLoaderClient> client =
         FetchRequest(request, network_context.get(), mojom::kURLLoadOptionNone,
-                     OriginatingProcess::browser(), std::move(params));
+                     OriginatingProcessId::browser(), std::move(params));
     EXPECT_EQ(net::OK, client->completion_status().error_code);
   }
 
@@ -9899,7 +10102,7 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesDisablesNewRequestsTest) {
     params->isolation_info = net::IsolationInfo::CreateTransient(nonce);
     std::unique_ptr<TestURLLoaderClient> client =
         FetchRequest(request, network_context.get(), mojom::kURLLoadOptionNone,
-                     OriginatingProcess::browser(), std::move(params));
+                     OriginatingProcessId::browser(), std::move(params));
     EXPECT_EQ(net::ERR_NETWORK_ACCESS_REVOKED,
               client->completion_status().error_code);
   }
@@ -9919,7 +10122,7 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesDisablesNewRequestsTest) {
     params->isolation_info = net::IsolationInfo::CreateTransient(nonce);
     std::unique_ptr<TestURLLoaderClient> client =
         FetchRequest(request, network_context.get(), mojom::kURLLoadOptionNone,
-                     OriginatingProcess::browser(), std::move(params));
+                     OriginatingProcessId::browser(), std::move(params));
     EXPECT_EQ(net::OK, client->completion_status().error_code);
   }
 
@@ -9940,7 +10143,7 @@ TEST_F(NetworkContextTest, RevokeNetworkForNoncesDisablesNewRequestsTest) {
     params->isolation_info = net::IsolationInfo::CreateTransient(nonce2);
     std::unique_ptr<TestURLLoaderClient> client =
         FetchRequest(request, network_context.get(), mojom::kURLLoadOptionNone,
-                     OriginatingProcess::browser(), std::move(params));
+                     OriginatingProcessId::browser(), std::move(params));
     EXPECT_EQ(net::ERR_NETWORK_ACCESS_REVOKED,
               client->completion_status().error_code);
   }
@@ -9973,7 +10176,7 @@ TEST_F(NetworkContextTest,
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::CreateTransient(nonce);
   HangingTestURLLoaderHeaderClient header_client(
@@ -10031,7 +10234,7 @@ TEST_F(NetworkContextTest,
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::CreateTransient(nonce);
   HangingTestURLLoaderHeaderClient header_client(
@@ -10097,7 +10300,7 @@ TEST_F(NetworkContextTest,
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::CreateTransient(nonce);
   HangingTestURLLoaderHeaderClient header_client(
@@ -10153,7 +10356,7 @@ TEST_F(NetworkContextTest,
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::CreateTransient(nonce);
   HangingTestURLLoaderHeaderClient header_client(
@@ -10188,6 +10391,221 @@ TEST_F(NetworkContextTest,
 
   // The request should have succeeded because the url was exempted.
   EXPECT_EQ(client.completion_status().error_code, net::OK);
+}
+
+// Test the case where a URLLoaderFactory has no live pipes, and
+// RevokeNetworkForNonces() cancels all its URLLoaders, which may cause the
+// factory to be destroyed. This should not result in a UAF.
+TEST_F(NetworkContextTest, RevokeNetworkForNoncesUrlLoaderFactoryWithNoPipes) {
+  net::EmbeddedTestServer test_server;
+  net::test_server::RegisterDefaultHandlers(&test_server);
+  ASSERT_TRUE(test_server.Start());
+
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(CreateNetworkContextParamsForTesting());
+
+  const base::UnguessableToken nonce = base::UnguessableToken::Create();
+  ResourceRequest request;
+  GURL test_url = test_server.GetURL("/hung");
+  request.url = test_url;
+  request.permissions_policy =
+      *CreateStorageAccessPermissionsPolicy(request.url);
+
+  mojo::Remote<mojom::URLLoaderFactory> loader_factory;
+  mojom::URLLoaderFactoryParamsPtr params =
+      mojom::URLLoaderFactoryParams::New();
+  params->process_id = OriginatingProcessId::browser();
+  params->is_orb_enabled = false;
+  params->isolation_info = net::IsolationInfo::CreateTransient(nonce);
+  HangingTestURLLoaderHeaderClient header_client(
+      params->header_client.InitWithNewPipeAndPassReceiver());
+  network_context->CreateURLLoaderFactory(
+      loader_factory.BindNewPipeAndPassReceiver(), std::move(params));
+
+  mojo::PendingRemote<mojom::URLLoader> loader;
+  TestURLLoaderClient client;
+  loader_factory->CreateLoaderAndStart(
+      loader.InitWithNewPipeAndPassReceiver(), 0 /* request_id */,
+      mojom::kURLLoadOptionUseHeaderClient, request, client.CreateRemote(),
+      net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
+
+  // Wait for OnBeforeSendHeaders.
+  header_client.WaitForOnBeforeSendHeaders();
+
+  // Close the URLLoaderFactory pipe.
+  loader_factory.reset();
+  // Unfortunately, can't flush a closed pipe to make sure the close message was
+  // received, can only spin the message loop to wait for the message to be
+  // received.
+  base::RunLoop().RunUntilIdle();
+
+  // Revoke network access for the nonce.
+  base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
+  network_context->RevokeNetworkForNonces(
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
+  EXPECT_TRUE(revoked.Wait());
+
+  // Continue sending headers.
+  header_client.CallOnBeforeSendHeadersCallback();
+
+  // Run the request to completion.
+  client.RunUntilComplete();
+
+  // The request should have been cancelled due to network revocation.
+  EXPECT_EQ(client.completion_status().error_code,
+            net::ERR_NETWORK_ACCESS_REVOKED);
+}
+
+// Test the case where a URLLoaderFactory has no live pipes, and
+// RevokeNetworkForNonces() destroys all its URLLoaders, which may cause the
+// factory to be destroyed it. This should not result in a UAF. This test is
+// different from the one above in that there is a live CorsURLLoader, but no
+// URLLoaders (which have very different deletion logic).
+TEST_F(NetworkContextTest,
+       RevokeNetworkForNoncesUrlLoaderFactoryWithNoPipesCorsUrlLoaderOnly) {
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(CreateNetworkContextParamsForTesting());
+
+  const base::UnguessableToken nonce = base::UnguessableToken::Create();
+  ResourceRequest request;
+  request.url = GURL("https://a.test/");
+  request.permissions_policy =
+      *CreateStorageAccessPermissionsPolicy(request.url);
+
+  mojo::Remote<mojom::URLLoaderFactory> loader_factory;
+  mojom::URLLoaderFactoryParamsPtr params =
+      mojom::URLLoaderFactoryParams::New();
+  params->process_id = OriginatingProcessId::browser();
+  params->is_orb_enabled = false;
+  params->isolation_info = net::IsolationInfo::CreateTransient(nonce);
+
+  // Inject a URLLoaderFactoryOverride that just hangs. This will result in
+  // creating CorsURLLoaders which hang when they try to start URLLoaders.
+  auto url_loader_factory_override = mojom::URLLoaderFactoryOverride::New();
+  mojo::PendingReceiver<network::mojom::URLLoaderFactory>
+      loader_factory_receiver;
+  url_loader_factory_override->overriding_factory =
+      loader_factory_receiver.InitWithNewPipeAndPassRemote();
+  params->factory_override = std::move(url_loader_factory_override);
+
+  HangingTestURLLoaderHeaderClient header_client(
+      params->header_client.InitWithNewPipeAndPassReceiver());
+  network_context->CreateURLLoaderFactory(
+      loader_factory.BindNewPipeAndPassReceiver(), std::move(params));
+
+  // Create a CorsURLLoader.
+  mojo::Remote<mojom::URLLoader> loader;
+  TestURLLoaderClient client;
+  loader_factory->CreateLoaderAndStart(
+      loader.BindNewPipeAndPassReceiver(), 0 /* request_id */,
+      mojom::kURLLoadOptionUseHeaderClient, request, client.CreateRemote(),
+      net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
+
+  // Wait for the request to make it across the Mojo pie.
+  loader.FlushForTesting();
+
+  // Close the URLLoaderFactory pipe.
+  loader_factory.reset();
+  // Unfortunately, can't flush a closed pipe to make sure the close message was
+  // received, can only spin the message loop to wait for the message to be
+  // received.
+  base::RunLoop().RunUntilIdle();
+
+  // Revoke network access for the nonce.
+  base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
+  network_context->RevokeNetworkForNonces(
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
+  EXPECT_TRUE(revoked.Wait());
+
+  // Run the request to completion.
+  client.RunUntilComplete();
+
+  // The request should have been cancelled due to network revocation.
+  EXPECT_EQ(client.completion_status().error_code,
+            net::ERR_NETWORK_ACCESS_REVOKED);
+}
+
+// Test the case where a URLLoaderFactory has no live pipes, and
+// RevokeNetworkForNonces() destroys all its URLLoaders, which may cause the
+// factory to be destroyed it. This should not result in a UAF. This test is
+// different from the ones above in that there is a live URLLoader, but no
+// CorsURLLoaders (which have very different deletion logic).
+TEST_F(NetworkContextTest,
+       RevokeNetworkForNoncesUrlLoaderFactoryWithNoPipesNonCorsUrlLoaderOnly) {
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(CreateNetworkContextParamsForTesting());
+
+  const base::UnguessableToken nonce = base::UnguessableToken::Create();
+  ResourceRequest request;
+  request.url = GURL("https://a.test/");
+  request.permissions_policy =
+      *CreateStorageAccessPermissionsPolicy(request.url);
+
+  mojo::Remote<mojom::URLLoaderFactory> loader_factory;
+  mojom::URLLoaderFactoryParamsPtr params =
+      mojom::URLLoaderFactoryParams::New();
+  params->process_id = OriginatingProcessId::browser();
+  params->is_orb_enabled = false;
+  params->isolation_info = net::IsolationInfo::CreateTransient(nonce);
+
+  auto url_loader_factory_override = mojom::URLLoaderFactoryOverride::New();
+  // Getet the underling URLLoaderFactory to use directly, bypassing the
+  // CorsURLLoaderFactory.
+  mojo::Remote<network::mojom::URLLoaderFactory> non_cors_factory;
+  url_loader_factory_override->overridden_factory_receiver =
+      non_cors_factory.BindNewPipeAndPassReceiver();
+  // Also inject a dummy URLLoaderFactoryOverride. It will not be used.
+  mojo::PendingReceiver<network::mojom::URLLoaderFactory>
+      loader_factory_receiver;
+  url_loader_factory_override->overriding_factory =
+      loader_factory_receiver.InitWithNewPipeAndPassRemote();
+  params->factory_override = std::move(url_loader_factory_override);
+
+  HangingTestURLLoaderHeaderClient header_client(
+      params->header_client.InitWithNewPipeAndPassReceiver());
+  network_context->CreateURLLoaderFactory(
+      loader_factory.BindNewPipeAndPassReceiver(), std::move(params));
+
+  // Create a non-CORS URLLoader.
+  mojo::Remote<mojom::URLLoader> loader;
+  TestURLLoaderClient client;
+  non_cors_factory->CreateLoaderAndStart(
+      loader.BindNewPipeAndPassReceiver(), 0 /* request_id */,
+      mojom::kURLLoadOptionUseHeaderClient, request, client.CreateRemote(),
+      net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
+
+  // Wait for the request to make it across the Mojo pie.
+  loader.FlushForTesting();
+
+  // Close both the URLLoaderFactory pipes. Have to close the CORS one as well,
+  // as it's the one that actually owns the non-CORS URLLoaders.
+  non_cors_factory.reset();
+  loader_factory.reset();
+  // Unfortunately, can't flush a closed pipe to make sure the close messages
+  // were received, can only spin the message loop to wait for that to happen.
+  base::RunLoop().RunUntilIdle();
+
+  // Revoke network access for the nonce.
+  base::test::TestFuture<void> revoked;
+  auto revoked_nonce_pattern = CreateNonceAndAllowlistedPatterns(nonce);
+  std::vector<network::mojom::NonceAndAllowlistedPatternsPtr> nonces_to_urls;
+  nonces_to_urls.push_back(std::move(revoked_nonce_pattern));
+  network_context->RevokeNetworkForNonces(
+      std::move(nonces_to_urls), base::BindOnce(revoked.GetCallback()));
+  EXPECT_TRUE(revoked.Wait());
+
+  // Run the request to completion.
+  client.RunUntilComplete();
+
+  // The request should have been cancelled due to network revocation.
+  EXPECT_EQ(client.completion_status().error_code,
+            net::ERR_NETWORK_ACCESS_REVOKED);
 }
 
 TEST_F(NetworkContextTest, RevokeNetworkForNoncesCancelsPreconnectRequests) {
@@ -10620,7 +11038,7 @@ class NetworkContextBrowserCookieTest
     mojo::Remote<mojom::URLLoaderFactory> loader_factory;
     mojom::URLLoaderFactoryParamsPtr params =
         mojom::URLLoaderFactoryParams::New();
-    params->process_id = OriginatingProcess::browser();
+    params->process_id = OriginatingProcessId::browser();
     params->is_trusted = true;
     if (options & mojom::kURLLoadOptionUseHeaderClient) {
       header_client_receiver_ =
@@ -11099,7 +11517,7 @@ class StorageAccessHeaderNetworkContextTest : public NetworkContextTest {
   void RunRequestToCompletion(std::unique_ptr<NetworkContext> network_context,
                               mojom::URLLoaderFactoryParamsPtr params,
                               ResourceRequest request) {
-    params->process_id = OriginatingProcess::browser();
+    params->process_id = OriginatingProcessId::browser();
     mojo::Remote<mojom::URLLoaderFactory> loader_factory;
     network_context->CreateURLLoaderFactory(
         loader_factory.BindNewPipeAndPassReceiver(), std::move(params));
@@ -11214,7 +11632,7 @@ TEST_F(StorageAccessHeaderNetworkContextTest, RetryWithoutContentSetting) {
       *CreateStorageAccessPermissionsPolicy(request.url);
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther,
@@ -11222,7 +11640,7 @@ TEST_F(StorageAccessHeaderNetworkContextTest, RetryWithoutContentSetting) {
       request.site_for_cookies);
   std::unique_ptr<TestURLLoaderClient> client =
       FetchRequest(request, network_context.get(), mojom::kURLLoadOptionNone,
-                   OriginatingProcess::browser(), std::move(params));
+                   OriginatingProcessId::browser(), std::move(params));
 
   client->RunUntilComplete();
 
@@ -11254,7 +11672,7 @@ TEST_F(StorageAccessHeaderNetworkContextTest, Retry_WithoutBlockingCookies) {
       *CreateStorageAccessPermissionsPolicy(request.url);
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther,
@@ -11262,7 +11680,7 @@ TEST_F(StorageAccessHeaderNetworkContextTest, Retry_WithoutBlockingCookies) {
       request.site_for_cookies);
   std::unique_ptr<TestURLLoaderClient> client =
       FetchRequest(request, network_context.get(), mojom::kURLLoadOptionNone,
-                   OriginatingProcess::browser(), std::move(params));
+                   OriginatingProcessId::browser(), std::move(params));
 
   client->RunUntilComplete();
 
@@ -11312,7 +11730,7 @@ TEST_P(StorageAccessHeaderNetworkContextParameterizedTest, Retry) {
       request.url, permissions_policy_matches_all_origins());
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther,
@@ -11320,7 +11738,7 @@ TEST_P(StorageAccessHeaderNetworkContextParameterizedTest, Retry) {
       request.site_for_cookies);
   std::unique_ptr<TestURLLoaderClient> client =
       FetchRequest(request, network_context.get(), mojom::kURLLoadOptionNone,
-                   OriginatingProcess::browser(), std::move(params));
+                   OriginatingProcessId::browser(), std::move(params));
 
   client->RunUntilComplete();
 
@@ -11571,7 +11989,7 @@ TEST_P(StorageAccessHeaderRedirectNetworkContextTest, RetryThenRedirect) {
 
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther,
@@ -11636,7 +12054,7 @@ TEST_F(StorageAccessHeaderNetworkContextTest,
   request.credentials_mode = mojom::CredentialsMode::kInclude;
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther,
@@ -11644,7 +12062,7 @@ TEST_F(StorageAccessHeaderNetworkContextTest,
       request.site_for_cookies);
   std::unique_ptr<TestURLLoaderClient> client =
       FetchRequest(request, network_context.get(), mojom::kURLLoadOptionNone,
-                   OriginatingProcess::browser(), std::move(params));
+                   OriginatingProcessId::browser(), std::move(params));
 
   client->RunUntilComplete();
 
@@ -11703,7 +12121,7 @@ TEST_P(StorageAccessHeaderNetworkContextParameterizedTest,
 
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther,
@@ -11711,7 +12129,7 @@ TEST_P(StorageAccessHeaderNetworkContextParameterizedTest,
       request.site_for_cookies);
   std::unique_ptr<TestURLLoaderClient> client =
       FetchRequest(request, network_context.get(), mojom::kURLLoadOptionNone,
-                   OriginatingProcess::browser(), std::move(params));
+                   OriginatingProcessId::browser(), std::move(params));
 
   client->RunUntilComplete();
 
@@ -11762,7 +12180,7 @@ TEST_F(StorageAccessHeaderNetworkContextTest, OptedInViaResourceRequest) {
   request.request_initiator = url::Origin::Create(request_url);
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther,
@@ -11770,7 +12188,7 @@ TEST_F(StorageAccessHeaderNetworkContextTest, OptedInViaResourceRequest) {
       request.site_for_cookies);
   std::unique_ptr<TestURLLoaderClient> client =
       FetchRequest(request, network_context.get(), mojom::kURLLoadOptionNone,
-                   OriginatingProcess::browser(), std::move(params));
+                   OriginatingProcessId::browser(), std::move(params));
 
   client->RunUntilComplete();
 
@@ -11820,7 +12238,7 @@ TEST_F(StorageAccessHeaderNetworkContextTest, Retry_OmitCredentials) {
   request.credentials_mode = mojom::CredentialsMode::kOmit;
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther,
@@ -11828,7 +12246,7 @@ TEST_F(StorageAccessHeaderNetworkContextTest, Retry_OmitCredentials) {
       request.site_for_cookies);
   std::unique_ptr<TestURLLoaderClient> client =
       FetchRequest(request, network_context.get(), mojom::kURLLoadOptionNone,
-                   OriginatingProcess::browser(), std::move(params));
+                   OriginatingProcessId::browser(), std::move(params));
 
   client->RunUntilComplete();
 
@@ -11871,7 +12289,7 @@ TEST_P(StorageAccessHeaderNetworkContextParameterizedTest, Load) {
       request.url, permissions_policy_matches_all_origins());
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther,
@@ -11879,7 +12297,7 @@ TEST_P(StorageAccessHeaderNetworkContextParameterizedTest, Load) {
       request.site_for_cookies);
   std::unique_ptr<TestURLLoaderClient> client =
       FetchRequest(request, network_context.get(), mojom::kURLLoadOptionNone,
-                   OriginatingProcess::browser(), std::move(params));
+                   OriginatingProcessId::browser(), std::move(params));
 
   client->RunUntilComplete();
 
@@ -11925,7 +12343,7 @@ TEST_P(StorageAccessHeaderNetworkContextParameterizedTest,
   request.credentials_mode = mojom::CredentialsMode::kOmit;
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther,
@@ -11933,7 +12351,7 @@ TEST_P(StorageAccessHeaderNetworkContextParameterizedTest,
       request.site_for_cookies);
   std::unique_ptr<TestURLLoaderClient> client =
       FetchRequest(request, network_context.get(), mojom::kURLLoadOptionNone,
-                   OriginatingProcess::browser(), std::move(params));
+                   OriginatingProcessId::browser(), std::move(params));
 
   client->RunUntilComplete();
 
@@ -11984,7 +12402,7 @@ TEST_F(StorageAccessHeaderNetworkContextTest, RedirectWithLoad) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther,
@@ -12048,7 +12466,7 @@ TEST_F(StorageAccessHeaderNetworkContextTest, RedirectThenLoad) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   auto params = mojom::URLLoaderFactoryParams::New();
   params->is_trusted = true;
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther,
@@ -12104,10 +12522,6 @@ TEST_F(StorageAccessHeaderNetworkContextTest,
       kStorageAccessStatusHistogram, /*sample=*/
       net::cookie_util::StorageAccessStatusOutcome::kOmittedSameSite,
       /*expected_bucket_count=*/1);
-  histogram_tester.ExpectUniqueSample(
-      kSecFetchStorageAccessHistogram, /*sample=*/
-      net::cookie_util::SecFetchStorageAccessOutcome::kOmittedStatusMissing,
-      /*expected_bucket_count=*/1);
 }
 
 TEST_F(StorageAccessHeaderNetworkContextTest,
@@ -12139,12 +12553,6 @@ TEST_F(StorageAccessHeaderNetworkContextTest,
   // Since credentials are blocked, no header should be attached.
   EXPECT_THAT(most_recent_request_headers(),
               ElementsAre(Not(Contains(Key(kSecFetchStorageAccess)))));
-
-  histogram_tester.ExpectUniqueSample(
-      kSecFetchStorageAccessHistogram, /*sample=*/
-      net::cookie_util::SecFetchStorageAccessOutcome::
-          kOmittedRequestOmitsCredentials,
-      /*expected_bucket_count=*/1);
 }
 
 TEST_F(StorageAccessHeaderNetworkContextTest, RequestHeader_None) {
@@ -12177,10 +12585,6 @@ TEST_F(StorageAccessHeaderNetworkContextTest, RequestHeader_None) {
       kStorageAccessStatusHistogram,
       /*sample=*/
       net::cookie_util::StorageAccessStatusOutcome::kValueNone,
-      /*expected_bucket_count=*/1);
-  histogram_tester.ExpectUniqueSample(
-      kSecFetchStorageAccessHistogram, /*sample=*/
-      net::cookie_util::SecFetchStorageAccessOutcome::kValueNone,
       /*expected_bucket_count=*/1);
 }
 
@@ -12229,10 +12633,6 @@ TEST_P(StorageAccessHeaderNetworkContextParameterizedTest,
         /*sample=*/
         net::cookie_util::StorageAccessStatusOutcome::kValueInactive,
         /*expected_bucket_count=*/1);
-    histogram_tester.ExpectUniqueSample(
-        kSecFetchStorageAccessHistogram, /*sample=*/
-        net::cookie_util::SecFetchStorageAccessOutcome::kValueInactive,
-        /*expected_bucket_count=*/1);
   } else {
     EXPECT_THAT(most_recent_request_headers(),
                 ElementsAre(Contains(Pair(kSecFetchStorageAccess, "none"))));
@@ -12240,10 +12640,6 @@ TEST_P(StorageAccessHeaderNetworkContextParameterizedTest,
         kStorageAccessStatusHistogram,
         /*sample=*/
         net::cookie_util::StorageAccessStatusOutcome::kValueNone,
-        /*expected_bucket_count=*/1);
-    histogram_tester.ExpectUniqueSample(
-        kSecFetchStorageAccessHistogram, /*sample=*/
-        net::cookie_util::SecFetchStorageAccessOutcome::kValueNone,
         /*expected_bucket_count=*/1);
   }
 }
@@ -12290,10 +12686,6 @@ TEST_F(StorageAccessHeaderNetworkContextTest, RequestHeader_Active) {
       /*sample=*/
       net::cookie_util::StorageAccessStatusOutcome::kValueActive,
       /*expected_bucket_count=*/1);
-  histogram_tester.ExpectUniqueSample(
-      kSecFetchStorageAccessHistogram, /*sample=*/
-      net::cookie_util::SecFetchStorageAccessOutcome::kValueActive,
-      /*expected_bucket_count=*/1);
 }
 
 // This test recreates the case of StorageAccessHeaderRetry, with the
@@ -12328,7 +12720,7 @@ TEST_P(StorageAccessHeaderNetworkContextParameterizedTest, RetryAfterInactive) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther, kTopFrameOrigin,
       url::Origin::Create(request.url), request.site_for_cookies);
@@ -12366,14 +12758,6 @@ TEST_P(StorageAccessHeaderNetworkContextParameterizedTest, RetryAfterInactive) {
         /*sample=*/
         net::cookie_util::StorageAccessStatusOutcome::kValueActive,
         /*expected_count=*/1);
-    histogram_tester.ExpectBucketCount(
-        kSecFetchStorageAccessHistogram, /*sample=*/
-        net::cookie_util::SecFetchStorageAccessOutcome::kValueInactive,
-        /*expected_count=*/1);
-    histogram_tester.ExpectBucketCount(
-        kSecFetchStorageAccessHistogram, /*sample=*/
-        net::cookie_util::SecFetchStorageAccessOutcome::kValueActive,
-        /*expected_count=*/1);
   } else {
     EXPECT_THAT(most_recent_request_headers(),
                 ElementsAre(Contains(Pair(kSecFetchStorageAccess, "none"))));
@@ -12383,10 +12767,6 @@ TEST_P(StorageAccessHeaderNetworkContextParameterizedTest, RetryAfterInactive) {
         kStorageAccessStatusHistogram,
         /*sample=*/
         net::cookie_util::StorageAccessStatusOutcome::kValueNone,
-        /*expected_count=*/1);
-    histogram_tester.ExpectBucketCount(
-        kSecFetchStorageAccessHistogram, /*sample=*/
-        net::cookie_util::SecFetchStorageAccessOutcome::kValueNone,
         /*expected_count=*/1);
   }
 }
@@ -12452,7 +12832,7 @@ TEST_F(NetworkContextTest, ProvidedResponseBodyStream) {
   mojo::Remote<mojom::URLLoaderFactory> loader_factory;
   mojom::URLLoaderFactoryParamsPtr params =
       mojom::URLLoaderFactoryParams::New();
-  params->process_id = OriginatingProcess::browser();
+  params->process_id = OriginatingProcessId::browser();
   params->is_orb_enabled = false;
   params->is_trusted = true;
   network_context->CreateURLLoaderFactory(

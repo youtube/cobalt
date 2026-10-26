@@ -204,7 +204,7 @@ bool IsAppBundlePromoEphemeralCardEnabled() {
 
 BASE_FEATURE(kDefaultBrowserMagicStackIos,
 #if BUILDFLAG(IS_IOS)
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
@@ -213,11 +213,6 @@ constexpr base::FeatureParam<int> kMaxDefaultBrowserMagicStackIosImpressions{
     &kDefaultBrowserMagicStackIos,
     "max_default_browser_magic_stack_ios_impressions",
     /*default_value=*/6};
-
-bool IsDefaultBrowserMagicStackEnabled() {
-  return base::FeatureList::IsEnabled(
-      segmentation_platform::features::kDefaultBrowserMagicStackIos);
-}
 
 BASE_FEATURE(kAndroidTipsNotifications, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -241,6 +236,50 @@ constexpr base::FeatureParam<int> kWindowTimeMinutes{&kAndroidTipsNotifications,
                                                      "window_time_minutes",
                                                      /*default_value=*/120};
 
+constexpr base::FeatureParam<bool> kEnableEnhancedSafeBrowsingTip{
+    &kAndroidTipsNotifications, "enable_enhanced_safe_browsing_tip",
+    /*default_value=*/true};
+
+constexpr base::FeatureParam<bool> kEnableQuickDeleteTip{
+    &kAndroidTipsNotifications, "enable_quick_delete_tip",
+    /*default_value=*/true};
+
+constexpr base::FeatureParam<bool> kEnableGoogleLensTip{
+    &kAndroidTipsNotifications, "enable_google_lens_tip",
+    /*default_value=*/true};
+
+constexpr base::FeatureParam<bool> kEnableBottomOmniboxTip{
+    &kAndroidTipsNotifications, "enable_bottom_omnibox_tip",
+    /*default_value=*/true};
+
 BASE_FEATURE(kAndroidTipsNotificationsV2, base::FEATURE_DISABLED_BY_DEFAULT);
+
+constexpr base::FeatureParam<bool> kEcosystemLockIn{
+    &kAndroidTipsNotificationsV2, "ecosystem_lock_in",
+    /*default_value=*/false};
+
+constexpr base::FeatureParam<bool> kUtilityAndOrganization{
+    &kAndroidTipsNotificationsV2, "utility_and_organization",
+    /*default_value=*/false};
+
+constexpr base::FeatureParam<bool> kEnablePasswordAutofillTip{
+    &kAndroidTipsNotificationsV2, "enable_password_autofill_tip",
+    /*default_value=*/true};
+
+constexpr base::FeatureParam<bool> kEnableSigninTip{
+    &kAndroidTipsNotificationsV2, "enable_signin_tip",
+    /*default_value=*/true};
+
+constexpr base::FeatureParam<bool> kEnableCreateTabGroupsTip{
+    &kAndroidTipsNotificationsV2, "enable_create_tab_groups_tip",
+    /*default_value=*/true};
+
+constexpr base::FeatureParam<bool> kEnableCustomizeMVTTip{
+    &kAndroidTipsNotificationsV2, "enable_customize_mvt_tip",
+    /*default_value=*/true};
+
+constexpr base::FeatureParam<bool> kEnableRecentTabsTip{
+    &kAndroidTipsNotificationsV2, "enable_recent_tabs_tip",
+    /*default_value=*/true};
 
 }  // namespace segmentation_platform::features

@@ -45,26 +45,46 @@ ObservationBuffer::ObservationBuffer(const ObservationBuffer& other)
 
 ObservationBuffer::~ObservationBuffer() = default;
 
+void ObservationBuffer::AddObservationOutOfOrder(
+    const Observation& observation) {
+  // Find the first observation with a timestamp strictly greater than
+  // `observation.timestamp()`. This maintains the invariant that observations
+  // are stored in non-decreasing order of their timestamps.
+  auto it =
+      std::upper_bound(observations_.begin(), observations_.end(), observation,
+                       [](const Observation& a, const Observation& b) {
+                         return a.timestamp() < b.timestamp();
+                       });
+  observations_.insert(it, observation);
+}
+
 std::optional<Observation> ObservationBuffer::AddObservation(
     const Observation& observation) {
   DCHECK_LE(observations_.size(), params_->observation_buffer_size());
-
-  // Observations must be in the non-decreasing order of the timestamps.
-  DCHECK(observations_.empty() ||
-         observation.timestamp() >= observations_.back().timestamp());
 
   DCHECK(observation.signal_strength() == INT32_MIN ||
          (observation.signal_strength() >= 0 &&
           observation.signal_strength() <= 4));
 
   std::optional<Observation> evicted_observation;
-  // Evict the oldest element if the buffer is already full.
+
   if (observations_.size() == params_->observation_buffer_size()) {
+    // If the buffer is full and the new observation is older than the oldest
+    // existing observation, then the new observation is effectively evicted.
+    if (observation.timestamp() < observations_.front().timestamp()) {
+      return observation;
+    }
     evicted_observation = observations_.front();
     observations_.pop_front();
   }
 
-  observations_.push_back(observation);
+  if (observations_.empty() ||
+      observation.timestamp() >= observations_.back().timestamp()) {
+    observations_.push_back(observation);
+  } else {
+    AddObservationOutOfOrder(observation);
+  }
+
   DCHECK_LE(observations_.size(), params_->observation_buffer_size());
   return evicted_observation;
 }
@@ -80,14 +100,14 @@ std::optional<int32_t> ObservationBuffer::GetPercentile(
   // Stores weighted observations in increasing order by value.
   std::vector<WeightedObservation> weighted_observations;
 
-  // Total weight of all observations in |weighted_observations|.
+  // Total weight of all observations in `weighted_observations`.
   double total_weight = 0.0;
 
   ComputeWeightedObservations(begin_timestamp, current_signal_strength,
                               &weighted_observations, &total_weight);
 
   if (observations_count) {
-    // |observations_count| may be null.
+    // `observations_count` may be null.
     *observations_count = weighted_observations.size();
   }
 
@@ -104,9 +124,9 @@ std::optional<int32_t> ObservationBuffer::GetPercentile(
   }
 
   // Computation may reach here due to floating point errors. This may happen
-  // if |percentile| was 100 (or close to 100), and |desired_weight| was
-  // slightly larger than |total_weight| (due to floating point errors).
-  // In this case, we return the highest |value| among all observations.
+  // if `percentile` was 100 (or close to 100), and `desired_weight` was
+  // slightly larger than `total_weight` (due to floating point errors).
+  // In this case, we return the highest `value` among all observations.
   // This is same as value of the last observation in the sorted vector.
   return weighted_observations.at(weighted_observations.size() - 1).value;
 }
@@ -162,9 +182,9 @@ void ObservationBuffer::ComputeWeightedObservations(
   DCHECK_LE(0.0, *total_weight);
   DCHECK(weighted_observations->empty() || 0.0 < *total_weight);
 
-  // |weighted_observations| may have a smaller size than |observations_|
+  // `weighted_observations` may have a smaller size than `observations_`
   // since the former contains only the observations later than
-  // |begin_timestamp|.
+  // `begin_timestamp`.
   DCHECK_GE(observations_.size(), weighted_observations->size());
 }
 

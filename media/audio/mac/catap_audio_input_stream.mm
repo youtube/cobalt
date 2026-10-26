@@ -19,6 +19,7 @@
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/process/process.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
@@ -282,9 +283,9 @@ bool MuteLocalPlaybackLoopback(const std::string& device_id) {
 API_AVAILABLE(macos(14.2))
 CatapAudioInputStream::AudioDeviceIds GetDefaultOutputDeviceIds() {
   CatapAudioInputStream::AudioDeviceIds device_ids;
-  device_ids.id = core_audio_mac::GetDefaultDevice(/*input=*/false);
+  device_ids.id = CoreAudioUtilMac().GetDefaultDevice(/*input=*/false);
   if (device_ids.id) {
-    device_ids.uid = core_audio_mac::GetDeviceUniqueID(*device_ids.id);
+    device_ids.uid = CoreAudioUtilMac().GetDeviceUniqueID(*device_ids.id);
   }
   return device_ids;
 }
@@ -643,9 +644,27 @@ AudioInputStream::OpenOutcome CatapAudioInputStreamSource::Open(
   }
 
   // Initialization: Step 3.
-  // Attach callback to the aggregate device.
-  status = catap_api_->AudioDeviceCreateIOProcID(
-      aggregate_device_id_, DeviceIoProc, this, &tap_io_proc_id_);
+  // Attach callback to the aggregate device. If this is the first time we're
+  // calling AudioDeviceCreateIOProcID(), this will trigger the macOS permission
+  // dialog. If the user doesn't respond to the dialog, this call will time out
+  // in 60 seconds. When this happens all interactions with CoreAudio will fail
+  // until the audio process is restarted.
+  {
+    constexpr base::TimeDelta kCreateIoProcIdTimeout = base::Seconds(59);
+    base::ElapsedTimer create_io_proc_id_timer;
+    status = catap_api_->AudioDeviceCreateIOProcID(
+        aggregate_device_id_, DeviceIoProc, this, &tap_io_proc_id_);
+    if (base::FeatureList::IsEnabled(
+            features::kMacCatapRestartAudioProcessOnTimeout) &&
+        create_io_proc_id_timer.Elapsed() > kCreateIoProcIdTimeout) {
+      ReportOpenStatus(OpenStatus::kCreateIoProcIdTimeout, timer.Elapsed());
+      SendLogMessage("%s => AudioDeviceCreateIOProcID timed out. Status: %d. "
+                     "Restarting the audio process.",
+                     __func__, status);
+      base::Process::TerminateCurrentProcessImmediately(1);
+    }
+  }
+
   if (status != noErr) {
     ReportOpenStatus(OpenStatus::kErrorCreatingIOProcID, timer.Elapsed());
     SendLogMessage("%s => Error calling AudioDeviceCreateIOProcID. Status: %d",
@@ -818,9 +837,17 @@ void CatapAudioInputStreamSource::OnCatapSample(
   TRACE_EVENT1("audio", "CatapAudioInputStreamSource::OnCatapSample",
                "capture_time", capture_time);
 
-  float* data = (float*)input_buffer->mData;
-  int frames = input_buffer->mDataByteSize /
-               (input_buffer->mNumberChannels * sizeof(Float32));
+  const auto& data_byte_size = input_buffer->mDataByteSize;
+  CHECK_EQ(data_byte_size % sizeof(float), 0u);
+
+  // SAFETY: This comes from a struct provided by the OS and the number of
+  // frames is calculated based on the information provided in the struct.
+  // We've also made sure that the size is a multiple of `sizeof(float)` above.
+  base::span<float> data =
+      UNSAFE_BUFFERS(base::span(reinterpret_cast<float*>(input_buffer->mData),
+                                data_byte_size / sizeof(float)));
+  CHECK_EQ(data.size() % input_buffer->mNumberChannels, 0u);
+  const int frames = data.size() / input_buffer->mNumberChannels;
 
   // The number of channels may change when a bluetooth device is captured and
   // the bluetooth profile is switched between A2DP and HFP. The sample rate
@@ -856,21 +883,19 @@ void CatapAudioInputStreamSource::OnCatapSample(
 
   if (config_.catap_channels == 1) {
     // If the captured signal is mono, we may need to upmix it. This loop copies
-    // the single mono channel to all output channels. For example, if
-    // outputting to stereo, both left and right channels will get the same mono
-    // data.
-
-    // SAFETY: This comes from a struct provided by the OS and the number of
-    // frames is calculated based on the information provided in the struct.
-    base::span UNSAFE_BUFFERS(mono_data(data, (size_t)frames));
+    // a reference to the single mono channel to all output channels. For
+    // example, if outputting to stereo, both left and right channels will get
+    // the same mono data.
     audio_bus_->set_frames(frames);
     for (int i = 0; i < config_.output_channels; ++i) {
-      audio_bus_->SetChannelData(i, mono_data);
+      audio_bus_->SetChannelData(i, data);
     }
   } else {
+    // If not mono, we only support stereo.
+    CHECK_EQ(config_.catap_channels, 2);
     // The captured signal is already stereo, so we can de-interleave it
     // directly into the audio bus.
-    audio_bus_->FromInterleaved<Float32SampleTypeTraits>(data, frames);
+    audio_bus_->FromInterleaved<Float32SampleTypeTraits>(data);
   }
   sink_->OnData(audio_bus_.get(), capture_time, kMaxVolume,
                 glitch_helper_.ConsumeGlitchInfo());

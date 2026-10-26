@@ -95,6 +95,7 @@ class ContentsContainerView : public views::View,
   enterprise_watermark::WatermarkView* watermark_view() {
     return watermark_view_;
   }
+  views::WebView* ai_overlay_dialog_view() { return ai_overlay_dialog_view_; }
   const ContentsContainerOutline* contents_outline_view() const {
     return container_outline_;
   }
@@ -126,9 +127,18 @@ class ContentsContainerView : public views::View,
   // Returns the contents_view bounds including ntp footer.
   gfx::Rect GetContentsViewBounds() const;
 
+  // When set to a non-null value, overrides the target size and position for
+  // this view to `target_bounds` (in local coordinates), to prevent reflow
+  // during browser animation on some platforms. When this is set, the contents
+  // will be resized as if the view were the modified size, then clipped down to
+  // the actual size in the layout.
+  void SetTargetContentBounds(
+      std::optional<gfx::Outsets> target_contents_bounds);
+
  private:
   void CreateCaptureContentsBorder();
   void UpdateCaptureContentsBorderLocation();
+  void UpdateContentsClip();
 
   // Updates the DevTools docked placement. It infers the docked placement from
   // the bounds of contents_webview relative to the local bounds of the
@@ -178,6 +188,9 @@ class ContentsContainerView : public views::View,
   // The view that overlays a watermark on the contents container.
   raw_ptr<enterprise_watermark::WatermarkView> watermark_view_ = nullptr;
 
+  // The overlay dialog view that is displayed on top of the web contents.
+  raw_ptr<views::WebView> ai_overlay_dialog_view_ = nullptr;
+
   // The scrim view that covers the content area when a tab-modal dialog is
   // open.
   raw_ptr<ScrimView> contents_scrim_view_ = nullptr;
@@ -185,6 +198,10 @@ class ContentsContainerView : public views::View,
   // The view that contains the Glic Actor Overlay. The Actor Overlay is a UI
   // overlay that is shown on top of the web contents.
   raw_ptr<ActorOverlayWebView> actor_overlay_web_view_ = nullptr;
+
+  // Contains glic selection overlay. The overlay renders a static screenshot
+  // of the WebContents and is drawn on top of the WebContents.
+  raw_ptr<views::WebView> glic_selection_overlay_view_ = nullptr;
 
   // The glic browser view that renders around the web contents area.
   raw_ptr<glic::ContextSharingBorderView> glic_border_ = nullptr;
@@ -195,6 +212,14 @@ class ContentsContainerView : public views::View,
 
   std::unique_ptr<views::Widget> capture_contents_border_widget_;
   std::optional<gfx::Rect> dynamic_capture_content_border_bounds_;
+
+  // See `SetTargetContentSize()`.
+  std::optional<gfx::Outsets> target_content_bounds_;
+
+  // This is updated during layout calculation and then applied during layout.
+  // It is non-empty when the contents are larger than the visible region during
+  // browser animations (see `SetTargetContentWidth()`).
+  mutable gfx::Rect contents_clip_rect_;
 
   DevToolsContentsResizingStrategy strategy_;
   base::ScopedObservation<View, ViewObserver> view_bounds_observer_{this};

@@ -179,6 +179,7 @@ namespace compiler {
   V(Arm64Saddlp)                        \
   V(Arm64Bcax)                          \
   V(Arm64Eor3)                          \
+  V(Arm64Xar)                           \
   V(Arm64Uadalp)                        \
   V(Arm64Uaddlp)                        \
   V(Arm64Umlal)                         \
@@ -300,6 +301,8 @@ namespace compiler {
   V(Arm64Float16RoundUp)                             \
   V(Arm64Float16RoundTruncate)                       \
   V(Arm64Float16RoundTiesEven)                       \
+  V(Arm64Float32Move)                                \
+  V(Arm64Float32MoveU32)                             \
   V(Arm64Float32Cmp)                                 \
   V(Arm64Float32Add)                                 \
   V(Arm64Float32Sub)                                 \
@@ -359,6 +362,7 @@ namespace compiler {
   V(Arm64Float64ExtractHighWord32)                   \
   V(Arm64Float64InsertLowWord32)                     \
   V(Arm64Float64InsertHighWord32)                    \
+  V(Arm64Float64Move)                                \
   V(Arm64Float64MoveU64)                             \
   V(Arm64U64MoveFloat64)                             \
   V(Arm64LdarDecompressTaggedSigned)                 \

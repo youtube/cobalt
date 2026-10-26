@@ -106,8 +106,9 @@ void LayoutSVGShape::StyleDidChange(
     // are significant enough to require invalidating the cache.
     if (!diff.NeedsFullLayout() && stroke_path_cache_) {
       if (old_style->StrokeDashOffset() != style.StrokeDashOffset() ||
-          base::ValuesEquivalent(old_style->StrokeDashArray(),
-                                 style.StrokeDashArray())) {
+          old_style->PathLength() != style.PathLength() ||
+          !base::ValuesEquivalent(old_style->StrokeDashArray(),
+                                  style.StrokeDashArray())) {
         stroke_path_cache_.reset();
       }
     }

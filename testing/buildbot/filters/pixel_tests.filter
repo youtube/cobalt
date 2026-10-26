@@ -24,6 +24,7 @@ BookmarkEditorViewBrowserTestMoveDialog.*
 BookmarkEditorViewBrowserTestWithAccountBookmarks.*
 BrowserViewLayoutDelegateImplBrowsertest.Screenshot*
 BrowserViewScrimPixelTest.*
+BrowserViewTabbedLayoutImplUiTest.*
 BubbleFrameViewBrowserTest.*
 BubbleSignInPromoInteractiveUITest.*
 CaptionBubbleBrowserTest.*
@@ -81,7 +82,7 @@ IsolatedWebAppInstallerViewUiPixelTest.*
 JavascriptOptimizerUiTest.*
 *ContextualTasks*PixelTest*
 *LensSidePanel*PixelTest*
-LHSIndicatorsUiBrowserTest.*
+LHSIndicatorsInteractiveUITest.*
 LocalCardMigrationBrowserUiTest.*
 *MemorySaverChipInteractiveTest.*
 *MemorySaverFaviconTreatmentTest.*
@@ -89,7 +90,7 @@ LocalCardMigrationBrowserUiTest.*
 Mv2DeprecationReEnableDialogBrowserTest.*
 NewTabPageTest.*
 NtpPromoVisualUiTest.*
-NtpRealboxUiTest.*
+NtpRealboxUiScreenshotTest.*
 OfferNotificationBubbleViewPixelBrowserTest.*
 OutdatedUpgradeBubbleTest.*
 PageActionPixelIconsHiddenTest.*
@@ -117,6 +118,9 @@ PasswordBubbleInteractiveUiTest.NavigateToManagementDetailsViewWithMoveFooterVis
 PasswordReuseModalWarningTest.*
 PaymentsWindowUserConsentDialogBrowserTest*
 PerformanceInterventionInteractiveTest.InterventionToolbarButton
+PermissionChipKombuchaInteractiveUITest.PermissionChipClickTest
+PermissionChipKombuchaInteractiveUITest.QuietPermissionChipClickTest
+PermissionChipKombuchaInteractiveUITest.QuietestPermissionChipClickTest
 PermissionRequestChipBrowserUiTest.*
 *PermissionPromptBubble*View*BrowserTest.InvokeUi_*
 PermissionPromptPreviewBrowserTest.InvokeUi_*
@@ -136,8 +140,8 @@ QuietPromptInteractiveUITest.*
 RecentActivityBubbleDialogViewInteractiveUiTest.*
 RelaunchRecommendedBubbleViewDialogTest.*
 RelaunchRequiredDialogViewDialogTest.*
-ReloadButtonWebViewPixelBrowserTest.*
 ReopenTabPromoControllerDialogBrowserTest.*
+ReportUnsafeSiteDialogInteractiveUiTest.ExcludeScreenshotPixelTest
 SafetyTipPageInfoBubbleViewDialogTest.*
 ScreenCaptureNotificationUiBrowserTest.*
 SearchEngineChoiceUIPixelTest.*
@@ -148,7 +152,8 @@ SettingsOverriddenExplicitChoiceDialogInteractiveUiTest.*
 *SharedPasswordsNotificationBubbleInteractiveUiTest.*
 SharedTabGroupInteractiveUiTest.SharedTabGroupIn*
 SingleBookmarkUploadDialogPixelTest.InvokeUi
-*SkillsPageInteractiveUITest*
+SearchAIModeSignInPromoViewPixelTest.*
+*SkillsPageScreenshotInteractiveUITest.*
 SplitTabButtonInteractiveTest.ButtonUpdatesOnSplit
 SyncConfirmationUIDialogPixelTest.*
 SyncConfirmationUIWindowPixelTest.*
@@ -164,9 +169,11 @@ UpdateRecommendedDialogTest.*
 *WatermarkBrowserTest.*
 *WatermarkTestPageBrowserTest.*
 *WatermarkTestPageDynamicBrowserTest.*
+WebAppBlockedMigrationInfoBarDelegateUiTest.*
 WebAppConfirmViewBrowserTest.*
 WebAppMenuBrowserTest.*
 WebAppUpdateReviewDialog.*
+WebUIToolbarWebViewPixelBrowserTest.*
 ZoomBubbleDialogTest.*
 
 # To temporarily disable a test, add it here with a leading '-', like this:

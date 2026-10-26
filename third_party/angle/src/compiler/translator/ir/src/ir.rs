@@ -122,11 +122,9 @@ pub const TEMP_VARIABLE_PREFIX: &str = "t";
 pub const TEMP_FUNCTION_PREFIX: &str = "f";
 pub const TEMP_STRUCT_PREFIX: &str = "s";
 pub const TEMP_STRUCT_FIELD_PREFIX: &str = "m";
-// Make sure ANGLE symbols start with this to avoid collision with the user symbol prefixes above.
-pub const ANGLE_SYMBOL_PREFIX: &str = "ANGLE";
 
 // An ID that can be referred to by an operand of an instruction.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(debug_assertions, derive(Debug))]
 pub enum Id {
     Register(RegisterId),
@@ -164,10 +162,19 @@ impl Id {
         }
     }
 
-    pub fn get_constant(&self) -> Option<ConstantId> {
+    pub fn get_if_constant(&self) -> Option<ConstantId> {
         match self {
             &Id::Constant(id) => Some(id),
             _ => None,
+        }
+    }
+
+    pub fn get_constant(&self) -> ConstantId {
+        match self {
+            &Id::Constant(id) => id,
+            _ => {
+                panic!("Internal error: unexpected non-constant id");
+            }
         }
     }
 
@@ -1013,6 +1020,10 @@ impl Block {
         self.set_sub_block1(block);
     }
 
+    pub fn has_if_true_block(&self) -> bool {
+        self.block1.is_some()
+    }
+
     pub fn set_if_false_block(&mut self, block: Block) {
         self.set_sub_block2(block);
     }
@@ -1021,13 +1032,31 @@ impl Block {
         debug_assert!(self.loop_condition.is_none());
         self.loop_condition = Some(Box::new(block));
     }
+    pub fn get_loop_condition_block(&self) -> &Block {
+        self.loop_condition.as_ref().unwrap()
+    }
 
     pub fn set_loop_body_block(&mut self, block: Block) {
         self.set_sub_block1(block);
     }
+    pub fn get_loop_body_block(&self) -> &Block {
+        self.block1.as_ref().unwrap()
+    }
+    pub fn get_loop_body_block_mut(&mut self) -> &mut Block {
+        self.block1.as_mut().unwrap()
+    }
+    pub fn has_loop_body_block(&self) -> bool {
+        self.block1.is_some()
+    }
 
     pub fn set_loop_continue_block(&mut self, block: Block) {
         self.set_sub_block2(block);
+    }
+    pub fn has_loop_continue_block(&self) -> bool {
+        self.block2.is_some()
+    }
+    pub fn get_loop_continue_block(&self) -> &Block {
+        self.block2.as_ref().unwrap()
     }
 
     pub fn set_switch_case_blocks(&mut self, blocks: Vec<Block>) {
@@ -1423,6 +1452,7 @@ impl Name {
 pub enum VariableScope {
     Global,
     Local,
+    ForLoopVariable,
     FunctionParam,
 }
 
@@ -1521,7 +1551,6 @@ pub enum BuiltIn {
     SampleMask,
     NumSamples,
     NumWorkGroups,
-    WorkGroupSize,
     WorkGroupID,
     LocalInvocationID,
     GlobalInvocationID,
@@ -1540,7 +1569,6 @@ pub enum BuiltIn {
     TessLevelInner,
     TessCoord,
     BoundingBoxOES,
-    PixelLocalEXT,
 }
 
 // Whether a function parameter is `in`, `out` or `inout`.
@@ -1703,7 +1731,6 @@ pub enum Decoration {
     // Corresponding to GLSL qualifiers with the same name
     Invariant,
     Precise,
-    Interpolant,
     Smooth,
     Flat,
     NoPerspective,
@@ -1721,8 +1748,6 @@ pub enum Decoration {
     PushConstant,
     NonCoherent,
     Yuv,
-    // TODO(http://anglebug.com/349994211): handle __pixel_localEXT, likely in combination with
-    // Input/Output/InputOutput
     // Indicates that a variable (excluding built-ins) is an input to the shader
     Input,
     // Indicates that a variable (excluding built-ins) is an output of the shader
@@ -1750,6 +1775,8 @@ pub enum Decoration {
     Depth(Depth),
     // Internal format declared on storage images
     ImageInternalFormat(ImageInternalFormat),
+    // Used internally to implement OES_shader_multisample_interpolation for Metal.
+    Interpolant,
     // Used internally to implement ANGLE_pixel_local_storage, indicates a D3D 11.3 Rasterizer
     // Order Views (ROV) and Metal raster_order_groups.
     RasterOrdered,
@@ -1788,6 +1815,44 @@ impl Decorations {
         self.decorations.contains(&query)
     }
 }
+
+// For decorations with data, macros are needed to simplify querying and extracting them.
+//
+// has_decoration: Similar to Decorations::has, but for enums with data.  For example:
+//
+//     has_decoration!(decoration, Decoration::Location) // returns a bool
+//
+// get_decoration: Get a decoration matching a variant.  For example:
+//
+//     get_decoration!(decoration, Decoration::Location) // returns Some(Location(l)) or None
+//
+// get_decoration_value: Get the value inside a decoration matching a variant.  For example:
+//
+//     get_decoration_value!(decoration, Decoration::Location) // returns Some(l) or None
+macro_rules! has_decoration {
+    ($decorations:expr, $variant:path) => {
+        $decorations.decorations.iter().any(|decoration| matches!(decoration, $variant(..)))
+    };
+}
+macro_rules! get_decoration {
+    ($decorations:expr, $variant:path) => {
+        $decorations
+            .decorations
+            .iter()
+            .find(|decoration| matches!(decoration, $variant(..)))
+            .copied()
+    };
+}
+macro_rules! get_decoration_value {
+    ($decorations:expr, $variant:path) => {
+        $decorations.decorations.iter().find_map(|decoration| {
+            if let $variant(value) = decoration { Some(*value) } else { None }
+        })
+    };
+}
+pub(crate) use get_decoration;
+pub(crate) use get_decoration_value;
+pub(crate) use has_decoration;
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone)]
 #[cfg_attr(debug_assertions, derive(Debug))]
@@ -2403,11 +2468,18 @@ impl IRMeta {
     pub fn all_global_variables(&self) -> &Vec<VariableId> {
         &self.global_variables
     }
+    pub fn total_register_count(&self) -> u32 {
+        self.instructions.len() as u32
+    }
     pub fn prune_global_variables<Keep>(&mut self, keep: Keep)
     where
         Keep: Fn(VariableId) -> bool,
     {
         self.global_variables.retain(|&variable_id| keep(variable_id));
+    }
+    // Used by transformations that non-trivially modify the list of global variables.
+    pub fn replace_global_variables(&mut self, replacement: Vec<VariableId>) {
+        self.global_variables = replacement;
     }
 
     pub fn get_main_function_id(&self) -> Option<FunctionId> {
@@ -2505,6 +2577,9 @@ impl IRMeta {
     }
     pub fn on_per_vertex_out_redeclaration(&mut self) {
         self.per_vertex_out_is_redeclared = true;
+    }
+    pub fn get_variables_pending_zero_initialization(&self) -> &HashSet<VariableId> {
+        &self.variables_pending_zero_initialization
     }
 
     fn add_item_and_get_id<T>(items: &mut Vec<T>, new_item: T) -> u32 {
@@ -2843,9 +2918,14 @@ impl IRMeta {
         initializer: Option<ConstantId>,
         scope: VariableScope,
     ) -> (VariableId, TypedId) {
-        // Automatically turn the type into a pointer
-        debug_assert!(!self.get_type(type_id).is_pointer());
-        let type_id = self.get_pointer_type_id(type_id);
+        // Automatically turn the type into a pointer if not already.  Typically the given type is
+        // not a pointer, but it could sometimes be if we're duplicating an existing variable and
+        // the pointer type is readily available.
+        let type_id = if self.get_type(type_id).is_pointer() {
+            type_id
+        } else {
+            self.get_pointer_type_id(type_id)
+        };
         let var =
             Variable::new(name, type_id, precision, decorations, built_in, initializer, scope);
         let variable_id = self.add_variable(var);
@@ -2897,6 +2977,22 @@ impl IRMeta {
             .find(|&id| matches!(self.get_variable(*id).built_in, Some(value) if value == built_in))
             .copied()
     }
+    pub fn declare_built_in_variable(
+        &mut self,
+        type_id: TypeId,
+        precision: Precision,
+        built_in: BuiltIn,
+    ) -> (VariableId, TypedId) {
+        self.declare_variable(
+            Name::new_exact(""),
+            type_id,
+            precision,
+            Decorations::new_none(),
+            Some(built_in),
+            None,
+            VariableScope::Global,
+        )
+    }
     // If already declared, return a built-in variable, otherwise declare it.  Used by
     // transformations to reference a built-in that the shader might not have originally used.
     //
@@ -2910,21 +3006,55 @@ impl IRMeta {
                 // Note: gl_FragCoord is mediump in ESSL 100, but highp in ESSL 300+.  Declare it
                 // as highp to conform to newer standards.
                 BuiltIn::FragCoord => (TYPE_ID_VEC4, Precision::High),
-                BuiltIn::InstanceID => (TYPE_ID_INT, Precision::High),
-                BuiltIn::LayerOut => (TYPE_ID_INT, Precision::High),
+                BuiltIn::BaseVertex | BuiltIn::InstanceID | BuiltIn::LayerOut => {
+                    (TYPE_ID_INT, Precision::High)
+                }
                 _ => panic!("Internal error: Unexpected built-in declared by transformations"),
             };
 
-            self.declare_variable(
-                Name::new_exact(""),
-                type_id,
-                precision,
-                Decorations::new_none(),
-                Some(built_in),
-                None,
-                VariableScope::Global,
-            )
+            self.declare_built_in_variable(type_id, precision, built_in)
         }
+    }
+    // Declare a global variable to cache the contents of an interface variable.  The original
+    // variable is replaced with the global variable and a new id is assigned to the interface
+    // variable and returned.  This way, the shader does not need to be modified except for
+    // possibly writing to the cache variable at the start of shader and reading from it at the
+    // end.
+    pub fn declare_cached_global_for_variable(
+        &mut self,
+        variable_id: VariableId,
+        cache_name: &'static str,
+    ) -> (VariableId, TypedId) {
+        let variable = self.get_variable_mut(variable_id);
+
+        // Replace the variable with a private global.
+        let original_name = std::mem::replace(&mut variable.name, Name::new_temp(cache_name));
+        let type_id = variable.type_id;
+        let precision = variable.precision;
+        let original_decorations =
+            std::mem::replace(&mut variable.decorations, Decorations::new_none());
+        let original_built_in = std::mem::take(&mut variable.built_in);
+        let is_static_use = variable.is_static_use;
+        debug_assert!(variable.initializer.is_none());
+        debug_assert!(variable.scope == VariableScope::Global);
+        debug_assert!(!variable.is_const);
+        debug_assert!(!variable.is_dead_code_eliminated);
+
+        // Create a new variable for the original one.
+        let (new_id, new_typed_id) = self.declare_variable(
+            original_name,
+            type_id,
+            precision,
+            original_decorations,
+            original_built_in,
+            None,
+            VariableScope::Global,
+        );
+        if is_static_use {
+            self.get_variable_mut(new_id).is_static_use = true;
+        }
+
+        (new_id, new_typed_id)
     }
 
     // Used only by builder.rs.  Transformations should set the initializer at the same time as
@@ -3119,3 +3249,12 @@ impl IR {
         main_entry.append_code(block);
     }
 }
+
+// Helper macro to run validation on the IR
+macro_rules! validate {
+    ($ir:expr) => {
+        #[cfg(debug_assertions)]
+        $crate::validator::validate($ir);
+    };
+}
+pub(crate) use validate;

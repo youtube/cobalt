@@ -54,7 +54,9 @@ MATCHER_P(HasGroupId, guid, "") {
 class SavedTabGroupModelObserverTest : public ::testing::Test,
                                        public SavedTabGroupModelObserver {
  protected:
-  SavedTabGroupModelObserverTest() = default;
+  SavedTabGroupModelObserverTest() {
+    feature_list_.InitAndDisableFeature(tab_groups::kProjectsPanel);
+  }
   ~SavedTabGroupModelObserverTest() override = default;
 
   void SetUp() override {
@@ -146,7 +148,9 @@ class SavedTabGroupModelTest : public ::testing::Test {
             base::test::TaskEnvironment::TimeSource::SYSTEM_TIME),
         id_1_(base::Uuid::GenerateRandomV4()),
         id_2_(base::Uuid::GenerateRandomV4()),
-        id_3_(base::Uuid::GenerateRandomV4()) {}
+        id_3_(base::Uuid::GenerateRandomV4()) {
+    feature_list_.InitAndDisableFeature(tab_groups::kProjectsPanel);
+  }
 
   ~SavedTabGroupModelTest() override { RemoveTestData(); }
 
@@ -580,6 +584,70 @@ TEST_F(SavedTabGroupModelTest, MoveTabInGroup) {
                                  {group->saved_tabs()[0], tab1, tab2});
 }
 
+TEST_F(SavedTabGroupModelTest, ReorderGroupBefore) {
+  RemoveTestData();
+  SavedTabGroup group_A(u"Group A", tab_groups::TabGroupColorId::kRed, {},
+                        std::nullopt, id_1_);
+  SavedTabGroup group_B(u"Group B", tab_groups::TabGroupColorId::kOrange, {},
+                        std::nullopt, id_2_);
+  SavedTabGroup group_C(u"Group C", tab_groups::TabGroupColorId::kYellow, {},
+                        std::nullopt, id_3_);
+  base::Uuid id_4 = base::Uuid::GenerateRandomV4();
+  SavedTabGroup group_D(u"Group D", tab_groups::TabGroupColorId::kGreen, {},
+                        std::nullopt, id_4);
+
+  // Added locally inserts at the front if no position is set.
+  // So adding in order A, B, C, D results in [D, C, B, A]
+  saved_tab_group_model_->AddedLocally(group_A);
+  saved_tab_group_model_->AddedLocally(group_B);
+  saved_tab_group_model_->AddedLocally(group_C);
+  saved_tab_group_model_->AddedLocally(group_D);
+
+  ASSERT_THAT(GetSavedTabGroupIds(),
+              testing::ElementsAre(id_4, id_3_, id_2_, id_1_));
+
+  // Move D before B: [D, C, B, A] -> [C, D, B, A]
+  saved_tab_group_model_->ReorderGroupBefore(id_4, id_2_);
+  EXPECT_THAT(GetSavedTabGroupIds(),
+              testing::ElementsAre(id_3_, id_4, id_2_, id_1_));
+
+  // Move A before C: [C, D, B, A] -> [A, C, D, B]
+  saved_tab_group_model_->ReorderGroupBefore(id_1_, id_3_);
+  EXPECT_THAT(GetSavedTabGroupIds(),
+              testing::ElementsAre(id_1_, id_3_, id_4, id_2_));
+}
+
+TEST_F(SavedTabGroupModelTest, ReorderGroupAfter) {
+  RemoveTestData();
+  SavedTabGroup group_A(u"Group A", tab_groups::TabGroupColorId::kRed, {},
+                        std::nullopt, id_1_);
+  SavedTabGroup group_B(u"Group B", tab_groups::TabGroupColorId::kOrange, {},
+                        std::nullopt, id_2_);
+  SavedTabGroup group_C(u"Group C", tab_groups::TabGroupColorId::kYellow, {},
+                        std::nullopt, id_3_);
+  base::Uuid id_4 = base::Uuid::GenerateRandomV4();
+  SavedTabGroup group_D(u"Group D", tab_groups::TabGroupColorId::kGreen, {},
+                        std::nullopt, id_4);
+
+  saved_tab_group_model_->AddedLocally(group_A);
+  saved_tab_group_model_->AddedLocally(group_B);
+  saved_tab_group_model_->AddedLocally(group_C);
+  saved_tab_group_model_->AddedLocally(group_D);
+
+  ASSERT_THAT(GetSavedTabGroupIds(),
+              testing::ElementsAre(id_4, id_3_, id_2_, id_1_));
+
+  // Move A after C: [D, C, B, A] -> [D, C, A, B]
+  saved_tab_group_model_->ReorderGroupAfter(id_1_, id_3_);
+  EXPECT_THAT(GetSavedTabGroupIds(),
+              testing::ElementsAre(id_4, id_3_, id_1_, id_2_));
+
+  // Move D after B: [D, C, A, B] -> [C, A, B, D]
+  saved_tab_group_model_->ReorderGroupAfter(id_4, id_2_);
+  EXPECT_THAT(GetSavedTabGroupIds(),
+              testing::ElementsAre(id_3_, id_1_, id_2_, id_4));
+}
+
 TEST_F(SavedTabGroupModelTest, MoveElement) {
   ASSERT_EQ(0, saved_tab_group_model_->GetIndexOf(id_3_));
   ASSERT_EQ(1, saved_tab_group_model_->GetIndexOf(id_2_));
@@ -704,6 +772,49 @@ TEST_F(SavedTabGroupModelTest, MergePinnedGroupRetainPosition) {
               testing::ElementsAre(guid1, guid2, id_3_, id_2_, id_1_));
 }
 
+TEST_F(SavedTabGroupModelTest, MergeRemoteGroupMetadata_ProjectsPanelEnabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(tab_groups::kProjectsPanel);
+
+  RemoveTestData();
+
+  base::Uuid guid1 = base::Uuid::GenerateRandomV4();
+  base::Uuid guid2 = base::Uuid::GenerateRandomV4();
+  base::Uuid guid3 = base::Uuid::GenerateRandomV4();
+
+  // Add 3 groups.
+  saved_tab_group_model_->AddedLocally(SavedTabGroup(
+      u"Title 1", tab_groups::TabGroupColorId::kPink, {}, 0, guid1));
+  saved_tab_group_model_->AddedLocally(SavedTabGroup(
+      u"Title 2", tab_groups::TabGroupColorId::kPink, {}, 1, guid2));
+  saved_tab_group_model_->AddedLocally(SavedTabGroup(
+      u"Title 3", tab_groups::TabGroupColorId::kPink, {}, 2, guid3));
+
+  ASSERT_THAT(GetSavedTabGroupIds(), testing::ElementsAre(guid1, guid2, guid3));
+
+  // Merge group 1 and move it to position 2.
+  const SavedTabGroup* group1 = saved_tab_group_model_->Get(guid1);
+  saved_tab_group_model_->MergeRemoteGroupMetadata(
+      guid1, u"Updated Title 1", group1->color(), 2,
+      group1->creator_cache_guid(), group1->last_updater_cache_guid(),
+      group1->update_time(), /*updated_by=*/GaiaId());
+
+  // Verify group 1 is now at the end.
+  EXPECT_EQ(2, saved_tab_group_model_->Get(guid1)->position());
+  EXPECT_THAT(GetSavedTabGroupIds(), testing::ElementsAre(guid2, guid3, guid1));
+
+  // Merge group 3 and move it to position 0.
+  const SavedTabGroup* group3 = saved_tab_group_model_->Get(guid3);
+  saved_tab_group_model_->MergeRemoteGroupMetadata(
+      guid3, group3->title(), group3->color(), 0, group3->creator_cache_guid(),
+      group3->last_updater_cache_guid(), group3->update_time(),
+      /*updated_by=*/GaiaId());
+
+  // Verify group 3 is now at the front.
+  EXPECT_EQ(0, saved_tab_group_model_->Get(guid3)->position());
+  EXPECT_THAT(GetSavedTabGroupIds(), testing::ElementsAre(guid3, guid2, guid1));
+}
+
 TEST_F(SavedTabGroupModelTest, MergeSharedTabGroupAttribution) {
   const GaiaId kCreator("123");
   const GaiaId kUpdater("456");
@@ -728,6 +839,126 @@ TEST_F(SavedTabGroupModelTest, MergeSharedTabGroupAttribution) {
 
   EXPECT_EQ(model_group->shared_attribution().created_by, kCreator);
   EXPECT_EQ(model_group->shared_attribution().updated_by, kUpdater);
+}
+
+TEST_F(SavedTabGroupModelTest, ReorderGroupBeforeAfter_ProjectsPanelEnabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(tab_groups::kProjectsPanel);
+  RemoveTestData();
+
+  // Create 4 unpositioned groups.
+  SavedTabGroup group1(u"Group 1", tab_groups::TabGroupColorId::kRed, {},
+                       std::nullopt);
+  SavedTabGroup group2(u"Group 2", tab_groups::TabGroupColorId::kOrange, {},
+                       std::nullopt);
+  SavedTabGroup group3(u"Group 3", tab_groups::TabGroupColorId::kYellow, {},
+                       std::nullopt);
+  SavedTabGroup group4(u"Group 4", tab_groups::TabGroupColorId::kGreen, {},
+                       std::nullopt);
+
+  base::Uuid guid1 = group1.saved_guid();
+  base::Uuid guid2 = group2.saved_guid();
+  base::Uuid guid3 = group3.saved_guid();
+  base::Uuid guid4 = group4.saved_guid();
+
+  // Add them to the model. Since they are all unpositioned, they are ordered by
+  // creation time. We'll add them with slight delays to ensure creation time
+  // order.
+  saved_tab_group_model_->AddedLocally(group1);
+  saved_tab_group_model_->AddedLocally(group2);
+  saved_tab_group_model_->AddedLocally(group3);
+  saved_tab_group_model_->AddedLocally(group4);
+
+  // Initial order (by creation time, descending): group4, group3, group2,
+  // group1.
+  EXPECT_THAT(GetSavedTabGroupIds(),
+              testing::ElementsAre(guid4, guid3, guid2, guid1));
+  EXPECT_FALSE(saved_tab_group_model_->Get(guid1)->position().has_value());
+  EXPECT_FALSE(saved_tab_group_model_->Get(guid2)->position().has_value());
+  EXPECT_FALSE(saved_tab_group_model_->Get(guid3)->position().has_value());
+  EXPECT_FALSE(saved_tab_group_model_->Get(guid4)->position().has_value());
+
+  // Reorder group 1 BEFORE group 3.
+  // guid1 is at index 3, guid3 is at index 1.
+  // ReorderGroupBefore(guid1, guid3) should move guid1 to index 1.
+  saved_tab_group_model_->ReorderGroupBefore(guid1, guid3);
+
+  // New order: guid4, guid1, guid3, guid2.
+  EXPECT_THAT(GetSavedTabGroupIds(),
+              testing::ElementsAre(guid4, guid1, guid3, guid2));
+
+  // Behavior check:
+  // 1. guid1 was moved, it should now have a position.
+  // 2. all groups AFTER guid1 (guid3, guid2) should also have positions.
+  // 3. groups BEFORE guid1 (guid4) should NOT have a position if they didn't
+  // before.
+  EXPECT_FALSE(saved_tab_group_model_->Get(guid4)->position().has_value());
+  EXPECT_EQ(1, saved_tab_group_model_->Get(guid1)->position());
+  EXPECT_EQ(2, saved_tab_group_model_->Get(guid3)->position());
+  EXPECT_EQ(3, saved_tab_group_model_->Get(guid2)->position());
+
+  // Reorder group 4 AFTER group 3.
+  // guid4 is at index 0, guid3 is at index 2.
+  // ReorderGroupAfter(guid4, guid3) should move guid4 to index 2.
+  saved_tab_group_model_->ReorderGroupAfter(guid4, guid3);
+
+  // New order: guid1, guid3, guid4, guid2.
+  EXPECT_THAT(GetSavedTabGroupIds(),
+              testing::ElementsAre(guid1, guid3, guid4, guid2));
+
+  // Now all groups should have positions because guid1 (at index 0) has a
+  // position.
+  EXPECT_EQ(0, saved_tab_group_model_->Get(guid1)->position());
+  EXPECT_EQ(1, saved_tab_group_model_->Get(guid3)->position());
+  EXPECT_EQ(2, saved_tab_group_model_->Get(guid4)->position());
+  EXPECT_EQ(3, saved_tab_group_model_->Get(guid2)->position());
+}
+
+TEST_F(SavedTabGroupModelTest,
+       OrdersUnpositionedGroupsFirstByCreationTime_ProjectsPanelEnabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(tab_groups::kProjectsPanel);
+  RemoveTestData();
+
+  base::Time fixed_time = base::Time::Now();
+
+  // Create positioned groups.
+  SavedTabGroup positioned_0(u"Pos 0", tab_groups::TabGroupColorId::kRed, {},
+                             0);
+  SavedTabGroup positioned_1(u"Pos 1", tab_groups::TabGroupColorId::kBlue, {},
+                             1);
+
+  // Create unpositioned groups.
+  // Group A is older.
+  SavedTabGroup unpositioned_older(
+      u"Unpos Older", tab_groups::TabGroupColorId::kGreen, {}, std::nullopt,
+      base::Uuid::GenerateRandomV4(), std::nullopt, std::nullopt, std::nullopt,
+      false, fixed_time - base::Days(1));
+  // Group B is newer.
+  SavedTabGroup unpositioned_newer(
+      u"Unpos Newer", tab_groups::TabGroupColorId::kYellow, {}, std::nullopt,
+      base::Uuid::GenerateRandomV4(), std::nullopt, std::nullopt, std::nullopt,
+      false, fixed_time);
+
+  base::Uuid id_pos_0 = positioned_0.saved_guid();
+  base::Uuid id_pos_1 = positioned_1.saved_guid();
+  base::Uuid id_unpos_older = unpositioned_older.saved_guid();
+  base::Uuid id_unpos_newer = unpositioned_newer.saved_guid();
+
+  // Add them in random order.
+  saved_tab_group_model_->AddedLocally(positioned_1);
+  saved_tab_group_model_->AddedLocally(unpositioned_older);
+  saved_tab_group_model_->AddedLocally(positioned_0);
+  saved_tab_group_model_->AddedLocally(unpositioned_newer);
+
+  // Expected order:
+  // Unpositioned Newer (most recent creation time)
+  // Unpositioned Older
+  // Positioned 0
+  // Positioned 1
+  EXPECT_THAT(
+      GetSavedTabGroupIds(),
+      testing::ElementsAre(id_unpos_newer, id_unpos_older, id_pos_0, id_pos_1));
 }
 
 // Tests that merging a tab with the same tab_id changes the state of the object
@@ -1462,6 +1693,104 @@ TEST_F(SavedTabGroupModelTest, UpdatePositionForSharedGroupFromSyncFromSync) {
     EXPECT_EQ(groups[i].saved_guid(),
               saved_tab_group_model_->saved_tab_groups()[i].saved_guid());
   }
+}
+
+TEST_F(SavedTabGroupModelTest, UpdateGroupPinnedPositionForMigration) {
+  SavedTabGroup group = test::CreateTestSavedTabGroup();
+  base::Uuid guid = group.saved_guid();
+  saved_tab_group_model_->AddedLocally(group);
+
+  EXPECT_EQ(std::nullopt,
+            saved_tab_group_model_->Get(guid)->pinned_position_for_migration());
+
+  saved_tab_group_model_->UpdateGroupPinnedPositionForMigration(guid, 10);
+  EXPECT_EQ(10u,
+            saved_tab_group_model_->Get(guid)->pinned_position_for_migration());
+
+  saved_tab_group_model_->UpdateGroupPinnedPositionForMigration(guid,
+                                                                std::nullopt);
+  EXPECT_EQ(std::nullopt,
+            saved_tab_group_model_->Get(guid)->pinned_position_for_migration());
+}
+
+TEST_F(SavedTabGroupModelTest,
+       MigratePinnedPositionToProjectsPositionWithProjectsPanel) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(tab_groups::kProjectsPanel);
+
+  RemoveTestData();
+
+  base::Time fixed_time =
+      base::Time::FromDeltaSinceWindowsEpoch(base::Hours(1));
+  base::Uuid pinned_id_1 = base::Uuid::GenerateRandomV4();
+  base::Uuid pinned_id_2 = base::Uuid::GenerateRandomV4();
+  base::Uuid unpinned_id_1 = base::Uuid::GenerateRandomV4();
+  base::Uuid unpinned_id_2 = base::Uuid::GenerateRandomV4();
+
+  // Pinned group 1, position 1, older.
+  SavedTabGroup pinned_group_1(
+      u"Pinned 1", tab_groups::TabGroupColorId::kRed, {}, 1, pinned_id_1,
+      /*local_group_id=*/std::nullopt, /*creator_cache_guid=*/std::nullopt,
+      /*last_updater_cache_guid=*/std::nullopt,
+      /*created_before_syncing_tab_groups=*/false,
+      /*creation_time=*/fixed_time - base::Minutes(10));
+  pinned_group_1.SetPinnedPositionForMigration(1);
+
+  // Pinned group 2, position 0, newer.
+  SavedTabGroup pinned_group_2(
+      u"Pinned 2", tab_groups::TabGroupColorId::kBlue, {}, 0, pinned_id_2,
+      /*local_group_id=*/std::nullopt, /*creator_cache_guid=*/std::nullopt,
+      /*last_updater_cache_guid=*/std::nullopt,
+      /*created_before_syncing_tab_groups=*/false,
+      /*creation_time=*/fixed_time - base::Minutes(5));
+  pinned_group_2.SetPinnedPositionForMigration(0);
+
+  // Unpinned group 1, older.
+  SavedTabGroup unpinned_group_1(
+      u"Unpinned 1", tab_groups::TabGroupColorId::kGreen, {}, std::nullopt,
+      unpinned_id_1, /*local_group_id=*/std::nullopt,
+      /*creator_cache_guid=*/std::nullopt,
+      /*last_updater_cache_guid=*/std::nullopt,
+      /*created_before_syncing_tab_groups=*/false,
+      /*creation_time=*/fixed_time - base::Minutes(2));
+
+  // Unpinned group 2, newer.
+  SavedTabGroup unpinned_group_2(
+      u"Unpinned 2", tab_groups::TabGroupColorId::kYellow, {}, std::nullopt,
+      unpinned_id_2, /*local_group_id=*/std::nullopt,
+      /*creator_cache_guid=*/std::nullopt,
+      /*last_updater_cache_guid=*/std::nullopt,
+      /*created_before_syncing_tab_groups=*/false,
+      /*creation_time=*/fixed_time - base::Minutes(1));
+
+  saved_tab_group_model_->AddedLocally(pinned_group_1);
+  saved_tab_group_model_->AddedLocally(pinned_group_2);
+  saved_tab_group_model_->AddedLocally(unpinned_group_1);
+  saved_tab_group_model_->AddedLocally(unpinned_group_2);
+
+  // Trigger the migration.
+  saved_tab_group_model_->MigratePinnedPositionToProjectsPosition();
+
+  // Expected order:
+  // 1. Pinned 2 (Position 0)
+  // 2. Pinned 1 (Position 1)
+  // 3. Unpinned 2 (Newer unpinned)
+  // 4. Unpinned 1 (Older unpinned)
+
+  ASSERT_EQ(4, saved_tab_group_model_->Count());
+  const auto& groups = saved_tab_group_model_->saved_tab_groups();
+
+  EXPECT_EQ(pinned_id_2, groups[0].saved_guid());
+  EXPECT_EQ(0, groups[0].position());
+
+  EXPECT_EQ(pinned_id_1, groups[1].saved_guid());
+  EXPECT_EQ(1, groups[1].position());
+
+  EXPECT_EQ(unpinned_id_2, groups[2].saved_guid());
+  EXPECT_EQ(2, groups[2].position());
+
+  EXPECT_EQ(unpinned_id_1, groups[3].saved_guid());
+  EXPECT_EQ(3, groups[3].position());
 }
 
 }  // namespace

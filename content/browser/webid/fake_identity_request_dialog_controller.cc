@@ -27,6 +27,7 @@ bool FakeIdentityRequestDialogController::ShowAccountsDialog(
     content::RelyingPartyData rp_data,
     const std::vector<IdentityProviderDataPtr>& idp_list,
     const std::vector<IdentityRequestAccountPtr>& accounts,
+    const std::vector<IdentityRequestAccountPtr>& filtered_accounts,
     blink::mojom::RpMode rp_mode,
     AccountSelectionCallback on_selected,
     LoginToIdPCallback on_add_account,
@@ -78,6 +79,7 @@ bool FakeIdentityRequestDialogController::ShowFailureDialog(
     blink::mojom::RpContext rp_context,
     blink::mojom::RpMode rp_mode,
     const IdentityProviderMetadata& idp_metadata,
+    const std::vector<scoped_refptr<IdentityRequestAccount>>& filtered_accounts,
     DismissCallback dismiss_callback,
     LoginToIdPCallback login_callback) {
   title_ = "Confirm IDP Login";
@@ -203,7 +205,7 @@ void FakeIdentityRequestDialogController::RequestIdPRegistrationPermision(
     const url::Origin& origin,
     base::OnceCallback<void(bool accepted)> callback) {
   if (!is_interception_enabled_) {
-    PostTask(FROM_HERE, base::BindOnce(std::move(callback), false));
+    PostTask(FROM_HERE, base::BindOnce(std::move(callback), true));
   }
 }
 

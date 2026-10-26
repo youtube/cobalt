@@ -6,7 +6,6 @@
 #define CONTENT_BROWSER_INDEXED_DB_INSTANCE_CONNECTION_COORDINATOR_H_
 
 #include <memory>
-#include <tuple>
 
 #include "base/containers/queue.h"
 #include "base/functional/callback_forward.h"
@@ -41,9 +40,8 @@ class CONTENT_EXPORT ConnectionCoordinator {
       base::OnceClosure on_deletion_complete,
       base::TimeDelta synchronous_duration);
 
-  // Call this method to prune any tasks that don't want to be run during
-  // force close. Returns any error caused by rolling back changes.
-  Status PruneTasksForForceClose(const std::string& message);
+  // Aborts and removes all pending tasks.
+  void CancelPendingRequests(const std::string& message);
 
   void OnNoConnections();
 
@@ -64,14 +62,10 @@ class CONTENT_EXPORT ConnectionCoordinator {
     // There are tasks but they are waiting on async work to complete. No more
     // calls to ExecuteTask() are necessary.
     kPendingAsyncWork,
-    // There was an error executing a task - see the status. The offending task
-    // was removed, and the caller can choose to continue executing tasks if
-    // they want.
-    kError,
     // There are no more tasks to run.
     kDone,
   };
-  std::tuple<ExecuteTaskResult, Status> ExecuteTask(bool has_connections);
+  StatusOr<ExecuteTaskResult> ExecuteTask(bool has_connections);
 
   bool HasTasks() const { return !request_queue_.empty(); }
 

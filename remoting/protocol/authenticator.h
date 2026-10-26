@@ -13,11 +13,7 @@
 #include "base/location.h"
 #include "remoting/base/session_policies.h"
 #include "remoting/protocol/credentials_type.h"
-#include "remoting/protocol/jingle_messages.h"
-
-namespace jingle_xmpp {
-class XmlElement;
-}  // namespace jingle_xmpp
+#include "remoting/signaling/jingle_data_structures.h"
 
 namespace remoting::protocol {
 
@@ -154,18 +150,6 @@ class Authenticator {
       const std::string& shared_secret,
       Authenticator::State initial_state)>
       CreateBaseAuthenticatorCallback;
-
-  // Returns true if |message| is an Authenticator message.
-  static bool IsAuthenticatorMessage(const jingle_xmpp::XmlElement* message);
-
-  // Creates an empty Authenticator message, owned by the caller.
-  static std::unique_ptr<jingle_xmpp::XmlElement>
-  CreateEmptyAuthenticatorMessage();
-
-  // Finds Authenticator message among child elements of |message|, or
-  // returns nullptr otherwise.
-  static const jingle_xmpp::XmlElement* FindAuthenticatorMessage(
-      const jingle_xmpp::XmlElement* message);
 
   Authenticator();
   virtual ~Authenticator();

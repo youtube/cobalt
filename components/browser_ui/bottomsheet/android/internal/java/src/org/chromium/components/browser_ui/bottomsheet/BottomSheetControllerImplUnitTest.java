@@ -5,6 +5,7 @@
 package org.chromium.components.browser_ui.bottomsheet;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -148,10 +149,10 @@ public class BottomSheetControllerImplUnitTest {
     }
 
     @Test
-    public void testBottomControlsHeight() {
+    public void testBottomControlsOffset() {
         mController.runSheetInitializerForTesting();
         doReturn(true).when(mBottomSheet).isSheetOpen();
-        mController.setBottomControlsHeight(100);
+        mController.setBottomControlsOffset(100);
 
         verify(mBottomSheet).setBottomMargin(100);
 
@@ -168,6 +169,17 @@ public class BottomSheetControllerImplUnitTest {
         doReturn(true).when(mBottomSheet).isSheetOpen();
         mBottomSheetObserverCaptor.getValue().onSheetOpened(StateChangeReason.NONE);
         verify(mRoot).setZ(1.0f);
+    }
+
+    @Test
+    public void testHasBottomInset() {
+        assertFalse(mController.hasBottomInset());
+
+        mEdgeToEdgeBottomInsetSupplier.set(0);
+        assertFalse(mController.hasBottomInset());
+
+        mEdgeToEdgeBottomInsetSupplier.set(100);
+        assertTrue(mController.hasBottomInset());
     }
 
     @Test

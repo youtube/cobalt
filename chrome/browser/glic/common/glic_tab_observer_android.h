@@ -44,12 +44,14 @@ class GlicTabObserverAndroid : public GlicTabObserver,
   void DidAddTab(TabAndroid* tab, TabModel::TabLaunchType type) override;
   void DidSelectTab(TabAndroid* tab, TabModel::TabSelectionType type) override;
   void TabClosureCommitted(TabAndroid* tab) override;
+  void DidRemoveTabForClosure(TabAndroid* tab) override;
   void TabRemoved(TabAndroid* tab) override;
   void DidMoveTab(TabAndroid* tab, int new_index, int old_index) override;
   void OnTabClosePending(const std::vector<TabAndroid*>& tabs,
                          TabModel::TabClosingSource source) override;
   void TabClosureUndone(TabAndroid* tab) override;
   void OnTabCloseUndone(const std::vector<TabAndroid*>& tabs) override;
+  void WillCloseTab(TabAndroid* tab) override;
 
   // TabAndroid::Observer:
   void OnInitWebContents(TabAndroid* tab) override;
@@ -64,6 +66,7 @@ class GlicTabObserverAndroid : public GlicTabObserver,
   tabs::TabInterface* GetLastActiveTab(TabModel* tab_model);
 
   void ResetLastActiveTab(TabModel* tab_model);
+  void MaybeClearLastActiveTab(TabModel* tab_model, TabAndroid* tab);
 
   raw_ptr<Profile> profile_;
   EventCallback callback_;

@@ -854,9 +854,6 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
 
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
                        AccessibilitySelectListboxActivateOptions) {
-  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
-      switches::kEnableBlinkFeatures,
-      blink::features::kSelectMobileDesktopParity.name);
   RunEventTest(FILE_PATH_LITERAL("select-multiple-activate-options.html"));
 }
 
@@ -1381,6 +1378,24 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest, DeleteSubtree) {
   RunEventTest(FILE_PATH_LITERAL("delete-subtree.html"));
 }
 
+// TODO(crbug.com/487613492): Disabled due to ghost UIA COM refs on Windows bots.
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
+                       DISABLED_AccessibilityEventsCssHighlightSpellingError) {
+  RunEventTest(FILE_PATH_LITERAL("css-highlight-spelling-error.html"));
+}
+
+// TODO(crbug.com/487613492): Disabled due to ghost UIA COM refs on Windows bots.
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
+                       DISABLED_AccessibilityEventsCssHighlightGrammarError) {
+  RunEventTest(FILE_PATH_LITERAL("css-highlight-grammar-error.html"));
+}
+
+// TODO(crbug.com/487613492): Disabled due to ghost UIA COM refs on Windows bots.
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsTest,
+                       DISABLED_AccessibilityEventsCssHighlightAdded) {
+  RunEventTest(FILE_PATH_LITERAL("css-highlight-added.html"));
+}
+
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsWithExperimentalWebFeaturesTest,
                        CarouselWithTabs) {
   RunEventTest(FILE_PATH_LITERAL("carousel-with-tabs.html"));
@@ -1389,6 +1404,11 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsWithExperimentalWebFeaturesTest,
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsWithExperimentalWebFeaturesTest,
                        CarouselWithLinks) {
   RunEventTest(FILE_PATH_LITERAL("carousel-with-links.html"));
+}
+
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityEventsWithExperimentalWebFeaturesTest,
+                       MenuListInvokerNameChange) {
+  RunEventTest(FILE_PATH_LITERAL("menulist-invoker-name-change.html"));
 }
 
 }  // namespace content

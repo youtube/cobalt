@@ -4,11 +4,15 @@
 
 #include "components/optimization_guide/content/browser/page_content_metadata_observer.h"
 
+#include <algorithm>
+
+#include "components/optimization_guide/content/browser/media_transcript_provider.h"
 #include "components/optimization_guide/content/browser/page_content_proto_util.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
+#include "media/base/media_switches.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
@@ -17,6 +21,44 @@
 #include "third_party/blink/public/mojom/opengraph/metadata.mojom.h"
 
 namespace optimization_guide {
+
+DOCUMENT_USER_DATA_KEY_IMPL(MediaTranscriptObserver);
+
+MediaTranscriptObserver::MediaTranscriptObserver(content::RenderFrameHost* rfh)
+    : content::DocumentUserData<MediaTranscriptObserver>(rfh) {}
+
+MediaTranscriptObserver::~MediaTranscriptObserver() = default;
+
+void MediaTranscriptObserver::AddOwner(
+    base::WeakPtr<PageContentMetadataObserver> owner) {
+  CHECK(owner);
+  owners_.remove_if([](const auto& owner) { return !owner; });
+  auto already_exist = std::find_if(
+      owners_.begin(), owners_.end(),
+      [&owner](const auto& exist) { return owner.get() == exist.get(); });
+  if (already_exist != owners_.end()) {
+    return;
+  }
+  owners_.push_front(owner);
+
+  auto* rfh = &render_frame_host();
+  auto* provider = MediaTranscriptProvider::GetFor(
+      content::WebContents::FromRenderFrameHost(rfh));
+
+  if (provider && provider->HasTranscriptsForFrame(*rfh)) {
+    owner->OnTranscriptionBegin(rfh);
+  }
+}
+
+void MediaTranscriptObserver::OnTranscriptionBegin(
+    content::RenderFrameHost* rfh) {
+  owners_.remove_if([](const auto& owner) { return !owner; });
+  for (auto& owner : owners_) {
+    if (owner) {
+      owner->OnTranscriptionBegin(rfh);
+    }
+  }
+}
 
 PageContentMetadataObserver::PageContentMetadataObserver(
     content::WebContents* web_contents,
@@ -59,6 +101,14 @@ void PageContentMetadataObserver::RenderFrameCreated(
       render_frame_host,
       std::make_unique<FrameMetaTagsObserver>(this, render_frame_host,
                                               std::move(observer_receiver)));
+
+  if (base::FeatureList::IsEnabled(
+          media::kMediaTrasncriptsFlagInPageMetadata)) {
+    if (std::ranges::contains(names_, kHasMediaTranscripts)) {
+      MediaTranscriptObserver::GetOrCreateForCurrentDocument(render_frame_host)
+          ->AddOwner(weak_ptr_factory_.GetWeakPtr());
+    }
+  }
 }
 
 void PageContentMetadataObserver::RenderFrameDeleted(
@@ -139,6 +189,27 @@ void PageContentMetadataObserver::UpdateFrameObservers() {
       });
 }
 
+void PageContentMetadataObserver::OnTranscriptionBegin(
+    content::RenderFrameHost* rfh) {
+  auto it = frame_data_.find(rfh);
+  if (it == frame_data_.end()) {
+    return;
+  }
+
+  if (it->second.metadata) {
+    it->second.metadata->has_media_transcripts = true;
+  } else {
+    auto frame_metadata = blink::mojom::FrameMetadata::New();
+    frame_metadata->url = GetURLForFrameMetadata(rfh->GetLastCommittedURL(),
+                                                 rfh->GetLastCommittedOrigin());
+    if (!frame_metadata->url.is_empty()) {
+      frame_metadata->has_media_transcripts = true;
+      it->second.metadata = std::move(frame_metadata);
+    }
+  }
+  DispatchMetadata();
+}
+
 void PageContentMetadataObserver::DispatchMetadata() {
   auto page_metadata = blink::mojom::PageMetadata::New();
   for (const auto& [render_frame_host, frame_data] : frame_data_) {
@@ -168,15 +239,18 @@ void PageContentMetadataObserver::OnMetaTagsChangedForFrame(
     DCHECK(render_frame_host->GetPage().IsPrimary());
     auto it = frame_data_.find(render_frame_host);
     if (it != frame_data_.end()) {
-      if (meta_tags.empty()) {
-        it->second.metadata.reset();
-      } else {
-        auto frame_metadata = blink::mojom::FrameMetadata::New();
-        frame_metadata->url =
-            GetURLForFrameMetadata(render_frame_host->GetLastCommittedURL(),
-                                   render_frame_host->GetLastCommittedOrigin());
-        frame_metadata->meta_tags = std::move(meta_tags);
-        it->second.metadata = std::move(frame_metadata);
+      if (!UpdateMediaTranscriptsFlag(it->second, render_frame_host,
+                                      meta_tags)) {
+        if (meta_tags.empty()) {
+          it->second.metadata.reset();
+        } else {
+          auto frame_metadata = blink::mojom::FrameMetadata::New();
+          frame_metadata->url = GetURLForFrameMetadata(
+              render_frame_host->GetLastCommittedURL(),
+              render_frame_host->GetLastCommittedOrigin());
+          frame_metadata->meta_tags = std::move(meta_tags);
+          it->second.metadata = std::move(frame_metadata);
+        }
       }
     }
   }
@@ -186,6 +260,30 @@ void PageContentMetadataObserver::OnMetaTagsChangedForFrame(
   DCHECK(callback_);
 
   DispatchMetadata();
+}
+
+bool PageContentMetadataObserver::UpdateMediaTranscriptsFlag(
+    FrameData& curr_frame_metadata,
+    content::RenderFrameHost* render_frame_host,
+    std::vector<blink::mojom::MetaTagPtr>& meta_tags) {
+  if (!base::FeatureList::IsEnabled(
+          media::kMediaTrasncriptsFlagInPageMetadata)) {
+    return false;
+  }
+
+  if (!curr_frame_metadata.metadata ||
+      !curr_frame_metadata.metadata->has_media_transcripts) {
+    return false;
+  }
+
+  auto frame_metadata = blink::mojom::FrameMetadata::New();
+  frame_metadata->url =
+      GetURLForFrameMetadata(render_frame_host->GetLastCommittedURL(),
+                             render_frame_host->GetLastCommittedOrigin());
+  frame_metadata->has_media_transcripts = true;
+  frame_metadata->meta_tags = std::move(meta_tags);
+  curr_frame_metadata.metadata = std::move(frame_metadata);
+  return true;
 }
 
 PageContentMetadataObserver::FrameData::FrameData(

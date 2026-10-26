@@ -1,4 +1,4 @@
-# Copyright 2019 Google LLC.
+# Copyright 2019 Google LLC
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -7,6 +7,10 @@ if (!defined(is_skia_standalone)) {
 }
 
 is_skia_dev_build = is_skia_standalone && !is_official_build
+
+declare_args() {
+  is_canvaskit = false
+}
 
 declare_args() {
   skia_android_serial = ""
@@ -21,7 +25,7 @@ declare_args() {
   skia_enable_fontmgr_win = is_win
   skia_enable_gpu_debug_layers = is_skia_dev_build && is_debug
   skia_enable_optimize_size = false
-  skia_enable_pdf = !is_wasm
+  skia_enable_pdf = !is_canvaskit
   skia_enable_precompile = true
   skia_enable_skottie = !is_component_build
   skia_enable_svg = !is_component_build
@@ -44,13 +48,13 @@ declare_args() {
   skia_use_direct3d = false
   skia_use_egl = false
   skia_use_epoxy_egl = false
-  skia_use_expat = !is_wasm
+  skia_use_expat = !is_canvaskit
   skia_use_ffmpeg = false
   skia_use_fixed_gamma_text = is_android
   skia_use_fontconfig = is_linux
   skia_use_fontations = false
   skia_use_fonthost_mac = is_mac || is_ios
-  skia_use_freetype = is_android || is_linux || is_wasm
+  skia_use_freetype = is_android || is_linux || is_canvaskit
   skia_use_harfbuzz = true
   skia_use_gl = true
   skia_use_icu = true
@@ -66,17 +70,18 @@ declare_args() {
   skia_use_libpng_encode = true
   skia_use_no_png_encode = false
   skia_use_libwebp_decode = true
-  skia_use_libwebp_encode = !is_wasm
+  skia_use_libwebp_encode = !is_canvaskit
   skia_use_no_webp_encode = false
   skia_use_lua = is_skia_dev_build && !is_ios
   skia_use_metal = false
   skia_use_ndk_images = is_android && defined(ndk_api) && ndk_api >= 30
   skia_use_perfetto = is_linux || is_mac || is_android
+  skia_use_pprof = false
   skia_enable_pipeline_label_tracing = false
 
   # Currently only supported in Android framework
   skia_android_framework_use_perfetto = false
-  skia_use_piex = !is_win && !is_wasm
+  skia_use_piex = !is_win && !is_canvaskit
   skia_use_rust_icc = false
   skia_use_rust_png_decode = false
   skia_use_rust_png_encode = false
@@ -105,6 +110,20 @@ declare_args() {
   }
 
   skia_build_rust_targets = false
+
+  # PartitionAlloc is Chrome's memory allocator.
+  #
+  # This is useful to:
+  # - Align Skia benchmark results closer with in-browser behavior.
+  # - Expand UAFs vulnerabilities protection to Skia's internal pointers.
+  #
+  # While GCC is supported, it lacks CI coverage to catch regressions.
+  # Therefore, we disable it by default on GCC builds.
+  #
+  # TODO(b/351867706): Re-enable. One Android test reaches PA_NOTREACHED() at
+  # the moment.
+  skia_use_partition_alloc = false
+  skia_partition_alloc_dir = "//third_party/externals/partition_alloc"
 }
 
 declare_args() {
@@ -140,9 +159,10 @@ declare_args() {
 declare_args() {
   skia_enable_fontmgr_android = skia_use_expat && skia_use_freetype
   skia_enable_fontmgr_android_ndk = is_android && skia_use_freetype
-  skia_enable_fontmgr_custom_directory = skia_use_freetype && !is_wasm
+  skia_enable_fontmgr_custom_directory = skia_use_freetype && !is_canvaskit
   skia_enable_fontmgr_custom_embedded = skia_use_freetype
-  skia_enable_fontmgr_custom_empty = skia_use_freetype && !is_wasm
+  skia_enable_fontmgr_custom_empty = skia_use_freetype && !is_canvaskit
+  skia_enable_fontmgr_fontations_empty = skia_use_fontations
   skia_enable_fontmgr_fontconfig = skia_use_freetype && skia_use_fontconfig
   skia_enable_fontmgr_win_gdi = is_win && !skia_enable_winuwp
   skia_enable_fontmgr_FontConfigInterface =

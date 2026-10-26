@@ -48,7 +48,6 @@
 #include "chrome/browser/web_applications/web_app_registry_update.h"
 #include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/browser/web_applications/web_contents/web_contents_manager.h"
-#include "chrome/common/chrome_features.h"
 #include "components/sync/protocol/web_app_specifics.pb.h"
 #include "components/webapps/browser/image_visual_diff.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
@@ -229,7 +228,8 @@ void ManifestSilentUpdateCommand::OnAppLockAcquired(
       previous_time_for_silent_icon_update_;
 
   manifest_update_job_ = ManifestUpdateJob::CreateAndStart(
-      app_lock_.get(), web_contents_.get(),
+      *Profile::FromBrowserContext(web_contents_->GetBrowserContext()),
+      app_lock_.get(), app_lock_.get(), web_contents_.get(),
       GetMutableDebugValue().EnsureDict("manifest_update_job"),
       std::move(manifest), data_retriever_.get(), &app_lock_->clock(),
       base::BindOnce(&ManifestSilentUpdateCommand::OnUpdateJobCompleted,
@@ -292,6 +292,10 @@ void ManifestSilentUpdateCommand::OnUpdateJobCompleted(
     case ManifestUpdateJobResult::kUserNavigated:
       check_result = ManifestSilentUpdateCheckResult::kUserNavigated;
       break;
+    case ManifestUpdateJobResult::kSilentlyUpdatedDueToSmallIconComparison:
+      check_result = ManifestSilentUpdateCheckResult::
+          kAppSilentlyUpdatedDueToSmallIconComparison;
+      break;
   }
 
   CompleteCommandAndSelfDestruct(FROM_HERE, check_result);
@@ -306,6 +310,8 @@ void ManifestSilentUpdateCommand::CompleteCommandAndSelfDestruct(
   CommandResult command_result;
   switch (check_result) {
     case ManifestSilentUpdateCheckResult::kAppSilentlyUpdated:
+    case ManifestSilentUpdateCheckResult::
+        kAppSilentlyUpdatedDueToSmallIconComparison:
     case ManifestSilentUpdateCheckResult::kAppHasNonSecurityAndSecurityChanges:
       record_update = true;
       command_result = CommandResult::kSuccess;

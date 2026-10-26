@@ -30,7 +30,6 @@
 #import "components/sync/service/sync_service.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/incognito_interstitial/ui_bundled/incognito_interstitial_constants.h"
-#import "ios/chrome/browser/incognito_reauth/ui_bundled/features.h"
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_util.h"
 #import "ios/chrome/browser/net/model/crurl.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
@@ -61,7 +60,6 @@
 #import "ios/chrome/browser/supervised_user/model/supervised_user_capabilities.h"
 #import "ios/chrome/browser/sync/model/sync_observer_bridge.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
-#import "ios/chrome/browser/web/model/features.h"
 #import "ios/chrome/common/string_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/reauthentication/reauthentication_protocol.h"
@@ -727,11 +725,11 @@ const char kSyncSettingsURL[] = "settings://open_sync";
 
 - (void)view:(TableViewLinkHeaderFooterView*)view didTapLinkURL:(CrURL*)URL {
   if (URL.gurl == GURL(kGoogleServicesSettingsURL)) {
-    // kGoogleServicesSettingsURL is not a realy link. It should be handled
+    // kGoogleServicesSettingsURL is not a real link. It should be handled
     // with a special case.
     [self.settingsHandler showGoogleServicesSettingsFromViewController:self];
   } else if (URL.gurl == GURL(kSyncSettingsURL)) {
-    [self.settingsHandler showSyncSettingsFromViewController:self];
+    [self.presentationDelegate showSyncSettingsWithViewController:self];
   } else {
     [super view:view didTapLinkURL:URL];
   }

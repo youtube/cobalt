@@ -53,6 +53,7 @@ rtc_library("audio_frame_api") {
     "../../rtc_base:checks",
     "../../rtc_base:logging",
     "../../rtc_base:timeutils",
+    "//third_party/abseil-cpp/absl/algorithm:container",
   ]
 }
 

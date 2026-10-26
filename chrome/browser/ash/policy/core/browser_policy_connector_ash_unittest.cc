@@ -45,7 +45,10 @@ TEST(BrowserPolicyConnectorAshTest, UserManager) {
       std::make_unique<user_manager::UserManagerImpl>(
           std::make_unique<user_manager::FakeUserManagerDelegate>(),
           TestingBrowserProcess::GetGlobal()->local_state()));
-  ash::UserImageManagerRegistry user_image_manager_registry(user_manager.Get());
+  ash::UserImageManagerRegistry user_image_manager_registry(
+      TestingBrowserProcess::GetGlobal()->local_state(),
+      TestingBrowserProcess::GetGlobal()->shared_url_loader_factory(),
+      user_manager.Get());
 
   {
     user_manager::TestHelper test_helper(user_manager.Get());

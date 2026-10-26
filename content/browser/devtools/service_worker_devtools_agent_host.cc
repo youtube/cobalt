@@ -81,8 +81,8 @@ class ServiceWorkerAutoAttacher
     if (!IsNewerVersion(host)) {
       return;
     }
-    *should_pause_on_start = wait_for_debugger_on_start();
-    DispatchAutoAttach(host, *should_pause_on_start);
+    *should_pause_on_start =
+        DispatchAutoAttach(host, wait_for_debugger_on_start());
   }
 
   void WorkerDestroyed(ServiceWorkerDevToolsAgentHost* host) override {
@@ -157,7 +157,7 @@ scoped_refptr<DevToolsAgentHost> DevToolsAgentHost::GetForServiceWorker(
 }
 
 ServiceWorkerDevToolsAgentHost::ServiceWorkerDevToolsAgentHost(
-    int worker_process_id,
+    ChildProcessId worker_process_id,
     int worker_route_id,
     scoped_refptr<ServiceWorkerContextWrapper> context_wrapper,
     int64_t version_id,
@@ -299,8 +299,10 @@ void ServiceWorkerDevToolsAgentHost::WorkerReadyForInspection(
     mojo::PendingReceiver<blink::mojom::DevToolsAgentHost> host_receiver) {
   DCHECK_EQ(WORKER_NOT_READY, state_);
   state_ = WORKER_READY;
-  GetRendererChannel()->SetRenderer(
-      std::move(agent_remote), std::move(host_receiver), worker_process_id_);
+  // TODO(crbug.com/379869738) Remove GetUnsafeValue.
+  GetRendererChannel()->SetRenderer(std::move(agent_remote),
+                                    std::move(host_receiver),
+                                    worker_process_id_.GetUnsafeValue());
   for (auto* inspector : protocol::InspectorHandler::ForAgentHost(this)) {
     inspector->TargetReloadedAfterCrash();
   }
@@ -321,8 +323,9 @@ void ServiceWorkerDevToolsAgentHost::UpdateClientSecurityState(
   dip_reporter_.Bind(std::move(dip_reporter));
 }
 
-void ServiceWorkerDevToolsAgentHost::WorkerStarted(int worker_process_id,
-                                                   int worker_route_id) {
+void ServiceWorkerDevToolsAgentHost::WorkerStarted(
+    ChildProcessId worker_process_id,
+    int worker_route_id) {
   DCHECK(state_ == WORKER_NOT_READY || state_ == WORKER_TERMINATED);
   state_ = WORKER_NOT_READY;
   worker_process_id_ = worker_process_id;
@@ -333,7 +336,7 @@ void ServiceWorkerDevToolsAgentHost::WorkerStarted(int worker_process_id,
 void ServiceWorkerDevToolsAgentHost::WorkerStopped() {
   DCHECK_NE(WORKER_TERMINATED, state_);
   state_ = WORKER_TERMINATED;
-  worker_process_id_ = content::ChildProcessHost::kInvalidUniqueID;
+  worker_process_id_ = ChildProcessId();
   worker_route_id_ = IPC::mojom::kRoutingIdNone;
   for (auto* inspector : protocol::InspectorHandler::ForAgentHost(this)) {
     inspector->TargetCrashed();
@@ -446,7 +449,7 @@ ServiceWorkerDevToolsAgentHost::CreateNetworkFactoryParamsForDevTools() {
       /*dip_reporter=*/mojo::NullRemote(),
       static_cast<StoragePartitionImpl*>(rph->GetStoragePartition())
           ->CreateURLLoaderNetworkObserverForServiceOrSharedWorker(
-              ToOriginatingProcess(rph->GetID()), origin),
+              ToOriginatingProcessId(rph->GetID()), origin),
       NetworkServiceDevToolsObserver::MakeSelfOwned(GetId()),
       /*client_security_state=*/nullptr,
       /*network_restrictions_id=*/std::nullopt,

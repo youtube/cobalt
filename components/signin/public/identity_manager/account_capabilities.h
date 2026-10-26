@@ -11,7 +11,6 @@
 
 #include "base/containers/flat_map.h"
 #include "base/containers/span.h"
-#include "base/feature_list.h"
 #include "base/gtest_prod_util.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -29,13 +28,6 @@ class AccountCapabilitiesFetcherIOS;
 namespace supervised_user {
 class FamilyLinkUserCapabilitiesObserver;
 }  // namespace supervised_user
-
-#if !defined(NDEBUG)
-// A fake feature corresponding to the kFakeCapabilityForTestingName account
-// capability. This is only used in unit tests (and must be left disabled to
-// prevent fetching the fake capability).
-BASE_DECLARE_FEATURE(kEnableFakeCapabilityForTesting);
-#endif
 
 // Stores the information about account capabilities. Capabilities provide
 // information about state and features of Gaia accounts.
@@ -90,6 +82,17 @@ class AccountCapabilities {
   // restrictions with this capability.
   signin::Tribool
   can_show_history_sync_opt_ins_without_minor_mode_restrictions() const;
+
+#if BUILDFLAG(IS_IOS)
+  // Whether the user is allowed to sign in to Chrome.
+  signin::Tribool can_sign_in_to_chrome() const;
+#endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  // Whether the account can submit feedback. For iOS, this is implemented by
+  // Aloha FeedbackKit. For Android, this is implemented by GMS Core.
+  signin::Tribool can_submit_feedback() const;
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   // Chrome can toggle auto updates with this capability.

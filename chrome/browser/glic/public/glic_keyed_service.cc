@@ -28,7 +28,9 @@
 #include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
 #include "chrome/browser/glic/actor/glic_actor_policy_checker.h"
 #include "chrome/browser/glic/actor/glic_actor_task_manager.h"
+#include "chrome/browser/glic/common/application_hotkey_delegate.h"
 #include "chrome/browser/glic/common/future_browser_features.h"
+#include "chrome/browser/glic/common/glic_navigation.h"
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_pref_names.h"
@@ -45,6 +47,7 @@
 #include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
@@ -54,8 +57,11 @@
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/chrome_features.h"
@@ -234,6 +240,7 @@ GlicKeyedService::GlicKeyedService(
   // TODO(crbug.com/450026474): Consider not constructing this metrics
   // instance for multi-instance
   metrics_->ClearControllers();
+  metrics_->RecordGlicProfilePreferences();
 
 #if !BUILDFLAG(IS_ANDROID)  // Single instance only
   if (UseDefaultWindowController()) {
@@ -261,7 +268,8 @@ GlicKeyedService::GlicKeyedService(
         prefs::kGlicCompletedFre,
         static_cast<int>(prefs::FreStatus::kNotStarted));
     // or if automation is enabled, skip FRE
-  } else if (command_line->HasSwitch(::switches::kGlicAutomation)) {
+  } else if (command_line->HasSwitch(::switches::kGlicAutomation) ||
+             command_line->HasSwitch(::switches::kGlicAlwaysSkipFre)) {
     profile_->GetPrefs()->SetInteger(
         prefs::kGlicCompletedFre,
         static_cast<int>(prefs::FreStatus::kCompleted));
@@ -303,7 +311,7 @@ void GlicKeyedService::Shutdown() {
   } else {
     CloseAndShutdown();
   }
-  web_contents_warming_pool_->Shutdown();
+  web_contents_warming_pool_->Clear();
 
   GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
   if (glic_profile_manager) {
@@ -314,8 +322,24 @@ void GlicKeyedService::Shutdown() {
 void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
                                 bool prevent_close,
                                 mojom::InvocationSource source,
-                                std::optional<std::string> prompt_suggestion,
-                                bool auto_send) {
+                                std::optional<std::string> prompt_suggestion) {
+  ToggleUIInternal(bwi, prevent_close, source, std::move(prompt_suggestion),
+                   false, std::nullopt);
+}
+
+void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
+                                bool prevent_close,
+                                mojom::InvocationSource source) {
+  ToggleUI(bwi, prevent_close, source, std::nullopt);
+}
+
+void GlicKeyedService::ToggleUIInternal(
+    BrowserWindowInterface* bwi,
+    bool prevent_close,
+    mojom::InvocationSource source,
+    std::optional<std::string> prompt_suggestion,
+    bool auto_send,
+    std::optional<std::string> conversation_id) {
   // Glic may be disabled for certain user profiles (the user is browsing in
   // incognito or guest mode, policy, etc). In those cases, the entry points to
   // this method should already have been removed.
@@ -347,13 +371,35 @@ void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
 
   window_controller().Toggle(bwi ? bwi : GetActiveGlicEligibleBrowser(profile_),
                              prevent_close, source, prompt_suggestion,
-                             auto_send);
+                             auto_send, conversation_id);
 }
 
-void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
-                                bool prevent_close,
-                                mojom::InvocationSource source) {
-  ToggleUI(bwi, prevent_close, source, std::nullopt, /*auto_send=*/false);
+void GlicKeyedService::InvokeWithAutoSubmit(
+    InvokeWithAutoSubmitPasskey auto_submit_passkey,
+    tabs::TabInterface* tab,
+    GlicInvokeOptions options) {
+  CHECK(GlicEnabling::IsEnabledForProfile(profile_));
+
+  GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
+  if (glic_profile_manager) {
+    glic_profile_manager->SetActiveGlic(this);
+  }
+
+  static_cast<GlicInstanceCoordinatorImpl&>(window_controller())
+      .InvokeWithAutoSubmit(auto_submit_passkey, tab, std::move(options));
+}
+
+void GlicKeyedService::Invoke(tabs::TabInterface* tab,
+                              GlicInvokeOptions options) {
+  CHECK(GlicEnabling::IsEnabledForProfile(profile_));
+
+  GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
+  if (glic_profile_manager) {
+    glic_profile_manager->SetActiveGlic(this);
+  }
+
+  static_cast<GlicInstanceCoordinatorImpl&>(window_controller())
+      .Invoke(tab, std::move(options));
 }
 
 void GlicKeyedService::OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
@@ -575,12 +621,43 @@ tabs::TabInterface* GlicKeyedService::CreateTab(
     std::move(callback).Run(nullptr);
     return nullptr;
   }
-  NavigateParams params(profile_, url, ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-  params.disposition = open_in_background
-                           ? WindowOpenDisposition::NEW_BACKGROUND_TAB
-                           : WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  std::unique_ptr<NavigateParams> params;
+  BrowserWindowInterface* last_active_bwi = nullptr;
+
+  if (base::FeatureList::IsEnabled(features::kGlicCreateTabAdjacent)) {
+    // Find the most recently active browser window for this profile.
+    ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+        [&](BrowserWindowInterface* browser) {
+          if (browser->GetProfile() == profile_) {
+            last_active_bwi = browser;
+            return false;
+          }
+          return true;
+        });
+
+    if (last_active_bwi) {
+      // By setting the `source_contents` and using `PAGE_TRANSITION_LINK`, the
+      // new tab will be opened adjacent to the currently active tab and inherit
+      // its tab group.
+      params = std::make_unique<NavigateParams>(last_active_bwi, url,
+                                                ui::PAGE_TRANSITION_LINK);
+      params->source_contents = TabListInterface::From(last_active_bwi)
+                                    ->GetActiveTab()
+                                    ->GetContents();
+    } else {
+      params = std::make_unique<NavigateParams>(profile_, url,
+                                                ui::PAGE_TRANSITION_LINK);
+    }
+  } else {
+    params = std::make_unique<NavigateParams>(
+        profile_, url, ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+  }
+
+  params->disposition = open_in_background
+                            ? WindowOpenDisposition::NEW_BACKGROUND_TAB
+                            : WindowOpenDisposition::NEW_FOREGROUND_TAB;
   base::WeakPtr<content::NavigationHandle> navigation_handle =
-      DoNavigate(&params);
+      glic::Navigate(std::move(params));
   if (!navigation_handle.get()) {
     std::move(callback).Run(nullptr);
     return nullptr;
@@ -616,8 +693,10 @@ void GlicKeyedService::CreateTask(
     actor::webui::mojom::TaskOptionsPtr options,
     mojom::WebClientHandler::CreateTaskCallback callback) {
   if (actor_task_manager_) {
+    // No conversation id but this code path is going away so it's ok.
     actor_task_manager_->CreateTask(weak_ptr_factory_.GetWeakPtr(),
-                                    std::move(options), std::move(callback));
+                                    /*conversation_id=*/"", std::move(options),
+                                    std::move(callback));
   } else {
     std::move(callback).Run(
         base::unexpected(mojom::CreateTaskErrorReason::kTaskSystemUnavailable));
@@ -772,15 +851,6 @@ void GlicKeyedService::TryPreloadAfterDelay() {
   }
 }
 
-void GlicKeyedService::TryPreloadFre(GlicPrewarmingFreSource source) {
-  GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
-  CHECK(glic_profile_manager);
-
-  glic_profile_manager->ShouldPreloadFreForProfile(
-      profile_, base::BindOnce(&GlicKeyedService::FinishPreloadFre,
-                               GetWeakPtr(), source));
-}
-
 void GlicKeyedService::Reload(content::RenderFrameHost* render_frame_host) {
   if (fre_controller_->IsShowingDialog()) {
     if (auto* fre_contents = fre_controller_->GetWebContents()) {
@@ -834,24 +904,6 @@ void GlicKeyedService::FinishPreload(GlicPrewarmingChecksResult result) {
   } else {
     window_controller().Preload();
   }
-}
-
-void GlicKeyedService::FinishPreloadFre(GlicPrewarmingFreSource source,
-                                        GlicPrewarmingChecksResult result) {
-  if (result != GlicPrewarmingChecksResult::kSuccess) {
-    // If FRE preloading was rejected, log error metrics and return.
-    base::UmaHistogramEnumeration(
-        "Glic.PrewarmingFre.ShouldNotPreloadFreForSource", source);
-    if (result == GlicPrewarmingChecksResult::kWarmingDisabled) {
-      base::UmaHistogramEnumeration(
-          "Glic.PrewarmingFre.DisabledShouldNotPreloadFreForSource", source);
-    }
-    return;
-  }
-
-  base::UmaHistogramEnumeration("Glic.PrewarmingFre.ShouldPreloadFreForSource",
-                                source);
-  fre_controller().TryPreload();
 }
 
 bool GlicKeyedService::IsProcessHostForGlic(
@@ -961,12 +1013,14 @@ void GlicKeyedService::RequestToConfirmNavigation(
 void GlicKeyedService::RequestToShowAutofillSuggestionsDialog(
     actor::TaskId task_id,
     std::vector<autofill::ActorFormFillingRequest> requests,
+    base::WeakPtr<actor::AutofillSelectionDialogEventHandler> event_handler,
     AutofillSuggestionSelectedCallback callback) {
   CHECK(UseDefaultWindowController());
   auto* window_controller_impl =
       static_cast<GlicWindowControllerImpl*>(window_controller_.get());
   window_controller_impl->host().RequestToShowAutofillSuggestionsDialog(
-      task_id, std::move(requests), std::move(callback));
+      task_id, std::move(requests), std::move(event_handler),
+      std::move(callback));
 }
 #endif
 

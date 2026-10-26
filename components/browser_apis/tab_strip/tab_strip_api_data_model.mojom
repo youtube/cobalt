@@ -6,6 +6,7 @@ module tabs_api.mojom;
 
 import "components/browser_apis/tab_strip/tab_strip_api_types.mojom";
 import "components/tab_groups/public/mojom/tab_group_types.mojom";
+import "mojo/public/mojom/base/time.mojom";
 import "url/mojom/url.mojom";
 
 // Holds a data URL representation of an image, ie: favicon.
@@ -59,10 +60,19 @@ struct Tab {
   bool is_selected;
   // The current tab is blocked (by a modal).
   bool is_blocked;
+  // Time ticks when the tab is last active.
+  mojo_base.mojom.TimeTicks last_active_time_ticks;
+  // String representing the elapsed time since the tab was last active.
+  string last_active_elapsed_text;
 };
 
-// Tabstrip is a TabCollection that represents the top-level collection of
-// a browser.
+// Window represents a browser window.
+struct Window {
+  NodeId id;
+};
+
+// Tabstrip represents the primary collection of tabs for an individual browser
+// window.
 struct TabStrip {
   NodeId id;
 };
@@ -121,6 +131,7 @@ union Data {
   UnpinnedTabs unpinned_tabs;
   TabGroup tab_group;
   SplitTab split_tab;
+  Window window;
 };
 
 // Container represents a node in the tree hierarchy.

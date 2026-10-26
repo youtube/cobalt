@@ -57,7 +57,7 @@ TEST_P(RnnFcParametrization, CheckFullyConnectedLayerOutput) {
                          /*cpu_features=*/GetParam(),
                          /*layer_name=*/"FC");
   fc.ComputeOutput(kFullyConnectedInputVector);
-  ExpectNearAbsolute(kFullyConnectedExpectedOutput, fc, 1e-5f);
+  ExpectNearAbsolute(kFullyConnectedExpectedOutput, fc.output(), 1e-5f);
 }
 
 TEST_P(RnnFcParametrization, DISABLED_BenchmarkFullyConnectedLayer) {

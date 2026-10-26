@@ -1,12 +1,12 @@
 <ntp-module-header
-    id="moduleHeaderElementV2"
+    id="moduleHeader"
     header-text="${this.i18n('modulesMostRelevantTabResumptionTitle')}"
     .menuItems="${this.getMenuItems_()}"
     more-actions-text="${this.i18nRecursive('',
                                   'modulesMoreActions',
                                   'modulesTabResumptionTitle')}"
     @disable-button-click="${this.onDisableButtonClick_}"
-    @dismiss-button-click="${this.onDismissAllButtonClick_}"
+    @dismiss-button-click="${this.onHeaderDismissButtonClick_}"
     @info-button-click="${this.onInfoButtonClick_}">
 </ntp-module-header>
 <div id="urlVisits">

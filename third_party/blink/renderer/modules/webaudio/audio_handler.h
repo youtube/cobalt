@@ -190,7 +190,7 @@ class MODULES_EXPORT AudioHandler : public ThreadSafeRefCounted<AudioHandler> {
   static void PrintNodeCounts();
 #endif
 #if DEBUG_AUDIONODE_REFERENCES > 1
-  void TailProcessingDebug(const char* debug_note, bool flag);
+  void TailProcessingDebug(String note, bool flag);
   void AddTailProcessingDebug();
   void RemoveTailProcessingDebug(bool disable_outputs);
 #endif
@@ -296,7 +296,7 @@ class MODULES_EXPORT AudioHandler : public ThreadSafeRefCounted<AudioHandler> {
   void SetNodeType(NodeType);
 
   // https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/media/capture/README.md#logs
-  void SendLogMessage(const char* const function_name, const String& message);
+  void SendLogMessage(const String& function_name, const String& message);
 
   bool is_initialized_ = false;
   NodeType node_type_ = NodeType::kNodeTypeUnknown;

@@ -11,11 +11,8 @@ import 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
 import '/shared/settings/prefs/prefs.js';
 import './ai_info_card.js';
 import './ai_page.js';
-// <if expr="enable_glic">
 import '../glic_page/glic_page.js';
 import '../glic_page/glic_subpage.js';
-
-// </if>
 
 import type {CrViewManagerElement} from 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
 import {assert} from 'chrome://resources/js/assert.js';
@@ -59,12 +56,10 @@ export class SettingsAiPageIndexElement extends SettingsAiPageIndexElementBase
         value: () => routes,
       },
 
-      // <if expr="enable_glic">
       showGlicSettings_: {
         type: Boolean,
         value: () => loadTimeData.getBoolean('showGlicSettings'),
       },
-      // </if>
 
       showAiPageAiFeatureSection_: {
         type: Boolean,
@@ -85,18 +80,23 @@ export class SettingsAiPageIndexElement extends SettingsAiPageIndexElementBase
         type: Boolean,
         value: () => loadTimeData.getBoolean('showTabOrganizationControl'),
       },
+
+      actorLoginFederatedLoginSupportEnabled_: {
+        type: Boolean,
+        value: () =>
+            loadTimeData.getBoolean('actorLoginFederatedLoginSupportEnabled'),
+      },
     };
   }
 
   declare prefs: {[key: string]: any};
   declare private routes_: SettingsRoutes;
-  // <if expr="enable_glic">
   declare private showGlicSettings_: boolean;
-  // </if>
   declare private showAiPageAiFeatureSection_: boolean;
   declare private showComposeControl_: boolean;
   declare private showHistorySearchControl_: boolean;
   declare private showTabOrganizationControl_: boolean;
+  declare private actorLoginFederatedLoginSupportEnabled_: boolean;
 
   private showDefaultViews_() {
     const defaultViews: string[] = ['aiInfoCard'];
@@ -105,14 +105,17 @@ export class SettingsAiPageIndexElement extends SettingsAiPageIndexElementBase
       defaultViews.push('parent');
     }
 
-    // <if expr="enable_glic">
     if (this.showGlicSettings_) {
       defaultViews.push('glic');
     }
-    // </if>
 
     this.$.viewManager.switchViews(
         defaultViews, 'no-animation', 'no-animation');
+  }
+
+  private shouldShowPermissionsPage_(): boolean {
+    return this.showGlicSettings_ &&
+        this.actorLoginFederatedLoginSupportEnabled_;
   }
 
   override currentRouteChanged(newRoute: Route, oldRoute?: Route) {
@@ -145,13 +148,17 @@ export class SettingsAiPageIndexElement extends SettingsAiPageIndexElementBase
           this.$.viewManager.switchView(
               'compose', 'no-animation', 'no-animation');
           break;
-        // <if expr="enable_glic">
         case routes.GEMINI:
           assert(this.showGlicSettings_);
           this.$.viewManager.switchView(
               'gemini', 'no-animation', 'no-animation');
           break;
-        // </if>
+        case routes.GEMINI_LOGIN:
+          assert(this.showGlicSettings_);
+          assert(this.actorLoginFederatedLoginSupportEnabled_);
+          this.$.viewManager.switchView(
+              'geminiLoginPermissions', 'no-animation', 'no-animation');
+          break;
         default:
           // Nothing to do. Other parent elements are responsible for updating
           // the displayed contents.

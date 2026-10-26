@@ -11,7 +11,7 @@ namespace v8::internal::wasm {
 
 // static
 DirectHandle<WeakFixedArray> WasmExportWrapperCache::New(Isolate* isolate,
-                                                         int capacity) {
+                                                         uint32_t capacity) {
   // Probing depends on bit-masking the hashes, so the capacity needs to be
   // a power of two.
   DCHECK(base::bits::IsPowerOfTwo(capacity));
@@ -45,13 +45,13 @@ Tagged<CodeWrapper> WasmExportWrapperCache::Get(Isolate* isolate,
        entry = NextProbe(entry, count++, capacity)) {
     DCHECK(count < capacity);
     int index = ToArraySlot(entry);
-    Tagged<MaybeWeak<Object>> raw_key = cache->get(index);
+    Tagged<MaybeObject> raw_key = cache->get(index);
     DCHECK(raw_key.IsSmi());
     int key = raw_key.ToSmi().value();
     if (key == kUnused) return {};  // Not found.
     DCHECK_GE(key, 0);
     if (static_cast<uint32_t>(key) != hash) continue;
-    Tagged<MaybeWeak<Object>> value = cache->get(index + 1);
+    Tagged<MaybeObject> value = cache->get(index + 1);
     if (value.IsCleared()) return {};  // Not found.
     return Cast<CodeWrapper>(value.GetHeapObjectAssumeWeak());
   }
@@ -72,7 +72,7 @@ Tagged<WeakFixedArray> WasmExportWrapperCache::EnsureCapacity(
   uint32_t cache_len = cache->ulength().value();
   if (cache_len == 0) {
     // Lazy initialization.
-    static constexpr int kInitialCapacity = 16;
+    static constexpr uint32_t kInitialCapacity = 16;
     DirectHandle<WeakFixedArray> new_cache = New(isolate, kInitialCapacity);
     isolate->heap()->SetJSToWasmWrappers(*new_cache);
     return *new_cache;
@@ -90,11 +90,11 @@ Tagged<WeakFixedArray> WasmExportWrapperCache::EnsureCapacity(
   cache = *old_cache;
   uint32_t num_used_entries = 0;
   for (uint32_t i = kReservedSlots; i < cache_len; i += kSlotsPerEntry) {
-    Tagged<MaybeWeak<Object>> raw_key = cache->get(i);
+    Tagged<MaybeObject> raw_key = cache->get(i);
     DCHECK(raw_key.IsSmi());
     int key = raw_key.ToSmi().value();
     if (key == kUnused) continue;
-    Tagged<MaybeWeak<Object>> value = cache->get(i + 1);
+    Tagged<MaybeObject> value = cache->get(i + 1);
     if (value.IsCleared()) continue;
     num_used_entries++;
     PutInternal<false>(grown, key, value);
@@ -108,14 +108,14 @@ Tagged<WeakFixedArray> WasmExportWrapperCache::EnsureCapacity(
 template <bool entry_may_exist>
 void WasmExportWrapperCache::PutInternal(Tagged<WeakFixedArray> cache,
                                          uint32_t hash,
-                                         Tagged<MaybeWeak<Object>> value) {
+                                         Tagged<MaybeObject> value) {
   uint32_t capacity = Capacity(cache);
   uint32_t count = 1;
   for (InternalIndex entry = FirstProbe(hash, capacity);;
        entry = NextProbe(entry, count++, capacity)) {
     DCHECK(count < capacity);
     int index = ToArraySlot(entry);
-    Tagged<MaybeWeak<Object>> raw_key = cache->get(index);
+    Tagged<MaybeObject> raw_key = cache->get(index);
     DCHECK(raw_key.IsSmi());
     int current_key = raw_key.ToSmi().value();
     if (current_key == kUnused) {
@@ -133,7 +133,7 @@ void WasmExportWrapperCache::PutInternal(Tagged<WeakFixedArray> cache,
     }
 
     // We get here when we've found the right entry (unused or cleared).
-    cache->set(index + 1, MakeWeak(value));
+    cache->set(index + 1, MakeWeak(Cast<MaybeWeak<HeapObject>>(value)));
     return;
   }
 }

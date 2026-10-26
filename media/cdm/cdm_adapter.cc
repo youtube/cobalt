@@ -19,7 +19,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/not_fatal_until.h"
 #include "base/numerics/clamped_math.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
@@ -114,7 +113,7 @@ std::string GetHexKeyId(const cdm::InputBuffer_2& buffer) {
   if (buffer.key_id_size == 0)
     return "N/A";
 
-  return base::HexEncode(buffer.key_id, buffer.key_id_size);
+  return base::HexEncode(KeyIdFrom(&buffer));
 }
 
 std::string GetHexMask(uint32_t mask) {
@@ -505,10 +504,8 @@ void CdmAdapter::Decrypt(StreamType stream_type,
     return;
   }
 
-  scoped_refptr<DecoderBuffer> decrypted_buffer(DecoderBuffer::CopyFrom(
-      // SAFETY: `Data()` must return a buffer of `Size()` bytes.
-      UNSAFE_BUFFERS(base::span(decrypted_block->DecryptedBuffer()->Data(),
-                                decrypted_block->DecryptedBuffer()->Size()))));
+  scoped_refptr<DecoderBuffer> decrypted_buffer(
+      DecoderBuffer::CopyFrom(AsSpan(decrypted_block->DecryptedBuffer())));
   decrypted_buffer->set_timestamp(
       base::Microseconds(decrypted_block->Timestamp()));
   std::move(decrypt_cb).Run(Decryptor::kSuccess, std::move(decrypted_buffer));
@@ -1157,6 +1154,18 @@ void CdmAdapter::ReportMetrics(cdm::MetricName metric_name, uint64_t value) {
     case cdm::kDecoderCheck1ErrorCount:
       cdm_metrics_data_.decoder_check1_error_count =
           cdm_metrics_data_.decoder_check1_error_count.value_or(0) + value;
+      return;
+    case cdm::kKeySystemDataTime1:
+      cdm_metrics_data_.key_system_data_time1 = value;
+      return;
+    case cdm::kKeySystemDataTime2:
+      cdm_metrics_data_.key_system_data_time2 = value;
+      return;
+    case cdm::kKeySystemDataTime3:
+      cdm_metrics_data_.key_system_data_time3 = value;
+      return;
+    case cdm::kKeySystemDataBool1:
+      cdm_metrics_data_.key_system_data_bool1 = value != 0;
       return;
   }
 }

@@ -6,12 +6,14 @@
 #define CONTENT_BROWSER_MEMORY_COORDINATOR_CHILD_MEMORY_CONSUMER_REGISTRY_HOST_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory_coordinator/traits.h"
+#include "content/common/buildflags.h"
 #include "content/common/content_export.h"
 #include "content/common/memory_coordinator/memory_consumer_group_controller.h"
 #include "content/common/memory_coordinator/memory_consumer_group_host.h"
@@ -24,6 +26,10 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+#include "content/common/memory_coordinator/mojom/memory_coordinator_diagnostics.mojom.h"
+#endif
+
 namespace content {
 
 // An implementation of mojom::ChildMemoryConsumerRegistryHost that registers
@@ -32,7 +38,12 @@ namespace content {
 // child process connection.
 class CONTENT_EXPORT ChildMemoryConsumerRegistryHost
     : public mojom::ChildMemoryConsumerRegistryHost,
-      public MemoryConsumerGroupHost {
+      public MemoryConsumerGroupHost
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+    ,
+      public mojom::MemoryCoordinatorDiagnosticsHost
+#endif
+{
  public:
   // `disconnect_handler` is the callback that will be run when the connection
   // with the child process is lost (i.e. a Mojo pipe is closed, or the child
@@ -54,17 +65,32 @@ class CONTENT_EXPORT ChildMemoryConsumerRegistryHost
   // mojom::ChildMemoryConsumerRegistryHost:
   void BindCoordinator(mojo::PendingRemote<mojom::ChildMemoryCoordinator>
                            coordinator_remote) override;
-  void Register(const std::string& consumer_id,
-                base::MemoryConsumerTraits traits) override;
-  void Unregister(const std::string& consumer_id) override;
+  void Register(uint32_t consumer_id,
+                const std::string& consumer_name,
+                std::optional<base::MemoryConsumerTraits> traits) override;
+  void Unregister(uint32_t consumer_id) override;
 
   // MemoryConsumerGroupHost:
   void UpdateConsumers(std::vector<MemoryConsumerUpdate> updates) override;
+
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+  // mojom::MemoryCoordinatorDiagnosticsHost:
+  void OnMemoryLimitChanged(uint32_t consumer_id,
+                            int32_t memory_limit) override;
+
+  // Enables/disables additional diagnostics reported by the child process.
+  void EnableDiagnosticsReporting();
+  void DisableDiagnosticsReporting();
+#endif  // BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
 
  private:
   class RenderProcessExitedObserver;
 
   void RunDisconnectHandler();
+
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+  void EnableReportingImpl();
+#endif
 
   const raw_ref<MemoryConsumerGroupController> controller_;
 
@@ -74,11 +100,17 @@ class CONTENT_EXPORT ChildMemoryConsumerRegistryHost
   mojo::Receiver<mojom::ChildMemoryConsumerRegistryHost> receiver_;
   mojo::Remote<mojom::ChildMemoryCoordinator> coordinator_remote_;
 
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+  bool diagnostics_enabled_ = false;
+  mojo::Receiver<mojom::MemoryCoordinatorDiagnosticsHost>
+      diagnostics_host_receiver_{this};
+#endif
+
   // Handles a disconnection with the child process.
   base::OnceClosure disconnect_handler_;
 
   // Holds the IDs of consumers living in the child process.
-  absl::flat_hash_set<std::string> consumers_;
+  absl::flat_hash_set<uint32_t> consumers_;
 
   std::unique_ptr<RenderProcessExitedObserver> process_observer_;
 };

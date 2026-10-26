@@ -216,6 +216,16 @@ class CORE_EXPORT HTMLMediaElement
   String EffectivePreload() const;
   WebMediaPlayer::Preload EffectivePreloadType() const;
 
+  // Lazy loading support.
+  bool HasLazyLoadingAttribute() const;
+  bool IsLazyLoadDeferred() const;
+  void LoadDeferredMediaIfNeeded();
+  void LoadDeferredTracks();
+
+  // Returns true if the element has a src attribute, srcObject, or <source>
+  // child elements that could provide media.
+  bool HasMediaSources() const;
+
   WebTimeRanges BufferedInternal() const;
   TimeRanges* buffered() const;
   void load();
@@ -440,10 +450,6 @@ class CORE_EXPORT HTMLMediaElement
   // the correct execution context.
   ExecutionContext* GetExecutionContextForPlayer() const;
 
-  // WebAudio audio destination node is connected. The HTMLMediaElement could
-  // stop the sink at this time if it is still playing.
-  void ConnectToDestinationReady();
-
  protected:
   // Assert the correct order of the children in shadow dom when DCHECK is on.
   static void AssertShadowRootChildren(ShadowRoot&);
@@ -488,12 +494,30 @@ class CORE_EXPORT HTMLMediaElement
   virtual void RecordVideoOcclusionState(
       std::string_view occlusion_state) const {}
 
+  // "Lazy loading" state (for loading=lazy).
+  enum class LazyMediaLoadState {
+    // Not using lazy loading.
+    kNone,
+    // Deferred, waiting for viewport intersection.
+    kDeferred,
+    // Full media loading initiated.
+    kFullMedia,
+  };
+  void SetLazyMediaLoadState(LazyMediaLoadState state) {
+    lazy_media_load_state_ = state;
+  }
+  LazyMediaLoadState GetLazyMediaLoadState() const {
+    return lazy_media_load_state_;
+  }
+
  private:
   // Friend class for testing.
   friend class ContextMenuControllerTest;
   friend class HTMLMediaElementTest;
   friend class PictureInPictureControllerTestWithWidget;
   friend class VideoWakeLockTest;
+
+  void LoadDeferredMediaIfNeededInternal();
 
   class SourceMetadata {
     DISALLOW_NEW();
@@ -506,7 +530,7 @@ class CORE_EXPORT HTMLMediaElement
       invisible_to_app_ = visibility == SourceVisibility::kInvisibleToApp;
     }
     const KURL& GetSourceIfVisible() const {
-      return invisible_to_app_ ? NullURL() : src_;
+      return invisible_to_app_ ? NullUrl() : src_;
     }
     const KURL& GetSource() const { return src_; }
 
@@ -545,6 +569,7 @@ class CORE_EXPORT HTMLMediaElement
   virtual void OnPlay() {}
   virtual void OnLoadStarted() {}
   virtual void OnLoadFinished() {}
+  virtual void OnLazyLoadResumed() {}
 
   // Updates the `MediaVideoVisibilityTracker` state whenever the media play
   // state is updated. This is typically handled during `UpdatePlayState`.
@@ -842,6 +867,8 @@ class CORE_EXPORT HTMLMediaElement
   DeferredLoadState deferred_load_state_;
   HeapTaskRunnerTimer<HTMLMediaElement> deferred_load_timer_;
 
+  LazyMediaLoadState lazy_media_load_state_ = LazyMediaLoadState::kNone;
+
   std::unique_ptr<WebMediaPlayer> web_media_player_;
   cc::Layer* cc_layer_;
 
@@ -903,8 +930,6 @@ class CORE_EXPORT HTMLMediaElement
   // Whether the media content is encrypted.
   bool is_encrypted_media_ = false;
 
-  // Whether webaudio destination is connected.
-  bool is_audio_destination_connected_ = false;
   WebString remote_device_friendly_name_;
   std::optional<media::AudioCodec> audio_codec_ = std::nullopt;
   std::optional<media::VideoCodec> video_codec_ = std::nullopt;
@@ -966,19 +991,12 @@ class CORE_EXPORT HTMLMediaElement
     void SetClient(AudioSourceProviderClient*) override;
     void ProvideInput(AudioBus*, int frames_to_process) override;
 
-    void ConnectToDestinationReady() override;
-
     void Trace(Visitor*) const;
 
    private:
     base::Lock provide_input_lock;
     scoped_refptr<WebAudioSourceProviderImpl> web_audio_source_provider_
         GUARDED_BY(provide_input_lock);
-
-    // Resampling case, connect to the destination can be called before
-    // `audio_source_provider_` is ready. We have to call it during
-    // `audio_source_provider_` assignment.
-    bool connection_to_destination_ready_ = false;
 
     Member<AudioClientImpl> client_;
   };
@@ -1033,7 +1051,9 @@ class CORE_EXPORT HTMLMediaElement
   Member<MediaControls> media_controls_;
   Member<HTMLMediaElementControlsList> controls_list_;
 
-  Member<IntersectionObserver> lazy_load_intersection_observer_;
+  // Used by WebMediaPlayer's lazy load to notify when the element becomes
+  // visible. Distinct from LazyLoadMediaObserver which handles loading=lazy.
+  Member<IntersectionObserver> player_lazy_load_intersection_observer_;
 
   Member<DisallowNewWrapper<
       HeapMojoAssociatedRemote<media::mojom::blink::MediaPlayerHost>>>

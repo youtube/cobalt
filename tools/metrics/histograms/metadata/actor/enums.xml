@@ -62,6 +62,11 @@ chromium-metrics-reviews@google.com.
   <int value="41" label="InvokeCanceled"/>
   <int value="42" label="kInvalidTaskStateForAct"/>
   <int value="43" label="ActionsCancelled"/>
+  <int value="44" label="ActionsBlockedForSiteRisk"/>
+  <int value="45" label="ActionsBlockedSafeBrowsingDisabled"/>
+  <int value="46" label="ActionsBlockedByEnterprisePolicy"/>
+  <int value="47" label="ActionsBlockedForScheme"/>
+  <int value="48" label="ActionsBlockedOnErrorPage"/>
   <int value="100" label="NavigateInvalidUrl"/>
   <int value="101" label="NavigateFailedToStart"/>
   <int value="102" label="NavigateCommittedErrorPage"/>
@@ -122,6 +127,44 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/common/actor.mojom:ActionResultCode) -->
+
+<!-- LINT.IfChange(ActorLoginAccountTypes) -->
+
+<enum name="ActorLoginAccountTypes">
+  <int value="0" label="None"/>
+  <int value="1" label="Password"/>
+  <int value="2" label="Federated"/>
+  <int value="3" label="Password and Federated"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/password_manager/core/browser/actor_login/internal/actor_login_metrics.h:ActorLoginAccountTypes) -->
+
+<!-- LINT.IfChange(ActorLoginFederatedLoginResult) -->
+
+<enum name="ActorLoginFederatedLoginResult">
+  <int value="0" label="Success"/>
+  <int value="2" label="AccountNotLoggedIn"/>
+  <int value="3" label="AccountIsSignUp"/>
+  <int value="4" label="AccountNotAvailable"/>
+  <int value="5" label="IdpReturnedError"/>
+  <int value="6" label="IdpNetworkError"/>
+  <int value="7" label="TokenRequestAborted"/>
+  <int value="8" label="FrameNotActive"/>
+  <int value="9" label="ExpectedAccountNotPresent"/>
+  <int value="10" label="Timeout"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/password_manager/core/browser/actor_login/internal/actor_login_metrics.h:ActorLoginFederatedLoginResult) -->
+
+<!-- LINT.IfChange(ActorLoginSelectedAccountType) -->
+
+<enum name="ActorLoginSelectedAccountType">
+  <int value="0" label="None"/>
+  <int value="1" label="Password"/>
+  <int value="2" label="Federated"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/password_manager/core/browser/actor_login/internal/actor_login_metrics.h:ActorLoginSelectedAccountType) -->
 
 <!-- LINT.IfChange(ActorObservationOutcome) -->
 
@@ -200,6 +243,7 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="kNodeNotFoundInApc"/>
   <int value="3" label="kNoGeometry"/>
   <int value="4" label="kOffScreen"/>
+  <int value="5" label="kEmptyBoundingBox"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/actor/ui/dom_node_geometry_types.h:GetDomNodeResult) -->
@@ -251,7 +295,17 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="kInvalidFromUrlPattern"/>
 </enum>
 
-<!-- LINT.ThenChange(//chrome/browser/actor/safety_list.h:SafetyListParseResult) -->
+<!-- LINT.ThenChange(//chrome/browser/actor/safety_list_manager.h:SafetyListParseResult) -->
+
+<!-- LINT.IfChange(SplitModeTimeOfUseFrameStatus) -->
+
+<enum name="SplitModeTimeOfUseFrameStatus">
+  <int value="0" label="kMatch"/>
+  <int value="1" label="kInitializedFrameDestroyed"/>
+  <int value="2" label="kFrameMismatch"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/actor/actor_metrics.h:SplitModeTimeOfUseFrameStatus) -->
 
 <!-- LINT.IfChange(StoppedReasonEnum) -->
 

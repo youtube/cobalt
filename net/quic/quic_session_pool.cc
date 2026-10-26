@@ -18,6 +18,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory_coordinator/memory_coordinator_features.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -539,9 +540,11 @@ void QuicSessionRequest::SetSession(
 QuicSessionPool::QuicCryptoClientConfigOwner::QuicCryptoClientConfigOwner(
     std::unique_ptr<quic::ProofVerifier> proof_verifier,
     std::unique_ptr<quic::QuicClientSessionCache> session_cache,
+    size_t max_cache_entries,
     QuicSessionPool* quic_session_pool)
     : config_(std::move(proof_verifier), std::move(session_cache)),
       clock_(base::DefaultClock::GetInstance()),
+      max_cache_entries_(max_cache_entries),
       quic_session_pool_(quic_session_pool) {
   DCHECK(quic_session_pool_);
   memory_pressure_listener_registration_ =
@@ -572,6 +575,14 @@ void QuicSessionPool::QuicCryptoClientConfigOwner::OnMemoryPressure(
   if (!session_cache) {
     return;
   }
+
+  if (base::FeatureList::IsEnabled(base::kStatefulMemoryPressure)) {
+    // The memory pressure level might have changed, which potentially changed
+    // the memory limit. Enforce the new limit.
+    session_cache->UpdateMaxSize(max_cache_entries_ * GetMemoryLimitRatio());
+    return;
+  }
+
   time_t now = clock_->Now().ToTimeT();
   uint64_t now_u64 = 0;
   if (now > 0) {
@@ -729,6 +740,26 @@ bool QuicSessionPool::CanUseExistingSession(
     const QuicSessionKey& session_key,
     const url::SchemeHostPort& destination) const {
   return FindExistingSession(session_key, destination) != nullptr;
+}
+
+bool QuicSessionPool::CanUseExistingSessionForWebSocket(
+    const QuicSessionKey& session_key,
+    const url::SchemeHostPort& destination,
+    quic::ParsedQuicVersion* quic_version) const {
+  QuicChromiumClientSession* session =
+      FindExistingSession(session_key, destination);
+  if (!session) {
+    return false;
+  }
+  // The server must have sent SETTINGS_ENABLE_CONNECT_PROTOCOL=1 in its
+  // SETTINGS frame, which enables Extended CONNECT for WebSocket-over-HTTP/3.
+  if (!session->allow_extended_connect()) {
+    return false;
+  }
+  if (quic_version) {
+    *quic_version = session->GetQuicVersion();
+  }
+  return true;
 }
 
 QuicChromiumClientSession* QuicSessionPool::FindExistingSession(
@@ -2422,7 +2453,9 @@ QuicSessionPool::CreateCryptoConfigHandle(QuicCryptoClientConfigKey key) {
               cert_verifier_, transport_security_state_, sct_auditing_delegate_,
               std::move(hostnames_to_allow_unknown_roots),
               key.network_anonymization_key),
-          std::make_unique<quic::QuicClientSessionCache>(), this);
+          std::make_unique<quic::QuicClientSessionCache>(
+              kDefaultQuicSessionCacheSize),
+          kDefaultQuicSessionCacheSize, this);
 
   quic::QuicCryptoClientConfig* crypto_config = crypto_config_owner->config();
   crypto_config->AddCanonicalSuffix(".c.youtube.com");

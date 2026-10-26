@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <deque>
 #include <optional>
+#include <string_view>
 
 #include "base/containers/flat_set.h"
 #include "base/containers/queue.h"
@@ -142,13 +143,18 @@ class AILanguageModel : public AIContextBoundObject,
   static PromptApiMetadata ParseMetadata(
       const optimization_guide::proto::Any& any);
 
-  // Returns a set of BCP 47 base language codes that are supported and enabled.
-  static base::flat_set<std::string_view> GetSupportedLanguageBaseCodes();
+  // Returns a set of BCP 47 base language codes that are supported and enabled,
+  // or nullopt if all languages are enabled (e.g. via local flags).
+  static std::optional<base::flat_set<std::string>>
+  GetEnabledLanguageBaseCodes();
+  // Returns a set of BCP 47 base language codes that are supported by default.
+  static base::flat_set<std::string> GetDefaultSupportedLanguageBaseCodes();
 
   // Format the initial prompts, gets the token count, updates the session,
   // and reports to `create_client`.
   void Initialize(
       std::vector<blink::mojom::AILanguageModelPromptPtr> initial_prompts,
+      std::vector<blink::mojom::AILanguageModelToolDeclarationPtr> tools,
       mojo::PendingRemote<blink::mojom::AIManagerCreateLanguageModelClient>
           create_client);
 
@@ -235,6 +241,8 @@ class AILanguageModel : public AIContextBoundObject,
   // remotes (e.g. a service crash).
   mojo::Remote<on_device_model::mojom::Session> initial_session_;
   on_device_model::mojom::InputPtr initial_input_;
+  // The tools declared for this session.
+  std::vector<blink::mojom::AILanguageModelToolDeclarationPtr> tools_;
 
   // Contains the current committed session state. This will be replaced after a
   // successful prompt with the latest session state.

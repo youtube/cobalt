@@ -274,12 +274,193 @@ TEST_F(AccessibilityTest, FocusgroupItemExplicitRolePreserved) {
 TEST_F(AccessibilityTest, FocusgroupItemNativeSemanticsPreserved) {
   SetBodyInnerHTML(R"HTML(
       <div id="fg" focusgroup="radiogroup">
-        <button id="child">Button</button>
+        <a href="#" id="child">Link</a>
       </div>)HTML");
   const AXObject* child = GetAXObjectByElementId("child");
   ASSERT_NE(nullptr, child);
-  // Native button semantics should remain, not replaced by radio.
-  EXPECT_EQ(ax::mojom::Role::kButton,
+  // Native link semantics should remain, not replaced by radio.
+  EXPECT_EQ(ax::mojom::Role::kLink, child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupButtonChildInferredRoleTablist) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="tablist">
+        <button id="child">Tab</button>
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // Button inside tablist should be inferred as tab.
+  EXPECT_EQ(ax::mojom::Role::kTab, child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupButtonChildInferredRoleRadiogroup) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="radiogroup">
+        <button id="child">Radio</button>
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // Button inside radiogroup should be inferred as radio.
+  EXPECT_EQ(ax::mojom::Role::kRadioButton,
+            child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupButtonChildInferredRoleMenu) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="menu">
+        <button id="child">Menu Item</button>
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // Button inside menu should be inferred as menuitem.
+  EXPECT_EQ(ax::mojom::Role::kMenuItem,
+            child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupPopupButtonChildInferredRoleMenu) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="menu">
+        <button id="child" aria-haspopup="menu">Submenu</button>
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // Popup button inside menu should be inferred as menuitem.
+  EXPECT_EQ(ax::mojom::Role::kMenuItem,
+            child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupPopupButtonChildInferredRoleMenubar) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="menubar">
+        <button id="child" aria-haspopup="menu">Submenu</button>
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // Popup button inside menubar should be inferred as menuitem.
+  EXPECT_EQ(ax::mojom::Role::kMenuItem,
+            child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupPopupButtonChildInferredRoleTablist) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="tablist">
+        <button id="child" aria-haspopup="menu">Tab with popup</button>
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // Popup button inside tablist should be inferred as tab.
+  EXPECT_EQ(ax::mojom::Role::kTab, child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupPopupButtonChildInferredRoleRadiogroup) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="radiogroup">
+        <button id="child" aria-haspopup="menu">Radio with popup</button>
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // Popup button inside radiogroup should be inferred as radio.
+  EXPECT_EQ(ax::mojom::Role::kRadioButton,
+            child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupPopupButtonLegacyHaspopupInferredRole) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="menubar">
+        <button id="child" aria-haspopup="true">Submenu</button>
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // Popup button with legacy aria-haspopup="true" inside menubar should be
+  // inferred as menuitem.
+  EXPECT_EQ(ax::mojom::Role::kMenuItem,
+            child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupPopupButtonListboxHaspopupInferredRole) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="menubar">
+        <button id="child" aria-haspopup="listbox">Options</button>
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // aria-haspopup="listbox" also produces kPopUpButton; should be inferred as
+  // menuitem inside a menubar focusgroup.
+  EXPECT_EQ(ax::mojom::Role::kMenuItem,
+            child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupPopupButtonDialogHaspopupInferredRole) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="menubar">
+        <button id="child" aria-haspopup="dialog">Open Dialog</button>
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // aria-haspopup="dialog" produces kButton (not kPopUpButton) because screen
+  // readers use the popup-button role as a cue to disable virtual buffer mode.
+  // It should still be inferred as menuitem via the kButton branch.
+  EXPECT_EQ(ax::mojom::Role::kMenuItem,
+            child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupPopupButtonExplicitRolePreserved) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="menubar">
+        <button id="child" aria-haspopup="menu" role="listitem">List Item</button>
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // Explicit author role on popup button should be preserved over inference.
+  EXPECT_EQ(ax::mojom::Role::kListItem,
+            child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupToggleButtonRoleNotInferred) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="menu">
+        <button id="child" aria-pressed="false">Bold</button>
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // Toggle button (aria-pressed) should NOT have its role inferred by a
+  // focusgroup; aria-pressed declares explicit stateful semantics.
+  EXPECT_EQ(ax::mojom::Role::kToggleButton,
+            child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupButtonExplicitRolePreserved) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="tablist">
+        <button id="child" role="listitem">List Item</button>
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // Explicit author role on button should be preserved over inference.
+  EXPECT_EQ(ax::mojom::Role::kListItem,
+            child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupLinkNativeSemanticsPreserved) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="tablist">
+        <a href="#" id="child">Link</a>
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // Native link semantics should be preserved, not replaced by tab.
+  EXPECT_EQ(ax::mojom::Role::kLink, child->ComputeFinalRoleForSerialization());
+}
+
+TEST_F(AccessibilityTest, FocusgroupInputNativeSemanticsPreserved) {
+  SetBodyInnerHTML(R"HTML(
+      <div id="fg" focusgroup="tablist">
+        <input id="child" type="text">
+      </div>)HTML");
+  const AXObject* child = GetAXObjectByElementId("child");
+  ASSERT_NE(nullptr, child);
+  // Native input semantics should be preserved, not replaced by tab.
+  EXPECT_EQ(ax::mojom::Role::kTextField,
             child->ComputeFinalRoleForSerialization());
 }
 

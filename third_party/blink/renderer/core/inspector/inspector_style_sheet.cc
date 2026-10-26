@@ -36,6 +36,7 @@
 #include "third_party/blink/renderer/core/css/css_keyframes_rule.h"
 #include "third_party/blink/renderer/core/css/css_layer_block_rule.h"
 #include "third_party/blink/renderer/core/css/css_media_rule.h"
+#include "third_party/blink/renderer/core/css/css_navigation_rule.h"
 #include "third_party/blink/renderer/core/css/css_nested_declarations_rule.h"
 #include "third_party/blink/renderer/core/css/css_position_try_rule.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
@@ -107,7 +108,7 @@ String FindMagicComment(const String& content, const String& name) {
   wtf_size_t equal_sign_pos = 0;
   wtf_size_t closing_comment_pos = 0;
   while (true) {
-    pos = content.ReverseFind(name, pos);
+    pos = content.rfind(name, pos);
     if (pos == kNotFound) {
       return g_empty_string;
     }
@@ -151,15 +152,12 @@ String FindMagicComment(const String& content, const String& name) {
                      ? content.Substring(url_pos, closing_comment_pos - url_pos)
                      : content.Substring(url_pos);
 
-  wtf_size_t new_line = match.find("\n");
-  if (new_line != kNotFound) {
-    match = match.Substring(0, new_line);
-  }
+  match = match.substr(0, match.find('\n'));
   match = match.StripWhiteSpace();
 
-  String disallowed_chars("\"' \t");
+  const StringView disallowed_chars("\"' \t");
   for (uint32_t i = 0; i < match.length(); ++i) {
-    if (disallowed_chars.find(match[i]) != kNotFound) {
+    if (disallowed_chars.contains(match[i])) {
       return g_empty_string;
     }
   }
@@ -470,6 +468,46 @@ bool VerifySupportsText(Document* document, const String& supports_text) {
   return true;
 }
 
+bool VerifyNavigationText(Document* document, const String& navigation_text) {
+  DEFINE_STATIC_LOCAL(String, bogus_property_name, ("-webkit-boguz-propertee"));
+  auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(
+      ParserContextForDocument(document));
+  CSSRuleSourceDataList source_data;
+  String text = StrCat({"@navigation ", navigation_text, " { div { ",
+                        bogus_property_name, ": none; } }"});
+  InspectorCSSParserObserver observer(text, document, &source_data);
+  CSSParser::ParseSheetForInspector(ParserContextForDocument(document),
+                                    style_sheet, text, observer);
+
+  // Exactly one navigation rule should be parsed.
+  unsigned rule_count = source_data.size();
+  if (rule_count != 1 || source_data.at(0)->type != StyleRule::kNavigation) {
+    return false;
+  }
+
+  // Navigation rule should have exactly one style rule child.
+  CSSRuleSourceDataList& child_source_data = source_data.at(0)->child_rules;
+  rule_count = child_source_data.size();
+  if (rule_count != 1 || !child_source_data.at(0)->HasProperties()) {
+    return false;
+  }
+
+  // Exactly one property should be in style rule.
+  Vector<CSSPropertySourceData>& property_data =
+      child_source_data.at(0)->property_data;
+  unsigned property_count = property_data.size();
+  if (property_count != 1) {
+    return false;
+  }
+
+  // Check for the property name.
+  if (property_data.at(0).name != bogus_property_name) {
+    return false;
+  }
+
+  return true;
+}
+
 bool VerifyScopeText(Document* document, const String& scope_text) {
   DEFINE_STATIC_LOCAL(String, bogus_property_name, ("-webkit-boguz-propertee"));
   auto* style_sheet = MakeGarbageCollected<StyleSheetContents>(
@@ -535,6 +573,7 @@ void FlattenSourceData(const CSSRuleSourceDataList& data_list,
       case StyleRule::kLayerBlock:
       case StyleRule::kProperty:
       case StyleRule::kStartingStyle:
+      case StyleRule::kNavigation:
         result->push_back(data);
         FlattenSourceData(data->child_rules, result);
         break;
@@ -595,6 +634,10 @@ CSSRuleList* AsCSSRuleList(CSSRule* rule) {
     return font_feature_values_rule->cssRules();
   }
 
+  if (auto* navigation_rule = DynamicTo<CSSNavigationRule>(rule)) {
+    return navigation_rule->cssRules();
+  }
+
   return nullptr;
 }
 
@@ -629,6 +672,7 @@ void CollectFlatRules(RuleList rule_list, CSSRuleVector* result) {
       case CSSRule::kLayerBlockRule:
       case CSSRule::kPropertyRule:
       case CSSRule::kStartingStyleRule:
+      case CSSRule::kNavigationRule:
         result->push_back(rule);
         CollectFlatRules(AsCSSRuleList(rule), result);
         break;
@@ -807,7 +851,7 @@ bool InspectorStyle::CheckRegisteredPropertySyntaxWithVarSubstitution(
   if (!document) {
     return false;
   }
-  if (!property.name.StartsWith("--")) {
+  if (!property.name.starts_with("--")) {
     return false;
   }
   const PropertyRegistry* registry = document->GetPropertyRegistry();
@@ -979,10 +1023,9 @@ std::unique_ptr<protocol::Array<protocol::CSS::CSSProperty>>
 InspectorStyle::LonghandProperties(
     const CSSPropertySourceData& property_entry) {
   DCHECK(style_);
-  String property_value = property_entry.value;
+  StringView property_value = property_entry.value;
   if (property_entry.important) {
-    property_value = property_value.Substring(
-        0, property_value.length() - 10 /* length of "!important" */);
+    property_value.remove_suffix(10 /* length of "!important" */);
   }
   CSSParserTokenStream stream(property_value);
   stream.EnsureLookAhead();  // Several parsers expect this.
@@ -998,8 +1041,8 @@ InspectorStyle::LonghandProperties(
     return nullptr;
   }
   auto local_context =
-      CSSParserLocalContext::CreateWithoutPropertyForInspector()
-          .WithCurrentShorthand(property_id);
+      CSSParserLocalContext::CreateWithoutPropertyForInspector();
+  local_context.SetCurrentShorthand(property_id);
   HeapVector<CSSPropertyValue, 64> longhand_properties;
   if (To<Shorthand>(property).ParseShorthand(
           property_entry.important, stream,
@@ -1342,7 +1385,7 @@ CSSRule* InspectorStyleSheet::SetStyleText(
     auto old_suffix = text_.Substring(
         range.end, parent_source_data->rule_body_range.end - range.end);
 
-    if (!(old_prefix.EndsWith("{") && old_suffix.StartsWith("}"))) {
+    if (!(old_prefix.ends_with('{') && old_suffix.starts_with('}'))) {
       exception_state.ThrowDOMException(
           DOMExceptionCode::kSyntaxError,
           "Source range didn't match existing style source range");
@@ -1527,6 +1570,47 @@ CSSSupportsRule* InspectorStyleSheet::SetSupportsRuleText(
   OnStyleSheetTextChanged();
 
   return supports_rule;
+}
+
+CSSNavigationRule* InspectorStyleSheet::SetNavigationRuleText(
+    const SourceRange& range,
+    const String& text,
+    SourceRange* new_range,
+    String* old_text,
+    ExceptionState& exception_state) {
+  if (!VerifyNavigationText(page_style_sheet_->OwnerDocument(), text)) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kSyntaxError,
+        "Selector or navigation rule text is not valid.");
+    return nullptr;
+  }
+
+  CSSRuleSourceData* source_data = FindRuleByHeaderRange(range);
+  if (!source_data || !source_data->HasNavigation()) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kNotFoundError,
+        "Source range didn't match existing source range");
+    return nullptr;
+  }
+
+  CSSRule* rule = RuleForSourceData(source_data);
+  if (!rule || !rule->parentStyleSheet() ||
+      rule->GetType() != CSSRule::kNavigationRule) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kNotFoundError,
+        "Navigation source range didn't match existing source range");
+    return nullptr;
+  }
+
+  CSSNavigationRule* navigation_rule =
+      InspectorCSSAgent::AsCSSNavigationRule(rule);
+  navigation_rule->SetConditionText(
+      page_style_sheet_->OwnerDocument()->GetExecutionContext(), text);
+
+  ReplaceText(source_data->rule_header_range, text, new_range, old_text);
+  OnStyleSheetTextChanged();
+
+  return navigation_rule;
 }
 
 CSSScopeRule* InspectorStyleSheet::SetScopeRuleText(
@@ -1870,7 +1954,7 @@ void InspectorStyleSheet::ParseText(const String& text) {
     if (property_registry) {
       for (const auto& rule_source_data : *source_data_) {
         for (auto& property_source_data : rule_source_data->property_data) {
-          if (!property_source_data.name.StartsWith("--") ||
+          if (!property_source_data.name.starts_with("--") ||
               !property_source_data.parsed_ok) {
             continue;
           }
@@ -2177,7 +2261,7 @@ InspectorStyleSheet::BuildObjectForRuleUsage(CSSRule* rule, bool was_used) {
   auto type = rule->GetType();
   if (type == CSSRule::kMediaRule || type == CSSRule::kSupportsRule ||
       type == CSSRule::kScopeRule || type == CSSRule::kContainerRule ||
-      type == CSSRule::kStartingStyleRule) {
+      type == CSSRule::kStartingStyleRule || type == CSSRule::kNavigationRule) {
     whole_rule_range.end = source_data->rule_header_range.end + 1;
   }
 

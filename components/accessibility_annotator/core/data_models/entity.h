@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_ACCESSIBILITY_ANNOTATOR_CORE_DATA_MODELS_ENTITY_H_
 #define COMPONENTS_ACCESSIBILITY_ANNOTATOR_CORE_DATA_MODELS_ENTITY_H_
 
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -15,13 +16,21 @@
 
 namespace accessibility_annotator {
 
-struct Flight {
-  Flight();
-  ~Flight();
-  Flight(const Flight& other);
-  Flight(Flight&& other);
-  Flight& operator=(const Flight& other);
-  Flight& operator=(Flight&& other);
+struct Date {
+  friend bool operator==(const Date&, const Date&) = default;
+
+  int day = 0;
+  int month = 0;
+  int year = 0;
+};
+
+struct FlightReservation {
+  FlightReservation();
+  FlightReservation(const FlightReservation& other);
+  FlightReservation(FlightReservation&& other);
+  FlightReservation& operator=(const FlightReservation& other);
+  FlightReservation& operator=(FlightReservation&& other);
+  ~FlightReservation();
 
   std::string flight_number;
   std::string ticket_number;
@@ -30,16 +39,17 @@ struct Flight {
   std::string departure_airport;
   std::string arrival_airport;
   base::Time departure_date;
+  base::Time arrival_date;
 };
 
 struct Order {
   struct ItemDescription {
     ItemDescription();
-    ~ItemDescription();
     ItemDescription(const ItemDescription& other);
     ItemDescription(ItemDescription&& other);
     ItemDescription& operator=(const ItemDescription& other);
     ItemDescription& operator=(ItemDescription&& other);
+    ~ItemDescription();
 
     std::string name;
     int quantity = 0;
@@ -47,15 +57,15 @@ struct Order {
   };
 
   Order();
-  ~Order();
   Order(const Order& other);
   Order(Order&& other);
   Order& operator=(const Order& other);
   Order& operator=(Order&& other);
+  ~Order();
 
   std::string id;
   std::string account;
-  base::Time order_date;
+  std::optional<Date> order_date;
   std::string merchant_name;
   GURL merchant_domain;
   std::vector<ItemDescription> products;
@@ -64,75 +74,97 @@ struct Order {
 
 struct Shipment {
   Shipment();
-  ~Shipment();
   Shipment(const Shipment& other);
   Shipment(Shipment&& other);
   Shipment& operator=(const Shipment& other);
   Shipment& operator=(Shipment&& other);
+  ~Shipment();
 
   std::string tracking_number;
   std::string associated_order_id;
   std::string delivery_address;
   std::string carrier_name;
   GURL carrier_domain;
+  std::optional<Date> estimated_delivery_date;
 };
 
-struct DriverLicense {
-  DriverLicense();
-  ~DriverLicense();
-  DriverLicense(const DriverLicense& other);
-  DriverLicense(DriverLicense&& other);
-  DriverLicense& operator=(const DriverLicense& other);
-  DriverLicense& operator=(DriverLicense&& other);
+struct DriversLicense {
+  DriversLicense();
+  DriversLicense(const DriversLicense& other);
+  DriversLicense(DriversLicense&& other);
+  DriversLicense& operator=(const DriversLicense& other);
+  DriversLicense& operator=(DriversLicense&& other);
+  ~DriversLicense();
 
   std::string name;
   std::string number;
-  base::Time expiration_date;
-  base::Time issue_date;
-  std::string country;
-  std::string region;
+  std::optional<Date> expiration_date;
+  std::optional<Date> issue_date;
+  std::string state;
 };
 
 struct Passport {
   Passport();
-  ~Passport();
   Passport(const Passport& other);
   Passport(Passport&& other);
   Passport& operator=(const Passport& other);
   Passport& operator=(Passport&& other);
+  ~Passport();
 
   std::string name;
   std::string number;
-  base::Time expiration_date;
-  base::Time issue_date;
+  std::optional<Date> expiration_date;
+  std::optional<Date> issue_date;
   std::string issuing_country;
 };
 
 struct NationalId {
   NationalId();
-  ~NationalId();
   NationalId(const NationalId& other);
   NationalId(NationalId&& other);
   NationalId& operator=(const NationalId& other);
   NationalId& operator=(NationalId&& other);
+  ~NationalId();
 
   std::string name;
   std::string number;
-  base::Time expiration_date;
-  base::Time issue_date;
+  std::optional<Date> expiration_date;
+  std::optional<Date> issue_date;
   std::string issuing_country;
 };
 
+struct Vehicle {
+  Vehicle();
+  Vehicle(const Vehicle& other);
+  Vehicle(Vehicle&& other);
+  Vehicle& operator=(const Vehicle& other);
+  Vehicle& operator=(Vehicle&& other);
+  ~Vehicle();
+
+  std::string make;
+  std::string model;
+  std::string year;
+  std::string owner;
+  std::string plate_number;
+  std::string plate_state;
+  std::string vin;
+};
+
 struct Entity {
-  using EntitySpecifics = std::
-      variant<Flight, Order, Shipment, DriverLicense, Passport, NationalId>;
+  using EntitySpecifics = std::variant<FlightReservation,
+                                       Order,
+                                       Shipment,
+                                       DriversLicense,
+                                       Passport,
+                                       NationalId,
+                                       Vehicle>;
 
   Entity();
-  ~Entity();
   Entity(const Entity& other);
   Entity(Entity&& other);
   Entity& operator=(const Entity& other);
   Entity& operator=(Entity&& other);
+  ~Entity();
 
   // Returns the type of the entity.
   EntityType GetType() const;

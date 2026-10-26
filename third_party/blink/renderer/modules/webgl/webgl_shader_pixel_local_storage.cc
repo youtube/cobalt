@@ -107,7 +107,8 @@ void WebGLShaderPixelLocalStorage::framebufferTexturePixelLocalStorageWEBGL(
     GLint plane,
     WebGLTexture* texture,
     GLint level,
-    GLint layer) {
+    GLint layer,
+    GLbitfield usage) {
   WebGLExtensionScopedContext scoped(this);
   if (scoped.IsLost()) {
     return;
@@ -125,7 +126,7 @@ void WebGLShaderPixelLocalStorage::framebufferTexturePixelLocalStorageWEBGL(
     return;
   }
   context->ContextGL()->FramebufferTexturePixelLocalStorageANGLE(
-      plane, ObjectOrZero(texture), level, layer);
+      plane, ObjectOrZero(texture), level, layer, usage);
   framebuffer->SetPLSTexture(plane, texture);
 }
 
@@ -256,7 +257,7 @@ WebGLShaderPixelLocalStorage::getFramebufferPixelLocalStorageParameterWEBGL(
   }
   gpu::gles2::GLES2Interface* gl = context->ContextGL();
   switch (pname) {
-    case GL_PIXEL_LOCAL_FORMAT_ANGLE: {
+    case GL_PIXEL_LOCAL_INTERNAL_FORMAT_ANGLE: {
       GLint value{};
       gl->GetFramebufferPixelLocalStorageParameterivANGLE(plane, pname, &value);
       return WebGLAny(script_state, static_cast<GLenum>(value));
@@ -274,7 +275,8 @@ WebGLShaderPixelLocalStorage::getFramebufferPixelLocalStorageParameterWEBGL(
       return WebGLAny(script_state, tex);
     }
     case GL_PIXEL_LOCAL_TEXTURE_LEVEL_ANGLE:
-    case GL_PIXEL_LOCAL_TEXTURE_LAYER_ANGLE: {
+    case GL_PIXEL_LOCAL_TEXTURE_LAYER_ANGLE:
+    case GL_PIXEL_LOCAL_USAGE_ANGLE: {
       GLint value{};
       gl->GetFramebufferPixelLocalStorageParameterivANGLE(plane, pname, &value);
       return WebGLAny(script_state, value);

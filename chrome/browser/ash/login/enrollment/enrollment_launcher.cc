@@ -235,7 +235,10 @@ void EnrollmentLauncherImpl::RevokeOAuth2Tokens() {
   if (oauth_status_ == OAUTH_NOT_STARTED) {
     return;
   }
-  OAuth2TokenRevoker token_revoker;
+
+  // TODO(crbug.com/404133029): Avoid using g_browser_process.
+  OAuth2TokenRevoker token_revoker(
+      g_browser_process->shared_url_loader_factory());
   if (oauth_fetcher_) {
     if (!oauth_fetcher_->OAuth2AccessToken().empty()) {
       token_revoker.Start(oauth_fetcher_->OAuth2AccessToken());
@@ -481,6 +484,9 @@ void EnrollmentLauncherImpl::ReportAuthStatus(
       UMA(policy::kMetricEnrollmentNetworkFailed);
       LOG(WARNING) << "Network error " << error.state();
       break;
+    case GoogleServiceAuthError::DEVICE_MANAGEMENT_ERROR:
+      // DEVICE_MANAGEMENT_ERROR is not supported on ChromeOS.
+      NOTREACHED();
     case GoogleServiceAuthError::NUM_STATES:
       NOTREACHED();
   }

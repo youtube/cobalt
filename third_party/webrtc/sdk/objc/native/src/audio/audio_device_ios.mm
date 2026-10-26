@@ -15,8 +15,8 @@
 
 #include <mach/mach_time.h>
 #include <cmath>
+#include <span>
 
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "helpers.h"
@@ -530,8 +530,8 @@ OSStatus AudioDeviceIOS::OnGetPlayoutData(AudioUnitRenderActionFlags* flags,
   // the native I/O audio unit) and copy the result to the audio buffer in the
   // `io_data` destination.
   fine_audio_buffer_->GetPlayoutData(
-      webrtc::ArrayView<int16_t>(static_cast<int16_t*>(audio_buffer->mData),
-                                 num_frames),
+      std::span<int16_t>(static_cast<int16_t*>(audio_buffer->mData),
+                         num_frames),
       playout_delay_ms);
 
   last_hw_output_latency_update_sample_count_ += num_frames;

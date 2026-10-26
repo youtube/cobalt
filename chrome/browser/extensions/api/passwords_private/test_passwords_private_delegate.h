@@ -95,6 +95,8 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
   bool UnmuteInsecureCredential(
       const api::passwords_private::PasswordUiEntry& credential) override;
   void StartPasswordCheck(StartPasswordCheckCallback callback) override;
+  void StartPasswordChange(int credential_id,
+                           content::WebContents* web_contents) override;
   api::passwords_private::PasswordCheckStatus GetPasswordCheckStatus() override;
   password_manager::InsecureCredentialsManager* GetInsecureCredentialsManager()
       override;
@@ -116,6 +118,7 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
       base::OnceCallback<void(bool)> success_callback) override;
   bool IsConnectedToCloudAuthenticator(
       content::WebContents* web_contents) override;
+  password_manager::ActionableError GetActionableError() override;
   void DeleteAllPasswordManagerData(
       content::WebContents* web_contents,
       base::OnceCallback<void(bool)> success_callback) override;
@@ -125,6 +128,7 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
   void SetProfile(Profile* profile);
   void SetAccountStorageEnabled(bool enabled);
   void SetShouldShowAccountStorageSettingToggle(bool enabled);
+  void SetActionableError(password_manager::ActionableError error);
   void AddCompromisedCredential(int id);
   void SetSavedPasswordsPresenter(
       std::unique_ptr<password_manager::SavedPasswordsPresenter> presenter);
@@ -181,6 +185,10 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
 
   bool remove_backup_password() const { return remove_backup_password_; }
 
+  bool start_password_change_called() const {
+    return start_password_change_called_;
+  }
+
  protected:
   ~TestPasswordsPrivateDelegate() override;
 
@@ -214,6 +222,9 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
   bool is_account_storage_enabled_ = false;
 
   bool should_show_account_storage_setting_toggle_ = false;
+
+  password_manager::ActionableError actionable_error_ =
+      password_manager::ActionableError::kNoError;
 
   // Flags for detecting whether password sharing operations have been invoked.
   bool fetch_family_members_triggered_ = false;
@@ -256,6 +267,9 @@ class TestPasswordsPrivateDelegate : public PasswordsPrivateDelegate {
 
   // Used to track whether `RemoveBackupPassword` was called.
   bool remove_backup_password_ = false;
+
+  // Used to track whether `StartPasswordChange` was called.
+  bool start_password_change_called_ = false;
 
   std::unique_ptr<password_manager::SavedPasswordsPresenter>
       saved_passwords_presenter_;

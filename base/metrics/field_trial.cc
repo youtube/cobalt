@@ -40,18 +40,6 @@
 #include "base/process/launch.h"
 #endif
 
-#if BUILDFLAG(IS_APPLE) && BUILDFLAG(USE_BLINK) && !BUILDFLAG(IS_IOS_TVOS)
-#include "base/apple/mach_port_rendezvous.h"
-#endif
-
-#if BUILDFLAG(IS_POSIX) && BUILDFLAG(USE_BLINK)
-#include <unistd.h>  // For getppid().
-
-#include "base/threading/platform_thread.h"
-// On POSIX, the fd is shared using the mapping in GlobalDescriptors.
-#include "base/posix/global_descriptors.h"
-#endif
-
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
 #endif
@@ -91,11 +79,6 @@ const char kAllocatorName[] = "FieldTrialAllocator";
 // child processes, leading to an inconsistent view between browser and child
 // processes and possibly causing crashes (see crbug.com/661617).
 const size_t kFieldTrialAllocationSize = 256 << 10;  // 256 KiB
-
-#if BUILDFLAG(IS_APPLE) && BUILDFLAG(USE_BLINK)
-using shared_memory::SharedMemoryMachPortRendezvousKey;
-constexpr SharedMemoryMachPortRendezvousKey kFieldTrialRendezvousKey = 'fldt';
-#endif
 
 // Writes out string1 and then string2 to pickle.
 void WriteStringPair(Pickle* pickle,
@@ -665,15 +648,13 @@ void FieldTrialList::CreateTrialsInChildProcess(const CommandLine& cmd_line) {
   global_->create_trials_in_child_process_called_ = true;
 
 #if BUILDFLAG(USE_BLINK)
-  // TODO(crbug.com/41403903): Change to a CHECK.
-  if (cmd_line.HasSwitch(switches::kFieldTrialHandle)) {
-    std::string switch_value =
-        cmd_line.GetSwitchValueASCII(switches::kFieldTrialHandle);
-    SharedMemoryError result = CreateTrialsFromSwitchValue(switch_value);
-    SCOPED_CRASH_KEY_NUMBER("FieldTrialList", "SharedMemoryError",
-                            static_cast<int>(result));
-    CHECK_EQ(result, SharedMemoryError::kNoError);
-  }
+  std::string switch_value =
+      cmd_line.GetSwitchValueASCII(switches::kFieldTrialHandle);
+  CHECK(!switch_value.empty(), base::NotFatalUntil::M150);
+  SharedMemoryError result = CreateTrialsFromSwitchValue(switch_value);
+  SCOPED_CRASH_KEY_NUMBER("FieldTrialList", "SharedMemoryError",
+                          static_cast<int>(result));
+  CHECK_EQ(result, SharedMemoryError::kNoError);
 #endif  // BUILDFLAG(USE_BLINK)
 }
 
@@ -681,19 +662,14 @@ void FieldTrialList::CreateTrialsInChildProcess(const CommandLine& cmd_line) {
 void FieldTrialList::ApplyFeatureOverridesInChildProcess(
     FeatureList* feature_list) {
   CHECK(global_->create_trials_in_child_process_called_);
-  // TODO(crbug.com/41403903): Change to a CHECK.
-  if (global_->field_trial_allocator_) {
-    feature_list->InitFromSharedMemory(global_->field_trial_allocator_.get());
-  }
+  CHECK(global_->field_trial_allocator_, base::NotFatalUntil::M150);
+  feature_list->InitFromSharedMemory(global_->field_trial_allocator_.get());
 }
 
 #if BUILDFLAG(USE_BLINK)
 // static
 void FieldTrialList::PopulateLaunchOptionsWithFieldTrialState(
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
-    GlobalDescriptors::Key descriptor_key,
-    ScopedFD& descriptor_to_share,
-#endif
+    shared_memory::SharedMemorySwitch* shared_memory_switch,
     CommandLine* command_line,
     LaunchOptions* launch_options) {
   CHECK(command_line);
@@ -705,14 +681,8 @@ void FieldTrialList::PopulateLaunchOptionsWithFieldTrialState(
   CHECK(global_->readonly_allocator_region_.IsValid());
 
   global_->field_trial_allocator_->UpdateTrackingHistograms();
-  shared_memory::AddToLaunchParameters(switches::kFieldTrialHandle,
-                                       global_->readonly_allocator_region_,
-#if BUILDFLAG(IS_APPLE)
-                                       kFieldTrialRendezvousKey,
-#elif BUILDFLAG(IS_POSIX)
-                                       descriptor_key, descriptor_to_share,
-#endif
-                                       command_line, launch_options);
+  shared_memory_switch->AddToLaunchParameters(
+      global_->readonly_allocator_region_, command_line, launch_options);
 
   // Append --enable-features and --disable-features switches corresponding
   // to the features enabled on the command-line, so that child and browser

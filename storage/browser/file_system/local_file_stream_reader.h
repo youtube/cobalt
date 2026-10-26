@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "base/byte_size.h"
 #include "base/component_export.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
@@ -16,10 +17,12 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "base/types/expected.h"
 #include "base/types/pass_key.h"
 #include "components/file_access/scoped_file_access.h"
 #include "components/file_access/scoped_file_access_delegate.h"
 #include "net/base/completion_once_callback.h"
+#include "net/base/net_errors.h"
 #include "storage/browser/file_system/file_stream_reader.h"
 
 namespace base {
@@ -51,7 +54,7 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) LocalFileStreamReader
   int Read(net::IOBuffer* buf,
            int buf_len,
            net::CompletionOnceCallback callback) override;
-  int64_t GetLength(net::Int64CompletionOnceCallback callback) override;
+  int64_t GetLength(GetLengthCallback callback) override;
 
  private:
   void Open(net::CompletionOnceCallback callback);
@@ -62,17 +65,17 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) LocalFileStreamReader
       file_access::ScopedFileAccess scoped_file_access);
   void DidVerifyForOpen(net::CompletionOnceCallback callback,
                         file_access::ScopedFileAccess scoped_file_access,
-                        int64_t get_length_result);
+                        base::expected<int64_t, net::Error> get_length_result);
   void DidOpenFileStream(file_access::ScopedFileAccess /*scoped_file_access*/,
-                         int result);
-  void DidSeekFileStream(int64_t seek_result);
+                         net::Error result);
+  void DidSeekFileStream(base::expected<int64_t, net::Error> seek_result);
   void DidOpenForRead(net::IOBuffer* buf,
                       int buf_len,
                       net::CompletionOnceCallback callback,
                       int open_result);
-  void OnRead(int read_result);
+  void OnRead(base::expected<base::ByteSize, net::Error> read_result);
 
-  void DidGetFileInfoForGetLength(net::Int64CompletionOnceCallback callback,
+  void DidGetFileInfoForGetLength(GetLengthCallback callback,
                                   base::FileErrorOr<base::File::Info> result);
 
   net::CompletionOnceCallback callback_;

@@ -77,6 +77,12 @@ constexpr const char kCurrentNodeInnerTextDictKey[] = "currentNodeInnerText";
 // array of objects.
 constexpr const char kChildrenFramesDictKey[] = "children";
 
+// The key for the PageInteractionInfo of the main frame.
+constexpr const char kPageInteractionInfoDictKey[] = "pageInteractionInfo";
+
+// The key for the ViewportGeometry of the main frame.
+constexpr const char kViewportGeometryDictKey[] = "viewportGeometry";
+
 // The key for the links of the frame in the JavaScript object. The value is
 // an array of objects.
 constexpr const char kFrameLinksDictKey[] = "links";
@@ -215,6 +221,9 @@ result.links = linksArray;
   // Whether the PageContext should be detached. Likely a protected page.
   BOOL _forceDetachPageContext;
 
+  // Whether the PageContext is not extractable.
+  BOOL _notExtractable;
+
   // The callback to execute once all async work is complete, whichs
   // relinquishes ownership of the PageContext proto to the callback's handler.
   base::OnceCallback<void(PageContextWrapperCallbackResponse)>
@@ -236,6 +245,9 @@ result.links = linksArray;
 
   // Whether the registration wait has completed or timed out.
   BOOL _registrationCompletedOrTimedOut;
+
+  // Enforces that execution only happens once.
+  BOOL _executionStarted;
 }
 
 - (instancetype)initWithWebState:(web::WebState*)webState
@@ -285,6 +297,9 @@ result.links = linksArray;
 }
 
 - (void)populatePageContextFieldsAsyncWithTimeout:(base::TimeDelta)timeout {
+  CHECK(!_executionStarted) << "A PageContextWrapper should only be used once.";
+  _executionStarted = YES;
+
   if (_isLowPriorityExtraction) {
     __weak PageContextWrapper* weakSelf = self;
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -393,17 +408,24 @@ result.links = linksArray;
 - (void)populateAsyncFields:(base::TimeDelta)timeout {
   CHECK_GE(_asyncTasksToComplete, 0);
   _pageContextMetrics = [[PageContextWrapperMetrics alloc] init];
+
+  if (!_webState || _asyncTasksToComplete == 0) {
+    [self asyncWorkCompletedForPageContext];
+    return;
+  }
+
+  if (!CanExtractPageContextForWebState(_webState.get())) {
+    _notExtractable = YES;
+    [self asyncWorkCompletedForPageContext];
+    return;
+  }
+
   __weak PageContextWrapper* weakSelf = self;
 
   // Start the timer.
   _timeoutTimer.Start(FROM_HERE, timeout, base::BindOnce(^{
                         [weakSelf onTimeout];
                       }));
-
-  if (_asyncTasksToComplete == 0 || !_webState) {
-    [self asyncWorkCompletedForPageContext];
-    return;
-  }
 
   // Use a `BarrierClosure` to ensure all async tasks are completed before
   // executing the overall completion callback. The BarrierClosure will wait
@@ -557,7 +579,6 @@ result.links = linksArray;
       }));
 
   std::string nonce = base::Token::CreateRandom().ToString();
-  bool includeAnchors = IsPageActionMenuEnabled();
 
   if (_config->use_refactored_extractor()) {
     // Use the new way for extracting context.
@@ -593,9 +614,11 @@ result.links = linksArray;
       annotatedPageContentBarrier.Run();
     } else {
       extractor_feature->ExtractPageContext(
-          mainFrame, includeAnchors,
-          _config->graft_cross_origin_frame_content(),
-          _config->use_rich_extraction(), nonce, js_timeout,
+          mainFrame, _config->graft_cross_origin_frame_content(),
+          _config->use_rich_extraction(),
+          _config->use_rich_extraction_with_actionable(),
+          _config->extract_paid_content(),
+          _config->attempt_paid_content_json_fixing(), nonce, js_timeout,
           base::BindOnce(
               callback, weakSelf, annotatedPageContentBarrier,
               /*isMainFrame=*/YES, mainFrame->GetSecurityOrigin(),
@@ -617,8 +640,11 @@ result.links = linksArray;
       }
 
       extractor_feature->ExtractPageContext(
-          webFrame, includeAnchors, _config->graft_cross_origin_frame_content(),
-          _config->use_rich_extraction(), nonce, js_timeout,
+          webFrame, _config->graft_cross_origin_frame_content(),
+          _config->use_rich_extraction(),
+          _config->use_rich_extraction_with_actionable(),
+          _config->extract_paid_content(),
+          _config->attempt_paid_content_json_fixing(), nonce, js_timeout,
           base::BindOnce(
               callback, weakSelf, annotatedPageContentBarrier,
               /*isMainFrame=*/NO, webFrame->GetSecurityOrigin(),
@@ -643,13 +669,11 @@ result.links = linksArray;
 
     // Construct the JavaScript script to be executed on each Web Frame with a
     // random token as nonce to differentiate between runs/executions.
-    std::u16string maybeAnchorTagsJavaScript =
-        IsPageActionMenuEnabled() ? kAnchorTagsJavaScript : u"";
     std::u16string script = base::ReplaceStringPlaceholders(
         kInnerTextTreeJavaScript,
         base::span<const std::u16string>(
             {ios::provider::GetPageContextShouldDetachScript(),
-             maybeAnchorTagsJavaScript, base::UTF8ToUTF16(nonce)}),
+             kAnchorTagsJavaScript, base::UTF8ToUTF16(nonce)}),
         nullptr);
 
     // TODO(crbug.com/452568673): Refactor the force detach logic.
@@ -712,6 +736,10 @@ result.links = linksArray;
   if (!_webState) {
     response = base::unexpected(PageContextWrapperError::kGenericError);
     completionStatus = PageContextCompletionStatus::kFailure;
+  } else if (_notExtractable) {
+    response =
+        base::unexpected(PageContextWrapperError::kPageNotExtractableError);
+    completionStatus = PageContextCompletionStatus::kNotExtractable;
   } else if (_forceDetachPageContext) {
     response = base::unexpected(PageContextWrapperError::kForceDetachError);
     completionStatus = PageContextCompletionStatus::kProtected;
@@ -722,13 +750,13 @@ result.links = linksArray;
   } else if (_shouldGetInnerText && !_pageContext->has_inner_text()) {
     response = base::unexpected(PageContextWrapperError::kInnerTextError);
     completionStatus = PageContextCompletionStatus::kFailure;
-  } else if (_shouldGetSnapshot && !_pageContext->has_tab_screenshot()) {
-    response = base::unexpected(PageContextWrapperError::kScreenshotError);
-    completionStatus = PageContextCompletionStatus::kFailure;
   } else if (_shouldGetFullPagePDF && !_pageContext->has_pdf_data()) {
     response = base::unexpected(PageContextWrapperError::kPDFDataError);
     completionStatus = PageContextCompletionStatus::kFailure;
   } else {
+    // TODO(crbug.com/483989948): Make screenshot failure blocking once
+    // 'aw, snap' snackbar is fixed.
+
     if (_config->graft_cross_origin_frame_content()) {
       // Place the remaining unclaimed remote frame content nodes as direct
       // children of the main frame node since they couldn't be grafted by
@@ -867,6 +895,20 @@ result.links = linksArray;
     // Main frame: Use the root node as the destination.
     destinationContentNode = _rootAPCNode->mutable_root_node();
     destinationFrameData = _rootAPCNode->mutable_main_frame_data();
+
+    // Populate DocumentIdentifier for the Main Frame. It is not provided from
+    // the renderer so we need to do it here.
+    autofill::RemoteFrameToken token = static_cast<autofill::RemoteFrameToken>(
+        base::UnguessableToken::Create());
+    destinationFrameData->mutable_document_identifier()->set_serialized_token(
+        token.ToString());
+
+    // Register the Main Frame token to allow lookups (e.g. for actions).
+    autofill::ChildFrameRegistrar* registrar = [self frameRegistrar];
+    if (registrar && localFrameToken) {
+      registrar->RegisterMapping(token, *localFrameToken);
+    }
+
   } else if (localFrameToken) {
     // Grafting possible: Use the content node directly from the grafter.
     FrameGrafter::FrameContent* content =
@@ -905,6 +947,23 @@ result.links = linksArray;
   if (frameDataValue) {
     PopulateFrameDataNode(*frameDataValue, securityOrigin,
                           destinationFrameData);
+  }
+
+  // Populate the page data extracted from the main frame.
+  if (isMainFrame) {
+    const base::DictValue* pageInteractionInfoValue =
+        value.FindDict(kPageInteractionInfoDictKey);
+    if (pageInteractionInfoValue) {
+      PopulatePageInteractionInfoNode(
+          *pageInteractionInfoValue,
+          _rootAPCNode->mutable_page_interaction_info());
+    }
+
+    if (const base::DictValue* viewportGeometryValue =
+            value.FindDict(kViewportGeometryDictKey)) {
+      PopulateViewportGeometryNode(*viewportGeometryValue,
+                                   _rootAPCNode->mutable_viewport_geometry());
+    }
   }
 }
 
@@ -1034,7 +1093,7 @@ result.links = linksArray;
       [self populateForRichExtractionWithValue:valueAsDict
                                 securityOrigin:securityOrigin
                                    isMainFrame:YES
-                               localFrameToken:std::nullopt];
+                               localFrameToken:localFrameToken];
     } else {
       [self populateMainFrameForLightExtractionWithValue:valueAsDict
                                           securityOrigin:securityOrigin];
@@ -1143,11 +1202,8 @@ result.links = linksArray;
                            parentNode:_rootAPCNode->mutable_root_node()];
 
   // Set its children anchor nodes.
-  if (IsPageActionMenuEnabled()) {
-    [self
-        populateAnchorNodeChildrenWithValue:value
+  [self populateAnchorNodeChildrenWithValue:value
                                  parentNode:_rootAPCNode->mutable_root_node()];
-  }
 }
 
 // Populate a ContentNode with a TextInfo node and its correct values.
@@ -1235,9 +1291,7 @@ result.links = linksArray;
                            parentNode:childRootNode];
 
   // Create the children anchor nodes.
-  if (IsPageActionMenuEnabled()) {
-    [self populateAnchorNodeChildrenWithValue:value parentNode:childRootNode];
-  }
+  [self populateAnchorNodeChildrenWithValue:value parentNode:childRootNode];
 
   // Recursively populate the ContentNode subtree for any children iframes.
   // Child frame content will either be filled immediately or claimed for

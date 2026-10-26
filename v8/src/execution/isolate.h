@@ -1000,6 +1000,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // them into `frame_data` and returns the number of frames written.
   size_t CurrentScriptIdsAndContexts(
       v8::MemorySpan<StackTrace::ScriptIdAndContext> frame_data);
+  // Walks the JS stack to find the first `frame_data.size()` frames and writes
+  // them into `frame_data` and returns the number of frames written.
+  size_t CurrentScriptData(v8::MemorySpan<StackTrace::ScriptData> frame_data);
 
   MaybeDirectHandle<Script> CurrentReferrerScript();
   bool GetStackTraceLimit(Isolate* isolate, int* result);
@@ -1771,7 +1774,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     }
   }
 
-  // ES#sec-async-module-execution-fulfilled step 10
+  // https://tc39.es/ecma262/#sec-async-module-execution-fulfilled step 10
   //
   // According to the spec, modules that depend on async modules (i.e. modules
   // with top-level await) must be evaluated in order in which their
@@ -2266,6 +2269,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return *isolate_data_.shared_trusted_pointer_table_;
   }
 
+  bool has_shared_trusted_pointer_table() const {
+    return isolate_data_.shared_trusted_pointer_table_ != nullptr;
+  }
+
   TrustedPointerTable::Space* shared_trusted_pointer_space() {
     return shared_trusted_pointer_space_;
   }
@@ -2369,11 +2376,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to, Address sp,
                     Address fp, Address pc);
 
-  // Retires the stack owned by {continuation}, to be called when returning or
-  // throwing from this continuation.
+  // Retires {stack}, to be called when returning or throwing from this
+  // stack.
   // This updates the {StackMemory} state, removes it from the global
-  // {wasm_stacks_} vector and nulls the EPT entry. This does not update the
-  // {ActiveContinuation} root or the stack limit.
+  // {wasm_stacks_} vector and clears the EPT entry of the {WasmStackObject}.
+  // This does not update the {ActiveContinuation} root or the stack limit.
   void RetireWasmStack(wasm::StackMemory* stack);
 #else
   bool IsOnCentralStack() { return true; }
@@ -2853,6 +2860,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   base::Mutex managed_ptr_destructors_mutex_;
   ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;
+  // This is only maintained by the shared-space isolate, otherwise it is
+  // always null.
+  ManagedPtrDestructor* shared_managed_ptr_destructors_head_ = nullptr;
 
   size_t total_regexp_code_generated_ = 0;
 

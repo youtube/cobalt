@@ -23,6 +23,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
@@ -583,13 +584,15 @@ public class TabContentManager {
         assert mNativeTabContentManager != 0;
         assert mSnapshotsEnabled;
 
-        if (tab.isHidden()) {
-            Callback.runNullSafe(callback, null);
-            return;
-        }
-
         long startTime = SystemClock.elapsedRealtime();
         if (tab.getNativePage() != null || isNativeViewShowing(tab)) {
+            // Native pages will have their views removed from the view hierarchy when hidden so
+            // capture will not work.
+            if (tab.isHidden()) {
+                Callback.runNullSafe(callback, null);
+                return;
+            }
+
             // If we use readbackNativeBitmap() with a downsampled scale and not saving it through
             // TabContentManagerJni.get().cacheTabWithBitmap(), the logic
             // of InvalidationAwareThumbnailProvider might prevent captureThumbnail() from getting
@@ -680,7 +683,20 @@ public class TabContentManager {
      * @param tabId The Id of the tab whose thumbnail is being removed.
      */
     public void removeTabThumbnail(int tabId) {
-        if (!mTabWindowManager.canTabThumbnailBeDeleted(tabId)) return;
+        removeTabThumbnail(tabId, /* forceRemoval= */ false);
+    }
+
+    /**
+     * Removes a thumbnail of the tab whose id is |tabId|.
+     *
+     * @param tabId The Id of the tab whose thumbnail is being removed.
+     * @param forceRemoval Whether to force the removal of the thumbnail even if the tab might be
+     *     archived.
+     */
+    public void removeTabThumbnail(int tabId, boolean forceRemoval) {
+        if (!forceRemoval && !mTabWindowManager.canTabThumbnailBeDeleted(tabId)) {
+            return;
+        }
 
         if (mNativeTabContentManager != 0) {
             TabContentManagerJni.get().removeTabThumbnail(mNativeTabContentManager, tabId);
@@ -721,15 +737,19 @@ public class TabContentManager {
 
         void captureThumbnail(
                 long nativeTabContentManager,
-                Object tab,
+                @JniType("TabAndroid*") Tab tab,
                 float thumbnailScale,
                 boolean returnBitmap,
                 Callback<@Nullable Bitmap> callback);
 
         void cacheTabWithBitmap(
-                long nativeTabContentManager, Object tab, Object bitmap, float thumbnailScale);
+                long nativeTabContentManager,
+                @JniType("TabAndroid*") Tab tab,
+                Bitmap bitmap,
+                float thumbnailScale);
 
-        void invalidateIfChanged(long nativeTabContentManager, int tabId, GURL url);
+        void invalidateIfChanged(
+                long nativeTabContentManager, int tabId, @JniType("GURL") GURL url);
 
         void updateVisibleIds(long nativeTabContentManager, int[] priority, int primaryTabId);
 

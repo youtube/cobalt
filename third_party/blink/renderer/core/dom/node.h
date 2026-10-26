@@ -97,7 +97,10 @@ using StaticNodeList = StaticNodeTypeList<Node>;
 class StyleChangeReasonForTracing;
 class TextVisitor;
 class V8UnionNodeOrStringOrTrustedScript;
+class V8UnionStringOrTrustedHTML;
 class V8UnionStringOrTrustedScript;
+class V8UnionSetHTMLOptionsOrTrustedParserOptions;
+class V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions;
 class WebPluginContainerImpl;
 
 struct PhysicalRect;
@@ -268,6 +271,24 @@ class CORE_EXPORT Node : public EventTarget {
   void remove(ExceptionState&);
   void remove();
 
+  void beforeHTML(const String& html,
+                  V8UnionSetHTMLOptionsOrTrustedParserOptions* options,
+                  ExceptionState&);
+  void beforeHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
+                        V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions*,
+                        ExceptionState&);
+  void afterHTML(const String& html,
+                 V8UnionSetHTMLOptionsOrTrustedParserOptions* options,
+                 ExceptionState&);
+  void afterHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
+                       V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions*,
+                       ExceptionState&);
+  void replaceWithHTML(const String& html,
+                       V8UnionSetHTMLOptionsOrTrustedParserOptions* options,
+                       ExceptionState&);
+  void replaceWithHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
+                             V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions*,
+                             ExceptionState&);
   // NonDocumentTypeChildNode interface. These functions are only actually
   // web-exposed on  interfaces that include NonDocumentTypeChildNode in their
   // idl.
@@ -323,7 +344,7 @@ class CORE_EXPORT Node : public EventTarget {
                      TextVisitor* visitor = nullptr,
                      unsigned int max_length = UINT_MAX) const;
   virtual void setTextContent(const String&);
-  V8UnionStringOrTrustedScript* textContentForBinding() const;
+  String textContentForBinding() const;
   virtual void setTextContentForBinding(
       const V8UnionStringOrTrustedScript* value,
       ExceptionState& exception_state);
@@ -1092,9 +1113,6 @@ class CORE_EXPORT Node : public EventTarget {
   void UnregisterScrollTimeline(ScrollTimeline*);
 
   // Defined in node-inl.h.
-  inline void AddDOMPart(Part& part);
-  inline void RemoveDOMPart(Part& part);
-  inline PartsList* GetDOMParts() const;
   inline DOMNodeId NodeID(base::PassKey<DOMNodeIds>) const;
   inline DOMNodeId& EnsureNodeID(base::PassKey<DOMNodeIds>);
 

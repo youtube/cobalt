@@ -15,6 +15,7 @@
 #include "ash/public/cpp/locale_update_controller.h"
 #include "ash/public/cpp/wallpaper/wallpaper_controller.h"
 #include "base/barrier_closure.h"
+#include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/containers/flat_set.h"
 #include "base/files/file_path.h"
@@ -44,8 +45,6 @@
 #include "chrome/browser/ash/login/demo_mode/demo_setup_controller.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/ash/system/system_tray_client_impl.h"
@@ -59,6 +58,7 @@
 #include "chromeos/ash/components/system/statistics_provider.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "components/account_manager_core/pref_names.h"
+#include "components/application_locale_storage/application_locale_storage.h"
 #include "components/language/core/browser/pref_names.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -145,50 +145,6 @@ std::string GetSwitchOrDefault(std::string_view switch_string,
     return command_line->GetSwitchValueASCII(switch_string);
   }
   return default_value;
-}
-
-// If the current locale is not the default one, ensure it is reverted to the
-// default when demo session restarts (i.e. user-selected locale is only allowed
-// to be used for a single session), unless the restart is triggered by the user
-// explicitly changing the locale. (e.g. if the current locale is de-de and the
-// user changes the locale to fr-fr from the system tray, when the demo session
-// restarts, the system doesn't revert to the default locale en-us, but instead,
-// goes to fr-fr as specified.
-void RestoreDefaultLocaleForNextSession() {
-  auto* user = user_manager::UserManager::Get()->GetActiveUser();
-  // Tests may not have an active user.
-  if (!user)
-    return;
-  if (!user->is_profile_created()) {
-    user->AddProfileCreatedObserver(
-        base::BindOnce(&RestoreDefaultLocaleForNextSession));
-    return;
-  }
-  Profile* profile = ProfileManager::GetActiveUserProfile();
-  DCHECK(profile);
-  const std::string current_locale =
-      profile->GetPrefs()->GetString(language::prefs::kApplicationLocale);
-  if (current_locale.empty()) {
-    LOG(WARNING) << "Current locale read from kApplicationLocale is empty!";
-    return;
-  }
-  const std::string default_locale =
-      g_browser_process->local_state()->GetString(
-          prefs::kDemoModeDefaultLocale);
-  if (default_locale.empty()) {
-    // If the default locale is uninitialized, consider the current locale to be
-    // the default. This is safe because users are not allowed to change the
-    // locale prior to introduction of this code.
-    g_browser_process->local_state()->SetString(prefs::kDemoModeDefaultLocale,
-                                                current_locale);
-    return;
-  }
-  if (current_locale != default_locale) {
-    // If the user has changed the locale, request to change it back (which will
-    // take effect when the session restarts).
-    profile->ChangeAppLocale(
-        default_locale, Profile::APP_LOCALE_CHANGED_VIA_DEMO_SESSION_REVERT);
-  }
 }
 
 // Returns the list of locales (and related info) supported by demo mode.
@@ -282,6 +238,29 @@ void TriggerLaunchDemoModeApp() {
   }
 }
 
+// Get country code and full name in current language pair sorted by their
+// full name in currently selected language.
+std::vector<CountryCodeAndFullNamePair> GetSortedCountryCodeAndNamePairList(
+    const std::string& application_locale) {
+  std::vector<CountryCodeAndFullNamePair> result;
+  for (const std::string country : demo_mode::kSupportedCountries) {
+    result.push_back({country, l10n_util::GetDisplayNameForCountry(
+                                   country, application_locale)});
+  }
+  UErrorCode error_code = U_ZERO_ERROR;
+  std::unique_ptr<icu::Collator> collator(
+      icu::Collator::createInstance(error_code));
+  DCHECK(U_SUCCESS(error_code));
+
+  std::sort(result.begin(), result.end(),
+            [&collator](const CountryCodeAndFullNamePair& pair1,
+                        const CountryCodeAndFullNamePair& pair2) {
+              return base::i18n::CompareString16WithCollator(
+                         *collator, pair1.country_name, pair2.country_name) < 0;
+            });
+  return result;
+}
+
 }  // namespace
 
 constexpr char DemoSession::kCountryNotSelectedId[];
@@ -301,7 +280,8 @@ std::string DemoSession::DemoConfigToString(
 }
 
 // static
-DemoSession::DemoModeConfig DemoSession::GetDemoConfig() {
+DemoSession::DemoModeConfig DemoSession::GetDemoConfig(
+    const PrefService& local_state) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   if (g_force_demo_config.has_value())
@@ -315,16 +295,10 @@ DemoSession::DemoModeConfig DemoSession::GetDemoConfig() {
     return DemoModeConfig::kOnline;
   }
 
-  const PrefService* prefs = g_browser_process->local_state();
-
-  // The testing browser process might not have local state.
-  if (!prefs)
-    return DemoModeConfig::kNone;
-
   // Demo mode config preference is set at the end of the demo setup after
   // device is enrolled.
   auto demo_config = DemoModeConfig::kNone;
-  int demo_config_pref = prefs->GetInteger(prefs::kDemoModeConfig);
+  int demo_config_pref = local_state.GetInteger(prefs::kDemoModeConfig);
   if (demo_config_pref >= static_cast<int>(DemoModeConfig::kNone) &&
       demo_config_pref <= static_cast<int>(DemoModeConfig::kLast)) {
     demo_config = static_cast<DemoModeConfig>(demo_config_pref);
@@ -351,7 +325,11 @@ void DemoSession::ResetDemoConfigForTesting() {
 }
 
 // static
-DemoSession* DemoSession::StartIfInDemoMode() {
+DemoSession* DemoSession::StartIfInDemoMode(
+    PrefService* local_state,
+    const ApplicationLocaleStorage* application_locale_storage,
+    scoped_refptr<component_updater::ComponentManagerAsh>
+        component_manager_ash) {
   if (!ash::demo_mode::IsDeviceInDemoMode()) {
     return nullptr;
   }
@@ -360,7 +338,8 @@ DemoSession* DemoSession::StartIfInDemoMode() {
     return g_demo_session;
 
   if (!g_demo_session)
-    g_demo_session = new DemoSession();
+    g_demo_session = new DemoSession(local_state, application_locale_storage,
+                                     std::move(component_manager_ash));
 
   g_demo_session->started_ = true;
   return g_demo_session;
@@ -457,21 +436,22 @@ bool DemoSession::ShouldShowAppInShelf(const std::string& app_id_or_package) {
 }
 
 // static
-base::ListValue DemoSession::GetCountryList() {
+base::ListValue DemoSession::GetCountryList(
+    PrefService& local_state,
+    const std::string& application_locale) {
   base::ListValue country_list;
   std::string region(GetDefaultRegion());
   bool country_selected = false;
 
   for (CountryCodeAndFullNamePair pair :
-       GetSortedCountryCodeAndNamePairList()) {
+       GetSortedCountryCodeAndNamePairList(application_locale)) {
     std::string country = pair.country_id;
     base::DictValue dict;
     dict.Set("value", country);
     dict.Set("title", pair.country_name);
     if (country == region) {
       dict.Set("selected", true);
-      g_browser_process->local_state()->SetString(prefs::kDemoModeCountry,
-                                                  country);
+      local_state.SetString(prefs::kDemoModeCountry, country);
       country_selected = true;
     } else {
       dict.Set("selected", false);
@@ -493,8 +473,11 @@ base::ListValue DemoSession::GetCountryList() {
 }
 
 void DemoSession::EnsureResourcesLoaded(base::OnceClosure load_callback) {
-  if (!components_)
-    components_ = std::make_unique<DemoComponents>(GetDemoConfig());
+  if (!components_) {
+    components_ = std::make_unique<DemoComponents>(
+        &local_state_.get(), component_manager_ash_,
+        GetDemoConfig(local_state_.get()));
+  }
   components_->LoadResourcesComponent(std::move(load_callback));
 }
 
@@ -525,13 +508,21 @@ void DemoSession::ActiveUserChanged(user_manager::User* active_user) {
   active_user->AddProfileCreatedObserver(hide_web_store_icon);
 }
 
-DemoSession::DemoSession()
-    : ignore_pin_policy_offline_apps_(GetIgnorePinPolicyApps()),
+DemoSession::DemoSession(
+    PrefService* local_state,
+    const ApplicationLocaleStorage* application_locale_storage,
+    scoped_refptr<component_updater::ComponentManagerAsh> component_manager_ash)
+    : local_state_(CHECK_DEREF(local_state)),
+      application_locale_storage_(CHECK_DEREF(application_locale_storage)),
+      component_manager_ash_(std::move(component_manager_ash)),
+      ignore_pin_policy_offline_apps_(GetIgnorePinPolicyApps()),
       remove_splash_screen_fallback_timer_(
           std::make_unique<base::OneShotTimer>()),
       blocking_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_BLOCKING,
            base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN})) {
+  CHECK(component_manager_ash_);
+
   // SessionManager may be unset in unit tests.
   if (session_manager::SessionManager::Get()) {
     session_manager_observation_.Observe(
@@ -548,27 +539,7 @@ DemoSession::~DemoSession() {
   user_manager::UserManager::Get()->RemoveSessionStateObserver(this);
 }
 
-std::vector<CountryCodeAndFullNamePair>
-DemoSession::GetSortedCountryCodeAndNamePairList() {
-  const std::string current_locale = g_browser_process->GetApplicationLocale();
-  std::vector<CountryCodeAndFullNamePair> result;
-  for (const std::string country : demo_mode::kSupportedCountries) {
-    result.push_back({country, l10n_util::GetDisplayNameForCountry(
-                                   country, current_locale)});
-  }
-  UErrorCode error_code = U_ZERO_ERROR;
-  std::unique_ptr<icu::Collator> collator(
-      icu::Collator::createInstance(error_code));
-  DCHECK(U_SUCCESS(error_code));
-
-  std::sort(result.begin(), result.end(),
-            [&collator](const CountryCodeAndFullNamePair& pair1,
-                        const CountryCodeAndFullNamePair& pair2) {
-              return base::i18n::CompareString16WithCollator(
-                         *collator, pair1.country_name, pair2.country_name) < 0;
-            });
-  return result;
-}
+// static
 
 void DemoSession::InstallDemoResources() {
   DCHECK(components_->resources_component_loaded());
@@ -643,7 +614,9 @@ void DemoSession::OnSessionStateChanged() {
 
       // Download/update the Demo app component during session startup
       if (!components_) {
-        components_ = std::make_unique<DemoComponents>(GetDemoConfig());
+        components_ = std::make_unique<DemoComponents>(
+            &local_state_.get(), component_manager_ash_,
+            GetDemoConfig(local_state_.get()));
       }
 
       // Create the window closer.
@@ -749,7 +722,7 @@ void DemoSession::ShowSplashScreen(base::FilePath image_path) {
 }
 
 void DemoSession::ConfigureAndStartSplashScreen() {
-  const std::string current_locale = g_browser_process->GetApplicationLocale();
+  const std::string current_locale = application_locale_storage_->Get();
   base::FilePath localized_image_path = components_->resources_component_path()
                                             .Append(kSplashScreensPath)
                                             .Append(current_locale + ".jpg");
@@ -778,6 +751,50 @@ void DemoSession::RemoveSplashScreen() {
   ash::WallpaperController::Get()->RemoveOverrideWallpaper();
   remove_splash_screen_fallback_timer_.reset();
   splash_screen_activated_ = false;
+}
+
+// If the current locale is not the default one, ensure it is reverted to the
+// default when demo session restarts (i.e. user-selected locale is only allowed
+// to be used for a single session), unless the restart is triggered by the user
+// explicitly changing the locale. (e.g. if the current locale is de-de and the
+// user changes the locale to fr-fr from the system tray, when the demo session
+// restarts, the system doesn't revert to the default locale en-us, but instead,
+// goes to fr-fr as specified.
+void DemoSession::RestoreDefaultLocaleForNextSession() {
+  auto* user = user_manager::UserManager::Get()->GetActiveUser();
+  // Tests may not have an active user.
+  if (!user) {
+    return;
+  }
+  if (!user->is_profile_created()) {
+    user->AddProfileCreatedObserver(
+        base::BindOnce(&DemoSession::RestoreDefaultLocaleForNextSession,
+                       weak_ptr_factory_.GetWeakPtr()));
+    return;
+  }
+  Profile* profile = ProfileManager::GetActiveUserProfile();
+  DCHECK(profile);
+  const std::string current_locale =
+      profile->GetPrefs()->GetString(language::prefs::kApplicationLocale);
+  if (current_locale.empty()) {
+    LOG(WARNING) << "Current locale read from kApplicationLocale is empty!";
+    return;
+  }
+  const std::string default_locale =
+      local_state_->GetString(prefs::kDemoModeDefaultLocale);
+  if (default_locale.empty()) {
+    // If the default locale is uninitialized, consider the current locale to be
+    // the default. This is safe because users are not allowed to change the
+    // locale prior to introduction of this code.
+    local_state_->SetString(prefs::kDemoModeDefaultLocale, current_locale);
+    return;
+  }
+  if (current_locale != default_locale) {
+    // If the user has changed the locale, request to change it back (which will
+    // take effect when the session restarts).
+    profile->ChangeAppLocale(
+        default_locale, Profile::APP_LOCALE_CHANGED_VIA_DEMO_SESSION_REVERT);
+  }
 }
 
 }  // namespace ash

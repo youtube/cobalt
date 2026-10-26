@@ -275,91 +275,7 @@ scoped_refptr<Extension> ConvertToExtension(
   return extension;
 }
 
-using IncognitoManifestKeys = api::incognito::ManifestKeys;
-
-base::debug::CrashKeyString* GetCrashKey(const char* key) {
-  static auto* crash_key = base::debug::AllocateCrashKeyString(
-      key, base::debug::CrashKeySize::Size32);
-  return crash_key;
-}
-
-const ExtensionId& GetExtensionIdValue(const Extension& extension) {
-  return extension.id();
-}
-
-std::string GetManifestVersionValue(const Extension& extension) {
-  return base::NumberToString(extension.manifest_version());
-}
-
-const char* GetServiceWorkerBasedValue(const Extension& extension) {
-  return BackgroundInfo::IsServiceWorkerBased(&extension) ? "yes" : "no";
-}
-
-const char* GetIncognitoModeValue(const Extension& extension) {
-  IncognitoInfo* info = static_cast<IncognitoInfo*>(
-      extension.GetManifestData(IncognitoManifestKeys::kIncognito));
-  if (!info) {
-    return "no_incognito_info";
-  }
-  return api::incognito::ToString(info->mode);
-}
-
-const char* GetIncognitoProcessValue(
-    const ExtensionsRendererClient* renderer_client) {
-  if (!renderer_client) {
-    return "no_renderer_client";
-  }
-  return renderer_client->IsIncognitoProcess() ? "yes" : "no";
-}
-
 }  // namespace
-
-namespace debug {
-
-// Helper for adding a set of missing activation token related crash keys.
-//
-// It is created when being notified that an extension worker will evaluate (is
-// in the process of starting) and we might detect that there isn't an
-// activation token recorded for the extension worker.
-//
-// All keys are logged every time this class is instantiated.
-class ScopedActivationTokenMissingCrashKeys {
- public:
-  explicit ScopedActivationTokenMissingCrashKeys(
-      const Extension& extension,
-      const ExtensionsRendererClient* renderer_client)
-      : extension_id_crash_key_(GetCrashKey("ext_token_id"),
-                                GetExtensionIdValue(extension)),
-        manifest_version_crash_key_(GetCrashKey("ext_token_manifest_version"),
-                                    GetManifestVersionValue(extension)),
-        sw_based_crash_key_(GetCrashKey("ext_token_sw_based"),
-                            GetServiceWorkerBasedValue(extension)),
-        incognito_mode_crash_key_(GetCrashKey("ext_token_incog_mode"),
-                                  GetIncognitoModeValue(extension)),
-        incognito_process_crash_key_(
-            GetCrashKey("ext_token_incog_process"),
-            GetIncognitoProcessValue(renderer_client)) {}
-  ~ScopedActivationTokenMissingCrashKeys() = default;
-
- private:
-  // ExtensionId of the extension.
-  base::debug::ScopedCrashKeyString extension_id_crash_key_;
-
-  // The manifest version of the extension.
-  base::debug::ScopedCrashKeyString manifest_version_crash_key_;
-
-  // Whether the extension has a service worker background script registered in
-  // the manifest.
-  base::debug::ScopedCrashKeyString sw_based_crash_key_;
-
-  // What the api::incognito::IncognitoMode is for the extension.
-  base::debug::ScopedCrashKeyString incognito_mode_crash_key_;
-
-  // Whether the renderer process for the extension was launched incognito.
-  base::debug::ScopedCrashKeyString incognito_process_crash_key_;
-};
-
-}  // namespace debug
 
 Dispatcher::PendingServiceWorker::PendingServiceWorker(
     blink::WebServiceWorkerContextProxy* context_proxy)
@@ -619,7 +535,6 @@ void Dispatcher::WillEvaluateServiceWorkerOnWorkerThread(
     const GURL& service_worker_scope,
     const GURL& script_url,
     const blink::ServiceWorkerToken& service_worker_token) {
-  const base::TimeTicks start_time = base::TimeTicks::Now();
   service_worker_context_state = ServiceWorkerContextState::kInitializing;
 
   // TODO(crbug.com/40626913): We may want to give service workers not
@@ -724,13 +639,10 @@ void Dispatcher::WillEvaluateServiceWorkerOnWorkerThread(
   std::unique_ptr<IPCMessageSender> ipc_sender =
       IPCMessageSender::CreateWorkerThreadIPCMessageSender(
           worker_dispatcher, context_proxy, service_worker_version_id);
-  {
-    CHECK(extension);
-    // TODO(crbug.com/357889496): Remove these crash keys once bug is resolved.
-    debug::ScopedActivationTokenMissingCrashKeys activation_token_missing_keys(
-        *extension, ExtensionsRendererClient::Get());
-    CHECK(worker_activation_token.has_value());
-  }
+
+  CHECK(extension);
+  CHECK(worker_activation_token.has_value());
+
   worker_dispatcher->AddWorkerData(
       context_proxy, service_worker_version_id, worker_activation_token,
       service_worker_token, context,
@@ -760,9 +672,6 @@ void Dispatcher::WillEvaluateServiceWorkerOnWorkerThread(
   WorkerThreadDispatcher::GetServiceWorkerData()->Init();
   g_worker_script_context_set.Get().Insert(base::WrapUnique(context));
 
-  const base::TimeDelta elapsed = base::TimeTicks::Now() - start_time;
-  UMA_HISTOGRAM_TIMES(
-      "Extensions.DidInitializeServiceWorkerContextOnWorkerThread2", elapsed);
   service_worker_context_state = ServiceWorkerContextState::kInitialized;
 }
 
@@ -782,7 +691,8 @@ void Dispatcher::WillReleaseScriptContext(
 void Dispatcher::DidStartServiceWorkerContextOnWorkerThread(
     int64_t service_worker_version_id,
     const GURL& service_worker_scope,
-    const GURL& script_url) {
+    const GURL& script_url,
+    const blink::ServiceWorkerToken& service_worker_token) {
   if (!ExtensionAPIEnabledForServiceWorkerScript(service_worker_scope,
                                                  script_url)) {
     return;
@@ -826,7 +736,8 @@ void Dispatcher::DidStartServiceWorkerContextOnWorkerThread(
       CHECK(!extension_id.empty());
       service_worker_data->GetServiceWorkerHost()->DidStartServiceWorkerContext(
           extension_id, *service_worker_data->activation_sequence(),
-          service_worker_scope, service_worker_version_id, thread_id);
+          service_worker_scope, service_worker_version_id, thread_id,
+          service_worker_token);
     }
   } else {
     CHECK(service_worker_data);
@@ -835,7 +746,8 @@ void Dispatcher::DidStartServiceWorkerContextOnWorkerThread(
     CHECK(!extension_id.empty());
     service_worker_data->GetServiceWorkerHost()->DidStartServiceWorkerContext(
         extension_id, *service_worker_data->activation_sequence(),
-        service_worker_scope, service_worker_version_id, thread_id);
+        service_worker_scope, service_worker_version_id, thread_id,
+        service_worker_token);
   }
 }
 
@@ -843,7 +755,8 @@ void Dispatcher::WillDestroyServiceWorkerContextOnWorkerThread(
     v8::Local<v8::Context> v8_context,
     int64_t service_worker_version_id,
     const GURL& service_worker_scope,
-    const GURL& script_url) {
+    const GURL& script_url,
+    const blink::ServiceWorkerToken& service_worker_token) {
   // Note that using ExtensionAPIEnabledForServiceWorkerScript() won't work here
   // as RendererExtensionRegistry might have already unloaded this extension.
   // Use the existence of ServiceWorkerData as the source of truth instead.
@@ -867,7 +780,8 @@ void Dispatcher::WillDestroyServiceWorkerContextOnWorkerThread(
           script_context);
       service_worker_data->GetServiceWorkerHost()->DidStopServiceWorkerContext(
           extension_id, *service_worker_data->activation_sequence(),
-          service_worker_scope, service_worker_version_id, thread_id);
+          service_worker_scope, service_worker_version_id, thread_id,
+          service_worker_token);
     }
     // Note: we have to remove the context (and thus perform invalidation on
     // the native handlers) prior to removing the worker data, which destroys
@@ -1076,10 +990,8 @@ void Dispatcher::ActivateExtension(const ExtensionId& extension_id) {
 
   active_extension_ids_.insert(extension_id);
 
-  if (activity_logging_enabled_) {
-    DOMActivityLogger::AttachToWorld(DOMActivityLogger::kMainWorldId,
-                                     extension_id);
-  }
+  DOMActivityLogger::AttachToWorldIfEnabled(DOMActivityLogger::kMainWorldId,
+                                            extension_id);
 
   InitOriginPermissions(extension);
 
@@ -1449,12 +1361,26 @@ void Dispatcher::UpdatePermissions(const ExtensionId& extension_id,
 void Dispatcher::SetActivityLoggingEnabled(bool enabled) {
   activity_logging_enabled_ = enabled;
   if (enabled) {
-    for (const ExtensionId& id : active_extension_ids_) {
-      DOMActivityLogger::AttachToWorld(DOMActivityLogger::kMainWorldId, id);
-    }
+    UpdateDOMActivityLogging();
   }
+  // TODO(crbug.com/490650360): Remove these setter calls as the activity
+  // logging state no longer needs to be managed in these objects.
   script_injection_manager_->set_activity_logging_enabled(enabled);
   user_script_set_manager_->set_activity_logging_enabled(enabled);
+}
+
+void Dispatcher::SetPolicyActivityLoggingEnabled(bool enabled) {
+  ExtensionsRendererClient::Get()->SetPolicyActivityLoggingEnabled(enabled);
+  if (enabled) {
+    UpdateDOMActivityLogging();
+  }
+}
+
+void Dispatcher::UpdateDOMActivityLogging() {
+  for (const ExtensionId& id : active_extension_ids_) {
+    DOMActivityLogger::AttachToWorldIfEnabled(DOMActivityLogger::kMainWorldId,
+                                              id);
+  }
 }
 
 void Dispatcher::OnUserScriptsUpdated(const mojom::HostID& changed_host) {

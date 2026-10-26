@@ -583,9 +583,6 @@ BASE_FEATURE_PARAM(int,
 BASE_FEATURE(kPopulatePermissionsPolicyOnRequest,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kProtectedAudienceCorsSafelistKVv2Signals,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kStorageAccessHeadersRespectPermissionsPolicy,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -612,6 +609,9 @@ BASE_FEATURE_PARAM(size_t,
                    /*name=*/"max_size",
                    1'000'000);
 
+BASE_FEATURE(kCompressionDictionaryLimitEarlyMatching,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kNetworkServiceTaskScheduler, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
                    kNetworkServiceTaskSchedulerResourceScheduler,
@@ -630,6 +630,9 @@ BASE_FEATURE(kNetworkServicePerPriorityTaskQueues,
 BASE_FEATURE(kUseUnexportableKeyServiceInBrowserProcess,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kBypassRequestForbiddenHeadersCheck,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kServiceWorkerSyntheticResponseHeaderCheck,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -645,6 +648,16 @@ BASE_FEATURE_PARAM(bool,
                    &kServiceWorkerSyntheticResponseHeaderCheck,
                    /*name=*/"report_inconsistent_header",
                    /*default_value=*/false);
+
+BASE_FEATURE(kAllowUnsafeRedirectSchemesForManualMode,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDurableMessages, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kDurableMessagesGlobalBufferSize,
+                   &kDurableMessages,
+                   /*name=*/"max_global_buffer_size",
+                   /*default_value=*/base::MiB(350).InBytes());
 
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltDynamicMojoPipeSizing,

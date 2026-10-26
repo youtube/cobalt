@@ -26,6 +26,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import static org.chromium.base.test.transit.ViewFinder.waitForView;
 import static org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper.closeFirstTabGroupInTabSwitcher;
 import static org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper.closeFirstTabInTabSwitcher;
 import static org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper.closeNthTabInTabSwitcher;
@@ -70,7 +71,7 @@ import org.junit.runner.RunWith;
 import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.Token;
-import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
@@ -138,7 +139,7 @@ public class TabSwitcherLayoutTest {
     private final List<WeakReference<Bitmap>> mAllBitmaps = new ArrayList<>();
     private final Callback<Bitmap> mBitmapListener =
             (bitmap) -> mAllBitmaps.add(new WeakReference<>(bitmap));
-    private MonotonicObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier;
+    private NonNullObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier;
     private RegularNewTabPageStation mNtp;
 
     @Before
@@ -156,7 +157,8 @@ public class TabSwitcherLayoutTest {
 
         CriteriaHelper.pollUiThread(cta.getTabModelSelector()::isTabStateInitialized);
         mModalDialogManagerSupplier =
-                ThreadUtils.runOnUiThreadBlocking(cta::getModalDialogManagerSupplier);
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> cta.getModalDialogManagerSupplier().asNonNull());
     }
 
     @After
@@ -484,8 +486,7 @@ public class TabSwitcherLayoutTest {
         // Verify that the modal dialog is now showing.
         verifyModalDialogShowingAnimationCompleteInTabSwitcher();
         // Verify the visual data dialog exists.
-        onViewWaiting(withId(R.id.visual_data_dialog_layout), /* checkRootDialog= */ true)
-                .check(matches(isDisplayed()));
+        waitForView(withId(R.id.visual_data_dialog_layout));
         // Wait until the keyboard is showing.
         KeyboardVisibilityDelegate delegate = cta.getWindowAndroid().getKeyboardDelegate();
         CriteriaHelper.pollUiThread(
@@ -536,8 +537,7 @@ public class TabSwitcherLayoutTest {
         // Verify that the modal dialog is now showing.
         verifyModalDialogShowingAnimationCompleteInTabSwitcher();
         // Verify the visual data dialog exists.
-        onViewWaiting(withId(R.id.visual_data_dialog_layout), /* checkRootDialog= */ true)
-                .check(matches(isDisplayed()));
+        waitForView(withId(R.id.visual_data_dialog_layout));
         // Wait until the keyboard is showing.
         KeyboardVisibilityDelegate delegate = cta.getWindowAndroid().getKeyboardDelegate();
         CriteriaHelper.pollUiThread(
@@ -588,8 +588,7 @@ public class TabSwitcherLayoutTest {
         // Verify that the modal dialog is now showing.
         verifyModalDialogShowingAnimationCompleteInTabSwitcher();
         // Verify the ungroup dialog exists.
-        onViewWaiting(withId(R.id.stop_showing_check_box), /* checkRootDialog= */ true)
-                .check(matches(isDisplayed()));
+        waitForView(withId(R.id.stop_showing_check_box));
         // Confirm the action.
         onView(withId(R.id.positive_button)).perform(click());
         // Verify the tab group was ungrouped.
@@ -620,8 +619,7 @@ public class TabSwitcherLayoutTest {
         // Verify that the modal dialog is now showing.
         verifyModalDialogShowingAnimationCompleteInTabSwitcher();
         // Verify the ungroup dialog exists.
-        onViewWaiting(withId(R.id.stop_showing_check_box), /* checkRootDialog= */ true)
-                .check(matches(isDisplayed()));
+        waitForView(withId(R.id.stop_showing_check_box));
         // Decline the action.
         onView(withId(R.id.negative_button)).perform(click());
         // Verify the tab group was not ungrouped.
@@ -652,8 +650,7 @@ public class TabSwitcherLayoutTest {
         // Verify that the modal dialog is now showing.
         verifyModalDialogShowingAnimationCompleteInTabSwitcher();
         // Verify the ungroup dialog exists.
-        onViewWaiting(withId(R.id.stop_showing_check_box), /* checkRootDialog= */ true)
-                .check(matches(isDisplayed()));
+        waitForView(withId(R.id.stop_showing_check_box));
         // Select the checkbox.
         onView(withId(R.id.stop_showing_check_box)).perform(click());
         // Confirm the action.
@@ -698,8 +695,7 @@ public class TabSwitcherLayoutTest {
         // Verify that the modal dialog is now showing.
         verifyModalDialogShowingAnimationCompleteInTabSwitcher();
         // Verify the delete dialog exists.
-        onViewWaiting(withId(R.id.stop_showing_check_box), /* checkRootDialog= */ true)
-                .check(matches(isDisplayed()));
+        waitForView(withId(R.id.stop_showing_check_box));
         // Confirm the action.
         onView(withId(R.id.positive_button)).perform(click());
         // Verify the tab group was closed.
@@ -767,8 +763,7 @@ public class TabSwitcherLayoutTest {
         // Verify that the modal dialog is now showing.
         verifyModalDialogShowingAnimationCompleteInTabSwitcher();
         // Verify the delete dialog exists.
-        onViewWaiting(withId(R.id.stop_showing_check_box), /* checkRootDialog= */ true)
-                .check(matches(isDisplayed()));
+        waitForView(withId(R.id.stop_showing_check_box));
         // Decline the action.
         Espresso.pressBack();
         // Verify the tab group was not closed.
@@ -798,8 +793,7 @@ public class TabSwitcherLayoutTest {
 
         // Verify the visual data dialog exists.
         verifyModalDialogShowingAnimationCompleteInTabSwitcher();
-        onViewWaiting(withId(R.id.visual_data_dialog_layout), /* checkRootDialog= */ true)
-                .check(matches(isDisplayed()));
+        waitForView(withId(R.id.visual_data_dialog_layout));
 
         // Change the title.
         editGroupVisualDataDialogTitle(cta, "Test");
@@ -830,8 +824,7 @@ public class TabSwitcherLayoutTest {
         // Verify that the modal dialog is now showing.
         verifyModalDialogShowingAnimationCompleteInTabSwitcher();
         // Verify the delete dialog exists.
-        onViewWaiting(withId(R.id.stop_showing_check_box), /* checkRootDialog= */ true)
-                .check(matches(isDisplayed()));
+        waitForView(withId(R.id.stop_showing_check_box));
         // Select the checkbox.
         onView(withId(R.id.stop_showing_check_box)).perform(click());
         // Confirm the action.
@@ -1306,8 +1299,7 @@ public class TabSwitcherLayoutTest {
         // Verify that the modal dialog is now showing.
         verifyModalDialogShowingAnimationCompleteInTabSwitcher();
         // Verify the visual data dialog exists.
-        onViewWaiting(withId(R.id.visual_data_dialog_layout), /* checkRootDialog= */ true)
-                .check(matches(isDisplayed()));
+        waitForView(withId(R.id.visual_data_dialog_layout));
         // Wait until the keyboard is showing.
         KeyboardVisibilityDelegate delegate = cta.getWindowAndroid().getKeyboardDelegate();
         CriteriaHelper.pollUiThread(

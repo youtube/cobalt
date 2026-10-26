@@ -39,6 +39,7 @@
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "media/media_buildflags.h"
+#include "net/base/switches.h"
 #include "sandbox/policy/switches.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
@@ -54,6 +55,8 @@
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/command_line_android.h"
+#include "base/android/jni_android.h"
 #include "chrome/browser/android/flags/bad_flags_snackbar_manager.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #else
@@ -77,7 +80,7 @@ const char* const kBadFlags[] = {
 
     // These flags, which can expose network data, are considered potentially
     // dangerous.
-    network::switches::kLogNetLog,
+    net::switches::kLogNetLog,
     network::switches::kNetLogCaptureMode,
 
     // These flags disable sandbox-related security.
@@ -253,6 +256,20 @@ void ShowBadFlagsPrompt(content::WebContents* web_contents) {
       ShowBadFlagsInfoBar(web_contents, IDS_BAD_FLAGS_WARNING_MESSAGE, flag);
       return;
     }
+  }
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  base::CommandLine* commandLine = base::CommandLine::ForCurrentProcess();
+  bool isTestIntent = commandLine->HasSwitch("enable-test-intents");
+  if (base::android::WasFlagsLoadedFromFile(env) &&
+      !commandLine->HasSwitch(switches::kEnableAutomation) && !isTestIntent) {
+    // If the command line file was loaded, we show a snackbar warning about
+    // all the flags in the file.
+    ShowBadFlagsSnackbar(
+        web_contents,
+        l10n_util::GetStringUTF16(IDS_BAD_FLAGS_FROM_FILE_WARNING_MESSAGE));
   }
 #endif
 

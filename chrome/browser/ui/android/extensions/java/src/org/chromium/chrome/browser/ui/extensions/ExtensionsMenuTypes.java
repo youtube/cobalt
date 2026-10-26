@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.ui.extensions;
 
+import android.graphics.Bitmap;
+
 import androidx.annotation.IntDef;
 
 import org.jni_zero.CalledByNative;
@@ -11,6 +13,7 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -37,8 +40,7 @@ public class ExtensionsMenuTypes {
         public final String accessibleName;
         public final String tooltipText;
         public final boolean isOn;
-
-        // TODO(crbug.com/471016915): Add icon.
+        public final @Nullable Bitmap icon;
 
         @CalledByNative("ControlState")
         public ControlState(
@@ -46,12 +48,14 @@ public class ExtensionsMenuTypes {
                 @JniType("std::u16string") String text,
                 @JniType("std::u16string") String accessibleName,
                 @JniType("std::u16string") String tooltipText,
-                boolean isOn) {
+                boolean isOn,
+                @Nullable Bitmap icon) {
             this.status = status;
             this.text = text;
             this.accessibleName = accessibleName;
             this.tooltipText = tooltipText;
             this.isOn = isOn;
+            this.icon = icon;
         }
     }
 
@@ -59,16 +63,65 @@ public class ExtensionsMenuTypes {
     public static class MenuEntryState {
         public final String id;
         public final ControlState actionButton;
+        public final ControlState contextMenuButton;
 
-        // TODO(crbug.com/471016915): add context menu button.
         // TODO(crbug.com/471016915): add site permissions button.
         // TODO(crbug.com/471016915): add site access toggle.
         // TODO(crbug.com/471016915): add is enterprise boolean.
 
         @CalledByNative("MenuEntryState")
-        public MenuEntryState(@JniType("std::string") String id, ControlState actionButton) {
+        public MenuEntryState(
+                @JniType("std::string") String id,
+                ControlState actionButton,
+                ControlState contextMenuButton) {
             this.id = id;
             this.actionButton = actionButton;
+            this.contextMenuButton = contextMenuButton;
+        }
+    }
+
+    /** Mirrors {@code ExtensionsMenuViewModel::SiteSettingsState} */
+    public static class SiteSettingsState {
+        public final String label;
+        public final boolean hasTooltip;
+        public final ControlState toggle;
+
+        @CalledByNative("SiteSettingsState")
+        public SiteSettingsState(
+                @JniType("std::u16string") String label, boolean hasTooltip, ControlState toggle) {
+            this.label = label;
+            this.hasTooltip = hasTooltip;
+            this.toggle = toggle;
+        }
+    }
+
+    /** Mirrors {@code ExtensionsMenuViewModel::OptionalSection} */
+    @IntDef({
+        OptionalSectionType.HOST_ACCESS_REQUESTS,
+        OptionalSectionType.NONE,
+        OptionalSectionType.RELOAD_PAGE
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface OptionalSectionType {
+        int HOST_ACCESS_REQUESTS = 0;
+        int NONE = 1;
+        int RELOAD_PAGE = 2;
+    }
+
+    /** Mirrors {@code ExtensionsMenuViewModel::HostAccessRequest} */
+    public static class HostAccessRequest {
+        public final String extensionId;
+        public final String extensionName;
+        public final @Nullable Bitmap extensionIcon;
+
+        @CalledByNative("HostAccessRequest")
+        public HostAccessRequest(
+                @JniType("std::string") String extensionId,
+                @JniType("std::u16string") String extensionName,
+                @Nullable Bitmap extensionIcon) {
+            this.extensionId = extensionId;
+            this.extensionName = extensionName;
+            this.extensionIcon = extensionIcon;
         }
     }
 }

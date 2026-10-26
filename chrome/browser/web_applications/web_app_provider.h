@@ -61,7 +61,7 @@ class WebAppTranslationManager;
 class WebAppUiManager;
 class WebContentsManager;
 class WebAppProfileDeletionManager;
-enum class FetchManifestAndUpdateResult;
+struct FetchManifestAndUpdateCompletionInfo;
 
 #if BUILDFLAG(IS_CHROMEOS)
 class WebAppRunOnOsLoginManager;
@@ -73,6 +73,8 @@ class IwaBundleCacheManager;
 // Connects Web App features, such as the installation of default and
 // policy-managed web apps, with Profiles (as WebAppProvider is a
 // Profile-linked KeyedService) and their associated PrefService.
+// This is a per-profile object housing all the various web app subsystems.
+// This is the "main()" of the web app implementation where everything starts.
 //
 // Lifecycle notes:
 // - WebAppProvider and its sub-managers are not ready for use until the
@@ -283,8 +285,9 @@ class WebAppProvider : public KeyedService {
 
   void DoDelayedPostStartupWork();
 
-  void OnDefaultAppUpdateComplete(const webapps::AppId& app_id,
-                                  FetchManifestAndUpdateResult result);
+  void OnDefaultAppUpdateComplete(
+      const webapps::AppId& app_id,
+      FetchManifestAndUpdateCompletionInfo completion_info);
 
   std::unique_ptr<AbstractWebAppDatabaseFactory> database_factory_;
   std::unique_ptr<WebAppRegistrarMutable> registrar_;

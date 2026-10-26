@@ -1289,7 +1289,9 @@ ContextResult WebGPUDecoderImpl::Initialize(
     // ES 3.1 is required for compute.
     attribs.allow_es_version_fallback = false;
     gl_context_ = new gl::GLContextEGL(nullptr);
-    gl_context_->Initialize(gl_surface.get(), attribs);
+    if (!gl_context_->Initialize(gl_surface.get(), attribs)) {
+      return ContextResult::kFatalFailure;
+    }
     DCHECK(gl_context_->default_surface());
   }
   return ContextResult::kSuccess;
@@ -1520,6 +1522,11 @@ WGPUFuture WebGPUDecoderImpl::RequestDeviceImpl(
       // supported when running on the corresponding backend.
       wgpu::FeatureName::SharedTextureMemoryIOSurface,
       wgpu::FeatureName::SharedFenceMTLSharedEvent,
+
+#if BUILDFLAG(IS_CHROMEOS)
+      wgpu::FeatureName::SharedTextureMemoryDmaBuf,
+      wgpu::FeatureName::SharedFenceSyncFD,
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
       wgpu::FeatureName::SharedTextureMemoryAHardwareBuffer,
@@ -1805,6 +1812,14 @@ wgpu::Adapter WebGPUDecoderImpl::CreatePreferredAdapter(
     // SwiftShader adapter. For SwiftShader, we will perform a manual
     // upload/readback to/from shared images.
     bool supports_external_textures = false;
+
+#if BUILDFLAG(IS_CHROMEOS)
+    if (!adapter.HasFeature(wgpu::FeatureName::SharedTextureMemoryDmaBuf) ||
+        !adapter.HasFeature(wgpu::FeatureName::SharedFenceSyncFD)) {
+      return false;
+    }
+#endif
+
 #if BUILDFLAG(IS_APPLE)
     supports_external_textures =
         adapter.HasFeature(wgpu::FeatureName::SharedTextureMemoryIOSurface);

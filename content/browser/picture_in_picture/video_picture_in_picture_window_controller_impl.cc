@@ -354,6 +354,17 @@ void VideoPictureInPictureWindowControllerImpl::SetMediaPosition(
   UpdateMediaPosition();
 }
 
+void VideoPictureInPictureWindowControllerImpl::SetPlaybackControlsVisibility(
+    bool is_visible) {
+  always_show_play_pause_button_ = false;
+
+  UpdatePlayPauseButtonVisibility();
+
+  if (window_) {
+    window_->SetPlaybackControlsVisibility(is_visible);
+  }
+}
+
 void VideoPictureInPictureWindowControllerImpl::SkipAd() {
   if (media_session_action_skip_ad_handled_)
     MediaSession::Get(web_contents())->SkipAd();
@@ -567,8 +578,12 @@ void VideoPictureInPictureWindowControllerImpl::MediaStoppedPlaying(
 }
 
 void VideoPictureInPictureWindowControllerImpl::WebContentsDestroyed() {
-  if (window_)
+  if (window_) {
     window_->Close();
+  }
+
+  // The web contents are being destroyed. Stop observing.
+  Observe(nullptr);
 }
 
 void VideoPictureInPictureWindowControllerImpl::OnLeavingPictureInPicture(

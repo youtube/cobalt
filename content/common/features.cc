@@ -13,6 +13,11 @@ namespace features {
 
 // Please keep features in alphabetical order.
 
+// When enabled, the full accessibility tree will be exposed for non-atomic
+// text fields, such as contenteditables.
+BASE_FEATURE(kAccessibilityExposeNonAtomicTextFieldChildren,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables content-initiated, main frame navigations to data URLs.
 // TODO(meacer): Remove when the deprecation is complete.
 //               https://www.chromestatus.com/feature/5669602927312896
@@ -62,8 +67,6 @@ BASE_FEATURE(kAvoidUnnecessaryBeforeUnloadCheckSync,
 
 constexpr base::FeatureParam<AvoidUnnecessaryBeforeUnloadCheckSyncMode>::Option
     kAvoidUnnecessaryBeforeUnloadCheckSyncModeOption[] = {
-        {AvoidUnnecessaryBeforeUnloadCheckSyncMode::kDumpWithoutCrashing,
-         "DumpWithoutCrashing"},
         {AvoidUnnecessaryBeforeUnloadCheckSyncMode::kWithSendBeforeUnload,
          "WithSendBeforeUnload"},
         {AvoidUnnecessaryBeforeUnloadCheckSyncMode::kWithoutSendBeforeUnload,
@@ -107,24 +110,9 @@ BASE_FEATURE(kHoldbackDebugReasonStringRemoval,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_MAC)
-
-BASE_FEATURE(kBlockThirdPartyInProcessPlugins,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kCancelCompositionWhenWindowLosesFocus,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
 #endif  // BUILDFLAG(IS_MAC)
-
-// If Canvas2D Image Chromium is allowed, this feature controls whether it is
-// enabled.
-BASE_FEATURE(kCanvas2DImageChromium,
-#if BUILDFLAG(IS_APPLE)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
 
 // When enabled, CDP method Page.captureScreenshot will increment
 // the LocalSurfaceId instead of waiting for ForceRedraw to complete.
@@ -288,26 +276,38 @@ BASE_FEATURE_ENUM_PARAM(FontDataServiceTypefaceType,
                         FontDataServiceTypefaceType::kDwrite,
                         &font_data_service_typeface);
 #endif  // BUILDFLAG(IS_WIN)
-#if BUILDFLAG(IS_LINUX)
-BASE_FEATURE(kFontDataServiceLinux, base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 const base::FeatureParam<FontDataServiceTypefaceType>::Option
     font_data_service_typeface[] = {
         {FontDataServiceTypefaceType::kFreetype, "Freetype"},
         {FontDataServiceTypefaceType::kFontations, "Fontations"}};
+#if BUILDFLAG(IS_LINUX)
+BASE_FEATURE(kFontDataServiceLinux, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_ENUM_PARAM(FontDataServiceTypefaceType,
                         kFontDataServiceTypefaceType,
                         &kFontDataServiceLinux,
                         "typeface",
                         FontDataServiceTypefaceType::kFontations,
                         &font_data_service_typeface);
+#else
+BASE_FEATURE(kFontDataServiceChromeOS, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_ENUM_PARAM(FontDataServiceTypefaceType,
+                        kFontDataServiceTypefaceType,
+                        &kFontDataServiceChromeOS,
+                        "typeface",
+                        FontDataServiceTypefaceType::kFontations,
+                        &font_data_service_typeface);
 #endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 bool IsFontDataServiceEnabled() {
 #if BUILDFLAG(IS_WIN)
   return base::FeatureList::IsEnabled(features::kFontDataServiceAllWebContents);
 #elif BUILDFLAG(IS_LINUX)
   return base::FeatureList::IsEnabled(features::kFontDataServiceLinux);
+#elif BUILDFLAG(IS_CHROMEOS)
+  return base::FeatureList::IsEnabled(features::kFontDataServiceChromeOS);
 #else
   return false;
 #endif
@@ -443,6 +443,12 @@ BASE_FEATURE(kLocalNetworkAccessForFencedFrameNavigations,
 // enabled, then fenced frame navigations that qualify as LNA requests are not
 // blocked, but simply display a warning in DevTools.
 BASE_FEATURE(kLocalNetworkAccessForFencedFrameNavigationsWarningOnly,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables enhanced security checks for direct sockets.
+// This includes checking local/loopback network policies and prompting
+// in unmanaged Isolated Web Apps (IWAs).
+BASE_FEATURE(kLocalNetworkAccessPromptDirectSockets,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, allows the ReusePrerenderingProcessForMainFrames feature
@@ -638,7 +644,7 @@ BASE_FEATURE(kServiceWorkerSrcdocSupport, base::FEATURE_ENABLED_BY_DEFAULT);
 //
 // crbug.com/340949948 for more details.
 BASE_FEATURE(kServiceWorkerStaticRouterRaceRequestFix2,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // (crbug.com/1371756): When enabled, the static routing API starts
 // ServiceWorker when the routing result of a main resource request was network
@@ -659,15 +665,13 @@ BASE_FEATURE(kServiceWorkerSuppressTimeoutWhenPaymentWindowOpen,
 BASE_FEATURE(kServiceWorkerClientUrlIsCreationUrl,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kServiceWorkerWindowClientInitiator,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enables skipping the early call to CommitPending when navigating away from a
 // crashed frame.
 BASE_FEATURE(kSkipEarlyCommitPendingForCrashedFrame,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Feature to skip a redundant NotifyNavigationStateChanged call during
-// RendererDidNavigate.
-BASE_FEATURE(kSkipRedundantNavigationStateNotification,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, skips registration of RendererCancellationThrottle and instead
 // keeps navigation cancellation behavior by reusing the requester
@@ -689,11 +693,13 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kTextInputClient,
                    "ipc_timeout",
                    base::Milliseconds(1500));
+
+BASE_FEATURE(kTextInputClientUseNestedLoop, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
-                   kTextInputClientUseNestedLoop,
-                   &kTextInputClient,
-                   "use_nested_loop",
-                   false);
+                   kTextInputClientNestedLoopEventMask,
+                   &kTextInputClientUseNestedLoop,
+                   "enable_event_mask",
+                   true);
 #endif
 
 // Allows swipe left/right from touchpad change browser navigation. Currently
@@ -715,7 +721,7 @@ BASE_FEATURE(kTrustedTypesFromLiteral, base::FEATURE_DISABLED_BY_DEFAULT);
 // optimization.
 #if BUILDFLAG(IS_WIN)
 BASE_FEATURE(kUpdateDirectManipulationHelperOnParentChange,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 // Validate the code signing identity of the network process before establishing

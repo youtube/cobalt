@@ -7,13 +7,14 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
+#include "chrome/browser/ui/side_panel/side_panel_metrics.h"
+#include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_desktop.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_helper.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 
@@ -76,7 +77,7 @@ void SidePanelToolbarPinningController::UpdatePinState(
   Profile* const profile = browser_view_->GetProfile();
 
   std::optional<actions::ActionId> action_id =
-      SidePanelUtil::GetActionItem(browser_view_->browser(), entry_key)
+      SidePanelHelper::GetActionItem(browser_view_->browser(), entry_key)
           ->GetActionId();
   CHECK(action_id.has_value());
 
@@ -100,7 +101,8 @@ void SidePanelToolbarPinningController::UpdatePinState(
     actions_model->UpdatePinnedState(action_id.value(), updated_pin_state);
   }
 
-  SidePanelUtil::RecordPinnedButtonClicked(entry_key.id(), updated_pin_state);
+  SidePanelMetrics::RecordPinnedButtonClicked(entry_key.id(),
+                                              updated_pin_state);
 }
 
 void SidePanelToolbarPinningController::UpdateActiveState(

@@ -16,6 +16,7 @@ import "third_party/blink/public/mojom/webpreferences/web_preferences.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 import "url/mojom/url.mojom";
 import "third_party/blink/public/mojom/tokens/tokens.mojom";
+import "services/device/public/mojom/screen_orientation_lock_types.mojom";
 
 struct WebTestRunTestConfiguration {
   // The current working directory.
@@ -247,6 +248,12 @@ interface WebTestControlHost {
   // that request fullscreen on screen orientation change.
   SimulateScreenOrientationChanged();
 
+  // Simulate a screen orientation lock state change in the browser process.
+  SimulateScreenOrientationLockChanged(
+      blink.mojom.LocalFrameToken frame_token,
+      bool locked,
+      device.mojom.ScreenOrientationLockType orientation);
+
   // Sets the permission for |name| to |status| when queried or requested in
   // |origin| from |embedding_origin|.
   SetPermission(string name,
@@ -367,6 +374,17 @@ interface WebTestControlHost {
 
   // Disable Auto Resize mode, resizing the contents to `new_size`.
   DisableAutoResize(gfx.mojom.Size new_size);
+
+  // Returns whether specific clipboard read methods were called on the mock
+  // clipboard host since the last reset. Used to verify lazy read behavior.
+  [Sync]
+  GetClipboardReadState() => (bool read_text_called,
+                              bool read_html_called,
+                              bool read_unsanitized_custom_format_called,
+                              bool read_available_formats_called);
+
+  // Resets the clipboard read tracking state on the mock clipboard host.
+  ResetClipboardReadTracking();
 };
 
 // Web test messages sent from the renderer process to the browser.

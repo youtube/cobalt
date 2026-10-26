@@ -26,6 +26,8 @@
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom-blink.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom-blink.h"
 #include "third_party/blink/public/mojom/manifest/manifest_launch_handler.mojom-blink.h"
+#include "third_party/blink/public/mojom/manifest/manifest_migration_behavior.mojom-blink.h"
+#include "third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_test.h"
@@ -156,6 +158,7 @@ class ManifestParserTest : public SimTest {
     for (auto& error : errors) {
       errors_.push_back(std::move(error->message));
     }
+    failed_ = parser.failed();
     manifest_ = parser.TakeManifest();
     EXPECT_TRUE(manifest_);
     return manifest_;
@@ -167,6 +170,8 @@ class ManifestParserTest : public SimTest {
   }
 
   const Vector<String>& errors() const { return errors_; }
+
+  bool failed() { return failed_; }
 
   unsigned int GetErrorCount() const { return errors_.size(); }
 
@@ -195,6 +200,7 @@ class ManifestParserTest : public SimTest {
  private:
   mojom::blink::ManifestPtr manifest_;
   Vector<String> errors_;
+  bool failed_;
 };
 
 TEST_F(ManifestParserTest, CrashTest) {
@@ -5491,7 +5497,8 @@ TEST_F(ManifestParserTest, MigrateToParseRules) {
     EXPECT_TRUE(manifest->migrate_to.is_null());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ(
-        "property 'migrate_to' ignored, 'id' is missing or not a valid URL.",
+        "property 'migrate_to' ignored, 'id' is missing, not a valid URL, or "
+        "should be same site as document.",
         errors()[0]);
   }
 
@@ -5502,14 +5509,15 @@ TEST_F(ManifestParserTest, MigrateToParseRules) {
     EXPECT_TRUE(manifest->migrate_to.is_null());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ(
-        "property 'migrate_to' ignored, 'id' is missing or not a valid URL.",
+        "property 'migrate_to' ignored, 'id' is missing, not a valid URL, or "
+        "should be same site as document.",
         errors()[0]);
   }
 
   // Missing install_url, null and error.
   {
     auto& manifest =
-        ParseManifest(R"({"migrate_to": {"id": "http://new.example.com/"}})");
+        ParseManifest(R"({"migrate_to": {"id": "http://new.foo.com/"}})");
     EXPECT_TRUE(manifest->migrate_to.is_null());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ(
@@ -5520,7 +5528,7 @@ TEST_F(ManifestParserTest, MigrateToParseRules) {
   // Invalid install_url, null and error.
   {
     auto& manifest = ParseManifest(
-        R"({"migrate_to": {"id": "http://new.example.com/", "install_url": "http://www.foo.com:co&uk"}})");
+        R"({"migrate_to": {"id": "http://new.foo.com/", "install_url": "http://www.foo.com:co&uk"}})");
     EXPECT_TRUE(manifest->migrate_to.is_null());
     EXPECT_EQ(2u, GetErrorCount());
     EXPECT_EQ("property 'install_url' ignored, URL is invalid.", errors()[0]);
@@ -5532,7 +5540,7 @@ TEST_F(ManifestParserTest, MigrateToParseRules) {
   // Cross-origin install_url, null and error.
   {
     auto& manifest = ParseManifest(
-        R"({"migrate_to": {"id": "http://new.example.com/", "install_url": "http://other.example.com/install"}})");
+        R"({"migrate_to": {"id": "http://new.foo.com/", "install_url": "http://other.foo.com/install"}})");
     EXPECT_TRUE(manifest->migrate_to.is_null());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ(
@@ -5544,12 +5552,41 @@ TEST_F(ManifestParserTest, MigrateToParseRules) {
   // Valid migrate_to object.
   {
     auto& manifest = ParseManifest(
-        R"({"migrate_to": {"id": "http://new.example.com/", "install_url": "http://new.example.com/install"}})");
+        R"({"migrate_to": {"id": "http://new.foo.com/", "install_url": "http://new.foo.com/install"}})");
     EXPECT_FALSE(manifest->migrate_to.is_null());
-    EXPECT_EQ(manifest->migrate_to->id, "http://new.example.com/");
+    EXPECT_EQ(manifest->migrate_to->id, "http://new.foo.com/");
     EXPECT_FALSE(manifest->migrate_to->install_url.IsEmpty());
     EXPECT_EQ(manifest->migrate_to->install_url.GetString(),
-              "http://new.example.com/install");
+              "http://new.foo.com/install");
+    EXPECT_EQ(0u, GetErrorCount());
+  }
+
+  // Cross-site migrate_to.
+  {
+    auto& manifest = ParseManifestWithURLs(
+        R"({"migrate_to": {"id": "https://bar.com/app", "install_url": "https://bar.com/install"}})",
+        KURL("https://foo.com/manifest.json"),
+        KURL("https://foo.com/index.html"));
+    EXPECT_TRUE(manifest->migrate_to.is_null());
+    ASSERT_EQ(2u, GetErrorCount());
+    EXPECT_EQ("property 'id' ignored, should be same site as document.",
+              errors()[0]);
+    EXPECT_EQ(
+        "property 'migrate_to' ignored, 'id' is missing, not a valid URL, or "
+        "should be same site as document.",
+        errors()[1]);
+  }
+
+  // Same-site cross-origin migrate_to.
+  {
+    auto& manifest = ParseManifestWithURLs(
+        R"({"migrate_to": {"id": "https://sub.foo.com/app", "install_url": "https://sub.foo.com/install"}})",
+        KURL("https://foo.com/manifest.json"),
+        KURL("https://foo.com/index.html"));
+    EXPECT_FALSE(manifest->migrate_to.is_null());
+    EXPECT_EQ(manifest->migrate_to->id, "https://sub.foo.com/app");
+    EXPECT_EQ(manifest->migrate_to->install_url.GetString(),
+              "https://sub.foo.com/install");
     EXPECT_EQ(0u, GetErrorCount());
   }
 }
@@ -5567,25 +5604,37 @@ TEST_F(ManifestParserTest, MigrateFromParseRules) {
 
   // If non-array, empty and error.
   {
-    auto& manifest = ParseManifest(R"({"migrate_from": "not-an-array"})");
+    auto& manifest =
+        ParseManifest(R"({"id": "this_id", "migrate_from": "not-an-array"})");
     EXPECT_EQ(0u, manifest->migrate_from.size());
-    EXPECT_EQ(1u, GetErrorCount());
+    ASSERT_EQ(1u, GetErrorCount());
     EXPECT_EQ("property 'migrate_from' ignored, type array expected.",
               errors()[0]);
+  }
+
+  // Valid array but no manifest id, empty and error.
+  {
+    auto& manifest = ParseManifest(R"({"migrate_from": ["app_id_1"]})");
+    EXPECT_EQ(0u, manifest->migrate_from.size());
+    ASSERT_EQ(1u, GetErrorCount());
+    EXPECT_EQ(
+        "property 'migrate_from' ignored, manifest must specify an 'id' "
+        "property in order to receive a migration.",
+        errors()[0]);
   }
 
   // Array with non-strings and non-objects, ignore invalid types.
   {
     auto& manifest = ParseManifest(
-        R"({"migrate_from": ["app_id_1", 123, {"id": "app_id_2"}]})");
-    EXPECT_EQ(2u, manifest->migrate_from.size());
+        R"({"id": "this_id", "migrate_from": ["app_id_1", 123, {"id": "app_id_2"}]})");
+    ASSERT_EQ(2u, manifest->migrate_from.size());
     EXPECT_EQ("http://foo.com/app_id_1",
               manifest->migrate_from[0]->id.GetString());
     EXPECT_FALSE(manifest->migrate_from[0]->install_url.has_value());
     EXPECT_EQ("http://foo.com/app_id_2",
               manifest->migrate_from[1]->id.GetString());
     EXPECT_FALSE(manifest->migrate_from[1]->install_url.has_value());
-    EXPECT_EQ(1u, GetErrorCount());
+    ASSERT_EQ(1u, GetErrorCount());
     EXPECT_EQ("migrate_from entry ignored, type string or object expected.",
               errors()[0]);
   }
@@ -5593,8 +5642,8 @@ TEST_F(ManifestParserTest, MigrateFromParseRules) {
   // Valid array with mixed string and object with install_url.
   {
     auto& manifest = ParseManifest(
-        R"({"migrate_from": ["app_id_1", {"id": "app_id_2", "install_url": "http://foo.com/install"}]})");
-    EXPECT_EQ(2u, manifest->migrate_from.size());
+        R"({"id": "this_id", "migrate_from": ["app_id_1", {"id": "app_id_2", "install_url": "http://foo.com/install"}]})");
+    ASSERT_EQ(2u, manifest->migrate_from.size());
     EXPECT_EQ("http://foo.com/app_id_1",
               manifest->migrate_from[0]->id.GetString());
     EXPECT_FALSE(manifest->migrate_from[0]->install_url.has_value());
@@ -5609,17 +5658,19 @@ TEST_F(ManifestParserTest, MigrateFromParseRules) {
   // Object with missing id.
   {
     auto& manifest = ParseManifest(
-        R"({"migrate_from": [{"install_url": "http://example.com/install"}]})");
+        R"({"id": "this_id", "migrate_from": [{"install_url": "http://foo.com/install"}]})");
     EXPECT_EQ(0u, manifest->migrate_from.size());
-    EXPECT_EQ(1u, GetErrorCount());
-    EXPECT_EQ("migrate_from entry ignored, 'id' is missing or not a valid URL.",
-              errors()[0]);
+    ASSERT_EQ(1u, GetErrorCount());
+    EXPECT_EQ(
+        "migrate_from entry ignored, 'id' is missing, not a valid URL, or "
+        "should be same site as document.",
+        errors()[0]);
   }
 
   // Object with cross-origin install_url.
   {
     auto& manifest = ParseManifest(
-        R"({"migrate_from": [{"id": "http://foo.com/app", "install_url": "http://example.com/install"}]})");
+        R"({"id": "this_id", "migrate_from": [{"id": "http://foo.com/app", "install_url": "http://other.foo.com/install"}]})");
     EXPECT_EQ(0u, manifest->migrate_from.size());
     EXPECT_EQ(1u, GetErrorCount());
     EXPECT_EQ(
@@ -5632,6 +5683,7 @@ TEST_F(ManifestParserTest, MigrateFromParseRules) {
   {
     auto& manifest = ParseManifest(
         R"({
+          "id": "this_id",
           "migrate_from": [
             {
               "id": "app_id_1",
@@ -5641,7 +5693,7 @@ TEST_F(ManifestParserTest, MigrateFromParseRules) {
             }
           ]
         })");
-    EXPECT_EQ(2u, manifest->migrate_from.size());
+    ASSERT_EQ(2u, manifest->migrate_from.size());
     EXPECT_EQ("http://foo.com/app_id_1",
               manifest->migrate_from[0]->id.GetString());
     ASSERT_TRUE(manifest->migrate_from[0]->install_url.has_value());
@@ -5657,6 +5709,7 @@ TEST_F(ManifestParserTest, MigrateFromParseRules) {
   {
     auto& manifest = ParseManifest(
         R"({
+          "id": "this_id",
           "migrate_from": [
             {
               "id": "app_id_1",
@@ -5672,7 +5725,7 @@ TEST_F(ManifestParserTest, MigrateFromParseRules) {
             }
           ]
         })");
-    EXPECT_EQ(4u, manifest->migrate_from.size());
+    ASSERT_EQ(4u, manifest->migrate_from.size());
     EXPECT_EQ(manifest->migrate_from[0]->behavior,
               mojom::blink::ManifestMigrationBehavior::kForce);
     EXPECT_EQ(manifest->migrate_from[1]->behavior,
@@ -5681,8 +5734,48 @@ TEST_F(ManifestParserTest, MigrateFromParseRules) {
               mojom::blink::ManifestMigrationBehavior::kSuggest);
     EXPECT_EQ(manifest->migrate_from[3]->behavior,
               mojom::blink::ManifestMigrationBehavior::kSuggest);
-    EXPECT_EQ(1u, GetErrorCount());
+    ASSERT_EQ(1u, GetErrorCount());
     EXPECT_EQ("behavior value 'invalid' ignored, unknown value.", errors()[0]);
+  }
+
+  // Cross-site migrate_from ID.
+  {
+    auto& manifest = ParseManifestWithURLs(
+        R"({"id": "this_id", "migrate_from": ["https://bar.com/app"]})",
+        KURL("https://foo.com/manifest.json"),
+        KURL("https://foo.com/index.html"));
+    EXPECT_EQ(0u, manifest->migrate_from.size());
+    ASSERT_EQ(1u, GetErrorCount());
+    EXPECT_EQ("migrate_from entry ignored, id should be same site as document.",
+              errors()[0]);
+  }
+
+  // Same-site cross-origin migrate_from ID.
+  {
+    auto& manifest = ParseManifestWithURLs(
+        R"({"id": "this_id", "migrate_from": ["https://sub.foo.com/app"]})",
+        KURL("https://foo.com/manifest.json"),
+        KURL("https://foo.com/index.html"));
+    ASSERT_EQ(1u, manifest->migrate_from.size());
+    EXPECT_EQ("https://sub.foo.com/app",
+              manifest->migrate_from[0]->id.GetString());
+    EXPECT_EQ(0u, GetErrorCount());
+  }
+
+  // Object with cross-site migrate_from ID.
+  {
+    auto& manifest = ParseManifestWithURLs(
+        R"({"id": "this_id", "migrate_from": [{"id": "https://bar.com/app"}]})",
+        KURL("https://foo.com/manifest.json"),
+        KURL("https://foo.com/index.html"));
+    EXPECT_EQ(0u, manifest->migrate_from.size());
+    ASSERT_EQ(2u, GetErrorCount());
+    EXPECT_EQ("property 'id' ignored, should be same site as document.",
+              errors()[0]);
+    EXPECT_EQ(
+        "migrate_from entry ignored, 'id' is missing, not a valid URL, or "
+        "should be same site as document.",
+        errors()[1]);
   }
 }
 
@@ -6049,135 +6142,76 @@ TEST_F(ManifestParserTest, GCMSenderIDParseRules) {
     auto& manifest = ParseManifest(R"({ "gcm_sender_id": 42 })");
     EXPECT_TRUE(manifest->gcm_sender_id.IsNull());
     EXPECT_EQ(1u, GetErrorCount());
-    EXPECT_EQ("property 'gcm_sender_id' ignored, type string expected.",
-              errors()[0]);
   }
 }
 
-TEST_F(ManifestParserTest, PermissionsPolicyParsesOrigins) {
-  auto& manifest = ParseManifest(
-      R"({ "permissions_policy": {
-                "geolocation": ["https://example.com"],
-                "microphone": ["https://example.com"]
-        }})");
-  EXPECT_EQ(0u, GetErrorCount());
-  EXPECT_EQ(2u, manifest->permissions_policy.size());
-  for (const auto& policy : manifest->permissions_policy) {
-    EXPECT_EQ(1u, policy.allowed_origins.size());
-    EXPECT_EQ("https://example.com", policy.allowed_origins[0].Serialize());
-    EXPECT_FALSE(manifest->permissions_policy[0].self_if_matches.has_value());
+TEST_F(ManifestParserTest, CheckIsolatedAppPermissions) {
+  // Valid structure.
+  {
+    ParseManifest(R"({
+      "permissions_policy": {
+        "camera": ["self"],
+        "microphone": ["https://example.com"]
+      }
+    })");
+    EXPECT_EQ(0u, GetErrorCount());
+    EXPECT_FALSE(failed());
   }
-}
 
-TEST_F(ManifestParserTest, PermissionsPolicyParsesSelf) {
-  auto& manifest = ParseManifest(
-      R"({ "permissions_policy": {
-        "geolocation": ["self"]
-      }})");
-  EXPECT_EQ(0u, GetErrorCount());
-  EXPECT_EQ(1u, manifest->permissions_policy.size());
-  EXPECT_EQ("http://foo.com",
-            manifest->permissions_policy[0].self_if_matches->Serialize());
-  EXPECT_EQ(0u, manifest->permissions_policy[0].allowed_origins.size());
-}
+  // Not an object.
+  {
+    ParseManifest(R"({
+      "permissions_policy": ["not", "an", "object"]
+    })");
+    EXPECT_EQ(1u, GetErrorCount());
+    EXPECT_EQ(
+        "property 'permissions_policy' invalid: object expected, found: "
+        "[\"not\",\"an\",\"object\"]",
+        errors()[0]);
+    EXPECT_TRUE(failed());
+  }
 
-TEST_F(ManifestParserTest, PermissionsPolicyIgnoresSrc) {
-  auto& manifest = ParseManifest(
-      R"({ "permissions_policy": {
-        "geolocation": ["src"]
-      }})");
-  EXPECT_EQ(0u, GetErrorCount());
-  EXPECT_EQ(1u, manifest->permissions_policy.size());
-  EXPECT_EQ(0u, manifest->permissions_policy[0].allowed_origins.size());
-  EXPECT_FALSE(manifest->permissions_policy[0].self_if_matches.has_value());
-}
+  // Value not an array.
+  {
+    ParseManifest(R"({
+      "permissions_policy": {
+        "camera": "not-an-array"
+      }
+    })");
+    EXPECT_EQ(1u, GetErrorCount());
+    EXPECT_EQ(
+        "property 'permissions_policy' invalid: allowlist for 'camera': array "
+        "expected, found: \"not-an-array\"",
+        errors()[0]);
+    EXPECT_TRUE(failed());
+  }
 
-TEST_F(ManifestParserTest, PermissionsPolicyParsesNone) {
-  auto& manifest = ParseManifest(
-      R"({ "permissions_policy": {
-        "geolocation": ["none"]
-      }})");
-  EXPECT_EQ(0u, GetErrorCount());
-  EXPECT_EQ(1u, manifest->permissions_policy.size());
-  EXPECT_EQ(0u, manifest->permissions_policy[0].allowed_origins.size());
-}
+  // Array element not a string.
+  {
+    ParseManifest(R"({
+      "permissions_policy": {
+        "camera": [123]
+      }
+    })");
+    EXPECT_EQ(1u, GetErrorCount());
+    EXPECT_EQ(
+        "property 'permissions_policy' invalid: allowlist for 'camera': "
+        "invalid element: string expected, found: 123",
+        errors()[0]);
+    EXPECT_TRUE(failed());
+  }
 
-TEST_F(ManifestParserTest, PermissionsPolicyParsesWildcard) {
-  auto& manifest = ParseManifest(
-      R"({ "permissions_policy": {
-        "geolocation": ["*"]
-      }})");
-  EXPECT_EQ(0u, GetErrorCount());
-  EXPECT_EQ(1u, manifest->permissions_policy.size());
-  EXPECT_TRUE(manifest->permissions_policy[0].matches_all_origins);
-}
-
-TEST_F(ManifestParserTest, PermissionsPolicyEmptyOrigin) {
-  auto& manifest = ParseManifest(
-      R"({ "permissions_policy": {
-                "geolocation": ["https://example.com"],
-                "microphone": [""],
-                "midi": []
-        }})");
-  EXPECT_EQ(1u, GetErrorCount());
-  EXPECT_EQ(1u, manifest->permissions_policy.size());
-}
-
-TEST_F(ManifestParserTest, PermissionsPolicyAsArray) {
-  auto& manifest = ParseManifest(
-      R"({ "permissions_policy": [
-          {"geolocation": ["https://example.com"]},
-          {"microphone": [""]},
-          {"midi": []}
-        ]})");
-  EXPECT_EQ(1u, GetErrorCount());
-  EXPECT_EQ(0u, manifest->permissions_policy.size());
-  EXPECT_EQ("property 'permissions_policy' ignored, type object expected.",
-            errors()[0]);
-}
-
-TEST_F(ManifestParserTest, PermissionsPolicyInvalidType) {
-  auto& manifest = ParseManifest(R"({ "permissions_policy": true})");
-  EXPECT_EQ(1u, GetErrorCount());
-  EXPECT_EQ(0u, manifest->permissions_policy.size());
-  EXPECT_EQ("property 'permissions_policy' ignored, type object expected.",
-            errors()[0]);
-}
-
-TEST_F(ManifestParserTest, PermissionsPolicyInvalidAllowlistType) {
-  auto& manifest = ParseManifest(
-      R"({ "permissions_policy": {
-            "geolocation": ["https://example.com"],
-            "microphone": 0,
-            "midi": true
-          }})");
-  EXPECT_EQ(2u, GetErrorCount());
-  EXPECT_EQ(1u, manifest->permissions_policy.size());
-  EXPECT_EQ(
-      "permission 'microphone' ignored, invalid allowlist: type array "
-      "expected.",
-      errors()[0]);
-  EXPECT_EQ(
-      "permission 'midi' ignored, invalid allowlist: type array expected.",
-      errors()[1]);
-}
-
-TEST_F(ManifestParserTest, PermissionsPolicyInvalidAllowlistEntry) {
-  auto& manifest = ParseManifest(
-      R"({ "permissions_policy": {
-            "geolocation": ["https://example.com", null],
-            "microphone": ["https://example.com", {}]
-          }})");
-  EXPECT_EQ(2u, GetErrorCount());
-  EXPECT_EQ(0u, manifest->permissions_policy.size());
-  EXPECT_EQ(
-      "permissions_policy entry ignored, required property 'origin' contains "
-      "an invalid element: type string expected.",
-      errors()[0]);
-  EXPECT_EQ(
-      "permissions_policy entry ignored, required property 'origin' contains "
-      "an invalid element: type string expected.",
-      errors()[1]);
+  // Valid permissions_policy.
+  {
+    ParseManifest(R"({
+      "permissions_policy": {
+        "camera": ["self", "google.com"],
+        "unknown-feature": []
+      }
+    })");
+    EXPECT_EQ(0u, GetErrorCount());
+    EXPECT_FALSE(failed());
+  }
 }
 
 TEST_F(ManifestParserTest, LaunchHandlerParseRules) {
@@ -7822,6 +7856,105 @@ TEST_F(ManifestParserTest, IconsLocalizedParseRules) {
         "property 'icons_localized' entry for '!!!' ignored, invalid locale "
         "key.",
         errors()[0]);
+  }
+}
+
+TEST_F(ManifestParserTest, ManifestLocalizationUseCounter) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kWebAppManifestLocalization);
+
+  const auto kFeature = blink::mojom::WebDXFeature::kManifestLocalization;
+  UseCounterImpl& use_counter = GetDocument().Loader()->GetUseCounter();
+
+  {
+    use_counter.ClearMeasurementForTesting(kFeature);
+    ParseManifest(R"({
+      "name_localized": { "en": "English Name" }
+    })");
+    EXPECT_TRUE(use_counter.IsWebDXFeatureCounted(kFeature));
+  }
+
+  {
+    use_counter.ClearMeasurementForTesting(kFeature);
+    ParseManifest(R"({
+      "short_name_localized": { "en": "EN Short" }
+    })");
+    EXPECT_TRUE(use_counter.IsWebDXFeatureCounted(kFeature));
+  }
+
+  {
+    use_counter.ClearMeasurementForTesting(kFeature);
+    ParseManifest(R"({
+      "description_localized": { "en": "English Description" }
+    })");
+    EXPECT_TRUE(use_counter.IsWebDXFeatureCounted(kFeature));
+  }
+
+  {
+    use_counter.ClearMeasurementForTesting(kFeature);
+    ParseManifest(R"({
+      "icons_localized": {
+        "en": [{ "src": "icon-en.png", "sizes": "32x32", "type": "image/png" }]
+      }
+    })");
+    EXPECT_TRUE(use_counter.IsWebDXFeatureCounted(kFeature));
+  }
+
+  {
+    use_counter.ClearMeasurementForTesting(kFeature);
+    ParseManifest(R"({
+      "shortcuts": [{
+        "name": "Shortcut",
+        "url": "/shortcut",
+        "name_localized": { "en": "English Shortcut" }
+      }]
+    })");
+    EXPECT_TRUE(use_counter.IsWebDXFeatureCounted(kFeature));
+  }
+
+  {
+    use_counter.ClearMeasurementForTesting(kFeature);
+    ParseManifest(R"({
+      "shortcuts": [{
+        "name": "Shortcut",
+        "url": "/shortcut",
+        "short_name_localized": { "en": "EN Shortcut Short" }
+      }]
+    })");
+    EXPECT_TRUE(use_counter.IsWebDXFeatureCounted(kFeature));
+  }
+
+  {
+    use_counter.ClearMeasurementForTesting(kFeature);
+    ParseManifest(R"({
+      "shortcuts": [{
+        "name": "Shortcut",
+        "url": "/shortcut",
+        "description_localized": { "en": "English Shortcut Description" }
+      }]
+    })");
+    EXPECT_TRUE(use_counter.IsWebDXFeatureCounted(kFeature));
+  }
+
+  {
+    use_counter.ClearMeasurementForTesting(kFeature);
+    ParseManifest(R"({
+      "shortcuts": [{
+        "name": "Shortcut",
+        "url": "/shortcut",
+        "icons_localized": {
+          "en": [{ "src": "icon-en.png", "sizes": "32x32", "type": "image/png" }]
+        }
+      }]
+    })");
+    EXPECT_TRUE(use_counter.IsWebDXFeatureCounted(kFeature));
+  }
+
+  // Counter does not fire when no localized fields are present.
+  {
+    use_counter.ClearMeasurementForTesting(kFeature);
+    ParseManifest(R"({ "name": "Simple App" })");
+    EXPECT_FALSE(use_counter.IsWebDXFeatureCounted(kFeature));
   }
 }
 

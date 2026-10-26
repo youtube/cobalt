@@ -9,14 +9,16 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
+#include "content/common/memory_coordinator/constants.h"
 
 namespace content {
 
 // MemoryConsumerRegistry::ConsumerGroup ---------------------------------------
 
 MemoryConsumerRegistry::ConsumerGroup::ConsumerGroup(
-    base::MemoryConsumerTraits traits)
-    : traits_(traits) {}
+    std::optional<base::MemoryConsumerTraits> traits,
+    std::string_view consumer_name)
+    : traits_(traits), consumer_name_(consumer_name) {}
 
 MemoryConsumerRegistry::ConsumerGroup::~ConsumerGroup() {
   CHECK(memory_consumers_.empty());
@@ -86,18 +88,23 @@ void MemoryConsumerRegistry::UpdateConsumers(
 }
 
 void MemoryConsumerRegistry::OnMemoryConsumerAdded(
-    std::string_view consumer_id,
-    base::MemoryConsumerTraits traits,
+    uint32_t consumer_id,
+    std::string_view consumer_name,
+    std::optional<base::MemoryConsumerTraits> traits,
     base::RegisteredMemoryConsumer consumer) {
+  CHECK_LE(consumer_name.size(), kMaxMemoryConsumerNameLength);
+
   auto [it, inserted] = consumer_groups_.try_emplace(consumer_id);
   std::unique_ptr<ConsumerGroup>& consumer_group = it->second;
 
   if (inserted) {
-    // First time seeing a consumer with this ID.
-    consumer_group = std::make_unique<ConsumerGroup>(traits);
+    CHECK_LE(consumer_groups_.size(), kMaxMemoryConsumersPerProcess);
 
-    controller_->OnConsumerGroupAdded(consumer_id, traits, process_type_,
-                                      child_process_id_);
+    // First time seeing a consumer with this ID.
+    consumer_group = std::make_unique<ConsumerGroup>(traits, consumer_name);
+
+    controller_->OnConsumerGroupAdded(consumer_id, consumer_name, traits,
+                                      process_type_, child_process_id_);
   }
 
   CHECK(consumer_group->traits() == traits);
@@ -106,7 +113,7 @@ void MemoryConsumerRegistry::OnMemoryConsumerAdded(
 }
 
 void MemoryConsumerRegistry::OnMemoryConsumerRemoved(
-    std::string_view consumer_id,
+    uint32_t consumer_id,
     base::RegisteredMemoryConsumer consumer) {
   auto it = consumer_groups_.find(consumer_id);
   CHECK(it != consumer_groups_.end());

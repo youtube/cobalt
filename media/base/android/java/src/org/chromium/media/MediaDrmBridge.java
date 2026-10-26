@@ -26,7 +26,6 @@ import org.chromium.build.annotations.RequiresNonNull;
 import org.chromium.media.MediaDrmSessionManager.SessionId;
 import org.chromium.media.MediaDrmSessionManager.SessionInfo;
 
-import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,7 +65,7 @@ import java.util.UUID;
 @SuppressLint("WrongConstant")
 @NullMarked
 public class MediaDrmBridge {
-    private static final String TAG = "media";
+    private static final String TAG = "MediaDrmBridge";
     private static final String SECURITY_LEVEL = "securityLevel";
     private static final String CURRENT_HDCP_LEVEL = "hdcpLevel";
     private static final String SERVER_CERTIFICATE = "serviceCertificate";
@@ -75,7 +74,6 @@ public class MediaDrmBridge {
     private static final String SESSION_SHARING = "sessionSharing";
     private static final String ENABLE = "enable";
     private static final long INVALID_NATIVE_MEDIA_DRM_BRIDGE = 0;
-    private static final String FIRST_API_LEVEL = "ro.product.first_api_level";
 
     // See http://dashif.org/identifiers/content_protection/ for Scheme UUIDs for different Key
     // systems.
@@ -435,30 +433,6 @@ public class MediaDrmBridge {
     }
 
     /**
-     * Returns the first API level for this product.
-     *
-     * @return the converted value for FIRST_API_LEVEL if available,
-     * 0 otherwise.
-     */
-    @CalledByNative
-    private static int getFirstApiLevel() {
-        int firstApiLevel = 0;
-        try {
-            final Class<?> systemProperties = Class.forName("android.os.SystemProperties");
-            final Method getInt = systemProperties.getMethod("getInt", String.class, int.class);
-            firstApiLevel = (Integer) getInt.invoke(null, FIRST_API_LEVEL, 0);
-        } catch (Exception e) {
-            Log.e(
-                    TAG,
-                    "Exception while getting system property %s. Using default.",
-                    FIRST_API_LEVEL,
-                    e);
-            firstApiLevel = 0;
-        }
-        return firstApiLevel;
-    }
-
-    /**
      * Create a new MediaDrmBridge from the crypto scheme UUID.
      *
      * @param keySystemBytes Key system UUID.
@@ -739,7 +713,7 @@ public class MediaDrmBridge {
             Log.i(TAG, "Force closing session %s", sessionId);
 
             closeSessionNoException(sessionId);
-            onSessionClosed(sessionId);
+            onSessionClosed(sessionId, MediaDrmCdmSessionClosedReason.CLOSE);
         }
         mSessionManager = new MediaDrmSessionManager(mStorage);
 
@@ -986,7 +960,7 @@ public class MediaDrmBridge {
         mSessionManager.remove(sessionId);
         // Code in media_key_session.cc expects the closed event to happen before the close()
         // promise is resolved.
-        onSessionClosed(sessionId);
+        onSessionClosed(sessionId, MediaDrmCdmSessionClosedReason.CLOSE);
         onPromiseResolved(promiseId);
         Log.i(TAG, "Session %s closed", sessionId);
     }
@@ -1602,9 +1576,11 @@ public class MediaDrmBridge {
                         mNativeMediaDrmBridge, sessionId.emeId(), requestType, request.getData());
     }
 
-    private void onSessionClosed(final SessionId sessionId) {
+    private void onSessionClosed(
+            final SessionId sessionId, final @MediaDrmCdmSessionClosedReason int reason) {
         if (isNativeMediaDrmBridgeValid()) {
-            MediaDrmBridgeJni.get().onSessionClosed(mNativeMediaDrmBridge, sessionId.emeId());
+            MediaDrmBridgeJni.get()
+                    .onSessionClosed(mNativeMediaDrmBridge, sessionId.emeId(), reason);
         }
     }
 
@@ -1647,12 +1623,7 @@ public class MediaDrmBridge {
                 int extra,
                 byte @Nullable [] data) {
             if (drmSessionId == null) {
-                // Prior to Android M EVENT_PROVISION_REQUIRED was used to signify that provisioning
-                // was required before the session could be created. Unprovisioned errors are
-                // handled elsewhere, so no need to log a message.
-                if (event != MediaDrm.EVENT_PROVISION_REQUIRED) {
-                    Log.e(TAG, "EventListener: No session for event %d.", event);
-                }
+                Log.e(TAG, "EventListener: No session for event %d.", event);
                 return;
             }
 
@@ -1691,11 +1662,8 @@ public class MediaDrmBridge {
                         return;
                     }
                     break;
-                case MediaDrm.EVENT_KEY_EXPIRED:
-                    Log.d(TAG, "MediaDrm.EVENT_KEY_EXPIRED for session %s", sessionId);
-                    break;
-                    // (b/271451225) This event is generated during ClearKey implementation in
-                    // Android.
+                // (b/271451225) This event is generated during ClearKey implementation in
+                // Android.
                 case MediaDrm.EVENT_VENDOR_DEFINED:
                     Log.d(TAG, "MediaDrm.EVENT_VENDOR_DEFINED for session %s", sessionId);
                     request =
@@ -1711,6 +1679,10 @@ public class MediaDrmBridge {
                         Log.e(TAG, "EventListener: getKeyRequest failed.");
                         return;
                     }
+                    break;
+                case MediaDrm.EVENT_SESSION_RECLAIMED:
+                    Log.d(TAG, "MediaDrm.EVENT_SESSION_RECLAIMED for session %s", sessionId);
+                    onSessionClosed(sessionId, MediaDrmCdmSessionClosedReason.SESSION_RECLAIMED);
                     break;
                 default:
                     Log.w(TAG, "Ignoring MediaDrm event %d for session %s", event, sessionId);
@@ -1744,9 +1716,8 @@ public class MediaDrmBridge {
 
                             Log.d(TAG, "SessionLost: " + sessionId);
                             // TODO(crbug.com/40181810): Consider passing a reason for sessionClosed
-                            // that more closely
-                            // represents a lost state.
-                            onSessionClosed(sessionId);
+                            // that more closely represents a lost state.
+                            onSessionClosed(sessionId, MediaDrmCdmSessionClosedReason.CLOSE);
                         }
                     });
         }
@@ -1885,7 +1856,7 @@ public class MediaDrmBridge {
         void onSessionMessage(
                 long nativeMediaDrmBridge, byte[] emeSessionId, int requestType, byte[] message);
 
-        void onSessionClosed(long nativeMediaDrmBridge, byte[] emeSessionId);
+        void onSessionClosed(long nativeMediaDrmBridge, byte[] emeSessionId, int reason);
 
         void onSessionKeysChange(
                 long nativeMediaDrmBridge,

@@ -4,9 +4,11 @@
 
 #include "components/contextual_search/contextual_search_service.h"
 
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "components/contextual_search/contextual_search_types.h"
 #include "components/contextual_search/fake_variations_client.h"
+#include "components/lens/lens_features.h"
 #include "components/contextual_search/mock_contextual_search_context_controller.h"
 #include "components/contextual_search/pref_names.h"
 #include "components/prefs/testing_pref_service.h"
@@ -444,6 +446,191 @@ TEST_F(ContextualSearchServiceTest, CreateSessionAfterShutdown) {
 
   ASSERT_THAT(session_handle, NotNull());
   ASSERT_THAT(session_handle->GetController(), NotNull());
+}
+
+TEST_F(ContextualSearchServiceTest, DeleteFile) {
+  auto mock_controller =
+      std::make_unique<MockContextualSearchContextController>();
+  auto metrics_recorder = std::make_unique<ContextualSearchMetricsRecorder>(
+      ContextualSearchSource::kUnknown);
+
+  MockContextualSearchContextController* mock_controller_ptr =
+      mock_controller.get();
+
+  auto session_handle = service_->CreateSessionForTesting(
+      std::move(mock_controller), std::move(metrics_recorder));
+  // Check the search content sharing settings to notify the session handle
+  // that the client is properly checking the pref value.
+  session_handle->CheckSearchContentSharingSettings(&pref_service_);
+
+  // Create a token.
+  base::UnguessableToken token1 = session_handle->CreateContextToken();
+  contextual_search::FileInfo file_info1;
+  file_info1.file_token = token1;
+
+  // Expect controller DeleteFile to be called.
+  EXPECT_CALL(*mock_controller_ptr, GetFileInfo(token1))
+      .WillRepeatedly(testing::Return(&file_info1));
+  EXPECT_CALL(*mock_controller_ptr, DeleteFile(token1))
+      .WillOnce(testing::Return(true));
+
+  // Case 1: Delete uploaded file.
+  // The file has not been submitted yet, so it should be deleted.
+  EXPECT_TRUE(session_handle->DeleteFile(token1));
+
+  // Create another token.
+  base::UnguessableToken token2 = session_handle->CreateContextToken();
+  contextual_search::FileInfo file_info2;
+  file_info2.file_token = token2;
+
+  EXPECT_CALL(*mock_controller_ptr, GetFileInfo(token2))
+      .WillRepeatedly(testing::Return(&file_info2));
+
+  // Submit the token.
+  EXPECT_CALL(*mock_controller_ptr, CreateClientToAimRequest(_))
+      .WillOnce(testing::Invoke(
+          this, &ContextualSearchServiceTest::CaptureClientToAimRequest));
+
+  auto request = std::make_unique<
+      ContextualSearchContextController::CreateClientToAimRequestInfo>();
+  session_handle->CreateClientToAimRequest(std::move(request));
+
+  // Token2 should now be in submitted tokens.
+  // Verify DeleteFile is NOT called on controller.
+  EXPECT_CALL(*mock_controller_ptr, DeleteFile(token2)).Times(0);
+
+  // Case 2: Delete submitted file.
+  // The file has been submitted, so it should NOT be deleted.
+  EXPECT_FALSE(session_handle->DeleteFile(token2));
+}
+
+TEST_F(ContextualSearchServiceTest, StartFileContextUploadFlow_PdfPageTitle) {
+  auto mock_controller =
+      std::make_unique<MockContextualSearchContextController>();
+  auto metrics_recorder = std::make_unique<ContextualSearchMetricsRecorder>(
+      ContextualSearchSource::kUnknown);
+
+  MockContextualSearchContextController* mock_controller_ptr =
+      mock_controller.get();
+
+  auto session_handle = service_->CreateSessionForTesting(
+      std::move(mock_controller), std::move(metrics_recorder));
+  session_handle->CheckSearchContentSharingSettings(&pref_service_);
+
+  base::UnguessableToken file_token = session_handle->CreateContextToken();
+  std::string file_name = "test_file.pdf";
+  std::string file_mime_type = "application/pdf";
+  std::vector<uint8_t> file_bytes = {1, 2, 3};
+  mojo_base::BigBuffer buffer(file_bytes);
+
+  // Expect StartFileUploadFlow to be called with the page title set to the file
+  // name.
+  EXPECT_CALL(*mock_controller_ptr,
+              StartFileUploadFlow(file_token, testing::NotNull(), _))
+      .WillOnce(
+          testing::WithArgs<1>([&](std::unique_ptr<lens::ContextualInputData>
+                                       contextual_input_data) {
+            EXPECT_TRUE(contextual_input_data->page_title.has_value());
+            EXPECT_EQ(contextual_input_data->page_title.value(), file_name);
+            EXPECT_TRUE(contextual_input_data->file_name.has_value());
+            EXPECT_EQ(contextual_input_data->file_name.value(), file_name);
+          }));
+
+  session_handle->StartFileContextUploadFlow(
+      file_token, file_name, file_mime_type, std::move(buffer), std::nullopt);
+}
+
+TEST_F(ContextualSearchServiceTest,
+       StartFileContextUploadFlow_ImagePageTitle) {
+  auto mock_controller =
+      std::make_unique<MockContextualSearchContextController>();
+  auto metrics_recorder = std::make_unique<ContextualSearchMetricsRecorder>(
+      ContextualSearchSource::kUnknown);
+
+  MockContextualSearchContextController* mock_controller_ptr =
+      mock_controller.get();
+
+  auto session_handle = service_->CreateSessionForTesting(
+      std::move(mock_controller), std::move(metrics_recorder));
+  session_handle->CheckSearchContentSharingSettings(&pref_service_);
+
+  base::UnguessableToken file_token = session_handle->CreateContextToken();
+  std::string file_name = "test_image.png";
+  std::string file_mime_type = "image/png";
+  std::vector<uint8_t> file_bytes = {1, 2, 3};
+  mojo_base::BigBuffer buffer(file_bytes);
+
+  // Expect StartFileUploadFlow to be called with the page title set.
+  EXPECT_CALL(*mock_controller_ptr,
+              StartFileUploadFlow(file_token, testing::NotNull(), _))
+      .WillOnce(
+          testing::WithArgs<1>([&](std::unique_ptr<lens::ContextualInputData>
+                                       contextual_input_data) {
+            EXPECT_TRUE(contextual_input_data->page_title.has_value());
+            EXPECT_EQ(contextual_input_data->page_title.value(), file_name);
+            EXPECT_TRUE(contextual_input_data->file_name.has_value());
+            EXPECT_EQ(contextual_input_data->file_name.value(), file_name);
+            EXPECT_TRUE(contextual_input_data->primary_content_type.has_value());
+            EXPECT_EQ(contextual_input_data->primary_content_type.value(), lens::MimeType::kImage);
+          }));
+
+  session_handle->StartFileContextUploadFlow(
+      file_token, file_name, file_mime_type, std::move(buffer), std::nullopt);
+}
+
+TEST_F(ContextualSearchServiceTest,
+       StartFileContextUploadFlow_RawFileMediaTypesEnabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(lens::features::kLensSendRawFileMediaTypes);
+
+  auto mock_controller =
+      std::make_unique<MockContextualSearchContextController>();
+  auto metrics_recorder = std::make_unique<ContextualSearchMetricsRecorder>(
+      ContextualSearchSource::kUnknown);
+
+  MockContextualSearchContextController* mock_controller_ptr =
+      mock_controller.get();
+
+  auto session_handle = service_->CreateSessionForTesting(
+      std::move(mock_controller), std::move(metrics_recorder));
+  session_handle->CheckSearchContentSharingSettings(&pref_service_);
+
+  base::UnguessableToken file_token = session_handle->CreateContextToken();
+  std::string file_name = "test_file.csv";
+  std::string file_mime_type = "text/csv";
+  std::vector<uint8_t> file_bytes = {1, 2, 3};
+  mojo_base::BigBuffer buffer(file_bytes);
+
+  // Expect StartFileUploadFlow to be called with page title and mime type as kUnknown.
+  EXPECT_CALL(*mock_controller_ptr,
+              StartFileUploadFlow(file_token, testing::NotNull(), _))
+      .WillOnce(
+          testing::WithArgs<1>([&](std::unique_ptr<lens::ContextualInputData>
+                                       contextual_input_data) {
+            EXPECT_TRUE(contextual_input_data->page_title.has_value());
+            EXPECT_EQ(contextual_input_data->page_title.value(), file_name);
+            EXPECT_TRUE(contextual_input_data->file_name.has_value());
+            EXPECT_EQ(contextual_input_data->file_name.value(), file_name);
+            EXPECT_TRUE(contextual_input_data->primary_content_type.has_value());
+            EXPECT_EQ(contextual_input_data->primary_content_type.value(), lens::MimeType::kUnknown);
+            EXPECT_TRUE(contextual_input_data->mime_type_string.has_value());
+            EXPECT_EQ(contextual_input_data->mime_type_string.value(), file_mime_type);
+          }));
+
+  session_handle->StartFileContextUploadFlow(
+      file_token, file_name, file_mime_type, std::move(buffer), std::nullopt);
+}
+
+TEST(ContextualSearchTypesTest, ContextUploadStatus_EnumSize) {
+  // The expected value should be the integer value of `kMaxValue`.
+  // The current kMaxValue is `kUploadReplaced`, which has a value of 8.
+  EXPECT_EQ(static_cast<int>(ContextUploadStatus::kMaxValue), 8);
+}
+
+TEST(ContextualSearchTypesTest, ContextUploadErrorType_EnumSize) {
+  // The expected value should be the integer value of `kMaxValue`.
+  // The current kMaxValue is `kImageProcessingError`, which has a value of 6.
+  EXPECT_EQ(static_cast<int>(ContextUploadErrorType::kMaxValue), 6);
 }
 
 }  // namespace contextual_search

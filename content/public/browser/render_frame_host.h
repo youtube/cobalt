@@ -56,6 +56,7 @@ class SkBitmap;
 namespace network {
 class PermissionsPolicy;
 }  // namespace network
+
 namespace base {
 class UnguessableToken;
 }  // namespace base
@@ -63,12 +64,15 @@ class UnguessableToken;
 namespace blink {
 class AssociatedInterfaceProvider;
 class StorageKey;
-
 namespace mojom {
 enum class AuthenticatorStatus;
 class MediaPlayerAction;
 }  // namespace mojom
 }  // namespace blink
+
+namespace download {
+class DownloadUrlParameters;
+}  // namespace download
 
 namespace gfx {
 class Point;
@@ -84,6 +88,7 @@ class PendingReceiver;
 namespace net {
 class IsolationInfo;
 class NetworkIsolationKey;
+struct NetworkTrafficAnnotationTag;
 }  // namespace net
 
 namespace network {
@@ -1169,11 +1174,12 @@ class CONTENT_EXPORT RenderFrameHost : public IPC::Listener {
   virtual void OnPreloadingHeuristicsModelDone(const GURL& url,
                                                float score) = 0;
 
-  // Checks if `seqno` is known to have originated from this RFH. This will only
-  // return true if `seqno` represents the last clipboard write made by all
-  // RFHs.
-  virtual bool IsClipboardOwner(
-      ui::ClipboardSequenceNumberToken seqno) const = 0;
+  // Checks if `seqno` is known to have originated from this RFH. `callback`
+  // will only be called with true if `seqno` represents the last clipboard
+  // write made by all RFHs.
+  virtual void IsClipboardOwner(
+      ui::ClipboardSequenceNumberToken seqno,
+      base::OnceCallback<void(bool)> callback) const = 0;
 
   // Returns true if RenderFrameHostImpl has non-null PolicyContainerHost.
   // TODO(crbug.com/346386726): Delete this method once we have solidified the
@@ -1195,6 +1201,12 @@ class CONTENT_EXPORT RenderFrameHost : public IPC::Listener {
   // access to unpartitioned cookies/storage.
   virtual void SetStorageAccessApiStatus(
       net::StorageAccessApiStatus status) = 0;
+
+  // Creates `DownloadUrlParameters` for downloads initiated by `this` frame.
+  virtual std::unique_ptr<download::DownloadUrlParameters>
+  CreateDownloadUrlParameters(
+      const GURL& url,
+      const net::NetworkTrafficAnnotationTag& traffic_annotation) const = 0;
 
  private:
   // This interface should only be implemented inside content.

@@ -38,7 +38,6 @@ import android.view.View;
 
 import androidx.annotation.Nullable;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -59,8 +58,8 @@ import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
-import org.chromium.base.test.BaseRobolectricTestRule;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
@@ -94,6 +93,7 @@ import org.chromium.chrome.browser.theme.ThemeColorProvider.ThemeColorObserver;
 import org.chromium.chrome.browser.theme.ThemeColorProvider.TintObserver;
 import org.chromium.chrome.browser.toolbar.bottom.BottomControlsCoordinator.BottomControlsVisibilityController;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
+import org.chromium.components.browser_ui.widget.gesture.BackPressHandler.BackPressResult;
 import org.chromium.components.collaboration.CollaborationService;
 import org.chromium.components.collaboration.ServiceStatus;
 import org.chromium.components.data_sharing.DataSharingService;
@@ -261,7 +261,7 @@ public class TabGroupUiMediatorUnitTest {
                         mThemeColorProvider,
                         mOnSnapshotTokenChange,
                         mChildTokenSupplier);
-        BaseRobolectricTestRule.runAllBackgroundAndUi();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         if (currentTab == null) {
             verifyNeverReset();
@@ -559,7 +559,7 @@ public class TabGroupUiMediatorUnitTest {
 
         // Strip should be showing since we are selecting a group, and it should scroll to the index
         // of currently selected tab.
-        BaseRobolectricTestRule.runAllBackgroundAndUi();
+        RobolectricUtil.runAllBackgroundAndUi();
         verifyResetStrip(true, tabGroup);
         assertThat(mModel.get(TabGroupUiProperties.INITIAL_SCROLL_INDEX), equalTo(1));
     }
@@ -722,7 +722,7 @@ public class TabGroupUiMediatorUnitTest {
                         TabLaunchType.FROM_TAB_GROUP_UI,
                         TabCreationState.LIVE_IN_FOREGROUND,
                         false);
-        BaseRobolectricTestRule.runAllBackgroundAndUi();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         // Strip should be not be reset through adding tab from UI.
         verifyNeverReset();
@@ -980,29 +980,29 @@ public class TabGroupUiMediatorUnitTest {
     public void backButtonPress_ShouldHandle() {
         initAndAssertProperties(mTab1);
         mDialogControllerSupplier.get();
-        doReturn(true).when(mTabGridDialogController).handleBackPressed();
+        doReturn(BackPressResult.SUCCESS).when(mTabGridDialogController).handleBackPress();
         mTabGridDialogBackPressSupplier.set(true);
-        BaseRobolectricTestRule.runAllBackgroundAndUi();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         var groupUiBackPressSupplier = mTabGroupUiMediator.getHandleBackPressChangedSupplier();
-        Assert.assertEquals(true, groupUiBackPressSupplier.get());
+        assertTrue(groupUiBackPressSupplier.get());
 
-        assertThat(mTabGroupUiMediator.onBackPressed(), equalTo(true));
-        verify(mTabGridDialogController).handleBackPressed();
+        assertEquals(BackPressResult.SUCCESS, mTabGroupUiMediator.handleBackPress());
+        verify(mTabGridDialogController).handleBackPress();
     }
 
     @Test
     public void backButtonPress_ShouldNotHandle() {
         initAndAssertProperties(mTab1);
         mDialogControllerSupplier.get();
-        doReturn(false).when(mTabGridDialogController).handleBackPressed();
+        doReturn(BackPressResult.FAILURE).when(mTabGridDialogController).handleBackPress();
         mTabGridDialogBackPressSupplier.set(false);
-        BaseRobolectricTestRule.runAllBackgroundAndUi();
+        RobolectricUtil.runAllBackgroundAndUi();
         var groupUiBackPressSupplier = mTabGroupUiMediator.getHandleBackPressChangedSupplier();
 
-        assertNotEquals(true, groupUiBackPressSupplier.get());
-        assertThat(mTabGroupUiMediator.onBackPressed(), equalTo(false));
-        verify(mTabGridDialogController).handleBackPressed();
+        assertFalse(groupUiBackPressSupplier.get());
+        assertEquals(BackPressResult.FAILURE, mTabGroupUiMediator.handleBackPress());
+        verify(mTabGridDialogController).handleBackPress();
     }
 
     @Test
@@ -1016,16 +1016,16 @@ public class TabGroupUiMediatorUnitTest {
 
         // Late init.
         mDialogControllerSupplier.get();
-        doReturn(false).when(mTabGridDialogController).handleBackPressed();
+        doReturn(BackPressResult.FAILURE).when(mTabGridDialogController).handleBackPress();
         mTabGridDialogBackPressSupplier.set(false);
-        BaseRobolectricTestRule.runAllBackgroundAndUi();
+        RobolectricUtil.runAllBackgroundAndUi();
 
-        Assert.assertFalse(groupUiBackPressSupplier.get());
+        assertFalse(groupUiBackPressSupplier.get());
 
         mTabGridDialogBackPressSupplier.set(true);
-        BaseRobolectricTestRule.runAllBackgroundAndUi();
-        doReturn(true).when(mTabGridDialogController).handleBackPressed();
-        Assert.assertTrue(groupUiBackPressSupplier.get());
+        RobolectricUtil.runAllBackgroundAndUi();
+        doReturn(BackPressResult.SUCCESS).when(mTabGridDialogController).handleBackPress();
+        assertTrue(groupUiBackPressSupplier.get());
     }
 
     @Test

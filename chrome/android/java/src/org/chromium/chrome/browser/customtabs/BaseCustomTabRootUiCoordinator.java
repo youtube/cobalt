@@ -4,7 +4,7 @@
 
 package org.chromium.chrome.browser.customtabs;
 
-import static org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.CustomTabProfileType.INCOGNITO;
+import static org.chromium.chrome.browser.flags.CustomTabProfileType.INCOGNITO;
 
 import android.content.Intent;
 import android.graphics.Color;
@@ -27,13 +27,13 @@ import org.chromium.base.IntentUtils;
 import org.chromium.base.TimeUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneShotCallback;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
-import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.blink.mojom.DisplayMode;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
@@ -78,8 +78,6 @@ import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.open_in_app.CustomTabOpenInAppEntryPoint;
 import org.chromium.chrome.browser.open_in_app.OpenInAppUtils;
 import org.chromium.chrome.browser.pdf.PdfPageIphController;
-import org.chromium.chrome.browser.privacy_sandbox.ActivityTypeMapper;
-import org.chromium.chrome.browser.privacy_sandbox.PrivacySandboxBridge;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.readaloud.ReadAloudIphController;
 import org.chromium.chrome.browser.reengagement.ReengagementNotificationController;
@@ -218,7 +216,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
             @NonNull MonotonicObservableSupplier<LayoutManagerImpl> layoutManagerSupplier,
             @NonNull MenuOrKeyboardActionController menuOrKeyboardActionController,
             @NonNull Supplier<Integer> activityThemeColorSupplier,
-            @NonNull MonotonicObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
+            @NonNull NonNullObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
             @NonNull AppMenuBlocker appMenuBlocker,
             @NonNull BooleanSupplier supportsAppMenuSupplier,
             @NonNull BooleanSupplier supportsFindInPage,
@@ -226,7 +224,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
             @NonNull FullscreenManager fullscreenManager,
             @NonNull MonotonicObservableSupplier<CompositorViewHolder> compositorViewHolderSupplier,
             @NonNull Supplier<TabContentManager> tabContentManagerSupplier,
-            @NonNull Supplier<SnackbarManager> snackbarManagerSupplier,
+            @NonNull MonotonicObservableSupplier<SnackbarManager> snackbarManagerSupplier,
             @NonNull
                     SettableMonotonicObservableSupplier<EdgeToEdgeController>
                             edgeToEdgeControllerSupplier,
@@ -293,7 +291,8 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                 ObservableSuppliers.createNonNull(Color.TRANSPARENT),
                 edgeToEdgeManager,
                 /* xrSpaceModeObservableSupplier= */ ObservableSuppliers.alwaysFalse(),
-                desktopWindowStateManager);
+                desktopWindowStateManager,
+                /* bottomBarHostManager= */ null);
         mCustomTabProvider = customTabProvider;
         mToolbarCoordinator = customTabToolbarCoordinator;
         mIntentDataProvider = intentDataProvider;
@@ -340,9 +339,12 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                     .addDelegate(browserControlsManager.getBrowserVisibilityDelegate());
         }
 
-        if (OpenInAppUtils.isOpenInAppAvailable()) {
+        if (OpenInAppUtils.isOpenInAppAvailable() && intentDataProvider.get().isOpenedByChrome()) {
             mOpenInAppEntryPoint =
-                    new CustomTabOpenInAppEntryPoint(mActivityTabProvider.asObservable(), activity);
+                    new CustomTabOpenInAppEntryPoint(
+                            mActivityTabProvider.asObservable(),
+                            activity,
+                            tabModelSelectorSupplier);
         }
     }
 
@@ -986,11 +988,8 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                         (profile) -> {
                             Profile regularProfile = profile.getOriginalProfile();
                             boolean didShowPrompt =
-                                        RequestDesktopUtils
-                                                .maybeShowDefaultEnableGlobalSettingMessage(
-                                                        regularProfile,
-                                                        mMessageDispatcher,
-                                                        mActivity);
+                                    RequestDesktopUtils.maybeShowDefaultEnableGlobalSettingMessage(
+                                            regularProfile, mMessageDispatcher, mActivity);
 
                             if (!didShowPrompt && mAppMenuCoordinator != null) {
                                 mDesktopSiteSettingsIphController =
@@ -1012,24 +1011,6 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                                                 /* isBrowserApp= */ false);
                             }
                         }));
-        SupplierUtils.waitForAll(
-                () -> maybeRecordPrivacySandboxActivityType(),
-                mIntentDataProvider,
-                mProfileSupplier);
-    }
-
-    private void maybeRecordPrivacySandboxActivityType() {
-        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.PRIVACY_SANDBOX_ACTIVITY_TYPE_STORAGE)) {
-            return;
-        }
-
-        int privacySandboxStorageActivityType =
-                ActivityTypeMapper.toPrivacySandboxStorageActivityType(
-                        mActivityType, mIntentDataProvider.get());
-
-        PrivacySandboxBridge privacySandboxBridge =
-                new PrivacySandboxBridge(mProfileSupplier.get());
-        privacySandboxBridge.recordActivityType(privacySandboxStorageActivityType);
     }
 
     CustomTabHeightStrategy getCustomTabSizeStrategyForTesting() {

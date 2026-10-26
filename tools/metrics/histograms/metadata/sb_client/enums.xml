@@ -95,6 +95,29 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="CSD and high confidence match"/>
 </enum>
 
+<!-- LINT.IfChange(ClientSideDetectionEvent) -->
+
+<enum name="ClientSideDetectionEvent">
+  <int value="0" label="Trigger starts preclassification"/>
+  <int value="1" label="Preclassification check complete"/>
+  <int value="2" label="Image classification begins"/>
+  <int value="3" label="Image classification completes"/>
+  <int value="4" label="Verdict proto parse completes"/>
+  <int value="5" label="Local model result complete"/>
+  <int value="6" label="Image embedding begins"/>
+  <int value="7" label="Image embedding completes"/>
+  <int value="8" label="Intelligent scan begins"/>
+  <int value="9" label="Intelligent scan completes"/>
+  <int value="10" label="Miscellaneous fields added to verdict"/>
+  <int value="11" label="Network request has been sent"/>
+  <int value="12" label="Network response has been received"/>
+  <int value="13" label="Warning shown"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/safe_browsing/content/browser/client_side_detection_host.h:ClientSideDetectionEvent)-->
+
+<!-- LINT.IfChange(ClientSideDetectionType) -->
+
 <enum name="ClientSideDetectionType">
   <int value="0" label="CLIENT_SIDE_DETECTION_TYPE_UNSPECIFIED"/>
   <int value="1" label="FORCE_REQUEST"/>
@@ -107,7 +130,10 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="CLIPBOARD_COPY_API"/>
   <int value="9" label="CREDIT_CARD_FORM"/>
   <int value="10" label="IMAGE_EMBEDDING_MATCH"/>
+  <int value="11" label="USER_REPORT"/>
 </enum>
+
+<!-- LINT.ThenChange(//components/safe_browsing/core/common/proto/csd.proto:ClientSideDetectionType) -->
 
 <enum name="ClientSidePhishingImageEmbeddingResult">
   <summary>
@@ -224,6 +250,11 @@ chromium-metrics-reviews@google.com.
       label="Repeat visit, SMS referring app, Autofill local heuristic"/>
   <int value="232"
       label="Repeat visit, SMS referring app, Autofill server heuristic"/>
+</enum>
+
+<enum name="CSDObserverCalled">
+  <int value="0" label="OnFirstContentfulPaint"/>
+  <int value="1" label="DidFirstVisuallyNonEmptyPaint"/>
 </enum>
 
 <enum name="IntelligentScanVerdict">
@@ -387,6 +418,8 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Has bypassed download warnings before"/>
 </enum>
 
+<!-- LINT.IfChange(SBClientPhishingCancelClassificationReason) -->
+
 <enum name="SBClientPhishingCancelClassificationReason">
   <int value="0" label="NAVIGATE_AWAY"/>
   <int value="1" label="NAVIGATE_WITHIN_PAGE"/>
@@ -394,7 +427,10 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="SHUTDOWN"/>
   <int value="4" label="NEW_PHISHING_SCORER"/>
   <int value="5" label="SCORER_CLEARED"/>
+  <int value="6" label="NEW_REQUEST_FROM_BROWSER"/>
 </enum>
+
+<!-- LINT.ThenChange(//components/safe_browsing/content/renderer/phishing_classifier/phishing_classifier_delegate.h:CancelClassificationReason) -->
 
 <enum name="SBClientPhishingCancelImageEmbeddingReason">
   <int value="0" label="NAVIGATE_AWAY"/>
@@ -402,6 +438,7 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="PAGE_RECAPTURED"/>
   <int value="3" label="SHUTDOWN"/>
   <int value="4" label="NEW_PHISHING_SCORER"/>
+  <int value="5" label="SCORER_CLEARED"/>
 </enum>
 
 <enum name="SBClientPhishingScorerCreationStatus">
@@ -438,6 +475,18 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Save Package"/>
 </enum>
 
+<enum name="SBImageEmbedderEvent">
+  <int value="0" label="Image embedder was requested to start"/>
+  <int value="1" label="Page text was captured"/>
+  <int value="2" label="Page text was not loaded"/>
+  <int value="3" label="URL does not match from browser request"/>
+  <int value="4" label="Image embedding could not finish due to destruction"/>
+  <int value="5" label="Image embedding request begins"/>
+  <int value="6" label="Image embedding completes"/>
+  <int value="7" label="Image embedding callback is empty on completion"/>
+  <int value="8" label="Image embedding request is responded"/>
+</enum>
+
 <enum name="SBPhishingClassifierEvent">
   <int value="0" label="Phishing detection was requested to start"/>
   <int value="1" label="Page text was captured"/>
@@ -452,6 +501,10 @@ chromium-metrics-reviews@google.com.
       label="Phishing classifier callback is empty on classification
              completion"/>
   <int value="9" label="Phishing classification request is responded"/>
+  <int value="10" label="Renderer page layout has finished loading"/>
+  <int value="11"
+      label="Renderer page layout has finished loading again in middle of
+             classification"/>
 </enum>
 
 <enum name="TailoredWarningType">

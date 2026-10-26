@@ -115,7 +115,7 @@ public class FullscreenSigninPromoLauncherTest {
     @Test
     public void whenAccountCacheNotPopulated() {
         mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
-        mFakeAccountManagerFacade.blockGetAccounts(/* populateCache= */ false);
+        mAccountManagerTestRule.blockGetAccountsUpdate();
         mPrefManager.setSigninPromoNextShowTime(mTimeInPast);
 
         Assert.assertFalse(

@@ -50,10 +50,6 @@ BASE_FEATURE(kDataControlsFileAccessDefaultDeny,
 // Enables data migration.
 BASE_FEATURE(kDataMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Disables translation services of the Quick Answers V2.
-BASE_FEATURE(kDisableQuickAnswersV2Translation,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables Essential Search in Omnibox for both launcher and browser.
 BASE_FEATURE(kEssentialSearch, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -86,9 +82,6 @@ BASE_FEATURE(kMahiPanelResizable, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether mahi sends url when making request to the server.
 BASE_FEATURE(kMahiSendingUrl, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Controls enabling / disabling the mahi debugging.
-BASE_FEATURE(kMahiDebugging, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls enabling / disabling the pompano feature.
 BASE_FEATURE(kPompano, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -277,7 +270,7 @@ BASE_FEATURE(kSystemFeaturesDisableListHidden,
 BASE_FEATURE(kVidsAppPreinstall, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether Vids is preinstalled for consumers.
-BASE_FEATURE(kVidsAppConsumerPreinstall, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kVidsAppConsumerPreinstall, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsBatteryBadgeIconEnabled() {
   return base::FeatureList::IsEnabled(kBatteryBadgeIcon);
@@ -365,10 +358,6 @@ bool IsMahiSendingUrl() {
   return base::FeatureList::IsEnabled(kMahiSendingUrl);
 }
 
-bool IsMahiDebuggingEnabled() {
-  return base::FeatureList::IsEnabled(kMahiDebugging);
-}
-
 bool IsPlatformKeysChangesWave1Enabled() {
   return base::FeatureList::IsEnabled(kPlatformKeysChangesWave1);
 }
@@ -411,10 +400,6 @@ bool ShouldDisableChromeComposeOnChromeOS() {
 
 bool IsQuickAnswersMaterialNextUIEnabled() {
   return base::FeatureList::IsEnabled(kQuickAnswersMaterialNextUI);
-}
-
-bool IsQuickAnswersV2TranslationDisabled() {
-  return base::FeatureList::IsEnabled(kDisableQuickAnswersV2Translation);
 }
 
 bool IsQuickAnswersRichCardEnabled() {

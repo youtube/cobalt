@@ -672,21 +672,6 @@ void TestRenderFrameHost::SendCommitFailedNavigation(
       BuildCommitFailedNavigationCallback(navigation_request);
 }
 
-void TestRenderFrameHost::SendBeforeUnload(
-    bool is_reload,
-    base::WeakPtr<RenderFrameHostImpl> impl,
-    bool for_legacy,
-    const bool is_renderer_initiated_navigation) {
-  if (on_sendbeforeunload_begin_) {
-    std::move(on_sendbeforeunload_begin_).Run();
-  }
-  RenderFrameHostImpl::SendBeforeUnload(is_reload, std::move(impl), for_legacy,
-                                        is_renderer_initiated_navigation);
-  if (on_sendbeforeunload_end_) {
-    std::move(on_sendbeforeunload_end_).Run();
-  }
-}
-
 mojom::DidCommitProvisionalLoadParamsPtr
 TestRenderFrameHost::BuildDidCommitParams(bool did_create_new_entry,
                                           const GURL& url,

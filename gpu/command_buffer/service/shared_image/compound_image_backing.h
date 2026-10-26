@@ -387,13 +387,16 @@ class GPU_GLES2_EXPORT CompoundImageBacking
   // data. This method finds the first element which has most recent data.
   ElementHolder* GetElementWithLatestContent();
 
-  // Gets or allocates a backing for a given |stream|.
-  // If a backing with a given |stream| is present, it will either return the
+  // Gets or allocates a backing for a given `stream` and `params`.
+  // It finds a backing that supports the given `stream` and is compatible
+  // with the context information in `params` by calling `SupportsAccess()`.
+  // If a compatible backing is present, it will either return the
   // backing with the latest content OR will return any supported backing (the
   // first one it finds).
   // If no backing is found, then it will allocate an appropriate backing which
-  // can support the |stream|.
-  SharedImageBacking* GetOrAllocateBacking(SharedImageAccessStream stream);
+  // can support the `stream`.
+  SharedImageBacking* GetOrAllocateBacking(SharedImageAccessStream stream,
+                                           const AccessParams& params);
 
   // Returns the gpu backing from the list of |element_| which has a shm and a
   // gpu backing.
@@ -410,6 +413,7 @@ class GPU_GLES2_EXPORT CompoundImageBacking
   void CreateBackingFromBackingFactory(
       base::WeakPtr<SharedImageBackingFactory> factory,
       std::string debug_label,
+      SharedImageUsageSet usage,
       std::unique_ptr<SharedImageBacking>& backing);
 
   void OnCopyToGpuMemoryBufferComplete(bool success);
@@ -423,7 +427,7 @@ class GPU_GLES2_EXPORT CompoundImageBacking
   // thread-safe.
   base::WeakPtr<SharedImageFactory> shared_image_factory_;
 
-  uint32_t latest_content_id_ = 1;
+  uint32_t latest_content_id_ GUARDED_BY(lock_) = 1;
 
   // Holds all of the "element" backings that make up this compound backing. For
   // each there is a backing, set of streams and tracking for latest content.
@@ -435,7 +439,7 @@ class GPU_GLES2_EXPORT CompoundImageBacking
   // As of now, CompoundImageBacking only has 2 backings,i.e., 1 shm and 1 gpu
   // backing. In future, it will evolve into a dynamic CompoundImageBacking
   // where it can have any number of gpu backings and at most 1 cpu backing.
-  std::vector<ElementHolder> elements_;
+  std::vector<ElementHolder> elements_ GUARDED_BY(lock_);
 
   base::OnceCallback<void(bool)> pending_copy_to_gmb_callback_;
   scoped_refptr<SharedImageCopyManager> copy_manager_;

@@ -8,12 +8,15 @@
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/command_updater.h"
+#include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_metrics.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/core/tab_restore_service.h"
@@ -26,11 +29,6 @@
 
 #if BUILDFLAG(IS_LINUX)
 #include "chrome/common/pref_names.h"
-#endif
-
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/glic_pref_names.h"
-#include "chrome/browser/glic/public/glic_enabling.h"
 #endif
 
 SystemMenuModelDelegate::SystemMenuModelDelegate(
@@ -56,12 +54,10 @@ bool SystemMenuModelDelegate::IsCommandIdEnabled(int command_id) const {
     return chromeos::MoveToDesksMenuDelegate::ShouldShowMoveToDesksMenu();
   }
 #endif
-#if BUILDFLAG(ENABLE_GLIC)
   // Disable the glic toggle pin if it is showing and glic is not enabled.
   if (command_id == IDC_GLIC_TOGGLE_PIN) {
     return glic::GlicEnabling::IsEnabledForProfile(browser_->profile());
   }
-#endif
   return chrome::IsCommandEnabled(browser_, command_id);
 }
 
@@ -80,11 +76,9 @@ bool SystemMenuModelDelegate::IsCommandIdVisible(int command_id) const {
     return chromeos::MoveToDesksMenuDelegate::ShouldShowMoveToDesksMenu();
   }
 #endif
-#if BUILDFLAG(ENABLE_GLIC)
   if (command_id == IDC_GLIC_TOGGLE_PIN) {
     return glic::GlicEnabling::IsEnabledForProfile(browser_->profile());
   }
-#endif
   return true;
 }
 
@@ -132,14 +126,12 @@ std::u16string SystemMenuModelDelegate::GetLabelForCommandId(
                       : IDS_SWITCH_TO_VERTICAL_TAB;
       break;
     }
-#if BUILDFLAG(ENABLE_GLIC)
     case IDC_GLIC_TOGGLE_PIN:
       string_id = browser_->profile()->GetPrefs()->GetBoolean(
                       glic::prefs::kGlicPinnedToTabstrip)
                       ? IDS_GLIC_UNPIN
                       : IDS_GLIC_PIN;
       break;
-#endif
     default:
       NOTREACHED();
   }
@@ -167,6 +159,15 @@ void SystemMenuModelDelegate::ExecuteCommand(int command_id, int event_flags) {
       base::RecordAction(
           base::UserMetricsAction("SystemContextMenu_NameWindow"));
       break;
+    case IDC_TOGGLE_VERTICAL_TABS: {
+      auto* controller = tabs::VerticalTabStripStateController::From(browser_);
+      if (controller) {
+        const bool is_vertical = !controller->ShouldDisplayVerticalTabs();
+        tabs::RecordVerticalTabStripModeChanged(
+            is_vertical, tabs::VerticalTabStripEntryPoint::kSystemContextMenu);
+      }
+      break;
+    }
   }
   chrome::ExecuteCommand(browser_, command_id);
 }

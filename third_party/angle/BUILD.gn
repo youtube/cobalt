@@ -89,6 +89,8 @@ declare_args() {
 
   # Prefix where the artifacts should be installed on the system
   install_prefix = ""
+
+  angle_use_crypto_hasher = build_with_chromium
 }
 
 declare_args() {
@@ -107,6 +109,7 @@ if (angle_build_all) {
     deps = [
       ":angle",
       ":angle_shader_translator",
+      ":noop_target",
       ":translator_fuzzer",
       ":xxhash_fuzzer",
       "$angle_root/samples:angle_samples",
@@ -309,6 +312,9 @@ config("internal_config") {
 
   if (angle_trace_events_ignore_timestamp) {
     defines += [ "ANGLE_TRACE_EVENTS_IGNORE_TIMESTAMP" ]
+  }
+  if (angle_use_crypto_hasher) {
+    defines += [ "ANGLE_USE_CRYPTO_HASHER=1" ]
   }
 }
 
@@ -1881,4 +1887,9 @@ if (!build_with_chromium && angle_has_build &&
            ] + build_gn_logs
 
   write_file("$root_build_dir/gn_logs.txt", _lines)
+}
+
+# An empty target primarily meant for performing a no-op compile on trace
+# builders.
+group("noop_target") {
 }

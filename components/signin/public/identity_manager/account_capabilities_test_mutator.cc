@@ -10,6 +10,7 @@
 #include "base/check.h"
 #include "build/build_config.h"
 #include "components/signin/internal/identity_manager/account_capabilities_constants.h"
+#include "components/signin/public/base/signin_switches.h"
 
 AccountCapabilitiesTestMutator::AccountCapabilitiesTestMutator(
     AccountCapabilities* capabilities)
@@ -58,10 +59,36 @@ void AccountCapabilitiesTestMutator::set_can_run_chrome_privacy_sandbox_trials(
 void AccountCapabilitiesTestMutator::
     set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
         bool value) {
+#if BUILDFLAG(IS_IOS)
+  if (base::FeatureList::IsEnabled(
+          switches::kReadContextualAccountCapabilities)) {
+    capabilities_->capabilities_map_
+        [kCanContextuallyShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName] =
+        value;
+  } else {
+    capabilities_->capabilities_map_
+        [kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName] =
+        value;
+  }
+#else
   capabilities_->capabilities_map_
       [kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName] =
       value;
+#endif
 }
+
+#if BUILDFLAG(IS_IOS)
+void AccountCapabilitiesTestMutator::set_can_sign_in_to_chrome(bool value) {
+  capabilities_->capabilities_map_[kCanSignInToChromeCapabilityName] = value;
+}
+#endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+void AccountCapabilitiesTestMutator::set_can_submit_feedback(bool value) {
+  capabilities_->capabilities_map_[kCanSubmitFeedbackInChromeCapabilityName] =
+      value;
+}
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
 void AccountCapabilitiesTestMutator::set_can_toggle_auto_updates(bool value) {
@@ -115,7 +142,18 @@ void AccountCapabilitiesTestMutator::set_can_use_manta_service(bool value) {
 
 void AccountCapabilitiesTestMutator::set_can_use_model_execution_features(
     bool value) {
+#if BUILDFLAG(IS_IOS)
+  if (base::FeatureList::IsEnabled(
+          switches::kReadContextualAccountCapabilities)) {
+    capabilities_
+        ->capabilities_map_[kCanContextuallyUseModelExecutionFeaturesName] =
+        value;
+  } else {
+    capabilities_->capabilities_map_[kCanUseModelExecutionFeaturesName] = value;
+  }
+#else
   capabilities_->capabilities_map_[kCanUseModelExecutionFeaturesName] = value;
+#endif
 }
 
 void AccountCapabilitiesTestMutator::set_can_use_speaker_label_in_recorder_app(

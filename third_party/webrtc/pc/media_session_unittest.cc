@@ -15,6 +15,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -22,7 +23,6 @@
 #include "absl/algorithm/container.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
@@ -61,6 +61,7 @@
 #include "rtc_base/ssl_identity.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/strings/string_builder.h"
+#include "rtc_base/system/plan_b_only.h"
 #include "rtc_base/unique_id_generator.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
@@ -86,7 +87,6 @@ using ::testing::SizeIs;
 using ::testing::UnorderedElementsAreArray;
 using ::testing::Values;
 using ::testing::ValuesIn;
-using ::webrtc::UniqueRandomIdGenerator;
 
 using Candidates = std::vector<Candidate>;
 
@@ -134,22 +134,22 @@ class CodecLookupHelperForTesting : public CodecLookupHelper {
     SetVideoCodecs(codecs, codecs);
   }
 
-  void SetAudioCodecs(ArrayView<const Codec> codecs) {
+  void SetAudioCodecs(std::span<const Codec> codecs) {
     SetAudioCodecs(std::vector<Codec>(codecs.begin(), codecs.end()));
   }
 
-  void SetVideoCodecs(ArrayView<const Codec> codecs) {
+  void SetVideoCodecs(std::span<const Codec> codecs) {
     SetVideoCodecs(std::vector<Codec>(codecs.begin(), codecs.end()));
   }
 
   template <typename U, size_t N>
   void SetAudioCodecs(U (&array)[N]) {
-    SetAudioCodecs(ArrayView<const Codec>(&array[0], N));
+    SetAudioCodecs(std::span<const Codec>(&array[0], N));
   }
 
   template <typename U, size_t N>
   void SetVideoCodecs(U (&array)[N]) {
-    SetVideoCodecs(ArrayView<const Codec>(&array[0], N));
+    SetVideoCodecs(std::span<const Codec>(&array[0], N));
   }
 
   void ClearAudioCodecs() { SetAudioCodecs(std::vector<Codec>()); }
@@ -260,8 +260,8 @@ const Codec kVideoCodecsH265Level6[] = {
     CreateVideoCodec(96, kH265MainProfileLevel6Sdp)};
 
 // Match two codec lists for content, but ignore the ID.
-bool CodecListsMatch(ArrayView<const Codec> list1,
-                     ArrayView<const Codec> list2) {
+bool CodecListsMatch(std::span<const Codec> list1,
+                     std::span<const Codec> list2) {
   if (list1.size() != list2.size()) {
     return false;
   }
@@ -546,6 +546,7 @@ void AttachSenderToMediaDescriptionOptions(
     int num_sim_layer,
     MediaSessionOptions* session_options) {
   auto it = FindFirstMediaDescriptionByMid(mid, session_options);
+  RTC_ALLOW_PLAN_B_DEPRECATION_BEGIN();
   switch (type) {
     case webrtc::MediaType::AUDIO:
       it->AddAudioSender(track_id, stream_ids);
@@ -557,6 +558,7 @@ void AttachSenderToMediaDescriptionOptions(
     default:
       RTC_DCHECK_NOTREACHED();
   }
+  RTC_ALLOW_PLAN_B_DEPRECATION_END();
 }
 
 void AttachSenderToMediaDescriptionOptions(

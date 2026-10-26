@@ -22,7 +22,7 @@ import {getHtml} from './setup_list.html.js';
 
 export interface SetupListElement {
   $: {
-    moduleHeaderElementV2: ModuleHeaderElement,
+    moduleHeader: ModuleHeaderElement,
     promos: HTMLElement,
   };
 }
@@ -111,7 +111,7 @@ export class SetupListElement extends I18nMixinLit
     }
   }
 
-  protected onPromoClick_(e: CustomEvent) {
+  protected onNtpPromoClick_(e: CustomEvent<string>) {
     const promoId = e.detail;
     assert(promoId, 'Entry should never have empty promo ID.');
     this.handler_.onPromoClicked(promoId);
@@ -133,15 +133,11 @@ export class SetupListElement extends I18nMixinLit
 
   protected onDismissButtonClick_() {
     this.handler_.snoozeSetupList();
-    this.dispatchEvent(new CustomEvent('dismiss-module-instance', {
-      bubbles: true,
-      composed: true,
-      detail: {
-        message: this.i18nRecursive(
-            '', 'modulesSetupListDismissToastMessage', 'modulesSetupListTitle'),
-        restoreCallback: () => this.handler_.unsnoozeSetupList(),
-      },
-    }));
+    this.fire('dismiss-module-instance', {
+      message: this.i18nRecursive(
+          '', 'modulesSetupListDismissToastMessage', 'modulesSetupListTitle'),
+      restoreCallback: () => this.handler_.unsnoozeSetupList(),
+    });
   }
 
   protected onInfoButtonClick_() {

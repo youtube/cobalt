@@ -17,14 +17,13 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/functional/any_invocable.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio/audio_processing.h"
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/audio_codecs/audio_format.h"
@@ -74,12 +73,12 @@
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/dscp.h"
 #include "rtc_base/numerics/safe_conversions.h"
-#include "rtc_base/thread.h"
 #include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mock_audio_decoder_factory.h"
 #include "test/mock_audio_encoder_factory.h"
+#include "test/run_loop.h"
 
 namespace webrtc {
 namespace {
@@ -115,7 +114,6 @@ constexpr uint32_t kSsrc1 = 1;
 constexpr uint32_t kSsrcX = 0x99;
 constexpr uint32_t kSsrcY = 0x17;
 constexpr uint32_t kSsrcZ = 0x42;
-constexpr uint32_t kSsrcW = 0x02;
 constexpr uint32_t kSsrcs4[] = {11, 200, 30, 44};
 
 constexpr int kRtpHistoryMs = 5000;
@@ -297,11 +295,6 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
                                                AudioOptions(), CryptoOptions());
     receive_channel_ = engine_->CreateReceiveChannel(
         env_, &call_, MediaConfig(), AudioOptions(), CryptoOptions());
-    send_channel_->SetSsrcListChangedCallback(
-        [receive_channel =
-             receive_channel_.get()](const std::set<uint32_t>& choices) {
-          receive_channel->ChooseReceiverReportSsrc(choices);
-        });
     return true;
   }
 
@@ -343,11 +336,11 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
     EXPECT_FALSE(call_.GetAudioSendStream(kSsrcX));
   }
 
-  void DeliverPacket(ArrayView<const uint8_t> data) {
+  void DeliverPacket(std::span<const uint8_t> data) {
     RtpPacketReceived packet;
     packet.Parse(data);
     receive_channel_->OnPacketReceived(packet);
-    Thread::Current()->ProcessMessages(0);
+    run_loop_.Flush();
   }
 
   const FakeAudioSendStream& GetSendStream(uint32_t ssrc) {
@@ -893,7 +886,7 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
   }
 
  protected:
-  AutoThread main_thread_;
+  test::RunLoop run_loop_;
   const bool use_null_apm_;
   FieldTrials field_trials_;
   const Environment env_;
@@ -958,7 +951,6 @@ TEST_P(WebRtcVoiceEngineTestFake, CreateRecvStream) {
   const AudioReceiveStreamInterface::Config& config =
       GetRecvStreamConfig(kSsrcX);
   EXPECT_EQ(kSsrcX, config.rtp.remote_ssrc);
-  EXPECT_EQ(0xFA17FA17, config.rtp.local_ssrc);
   EXPECT_EQ(ReceiveImpl()->transport(), config.rtcp_send_transport);
   EXPECT_EQ("", config.sync_group);
 }
@@ -1606,17 +1598,18 @@ TEST_P(WebRtcVoiceEngineTestFake, OnPacketReceivedIdentifiesExtensions) {
   parameters.extensions.push_back(
       RtpExtension(RtpExtension::kAudioLevelUri, /*id=*/1));
   ASSERT_TRUE(receive_channel_->SetReceiverParameters(parameters));
+  run_loop_.Flush();
   RtpHeaderExtensionMap extension_map(parameters.extensions);
   RtpPacketReceived reference_packet(&extension_map);
   constexpr uint8_t kAudioLevel = 123;
   reference_packet.SetExtension<AudioLevelExtension>(
       AudioLevel(/*voice_activity=*/true, kAudioLevel));
   //  Create a packet without the extension map but with the same content.
-  RtpPacketReceived received_packet;
+  RtpPacketReceived received_packet(&extension_map);
   ASSERT_TRUE(received_packet.Parse(reference_packet.Buffer()));
 
   receive_channel_->OnPacketReceived(received_packet);
-  Thread::Current()->ProcessMessages(0);
+  run_loop_.Flush();
 
   AudioLevel audio_level;
   EXPECT_TRUE(
@@ -2753,7 +2746,6 @@ TEST_P(WebRtcVoiceEngineTestFake, SetSendSsrcWithMultipleStreams) {
   EXPECT_TRUE(SetupSendStream());
   EXPECT_TRUE(call_.GetAudioSendStream(kSsrcX));
   EXPECT_TRUE(AddRecvStream(kSsrcY));
-  EXPECT_EQ(kSsrcX, GetRecvStreamConfig(kSsrcY).rtp.local_ssrc);
 }
 
 // Test that the local SSRC is the same on sending and receiving channels if the
@@ -2763,7 +2755,6 @@ TEST_P(WebRtcVoiceEngineTestFake, SetSendSsrcAfterCreatingReceiveChannel) {
   EXPECT_TRUE(AddRecvStream(kSsrcY));
   EXPECT_TRUE(send_channel_->AddSendStream(StreamParams::CreateLegacy(kSsrcX)));
   EXPECT_TRUE(call_.GetAudioSendStream(kSsrcX));
-  EXPECT_EQ(kSsrcX, GetRecvStreamConfig(kSsrcY).rtp.local_ssrc);
 }
 
 // Test that we can properly receive packets.
@@ -2788,7 +2779,7 @@ TEST_P(WebRtcVoiceEngineTestFake, RecvWithMultipleStreams) {
   uint8_t packets[4][sizeof(kPcmuFrame)];
   for (size_t i = 0; i < std::size(packets); ++i) {
     memcpy(packets[i], kPcmuFrame, sizeof(kPcmuFrame));
-    SetBE32(ArrayView<uint8_t>(packets[i] + 8, 4), static_cast<uint32_t>(i));
+    SetBE32(std::span<uint8_t>(packets[i] + 8, 4), static_cast<uint32_t>(i));
   }
 
   const FakeAudioReceiveStream& s1 = GetRecvStream(ssrc1);
@@ -2877,9 +2868,9 @@ TEST_P(WebRtcVoiceEngineTestFake,
   // Deliver a couple packets with unsignaled SSRCs.
   uint8_t packet[sizeof(kPcmuFrame)];
   memcpy(packet, kPcmuFrame, sizeof(kPcmuFrame));
-  SetBE32(ArrayView<uint8_t>(&packet[8], 4), 0x1234);
+  SetBE32(std::span<uint8_t>(&packet[8], 4), 0x1234);
   DeliverPacket(packet);
-  SetBE32(ArrayView<uint8_t>(&packet[8], 4), 0x5678);
+  SetBE32(std::span<uint8_t>(&packet[8], 4), 0x5678);
   DeliverPacket(packet);
 
   // Verify that the receive streams were created.
@@ -2901,7 +2892,7 @@ TEST_P(WebRtcVoiceEngineTestFake, RecvMultipleUnsignaled) {
 
   // Note that SSRC = 0 is not supported.
   for (uint32_t ssrc = 1; ssrc < (1 + kMaxUnsignaledRecvStreams); ++ssrc) {
-    SetBE32(ArrayView<uint8_t>(&packet[8], 4), ssrc);
+    SetBE32(std::span<uint8_t>(&packet[8], 4), ssrc);
     DeliverPacket(packet);
 
     // Verify we have one new stream for each loop iteration.
@@ -2912,7 +2903,7 @@ TEST_P(WebRtcVoiceEngineTestFake, RecvMultipleUnsignaled) {
 
   // Sending on the same SSRCs again should not create new streams.
   for (uint32_t ssrc = 1; ssrc < (1 + kMaxUnsignaledRecvStreams); ++ssrc) {
-    SetBE32(ArrayView<uint8_t>(&packet[8], 4), ssrc);
+    SetBE32(std::span<uint8_t>(&packet[8], 4), ssrc);
     DeliverPacket(packet);
 
     EXPECT_EQ(kMaxUnsignaledRecvStreams, call_.GetAudioReceiveStreams().size());
@@ -2922,7 +2913,7 @@ TEST_P(WebRtcVoiceEngineTestFake, RecvMultipleUnsignaled) {
 
   // Send on another SSRC, the oldest unsignaled stream (SSRC=1) is replaced.
   constexpr uint32_t kAnotherSsrc = 667;
-  SetBE32(ArrayView<uint8_t>(&packet[8], 4), kAnotherSsrc);
+  SetBE32(std::span<uint8_t>(&packet[8], 4), kAnotherSsrc);
   DeliverPacket(packet);
 
   const auto& streams = call_.GetAudioReceiveStreams();
@@ -2947,7 +2938,7 @@ TEST_P(WebRtcVoiceEngineTestFake, RecvUnsignaledAfterSignaled) {
 
   // Add a known stream, send packet and verify we got it.
   const uint32_t signaled_ssrc = 1;
-  SetBE32(ArrayView<uint8_t>(&packet[8], 4), signaled_ssrc);
+  SetBE32(std::span<uint8_t>(&packet[8], 4), signaled_ssrc);
   EXPECT_TRUE(AddRecvStream(signaled_ssrc));
   DeliverPacket(packet);
   EXPECT_TRUE(GetRecvStream(signaled_ssrc).VerifyLastPacket(packet));
@@ -2956,7 +2947,7 @@ TEST_P(WebRtcVoiceEngineTestFake, RecvUnsignaledAfterSignaled) {
   // Note that the first unknown SSRC cannot be 0, because we only support
   // creating receive streams for SSRC!=0.
   const uint32_t unsignaled_ssrc = 7011;
-  SetBE32(ArrayView<uint8_t>(&packet[8], 4), unsignaled_ssrc);
+  SetBE32(std::span<uint8_t>(&packet[8], 4), unsignaled_ssrc);
   DeliverPacket(packet);
   EXPECT_TRUE(GetRecvStream(unsignaled_ssrc).VerifyLastPacket(packet));
   EXPECT_EQ(2u, call_.GetAudioReceiveStreams().size());
@@ -2964,7 +2955,7 @@ TEST_P(WebRtcVoiceEngineTestFake, RecvUnsignaledAfterSignaled) {
   DeliverPacket(packet);
   EXPECT_EQ(2, GetRecvStream(unsignaled_ssrc).received_packets());
 
-  SetBE32(ArrayView<uint8_t>(&packet[8], 4), signaled_ssrc);
+  SetBE32(std::span<uint8_t>(&packet[8], 4), signaled_ssrc);
   DeliverPacket(packet);
   EXPECT_EQ(2, GetRecvStream(signaled_ssrc).received_packets());
   EXPECT_EQ(2u, call_.GetAudioReceiveStreams().size());
@@ -3429,7 +3420,7 @@ TEST_P(WebRtcVoiceEngineTestFake, SetOutputVolumeUnsignaledRecvStream) {
   // Spawn an unsignaled stream by sending a packet - gain should be 2.
   uint8_t pcmuFrame2[sizeof(kPcmuFrame)];
   memcpy(pcmuFrame2, kPcmuFrame, sizeof(kPcmuFrame));
-  SetBE32(ArrayView<uint8_t>(&pcmuFrame2[8], 4), kSsrcX);
+  SetBE32(std::span<uint8_t>(&pcmuFrame2[8], 4), kSsrcX);
   DeliverPacket(pcmuFrame2);
   EXPECT_DOUBLE_EQ(2, GetRecvStream(kSsrcX).gain());
 
@@ -3491,7 +3482,7 @@ TEST_P(WebRtcVoiceEngineTestFake,
   // Spawn an unsignaled stream by sending a packet - delay should be 100.
   uint8_t pcmuFrame2[sizeof(kPcmuFrame)];
   memcpy(pcmuFrame2, kPcmuFrame, sizeof(kPcmuFrame));
-  SetBE32(ArrayView<uint8_t>(&pcmuFrame2[8], 4), kSsrcX);
+  SetBE32(std::span<uint8_t>(&pcmuFrame2[8], 4), kSsrcX);
   DeliverPacket(pcmuFrame2);
   EXPECT_EQ(
       100, receive_channel_->GetBaseMinimumPlayoutDelayMs(kSsrcX).value_or(-1));
@@ -3612,34 +3603,9 @@ TEST_P(WebRtcVoiceEngineTestFake, DeliverAudioPacket_Call) {
   RtpPacketReceived parsed_packet;
   RTC_CHECK(parsed_packet.Parse(kPcmuPacket));
   receive_channel_->OnPacketReceived(parsed_packet);
-  Thread::Current()->ProcessMessages(0);
+  run_loop_.Flush();
 
   EXPECT_EQ(1, s->received_packets());
-}
-
-// All receive channels should be associated with the first send channel,
-// since they do not send RTCP SR.
-TEST_P(WebRtcVoiceEngineTestFake, AssociateFirstSendChannel_SendCreatedFirst) {
-  EXPECT_TRUE(SetupSendStream());
-  EXPECT_TRUE(AddRecvStream(kSsrcY));
-  EXPECT_EQ(kSsrcX, GetRecvStreamConfig(kSsrcY).rtp.local_ssrc);
-  EXPECT_TRUE(send_channel_->AddSendStream(StreamParams::CreateLegacy(kSsrcZ)));
-  EXPECT_EQ(kSsrcX, GetRecvStreamConfig(kSsrcY).rtp.local_ssrc);
-  EXPECT_TRUE(AddRecvStream(kSsrcW));
-  EXPECT_EQ(kSsrcX, GetRecvStreamConfig(kSsrcW).rtp.local_ssrc);
-}
-
-TEST_P(WebRtcVoiceEngineTestFake, AssociateFirstSendChannel_RecvCreatedFirst) {
-  EXPECT_TRUE(SetupRecvStream());
-  EXPECT_EQ(0xFA17FA17u, GetRecvStreamConfig(kSsrcX).rtp.local_ssrc);
-  EXPECT_TRUE(send_channel_->AddSendStream(StreamParams::CreateLegacy(kSsrcY)));
-  EXPECT_EQ(kSsrcY, GetRecvStreamConfig(kSsrcX).rtp.local_ssrc);
-  EXPECT_TRUE(AddRecvStream(kSsrcZ));
-  EXPECT_EQ(kSsrcY, GetRecvStreamConfig(kSsrcZ).rtp.local_ssrc);
-  EXPECT_TRUE(send_channel_->AddSendStream(StreamParams::CreateLegacy(kSsrcW)));
-
-  EXPECT_EQ(kSsrcY, GetRecvStreamConfig(kSsrcX).rtp.local_ssrc);
-  EXPECT_EQ(kSsrcY, GetRecvStreamConfig(kSsrcZ).rtp.local_ssrc);
 }
 
 TEST_P(WebRtcVoiceEngineTestFake, SetRawAudioSink) {
@@ -3693,7 +3659,7 @@ TEST_P(WebRtcVoiceEngineTestFake, SetRawAudioSinkUnsignaledRecvStream) {
   // and the previous unsignaled stream should lose it.
   uint8_t pcmuFrame2[sizeof(kPcmuFrame)];
   memcpy(pcmuFrame2, kPcmuFrame, sizeof(kPcmuFrame));
-  SetBE32(ArrayView<uint8_t>(&pcmuFrame2[8], 4), kSsrcX);
+  SetBE32(std::span<uint8_t>(&pcmuFrame2[8], 4), kSsrcX);
   DeliverPacket(pcmuFrame2);
   if (kMaxUnsignaledRecvStreams > 1) {
     EXPECT_EQ(nullptr, GetRecvStream(kSsrc1).sink());
@@ -3742,6 +3708,37 @@ TEST_P(WebRtcVoiceEngineTestFake, OnReadyToSendSignalsNetworkState) {
   EXPECT_EQ(kNetworkUp, call_.GetNetworkState(MediaType::VIDEO));
 }
 
+// Test that when an unsignaled stream is promoted to a signaled stream,
+// its ProxySink doesn't hold a dangling raw pointer if the default sink
+// is subsequently destroyed.
+TEST_P(WebRtcVoiceEngineTestFake,
+       ProxySinkSurvivesUnsignaledToSignaledPromotion) {
+  EXPECT_TRUE(SetupChannel());
+  std::unique_ptr<FakeAudioSink> fake_sink(new FakeAudioSink());
+
+  // Set the default sink.
+  receive_channel_->SetDefaultRawAudioSink(std::move(fake_sink));
+
+  // Deliver an RTP packet to create an unsignaled stream.
+  DeliverPacket(kPcmuFrame);
+  const AudioSinkInterface* proxy_sink = GetRecvStream(kSsrc1).sink();
+  EXPECT_NE(nullptr, proxy_sink);
+
+  // Promote the unsignaled stream to a signaled stream.
+  StreamParams sp = StreamParams::CreateLegacy(kSsrc1);
+  EXPECT_TRUE(receive_channel_->AddRecvStream(sp));
+
+  // The proxy sink should be removed from the stream upon promotion.
+  EXPECT_EQ(nullptr, GetRecvStream(kSsrc1).sink());
+
+  // Destroy the original sink by passing nullptr.
+  receive_channel_->SetDefaultRawAudioSink(nullptr);
+
+  // Note: calling proxy_sink->OnData would crash here if the proxy_sink
+  // would still be attached to the stream and hold a dangling pointer to
+  // default_sink_. But we've verified that it's detached, so that won't happen.
+}
+
 // Test that playout is still started after changing parameters
 TEST_P(WebRtcVoiceEngineTestFake, PreservePlayoutWhenRecreateRecvStream) {
   SetupRecvStream();
@@ -3771,7 +3768,7 @@ TEST_P(WebRtcVoiceEngineTestFake, GetSourcesWithNonExistingSsrc) {
 
 // Tests that the library initializes and shuts down properly.
 TEST(WebRtcVoiceEngineTest, StartupShutdown) {
-  AutoThread main_thread;
+  test::RunLoop run_loop;
   for (bool use_null_apm : {false, true}) {
     // If the VoiceEngine wants to gather available codecs early, that's fine
     // but we never want it to create a decoder at this stage.
@@ -3798,7 +3795,7 @@ TEST(WebRtcVoiceEngineTest, StartupShutdown) {
 
 // Tests that reference counting on the external ADM is correct.
 TEST(WebRtcVoiceEngineTest, StartupShutdownWithExternalADM) {
-  AutoThread main_thread;
+  test::RunLoop run_loop;
   for (bool use_null_apm : {false, true}) {
     Environment env = CreateEnvironment();
     auto adm =
@@ -3875,7 +3872,7 @@ TEST(WebRtcVoiceEngineTest, HasCorrectPayloadTypeMapping) {
 
 // Tests that VoE supports at least 32 channels
 TEST(WebRtcVoiceEngineTest, Has32Channels) {
-  AutoThread main_thread;
+  test::RunLoop run_loop;
   for (bool use_null_apm : {false, true}) {
     Environment env = CreateEnvironment();
     scoped_refptr<test::MockAudioDeviceModule> adm =
@@ -3904,7 +3901,7 @@ TEST(WebRtcVoiceEngineTest, Has32Channels) {
 
 // Test that we set our preferred codecs properly.
 TEST(WebRtcVoiceEngineTest, SetRecvCodecs) {
-  AutoThread main_thread;
+  test::RunLoop run_loop;
   for (bool use_null_apm : {false, true}) {
     Environment env = CreateEnvironment();
     // TODO(ossu): I'm not sure of the intent of this test. It's either:
@@ -3933,7 +3930,7 @@ TEST(WebRtcVoiceEngineTest, SetRecvCodecs) {
 }
 
 TEST(WebRtcVoiceEngineTest, SetRtpSendParametersMaxBitrate) {
-  AutoThread main_thread;
+  test::RunLoop run_loop;
   Environment env = CreateEnvironment();
   scoped_refptr<test::MockAudioDeviceModule> adm =
       test::MockAudioDeviceModule::CreateNice();

@@ -636,6 +636,10 @@ EncodedImageCallback::Result RtpVideoSender::OnEncodedImage(
   return Result(Result::OK, rtp_timestamp);
 }
 
+void RtpVideoSender::OnFrameDropped(uint32_t /*rtp_timestamp*/,
+                                    int /*spatial_id*/,
+                                    bool /*is_end_of_temporal_unit*/) {}
+
 void RtpVideoSender::OnBitrateAllocationUpdated(
     const VideoBitrateAllocation& bitrate) {
   RTC_DCHECK_RUN_ON(&transport_checker_);

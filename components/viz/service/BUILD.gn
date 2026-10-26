@@ -653,6 +653,7 @@ viz_source_set("unit_tests") {
     "frame_sinks/begin_frame_tracker_unittest.cc",
     "frame_sinks/compositor_frame_sink_support_unittest.cc",
     "frame_sinks/frame_sink_bundle_impl_unittest.cc",
+    "frame_sinks/frame_sink_manager_priority_unittest.cc",
     "frame_sinks/frame_sink_manager_unittest.cc",
     "frame_sinks/frame_sink_throttler_unittest.cc",
     "frame_sinks/surface_references_unittest.cc",
@@ -675,6 +676,8 @@ viz_source_set("unit_tests") {
     "layers/layer_context_impl_tiling_unittest.cc",
     "layers/layer_context_impl_unittest.cc",
     "layers/layer_context_impl_view_transition_unittest.cc",
+    "layers/viz_layer_context_unittest.cc",
+    "layers/viz_layer_context_unittest.h",
     "main/viz_compositor_thread_runner_impl_unittest.cc",
     "main/viz_main_impl_unittest.cc",
     "performance_hint/boost_manager_unittest.cc",
@@ -693,6 +696,7 @@ viz_source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//cc:test_support",
+    "//cc/mojo_embedder",
     "//cc/paint",
     "//components/input",
     "//components/viz/client",
@@ -782,6 +786,11 @@ viz_source_set("unit_tests") {
       "//gpu/vulkan/init",
     ]
   }
+
+  if (is_cobalt) {
+    sources += [ "display/cobalt_frame_timing_details_mojom_unittest.cc" ]
+    deps += [ "//mojo/public/cpp/test_support:test_utils" ]
+  }
 }
 
 viz_source_set("perf_tests") {
@@ -802,6 +811,7 @@ viz_source_set("perf_tests") {
     "//cc",
     "//cc:test_support",
     "//cc/base",
+    "//cc/mojo_embedder",
     "//components/viz/client",
     "//components/viz/test:test_support",
     "//testing/gtest",

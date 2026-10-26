@@ -155,11 +155,13 @@ TEST_F(ExtensionWebRequestTest, AddAndRemoveListeners) {
   event_router->AddEventListener(
       &profile_, ext_id, ext_id, kEventName, kSubEventName1,
       WebRequestEventRouter::RequestFilter(), 0, 1 /* render_process_id */, 0,
-      extensions::kMainThreadId, blink::mojom::kInvalidServiceWorkerVersionId);
+      extensions::kMainThreadId, blink::mojom::kInvalidServiceWorkerVersionId,
+      /*is_lazy=*/false);
   event_router->AddEventListener(
       &profile_, ext_id, ext_id, kEventName, kSubEventName2,
       WebRequestEventRouter::RequestFilter(), 0, 1 /* render_process_id */, 0,
-      extensions::kMainThreadId, blink::mojom::kInvalidServiceWorkerVersionId);
+      extensions::kMainThreadId, blink::mojom::kInvalidServiceWorkerVersionId,
+      /*is_lazy=*/false);
   EXPECT_EQ(2u,
             event_router->GetListenerCountForTesting(&profile_, kEventName));
 
@@ -198,11 +200,13 @@ TEST_F(ExtensionWebRequestTest, BrowserContextShutdown) {
   event_router->AddEventListener(
       &profile_, ext_id, ext_id, kEventName, kSubEventName,
       WebRequestEventRouter::RequestFilter(), 0, 1 /* render_process_id */, 0,
-      extensions::kMainThreadId, blink::mojom::kInvalidServiceWorkerVersionId);
+      extensions::kMainThreadId, blink::mojom::kInvalidServiceWorkerVersionId,
+      /*is_lazy=*/false);
   event_router->AddEventListener(
       &profile_, ext_id, ext_id, kEventName, kSubEventName,
       WebRequestEventRouter::RequestFilter(), 0, 2 /* render_process_id */, 0,
-      extensions::kMainThreadId, blink::mojom::kInvalidServiceWorkerVersionId);
+      extensions::kMainThreadId, blink::mojom::kInvalidServiceWorkerVersionId,
+      /*is_lazy=*/false);
   event_router->IncrementExtraHeadersListenerCount(&profile_);
   EXPECT_EQ(2u,
             event_router->GetListenerCountForTesting(&profile_, kEventName));
@@ -228,11 +232,13 @@ TEST_F(ExtensionWebRequestTest, BrowserContextShutdown) {
   event_router->AddEventListener(
       otr_profile, ext_id, ext_id, kEventName, kSubEventName,
       WebRequestEventRouter::RequestFilter(), 0, 1 /* render_process_id */, 0,
-      extensions::kMainThreadId, blink::mojom::kInvalidServiceWorkerVersionId);
+      extensions::kMainThreadId, blink::mojom::kInvalidServiceWorkerVersionId,
+      /*is_lazy=*/false);
   event_router->AddEventListener(
       otr_profile, ext_id, ext_id, kEventName, kSubEventName,
       WebRequestEventRouter::RequestFilter(), 0, 2 /* render_process_id */, 0,
-      extensions::kMainThreadId, blink::mojom::kInvalidServiceWorkerVersionId);
+      extensions::kMainThreadId, blink::mojom::kInvalidServiceWorkerVersionId,
+      /*is_lazy=*/false);
   event_router->IncrementExtraHeadersListenerCount(otr_profile);
   EXPECT_EQ(2u,
             event_router->GetListenerCountForTesting(otr_profile, kEventName));
@@ -1579,8 +1585,9 @@ TEST(ExtensionWebRequestHelpersTest,
   expected_cookies.insert(
       "uBound5=value12; max-age=600; expires=" + cookie_expiration+ "; secure");
   std::set<std::string> actual_cookies;
-  while (new_headers1->EnumerateHeader(&iter, "Set-Cookie", &cookie_string))
+  while (new_headers1->EnumerateHeader(&iter, "Set-Cookie", &cookie_string)) {
     actual_cookies.insert(cookie_string);
+  }
   EXPECT_EQ(expected_cookies, actual_cookies);
 }
 
@@ -1714,8 +1721,9 @@ TEST(ExtensionWebRequestHelpersTest, TestMergeOnHeadersReceivedResponses) {
   EXPECT_TRUE(preserve_fragment_on_redirect_url3.is_empty());
   iter = 0;
   std::multimap<std::string, std::string> actual3;
-  while (new_headers3->EnumerateHeaderLines(&iter, &name, &value))
+  while (new_headers3->EnumerateHeaderLines(&iter, &name, &value)) {
     actual3.emplace(name, value);
+  }
   std::multimap<std::string, std::string> expected3;
   expected3.emplace("Key2", "Value4");
   expected3.emplace("Key1", "Value1");
@@ -1766,8 +1774,9 @@ TEST(ExtensionWebRequestHelpersTest, TestMergeOnHeadersReceivedResponses) {
 
   iter = 0;
   std::multimap<std::string, std::string> actual4;
-  while (new_headers4->EnumerateHeaderLines(&iter, &name, &value))
+  while (new_headers4->EnumerateHeaderLines(&iter, &name, &value)) {
     actual4.emplace(name, value);
+  }
   std::multimap<std::string, std::string> expected4;
 
   expected4.emplace("Key2", "Value3");
@@ -2018,8 +2027,9 @@ TEST(ExtensionWebRequestHelpersTest,
   std::string name;
   std::string value;
   std::multimap<std::string, std::string> actual_headers;
-  while (new_headers->EnumerateHeaderLines(&iter, &name, &value))
+  while (new_headers->EnumerateHeaderLines(&iter, &name, &value)) {
     actual_headers.emplace(name, value);
+  }
 
   std::multimap<std::string, std::string> expected_headers;
   // An append operation should allow subsequent appends, but not any other
@@ -2124,8 +2134,9 @@ TEST(ExtensionWebRequestHelpersTest,
   std::string name;
   std::string value;
   std::multimap<std::string, std::string> actual_headers;
-  while (new_headers->EnumerateHeaderLines(&iter, &name, &value))
+  while (new_headers->EnumerateHeaderLines(&iter, &name, &value)) {
     actual_headers.emplace(name, value);
+  }
 
   std::multimap<std::string, std::string> expected_headers;
   expected_headers.emplace("connection", "dnr_action_1");

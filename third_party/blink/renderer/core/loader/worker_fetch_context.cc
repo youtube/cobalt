@@ -212,18 +212,13 @@ void WorkerFetchContext::PrepareRequest(
   }
 
   probe::PrepareRequest(Probe(), nullptr, request, options, resource_type);
-
-  request.SetAllowsDeviceBoundSessionRegistration(
-      RuntimeEnabledFeatures::DeviceBoundSessionCredentialsEnabled(
-          GetExecutionContext()) ||
-      RuntimeEnabledFeatures::DeviceBoundSessionCredentials2Enabled(
-          GetExecutionContext()));
 }
 
 void WorkerFetchContext::AddAdditionalRequestHeaders(ResourceRequest& request) {
   // The remaining modifications are only necessary for HTTP and HTTPS.
-  if (!request.Url().IsEmpty() && !request.Url().ProtocolIsInHTTPFamily())
+  if (!request.Url().IsEmpty() && !request.Url().ProtocolIsInHttpFamily()) {
     return;
+  }
 
   // TODO(crbug.com/1315612): WARNING: This bypasses the permissions policy.
   // Unfortunately, workers lack a permissions policy and to derive proper hints
@@ -231,8 +226,11 @@ void WorkerFetchContext::AddAdditionalRequestHeaders(ResourceRequest& request) {
   // Save-Data was previously included in hints for workers, thus we cannot
   // remove it for the time being. If you're reading this, consider building
   // permissions policies for workers and/or deprecating this inclusion.
-  if (save_data_enabled_)
+  bool save_data_enabled = save_data_enabled_;
+  probe::ApplyDataSaverOverride(Probe(), save_data_enabled);
+  if (save_data_enabled) {
     request.SetHttpHeaderField(http_names::kSaveData, AtomicString("on"));
+  }
 }
 
 void WorkerFetchContext::AddResourceTiming(

@@ -62,7 +62,7 @@ class MockModelExecutionFetcher : public ModelExecutionFetcher {
 class MockDelegate : public ModelExecutionManager::Delegate {
  public:
   MOCK_METHOD(std::unique_ptr<ModelExecutionFetcher>,
-              CreateLegionFetcher,
+              CreatePrivateAiFetcher,
               (),
               (override));
 };
@@ -308,20 +308,20 @@ TEST_F(ModelExecutionManagerDelegateTest, UsesDelegateToCreateFetcher) {
   SetAutomaticIssueOfAccessTokens();
   auto fetcher = std::make_unique<MockModelExecutionFetcher>();
   EXPECT_CALL(*fetcher, ExecuteModel);
-  EXPECT_CALL(*delegate(), CreateLegionFetcher)
+  EXPECT_CALL(*delegate(), CreatePrivateAiFetcher)
       .WillOnce(testing::Return(testing::ByMove(std::move(fetcher))));
 
   model_execution_manager()->ExecuteModel(
       ModelBasedCapabilityKey::kZeroStateSuggestions, TestMessage(),
       /*timeout=*/std::nullopt,
-      /*log_ai_data_request=*/nullptr, ModelExecutionServiceType::kLegion,
+      /*log_ai_data_request=*/nullptr, ModelExecutionServiceType::kPrivateAi,
       response_holder.GetCallback());
 }
 
 TEST_F(ModelExecutionManagerDelegateTest, CreatesDefaultFetcher) {
   RemoteResponseHolder response_holder;
   SetAutomaticIssueOfAccessTokens();
-  EXPECT_CALL(*delegate(), CreateLegionFetcher).Times(0);
+  EXPECT_CALL(*delegate(), CreatePrivateAiFetcher).Times(0);
 
   model_execution_manager()->ExecuteModel(
       ModelBasedCapabilityKey::kCompose, TestMessage(),

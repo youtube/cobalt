@@ -16,10 +16,12 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 
 import androidx.preference.Preference;
+import androidx.preference.PreferenceCategory;
 import androidx.preference.PreferenceScreen;
 
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.ResettersForTesting;
+import org.chromium.base.TimeUtils;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
@@ -34,13 +36,19 @@ import org.chromium.chrome.browser.autofill.AutofillFallbackSurfaceLauncher;
 import org.chromium.chrome.browser.autofill.PersonalDataManager;
 import org.chromium.chrome.browser.autofill.PersonalDataManagerFactory;
 import org.chromium.chrome.browser.autofill.SaveUpdateAddressProfilePromptMode;
+import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager;
+import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManagerFactory;
 import org.chromium.chrome.browser.autofill.editors.address.AddressEditorCoordinator;
 import org.chromium.chrome.browser.autofill.editors.address.AddressEditorCoordinator.Delegate;
 import org.chromium.chrome.browser.autofill.editors.address.EditorDialogView;
+import org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorCoordinator;
 import org.chromium.chrome.browser.autofill.editors.common.EditorObserverForTest;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment.AutofillOptionsReferrer;
 import org.chromium.chrome.browser.customtabs.CustomTabActivity;
+import org.chromium.chrome.browser.device_reauth.BiometricStatus;
+import org.chromium.chrome.browser.device_reauth.DeviceAuthSource;
+import org.chromium.chrome.browser.device_reauth.ReauthenticatorBridge;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.payments.SettingsAutofillAndPaymentsObserver;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -53,6 +61,9 @@ import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.components.autofill.AutofillProfile;
 import org.chromium.components.autofill.FieldType;
 import org.chromium.components.autofill.RecordType;
+import org.chromium.components.autofill.autofill_ai.EntityInstance;
+import org.chromium.components.autofill.autofill_ai.EntityInstanceWithLabels;
+import org.chromium.components.autofill.autofill_ai.EntityType;
 import org.chromium.components.browser_ui.settings.CardWithButtonPreference;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.browser_ui.settings.SettingsFragment;
@@ -66,10 +77,17 @@ import org.chromium.components.sync.SyncService;
 import org.chromium.components.sync.UserSelectableType;
 import org.chromium.components.user_prefs.UserPrefs;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.List;
+import java.util.Map;
+
 /** Autofill profiles fragment, which allows the user to edit autofill profiles. */
 @NullMarked
 public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
-        implements PersonalDataManager.PersonalDataManagerObserver {
+        implements PersonalDataManager.PersonalDataManagerObserver,
+                EntityDataManager.EntityDataManagerObserver {
     private final Delegate mAddressEditorDelegate =
             new Delegate() {
                 // User has either created a new address, or edited an existing address.
@@ -127,6 +145,30 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
                     }
                 }
             };
+
+    private final EntityEditorCoordinator.Delegate mEntityEditorDelegate =
+            new EntityEditorCoordinator.Delegate() {
+                @Override
+                public void onDelete(EntityInstance entityInstance) {
+                    EntityDataManager entityDataManager =
+                            EntityDataManagerFactory.getForProfile(getProfile());
+                    if (entityDataManager == null) {
+                        return;
+                    }
+                    entityDataManager.removeEntityInstance(entityInstance.getGUID());
+                }
+
+                @Override
+                public void onDone(EntityInstance entityInstance) {
+                    EntityDataManager entityDataManager =
+                            EntityDataManagerFactory.getForProfile(getProfile());
+                    if (entityDataManager == null) {
+                        return;
+                    }
+                    entityDataManager.addOrUpdateEntityInstance(entityInstance);
+                }
+            };
+
     private static @Nullable EditorObserverForTest sObserverForTest;
     static final String PREF_NEW_PROFILE = "new_profile";
     static final String MANAGE_PLUS_ADDRESSES = "manage_plus_addresses";
@@ -141,12 +183,18 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
             "https://myaccount.google.com/personal-info?utm_source=chrome-settings&utm_medium=autofill";
 
     private @Nullable AddressEditorCoordinator mAddressEditor;
+    private @Nullable EntityEditorCoordinator mEntityEditor;
+    private @Nullable ReauthenticatorBridge mReauthenticatorBridge;
     private final SettableMonotonicObservableSupplier<String> mPageTitle =
             ObservableSuppliers.createMonotonic();
 
     @Override
     public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
-        mPageTitle.set(getString(R.string.autofill_addresses_settings_title));
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID)) {
+            mPageTitle.set(getString(R.string.autofill_contact_info_title));
+        } else {
+            mPageTitle.set(getString(R.string.autofill_addresses_settings_title));
+        }
         setHasOptionsMenu(true);
         PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(getStyledContext());
         // Suppresses unwanted animations while Preferences are removed from and re-added to the
@@ -217,7 +265,7 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
             addPlusAddressesPreference(screen);
         }
         // LINT.ThenChange(:DynamicPreferences)
-
+        addAutofillAiEntities(screen);
         updateDynamicPreferences(getProfile());
     }
 
@@ -250,6 +298,12 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
 
     /** Adds the "Save and fill addresses" toggle. */
     private void addAutofillSwitch(PreferenceScreen screen) {
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)) {
+            PreferenceCategory category = new PreferenceCategory(getStyledContext());
+            category.setTitle(R.string.autofill_addresses_section_title);
+            category.setKey("autofill_section_title");
+            screen.addPreference(category);
+        }
         // LINT.IfChange(AddAutofillSwitch)
         PersonalDataManager personalDataManager =
                 PersonalDataManagerFactory.getForProfile(getProfile());
@@ -297,7 +351,7 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
                     new AutofillProfileEditorPreference(getStyledContext());
             pref.setTitle(profile.getInfo(FieldType.NAME_FULL));
             pref.setSummary(profile.getLabel());
-            pref.setKey(String.valueOf(pref.getTitle())); // For testing.
+            pref.setKey(String.valueOf(pref.getTitle()));
 
             // Set the widget to display an icon indicating the profile's type: local, home or work.
             if (shouldShowLocalProfileIcon(profile)) {
@@ -340,6 +394,36 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
         }
     }
 
+    /** Add button to create an entity of a certain type. */
+    private void addAddEntityButton(
+            PreferenceCategory screen, EntityType entityType, boolean disabled) {
+        Preference pref = new Preference(getStyledContext());
+        Drawable plusIcon = ApiCompatibilityUtils.getDrawable(getResources(), R.drawable.plus);
+        plusIcon.mutate();
+        plusIcon.setColorFilter(
+                disabled
+                        ? SemanticColorUtils.getDefaultIconColorSecondary(getContext())
+                        : SemanticColorUtils.getDefaultControlColorActive(getContext()),
+                PorterDuff.Mode.SRC_IN);
+        pref.setIcon(plusIcon);
+        pref.setTitle(entityType.getAddEntityTypeString());
+        pref.setKey(entityType.getTypeNameAsString() + " Add"); // For testing.
+        pref.setEnabled(!disabled);
+        pref.setOnPreferenceClickListener(
+                preference -> {
+                    Instant nowInstant = Instant.ofEpochMilli(TimeUtils.currentTimeMillis());
+                    LocalDate modifiedDate =
+                            nowInstant.atZone(ZoneId.systemDefault()).toLocalDate();
+                    showEntityEditor(
+                            new EntityInstance.Builder(entityType)
+                                    .setModifiedDate(modifiedDate)
+                                    .setUseCount(0)
+                                    .build());
+                    return true;
+                });
+        screen.addPreference(pref);
+    }
+
     /** Adds the "Manage plus addresses" link if the feature is enabled. */
     private void addPlusAddressesPreference(PreferenceScreen screen) {
         // LINT.IfChange(AddPlusAddressesPreference)
@@ -353,8 +437,107 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
         screen.addPreference(pref);
     }
 
+    private void addAutofillAiEntities(PreferenceScreen screen) {
+        EntityDataManager entityDataManager = EntityDataManagerFactory.getForProfile(getProfile());
+        if (entityDataManager == null) {
+            return;
+        }
+
+        Map<EntityType, List<EntityInstanceWithLabels>> instancesToList =
+                entityDataManager.getInstancesToList();
+
+        boolean addButtonEnabled =
+                ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_AI_AVAILABLE_BY_DEFAULT)
+                        ? entityDataManager.canEnableOrDisableAutofillAi()
+                        : entityDataManager.isEligibleToAutofillAi()
+                                && entityDataManager.getAutofillAiOptInStatus();
+
+        for (Map.Entry<EntityType, List<EntityInstanceWithLabels>> entry :
+                instancesToList.entrySet()) {
+            EntityType type = entry.getKey();
+            List<EntityInstanceWithLabels> entities = entry.getValue();
+
+            boolean isEnabled = type.isEnabled();
+            boolean isReadOnly = type.isReadOnly();
+            boolean shouldHaveAddButton = isEnabled && !isReadOnly;
+            if (entities.isEmpty() && !shouldHaveAddButton) {
+                continue;
+            }
+
+            PreferenceCategory category = new PreferenceCategory(getStyledContext());
+            category.setTitle(type.getTypeNameAsString());
+            category.setKey(type.getTypeNameAsString());
+            screen.addPreference(category);
+
+            for (EntityInstanceWithLabels entity : entities) {
+                Preference pref = new Preference(getStyledContext());
+                pref.setTitle(entity.getEntityInstanceLabel());
+                pref.setSummary(entity.getEntityInstanceSubLabel());
+                pref.setKey(entity.getGuid());
+                if (entity.isStoredInWallet()) {
+                    pref.setIcon(R.drawable.google_wallet_24dp);
+                }
+                pref.setOnPreferenceClickListener(
+                        preference -> {
+                            if (entity.isStoredInWallet()) {
+                                AutofillFallbackSurfaceLauncher.openGoogleWalletPassesPage(
+                                        getActivity());
+                                return true;
+                            }
+                            EntityInstance entityInstance =
+                                    entityDataManager.getEntityInstance(preference.getKey());
+                            if (entityInstance == null) {
+                                return true;
+                            }
+                            if (entityInstance.requiresReauthToSee()) {
+                                if (mReauthenticatorBridge == null) {
+                                    mReauthenticatorBridge =
+                                            ReauthenticatorBridge.create(
+                                                    getActivity(),
+                                                    getProfile(),
+                                                    DeviceAuthSource.AUTOFILL);
+                                }
+                                if (mReauthenticatorBridge.getBiometricAvailabilityStatus()
+                                        != BiometricStatus.UNAVAILABLE) {
+                                    mReauthenticatorBridge.reauthenticate(
+                                            success -> {
+                                                if (success) {
+                                                    showEntityEditor(entityInstance);
+                                                }
+                                            });
+                                } else {
+                                    showEntityEditor(entityInstance);
+                                }
+                            } else {
+                                showEntityEditor(entityInstance);
+                            }
+                            return true;
+                        });
+                category.addPreference(pref);
+            }
+
+            if (shouldHaveAddButton) {
+                addAddEntityButton(category, type, !addButtonEnabled);
+            }
+        }
+    }
+
+    private void showEntityEditor(EntityInstance entityInstance) {
+        mEntityEditor =
+                new EntityEditorCoordinator(
+                        getActivity(), mEntityEditorDelegate, getProfile(), entityInstance);
+        mEntityEditor.showEditorDialog();
+    }
+
     @Override
     public void onPersonalDataChanged() {
+        rebuildProfileList();
+        notifyPreferencesUpdated();
+        if (sObserverForTest != null) sObserverForTest.onEditorDismiss();
+    }
+
+    @Override
+    public void onEntityInstancesChanged() {
         rebuildProfileList();
         notifyPreferencesUpdated();
         if (sObserverForTest != null) sObserverForTest.onEditorDismiss();
@@ -364,11 +547,23 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         PersonalDataManagerFactory.getForProfile(getProfile()).registerDataObserver(this);
+        EntityDataManager entityDataManager = EntityDataManagerFactory.getForProfile(getProfile());
+        if (entityDataManager != null) {
+            entityDataManager.registerDataObserver(this);
+        }
     }
 
     @Override
     public void onDestroyView() {
         PersonalDataManagerFactory.getForProfile(getProfile()).unregisterDataObserver(this);
+        EntityDataManager entityDataManager = EntityDataManagerFactory.getForProfile(getProfile());
+        if (entityDataManager != null) {
+            entityDataManager.unregisterDataObserver(this);
+        }
+        if (mReauthenticatorBridge != null) {
+            mReauthenticatorBridge.destroy();
+            mReauthenticatorBridge = null;
+        }
         super.onDestroyView();
     }
 

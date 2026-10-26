@@ -8,6 +8,7 @@
 #import "base/functional/callback_helpers.h"
 #import "base/ios/block_types.h"
 #import "base/memory/weak_ptr.h"
+#import "base/metrics/histogram_functions.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
@@ -24,14 +25,15 @@
 #import "components/optimization_guide/proto/features/zero_state_suggestions.pb.h"
 #import "components/prefs/pref_service.h"
 #import "components/prefs/scoped_user_pref_update.h"
+#import "components/search_engines/util.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_snapshot_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_page_context.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_ui_utils.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
+#import "ios/chrome/browser/intelligence/proto_wrappers/page_context_utils.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
 #import "ios/chrome/browser/intelligence/zero_state_suggestions/model/zero_state_suggestions_service_impl.h"
 #import "ios/chrome/browser/location_bar/badge/model/badge_type.h"
@@ -47,7 +49,6 @@
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/location_bar_badge_commands.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
-#import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/public/provider/chrome/browser/bwg/bwg_api.h"
 #import "ios/web/public/navigation/navigation_context.h"
@@ -131,9 +132,7 @@ void BwgTabHelper::SetupPageContextGeneration(
 
   // If the page is still loading, wait for it to finish before extracting the
   // page context.
-  bool should_update_context_after_page_load =
-      IsGeminiImmediateOverlayEnabled() && web_state_->IsLoading();
-  if (should_update_context_after_page_load) {
+  if (web_state_->IsLoading()) {
     // TODO(crbug.com/466107255): Move waiting for page loading responsibility
     // to GeminiBrowserAgent.
     base::RepeatingCallback<void()> pageContextPopulateCallback =
@@ -198,12 +197,6 @@ void BwgTabHelper::SetBwgUiShowing(bool showing) {
   if (is_bwg_ui_showing_) {
     is_bwg_session_active_in_background_ = false;
   }
-
-  // UI was hidden but the session is not active, so update the snapshot to
-  // remove the overlay from it.
-  if (!is_bwg_ui_showing_ && !is_bwg_session_active_in_background_) {
-    cached_snapshot_ = nil;
-  }
 }
 
 void BwgTabHelper::SetIsFirstRun(bool is_first_run) {
@@ -226,16 +219,16 @@ void BwgTabHelper::SetPageLoadedCallback(base::RepeatingClosure callback) {
   page_loaded_callback_ = std::move(callback);
 }
 
-NSString* BwgTabHelper::GetContextualCueLabel() {
-  return contextual_cue_label_;
-}
-
-void BwgTabHelper::SetContextualCueLabel(NSString* cue_label) {
-  contextual_cue_label_ = cue_label;
-}
-
 GeminiPageContext* BwgTabHelper::GetPartialPageContext() {
   GeminiPageContext* gemini_page_context = [[GeminiPageContext alloc] init];
+  if (!CanExtractPageContextForWebState(web_state_) &&
+      IsGeminiFloatyAllPagesEnabled()) {
+    gemini_page_context.geminiPageContextComputationState =
+        ios::provider::GeminiPageContextComputationState::kBlocked;
+    gemini_page_context.geminiPageContextAttachmentState =
+        ios::provider::GetCurrentPageContextAttachmentState();
+    return gemini_page_context;
+  }
   gemini_page_context.geminiPageContextComputationState =
       ios::provider::GeminiPageContextComputationState::kPending;
   gemini_page_context.favicon = current_favicon_;
@@ -249,6 +242,31 @@ GeminiPageContext* BwgTabHelper::GetPartialPageContext() {
   return gemini_page_context;
 }
 
+bool BwgTabHelper::ShouldBlockFloatyFromShowing() {
+  return is_external_overlay_presented_ || is_alert_presented_ ||
+         is_banner_presented_ || is_snackbar_presented_;
+}
+
+void BwgTabHelper::UpdatePresentedSource(gemini::FloatyUpdateSource source,
+                                         bool is_presented) {
+  switch (source) {
+    case gemini::FloatyUpdateSource::Alert:
+      is_alert_presented_ = is_presented;
+      break;
+    case gemini::FloatyUpdateSource::Banner:
+      is_banner_presented_ = is_presented;
+      break;
+    case gemini::FloatyUpdateSource::Overlay:
+      is_external_overlay_presented_ = is_presented;
+      break;
+    case gemini::FloatyUpdateSource::Snackbar:
+      is_snackbar_presented_ = is_presented;
+      break;
+    default:
+      break;
+  }
+}
+
 bool BwgTabHelper::GetIsBwgSessionActiveInBackground() {
   return is_bwg_session_active_in_background_;
 }
@@ -256,7 +274,6 @@ bool BwgTabHelper::GetIsBwgSessionActiveInBackground() {
 void BwgTabHelper::DeactivateBWGSession() {
   is_bwg_session_active_in_background_ = false;
   is_bwg_ui_showing_ = false;
-  cached_snapshot_ = nil;
 }
 
 bool BwgTabHelper::IsLastInteractionUrlDifferent() {
@@ -288,8 +305,6 @@ void BwgTabHelper::DeleteBwgSessionInStorage() {
 }
 
 void BwgTabHelper::PrepareBwgFreBackgrounding() {
-  cached_snapshot_ =
-      bwg_snapshot_utils::GetCroppedFullscreenSnapshot(web_state_->GetView());
   is_bwg_session_active_in_background_ = true;
 }
 
@@ -326,15 +341,33 @@ void BwgTabHelper::SetLocationBarBadgeCommandsHandler(
   location_bar_badge_commands_handler_ = handler;
 }
 
+bool BwgTabHelper::IsGeminiAvailableForWebState() {
+  if (!web_state_) {
+    return false;
+  }
+
+  if (IsGeminiCopresenceEnabled() || IsGeminiFloatyAllPagesEnabled()) {
+    const GURL& url = web_state_->GetVisibleURL();
+    if (!url.SchemeIsHTTPOrHTTPS() || google_util::IsGoogleSearchUrl(url) ||
+        google_util::IsGoogleHomePageUrl(url) || IsAimZeroStateURL(url)) {
+      return false;
+    }
+  }
+
+  return CanExtractPageContextForWebState(web_state_) ||
+         IsGeminiFloatyAllPagesEnabled();
+}
+
 #pragma mark - WebStateObserver
 
 void BwgTabHelper::WasShown(web::WebState* web_state) {
   if (is_bwg_session_active_in_background_) {
     if (!IsGeminiCopresenceEnabled()) {
       [bwg_commands_handler_
-          startGeminiFlowWithEntryPoint:gemini::EntryPoint::TabReopen];
+          startGeminiFlowWithStartupState:
+              [[GeminiStartupState alloc]
+                  initWithEntryPoint:gemini::EntryPoint::TabReopen]];
     }
-    cached_snapshot_ = nil;
   }
 
   if (IsGeminiCopresenceEnabled()) {
@@ -347,16 +380,12 @@ void BwgTabHelper::WasShown(web::WebState* web_state) {
 
 void BwgTabHelper::WasHidden(web::WebState* web_state) {
   if (is_bwg_ui_showing_) {
-    cached_snapshot_ =
-        bwg_snapshot_utils::GetCroppedFullscreenSnapshot(web_state_->GetView());
     is_bwg_session_active_in_background_ = true;
 
     if (!IsGeminiCopresenceEnabled()) {
       [bwg_commands_handler_ dismissGeminiFlowWithCompletion:nil];
     }
   }
-
-  UpdateWebStateSnapshotInStorage();
 
   if (!IsGeminiCopresenceEnabled()) {
     return;
@@ -393,9 +422,13 @@ void BwgTabHelper::DidStartNavigation(
 
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
-  raw_ptr<BwgService> bwg_service = BwgServiceFactory::GetForProfile(profile);
-  const bool gemini_available =
-      bwg_service && bwg_service->IsBwgAvailableForWebState(web_state_);
+  BwgService* gemini_service = BwgServiceFactory::GetForProfile(profile);
+  const bool gemini_available = IsGeminiAvailableForWebState() &&
+                                gemini_service &&
+                                gemini_service->IsProfileEligibleForGemini();
+
+  base::UmaHistogramBoolean("IOS.Gemini.PageEligible", gemini_available);
+
   if (gemini_available &&
       profile->GetPrefs()->GetBoolean(prefs::kIOSBWGPageContentSetting)) {
     bool can_request_metadata =
@@ -526,9 +559,17 @@ void BwgTabHelper::PopulatePageContextFields() {
     page_context_wrapper_ = nil;
   }
 
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder()
+          .SetUseRefactoredExtractor(IsPageContextExtractorRefactoredEnabled())
+          .SetGraftCrossOriginFrameContent(IsGeminiRichAPCExtractionEnabled())
+          .SetUseRichExtraction(IsGeminiRichAPCExtractionEnabled())
+          .Build();
+
   // Create a new wrapper.
   page_context_wrapper_ = [[PageContextWrapper alloc]
         initWithWebState:web_state_
+                  config:config
       completionCallback:page_context_wrapper_response_ready_callback_];
 
   // Configure it to fetch full context.
@@ -575,21 +616,6 @@ void BwgTabHelper::CleanupSessionFromPrefs() {
   pref_service->ClearPref(prefs::kGeminiConversationId);
 }
 
-void BwgTabHelper::UpdateWebStateSnapshotInStorage() {
-  if (!cached_snapshot_) {
-    return;
-  }
-
-  SnapshotTabHelper* snapshot_tab_helper =
-      SnapshotTabHelper::FromWebState(web_state_);
-
-  if (!snapshot_tab_helper) {
-    return;
-  }
-
-  snapshot_tab_helper->UpdateSnapshotStorageWithImage(cached_snapshot_);
-}
-
 void BwgTabHelper::OnCanApplyContextualCueingDecision(
     const GURL& main_frame_url,
     optimization_guide::OptimizationGuideDecision decision,
@@ -614,7 +640,7 @@ void BwgTabHelper::OnCanApplyContextualCueingDecision(
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
 
-  // TODO (crbug.com/461595639): Remove pref checks to fully migrate logic to
+  // TODO(crbug.com/461595639): Remove pref checks to fully migrate logic to
   // FET.
   bool floaty_shown = profile->GetPrefs()->GetBoolean(prefs::kIOSBwgConsent);
   bool bwg_promo_shown =

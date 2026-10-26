@@ -94,7 +94,7 @@ SVGURLReferenceResolver::SVGURLReferenceResolver(const String& url_string,
                                                  const Document& document)
     : relative_url_(url_string),
       document_(&document),
-      is_local_(url_string.StartsWith('#')) {}
+      is_local_(url_string.starts_with('#')) {}
 
 KURL SVGURLReferenceResolver::AbsoluteUrl() const {
   if (absolute_url_.IsNull())
@@ -110,8 +110,8 @@ bool SVGURLReferenceResolver::IsLocal() const {
 AtomicString SVGURLReferenceResolver::FragmentIdentifier() const {
   // Use KURL's FragmentIdentifier to ensure that we're handling the
   // fragment in a consistent manner.
-  return AtomicString(DecodeURLEscapeSequences(
-      AbsoluteUrl().FragmentIdentifier(), DecodeURLMode::kUTF8OrIsomorphic));
+  return AtomicString(DecodeUrlEscapeSequences(
+      AbsoluteUrl().FragmentIdentifier(), DecodeUrlMode::kUtf8OrIsomorphic));
 }
 
 AtomicString SVGURIReference::FragmentIdentifierFromIRIString(

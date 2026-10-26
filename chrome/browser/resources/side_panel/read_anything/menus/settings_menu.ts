@@ -12,7 +12,8 @@ import type {CrActionMenuElement} from '//resources/cr_elements/cr_action_menu/c
 import type {CrLazyRenderLitElement} from '//resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
 import {WebUiListenerMixinLit} from '//resources/cr_elements/web_ui_listener_mixin_lit.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
-import {CrLitElement, type PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
+import {CrLitElement, nothing} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {SettingsPrefs} from '../content/read_anything_types.js';
 import {DEFAULT_SETTINGS, SettingsOption, ToolbarEvent} from '../content/read_anything_types.js';
@@ -151,6 +152,7 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
       isImmersiveMode: {type: Boolean},
       isReadAnythingPinned: {type: Boolean},
       settingsPrefs: {type: Object},
+      currentOpenId_: {state: true},
     };
   }
 
@@ -159,7 +161,8 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
   accessor settingsPrefs: SettingsPrefs = DEFAULT_SETTINGS;
 
   protected options_: SettingsItem[] = [];
-  private currentOpenId_: string|null = null;
+  protected accessor currentOpenId_: string|null = null;
+
   private interceptedEvents_: string[] =
       ['click', 'pointerdown', 'pointermove'];
   private openTimer_: number|null = null;
@@ -190,6 +193,13 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
     }
   }
 
+  protected getAriaExpanded_(item: SettingsItem): string|typeof nothing {
+    if (item.itemType !== SettingsItemType.MENU) {
+      return nothing;
+    }
+    return this.currentOpenId_ === item.id ? 'true' : 'false';
+  }
+
   private initializeMenuOptions_() {
     let optionIDs = [
       SettingsOption.COLOR,
@@ -204,8 +214,14 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
       optionIDs.push(SettingsOption.LINE_FOCUS);
     }
 
-    optionIDs =
-        optionIDs.concat([SettingsOption.PRESENTATION, SettingsOption.LINKS]);
+    optionIDs.push(SettingsOption.PRESENTATION);
+
+    // If Readability is enabled but ReadabilityWithLinks is not enabled,
+    // don't show the links toggle.
+    if (!chrome.readingMode.isReadabilityEnabled ||
+        chrome.readingMode.isReadabilityWithLinksEnabled) {
+      optionIDs = optionIDs.concat([SettingsOption.LINKS]);
+    }
 
     if (chrome.readingMode.imagesFeatureEnabled) {
       optionIDs.push(SettingsOption.IMAGES);
@@ -222,12 +238,12 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
       let enabled = false;
 
       if (id === SettingsOption.IMAGES) {
-        enabled = this.settingsPrefs.imagesEnabled;
+        enabled = chrome.readingMode.imagesEnabled;
         ariaLabel = this.getImageItemLabels();
       }
 
       if (id === SettingsOption.LINKS) {
-        enabled = this.settingsPrefs.linksEnabled;
+        enabled = chrome.readingMode.linksEnabled;
         ariaLabel = this.getLinkItemLabels();
       }
 
@@ -244,6 +260,22 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
         enabled,
       };
     });
+
+    // There should be a separator between the menu items and the toggle items.
+    // The base combination is on the Links toggle, but that's not
+    // always the first toggle.
+    this.options_.forEach(option => {
+      if (option.itemType === SettingsItemType.TOGGLE) {
+        option.showSeparator = false;
+      }
+    });
+
+    // Add the separator to the first toggle.
+    const firstToggle =
+        this.options_.find(item => item.itemType === SettingsItemType.TOGGLE);
+    if (firstToggle) {
+      firstToggle.showSeparator = true;
+    }
   }
 
   private getLinkItemLabels() {
@@ -323,12 +355,18 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
     this.requestUpdate();
   }
 
-  protected onMenuItemHover_(e: PointerEvent) {
+  protected onPointerenter_(e: PointerEvent) {
     this.clearTimers_();
 
     const currentTarget = e.currentTarget as HTMLElement;
     if (!currentTarget) {
       return;
+    }
+
+    const activeItems =
+        this.shadowRoot?.querySelectorAll<HTMLElement>('.active');
+    for (const activeItem of activeItems) {
+      activeItem.classList.remove('active');
     }
 
     const index = Number.parseInt(currentTarget.dataset['index']!);
@@ -359,14 +397,34 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
     }, delay);
   }
 
-  protected onMenuItemLeave_(e: PointerEvent) {
+  protected onPointerleave_(event: PointerEvent) {
     // Clear the open timer so that submenus aren't opened after the cursor
     // stops hovering.
     this.clearOpenTimer_();
 
-    const currentTarget = e.currentTarget as HTMLElement;
-    if (currentTarget) {
-      currentTarget.classList.remove('active');
+    // TODO (crbug.com/473578189): Make submenus children of the settings menu
+    // The submenus are siblings of this menu, living inside the same host
+    // (the toolbar). We use the host as a boundary to avoid traversing the
+    // entire document if the cursor leaves the toolbar completely.
+    const boundary = (this.getRootNode() as ShadowRoot)?.host;
+    let current = event.relatedTarget as Element | null;
+    let isOverSubmenu = false;
+
+    // Manually walk up the DOM to check if the cursor moved into a submenu.
+    // We cannot use element.closest() because it does not pierce Shadow DOM
+    // boundaries, and event.composedPath() only applies to the event target
+    // (the element we are leaving), not the relatedTarget (the destination).
+    while (current && current !== boundary) {
+      if (current.classList && current.classList.contains('settings-submenu')) {
+        isOverSubmenu = true;
+        break;
+      }
+      // Move up the tree, piercing through shadow roots if necessary.
+      current =
+          current.parentElement || (current.getRootNode() as ShadowRoot)?.host;
+    }
+
+    if (!isOverSubmenu) {
       this.startCloseTimer_();
     }
   }
@@ -412,6 +470,10 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
           eventType, this.pointerEventCallback_, {capture: true});
     });
     this.fire(ToolbarEvent.SETTINGS_OPENED);
+  }
+
+  protected onClose_() {
+    this.close();
   }
 
   close() {
@@ -465,6 +527,13 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
     // we should cancel the close timer, as the user intentionally moved into
     // the submenu.
     if (e.type === 'pointermove' && isInsideSubmenu) {
+      if (this.currentOpenId_) {
+        const activeItem = this.shadowRoot?.querySelector<HTMLElement>(
+            `#${this.currentOpenId_}`);
+        if (activeItem) {
+          activeItem.classList.add('active');
+        }
+      }
       this.clearCloseTimer_();
     }
 

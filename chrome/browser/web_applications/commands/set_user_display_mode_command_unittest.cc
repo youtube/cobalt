@@ -4,8 +4,10 @@
 
 #include "chrome/browser/web_applications/commands/set_user_display_mode_command.h"
 
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
+#include "chrome/browser/web_applications/test/fake_web_app_origin_association_manager.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
@@ -15,6 +17,7 @@
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "components/webapps/common/web_app_id.h"
+#include "third_party/blink/public/common/features.h"
 
 namespace web_app {
 
@@ -27,6 +30,12 @@ class SetUserDisplayModeCommandTest : public WebAppTest {
 
   void SetUp() override {
     WebAppTest::SetUp();
+
+    auto origin_association_manager =
+        std::make_unique<FakeWebAppOriginAssociationManager>();
+    origin_association_manager->set_pass_through(true);
+    fake_provider().SetOriginAssociationManager(
+        std::move(origin_association_manager));
 
     base::ScopedAllowBlockingForTesting allow_blocking;
     test_override_ = OsIntegrationTestOverrideImpl::OverrideForTesting();
@@ -67,6 +76,8 @@ class SetUserDisplayModeCommandTest : public WebAppTest {
  private:
   std::unique_ptr<OsIntegrationTestOverrideImpl::BlockingRegistration>
       test_override_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      blink::features::kWebAppMigrationApi};
 };
 
 TEST_F(SetUserDisplayModeCommandTest, SetUserDisplayMode) {
@@ -101,9 +112,9 @@ TEST_F(SetUserDisplayModeCommandTest, NoDisplayModeSetForMigratingApps) {
   install_info->user_display_mode =
       web_app::mojom::UserDisplayMode::kStandalone;
 
-  web_app::proto::WebAppMigrationSource source;
-  source.set_manifest_id("https://migration.example.com/start.html");
-  install_info->migration_sources.push_back(std::move(source));
+  install_info->migration_sources.emplace_back(
+      webapps::ManifestId(GURL("https://migration.example.com/start.html")),
+      MigrationBehavior::kSuggest);
 
   WebAppInstallParams params;
   params.install_state = proto::InstallState::SUGGESTED_FROM_MIGRATION;

@@ -7,11 +7,10 @@
 
 #include <optional>
 
+#include "base/callback_list.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "base/time/time.h"
-#include "base/timer/elapsed_timer.h"
-#include "chrome/browser/resource_coordinator/tab_load_tracker.h"
 #include "components/history/core/browser/history_types.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
@@ -20,22 +19,18 @@
 namespace history {
 class HistoryService;
 }
+
 namespace history_embeddings {
 class HistoryEmbeddingsService;
 }
+
 namespace passage_embeddings {
 class PassageEmbedderModelObserver;
 }
 
-namespace content {
-class NavigationHandle;
-class WeakDocumentPtr;
-}
-
 class HistoryEmbeddingsTabHelper
     : public content::WebContentsObserver,
-      public content::WebContentsUserData<HistoryEmbeddingsTabHelper>,
-      public resource_coordinator::TabLoadTracker::Observer {
+      public content::WebContentsUserData<HistoryEmbeddingsTabHelper> {
  public:
   ~HistoryEmbeddingsTabHelper() override;
 
@@ -43,65 +38,38 @@ class HistoryEmbeddingsTabHelper
   HistoryEmbeddingsTabHelper& operator=(const HistoryEmbeddingsTabHelper&) =
       delete;
 
-  // Called by `HistoryTabHelper` right after submitting a new navigation for
-  // `web_contents()` to HistoryService. We need close coordination with
-  // History's conception of the visit lifetime.
+  // Called right after submitting a new navigation for `web_contents()` to
+  // HistoryService. Allows close coordination with History's conception of the
+  // visit lifetime.
   // Virtual for testing.
-  virtual void OnUpdatedHistoryForNavigation(
-      content::NavigationHandle* navigation_handle,
-      base::Time timestamp,
-      const GURL& url);
+  virtual void OnUpdatedHistoryForNavigation(int64_t navigation_id,
+                                             bool is_in_primary_main_frame,
+                                             base::Time timestamp,
+                                             const GURL& url);
 
   // content::WebContentsObserver:
   void DidFinishLoad(content::RenderFrameHost* render_frame_host,
                      const GURL& validated_url) override;
+  void WebContentsDestroyed() override;
 
-  // resource_coordinator::TabLoadTracker:
-  void OnLoadingStateChange(content::WebContents* web_contents,
-                            LoadingState old_loading_state,
-                            LoadingState new_loading_state) override;
+  void SetHistoryTabHelperSubscription(
+      base::CallbackListSubscription subscription);
 
-  // Calls `RetrievePassages` for testing purposes only.
-  void RetrievePassagesForTesting(
-      history::URLID url_id,
-      history::VisitID visit_id,
-      base::Time visit_time,
-      content::WeakDocumentPtr weak_render_frame_host);
+  base::WeakPtr<HistoryEmbeddingsTabHelper> GetWeakPtr();
 
  protected:
-  // `protected` instead of `private` for mocking in tests.
   explicit HistoryEmbeddingsTabHelper(content::WebContents* web_contents);
 
  private:
   friend class content::WebContentsUserData<HistoryEmbeddingsTabHelper>;
 
-  // Utility method to delay passage extraction until tabs are done loading.
-  // Returns true if actually scheduled; false if weak pointer was invalidated.
-  bool ScheduleExtraction(content::WeakDocumentPtr weak_render_frame_host);
-
-  // This is called some time after `DidFinishLoad` to do passage extraction.
-  // Calls may be canceled by weak pointer invalidation.
-  void ExtractPassages(content::WeakDocumentPtr weak_render_frame_host);
-
   // Callback for `ExtractPassages()`. It's in a member method to enable
   // cancellation via `weak_factory_`.
-  void ExtractPassagesWithHistoryData(
-      content::WeakDocumentPtr weak_render_frame_host,
+  void UpdateEmbeddingsServiceWithHistoryData(
       history::QueryURLAndVisitsResult result);
 
-  // Initiates async passage extraction from the given host's main frame.
-  // When the extraction completes, the passages will be given to the
-  // HistoryEmbeddingsService to be stored in the database along with their
-  // embeddings.
-  // It's in a member method to enable cancellation via `weak_factory_`.
-  // Note: A `WeakDocumentPtr` is essentially a `WeakPtr<RenderFrameHost>`.
-  void RetrievePassages(history::URLID url_id,
-                        history::VisitID visit_id,
-                        base::Time visit_time,
-                        content::WeakDocumentPtr weak_render_frame_host);
-
-  // Invalidates weak pointers and cancels any pending extraction callbacks.
-  void CancelExtraction();
+  // Invalidates weak pointers and cancels any pending history lookup callbacks.
+  void CancelHistoryLookup();
 
   // Helper functions to return the embeddings and history services.
   // `GetHistoryClustersService()` may return nullptr (in tests).
@@ -120,8 +88,14 @@ class HistoryEmbeddingsTabHelper
   // Task tracker for calls for the history service.
   base::CancelableTaskTracker task_tracker_;
 
+  base::CallbackListSubscription history_tab_helper_subscription_;
+
   // This factory frequently invalidates existing weak pointers to cancel
   // delayed passage extraction.
+  base::WeakPtrFactory<HistoryEmbeddingsTabHelper> extraction_weak_ptr_factory_{
+      this};
+
+  // A standard WeakPtrFactory with lifetime equal to the object itself.
   base::WeakPtrFactory<HistoryEmbeddingsTabHelper> weak_ptr_factory_{this};
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();

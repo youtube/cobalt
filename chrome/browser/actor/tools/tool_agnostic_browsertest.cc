@@ -29,6 +29,7 @@
 #include "content/public/test/browser_test_utils.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/gfx/geometry/point_conversions.h"
+#include "url/url_util.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/constants/chromeos_features.h"
@@ -482,7 +483,9 @@ IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest,
                         /*follow_by_enter=*/false);
     ActResultFuture future;
     actor_task().Act(ToRequestList(action), future.GetCallback());
-    const mojom::ActionResult& result = *(future.Get<0>());
+    const auto& action_results = future.Get();
+    ASSERT_EQ(action_results.size(), 1u);
+    const mojom::ActionResult& result = *action_results[0].result;
     ASSERT_EQ(result.code, mojom::ActionResultCode::kElementDisabled);
     ASSERT_FALSE(result.requires_page_stabilization);
     ASSERT_EQ(EvalJs(web_contents(), "window.scrollY"), scroll_before);
@@ -498,7 +501,9 @@ IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTest,
                         /*follow_by_enter=*/false);
     ActResultFuture future;
     actor_task().Act(ToRequestList(action), future.GetCallback());
-    const mojom::ActionResult& result = *(future.Get<0>());
+    const auto& action_results = future.Get();
+    ASSERT_EQ(action_results.size(), 1u);
+    const mojom::ActionResult& result = *action_results[0].result;
     ASSERT_EQ(result.code, mojom::ActionResultCode::kElementDisabled);
     ASSERT_GT(EvalJs(web_contents(), "window.scrollY"), 0);
 
@@ -664,8 +669,9 @@ class ActorToolAgnosticBrowserTestWithDeferWhileInterrupted
 IN_PROC_BROWSER_TEST_F(ActorToolAgnosticBrowserTestWithDeferWhileInterrupted,
                        ActCallbackDeferredWhileInterrupted) {
   const GURL next_url = embedded_test_server()->GetURL("/actor/blank.html");
-  const GURL start_url = embedded_test_server()->GetURL(base::StrCat(
-      {"/actor/link_full_page.html?href=", EncodeURI(next_url.spec())}));
+  const GURL start_url = embedded_test_server()->GetURL(
+      base::StrCat({"/actor/link_full_page.html?href=",
+                    url::EncodeUriComponent(next_url.spec())}));
 
   ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
 

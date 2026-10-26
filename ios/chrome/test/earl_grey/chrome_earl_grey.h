@@ -57,6 +57,9 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // Wait until `matcher` is accessible (not nil) on the device.
 - (void)waitForMatcher:(id<GREYMatcher>)matcher;
 
+// Returns YES if `matcher` is sufficiently_visible;
+- (BOOL)isMatcherSufficientlyVisible:(id<GREYMatcher>)matcher;
+
 #pragma mark - Device Utilities
 
 // Returns YES if running on an iPad.
@@ -760,6 +763,9 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 
 // Returns YES if kTestFeature is enabled.
 - (BOOL)isTestFeatureEnabled;
+
+// Returns YES if Fullscreen smooth scrolling is supported.
+- (BOOL)isFullscreenSmoothScrollingSupported;
 
 // Returns YES if DemographicMetricsReporting feature is enabled.
 - (BOOL)isDemographicMetricsReportingEnabled [[nodiscard]];

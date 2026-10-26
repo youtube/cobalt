@@ -64,9 +64,9 @@ CSPCheckResult CSPSourceListAllows(
   // schemes, including custom schemes, must be explicitly listed in a source
   // list.
   if (source_list.allow_star) {
-    if (url.ProtocolIsInHTTPFamily() ||
+    if (url.ProtocolIsInHttpFamily() ||
         (!url.Protocol().empty() &&
-         EqualIgnoringASCIICase(url.Protocol(), self_source.scheme))) {
+         EqualIgnoringAsciiCase(url.Protocol(), self_source.scheme))) {
       return CSPCheckResult::Allowed();
     }
   }
@@ -105,8 +105,8 @@ CSPCheckResult CSPSourceListAllows(
     wtf_size_t comma = url_string.find(',');
     String header =
         (comma != kNotFound) ? url_string.Left(comma) : url_string;
-    if (header.Contains("application/x-mpegurl") ||
-        header.Contains("application/vnd.apple.mpegurl")) {
+    if (header.contains("application/x-mpegurl") ||
+        header.contains("application/vnd.apple.mpegurl")) {
       return network::CSPCheckResult(true);
     }
   }

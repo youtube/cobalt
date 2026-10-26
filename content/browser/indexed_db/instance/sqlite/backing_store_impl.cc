@@ -21,6 +21,7 @@
 #include "base/task/thread_pool.h"
 #include "base/types/expected_macros.h"
 #include "content/browser/indexed_db/file_path_util.h"
+#include "content/browser/indexed_db/indexed_db_reporting.h"
 #include "content/browser/indexed_db/instance/backing_store_util.h"
 #include "content/browser/indexed_db/instance/sqlite/backing_store_database_impl.h"
 #include "content/browser/indexed_db/instance/sqlite/database_connection.h"
@@ -32,10 +33,12 @@ BackingStoreImpl::BackingStoreImpl(
     base::FilePath directory,
     storage::mojom::BlobStorageContext& blob_storage_context,
     base::RepeatingCallback<
-        std::vector<PartitionedLock>(const std::u16string& name)> lock_database)
+        std::vector<PartitionedLock>(const std::u16string& name)> lock_database,
+    base::RepeatingCallback<void(std::optional<net::Error>)> on_blob_activity)
     : directory_(std::move(directory)),
       blob_storage_context_(blob_storage_context),
-      lock_database_(std::move(lock_database)) {}
+      lock_database_(std::move(lock_database)),
+      on_blob_activity_(std::move(on_blob_activity)) {}
 
 BackingStoreImpl::~BackingStoreImpl() = default;
 
@@ -50,6 +53,12 @@ uint64_t BackingStoreImpl::SumSizesOfDatabaseFiles(
     }
   });
   return total_size;
+}
+
+void BackingStoreImpl::RunIdleTasks() {
+  for (auto& [_, connection] : open_connections_) {
+    connection->PerformIdleMaintenance();
+  }
 }
 
 bool BackingStoreImpl::CanOpportunisticallyClose() const {
@@ -68,7 +77,7 @@ void BackingStoreImpl::OnForceClosing() {
 void BackingStoreImpl::SignalWhenDestructionComplete(
     base::WaitableEvent* signal_on_destruction) && {
   for (auto& [_, db] : open_connections_) {
-    std::move(*db).DestroySoon(/*force_closing=*/true).Run();
+    std::move(*db).GetCleanupTask(/*force_closing=*/true).Run();
   }
   open_connections_.clear();
 
@@ -177,16 +186,20 @@ BackingStoreImpl::GetDatabaseNamesAndVersions() {
         return;
       }
       std::ignore =
-          DatabaseConnection::Open(/*name=*/{}, path, *this)
+          LOG_RESULT(DatabaseConnection::Open(/*name=*/{}, path, *this,
+                                              /*erase_if_zygotic=*/true),
+                     "IndexedDB.SQLite.OpenToReadMetadataResult",
+                     in_memory() ? ".InMemory" : ".OnDisk")
               .transform([&](std::unique_ptr<DatabaseConnection> connection) {
                 const std::u16string& name = connection->metadata().name;
                 int64_t version = connection->metadata().version;
+                CHECK_NE(version, blink::IndexedDBDatabaseMetadata::NO_VERSION);
                 names_and_versions.emplace(name, version);
                 cached_versions_.emplace(name, version);
                 // Though not really force closing, skip "optional" cleanup
-                // tasks since we're actively serving a frontend request.
+                // steps since we're actively serving a frontend request.
                 std::move(*connection)
-                    .DestroySoon(/*force_closing=*/true)
+                    .GetCleanupTask(/*force_closing=*/true)
                     .Run();
               });
     });
@@ -236,7 +249,7 @@ void BackingStoreImpl::DestroyConnection(const std::u16string& name,
   std::unique_ptr<DatabaseConnection> connection =
       std::move(open_connections_.extract(name).mapped());
   base::OnceClosure cleanup_task =
-      std::move(*connection).DestroySoon(is_force_closing_);
+      std::move(*connection).GetCleanupTask(is_force_closing_);
 
   if (is_force_closing_) {
     // Run the cleanup task synchronously.

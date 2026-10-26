@@ -13,7 +13,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <set>
 #include <type_traits>
 #include <vector>
 
@@ -101,18 +100,11 @@ class MockVoiceMediaReceiveChannelInterface
               SetInterface,
               (webrtc::MediaChannelNetworkInterface * iface),
               (override));
-  MOCK_METHOD(void,
-              OnPacketReceived,
-              (const RtpPacketReceived& packet),
-              (override));
+  MOCK_METHOD(void, OnPacketReceived, (RtpPacketReceived packet), (override));
   MOCK_METHOD(std::optional<uint32_t>,
               GetUnsignaledSsrc,
               (),
               (const, override));
-  MOCK_METHOD(void,
-              ChooseReceiverReportSsrc,
-              (const std::set<uint32_t>& choices),
-              (override));
   MOCK_METHOD(void, OnDemuxerCriteriaUpdatePending, (), (override));
   MOCK_METHOD(void, OnDemuxerCriteriaUpdateComplete, (), (override));
   MOCK_METHOD(void,

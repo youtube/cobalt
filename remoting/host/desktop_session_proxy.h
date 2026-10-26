@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <vector>
 
 #include "base/callback_list.h"
@@ -157,7 +158,9 @@ class DesktopSessionProxy
       std::unique_ptr<protocol::ClipboardStub> client_clipboard);
 
   // API used to implement the SessionController interface.
-  void SetScreenResolution(const ScreenResolution& resolution);
+  void SetScreenResolution(const ScreenResolution& resolution,
+                           std::optional<webrtc::ScreenId> screen_id);
+  void SetVideoLayout(const protocol::VideoLayout& layout);
 
   // API used to implement the ActionExecutor interface.
   void ExecuteAction(const protocol::ActionRequest& request);
@@ -193,6 +196,7 @@ class DesktopSessionProxy
   void SetUpUrlForwarder(
       const UrlForwarderConfigurator::SetUpUrlForwarderCallback& callback);
 
+  std::string_view client_jid() const;
   uint32_t desktop_session_id() const { return desktop_session_id_; }
 
  private:

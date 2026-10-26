@@ -8,6 +8,7 @@
 #include "src/base/iterator.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
+#include "src/builtins/superspread.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
@@ -686,13 +687,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ beq(&prepare_step_in_suspended_generator);
   __ bind(&stepping_prepared);
 
-  // Check the stack for overflow. We are not trying to catch interruptions
-  // (i.e. debug break and preemption) here, so check the "real stack limit".
-  Label stack_overflow;
-  __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit, r0);
-  __ CmpU64(sp, scratch);
-  __ blt(&stack_overflow);
-
   // ----------- S t a t e -------------
   //  -- r4    : the JSGeneratorObject to resume
   //  -- r7    : generator function
@@ -709,6 +703,10 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ LoadTaggedField(
       r5, FieldMemOperand(r4, JSGeneratorObject::kParametersAndRegistersOffset),
       r0);
+
+  Label stack_overflow;
+  __ StackOverflowCheck(r6, scratch, &stack_overflow);
+
   {
     Label done_loop, loop;
     __ bind(&loop);
@@ -2505,7 +2503,23 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ TailCallBuiltin(target_builtin);
 
   __ bind(&stack_overflow);
-  __ TailCallRuntime(Runtime::kThrowStackOverflow);
+  // Rewrite the stack frame to capture target, arguments list and length
+  // - receiver already on the stack.
+  static_assert(SuperSpreadArgs::kReceiverOffsetFromEnd == 4);
+  // - target
+  static_assert(SuperSpreadArgs::kTargetOffsetFromEnd == 3);
+  __ Push(r4);
+  // - arguments list
+  static_assert(SuperSpreadArgs::kArglistOffsetFromEnd == 2);
+  __ Push(r5);
+  // - len of arguments list
+  static_assert(SuperSpreadArgs::kArglistLengthOffsetFromEnd == 1);
+  __ SmiTag(r7);
+  __ Push(r7);
+  // - adjust arg count
+  __ AddS64(r3, r3, Operand(SuperSpreadArgs::kNumExtraArgs - 1), r0);
+
+  __ TailCallRuntime(Runtime::kVarargStackOverflow);
 }
 
 // static
@@ -3136,7 +3150,8 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
   }
 
   {
-    bool is_return = fn == ExternalReference::wasm_return_stack();
+    bool is_return = fn == ExternalReference::wasm_return_jspi_stack() ||
+                     fn == ExternalReference::wasm_return_wasmfx_stack();
     int num_args = is_return ? 2 : maybe_suspender.is_valid() ? 6 : 5;
     __ PrepareCallCFunction(num_args, r0);
     FrameScope scope(masm, StackFrame::MANUAL);
@@ -3172,8 +3187,8 @@ void ReloadParentStack(MacroAssembler* masm, Register return_reg,
   __ LoadU64(parent, MemOperand(active_stack, wasm::kStackParentOffset), r0);
 
   // Switch stack!
-  SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
-               no_reg, {return_reg, return_value, context, parent});
+  SwitchStacks(masm, ExternalReference::wasm_return_jspi_stack(), parent,
+               nullptr, no_reg, {return_reg, return_value, context, parent});
   LoadJumpBuffer(masm, parent, false, tmp3);
 }
 
@@ -3696,8 +3711,8 @@ void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
   Register parent = r5;
   DCHECK_NE(arg_buffer, parent);
   __ Move(parent, MemOperand(active_stack, wasm::kStackParentOffset));
-  SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
-               no_reg, {parent, arg_buffer});
+  SwitchStacks(masm, ExternalReference::wasm_return_wasmfx_stack(), parent,
+               nullptr, no_reg, {parent, arg_buffer});
   LoadJumpBuffer(masm, parent, true, r9);
   __ Trap();
 }

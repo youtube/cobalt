@@ -66,6 +66,7 @@ namespace blink {
 class BarProp;
 class CSSStyleDeclaration;
 class CustomElementRegistry;
+class ScrollResult;
 class Document;
 class DocumentInit;
 class DOMSelection;
@@ -348,15 +349,15 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
 
   // FIXME: ScrollBehaviorSmooth is currently unsupported in VisualViewport.
   // crbug.com/434497
-  ScriptPromise<IDLUndefined> scrollBy(ScriptState* script_state,
+  ScriptPromise<ScrollResult> scrollBy(ScriptState* script_state,
                                        double x,
                                        double y) const;
-  ScriptPromise<IDLUndefined> scrollBy(ScriptState* script_state,
+  ScriptPromise<ScrollResult> scrollBy(ScriptState* script_state,
                                        const ScrollToOptions*) const;
-  ScriptPromise<IDLUndefined> scrollTo(ScriptState* script_state,
+  ScriptPromise<ScrollResult> scrollTo(ScriptState* script_state,
                                        double x,
                                        double y) const;
-  ScriptPromise<IDLUndefined> scrollTo(ScriptState* script_state,
+  ScriptPromise<ScrollResult> scrollTo(ScriptState* script_state,
                                        const ScrollToOptions*) const;
 
   void scrollByForTesting(double x, double y) const;
@@ -453,10 +454,12 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
   void EnqueueWindowEvent(Event&, TaskType);
   void EnqueueDocumentEvent(Event&, TaskType);
   void EnqueueNonPersistedPageshowEvent();
-  void EnqueueHashchangeEvent(const String& old_url, const String& new_url);
+  void EnqueueHashchangeEvent(const String& old_url,
+                              const String& new_url,
+                              UserNavigationInvolvement involvement);
   void DispatchPopstateEvent(scoped_refptr<SerializedScriptValue>,
-                             scheduler::TaskAttributionInfo* task_state,
-                             bool has_ua_visual_transition);
+                             bool has_ua_visual_transition,
+                             UserNavigationInvolvement involvement);
   void DispatchWindowLoadEvent();
   void DocumentWasClosed();
 
@@ -552,19 +555,9 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
     is_picture_in_picture_window_ = is_picture_in_picture;
   }
 
-  // This enum represents whether or not a call to `SetStorageAccessApiStatus`
-  // needs to also pass the status back up to the browser.
-  enum class StorageAccessApiNotifyEmbedder {
-    // No notification.
-    kNone,
-    // Notify the browser process.
-    kBrowserProcess,
-  };
-
   // Sets the StorageAccessApiStatus. Calls to this method must not downgrade
   // the status.
-  void SetStorageAccessApiStatus(net::StorageAccessApiStatus status,
-                                 StorageAccessApiNotifyEmbedder notify);
+  void SetStorageAccessApiStatus(net::StorageAccessApiStatus status);
 
   // https://html.spec.whatwg.org/multipage/browsing-the-web.html#has-been-revealed
   bool HasBeenRevealed() const { return has_been_revealed_; }

@@ -11,6 +11,7 @@
 #include <string>
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
@@ -97,8 +98,7 @@ class UdpPacketSocket : public webrtc::AsyncPacketSocket {
 
  private:
   struct PendingPacket {
-    PendingPacket(const void* buffer,
-                  int buffer_size,
+    PendingPacket(base::span<const uint8_t> buffer,
                   const net::IPEndPoint& address,
                   const webrtc::AsyncSocketPacketOptions& options);
 
@@ -142,14 +142,13 @@ class UdpPacketSocket : public webrtc::AsyncPacketSocket {
 };
 
 UdpPacketSocket::PendingPacket::PendingPacket(
-    const void* buffer,
-    int buffer_size,
+    base::span<const uint8_t> buffer,
     const net::IPEndPoint& address,
     const webrtc::AsyncSocketPacketOptions& options)
-    : data(base::MakeRefCounted<net::IOBufferWithSize>(buffer_size)),
+    : data(base::MakeRefCounted<net::IOBufferWithSize>(buffer.size())),
       address(address),
       options(options) {
-  UNSAFE_TODO(memcpy(data->data(), buffer, buffer_size));
+  data->span().copy_from(buffer);
 }
 
 UdpPacketSocket::UdpPacketSocket() {
@@ -247,7 +246,9 @@ int UdpPacketSocket::SendTo(const void* data,
     return EWOULDBLOCK;
   }
 
-  send_queue_.emplace_back(data, data_size, endpoint, options);
+  send_queue_.emplace_back(
+      UNSAFE_TODO(base::span(static_cast<const uint8_t*>(data), data_size)),
+      endpoint, options);
   send_queue_size_ += data_size;
 
   DoSend();
@@ -336,8 +337,7 @@ void UdpPacketSocket::DoSend() {
   while (!send_pending_ && !send_queue_.empty() && error_ == 0) {
     PendingPacket& packet = send_queue_.front();
     webrtc::ApplyPacketOptions(
-        webrtc::ArrayView<uint8_t>(packet.data->bytes(), packet.data->size()),
-        packet.options.packet_time_params,
+        packet.data->span(), packet.options.packet_time_params,
         (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds());
     int result = socket_->SendTo(
         packet.data.get(), packet.data->size(), packet.address,
@@ -433,7 +433,7 @@ void UdpPacketSocket::HandleReadResult(int result) {
       NOTREACHED() << "Failed to convert address received from RecvFrom().";
     }
     webrtc::ReceivedIpPacket packet(
-        webrtc::MakeArrayView(receive_buffer_->bytes(), result), address,
+        receive_buffer_->span().first(static_cast<size_t>(result)), address,
         webrtc::Timestamp::Micros(webrtc::TimeMicros()));
     NotifyPacketReceived(packet);
   } else {

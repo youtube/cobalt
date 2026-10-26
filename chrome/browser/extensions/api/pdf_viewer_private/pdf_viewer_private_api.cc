@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/memory/weak_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
@@ -24,6 +25,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
 #include "pdf/buildflags.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "url/url_constants.h"
 
 #if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
@@ -48,6 +50,8 @@ namespace SetPdfPluginAttributes =
     api::pdf_viewer_private::SetPdfPluginAttributes;
 
 namespace SetPdfDocumentTitle = api::pdf_viewer_private::SetPdfDocumentTitle;
+
+constexpr char kSummarizePrompt[] = "Summarize this document";
 
 // Check if the current URL is allowed based on a list of allowlisted domains.
 bool IsUrlAllowedToEmbedLocalFiles(const GURL& current_url,
@@ -287,6 +291,11 @@ PdfViewerPrivateGlicSummarizeFunction::
     ~PdfViewerPrivateGlicSummarizeFunction() = default;
 
 ExtensionFunction::ResponseAction PdfViewerPrivateGlicSummarizeFunction::Run() {
+  bool success = false;
+  auto cleanup = absl::MakeCleanup([&success] {
+    base::UmaHistogramBoolean("PDF.GlicSummarizeButtonClicked", success);
+  });
+
   content::WebContents* contents = GetSenderWebContents();
   if (!contents) {
     return RespondNow(Error("No web contents."));
@@ -308,10 +317,16 @@ ExtensionFunction::ResponseAction PdfViewerPrivateGlicSummarizeFunction::Run() {
           contents->GetBrowserContext());
   CHECK(glic_service);
 
-  glic_service->ToggleUI(tab_interface->GetBrowserWindowInterface(),
-                         /*prevent_close=*/true,
-                         glic::mojom::InvocationSource::kPdfSummarizeButton);
+  glic::GlicInvokeOptions options{
+      glic::mojom::InvocationSource::kPdfSummarizeButton};
+  options.prompts.push_back(kSummarizePrompt);
+  options.conversation = glic::NewConversation();
 
+  glic_service->InvokeWithAutoSubmit(
+      glic::InvokeWithAutoSubmitPasskeyProvider::GetPassKey(), tab_interface,
+      std::move(options));
+
+  success = true;
   return RespondNow(NoArguments());
 }
 

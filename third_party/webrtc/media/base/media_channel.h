@@ -241,6 +241,10 @@ class MediaSendChannelInterface {
   // Called whenever the list of sending SSRCs changes.
   virtual void SetSsrcListChangedCallback(
       absl::AnyInvocable<void(const std::set<uint32_t>&)> callback) = 0;
+  // Called whenever the parameters change autonomously on the worker thread.
+  // This is used for cache invalidation on the signaling thread.
+  virtual void SetParametersChangedCallback(
+      absl::AnyInvocable<void()> callback) {}
 };
 
 class MediaReceiveChannelInterface {
@@ -265,11 +269,9 @@ class MediaReceiveChannelInterface {
   // Sets the abstract interface class for sending RTP/RTCP data.
   virtual void SetInterface(MediaChannelNetworkInterface* iface) = 0;
   // Called on the network when an RTP packet is received.
-  virtual void OnPacketReceived(const RtpPacketReceived& packet) = 0;
+  virtual void OnPacketReceived(RtpPacketReceived packet) = 0;
   // Gets the current unsignaled receive stream's SSRC, if there is one.
   virtual std::optional<uint32_t> GetUnsignaledSsrc() const = 0;
-  // Sets the local SSRC for listening to incoming RTCP reports.
-  virtual void ChooseReceiverReportSsrc(const std::set<uint32_t>& choices) = 0;
   // This is currently a workaround because of the demuxer state being managed
   // across two separate threads. Once the state is consistently managed on
   // the same thread (network), this workaround can be removed.
@@ -958,6 +960,10 @@ struct VideoReceiverParameters : MediaChannelParameters {};
 
 class VideoMediaSendChannelInterface : public MediaSendChannelInterface {
  public:
+  using EncoderSwitchRequestAction = absl::AnyInvocable<void() &&>;
+  using EncoderSwitchRequestCallback =
+      absl::AnyInvocable<void(EncoderSwitchRequestAction)>;
+
   virtual bool SetSenderParameters(const VideoSenderParameters& params) = 0;
   // Starts or stops transmission (and potentially capture) of local video.
   virtual bool SetSend(bool send) = 0;
@@ -980,10 +986,6 @@ class VideoMediaSendChannelInterface : public MediaSendChannelInterface {
   // so that it's getting the send stream stats separately by calling
   // GetStats(), and merges with BandwidthEstimationInfo by itself.
   virtual void FillBitrateInfo(BandwidthEstimationInfo* bwe_info) = 0;
-  // Information queries to support SetReceiverFeedbackParameters
-  virtual RtcpMode SendCodecRtcpMode() const = 0;
-  virtual bool SendCodecHasLntf() const = 0;
-  virtual std::optional<int> SendCodecRtxTime() const = 0;
 };
 
 class VideoMediaReceiveChannelInterface : public MediaReceiveChannelInterface {

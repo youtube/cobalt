@@ -109,6 +109,7 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_dispatcher.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/compositing/paint_artifact_compositor.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_context_rate_limiter.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
@@ -152,10 +153,6 @@ BASE_FEATURE(kOneCopyCanvasCapture,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
-
-// Kill switch for not requesting continuous begin frame for low latency canvas.
-BASE_FEATURE(kLowLatencyCanvasNoBeginFrameKillSwitch,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // These values come from the WhatWG spec.
 constexpr int kDefaultCanvasWidth = 300;
@@ -372,9 +369,6 @@ bool HTMLCanvasElement::PrepareTransferableResource(
     return false;
   }
 
-  // TODO(crbug.com/480074852): swap in paint records for element image
-  // placeholders.
-
   CanvasResource::ReleaseCallback release_callback;
   if (!frame->PrepareTransferableResource(out_resource, &release_callback,
                                           /*needs_verified_synctoken=*/false) ||
@@ -516,6 +510,12 @@ void HTMLCanvasElement::setLayoutSubtree(bool value) {
 
 bool HTMLCanvasElement::layoutSubtree() const {
   return FastHasAttribute(html_names::kLayoutsubtreeAttr);
+}
+
+void HTMLCanvasElement::requestPaint() {
+  if (LocalFrameView* view = GetDocument().View()) {
+    view->RequestCanvasOnpaint(*this);
+  }
 }
 
 void HTMLCanvasElement::SetSize(gfx::Size new_size) {
@@ -761,9 +761,6 @@ void HTMLCanvasElement::PostFinalizeFrame(FlushReason reason) {
   // checks whether the `desynchronized` attribute is set on the context, but
   // only WebGL and Canvas2D have specific flows for low latency (for other
   // context types, setting the attribute is a no-op).
-  //
-  // TODO(crbug.com/480074852): don't paint if there are any element image
-  // placeholders in the command buffer.
   if (LowLatencyEnabled() && (IsWebGL() || IsRenderingContext2D()) &&
       frame_dispatcher_ && !dirty_rect_.IsEmpty()) {
     if (scoped_refptr<CanvasResource> canvas_resource =
@@ -931,15 +928,15 @@ void HTMLCanvasElement::ResetLayer() {
   }
 }
 
-gfx::Vector2dF HTMLCanvasElement::PhysicalPixelToCanvasGridScaleFactor() {
-  if (!GetDocument().View()) {
-    return {1., 1.};
-  }
+void HTMLCanvasElement::TakeGridScaleFactorSnapshot() {
+  CHECK(GetDocument().Lifecycle().GetState() == DocumentLifecycle::kInPaint);
 
-  GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
-      DocumentUpdateReason::kCanvasDrawElementImage);
-  if (!GetLayoutBox()) {
-    return {1., 1.};
+  grid_scale_factor_snapshot_ = {1.f, 1.f};
+  if (!RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+    return;
+  }
+  if (!GetDocument().View() || !GetLayoutBox()) {
+    return;
   }
 
   // As a special case, if the canvas is sized to its devicePixelContentBox,
@@ -952,7 +949,7 @@ gfx::Vector2dF HTMLCanvasElement::PhysicalPixelToCanvasGridScaleFactor() {
                       GetLayoutBox()->ContentLogicalHeight()),
           *GetLayoutBox(), GetLayoutBox()->StyleRef());
   if (canvas_size == device_pixel_content_box) {
-    return gfx::Vector2dF(1., 1.);
+    return;
   }
 
   PhysicalRect content_rect;
@@ -961,8 +958,9 @@ gfx::Vector2dF HTMLCanvasElement::PhysicalPixelToCanvasGridScaleFactor() {
   } else {
     content_rect = GetLayoutBox()->PhysicalContentBoxRect();
   }
-  return gfx::Vector2dF(canvas_size.width() / content_rect.Width().ToFloat(),
-                        canvas_size.height() / content_rect.Height().ToFloat());
+  grid_scale_factor_snapshot_ = {
+      canvas_size.width() / content_rect.Width().ToFloat(),
+      canvas_size.height() / content_rect.Height().ToFloat()};
 }
 
 namespace {
@@ -1006,7 +1004,10 @@ DOMMatrix* HTMLCanvasElement::getElementTransform(
   // T_css = S_canvas_to_css * T_canvas * S_canvas_to_css-1
   gfx::Vector2dF physical_to_canvas_grid =
       PhysicalPixelToCanvasGridScaleFactor();
-  float physical_to_css = 1.0f / element->ComputedStyleRef().EffectiveZoom();
+  float physical_to_css = 1.0f;
+  if (element->GetComputedStyle()) {
+    physical_to_css = 1.0f / element->ComputedStyleRef().EffectiveZoom();
+  }
   float canvas_grid_to_css_x = physical_to_css / physical_to_canvas_grid.x();
   float canvas_grid_to_css_y = physical_to_css / physical_to_canvas_grid.y();
   result->scaleSelf(canvas_grid_to_css_x, canvas_grid_to_css_y);
@@ -1505,13 +1506,6 @@ CanvasResourceDispatcher* HTMLCanvasElement::GetOrCreateResourceDispatcher() {
         surface_layer_bridge_->GetFrameSinkId().client_id(),
         surface_layer_bridge_->GetFrameSinkId().sink_id(),
         CanvasResourceDispatcher::kInvalidPlaceholderCanvasId, Size());
-    if (!base::FeatureList::IsEnabled(
-            kLowLatencyCanvasNoBeginFrameKillSwitch)) {
-      // We don't actually need the begin frame signal when in low latency mode,
-      // but we need to subscribe to it or else dispatching frames will not
-      // work.
-      frame_dispatcher_->SetNeedsBeginFrame(IsPageVisible());
-    }
   }
   return frame_dispatcher_.get();
 }
@@ -1682,6 +1676,16 @@ void HTMLCanvasElement::DiscardResources() {
   dirty_rect_ = gfx::Rect();
 }
 
+std::optional<CanvasChildPaintRecord>
+HTMLCanvasElement::GetCanvasChildPaintRecord(DOMNodeId child_id) const {
+  if (auto* view = GetDocument().View()) {
+    if (auto* pac = view->GetPaintArtifactCompositor()) {
+      return pac->GetCanvasChildPaintRecord(child_id);
+    }
+  }
+  return std::nullopt;
+}
+
 void HTMLCanvasElement::UpdateSuspendOffscreenCanvasAnimation() {
   if (!GetPage()) {
     return;
@@ -1787,6 +1791,10 @@ void HTMLCanvasElement::RemovedFrom(ContainerNode& insertion_point) {
   ColorSchemeMayHaveChanged();
 }
 
+bool HTMLCanvasElement::ChildrenChangedAllChildrenRemovedNeedsList() const {
+  return RuntimeEnabledFeatures::CanvasDrawElementEnabled();
+}
+
 void HTMLCanvasElement::ChildrenChanged(const ChildrenChange& change) {
   HTMLElement::ChildrenChanged(change);
   if (hasChildren()) {
@@ -1794,6 +1802,30 @@ void HTMLCanvasElement::ChildrenChanged(const ChildrenChange& change) {
     if (firstElementChild()) {
       UseCounter::Count(GetDocument(),
                         WebFeature::kCanvasFallbackElementContent);
+    }
+  }
+
+  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+    if (change.type == ChildrenChangeType::kElementRemoved) {
+      if (auto* element = DynamicTo<Element>(change.sibling_changed)) {
+        ChildElementRemoved(*element);
+      }
+    } else if (change.type == ChildrenChangeType::kAllChildrenRemoved) {
+      for (Node* node : change.removed_nodes) {
+        if (auto* element = DynamicTo<Element>(node)) {
+          ChildElementRemoved(*element);
+        }
+      }
+    }
+  }
+}
+
+void HTMLCanvasElement::ChildElementRemoved(Element& child) {
+  if (auto* view = GetDocument().View()) {
+    if (auto* pac = view->GetPaintArtifactCompositor()) {
+      if (pac->HasCanvasChildPaintRecord(child.GetDomNodeId())) {
+        requestPaint();
+      }
     }
   }
 }

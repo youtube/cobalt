@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ActionChipsHandlerRemote, ChipType, PageCallbackRouter as ActionChipsPageCallbackRouter} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
+import {ActionChipsHandlerRemote, IconType, PageCallbackRouter as ActionChipsPageCallbackRouter, ToolMode} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
 import type {PageRemote as ActionChipsPageRemote, TabInfo} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
 import type {CustomizeButtonsDocumentRemote} from 'chrome://new-tab-page/customize_buttons.mojom-webui.js';
 import {CustomizeButtonsDocumentCallbackRouter, CustomizeButtonsHandlerRemote, SidePanelOpenTrigger} from 'chrome://new-tab-page/customize_buttons.mojom-webui.js';
@@ -70,12 +70,16 @@ suite('NewTabPageAppTest', () => {
       doodle: null,
     });
     handler.setPromiseResolveFor('getModulesIdNames', {data: []});
-    windowProxy.setResultMapperFor('matchMedia', () => ({
-                                                   addListener() {},
-                                                   addEventListener() {},
-                                                   removeListener() {},
-                                                   removeEventListener() {},
-                                                 }));
+    handler.setPromiseResolveFor('getModulesOrder', {data: []});
+    windowProxy.setResultMapperFor(
+        'matchMedia', (query: string) => ({
+                        matches: false,
+                        media: query,
+                        addListener: () => {},
+                        addEventListener: () => {},
+                        removeListener: () => {},
+                        removeEventListener: () => {},
+                      }));
     windowProxy.setPromiseResolveFor('waitForLazyRender');
     windowProxy.setResultFor('createIframeSrc', '');
     windowProxy.setResultFor('url', url);
@@ -1131,8 +1135,11 @@ suite('NewTabPageAppTest', () => {
             const composeButton = getComposeButton();
             assertTrue(!!composeButton);
 
-            searchboxContainer!.shadowRoot
+            searchboxContainer!.shadowRoot.querySelector('#input')!.shadowRoot!
                 .querySelector<HTMLInputElement>('#input')!.value = 'hello';
+            searchboxContainer!.shadowRoot.querySelector('#input')!.shadowRoot!
+                .querySelector<HTMLInputElement>('#input')!.dispatchEvent(
+                    new InputEvent('input'));
 
             // Dispatch the 'compose-click' event directly, which cr-searchbox
             // listens for. This simulates the `cr-searchbox-compose-button`
@@ -1169,7 +1176,7 @@ suite('NewTabPageAppTest', () => {
         const composeButton = getComposeButton();
         assertTrue(!!composeButton);
 
-        searchboxContainer!.shadowRoot
+        searchboxContainer!.shadowRoot.querySelector('#input')!.shadowRoot!
             .querySelector<HTMLInputElement>('#input')!.value = 'hello';
 
         // Act.
@@ -1241,8 +1248,11 @@ suite('NewTabPageAppTest', () => {
             const composeButton = getComposeButton();
             assertTrue(!!composeButton);
 
-            searchboxContainer!.shadowRoot
+            searchboxContainer!.shadowRoot.querySelector('#input')!.shadowRoot!
                 .querySelector<HTMLInputElement>('#input')!.value = 'hello';
+            searchboxContainer!.shadowRoot.querySelector('#input')!.shadowRoot!
+                .querySelector<HTMLInputElement>('#input')!.dispatchEvent(
+                    new InputEvent('input'));
 
             // Dispatch the 'compose-click' event directly, which cr-searchbox
             // listens for. This simulates the `cr-searchbox-compose-button`
@@ -1409,8 +1419,11 @@ suite('NewTabPageAppTest', () => {
           const composeButton = getComposeButton();
           assertTrue(!!composeButton);
 
-          searchboxContainer!.shadowRoot
+          searchboxContainer!.shadowRoot.querySelector('#input')!.shadowRoot!
               .querySelector<HTMLInputElement>('#input')!.value = 'hello';
+          searchboxContainer!.shadowRoot.querySelector('#input')!.shadowRoot!
+              .querySelector<HTMLInputElement>('#input')!.dispatchEvent(
+                  new InputEvent('input'));
 
           // Simulate entrypoint click with text present.
           composeButton.dispatchEvent(new CustomEvent(
@@ -1467,8 +1480,9 @@ suite('NewTabPageAppTest', () => {
 
             assertEquals(
                 'hello',
-                searchboxContainer!.shadowRoot
-                    .querySelector<HTMLInputElement>('#input')!.value);
+                searchboxContainer!.shadowRoot.querySelector('#input')!
+                    .shadowRoot!.querySelector<HTMLInputElement>(
+                                    '#input')!.value);
           });
     });
     suite('Close options disabled', () => {
@@ -2295,24 +2309,33 @@ suite('NewTabPageAppTest', () => {
       actionChipshandler.setResultMapperFor('startActionChipsRetrieval', () => {
         actionChipsPageRemote.onActionChipsChanged([
           {
-            title: 'TabContext',
-            subtitle: 'tab-subtitle',
             suggestion: 'tab-suggestion',
-            type: ChipType.kRecentTab,
+            suggestTemplateInfo: {
+              typeIcon: IconType.kFavicon,
+              primaryText: {text: 'TabContext', a11yText: null},
+              secondaryText: {text: 'tab-subtitle', a11yText: null},
+              preselectedTool: ToolMode.kUnspecified,
+            },
             tab: fakeTab,
           },
           {
-            title: 'Nano Banana',
-            subtitle: 'image-subtitle',
             suggestion: 'image-suggestion',
-            type: ChipType.kImage,
+            suggestTemplateInfo: {
+              typeIcon: IconType.kBanana,
+              primaryText: {text: 'Nano Banana', a11yText: null},
+              secondaryText: {text: 'image-subtitle', a11yText: null},
+              preselectedTool: ToolMode.kImageGen,
+            },
             tab: null,
           },
           {
-            title: 'DeepSearch',
-            subtitle: 'ds-subtitle',
             suggestion: 'ds-suggestion',
-            type: ChipType.kDeepSearch,
+            suggestTemplateInfo: {
+              typeIcon: IconType.kGlobeWithSearchLoop,
+              primaryText: {text: 'DeepSearch', a11yText: null},
+              secondaryText: {text: 'ds-subtitle', a11yText: null},
+              preselectedTool: ToolMode.kDeepSearch,
+            },
             tab: null,
           },
         ]);
@@ -2403,7 +2426,8 @@ suite('NewTabPageAppTest', () => {
               app.shadowRoot.querySelector('ntp-action-chips');
           assertTrue(!!actionChipsElement);
           const nanoBananaChip =
-              actionChipsElement.shadowRoot.getElementById('nano-banana');
+              actionChipsElement.shadowRoot.querySelector<HTMLDivElement>(
+                  '.icon-type-banana');
           assertTrue(!!nanoBananaChip);
 
           // Act.
@@ -2427,7 +2451,8 @@ suite('NewTabPageAppTest', () => {
 
           // Setup.
           const deepSearchChip =
-              actionChipsElement.shadowRoot.getElementById('deep-search');
+              actionChipsElement.shadowRoot.querySelector<HTMLDivElement>(
+                  '.icon-type-globe-with-search-loop');
           assertTrue(!!deepSearchChip);
           deepSearchChip.click();
           await microtasksFinished();
@@ -2447,7 +2472,8 @@ suite('NewTabPageAppTest', () => {
 
       // Setup.
       const tabChip =
-          actionChipsElement.shadowRoot.getElementById('tab-context');
+          actionChipsElement.shadowRoot.querySelector<HTMLDivElement>(
+              '.icon-type-favicon');
       assertTrue(!!tabChip);
       tabChip.click();
       await microtasksFinished();
@@ -2466,10 +2492,13 @@ suite('NewTabPageAppTest', () => {
           const subtitle = 'Help me with this page subtitle';
           const suggestion = 'Help me with this page suggestion';
           actionChipsPageRemote.onActionChipsChanged([{
-            title: 'Deep dive',
-            subtitle: subtitle,
             suggestion: suggestion,
-            type: ChipType.kDeepDive,
+            suggestTemplateInfo: {
+              typeIcon: IconType.kSubArrowRight,
+              primaryText: {text: 'Deep dive', a11yText: null},
+              secondaryText: {text: subtitle, a11yText: null},
+              preselectedTool: ToolMode.kUnspecified,
+            },
             tab: {
               tabId: 1,
               title: 'Test Title',
@@ -2484,7 +2513,8 @@ suite('NewTabPageAppTest', () => {
 
           // Setup.
           const deepDiveChip =
-              actionChipsElement.shadowRoot.getElementById('deep-dive-0');
+              actionChipsElement.shadowRoot.querySelector<HTMLButtonElement>(
+                  'button:has(.icon-type-sub-arrow-right)');
           assertTrue(!!deepDiveChip);
 
           const chipBody = deepDiveChip.querySelector('.chip-body');
@@ -2605,6 +2635,13 @@ suite('NewTabPageAppReducedMotionTest', () => {
     windowProxy.setResultFor('waitForLazyRender', Promise.resolve());
     windowProxy.setResultFor('createIframeSrc', '');
     windowProxy.setResultFor('url', url);
+    windowProxy.setResultFor('matchMedia', {
+      matches: false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+    });
     handler = installMock(
         PageHandlerRemote,
         mock => NewTabPageProxy.setInstance(mock, new PageCallbackRouter()));
@@ -2616,6 +2653,10 @@ suite('NewTabPageAppReducedMotionTest', () => {
       doodle: null,
     }));
     handler.setResultFor('getModulesIdNames', Promise.resolve({data: []}));
+    handler.setResultFor('getModulesEligibleForRemoval', Promise.resolve({
+      moduleIds: [],
+    }));
+    handler.setResultFor('getModulesOrder', Promise.resolve({moduleIds: []}));
     backgroundManager = installMock(
         BackgroundManager, (mock) => BackgroundManager.setInstance(mock));
     backgroundManager.setResultFor(
@@ -2660,42 +2701,16 @@ suite('NewTabPageAppReducedMotionTest', () => {
     await microtasksFinished();
   }
 
-  function setReducedMotionPreference(
-      reducedMotionPreferred: boolean,
-      addEventListener?: (t: string, l: any) => void) {
-    windowProxy.setResultMapperFor('matchMedia', (query: string) => {
-      return {
-        matches: query === '(prefers-reduced-motion: reduce)' &&
-            reducedMotionPreferred,
-        addEventListener: (type: string, listener: any) => {
-          if (addEventListener) {
-            addEventListener(type, listener);
-          }
-        },
-        removeEventListener: () => {},
-        addListener() {},
-        removeListener() {},
-      };
-    });
+  function setReducedMotionPreference(reducedMotionPreferred: boolean) {
+    if (reducedMotionPreferred) {
+      document.documentElement.style.setProperty(
+          '--cr-animations-disabled', '1');
+    } else {
+      document.documentElement.style.removeProperty('--cr-animations-disabled');
+    }
   }
 
   suite('Initialization', () => {
-    test(
-        'initializes as INELIGIBLE when reduced motion is preferred',
-        async () => {
-          createSetup();
-          setReducedMotionPreference(true);
-          await createAndAppendApp();
-          app.dispatchEvent(new CustomEvent(
-              'action-chips-retrieval-state-changed',
-              {detail: {state: ActionChipsRetrievalState.REQUESTED}}));
-          await microtasksFinished();
-
-          assertEquals(
-              GlifAnimationState.INELIGIBLE,
-              (app as any).contextMenuGlifAnimationState_);
-        });
-
     test(
         'initializes as SPINNER_ONLY when reduced motion is not preferred',
         async () => {
@@ -2711,46 +2726,6 @@ suite('NewTabPageAppReducedMotionTest', () => {
               GlifAnimationState.SPINNER_ONLY,
               (app as any).contextMenuGlifAnimationState_);
         });
-  });
-
-  suite('Event Handling', () => {
-    test(
-        'context menu animation is correct when action chips retrieval state ' +
-            'updates',
-        async () => {
-          createSetup();
-          setReducedMotionPreference(true);
-          await createAndAppendApp();
-
-          assertEquals(
-              GlifAnimationState.INELIGIBLE,
-              (app as any).contextMenuGlifAnimationState_);
-
-          app.dispatchEvent(new CustomEvent(
-              'action-chips-retrieval-state-changed',
-              {detail: {state: ActionChipsRetrievalState.REQUESTED}}));
-          await microtasksFinished();
-
-          assertEquals(
-              GlifAnimationState.INELIGIBLE,
-              (app as any).contextMenuGlifAnimationState_);
-        });
-
-    test.skip('updates when prefers-reduced-motion change occurs', async () => {
-      createSetup();
-      let listener: (e: MediaQueryListEvent) => void = () => {};
-      setReducedMotionPreference(true, (_, l) => listener = l);
-      await createAndAppendApp();
-
-      assertTrue((app as any).reducedMotionPreferred_);
-
-      // Act: Simulate media query change to "no preference".
-      listener({matches: false} as MediaQueryListEvent);
-      await microtasksFinished();
-
-      // Assert.
-      assertFalse((app as any).reducedMotionPreferred_);
-    });
   });
 
   suite('ReducedMotionScrim', () => {

@@ -4,13 +4,13 @@
 
 module blink.mojom;
 
+import "third_party/blink/public/mojom/content_extraction/script_tools.mojom";
 import "third_party/blink/public/mojom/forms/form_control_type.mojom";
 import "third_party/blink/public/mojom/tokens/tokens.mojom";
 import "ui/accessibility/ax_enums.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 import "url/mojom/origin.mojom";
 import "url/mojom/url.mojom";
-import "third_party/blink/public/mojom/content_extraction/script_tools.mojom";
 
 // This is a mojom representation of the corresponding AnnotatedPageContent
 // proto.
@@ -135,10 +135,16 @@ struct AIPageContentSelection {
 // the main frame and embedded iframes.
 struct AIPageContentPageInteractionInfo {
   // The DOMNodeId of the content node that is currently focused.
+  //
+  // TODO(crbug.com/415778689): Deprecate when consumers move to
+  // AIPageContentFrameInteractionInfo.focused_dom_node_id.
   int32? focused_dom_node_id;
 
   // The DOMNodeId of the content node that is currently focused by a
   // screen reader or other accessibility tool.
+  //
+  // TODO(crbug.com/415778689): Deprecate when consumers move to
+  // AIPageContentFrameInteractionInfo.accessibility_focused_dom_node_id.
   int32? accessibility_focused_dom_node_id;
 
   // The last known mouse position, in the page coordinate system.
@@ -148,6 +154,13 @@ struct AIPageContentPageInteractionInfo {
 struct AIPageContentFrameInteractionInfo {
   // The current selection.
   AIPageContentSelection? selection;
+
+  // The DOMNodeId of the content node that is currently focused.
+  int32? focused_dom_node_id;
+
+  // The DOMNodeId of the content node that is currently focused by a
+  // screen reader or other accessibility tool.
+  int32? accessibility_focused_dom_node_id;
 };
 
 // Provides the reasons which make an element clickable.
@@ -158,7 +171,7 @@ enum AIPageContentClickabilityReason {
   // The node has a click event handler.
   kClickEvents,
 
-    // The node has mouse event handlers like mouseup and mousedown.
+  // The node has mouse event handlers like mouseup and mousedown.
   kMouseClick,
 
   // The node has mouse event handlers like mouseover and mouseenter.
@@ -237,7 +250,8 @@ struct AIPageContentNodeInteractionInfo {
   // events. This is false for nodes which are not hit-testable and will ignore
   // events, for example with `pointer-events: none`.
   //
-  // TODO(b/465736813): Deprecate when consumers move to `interaction_disabled_reasons`.
+  // TODO(b/465736813): Deprecate when consumers move to
+  // `interaction_disabled_reasons`.
   bool is_disabled;
 
   // Provides hints on why the interaction with the element is disabled.
@@ -397,6 +411,11 @@ struct AIPageContentIframeData {
 
 struct AIPageContentTableData {
   // The name of the table, coming from the caption.
+  // Note: this field has some quirks for backwards-compatibility reasons:
+  // 1. It is only populated if the table name is an immediate child of the
+  //    table element. Table names further down in the tree are skipped, leaving
+  //    this field empty.
+  // 2. The table name also will appear in a separate child text node.
   string? table_name;
 };
 
@@ -447,7 +466,7 @@ enum AIPageContentRedactionDecision {
   kRedacted_CustomPassword_CSS,
   // Is a password-like input detected by heuristic redaction based on a
   // JavaScript-masked value (e.g. mostly bullet-like masking characters).
-  kRedacted_CustomPassword_JS
+  kRedacted_CustomPassword_JS,
 };
 
 struct AIPageContentFormControlData {
@@ -475,7 +494,7 @@ struct AIPageContentFormControlData {
   // Whether the field is read-only.
   bool is_readonly;
 
-// Redaction decision for form fields.
+  // Redaction decision for form fields.
   AIPageContentRedactionDecision redaction_decision;
 };
 
@@ -625,6 +644,18 @@ struct AIPageContentOptions {
 
   // Whether to include data for visible passwords.
   bool include_passwords_for_redaction = false;
+
+  // Whether to include data for visible sensitive payment information.
+  bool include_sensitive_payments_for_redaction = false;
+
+  // Optional node-id policy options.
+  // If unset, extraction emits node ids for all nodes.
+  // If set, extraction emits ids for always-required override cases (actionable
+  // targets and metadata-linked nodes such as focus/selection/label-for
+  // references), plus any attribute types listed here.
+  // For better overall Blink performance, request node ids only for attribute
+  // types that require DOM round-trip behavior.
+  array<AIPageContentAttributeType>? node_id_allowlist;
 };
 
 // Used to obtain the AIPageContent representation for Documents. Lives in the

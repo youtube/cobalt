@@ -31,6 +31,7 @@
 #include "chrome/browser/ash/policy/test_support/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part_ash.h"
+#include "chrome/browser/global_features.h"
 #include "chrome/browser/metrics/structured/test/structured_metrics_mixin.h"
 #include "chrome/test/base/fake_gaia_mixin.h"
 #include "chromeos/ash/components/dbus/session_manager/fake_session_manager_client.h"
@@ -292,7 +293,10 @@ class MetadataProcessorTest : public policy::DevicePolicyCrosBrowserTest,
     ash::DemoSession::SetDemoConfigForTesting(
         ash::DemoSession::DemoModeConfig::kOnline);
     ash::test::LockDemoDeviceInstallAttributes();
-    ash::DemoSession::StartIfInDemoMode();
+    ash::DemoSession::StartIfInDemoMode(
+        g_browser_process->local_state(),
+        g_browser_process->GetFeatures()->application_locale_storage(),
+        g_browser_process->platform_part()->component_manager_ash());
 
     // Start the public session, Demo Mode is a special public session.
     StartPublicSession();

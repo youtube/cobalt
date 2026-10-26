@@ -42,6 +42,7 @@
 #include "third_party/blink/renderer/platform/network/http_names.h"
 #include "third_party/blink/renderer/platform/network/network_utils.h"
 #include "third_party/blink/renderer/platform/weborigin/referrer.h"
+#include "third_party/blink/renderer/platform/weborigin/security_policy.h"
 #include "third_party/blink/renderer/platform/wtf/text/base64.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
@@ -87,7 +88,7 @@ ResourceRequestHead::WebBundleTokenParams::CloneHandle() const {
 const base::TimeDelta ResourceRequestHead::default_timeout_interval_ =
     base::TimeDelta::Max();
 
-ResourceRequestHead::ResourceRequestHead() : ResourceRequestHead(NullURL()) {}
+ResourceRequestHead::ResourceRequestHead() : ResourceRequestHead(NullUrl()) {}
 
 ResourceRequestHead::ResourceRequestHead(const KURL& url)
     : url_(url),
@@ -109,7 +110,6 @@ ResourceRequestHead::ResourceRequestHead(const KURL& url)
       site_for_cookies_set_(false),
       is_form_submission_(false),
       priority_incremental_(net::kDefaultPriorityIncremental),
-      is_ad_resource_(false),
       upgrade_if_insecure_(false),
       is_revalidating_(false),
       is_automatic_upgrade_(false),
@@ -174,7 +174,7 @@ void ResourceRequestBody::SetStreamBody(
   stream_body_ = std::move(stream_body);
 }
 
-ResourceRequest::ResourceRequest() : ResourceRequestHead(NullURL()) {}
+ResourceRequest::ResourceRequest() : ResourceRequestHead(NullUrl()) {}
 
 ResourceRequest::ResourceRequest(const String& url_string)
     : ResourceRequestHead(KURL(url_string)) {}
@@ -230,8 +230,11 @@ std::unique_ptr<ResourceRequest> ResourceRequestHead::CreateRedirectRequest(
   request->SetPriorityIncremental(PriorityIncremental());
 
   request->SetCorsPreflightPolicy(CorsPreflightPolicy());
-  if (IsAdResource())
-    request->SetIsAdResource();
+
+  if (const std::optional<AdProvenance>& ad_provenance = GetAdProvenance()) {
+    request->SetIsAdResource(*ad_provenance);
+  }
+
   request->SetUpgradeIfInsecure(UpgradeIfInsecure());
   request->SetIsAutomaticUpgrade(IsAutomaticUpgrade());
   request->SetRequestedWithHeader(GetRequestedWithHeader());
@@ -345,14 +348,20 @@ void ResourceRequestHead::ClearHTTPOrigin() {
   http_header_fields_.Remove(http_names::kOrigin);
 }
 
-void ResourceRequestHead::SetHttpOriginIfNeeded(const SecurityOrigin* origin) {
-  if (NeedsHTTPOrigin())
+void ResourceRequestHead::SetHTTPOriginToMatchReferrerPolicyIfNeeded(
+    const SecurityOrigin* origin) {
+  if (!NeedsHTTPOrigin()) {
+    return;
+  }
+  if (origin->IsOpaque()) {
     SetHTTPOrigin(origin);
-}
-
-void ResourceRequestHead::SetHTTPOriginToMatchReferrerIfNeeded() {
-  if (NeedsHTTPOrigin()) {
-    SetHTTPOrigin(SecurityOrigin::CreateFromString(ReferrerString()).get());
+  } else {
+    Referrer origin_with_referrer_policy_applied =
+        SecurityPolicy::GenerateReferrer(referrer_policy_, url_,
+                                         origin->ToString());
+    SetHTTPOrigin(SecurityOrigin::CreateFromString(
+                      origin_with_referrer_policy_applied.referrer)
+                      .get());
   }
 }
 

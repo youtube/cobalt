@@ -114,7 +114,7 @@ struct TypeConverter<PaymentCurrencyAmountPtr, blink::PaymentCurrencyAmount> {
   static PaymentCurrencyAmountPtr Convert(
       const blink::PaymentCurrencyAmount& input) {
     PaymentCurrencyAmountPtr output = PaymentCurrencyAmount::New();
-    output->currency = input.currency().UpperASCII();
+    output->currency = input.currency().ToAsciiUpper();
     output->value = input.value();
     return output;
   }
@@ -871,6 +871,28 @@ void OnSecurePaymentConfirmationAvailabilityResponse(
   resolver->Resolve(V8SecurePaymentConfirmationAvailability(
       ToV8SecurePaymentConfirmationAvailabilityEnum(result)));
 }
+
+void OnGetSecurePaymentConfirmationCapabilitiesComplete(
+    std::unique_ptr<ScopedPromiseResolver> scoped_resolver,
+    const Vector<payments::mojom::blink::SecurePaymentConfirmationCapabilityPtr>
+        capabilities) {
+  auto* resolver = scoped_resolver->Release()
+                       ->DowncastTo<IDLRecord<IDLString, IDLBoolean>>();
+
+  Vector<std::pair<String, bool>> results;
+  for (const auto& capability : capabilities) {
+    results.emplace_back(std::move(capability->name), capability->supported);
+  }
+
+  // Results should be sorted lexicographically based on the keys.
+  std::sort(
+      results.begin(), results.end(),
+      [](const std::pair<String, bool>& a, const std::pair<String, bool>& b) {
+        return CodeUnitCompare(a.first, b.first) < 0;
+      });
+
+  resolver->Resolve(std::move(results));
+}
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }  // namespace
 
@@ -913,6 +935,57 @@ PaymentRequest::securePaymentConfirmationAvailability(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   return promise;
+}
+
+// static
+ScriptPromise<IDLRecord<IDLString, IDLBoolean>>
+PaymentRequest::getSecurePaymentConfirmationCapabilities(
+    ScriptState* script_state) {
+#if !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+  return ScriptPromise<IDLRecord<IDLString, IDLBoolean>>::
+      RejectWithDOMException(script_state,
+                             MakeGarbageCollected<DOMException>(
+                                 DOMExceptionCode::kNotSupportedError,
+                                 "The feature is not enabled."));
+#else
+  auto* execution_context = ExecutionContext::From(script_state);
+  auto* resolver = MakeGarbageCollected<
+      ScriptPromiseResolver<IDLRecord<IDLString, IDLBoolean>>>(script_state);
+  ScriptPromise promise = resolver->Promise();
+
+  if (!RuntimeEnabledFeatures::SecurePaymentConfirmationEnabled(
+          execution_context) ||
+      !RuntimeEnabledFeatures::SecurePaymentConfirmationCapabilitiesEnabled(
+          execution_context)) {
+    return ScriptPromise<IDLRecord<IDLString, IDLBoolean>>::
+        RejectWithDOMException(script_state,
+                               MakeGarbageCollected<DOMException>(
+                                   DOMExceptionCode::kNotSupportedError,
+                                   "The feature is not enabled."));
+  }
+
+  if (!execution_context->IsFeatureEnabled(
+          network::mojom::PermissionsPolicyFeature::kPayment)) {
+    return ScriptPromise<IDLRecord<IDLString, IDLBoolean>>::
+        RejectWithDOMException(
+            script_state,
+            MakeGarbageCollected<DOMException>(
+                DOMExceptionCode::kNotAllowedError,
+                "The \"payment\" permission policy is not enabled."));
+  }
+
+  UseCounter::Count(
+      execution_context,
+      WebFeature::kPaymentRequestGetSecurePaymentConfirmationCapabilities);
+
+  CredentialManagerProxy::From(script_state)
+      ->SecurePaymentConfirmationService()
+      ->GetSecurePaymentConfirmationCapabilities(
+          BindOnce(&OnGetSecurePaymentConfirmationCapabilitiesComplete,
+                   std::make_unique<ScopedPromiseResolver>(resolver)));
+
+  return promise;
+#endif  // !BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 PaymentRequest* PaymentRequest::Create(

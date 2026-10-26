@@ -272,6 +272,7 @@ source_set("common") {
     "unique_name/unique_name_helper.cc",
     "use_counter/use_counter_feature.cc",
     "use_counter/use_counter_feature_tracker.cc",
+    "use_counter/webdx_feature_maps.cc",
     "user_agent/user_agent_metadata.cc",
     "view_source/rendering_preferences.cc",
     "web_package/signed_exchange_consts.cc",
@@ -351,10 +352,6 @@ source_set("common") {
       (is_ios && target_platform == "tvos")) {
     defines = [ "ENABLE_PROTECTED_MEDIA_IDENTIFIER_PERMISSION" ]
   }
-
-  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
-  # enable the diagnostic by removing this line.
-  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 test("blink_common_unittests") {

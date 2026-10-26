@@ -4,13 +4,7 @@
 
 package org.chromium.chrome.browser.tasks.tab_management;
 
-import static org.chromium.ui.listmenu.ListItemType.MENU_ITEM;
-import static org.chromium.ui.listmenu.ListItemType.MENU_ITEM_WITH_SUBMENU;
-import static org.chromium.ui.listmenu.ListMenuItemProperties.CLICK_LISTENER;
-import static org.chromium.ui.listmenu.ListMenuItemProperties.ENABLED;
-import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE;
-import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE_ID;
-import static org.chromium.ui.listmenu.ListMenuSubmenuItemProperties.SUBMENU_ITEMS;
+import static org.chromium.chrome.browser.multiwindow.UiUtils.getItemTitle;
 
 import android.app.Activity;
 import android.content.Context;
@@ -34,10 +28,10 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.RequiresNonNull;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabGroupContextMenuCoordinator;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.multiwindow.InstanceInfo;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
-import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
@@ -50,13 +44,10 @@ import org.chromium.ui.UiUtils;
 import org.chromium.ui.hierarchicalmenu.FlyoutController;
 import org.chromium.ui.hierarchicalmenu.FlyoutController.FlyoutHandler;
 import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController;
-import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController.AccessibilityListObserver;
-import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.listmenu.ListMenuSubmenuItemProperties;
 import org.chromium.ui.listmenu.ListMenuUtils;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
-import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.widget.AnchoredPopupWindow;
 import org.chromium.ui.widget.AnchoredPopupWindow.HorizontalOrientation;
 import org.chromium.ui.widget.RectProvider;
@@ -461,69 +452,64 @@ public abstract class TabOverflowMenuCoordinator<T>
     protected ListItem createMoveToWindowItem(
             T id, boolean isIncognito, @PluralsRes int pluralsRes, @IdRes int menuId) {
         // TODO(crbug.com/437418051): Clean up move_tab_to_another_window strings.
-        if (!ChromeFeatureList.isEnabled(
-                ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)) {
+        int instanceType = PersistedInstanceType.ACTIVE;
+        if (IncognitoUtils.shouldOpenIncognitoAsWindow()) {
+            if (isIncognito) {
+                instanceType |= PersistedInstanceType.OFF_THE_RECORD;
+            } else {
+                instanceType |= PersistedInstanceType.REGULAR;
+            }
+        }
+        List<InstanceInfo> activeInstances = mMultiInstanceManager.getInstanceInfo(instanceType);
+        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
+                || activeInstances.size() <= 1) {
             return new ListItemBuilder()
                     .withTitle(
                             mActivity
                                     .getResources()
-                                    .getQuantityString(
-                                            pluralsRes,
-                                            MultiWindowUtils.getInstanceCountWithFallback(
-                                                    PersistedInstanceType.ACTIVE)))
+                                    .getQuantityString(pluralsRes, activeInstances.size()))
                     .withMenuId(menuId)
                     .withIsIncognito(isIncognito)
                     .build();
         }
         List<ListItem> submenuItems = new ArrayList<>();
         submenuItems.add(
-                new ListItem(
-                        MENU_ITEM,
-                        new PropertyModel.Builder(ListMenuItemProperties.ALL_KEYS)
-                                .with(TITLE_ID, R.string.menu_new_window)
-                                .with(ENABLED, true)
-                                .with(
-                                        CLICK_LISTENER,
-                                        v -> {
-                                            moveToNewWindow(id);
-                                        })
-                                .build()));
-        List<InstanceInfo> activeInstances =
-                mMultiInstanceManager.getInstanceInfo(PersistedInstanceType.ACTIVE);
-        if (activeInstances.size() > 1) {
-            for (InstanceInfo instanceInfo : activeInstances) {
-                if (mMultiInstanceManager.getCurrentInstanceId() == instanceInfo.instanceId) {
-                    continue;
-                }
-                String windowDisplayName =
-                        instanceInfo.title.isBlank()
-                                ? mActivity.getString(R.string.instance_switcher_entry_empty_window)
-                                : instanceInfo.title;
-                submenuItems.add(
-                        new ListItem(
-                                MENU_ITEM,
-                                new PropertyModel.Builder(ListMenuItemProperties.ALL_KEYS)
-                                        .with(TITLE, windowDisplayName)
-                                        .with(
-                                                CLICK_LISTENER,
-                                                (v) -> {
-                                                    moveToWindow(instanceInfo, id);
-                                                })
-                                        .with(ENABLED, true)
-                                        .build()));
-            }
-        }
-        return new ListItem(
-                MENU_ITEM_WITH_SUBMENU,
-                new PropertyModel.Builder(ListMenuSubmenuItemProperties.ALL_KEYS)
-                        .with(
-                                TITLE,
-                                mActivity
-                                        .getResources()
-                                        .getQuantityString(pluralsRes, 2)) // Any # > 1
-                        .with(SUBMENU_ITEMS, submenuItems)
-                        .with(ENABLED, true)
+                new ListItemBuilder()
+                        .withTitleRes(R.string.menu_new_window)
+                        .withIsIncognito(isIncognito)
+                        .withClickListener(v -> moveToNewWindow(id))
                         .build());
+        for (InstanceInfo instanceInfo : activeInstances) {
+            if (mMultiInstanceManager.getCurrentInstanceId() == instanceInfo.instanceId) {
+                continue;
+            }
+            String windowDisplayName = getItemTitle(mActivity, instanceInfo);
+            submenuItems.add(
+                    new ListItemBuilder()
+                            .withTitle(windowDisplayName)
+                            .withIsIncognito(isIncognito)
+                            .withClickListener((v) -> moveToWindow(instanceInfo, id))
+                            .build());
+        }
+        return new ListItemBuilder()
+                .withTitle(
+                        mActivity.getResources().getQuantityString(pluralsRes, 2) // Any # > 1
+                        )
+                .withIsIncognito(isIncognito)
+                .withSubmenuItems(submenuItems)
+                .build();
+    }
+
+    /**
+     * Runs a move action and cleans up the source window if it becomes empty.
+     *
+     * @param multiInstanceManager The {@link MultiInstanceManager}.
+     * @param moveAction The action to perform the move.
+     */
+    protected static void moveAndCleanupSource(
+            MultiInstanceManager multiInstanceManager, Runnable moveAction) {
+        moveAction.run();
+        multiInstanceManager.closeChromeWindowIfEmpty(multiInstanceManager.getCurrentInstanceId());
     }
 
     /** Creates a new window and moves item with ID {@param id} to it. */

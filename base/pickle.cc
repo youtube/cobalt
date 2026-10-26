@@ -35,11 +35,19 @@ PickleIterator PickleIterator::WithData(span<const uint8_t> data) {
   if (data.size() < sizeof(Pickle::Header)) {
     return PickleIterator();
   }
-  const auto* header = reinterpret_cast<const Pickle::Header*>(data.data());
-  if (header->payload_size > data.size() - sizeof(Pickle::Header)) {
+  // Make a copy of the header instead of dereferencing `data` with
+  // reinterpret_cast in case the memory is not aligned, which would lead to
+  // Undefined Behavior. This scenario should be rare as in most cases memory
+  // allocations are aligned, but it is not guaranteed by this API which accepts
+  // arbitrary spans.
+  Pickle::Header header;
+  byte_span_from_ref(header).copy_from_nonoverlapping(
+      data.first(sizeof(header)));
+
+  if (header.payload_size > data.size() - sizeof(Pickle::Header)) {
     return PickleIterator();
   }
-  const size_t header_size = data.size() - header->payload_size;
+  const size_t header_size = data.size() - header.payload_size;
   if (header_size != bits::AlignUp(header_size, sizeof(uint32_t))) {
     return PickleIterator();
   }
@@ -50,7 +58,7 @@ PickleIterator PickleIterator::WithData(span<const uint8_t> data) {
   iter.payload_ =
       UNSAFE_BUFFERS(reinterpret_cast<const char*>(data.data()) + header_size);
   iter.read_index_ = 0;
-  iter.end_index_ = header->payload_size;
+  iter.end_index_ = header.payload_size;
   return iter;
 }
 
@@ -217,45 +225,20 @@ bool PickleIterator::ReadString16(std::u16string* result) {
     return false;
   }
 
+  // TODO(https://crbug.com/478784025): The resulting pointer is not necessarily
+  // aligned for reading a char16_t. Replace the cast with a copying loop
+  // (reserve + push_back).
   result->assign(reinterpret_cast<const char16_t*>(read_from), len);
   return true;
 }
 
-bool PickleIterator::ReadStringPiece16(std::u16string_view* result) {
-  size_t len;
-  if (!ReadLength(&len)) {
-    return false;
-  }
-  const char* read_from = GetReadPointerAndAdvance(len, sizeof(char16_t));
-  if (!read_from) {
-    return false;
-  }
-
-  *result =
-      std::u16string_view(reinterpret_cast<const char16_t*>(read_from), len);
-  return true;
-}
-
-bool PickleIterator::ReadData(const char** data, size_t* length) {
-  *length = 0;
-  *data = nullptr;
-
-  if (!ReadLength(length)) {
-    return false;
-  }
-
-  return ReadBytes(data, *length);
-}
-
 std::optional<span<const uint8_t>> PickleIterator::ReadData() {
-  const char* ptr;
   size_t length;
-
-  if (!ReadData(&ptr, &length)) {
+  if (!ReadLength(&length)) {
     return std::nullopt;
   }
 
-  return as_bytes(UNSAFE_TODO(span(ptr, length)));
+  return ReadBytes(length);
 }
 
 bool PickleIterator::ReadBytes(const char** data, size_t length) {
@@ -389,7 +372,7 @@ void Pickle::WriteString(std::string_view value) {
 
 void Pickle::WriteString16(std::u16string_view value) {
   WriteInt(checked_cast<int>(value.size()));
-  WriteBytes(value.data(), value.size() * sizeof(char16_t));
+  WriteBytes(as_byte_span(value));
 }
 
 void Pickle::WriteData(const char* data, size_t length) {
@@ -403,11 +386,6 @@ void Pickle::WriteData(std::string_view data) {
 void Pickle::WriteData(base::span<const uint8_t> data) {
   WriteInt(checked_cast<int>(data.size()));
   WriteBytes(data);
-}
-
-void Pickle::WriteBytes(const void* data, size_t length) {
-  WriteBytesCommon(
-      UNSAFE_TODO(span(static_cast<const uint8_t*>(data), length)));
 }
 
 void Pickle::WriteBytes(span<const uint8_t> data) {

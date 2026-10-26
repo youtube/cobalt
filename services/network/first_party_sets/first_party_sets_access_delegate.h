@@ -14,7 +14,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/thread_annotations.h"
-#include "base/timer/elapsed_timer.h"
 #include "base/types/optional_ref.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -141,9 +140,6 @@ class FirstPartySetsAccessDelegate
 
   mojo::Receiver<mojom::FirstPartySetsAccessDelegate> receiver_
       GUARDED_BY_CONTEXT(sequence_checker_){this};
-
-  // Timer starting when the instance is constructed. Used for metrics.
-  base::ElapsedTimer construction_timer_ GUARDED_BY_CONTEXT(sequence_checker_);
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

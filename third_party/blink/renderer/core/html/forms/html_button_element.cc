@@ -115,13 +115,13 @@ bool HTMLButtonElement::IsPresentationAttribute(
 // static
 std::optional<HTMLButtonElement::Type> HTMLButtonElement::TypeFromString(
     const AtomicString& string) {
-  if (EqualIgnoringASCIICase(string, keywords::kReset)) {
+  if (EqualIgnoringAsciiCase(string, keywords::kReset)) {
     return kReset;
   }
-  if (EqualIgnoringASCIICase(string, keywords::kButton)) {
+  if (EqualIgnoringAsciiCase(string, keywords::kButton)) {
     return kButton;
   }
-  if (EqualIgnoringASCIICase(string, keywords::kSubmit)) {
+  if (EqualIgnoringAsciiCase(string, keywords::kSubmit)) {
     return kSubmit;
   }
   return std::nullopt;
@@ -130,9 +130,10 @@ std::optional<HTMLButtonElement::Type> HTMLButtonElement::TypeFromString(
 void HTMLButtonElement::ParseAttribute(
     const AttributeModificationParams& params) {
   if (params.name == html_names::kTypeAttr) {
+    Type new_type = kSubmit;
     if (std::optional<HTMLButtonElement::Type> type =
             TypeFromString(params.new_value)) {
-      SetTypeInternal(*type);
+      new_type = *type;
     } else {
       if (!params.new_value.IsNull()) {
         if (params.new_value.empty()) {
@@ -147,11 +148,25 @@ void HTMLButtonElement::ParseAttribute(
         UseCounter::Count(
             GetDocument(),
             WebFeature::kButtonTypeAttrInvalidWithCommandOrCommandfor);
-        SetTypeInternal(kButton);
-      } else {
-        SetTypeInternal(kSubmit);
+        new_type = kButton;
       }
     }
+
+    // Only count type changes initiated by JavaScript.
+    if (new_type != type_ &&
+        params.reason == AttributeModificationReason::kDirectly) {
+      if (isConnected()) {
+        UseCounter::Count(
+            GetDocument(),
+            WebFeature::kHTMLButtonElementTypeChangedWhileConnected);
+      } else {
+        UseCounter::Count(
+            GetDocument(),
+            WebFeature::kHTMLButtonElementTypeChangedWhileDisconnected);
+      }
+    }
+
+    SetTypeInternal(new_type);
     if (formOwner() && isConnected()) {
       formOwner()->InvalidateDefaultButtonStyle();
     }
@@ -192,6 +207,12 @@ bool HTMLButtonElement::CanBeCommandInvoker() const {
   return !IsFormAssociatedSubmitButton();
 }
 
+bool HTMLButtonElement::IsValidInterestInvoker(Element& target) const {
+  DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
+  // Buttons need to be enabled in order to support interest invokers.
+  return !IsDisabledFormControl();
+}
+
 bool HTMLButtonElement::IsFormAssociatedSubmitButton() const {
   return Form() && FastHasAttribute(html_names::kTypeAttr) && type_ == kSubmit;
 }
@@ -203,7 +224,7 @@ void HTMLButtonElement::DefaultEventHandler(Event& event) {
       bool has_command_attr = FastHasAttribute(html_names::kCommandforAttr) ||
                               FastHasAttribute(html_names::kCommandAttr);
       if (has_command_attr && type_ == kButton &&
-          !EqualIgnoringASCIICase(FastGetAttribute(html_names::kTypeAttr),
+          !EqualIgnoringAsciiCase(FastGetAttribute(html_names::kTypeAttr),
                                   keywords::kButton)) {
         AddConsoleMessage(mojom::blink::ConsoleMessageSource::kOther,
                           mojom::blink::ConsoleMessageLevel::kWarning,
@@ -215,7 +236,7 @@ void HTMLButtonElement::DefaultEventHandler(Event& event) {
       }
       if (type_ == kSubmit) {
         if (has_command_attr &&
-            EqualIgnoringASCIICase(FastGetAttribute(html_names::kTypeAttr),
+            EqualIgnoringAsciiCase(FastGetAttribute(html_names::kTypeAttr),
                                    keywords::kSubmit)) {
           AddConsoleMessage(
               mojom::blink::ConsoleMessageSource::kOther,

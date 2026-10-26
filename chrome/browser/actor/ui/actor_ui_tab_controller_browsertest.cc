@@ -100,7 +100,6 @@ class ActorUiTabControllerTest : public BaseActorUiTabControllerTest {
   ~ActorUiTabControllerTest() override = default;
 };
 
-#if BUILDFLAG(ENABLE_GLIC)
 IN_PROC_BROWSER_TEST_F(ActorUiTabControllerTest,
                        TabIndicatorVisibleDuringActuation) {
   Profile* const profile = browser()->profile();
@@ -148,8 +147,8 @@ IN_PROC_BROWSER_TEST_F(ActorUiTabControllerTest,
                        TabSpinnerNotVisibleWhenWaitingOnUser) {
   // Start task on tab.
   auto* actor_service = actor::ActorKeyedService::Get(browser()->GetProfile());
-  actor::TaskId task_id =
-      actor_service->CreateTask(NoEnterprisePolicyChecker());
+  actor::TaskId task_id = actor_service->CreateTask(
+      TestTaskSourceInfo(), NoEnterprisePolicyChecker());
   actor::ActorTask* task = actor_service->GetTask(task_id);
   actor::ui::StartTask start_task_event(task_id);
   actor_service->GetActorUiStateManager()->OnUiEvent(start_task_event);
@@ -210,8 +209,8 @@ IN_PROC_BROWSER_TEST_F(ActorUiTabControllerTest,
 
 IN_PROC_BROWSER_TEST_F(ActorUiTabControllerTest,
                        RecordsUserActionOnActiveStatusChange) {
-  TaskId task_id =
-      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
+  TaskId task_id = actor_keyed_service()->CreateTask(
+      TestTaskSourceInfo(), NoEnterprisePolicyChecker());
 
   ASSERT_TRUE(AddTabAtIndex(0, GURL("about:blank?1"),
                             ::ui::PageTransition::PAGE_TRANSITION_TYPED));
@@ -255,40 +254,6 @@ IN_PROC_BROWSER_TEST_F(ActorUiTabControllerTest,
                    "Actor.Ui.ActuatingTabWebContentsAttached"));
 }
 
-#else   // !BUILDFLAG(ENABLE_GLIC)
-IN_PROC_BROWSER_TEST_F(ActorUiTabControllerTest,
-                       TabIndicatorNotVisibleWhenGlicIsDisabled) {
-  Profile* const profile = browser()->profile();
-  ActorUiStateManagerInterface* state_manager =
-      actor::ActorKeyedService::Get(profile)->GetActorUiStateManager();
-  ASSERT_NE(state_manager, nullptr);
-  tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
-  ASSERT_NE(tab, nullptr);
-  ActorUiTabControllerInterface* controller = ActorUiTabController::From(tab);
-  ASSERT_NE(controller, nullptr);
-
-  // Initially, the indicator should not be visible.
-  tabs::TabAlertController* const tab_alert_controller =
-      tabs::TabAlertController::From(tab);
-  EXPECT_FALSE(
-      tab_alert_controller->IsAlertActive(tabs::TabAlert::kActorAccessing));
-  EXPECT_EQ(GetSpinner(), nullptr);
-
-  // Start acting on the tab.
-  TestFuture<ActionResultPtr> result;
-  state_manager->OnUiEvent(
-      StartingToActOnTab(tab->GetHandle(), actor::TaskId(1)),
-      result.GetCallback());
-  actor::ExpectOkResult(result);
-
-  // The indicator should still not be visible.
-  EXPECT_FALSE(
-      tab_alert_controller->IsAlertActive(tabs::TabAlert::kActorAccessing));
-  EXPECT_EQ(GetSpinner(), nullptr);
-}
-#endif  // BUILDFLAG(ENABLE_GLIC)
-
-#if BUILDFLAG(ENABLE_GLIC)
 IN_PROC_BROWSER_TEST_F(ActorUiTabControllerTest,
                        TabStripModelNotifiedOnUpdate) {
   Profile* const profile = browser()->profile();
@@ -318,7 +283,6 @@ IN_PROC_BROWSER_TEST_F(ActorUiTabControllerTest,
 
   tab_strip_model->RemoveObserver(&observer);
 }
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
 class ActorUiTabControllerDisabledTest : public BaseActorUiTabControllerTest {
  public:
@@ -372,7 +336,6 @@ class ActorUiTabIndicatorSpinnerIgnoreReducedMotionDisabled
   ~ActorUiTabIndicatorSpinnerIgnoreReducedMotionDisabled() override = default;
 };
 
-#if BUILDFLAG(ENABLE_GLIC)
 IN_PROC_BROWSER_TEST_F(ActorUiTabIndicatorSpinnerIgnoreReducedMotionDisabled,
                        TabIndicatorVisibleDuringActuation) {
   Profile* const profile = browser()->profile();
@@ -419,7 +382,6 @@ IN_PROC_BROWSER_TEST_F(ActorUiTabIndicatorSpinnerIgnoreReducedMotionDisabled,
       tab_alert_controller->IsAlertActive(tabs::TabAlert::kActorAccessing));
   EXPECT_EQ(GetSpinner()->state(), views::AnimatedImageView::State::kStopped);
 }
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
 }  // namespace
 }  // namespace actor::ui

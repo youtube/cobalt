@@ -59,10 +59,6 @@ class AddressFormDataImporter : public AddressDataManager::Observer {
   // AddressDataManager::Observer:
   void OnAddressDataChanged() override;
 
-  void AddMultiStepImportCandidate(const AutofillProfile& profile,
-                                   const ProfileImportMetadata& import_metadata,
-                                   bool is_imported);
-
   // Attempts to construct `ExtractedAddressProfile` by extracting values
   // from the fields in the `form`'s sections. Extraction can fail if the
   // fields' values don't pass validation. Apart from complete address profiles,
@@ -116,6 +112,7 @@ class AddressFormDataImporter : public AddressDataManager::Observer {
   bool ExtractAddressProfileFromSection(
       base::span<const AutofillField* const> section_fields,
       const GURL& source_url,
+      mojom::SubmissionSource submission_source,
       std::vector<ExtractedAddressProfile>* extracted_address_profiles,
       LogBuffer* import_log_buffer);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Google Inc.
+ * Copyright 2017 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -27,11 +27,6 @@ namespace skgpu {
 class MutableTextureState;
 }
 
-#ifdef SK_DIRECT3D
-#include "include/private/gpu/ganesh/GrD3DTypesMinimal.h"
-class GrD3DResourceState;
-#endif
-
 #if defined(SK_DEBUG) || defined(GPU_TEST_UTILS)
 class SkString;
 #endif
@@ -49,16 +44,6 @@ public:
     GrBackendFormat& operator=(const GrBackendFormat&);
     ~GrBackendFormat();
 
-#ifdef SK_DIRECT3D
-    static GrBackendFormat MakeDxgi(DXGI_FORMAT format) {
-        return GrBackendFormat(format);
-    }
-#endif
-
-    static GrBackendFormat MakeMock(GrColorType colorType,
-                                    SkTextureCompressionType compression,
-                                    bool isStencilFormat = false);
-
     bool operator==(const GrBackendFormat& that) const;
     bool operator!=(const GrBackendFormat& that) const { return !(*this == that); }
 
@@ -73,23 +58,6 @@ public:
 
     GrColorFormatDesc desc() const;
 
-#ifdef SK_DIRECT3D
-    /**
-     * If the backend API is Direct3D this gets the format as a DXGI_FORMAT and returns true.
-     * Otherwise, returns false.
-     */
-    bool asDxgiFormat(DXGI_FORMAT*) const;
-#endif
-
-    /**
-     * If the backend API is not Mock these three calls will return kUnknown, kNone or false,
-     * respectively. Otherwise, only one of the following can be true. The GrColorType is not
-     * kUnknown, the compression type is not kNone, or this is a mock stencil format.
-     */
-    GrColorType asMockColorType() const;
-    SkTextureCompressionType asMockCompressionType() const;
-    bool isMockStencilFormat() const;
-
     // If possible, copies the GrBackendFormat and forces the texture type to be Texture2D. If the
     // GrBackendFormat was for Vulkan and it originally had a skgpu::VulkanYcbcrConversionInfo,
     // we will remove the conversion and set the format to be VK_FORMAT_R8G8B8A8_UNORM.
@@ -102,7 +70,26 @@ public:
     SkString toStr() const;
 #endif
 
+#if !defined(SK_DISABLE_LEGACY_MOCK_BACKENDSURFACE)
+public:
+#else
 private:
+#endif
+    static GrBackendFormat MakeMock(GrColorType colorType,
+                                    SkTextureCompressionType compression,
+                                    bool isStencilFormat = false);
+    /**
+     * If the backend API is not Mock these three calls will return kUnknown, kNone or false,
+     * respectively. Otherwise, only one of the following can be true. The GrColorType is not
+     * kUnknown, the compression type is not kNone, or this is a mock stencil format.
+     */
+    GrColorType asMockColorType() const;
+    SkTextureCompressionType asMockCompressionType() const;
+    bool isMockStencilFormat() const;
+
+private:
+    friend class GrMockBackendSurfacePriv;
+
     // Size determined by looking at the GrBackendFormatData subclasses, then guessing-and-checking.
     // Compiler will complain if this is too small - in that case, just increase the number.
     inline constexpr static size_t kMaxSubclassSize = 80;
@@ -119,10 +106,6 @@ private:
         fFormatData.emplace<FormatData>(formatData);
     }
 
-#ifdef SK_DIRECT3D
-    explicit GrBackendFormat(DXGI_FORMAT dxgiFormat);
-#endif
-
     GrBackendFormat(GrColorType, SkTextureCompressionType, bool isStencilFormat);
 
 #ifdef SK_DEBUG
@@ -133,16 +116,11 @@ private:
     bool fValid = false;
     AnyFormatData fFormatData;
 
-    union {
-#ifdef SK_DIRECT3D
-        DXGI_FORMAT fDxgiFormat;
-#endif
-        struct {
-            GrColorType fColorType;
-            SkTextureCompressionType fCompressionType;
-            bool fIsStencilFormat;
-        } fMock;
-    };
+    struct {
+        GrColorType fColorType;
+        SkTextureCompressionType fCompressionType;
+        bool fIsStencilFormat;
+    } fMock;
     GrTextureType fTextureType = GrTextureType::kNone;
 };
 
@@ -150,24 +128,8 @@ class SK_API GrBackendTexture {
 public:
     // Creates an invalid backend texture.
     GrBackendTexture();
-
-#ifdef SK_DIRECT3D
-    GrBackendTexture(int width,
-                     int height,
-                     const GrD3DTextureResourceInfo& d3dInfo,
-                     std::string_view label = {});
-#endif
-
-    GrBackendTexture(int width,
-                     int height,
-                     skgpu::Mipmapped,
-                     const GrMockTextureInfo& mockInfo,
-                     std::string_view label = {});
-
     GrBackendTexture(const GrBackendTexture& that);
-
     ~GrBackendTexture();
-
     GrBackendTexture& operator=(const GrBackendTexture& that);
 
     SkISize dimensions() const { return {fWidth, fHeight}; }
@@ -179,23 +141,8 @@ public:
     GrBackendApi backend() const {return fBackend; }
     GrTextureType textureType() const { return fTextureType; }
 
-#ifdef SK_DIRECT3D
-    // If the backend API is Direct3D, copies a snapshot of the GrD3DTextureResourceInfo struct into
-    // the passed in pointer and returns true. This snapshot will set the fResourceState to the
-    // current resource state. Otherwise returns false if the backend API is not D3D.
-    bool getD3DTextureResourceInfo(GrD3DTextureResourceInfo*) const;
-
-    // Anytime the client changes the D3D12_RESOURCE_STATES of the D3D12_RESOURCE captured by this
-    // GrBackendTexture, they must call this function to notify Skia of the changed layout.
-    void setD3DResourceState(GrD3DResourceStateEnum);
-#endif
-
     // Get the GrBackendFormat for this texture (or an invalid format if this is not valid).
     GrBackendFormat getBackendFormat() const;
-
-    // If the backend API is Mock, copies a snapshot of the GrMockTextureInfo struct into the passed
-    // in pointer and returns true. Otherwise returns false if the backend API is not Mock.
-    bool getMockTextureInfo(GrMockTextureInfo*) const;
 
     // If the client changes any of the mutable backend of the GrBackendTexture they should call
     // this function to inform Skia that those values have changed. The backend API specific state
@@ -216,6 +163,21 @@ public:
 #if defined(GPU_TEST_UTILS)
     static bool TestingOnly_Equals(const GrBackendTexture&, const GrBackendTexture&);
 #endif
+
+#if !defined(SK_DISABLE_LEGACY_MOCK_BACKENDSURFACE)
+public:
+#else
+private:
+#endif
+    friend class GrMockBackendSurfacePriv;
+    GrBackendTexture(int width,
+                     int height,
+                     skgpu::Mipmapped,
+                     const GrMockTextureInfo& mockInfo,
+                     std::string_view label = {});
+    // If the backend API is Mock, copies a snapshot of the GrMockTextureInfo struct into the passed
+    // in pointer and returns true. Otherwise returns false if the backend API is not Mock.
+    bool getMockTextureInfo(GrMockTextureInfo*) const;
 
 private:
     // Size determined by looking at the GrBackendTextureData subclasses, then guessing-and-checking.
@@ -249,17 +211,6 @@ private:
     friend class GrVkGpu;  // for getMutableState
     sk_sp<skgpu::MutableTextureState> getMutableState() const;
 
-#ifdef SK_DIRECT3D
-    friend class GrD3DTexture;
-    friend class GrD3DGpu;     // for getGrD3DResourceState
-    GrBackendTexture(int width,
-                     int height,
-                     const GrD3DTextureResourceInfo& vkInfo,
-                     sk_sp<GrD3DResourceState> state,
-                     std::string_view label = {});
-    sk_sp<GrD3DResourceState> getGrD3DResourceState() const;
-#endif
-
     bool fIsValid;
     int fWidth;         //<! width in pixels
     int fHeight;        //<! height in pixels
@@ -270,27 +221,12 @@ private:
     AnyTextureData fTextureData;
 
     GrMockTextureInfo fMockInfo;
-#ifdef SK_DIRECT3D
-    GrD3DBackendSurfaceInfo fD3DInfo;
-#endif
 };
 
 class SK_API GrBackendRenderTarget {
 public:
     // Creates an invalid backend texture.
     GrBackendRenderTarget();
-
-#ifdef SK_DIRECT3D
-    GrBackendRenderTarget(int width,
-                          int height,
-                          const GrD3DTextureResourceInfo& d3dInfo);
-#endif
-
-    GrBackendRenderTarget(int width,
-                          int height,
-                          int sampleCnt,
-                          int stencilBits,
-                          const GrMockRenderTargetInfo& mockInfo);
 
     ~GrBackendRenderTarget();
 
@@ -305,22 +241,8 @@ public:
     GrBackendApi backend() const {return fBackend; }
     bool isFramebufferOnly() const { return fFramebufferOnly; }
 
-#ifdef SK_DIRECT3D
-    // If the backend API is Direct3D, copies a snapshot of the GrMtlTextureInfo struct into the
-    // passed in pointer and returns true. Otherwise returns false if the backend API is not D3D.
-    bool getD3DTextureResourceInfo(GrD3DTextureResourceInfo*) const;
-
-    // Anytime the client changes the D3D12_RESOURCE_STATES of the D3D12_RESOURCE captured by this
-    // GrBackendTexture, they must call this function to notify Skia of the changed layout.
-    void setD3DResourceState(GrD3DResourceStateEnum);
-#endif
-
     // Get the GrBackendFormat for this render target (or an invalid format if this is not valid).
     GrBackendFormat getBackendFormat() const;
-
-    // If the backend API is Mock, copies a snapshot of the GrMockTextureInfo struct into the passed
-    // in pointer and returns true. Otherwise returns false if the backend API is not Mock.
-    bool getMockRenderTargetInfo(GrMockRenderTargetInfo*) const;
 
     // If the client changes any of the mutable backend of the GrBackendTexture they should call
     // this function to inform Skia that those values have changed. The backend API specific state
@@ -338,8 +260,23 @@ public:
 #if defined(GPU_TEST_UTILS)
     static bool TestingOnly_Equals(const GrBackendRenderTarget&, const GrBackendRenderTarget&);
 #endif
+#if !defined(SK_DISABLE_LEGACY_MOCK_BACKENDSURFACE)
+public:
+#else
+private:
+#endif
+    // If the backend API is Mock, copies a snapshot of the GrMockTextureInfo struct into the passed
+    // in pointer and returns true. Otherwise returns false if the backend API is not Mock.
+    bool getMockRenderTargetInfo(GrMockRenderTargetInfo*) const;
+    GrBackendRenderTarget(int width,
+                          int height,
+                          int sampleCnt,
+                          int stencilBits,
+                          const GrMockRenderTargetInfo& mockInfo);
 
 private:
+    friend class GrMockBackendSurfacePriv;
+
     // Size determined by looking at the GrBackendRenderTargetData subclasses, then
     // guessing-and-checking. Compiler will complain if this is too small - in that case, just
     // increase the number.
@@ -372,16 +309,6 @@ private:
     friend class GrVkGpu; // for getMutableState
     sk_sp<skgpu::MutableTextureState> getMutableState() const;
 
-#ifdef SK_DIRECT3D
-    friend class GrD3DGpu;
-    friend class GrD3DRenderTarget;
-    GrBackendRenderTarget(int width,
-                          int height,
-                          const GrD3DTextureResourceInfo& d3dInfo,
-                          sk_sp<GrD3DResourceState> state);
-    sk_sp<GrD3DResourceState> getGrD3DResourceState() const;
-#endif
-
     bool fIsValid;
     bool fFramebufferOnly = false;
     int fWidth;         //<! width in pixels
@@ -394,9 +321,6 @@ private:
     AnyRenderTargetData fRTData;
 
     GrMockRenderTargetInfo fMockInfo;
-#ifdef SK_DIRECT3D
-    GrD3DBackendSurfaceInfo fD3DInfo;
-#endif
 };
 
 #endif

@@ -7,12 +7,15 @@ import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import 'chrome://resources/cr_elements/icons.html.js';
 import './card.js';
 import './icons.html.js';
+import './error_page.js';
+import './skills_empty.js';
 
 import {assert} from '//resources/js/assert.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {Skill} from './skill.mojom-webui.js';
-import {SkillsDialogType} from './skills.mojom-webui.js';
+import {SkillsDialogType} from './skill.mojom-webui.js';
+import {SkillsManagementAction, SkillsManagementPage} from './skill_metrics.mojom-webui.js';
 import {SkillsPageBrowserProxy} from './skills_page_browser_proxy.js';
 import {getCss} from './user_skills_page.css.js';
 import {getHtml} from './user_skills_page.html.js';
@@ -45,19 +48,6 @@ export class UserSkillsPageElement extends CrLitElement {
   private proxy_: SkillsPageBrowserProxy = SkillsPageBrowserProxy.getInstance();
   private listenerIds_: number[] = [];
   private addSkillButtonDisabledTimer_: number|undefined = undefined;
-
-  get filteredSkills_(): Skill[] {
-    const term = this.searchTerm_.toLowerCase();
-    const allSkillsArray = Array.from(this.skills_.values());
-
-    if (!term) {
-      return allSkillsArray;
-    }
-
-    return allSkillsArray.filter(
-        skill => skill.name.toLowerCase().includes(term) ||
-            skill.prompt.toLowerCase().includes(term));
-  }
 
   override connectedCallback() {
     super.connectedCallback();
@@ -106,7 +96,27 @@ export class UserSkillsPageElement extends CrLitElement {
     this.searchTerm_ = searchTerm;
   }
 
+  protected filteredSkills_(): Skill[] {
+    const term = this.searchTerm_.toLowerCase();
+    const allSkillsArray = Array.from(this.skills_.values());
+
+    if (!term) {
+      return allSkillsArray;
+    }
+
+    return allSkillsArray.filter(
+        skill => skill.name.toLowerCase().includes(term) ||
+            skill.prompt.toLowerCase().includes(term));
+  }
+
+  protected shouldShowNoSearchResults_(): boolean {
+    return this.filteredSkills_().length === 0 && this.searchTerm_.length > 0;
+  }
+
   protected onExploreButtonClick_() {
+    this.proxy_.handler.recordSkillsManagementAction(
+        SkillsManagementPage.kYourSkills,
+        SkillsManagementAction.kClickedBrowseSkills);
     const path = '/browse';
     this.fire('route-click', {path});
   }
@@ -115,6 +125,9 @@ export class UserSkillsPageElement extends CrLitElement {
     if (this.addSkillButtonDisabled_) {
       return;
     }
+    this.proxy_.handler.recordSkillsManagementAction(
+        SkillsManagementPage.kYourSkills,
+        SkillsManagementAction.kClickedAddSkill);
     this.addSkillButtonDisabled_ = true;
     SkillsPageBrowserProxy.getInstance().handler.openSkillsDialog(
         SkillsDialogType.kAdd, /*skill=*/ null);

@@ -47,6 +47,7 @@ rtc_library("audio_coding") {
     "../../api/neteq:default_neteq_factory",
     "../../api/neteq:neteq_api",
     "../../api/units:timestamp",
+    "../../audio/utility:audio_frame_operations",
     "../../common_audio",
     "../../common_audio:common_audio_c",
     "../../rtc_base:buffer",
@@ -57,6 +58,7 @@ rtc_library("audio_coding") {
     "../../rtc_base/synchronization:mutex",
     "../../system_wrappers",
     "../../system_wrappers:metrics",
+    "//third_party/abseil-cpp/absl/algorithm:container",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
@@ -577,6 +579,7 @@ rtc_library("neteq_tools_minimal") {
     ":neteq",
     "../../api:array_view",
     "../../api:field_trials",
+    "../../api:field_trials_view",
     "../../api:neteq_simulator_api",
     "../../api:rtp_headers",
     "../../api:scoped_refptr",
@@ -1047,6 +1050,7 @@ if (rtc_include_tests) {
         ":neteq_test_tools",
         ":neteq_tools",
         ":neteq_tools_minimal",
+        "../../api:field_trials",
         "../../api:make_ref_counted",
         "../../api:rtp_headers",
         "../../api:scoped_refptr",
@@ -1276,7 +1280,7 @@ if (rtc_include_tests) {
       ]
     }
 
-    rtc_executable("neteq_opus_quality_test") {
+    rtc_test("neteq_opus_quality_test") {
       testonly = true
 
       sources = [ "neteq/test/neteq_opus_quality_test.cc" ]
@@ -1291,7 +1295,6 @@ if (rtc_include_tests) {
         "../../api/audio_codecs:audio_codecs_api",
         "../../rtc_base:buffer",
         "../../rtc_base:checks",
-        "../../test:test_main",
         "../../test:test_support",
         "//testing/gtest",
         "//third_party/abseil-cpp/absl/flags:flag",
@@ -1314,7 +1317,7 @@ if (rtc_include_tests) {
       ]
     }
 
-    rtc_executable("neteq_pcmu_quality_test") {
+    rtc_test("neteq_pcmu_quality_test") {
       testonly = true
 
       sources = [ "neteq/test/neteq_pcmu_quality_test.cc" ]
@@ -1329,14 +1332,13 @@ if (rtc_include_tests) {
         "../../rtc_base:checks",
         "../../rtc_base:safe_conversions",
         "../../test:fileutils",
-        "../../test:test_main",
         "../../test:test_support",
         "//testing/gtest",
         "//third_party/abseil-cpp/absl/flags:flag",
       ]
     }
 
-    rtc_executable("neteq_pcm16b_quality_test") {
+    rtc_test("neteq_pcm16b_quality_test") {
       testonly = true
 
       sources = [ "neteq/test/neteq_pcm16b_quality_test.cc" ]
@@ -1351,7 +1353,6 @@ if (rtc_include_tests) {
         "../../rtc_base:checks",
         "../../rtc_base:safe_conversions",
         "../../test:fileutils",
-        "../../test:test_main",
         "../../test:test_support",
         "//testing/gtest",
         "//third_party/abseil-cpp/absl/flags:flag",
@@ -1376,7 +1377,7 @@ if (rtc_include_tests) {
   }
 
   if (!build_with_chromium) {
-    rtc_executable("webrtc_opus_fec_test") {
+    rtc_test("webrtc_opus_fec_test") {
       testonly = true
 
       sources = [ "codecs/opus/opus_fec_test.cc" ]
@@ -1385,7 +1386,6 @@ if (rtc_include_tests) {
         ":webrtc_opus",
         "../../common_audio",
         "../../test:fileutils",
-        "../../test:test_main",
         "../../test:test_support",
         "//testing/gtest",
       ]
@@ -1397,6 +1397,7 @@ if (rtc_include_tests) {
 
       sources = [
         "acm2/acm_remixing_unittest.cc",
+        "acm2/acm_resampler_unittest.cc",
         "acm2/audio_coding_module_unittest.cc",
         "acm2/call_statistics_unittest.cc",
         "audio_network_adaptor/audio_network_adaptor_impl_unittest.cc",

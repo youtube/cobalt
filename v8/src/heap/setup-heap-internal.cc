@@ -16,6 +16,7 @@
 #include "src/init/heap-symbols.h"
 #include "src/init/setup-isolate.h"
 #include "src/interpreter/interpreter.h"
+#include "src/numbers/hash-seed.h"
 #include "src/objects/arguments.h"
 #include "src/objects/call-site-info.h"
 #include "src/objects/cell-inl.h"
@@ -385,7 +386,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
 
     ALLOCATE_AND_SET_ROOT(Undefined, undefined_value, sizeof(Undefined));
     ALLOCATE_AND_SET_ROOT(Null, null_value, sizeof(Null));
-    ALLOCATE_AND_SET_ROOT(SeqOneByteString, empty_string,
+    ALLOCATE_AND_SET_ROOT(InternalizedString, empty_string,
                           SeqOneByteString::SizeFor(0));
     ALLOCATE_AND_SET_ROOT(False, false_value, sizeof(False));
     ALLOCATE_AND_SET_ROOT(True, true_value, sizeof(True));
@@ -479,7 +480,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     empty_string->set_map_after_allocation(
         isolate(), roots.unchecked_internalized_one_byte_string_map(),
         SKIP_WRITE_BARRIER);
-    empty_string->clear_padding_destructively(0);
+    Cast<SeqOneByteString>(empty_string)->clear_padding_destructively(0);
     empty_string->set_length(0);
     empty_string->set_raw_hash_field(String::kEmptyHashField);
   }
@@ -502,6 +503,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
                          protected_fixed_array);
     ALLOCATE_PARTIAL_MAP(WEAK_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
                          weak_fixed_array);
+    ALLOCATE_PARTIAL_MAP(WEAK_HOMOMORPHIC_FIXED_ARRAY_TYPE,
+                         kVariableSizeSentinel, weak_homomorphic_fixed_array);
     ALLOCATE_PARTIAL_MAP(TRUSTED_WEAK_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
                          trusted_weak_fixed_array);
     ALLOCATE_PARTIAL_MAP(PROTECTED_WEAK_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
@@ -589,6 +592,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   FinalizePartialMap(roots.trusted_fixed_array_map());
   FinalizePartialMap(roots.protected_fixed_array_map());
   FinalizePartialMap(roots.weak_fixed_array_map());
+  FinalizePartialMap(roots.weak_homomorphic_fixed_array_map());
   FinalizePartialMap(roots.weak_array_list_map());
   FinalizePartialMap(roots.trusted_weak_fixed_array_map());
   FinalizePartialMap(roots.protected_weak_fixed_array_map());
@@ -788,6 +792,8 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
             WasmSuspenderObject::kSize, wasm_suspender_object)
     IF_WASM(ALLOCATE_MAP, WASM_CONTINUATION_OBJECT_TYPE,
             WasmContinuationObject::kSize, wasm_continuation_object)
+    IF_WASM(ALLOCATE_MAP, WASM_STACK_OBJECT_TYPE, WasmStackObject::kSize,
+            wasm_stack_object)
     IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, kVariableSizeSentinel,
             wasm_type_info)
     IF_WASM(ALLOCATE_MAP, WASM_NULL_TYPE, kVariableSizeSentinel, wasm_null);
@@ -876,7 +882,9 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
     DirectHandle<DescriptorArray> descriptors =
         factory->NewDescriptorArray(1, 0, AllocationType::kReadOnly);
     Descriptor length_descriptor = Descriptor::DataField(
-        factory->length_string(), JSSharedArray::kLengthFieldIndex,
+        factory->length_string(),
+        shared_array_map->GetInObjectPropertyOffset(
+            JSSharedArray::kLengthFieldIndex),
         ALL_ATTRIBUTES_MASK, PropertyConstness::kConst, Representation::Smi(),
         MaybeObjectDirectHandle(FieldType::Any(isolate())), true);
     descriptors->Set(InternalIndex(0), &length_descriptor);
@@ -929,9 +937,10 @@ bool Heap::CreateImportantReadOnlyObjects() {
   // Hash seed for strings
 
   Factory* factory = isolate()->factory();
-  set_hash_seed(
-      *factory->NewByteArray(kInt64Size * 4, AllocationType::kReadOnly));
-  InitializeHashSeed();
+  set_hash_seed(*factory->NewByteArray(HashSeed::kTotalSize,
+                                       AllocationType::kReadOnly,
+                                       AllocationAlignment::kDoubleAligned));
+  HashSeed::InitializeRoots(isolate());
 
   // Important strings and symbols
   for (const ConstantStringInit& entry : kImportantConstantStringTable) {
@@ -1300,7 +1309,7 @@ bool Heap::CreateReadOnlyObjects() {
     }
 
     // This code duplicates FactoryBase::SmiToNumber.
-    for (int i = 10; i < kPreallocatedNumberStringTableSize; ++i) {
+    for (uint32_t i = 10; i < kPreallocatedNumberStringTableSize; ++i) {
       std::string_view string = IntToStringView(i, buffer);
       Handle<String> str = factory->InternalizeString(
           base::OneByteVector(string.data(), string.length()));
@@ -1397,13 +1406,21 @@ void Heap::CreateMutableApiObjects() {
 
 void Heap::CreateReadOnlyApiObjects() {
   HandleScope scope(isolate());
-  auto info =
-      isolate()->factory()->NewInterceptorInfo(AllocationType::kReadOnly);
-  set_noop_interceptor_info(*info);
+
   // Make sure read only heap layout does not depend on the size of
   // ExternalPointer fields.
-  StaticRootsEnsureAllocatedSize(info,
-                                 3 * kTaggedSize + 7 * kSystemPointerSize);
+  constexpr int kMaxPossibleInterceptorInfoSize =
+      3 * kTaggedSize + 8 * kSystemPointerSize;
+
+  auto info = isolate()->factory()->NewInterceptorInfo(
+      InterceptorKind::kNamed, AllocationType::kReadOnly);
+  set_noop_named_interceptor_info(*info);
+  StaticRootsEnsureAllocatedSize(info, kMaxPossibleInterceptorInfoSize);
+
+  info = isolate()->factory()->NewInterceptorInfo(InterceptorKind::kIndexed,
+                                                  AllocationType::kReadOnly);
+  set_noop_indexed_interceptor_info(*info);
+  StaticRootsEnsureAllocatedSize(info, kMaxPossibleInterceptorInfoSize);
 }
 
 void Heap::CreateInitialMutableObjects() {
@@ -1424,6 +1441,10 @@ void Heap::CreateInitialMutableObjects() {
       *SmiStringCache::New(isolate(), SmiStringCache::kInitialSize));
   set_double_string_cache(
       *DoubleStringCache::New(isolate(), DoubleStringCache::kInitialSize));
+  // We only need pointer identity comparisons with valid BigInts, so any
+  // non-BigInt will do as initializer value.
+  set_cached_bigint_divisor(roots.undefined_value());
+  set_next_cached_bigint_divisor(roots.undefined_value());
 
   // Unchecked to skip failing checks since required roots are uninitialized.
   set_basic_block_profiling_data(roots.unchecked_empty_array_list());
@@ -1468,6 +1489,7 @@ void Heap::CreateInitialMutableObjects() {
 
   // Protectors
   set_array_buffer_detaching_protector(*factory->NewProtector());
+  set_array_buffer_mutable_protector(*factory->NewProtector());
   set_array_iterator_protector(*factory->NewProtector());
   set_array_species_protector(*factory->NewProtector());
   set_no_date_time_configuration_change_protector(*factory->NewProtector());

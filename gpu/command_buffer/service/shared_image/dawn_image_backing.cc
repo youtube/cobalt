@@ -59,6 +59,32 @@ DawnImageBacking::~DawnImageBacking() {
   }
 }
 
+bool DawnImageBacking::CheckSupportForAccessStream(
+    SharedImageAccessStream stream,
+    const AccessParams& params,
+    const wgpu::Device& backing_device) {
+  // For Dawn access, the `wgpu_device` is essential. Unlike GL or Vulkan, Dawn
+  // operations are explicitly tied to a specific device, and there is no
+  // implicit "current" context. Therefore, we must have the device to ensure
+  // that this backing is compatible with the intended operation.
+  if (!params.wgpu_device) {
+    return false;
+  }
+
+  // If there is no DawnImageBacking instance yet and the request for
+  // CheckSupportForAccessStream() is coming from factory, then return true.
+  if (!backing_device) {
+    return true;
+  }
+
+  return backing_device.Get() == params.wgpu_device.Get();
+}
+
+bool DawnImageBacking::SupportsAccess(SharedImageAccessStream stream,
+                                      const AccessParams& params) const {
+  return CheckSupportForAccessStream(stream, params, device_);
+}
+
 SharedImageBackingType DawnImageBacking::GetType() const {
   return SharedImageBackingType::kDawn;
 }

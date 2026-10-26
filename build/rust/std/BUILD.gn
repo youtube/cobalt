@@ -38,7 +38,6 @@ if (toolchain_has_rust) {
     "getopts",
     "hashbrown",
     "panic_abort",
-    "panic_unwind",
     "rustc_demangle",
     "std_detect",
     "test",
@@ -232,6 +231,15 @@ if (toolchain_has_rust) {
       deps = []
       foreach(libname, stdlib_files + skip_stdlib_files) {
         deps += [ "rules:$libname" ]
+      }
+    }
+    if (enable_cpp_api_from_rust) {
+      group("std_bindings") {
+        deps = [ ":std" ]
+        public_deps = []
+        foreach(libname, stdlib_files + skip_stdlib_files) {
+          public_deps += [ "rules:${libname}_bindings" ]
+        }
       }
     }
   } else {

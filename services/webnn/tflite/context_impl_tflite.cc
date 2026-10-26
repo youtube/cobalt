@@ -58,6 +58,7 @@ ContextImplTflite::ContextImplTflite(
     bool is_incognito)
     : WebNNContextImpl(std::move(receiver),
                        std::move(context_provider),
+                       ContextBackendUma::kTFLite,
                        GraphBuilderTflite::GetContextProperties(),
                        std::move(options),
                        std::move(write_tensor_consumer),
@@ -82,7 +83,8 @@ void ContextImplTflite::CreateGraphImpl(
     WebNNGraphImpl::ComputeResourceInfo compute_resource_info,
     base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
         constant_operands,
-    base::flat_map<OperandId, WebNNTensorImpl*> constant_tensor_operands,
+    base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
+        constant_tensor_operands,
     CreateGraphImplCallback callback) {
   if (is_incognito_) {
     // In incognito mode, weights are stored in the Flatbuffer model file
@@ -90,14 +92,12 @@ void ContextImplTflite::CreateGraphImpl(
     GraphImplTflite::CreateAndBuild(
         std::move(receiver), std::move(graph_info),
         std::move(compute_resource_info), std::move(constant_operands),
-        std::move(constant_tensor_operands), this,
+        std::move(constant_tensor_operands), *this,
         /*weights_file=*/base::File(), std::move(callback));
   } else {
     CreateWeightsFile(base::BindOnce(
         &ContextImplTflite::DidCreateWeightsFile,
-        // Unretained is safe here because a reference is held by the
-        // `WebNNContextProviderImpl`
-        base::Unretained(this), std::move(receiver), std::move(graph_info),
+        weak_factory_.GetWeakPtr(), std::move(receiver), std::move(graph_info),
         std::move(compute_resource_info), std::move(constant_operands),
         std::move(constant_tensor_operands), std::move(callback)));
   }
@@ -109,7 +109,8 @@ void ContextImplTflite::DidCreateWeightsFile(
     WebNNGraphImpl::ComputeResourceInfo compute_resource_info,
     base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
         constant_operands,
-    base::flat_map<OperandId, WebNNTensorImpl*> constant_tensor_operands,
+    base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
+        constant_tensor_operands,
     CreateGraphImplCallback callback,
     base::File weights_file) {
   if (!weights_file.IsValid()) {
@@ -122,7 +123,7 @@ void ContextImplTflite::DidCreateWeightsFile(
   GraphImplTflite::CreateAndBuild(std::move(receiver), std::move(graph_info),
                                   std::move(compute_resource_info),
                                   std::move(constant_operands),
-                                  std::move(constant_tensor_operands), this,
+                                  std::move(constant_tensor_operands), *this,
                                   std::move(weights_file), std::move(callback));
 }
 
@@ -136,7 +137,7 @@ ContextImplTflite::CreateTensorImpl(
         mojom::Error::New(mojom::Error::Code::kNotSupportedError,
                           "Creation of constant tensors is not supported."));
   }
-  return TensorImplTflite::Create(std::move(receiver), AsWeakPtr(),
+  return TensorImplTflite::Create(std::move(receiver), *this,
                                   std::move(tensor_info));
 }
 

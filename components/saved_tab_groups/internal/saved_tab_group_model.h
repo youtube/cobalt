@@ -186,12 +186,23 @@ class SavedTabGroupModel {
       const GaiaId& updated_by);
   const SavedTabGroupTab* MergeRemoteTab(const SavedTabGroupTab& remote_tab);
 
+  // Updates the pinned position for a group. Only used when the projects panel
+  // is enabled to avoid overwriting the pinned position when updating sync.
+  void UpdateGroupPinnedPositionForMigration(
+      const base::Uuid& guid,
+      std::optional<size_t> pinned_position);
+
   // Changes the index of a given tab group by id. The new index provided is the
   // expected index after the group is removed. Notify local observers if the
   // group was reordered locally, and sync observers if the group was reordered
   // from sync.
   void ReorderGroupLocally(const base::Uuid& id, int new_index);
   void ReorderGroupFromSync(const base::Uuid& id, int new_index);
+
+  // Reorders the group with `id` to be before or after the group with
+  // `next_id` or `prev_id`.
+  void ReorderGroupBefore(const base::Uuid& id, const base::Uuid& next_id);
+  void ReorderGroupAfter(const base::Uuid& id, const base::Uuid& prev_id);
 
   // Update the creator cache guid for all saved groups that have
   // `old_cache_guid`, to `new_cache_guid`.
@@ -243,8 +254,14 @@ class SavedTabGroupModel {
   void AddObserver(SavedTabGroupModelObserver* observer);
   void RemoveObserver(SavedTabGroupModelObserver* observer);
 
-  // One time migration of saved tab groups from v1 to v2.
-  void MigrateTabGroupSavesUIUpdate();
+  // One time migration of all tab group's pinned_position to projects_position.
+  // In Tab Groups V2, groups had an optional pinned_position field that
+  // determined their position in the bookmarks bar on Desktop. The projects
+  // panel on Desktop replaces the tab groups UI in the bookmarks bar and
+  // displays the groups in a flat, reorderable list. For migration, we copy the
+  // old pinned_position field over for groups that have one and order the rest
+  // from most to least recent creation time.
+  void MigratePinnedPositionToProjectsPosition();
 
   // Start transitioning a shared tab group to a saved group. `shared_group_id`
   // is the ID of the shared group.
@@ -314,7 +331,12 @@ class SavedTabGroupModel {
   void HandleTabGroupRemovedFromSync(int index);
 
   // Obsevers of the model.
-  base::ObserverList<SavedTabGroupModelObserver>::Unchecked observers_;
+  // TODO(crbug.com/484371187): Investigate if reentrancy can be removed.
+  base::ObserverList<
+      SavedTabGroupModelObserver,
+      /*check_empty=*/false,
+      base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>::Unchecked
+      observers_;
 
   // True when SavedTabGroupModel::LoadStoredEntries has finished, false
   // otherwise.

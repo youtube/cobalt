@@ -49,7 +49,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
 import org.chromium.base.Token;
@@ -59,6 +58,7 @@ import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
@@ -117,6 +117,7 @@ import java.util.function.Supplier;
  * nothing will crash since the bulk of the behaviors from the coordinator are either unit tested by
  * classes hosted insider the coordinator or have to be verified in an integration test.
  */
+@EnableFeatures(ChromeFeatureList.GLIC)
 @RunWith(BaseRobolectricTestRunner.class)
 public class TabSwitcherPaneCoordinatorUnitTest {
 
@@ -300,7 +301,7 @@ public class TabSwitcherPaneCoordinatorUnitTest {
     public void tearDown() {
         mCoordinator.destroy();
         // Force animation to complete.
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertTrue(mDestroyed);
         mOverlayViewManager.destroy();
     }
@@ -553,7 +554,6 @@ public class TabSwitcherPaneCoordinatorUnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testPinnedTabStrip_FeatureEnabled() {
         assertNotNull(mCoordinator.getPinnedTabsCoordinatorForTesting());
 
@@ -571,22 +571,6 @@ public class TabSwitcherPaneCoordinatorUnitTest {
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
-    public void testPinnedTabStrip_FeatureDisabled() {
-        assertNull(mCoordinator.getPinnedTabsCoordinatorForTesting());
-
-        // Verify that the container is a LinearLayout with the original TabListRecyclerView.
-        ViewGroup container = (ViewGroup) mContainerView.getChildAt(0);
-        assertTrue(container instanceof FrameLayout);
-        FrameLayout pinnedTabsContainer = container.findViewById(R.id.pinned_tabs_container);
-        FrameLayout tabListContainer = container.findViewById(R.id.tab_list_container);
-        assertEquals(0, pinnedTabsContainer.getChildCount());
-        assertEquals(1, tabListContainer.getChildCount());
-        assertTrue(tabListContainer.getChildAt(0) instanceof TabListRecyclerView);
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testTabModelObserver_didChangePinState_noPinnedTabs() {
         MockTab tab = new MockTab(1, mProfile);
 
@@ -594,19 +578,18 @@ public class TabSwitcherPaneCoordinatorUnitTest {
         mHubSearchBoxVisibilitySupplier.set(true);
 
         mTabModelObserver.didChangePinState(tab);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertTrue(mHubSearchBoxVisibilitySupplier.get());
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
     public void testTabModelObserver_didChangePinState_withPinnedTabs_searchNotVisible() {
         MockTab tab = new MockTab(1, mProfile);
 
         doReturn(1).when(mTabModel).getPinnedTabsCount();
 
         mTabModelObserver.didChangePinState(tab);
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertFalse(mHubSearchBoxVisibilitySupplier.get());
     }
 

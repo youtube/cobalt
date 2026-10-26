@@ -124,19 +124,18 @@ String ReplaceAllCaseInsensitive(
   size_t pos;
   StringBuilder builder;
   for (;;) {
-    pos = source.Find(from, offset,
-                      TextCaseSensitivity::kTextCaseASCIIInsensitive);
+    pos = source.FindIgnoringAsciiCase(from, offset);
     if (pos == kNotFound) {
       break;
     }
-    builder.Append(source.Substring(offset, pos - offset));
-    builder.Append(transform(source.Substring(pos, from.length())));
+    builder.Append(source.subview(offset, pos - offset));
+    builder.Append(transform(source.substr(pos, from.length())));
     offset = pos + from.length();
   }
   if (builder.empty()) {
     return source;
   }
-  builder.Append(source.Substring(offset));
+  builder.Append(source.subview(offset));
   return builder.ToString();
 }
 }  // namespace internal
@@ -1058,7 +1057,7 @@ function main(metadata) {
       }
     } else if (const auto* style = DynamicTo<HTMLStyleElement>(element)) {
       if (CSSStyleSheet* sheet = style->sheet()) {
-        SerializeCSSStyleSheet(*sheet, NullURL());
+        SerializeCSSStyleSheet(*sheet, NullUrl());
       }
     } else if (const auto* plugin = DynamicTo<HTMLPlugInElement>(&element)) {
       if (plugin->IsImageType() && plugin->ImageLoader()) {
@@ -1096,12 +1095,12 @@ function main(metadata) {
     return blink::internal::ReplaceAllCaseInsensitive(
         css_text.ToString(), "</style", [](const String& text) {
           // \3C = '<'.
-          return StrCat({"\\3C/", text.Substring(2)});
+          return StrCat({"\\3C/", text.subview(2)});
         });
   }
 
   void SerializeCSSFile(Document& document, const KURL& url) {
-    if (!url.IsValid() || !url.ProtocolIsInHTTPFamily()) {
+    if (!url.IsValid() || !url.ProtocolIsInHttpFamily()) {
       return;
     }
 
@@ -1144,7 +1143,7 @@ function main(metadata) {
       // that case.
       css_text.Append("@charset \"");
       css_text.Append(charset.IsValid()
-                          ? charset.GetName().GetString().DeprecatedLower()
+                          ? charset.GetName().GetString().ToAsciiLower()
                           : "utf-8");
       css_text.Append("\";\n\n");
 

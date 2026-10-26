@@ -1,0 +1,32 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//mojo/public/tools/bindings/mojom.gni")
+
+mojom("mojo_bindings") {
+  sources = [ "report_unsafe_site.mojom" ]
+
+  webui_module_path = "/"
+
+  public_deps = [
+    "//mojo/public/mojom/base",
+    "//url/mojom:url_mojom_gurl",
+  ]
+}
+
+static_library("report_unsafe_site") {
+  sources = [
+    "report_unsafe_site_handler.cc",
+    "report_unsafe_site_handler.h",
+  ]
+
+  deps = [
+    ":mojo_bindings",
+    "//chrome/browser/feedback:feedback_impl",
+    "//chrome/browser/ui/webui/top_chrome",
+    "//chrome/common",
+    "//components/safe_browsing/content/browser:client_side_detection",
+    "//mojo/public/cpp/bindings",
+  ]
+}

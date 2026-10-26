@@ -14,7 +14,6 @@ generate_jni("jni_headers") {
 
 android_library("java") {
   sources = [
-    "java/src/org/chromium/chrome/browser/privacy_sandbox/ActivityTypeMapper.java",
     "java/src/org/chromium/chrome/browser/privacy_sandbox/AdMeasurementFragment.java",
     "java/src/org/chromium/chrome/browser/privacy_sandbox/FledgeAllSitesFragment.java",
     "java/src/org/chromium/chrome/browser/privacy_sandbox/FledgeBlockedSitesFragment.java",
@@ -23,14 +22,6 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/privacy_sandbox/FledgePreference.java",
     "java/src/org/chromium/chrome/browser/privacy_sandbox/PreferenceCategoryWithClickableSummary.java",
     "java/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxBridge.java",
-    "java/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxDebouncedOnClick.java",
-    "java/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxDialogConsentEEA.java",
-    "java/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxDialogController.java",
-    "java/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxDialogNoticeEEA.java",
-    "java/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxDialogNoticeEeaV2.java",
-    "java/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxDialogNoticeROW.java",
-    "java/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxDialogNoticeRestricted.java",
-    "java/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxDialogUtils.java",
     "java/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxReferrer.java",
     "java/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxSettingsBaseFragment.java",
     "java/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxSettingsFragment.java",
@@ -102,8 +93,6 @@ android_library("javatests") {
     "javatests/src/org/chromium/chrome/browser/privacy_sandbox/AdMeasurementFragmentTest.java",
     "javatests/src/org/chromium/chrome/browser/privacy_sandbox/FledgeFragmentTest.java",
     "javatests/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxBridgeTest.java",
-    "javatests/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxDebouncedOnClickTest.java",
-    "javatests/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxDialogTest.java",
     "javatests/src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxSettingsFragmentTest.java",
     "javatests/src/org/chromium/chrome/browser/privacy_sandbox/TopicsFragmentTest.java",
     "javatests/src/org/chromium/chrome/browser/privacy_sandbox/TopicsManageFragmentTest.java",
@@ -114,6 +103,7 @@ android_library("javatests") {
     ":test_support_java",
     "//base:base_java",
     "//base:base_java_test_support",
+    "//base/test:public_transit_java",
     "//base/test:test_support_java",
     "//chrome/android:chrome_java",
     "//chrome/android:chrome_test_util_java",
@@ -207,19 +197,13 @@ android_library("test_support_java") {
 
 android_resources("java_resources") {
   sources = [
-    "java/res/drawable-night/privacy_sandbox_interests_illustration.xml",
-    "java/res/drawable-night/privacy_sandbox_notice_eea_illustration.xml",
     "java/res/drawable/cookie_24dp.xml",
-    "java/res/drawable/ic_arrow_back.xml",
-    "java/res/drawable/ic_arrow_down.xml",
     "java/res/drawable/ic_auto_delete_24dp.xml",
     "java/res/drawable/ic_background_replace_24dp.xml",
     "java/res/drawable/ic_checklist_24dp.xml",
     "java/res/drawable/ic_devices_24dp.xml",
     "java/res/drawable/ic_filter_list_24dp.xml",
     "java/res/drawable/ic_interests_24dp.xml",
-    "java/res/drawable/privacy_sandbox_interests_illustration.xml",
-    "java/res/drawable/privacy_sandbox_notice_eea_illustration.xml",
     "java/res/drawable/topic_taxonomy_1_id_1.xml",
     "java/res/drawable/topic_taxonomy_1_id_100.xml",
     "java/res/drawable/topic_taxonomy_1_id_103.xml",
@@ -244,16 +228,6 @@ android_resources("java_resources") {
     "java/res/drawable/topic_taxonomy_1_id_86.xml",
     "java/res/drawable/topic_taxonomy_placeholder.xml",
     "java/res/layout/category_with_clickable_summary_preference.xml",
-    "java/res/layout/privacy_sandbox_consent_eea.xml",
-    "java/res/layout/privacy_sandbox_consent_eea_dropdown.xml",
-    "java/res/layout/privacy_sandbox_notice_eea.xml",
-    "java/res/layout/privacy_sandbox_notice_eea_ad_measurement_dropdown.xml",
-    "java/res/layout/privacy_sandbox_notice_eea_dropdown.xml",
-    "java/res/layout/privacy_sandbox_notice_eea_site_suggested_ads_dropdown.xml",
-    "java/res/layout/privacy_sandbox_notice_eea_v2.xml",
-    "java/res/layout/privacy_sandbox_notice_restricted.xml",
-    "java/res/layout/privacy_sandbox_notice_row.xml",
-    "java/res/layout/privacy_sandbox_notice_row_dropdown.xml",
     "java/res/layout/topics_explanation_summary.xml",
     "java/res/raw/keep_topic_taxonomy.xml",
     "java/res/values/dimens.xml",
@@ -281,8 +255,6 @@ android_resources("java_resources") {
 
 java_cpp_enum("privacy_sandbox_enums") {
   sources = [
-    "//chrome/browser/privacy_sandbox/privacy_sandbox_activity_types_service.h",
-    "//chrome/browser/privacy_sandbox/privacy_sandbox_service.h",
     "//chrome/browser/privacy_sandbox/privacy_sandbox_utils.h",
     "//chrome/browser/privacy_sandbox/roll_back_3pcd_notice_action.h",
   ]

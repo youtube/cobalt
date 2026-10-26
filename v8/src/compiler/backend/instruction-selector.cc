@@ -333,13 +333,13 @@ bool is_exclusive_user_of(const Graph* graph, OpIndex user, OpIndex value) {
     // inputs of user, which also only has a single use (in user).
     // TODO(nicohartmann@): We might generalize this further if we see use
     // cases.
-    if (!value_op.saturated_use_count.IsOne()) return false;
+    if (!value_op.saturated_use_count.Is(1)) return false;
     for (auto input : user_op.inputs()) {
       const Operation& input_op = graph->Get(input);
       const size_t indirect_use_count = base::count_if(
           input_op.inputs(), [value](OpIndex input) { return input == value; });
       if (indirect_use_count > 0) {
-        return input_op.saturated_use_count.IsOne();
+        return input_op.saturated_use_count.Is(1);
       }
     }
     return false;
@@ -352,15 +352,19 @@ bool is_exclusive_user_of(const Graph* graph, OpIndex user, OpIndex value) {
     // the current operation.
     use_count++;
   }
-  DCHECK_LE(use_count, graph->Get(value).saturated_use_count.Get());
-  return (value_op.saturated_use_count.Get() == use_count) &&
-         !value_op.saturated_use_count.IsSaturated();
+  DCHECK_LE(use_count,
+            graph->Get(value).saturated_use_count.GetMaybeSaturated());
+  return value_op.saturated_use_count.Is(static_cast<int>(use_count));
 }
 }  // namespace
 
+bool InstructionSelector::InCurrentBlock(OpIndex node) const {
+  return block(schedule(), node) == current_block_;
+}
+
 bool InstructionSelector::CanCover(OpIndex user, OpIndex node) const {
   // 1. Both {user} and {node} must be in the same basic block.
-  if (block(schedule(), node) != current_block_) {
+  if (!InCurrentBlock(node)) {
     return false;
   }
 
@@ -402,7 +406,7 @@ bool InstructionSelector::IsOnlyUserOfNodeInSameBlock(OpIndex user,
   if (bb_user != bb_node) return false;
 
   const Operation& node_op = this->turboshaft_graph()->Get(node);
-  if (node_op.saturated_use_count.Get() == 1) return true;
+  if (node_op.saturated_use_count.Is(1)) return true;
   for (OpIndex use : turboshaft_uses(node)) {
     if (use == user) continue;
     if (this->block(schedule(), use) == bb_user) return false;
@@ -418,8 +422,8 @@ OptionalOpIndex InstructionSelector::FindProjection(OpIndex node,
        next = graph->NextIndex(next)) {
     const ProjectionOp* projection = graph->Get(next).TryCast<ProjectionOp>();
     if (projection == nullptr) break;
-    DCHECK(!projection->saturated_use_count.IsZero());
-    if (projection->saturated_use_count.IsOne()) {
+    DCHECK(!projection->saturated_use_count.Is(0));
+    if (projection->saturated_use_count.Is(1)) {
       // If the projection has a single use, it is the following tuple, so we
       // don't return it, since there is no point in emitting it.
       DCHECK(turboshaft_uses(next).size() == 1 &&
@@ -954,6 +958,11 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
 }
 
 Instruction* InstructionSelector::EmitWithContinuation(
+    InstructionCode opcode, FlagsContinuation* cont) {
+  return EmitWithContinuation(opcode, 0, nullptr, 0, nullptr, cont);
+}
+
+Instruction* InstructionSelector::EmitWithContinuation(
     InstructionCode opcode, InstructionOperand a, FlagsContinuation* cont) {
   return EmitWithContinuation(opcode, 0, nullptr, 1, &a, cont);
 }
@@ -1374,6 +1383,7 @@ bool InstructionSelector::IsSourcePositionUsed(OpIndex node) {
     }
 #if V8_ENABLE_WEBASSEMBLY
     if (operation.Is<TrapIfOp>()) return true;
+    if (operation.Is<WasmTrapOp>()) return true;
     if (const AtomicRMWOp* rmw = operation.TryCast<AtomicRMWOp>()) {
       return rmw->memory_access_kind ==
              MemoryAccessKind::kProtectedByTrapHandler;
@@ -2102,7 +2112,7 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
     return true;
   }
 
-  if (projection0.saturated_use_count.IsOne()) {
+  if (projection0.saturated_use_count.Is(1)) {
     // If the projection has a single use, it is the following tuple, so we
     // don't care about the value, and can do branch-if-overflow fusion.
     DCHECK(turboshaft_uses(projection0_index).size() == 1 &&
@@ -2110,7 +2120,7 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
     return true;
   }
 
-  if (this->block(schedule_, binop) != current_block_) {
+  if (!InCurrentBlock(binop)) {
     // {binop} is not supposed to be defined in the current block, so let's not
     // pull it in this block (the checks would need to be stronger, and it's
     // unlikely that it's doable because of effect levels and all).
@@ -2126,11 +2136,11 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
       // through Projections, and Projections on Tuples return the original
       // Projection instead (see Assembler::ReduceProjection in
       // turboshaft/assembler.h).
-      DCHECK(this->Get(use).saturated_use_count.IsZero());
+      DCHECK(this->Get(use).saturated_use_count.Is(0));
       continue;
     }
     if (IsDefined(use)) continue;
-    if (this->block(schedule_, use) != current_block_) {
+    if (!InCurrentBlock(use)) {
       // {use} is in a later block, so it should already have been visited. Note
       // that operations that don't produce values are not marked as Defined,
       // like Return for instance, so it's possible that {use} has been visited
@@ -2153,7 +2163,7 @@ bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
     }
 
     if (this->Get(use).template Is<PhiOp>()) {
-      DCHECK_EQ(this->block(schedule_, use), current_block_);
+      DCHECK(InCurrentBlock(use));
       // If {projection0} is used by a Phi in the current block, then it has to
       // be a loop phi, and {projection0} has to be its backedge value. This
       // doesn't prevent scheduling {projection0} now, since anyways it
@@ -2258,8 +2268,14 @@ void InstructionSelector::VisitCall(
   if (!effect_handlers.empty()) {
     flags |= CallDescriptor::kHasEffectHandler;
     for (auto& handler : effect_handlers) {
-      buffer.instruction_args.push_back(g.Label(handler.block));
-      buffer.instruction_args.push_back(g.UseImmediate(handler.tag_index));
+      if (!handler.is_switch()) {
+        buffer.instruction_args.push_back(g.Label(handler.block));
+      } else {
+        buffer.instruction_args.push_back(g.UseImmediate(0));
+      }
+
+      buffer.instruction_args.push_back(
+          g.UseImmediate(handler.tag_and_kind.raw_value()));
     }
     buffer.instruction_args.push_back(
         g.UseImmediate(static_cast<int>(effect_handlers.size())));
@@ -2510,7 +2526,7 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
 
   DCHECK_EQ(projection->input_count, 1);
   OpIndex node = projection->input();
-  if (block(schedule_, node) != current_block_) {
+  if (!InCurrentBlock(node)) {
     // The projection input is not in the current block, so it shouldn't be
     // emitted now, so we don't need to eagerly schedule its Projection[0].
     return;
@@ -2533,7 +2549,7 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
     return;
   }
 
-  if (block(schedule_, result.value()) != current_block_) {
+  if (!InCurrentBlock(result.value())) {
     // {result} wasn't planned to be scheduled in {current_block_}. To
     // avoid adding checks to see if it can still be scheduled now, we
     // just bail out.
@@ -2549,8 +2565,8 @@ void InstructionSelector::TryPrepareScheduleFirstProjection(
   for (OpIndex use : turboshaft_uses(result.value())) {
     // We ignore MakeTupleOp uses, since MakeTupleOp don't lead to emitted
     // machine instructions and are just Turboshaft "meta operations".
-    if (!Is<MakeTupleOp>(use) && !IsDefined(use) &&
-        block(schedule_, use) == current_block_ && !Is<PhiOp>(use)) {
+    if (!Is<MakeTupleOp>(use) && !IsDefined(use) && InCurrentBlock(use) &&
+        !Is<PhiOp>(use)) {
       return;
     }
   }
@@ -2585,8 +2601,16 @@ void InstructionSelector::VisitSelect(OpIndex node) {
   VisitWordCompareZero(node, select.cond(), &cont);
 }
 
-void InstructionSelector::VisitTrapIf(OpIndex node) {
 #if V8_ENABLE_WEBASSEMBLY
+void InstructionSelector::VisitWasmTrap(OpIndex node) {
+  const WasmTrapOp& trap = Cast<WasmTrapOp>(node);
+  OperandGenerator g(this);
+  InstructionOperand input =
+      g.TempImmediate(static_cast<int32_t>(trap.trap_id));
+  Emit(kArchTrap, 0, nullptr, 1, &input);
+}
+
+void InstructionSelector::VisitTrapIf(OpIndex node) {
   const TrapIfOp& trap_if = Cast<TrapIfOp>(node);
   // FrameStates are only used for wasm traps inlined in JS. In that case the
   // trap node will be lowered (replaced) before instruction selection.
@@ -2595,10 +2619,8 @@ void InstructionSelector::VisitTrapIf(OpIndex node) {
   FlagsContinuation cont = FlagsContinuation::ForTrap(
       trap_if.negated ? kEqual : kNotEqual, trap_if.trap_id);
   VisitWordCompareZero(node, trap_if.condition(), &cont);
-#else
-  UNREACHABLE();
-#endif
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelector::EmitIdentity(OpIndex node) {
   EmitIdentity(node, Get(node).input(0));
@@ -2740,6 +2762,10 @@ void InstructionSelector::VisitControl(const Block* block) {
       return VisitUnreachable(node);
     case Opcode::kStaticAssert:
       return VisitStaticAssert(node);
+#if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kWasmTrap:
+      return VisitWasmTrap(node);
+#endif
     default: {
       const std::string op_string = op.ToString();
       PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());
@@ -2768,6 +2794,9 @@ void InstructionSelector::VisitNode(OpIndex node) {
     case Opcode::kDeoptimize:
     case Opcode::kSwitch:
     case Opcode::kCheckException:
+#if V8_ENABLE_WEBASSEMBLY
+    case Opcode::kWasmTrap:
+#endif
       // Those are already handled in VisitControl.
       DCHECK(op.IsBlockTerminator());
       break;

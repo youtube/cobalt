@@ -12,13 +12,17 @@
 #include "chrome/browser/notifications/notification_display_service.h"
 #include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/send_tab_to_self/send_tab_to_self_scroll_observer.h"
+#include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
+#include "components/send_tab_to_self/features.h"
 #include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
 #include "components/send_tab_to_self/send_tab_to_self_model.h"
 #include "components/send_tab_to_self/send_tab_to_self_sync_service.h"
+#include "components/shared_highlighting/core/common/text_fragment.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/resource/resource_bundle.h"
@@ -31,6 +35,13 @@ namespace send_tab_to_self {
 namespace {
 
 const char kDesktopNotificationSharedPrefix[] = "shared";
+
+// Returns true if the notification is for a received tab.
+// Received tab notifications use the entry's GUID as their ID.
+// Other notifications (sending confirmations, failures) use the shared prefix.
+bool IsTabReceivedNotification(const std::string& notification_id) {
+  return !notification_id.starts_with(kDesktopNotificationSharedPrefix);
+}
 
 }  // namespace
 
@@ -74,7 +85,7 @@ void DesktopNotificationHandler::OnClose(Profile* profile,
                                          const std::string& notification_id,
                                          bool by_user,
                                          base::OnceClosure completed_closure) {
-  if (notification_id.find(kDesktopNotificationSharedPrefix)) {
+  if (IsTabReceivedNotification(notification_id)) {
     SendTabToSelfSyncServiceFactory::GetForProfile(profile)
         ->GetSendTabToSelfModel()
         ->DismissEntry(notification_id);
@@ -90,13 +101,43 @@ void DesktopNotificationHandler::OnClick(
     const std::optional<int>& action_index,
     const std::optional<std::u16string>& reply,
     base::OnceClosure completed_closure) {
-  if (notification_id.find(kDesktopNotificationSharedPrefix)) {
+  if (IsTabReceivedNotification(notification_id)) {
     // Launch a new tab for the notification's |origin|,
     // and close the activated notification.
+    const SendTabToSelfEntry* entry =
+        SendTabToSelfSyncServiceFactory::GetForProfile(profile)
+            ->GetSendTabToSelfModel()
+            ->GetEntryByGUID(notification_id);
+
+    send_tab_to_self::RecordHasScrollPositionOnOpened(
+        entry && !entry->GetPageContext().scroll_position.IsEmpty());
+
     NavigateParams params(profile, origin, ui::PAGE_TRANSITION_LINK);
     params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
     params.window_action = NavigateParams::WindowAction::kShowWindow;
+
+    std::optional<std::string> scroll_to_text_fragment =
+        GetScrollPositionAsTextFragment(entry);
+    if (scroll_to_text_fragment) {
+      params.internal_scroll_to_text_fragment = *scroll_to_text_fragment;
+    }
+
     Navigate(&params);
+
+    if (params.navigated_or_inserted_contents) {
+      SendTabToSelfScrollObserver::CreateForWebContents(
+          params.navigated_or_inserted_contents,
+          /*restoration_attempted=*/scroll_to_text_fragment.has_value());
+    }
+
+    if (base::FeatureList::IsEnabled(kSendTabToSelfPropagateFormFields)) {
+      if (entry) {
+        FillWebContents(params.navigated_or_inserted_contents,
+                        url::Origin::Create(entry->GetURL()),
+                        entry->GetPageContext());
+      }
+    }
+
     NotificationDisplayServiceFactory::GetForProfile(profile)->Close(
         NotificationHandler::Type::SEND_TAB_TO_SELF, notification_id);
 

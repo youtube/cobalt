@@ -11,6 +11,7 @@ static_library("common") {
     "bookmark_metrics.cc",
     "bookmark_metrics.h",
     "bookmark_pref_names.h",
+    "storage_file_encryption_type.h",
     "url_load_stats.cc",
     "url_load_stats.h",
     "user_folder_load_stats.h",
@@ -20,4 +21,16 @@ static_library("common") {
   if (is_android) {
     deps += [ "//components/bookmarks/common/android" ]
   }
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "bookmark_features_unittest.cc" ]
+
+  deps = [
+    ":common",
+    "//base/test:test_support",
+    "//components/bookmarks/test",
+    "//testing/gtest",
+  ]
 }

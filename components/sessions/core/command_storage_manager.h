@@ -17,6 +17,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
+#include "components/os_crypt/async/common/encryptor.h"
 #include "components/sessions/core/sessions_export.h"
 
 namespace base {
@@ -45,36 +46,24 @@ class SESSIONS_EXPORT CommandStorageManager {
 
   // Identifies the type of session service this is. This is used by the
   // backend to determine the name of the files.
-  // TODO(sky): this enum is purely for legacy reasons, and should be replaced
-  // with consumers building the path. Remove in approximately a year (1/2022),
-  // when we shouldn't need to worry too much about migrating older data.
-  enum SessionType { kAppRestore, kSessionRestore, kTabRestore, kOther };
+  enum class SessionType { kAppRestore, kSessionRestore, kTabRestore };
 
   // Creates a new CommandStorageManager. `delegate` is not owned by this and
-  // must outlive this. If `enable_crypto` is true, the contents of the file
-  // are encrypted.
+  // must outlive this.
   //
-  // The meaning of `path` depends upon the type. If `type` is `kOther`, then
-  // the path is a file name to which `_TIMESTAMP` is added. If `type` is not
-  // `kOther`, then it is a path to a directory. The actual file name used
-  // depends upon the type. Once SessionType can be removed, this logic can
-  // standardize on that of `kOther`.
+  // `path` is the base directory into which session files are written.
   CommandStorageManager(
       SessionType type,
       const base::FilePath& path,
       CommandStorageManagerDelegate* delegate,
-      bool enable_crypto = false,
-      const std::vector<uint8_t>& decryption_key = {},
-      scoped_refptr<base::SequencedTaskRunner> backend_task_runner = nullptr);
+      os_crypt_async::OSCryptAsync* os_crypt_async,
+      scoped_refptr<base::SequencedTaskRunner> backend_task_runner);
   CommandStorageManager(const CommandStorageManager&) = delete;
   CommandStorageManager& operator=(const CommandStorageManager&) = delete;
   virtual ~CommandStorageManager();
 
   static scoped_refptr<base::SequencedTaskRunner>
   CreateDefaultBackendTaskRunner();
-
-  // Helper to generate a new key.
-  static std::vector<uint8_t> CreateCryptoKey();
 
   // Returns the set of commands which were scheduled to be written. Once
   // committed to the backend, the commands are removed from here.
@@ -152,9 +141,6 @@ class SESSIONS_EXPORT CommandStorageManager {
 
   // The backend object which reads and saves commands.
   scoped_refptr<CommandStorageBackend> backend_;
-
-  // If true, all commands are encrypted.
-  const bool use_crypto_;
 
   // Commands we need to send over to the backend.
   std::vector<std::unique_ptr<SessionCommand>> pending_commands_;

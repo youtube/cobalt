@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <string_view>
 #include <vector>
 
 #include "ui/base/clipboard/clipboard_sequence_number_token.h"
@@ -203,8 +204,8 @@ std::string ClipboardData::GetDataTransferCustomData() const {
 }
 
 void ClipboardData::SetCustomData(const ClipboardFormatType& format,
-                                  const std::string& data) {
-  custom_data_[format] = data;
+                                  std::string_view data) {
+  custom_data_[format] = std::string(data);
   format_ |= static_cast<int>(ClipboardInternalFormat::kCustom);
 }
 

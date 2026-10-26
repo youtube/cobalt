@@ -51,7 +51,8 @@ BookmarkContextMenu::BookmarkContextMenu(
     BookmarkLaunchLocation opened_from,
     const std::vector<raw_ptr<const BookmarkNode, VectorExperimental>>&
         selection,
-    bool close_on_remove)
+    bool close_on_remove,
+    bool can_paste)
     : controller_(new BookmarkContextMenuController(
           parent_widget ? parent_widget->GetNativeWindow()
                         : gfx::NativeWindow(),
@@ -59,7 +60,8 @@ BookmarkContextMenu::BookmarkContextMenu(
           browser,
           profile,
           opened_from,
-          selection)),
+          selection,
+          can_paste)),
       parent_widget_(parent_widget),
       menu_(new views::MenuItemView(this)),
       close_on_remove_(close_on_remove) {

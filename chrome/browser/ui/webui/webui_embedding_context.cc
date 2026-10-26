@@ -164,6 +164,20 @@ class EmbedderContextData
     }
   }
 
+  BrowserWindowInterface* GetBrowserWindowInterface() {
+    // Source the browser interface either directly from the tracked browser or
+    // via the tracked tab.
+    if (tab_tracker_) {
+      return tab_tracker_->tab_interface()
+                 ? tab_tracker_->tab_interface()->GetBrowserWindowInterface()
+                 : nullptr;
+    }
+    if (browser_tracker_) {
+      return browser_tracker_->browser_window_interface();
+    }
+    return nullptr;
+  }
+
   void SetTabInterface(tabs::TabInterface* tab_interface) {
     // Tabs will always belong to a browser and are tracked together, both
     // browser and tab trackers should not be set independently.
@@ -183,20 +197,6 @@ class EmbedderContextData
     if (!tab_interface) {
       tab_tracker_.reset();
     }
-  }
-
-  BrowserWindowInterface* GetBrowserWindowInterface() {
-    // Source the browser interface either directly from the tracked browser or
-    // via the tracked tab.
-    if (tab_tracker_) {
-      return tab_tracker_->tab_interface()
-                 ? tab_tracker_->tab_interface()->GetBrowserWindowInterface()
-                 : nullptr;
-    }
-    if (browser_tracker_) {
-      return browser_tracker_->browser_window_interface();
-    }
-    return nullptr;
   }
 
   tabs::TabInterface* GetTabInterface() {
@@ -265,16 +265,16 @@ void SetBrowserWindowInterface(
       ->SetBrowserWindowInterface(browser_window_interface);
 }
 
-void SetTabInterface(content::WebContents* host_contents,
-                     tabs::TabInterface* tab_interface) {
-  EmbedderContextData::GetOrCreate(host_contents)
-      ->SetTabInterface(tab_interface);
-}
-
 BrowserWindowInterface* GetBrowserWindowInterface(
     content::WebContents* host_contents) {
   return EmbedderContextData::GetOrCreate(host_contents)
       ->GetBrowserWindowInterface();
+}
+
+void SetTabInterface(content::WebContents* host_contents,
+                     tabs::TabInterface* tab_interface) {
+  EmbedderContextData::GetOrCreate(host_contents)
+      ->SetTabInterface(tab_interface);
 }
 
 tabs::TabInterface* GetTabInterface(content::WebContents* host_contents) {

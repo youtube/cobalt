@@ -6,7 +6,6 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "components/autofill/core/browser/test_utils/autofill_test_utils.h"
-#import "components/autofill/core/common/autofill_payments_features.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/autofill/form_input_accessory/test/form_input_accessory_app_interface.h"
 #import "ios/chrome/browser/autofill/ui_bundled/autofill_app_interface.h"
@@ -309,14 +308,6 @@ void DismissPaymentBottomSheet() {
   chrome_test_util::GREYAssertErrorNil(
       [MetricsAppInterface releaseHistogramTester]);
   [super tearDownHelper];
-}
-
-- (AppLaunchConfiguration)appConfigurationForTestCase {
-  AppLaunchConfiguration config;
-
-  config.features_enabled.push_back(
-      autofill::features::kAutofillEnableCvcStorageAndFilling);
-  return config;
 }
 
 #pragma mark - Tests
@@ -902,7 +893,6 @@ void DismissPaymentBottomSheet() {
 // Tests that the "Edit" action of a local card's overflow menu button displays
 // the card's details in edit mode.
 - (void)testEditLocalCardFromOverflowMenu {
-  [FormInputAccessoryAppInterface setUpMockReauthenticationModule];
   [FormInputAccessoryAppInterface mockReauthenticationModuleExpectedResult:
                                       ReauthenticationResult::kSuccess];
 
@@ -935,8 +925,6 @@ void DismissPaymentBottomSheet() {
   // Tap Done Button.
   [[EarlGrey selectElementWithMatcher:NavigationBarDoneButton()]
       performAction:grey_tap()];
-
-  [FormInputAccessoryAppInterface removeMockReauthenticationModule];
 
   // TODO(crbug.com/332956674): Check that the updated suggestion is visible.
 }
@@ -981,7 +969,6 @@ void DismissPaymentBottomSheet() {
 // Tests the "Show Details" action of the overflow menu button displays the
 // card's details.
 - (void)testShowCardDetailsFromOverflowMenu {
-  [FormInputAccessoryAppInterface setUpMockReauthenticationModule];
   [FormInputAccessoryAppInterface mockReauthenticationModuleExpectedResult:
                                       ReauthenticationResult::kSuccess];
 
@@ -1010,8 +997,6 @@ void DismissPaymentBottomSheet() {
   // Tap the "Done" button to dismiss the view.
   [[EarlGrey selectElementWithMatcher:NavigationBarDoneButton()]
       performAction:grey_tap()];
-
-  [FormInputAccessoryAppInterface removeMockReauthenticationModule];
 
   // TODO(crbug.com/332956674): Check that the expanded view is still visible.
 }

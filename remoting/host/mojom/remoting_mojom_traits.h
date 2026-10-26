@@ -1190,6 +1190,14 @@ class StructTraits<remoting::mojom::MouseEventDataView,
     return std::nullopt;
   }
 
+  static std::optional<::remoting::protocol::FractionalCoordinate>
+  fractional_coordinate(const ::remoting::protocol::MouseEvent& event) {
+    if (event.has_fractional_coordinate()) {
+      return event.fractional_coordinate();
+    }
+    return std::nullopt;
+  }
+
   static bool Read(remoting::mojom::MouseEventDataView data_view,
                    ::remoting::protocol::MouseEvent* out_event);
 };
@@ -1554,6 +1562,41 @@ struct EnumTraits<remoting::mojom::ProtocolErrorCode,
 };
 
 template <>
+struct EnumTraits<remoting::mojom::VideoLayout_PixelType,
+                  ::remoting::protocol::VideoLayout::PixelType> {
+  static remoting::mojom::VideoLayout_PixelType ToMojom(
+      ::remoting::protocol::VideoLayout::PixelType input) {
+    switch (input) {
+      case ::remoting::protocol::VideoLayout::UNSPECIFIED_PIXEL_TYPE:
+        return remoting::mojom::VideoLayout_PixelType::kUnspecifiedPixelType;
+      case ::remoting::protocol::VideoLayout::PHYSICAL:
+        return remoting::mojom::VideoLayout_PixelType::kPhysical;
+      case ::remoting::protocol::VideoLayout::LOGICAL:
+        return remoting::mojom::VideoLayout_PixelType::kLogical;
+    }
+
+    NOTREACHED();
+  }
+
+  static bool FromMojom(remoting::mojom::VideoLayout_PixelType input,
+                        ::remoting::protocol::VideoLayout::PixelType* out) {
+    switch (input) {
+      case remoting::mojom::VideoLayout_PixelType::kUnspecifiedPixelType:
+        *out = ::remoting::protocol::VideoLayout::UNSPECIFIED_PIXEL_TYPE;
+        return true;
+      case remoting::mojom::VideoLayout_PixelType::kPhysical:
+        *out = ::remoting::protocol::VideoLayout::PHYSICAL;
+        return true;
+      case remoting::mojom::VideoLayout_PixelType::kLogical:
+        *out = ::remoting::protocol::VideoLayout::LOGICAL;
+        return true;
+    }
+
+    NOTREACHED();
+  }
+};
+
+template <>
 class StructTraits<remoting::mojom::VideoLayoutDataView,
                    ::remoting::protocol::VideoLayout> {
  public:
@@ -1573,6 +1616,14 @@ class StructTraits<remoting::mojom::VideoLayoutDataView,
     return layout.primary_screen_id();
   }
 
+  static std::optional<::remoting::protocol::VideoLayout::PixelType> pixel_type(
+      const ::remoting::protocol::VideoLayout& layout) {
+    if (layout.has_pixel_type()) {
+      return layout.pixel_type();
+    }
+    return std::nullopt;
+  }
+
   static bool Read(remoting::mojom::VideoLayoutDataView data_view,
                    ::remoting::protocol::VideoLayout* out_layout);
 };
@@ -1581,9 +1632,12 @@ template <>
 class StructTraits<remoting::mojom::VideoTrackLayoutDataView,
                    ::remoting::protocol::VideoTrackLayout> {
  public:
-  static int64_t screen_id(
+  static std::optional<int64_t> screen_id(
       const ::remoting::protocol::VideoTrackLayout& track) {
-    return track.screen_id();
+    if (track.has_screen_id()) {
+      return track.screen_id();
+    }
+    return std::nullopt;
   }
 
   static const std::string& media_stream_id(

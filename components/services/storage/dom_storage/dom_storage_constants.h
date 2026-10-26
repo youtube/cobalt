@@ -19,11 +19,12 @@ inline constexpr size_t kPerStorageAreaQuota = 10 * 1024 * 1024;
 // wasn't exceeded.
 inline constexpr size_t kPerStorageAreaOverQuotaAllowance = 100 * 1024;
 
-// Local storage uses a single global session for all of its storage keys.
-inline constexpr const char kLocalStorageSessionId[] = "_";
-
 // Storage keys become eligible for deletion after 400 days of inactivity.
 inline constexpr int kLocalStorageStaleBucketCutoffInDays = 400;
+
+// After this many consecutive commit errors we'll throw away the entire
+// database.
+inline constexpr int kCommitErrorThreshold = 8;
 
 }  // namespace storage
 

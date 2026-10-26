@@ -75,7 +75,7 @@ class TargetAutoAttacher {
 
   virtual void UpdateAutoAttach(base::OnceClosure callback);
 
-  void DispatchAutoAttach(DevToolsAgentHost* host, bool waiting_for_debugger);
+  bool DispatchAutoAttach(DevToolsAgentHost* host, bool waiting_for_debugger);
   void DispatchAutoDetach(DevToolsAgentHost* host);
   void DispatchSetAttachedTargetsOfType(
       const base::flat_set<scoped_refptr<DevToolsAgentHost>>& hosts,
@@ -85,10 +85,7 @@ class TargetAutoAttacher {
  private:
   // This needs to be reentrant as `Client::MaybeCreateAndAddNavigationThrottle`
   // can be called while processing `Client::AutoAttach`.
-  base::ObserverList<Client,
-                     false,
-                     base::ObserverListReentrancyPolicy::kAllowReentrancy>
-      clients_;
+  base::ReentrantObserverList<Client> clients_;
   base::flat_set<raw_ptr<Client, CtnExperimental>>
       clients_requesting_wait_for_debugger_;
 };

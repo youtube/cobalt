@@ -97,7 +97,9 @@ bool ContainsOpaque(const TStructure *structType)
     for (const auto &field : structType->fields())
     {
         if (ContainsOpaque<OpaqueFunc>(*field->type()))
+        {
             return true;
+        }
     }
     return false;
 }
@@ -728,7 +730,7 @@ void TParseContext::errorIfPLSDeclared(const TSourceLoc &loc, PLSIllegalOperatio
     {
         return;
     }
-    if (mPLSFormats.empty())
+    if (mPLSLayouts.empty())
     {
         // No pixel local storage uniforms have been declared yet. Remember this potential error in
         // case PLS gets declared later.
@@ -2091,7 +2093,9 @@ bool TParseContext::declareVariable(const TSourceLoc &line,
     }
 
     if (needsReservedCheck && !checkIsNotReserved(line, identifier))
+    {
         return false;
+    }
 
     if (!symbolTable.declare(*variable))
     {
@@ -2100,7 +2104,9 @@ bool TParseContext::declareVariable(const TSourceLoc &line,
     }
 
     if (!checkIsNonVoid(line, identifier, type->getBasicType()))
+    {
         return false;
+    }
 
     checkVariableSize(line, identifier, type);
     checkVariableLocations(line, *variable);
@@ -2841,17 +2847,19 @@ void TParseContext::checkPixelLocalStorageBindingIsValid(const TSourceLoc &locat
     {
         error(location, "pixel local storage binding out of range", "layout qualifier");
     }
-    else if (mPLSFormats.find(layoutQualifier.binding) != mPLSFormats.end())
+    else if (mPLSLayouts.find(layoutQualifier.binding) != mPLSLayouts.end())
     {
         error(location, "duplicate pixel local storage binding index",
               std::to_string(layoutQualifier.binding).c_str());
     }
     else
     {
-        mPLSFormats[layoutQualifier.binding] =
-            ImageFormatToPLSFormat(layoutQualifier.imageInternalFormat);
-        // "mPLSFormats" is how we know whether any pixel local storage uniforms have been declared,
-        // so flush the queue of potential errors once mPLSFormats isn't empty.
+        mPLSLayouts[layoutQualifier.binding] = {
+            .format      = ImageFormatToPLSFormat(layoutQualifier.imageInternalFormat),
+            .noncoherent = layoutQualifier.noncoherent,
+        };
+        // "mPLSLayouts" is how we know whether any pixel local storage uniforms have been declared,
+        // so flush the queue of potential errors once mPLSLayouts isn't empty.
         if (!mPLSPotentialErrors.empty())
         {
             for (const auto &[loc, op] : mPLSPotentialErrors)
@@ -3003,7 +3011,9 @@ void TParseContext::checkInvariantVariableQualifier(bool invariant,
                                                     const TSourceLoc &invariantLocation)
 {
     if (!invariant)
+    {
         return;
+    }
 
     if (mShaderVersion < 300)
     {
@@ -3983,6 +3993,45 @@ void TParseContext::onLoopConditionBegin(TIntermNode *init, const TSourceLoc &li
     if (mValidateESSL100Limitations)
     {
         checkESSL100ForLoopInit(init, line);
+    }
+
+    // Make sure variables declared in |init| are scoped to the for loop in the IR.  This is to aid
+    // generators distinguish between:
+    //
+    //     for (int i = 0; ...) { }
+    //
+    // and:
+    //
+    //     int i = 0;
+    //     for (; ...) { }
+    //
+    // because they otherwise look identical in the IR.  The difference between the two is that in
+    // the second case, |i| might be used after the `for` loop.  This rescoping of the variable is
+    // purely an optimization; the IR would be able to tell if |i| is later used or not by visiting
+    // the rest of the block, which is simply less efficient.
+    if (init != nullptr)
+    {
+        TIntermDeclaration *declaration = init->getAsDeclarationNode();
+        if (declaration != nullptr)
+        {
+            for (TIntermNode *singleDecl : *declaration->getSequence())
+            {
+                // Extract the symbol and scope it to the `for` loop.  All the `nullptr` checks here
+                // are there to avoid crashes in the presence of compile errors.
+                TIntermBinary *symbolInit = singleDecl->getAsBinaryNode();
+                TIntermSymbol *symbol =
+                    symbolInit != nullptr && symbolInit->getOp() == EOpInitialize
+                        ? symbolInit->getLeft()->getAsSymbolNode()
+                        : singleDecl->getAsSymbolNode();
+                // The struct check makes sure sole struct declarations are skipped, like
+                // `struct S { ... };` which the translator declares with an "empty" variable.
+                if (symbol != nullptr && !(symbol->getType().isStructSpecifier() &&
+                                           symbol->variable().symbolType() == SymbolType::Empty))
+                {
+                    mIRBuilder.rescopeAsForLoopVariable(mVariableToId.at(&symbol->variable()).id);
+                }
+            }
+        }
     }
 
     mIRBuilder.beginLoopCondition();
@@ -5980,7 +6029,7 @@ TFunction *TParseContext::parseFunctionDeclarator(const TSourceLoc &location, TF
         }
     }
 
-    mDeclaringMain = function->isMain();
+    mDeclaringMain         = function->isMain();
     mIsReturnVisitedInMain = false;
 
     //
@@ -8695,7 +8744,9 @@ bool TParseContext::binaryOpCommonCheck(TOperator op,
                 // If the nominal sizes of operands do not match:
                 // One of them must be a scalar.
                 if (!left->isScalar() && !right->isScalar())
+                {
                     return false;
+                }
 
                 // In the case of compound assignment other than multiply-assign,
                 // the right side needs to be a scalar. Otherwise a vector/matrix
@@ -8703,7 +8754,9 @@ bool TParseContext::binaryOpCommonCheck(TOperator op,
                 // vector either.
                 if (!right->isScalar() &&
                     (IsAssignment(op) || op == EOpBitShiftLeft || op == EOpBitShiftRight))
+                {
                     return false;
+                }
             }
             break;
         default:
@@ -9292,7 +9345,9 @@ void TParseContext::checkInterpolationFS(TIntermAggregate *functionCall)
     {
         const TIntermSequence *argp = functionCall->getSequence();
         if (argp->size() > 0)
+        {
             arg0 = (*argp)[0]->getAsTyped();
+        }
     }
     else
     {
@@ -9307,9 +9362,11 @@ void TParseContext::checkInterpolationFS(TIntermAggregate *functionCall)
         const TIntermTyped *base = FindLValueBase(arg0);
 
         if (base == nullptr || (!IsVaryingIn(base->getType().getQualifier())))
+        {
             error(arg0->getLine(),
                   "first argument must be an interpolant, or interpolant-array element",
                   func->name());
+        }
     }
 }
 
@@ -10112,7 +10169,7 @@ void TParseContext::postParseValidateFragmentOutputLocations()
                 "when EXT_blend_func_extended extension is not enabled, must explicitly specify "
                 "all locations when using multiple fragment outputs";
         }
-        else if (!mPLSFormats.empty())
+        else if (!mPLSLayouts.empty())
         {
             unspecifiedLocationErrorMessage =
                 "must explicitly specify all locations when using multiple fragment outputs and "
@@ -10274,7 +10331,7 @@ bool TParseContext::postParseChecks()
     // Until codegen is done from the IR itself, set this flag here in anticipation, avoiding a need
     // for the PLS transformation in IR to make an FFI call to set it in TCompiler.  This can be
     // removed after codegen is no longer done from AST.
-    if (mCompileOptions.useIR && !mPLSFormats.empty() &&
+    if (mCompileOptions.useIR && !mPLSLayouts.empty() &&
         mCompileOptions.pls.type == ShPixelLocalStorageType::ImageLoadStore)
     {
         mEarlyFragmentTestsSpecified = true;
@@ -10301,11 +10358,15 @@ int PaParseStrings(angle::Span<const char *const> string,
     }
 
     if (glslang_initialize(context))
+    {
         return 1;
+    }
 
     int error = glslang_scan(string.size(), string.data(), length, context);
     if (!error)
+    {
         error = glslang_parse(context);
+    }
 
     glslang_finalize(context);
 

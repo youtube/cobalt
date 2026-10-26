@@ -452,25 +452,23 @@ uint32_t ComputeRawHashField(IsolateT* isolate, Tagged<String> string) {
 }  // namespace
 
 StringTableInsertionKey::StringTableInsertionKey(
-    Isolate* isolate, DirectHandle<String> string,
+    Isolate* isolate, DirectHandle<InternalizedString> string,
     DeserializingUserCodeOption deserializing_user_code)
     : StringTableKey(ComputeRawHashField(isolate, *string), string->length()),
       string_(string) {
 #ifdef DEBUG
   deserializing_user_code_ = deserializing_user_code;
 #endif
-  DCHECK(IsInternalizedString(*string));
 }
 
 StringTableInsertionKey::StringTableInsertionKey(
-    LocalIsolate* isolate, DirectHandle<String> string,
+    LocalIsolate* isolate, DirectHandle<InternalizedString> string,
     DeserializingUserCodeOption deserializing_user_code)
     : StringTableKey(ComputeRawHashField(isolate, *string), string->length()),
       string_(string) {
 #ifdef DEBUG
   deserializing_user_code_ = deserializing_user_code;
 #endif
-  DCHECK(IsInternalizedString(*string));
 }
 
 template <typename IsolateT>
@@ -629,12 +627,12 @@ void Deserializer<IsolateT>::PostProcessNewObject(DirectHandle<Map> map,
         // TODO(leszeks): This handle patching is ugly, consider adding an
         // explicit internalized string bytecode. Also, the new thin string
         // should be dead, try immediately freeing it.
-        DirectHandle<String> string = Cast<String>(obj);
+        DirectHandle<InternalizedString> string = Cast<InternalizedString>(obj);
 
         StringTableInsertionKey key(
             isolate(), string,
             DeserializingUserCodeOption::kIsDeserializingUserCode);
-        Tagged<String> result =
+        Tagged<InternalizedString> result =
             *isolate()->string_table()->LookupKey(isolate(), &key);
 
         if (result != raw_obj) {
@@ -1391,9 +1389,9 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadOffHeapBackingStore(
     uint8_t data, SlotAccessor slot_accessor) {
-  int byte_length = source_.GetUint32();
+  uint32_t byte_length = source_.GetUint32();
   if (v8_flags.trace_deserialization) {
-    PrintF("%*sOffHeapBackingStore [%d]\n", depth_, "", byte_length);
+    PrintF("%*sOffHeapBackingStore [%u]\n", depth_, "", byte_length);
   }
 
   std::unique_ptr<BackingStore> backing_store;
@@ -1402,7 +1400,7 @@ int Deserializer<IsolateT>::ReadOffHeapBackingStore(
                                            SharedFlag::kNotShared,
                                            InitializedFlag::kUninitialized);
   } else {
-    int max_byte_length = source_.GetUint32();
+    uint32_t max_byte_length = source_.GetUint32();
     size_t page_size, initial_pages, max_pages;
     Maybe<bool> result =
         JSArrayBuffer::GetResizableBackingStorePageConfiguration(

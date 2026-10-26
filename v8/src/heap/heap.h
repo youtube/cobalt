@@ -469,7 +469,7 @@ class Heap final {
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
   V8_EXPORT_PRIVATE Tagged<FixedArrayBase> LeftTrimFixedArray(
-      Tagged<FixedArrayBase> obj, int elements_to_trim);
+      Tagged<FixedArrayBase> obj, uint32_t elements_to_trim);
 
 #define RIGHT_TRIMMABLE_ARRAY_LIST(V) \
   V(ArrayList)                        \
@@ -716,9 +716,6 @@ class Heap final {
   // Prepares the heap, setting up for deserialization.
   void InitializeMainThreadLocalHeap(LocalHeap* main_thread_local_heap);
 
-  // (Re-)Initialize hash seed from flag or RNG.
-  void InitializeHashSeed();
-
   // Invoked once for the process from V8::Initialize.
   static void InitializeOncePerProcess();
 
@@ -891,6 +888,8 @@ class Heap final {
       Tagged<Object> bytecode);
   V8_INLINE void SetSmiStringCache(Tagged<SmiStringCache> cache);
   V8_INLINE void SetDoubleStringCache(Tagged<DoubleStringCache> cache);
+  V8_INLINE void SetCachedBigIntDivisor(Tagged<BigInt> divisor);
+  V8_INLINE void SetNextCachedBigIntDivisor(Tagged<BigInt> divisor);
 
 #if V8_ENABLE_WEBASSEMBLY
   V8_INLINE void SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts);
@@ -993,9 +992,7 @@ class Heap final {
   // limit instead of crashing immediately, more and stronger GCs are performed
   // until eventually CollectAllAvailableGarbage() is invoked as last resort GC.
   V8_EXPORT_PRIVATE void CollectGarbageWithRetry(
-      AllocationSpace space, GCFlags gc_flags,
-      GarbageCollectionReason gc_reason,
-      const GCCallbackFlags gc_callback_flags);
+      AllocationSpace space, GarbageCollectionReason gc_reason);
 
   // Reports and external memory pressure event, either performs a major GC or
   // completes incremental marking in order to free external resources.
@@ -1447,7 +1444,7 @@ class Heap final {
   V8_EXPORT_PRIVATE size_t EmbedderSizeOfObjects() const;
 
   // Returns the global size of objects (embedder + V8 non-new spaces).
-  V8_EXPORT_PRIVATE size_t GlobalSizeOfObjects() const;
+  V8_EXPORT_PRIVATE uint64_t GlobalSizeOfObjects() const;
 
   // Returns the global amount of wasted bytes.
   V8_EXPORT_PRIVATE size_t GlobalWastedBytes() const;
@@ -1891,7 +1888,6 @@ class Heap final {
 
   void CollectGarbageOnMemoryPressure();
 
-  void FlushLiftoffCode(GarbageCollectionReason gc_reason);
   void CompleteArrayBufferSweeping();
 
   bool InvokeNearHeapLimitCallback();
@@ -2081,8 +2077,8 @@ class Heap final {
   void FinalizePartialMap(Tagged<Map> map);
 
   void set_force_oom(bool value) { force_oom_ = value; }
-  void set_force_gc_on_next_allocation() {
-    force_gc_on_next_allocation_ = true;
+  void set_force_gc_on_next_allocation(bool value) {
+    force_gc_on_next_allocation_ = value;
   }
 
   // Helper for IsPendingAllocation.
@@ -2524,6 +2520,7 @@ class Heap final {
   friend class heap::HeapTester;
   FRIEND_TEST(SpacesTest, InlineAllocationObserverCadence);
   FRIEND_TEST(SpacesTest, AllocationObserver);
+  FRIEND_TEST(MinimalStackTest, MinimalStackInTurbofanAllocate);
   friend class HeapInternalsBase;
 };
 

@@ -39,19 +39,17 @@ IgnoringCaseHashSet CreateMacrolanguageChineseLanguageTags() {
                              "mnp", "nan", "sjc", "wuu", "yue", "zh"};
 }
 
-IgnoringCaseHashSet MacrolanguageChineseLanguageTags() {
+const IgnoringCaseHashSet& MacrolanguageChineseLanguageTags() {
   DEFINE_THREAD_SAFE_STATIC_LOCAL(IgnoringCaseHashSet, tags,
                                   (CreateMacrolanguageChineseLanguageTags()));
   return tags;
 }
 
 bool ComputeIsMacrolanguageChinese(const String& value) {
-  const wtf_size_t separater = value.find('-');
-  if (separater == kNotFound) {
-    return MacrolanguageChineseLanguageTags().Contains(value);
-  }
-  const StringView language{value, 0, separater};
-  return MacrolanguageChineseLanguageTags().Contains(language.ToString());
+  StringView language_tag{value};
+  language_tag = language_tag.substr(0, value.find('-'));
+  return MacrolanguageChineseLanguageTags()
+      .Contains<IgnoringAsciiCaseHashTranslator>(language_tag);
 }
 
 struct PerThreadData {
@@ -128,7 +126,7 @@ scoped_refptr<QuotesData> GetQuotesDataForLanguage(const StringView& lang) {
     if (U_FAILURE(status)) {
       return nullptr;
     }
-    if (EqualIgnoringASCIICase(loc, lang)) {
+    if (EqualIgnoringAsciiCase(loc, lang)) {
       return GetQuotesDataForIcuLocale(loc);
     }
   }
@@ -153,7 +151,7 @@ inline const char* LbValueFromStrictness(LineBreakStrictness strictness) {
 
 }  // namespace
 
-static hb_language_t ToHarfbuzLanguage(const AtomicString& locale) {
+static hb_language_t ToHarfbuzzLanguage(const AtomicString& locale) {
   std::string locale_as_latin1 = locale.Latin1();
   return hb_language_from_string(locale_as_latin1.data(),
                                  static_cast<int>(locale_as_latin1.length()));
@@ -278,7 +276,7 @@ void LayoutLocale::ComputeCaseMapLocale() const {
 
 LayoutLocale::LayoutLocale(const AtomicString& locale)
     : string_(locale),
-      harfbuzz_language_(ToHarfbuzLanguage(locale)),
+      harfbuzz_language_(ToHarfbuzzLanguage(locale)),
       script_(LocaleToScriptCodeForFontSelection(locale)) {}
 
 // static
@@ -353,7 +351,7 @@ scoped_refptr<QuotesData> LayoutLocale::GetQuotesData() const {
 
   if (!quotes_data_) {
     // No exact match, try to find without subtags.
-    wtf_size_t hyphen_offset = normalized_lang.ReverseFind('_');
+    wtf_size_t hyphen_offset = normalized_lang.rfind('_');
     if (hyphen_offset == kNotFound) {
       return nullptr;
     }
@@ -371,8 +369,9 @@ AtomicString LayoutLocale::LocaleWithBreakKeyword(
 
   // uloc_setKeywordValue_58 has a problem to handle "@" in the original
   // string. crbug.com/697859
-  if (string_.Contains('@'))
+  if (string_.contains('@')) {
     return string_;
+  }
 
   constexpr wtf_size_t kMaxLbValueLen = 6;
   constexpr wtf_size_t kMaxKeywordsLen =

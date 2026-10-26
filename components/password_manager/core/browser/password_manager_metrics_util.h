@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <string>
+#include <string_view>
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -442,10 +443,10 @@ enum class AddCredentialFromSettingsUserInteractions {
 };
 
 // Metrics: PasswordManager.MoveToAccountStoreTrigger.
-// This must be kept in sync with the enum in move_single_password_dialog.ts (in
-// chrome/browser/resources/password_manager/dialogs/).
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
+// This must be kept in sync with the enum in
+// `chrome/browser/resources/password_manager/sharing/metrics_utils.ts`. These
+// values are persisted to logs. Entries should not be renumbered and numeric
+// values should never be reused.
 enum class MoveToAccountStoreTrigger {
   // The user successfully logged in with a password from the profile store.
   kSuccessfulLoginWithProfileStorePassword = 0,
@@ -480,7 +481,7 @@ enum class PasswordNoteAction {
   kMaxValue = kNoteNotChanged,
 };
 
-std::string GetPasswordAccountStorageUserStateHistogramSuffix(
+std::string_view GetPasswordAccountStorageUserStateHistogramSuffix(
     password_manager::features_util::PasswordAccountStorageUserState
         user_state);
 
@@ -658,7 +659,7 @@ enum class BrowserAssistedLoginType {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/password/enums.xml:BrowserAssistedLoginType)
 
-std::string GetPasswordAccountStorageUsageLevelHistogramSuffix(
+std::string_view GetPasswordAccountStorageUsageLevelHistogramSuffix(
     password_manager::features_util::PasswordAccountStorageUsageLevel
         usage_level);
 
@@ -691,7 +692,7 @@ class LeakDialogMetricsRecorder {
   double ukm_sampling_rate_ = 0.1;
 
   // Helper method to determine the suffix for the UMA.
-  const char* GetUMASuffix() const;
+  std::string_view GetUMASuffix() const;
 
   // The source id associated with the navigation.
   ukm::SourceId source_id_;
@@ -716,11 +717,6 @@ void LogSaveUIDismissalReason(
 
 // Log the |reason| a user dismissed the update password bubble.
 void LogUpdateUIDismissalReason(UIDismissalReason reason);
-
-// Log the |reason| a user dismissed the move password bubble.
-void LogMoveUIDismissalReason(
-    UIDismissalReason reason,
-    features_util::PasswordAccountStorageUserState user_state);
 
 // Log the appropriate display disposition.
 void LogUIDisplayDisposition(UIDisplayDisposition disposition);

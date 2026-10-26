@@ -11,9 +11,11 @@
 #include "base/strings/utf_string_conversions.h"
 #include "components/regional_capabilities/regional_capabilities_utils.h"
 #include "components/search_engines/search_engines_switches.h"
+#include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_data_util.h"
 #include "components/search_engines/template_url_prepopulate_data.h"
 #include "components/search_engines/template_url_prepopulate_data_resolver.h"
+#include "components/search_engines/util.h"
 #include "third_party/search_engines_data/resources/definitions/prepopulated_engines.h"
 
 namespace {
@@ -144,6 +146,16 @@ std::pair<std::unique_ptr<TemplateURLData>,
           ReconcilingTemplateURLDataHolder::ReconciliationType>
 ReconcilingTemplateURLDataHolder::FindMatchingBuiltInDefinitionsById(
     const TemplateURLData& data_to_match) const {
+  // Search for potential migrations. It is prioritised over the regional
+  // engines, which can change across runs. That's a very strict check (see
+  // `Resolver::MatchesEngineUnderMigration`), so there is no risk to  match the
+  // wrong engine.
+  if (std::unique_ptr<TemplateURLData> engine =
+          prepopulate_data_resolver_->TryGetMigratedEngine(data_to_match);
+      engine != nullptr) {
+    return {std::move(engine), ReconciliationType::kByMigrateToId};
+  }
+
   std::vector<std::unique_ptr<TemplateURLData>> prepopulated_urls =
       prepopulate_data_resolver_->GetPrepopulatedEngines();
 
@@ -153,13 +165,6 @@ ReconcilingTemplateURLDataHolder::FindMatchingBuiltInDefinitionsById(
       engine_iter != prepopulated_urls.end()) {
     return {std::move(*engine_iter),
             ReconciliationType::kByIdFromRegionalEngines};
-  }
-
-  // Search for potential migrations
-  if (std::unique_ptr<TemplateURLData> engine =
-          prepopulate_data_resolver_->TryGetMigratedEngine(data_to_match);
-      engine != nullptr) {
-    return {std::move(engine), ReconciliationType::kByMigrateToId};
   }
 
   // Search the entire search engine database to find matching entry.
@@ -217,19 +222,8 @@ void ReconcilingTemplateURLDataHolder::SetAndReconcile(
     return;
   }
 
-  if (!search_engine_->safe_for_autoreplace) {
-    engine->safe_for_autoreplace = false;
-    engine->SetKeyword(search_engine_->keyword());
-    engine->SetShortName(search_engine_->short_name());
-  }
-
-  engine->id = search_engine_->id;
-  engine->sync_guid = search_engine_->sync_guid;
-  engine->date_created = search_engine_->date_created;
-  engine->last_modified = search_engine_->last_modified;
-  engine->last_visited = search_engine_->last_visited;
-  engine->favicon_url = search_engine_->favicon_url;
-  engine->regulatory_origin = search_engine_->regulatory_origin;
+  MergeIntoEngineData(*search_engine_.get(), *engine.get(),
+                      TemplateURLMergeOption::kSettingAsDefaultProvider);
 
   search_engine_ = std::move(engine);
 }

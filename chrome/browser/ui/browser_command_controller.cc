@@ -24,12 +24,18 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/actor/ui/actor_overlay_web_view.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/commerce/browser_utils.h"
 #include "chrome/browser/defaults.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/devtools/features.h"
 #include "chrome/browser/feedback/public/feedback_source.h"
 #include "chrome/browser/feedback/show_feedback_page.h"
+#include "chrome/browser/glic/fre/glic_fre_controller.h"
+#include "chrome/browser/glic/glic_enums.h"
+#include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/glic_profile_manager.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
 #include "chrome/browser/profiles/profile.h"
@@ -63,6 +69,8 @@
 #include "chrome/browser/ui/profiles/profile_view_utils.h"
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_entry_point_controller.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/singleton_tabs.h"
 #include "chrome/browser/ui/startup/default_browser_prompt/default_browser_prompt_manager.h"
 #include "chrome/browser/ui/startup/default_browser_prompt/default_browser_prompt_prefs.h"
@@ -76,8 +84,6 @@
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_utils.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_dialog_utils.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
@@ -158,15 +164,6 @@
 #include "chrome/browser/ui/shortcuts/desktop_shortcuts_utils.h"
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/fre/glic_fre_controller.h"
-#include "chrome/browser/glic/glic_enums.h"
-#include "chrome/browser/glic/glic_pref_names.h"
-#include "chrome/browser/glic/glic_profile_manager.h"
-#include "chrome/browser/glic/public/glic_enabling.h"
-#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
-#include "chrome/browser/glic/widget/glic_window_controller.h"
-#endif
 
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS));
 
@@ -335,7 +332,6 @@ BrowserCommandController::BrowserCommandController(BrowserWindowInterface* bwi)
           base::Unretained(this)));
 #endif  //! BUILDFLAG(IS_MAC)
 
-#if BUILDFLAG(ENABLE_GLIC)
   if (glic::GlicEnabling::IsEnabledByFlags()) {
     auto* glic_service =
         glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile());
@@ -348,9 +344,7 @@ BrowserCommandController::BrowserCommandController(BrowserWindowInterface* bwi)
               base::Unretained(this))));
     }
   }
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
-#if BUILDFLAG(ENABLE_GLIC)
   if (glic::GlicEnabling::IsEnabledByFlags()) {
     auto* service =
         glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile());
@@ -367,7 +361,6 @@ BrowserCommandController::BrowserCommandController(BrowserWindowInterface* bwi)
                   base::Unretained(this)));
     }
   }
-#endif
 
   InitCommandState();
 
@@ -494,7 +487,6 @@ void BrowserCommandController::LoadingStateChanged(bool is_loading,
   UpdateReloadStopState(is_loading, force);
 }
 
-#if BUILDFLAG(ENABLE_GLIC)
 void BrowserCommandController::GlicWindowActivationChanged(bool active) {
   UpdateGlicState();
 }
@@ -503,7 +495,6 @@ void BrowserCommandController::GlicFreStateChanged(
     glic::mojom::FreWebUiState new_state) {
   UpdateGlicState();
 }
-#endif
 
 void BrowserCommandController::FindBarVisibilityChanged() {
   // Block find command updates in locked fullscreen mode unless the instance is
@@ -887,9 +878,6 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
     case IDC_ORGANIZE_TABS:
       StartTabOrganizationRequest(browser_);
       break;
-    case IDC_DECLUTTER_TABS:
-      ShowTabDeclutter(browser_);
-      break;
     case IDC_SEND_SHARED_TAB_GROUP_FEEDBACK:
       OpenFeedbackDialog(browser_, feedback::kFeedbackSourceDesktopTabGroups,
                          /*description_template=*/std::string(),
@@ -1058,9 +1046,6 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
       break;
     case IDC_SHOW_BOOKMARK_BAR:
       ToggleBookmarkBar(browser_);
-      break;
-    case IDC_SHOW_ALL_COMPARISON_TABLES:
-      ShowAllComparisonTables(browser_);
       break;
     case IDC_SHOW_FULL_URLS:
       ToggleShowFullURLs(browser_);
@@ -1398,7 +1383,6 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
           DefaultBrowserPromptManager::CloseReason::kAccept);
       break;
 #endif
-#if BUILDFLAG(ENABLE_GLIC)
     case IDC_GLIC_TOGGLE_PIN: {
       PrefService* profile_prefs = profile()->GetPrefs();
       profile_prefs->SetBoolean(
@@ -1417,7 +1401,6 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
       }
       break;
     }
-#endif
     default:
       LOG(WARNING) << "Received Unimplemented Command: " << id;
       break;
@@ -1558,7 +1541,6 @@ void BrowserCommandController::InitCommandState() {
   command_updater_.UpdateCommandEnabled(IDC_EXIT, true);
   command_updater_.UpdateCommandEnabled(IDC_NAME_WINDOW, true);
   command_updater_.UpdateCommandEnabled(IDC_ORGANIZE_TABS, true);
-  command_updater_.UpdateCommandEnabled(IDC_DECLUTTER_TABS, true);
   command_updater_.UpdateCommandEnabled(IDC_TOGGLE_VERTICAL_TABS, true);
   command_updater_.UpdateCommandEnabled(IDC_VERTICAL_TABS_SEND_FEEDBACK, true);
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1800,19 +1782,10 @@ void BrowserCommandController::InitCommandState() {
     command_updater_.UpdateCommandEnabled(IDC_SHOW_CHROME_LABS, true);
   }
 
-  // Compare commands.
-  command_updater_.UpdateCommandEnabled(IDC_COMPARE_MENU, true);
-  command_updater_.UpdateCommandEnabled(IDC_SHOW_ALL_COMPARISON_TABLES, true);
-  command_updater_.UpdateCommandEnabled(IDC_ADD_TO_COMPARISON_TABLE_MENU, true);
-  command_updater_.UpdateCommandEnabled(
-      IDC_CREATE_NEW_COMPARISON_TABLE_WITH_TAB, true);
-
-#if BUILDFLAG(ENABLE_GLIC)
   // Glic commands.
   command_updater_.UpdateCommandEnabled(
       IDC_GLIC_TOGGLE_PIN, glic::GlicEnabling::IsProfileEligible(profile()));
   UpdateGlicState();
-#endif
 
   // Initialize other commands whose state changes based on various conditions.
   UpdateCommandsForFullscreenMode();
@@ -2022,13 +1995,6 @@ void BrowserCommandController::UpdateCommandsForTabState() {
         DevToolsWindow::AllowDevToolsFor(
             profile(), browser_->tab_strip_model()->GetActiveWebContents()));
   }
-
-  // Disable the add to comparison table menu when the page is not a standard
-  // webpage.
-  command_updater_.UpdateCommandEnabled(
-      IDC_ADD_TO_COMPARISON_TABLE_MENU,
-      commerce::IsUrlEligibleForProductSpecs(
-          current_web_contents->GetLastCommittedURL()));
 }
 
 void BrowserCommandController::UpdateCommandsForZoomState() {
@@ -2282,7 +2248,6 @@ void BrowserCommandController::UpdatePrintingState() {
 #endif
 }
 
-#if BUILDFLAG(ENABLE_GLIC)
 void BrowserCommandController::UpdateGlicState() {
   if (glic::GlicEnabling::IsEnabledByFlags()) {
     auto* service =
@@ -2294,7 +2259,6 @@ void BrowserCommandController::UpdateGlicState() {
     }
   }
 }
-#endif
 
 void BrowserCommandController::UpdateSaveAsState() {
   if (is_locked_fullscreen_) {
@@ -2462,10 +2426,8 @@ void BrowserCommandController::UpdateCommandAndActionEnabled(
 }
 
 void BrowserCommandController::UpdateCommandsForEnableGlicChanged() {
-#if BUILDFLAG(ENABLE_GLIC)
   command_updater_.UpdateCommandEnabled(
       IDC_OPEN_GLIC, glic::GlicEnabling::IsEnabledForProfile(profile()));
-#endif  //  BUILDFLAG(ENABLE_GLIC)
 }
 
 BrowserWindow* BrowserCommandController::window() {

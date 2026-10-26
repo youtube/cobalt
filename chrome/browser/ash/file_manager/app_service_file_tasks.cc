@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/web_app_id_constants.h"
 #include "ash/webui/file_manager/url_constants.h"
 #include "base/feature_list.h"
@@ -25,7 +26,6 @@
 #include "chrome/browser/apps/app_service/app_icon_source.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "chrome/browser/apps/app_service/launch_utils.h"
 #include "chrome/browser/apps/app_service/policy_util.h"
 #include "chrome/browser/ash/crostini/crostini_features.h"
@@ -39,15 +39,14 @@
 #include "chrome/browser/chromeos/upload_office_to_cloud/upload_office_to_cloud.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/ash/cloud_upload/hats_office_trigger.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/common/extensions/api/file_manager_private.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/file_manager/app_id.h"
 #include "components/prefs/pref_service.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/intent_util.h"
+#include "components/services/app_service/public/cpp/launch_result.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/browser/entry_info.h"
 #include "extensions/browser/extension_registry.h"
@@ -59,22 +58,21 @@
 namespace file_manager::file_tasks {
 
 extensions::api::file_manager_private::TaskResult
-ConvertLaunchResultToTaskResult(const apps::LaunchResult& result,
-                                TaskType task_type) {
+ConvertLaunchResultToTaskResult(apps::LaunchResult result, TaskType task_type) {
   // TODO(benwells): return the correct code here, depending
   // on how the app will be opened in multiprofile.
   namespace fmp = extensions::api::file_manager_private;
-  switch (result.state) {
-    case apps::State::kSuccess:
+  switch (result) {
+    case apps::LaunchResult::kSuccess:
       if (task_type == TASK_TYPE_WEB_APP) {
         return fmp::TaskResult::kOpened;
       } else {
         return fmp::TaskResult::kMessageSent;
       }
-    case apps::State::kFailedDirectoryNotShared:
+    case apps::LaunchResult::kFailedDirectoryNotShared:
       DCHECK(task_type == TASK_TYPE_PLUGIN_VM_APP);
       return fmp::TaskResult::kFailedPluginVmDirectoryNotShared;
-    case apps::State::kFailed:
+    case apps::LaunchResult::kFailed:
       return fmp::TaskResult::kFailed;
   }
 }
@@ -245,14 +243,10 @@ void FindAppServiceTasks(Profile* profile,
       proxy->GetAppsForFiles(std::move(intent_files));
 
   std::vector<apps::AppType> supported_app_types = {
-      apps::AppType::kArc,
-      apps::AppType::kWeb,
-      apps::AppType::kSystemWeb,
-      apps::AppType::kChromeApp,
-      apps::AppType::kExtension,
-      apps::AppType::kBruschetta,
-      apps::AppType::kCrostini,
-      apps::AppType::kPluginVm,
+      apps::AppType::kArc,       apps::AppType::kWeb,
+      apps::AppType::kSystemWeb, apps::AppType::kChromeApp,
+      apps::AppType::kExtension, apps::AppType::kBruschetta,
+      apps::AppType::kCrostini,  apps::AppType::kPluginVm,
   };
   for (auto& launch_entry : intent_launch_info) {
     auto app_type = proxy->AppRegistryCache().GetAppType(launch_entry.app_id);
@@ -358,7 +352,7 @@ void ExecuteAppServiceTask(
       apps_util::kIntentActionView, std::move(intent_files));
   intent->activity_name = task.action_id;
 
-  if (base::FeatureList::IsEnabled(::features::kHappinessTrackingOffice) &&
+  if (base::FeatureList::IsEnabled(ash::features::kHappinessTrackingOffice) &&
       task.app_id == extension_misc::kQuickOfficeComponentExtensionId &&
       task.action_id == kActionIdQuickOffice) {
     auto survey_launching_app =
@@ -377,7 +371,7 @@ void ExecuteAppServiceTask(
       /*window_info=*/nullptr,
       base::BindOnce(
           [](FileTaskFinishedCallback done, TaskType task_type,
-             apps::LaunchResult&& result) {
+             apps::LaunchResult result) {
             std::move(done).Run(
                 ConvertLaunchResultToTaskResult(result, task_type), "");
           },
@@ -388,8 +382,8 @@ bool ChooseAndSetDefaultTaskFromPolicyPrefs(
     Profile* profile,
     const std::vector<extensions::EntryInfo>& entries,
     ResultingTasks* resulting_tasks) {
-  const auto& policy_default_handlers =
-      profile->GetPrefs()->GetDict(prefs::kDefaultHandlersForFileExtensions);
+  const auto& policy_default_handlers = profile->GetPrefs()->GetDict(
+      ash::prefs::kDefaultHandlersForFileExtensions);
 
   // Check that there are no conflicting assignments for the given set of
   // entries.

@@ -50,7 +50,6 @@ bool ValidTextureExternalTarget(const Context *context, TextureType target);
 bool ValidTextureExternalTarget(const Context *context, TextureTarget target);
 bool ValidTexture2DDestinationTarget(const Context *context, TextureTarget target);
 bool ValidTexture3DDestinationTarget(const Context *context, TextureTarget target);
-bool ValidTexLevelDestinationTarget(const Context *context, TextureType type);
 bool ValidFramebufferTarget(const Context *context, GLenum target);
 bool ValidMipLevel(const Context *context, TextureType type, GLint level);
 bool ValidImageSizeParameters(const Context *context,
@@ -195,14 +194,14 @@ bool ValidateBeginQueryBase(const Context *context,
 bool ValidateEndQueryBase(const Context *context, angle::EntryPoint entryPoint, QueryType target);
 bool ValidateGetQueryivBase(const Context *context,
                             angle::EntryPoint entryPoint,
-                            QueryType target,
-                            GLenum pname,
-                            GLsizei *numParams);
-bool ValidateGetQueryObjectValueBase(const Context *context,
-                                     angle::EntryPoint entryPoint,
-                                     QueryID id,
-                                     GLenum pname,
-                                     GLsizei *numParams);
+                            QueryType targetPacked,
+                            QueryParameter pnamePacked,
+                            GLsizei *outNumParams);
+bool ValidateGetQueryObjectBase(const Context *context,
+                                angle::EntryPoint entryPoint,
+                                QueryID idPacked,
+                                QueryObjectParameter pnamePacked,
+                                GLsizei *outNumParams);
 
 ANGLE_INLINE bool ValidateUniformCommonBase(const Context *context,
                                             angle::EntryPoint entryPoint,
@@ -494,7 +493,7 @@ bool ValidateGetFramebufferAttachmentParameterivBase(const Context *context,
                                                      GLenum target,
                                                      GLenum attachment,
                                                      GLenum pname,
-                                                     GLsizei *numParams);
+                                                     GLsizei *outNumParams);
 
 bool ValidateGetFramebufferParameterivBase(const Context *context,
                                            angle::EntryPoint entryPoint,
@@ -510,43 +509,47 @@ bool ValidateGetBufferParameterBase(const Context *context,
 
 bool ValidateGetProgramivBase(const Context *context,
                               angle::EntryPoint entryPoint,
-                              ShaderProgramID program,
+                              ShaderProgramID programPacked,
                               GLenum pname,
-                              GLsizei *numParams);
+                              GLsizei *outNumParams);
 
 bool ValidateGetRenderbufferParameterivBase(const Context *context,
                                             angle::EntryPoint entryPoint,
                                             GLenum target,
                                             GLenum pname,
-                                            GLsizei *length);
+                                            GLsizei *outNumParams);
 
 bool ValidateGetShaderivBase(const Context *context,
                              angle::EntryPoint entryPoint,
-                             ShaderProgramID shader,
-                             GLenum pname,
-                             GLsizei *length);
+                             ShaderProgramID shaderPacked,
+                             ShaderParameter pnamePacked,
+                             const GLint *params,
+                             GLsizei *outNumParams);
 
 bool ValidateGetTexParameterBase(const Context *context,
                                  angle::EntryPoint entryPoint,
-                                 TextureType target,
+                                 TextureType targetPacked,
                                  GLenum pname,
-                                 GLsizei *length);
+                                 GLsizei *outNumParams);
 
 template <typename ParamType>
 bool ValidateTexParameterBase(const Context *context,
                               angle::EntryPoint entryPoint,
-                              TextureType target,
+                              TextureType targetPacked,
                               GLenum pname,
-                              GLsizei bufSize,
-                              bool vectorParams,
                               const ParamType *params);
 
 bool ValidateGetVertexAttribBase(const Context *context,
                                  angle::EntryPoint entryPoint,
                                  GLuint index,
                                  GLenum pname,
-                                 GLsizei *length,
-                                 bool pointer);
+                                 GLsizei *outNumParams);
+
+bool ValidateGetVertexAttribPointerBase(const Context *context,
+                                        angle::EntryPoint entryPoint,
+                                        GLuint index,
+                                        GLenum pname,
+                                        GLsizei *outNumParams);
 
 ANGLE_INLINE bool ValidateVertexFormat(const PrivateState &privateState,
                                        ErrorSet *errors,
@@ -651,26 +654,23 @@ bool ValidateVertexAttribIndex(const PrivateState &state,
 
 bool ValidateGetActiveUniformBlockivBase(const Context *context,
                                          angle::EntryPoint entryPoint,
-                                         ShaderProgramID program,
-                                         UniformBlockIndex uniformBlockIndex,
-                                         GLenum pname,
-                                         GLsizei *length);
+                                         ShaderProgramID programPacked,
+                                         UniformBlockIndex uniformBlockIndexPacked,
+                                         UniformBlockParameter pnamePacked,
+                                         GLsizei *outNumParams);
 
-template <typename ParamType>
 bool ValidateGetSamplerParameterBase(const Context *context,
                                      angle::EntryPoint entryPoint,
-                                     SamplerID sampler,
-                                     GLenum pname,
-                                     GLsizei *length,
-                                     const ParamType *params);
+                                     SamplerID samplerPacked,
+                                     SamplerParameter pnamePacked,
+                                     const void *params,
+                                     GLsizei *outNumParams);
 
 template <typename ParamType>
 bool ValidateSamplerParameterBase(const Context *context,
                                   angle::EntryPoint entryPoint,
-                                  SamplerID sampler,
-                                  GLenum pname,
-                                  GLsizei bufSize,
-                                  bool vectorParams,
+                                  SamplerID samplerPacked,
+                                  SamplerParameter pnamePacked,
                                   const ParamType *params);
 
 bool ValidateGetInternalFormativBase(const Context *context,
@@ -679,7 +679,7 @@ bool ValidateGetInternalFormativBase(const Context *context,
                                      GLenum internalformat,
                                      GLenum pname,
                                      GLsizei count,
-                                     GLsizei *numParams);
+                                     GLsizei *outNumParams);
 
 bool ValidateFramebufferNotMultisampled(const Context *context,
                                         angle::EntryPoint entryPoint,
@@ -724,10 +724,10 @@ bool ValidateTexStorage3DMultisampleBase(const Context *context,
 
 bool ValidateGetTexLevelParameterBase(const Context *context,
                                       angle::EntryPoint entryPoint,
-                                      TextureTarget target,
+                                      TextureTarget targetPacked,
                                       GLint level,
-                                      GLenum pname,
-                                      GLsizei *length);
+                                      TextureImageParameter pnamePacked,
+                                      GLsizei *outNumParams);
 
 bool ValidateMapBufferBase(const Context *context,
                            angle::EntryPoint entryPoint,
@@ -799,7 +799,8 @@ bool ValidateGetMultisamplefvBase(const Context *context,
                                   angle::EntryPoint entryPoint,
                                   GLenum pname,
                                   GLuint index,
-                                  const GLfloat *val);
+                                  GLsizei *outNumParams);
+
 bool ValidateSampleMaskiBase(const PrivateState &state,
                              ErrorSet *errors,
                              angle::EntryPoint entryPoint,

@@ -65,6 +65,7 @@ AndroidBrowserWindow::AndroidBrowserWindow(
 }
 
 AndroidBrowserWindow::~AndroidBrowserWindow() {
+  browser_did_close_callback_list_.Notify(this);
   Java_AndroidBrowserWindow_clearNativePtr(AttachCurrentThread(),
                                            java_android_browser_window_);
 }
@@ -114,6 +115,11 @@ const SessionID& AndroidBrowserWindow::GetSessionID() const {
 bool AndroidBrowserWindow::IsDeleteScheduled() const {
   return Java_AndroidBrowserWindow_isDeleteScheduled(
       AttachCurrentThread(), java_android_browser_window_);
+}
+
+base::CallbackListSubscription AndroidBrowserWindow::RegisterBrowserDidClose(
+    BrowserDidCloseCallback callback) {
+  return browser_did_close_callback_list_.Add(std::move(callback));
 }
 
 BrowserWindowInterface::Type AndroidBrowserWindow::GetType() const {

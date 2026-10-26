@@ -320,6 +320,15 @@ HEADLESS_MODE_PROTOCOL_TEST(FullscreenWindowSizeScaled,
                             "shared/fullscreen-window-size-scaled.js")
 #endif  // !BUILDFLAG(IS_MAC)
 
+// TODO(http://crbug.com/491505696): Fails on macOS.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_SetZoomedWindowBounds DISABLED_SetZoomedWindowBounds
+#else
+#define MAYBE_SetZoomedWindowBounds SetZoomedWindowBounds
+#endif
+HEADLESS_MODE_PROTOCOL_TEST(MAYBE_SetZoomedWindowBounds,
+                            "shared/set-zoomed-window-bounds.js")
+
 HEADLESS_MODE_PROTOCOL_TEST(PrintToPdfTinyPage,
                             "shared/print-to-pdf-tiny-page.js")
 
@@ -328,6 +337,10 @@ HEADLESS_MODE_PROTOCOL_TEST(ScreenDetailsMultipleScreens,
 
 HEADLESS_MODE_PROTOCOL_TEST(ScreenDetailsMultipleScreensScaled,
                             "shared/screen-details-multiple-screens-scaled.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(
+    ScreenDetailsMultipleScreensPrimaryScaled,
+    "shared/screen-details-multiple-screens-primary-scaled.js")
 
 HEADLESS_MODE_PROTOCOL_TEST(ScreenDetailsRotationAngle,
                             "shared/screen-details-rotation-angle.js")
@@ -479,15 +492,35 @@ HEADLESS_MODE_PROTOCOL_TEST(RemoveScreenGetScreenDetails,
 
 HEADLESS_MODE_PROTOCOL_TEST(AddRemoveScreen, "shared/add-remove-screen.js")
 
+HEADLESS_MODE_PROTOCOL_TEST(UpdateScreenBounds,
+                            "shared/update-screen-bounds.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(UpdateScreenWorkArea,
+                            "shared/update-screen-work-area.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(UpdateScreenDevicePixelRatio,
+                            "shared/update-screen-device-pixel-ratio.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(UpdateScreenRotationPortrait,
+                            "shared/update-screen-rotation-portrait.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(UpdateScreenRotationLandscape,
+                            "shared/update-screen-rotation-landscape.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(UpdateScreenColorDepth,
+                            "shared/update-screen-color-depth.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(UpdateScreenLabel, "shared/update-screen-label.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(UpdateScreenIsInternal,
+                            "shared/update-screen-is-internal.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(SetPrimaryScreen, "shared/set-primary-screen.js")
+
+HEADLESS_MODE_PROTOCOL_TEST(SetPrimaryScreenScaled,
+                            "shared/set-primary-screen-scaled.js")
+
 HEADLESS_MODE_PROTOCOL_TEST(RangeMouseEventAfterNodeRemoval,
                             "shared/range-mouse-event-after-node-removal.js")
 
-// TODO(crbug.com/423951863): Fails on Mac.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_SetZoomedWindowBounds DISABLED_SetZoomedWindowBounds
-#else
-#define MAYBE_SetZoomedWindowBounds SetZoomedWindowBounds
-#endif
-HEADLESS_MODE_PROTOCOL_TEST(MAYBE_SetZoomedWindowBounds,
-                            "shared/set-zoomed-window-bounds.js")
 }  // namespace headless

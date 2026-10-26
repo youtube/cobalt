@@ -20,6 +20,8 @@
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service_factory.h"
 #include "chrome/browser/preloading/prerender/prerender_utils.h"
+#include "chrome/browser/preloading/prerender/search_prewarm_progress_service.h"
+#include "chrome/browser/preloading/prerender/search_prewarm_progress_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "components/omnibox/browser/autocomplete_match.h"
@@ -173,7 +175,11 @@ class PrerenderManager::SearchPrerenderTask {
   const GURL prerendered_canonical_search_url_;
 };
 
-PrerenderManager::~PrerenderManager() = default;
+PrerenderManager::~PrerenderManager() {
+  if (is_search_prewarm_ongoing_) {
+    NotifySearchPrewarmFinished();
+  }
+}
 
 void PrerenderManager::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
@@ -239,8 +245,6 @@ PrerenderManager::StartPrerenderDirectUrlInput(
 }
 
 bool PrerenderManager::MaybeStartPrewarmSearchResult() {
-  // TODO(https://crbug.com/423465927): Revalidate the handle when the prewarm
-  // is reused for prerendering.
   GURL prewarm_url;
   PrewarmDecision decision = ShouldPrewarm(prewarm_url);
   base::UmaHistogramEnumeration(kHistogramPrerenderPrewarmDecision, decision);
@@ -284,10 +288,40 @@ bool PrerenderManager::MaybeStartPrewarmSearchResult() {
           GetWeakPtr()),
       /*allow_reuse=*/true);
 
+  if (search_prewarm_handle_ && search_prewarm_handle_->IsValid() &&
+      search_prewarm_handle_->IsWaitingForResponseHeaders()) {
+    auto* profile =
+        Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+    auto* service = SearchPrewarmProgressServiceFactory::GetForProfile(profile);
+    if (service) {
+      service->OnSearchPrewarmStarted(
+          search_prewarm_handle_->GetPrerenderHostId());
+      is_search_prewarm_ongoing_ = true;
+      search_prewarm_handle_->AddOnResponseHeadersReceivedCallback(
+          base::BindOnce(&PrerenderManager::NotifySearchPrewarmFinished,
+                         weak_factory_.GetWeakPtr()));
+    }
+  }
+
   return search_prewarm_handle_ != nullptr;
 }
 
+void PrerenderManager::NotifySearchPrewarmFinished() {
+  CHECK(is_search_prewarm_ongoing_);
+  is_search_prewarm_ongoing_ = false;
+  auto* profile =
+      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+  auto* service = SearchPrewarmProgressServiceFactory::GetForProfile(profile);
+  if (service) {
+    service->OnSearchPrewarmFinished(
+        search_prewarm_handle_->GetPrerenderHostId());
+  }
+}
+
 void PrerenderManager::StopPrewarmSearchResultForTesting() {
+  if (is_search_prewarm_ongoing_) {
+    NotifySearchPrewarmFinished();
+  }
   search_prewarm_handle_.reset();
 }
 
@@ -432,7 +466,7 @@ void PrerenderManager::ResetPrerenderHandlesOnPrimaryPageChanged(
 
 PrerenderManager::PrewarmDecision PrerenderManager::ShouldPrewarm(
     GURL& prewarm_url) {
-  if (search_prewarm_handle_ || HasSearchResultPagePrerendered()) {
+  if (IsPrewarmValid() || HasSearchResultPagePrerendered()) {
     return PrewarmDecision::kAlreadyExists;
   }
   if (!base::FeatureList::IsEnabled(features::kPrewarm)) {
@@ -501,6 +535,14 @@ PrerenderManager::PrewarmDecision PrerenderManager::ShouldPrewarm(
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   return PrewarmDecision::kReady;
+}
+
+bool PrerenderManager::IsPrewarmValid() {
+  if (base::FeatureList::IsEnabled(features::kPrewarm) &&
+      features::kPrewarmRevalidate.Get()) {
+    return search_prewarm_handle_ && search_prewarm_handle_->IsValid();
+  }
+  return search_prewarm_handle_ != nullptr;
 }
 
 void PrerenderManager::OnSearchPrewarmPrerenderNavigationHandle(

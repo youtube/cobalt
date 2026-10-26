@@ -7,6 +7,8 @@
 #include <memory>
 #include <optional>
 
+#include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "base/files/file_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
@@ -15,6 +17,7 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
+#include "base/threading/thread_restrictions.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/file_manager/volume_manager.h"
 #include "chrome/browser/ash/file_manager/volume_manager_factory.h"
@@ -66,7 +69,8 @@ class LocalFilesMigrationManagerTest : public testing::Test {
     testing::Test::SetUp();
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/
-        {features::kSkyVault, features::kSkyVaultV2, features::kSkyVaultV3},
+        {features::kSkyVault, ash::features::kSkyVaultV2,
+         ash::features::kSkyVaultV3},
         /*disabled_features=*/{});
 
     scoped_profile_ = std::make_unique<TestingProfile>();
@@ -165,7 +169,7 @@ class LocalFilesMigrationManagerTest : public testing::Test {
       const std::string& destination = download_dir_util::kLocationOneDrive) {
     SetLocalUserFilesAllowed(local_user_files_allowed);
     TestingBrowserProcess::GetGlobal()->local_state()->SetString(
-        prefs::kLocalUserFilesMigrationDestination, destination);
+        ash::prefs::kLocalUserFilesMigrationDestination, destination);
 
     profile()->GetPrefs()->SetInteger(prefs::kSkyVaultMigrationState,
                                       static_cast<int>(state));
@@ -174,13 +178,13 @@ class LocalFilesMigrationManagerTest : public testing::Test {
   // Sets the local user files allowed pref value.
   void SetLocalUserFilesAllowed(bool local_user_files_allowed) {
     TestingBrowserProcess::GetGlobal()->local_state()->SetBoolean(
-        prefs::kLocalUserFilesAllowed, local_user_files_allowed);
+        ash::prefs::kLocalUserFilesAllowed, local_user_files_allowed);
   }
 
   // Sets the local user files migration destination pref value.
   void SetMigrationDestination(const std::string& destination) {
     TestingBrowserProcess::GetGlobal()->local_state()->SetString(
-        prefs::kLocalUserFilesMigrationDestination, destination);
+        ash::prefs::kLocalUserFilesMigrationDestination, destination);
   }
 
   void SetRetryCount(int count) {

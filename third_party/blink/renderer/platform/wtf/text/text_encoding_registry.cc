@@ -108,7 +108,7 @@ static void CheckExistingName(StringView alias,
   }
   // Keep the warning silent about one case where we know this will happen.
   if (alias == "ISO-8859-8-I" && old_canonical_name == "ISO-8859-8-I" &&
-      EqualIgnoringASCIICase(canonical_name, "iso-8859-8")) {
+      EqualIgnoringAsciiCase(canonical_name, "iso-8859-8")) {
     return;
   }
   LOG(ERROR) << "alias " << alias << " maps to " << old_canonical_name
@@ -216,7 +216,7 @@ AtomicString AtomicCanonicalTextEncodingName(StringView name) {
     // `StringImpl`. This is a pre-screening optimization for the hash map
     // lookup below. It's safe to skip this check for other `StringView`
     // types.
-    if (!impl->ContainsOnlyASCIIOrEmpty()) {
+    if (!impl->ContainsOnlyAsciiOrEmpty()) {
       return g_null_atom;
     }
   }

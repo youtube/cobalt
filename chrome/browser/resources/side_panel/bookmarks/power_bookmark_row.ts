@@ -105,7 +105,6 @@ export class PowerBookmarkRowElement extends CrLitElement {
   accessor hasActiveDrag: boolean = false;
   accessor activeFolderPath: BookmarksTreeNode[] = [];
   accessor hasFolders: boolean = false;
-  accessor sortedChildren: BookmarksTreeNode[] = [];
   accessor activeSortIndex: number = 0;
 
   accessor listItemSize: CrUrlListItemSize = CrUrlListItemSize.COMPACT;
@@ -156,10 +155,10 @@ export class PowerBookmarkRowElement extends CrLitElement {
     if (changedProperties.has('bookmark') &&
         this.bookmark.id !== changedProperties.get('bookmark')?.id) {
       this.toggleExpand = false;
-      this.sortedChildren =
-          this.bookmark.children ? [...this.bookmark.children] : [];
-      this.bookmarksService_.sortBookmarks(
-          this.sortedChildren, this.activeSortIndex);
+      if (this.isFolder_() && this.bookmark.children) {
+        this.bookmarksService_.sortBookmarks(
+            this.bookmark.children, this.activeSortIndex);
+      }
     }
 
     if (changedProperties.has('activeFolderPath')) {
@@ -180,9 +179,10 @@ export class PowerBookmarkRowElement extends CrLitElement {
       }
     }
 
-    if (changedProperties.has('activeSortIndex')) {
+    if (changedProperties.has('activeSortIndex') && this.isFolder_() &&
+        this.bookmark.children) {
       this.bookmarksService_.sortBookmarks(
-          this.sortedChildren, this.activeSortIndex);
+          this.bookmark.children, this.activeSortIndex);
     }
   }
 
@@ -231,15 +231,11 @@ export class PowerBookmarkRowElement extends CrLitElement {
       this.keyArrowNavigationService_.removeElementsWithin(this);
     }
 
-    this.dispatchEvent(new CustomEvent('power-bookmark-toggle', {
-      bubbles: true,
-      composed: true,
-      detail: {
-        bookmark: this.bookmark,
-        expanded: this.toggleExpand,
-        event: event,
-      },
-    }));
+    this.fire('power-bookmark-toggle', {
+      bookmark: this.bookmark,
+      expanded: this.toggleExpand,
+      event: event,
+    });
   }
 
   private onKeydown_(e: KeyboardEvent) {
@@ -312,10 +308,7 @@ export class PowerBookmarkRowElement extends CrLitElement {
 
   protected async handleListItemSizeChanged_() {
     await this.currentListItem_.updateComplete;
-    this.dispatchEvent(new CustomEvent('list-item-size-changed', {
-      bubbles: true,
-      composed: true,
-    }));
+    this.fire('list-item-size-changed');
   }
 
   protected onExpandedChanged_(event: CustomEvent<{value: boolean}>) {

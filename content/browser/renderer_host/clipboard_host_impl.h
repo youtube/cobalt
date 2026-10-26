@@ -181,11 +181,29 @@ class CONTENT_EXPORT ClipboardHostImpl
       const ClipboardPasteData& data,
       std::optional<std::u16string> replacement_data);
 
+  // Does the same thing as the previous functions but for custom formats.
+  // The raw binary `data` is written to the clipboard using the specified
+  // `format`.
+  //
+  // This method can be called asynchronously.
+  virtual void OnCopyCustomFormatAllowedResult(
+      const std::u16string& format,
+      mojo_base::BigBuffer data,
+      const ui::ClipboardFormatType& data_type,
+      const ClipboardPasteData& paste_data,
+      std::optional<std::u16string> replacement_data);
+
   using CopyAllowedCallback = base::OnceCallback<void()>;
 
   void OnReadAvailableTypes(ui::ClipboardBuffer clipboard_buffer,
                             ReadAvailableTypesCallback callback,
                             std::vector<std::u16string> types);
+
+  void OnGetAllAvailableFormatsForReadAvailableTypes(
+      ui::ClipboardBuffer clipboard_buffer,
+      std::optional<ui::DataTransferEndpoint> data_dst,
+      ReadAvailableTypesCallback callback,
+      base::flat_set<ui::ClipboardFormatType> formats);
 
   void OnReadPng(ui::ClipboardBuffer clipboard_buffer,
                  ReadPngCallback callback,
@@ -223,6 +241,14 @@ class CONTENT_EXPORT ClipboardHostImpl
                                     const std::u16string& type,
                                     ReadDataTransferCustomDataCallback callback,
                                     std::u16string data);
+
+  void OnGetSourceClipboardEndpoint(const ui::ClipboardFormatType& data_type,
+                                    ClipboardPasteData clipboard_paste_data,
+                                    IsClipboardPasteAllowedCallback callback,
+                                    std::optional<size_t> data_size,
+                                    ui::ClipboardSequenceNumberToken seqno,
+                                    content::ClipboardEndpoint data_dst,
+                                    content::ClipboardEndpoint source);
 
   void OnReadUnsanitizedCustomFormat(
       ReadUnsanitizedCustomFormatCallback callback,

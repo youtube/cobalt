@@ -4,7 +4,14 @@
 
 source_set("ui") {
   sources = [
+    "app_bar_constants.h",
+    "app_bar_constants.mm",
     "app_bar_consumer.h",
+    "app_bar_container_view.h",
+    "app_bar_container_view.mm",
+    "app_bar_container_view_controller.h",
+    "app_bar_container_view_controller.mm",
+    "app_bar_container_view_delegate.h",
     "app_bar_mutator.h",
     "app_bar_view_controller.h",
     "app_bar_view_controller.mm",
@@ -12,14 +19,18 @@ source_set("ui") {
   deps = [
     "//base",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/cobrowse/model",
+    "//ios/chrome/browser/fullscreen/ui_bundled:ui",
     "//ios/chrome/browser/intents/model:model_donation_helper",
     "//ios/chrome/browser/shared/public/commands",
+    "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui:buildflags",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/shared/ui/util:util_swift",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/util",
+    "//ios/chrome/common/ui/util:dynamic_type_util",
     "//ui/base",
   ]
 }

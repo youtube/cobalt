@@ -7,6 +7,7 @@
 
 #include <concepts>
 #include <memory>
+#include <optional>
 #include <string>
 #include <variant>
 
@@ -17,11 +18,13 @@
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/glic/browser_ui/glic_button_controller_delegate.h"
 #include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
+#include "chrome/browser/glic/fre/glic_fre.mojom.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/views/glic/glic_base_shim.h"
 #include "chrome/browser/ui/views/glic/glic_button_interface.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/chrome_features.h"
@@ -39,33 +42,25 @@
 #include "ui/views/background.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/label_button.h"
+#include "ui/views/controls/menu/menu_item_view.h"
 #include "ui/views/controls/menu/menu_model_adapter.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/view_class_properties.h"
 
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/fre/glic_fre.mojom.h"
-#endif  // BUILDFLAG(ENABLE_GLIC)
-
 class BrowserWindowInterface;
 class Profile;
 class TabStripNudgeButton;
-class ToolbarButton;
 
 namespace views {
-class LabelButton;
 class MenuModelAdapter;
 class MenuRunner;
 }  // namespace views
 
 namespace glic {
-BASE_FEATURE(kGlicButtonHideLabelOnTaskNudge, base::FEATURE_ENABLED_BY_DEFAULT);
-
 inline constexpr int kHighlightMargin = 2;
 inline constexpr int kHighlightCornerRadius = 8;
 inline constexpr int kCloseButtonMargin = 6;
-inline constexpr int kIconSize = 16;
 inline constexpr int kLabelRightMargin = 8;
 inline constexpr ui::ColorId kTextOnHighlight = ui::kColorSysOnPrimary;
 inline constexpr ui::ColorId kTextDisabledOnHighlight = kTextOnHighlight;
@@ -78,75 +73,12 @@ inline constexpr ui::ColorId kForegroundOnAltBackground =
 inline constexpr ui::ColorId kHighlightColorId = ui::kColorSysPrimary;
 
 inline constexpr int kCollapsedWidth = 41;
-inline constexpr int kSplitButtonFlatEdgeRadius = 2;
-
-template <typename T>
-class GlicButtonShim : public T {
- public:
-  using T::T;
-
-  virtual void UpdateColors() {
-    if constexpr (requires { this->T::UpdateColors(); }) {
-      this->T::UpdateColors();
-    }
-  }
-
-  virtual void SetCloseButtonFocusBehavior(
-      views::View::FocusBehavior focus_behavior) {
-    if constexpr (requires {
-                    this->T::SetCloseButtonFocusBehavior(focus_behavior);
-                  }) {
-      T::SetCloseButtonFocusBehavior(focus_behavior);
-    }
-  }
-
-  virtual void SetForegroundFrameActiveColorId(ui::ColorId new_color_id) {
-    if constexpr (requires {
-                    this->T::SetForegroundFrameActiveColorId(new_color_id);
-                  }) {
-      T::SetForegroundFrameActiveColorId(new_color_id);
-    }
-  }
-
-  virtual void SetForegroundFrameInactiveColorId(ui::ColorId new_color_id) {
-    if constexpr (requires {
-                    this->T::SetForegroundFrameInactiveColorId(new_color_id);
-                  }) {
-      T::SetForegroundFrameInactiveColorId(new_color_id);
-    }
-  }
-
-  virtual void SetBackgroundFrameActiveColorId(ui::ColorId new_color_id) {
-    if constexpr (requires {
-                    this->T::SetBackgroundFrameActiveColorId(new_color_id);
-                  }) {
-      T::SetBackgroundFrameActiveColorId(new_color_id);
-    }
-  }
-
-  virtual void SetBackgroundFrameInactiveColorId(ui::ColorId new_color_id) {
-    if constexpr (requires {
-                    this->T::SetBackgroundFrameInactiveColorId(new_color_id);
-                  }) {
-      T::SetBackgroundFrameInactiveColorId(new_color_id);
-    }
-  }
-
-  virtual void SetLeftRightCornerRadii(int left, int right) {
-    if constexpr (requires { this->T::SetLeftRightCornerRadii(left, right); }) {
-      T::SetLeftRightCornerRadii(left, right);
-    }
-  }
-  virtual void SetInkdropHoverColorId(const ChromeColorIds new_color_id) {
-    if constexpr (requires { this->T::SetInkdropHoverColorId(new_color_id); }) {
-      T::SetInkdropHoverColorId(new_color_id);
-    }
-  }
-};
+inline constexpr int kSplitFlatEdgetRadius = 2;
+inline constexpr int kSplitRoundedEdgeRadius = 10;
 
 template <typename T>
   requires std::derived_from<T, views::LabelButton>
-class GlicButton : public GlicButtonShim<T>,
+class GlicButton : public GlicBaseShim<T>,
                    public ui::SimpleMenuModel::Delegate {
  public:
   // These states represent the button's width and label contents.
@@ -260,7 +192,7 @@ class GlicButton : public GlicButtonShim<T>,
                       base::RepeatingClosure expansion_animation_done_callback,
                       const std::u16string& tooltip,
                       BaseArgs&&... base_args)
-      : GlicButtonShim<T>(std::move(base_args)...),
+      : GlicBaseShim<T>(std::move(base_args)...),
         browser_window_interface_(browser_window_interface),
         menu_model_(CreateMenuModel()),
         profile_(browser_window_interface
@@ -282,10 +214,6 @@ class GlicButton : public GlicButtonShim<T>,
   //
   // Suppresses the default label on the glic button with a hide animation.
   void Collapse() {
-    if (!base::FeatureList::IsEnabled(kGlicButtonHideLabelOnTaskNudge)) {
-      return;
-    }
-
     WidthState old_width_state = width_state_;
     if (width_state_ == WidthState::kCollapsed) {
       return;
@@ -294,6 +222,7 @@ class GlicButton : public GlicButtonShim<T>,
 
     start_width_ = PreferredSize().width();
     end_width_ = kCollapsedWidth;
+
     width_animation_controller_->Start(old_width_state, width_state_);
 
     this->label()->SetPaintToLayer();
@@ -305,10 +234,6 @@ class GlicButton : public GlicButtonShim<T>,
 
   // Shows the default label on the glic button with a show animation.
   void Expand() {
-    if (!base::FeatureList::IsEnabled(kGlicButtonHideLabelOnTaskNudge)) {
-      return;
-    }
-
     // Update state.
     if (width_state_ != WidthState::kCollapsed) {
       return;
@@ -367,17 +292,21 @@ class GlicButton : public GlicButtonShim<T>,
     UpdateTextAndBackgroundColors();
     UpdateIcon();
 
-    // Set tooltip and accessibility text based on whether any glic UI (window
-    // or FRE) is open.
+    // The tooltip reflects whether clicking will open or close glic.
     std::u16string tooltip_text =
         l10n_util::GetStringUTF16(open ? IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE
                                        : IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP);
-
     this->SetTooltipText(tooltip_text);
-    this->GetViewAccessibility().SetName(tooltip_text);
+
+    // The accessibility text mirrors the visible label, unless glic is open, in
+    // which case this text should communicate that clicking will close it.
+    this->GetViewAccessibility().SetName(
+        open
+            ? l10n_util::GetStringUTF16(IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE)
+            : GetLabelText());
   }
 
-  virtual void SetIsShowingNudge(bool is_showing) {
+  void SetIsShowingNudge(bool is_showing) override {
     if (is_showing) {
       SetCloseButtonFocusBehavior(views::View::FocusBehavior::ALWAYS);
       AnnounceNudgeShown();
@@ -390,7 +319,9 @@ class GlicButton : public GlicButtonShim<T>,
     this->PreferredSizeChanged();
   }
 
-  bool GetIsShowingNudge() const { return width_state_ == WidthState::kNudge; }
+  bool GetIsShowingNudge() const override {
+    return width_state_ == WidthState::kNudge;
+  }
 
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override {
@@ -398,6 +329,7 @@ class GlicButton : public GlicButtonShim<T>,
         this->GetLayoutManager()
             ->GetPreferredSize(this, available_size)
             .width();
+
     const int height =
         T::CalculatePreferredSize(
             views::SizeBounds(current_preferred_width, available_size.height()))
@@ -472,6 +404,31 @@ class GlicButton : public GlicButtonShim<T>,
     T::RemovedFromWidget();
   }
 
+  void ShowContextMenuForViewImpl(
+      views::View* source,
+      const gfx::Point& point,
+      ui::mojom::MenuSourceType source_type) override {
+    if (!GetPrefService()->GetBoolean(glic::prefs::kGlicPinnedToTabstrip)) {
+      return;
+    }
+
+    menu_anchor_higlight_ = this->AddAnchorHighlight();
+
+    menu_model_adapter_ = std::make_unique<views::MenuModelAdapter>(
+        menu_model_.get(), base::BindRepeating(&GlicButton<T>::OnMenuClosed,
+                                               base::Unretained(this)));
+    menu_model_adapter_->set_triggerable_event_flags(ui::EF_LEFT_MOUSE_BUTTON |
+                                                     ui::EF_RIGHT_MOUSE_BUTTON);
+    std::unique_ptr<views::MenuItemView> root =
+        menu_model_adapter_->CreateMenu();
+    menu_runner_ = std::make_unique<views::MenuRunner>(
+        std::move(root),
+        views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU);
+    menu_runner_->RunMenuAt(this->GetWidget(), nullptr,
+                            this->GetAnchorBoundsInScreen(),
+                            views::MenuAnchorPosition::kTopLeft, source_type);
+  }
+
   // ui::SimpleMenuModel::Delegate:
   void ExecuteCommand(int command_id, int event_flags) override {
     CHECK(command_id == IDC_GLIC_TOGGLE_PIN);
@@ -533,13 +490,10 @@ class GlicButton : public GlicButtonShim<T>,
   // Show or hide the split button styling, used when the task indicator is
   // present.
   void SetSplitButtonCornerStyling() {
-    SetLeftRightCornerRadii(kSplitButtonFlatEdgeRadius,
-                            kSplitButtonFlatEdgeRadius);
+    SetLeftRightCornerRadii(GetSplitRoundedEdgeRadius(), kSplitFlatEdgetRadius);
   }
 
-  void ResetSplitButtonCornerStyling() {
-    SetLeftRightCornerRadii(T::GetCornerRadius(), T::GetCornerRadius());
-  }
+  virtual void ResetSplitButtonCornerStyling() = 0;
 
   void OnBrowserWindowDidBecomeActive(BrowserWindowInterface* bwi) {
     UpdateInkdropHoverColor(true);
@@ -556,7 +510,9 @@ class GlicButton : public GlicButtonShim<T>,
     UpdateColors();
   }
 
-  float GetWidthFactor() const { return width_factor_; }
+  float GetWidthFactor() const override { return width_factor_; }
+
+  virtual int GetSplitRoundedEdgeRadius() { return kSplitRoundedEdgeRadius; }
 
   void SetWidthFactor(float factor) {
     width_factor_ = factor;
@@ -581,7 +537,7 @@ class GlicButton : public GlicButtonShim<T>,
     OnLabelVisibilityChanged();
     auto* image_view =
         static_cast<views::ImageView*>(this->image_container_view());
-    image_view->SetImageSize({kIconSize, kIconSize});
+    image_view->SetImageSize({icon_size_, icon_size_});
     image_view->SetPaintToLayer();
     image_view->layer()->SetFillsBoundsOpaquely(false);
 
@@ -635,16 +591,16 @@ class GlicButton : public GlicButtonShim<T>,
   }
 
   void SetForegroundFrameActiveColorId(ui::ColorId new_color_id) override {
-    GlicButtonShim<T>::SetForegroundFrameActiveColorId(new_color_id);
+    GlicBaseShim<T>::SetForegroundFrameActiveColorId(new_color_id);
   }
   void SetForegroundFrameInactiveColorId(ui::ColorId new_color_id) override {
-    GlicButtonShim<T>::SetForegroundFrameInactiveColorId(new_color_id);
+    GlicBaseShim<T>::SetForegroundFrameInactiveColorId(new_color_id);
   }
   void SetBackgroundFrameActiveColorId(ui::ColorId new_color_id) override {
-    GlicButtonShim<T>::SetBackgroundFrameActiveColorId(new_color_id);
+    GlicBaseShim<T>::SetBackgroundFrameActiveColorId(new_color_id);
   }
   void SetBackgroundFrameInactiveColorId(ui::ColorId new_color_id) override {
-    GlicButtonShim<T>::SetBackgroundFrameInactiveColorId(new_color_id);
+    GlicBaseShim<T>::SetBackgroundFrameInactiveColorId(new_color_id);
   }
 
   // Callback when the context menu closes.
@@ -705,16 +661,13 @@ class GlicButton : public GlicButtonShim<T>,
   // Profile corresponding to the browser that this button is on.
   raw_ptr<Profile> profile_;
 
+  // Icon size for Gemini Button.
+  const int icon_size_ = 20;
+
  private:
   // views::LabelButton:
   void SetText(std::u16string_view text) override {
-    if constexpr (std::is_same_v<T, ToolbarButton>) {
-      // SetText is private in ToolbarButton and prefers to use SetHighlight.
-      std::u16string highlight_text(text);
-      this->SetHighlight(highlight_text, kTextOnHighlight);
-    } else {
-      this->SetText(text);
-    }
+    T::SetText(text);
 
     // Setting label text seems to clear the margin. Set it again.
     this->label()->SetProperty(views::kMarginsKey,
@@ -745,19 +698,19 @@ class GlicButton : public GlicButtonShim<T>,
 
   // Must be implemented by any subclass that does not have T implementing the
   // class.
-  void UpdateColors() override { GlicButtonShim<T>::UpdateColors(); }
+  void UpdateColors() override { GlicBaseShim<T>::UpdateColors(); }
 
   void SetCloseButtonFocusBehavior(
       views::View::FocusBehavior focus_behavior) override {
-    GlicButtonShim<T>::SetCloseButtonFocusBehavior(focus_behavior);
+    GlicBaseShim<T>::SetCloseButtonFocusBehavior(focus_behavior);
   }
 
   void SetLeftRightCornerRadii(int left, int right) override {
-    GlicButtonShim<T>::SetLeftRightCornerRadii(left, right);
+    GlicBaseShim<T>::SetLeftRightCornerRadii(left, right);
   }
 
   void SetInkdropHoverColorId(const ChromeColorIds new_color_id) override {
-    GlicButtonShim<T>::SetInkdropHoverColorId(new_color_id);
+    GlicBaseShim<T>::SetInkdropHoverColorId(new_color_id);
   }
 
   // Called every time the contextual cue is shown to make a screen reader
@@ -1044,24 +997,7 @@ class GlicButton : public GlicButtonShim<T>,
   views::View* highlight_view() { return highlight_view_; }
   WidthState width_state() { return width_state_; }
 
-#if BUILDFLAG(ENABLE_GLIC)
-  static gfx::Insets GetIconMargins(bool label_shown) {
-    int left = 6 - kHighlightMargin;
-    int right = 4;
-
-    if (label_shown) {
-      // Extra left margin if the label is shown.
-      left += 2;
-    }
-    return gfx::Insets().set_left_right(left, right);
-  }
-
-  void OnLabelVisibilityChanged() {
-    this->image_container_view()->SetProperty(
-        views::kMarginsKey,
-        GetIconMargins(ShouldShowLabel() && !IsAnimatingTextVisibility()));
-  }
-#endif  // BUILDFLAG(ENABLE_GLIC)
+  virtual void OnLabelVisibilityChanged() {}
 
   static bool EntrypointVariationsEnabled() {
     return base::FeatureList::IsEnabled(features::kGlicEntrypointVariations);
@@ -1081,7 +1017,7 @@ class GlicButton : public GlicButtonShim<T>,
     return GlicVectorIconManager::GetVectorIcon(IDR_GLIC_BUTTON_VECTOR_ICON);
   }
 
-  static ui::ImageModel GetNormalIcon() {
+  ui::ImageModel GetNormalIcon() {
     if (ShouldUseAltIcon()) {
       return ui::ImageModel::FromImageSkia(
           *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
@@ -1090,7 +1026,7 @@ class GlicButton : public GlicButtonShim<T>,
     return ui::ImageModel::FromVectorIcon(
         GlicVectorIcon(),
         ShouldUseAltIcon() ? kForegroundOnAltBackground : kForeground,
-        kIconSize);
+        icon_size_);
   }
 
   static bool HighlightNudgeEnabled() {
@@ -1098,12 +1034,10 @@ class GlicButton : public GlicButtonShim<T>,
            features::kGlicEntrypointVariationsHighlightNudge.Get();
   }
 
-  static ui::ImageModel GetIconForHighlight() {
-    if (!HighlightNudgeEnabled()) {
-      return {};
-    }
-    return ui::ImageModel::FromVectorIcon(GlicVectorIcon(), kTextOnHighlight,
-                                          kIconSize);
+  ui::ImageModel GetIconForHighlight() {
+    return ui::ImageModel::FromVectorIcon(
+        GlicVectorIcon(),
+        HighlightNudgeEnabled() ? kTextOnHighlight : kForeground, icon_size_);
   }
 
   // Helper for making animation durations instant if animations are disabled.

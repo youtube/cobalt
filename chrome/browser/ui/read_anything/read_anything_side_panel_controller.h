@@ -15,8 +15,9 @@
 #include "chrome/browser/ui/read_anything/read_anything_enums.h"
 #include "chrome/browser/ui/read_anything/read_anything_lifecycle_observer.h"
 #include "chrome/browser/ui/read_anything/read_anything_omnibox_controller.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_observer.h"
+#include "chrome/browser/ui/tabs/contents_observing_tab_feature.h"
 #include "chrome/browser/ui/views/page_action/page_action_observer.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_observer.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -63,8 +64,9 @@ class ReadAnythingSidePanelControllerGlue
 };
 
 // A per-tab class that facilitates the showing of the Read Anything side panel.
-class ReadAnythingSidePanelController : public SidePanelEntryObserver,
-                                        public content::WebContentsObserver {
+class ReadAnythingSidePanelController
+    : public SidePanelEntryObserver,
+      public tabs::ContentsObservingTabFeature {
  public:
   using Observer = ReadAnythingLifecycleObserver;
   ReadAnythingSidePanelController(tabs::TabInterface* tab,
@@ -75,8 +77,8 @@ class ReadAnythingSidePanelController : public SidePanelEntryObserver,
       const ReadAnythingSidePanelController&) = delete;
   ~ReadAnythingSidePanelController() override;
 
-  // TODO(https://crbug.com/347770670): remove this.
-  void ResetForTabDiscard();
+  // Removes the ReadAnythingControllerGlue from the web contents.
+  void RemoveReadAnythingControllerGlue();
 
   void AddPageHandlerAsObserver(
       base::WeakPtr<ReadAnythingUntrustedPageHandler> page_handler);
@@ -128,7 +130,12 @@ class ReadAnythingSidePanelController : public SidePanelEntryObserver,
 
   std::unique_ptr<ReadAnythingOmniboxController> omnibox_controller_;
 
-  base::ObserverList<Observer> observers_;
+  // TODO(crbug.com/484371187): Investigate if reentrancy can be removed.
+  base::ObserverList<
+      Observer,
+      /*check_empty=*/false,
+      base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>
+      observers_;
 
   const raw_ptr<tabs::TabInterface> tab_;
   raw_ptr<SidePanelRegistry> side_panel_registry_;

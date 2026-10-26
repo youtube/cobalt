@@ -139,6 +139,7 @@ public class Snackbar {
     public static final int UMA_CROSS_DEVICE_SETTING_IMPORT = 82;
     public static final int UMA_CROSS_DEVICE_SETTING_UNDO = 83;
     public static final int UMA_CROSS_DEVICE_SETTING_REDO = 84;
+    public static final int UMA_CHROME_FINDS_OPT_IN = 85;
 
     private final @Nullable SnackbarController mController;
     private final CharSequence mText;
@@ -146,7 +147,7 @@ public class Snackbar {
     private @Nullable String mActionText;
     private @Nullable Object mActionData;
     private int mBackgroundColor;
-    private int mTextApperanceResId;
+    private int mTextAppearanceResId;
     private boolean mDefaultLines = true;
     private int mDurationMs;
     private @Nullable Drawable mProfileImage;
@@ -256,7 +257,7 @@ public class Snackbar {
      * appearance.
      */
     public Snackbar setTextAppearance(int resId) {
-        mTextApperanceResId = resId;
+        mTextAppearanceResId = resId;
         return this;
     }
 
@@ -313,7 +314,7 @@ public class Snackbar {
 
     /** If method returns zero, then default text appearance for snackbar will be used. */
     int getTextAppearance() {
-        return mTextApperanceResId;
+        return mTextAppearanceResId;
     }
 
     /**

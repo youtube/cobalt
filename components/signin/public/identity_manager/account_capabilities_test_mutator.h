@@ -36,6 +36,12 @@ class AccountCapabilitiesTestMutator {
 #endif
   void set_can_show_history_sync_opt_ins_without_minor_mode_restrictions(
       bool value);
+#if BUILDFLAG(IS_IOS)
+  void set_can_sign_in_to_chrome(bool value);
+#endif
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  void set_can_submit_feedback(bool value);
+#endif
 #if BUILDFLAG(IS_CHROMEOS)
   void set_can_toggle_auto_updates(bool value);
 #endif

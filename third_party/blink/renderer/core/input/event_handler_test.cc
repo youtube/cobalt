@@ -52,6 +52,7 @@
 #include "third_party/blink/renderer/core/testing/sim/sim_request.h"
 #include "third_party/blink/renderer/core/testing/sim/sim_test.h"
 #include "third_party/blink/renderer/platform/keyboard_codes.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "ui/base/cursor/cursor.h"
@@ -1003,6 +1004,85 @@ TEST_F(EventHandlerTest, SelectionOnDoublePressPreventDefaultMousePress) {
   EXPECT_TRUE(Selection().GetSelectionInDOMTree().IsNone());
 }
 
+// Regression test for crbug.com/427367148:
+// Cancelling pointerdown should not suppress dblclick for touch-originated
+// gestures. When pointerdown is cancelled via preventDefault(), mouse events
+// (mousedown, mousemove, mouseup) are suppressed, but click and dblclick
+// should still fire to maintain interop with Firefox and Safari.
+TEST_F(EventHandlerTest, DblclickFiredWhenPointerdownCanceled) {
+  GetDocument().GetSettings()->SetScriptEnabled(true);
+  SetHtmlInnerHTML(
+      "<div id='target' style='width:200px;height:200px;'></div>"
+      "<div id='result'></div>");
+  Element* script = GetDocument().CreateRawElement(html_names::kScriptTag);
+  script->SetInnerHTMLWithoutTrustedTypes(
+      R"HTML(
+        let target = document.getElementById('target');
+        let result = document.getElementById('result');
+        target.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+        });
+        target.addEventListener('dblclick', (e) => {
+          result.textContent = 'dblclick-fired';
+        });
+      )HTML");
+  GetDocument().body()->AppendChild(script);
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+
+  gfx::PointF tap_point(100, 100);
+  uint32_t touch_id_1 = 100;
+  uint32_t touch_id_2 = 101;
+
+  // Simulate first tap: pointerdown (cancelled) -> gesture tap down ->
+  // pointerup -> tap.
+  WebPointerEvent pointer_down_1 = CreateMinimalTouchPointerEvent(
+      WebInputEvent::Type::kPointerDown, tap_point);
+  pointer_down_1.unique_touch_event_id = touch_id_1;
+  GetDocument().GetFrame()->GetEventHandler().HandlePointerEvent(
+      pointer_down_1, Vector<WebPointerEvent>(), Vector<WebPointerEvent>());
+
+  TapDownEventBuilder tap_down_1(tap_point);
+  tap_down_1.unique_touch_event_id = touch_id_1;
+  GetDocument().GetFrame()->GetEventHandler().HandleGestureEvent(tap_down_1);
+
+  WebPointerEvent pointer_up_1 = CreateMinimalTouchPointerEvent(
+      WebInputEvent::Type::kPointerUp, tap_point);
+  pointer_up_1.unique_touch_event_id = touch_id_1;
+  GetDocument().GetFrame()->GetEventHandler().HandlePointerEvent(
+      pointer_up_1, Vector<WebPointerEvent>(), Vector<WebPointerEvent>());
+
+  TapEventBuilder tap_1(tap_point, 1);
+  tap_1.primary_unique_touch_event_id = touch_id_1;
+  GetDocument().GetFrame()->GetEventHandler().HandleGestureEvent(tap_1);
+
+  // Simulate second tap: pointerdown (cancelled) -> gesture tap down ->
+  // pointerup -> tap with tap_count=2.
+  WebPointerEvent pointer_down_2 = CreateMinimalTouchPointerEvent(
+      WebInputEvent::Type::kPointerDown, tap_point);
+  pointer_down_2.unique_touch_event_id = touch_id_2;
+  GetDocument().GetFrame()->GetEventHandler().HandlePointerEvent(
+      pointer_down_2, Vector<WebPointerEvent>(), Vector<WebPointerEvent>());
+
+  TapDownEventBuilder tap_down_2(tap_point);
+  tap_down_2.data.tap_down.tap_down_count = 2;
+  tap_down_2.unique_touch_event_id = touch_id_2;
+  GetDocument().GetFrame()->GetEventHandler().HandleGestureEvent(tap_down_2);
+
+  WebPointerEvent pointer_up_2 = CreateMinimalTouchPointerEvent(
+      WebInputEvent::Type::kPointerUp, tap_point);
+  pointer_up_2.unique_touch_event_id = touch_id_2;
+  GetDocument().GetFrame()->GetEventHandler().HandlePointerEvent(
+      pointer_up_2, Vector<WebPointerEvent>(), Vector<WebPointerEvent>());
+
+  TapEventBuilder tap_2(tap_point, 2);
+  tap_2.primary_unique_touch_event_id = touch_id_2;
+  GetDocument().GetFrame()->GetEventHandler().HandleGestureEvent(tap_2);
+
+  // dblclick should have fired even though pointerdown was cancelled.
+  WebElement result_elem = GetDocument().getElementById(AtomicString("result"));
+  EXPECT_EQ("dblclick-fired", result_elem.TextContent().Utf8());
+}
+
 TEST_F(EventHandlerTest, ClearHandleAfterTap) {
   SetHtmlInnerHTML("<textarea cols=50  rows=10>Enter text</textarea>");
 
@@ -1108,7 +1188,7 @@ TEST_F(EventHandlerTest, MisspellingContextMenuEvent) {
   ASSERT_TRUE(Selection().IsHandleVisible());
 
   GetDocument().GetFrame()->GetEventHandler().ShowNonLocatedContextMenu(
-      nullptr, kMenuSourceTouchHandle);
+      nullptr, ui::mojom::blink::MenuSourceType::kTouchHandle);
 
   ASSERT_TRUE(Selection().GetSelectionInDOMTree().IsCaret());
   ASSERT_TRUE(Selection().IsHandleVisible());
@@ -3590,8 +3670,14 @@ TEST_F(EventHandlerSimTest, ValidClickPointerIdForUnseenPointerEvent) {
 TEST_F(EventHandlerSimTest, GestureTapHoverState) {
   ResizeView(gfx::Size(800, 600));
 
-  // RecomputeMouseHoverState() bails early if we are not focused.
-  GetPage().SetFocused(true);
+  // With this feature enabled, RecomputeMouseHoverStateIfNeeded() fires
+  // synthetic mouse events for inactive pages. If the feature is disabled, we
+  // need to focus the page to avoid the early exit in
+  // RecomputeMouseHoverStateIfNeeded(). See crbug.com/385474535 for more
+  // details.
+  if (!RuntimeEnabledFeatures::SyntheticMouseHoverOverInactivePageEnabled()) {
+    GetPage().SetFocused(true);
+  }
 
   SimRequest request("https://example.com/test.html", "text/html");
   LoadURL("https://example.com/test.html");

@@ -13,11 +13,11 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
+#include "remoting/signaling/jingle_data_structures.h"
 #include "remoting/signaling/mock_signal_strategy.h"
-#include "remoting/signaling/xmpp_constants.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/libjingle_xmpp/xmllite/xmlelement.h"
 
 using ::testing::_;
 using ::testing::DeleteArg;
@@ -27,29 +27,25 @@ using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::SaveArg;
 
-using ::jingle_xmpp::QName;
-using ::jingle_xmpp::XmlElement;
-
 namespace remoting {
 
 namespace {
 
 const char kStanzaId[] = "123";
-const char kNamespace[] = "chromium:testns";
-const char kNamespacePrefix[] = "tes";
-const char kBodyTag[] = "test";
-const char kType[] = "get";
-const char kTo[] = "user@domain.com";
+const char kLocalUser[] = "local_user@domain.com";
+const char kRemoteUser[] = "remote_user@domain.com";
+const char kUpperCaseRemoteUser[] = "REMOTE_USER@domain.com";
 
-MATCHER_P(XmlEq, expected, "") {
-  return arg->Str() == expected->Str();
+MATCHER_P(ReplyEq, expected, "") {
+  return arg.reply_type == expected.reply_type &&
+         arg.error_type == expected.error_type && arg.text == expected.text;
 }
 
 }  // namespace
 
 class IqSenderTest : public testing::Test {
  public:
-  IqSenderTest() : signal_strategy_(SignalingAddress("local_jid@domain.com")) {
+  IqSenderTest() : signal_strategy_(SignalingAddress(kLocalUser)) {
     EXPECT_CALL(signal_strategy_, AddListener(NotNull()));
     sender_ = std::make_unique<IqSender>(&signal_strategy_);
     EXPECT_CALL(
@@ -59,42 +55,36 @@ class IqSenderTest : public testing::Test {
 
  protected:
   void SendTestMessage() {
-    std::unique_ptr<XmlElement> iq_body(
-        new XmlElement(QName(kNamespace, kBodyTag)));
-    XmlElement* sent_stanza;
-    EXPECT_CALL(signal_strategy_, GetNextId()).WillOnce(Return(kStanzaId));
-    EXPECT_CALL(signal_strategy_, SendStanzaPtr(_))
-        .WillOnce(DoAll(SaveArg<0>(&sent_stanza), Return(true)));
-    request_ = sender_->SendIq(kType, kTo, std::move(iq_body), callback_.Get());
+    JingleMessage message;
+    message.to = SignalingAddress(kRemoteUser);
+    message.sid = "test_sid";
+    message.message_id = kStanzaId;
+    message.SetPayload(SessionTerminate());
 
-    std::string expected_xml_string = base::StringPrintf(
-        "<cli:iq type=\"%s\" to=\"%s\" id=\"%s\" "
-        "xmlns:cli=\"jabber:client\">"
-        "<%s:%s xmlns:%s=\"%s\"/>"
-        "</cli:iq>",
-        kType, kTo, kStanzaId, kNamespacePrefix, kBodyTag, kNamespacePrefix,
-        kNamespace);
-    EXPECT_EQ(expected_xml_string, sent_stanza->Str());
-    delete sent_stanza;
+    EXPECT_CALL(signal_strategy_, SendMessage(_))
+        .WillOnce([&](JingleMessage&& message_arg) {
+          EXPECT_EQ(message_arg.to, message.to);
+          EXPECT_EQ(message_arg.sid, message.sid);
+          EXPECT_EQ(message_arg.message_id, message.message_id);
+          EXPECT_EQ(message_arg.action(), message.action());
+          EXPECT_TRUE(std::get_if<SessionTerminate>(&message_arg.payload()));
+          return true;
+        });
+    request_ = sender_->SendIq(std::move(message), callback_.Get());
   }
 
-  bool FormatAndDeliverResponse(const std::string& from,
-                                std::unique_ptr<XmlElement>* response_out) {
-    std::unique_ptr<XmlElement> response(new XmlElement(kQNameIq));
-    response->AddAttr(QName(std::string(), "type"), "result");
-    response->AddAttr(QName(std::string(), "id"), kStanzaId);
-    response->AddAttr(QName(std::string(), "from"), from);
+  bool DeliverResponse(const std::string& from,
+                       JingleMessageReply* reply_out = nullptr) {
+    JingleMessageReply reply;
+    reply.reply_type = JingleMessageReply::REPLY_RESULT;
+    reply.message_id = kStanzaId;
+    reply.from = SignalingAddress(from);
 
-    XmlElement* response_body =
-        new XmlElement(QName("test:namespace", "response-body"));
-    response->AddElement(response_body);
+    bool result = sender_->OnSignalingReply(SignalingAddress(from), reply);
 
-    bool result = sender_->OnSignalStrategyIncomingStanza(response.get());
-
-    if (response_out) {
-      *response_out = std::move(response);
+    if (reply_out) {
+      *reply_out = std::move(reply);
     }
-
     return result;
   }
 
@@ -108,10 +98,10 @@ class IqSenderTest : public testing::Test {
 TEST_F(IqSenderTest, SendIq) {
   ASSERT_NO_FATAL_FAILURE({ SendTestMessage(); });
 
-  std::unique_ptr<XmlElement> response;
-  EXPECT_TRUE(FormatAndDeliverResponse(kTo, &response));
+  JingleMessageReply expected_reply;
+  EXPECT_TRUE(DeliverResponse(kRemoteUser, &expected_reply));
 
-  EXPECT_CALL(callback_, Run(request_.get(), XmlEq(response.get())));
+  EXPECT_CALL(callback_, Run(request_.get(), ReplyEq(expected_reply)));
   base::RunLoop().RunUntilIdle();
 }
 
@@ -120,28 +110,34 @@ TEST_F(IqSenderTest, Timeout) {
 
   request_->SetTimeout(base::Milliseconds(2));
 
-  base::RunLoop run_loop;
-  EXPECT_CALL(callback_, Run(request_.get(), nullptr))
-      .WillOnce(InvokeWithoutArgs(&run_loop, &base::RunLoop::QuitWhenIdle));
-  run_loop.Run();
+  JingleMessageReply expected_reply;
+  expected_reply.reply_type = JingleMessageReply::REPLY_ERROR;
+  expected_reply.error_type = JingleMessageReply::UNEXPECTED_REQUEST;
+  expected_reply.text = "timeout";
+
+  base::test::TestFuture<IqRequest*, const JingleMessageReply&> future;
+  EXPECT_CALL(callback_, Run(request_.get(), ReplyEq(expected_reply)))
+      .WillOnce([&](IqRequest* request, const JingleMessageReply& reply) {
+        future.SetValue(request, reply);
+      });
+  ASSERT_TRUE(future.Wait());
 }
 
 TEST_F(IqSenderTest, NotNormalizedJid) {
   ASSERT_NO_FATAL_FAILURE({ SendTestMessage(); });
 
-  // Set upper-case from value, which is equivalent to kTo in the original
-  // message.
-  std::unique_ptr<XmlElement> response;
-  EXPECT_TRUE(FormatAndDeliverResponse("USER@domain.com", &response));
+  // Use an upper-case value to verify it is normalized.
+  JingleMessageReply expected_reply;
+  EXPECT_TRUE(DeliverResponse(kUpperCaseRemoteUser, &expected_reply));
 
-  EXPECT_CALL(callback_, Run(request_.get(), XmlEq(response.get())));
+  EXPECT_CALL(callback_, Run(request_.get(), ReplyEq(expected_reply)));
   base::RunLoop().RunUntilIdle();
 }
 
 TEST_F(IqSenderTest, InvalidFrom) {
   ASSERT_NO_FATAL_FAILURE({ SendTestMessage(); });
 
-  EXPECT_FALSE(FormatAndDeliverResponse("different_user@domain.com", nullptr));
+  EXPECT_FALSE(DeliverResponse("different_user@domain.com", nullptr));
 
   EXPECT_CALL(callback_, Run(_, _)).Times(0);
   base::RunLoop().RunUntilIdle();

@@ -89,9 +89,7 @@ def get_file_github(repo: str, ref: str, path: str) -> bytes:
     return data
 
 
-class Browser:
-    __metaclass__ = ABCMeta
-
+class Browser(metaclass=ABCMeta):
     def __init__(self, logger):
         self.logger = logger
 
@@ -1584,7 +1582,7 @@ class HeadlessShell(ChromeChromiumBase):
         return "N/A"
 
 
-class ChromeAndroidBase(Browser):
+class ChromeAndroidBase(Browser, metaclass=ABCMeta):
     """A base class for ChromeAndroid and AndroidWebView.
 
     On Android, WebView is based on Chromium open source project, and on some
@@ -1592,7 +1590,6 @@ class ChromeAndroidBase(Browser):
     a very similar WPT runner implementation.
     Includes webdriver installation.
     """
-    __metaclass__ = ABCMeta  # This is an abstract class.
 
     def __init__(self, logger):
         super().__init__(logger)
@@ -2318,7 +2315,7 @@ class Servo(Browser):
 
         resp = self._get(channel)
         decompress(resp.raw, dest=dest)
-        path = which("servo", path=os.path.join(dest, "servo"))
+        path = which("servoshell", path=os.path.join(dest, "servo"))
         st = os.stat(path)
         os.chmod(path, st.st_mode | stat.S_IEXEC)
         return path
@@ -2342,9 +2339,9 @@ class Servo(Browser):
         if m:
             return m.group(0)
 
-
-class ServoWebDriver(Servo):
-    product = "servodriver"
+# Uses same configuration as Servo
+class ServoLegacy(Servo):
+    product = "servo_legacy"
 
 
 class Sauce(Browser):

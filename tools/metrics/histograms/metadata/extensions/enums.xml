@@ -36,6 +36,15 @@ chromium-metrics-reviews@google.com.
       label="Assessment Assistant (gndmhdcefbhlchkhipcnnbkcmicncehk)"/>
 </enum>
 
+<enum name="BackingStoreRestoreStatus">
+  <int value="0" label="RESTORE_NONE"/>
+  <int value="1" label="DB_RESTORE_DELETE_SUCCESS"/>
+  <int value="2" label="DB_RESTORE_DELETE_FAILURE"/>
+  <int value="3" label="DB_RESTORE_REPAIR_SUCCESS"/>
+  <int value="4" label="VALUE_RESTORE_DELETE_SUCCESS"/>
+  <int value="5" label="VALUE_RESTORE_DELETE_FAILURE"/>
+</enum>
+
 <enum name="BadSyncDataReason">
   <int value="0" label="Bad extension ID"/>
   <int value="1" label="Bad version"/>
@@ -797,6 +806,8 @@ Called by update_extension_histograms.py.-->
   <int value="570" label="SIDE_PANEL_ON_CLOSED"/>
   <int value="571" label="ACCESSIBILITY_PRIVATE_ON_KEY_DOWN"/>
   <int value="572" label="ACCESSIBILITY_PRIVATE_ON_KEY_UP"/>
+  <int value="573"
+      label="PASSWORDS_PRIVATE_ON_PASSWORD_MANAGER_ACTIONABLE_ERROR_CHANGED"/>
 </enum>
 
 <!-- LINT.ThenChange(//extensions/browser/extension_event_histogram_value.h:HistogramValue) -->
@@ -3276,6 +3287,13 @@ Called by update_extension_permission.py.-->
   <int value="4" label="Non-webstore extension without hashes skipped"/>
 </enum>
 
+<enum name="ExtensionsDatabaseOperation">
+  <int value="0" label="get"/>
+  <int value="1" label="set"/>
+  <int value="2" label="remove"/>
+  <int value="3" label="clear"/>
+</enum>
+
 <enum name="ExtensionType">
   <int value="0" label="UNKNOWN"/>
   <int value="1" label="EXTENSION"/>
@@ -3627,6 +3645,14 @@ Called by update_extension_permission.py.-->
   <int value="18" label="kErrorWriteFlatbuffer"/>
 </enum>
 
+<enum name="ValueStoreStatusCode">
+  <int value="0" label="OK"/>
+  <int value="1" label="CORRUPTION"/>
+  <int value="2" label="READ_ONLY"/>
+  <int value="3" label="QUOTA_EXCEEDED"/>
+  <int value="4" label="OTHER_ERROR"/>
+</enum>
+
 <enum name="VerifiedFileType">
   <summary>
     The type of file that was verified in content verification. Keep in sync
@@ -3808,6 +3834,12 @@ Called by update_extension_permission.py.-->
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/webui/extensions_zero_state_promo/zero_state_promo.mojom:WebStoreLinkClicked) -->
+
+<enum name="WorkerVersionIdState">
+  <int value="0" label="New version is older"/>
+  <int value="1" label="New version is equal"/>
+  <int value="2" label="New version is newer"/>
+</enum>
 
 </enums>
 

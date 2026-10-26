@@ -23,10 +23,9 @@ GraphicsPipeline::GraphicsPipeline(const SharedContext* sharedContext,
                                    std::string_view label)
         : Resource(sharedContext,
                    Ownership::kOwned,
-                   /*gpuMemorySize=*/0)
-        , fPipelineInfo(pipelineInfo) {
-    this->setLabel(label);
-}
+                   /*gpuMemorySize=*/0,
+                   label)
+        , fPipelineInfo(pipelineInfo) {}
 
 GraphicsPipeline::~GraphicsPipeline() {
 #if defined(SK_PIPELINE_LIFETIME_LOGGING)

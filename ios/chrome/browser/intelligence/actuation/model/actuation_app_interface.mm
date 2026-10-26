@@ -8,6 +8,7 @@
 #import "base/functional/callback_helpers.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/optimization_guide/proto/features/actions_data.pb.h"
+#import "ios/chrome/browser/intelligence/actuation/model/actuation_error.h"
 #import "ios/chrome/browser/intelligence/actuation/model/actuation_service.h"
 #import "ios/chrome/browser/intelligence/actuation/model/actuation_service_factory.h"
 #import "ios/chrome/browser/intelligence/actuation/model/tools/actuation_tool.h"
@@ -53,9 +54,10 @@ NSString* const kActuationAppInterfaceErrorDomain =
         if (result.has_value()) {
           completion(nil);
         } else {
-          NSString* errorMsg = base::SysUTF8ToNSString(result.error().message);
+          NSString* errorMsg =
+              base::SysUTF8ToNSString(GetActuationErrorMessage(result.error()));
           completion([NSError
-              errorWithDomain:@"ActuationTool::ActuationErrorCode"
+              errorWithDomain:@"ActuationErrorCode"
                          code:(NSInteger)result.error().code
                      userInfo:@{NSLocalizedDescriptionKey : errorMsg}]);
         }

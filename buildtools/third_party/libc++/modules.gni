@@ -31,6 +31,7 @@ if (use_clang_modules) {
       forward_variables_from(invoker, "*", [ "modulemap" ])
       use_libcxx_modules = false
       sources = [ invoker.modulemap ]
+      module_name = target_name
       if (!defined(public_deps)) {
         public_deps = []
       }
@@ -78,11 +79,18 @@ if (use_clang_modules) {
           "//buildtools/third_party/libc++:sysroot_modulemaps",
         ]
       }
-      configs -= configs_to_remove
+
+      # Header files in modules need to be built with chromium_code config as
+      # some warnings are not triggered if we use no_chromium_code config for
+      # modules compiles.
+      configs -= configs_to_remove - [ "//build/config/compiler:chromium_code" ]
 
       # The module needs to use the same version of -std that is used by the
       # libraries depending on it. Otherwise we get a module config mismatch.
-      configs += configs_to_add - [ "//buildtools/third_party/libc++:stdver" ]
+      configs += configs_to_add - [
+                   "//build/config/compiler:no_chromium_code",
+                   "//buildtools/third_party/libc++:stdver",
+                 ]
 
       # Any complex target-specific logic needs to go in here.
       # The modularize tool supports simple attributes, but not conditional

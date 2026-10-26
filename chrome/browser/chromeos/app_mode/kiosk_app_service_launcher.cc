@@ -16,7 +16,6 @@
 #include "build/buildflag.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "components/services/app_service/public/cpp/app.h"
 #include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
@@ -25,6 +24,7 @@
 #include "components/services/app_service/public/cpp/app_update.h"
 #include "components/services/app_service/public/cpp/instance.h"
 #include "components/services/app_service/public/cpp/instance_update.h"
+#include "components/services/app_service/public/cpp/launch_result.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
 
@@ -133,7 +133,7 @@ void KioskAppServiceLauncher::OnInstanceUpdate(
   // When running with Lacros the visibility update often arrives before the
   // launch update, so trigger the launch update first.
   // This will be a no-op if the launch update already arrived.
-  OnAppLaunched(apps::LaunchResult(apps::LaunchResult::State::kSuccess));
+  OnAppLaunched(apps::LaunchResult(apps::LaunchResult::kSuccess));
 
   instance_registry_observation_.Reset();
   if (!app_visible_callback_.is_null()) {
@@ -159,7 +159,7 @@ void KioskAppServiceLauncher::LaunchAppInternal() {
                                         weak_ptr_factory_.GetWeakPtr()));
 }
 
-void KioskAppServiceLauncher::OnAppLaunched(apps::LaunchResult&& result) {
+void KioskAppServiceLauncher::OnAppLaunched(apps::LaunchResult result) {
   // App window is not active at this moment. We need to close splash screen
   // after app window is activated which will be handled in subclasses.
   if (!app_launched_callback_.is_null()) {

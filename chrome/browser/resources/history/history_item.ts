@@ -31,11 +31,11 @@ import {getHtml} from './history_item.html.js';
 
 export interface HistoryItemElement {
   $: {
-    'checkbox': CrCheckboxElement,
-    'icon': HTMLElement,
-    'link': HTMLElement,
-    'menu-button': CrIconButtonElement,
-    'time-accessed': HTMLElement,
+    checkbox: CrCheckboxElement,
+    icon: HTMLElement,
+    link: HTMLElement,
+    menuButton: CrIconButtonElement,
+    timeAccessed: HTMLElement,
   };
 }
 
@@ -127,7 +127,7 @@ export class HistoryItemElement extends HistoryItemElementBase {
   }
 
   focusOnMenuButton() {
-    focusWithoutInk(this.$['menu-button']);
+    focusWithoutInk(this.$.menuButton);
   }
 
   private onCheckboxKeydown_(e: KeyboardEvent) {
@@ -174,7 +174,11 @@ export class HistoryItemElement extends HistoryItemElementBase {
    * has to fire before onCheckboxChange_. If we bind it to click/press,
    * it might trigger out of desired order.
    */
-  protected onCheckboxClick_(e: MouseEvent) {
+  protected onCheckboxMousedown_(e: MouseEvent) {
+    this.isShiftKeyDown_ = e.shiftKey;
+  }
+
+  protected onCheckboxSelectKeydown_(e: KeyboardEvent) {
     this.isShiftKeyDown_ = e.shiftKey;
   }
 
@@ -229,8 +233,7 @@ export class HistoryItemElement extends HistoryItemElementBase {
   }
 
   protected shouldShowActorTooltip_() {
-    return loadTimeData.getBoolean('enableBrowsingHistoryActorIntegrationM1') &&
-        this.item?.isActorVisit;
+    return this.item?.isActorVisit;
   }
 
   /**
@@ -243,7 +246,7 @@ export class HistoryItemElement extends HistoryItemElementBase {
 
     if (this.shadowRoot.querySelector('#bookmark-star') ===
         this.shadowRoot.activeElement) {
-      focusWithoutInk(this.$['menu-button']);
+      focusWithoutInk(this.$.menuButton);
     }
 
     const browserService = BrowserServiceImpl.getInstance();
@@ -296,7 +299,11 @@ export class HistoryItemElement extends HistoryItemElementBase {
     });
   }
 
-  protected onLinkRightClick_() {
+  protected onLinkAuxclick_() {
+    this.onLinkClick_();
+  }
+
+  protected onLinkContextmenu_() {
     BrowserServiceImpl.getInstance().recordAction('EntryLinkRightClick');
   }
 
@@ -311,7 +318,7 @@ export class HistoryItemElement extends HistoryItemElementBase {
         this.item.url, this.item.isUrlInRemoteUserData,
         this.item.remoteIconUrlForUma);
     this.eventTracker_.add(
-        this.$['time-accessed'], 'mouseover', () => this.addTimeTitle_());
+        this.$.timeAccessed, 'mouseover', () => this.addTimeTitle_());
   }
 
   protected cardTitle_(): string {
@@ -329,7 +336,7 @@ export class HistoryItemElement extends HistoryItemElementBase {
     if (!this.item) {
       return;
     }
-    const el = this.$['time-accessed'];
+    const el = this.$.timeAccessed;
     el.setAttribute('title', new Date(this.item.time).toString());
     this.eventTracker_.remove(el, 'mouseover');
   }

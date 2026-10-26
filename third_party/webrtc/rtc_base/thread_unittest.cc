@@ -10,10 +10,12 @@
 
 #include "rtc_base/thread.h"
 
+#include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -26,6 +28,7 @@
 #include "api/units/time_delta.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/async_udp_socket.h"
+#include "rtc_base/byte_order.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/fake_clock.h"
@@ -42,6 +45,7 @@
 #include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
+#include "test/run_loop.h"
 #include "test/testsupport/rtc_expect_death.h"
 #include "test/wait_until.h"
 
@@ -81,8 +85,9 @@ class MessageClient : public TestGenerator {
   ~MessageClient() { delete socket_; }
 
   void OnValue(int value) {
-    int result = Next(value);
-    EXPECT_GE(socket_->Send(&result, sizeof(result)), 0);
+    std::array<uint8_t, sizeof(uint32_t)> octets;
+    SetLE32(octets, Next(value));
+    EXPECT_GE(socket_->Send(octets.data(), octets.size()), 0);
   }
 
  private:
@@ -113,8 +118,7 @@ class SocketClient : public TestGenerator {
 
   void OnPacket(AsyncPacketSocket* socket, const ReceivedIpPacket& packet) {
     EXPECT_EQ(packet.payload().size(), sizeof(uint32_t));
-    uint32_t prev =
-        reinterpret_cast<const uint32_t*>(packet.payload().data())[0];
+    uint32_t prev = GetLE32(packet.payload());
     uint32_t result = Next(prev);
 
     post_thread_->PostDelayedTask([post_handler_ = post_handler_,
@@ -868,6 +872,155 @@ TEST(ThreadPostDelayedTaskTest, IsCurrentTaskQueue) {
   }
   EXPECT_EQ(TaskQueueBase::Current(), current_tq);
 }
+
+// Verifies that posting a high-priority task sets the "yield requested" flag
+// on the target thread, allowing a cooperative task to observe it.
+TEST(ThreadCooperativeTest, HighPriorityTaskTriggersYieldRequest) {
+  test::RunLoop loop;
+  auto thread = Thread::Create();
+  thread->Start();
+
+  bool yield_requested = false;
+  Event task_started;
+
+  // Post a long running task that checks for yield
+  thread->PostTask(
+      [&yield_requested, &loop, &task_started, thread = thread.get()] {
+        task_started.Set();
+        while (!thread->IsYieldRequested()) {
+          // Busy loop/simulated work
+        }
+        loop.PostTask([&yield_requested, &loop] {
+          yield_requested = true;
+          loop.Quit();
+        });
+      });
+
+  // Wait for the task to start to ensure that the high priority task doesn't
+  // run first.
+  task_started.Wait(Event::kForever);
+
+  // Post a high priority task that interrupts the busy loop.
+  thread->PostHighPriorityTask([] {});
+
+  loop.Run();
+  EXPECT_TRUE(yield_requested);
+}
+
+// Verifies that a high-priority task is executed before a regular priority task
+// that was posted earlier, if the thread was busy.
+TEST(ThreadCooperativeTest, HighPriorityTaskRunsFirst) {
+  test::RunLoop loop;
+  auto thread = Thread::Create();
+  thread->Start();
+
+  std::vector<std::string> execution_order;
+  Event task1_started;
+  Event continue_execution;
+
+  // Task 1: Blocks the thread until signaled.
+  thread->PostTask([&] {
+    task1_started.Set();
+    continue_execution.Wait(Event::kForever);
+    loop.PostTask([&] { execution_order.push_back("Task1"); });
+  });
+
+  task1_started.Wait(Event::kForever);
+
+  // Task 2: Regular priority.
+  thread->PostTask(
+      [&] { loop.PostTask([&] { execution_order.push_back("Task2"); }); });
+
+  // Task 3: High priority. High priority tasks should run before "Task2".
+  thread->PostHighPriorityTask(
+      [&] { loop.PostTask([&] { execution_order.push_back("Task3"); }); });
+
+  // Signal Task 1 to continue.
+  continue_execution.Set();
+
+  // Now post a task to quit the loop.
+  thread->PostTask([&] { loop.PostTask([&] { loop.Quit(); }); });
+
+  loop.Run();
+
+  // Expect Task1 (resuming), Task3 (High Prio), Task2 (Low Prio - pushed to
+  // back).
+  EXPECT_THAT(execution_order, ElementsAre("Task1", "Task3", "Task2"));
+}
+
+// Verifies that multiple high-priority tasks execute in the sequence they were
+// posted (FIFO order).
+TEST(ThreadCooperativeTest, HighPriorityTasksExecuteInSequence) {
+  test::RunLoop loop;
+  auto thread = Thread::Create();
+  thread->Start();
+
+  std::vector<std::string> execution_order;
+  Event task1_started;
+  Event continue_execution;
+
+  // Block the thread.
+  thread->PostTask([&] {
+    task1_started.Set();
+    continue_execution.Wait(Event::kForever);
+  });
+
+  task1_started.Wait(Event::kForever);
+
+  // Post a normal priority task first to ensure high priority tasks run before
+  // it.
+  thread->PostTask(
+      [&] { loop.PostTask([&] { execution_order.push_back("Normal1"); }); });
+
+  // Post multiple high priority tasks while the thread is blocked.
+  thread->PostHighPriorityTask(
+      [&] { loop.PostTask([&] { execution_order.push_back("HP1"); }); });
+  thread->PostHighPriorityTask(
+      [&] { loop.PostTask([&] { execution_order.push_back("HP2"); }); });
+  thread->PostHighPriorityTask(
+      [&] { loop.PostTask([&] { execution_order.push_back("HP3"); }); });
+
+  // Unblock the thread.
+  continue_execution.Set();
+
+  // Quit after all tasks.
+  thread->PostTask([&] { loop.PostTask([&] { loop.Quit(); }); });
+
+  loop.Run();
+
+  EXPECT_THAT(execution_order, ElementsAre("HP1", "HP2", "HP3", "Normal1"));
+}
+
+TEST(ThreadCooperativeTest, YieldRequestedClearedAfterHighPriorityTask) {
+  std::unique_ptr<Thread> thread(Thread::Create());
+  thread->Start();
+
+  // Initially false.
+  thread->BlockingCall([&] { EXPECT_FALSE(thread->IsYieldRequested()); });
+
+  // Post high priority task.
+  thread->PostHighPriorityTask([&] {});
+
+  // Post normal task.
+  thread->BlockingCall([&] { EXPECT_FALSE(thread->IsYieldRequested()); });
+}
+
+#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID) && RTC_DCHECK_IS_ON
+TEST(ThreadCooperativeDeathTest, YieldInSynchronousBlockingCallTriggersDeath) {
+  std::unique_ptr<Thread> background_thread = Thread::Create();
+  background_thread->Start();
+  background_thread->BlockingCall([&] {
+    // Yielding from a top-level synchronous blocking call is allowed.
+    background_thread->IsYieldRequested();
+
+    // Call a nested BlockingCall.
+    background_thread->BlockingCall([&] {
+      // This violates the "no yielding in blocking call" rule.
+      EXPECT_DEATH(background_thread->IsYieldRequested(), "");
+    });
+  });
+}
+#endif
 
 class ThreadFactory : public TaskQueueFactory {
  public:

@@ -33,6 +33,7 @@ aom_unit_test_common_sources = [
 
 aom_unit_test_decoder_sources = [
   "//third_party/libaom/source/libaom/test/decode_api_test.cc",
+  "//third_party/libaom/source/libaom/test/decode_frame_size_limit_test.cc",
   "//third_party/libaom/source/libaom/test/decode_scalability_test.cc",
   "//third_party/libaom/source/libaom/test/external_frame_buffer_test.cc",
   "//third_party/libaom/source/libaom/test/invalid_file_test.cc",
@@ -64,6 +65,7 @@ aom_unit_test_encoder_sources = [
   "//third_party/libaom/source/libaom/test/datarate_test.cc",
   "//third_party/libaom/source/libaom/test/datarate_test.h",
   "//third_party/libaom/source/libaom/test/encode_api_test.cc",
+  "//third_party/libaom/source/libaom/test/encode_large_width_height_test.cc",
   "//third_party/libaom/source/libaom/test/encode_small_width_height_test.cc",
   "//third_party/libaom/source/libaom/test/encode_test_driver.cc",
   "//third_party/libaom/source/libaom/test/encode_test_driver.h",
@@ -99,6 +101,7 @@ aom_unit_test_encoder_sources = [
   "//third_party/libaom/source/libaom/test/sum_squares_test.cc",
   "//third_party/libaom/source/libaom/test/svc_datarate_test.cc",
   "//third_party/libaom/source/libaom/test/time_stamp_test.cc",
+  "//third_party/libaom/source/libaom/test/use_fixed_qp_offsets_test.cc",
   "//third_party/libaom/source/libaom/test/variance_test.cc",
   "//third_party/libaom/source/libaom/test/webmenc_test.cc",
   "//third_party/libaom/source/libaom/test/y4m_test.cc",

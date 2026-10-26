@@ -742,9 +742,6 @@ template <class CharT>
 void RegExpParserImpl<CharT>::Advance() {
   if (has_next()) {
     if (GetCurrentStackPosition() < stack_limit_) {
-      if (v8_flags.correctness_fuzzer_suppressions) {
-        FATAL("Aborting on stack overflow");
-      }
       ReportError(RegExpError::kStackOverflow);
     } else {
       current_ = ReadNext<true>();
@@ -2193,7 +2190,7 @@ bool IsBinaryPropertyOfStrings(UProperty property) {
 }
 
 bool IsUnicodePropertyValueCharacter(char c) {
-  // https://tc39.github.io/proposal-regexp-unicode-property-escapes/
+  // https://tc39.es/proposal-regexp-unicode-property-escapes/
   //
   // Note that using this to validate each parsed char is quite conservative.
   // A possible alternative solution would be to only ensure the parsed
@@ -3080,7 +3077,7 @@ RegExpTree* RegExpParserImpl<CharT>::ParseCharacterClass(
     if (!ignore_case()) {
       character_class_flags |= RegExpClassRanges::NO_CASE_FOLDING_NEEDED;
     }
-    if (sizeof(CharT) == 1) {
+    if (sizeof(CharT) == 1 && !is_negated) {
       // No surrogate pairs.
       character_class_flags |= RegExpClassRanges::IS_CERTAINLY_ONE_CODE_POINT;
     }

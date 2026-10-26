@@ -76,6 +76,7 @@ class GlicSidePanelUi
   bool IsShowing() const override;
   void ClosePanel() override;
   void OnReload() override;
+  void OnMicrophoneStatusChanged(mojom::MicrophoneStatus status) override {}
 
   void SidePanelStateChanged(GlicSidePanelCoordinator::State state);
 
@@ -83,6 +84,7 @@ class GlicSidePanelUi
   void FocusIfOpen() override;
   bool HasFocus() override;
   bool ActivateBrowser() override;
+  void Zoom(mojom::ZoomAction zoom_action) override;
   void ShowTitleBarContextMenuAt(gfx::Point event_loc) override;
   base::WeakPtr<views::View> GetView() override;
 
@@ -95,6 +97,8 @@ class GlicSidePanelUi
   void OnBrowserWindowDeactivated(BrowserWindowInterface* bwi);
   // Focuses on embedder's webcontens.
   void SetFocusDelayed();
+  void SetModalDialogDelegate(
+      web_modal::WebContentsModalDialogManagerDelegate* delegate);
 
   GlicSidePanelCoordinator* GetGlicSidePanelCoordinator() const;
   base::CallbackListSubscription panel_visibility_subscription_;

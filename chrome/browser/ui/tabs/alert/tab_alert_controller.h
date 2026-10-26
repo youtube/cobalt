@@ -63,6 +63,9 @@ class TabAlertController : public tabs::ContentsObservingTabFeature,
   // Returns the corresponding string id for `alert_state`.
   static int GetAccessibleAlertStringId(const TabAlert alert_state);
 
+  // Records metrics for when a tab is closed.
+  static void RecordCloseTabMetrics(const TabAlert alert_state);
+
   using AlertToShowChangedCallback =
       base::RepeatingCallback<void(std::optional<TabAlert>)>;
   base::CallbackListSubscription AddAlertToShowChangedCallback(
@@ -103,10 +106,8 @@ class TabAlertController : public tabs::ContentsObservingTabFeature,
   void OnIsContentDisplayedInHeadsetChanged(bool state) override;
 
  private:
-#if BUILDFLAG(ENABLE_GLIC)
   void OnGlicSharingStateChange(bool is_sharing);
   void OnGlicAccessingStateChange(bool is_accessing);
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
   void OnActorTabIndicatorStateChanged(
       actor::ui::TabIndicatorStatus tab_indicator_state);

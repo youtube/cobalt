@@ -60,6 +60,13 @@ targets.mixin(
             ),
         ],
     ),
+    resultdb = targets.resultdb(
+        base_variant = {
+            # LINT.IfChange(avd-11-x86-emulator)
+            "device_os": "RSR1.210722.013.A2",
+            # LINT.ThenChange(//tools/android/avd/proto/android_30_google_apis_x86.textpb:avd-11-x86-emulator)
+        },
+    ),
 )
 
 targets.mixin(
@@ -570,6 +577,14 @@ targets.mixin(
     name = "tfc-run-public",
     skylab = targets.skylab(
         cros_test_names_from_file = ["chromeos/tast_control_disabled_tests.txt", "chromeos/tast_control_disabled_tests_public_builders.txt"],
+    ),
+)
+
+targets.mixin(
+    name = "tfc-cq-tast",
+    skylab = targets.skylab(
+        cros_test_tags = ["group:mainline", "dep:chrome", "group:cq-medium"],
+        cros_test_max_in_shard = 10,
     ),
 )
 
@@ -1237,14 +1252,14 @@ targets.mixin(
 targets.mixin(
     name = "gpu_force_skia_ganesh",
     args = [
-        "--extra-browser-args=--disable-features=SkiaGraphite",
+        "--extra-browser-args=--disable-skia-graphite",
     ],
 )
 
 targets.mixin(
     name = "gpu_force_skia_graphite",
     args = [
-        "--extra-browser-args=--enable-features=SkiaGraphite",
+        "--extra-browser-args=--enable-skia-graphite",
     ],
 )
 
@@ -1366,12 +1381,12 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "ios_runtime_cache_26_2",
+    name = "ios_runtime_cache_26_4",
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "runtime_ios_26_2",
-                path = "Runtime-ios-26.2",
+                name = "runtime_ios_26_4",
+                path = "Runtime-ios-26.4",
             ),
         ],
     ),
@@ -2348,7 +2363,7 @@ targets.mixin(
             targets.cipd_package(
                 package = "chromium/android_webview/tools/cts_archive",
                 location = "android_webview/tools/cts_archive/cipd",
-                revision = "8BpUBTnmt5bH3GiqPKpmTWTP-Ie2X1TuUgf4F0IsgVgC",
+                revision = "oW6-jyOPGwPJeLlaldYwrxZoYqzXpjO1OZUdyF3Qq7sC",
             ),
         ],
     ),
@@ -2656,12 +2671,12 @@ targets.mixin(
     name = "xcode_26_beta",
     args = [
         "--xcode-build-version",
-        "17c52",
+        "17e5179g",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17c52",
+                name = "xcode_ios_17e5179g",
                 path = "Xcode.app",
             ),
         ],

@@ -70,11 +70,13 @@
 #include "third_party/blink/public/web/web_view_client.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_focus_options.h"
 #include "third_party/blink/renderer/core/accessibility/histogram_macros.h"
+#include "third_party/blink/renderer/core/clipboard/data_transfer_access_policy.h"
 #include "third_party/blink/renderer/core/content_capture/content_capture_manager.h"
 #include "third_party/blink/renderer/core/core_initializer.h"
 #include "third_party/blink/renderer/core/css/media_value_change.h"
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
 #include "third_party/blink/renderer/core/dom/element.h"
+#include "third_party/blink/renderer/core/dom/events/event_dispatch_result.h"
 #include "third_party/blink/renderer/core/dom/focus_params.h"
 #include "third_party/blink/renderer/core/dom/layout_tree_builder_traversal.h"
 #include "third_party/blink/renderer/core/dom/scroll_marker_group_pseudo_element.h"
@@ -86,6 +88,8 @@
 #include "third_party/blink/renderer/core/editing/ime/stylus_writing_gesture.h"
 #include "third_party/blink/renderer/core/editing/position_with_affinity.h"
 #include "third_party/blink/renderer/core/editing/selection_template.h"
+#include "third_party/blink/renderer/core/editing/visible_selection.h"
+#include "third_party/blink/renderer/core/events/clipboard_event.h"
 #include "third_party/blink/renderer/core/events/current_input_event.h"
 #include "third_party/blink/renderer/core/events/pointer_event_factory.h"
 #include "third_party/blink/renderer/core/events/web_input_event_conversion.h"
@@ -165,7 +169,7 @@
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-blink.h"
-#include "ui/base/mojom/menu_source_type.mojom-blink-forward.h"
+#include "ui/base/mojom/menu_source_type.mojom-blink.h"
 #include "ui/base/mojom/window_show_state.mojom-blink.h"
 #include "ui/gfx/geometry/mojom/geometry.mojom-forward.h"
 #include "ui/gfx/geometry/point_conversions.h"
@@ -264,7 +268,7 @@ bool IsElementNotNullAndEditable(Element* element) {
   if (text_control && !text_control->IsDisabledOrReadOnly())
     return true;
 
-  if (EqualIgnoringASCIICase(element->FastGetAttribute(html_names::kRoleAttr),
+  if (EqualIgnoringAsciiCase(element->FastGetAttribute(html_names::kRoleAttr),
                              "textbox")) {
     return true;
   }
@@ -654,7 +658,8 @@ void WebFrameWidgetImpl::DragSourceEndedAt(const gfx::PointF& point_in_viewport,
       WebInputEvent::Type::kMouseMove,
       GetPage()->GetVisualViewport().ViewportToRootFrame(point_in_viewport),
       screen_point, WebPointerProperties::Button::kLeft, 0,
-      WebInputEvent::kNoModifiers, base::TimeTicks::Now(), kMenuSourceNone,
+      WebInputEvent::kNoModifiers, base::TimeTicks::Now(),
+      ui::mojom::blink::MenuSourceType::kNone,
       local_root_->GetFrame()
           ->GetPage()
           ->GetDragController()
@@ -998,29 +1003,33 @@ WebInputEventResult WebFrameWidgetImpl::HandleKeyEvent(
     return result;
   }
 
-#if !BUILDFLAG(IS_MAC)
   const WebInputEvent::Type kContextMenuKeyTriggeringEventType =
 #if BUILDFLAG(IS_WIN)
       WebInputEvent::Type::kKeyUp;
 #else
       WebInputEvent::Type::kRawKeyDown;
 #endif
+
   const WebInputEvent::Type kShiftF10TriggeringEventType =
       WebInputEvent::Type::kRawKeyDown;
 
   bool is_unmodified_menu_key =
       !(event.GetModifiers() & WebInputEvent::kInputModifiers) &&
       event.windows_key_code == VKEY_APPS;
+#if BUILDFLAG(IS_MAC)
+  bool is_shift_f10 = false;
+#else
   bool is_shift_f10 = (event.GetModifiers() & WebInputEvent::kInputModifiers) ==
                           WebInputEvent::kShiftKey &&
                       event.windows_key_code == VKEY_F10;
+#endif
+
   if ((is_unmodified_menu_key &&
        event.GetType() == kContextMenuKeyTriggeringEventType) ||
       (is_shift_f10 && event.GetType() == kShiftF10TriggeringEventType)) {
     View()->SendContextMenuEvent();
     return WebInputEventResult::kHandledSystem;
   }
-#endif  // !BUILDFLAG(IS_MAC)
 
   return WebInputEventResult::kNotHandled;
 }
@@ -1099,7 +1108,7 @@ void WebFrameWidgetImpl::MouseContextMenu(const WebMouseEvent& event) {
 
   WebMouseEvent transformed_event =
       TransformWebMouseEvent(LocalRootImpl()->GetFrameView(), event);
-  transformed_event.menu_source_type = kMenuSourceMouse;
+  transformed_event.menu_source_type = ui::mojom::blink::MenuSourceType::kMouse;
   transformed_event.id = PointerEventFactory::kMouseId;
 
   // Find the right target frame. See issue 1186900.
@@ -1402,20 +1411,6 @@ void WebFrameWidgetImpl::DragTargetDragEnterOrOver(
   }
 }
 
-void WebFrameWidgetImpl::SendOverscrollEventFromImplSide(
-    const gfx::Vector2dF& overscroll_delta,
-    cc::ElementId scroll_latched_element_id) {
-  if (!RuntimeEnabledFeatures::OverscrollCustomizationEnabled())
-    return;
-
-  Node* target_node = View()->FindNodeFromScrollableCompositorElementId(
-      scroll_latched_element_id);
-  if (target_node) {
-    target_node->GetDocument().EnqueueOverscrollEventForNode(
-        target_node, overscroll_delta.x(), overscroll_delta.y());
-  }
-}
-
 void WebFrameWidgetImpl::SendEndOfScrollEvents(
     const cc::CompositorCommitData& commit_data) {
   HeapHashSet<Member<AnchorElementViewportPositionTracker>> handled_trackers;
@@ -1494,10 +1489,6 @@ void WebFrameWidgetImpl::UpdateCompositorScrollState(
   if (commit_data.scroll_latched_element_id != cc::ElementId()) {
     if (commit_data.snap_strategy) {
       SendScrollSnapChangingEventIfNeeded(commit_data);
-    }
-    if (!commit_data.overscroll_delta.IsZero()) {
-      SendOverscrollEventFromImplSide(commit_data.overscroll_delta,
-                                      commit_data.scroll_latched_element_id);
     }
     NotifyLatchedScrollMarkerGroup(commit_data);
   }
@@ -1679,12 +1670,21 @@ AnimationFrameTimingInfo* WebFrameWidgetImpl::RecordRenderingUpdateEndTime(
       *local_root_frame->DomWindow(), rendering_update_time);
 }
 
+void WebFrameWidgetImpl::WillBeginImplCommit() {
+  LocalFrame* local_root_frame = LocalRootImpl()->GetFrame();
+  CHECK(local_root_frame);
+
+  if (LocalFrameView* frame_view = local_root_frame->View()) {
+    frame_view->WillBeginImplCommit();
+  }
+}
+
 void WebFrameWidgetImpl::DidBeginMainFrame() {
   LocalFrame* local_root_frame = LocalRootImpl()->GetFrame();
   CHECK(local_root_frame);
 
   if (LocalFrameView* frame_view = local_root_frame->View()) {
-    frame_view->RunPostLifecycleSteps();
+    frame_view->DidBeginMainFrame();
   }
 
   if (Page* page = local_root_frame->GetPage()) {
@@ -2262,8 +2262,8 @@ void WebFrameWidgetImpl::ShowContextMenu(
     ContextMenuAllowedScope scope;
     if (LocalFrame* focused_frame =
             GetPage()->GetFocusController().FocusedFrame()) {
-      focused_frame->GetEventHandler().ShowNonLocatedContextMenu(
-          nullptr, static_cast<blink::WebMenuSourceType>(source_type));
+      focused_frame->GetEventHandler().ShowNonLocatedContextMenu(nullptr,
+                                                                 source_type);
     }
   }
   host_context_menu_location_.reset();
@@ -2643,6 +2643,10 @@ void WebFrameWidgetImpl::BeginMainFrame(const viz::BeginFrameArgs& args) {
   DCHECK(!last_frame_time.is_null());
   CHECK(LocalRootImpl());
 
+#if BUILDFLAG(IS_COBALT)
+  cobalt_bmf_start_time_ = last_frame_time;
+#endif
+
   if (animation_frame_timing_monitor_) {
     animation_frame_timing_monitor_->BeginMainFrame(
         *LocalRootImpl()->GetFrame()->DomWindow(), args.frame_id);
@@ -2724,6 +2728,46 @@ void WebFrameWidgetImpl::EndCommitCompositorFrame(
       next_commit_compositor_frame_start_time_;
   next_commit_compositor_frame_start_time_.reset();
 }
+
+#if BUILDFLAG(IS_COBALT)
+void WebFrameWidgetImpl::OnCobaltPresentationCallback(
+    CobaltMainFrameSnapshot snapshot,
+    const viz::FrameTimingDetails& /*frame_timing_details*/) {
+  // cc::LayerTreeHost::DidPresentCompositorFrame() runs successful-
+  // presentation callbacks synchronously, right before notifying
+  // LayerTreeView, which calls DidPresentCobaltFrame() for the same frame
+  // token. Several main frames can resolve on one presented frame (e.g. when
+  // an earlier frame was not presented), so keep them all and let
+  // DidPresentCobaltFrame() pick.
+  pending_cobalt_main_snapshots_.push_back(std::move(snapshot));
+}
+
+void WebFrameWidgetImpl::DidPresentCobaltFrame(
+    uint32_t frame_token,
+    const viz::FrameTimingDetails& frame_timing_details) {
+  // Only snapshots resolved by this presentation belong to this frame.
+  Vector<CobaltMainFrameSnapshot> snapshots;
+  snapshots.swap(pending_cobalt_main_snapshots_);
+
+  if (!LocalRootImpl() || !LocalRootImpl()->GetFrame() ||
+      !LocalRootImpl()->GetFrame()->DomWindow()) {
+    return;
+  }
+  WindowPerformance* performance = DOMWindowPerformance::performance(
+      *LocalRootImpl()->GetFrame()->DomWindow());
+  if (!performance) {
+    return;
+  }
+  // The newest main frame is the one whose content this frame presents;
+  // older ones were superseded before they reached the screen.
+  std::optional<CobaltMainFrameSnapshot> snapshot;
+  if (!snapshots.empty()) {
+    snapshot = std::move(snapshots.back());
+  }
+  performance->QueueCobaltFrameTiming(frame_token, frame_timing_details,
+                                      std::move(snapshot));
+}
+#endif
 
 void WebFrameWidgetImpl::ApplyViewportChanges(
     const ApplyViewportChangesArgs& args) {
@@ -2825,9 +2869,42 @@ void WebFrameWidgetImpl::EndUpdateLayers() {
         LocalFrameUkmAggregator::kUpdateLayers,
         update_layers_start_time_.value(), base::TimeTicks::Now());
     probe::LayerTreeDidChange(LocalRootImpl()->GetFrame());
+#if BUILDFLAG(IS_COBALT)
+    RequestCobaltMainFramePresentation();
+#endif
   }
   update_layers_start_time_.reset();
 }
+
+#if BUILDFLAG(IS_COBALT)
+void WebFrameWidgetImpl::RequestCobaltMainFramePresentation() {
+  // Runs inside cc::LayerTreeHost::UpdateLayers(), i.e. before
+  // LayerTreeHost::WillCommit() activates the pending commit state, so the
+  // callback is attached to the commit that carries this main frame. (From
+  // BeginCommitCompositorFrame() / EndCommitCompositorFrame() it would be
+  // attached to the following commit.)
+  LocalFrame* frame = LocalRootImpl()->GetFrame();
+  if (!frame->DomWindow()) {
+    return;
+  }
+  WindowPerformance* performance =
+      DOMWindowPerformance::performance(*frame->DomWindow());
+  if (!performance || !performance->HasCobaltFrameObserver()) {
+    return;
+  }
+  LocalFrameView* view = frame->View();
+  if (!view || !view->GetUkmAggregator() ||
+      !view->GetUkmAggregator()->InMainFrameUpdate()) {
+    return;
+  }
+  CobaltMainFrameSnapshot snapshot;
+  snapshot.bmf_start = cobalt_bmf_start_time_;
+  snapshot.metrics = view->GetUkmAggregator()->GetBeginMainFrameMetrics();
+  LayerTreeHost()->RequestSuccessfulPresentationTimeForNextFrame(
+      BindOnce(&WebFrameWidgetImpl::OnCobaltPresentationCallback,
+               WrapWeakPersistent(this), std::move(snapshot)));
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 void WebFrameWidgetImpl::RecordStartOfFrameMetrics() {
   if (!LocalRootImpl())
@@ -4148,9 +4225,8 @@ void WebFrameWidgetImpl::GetCompositionCharacterBoundsInWindow(
 #if BUILDFLAG(IS_ANDROID)
 namespace {
 
-void GetLineBounds(Vector<gfx::QuadF>& line_quads,
-                   TextControlInnerEditorElement* inner_editor) {
-  for (const Node& node : NodeTraversal::DescendantsOf(*inner_editor)) {
+void GetLineBounds(Vector<gfx::QuadF>& line_quads, Node* editor_node) {
+  for (const Node& node : NodeTraversal::DescendantsOf(*editor_node)) {
     if (!node.GetLayoutObject() || !node.GetLayoutObject()->IsText()) {
       continue;
     }
@@ -4167,21 +4243,32 @@ Vector<gfx::Rect> WebFrameWidgetImpl::CalculateVisibleLineBoundsOnScreen() {
   if (!focused_element) {
     return bounds_in_dips;
   }
-  TextControlElement* text_control = ToTextControlOrNull(focused_element);
-  if (!text_control || text_control->IsDisabledOrReadOnly() ||
-      text_control->Value().empty() || !text_control->GetLayoutObject()) {
+
+  Node* editor_node;
+  if (TextControlElement* text_control = ToTextControlOrNull(focused_element);
+      text_control && !text_control->IsDisabledOrReadOnly() &&
+      !text_control->Value().empty()) {
+    editor_node = text_control->InnerEditorElement();
+  } else if (IsEditable(*focused_element) &&
+             !focused_element->textContent().empty()) {
+    editor_node = focused_element;
+  } else {
+    return bounds_in_dips;
+  }
+
+  LayoutObject* layout_object = focused_element->GetLayoutObject();
+  if (!layout_object) {
     return bounds_in_dips;
   }
 
   Vector<gfx::QuadF> bounds_from_blink;
-  GetLineBounds(bounds_from_blink, text_control->InnerEditorElement());
+  GetLineBounds(bounds_from_blink, editor_node);
 
   gfx::Rect screen = LocalRootImpl()->GetFrameView()->FrameToScreen(
       GetPage()->GetVisualViewport().VisibleContentRect());
   for (auto& quad : bounds_from_blink) {
-    gfx::Rect bounding_box =
-        focused_element->GetLayoutObject()->GetFrameView()->FrameToScreen(
-            gfx::ToRoundedRect(quad.BoundingBox()));
+    gfx::Rect bounding_box = layout_object->GetFrameView()->FrameToScreen(
+        gfx::ToRoundedRect(quad.BoundingBox()));
     bounding_box.Intersect(screen);
     if (bounding_box.IsEmpty()) {
       continue;
@@ -4203,9 +4290,15 @@ void WebFrameWidgetImpl::UpdateCursorAnchorInfo(bool update_requested) {
   if (!focused_element) {
     return;
   }
-  TextControlElement* text_control = ToTextControlOrNull(focused_element);
-  if (!text_control || text_control->IsDisabledOrReadOnly() ||
-      !text_control->GetLayoutObject()) {
+
+  // Only update cursor for active text controls or contenteditable elements.
+  if (TextControlElement* text_control = ToTextControlOrNull(focused_element);
+      (!text_control || text_control->IsDisabledOrReadOnly()) &&
+      !IsEditable(*focused_element)) {
+    return;
+  }
+  LayoutObject* layout_object = focused_element->GetLayoutObject();
+  if (!layout_object) {
     return;
   }
 
@@ -4226,8 +4319,7 @@ void WebFrameWidgetImpl::UpdateCursorAnchorInfo(bool update_requested) {
 
   mojom::blink::TextAppearanceInfoPtr text_appearance_info =
       mojom::blink::TextAppearanceInfo::New(
-          text_control->GetLayoutObject()
-              ->StyleRef()
+          layout_object->StyleRef()
               .VisitedDependentColor(GetCSSPropertyColor())
               .Rgb());
 
@@ -4431,6 +4523,53 @@ void WebFrameWidgetImpl::PasteAndMatchStyle() {
   if (!focused_frame)
     return;
   focused_frame->ExecuteCommand(WebString::FromLatin1("PasteAndMatchStyle"));
+}
+
+void WebFrameWidgetImpl::PasteFromImageBytes(
+    mojo_base::BigBuffer image_bytes,
+    const String& media_format,
+    PasteFromImageBytesCallback callback) {
+  if (image_bytes.size() == 0) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  LocalFrame* local_frame = FocusedLocalFrameInWidget();
+  if (!local_frame) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  Element* const target = FindEventTargetFrom(
+      *local_frame,
+      local_frame->Selection().ComputeVisibleSelectionInDOMTree());
+
+  if (!target) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  DataObject* data_object = DataObject::Create();
+
+  data_object->AddFileSharedBuffer(SharedBuffer::Create(image_bytes),
+                                   /*is_accessible_from_start_frame=*/true,
+                                   KURL(), media_format,
+                                   /*content_disposition=*/AtomicString());
+
+  DataTransfer* const data_transfer =
+      DataTransfer::Create(DataTransfer::kCopyAndPaste,
+                           DataTransferAccessPolicy::kReadable, data_object);
+
+  Event* const evt =
+      ClipboardEvent::Create(event_type_names::kPaste, data_transfer);
+
+  target->DispatchEvent(*evt);
+
+  // If the default event handling is prevented, it indicates the paste event
+  // was handled by the app. Notify the caller of the success status.
+  std::move(callback).Run(evt->defaultPrevented());
+
+  // TODO(crbug.com/453540697) - Add Paste as Fragment support
 }
 
 void WebFrameWidgetImpl::Delete() {

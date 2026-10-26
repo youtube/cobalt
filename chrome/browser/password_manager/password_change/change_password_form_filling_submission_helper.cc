@@ -90,7 +90,31 @@ FormFillingHelper::FillingTasks PrepareFormForFilling(
   return filling_tasks;
 }
 
+ChangePasswordFormFillingSubmissionHelper::SubmissionResult LogError(
+    ChangePasswordFormFillingSubmissionHelper::SubmissionResult result) {
+  if (result.has_value()) {
+    return result;
+  }
+  base::UmaHistogramEnumeration(
+      "PasswordManager.ChangePasswordFormSubmissionError", result.error());
+  return result;
+}
+
 }  // namespace
+
+ChangePasswordFormFillingSubmissionHelper::
+    ChangePasswordFormFillingSubmissionHelper(
+        content::WebContents* web_contents,
+        password_manager::PasswordManagerClient* client,
+        base::OnceCallback<void(SubmissionResult)> callback)
+    : creation_time_(base::Time::Now()),
+      web_contents_(web_contents),
+      client_(client),
+      callback_(base::BindOnce(&LogError).Then(std::move(callback))) {
+  capture_annotated_page_content_ =
+      base::BindOnce(&optimization_guide::GetAIPageContent, web_contents,
+                     GetAIPageContentOptions());
+}
 
 ChangePasswordFormFillingSubmissionHelper::
     ChangePasswordFormFillingSubmissionHelper(
@@ -98,15 +122,11 @@ ChangePasswordFormFillingSubmissionHelper::
         password_manager::PasswordManagerClient* client,
         ModelQualityLogsUploader* logs_uploader,
         base::OnceCallback<void(SubmissionResult)> callback)
-    : creation_time_(base::Time::Now()),
-      web_contents_(web_contents),
-      client_(client),
-      logs_uploader_(logs_uploader),
-      callback_(std::move(callback)) {
-  CHECK(logs_uploader_);
-  capture_annotated_page_content_ =
-      base::BindOnce(&optimization_guide::GetAIPageContent, web_contents,
-                     GetAIPageContentOptions());
+    : ChangePasswordFormFillingSubmissionHelper(web_contents,
+                                                client,
+                                                std::move(callback)) {
+  CHECK(logs_uploader);
+  logs_uploader_ = logs_uploader;
 }
 
 ChangePasswordFormFillingSubmissionHelper::
@@ -127,12 +147,10 @@ ChangePasswordFormFillingSubmissionHelper::
 
 ChangePasswordFormFillingSubmissionHelper::
     ~ChangePasswordFormFillingSubmissionHelper() {
-  // Record duration in case the something went wrong before the helper reached
-  // Submit click.
-  if (creation_time_) {
-    base::TimeDelta time_delta = base::Time::Now() - creation_time_.value();
-    base::UmaHistogramMediumTimes("PasswordManager.TimeSpentChangingPassword",
-                                  time_delta);
+  base::TimeDelta time_delta = base::Time::Now() - creation_time_;
+  base::UmaHistogramMediumTimes("PasswordManager.TimeSpentChangingPassword",
+                                time_delta);
+  if (logs_uploader_) {
     logs_uploader_->SetStepDuration(kSubmitFormFlowStep, time_delta);
   }
 }
@@ -152,8 +170,10 @@ void ChangePasswordFormFillingSubmissionHelper::FillChangePasswordForm(
 
   // TODO(crbug.com/422125487): Fix metrics duplication.
   form_manager_ = form_manager->Clone();
-  logs_uploader_->SetChangePasswordFormData(
-      *form_manager->GetParsedObservedForm());
+  if (logs_uploader_) {
+    logs_uploader_->SetChangePasswordFormData(
+        *form_manager->GetParsedObservedForm());
+  }
 
   const password_manager::PasswordForm* best_match =
       password_manager_util::FindFormByUsername(form_manager_->GetBestMatches(),
@@ -178,7 +198,8 @@ void ChangePasswordFormFillingSubmissionHelper::FillChangePasswordForm(
 
 void ChangePasswordFormFillingSubmissionHelper::OnPasswordFormSubmission(
     content::WebContents* web_contents) {
-  if (!submission_verifier_) {
+  // Ignore any submission before the button was clicked.
+  if (!click_helper_) {
     return;
   }
   if (web_contents != web_contents_) {
@@ -217,7 +238,8 @@ void ChangePasswordFormFillingSubmissionHelper::TriggerFilling(
   CHECK(form_manager_);
   if (!driver) {
     // Fail immediately as something went terribly wrong (e.g. page crashed).
-    std::move(callback_).Run(SubmissionResult::kFailure);
+    std::move(callback_).Run(
+        base::unexpected(SubmissionError::kFailedToFillForm));
     return;
   }
 
@@ -289,10 +311,12 @@ void ChangePasswordFormFillingSubmissionHelper::ChangePasswordFormFilled(
   }
 
   if (!provisionally_saved) {
-    logs_uploader_->SetFlowInterrupted(
-        kSubmitFormFlowStep,
-        ModelQualityLogsUploader::QualityStatus::
-            PasswordChangeQuality_StepQuality_SubmissionStatus_FORM_FILLING_FAILED);
+    if (logs_uploader_) {
+      logs_uploader_->SetFlowInterrupted(
+          kSubmitFormFlowStep,
+          ModelQualityLogsUploader::QualityStatus::
+              PasswordChangeQuality_StepQuality_SubmissionStatus_FORM_FILLING_FAILED);
+    }
     // Change password form disappeared, some websites practice updating form
     // dynamically which resets the form. Try to find a new change-pwd form.
     form_waiter_ =
@@ -302,9 +326,18 @@ void ChangePasswordFormFillingSubmissionHelper::ChangePasswordFormFilled(
                                OnChangePasswordFormFound,
                            weak_ptr_factory_.GetWeakPtr()))
             .SetTimeoutCallback(base::BindOnce(
-                &ChangePasswordFormFillingSubmissionHelper::
-                    OnSubmissionOutcomeChecked,
-                weak_ptr_factory_.GetWeakPtr(), SubmissionResult::kFailure))
+                [](base::WeakPtr<ChangePasswordFormFillingSubmissionHelper>
+                       helper) {
+                  if (!helper) {
+                    return;
+                  }
+                  CHECK(helper->callback_);
+                  // New form wasn't found. The flow should be marked as failed.
+                  std::move(helper->callback_)
+                      .Run(
+                          base::unexpected(SubmissionError::kFailedToFillForm));
+                },
+                weak_ptr_factory_.GetWeakPtr()))
             .SetFieldsToIgnore(observed_fields_)
             .Build();
     return;
@@ -333,7 +366,8 @@ void ChangePasswordFormFillingSubmissionHelper::OnPageContentReceived(
   if (!content.has_value()) {
     LogPageContentCaptureFailure(password_manager::metrics_util::
                                      PasswordChangeFlowStep::kSubmitFormStep);
-    std::move(callback_).Run(SubmissionResult::kFailure);
+    std::move(callback_).Run(
+        base::unexpected(SubmissionError::kFailedToCaptureContent));
     return;
   }
   optimization_guide::proto::PasswordChangeRequest request;
@@ -368,10 +402,13 @@ void ChangePasswordFormFillingSubmissionHelper::OnExecutionResponseCallback(
         optimization_guide::proto::PasswordChangeResponse>(
         execution_result.response.value());
   }
-  logs_uploader_->SetSubmitFormQuality(response, std::move(logging_data));
+  if (logs_uploader_) {
+    logs_uploader_->SetSubmitFormQuality(response, std::move(logging_data));
+  }
 
   if (!response) {
-    std::move(callback_).Run(SubmissionResult::kFailure);
+    std::move(callback_).Run(
+        base::unexpected(SubmissionError::kFailedToParseResponse));
     return;
   }
 
@@ -379,7 +416,7 @@ void ChangePasswordFormFillingSubmissionHelper::OnExecutionResponseCallback(
       base::FeatureList::IsEnabled(
           password_manager::features::kUserInterventionForPasswordChange)) {
     std::move(callback_).Run(
-        SubmissionResult::kUserInterventionNeededPasswordNotSumbitted);
+        base::unexpected(SubmissionError::kInterventionDetected));
     return;
   }
 
@@ -387,22 +424,11 @@ void ChangePasswordFormFillingSubmissionHelper::OnExecutionResponseCallback(
 
   if (!dom_node_id) {
     // Fail immediately as model didn't provide a submit element to click.
-    std::move(callback_).Run(SubmissionResult::kFailure);
+    std::move(callback_).Run(
+        base::unexpected(SubmissionError::kSubmitButtonNotFound));
     return;
   }
 
-  CHECK(creation_time_);
-  base::TimeDelta time_delta = base::Time::Now() - creation_time_.value();
-  base::UmaHistogramMediumTimes("PasswordManager.TimeSpentChangingPassword",
-                                time_delta);
-  logs_uploader_->SetStepDuration(kSubmitFormFlowStep, time_delta);
-
-  // Reset creation_time_ to avoid recording duration the second time in
-  // destructor.
-  creation_time_ = std::nullopt;
-
-  submission_verifier_ = std::make_unique<PasswordChangeSubmissionVerifier>(
-      web_contents_, logs_uploader_);
   click_helper_ = std::make_unique<ButtonClickHelper>(
       web_contents_.get(), client_, dom_node_id,
       base::BindOnce(
@@ -413,12 +439,28 @@ void ChangePasswordFormFillingSubmissionHelper::OnExecutionResponseCallback(
 void ChangePasswordFormFillingSubmissionHelper::OnButtonClicked(
     actor::mojom::ActionResultCode result) {
   CHECK(web_contents_);
-  click_helper_.reset();
+
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kPasswordChangeImmediateSubmission)) {
+    if (result == actor::mojom::ActionResultCode::kOk) {
+      std::move(callback_).Run(std::move(form_manager_));
+    } else {
+      if (logs_uploader_) {
+        logs_uploader_->RecordButtonClickFailure(kSubmitFormFlowStep, result);
+      }
+      std::move(callback_).Run(
+        base::unexpected(SubmissionError::kFailedToClickSubmit));
+    }
+    return;
+  }
 
   if (result != actor::mojom::ActionResultCode::kOk && !submission_detected_) {
     // Fail immediately as click failed and no form submission was detected.
-    logs_uploader_->RecordButtonClickFailure(kSubmitFormFlowStep, result);
-    std::move(callback_).Run(SubmissionResult::kFailure);
+    if (logs_uploader_) {
+      logs_uploader_->RecordButtonClickFailure(kSubmitFormFlowStep, result);
+    }
+    std::move(callback_).Run(
+        base::unexpected(SubmissionError::kFailedToClickSubmit));
     return;
   }
 }
@@ -430,9 +472,16 @@ void ChangePasswordFormFillingSubmissionHelper::
         Logger::
             STRING_AUTOMATED_PASSWORD_CHANGE_SUBMISSION_DETECTED_OR_TIMEOUT);
   }
-  if (!submission_verifier_) {
+
+  // Submission before button clicks are ignored, thus this is a timeout.
+  if (!click_helper_) {
     CHECK(callback_);
-    std::move(callback_).Run(SubmissionResult::kFailure);
+    std::move(callback_).Run(base::unexpected(SubmissionError::kTimeout));
+    return;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kPasswordChangeImmediateSubmission)) {
     return;
   }
 
@@ -440,15 +489,8 @@ void ChangePasswordFormFillingSubmissionHelper::
       "PasswordManager.PasswordChangeVerificationTriggeredAutomatically",
       submission_detected_);
 
-  submission_verifier_->CheckSubmissionOutcome(base::BindOnce(
-      &ChangePasswordFormFillingSubmissionHelper::OnSubmissionOutcomeChecked,
-      weak_ptr_factory_.GetWeakPtr()));
-}
-
-void ChangePasswordFormFillingSubmissionHelper::OnSubmissionOutcomeChecked(
-    SubmissionResult result) {
-  CHECK(callback_);
-  std::move(callback_).Run(result);
+  // Button has been already clicked, it's safe to proceeded to the next step.
+  std::move(callback_).Run(std::move(form_manager_));
 }
 
 void ChangePasswordFormFillingSubmissionHelper::OnChangePasswordFormFound(

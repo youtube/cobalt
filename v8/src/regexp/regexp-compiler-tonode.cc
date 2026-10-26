@@ -1613,7 +1613,8 @@ void CharacterRange::AddClassEscape(StandardCharacterSet standard_character_set,
   if (add_unicode_case_equivalents &&
       (standard_character_set == StandardCharacterSet::kWord ||
        standard_character_set == StandardCharacterSet::kNotWord)) {
-    // See #sec-runtime-semantics-wordcharacters-abstract-operation
+    // See
+    // https://tc39.es/ecma262/#sec-runtime-semantics-wordcharacters-abstract-operation
     // In case of unicode and ignore_case, we need to create the closure over
     // case equivalent characters before negating.
     ZoneList<CharacterRange>* new_ranges =
@@ -2187,13 +2188,19 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   if (max == 0) return on_success;  // This can happen due to recursion.
   bool body_can_be_empty = (body->min_match() == 0);
   int body_start_reg = RegExpCompiler::kNoRegister;
-  Interval capture_registers = body->CaptureRegisters();
+  Zone* zone = compiler->zone();
+  Interval capture_registers =
+      body->CaptureRegisters(StackLimiter(RegExpNode::kRecursionBudget));
+  if (!capture_registers.is_valid()) {
+    compiler->SetRegExpTooBig();
+    return zone->New<EndNode>(EndNode::BACKTRACK, zone);
+  }
+
   // At the start of the next iteration of a quantifier the captures must be
   // cleared, so that /(?:x(.)?z){2}/ when applied to "xyzxz" captures ""
   // (rather than "y" from the first repeat). However, if the max number of
   // iterations is 1 then there is no 'next repeat' so we don't need to do this.
   bool needs_capture_clearing = !capture_registers.is_empty() && max != 1;
-  Zone* zone = compiler->zone();
 
   bool want_unroll = compiler->optimize() && v8_flags.regexp_unroll;
   if (body_can_be_empty) {

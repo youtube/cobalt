@@ -10,9 +10,11 @@ import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {assertEquals, assertFalse, assertGE, assertTrue, assertDeepEquals} from 'chrome://webui-test/chai_assert.js';
 import {CrSettingsPrefs, ModelExecutionEnterprisePolicyValue, loadTimeData} from 'chrome://settings/settings.js';
 import type {SettingsPrefsElement} from 'chrome://settings/settings.js';
+import {OpenWindowProxyImpl} from 'chrome://settings/settings.js';
 import type {CrButtonElement, SettingsAutofillAiEntriesListElement, SettingsSimpleConfirmationDialogElement, SettingsAutofillAiAddOrEditDialogElement} from 'chrome://settings/lazy_load.js';
 import {AiEnterpriseFeaturePrefName, EntityDataManagerProxyImpl} from 'chrome://settings/lazy_load.js';
 import {isVisible} from 'chrome://webui-test/test_util.js';
+import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js';
 
 import {TestEntityDataManagerProxy} from './test_entity_data_manager_proxy.js';
 // clang-format on
@@ -99,14 +101,14 @@ suite('AutofillAiEntriesListUiReflectsEligibilityStatus', function() {
 
   async function createEntriesList(
       eligibleUser: boolean = true,
-      autofillAiIgnoresWhetherAddressFillingIsEnabled: boolean = false,
+      autofillAddOtherDatatypesPrefIsEnabled: boolean = false,
       autofillAiAvailableByDefault: boolean = false,
       canEnableOrDisableAutofillAi: boolean =
           false): Promise<SettingsAutofillAiEntriesListElement> {
     loadTimeData.overrideValues({
       userEligibleForAutofillAi: eligibleUser,
-      AutofillAiIgnoresWhetherAddressFillingIsEnabled:
-          autofillAiIgnoresWhetherAddressFillingIsEnabled,
+      AutofillAddOtherDatatypesPrefIsEnabled:
+          autofillAddOtherDatatypesPrefIsEnabled,
       autofillAiAvailableByDefault: autofillAiAvailableByDefault,
       canEnableOrDisableAutofillAi: canEnableOrDisableAutofillAi,
     });
@@ -152,7 +154,7 @@ suite('AutofillAiEntriesListUiReflectsEligibilityStatus', function() {
       async function() {
         const entriesList = await createEntriesList(
             /*eligibleUser=*/ false,
-            /*autofillAiIgnoresWhetherAddressFillingIsEnabled=*/ false,
+            /*autofillAddOtherDatatypesPrefIsEnabled=*/ false,
             /*autofillAiAvailableByDefault=*/ true,
             /*canEnableOrDisableAutofillAi=*/ true);
 
@@ -177,7 +179,7 @@ suite('AutofillAiEntriesListUiReflectsEligibilityStatus', function() {
   test('CannotUseAutofillAiDisablesTheFeature', async function() {
     const entriesList = await createEntriesList(
         /*eligibleUser=*/ false,
-        /*autofillAiIgnoresWhetherAddressFillingIsEnabled=*/ false,
+        /*autofillAddOtherDatatypesPrefIsEnabled=*/ false,
         /*autofillAiAvailableByDefault=*/ true,
         /*canEnableOrDisableAutofillAi=*/ false);
     updateOptInStatus(false, entriesList);
@@ -211,7 +213,7 @@ suite('AutofillAiEntriesListUiReflectsEligibilityStatus', function() {
       async function() {
         const entriesList = await createEntriesList(
             /*eligibleUser=*/ false,
-            /*autofillAiIgnoresWhetherAddressFillingIsEnabled=*/ false,
+            /*autofillAddOtherDatatypesPrefIsEnabled=*/ false,
             /*autofillAiAvailableByDefault=*/ true,
             /*canEnableOrDisableAutofillAi=*/ true);
         await flushTasks();
@@ -235,7 +237,7 @@ suite('AutofillAiEntriesListUiReflectsEligibilityStatus', function() {
       async function() {
         const entriesList = await createEntriesList(
             /*userEligible=*/ true,
-            /*autofillAiIgnoresWhetherAddressFillingIsEnabled=*/ true);
+            /*autofillAddOtherDatatypesPrefIsEnabled=*/ true);
         updateOptInStatus(true, entriesList);
         await flushTasks();
 
@@ -282,6 +284,62 @@ suite('AutofillAiEntriesListUiReflectsEligibilityStatus', function() {
 
     assertTrue(addButton.disabled);
   });
+
+  test('DisableAddButtotWhenAddressAutofillDisabled', async function() {
+    loadTimeData.overrideValues({
+      enableYourSavedInfoPolicyAndExtentionToggleIndicators: true,
+    });
+    const entriesList = await createEntriesList();
+    entriesList.allowEditingPref = {
+      key: '',
+      type: chrome.settingsPrivate.PrefType.BOOLEAN,
+      value: true,
+    };
+    updateOptInStatus(true, entriesList);
+    entriesList.setPrefValue('autofill.profile_enabled', true);
+    await flushTasks();
+
+    const addButton = entriesList.shadowRoot!.querySelector<CrButtonElement>(
+        '#addEntityInstance');
+    assertTrue(!!addButton);
+    assertFalse(addButton.disabled);
+
+    entriesList.setPrefValue('autofill.profile_enabled', false);
+    await flushTasks();
+
+    assertTrue(addButton.disabled);
+  });
+
+  test(
+      'AddressAutofillForcedTrueValueShouldNotOverrideAllowEditingPrefValue',
+      async function() {
+        loadTimeData.overrideValues({
+          enableYourSavedInfoPolicyAndExtentionToggleIndicators: true,
+        });
+        const entriesList = await createEntriesList();
+        entriesList.allowEditingPref = {
+          key: '',
+          type: chrome.settingsPrivate.PrefType.BOOLEAN,
+          value: false,  // Editing is disabled
+        };
+        updateOptInStatus(true, entriesList);
+        entriesList.setPrefValue('autofill.profile_enabled', true);
+        await flushTasks();
+
+        const addButton =
+            entriesList.shadowRoot!.querySelector<CrButtonElement>(
+                '#addEntityInstance');
+        assertTrue(!!addButton);
+        assertTrue(addButton.disabled);
+
+        entriesList.set('prefs.autofill.profile_enabled', {
+          enforcement: chrome.settingsPrivate.Enforcement.ENFORCED,
+          value: true,
+        });
+        await flushTasks();
+
+        assertTrue(addButton.disabled);
+      });
 });
 
 suite('AutofillAiEntriesListUiTest', function() {
@@ -375,6 +433,7 @@ suite('AutofillAiEntriesListUiTest', function() {
         entityInstanceLabel: 'Toyota',
         entityInstanceSubLabel: 'Car',
         storedInWallet: true,
+        walletEntityUrl: 'https://wallet.google.com',
       },
       {
         guid: '1fd09cdc-35b8-4367-8f1a-18c8c0733af0',
@@ -435,9 +494,13 @@ suite('AutofillAiEntriesListUiTest', function() {
   }
 
   // Tests that walletable entities have an icon button mentionining the wallet
-  // type in its title. Local entities have an actionable button which allows
-  // users editing and deleting.
+  // type in its title and linking to the provided URL.
+  // Local entities have an actionable button which allows users editing and
+  // deleting.
   test('AutofillAiWalletEntitiesHaveWalletPassesIconButton', async function() {
+    const openWindowProxy = new TestOpenWindowProxy();
+    OpenWindowProxyImpl.setInstance(openWindowProxy);
+
     await createEntriesList();
 
     const listItems =
@@ -464,6 +527,9 @@ suite('AutofillAiEntriesListUiTest', function() {
         assertEquals(
             loadTimeData.getString('remoteWalletPassesLinkLabel'),
             iconButton.title);
+        iconButton.click();
+        const url = await openWindowProxy.whenCalled('openUrl');
+        assertEquals('https://wallet.google.com', url);
       }
     }
   });

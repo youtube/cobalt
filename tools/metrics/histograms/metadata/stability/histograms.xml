@@ -84,7 +84,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ChildProcess.Launched.UtilityProcessHash"
-    enum="UtilityProcessNameHash" expires_after="2026-07-05">
+    enum="UtilityProcessNameHash" expires_after="2026-09-06">
   <owner>wfh@chromium.org</owner>
   <summary>
     Count of child utility process launches, bucketed by the hash of their
@@ -202,7 +202,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.Android.RendererCrash" enum="Boolean"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>wnwen@chromium.org</owner>
   <summary>
     Counts renderer crashes including OOMs. Android only. Mirrors old stability
@@ -224,13 +224,9 @@ chromium-metrics-reviews@google.com.
     {AndroidProcessExitReasons}
   </summary>
   <token key="AndroidProcessExitReasons">
-    <variant name=".Browser" summary="Recorded for Browser crashes."/>
-    <variant name=".Browser.Background2"
-        summary="Recorded for background (application is not in running
-                 state) Browser crashes."/>
-    <variant name=".Browser.Foreground2"
-        summary="Recorded for foregound (application is in running state)
-                 Browser crashes."/>
+    <variant name=".Browser2"
+        summary="Recorded for all Browser process exits that launched a
+                 ChromeActivity at some point."/>
     <variant name=".GpuForegroundOom"
         summary="Recorded for foreground GPU process OOM crashes."/>
     <variant name=".UtilityForegroundOom"
@@ -324,7 +320,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.ChildFrameCrash.PageEligibleToDiscard"
-    enum="Boolean" expires_after="2026-07-05">
+    enum="Boolean" expires_after="2026-09-06">
   <owner>kawasin@google.com</owner>
   <owner>boliu@chromium.org</owner>
   <summary>
@@ -335,7 +331,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.ChildFrameCrash.PageWillReload" enum="Boolean"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>kawasin@google.com</owner>
   <owner>boliu@chromium.org</owner>
   <summary>
@@ -361,7 +357,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.ChildFrameCrash.TabMarkedForReload"
-    enum="BooleanMarkedForReload" expires_after="2026-06-21">
+    enum="BooleanMarkedForReload" expires_after="2026-08-23">
   <owner>alexmos@chromium.org</owner>
   <owner>boliu@chromium.org</owner>
   <summary>
@@ -371,7 +367,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.ChildFrameCrash.TabMarkedForReload.Visibility"
-    enum="FrameVisibility" expires_after="2026-06-21">
+    enum="FrameVisibility" expires_after="2026-08-23">
   <owner>alexmos@chromium.org</owner>
   <owner>boliu@chromium.org</owner>
   <summary>
@@ -382,7 +378,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.ChildFrameCrash.Visibility" enum="CrashVisibility"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>alexmos@chromium.org</owner>
   <owner>boliu@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>
@@ -718,7 +714,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Stability.MobileSessionShutdownType"
-    enum="MobileSessionShutdownType" expires_after="2026-06-14">
+    enum="MobileSessionShutdownType" expires_after="2026-08-16">
   <owner>michaeldo@chromium.org</owner>
   <owner>olivierrobin@chromium.org</owner>
   <summary>

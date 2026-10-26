@@ -8,6 +8,7 @@
 #include "base/i18n/time_formatting.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/autofill/core/browser/autofill_field.h"
+#include "components/autofill/core/browser/autofill_format_string.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance_test_api.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
@@ -349,6 +350,58 @@ EntityInstance GetFlightReservationEntityInstanceWithRandomGuid(
   base::Uuid guid = base::Uuid::GenerateRandomV4();
   options.guid = guid.AsLowercaseString();
   return GetFlightReservationEntityInstance(options);
+}
+
+EntityInstance GetOrderEntityInstance(OrderOptions options) {
+  using enum AttributeTypeName;
+  std::vector<AttributeInstance> attributes;
+  if (options.id) {
+    attributes.emplace_back(AttributeType(kOrderId));
+    attributes.back().SetInfo(
+        ORDER_ID, options.id, std::string(options.app_locale),
+        /*format_string=*/std::nullopt, VerificationStatus::kNoStatus);
+  }
+  if (options.account) {
+    attributes.emplace_back(AttributeType(kOrderAccount));
+    attributes.back().SetInfo(
+        ORDER_ACCOUNT, options.account, std::string(options.app_locale),
+        /*format_string=*/std::nullopt, VerificationStatus::kNoStatus);
+  }
+  if (options.date) {
+    attributes.emplace_back(AttributeType(kOrderDate));
+    attributes.back().SetInfo(
+        ORDER_DATE, options.date, std::string(options.app_locale),
+        AutofillFormatString(u"YYYY-MM-DD", FormatString_Type_DATE),
+        VerificationStatus::kNoStatus);
+  }
+  if (options.merchant_name) {
+    attributes.emplace_back(AttributeType(kOrderMerchantName));
+    attributes.back().SetInfo(ORDER_MERCHANT_NAME, options.merchant_name,
+                              std::string(options.app_locale),
+                              /*format_string=*/std::nullopt,
+                              VerificationStatus::kNoStatus);
+  }
+  if (options.merchant_domain) {
+    attributes.emplace_back(AttributeType(kOrderMerchantDomain));
+    attributes.back().SetInfo(ORDER_MERCHANT_DOMAIN, options.merchant_domain,
+                              std::string(options.app_locale),
+                              /*format_string=*/std::nullopt,
+                              VerificationStatus::kNoStatus);
+  }
+  if (options.product_names) {
+    attributes.emplace_back(AttributeType(kOrderProductNames));
+    attributes.back().SetInfo(ORDER_PRODUCT_NAMES, options.product_names,
+                              std::string(options.app_locale),
+                              /*format_string=*/std::nullopt,
+                              VerificationStatus::kNoStatus);
+  }
+  if (options.grand_total) {
+    attributes.emplace_back(AttributeType(kOrderGrandTotal));
+    attributes.back().SetInfo(
+        ORDER_GRAND_TOTAL, options.grand_total, std::string(options.app_locale),
+        /*format_string=*/std::nullopt, VerificationStatus::kNoStatus);
+  }
+  return GetEntityInstance(std::move(attributes), ToEntityOptions(options));
 }
 
 EntityInstance GetEntityInstance(std::vector<AttributeInstance> attributes,

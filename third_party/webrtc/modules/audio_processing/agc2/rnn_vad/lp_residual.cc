@@ -124,14 +124,13 @@ void ComputeLpResidual(ArrayView<const float, kNumLpcCoefficients> lpc_coeffs,
   // Edge case: i < kNumLpcCoefficients.
   y[0] = x[0];
   for (int i = 1; i < kNumLpcCoefficients; ++i) {
-    y[i] =
-        std::inner_product(x.crend() - i, x.crend(), lpc_coeffs.cbegin(), x[i]);
+    y[i] = std::inner_product(x.rend() - i, x.rend(), lpc_coeffs.begin(), x[i]);
   }
   // Regular case.
-  auto last = x.crend();
+  auto last = x.rend();
   for (int i = kNumLpcCoefficients; SafeLt(i, y.size()); ++i, --last) {
     y[i] = std::inner_product(last - kNumLpcCoefficients, last,
-                              lpc_coeffs.cbegin(), x[i]);
+                              lpc_coeffs.begin(), x[i]);
   }
 }
 

@@ -68,11 +68,12 @@ ParsedContentHeaderFieldParameters::Parse(HeaderFieldTokenizer tokenizer,
 
 String ParsedContentHeaderFieldParameters::ParameterValueForName(
     StringView name) const {
-  if (!name.ContainsOnlyASCIIOrEmpty())
+  if (!name.ContainsOnlyAsciiOrEmpty()) {
     return String();
+  }
 
   for (const NameValue& param : base::Reversed(*this)) {
-    if (EqualIgnoringASCIICase(param.name, name)) {
+    if (EqualIgnoringAsciiCase(param.name, name)) {
       return param.value;
     }
   }
@@ -86,7 +87,7 @@ size_t ParsedContentHeaderFieldParameters::ParameterCount() const {
 bool ParsedContentHeaderFieldParameters::HasDuplicatedNames() const {
   HashSet<String> names;
   for (const auto& parameter : parameters_) {
-    const String lowered_name = parameter.name.LowerASCII();
+    const String lowered_name = parameter.name.ToAsciiLower();
     if (names.Contains(lowered_name))
       return true;
 

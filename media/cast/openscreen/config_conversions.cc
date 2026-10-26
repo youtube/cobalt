@@ -110,8 +110,7 @@ openscreen::cast::AudioCaptureConfig ToAudioCaptureConfig(
 
   openscreen::cast::AudioCaptureConfig audio_capture_config;
   audio_capture_config.codec = ToAudioCaptureConfigCodec(audio_config.codec());
-  audio_capture_config.channels =
-      media::ChannelLayoutToChannelCount(audio_config.channel_layout());
+  audio_capture_config.channels = audio_config.channels();
   audio_capture_config.sample_rate = audio_config.samples_per_second();
   audio_capture_config.bit_rate = 0;  // Selected by the sender.
 
@@ -138,7 +137,7 @@ media::AudioDecoderConfig ToAudioDecoderConfig(
 
   return media::AudioDecoderConfig(
       media_audio_codec, media::SampleFormat::kSampleFormatF32,
-      media::GuessChannelLayout(audio_capture_config.channels),
+      media::ChannelLayoutConfig::Guess(audio_capture_config.channels),
       audio_capture_config.sample_rate /* samples_per_second */,
       media::EmptyExtraData(), media::EncryptionScheme::kUnencrypted);
 }

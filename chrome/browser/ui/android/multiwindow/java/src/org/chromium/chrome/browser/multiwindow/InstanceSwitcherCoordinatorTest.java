@@ -68,8 +68,6 @@ import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
-import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.components.browser_ui.modaldialog.AppModalPresenter;
 import org.chromium.components.favicon.LargeIconBridge;
@@ -128,8 +126,7 @@ public class InstanceSwitcherCoordinatorTest {
 
     @After
     public void tearDown() throws Exception {
-        ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.MULTI_INSTANCE_CLOSE_WINDOW_SKIP_CONFIRM, false);
+        MultiInstancePersistentStore.writeCloseWindowSkipConfirm(false);
     }
 
     @Test
@@ -1468,7 +1465,7 @@ public class InstanceSwitcherCoordinatorTest {
     @Test
     @SmallTest
     @EnableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT + ":bulk_close/true")
-    public void testMultiSelectInactiveWindows_robustWindowManagement() throws Exception {
+    public void testMultiSelectInactiveWindows_bulkCloseSupported() throws Exception {
         // Initialize instance list with 2 active instances and 3 inactive instances.
         InstanceInfo[] instances =
                 createPersistedInstances(
@@ -1557,78 +1554,18 @@ public class InstanceSwitcherCoordinatorTest {
         // Verify the close buttons are enabled again.
         onView(withId(R.id.inactive_instance_list))
                 .inRoot(isDialog())
-                .check(matches(atPosition(0, hasDescendant(allOf(withId(R.id.close_button), isEnabled())))))
-                .check(matches(atPosition(1, hasDescendant(allOf(withId(R.id.close_button), isEnabled())))));
-    }
-
-    @Test
-    @SmallTest
-    public void testSingleSelectInactiveWindows_noRobustWindowManagement() throws Exception {
-        // Initialize instance list with 2 active instances and 3 inactive instances.
-        InstanceInfo[] instances =
-                createPersistedInstances(
-                        /* numActiveInstances= */ 2, /* numInactiveInstances= */ 3);
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    InstanceSwitcherCoordinator.showDialog(
-                            mActivityTestRule.getActivity(),
-                            mModalDialogManager,
-                            mIconBridge,
-                            mDelegate,
-                            MAX_INSTANCE_COUNT,
-                            Arrays.asList(instances),
-                            /* isIncognitoWindow= */ false);
-                });
-        onView(withId(R.id.active_instance_list)).inRoot(isDialog()).check(matches(isDisplayed()));
-        // Switch to inactive list.
-        onView(allOf(withText("Inactive (3)"), isDescendantOfA(withId(R.id.tabs))))
-                .perform(click());
-
-        // Verify "Restore" button is disabled before a selection is made.
-        onView(allOf(withId(R.id.positive_button), withText(R.string.restore)))
-                .inRoot(isDialog())
-                .check(matches(not(isEnabled())));
-
-        // Select the first item.
-        onView(withId(R.id.inactive_instance_list))
-                .inRoot(isDialog())
-                .perform(actionOnItemAtPosition(0, click()));
-
-        // Verify "Restore" button is now enabled.
-        onView(allOf(withId(R.id.positive_button), withText(R.string.restore)))
-                .inRoot(isDialog())
-                .check(matches(isEnabled()));
-
-        // Verify the first item is selected.
-        onView(withId(R.id.inactive_instance_list))
-                .inRoot(isDialog())
-                .check(matches(atPosition(0, isSelected())));
-
-        // Verify close button is enabled.
-        onView(withId(R.id.inactive_instance_list))
-                .inRoot(isDialog())
-                .check(matches(atPosition(0, hasDescendant(allOf(withId(R.id.close_button), isEnabled())))));
-
-        // Select the second item.
-        onView(withId(R.id.inactive_instance_list))
-                .inRoot(isDialog())
-                .perform(actionOnItemAtPosition(1, click()));
-
-        // Verify "Restore" button is still enabled.
-        onView(allOf(withId(R.id.positive_button), withText(R.string.restore)))
-                .inRoot(isDialog())
-                .check(matches(isEnabled()));
-
-        // Verify the second item is selected, and the first one is not.
-        onView(withId(R.id.inactive_instance_list))
-                .inRoot(isDialog())
-                .check(matches(atPosition(0, not(isSelected()))))
-                .check(matches(atPosition(1, isSelected())));
-
-        // Verify close button is still enabled.
-        onView(withId(R.id.inactive_instance_list))
-                .inRoot(isDialog())
-                .check(matches(atPosition(0, hasDescendant(allOf(withId(R.id.close_button), isEnabled())))));
+                .check(
+                        matches(
+                                atPosition(
+                                        0,
+                                        hasDescendant(
+                                                allOf(withId(R.id.close_button), isEnabled())))))
+                .check(
+                        matches(
+                                atPosition(
+                                        1,
+                                        hasDescendant(
+                                                allOf(withId(R.id.close_button), isEnabled())))));
     }
 
     @Test
@@ -1999,6 +1936,34 @@ public class InstanceSwitcherCoordinatorTest {
 
         // The "more" button should now be hidden.
         onView(allOf(withId(R.id.title_more_button), isDisplayed())).check(doesNotExist());
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT)
+    public void testCommandUiAtInstanceLimit_RobustWindowManagement() throws Exception {
+        // Simulate persistence of (MAX_INSTANCE_COUNT - 1) active instances and 1 inactive
+        // instance.
+        InstanceInfo[] instances =
+                createPersistedInstances(
+                        /* numActiveInstances= */ MAX_INSTANCE_COUNT - 1,
+                        /* numInactiveInstances= */ 1);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    InstanceSwitcherCoordinator.showDialog(
+                            mActivityTestRule.getActivity(),
+                            mModalDialogManager,
+                            mIconBridge,
+                            mDelegate,
+                            MAX_INSTANCE_COUNT,
+                            Arrays.asList(instances),
+                            /* isIncognitoWindow= */ false);
+                });
+
+        // Verify the "+ New window" command is displayed, since # of active instances is less than
+        // the instance limit.
+        onView(withId(R.id.new_window)).inRoot(isDialog()).check(matches(isDisplayed()));
     }
 
     private InstanceInfo[] createPersistedInstances(

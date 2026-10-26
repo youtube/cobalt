@@ -90,7 +90,7 @@ class RtpSenderInternal : public RtpSenderInterface {
   virtual RTCError SetParametersInternal(const RtpParameters& parameters,
                                          SetParametersCallback,
                                          bool blocking) = 0;
-  virtual void SetCachedParameters(RtpParameters parameters) = 0;
+  virtual void SetCachedParameters(std::optional<RtpParameters> parameters) = 0;
 
   // GetParameters and SetParameters will remove deactivated simulcast layers
   // and restore them on SetParameters. This is probably a Bad Idea, but we
@@ -155,7 +155,7 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   RTCError SetParametersInternal(const RtpParameters& parameters,
                                  SetParametersCallback callback = nullptr,
                                  bool blocking = true) override;
-  void SetCachedParameters(RtpParameters parameters) override;
+  void SetCachedParameters(std::optional<RtpParameters> parameters) override;
   RTCError CheckSetParameters(const RtpParameters& parameters);
   RtpParameters GetParametersInternalWithAllLayers() const override;
   RTCError SetParametersInternalWithAllLayers(
@@ -239,6 +239,14 @@ class RtpSenderBase : public RtpSenderInternal, public ObserverInterface {
   void SetObserver(RtpSenderObserverInterface* observer) override;
 
  protected:
+  void InvalidateCache() {
+    RTC_DCHECK_RUN_ON(signaling_thread_);
+    cached_parameters_.reset();
+  }
+
+  // Called by the media channel when parameters change autonomously on the
+  // worker thread (e.g., encoder fallback).
+  void OnParametersChanged();
   // If `set_streams_observer` is not null, it is invoked when SetStreams()
   // is called. `set_streams_observer` is not owned by this object. If not
   // null, it must be valid at least until this sender becomes stopped.

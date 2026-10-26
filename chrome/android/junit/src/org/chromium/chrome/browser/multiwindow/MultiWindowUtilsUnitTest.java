@@ -21,6 +21,7 @@ import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.HISTOGRAM
 import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.HISTOGRAM_PERSISTENT_STATE_ID_VERIFICATION;
 import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.INVALID_TASK_ID;
 import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.PERSISTENT_STATE_ID;
+import static org.chromium.chrome.browser.tabwindow.TabWindowManager.INVALID_WINDOW_ID;
 import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeNtpUrl;
 
 import android.app.Activity;
@@ -29,11 +30,9 @@ import android.content.Intent;
 import android.content.res.Resources;
 import android.os.Build.VERSION_CODES;
 import android.os.PersistableBundle;
-import android.util.SparseIntArray;
 
 import androidx.test.core.app.ApplicationProvider;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -44,9 +43,9 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
-import org.robolectric.annotation.Implementation;
-import org.robolectric.annotation.Implements;
 
+import org.chromium.base.ActivityState;
+import org.chromium.base.ApplicationStatus;
 import org.chromium.base.SysUtils;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
@@ -56,16 +55,15 @@ import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
+import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.IntentHandler;
+import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.homepage.HomepageManager;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.InstanceAllocationType;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils.PersistentStateIdVerification;
-import org.chromium.chrome.browser.multiwindow.MultiWindowUtilsUnitTest.ShadowMultiInstanceManagerApi31;
-import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.SupportedProfileType;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
@@ -89,49 +87,12 @@ import java.util.List;
 
 /** Unit tests for {@link MultiWindowUtils}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(manifest = Config.NONE, shadows = ShadowMultiInstanceManagerApi31.class)
+@Config(manifest = Config.NONE, sdk = 31)
 @EnableFeatures({
     ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT,
     ChromeFeatureList.RECENTLY_CLOSED_TABS_AND_WINDOWS
 })
 public class MultiWindowUtilsUnitTest {
-    /** Shadows {@link MultiInstanceManagerApi31} class for testing. */
-    @Implements(MultiInstanceManagerApi31.class)
-    public static class ShadowMultiInstanceManagerApi31 {
-        private static SparseIntArray sWindowIdsOfRunningTabbedActivities;
-        private static int sRunningTabbedActivityCount;
-
-        public static void updateWindowIdsOfRunningTabbedActivities(int windowId, boolean remove) {
-            if (sWindowIdsOfRunningTabbedActivities == null) {
-                sWindowIdsOfRunningTabbedActivities = new SparseIntArray();
-            }
-            if (!remove) {
-                sWindowIdsOfRunningTabbedActivities.put(windowId, windowId);
-            } else {
-                sWindowIdsOfRunningTabbedActivities.delete(windowId);
-            }
-        }
-
-        public static void updateRunningTabbedActivityCount(int count) {
-            sRunningTabbedActivityCount = count;
-        }
-
-        public static void reset() {
-            sWindowIdsOfRunningTabbedActivities = null;
-            sRunningTabbedActivityCount = 0;
-        }
-
-        @Implementation
-        public static SparseIntArray getWindowIdsOfRunningTabbedActivities() {
-            return sWindowIdsOfRunningTabbedActivities;
-        }
-
-        @Implementation
-        public static int getRunningTabbedActivityCount() {
-            return sRunningTabbedActivityCount;
-        }
-    }
-
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Rule
@@ -168,12 +129,14 @@ public class MultiWindowUtilsUnitTest {
     @Mock Tab mTab1;
     @Mock Tab mTab2;
     @Mock Tab mTab3;
+    @Mock TabWindowManager mTabWindowManager;
 
     private SettableMonotonicObservableSupplier<TabModel> mTabModelSupplier;
 
     @Before
     public void setUp() {
         mTabModelSupplier = ObservableSuppliers.createMonotonic(mNormalTabModel);
+        TabWindowManagerSingleton.setTabWindowManagerForTesting(mTabWindowManager);
 
         mUtils =
                 new MultiWindowUtils() {
@@ -229,12 +192,17 @@ public class MultiWindowUtilsUnitTest {
                 7000 * ConversionUtils.KILOBYTES_PER_MEGABYTE);
     }
 
-    @After
-    public void tearDown() {
-        ShadowMultiInstanceManagerApi31.reset();
-        mOverrideOpenInNewWindowSupported = false;
-        ChromeSharedPreferences.getInstance()
-                .removeKey(ChromePreferenceKeys.MULTI_INSTANCE_RESTORATION_MESSAGE_SHOWN);
+    private Activity addRunningTabbedActivity(int windowId) {
+        return addActivity(windowId, /* tabbedActivity= */ true);
+    }
+
+    private Activity addActivity(int windowId, boolean tabbedActivity) {
+        Activity activity =
+                tabbedActivity ? mock(ChromeTabbedActivity.class) : mock(Activity.class);
+        when(mTabWindowManager.getIdForWindow(activity)).thenReturn(windowId);
+        ApplicationStatus.onStateChangeForTesting(activity, ActivityState.CREATED);
+        ApplicationStatus.onStateChangeForTesting(activity, ActivityState.RESUMED);
+        return activity;
     }
 
     @Test
@@ -366,7 +334,7 @@ public class MultiWindowUtilsUnitTest {
                 /* profileType= */ SupportedProfileType.MIXED);
 
         // Mock that the tasks for the 2 active instances are running.
-        MultiInstanceManagerApi31.setAppTaskIdsForTesting(
+        MultiWindowUtils.setAppTaskIdsForTesting(
                 new HashSet<>(Arrays.asList(TASK_ID_5, TASK_ID_6)));
 
         assertTrue(
@@ -390,7 +358,7 @@ public class MultiWindowUtilsUnitTest {
                 /* profileType= */ SupportedProfileType.REGULAR);
 
         // Mock that the tasks for the active instance is running.
-        MultiInstanceManagerApi31.setAppTaskIdsForTesting(new HashSet<>(List.of(TASK_ID_5)));
+        MultiWindowUtils.setAppTaskIdsForTesting(new HashSet<>(List.of(TASK_ID_5)));
 
         assertFalse(
                 "Should return false since there is only one regular window.",
@@ -420,7 +388,7 @@ public class MultiWindowUtilsUnitTest {
                 /* profileType= */ SupportedProfileType.REGULAR);
 
         // Mock that the tasks for the 2 active instances are running.
-        MultiInstanceManagerApi31.setAppTaskIdsForTesting(
+        MultiWindowUtils.setAppTaskIdsForTesting(
                 new HashSet<>(Arrays.asList(TASK_ID_5, TASK_ID_6)));
 
         assertTrue(
@@ -445,7 +413,7 @@ public class MultiWindowUtilsUnitTest {
                 /* profileType= */ SupportedProfileType.OFF_THE_RECORD);
 
         // Mock that the task for the active instance is running.
-        MultiInstanceManagerApi31.setAppTaskIdsForTesting(new HashSet<>(List.of(TASK_ID_5)));
+        MultiWindowUtils.setAppTaskIdsForTesting(new HashSet<>(List.of(TASK_ID_5)));
 
         assertFalse(
                 "Should return false since there is only one incognito window.",
@@ -476,7 +444,7 @@ public class MultiWindowUtilsUnitTest {
                 /* profileType= */ SupportedProfileType.OFF_THE_RECORD);
 
         // Mock that the tasks for the 2 active instances are running.
-        MultiInstanceManagerApi31.setAppTaskIdsForTesting(
+        MultiWindowUtils.setAppTaskIdsForTesting(
                 new HashSet<>(Arrays.asList(TASK_ID_5, TASK_ID_6)));
 
         assertTrue(
@@ -619,10 +587,53 @@ public class MultiWindowUtilsUnitTest {
                 mUtils.hasAtMostOneTabGroupWithHomepageEnabled(
                         mTabModelSelector, mTabGroupModelFilter));
     }
-    ;
+
+    @Test
+    public void testGetRunningTabbedActivityCount() {
+        // Create 1 activity that is not a ChromeTabbedActivity and 2 ChromeTabbedActivity's.
+        Activity activity1 =
+                addActivity(/* windowId= */ INSTANCE_ID_0, /* tabbedActivity= */ false);
+        Activity activity2 = addActivity(/* windowId= */ INSTANCE_ID_1, /* tabbedActivity= */ true);
+        Activity activity3 = addActivity(/* windowId= */ INSTANCE_ID_2, /* tabbedActivity= */ true);
+
+        // Remove activity2, this will be considered a non-running activity subsequently.
+        ApplicationStatus.onStateChangeForTesting(activity2, ActivityState.DESTROYED);
+
+        int runningTabbedActivityCount = MultiWindowUtils.getRunningTabbedActivityCount();
+        assertEquals(
+                "There should be only 1 running ChromeTabbedActivity.",
+                1,
+                runningTabbedActivityCount);
+    }
+
+    @Test
+    public void launchIntentInMaybeClosedWindow_NewWindow() {
+        MultiWindowTestUtils.enableMultiInstance();
+        Intent intent = new Intent();
+        ChromeTabbedActivity activity = mock(ChromeTabbedActivity.class);
+        MultiWindowUtils.launchIntentInMaybeClosedWindow(activity, intent, INSTANCE_ID_0);
+        verify(activity).startActivity(intent, null);
+        assertEquals(
+                INSTANCE_ID_0,
+                intent.getIntExtra(IntentHandler.EXTRA_WINDOW_ID, INVALID_WINDOW_ID));
+    }
+
+    @Test
+    public void launchIntentInMaybeClosedWindow_ExistingWindow() {
+        MultiWindowTestUtils.enableMultiInstance();
+        ChromeTabbedActivity activity1 =
+                (ChromeTabbedActivity)
+                        addActivity(/* windowId= */ INSTANCE_ID_0, /* tabbedActivity= */ true);
+
+        Intent intent = new Intent();
+        ChromeTabbedActivity activity2 = mock(ChromeTabbedActivity.class);
+        MultiWindowUtils.launchIntentInMaybeClosedWindow(activity2, intent, INSTANCE_ID_0);
+        verify(activity1).onNewIntent(intent);
+    }
 
     @Test
     public void testGetInstanceCountWithFallback() {
+        MultiWindowTestUtils.enableMultiInstance();
         when(mTabModelSelector.getModel(false)).thenReturn(mNormalTabModel);
         when(mTabModelSelector.getModel(true)).thenReturn(mIncognitoTabModel);
         when(mTabModelSelector.isTabStateInitialized()).thenReturn(true);
@@ -643,7 +654,7 @@ public class MultiWindowUtilsUnitTest {
                 MultiWindowUtils.INVALID_TASK_ID);
 
         // Mock that the tasks for the 2 active instances are running.
-        MultiInstanceManagerApi31.setAppTaskIdsForTesting(
+        MultiWindowUtils.setAppTaskIdsForTesting(
                 new HashSet<>(Arrays.asList(TASK_ID_5, TASK_ID_6)));
 
         assertEquals(
@@ -659,7 +670,7 @@ public class MultiWindowUtilsUnitTest {
                         MultiInstanceManagerApi31.PersistedInstanceType.ANY));
 
         // Mark the inactive instance for deletion.
-        MultiInstancePersistentStore.writeMarkedForDeletion(INSTANCE_ID_2, true);
+        ChromeMultiInstancePersistentStore.writeMarkedForDeletion(INSTANCE_ID_2, true);
         assertEquals(
                 "getInstanceCountWithFallback should exclude instances marked for deletion.",
                 2,
@@ -669,12 +680,15 @@ public class MultiWindowUtilsUnitTest {
 
     @Test
     public void getInstanceCount_ExceedsLimit() {
+        MultiWindowTestUtils.enableMultiInstance();
         when(mTabModelSelector.getModel(false)).thenReturn(mNormalTabModel);
         when(mTabModelSelector.getModel(true)).thenReturn(mIncognitoTabModel);
         int maxInstances = 3;
         MultiWindowUtils.setMaxInstancesForTesting(maxInstances);
 
         // Simulate persistence of instance state for max instances = 3.
+        MultiWindowUtils.setAppTaskIdsForTesting(
+                new HashSet<>(List.of(TASK_ID_5, TASK_ID_6, TASK_ID_7)));
         writeInstanceInfo(
                 INSTANCE_ID_0, URL_1, /* tabCount= */ 3, /* incognitoTabCount= */ 2, TASK_ID_5);
         writeInstanceInfo(
@@ -702,7 +716,7 @@ public class MultiWindowUtilsUnitTest {
         // Simulate opening of 1 less than the max number of instances. #writeInstanceInfo will
         // update the access time for IDs 0 -> |maxInstances - 2| in increasing order of recency.
         for (int i = 0; i < maxInstances - 1; i++) {
-            ShadowMultiInstanceManagerApi31.updateWindowIdsOfRunningTabbedActivities(i, false);
+            addRunningTabbedActivity(i);
             writeInstanceInfo(i, URL_1, /* tabCount= */ 3, /* incognitoTabCount= */ 0, i);
         }
 
@@ -726,7 +740,7 @@ public class MultiWindowUtilsUnitTest {
         // Simulate opening of max number of instances. #writeInstanceInfo will update the access
         // time for IDs 0 -> |maxInstances - 1| in increasing order of recency.
         for (int i = 0; i < maxInstances; i++) {
-            ShadowMultiInstanceManagerApi31.updateWindowIdsOfRunningTabbedActivities(i, false);
+            addRunningTabbedActivity(i);
             writeInstanceInfo(i, URL_1, /* tabCount= */ 3, /* incognitoTabCount= */ 0, i);
         }
 
@@ -747,15 +761,19 @@ public class MultiWindowUtilsUnitTest {
         int maxInstances = MultiWindowUtils.getMaxInstances();
         // Simulate opening of max number of instances. #writeInstanceInfo will update the access
         // time for IDs 0 -> |maxInstances - 1| in increasing order of recency.
+        Activity firstMockActivity = null;
         for (int i = 0; i < maxInstances; i++) {
-            ShadowMultiInstanceManagerApi31.updateWindowIdsOfRunningTabbedActivities(i, false);
+            Activity mockActivity = addRunningTabbedActivity(i);
+            if (i == 0) {
+                firstMockActivity = mockActivity;
+            }
             writeInstanceInfo(i, URL_1, /* tabCount= */ 3, /* incognitoTabCount= */ 0, i);
         }
 
         // Simulate last access of instance ID 0.
         writeInstanceInfo(0, URL_1, /* tabCount= */ 3, /* incognitoTabCount= */ 0, 0);
         // Simulate destruction of the activity represented by instance ID 0.
-        ShadowMultiInstanceManagerApi31.updateWindowIdsOfRunningTabbedActivities(0, true);
+        ApplicationStatus.onStateChangeForTesting(firstMockActivity, ActivityState.DESTROYED);
 
         int instanceId = MultiWindowUtils.getInstanceIdForViewIntent();
         assertEquals(
@@ -776,7 +794,7 @@ public class MultiWindowUtilsUnitTest {
         // update the access time for IDs 0 -> |maxInstances - 2| in increasing order of recency.
         for (int i = 0; i < maxInstances - 1; i++) {
             writeInstanceInfo(i, URL_1, /* tabCount= */ 1, /* incognitoTabCount= */ 0, i);
-            ShadowMultiInstanceManagerApi31.updateWindowIdsOfRunningTabbedActivities(i, false);
+            addRunningTabbedActivity(i);
         }
 
         // Create inactive instances to exceed max instances.
@@ -805,15 +823,17 @@ public class MultiWindowUtilsUnitTest {
     @Test
     @Config(sdk = 31)
     public void testRecordDesktopWindowCount_OnlyOnColdStart() {
+        MultiWindowTestUtils.enableMultiInstance();
         when(mAppHeaderState.isInDesktopWindow()).thenReturn(true);
 
         // Simulate persistence of 2 instances, running of 1.
+        MultiWindowUtils.setAppTaskIdsForTesting(new HashSet<>(List.of(TASK_ID_5, TASK_ID_6)));
         writeInstanceInfo(
                 INSTANCE_ID_0, URL_1, /* tabCount= */ 3, /* incognitoTabCount= */ 2, TASK_ID_5);
         writeInstanceInfo(
                 INSTANCE_ID_1, URL_2, /* tabCount= */ 0, /* incognitoTabCount= */ 0, TASK_ID_6);
         int runningActivityCount = 1;
-        ShadowMultiInstanceManagerApi31.updateRunningTabbedActivityCount(runningActivityCount);
+        addRunningTabbedActivity(INSTANCE_ID_0);
 
         var watcher =
                 HistogramWatcher.newBuilder()
@@ -841,15 +861,17 @@ public class MultiWindowUtilsUnitTest {
     @Test
     @Config(sdk = 31)
     public void testRecordDesktopWindowCount_ColdStartOfInstance() {
+        MultiWindowTestUtils.enableMultiInstance();
         when(mAppHeaderState.isInDesktopWindow()).thenReturn(true);
 
         // Simulate persistence of 2 instances, running of 1.
+        MultiWindowUtils.setAppTaskIdsForTesting(new HashSet<>(List.of(TASK_ID_5, TASK_ID_6)));
         writeInstanceInfo(
                 INSTANCE_ID_0, URL_1, /* tabCount= */ 3, /* incognitoTabCount= */ 2, TASK_ID_5);
         writeInstanceInfo(
                 INSTANCE_ID_1, URL_2, /* tabCount= */ 0, /* incognitoTabCount= */ 0, TASK_ID_6);
         int runningActivityCount = 1;
-        ShadowMultiInstanceManagerApi31.updateRunningTabbedActivityCount(runningActivityCount);
+        addRunningTabbedActivity(INSTANCE_ID_0);
 
         int[] instanceAllocationTypes =
                 new int[] {
@@ -900,8 +922,10 @@ public class MultiWindowUtilsUnitTest {
     public void testGetTabCountForRelaunchFromSharedPrefs() {
         int windowId1 = 0;
         int windowId2 = 1;
-        MultiInstancePersistentStore.writeTabCountForRelaunchSync(windowId1, /* tabCount= */ 10);
-        MultiInstancePersistentStore.writeTabCountForRelaunchSync(windowId2, /* tabCount= */ 15);
+        ChromeMultiInstancePersistentStore.writeTabCountForRelaunchSync(
+                windowId1, /* tabCount= */ 10);
+        ChromeMultiInstancePersistentStore.writeTabCountForRelaunchSync(
+                windowId2, /* tabCount= */ 15);
         assertEquals(
                 10, MultiWindowUtils.getTabCountForRelaunchFromPersistentStore(windowId1), 0.01);
         assertEquals(
@@ -941,6 +965,7 @@ public class MultiWindowUtilsUnitTest {
     @Test
     @DisableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT)
     public void testInstanceRestorationMessage() {
+        MultiWindowTestUtils.enableMultiInstance();
         MultiWindowUtils.setInstanceCountForTesting(5);
         MultiWindowUtils.setMaxInstancesForTesting(3);
         MessageDispatcher messageDispatcher = mock(MessageDispatcher.class);
@@ -955,10 +980,7 @@ public class MultiWindowUtilsUnitTest {
         assertTrue("Message should be enqueued.", shown);
         assertTrue(
                 "SharedPreferences should be updated.",
-                ChromeSharedPreferences.getInstance()
-                        .readBoolean(
-                                ChromePreferenceKeys.MULTI_INSTANCE_RESTORATION_MESSAGE_SHOWN,
-                                false));
+                ChromeMultiInstancePersistentStore.readRestorationMessageShown());
         ArgumentCaptor<PropertyModel> message = ArgumentCaptor.forClass(PropertyModel.class);
         verify(messageDispatcher).enqueueWindowScopedMessage(message.capture(), eq(false));
 
@@ -1007,16 +1029,14 @@ public class MultiWindowUtilsUnitTest {
         assertFalse("Message should not be enqueued.", shown);
         assertFalse(
                 "SharedPreferences should not be updated.",
-                ChromeSharedPreferences.getInstance()
-                        .readBoolean(
-                                ChromePreferenceKeys.MULTI_INSTANCE_RESTORATION_MESSAGE_SHOWN,
-                                false));
+                ChromeMultiInstancePersistentStore.readRestorationMessageShown());
         verify(messageDispatcher, never()).enqueueWindowScopedMessage(any(), anyBoolean());
     }
 
     @Test
     @DisableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT)
     public void testInstanceRestorationMessage_ShownExactlyOnce() {
+        MultiWindowTestUtils.enableMultiInstance();
         MultiWindowUtils.setInstanceCountForTesting(5);
         MultiWindowUtils.setMaxInstancesForTesting(3);
         MessageDispatcher messageDispatcher = mock(MessageDispatcher.class);
@@ -1029,10 +1049,7 @@ public class MultiWindowUtilsUnitTest {
         assertTrue("Message should be enqueued.", shown);
         assertTrue(
                 "SharedPreferences should be updated.",
-                ChromeSharedPreferences.getInstance()
-                        .readBoolean(
-                                ChromePreferenceKeys.MULTI_INSTANCE_RESTORATION_MESSAGE_SHOWN,
-                                false));
+                ChromeMultiInstancePersistentStore.readRestorationMessageShown());
 
         // Simulate second request to show message.
         shown =
@@ -1132,7 +1149,7 @@ public class MultiWindowUtilsUnitTest {
     public void testVerifyLatestPersistentStateId_NoPersistentStateNorId() {
         int windowId = INSTANCE_ID_0;
         // Ensure no id is stored.
-        MultiInstancePersistentStore.deleteInstanceState(windowId);
+        ChromeMultiInstancePersistentStore.deleteInstanceState(windowId);
 
         var watcher =
                 HistogramWatcher.newSingleRecordWatcher(
@@ -1145,7 +1162,7 @@ public class MultiWindowUtilsUnitTest {
     @Test
     public void testVerifyLatestPersistentStateId_MissingPersistentState() {
         int windowId = INSTANCE_ID_0;
-        MultiInstancePersistentStore.writeLatestPersistentStateId(windowId, 123);
+        ChromeMultiInstancePersistentStore.writeLatestPersistentStateId(windowId, 123);
 
         var watcher =
                 HistogramWatcher.newSingleRecordWatcher(
@@ -1158,7 +1175,7 @@ public class MultiWindowUtilsUnitTest {
     @Test
     public void testVerifyLatestPersistentStateId_MissingPersistentStateId() {
         int windowId = INSTANCE_ID_0;
-        MultiInstancePersistentStore.deleteInstanceState(windowId);
+        ChromeMultiInstancePersistentStore.deleteInstanceState(windowId);
 
         var watcher =
                 HistogramWatcher.newSingleRecordWatcher(
@@ -1174,7 +1191,8 @@ public class MultiWindowUtilsUnitTest {
         PersistableBundle bundle = new PersistableBundle();
         int persistentStateId = bundle.hashCode();
         bundle.putInt(PERSISTENT_STATE_ID, persistentStateId);
-        MultiInstancePersistentStore.writeLatestPersistentStateId(windowId, persistentStateId);
+        ChromeMultiInstancePersistentStore.writeLatestPersistentStateId(
+                windowId, persistentStateId);
 
         var watcher =
                 HistogramWatcher.newSingleRecordWatcher(
@@ -1190,7 +1208,8 @@ public class MultiWindowUtilsUnitTest {
         PersistableBundle bundle = new PersistableBundle();
         int persistentStateId = bundle.hashCode();
         bundle.putInt(PERSISTENT_STATE_ID, persistentStateId + 1);
-        MultiInstancePersistentStore.writeLatestPersistentStateId(windowId, persistentStateId);
+        ChromeMultiInstancePersistentStore.writeLatestPersistentStateId(
+                windowId, persistentStateId);
 
         var watcher =
                 HistogramWatcher.newSingleRecordWatcher(
@@ -1218,7 +1237,8 @@ public class MultiWindowUtilsUnitTest {
         when(mNormalTabModel.iterator()).thenAnswer(inv -> List.of(mTab1, mTab2).iterator());
         MultiWindowUtils.recordTabCountForRelaunchWhenActivityPaused(mTabModelSelector, windowId);
         Assert.assertEquals(
-                /* expected= */ 2, MultiInstancePersistentStore.readTabCountForRelaunch(windowId));
+                /* expected= */ 2,
+                ChromeMultiInstancePersistentStore.readTabCountForRelaunch(windowId));
 
         // Test the case of adding a non-NTP tab to the tab model.
         when(mNormalTabModel.getCount()).thenReturn(3);
@@ -1228,14 +1248,16 @@ public class MultiWindowUtilsUnitTest {
         when(mTab3.getUrl()).thenReturn(TEST_GURL);
         MultiWindowUtils.recordTabCountForRelaunchWhenActivityPaused(mTabModelSelector, windowId);
         Assert.assertEquals(
-                /* expected= */ 3, MultiInstancePersistentStore.readTabCountForRelaunch(windowId));
+                /* expected= */ 3,
+                ChromeMultiInstancePersistentStore.readTabCountForRelaunch(windowId));
 
         // Test the case of adding a NTP tab to the tab model.
         when(mTab3.isNativePage()).thenReturn(true);
         when(mTab3.getUrl()).thenReturn(NTP_GURL);
         MultiWindowUtils.recordTabCountForRelaunchWhenActivityPaused(mTabModelSelector, windowId);
         Assert.assertEquals(
-                /* expected= */ 2, MultiInstancePersistentStore.readTabCountForRelaunch(windowId));
+                /* expected= */ 2,
+                ChromeMultiInstancePersistentStore.readTabCountForRelaunch(windowId));
     }
 
     private void writeInstanceInfo(
@@ -1245,11 +1267,11 @@ public class MultiWindowUtilsUnitTest {
             int incognitoTabCount,
             int taskId,
             @SupportedProfileType int profileType) {
-        MultiInstancePersistentStore.writeActiveTabUrl(instanceId, url);
-        MultiInstancePersistentStore.writeLastAccessedTime(instanceId);
-        MultiInstancePersistentStore.writeTabCount(instanceId, tabCount, incognitoTabCount);
-        MultiInstancePersistentStore.writeTaskId(instanceId, taskId);
-        MultiInstancePersistentStore.writeProfileType(instanceId, profileType);
+        ChromeMultiInstancePersistentStore.writeActiveTabUrl(instanceId, url);
+        ChromeMultiInstancePersistentStore.writeLastAccessedTime(instanceId);
+        ChromeMultiInstancePersistentStore.writeTabCount(instanceId, tabCount, incognitoTabCount);
+        ChromeMultiInstancePersistentStore.writeTaskId(instanceId, taskId);
+        ChromeMultiInstancePersistentStore.writeProfileType(instanceId, profileType);
     }
 
     private void writeInstanceInfo(

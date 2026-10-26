@@ -2065,7 +2065,7 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
   if (!(effective_load_flags_ & LOAD_DISABLE_CACHE) && method_ == "POST" &&
       NonErrorResponse(new_response_->headers->response_code()) &&
       (!HttpCache::IsSplitCacheEnabled() ||
-       request_->network_isolation_key.IsFullyPopulated())) {
+       !request_->network_isolation_key.IsEmpty())) {
     cache_->DoomMainEntryForUrl(request_->url, request_->network_isolation_key,
                                 request_->is_subframe_document_resource,
                                 request_->is_main_frame_navigation,
@@ -4245,6 +4245,8 @@ bool HttpCache::Transaction::IsUsingURLFromNoVarySearchCache() const {
 
 HttpCache::Transaction::NoVarySearchUseResult
 HttpCache::Transaction::LookupRequestInNoVarySearchCache() {
+  TRACE_EVENT("net",
+              "HttpCache::Transaction::LookupRequestInNoVarySearchCache");
   // In order to conditionally log HttpCache.NoVarySearch.LookupTime.{Hit,Miss},
   // this doesn't use the SCOPED_UMA_HISTOGRAM_TIMER_MICROS macro, but the
   // bucket definitions are identical.

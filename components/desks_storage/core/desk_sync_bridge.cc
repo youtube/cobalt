@@ -274,6 +274,14 @@ std::string DeskSyncBridge::GetStorageKey(
   return entity_data.specifics.workspace_desk().uuid();
 }
 
+sync_pb::EntitySpecifics
+DeskSyncBridge::TrimAllSupportedFieldsFromRemoteSpecifics(
+    const sync_pb::EntitySpecifics& entity_specifics) const {
+  // Clears all fields by default to avoid the memory and I/O overhead of an
+  // additional copy of the data.
+  return sync_pb::EntitySpecifics();
+}
+
 bool DeskSyncBridge::IsEntityDataValid(
     const syncer::EntityData& entity_data) const {
   return desk_template_conversion::FromSyncProto(
@@ -469,8 +477,8 @@ size_t DeskSyncBridge::GetSaveAndRecallDeskEntryCount() const {
 }
 
 size_t DeskSyncBridge::GetDeskTemplateEntryCount() const {
-  size_t template_count = std::count_if(
-      desk_template_entries_.begin(), desk_template_entries_.end(),
+  size_t template_count = std::ranges::count_if(
+      desk_template_entries_,
       [](const std::pair<base::Uuid, std::unique_ptr<ash::DeskTemplate>>&
              entry) {
         return entry.second->type() == ash::DeskTemplateType::kTemplate;

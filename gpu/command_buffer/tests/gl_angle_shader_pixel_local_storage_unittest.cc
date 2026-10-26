@@ -125,20 +125,20 @@ TEST_F(ANGLEShaderPixelLocalStorageTest,
 
   GLint maxPLSPlanes = gl_get_integer(GL_MAX_PIXEL_LOCAL_STORAGE_PLANES_ANGLE);
   for (GLint plane : {0, maxPLSPlanes - 1}) {
-    EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_FORMAT_ANGLE, GL_NONE);
+    EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_INTERNAL_FORMAT_ANGLE, GL_NONE);
     EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_TEXTURE_NAME_ANGLE, 0);
     EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_TEXTURE_LEVEL_ANGLE, 0);
     EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_TEXTURE_LAYER_ANGLE, 0);
 
-    glFramebufferTexturePixelLocalStorageANGLE(plane, tex, 1, 0);
-    EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_FORMAT_ANGLE, GL_RGBA8UI);
+    glFramebufferTexturePixelLocalStorageANGLE(plane, tex, 1, 0, 0);
+    EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_INTERNAL_FORMAT_ANGLE, GL_RGBA8UI);
     EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_TEXTURE_NAME_ANGLE, tex);
     EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_TEXTURE_LEVEL_ANGLE, 1);
     EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_TEXTURE_LAYER_ANGLE, 0);
 
     // Using texture name 0 deinitializes the entire plane.
-    glFramebufferTexturePixelLocalStorageANGLE(plane, 0, 1, 2);
-    EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_FORMAT_ANGLE, GL_NONE);
+    glFramebufferTexturePixelLocalStorageANGLE(plane, 0, 1, 2, 0);
+    EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_INTERNAL_FORMAT_ANGLE, GL_NONE);
     EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_TEXTURE_NAME_ANGLE, 0);
     EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_TEXTURE_LEVEL_ANGLE, 0);
     EXPECT_PLS_INTEGER(plane, GL_PIXEL_LOCAL_TEXTURE_LAYER_ANGLE, 0);
@@ -193,10 +193,10 @@ TEST_F(ANGLEShaderPixelLocalStorageTest, LoadStoreTokens) {
 
   glDisable(GL_DITHER);
 
-  glFramebufferTexturePixelLocalStorageANGLE(0, texs[0], 0, 0);
-  glFramebufferTexturePixelLocalStorageANGLE(1, texs[1], 0, 0);
-  glFramebufferTexturePixelLocalStorageANGLE(2, texs[2], 0, 0);
-  glFramebufferTexturePixelLocalStorageANGLE(3, texs[3], 0, 0);
+  glFramebufferTexturePixelLocalStorageANGLE(0, texs[0], 0, 0, 0);
+  glFramebufferTexturePixelLocalStorageANGLE(1, texs[1], 0, 0, 0);
+  glFramebufferTexturePixelLocalStorageANGLE(2, texs[2], 0, 0, 0);
+  glFramebufferTexturePixelLocalStorageANGLE(3, texs[3], 0, 0, 0);
   glBeginPixelLocalStorageANGLE(
       4, std::array<GLenum, 4>{GL_LOAD_OP_CLEAR_ANGLE, GL_LOAD_OP_LOAD_ANGLE,
                                GL_LOAD_OP_ZERO_ANGLE, GL_DONT_CARE}
@@ -237,7 +237,7 @@ TEST_F(ANGLEShaderPixelLocalStorageTest, DrawAPI) {
   GLuint fbo;
   glGenFramebuffers(1, &fbo);
   glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-  glFramebufferTexturePixelLocalStorageANGLE(0, tex, 0, 0);
+  glFramebufferTexturePixelLocalStorageANGLE(0, tex, 0, 0, 0);
   EXPECT_GL_ERROR(GL_NO_ERROR);
 
   glViewport(0, 0, 10, 10);
@@ -309,7 +309,7 @@ TEST_F(ANGLEShaderPixelLocalStorageTest, BlockEmulatedDefaultFramebuffer) {
   glTexStorage2DEXT(GL_TEXTURE_2D, 1, GL_RGBA8, 10, 10);
   EXPECT_GL_ERROR(GL_NO_ERROR);
 
-  glFramebufferTexturePixelLocalStorageANGLE(0, tex, 0, 0);
+  glFramebufferTexturePixelLocalStorageANGLE(0, tex, 0, 0, 0);
   EXPECT_GL_ERROR(GL_INVALID_OPERATION);
   EXPECT_GL_ERROR(GL_NO_ERROR);
 
@@ -349,7 +349,7 @@ TEST_F(ANGLEShaderPixelLocalStorageTest, BlockEmulatedDefaultFramebuffer) {
 
   GLint valuei = -1;
   glGetFramebufferPixelLocalStorageParameterivANGLE(
-      0, GL_PIXEL_LOCAL_FORMAT_ANGLE, &valuei);
+      0, GL_PIXEL_LOCAL_INTERNAL_FORMAT_ANGLE, &valuei);
   EXPECT_GL_ERROR(GL_INVALID_OPERATION);
   EXPECT_GL_ERROR(GL_NO_ERROR);
 }

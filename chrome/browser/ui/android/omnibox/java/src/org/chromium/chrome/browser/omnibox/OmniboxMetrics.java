@@ -122,8 +122,8 @@ public class OmniboxMetrics {
     @interface FocusResultedInNavigationTypes {
         // LINT.IfChange(FocusResultedInNavigationTypes)
         int NO_NAV_NO_ATTACHMENT = 0;
-        int NO_NAV_WITH_ATTACHMENT = 1;
-        int NAV_NO_ATTACHMENT = 2;
+        int NAV_NO_ATTACHMENT = 1;
+        int NO_NAV_WITH_ATTACHMENT = 2;
         int NAV_WITH_ATTACHMENT = 3;
         int COUNT = 4;
         // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:FocusResultedInNavigationTypes)
@@ -499,15 +499,6 @@ public class OmniboxMetrics {
                 break;
 
             default:
-                // May trigger if nev PageClassifications were added to
-                // third_party/metrics_proto/omnibox_event.proto file,
-                // but have not been reflected here. If that's the case, file a bug for the
-                // author of the new PageClassification.
-                // Last supported value: OTHER_ON_CCT.
-                assert false
-                        : "b/40221519: Invalid page classification: "
-                                + pageClass
-                                + ". Please re-open bug, and attach captured stack trace.";
                 break;
         }
 

@@ -11,10 +11,12 @@
 
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/strings/escape.h"
 #include "base/strings/string_split.h"
 #include "components/google/core/common/google_util.h"
 #include "components/signin/core/browser/chrome_connected_header_helper.h"
+#include "components/signin/core/browser/dice_response_params.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "net/http/http_request_headers.h"
 
@@ -37,34 +39,6 @@ ManageAccountsParams::ManageAccountsParams(const ManageAccountsParams&) =
 
 ManageAccountsParams& ManageAccountsParams::operator=(
     const ManageAccountsParams&) = default;
-
-// Trivial constructors and destructors.
-DiceResponseParams::DiceResponseParams() = default;
-DiceResponseParams::~DiceResponseParams() = default;
-DiceResponseParams::DiceResponseParams(DiceResponseParams&&) = default;
-DiceResponseParams& DiceResponseParams::operator=(DiceResponseParams&&) =
-    default;
-
-DiceResponseParams::AccountInfo::AccountInfo() = default;
-DiceResponseParams::AccountInfo::AccountInfo(const GaiaId& gaia_id,
-                                             const std::string& email,
-                                             int session_index)
-    : gaia_id(gaia_id), email(email), session_index(session_index) {}
-DiceResponseParams::AccountInfo::~AccountInfo() = default;
-DiceResponseParams::AccountInfo::AccountInfo(const AccountInfo&) = default;
-
-DiceResponseParams::SigninInfo::SigninInfo() = default;
-DiceResponseParams::SigninInfo::~SigninInfo() = default;
-DiceResponseParams::SigninInfo::SigninInfo(const SigninInfo&) = default;
-
-DiceResponseParams::SignoutInfo::SignoutInfo() = default;
-DiceResponseParams::SignoutInfo::~SignoutInfo() = default;
-DiceResponseParams::SignoutInfo::SignoutInfo(const SignoutInfo&) = default;
-
-DiceResponseParams::EnableSyncInfo::EnableSyncInfo() = default;
-DiceResponseParams::EnableSyncInfo::~EnableSyncInfo() = default;
-DiceResponseParams::EnableSyncInfo::EnableSyncInfo(const EnableSyncInfo&) =
-    default;
 
 RequestAdapter::RequestAdapter(const GURL& url,
                                const net::HttpRequestHeaders& original_headers,
@@ -216,44 +190,9 @@ void AppendOrRemoveMirrorRequestHeader(
       chrome_connected_header_value);
 }
 
-bool AppendOrRemoveDiceRequestHeader(
-    RequestAdapter* request,
-    const GURL& redirect_url,
-    const GaiaId& gaia_id,
-    bool sync_enabled,
-    AccountConsistencyMethod account_consistency,
-    const content_settings::CookieSettings* cookie_settings,
-    const std::string& device_id) {
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  const GURL& url = redirect_url.is_empty() ? request->GetUrl() : redirect_url;
-  DiceHeaderHelper dice_helper(account_consistency);
-  std::string dice_header_value;
-  if (dice_helper.ShouldBuildRequestHeader(url, cookie_settings)) {
-    dice_header_value = dice_helper.BuildRequestHeader(
-        sync_enabled ? gaia_id : GaiaId(), device_id);
-  }
-  return dice_helper.AppendOrRemoveRequestHeader(
-      request, redirect_url, kDiceRequestHeader, dice_header_value);
-#else
-  return false;
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
-}
-
 ManageAccountsParams BuildManageAccountsParams(
     const std::string& header_value) {
   return ChromeConnectedHeaderHelper::BuildManageAccountsParams(header_value);
 }
-
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-DiceResponseParams BuildDiceSigninResponseParams(
-    const std::string& header_value) {
-  return DiceHeaderHelper::BuildDiceSigninResponseParams(header_value);
-}
-
-DiceResponseParams BuildDiceSignoutResponseParams(
-    const std::string& header_value) {
-  return DiceHeaderHelper::BuildDiceSignoutResponseParams(header_value);
-}
-#endif
 
 }  // namespace signin

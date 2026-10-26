@@ -204,7 +204,7 @@ HTMLMapElement* TreeScope::GetImageMap(const String& url) const {
   wtf_size_t hash_pos = url.find('#');
   if (hash_pos == kNotFound)
     return nullptr;
-  String name = url.Substring(hash_pos + 1);
+  String name = url.substr(hash_pos + 1);
   if (name.empty()) {
     return nullptr;
   }
@@ -483,9 +483,7 @@ void TreeScope::ClearAdoptedStyleSheets() {
   if (!HasAdoptedStyleSheets()) {
     return;
   }
-  HeapVector<Member<CSSStyleSheet>> removed;
-  removed.AppendRange(adopted_style_sheets_->begin(),
-                      adopted_style_sheets_->end());
+  HeapVector<Member<CSSStyleSheet>> removed(*adopted_style_sheets_);
   adopted_style_sheets_->clear();
   for (const auto& sheet : removed) {
     StyleSheetWasRemoved(sheet);
@@ -495,6 +493,8 @@ void TreeScope::ClearAdoptedStyleSheets() {
 void TreeScope::AppendAdoptedStyleSheets(
     HeapVector<Member<CSSStyleSheet>>&& adopted_style_sheets) {
   EnsureAdoptedStyleSheets();
+  adopted_style_sheets_->reserve(adopted_style_sheets_->size() +
+                                 adopted_style_sheets.size());
   for (const auto& sheet : adopted_style_sheets) {
     DCHECK(sheet->IsConstructed());
     DCHECK_EQ(sheet->ConstructorDocument(), GetDocument());
@@ -572,7 +572,7 @@ Node* TreeScope::FindAnchor(const String& fragment) {
 
   // 4. Let fragmentBytes be the percent-decoded fragment.
   // 5. Let decodedFragment be the UTF-8 decode without BOM of fragmentBytes.
-  String name = DecodeURLEscapeSequences(fragment, DecodeURLMode::kUTF8);
+  String name = DecodeUrlEscapeSequences(fragment, DecodeUrlMode::kUtf8);
   // 6. Try decodedFragment.
   anchor = FindAnchorWithName(name);
   if (anchor)
@@ -580,8 +580,9 @@ Node* TreeScope::FindAnchor(const String& fragment) {
 
   // 7. If decodedFragment is "top", top of the document.
   // TODO(1117212) Move the IsEmpty check to step 2.
-  if (fragment.empty() || EqualIgnoringASCIICase(name, "top"))
+  if (fragment.empty() || EqualIgnoringAsciiCase(name, "top")) {
     anchor = &GetDocument();
+  }
 
   return anchor;
 }

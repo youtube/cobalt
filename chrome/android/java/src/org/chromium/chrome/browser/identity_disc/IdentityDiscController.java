@@ -25,12 +25,12 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ntp.NewTabPage;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherImpl;
+import org.chromium.chrome.browser.signin.services.BadgeConfig;
 import org.chromium.chrome.browser.signin.services.DisplayableProfileData;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
@@ -48,6 +48,7 @@ import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConf
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig.WithAccountSigninMode;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncCoordinator;
 import org.chromium.chrome.browser.ui.signin.SigninSurveyController;
+import org.chromium.chrome.browser.ui.signin.SigninUtils;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
 import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
 import org.chromium.chrome.browser.user_education.IphCommandBuilder;
@@ -59,7 +60,6 @@ import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.signin.SigninFeatureMap;
-import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
@@ -71,8 +71,6 @@ import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
-
-import java.util.function.Supplier;
 
 /**
  * Handles displaying IdentityDisc on toolbar depending on several conditions (user sign-in state,
@@ -93,7 +91,7 @@ public class IdentityDiscController
     private final ActivityResultTracker mActivityResultTracker;
     private final DeviceLockActivityLauncher mDeviceLockActivityLauncher;
     private final BottomSheetController mBottomSheetController;
-    private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
+    private final ModalDialogManager mModalDialogManager;
     private final SnackbarManager mSnackbarManager;
     private final MonotonicObservableSupplier<Profile> mProfileSupplier;
     private final Callback<Profile> mProfileSupplierObserver = this::setProfile;
@@ -127,7 +125,7 @@ public class IdentityDiscController
      * @param profileSupplier The supplier of the current profile.
      * @param bottomSheetController The {@link BottomSheetController} to show the sign-in bottom
      *     sheet.
-     * @param modalDialogManagerSupplier The supplier of the {@link ModalDialogManager}.
+     * @param modalDialogManager The {@link ModalDialogManager}.
      * @param snackbarManager The {@link SnackbarManager} to show sign-in/sign-out snackbars.
      */
     public IdentityDiscController(
@@ -137,7 +135,7 @@ public class IdentityDiscController
             DeviceLockActivityLauncher deviceLockActivityLauncher,
             MonotonicObservableSupplier<Profile> profileSupplier,
             BottomSheetController bottomSheetController,
-            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
+            ModalDialogManager modalDialogManager,
             SnackbarManager snackbarManager) {
         mContext = activity;
         mActivity = activity;
@@ -146,7 +144,7 @@ public class IdentityDiscController
         mDeviceLockActivityLauncher = deviceLockActivityLauncher;
         mProfileSupplier = profileSupplier;
         mBottomSheetController = bottomSheetController;
-        mModalDialogManagerSupplier = modalDialogManagerSupplier;
+        mModalDialogManager = modalDialogManager;
         mSnackbarManager = snackbarManager;
 
         mProfileSupplier.addSyncObserverAndPostIfNonNull(mProfileSupplierObserver);
@@ -156,7 +154,8 @@ public class IdentityDiscController
                         /* canShow= */ false,
                         /* drawable= */ null,
                         /* onClickListener= */ view -> onClick(),
-                        mContext.getString(R.string.accessibility_toolbar_btn_identity_disc),
+                        /* contentDescription= */ SigninUtils.getContentDescriptionForIdentityDisc(
+                                mContext, null, UserActionableError.NONE),
                         /* supportsTinting= */ false,
                         new IphCommandBuilder(
                                 mContext.getResources(),
@@ -214,7 +213,12 @@ public class IdentityDiscController
         // `supportsTinting` must be false when showing the user's profile image or its placeholder,
         // to not alter the images colors in those cases.
         boolean shouldSupportTinting = email == null;
-        String contentDescription = getContentDescription(email);
+        assumeNonNull(mProfileDataCache);
+        DisplayableProfileData profileData =
+                email == null ? null : mProfileDataCache.getProfileDataOrDefault(email);
+        String contentDescription =
+                SigninUtils.getContentDescriptionForIdentityDisc(
+                        mContext, profileData, mIdentityError);
         return new ButtonSpec(
                 drawable,
                 buttonSpec.getOnClickListener(),
@@ -354,8 +358,7 @@ public class IdentityDiscController
         }
 
         @UserActionableError int error = SyncSettingsUtils.getSyncError(mProfile);
-        if (error == mIdentityError
-                || !ChromeFeatureList.isEnabled(ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP)) {
+        if (error == mIdentityError) {
             // Nothing changed.
             return;
         }
@@ -368,8 +371,9 @@ public class IdentityDiscController
                     coreAccountInfo.getId(),
                     mIdentityError == UserActionableError.NONE
                             ? null
-                            : ProfileDataCache.createToolbarIdentityDiscBadgeConfig(
-                                    mContext, R.drawable.ic_error_badge_16dp));
+                            : BadgeConfig.create(R.drawable.ic_error_badge_16dp)
+                                    .withToolbarIdentityDiscConfig()
+                                    .build(mContext));
         }
     }
 
@@ -439,31 +443,6 @@ public class IdentityDiscController
         }
     }
 
-    private String getContentDescription(@Nullable String email) {
-        if (email == null) {
-            return mContext.getString(R.string.accessibility_toolbar_btn_signed_out_identity_disc);
-        }
-
-        assumeNonNull(mProfileDataCache);
-        DisplayableProfileData profileData = mProfileDataCache.getProfileDataOrDefault(email);
-        String userName = profileData.getFullName();
-        if (profileData.hasDisplayableEmailAddress()) {
-            return mContext.getString(
-                    mIdentityError == UserActionableError.NONE
-                            ? R.string.accessibility_toolbar_btn_identity_disc_with_name_and_email
-                            : R.string
-                                    .accessibility_toolbar_btn_identity_disc_error_with_name_and_email,
-                    userName,
-                    email);
-        }
-
-        return mContext.getString(
-                mIdentityError == UserActionableError.NONE
-                        ? R.string.accessibility_toolbar_btn_identity_disc_with_name
-                        : R.string.accessibility_toolbar_btn_identity_disc_error_with_name,
-                userName);
-    }
-
     @VisibleForTesting
     void onClick() {
         if (mProfile == null) {
@@ -494,8 +473,8 @@ public class IdentityDiscController
                             .signinSurveyType(
                                     SigninSurveyController.SigninSurveyType.NTP_SIGNIN_BUTTON)
                             .build();
-            if (mSigninCoordinator != null) {
-                mSigninCoordinator.startSigninFlow(config);
+            if (SigninFeatureMap.getInstance().isActivitylessSigninAllEntryPointEnabled()) {
+                assumeNonNull(mSigninCoordinator).startSigninFlow(config);
             } else {
                 @Nullable Intent intent =
                         SigninAndHistorySyncActivityLauncherImpl.get()
@@ -528,9 +507,7 @@ public class IdentityDiscController
         assert !mProfile.isOffTheRecord();
 
         if (mSigninCoordinator == null
-                && SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
-                && SigninFeatureMap.isEnabled(
-                        SigninFeatures.ENABLE_ACTIVITYLESS_SIGNIN_ALL_ENTRY_POINT)) {
+                && SigninFeatureMap.getInstance().isActivitylessSigninAllEntryPointEnabled()) {
             OneshotSupplierImpl<Profile> profileSupplier = new OneshotSupplierImpl<>();
             profileSupplier.set(mProfile);
 
@@ -544,7 +521,7 @@ public class IdentityDiscController
                                     mDeviceLockActivityLauncher,
                                     profileSupplier,
                                     () -> mBottomSheetController,
-                                    mModalDialogManagerSupplier,
+                                    mModalDialogManager,
                                     mSnackbarManager,
                                     SigninAccessPoint.NTP_SIGNED_OUT_ICON);
         }

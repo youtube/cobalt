@@ -64,12 +64,13 @@ public class TabBottomSheetContent implements BottomSheetContent {
 
     @Override
     public boolean swipeToDismissEnabled() {
-        return true;
+        return false;
     }
 
     @Override
     public int getPeekHeight() {
-        return HeightMode.DISABLED;
+        // TODO (crbug.com/489070365) Update min height based on java toolbar or webUi header.
+        return Math.round(mContentView.getHeight() * 0.1f);
     }
 
     @Override
@@ -85,6 +86,16 @@ public class TabBottomSheetContent implements BottomSheetContent {
     @Override
     public String getSheetContentDescription(Context context) {
         return "";
+    }
+
+    @Override
+    public boolean skipHalfStateOnScrollingDown() {
+        return false;
+    }
+
+    @Override
+    public boolean hideOnScroll() {
+        return false;
     }
 
     @Override

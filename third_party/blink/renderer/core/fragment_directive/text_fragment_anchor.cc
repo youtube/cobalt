@@ -173,13 +173,29 @@ TextFragmentAnchor* TextFragmentAnchor::TryCreate(const KURL& url,
 
   HeapVector<Member<TextDirective>> text_directives =
       frame.GetDocument()->fragmentDirective().GetDirectives<TextDirective>();
-  if (text_directives.empty()) {
-    if (frame.GetDocument()
-            ->fragmentDirective()
-            .LastNavigationHadFragmentDirective()) {
-      UseCounter::Count(frame.GetDocument(),
-                        WebFeature::kInvalidFragmentDirective);
+
+  if (text_directives.empty() && frame.GetDocument()
+                                     ->fragmentDirective()
+                                     .LastNavigationHadFragmentDirective()) {
+    UseCounter::Count(frame.GetDocument(),
+                      WebFeature::kInvalidFragmentDirective);
+  }
+
+  bool has_internal_scroll_to_text_fragment = false;
+  if (frame.Loader().GetDocumentLoader()) {
+    std::optional<String> internal_scroll_to_text_fragment =
+        frame.Loader().GetDocumentLoader()->TakeInternalScrollToTextFragment();
+    if (internal_scroll_to_text_fragment) {
+      has_internal_scroll_to_text_fragment = true;
+      if (TextDirective* text_directive =
+              TextDirective::Create(*internal_scroll_to_text_fragment,
+                                    TextDirective::Behavior::kScrollOnly)) {
+        text_directives.push_back(text_directive);
+      }
     }
+  }
+
+  if (text_directives.empty()) {
     return nullptr;
   }
 
@@ -204,14 +220,17 @@ TextFragmentAnchor* TextFragmentAnchor::TryCreate(const KURL& url,
     }
   }
 
-  return MakeGarbageCollected<TextFragmentAnchor>(text_directives, frame,
-                                                  should_scroll);
+  auto* anchor = MakeGarbageCollected<TextFragmentAnchor>(
+      text_directives, frame, should_scroll,
+      has_internal_scroll_to_text_fragment);
+  return anchor;
 }
 
 TextFragmentAnchor::TextFragmentAnchor(
     HeapVector<Member<TextDirective>>& text_directives,
     LocalFrame& frame,
-    bool should_scroll)
+    bool should_scroll,
+    bool is_send_tab_to_self)
     : SelectorFragmentAnchor(frame, should_scroll),
       post_load_timer_(frame.GetTaskRunner(TaskType::kInternalFindInPage),
                        this,
@@ -226,7 +245,21 @@ TextFragmentAnchor::TextFragmentAnchor(
   DCHECK(!text_directives.empty());
   DCHECK(frame_->View());
 
+  // We count all directives, including kScrollOnly (silent) directives used by
+  // internal features like Send Tab To Self, so we can track their success
+  // rate in metrics.
   metrics_->DidCreateAnchor(text_directives.size());
+
+  if (is_send_tab_to_self) {
+    metrics_->SetLinkOpenSource(
+        TextFragmentAnchorMetrics::TextFragmentLinkOpenSource::kSendTabToSelf);
+  } else if (HasSearchEngineSource()) {
+    metrics_->SetLinkOpenSource(
+        TextFragmentAnchorMetrics::TextFragmentLinkOpenSource::kSearchEngine);
+  } else {
+    metrics_->SetLinkOpenSource(
+        TextFragmentAnchorMetrics::TextFragmentLinkOpenSource::kUnknown);
+  }
 
   AnnotationAgentContainerImpl* annotation_container =
       AnnotationAgentContainerImpl::CreateIfNeeded(*frame_->GetDocument());
@@ -236,8 +269,14 @@ TextFragmentAnchor::TextFragmentAnchor(
   for (Member<TextDirective>& directive : text_directives) {
     auto* selector =
         MakeGarbageCollected<TextAnnotationSelector>(directive->GetSelector());
-    AnnotationAgentImpl* agent = annotation_container->CreateUnboundAgent(
-        mojom::blink::AnnotationType::kSharedHighlight, *selector);
+
+    mojom::blink::AnnotationType annotation_type =
+        directive->IsScrollOnly()
+            ? mojom::blink::AnnotationType::kScrollOnly
+            : mojom::blink::AnnotationType::kSharedHighlight;
+
+    AnnotationAgentImpl* agent =
+        annotation_container->CreateUnboundAgent(annotation_type, *selector);
 
     // TODO(bokan): This is a stepping stone in refactoring the
     // TextFragmentHandler. When we replace it with a browser-side manager it
@@ -425,10 +464,13 @@ void TextFragmentAnchor::ApplyEffectsToFirstMatch() {
   const RangeInFlatTree& range = first_match_->GetAttachedRange();
 
   // Apply :target pseudo-class.
-  ApplyTargetToCommonAncestor(range.ToEphemeralRange());
+  if (!first_match_->IsScrollOnly()) {
+    // Silent matches are intended to be invisible to the user, and :target
+    // often has visual effects (like the default yellow highlight).
+    ApplyTargetToCommonAncestor(range.ToEphemeralRange());
+  }
   frame_->GetDocument()->UpdateStyleAndLayout(
       DocumentUpdateReason::kFindInPage);
-
   // Scroll the match into view.
   if (!EnsureFirstMatchInViewIfNeeded())
     return;
@@ -474,7 +516,6 @@ void TextFragmentAnchor::DidFinishSearch() {
   CHECK(container);
   container->RemoveObserver(this);
 
-  metrics_->SetSearchEngineSource(HasSearchEngineSource());
   metrics_->ReportMetrics();
 
   bool did_find_any_matches = first_match_ != nullptr;

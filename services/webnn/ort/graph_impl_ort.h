@@ -41,15 +41,16 @@ class GraphImplOrt final : public WebNNGraphImpl {
       ComputeResourceInfo compute_resource_info,
       base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
           constant_operands,
-      base::flat_map<OperandId, WebNNTensorImpl*> constant_tensor_operands,
-      ContextImplOrt* context,
+      base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
+          constant_tensor_operands,
+      ContextImplOrt& context,
       WebNNContextImpl::CreateGraphImplCallback callback);
 
   class ComputeResources;
   GraphImplOrt(mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
                ComputeResourceInfo compute_resource_info,
                std::unique_ptr<ComputeResources> compute_resources,
-               base::WeakPtr<WebNNContextImpl> context,
+               WebNNContextImpl& context,
                std::vector<mojom::Device> devices);
 
   GraphImplOrt(const GraphImplOrt&) = delete;
@@ -70,7 +71,7 @@ class GraphImplOrt final : public WebNNGraphImpl {
 
   static void DidCreateAndBuild(
       mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
-      base::WeakPtr<WebNNContextImpl> context,
+      WebNNContextImpl& context,
       ComputeResourceInfo compute_resource_info,
       WebNNContextImpl::CreateGraphImplCallback callback,
       base::expected<std::unique_ptr<ComputeResources>, mojom::ErrorPtr>

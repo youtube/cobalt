@@ -15,10 +15,10 @@
 #include <deque>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/rtc_event_log/rtc_event.h"
 #include "api/rtp_headers.h"
@@ -753,7 +753,7 @@ std::string RtcEventLogEncoderLegacy::EncodeRtcpPacket(int64_t timestamp_us,
 
 std::string RtcEventLogEncoderLegacy::EncodeRtpPacket(
     int64_t timestamp_us,
-    ArrayView<const uint8_t> header,
+    std::span<const uint8_t> header,
     size_t packet_length,
     int probe_cluster_id,
     bool is_incoming) {

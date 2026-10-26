@@ -14,12 +14,19 @@
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_window.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/sessions/tab_restore_service_factory.h"
 #include "chrome/browser/sessions/tab_restore_service_load_waiter.h"
+#include "components/signin/public/base/signin_buildflags.h"
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+#include "chrome/browser/signin/dice_tab_helper.h"
+#endif
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/translate/translate_test_utils.h"
@@ -31,34 +38,40 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/profiles/profile_picker.h"
 #include "chrome/browser/ui/profiles/profile_ui_test_utils.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/tab_modal_confirm_dialog_browsertest.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
+#include "chrome/common/chrome_features.h"
+#include "chrome/common/chrome_switches.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/test_browser_window.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
-#include "components/commerce/core/commerce_feature_list.h"
+#include "components/prefs/pref_service.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/sessions/core/tab_restore_service.h"
 #include "components/sessions/core/tab_restore_service_observer.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/sync/base/features.h"
 #include "components/translate/core/browser/language_state.h"
 #include "components/translate/core/browser/translate_manager.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
+#include "google_apis/gaia/gaia_urls.h"
 #include "net/base/network_change_notifier.h"
 #include "ui/base/ui_base_features.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+
 #include "ash/constants/ash_switches.h"
 #include "ash/wm/window_pin_util.h"
 #include "chrome/browser/ash/boca/on_task/on_task_locked_controller.h"
@@ -71,14 +84,6 @@
 #include "chrome/common/chrome_features.h"
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/glic_pref_names.h"
-#include "chrome/browser/glic/public/glic_keyed_service.h"
-#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
-#include "chrome/common/chrome_switches.h"
-#include "chrome/common/pref_names.h"
-#include "components/prefs/pref_service.h"
-#endif
 
 namespace chrome {
 
@@ -503,15 +508,65 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTestRefreshOnly,
   EXPECT_TRUE(chrome::ExecuteCommand(browser(), IDC_TURN_ON_SYNC));
 }
 
-IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTestRefreshOnly,
+class BrowserCommandControllerBrowserTestShowSigninWhenPaused
+    : public BrowserCommandControllerBrowserTestRefreshOnly,
+      public testing::WithParamInterface<bool> {
+ public:
+  BrowserCommandControllerBrowserTestShowSigninWhenPaused() {
+    if (GetParam()) {
+      scoped_feature_list_.InitAndEnableFeature(
+          syncer::kReplaceSyncPromosWithSignInPromos);
+    } else {
+      scoped_feature_list_.InitAndDisableFeature(
+          syncer::kReplaceSyncPromosWithSignInPromos);
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    BrowserCommandControllerBrowserTestShowSigninWhenPaused,
+    testing::Bool(),
+    [](const testing::TestParamInfo<bool>& info) {
+      return info.param ? "ReplaceSyncPromosEnabled"
+                        : "ReplaceSyncPromosDisabled";
+    });
+
+IN_PROC_BROWSER_TEST_P(BrowserCommandControllerBrowserTestShowSigninWhenPaused,
                        ExecuteShowSigninWhenPaused) {
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(browser()->profile());
-  signin::MakePrimaryAccountAvailable(identity_manager, "user@example.com",
-                                      signin::ConsentLevel::kSync);
+  signin::MakePrimaryAccountAvailable(
+      identity_manager, "user@example.com",
+      base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos)
+          ? signin::ConsentLevel::kSignin
+          : signin::ConsentLevel::kSync);
   signin::SetRefreshTokenForPrimaryAccount(identity_manager);
   signin::SetInvalidRefreshTokenForPrimaryAccount(identity_manager);
+  EXPECT_TRUE(
+      identity_manager->HasAccountWithRefreshTokenInPersistentErrorState(
+          identity_manager->GetPrimaryAccountId(
+              signin::ConsentLevel::kSignin)));
+  EXPECT_TRUE(chrome::IsCommandEnabled(browser(), IDC_SHOW_SIGNIN_WHEN_PAUSED));
   EXPECT_TRUE(chrome::ExecuteCommand(browser(), IDC_SHOW_SIGNIN_WHEN_PAUSED));
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  content::WebContents* active_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(active_contents);
+  DiceTabHelper* tab_helper = DiceTabHelper::FromWebContents(active_contents);
+  ASSERT_TRUE(tab_helper);
+  EXPECT_TRUE(tab_helper->IsChromeSigninPage());
+  EXPECT_EQ(active_contents->GetVisibleURL().host(),
+            GaiaUrls::GetInstance()->gaia_url().host());
+  EXPECT_EQ(signin_metrics::AccessPoint::kMenu,
+            tab_helper->signin_access_point());
+  EXPECT_EQ(signin_metrics::Reason::kReauthentication,
+            tab_helper->signin_reason());
+#endif
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTestRefreshOnly,
@@ -612,51 +667,6 @@ IN_PROC_BROWSER_TEST_F(CreateShortcutBrowserCommandControllerNavTest,
 
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 
-// Tests for comparison table submenu.
-class BrowserCommandControllerBrowserTestCompare
-    : public BrowserCommandControllerBrowserTest {
- public:
-  BrowserCommandControllerBrowserTestCompare() {
-    scoped_feature_list_.InitAndEnableFeature(commerce::kProductSpecifications);
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTestCompare,
-                       AddToTableMenu_UrlSchemeHttp) {
-  GURL url = GURL("http://example.com");
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-
-  browser()->command_controller()->TabStateChanged();
-
-  EXPECT_TRUE(browser()->command_controller()->IsCommandEnabled(
-      IDC_ADD_TO_COMPARISON_TABLE_MENU));
-}
-
-IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTestCompare,
-                       AddToTableMenu_UrlSchemeHttps) {
-  GURL url = GURL("https://example.com");
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-
-  browser()->command_controller()->TabStateChanged();
-
-  EXPECT_TRUE(browser()->command_controller()->IsCommandEnabled(
-      IDC_ADD_TO_COMPARISON_TABLE_MENU));
-}
-
-IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTestCompare,
-                       AddToTableMenu_UrlSchemeNotHttpOrHttps) {
-  GURL url = GURL("chrome://history");
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-
-  browser()->command_controller()->TabStateChanged();
-
-  EXPECT_FALSE(browser()->command_controller()->IsCommandEnabled(
-      IDC_ADD_TO_COMPARISON_TABLE_MENU));
-}
-
 // Tests for Your saved info submenu.
 class BrowserCommandControllerBrowserTestYourSavedInfo
     : public BrowserCommandControllerBrowserTest {
@@ -685,7 +695,6 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTestYourSavedInfo,
             "chrome://settings/travel");
 }
 
-#if BUILDFLAG(ENABLE_GLIC)
 class BrowserCommandControllerBrowserTestGlic
     : public BrowserCommandControllerBrowserTest {
  public:
@@ -796,6 +805,5 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTestGlicChromeOSGuest,
   EXPECT_FALSE(chrome::IsCommandEnabled(browser(), IDC_GLIC_TOGGLE_PIN));
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
 }  // namespace chrome

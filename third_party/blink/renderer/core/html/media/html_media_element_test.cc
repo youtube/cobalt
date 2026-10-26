@@ -45,6 +45,14 @@
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "ui/gfx/geometry/size.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/scoped_feature_list.h"
+#include "third_party/blink/public/common/features.h"
+#include "third_party/blink/renderer/core/html/html_body_element.h"
+#include "third_party/blink/renderer/core/html_names.h"
+#include "third_party/blink/renderer/core/layout/layout_object.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/test/scoped_feature_list.h"
 #include "third_party/blink/renderer/platform/network/mime/content_type.h"
@@ -114,6 +122,9 @@ class MockWebMediaPlayer : public EmptyWebMediaPlayer {
                                  CorsMode cors_mode,
                                  bool is_cache_disabled));
   MOCK_CONST_METHOD0(DidLazyLoad, bool());
+#if BUILDFLAG(IS_COBALT)
+  MOCK_METHOD0(DidLoadingProgress, bool());
+#endif  // BUILDFLAG(IS_COBALT)
 
   MOCK_METHOD0(GetSrcAfterRedirects, GURL());
 };
@@ -427,7 +438,7 @@ class HTMLMediaElementTest : public testing::TestWithParam<MediaTestParam> {
   }
 
   bool HasLazyLoadObserver() const {
-    return !!Media()->lazy_load_intersection_observer_;
+    return !!Media()->player_lazy_load_intersection_observer_;
   }
 
   bool ControlsVisible() const { return Media()->ShouldShowControls(); }
@@ -465,6 +476,10 @@ class HTMLMediaElementTest : public testing::TestWithParam<MediaTestParam> {
   }
 
   void ClearMediaPlayer() { Media()->ClearMediaPlayer(); }
+
+#if BUILDFLAG(IS_COBALT)
+  void ProgressEventTimerFired() { Media()->ProgressEventTimerFired(); }
+#endif  // BUILDFLAG(IS_COBALT)
 
  protected:
   // Helpers to call MediaPlayerObserver mojo methods and check their results.
@@ -2653,6 +2668,38 @@ TEST_P(HTMLMediaElementTest, StartVideoWithDoubleTrackSelection) {
   }
 }
 
+#if BUILDFLAG(IS_COBALT)
+TEST_P(HTMLMediaElementTest, CobaltCreatesMediaControlsWhenFeatureDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kCobaltSkipHiddenMediaControlsWork);
+
+  Media()->GetDocument().body()->AppendChild(Media());
+  UpdateLifecyclePhases();
+
+  EXPECT_FALSE(ControlsVisible());
+  EXPECT_NE(Media()->GetMediaControls(), nullptr);
+}
+
+TEST_P(HTMLMediaElementTest, CobaltSkipsHiddenMediaControlsWhenFeatureEnabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kCobaltSkipHiddenMediaControlsWork);
+
+  Media()->GetDocument().body()->AppendChild(Media());
+  UpdateLifecyclePhases();
+
+  EXPECT_FALSE(ControlsVisible());
+  EXPECT_EQ(Media()->GetMediaControls(), nullptr);
+
+  // Toggling the controls attribute must not create controls either, since
+  // Cobalt never shows native controls.
+  Media()->SetBooleanAttribute(html_names::kControlsAttr, true);
+  UpdateLifecyclePhases();
+  EXPECT_EQ(Media()->GetMediaControls(), nullptr);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 TEST(HTMLMediaElementTest, RejectsCobaltProgressiveSupportQueries) {
   const ContentType progressive_type(
@@ -2678,5 +2725,63 @@ TEST(HTMLMediaElementTest, RejectsCobaltProgressiveSupportQueries) {
               MIMETypeRegistry::kNotSupported);
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+#if BUILDFLAG(IS_COBALT)
+TEST_P(HTMLMediaElementTest,
+       ProgressEventTimerSkipsLayoutUpdateWhenFeatureEnabled) {
+  if (GetParam() != MediaTestParam::kVideo) {
+    return;
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kCobaltSkipHiddenMediaControlsWork);
+
+  Media()->GetDocument().body()->AppendChild(Media());
+  Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
+  test::RunPendingTasks();
+  SetReadyState(HTMLMediaElement::kHaveEnoughData);
+  SetNetworkState(WebMediaPlayer::kNetworkStateLoading);
+  UpdateLifecyclePhases();
+
+  // On Cobalt, HTMLMediaElement::ShouldShowControls() unconditionally returns
+  // false because native Blink media controls are not supported.
+  ASSERT_FALSE(ControlsVisible());
+  ASSERT_NE(Media()->GetLayoutObject(), nullptr);
+  ASSERT_FALSE(Media()->GetLayoutObject()->ShouldDoFullPaintInvalidation());
+  EXPECT_CALL(*MockMediaPlayer(), DidLoadingProgress()).WillOnce(Return(true));
+
+  ProgressEventTimerFired();
+  EXPECT_FALSE(Media()->GetLayoutObject()->ShouldDoFullPaintInvalidation());
+}
+
+TEST_P(HTMLMediaElementTest,
+       ProgressEventTimerPerformsLayoutUpdateWhenFeatureDisabled) {
+  if (GetParam() != MediaTestParam::kVideo) {
+    return;
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kCobaltSkipHiddenMediaControlsWork);
+
+  Media()->GetDocument().body()->AppendChild(Media());
+  Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
+  test::RunPendingTasks();
+  SetReadyState(HTMLMediaElement::kHaveEnoughData);
+  SetNetworkState(WebMediaPlayer::kNetworkStateLoading);
+  UpdateLifecyclePhases();
+
+  // On Cobalt, HTMLMediaElement::ShouldShowControls() unconditionally returns
+  // false because native Blink media controls are not supported.
+  ASSERT_FALSE(ControlsVisible());
+  ASSERT_NE(Media()->GetLayoutObject(), nullptr);
+  ASSERT_FALSE(Media()->GetLayoutObject()->ShouldDoFullPaintInvalidation());
+  EXPECT_CALL(*MockMediaPlayer(), DidLoadingProgress()).WillOnce(Return(true));
+
+  ProgressEventTimerFired();
+  EXPECT_TRUE(Media()->GetLayoutObject()->ShouldDoFullPaintInvalidation());
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace blink

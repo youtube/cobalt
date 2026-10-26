@@ -385,7 +385,7 @@ bool StyleCommands::ExecuteStyleWithCSS(LocalFrame& frame,
                                         EditorCommandSource,
                                         const String& value) {
   frame.GetEditor().SetShouldStyleWithCSS(
-      !EqualIgnoringASCIICase(value, "false"));
+      !EqualIgnoringAsciiCase(value, "false"));
   return true;
 }
 
@@ -394,7 +394,7 @@ bool StyleCommands::ExecuteUseCSS(LocalFrame& frame,
                                   EditorCommandSource,
                                   const String& value) {
   frame.GetEditor().SetShouldStyleWithCSS(
-      EqualIgnoringASCIICase(value, "false"));
+      EqualIgnoringAsciiCase(value, "false"));
   return true;
 }
 
@@ -676,6 +676,25 @@ String StyleCommands::ValueFontSizeDelta(const EditorInternalCommand&,
                                          LocalFrame& frame,
                                          Event*) {
   return ValueStyle(frame, CSSPropertyID::kInternalFontSizeDelta);
+}
+
+String StyleCommands::ValueJustify(const EditorInternalCommand&,
+                                   LocalFrame& frame,
+                                   Event*) {
+  String value = ValueStyle(frame, CSSPropertyID::kTextAlign);
+
+  // Map logical "start"/"end" to physical "left"/"right" per
+  // https://w3c.github.io/editing/docs/execCommand/#alignment-value
+  if (value == "start" || value == "end") {
+    bool is_ltr = ValueStyle(frame, CSSPropertyID::kDirection) != "rtl";
+    if (value == "start") {
+      return is_ltr ? "left" : "right";
+    } else {
+      return is_ltr ? "right" : "left";
+    }
+  }
+
+  return value;
 }
 
 }  // namespace blink

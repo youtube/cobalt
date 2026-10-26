@@ -94,6 +94,30 @@ line. For example:
   private browserProxy: BrowserProxy = BrowserProxyImpl.getInstance();
 ```
 
+### Leverage helper methods of the CrLitElement superclass.
+
+#### Use `this.fire(...)` for firing events where possible.
+
+**Do not:**
+```ts
+this.dispatchEvent(new CustomEvent(
+  'event-one', {bubbles: true, composed: true}));
+
+this.dispatchEvent(new CustomEvent(
+  'event-two', {bubbles: true, composed: true, detail: someValue}));
+```
+
+**Do:**
+```ts
+this.fire('event-one');
+this.fire('event-two', someValue);
+
+// OK to use dispatchEvent() when firing non-bubbling or non-composed events.
+this.dispatchEvent(new CustomEvent('event-three', {detail: someValue}));
+```
+
+*Note*: When a non-bubbling or non-composed event should be fired use
+`dispatchEvent()` directly, as `fire()` creates bubbling and composed events.
 
 ## Template Guidelines (.html.ts)
 
@@ -339,6 +363,21 @@ export function getHtml(this: MyCrLitElement) {
 ```
 
 ## Naming Conventions
+
+### CrLitElement DOM, file, class names.
+
+* The DOM name **should not end** with the `-element` suffix.
+* The file name **should not end** with the `_element` suffix.
+* The class name **should end** with the `Element` suffix.
+* The class and file name **should be derived** from the DOM name.
+
+Where the pattern to derive the class and file names from the DOM name is
+
+* DOM name: `foo-bar-baz`
+* Class name candidates: `<OptionalPrefix>FooBarBazElement`, or `BarBazElement`,
+  or `BazElement`
+* File name candidates: `foo_bar_baz.{css,html,ts}`, `bar_baz.{css,html,ts}` or
+  `baz.{css,html,ts}`,
 
 ### Events
 

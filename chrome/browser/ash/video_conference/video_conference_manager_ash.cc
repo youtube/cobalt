@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/video_conference/video_conference_manager_ash.h"
 
 #include <algorithm>
+#include <iterator>
 #include <string>
 #include <utility>
 #include <vector>
@@ -14,14 +15,10 @@
 #include "ash/system/video_conference/video_conference_tray_controller.h"
 #include "ash/webui/system_apps/public/system_web_app_type.h"
 #include "ash/webui/vc_background_ui/url_constants.h"
-#include "base/barrier_callback.h"
 #include "base/check.h"
-#include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/unguessable_token.h"
-#include "chrome/browser/ash/video_conference/video_conference_client_wrapper.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chromeos/crosapi/mojom/video_conference.mojom.h"
@@ -31,6 +28,36 @@ namespace ash {
 
 namespace {
 VideoConferenceManagerAsh* g_instance = nullptr;
+
+#define ASSERT_VC_APP_TYPE_MATCH(name)                  \
+  static_assert(                                        \
+      static_cast<int>(VideoConferenceAppType::name) == \
+      static_cast<int>(crosapi::mojom::VideoConferenceAppType::name))
+ASSERT_VC_APP_TYPE_MATCH(kBrowserUnknown);
+ASSERT_VC_APP_TYPE_MATCH(kChromeTab);
+ASSERT_VC_APP_TYPE_MATCH(kChromeExtension);
+ASSERT_VC_APP_TYPE_MATCH(kChromeApp);
+ASSERT_VC_APP_TYPE_MATCH(kWebApp);
+ASSERT_VC_APP_TYPE_MATCH(kArcApp);
+ASSERT_VC_APP_TYPE_MATCH(kAppServiceUnknown);
+ASSERT_VC_APP_TYPE_MATCH(kCrostiniVm);
+ASSERT_VC_APP_TYPE_MATCH(kPluginVm);
+ASSERT_VC_APP_TYPE_MATCH(kBorealis);
+ASSERT_VC_APP_TYPE_MATCH(kAshClientUnknown);
+ASSERT_VC_APP_TYPE_MATCH(kAshCaptureMode);
+#undef ASSERT_VC_APP_TYPE_MATCH
+
+crosapi::mojom::VideoConferenceMediaAppInfoPtr
+ToMojomVideoConferenceMediaAppInfo(
+    const VideoConferenceMediaAppInfo& app_info) {
+  // TODO(crbug.com/365741912, crbug.com/365902693): Delete this local bridge
+  // once VideoConferenceManagerBase stops using Mojo app-info types.
+  return crosapi::mojom::VideoConferenceMediaAppInfo::New(
+      app_info.id, app_info.last_activity_time, app_info.is_capturing_camera,
+      app_info.is_capturing_microphone, app_info.is_capturing_screen,
+      app_info.title, app_info.url,
+      static_cast<crosapi::mojom::VideoConferenceAppType>(app_info.app_type));
+}
 }  // namespace
 
 // static
@@ -42,7 +69,7 @@ VideoConferenceManagerAsh::VideoConferenceManagerAsh() {
   CHECK(!g_instance);
   g_instance = this;
 
-  if (ash::features::IsVideoConferenceEnabled()) {
+  if (features::IsVideoConferenceEnabled()) {
     GetTrayController()->Initialize(this);
   }
 }
@@ -53,93 +80,68 @@ VideoConferenceManagerAsh::~VideoConferenceManagerAsh() {
 }
 
 void VideoConferenceManagerAsh::RegisterCppClient(
-    crosapi::mojom::VideoConferenceManagerClient* client,
+    VideoConferenceManagerClient* client,
     const base::UnguessableToken& client_id) {
-  client_id_to_wrapper_.try_emplace(client_id, client);
+  client_info_map_.try_emplace(client_id, ClientInfo{client});
 }
 
 void VideoConferenceManagerAsh::GetMediaApps(
     base::OnceCallback<void(MediaApps)> ui_callback) {
-  // Because the lacros client communicates over mojo, the GetMediaApps method
-  // on all clients is asynchronous and passes results via callbacks. The
-  // |done_callback| defined below gets the collected results from the
-  // BarrierCallback, flattens them into a single vector, and passes them
-  // to the |ui_callback| provided to VideoConferenceManagerAsh::GetMediaApps.
-  base::OnceCallback<void(std::vector<MediaApps>)> done_callback =
-      base::BindOnce(
-          [](base::OnceCallback<void(MediaApps)> callback,
-             std::vector<MediaApps> apps_from_all_clients) {
-            MediaApps apps;
+  VideoConferenceManagerClient::MediaApps apps;
 
-            for (MediaApps& apps_from_client : apps_from_all_clients) {
-              for (auto& app : apps_from_client) {
-                apps.push_back(std::move(app));
-              }
-            }
-
-            // Sort all apps based on last activity time.
-            std::sort(
-                apps.begin(), apps.end(),
-                [](const crosapi::mojom::VideoConferenceMediaAppInfoPtr& app1,
-                   const crosapi::mojom::VideoConferenceMediaAppInfoPtr& app2) {
-                  return app1->last_activity_time > app2->last_activity_time;
-                });
-
-            // Call bound |ui_callback| with aggregated app info structs.
-            std::move(callback).Run(std::move(apps));
-          },
-          std::move(ui_callback));
-
-  const auto barrier_callback = base::BarrierCallback<MediaApps>(
-      client_id_to_wrapper_.size(), std::move(done_callback));
-
-  for (auto& [_, client_wrapper] : client_id_to_wrapper_) {
-    client_wrapper.GetMediaApps(barrier_callback);
+  for (auto& [_, client_info] : client_info_map_) {
+    auto apps_from_client = client_info.client->GetMediaApps();
+    apps.insert(apps.end(), std::make_move_iterator(apps_from_client.begin()),
+                std::make_move_iterator(apps_from_client.end()));
   }
+
+  // Sort all apps based on last activity time.
+  std::sort(apps.begin(), apps.end(),
+            [](const VideoConferenceMediaAppInfo& app1,
+               const VideoConferenceMediaAppInfo& app2) {
+              return app1.last_activity_time > app2.last_activity_time;
+            });
+
+  MediaApps mojo_apps;
+  mojo_apps.reserve(apps.size());
+  for (const auto& app : apps) {
+    mojo_apps.push_back(ToMojomVideoConferenceMediaAppInfo(app));
+  }
+
+  std::move(ui_callback).Run(std::move(mojo_apps));
 }
 
 void VideoConferenceManagerAsh::ReturnToApp(const base::UnguessableToken& id) {
-  for (auto& [_, client_wrapper] : client_id_to_wrapper_) {
-    client_wrapper.ReturnToApp(id, base::DoNothing());
+  for (auto& [_, client_info] : client_info_map_) {
+    client_info.client->ReturnToApp(id);
   }
 }
 
 void VideoConferenceManagerAsh::SetSystemMediaDeviceStatus(
-    crosapi::mojom::VideoConferenceMediaDevice device,
+    VideoConferenceMediaDevice device,
     bool enabled) {
-  for (auto& [_, client_wrapper] : client_id_to_wrapper_) {
-    client_wrapper.SetSystemMediaDeviceStatus(
-        device, enabled, base::BindOnce([](bool success) {
-          if (!success) {
-            LOG(ERROR)
-                << "VideoConferenceClient::SetSystemMediaDeviceStatus was "
-                   "unsuccessful.";
-          }
-        }));
+  for (auto& [_, client_info] : client_info_map_) {
+    if (!client_info.client->SetSystemMediaDeviceStatus(device, enabled)) {
+      LOG(ERROR) << "VideoConferenceClient::SetSystemMediaDeviceStatus was "
+                    "unsuccessful.";
+    }
   }
 }
 
 void VideoConferenceManagerAsh::CreateBackgroundImage() {
   Profile* profile = ProfileManager::GetActiveUserProfile();
   DCHECK(profile);
-  ash::SystemAppLaunchParams params;
+  SystemAppLaunchParams params;
   params.launch_source = apps::LaunchSource::kFromShelf;
-  ash::LaunchSystemWebAppAsync(profile, ash::SystemWebAppType::VC_BACKGROUND,
-                               params);
+  LaunchSystemWebAppAsync(profile, SystemWebAppType::VC_BACKGROUND, params);
 }
 
 void VideoConferenceManagerAsh::NotifyMediaUsageUpdate(
-    crosapi::mojom::VideoConferenceMediaUsageStatusPtr status,
+    VideoConferenceMediaUsageStatus status,
     base::OnceCallback<void(bool)> callback) {
-  if (auto it = client_id_to_wrapper_.find(status->client_id);
-      it != client_id_to_wrapper_.end()) {
-    it->second.state() = {
-        .has_media_app = status->has_media_app,
-        .has_camera_permission = status->has_camera_permission,
-        .has_microphone_permission = status->has_microphone_permission,
-        .is_capturing_camera = status->is_capturing_camera,
-        .is_capturing_microphone = status->is_capturing_microphone,
-        .is_capturing_screen = status->is_capturing_screen};
+  if (auto it = client_info_map_.find(status.client_id);
+      it != client_info_map_.end()) {
+    it->second.state = std::move(status.state);
   } else {
     LOG(ERROR) << "VideoConferenceManagerAsh::NotifyMediaUsageUpdate client_id "
                   "does not exist.";
@@ -152,12 +154,12 @@ void VideoConferenceManagerAsh::NotifyMediaUsageUpdate(
 }
 
 void VideoConferenceManagerAsh::NotifyDeviceUsedWhileDisabled(
-    crosapi::mojom::VideoConferenceMediaDevice device,
+    VideoConferenceMediaDevice device,
     const std::u16string& app_name,
     base::OnceCallback<void(bool)> callback) {
   // TODO(crbug.com/40240249): Remove this conditional check once it becomes
   // possible to enable ash features in lacros browsertests.
-  if (ash::features::IsVideoConferenceEnabled()) {
+  if (features::IsVideoConferenceEnabled()) {
     GetTrayController()->HandleDeviceUsedWhileDisabled(std::move(device),
                                                        app_name);
   }
@@ -165,25 +167,25 @@ void VideoConferenceManagerAsh::NotifyDeviceUsedWhileDisabled(
 }
 
 void VideoConferenceManagerAsh::NotifyClientUpdate(
-    crosapi::mojom::VideoConferenceClientUpdatePtr update) {
+    VideoConferenceClientUpdate update) {
   // TODO(crbug.com/40240249): Remove this conditional check once it becomes
   // possible to enable ash features in lacros browsertests.
-  if (ash::features::IsVideoConferenceEnabled()) {
+  if (features::IsVideoConferenceEnabled()) {
     GetTrayController()->HandleClientUpdate(std::move(update));
   }
 }
 
 void VideoConferenceManagerAsh::UnregisterClient(
     const base::UnguessableToken& client_id) {
-  client_id_to_wrapper_.erase(client_id);
+  client_info_map_.erase(client_id);
   SendUpdatedState();
 }
 
 VideoConferenceMediaState VideoConferenceManagerAsh::GetAggregatedState() {
   VideoConferenceMediaState state;
 
-  for (auto& [_, client_wrapper] : client_id_to_wrapper_) {
-    auto& client_state = client_wrapper.state();
+  for (auto& [_, client_info] : client_info_map_) {
+    auto& client_state = client_info.state;
 
     state.has_media_app |= client_state.has_media_app;
     state.has_camera_permission |= client_state.has_camera_permission;
@@ -207,7 +209,7 @@ VideoConferenceMediaState VideoConferenceManagerAsh::GetAggregatedState() {
 void VideoConferenceManagerAsh::SendUpdatedState() {
   // TODO(crbug.com/40240249): Remove this conditional check once it becomes
   // possible to enable ash features in lacros browsertests.
-  if (ash::features::IsVideoConferenceEnabled()) {
+  if (features::IsVideoConferenceEnabled()) {
     GetTrayController()->UpdateWithMediaState(GetAggregatedState());
   }
 }

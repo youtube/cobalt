@@ -73,6 +73,9 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
   WebTestBrowserContext* GetWebTestBrowserContext();
   void SetPopupBlockingEnabled(bool block_popups_);
   void ResetMockClipboardHosts();
+  MockClipboardHost* GetMockClipboardHost() {
+    return mock_clipboard_host_.get();
+  }
 
 #if !BUILDFLAG(IS_COBALT)
   // Retrieves the last created FakeBluetoothChooser instance.

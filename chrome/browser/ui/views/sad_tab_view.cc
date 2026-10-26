@@ -11,10 +11,10 @@
 #include "build/build_config.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/sad_tab_controller.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "content/public/browser/web_contents.h"
 #include "content/public/common/result_codes.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -73,13 +73,16 @@ std::unique_ptr<views::Label> CreateErrorCodeLabel(int format_string,
 
 }  // namespace
 
-SadTabView::SadTabView(content::WebContents* web_contents, SadTabKind kind)
-    : SadTab(web_contents, kind) {
-  // This view gets inserted as a child of a WebView, but we don't want the
-  // WebView to delete us if the WebView gets deleted before the SadTabHelper
-  // does.
-  set_owned_by_client(OwnedByClientPassKey());
-
+SadTabView::SadTabView(SadTabController* controller,
+                       SadTabKind kind,
+                       int title_id,
+                       int message_id,
+                       std::vector<int> sub_message_ids,
+                       int error_code_format_id,
+                       int error_code,
+                       int button_title_id,
+                       int help_link_title_id)
+    : controller_(controller), kind_(kind) {
   SetBackground(views::CreateSolidBackground(ui::kColorDialogBackground));
   ChromeLayoutProvider* provider = ChromeLayoutProvider::Get();
   auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -110,7 +113,7 @@ SadTabView::SadTabView(content::WebContents* web_contents, SadTabKind kind)
 
   // Title.
   title_ = container->AddChildView(
-      std::make_unique<views::Label>(l10n_util::GetStringUTF16(GetTitle())));
+      std::make_unique<views::Label>(l10n_util::GetStringUTF16(title_id)));
   title_->SetFontList(ui::ResourceBundle::GetSharedInstance().GetFontList(
       ui::ResourceBundle::LargeFont));
   title_->SetMultiLine(true);
@@ -121,7 +124,7 @@ SadTabView::SadTabView(content::WebContents* web_contents, SadTabKind kind)
 
   // Message and optional bulleted list.
   message_ = container->AddChildView(
-      CreateFormattedLabel(l10n_util::GetStringUTF16(GetInfoMessage())));
+      CreateFormattedLabel(l10n_util::GetStringUTF16(message_id)));
   // Make the message label flexibly sizable. This allows it to shrink and
   // grow as the SadTabView is resized.
   message_->SetProperty(
@@ -130,10 +133,9 @@ SadTabView::SadTabView(content::WebContents* web_contents, SadTabKind kind)
                                views::MaximumFlexSizeRule::kPreferred, true)
           .WithWeight(1));
 
-  std::vector<int> bullet_string_ids = GetSubMessages();
-  if (!bullet_string_ids.empty()) {
+  if (!sub_message_ids.empty()) {
     std::vector<std::u16string> texts;
-    std::ranges::transform(bullet_string_ids, std::back_inserter(texts),
+    std::ranges::transform(sub_message_ids, std::back_inserter(texts),
                            l10n_util::GetStringUTF16);
     auto* list_view =
         container->AddChildView(std::make_unique<views::BulletedLabelListView>(
@@ -143,8 +145,7 @@ SadTabView::SadTabView(content::WebContents* web_contents, SadTabKind kind)
 
   // Error code.
   container
-      ->AddChildView(CreateErrorCodeLabel(GetErrorCodeFormatString(),
-                                          GetCrashedErrorCode()))
+      ->AddChildView(CreateErrorCodeLabel(error_code_format_id, error_code))
       ->SetProperty(views::kMarginsKey,
                     gfx::Insets::TLBR(kTitleBottomSpacing, 0,
                                       unrelated_vertical_spacing, 0));
@@ -166,13 +167,14 @@ SadTabView::SadTabView(content::WebContents* web_contents, SadTabKind kind)
   // element.
   actions_container->SetLayoutManagerUseConstrainedSpace(false);
 
-  EnableHelpLink(actions_container);
+  EnableHelpLink(actions_container, help_link_title_id);
 
   action_button_ =
       actions_container->AddChildView(std::make_unique<views::MdTextButton>(
-          base::BindRepeating(&SadTabView::PerformAction,
-                              base::Unretained(this), Action::kButton),
-          l10n_util::GetStringUTF16(GetButtonTitle())));
+          base::BindRepeating(&SadTabController::PerformAction,
+                              base::Unretained(controller_),
+                              SadTab::Action::kButton),
+          l10n_util::GetStringUTF16(button_title_id)));
   action_button_->SetStyle(ui::ButtonStyle::kProminent);
   action_button_->SetProperty(
       views::kFlexBehaviorKey,
@@ -184,36 +186,19 @@ SadTabView::SadTabView(content::WebContents* web_contents, SadTabKind kind)
   // Needed to ensure this View is drawn even if a sibling (such as dev tools)
   // has a z-order.
   SetPaintToLayer();
-  AttachToWebView();
-
-  if (owner_) {
-    // If the `owner_` ContentsWebView has a rounded background, the sad tab
-    // should also have matching rounded corners as well.
-    SetBackgroundRadii(
-        static_cast<ContentsWebView*>(owner_)->GetBackgroundRadii());
-  }
 
   // Make the accessibility role of this view an alert dialog, and
   // put focus on the action button. This causes screen readers to
   // immediately announce the text of this view.
   GetViewAccessibility().SetRole(ax::mojom::Role::kDialog);
+}
+
+SadTabView::~SadTabView() = default;
+
+void SadTabView::AddedToWidget() {
   if (action_button_->GetWidget() && action_button_->GetWidget()->IsActive()) {
     action_button_->RequestFocus();
   }
-}
-
-SadTabView::~SadTabView() {
-  if (owner_) {
-    owner_->SetCrashedOverlayView(nullptr);
-  }
-}
-
-void SadTabView::ReinstallInWebView() {
-  if (owner_) {
-    owner_->SetCrashedOverlayView(nullptr);
-    owner_ = nullptr;
-  }
-  AttachToWebView();
 }
 
 gfx::RoundedCornersF SadTabView::GetBackgroundRadii() const {
@@ -232,43 +217,14 @@ void SadTabView::SetBackgroundRadii(const gfx::RoundedCornersF& radii) {
 
 void SadTabView::OnPaint(gfx::Canvas* canvas) {
   if (!painted_) {
-    RecordFirstPaint();
+    controller_->RecordFirstPaint();
     painted_ = true;
   }
   View::OnPaint(canvas);
 }
 
-void SadTabView::RemovedFromWidget() {
-  owner_ = nullptr;
-}
-
-void SadTabView::AttachToWebView() {
-  Browser* browser = chrome::FindBrowserWithTab(web_contents());
-  // This can be null during prefetch.
-  if (!browser) {
-    return;
-  }
-
-  // In unit tests, browser->window() might not be a real BrowserView.
-  if (!browser->window()->GetNativeWindow()) {
-    return;
-  }
-
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
-  DCHECK(browser_view);
-
-  std::vector<ContentsWebView*> visible_contents_views =
-      browser_view->GetAllVisibleContentsWebViews();
-  for (ContentsWebView* contents_view : visible_contents_views) {
-    if (contents_view->web_contents() == web_contents()) {
-      owner_ = contents_view;
-      owner_->SetCrashedOverlayView(this);
-      break;
-    }
-  }
-}
-
-void SadTabView::EnableHelpLink(views::FlexLayoutView* actions_container) {
+void SadTabView::EnableHelpLink(views::FlexLayoutView* actions_container,
+                                int help_link_title_id) {
 #if BUILDFLAG(IS_CHROMEOS)
   // Do not show the help link in the kiosk session to prevent escape from a
   // kiosk app.
@@ -278,9 +234,10 @@ void SadTabView::EnableHelpLink(views::FlexLayoutView* actions_container) {
 #endif
   auto* help_link =
       actions_container->AddChildView(std::make_unique<views::Link>(
-          l10n_util::GetStringUTF16(GetHelpLinkTitle())));
-  help_link->SetCallback(base::BindRepeating(
-      &SadTab::PerformAction, base::Unretained(this), Action::kHelpLink));
+          l10n_util::GetStringUTF16(help_link_title_id)));
+  help_link->SetCallback(base::BindRepeating(&SadTabController::PerformAction,
+                                             base::Unretained(controller_),
+                                             SadTab::Action::kHelpLink));
   // Set the elide behavior to tail to ensure the text is truncated with an
   // ellipsis if it overflows.
   help_link->SetElideBehavior(gfx::ELIDE_TAIL);
@@ -305,11 +262,6 @@ void SadTabView::OnBoundsChanged(const gfx::Rect& previous_bounds) {
                kMaxContentWidth);
 
   title_->SizeToFit(max_width);
-}
-
-std::unique_ptr<SadTab> SadTab::Create(content::WebContents* web_contents,
-                                       SadTabKind kind) {
-  return std::make_unique<SadTabView>(web_contents, kind);
 }
 
 BEGIN_METADATA(SadTabView)

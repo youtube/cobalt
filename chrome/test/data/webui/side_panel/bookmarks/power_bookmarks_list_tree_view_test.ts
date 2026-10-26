@@ -15,7 +15,7 @@ import {PriceTrackingBrowserProxyImpl} from 'chrome://resources/cr_components/co
 import {PageImageServiceBrowserProxy} from 'chrome://resources/cr_components/page_image_service/browser_proxy.js';
 import {PageImageServiceHandlerRemote} from 'chrome://resources/cr_components/page_image_service/page_image_service.mojom-webui.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {assertArrayEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
 import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
 import {flushTasks, waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
@@ -294,7 +294,7 @@ suite('TreeView', () => {
 
   test('SortsNestedBookmarksLists', async () => {
     bookmarksApi = new TestBookmarksApiProxy();
-    bookmarksApi.setAllBookmarks(nestedBookmarks);
+    bookmarksApi.setAllBookmarks(structuredClone(nestedBookmarks));
     BookmarksApiProxyImpl.setInstance(bookmarksApi);
     powerBookmarksList = await initializeUi(bookmarksApi);
 
@@ -320,12 +320,11 @@ suite('TreeView', () => {
     await waitAfterNextRender(powerBookmarksList);
 
     // Default sort is kNewest.
-    assertEquals(
-        JSON.stringify(
-            powerBookmarksList.getKeyboardNavigationServiceforTesting()
-                .getElementsForTesting()
-                .map((el: HTMLElement) => el.id)),
-        JSON.stringify([
+    assertArrayEquals(
+        powerBookmarksList.getKeyboardNavigationServiceforTesting()
+            .getElementsForTesting()
+            .map((el: HTMLElement) => el.id),
+        [
           'bookmark-5',
           'bookmark-10',
           'bookmark-21',
@@ -335,18 +334,17 @@ suite('TreeView', () => {
           'bookmark-6',
           'bookmark-4',
           'bookmark-3',
-        ]));
+        ]);
 
     folderRow.activeSortIndex = 4;
     await microtasksFinished();
     await flushTasks();
 
-    assertEquals(
-        JSON.stringify(
-            powerBookmarksList.getKeyboardNavigationServiceforTesting()
-                .getElementsForTesting()
-                .map((el: HTMLElement) => el.id)),
-        JSON.stringify([
+    assertArrayEquals(
+        powerBookmarksList.getKeyboardNavigationServiceforTesting()
+            .getElementsForTesting()
+            .map((el: HTMLElement) => el.id),
+        [
           'bookmark-5',
           'bookmark-10',
           'bookmark-21',
@@ -356,7 +354,7 @@ suite('TreeView', () => {
           'bookmark-6',
           'bookmark-4',
           'bookmark-3',
-        ]));
+        ]);
   });
 
   test('ShowsCorrectFoldersOnTreeView', () => {
@@ -465,7 +463,7 @@ suite('TreeView', () => {
         const folderItem =
             folderRow.shadowRoot.querySelector('power-bookmark-row-item');
         assertTrue(!!folderItem);
-        await flushTasks();
+        powerBookmarksList.flushNavigationElementsDebouncerForTesting();
 
         const urlListItem = folderItem.$.crUrlListItem;
         urlListItem.focus();
@@ -487,6 +485,7 @@ suite('TreeView', () => {
         folderRow.dispatchEvent(ARROW_RIGHT_EVENT);
         await flushTasks();
         await waitAfterNextRender(powerBookmarksList);
+        await flushTasks();
 
         assertEquals(
             childRow.id, folderRow.shadowRoot.activeElement!.id,
@@ -515,7 +514,7 @@ suite('TreeView', () => {
     const folderItem =
         folderRow.shadowRoot.querySelector('power-bookmark-row-item');
     assertTrue(!!folderItem);
-    await flushTasks();
+    powerBookmarksList.flushNavigationElementsDebouncerForTesting();
 
     const urlListItem = folderItem.$.crUrlListItem;
     urlListItem.focus();
@@ -569,5 +568,44 @@ suite('TreeView', () => {
 
     assertEquals(
         1, metrics.count('PowerBookmarks.SidePanel.BookmarksShown', 5));
+  });
+
+
+  test('UpdatesChildrenAfterMove', async () => {
+    bookmarksApi = new TestBookmarksApiProxy();
+    bookmarksApi.setAllBookmarks(structuredClone(nestedBookmarks));
+    BookmarksApiProxyImpl.setInstance(bookmarksApi);
+    powerBookmarksList = await initializeUi(bookmarksApi);
+
+    const folder5 = getPowerBookmarksRowElement(powerBookmarksList, '5')!;
+    const folder6 = getPowerBookmarksRowElement(powerBookmarksList, '6')!;
+    assertTrue(!!folder5, 'Folder 5 should exist');
+    assertTrue(!!folder6, 'Folder 6 should exist');
+
+    // Expand Folder 5 and Folder 6 to reveal their children.
+    folder5.shadowRoot.querySelector<HTMLElement>('#expandButton')!.click();
+    folder6.shadowRoot.querySelector<HTMLElement>('#expandButton')!.click();
+    await flushTasks();
+
+    assertTrue(
+        !!getPowerBookmarksRowElement(folder5, '22'),
+        'Bookmark 22 should initially be in folder 5');
+
+    assertFalse(
+        !!getPowerBookmarksRowElement(folder6, '22'),
+        'Bookmark 22 should NOT initially be in folder 6');
+
+    bookmarksApi.callbackRouterRemote.onBookmarkNodeMoved(
+        /*oldParentId=*/ '5', /*oldIndex=*/ 2, /*newParentId=*/ '6',
+        /*newIndex=*/ 0);
+    await flushTasks();
+
+    assertFalse(
+        !!getPowerBookmarksRowElement(folder5, '22'),
+        'Bookmark 22 should be removed from folder 5 after move');
+
+    assertTrue(
+        !!getPowerBookmarksRowElement(folder6, '22'),
+        'Bookmark 22 should be visible in folder 6 after move');
   });
 });

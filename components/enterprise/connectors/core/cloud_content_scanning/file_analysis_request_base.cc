@@ -33,6 +33,7 @@ namespace {
 
 constexpr size_t kReadFileChunkSize = 4096;
 constexpr size_t kMaxUploadSizeMetricsKB = 500 * 1024;
+constexpr uint64_t kMaxHashComputeSizeBytes = 25ull * 1024 * 1024 * 1024;
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 bool IsZipFile(const base::FilePath::StringType& extension,
@@ -204,9 +205,13 @@ GetFileDataBlocking(
       return {enterprise_connectors::ScanRequestUploadResult::kUnknown,
               file_data};
     }
+  } else if (file_data.size > kMaxHashComputeSizeBytes) {
+    // When none of the above conditions are true and the file is very large,
+    // avoid excessive compute time by not computing the hash.
+    file_data.hash = "";
   } else {
-    // When all three conditions are false, set the function parameter reference
-    // to a callback that computes the hash.
+    // Otherwise, set the function parameter reference to a callback that
+    // computes the hash.
     output_compute_hash_callback = base::BindOnce(
         &ComputeHashBlocking, std::move(file), std::move(scoped_file_access));
   }
@@ -426,7 +431,8 @@ void FileAnalysisRequestBase::GetData(
       FROM_HERE, {base::TaskPriority::USER_VISIBLE, base::MayBlock()},
       base::BindOnce(&GetFileDataBlocking, path_,
                      std::move(scoped_file_access_),
-                     cached_data_.mime_type.empty(), is_obfuscated_, true,
+                     cached_data_.mime_type.empty(), is_obfuscated_,
+                     force_sync_hash_computation_,
                      base::OwnedRef(std::move(unused_hash_callback))),
       base::BindOnce(&FileAnalysisRequestBase::OnGotFileData,
                      weakptr_factory_.GetWeakPtr()));

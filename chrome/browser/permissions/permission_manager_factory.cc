@@ -8,7 +8,6 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/background_fetch/background_fetch_permission_context.h"
 #include "chrome/browser/background_sync/periodic_background_sync_permission_context.h"
-#include "chrome/browser/clipboard/chrome_clipboard_permission_context_delegate.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/display_capture/captured_surface_control_permission_context.h"
 #include "chrome/browser/display_capture/display_capture_permission_context.h"
@@ -40,6 +39,11 @@
 #include "components/permissions/contexts/window_management_permission_context.h"
 #include "components/permissions/permission_manager.h"
 #include "extensions/buildflags/buildflags.h"
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "chrome/browser/clipboard/chrome_clipboard_permission_context_delegate.h"
+#endif
+
 #include "services/device/public/cpp/device_features.h"
 #include "services/device/public/cpp/geolocation/buildflags.h"
 
@@ -48,6 +52,7 @@
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/geolocation/geolocation_permission_context_delegate_android.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -60,6 +65,17 @@
 #endif  // BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
 
 namespace {
+
+#if BUILDFLAG(IS_ANDROID)
+class AndroidNfcInteractabilityChecker
+    : public ChromeNfcPermissionContextDelegate::InteractabilityChecker {
+ public:
+  bool IsInteractable(content::WebContents* web_contents) override {
+    TabAndroid* tab = TabAndroid::FromWebContents(web_contents);
+    return tab && tab->IsUserInteractable();
+  }
+};
+#endif
 
 permissions::PermissionManager::PermissionContextMap CreatePermissionContexts(
     Profile* profile) {
@@ -84,8 +100,14 @@ permissions::PermissionManager::PermissionContextMap CreatePermissionContexts(
   delegates.camera_pan_tilt_zoom_permission_context_delegate =
       std::make_unique<ChromeCameraPanTiltZoomPermissionContextDelegate>(
           profile);
+#if BUILDFLAG(IS_ANDROID)
   delegates.nfc_permission_context_delegate =
-      std::make_unique<ChromeNfcPermissionContextDelegate>();
+      std::make_unique<ChromeNfcPermissionContextDelegate>(
+          std::make_unique<AndroidNfcInteractabilityChecker>());
+#else
+  delegates.nfc_permission_context_delegate =
+      std::make_unique<ChromeNfcPermissionContextDelegate>(nullptr);
+#endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   delegates.clipboard_read_write_permission_context_delegate =

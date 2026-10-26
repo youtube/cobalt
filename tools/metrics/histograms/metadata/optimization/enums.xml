@@ -92,6 +92,14 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="[Deprecated] Host Model Features"/>
 </enum>
 
+<enum name="InstalledModel">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="XXS"/>
+  <int value="2" label="XS"/>
+  <int value="3" label="v2Nano"/>
+  <int value="4" label="v3Nano"/>
+</enum>
+
 <!-- Use following code to get the hash from the model version.
 import struct
 import hashlib
@@ -368,6 +376,8 @@ struct.unpack('>L', hashlib.md5(version.encode('utf-8')).digest()[4:8])[0]
   </int>
 </enum>
 
+<!-- LINT.IfChange(OptimizationGuideOnDeviceModelEligibilityReason) -->
+
 <enum name="OptimizationGuideOnDeviceModelEligibilityReason">
   <int value="0" label="Unknown"/>
   <int value="1" label="Success"/>
@@ -430,6 +440,8 @@ struct.unpack('>L', hashlib.md5(version.encode('utf-8')).digest()[4:8])[0]
     yet.
   </int>
 </enum>
+
+<!-- LINT.ThenChange(//components/optimization_guide/core/model_execution/on_device_capability.h:OnDeviceModelEligibilityReason) -->
 
 <enum name="OptimizationGuideOnDeviceModelInstallMode">
   <int value="0" label="OnDemand">The model is installed on-demand.</int>
@@ -806,6 +818,7 @@ struct.unpack('>L', hashlib.md5(version.encode('utf-8')).digest()[4:8])[0]
   <int value="118" label="WALLETABLE_PASS_DETECTION_EVENT_PASS_ALLOWLIST"/>
   <int value="119" label="SKILLS"/>
   <int value="120" label="PIX_PSP_ALLOWLIST"/>
+  <int value="121" label="INDIGO"/>
 </enum>
 
 <enum name="PageContentAnnotationsStorageStatus">

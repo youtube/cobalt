@@ -11,10 +11,12 @@
 #include "base/unguessable_token.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/web/web_performance_metrics_for_reporting.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_navigation_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/paint/timing/largest_contentful_paint_calculator.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_record.h"
 #include "third_party/blink/renderer/core/timing/performance_entry.h"
+#include "third_party/blink/renderer/core/timing/performance_event_timing.h"
 #include "third_party/blink/renderer/core/timing/performance_timeline_entry_id_generator.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -42,7 +44,8 @@ class CORE_EXPORT SoftNavigationContext
   // differentiate new interactions from previous ones.
   static uint64_t NextContextId() { return last_context_id_ + 1; }
 
-  explicit SoftNavigationContext(LocalDOMWindow& window);
+  SoftNavigationContext(LocalDOMWindow& window,
+                        PerformanceEventTiming* initial_event_timing);
 
   // LargestContentfulPaintCalculator::Delegate:
   void EmitLcpPerformanceEntry(const DOMPaintTimingInfo& paint_timing_info,
@@ -62,22 +65,33 @@ class CORE_EXPORT SoftNavigationContext
   bool HasNavigationId() const {
     return navigation_id_ != PerformanceTimelineEntryIdInfo::kNoId;
   }
+  // The navigation id is a unique id, which montonically increases as soft
+  // navigations are committed to the performance timeline.
   uint64_t NavigationId() const { return navigation_id_; }
-  void SetNavigationId(uint64_t navigation_id) {
+
+  // The soft navigation offset is an exact count of the soft navigations
+  // emitted to UKM since the start of the page load. This is similar in spirit
+  // to the navigation id, but has stricter requirements due to the usage for
+  // ukm_page_load_metrics_observer.cc, the PageLoad:SoftNavigationCount metric,
+  // and assertions while we work on correctness. For the last
+  // soft navigation, it is synonymous with the count of the soft navigations
+  // for this page load.
+  uint64_t SoftNavigationOffset() const { return soft_navigation_offset_; }
+  base::TimeTicks SoftNavigationSlicingTime() const {
+    return soft_navigation_slicing_time_;
+  }
+  void StartSlicingPerformanceTimeline(
+      uint64_t navigation_id,
+      uint64_t soft_navigation_offset,
+      base::TimeTicks soft_navigation_slicing_time) {
     navigation_id_ = navigation_id;
+    soft_navigation_offset_ = soft_navigation_offset;
+    soft_navigation_slicing_time_ = soft_navigation_slicing_time;
   }
 
   // The time origin is used for calculating soft navigation timings, especially
-  // Soft LCP. It is the earlier of the processing end of the interaction and
-  // the url change time. Once the processing of the interaction has ended, it
-  // is guaranteed to be available; once the URL change time has been set,
-  // it's available and final. When not available it may be null.
+  // Soft LCP. It is the startTime of the first event timing entry.
   base::TimeTicks TimeOrigin() const;
-
-  // Indicates when the interaction processing is finished, which is after the
-  // event handler has finished executing.
-  base::TimeTicks ProcessingEnd() const { return processing_end_; }
-  void SetProcessingEnd(base::TimeTicks value) { processing_end_ = value; }
 
   // This is set to the time of the first URL change and is not updated
   // afterwards.
@@ -87,7 +101,15 @@ class CORE_EXPORT SoftNavigationContext
   // |same_document_metrics_token|, while also recording the UrlChangeTime() as
   // base::TimeTicks::Now().
   void AddUrl(const String& url,
+              V8NavigationType::Enum navigation_type,
               base::UnguessableToken same_document_metrics_token);
+
+  // Returns the type of the initial same document navigation (first call to
+  // `AddUrl()`). Must not be called before the URL is set.
+  V8NavigationType::Enum NavigationType() const {
+    CHECK(HasUrl());
+    return navigation_type_;
+  }
 
   base::UnguessableToken SameDocumentMetricsToken() const {
     return same_document_metrics_token_;
@@ -117,6 +139,8 @@ class CORE_EXPORT SoftNavigationContext
   // check for sufficient paints to emit a soft-nav entry.
   bool HasDomModification() const { return num_modified_dom_nodes_ > 0; }
 
+  PerformanceTimelineEntryIdInfo GetInteractionIdInfo() const;
+
   uint64_t PaintedArea() const { return painted_area_; }
   uint64_t ContextId() const { return context_id_; }
 
@@ -136,12 +160,13 @@ class CORE_EXPORT SoftNavigationContext
     return first_input_or_scroll_time_.is_null();
   }
 
-  // Emits the soft navigation performance entry and latest buffered ICP entry,
-  // if there is one. The context must not have been previously emitted.
-  // `WasEmitted()` returns true after this is called.
+  SoftNavigationHeuristics* GetSoftNavigationHeuristics() const;
+
+  // Emits the soft navigation performance entry. The context must not have been
+  // previously emitted. `WasEmitted()` returns true after this is called.
   //
-  // Note: There are several reasons why we might have an FCP but not a pending
-  // ICP, all of which should be fixed:
+  // Note: There are several reasons why we might have an FCP but have not
+  // emitted an ICP, all of which should be fixed:
   //   1. crbug.com/383568320: For <video>, we set the paint timestamp for the
   //      first video frame outside of paint, but require BeginMainFrame +
   //      presentation feedback to emit the ICP entry. The soft nav entry can be
@@ -164,6 +189,7 @@ class CORE_EXPORT SoftNavigationContext
 
   // Called when `SoftNavigationHeuristics` is shut down on frame detach.
   void Shutdown();
+  bool HasBeenShutdown() const { return !window_; }
 
   void Dispose();
 
@@ -174,19 +200,22 @@ class CORE_EXPORT SoftNavigationContext
   const uint64_t context_id_ = ++last_context_id_;
 
   uint64_t navigation_id_ = PerformanceTimelineEntryIdInfo::kNoId;
+  uint64_t soft_navigation_offset_ = 0;
   bool was_emitted_ = false;
 
   base::TimeTicks first_input_or_scroll_time_;
   base::TimeTicks url_change_time_;
-  base::TimeTicks processing_end_;
+  base::TimeTicks soft_navigation_slicing_time_;
 
   String initial_url_;
   base::UnguessableToken same_document_metrics_token_;
+  V8NavigationType::Enum navigation_type_ = V8NavigationType::Enum::kPush;
 
   Member<LocalDOMWindow> window_;
   Member<LargestContentfulPaintCalculator> lcp_calculator_;
+  Member<PerformanceEventTiming> initial_event_timing_;
   Member<PaintTimingRecord> first_image_or_text_;
-  Member<InteractionContentfulPaint> latest_unemitted_icp_entry_;
+  Member<InteractionContentfulPaint> largest_icp_entry_;
 
   size_t num_modified_dom_nodes_ = 0;
   uint64_t painted_area_ = 0;

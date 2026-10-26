@@ -29,7 +29,7 @@ void SharedHeapDeserializer::DeserializeIntoIsolate() {
 
   if (should_rehash()) {
     // The hash seed has already been initialized in ReadOnlyDeserializer, thus
-    // there is no need to call `isolate()->heap()->InitializeHashSeed();`.
+    // there is no need to call `HashSeed::InitializeRoots(isolate());`.
     Rehash();
   }
 }
@@ -43,10 +43,10 @@ void SharedHeapDeserializer::DeserializeStringTable() {
   const int length = source()->GetUint30();
 
   // .. and the contents.
-  DirectHandleVector<String> strings(isolate());
+  DirectHandleVector<InternalizedString> strings(isolate());
   strings.reserve(length);
   for (int i = 0; i < length; ++i) {
-    strings.emplace_back(Cast<String>(ReadObject()));
+    strings.emplace_back(Cast<InternalizedString>(ReadObject()));
   }
 
   StringTable* t = isolate()->string_table();

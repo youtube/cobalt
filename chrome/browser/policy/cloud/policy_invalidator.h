@@ -81,7 +81,7 @@ class PolicyInvalidator : public invalidation::InvalidationListener::Observer,
   // |scope| indicates the invalidation scope that this invalidator
   // is responsible for.
   // |invalidation_listener| provides invalidations and is observed during the
-  // whole invaldiator's lifetime. Must remain valid until the invalidator is
+  // whole invalidator's lifetime. Must remain valid until the invalidator is
   // destroyed.
   // |core| is the cloud policy core which connects the various policy objects.
   // It must remain valid until Shutdown is called.
@@ -134,16 +134,13 @@ class PolicyInvalidator : public invalidation::InvalidationListener::Observer,
 
     bool IsCoreReady() const {
       return core_->IsConnected() && core_->refresh_scheduler() &&
-             GetCloudPolicyStore();
+             core_->store();
     }
 
     virtual const char* GetPolicyRefreshMetricName(
         PolicyInvalidationScope scope) = 0;
     virtual const char* GetPolicyInvalidationMetricName(
         PolicyInvalidationScope scope) = 0;
-
-    // Returns the cloud policy store that is handled by this invalidator.
-    virtual CloudPolicyStore* GetCloudPolicyStore() const = 0;
 
     CloudPolicyCore* core() const { return core_; }
 

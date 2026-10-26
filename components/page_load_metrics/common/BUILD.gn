@@ -7,6 +7,8 @@ import("//testing/test.gni")
 
 source_set("common") {
   sources = [
+    "features.cc",
+    "features.h",
     "page_end_reason.h",
     "page_load_metrics_debug_string.cc",
     "page_load_metrics_debug_string.h",
@@ -82,5 +84,6 @@ source_set("unit_tests") {
     ":test_support",
     "//base/test:test_support",
     "//testing/gtest",
+    "//third_party/blink/public:blink_headers",
   ]
 }

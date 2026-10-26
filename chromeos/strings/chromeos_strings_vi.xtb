@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">Chạy quá trình Kiểm tra sạc</translation>
 <translation id="1622402072367425417">bong bóng toả sáng</translation>
 <translation id="1626590945318984973">Không có phím tắt này. Nhấn một phím tắt mới không dùng phím chức năng và phím <ph name="META_KEY" />.</translation>
+<translation id="163774412591892664">Quản trị viên đã vô hiệu hoá thiết bị của bạn và có thể truy cập vào thông tin vị trí của thiết bị.</translation>
 <translation id="1639239467298939599">Đang tải</translation>
 <translation id="1641857168437328880">Khay nạp tài liệu (1 mặt)</translation>
 <translation id="1642396894598555413">xe đạp</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814">Đã tải xong mô hình chép lời <ph name="LANGUAGE_NAME" /> xuống</translation>
 <translation id="42126664696688958">Xuất</translation>
 <translation id="4213104098953699324">Bàn phím USB</translation>
+<translation id="4217571870635786043">Nhập bằng giọng nói</translation>
 <translation id="4227825898293920515">Mật khẩu sẽ hết hạn sau <ph name="TIME" /></translation>
 <translation id="4238516577297848345">Không có lệnh in nào đang xử lý</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1685,6 +1687,7 @@ Hãy tải mô hình chép lời xuống (tối đa 100 MB) để nhận các b�
 <translation id="8420955526972171689">Chạy các bài kiểm tra và khắc phục sự cố phần cứng</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">xuống</translation>
+<translation id="8427213022735114808">Tính năng nhập bằng giọng nói gửi giọng nói của bạn tới Google để cho phép nhập liệu bằng giọng nói vào bất kỳ trường văn bản nào.</translation>
 <translation id="8428213095426709021">Cài đặt</translation>
 <translation id="8431300646573772016">ChromeOS có gì mới</translation>
 <translation id="8433186206711564395">Cài đặt mạng</translation>
@@ -1723,6 +1726,7 @@ Hãy tải mô hình chép lời xuống (tối đa 100 MB) để nhận các b�
 <translation id="8584654835905316966">Bạn cần khởi động lại để hoàn tất quá trình cài đặt phiên bản <ph name="VERSION" /> cho chương trình cơ sở của <ph name="DEVICE_NAME" />. Máy tính của bạn có thể khởi động lại nhiều lần. Hành vi này nằm trong dự kiến.</translation>
 <translation id="8593058461203131755">tạm dừng nội dung nghe nhìn</translation>
 <translation id="8620617069779373398">Trạng thái chuyển vùng</translation>
+<translation id="8624524972189162859">Quản trị viên <ph name="DOMAIN_NAME" /> đã vô hiệu hoá thiết bị của bạn và có thể truy cập vào thông tin vị trí của thiết bị.</translation>
 <translation id="8626489604350149811">Thao tác khác cho <ph name="APN_NAME" /></translation>
 <translation id="86356131183441916">Tím nhạt</translation>
 <translation id="8647595191512746911">Bản chép lời</translation>

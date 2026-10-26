@@ -126,6 +126,14 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
       errorString);
 }
 
+- (BOOL)isMatcherSufficientlyVisible:(id<GREYMatcher>)matcher {
+  NSError* error = nil;
+  [[EarlGrey selectElementWithMatcher:matcher]
+      assertWithMatcher:grey_sufficientlyVisible()
+                  error:&error];
+  return error == nil;
+}
+
 #pragma mark - Device Utilities
 
 - (BOOL)isIPadIdiom {
@@ -1451,6 +1459,10 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
 
 - (BOOL)isTestFeatureEnabled {
   return [ChromeEarlGreyAppInterface isTestFeatureEnabled];
+}
+
+- (BOOL)isFullscreenSmoothScrollingSupported {
+  return [ChromeEarlGreyAppInterface isFullscreenSmoothScrollingSupported];
 }
 
 - (BOOL)isDemographicMetricsReportingEnabled {

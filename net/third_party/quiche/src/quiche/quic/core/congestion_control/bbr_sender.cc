@@ -5,18 +5,27 @@
 #include "quiche/quic/core/congestion_control/bbr_sender.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <ostream>
 #include <sstream>
 #include <string>
 
 #include "absl/base/attributes.h"
+#include "quiche/quic/core/congestion_control/bandwidth_sampler.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
+#include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_bandwidth.h"
+#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_connection_stats.h"
+#include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_tag.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_time_accumulator.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/core/quic_unacked_packet_map.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -69,7 +78,9 @@ BbrSender::DebugState::DebugState(const BbrSender& sender)
       recovery_state(sender.recovery_state_),
       recovery_window(sender.recovery_window_),
       last_sample_is_app_limited(sender.last_sample_is_app_limited_),
-      end_of_app_limited_phase(sender.sampler_.end_of_app_limited_phase()) {}
+      end_of_app_limited_phase(sender.sampler_.end_of_app_limited_phase()),
+      exit_startup_on_loss_even_if_app_limited(
+          sender.exit_startup_on_loss_even_if_app_limited_) {}
 
 BbrSender::DebugState::DebugState(const DebugState& state) = default;
 
@@ -289,6 +300,11 @@ void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
   }
 
   if (mode_ == STARTUP) {
+    if (params.enable_bbr_exit_startup_on_loss) {
+      QUIC_CODE_COUNT(quic_bbr_exit_startup_on_loss_network_param_true);
+      exit_startup_on_loss_even_if_app_limited_ = true;
+    }
+
     if (bandwidth.IsZero()) {
       // Ignore bad bandwidth samples.
       return;

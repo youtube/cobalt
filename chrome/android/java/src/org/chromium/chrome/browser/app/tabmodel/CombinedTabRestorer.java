@@ -8,13 +8,18 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.os.SystemClock;
 
+import androidx.core.util.Supplier;
+
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.app.tabmodel.TabRestorer.TabRestorerDelegate;
+import org.chromium.chrome.browser.tab.ScopedStorageBatch;
 import org.chromium.chrome.browser.tab.StorageLoadedData;
+import org.chromium.chrome.browser.tab.StorageLoadedData.LoadedTabState;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 
 /**
  * A thin wrapper around two {@link TabRestorer}s, one for regular tabs and one for incognito tabs.
@@ -36,6 +41,16 @@ class CombinedTabRestorer {
 
         /** Called once both the regular and incognito tab restorer have been cancelled. */
         default void onCancelled() {}
+
+        /** Called when either the regular or incognito tab restorer have been finished. */
+        default void onRestoredForModel(boolean incognito) {}
+
+        /**
+         * Called once the active tab has been restored.
+         *
+         * @param incognito Whether the active tab is incognito.
+         */
+        default void onActiveTabRestored(boolean incognito) {}
 
         /** Called once both the regular and incognito tab restorer have been finished. */
         default void onRestoreFinished() {}
@@ -147,11 +162,17 @@ class CombinedTabRestorer {
         }
 
         @Override
+        public void onActiveTabRestored(boolean incognito) {
+            mOrchestratorDelegate.onActiveTabRestored(incognito);
+        }
+
+        @Override
         public void onFinished(boolean incognito) {
             RestoreState state = incognito ? mIncognitoState : mRegularState;
             assert state.isLoadFinished();
             state.setFinished();
 
+            mOrchestratorDelegate.onRestoredForModel(incognito);
             sendOnFinishedOrStartRemainingTabRestorer();
         }
 
@@ -200,27 +221,49 @@ class CombinedTabRestorer {
      * @param restoreIncognitoTabs Whether to restore incognito tabs.
      * @param delegate The delegate to be notified of events from the tab restorers.
      * @param tabCreatorManager The tab creator manager to create the tabs.
+     * @param batchFactory The factory to create scoped storage batches.
+     * @param tabModelSelector The tab model selector.
      * @param logRestoreDuration Whether to log the restore duration.
      */
     CombinedTabRestorer(
             boolean restoreIncognitoTabs,
             CombinedTabRestorerDelegate delegate,
             TabCreatorManager tabCreatorManager,
+            Supplier<ScopedStorageBatch> batchFactory,
+            TabModelSelector tabModelSelector,
             boolean logRestoreDuration) {
         mDelegate = new TabRestorerDelegateImpl(delegate, restoreIncognitoTabs);
         mRegularTabRestorer =
                 new TabRestorer(
                         /* incognito= */ false,
                         mDelegate,
-                        tabCreatorManager.getTabCreator(/* incognito= */ false));
+                        tabCreatorManager.getTabCreator(/* incognito= */ false),
+                        batchFactory,
+                        tabModelSelector);
         mIncognitoTabRestorer =
                 restoreIncognitoTabs
                         ? new TabRestorer(
                                 /* incognito= */ true,
                                 mDelegate,
-                                tabCreatorManager.getTabCreator(/* incognito= */ true))
+                                tabCreatorManager.getTabCreator(/* incognito= */ true),
+                                batchFactory,
+                                tabModelSelector)
                         : null;
         mLoadStartTime = logRestoreDuration ? SystemClock.elapsedRealtime() : INVALID_TIME;
+    }
+
+    /**
+     * Should be called when the active tab for one of the models has been loaded from the cache.
+     *
+     * @param tab The tab state loaded from storage.
+     * @param incognito Whether the tab is for the incognito tab restorer.
+     */
+    public void onCachedActiveTabLoaded(LoadedTabState tab, boolean incognito) {
+        if (incognito) {
+            assumeNonNull(mIncognitoTabRestorer).onCachedActiveTabLoaded(tab);
+        } else {
+            mRegularTabRestorer.onCachedActiveTabLoaded(tab);
+        }
     }
 
     /**

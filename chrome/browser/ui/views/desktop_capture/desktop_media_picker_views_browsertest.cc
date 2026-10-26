@@ -12,6 +12,7 @@
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "chrome/browser/media/webrtc/desktop_media_list.h"
 #include "chrome/browser/media/webrtc/fake_desktop_media_list.h"
 #include "chrome/browser/ui/browser.h"
@@ -132,6 +133,7 @@ IN_PROC_BROWSER_TEST_F(DesktopMediaPickerViewsBrowserTest, InvokeUi_default) {
 // Show the picker UI with only one source type: TYPE_WEB_CONTENTS, aka the
 // tab picker.
 IN_PROC_BROWSER_TEST_F(DesktopMediaPickerViewsBrowserTest, InvokeUi_tabs) {
+  set_baseline("7638461");
   after_show_callback_ =
       base::BindOnce([](const std::vector<FakeDesktopMediaList*>& sources) {
         AddSources(sources[0], {u"Dapper Drake", u"Edgy Eft", u"Feisty Fawn"});
@@ -142,7 +144,15 @@ IN_PROC_BROWSER_TEST_F(DesktopMediaPickerViewsBrowserTest, InvokeUi_tabs) {
 }
 
 // Show the getDisplayMedia picker UI with a very long title that should wrap.
-IN_PROC_BROWSER_TEST_F(DesktopMediaPickerViewsBrowserTest, InvokeUi_LongTitle) {
+// TODO(crbug.com/491087314): Fix flaky test.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_InvokeUi_LongTitle DISABLED_InvokeUi_LongTitle
+#else
+#define MAYBE_InvokeUi_LongTitle InvokeUi_LongTitle
+#endif
+IN_PROC_BROWSER_TEST_F(DesktopMediaPickerViewsBrowserTest,
+                       MAYBE_InvokeUi_LongTitle) {
+  set_baseline("7638461");
   request_source_ = DesktopMediaPicker::Params::RequestSource::kGetDisplayMedia;
   app_name_ =
       u"a.site.with.a.super.long.name.that.needs.to.be.displayed.over.multiple."

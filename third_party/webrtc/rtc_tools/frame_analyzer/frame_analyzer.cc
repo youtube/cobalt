@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,7 +22,6 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/strings/match.h"
-#include "api/array_view.h"
 #include "api/scoped_refptr.h"
 #include "api/test/metrics/chrome_perf_dashboard_metrics_exporter.h"
 #include "api/test/metrics/global_metrics_logger_and_exporter.h"
@@ -138,7 +138,7 @@ class FrameAnalyzerMetricsExporter : public webrtc::test::MetricsExporter {
   FrameAnalyzerMetricsExporter& operator=(const FrameAnalyzerMetricsExporter&) =
       delete;
 
-  bool Export(webrtc::ArrayView<const webrtc::test::Metric> metrics) override {
+  bool Export(std::span<const webrtc::test::Metric> metrics) override {
     for (const webrtc::test::Metric& metric : metrics) {
       PrintMetric(metric);
     }

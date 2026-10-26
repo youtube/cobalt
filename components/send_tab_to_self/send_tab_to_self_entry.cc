@@ -9,7 +9,10 @@
 #include "base/check.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
+#include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/proto/send_tab_to_self.pb.h"
+#include "components/send_tab_to_self/proto_conversions.h"
 #include "components/sync/protocol/send_tab_to_self_specifics.pb.h"
 
 namespace send_tab_to_self {
@@ -35,7 +38,8 @@ SendTabToSelfEntry::SendTabToSelfEntry(
     const std::string& title,
     base::Time shared_time,
     const std::string& device_name,
-    const std::string& target_device_sync_cache_guid)
+    const std::string& target_device_sync_cache_guid,
+    const PageContext& page_context)
     : guid_(guid),
       url_(url),
       title_(title),
@@ -43,7 +47,8 @@ SendTabToSelfEntry::SendTabToSelfEntry(
       target_device_sync_cache_guid_(target_device_sync_cache_guid),
       shared_time_(shared_time),
       notification_dismissed_(false),
-      opened_(false) {
+      opened_(false),
+      page_context_(page_context) {
   DCHECK(!guid_.empty());
   DCHECK(url_.is_valid());
 }
@@ -92,6 +97,10 @@ bool SendTabToSelfEntry::GetNotificationDismissed() const {
   return notification_dismissed_;
 }
 
+const PageContext& SendTabToSelfEntry::GetPageContext() const {
+  return page_context_;
+}
+
 SendTabToSelfLocal SendTabToSelfEntry::AsLocalProto() const {
   SendTabToSelfLocal local_entry;
   auto* pb_entry = local_entry.mutable_specifics();
@@ -104,6 +113,12 @@ SendTabToSelfLocal SendTabToSelfEntry::AsLocalProto() const {
   pb_entry->set_target_device_sync_cache_guid(GetTargetDeviceSyncCacheGuid());
   pb_entry->set_opened(IsOpened());
   pb_entry->set_notification_dismissed(GetNotificationDismissed());
+
+  sync_pb::PageContext pb_page_context = PageContextToProto(page_context_);
+  if (const size_t size = pb_page_context.ByteSizeLong();
+      size > 0 && size <= kMaxPageContextSizeBytes) {
+    *pb_entry->mutable_page_context() = std::move(pb_page_context);
+  }
 
   return local_entry;
 }
@@ -130,7 +145,8 @@ std::unique_ptr<SendTabToSelfEntry> SendTabToSelfEntry::FromProto(
   // Protobuf parsing enforces utf8 encoding for all strings.
   auto entry = std::make_unique<SendTabToSelfEntry>(
       guid, url, pb_entry.title(), shared_time, pb_entry.device_name(),
-      pb_entry.target_device_sync_cache_guid());
+      pb_entry.target_device_sync_cache_guid(),
+      PageContextFromProto(pb_entry.page_context()));
 
   if (pb_entry.opened()) {
     entry->MarkOpened();
@@ -163,7 +179,8 @@ std::unique_ptr<SendTabToSelfEntry> SendTabToSelfEntry::FromRequiredFields(
     return nullptr;
   }
   return std::make_unique<SendTabToSelfEntry>(guid, url, "", base::Time(), "",
-                                              target_device_sync_cache_guid);
+                                              target_device_sync_cache_guid,
+                                              PageContext{});
 }
 
 }  // namespace send_tab_to_self

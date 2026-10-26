@@ -39,6 +39,7 @@ extern const char kHistogramFirstInputTimestamp4[];
 extern const char kHistogramFirstPaint[];
 extern const char kHistogramFirstImagePaint[];
 extern const char kHistogramDomContentLoaded[];
+extern const char kHistogramActualNavigationStartToDOMContentLoaded[];
 extern const char kHistogramParseStartToDOMContentLoaded[];
 extern const char kHistogramLoad[];
 extern const char kHistogramFirstContentfulPaint[];
@@ -220,6 +221,11 @@ class UmaPageLoadMetricsObserver
   void EmitLCPTraceEvent(base::TimeDelta largest_contentful_paint_timing);
 
   void EmitInstantTraceEvent(base::TimeDelta duration, const char event_name[]);
+
+  void EmitPageLoadTimelineTraceEvents(
+      const page_load_metrics::mojom::PageLoadTiming& main_frame_timing,
+      const page_load_metrics::ContentfulPaintTimingInfo&
+          all_frames_largest_contentful_paint);
 
   content::NavigationHandleTiming navigation_handle_timing_;
 

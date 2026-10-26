@@ -118,7 +118,7 @@ ResourceResponse& ResourceResponse::operator=(const ResourceResponse&) =
 ResourceResponse::~ResourceResponse() = default;
 
 bool ResourceResponse::IsHTTP() const {
-  return current_request_url_.ProtocolIsInHTTPFamily();
+  return current_request_url_.ProtocolIsInHttpFamily();
 }
 
 bool ResourceResponse::ShouldPopulateResourceTiming() const {
@@ -227,16 +227,16 @@ const AtomicString& ResourceResponse::HttpHeaderField(
 }
 
 void ResourceResponse::UpdateHeaderParsedState(const AtomicString& name) {
-  if (EqualIgnoringASCIICase(name, http_names::kLowerAge)) {
+  if (EqualIgnoringAsciiCase(name, http_names::kLowerAge)) {
     have_parsed_age_header_ = false;
-  } else if (EqualIgnoringASCIICase(name, http_names::kLowerCacheControl) ||
-             EqualIgnoringASCIICase(name, http_names::kLowerPragma)) {
+  } else if (EqualIgnoringAsciiCase(name, http_names::kLowerCacheControl) ||
+             EqualIgnoringAsciiCase(name, http_names::kLowerPragma)) {
     cache_control_header_ = CacheControlHeader();
-  } else if (EqualIgnoringASCIICase(name, http_names::kLowerDate)) {
+  } else if (EqualIgnoringAsciiCase(name, http_names::kLowerDate)) {
     have_parsed_date_header_ = false;
-  } else if (EqualIgnoringASCIICase(name, http_names::kLowerExpires)) {
+  } else if (EqualIgnoringAsciiCase(name, http_names::kLowerExpires)) {
     have_parsed_expires_header_ = false;
-  } else if (EqualIgnoringASCIICase(name, http_names::kLowerLastModified)) {
+  } else if (EqualIgnoringAsciiCase(name, http_names::kLowerLastModified)) {
     have_parsed_last_modified_header_ = false;
   }
 }
@@ -431,17 +431,17 @@ std::optional<base::Time> ResourceResponse::LastModified() const {
 
 bool ResourceResponse::IsAttachment() const {
   static const char kAttachmentString[] = "attachment";
-  String value = http_header_fields_.Get(http_names::kContentDisposition);
-  wtf_size_t loc = value.find(';');
-  if (loc != kNotFound)
-    value = value.Left(loc);
-  value = value.StripWhiteSpace();
-  return EqualIgnoringASCIICase(value, kAttachmentString);
+  const AtomicString& header_value =
+      http_header_fields_.Get(http_names::kContentDisposition);
+  const StringView attachment_value = StringView(header_value)
+                                          .substr(0, header_value.find(';'))
+                                          .StripWhiteSpace();
+  return EqualIgnoringAsciiCase(attachment_value, kAttachmentString);
 }
 
 AtomicString ResourceResponse::HttpContentType() const {
   return ExtractMIMETypeFromMediaType(
-      HttpHeaderField(http_names::kContentType).LowerASCII());
+      HttpHeaderField(http_names::kContentType).ToAsciiLower());
 }
 
 AtomicString ResourceResponse::GetFilteredHttpContentEncoding() const {
@@ -450,14 +450,14 @@ AtomicString ResourceResponse::GetFilteredHttpContentEncoding() const {
   DEFINE_THREAD_SAFE_STATIC_LOCAL(const AtomicString, unknown_value,
                                   ("@unknown"));
   String content_encoding =
-      HttpHeaderField(http_names::kContentEncoding).LowerASCII();
+      HttpHeaderField(http_names::kContentEncoding).ToAsciiLower();
   if (content_encoding.IsNull() || content_encoding.empty()) {
     return g_empty_atom;
   }
   if (kSupportedContentEncodingValues.contains(content_encoding.Ascii())) {
     return AtomicString(content_encoding);
   }
-  if (content_encoding.find(',') != kNotFound) {
+  if (content_encoding.contains(',')) {
     return multiple_value;
   }
   return unknown_value;

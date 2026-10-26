@@ -136,7 +136,7 @@ struct IndexedDebugProxy {
 
   template <typename V>
   static DirectHandle<JSObject> GetHolder(const PropertyCallbackInfo<V>& info) {
-    return Cast<JSObject>(Utils::OpenHandle(*info.HolderV2()));
+    return Cast<JSObject>(Utils::OpenHandle(*info.Holder()));
   }
 
   static DirectHandle<Provider> GetProvider(DirectHandle<JSObject> holder,
@@ -635,7 +635,7 @@ class ContextProxy {
       Local<v8::Name> name, const PropertyCallbackInfo<v8::Value>& info) {
     auto name_string = Cast<String>(Utils::OpenHandle(*name));
     auto isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
-    auto holder = Cast<JSObject>(Utils::OpenHandle(*info.HolderV2()));
+    auto holder = Cast<JSObject>(Utils::OpenHandle(*info.Holder()));
     DirectHandle<Object> value;
     if (GetNamedProperty(isolate, holder, name_string).ToHandle(&value)) {
       info.GetReturnValue().Set(Utils::ToLocal(value));
@@ -879,15 +879,16 @@ DirectHandle<WasmValueObject> WasmValueObject::New(Isolate* isolate,
       Descriptor d = Descriptor::DataField(
           isolate,
           isolate->factory()->InternalizeString(base::StaticCharVector("type")),
-          WasmValueObject::kTypeIndex, FROZEN, Representation::Tagged(), true);
+          WasmValueObject::kTypeOffset, FROZEN, Representation::Tagged(), true);
       map->AppendDescriptor(isolate, &d);
     }
     {  // value
-      Descriptor d = Descriptor::DataField(
-          isolate,
-          isolate->factory()->InternalizeString(
-              base::StaticCharVector("value")),
-          WasmValueObject::kValueIndex, FROZEN, Representation::Tagged(), true);
+      Descriptor d =
+          Descriptor::DataField(isolate,
+                                isolate->factory()->InternalizeString(
+                                    base::StaticCharVector("value")),
+                                WasmValueObject::kValueOffset, FROZEN,
+                                Representation::Tagged(), true);
       map->AppendDescriptor(isolate, &d);
     }
     map->set_is_extensible(false);

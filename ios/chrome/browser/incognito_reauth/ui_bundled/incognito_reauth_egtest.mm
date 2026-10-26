@@ -213,4 +213,33 @@ using chrome_test_util::TabGroupCreationView;
       assertWithMatcher:grey_nil()];
 }
 
+// Tests that if the user opens an incognito tab, backgrounds the app and
+// foregrounds again, they will see the incognito block reauth UI, and can swipe
+// to the regular tab grid.
+- (void)testBackgroundAndForegroundFromIncognitoPageShouldShowBlockUI {
+  [ChromeEarlGrey openNewIncognitoTab];
+  [self displayBlockingUI];
+  // Verify blocking UI is displaying and bottom toolbar buttons are disabled.
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::TabGridNewIncognitoTabButton()]
+      assertWithMatcher:grey_not(grey_enabled())];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::TabGridDoneButton()]
+      assertWithMatcher:grey_not(grey_enabled())];
+  id<GREYMatcher> overflowOrEditButton =
+      grey_anyOf(chrome_test_util::TabGridOverflowMenuButton(),
+                 chrome_test_util::TabGridEditButton(), nil);
+  [[EarlGrey
+      selectElementWithMatcher:grey_allOf(overflowOrEditButton,
+                                          grey_sufficientlyVisible(), nil)]
+      assertWithMatcher:grey_not(grey_enabled())];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::TabGridCellAtIndex(0)]
+      assertWithMatcher:grey_notVisible()];
+  // Verify that the regular tab grid is still accessible.
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::TabGridOpenTabsPanelButton()]
+      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::RegularTabGrid()]
+      assertWithMatcher:grey_sufficientlyVisible()];
+}
+
 @end

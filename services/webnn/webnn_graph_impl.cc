@@ -18,6 +18,7 @@
 #include "services/webnn/public/cpp/operand_descriptor.h"
 #include "services/webnn/public/cpp/webnn_trace.h"
 #include "services/webnn/public/cpp/webnn_types.h"
+#include "services/webnn/scoped_gpu_sequence.h"
 #include "services/webnn/webnn_context_impl.h"
 #include "services/webnn/webnn_tensor_impl.h"
 
@@ -92,20 +93,18 @@ WebNNGraphImpl::ComputeResourceInfo::~ComputeResourceInfo() = default;
 
 WebNNGraphImpl::WebNNGraphImpl(
     mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
-    base::WeakPtr<WebNNContextImpl> context,
+    WebNNContextImpl& context,
     ComputeResourceInfo compute_resource_info,
     std::vector<mojom::Device> devices)
     : WebNNObjectImpl<mojom::WebNNGraph,
                       blink::WebNNGraphToken,
                       mojo::AssociatedReceiver<mojom::WebNNGraph>>(
           std::move(receiver),
-          context->scheduler_task_runner(),
-          context->owning_task_runner()),
-      context_(std::move(context)),
+          context.scheduler_task_runner(),
+          context.owning_task_runner()),
+      context_(context),
       compute_resource_info_(std::move(compute_resource_info)),
-      devices_(std::move(devices)) {
-  CHECK(context_);
-}
+      devices_(std::move(devices)) {}
 
 WebNNGraphImpl::~WebNNGraphImpl() = default;
 
@@ -185,8 +184,7 @@ void WebNNGraphImpl::Dispatch(
   }
 
   // Call DispatchImpl() implemented by an `mojom::WebNNGraph` backend.
-  context_->scheduler_task_runner()->PostTask(
-      FROM_HERE,
+  context_->gpu_sequence()->ScheduleGpuTask(
       base::BindOnce(
           [](WebNNGraphImpl* self,
              base::flat_map<std::string, scoped_refptr<WebNNTensorImpl>>

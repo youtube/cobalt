@@ -15,6 +15,7 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
+#include "base/base64.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -29,6 +30,8 @@
 #include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
+#include "base/types/optional_util.h"
+#include "third_party/jni_zero/default_conversions.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/clipboard_change_notifier.h"
@@ -37,6 +40,7 @@
 #include "ui/base/clipboard/clipboard_metrics.h"
 #include "ui/base/clipboard/clipboard_monitor.h"
 #include "ui/base/clipboard/clipboard_util.h"
+#include "ui/base/clipboard/custom_data_helper.h"
 #include "ui/base/clipboard_jni_headers/Clipboard_jni.h"
 #include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
 #include "ui/base/ui_base_features.h"
@@ -125,14 +129,17 @@ class ClipboardMap {
   base::Time GetLastModifiedTime() const;
   void ClearLastModifiedTime();
   bool HasFormat(const ClipboardFormatType& format);
+  base::flat_set<ClipboardFormatType> GetAllAvailableFormats(
+      ClipboardBuffer buffer);
   void OnPrimaryClipboardChanged();
   void OnPrimaryClipTimestampInvalidated(base::Time timestamp);
   void Set(const ClipboardFormatType& format, std::string_view data);
   const std::vector<ui::FileInfo>& GetFilenames();
   void SetFilenames(std::vector<ui::FileInfo> filenames);
   void CommitToAndroidClipboard(GURL data_source);
-  std::optional<DataTransferEndpoint> GetSource();
+  void GetSource(Clipboard::GetSourceCallback callback);
   void Clear();
+  std::vector<std::u16string> GetCustomTypes();
   void MarkPasswordData();
 
   // Unlike the functions above, does not call |modified_cb_|.
@@ -154,6 +161,7 @@ class ClipboardMap {
   // avoid that, This function should only be called when we really need to read
   // the data.
   void UpdateFromAndroidClipboard();
+  void ReadWebCustomData(JNIEnv* env);
 
   std::map<ClipboardFormatType, std::string> map_ GUARDED_BY(lock_);
   MapState map_state_;
@@ -281,6 +289,51 @@ bool ClipboardMap::HasFormat(const ClipboardFormatType& format) {
   return map_.contains(format);
 }
 
+base::flat_set<ClipboardFormatType> ClipboardMap::GetAllAvailableFormats(
+    ClipboardBuffer buffer) {
+  base::AutoLock lock(lock_);
+  base::flat_set<ClipboardFormatType> formats;
+  if (map_state_ == MapState::kUpToDate) {
+    for (const auto& entry : map_) {
+      formats.insert(entry.first);
+    }
+    // Images can be read if either bitmap or PNG types are available.
+    if (map_.contains(ClipboardFormatType::PngType()) ||
+        map_.contains(ClipboardFormatType::BitmapType())) {
+      formats.insert(ClipboardFormatType::PngType());
+      formats.insert(ClipboardFormatType::BitmapType());
+    }
+    if (!filenames_.empty()) {
+      formats.insert(ClipboardFormatType::FilenamesType());
+    }
+    return formats;
+  }
+
+  JNIEnv* env = AttachCurrentThread();
+  if (Java_Clipboard_hasCoercedText(env, clipboard_manager_)) {
+    formats.insert(ClipboardFormatType::PlainTextType());
+  }
+  if (Java_Clipboard_hasHTMLOrStyledText(env, clipboard_manager_)) {
+    formats.insert(ClipboardFormatType::HtmlType());
+  }
+  if (Java_Clipboard_hasUrl(env, clipboard_manager_)) {
+    formats.insert(ClipboardFormatType::UrlType());
+  }
+  if (Java_Clipboard_hasImage(env, clipboard_manager_)) {
+    formats.insert(ClipboardFormatType::PngType());
+    formats.insert(ClipboardFormatType::BitmapType());
+  }
+  if (Java_Clipboard_hasFilenames(env, clipboard_manager_)) {
+    formats.insert(ClipboardFormatType::FilenamesType());
+  }
+
+  for (const auto& entry : map_) {
+    formats.insert(entry.first);
+  }
+
+  return formats;
+}
+
 void ClipboardMap::OnPrimaryClipboardChanged() {
   sequence_number_ = ClipboardSequenceNumberToken();
   UpdateLastModifiedTime(base::Time::Now());
@@ -313,6 +366,7 @@ void ClipboardMap::SetFilenames(std::vector<ui::FileInfo> filenames) {
 void ClipboardMap::CommitToAndroidClipboard(GURL data_source) {
   JNIEnv* env = AttachCurrentThread();
   base::AutoLock lock(lock_);
+
   bool add_data_source = data_source.is_valid();
   if (mark_password_data_ &&
       map_.contains(ClipboardFormatType::PlainTextType())) {
@@ -321,24 +375,6 @@ void ClipboardMap::CommitToAndroidClipboard(GURL data_source) {
     DCHECK(str.obj());
     Java_Clipboard_setPassword(env, clipboard_manager_, str);
     mark_password_data_ = false;
-  } else if (map_.contains(ClipboardFormatType::HtmlType())) {
-    // Android's API for storing HTML content on the clipboard requires a plain-
-    // text representation to be available as well.
-    if (!map_.contains(ClipboardFormatType::PlainTextType()))
-      return;
-
-    ScopedJavaLocalRef<jstring> html =
-        ConvertUTF8ToJavaString(env, map_[ClipboardFormatType::HtmlType()]);
-    ScopedJavaLocalRef<jstring> text = ConvertUTF8ToJavaString(
-        env, map_[ClipboardFormatType::PlainTextType()]);
-
-    DCHECK(html.obj() && text.obj());
-    Java_Clipboard_setHTMLText(env, clipboard_manager_, html, text);
-  } else if (map_.contains(ClipboardFormatType::PlainTextType())) {
-    ScopedJavaLocalRef<jstring> str = ConvertUTF8ToJavaString(
-        env, map_[ClipboardFormatType::PlainTextType()]);
-    DCHECK(str.obj());
-    Java_Clipboard_setText(env, clipboard_manager_, str);
   } else if (map_.contains(ClipboardFormatType::PngType())) {
     // Committing the PNG data to the Android clipboard will create an image
     // with a corresponding URI. Once this has been created, update the local
@@ -366,9 +402,25 @@ void ClipboardMap::CommitToAndroidClipboard(GURL data_source) {
     DCHECK(arr.obj());
     Java_Clipboard_setFilenames(env, clipboard_manager_, arr);
   } else {
-    Java_Clipboard_clear(env, clipboard_manager_);
-    add_data_source = false;
-    NOTIMPLEMENTED();
+    // Collect PlainTextType, HtmlType and DataTransferCustomType from map_.
+    std::map<std::string, std::string> text_data;
+    for (const auto& entry : map_) {
+      if (entry.first == ClipboardFormatType::PlainTextType() ||
+          entry.first == ClipboardFormatType::HtmlType()) {
+        text_data[entry.first.GetName()] = entry.second;
+      } else if (entry.first == ClipboardFormatType::DataTransferCustomType()) {
+        text_data[entry.first.GetName()] =
+            base::Base64Encode(base::as_byte_span(entry.second));
+      }
+    }
+
+    if (!text_data.empty()) {
+      Java_Clipboard_setClipboardText(env, clipboard_manager_, text_data);
+    } else {
+      Java_Clipboard_clear(env, clipboard_manager_);
+      NOTIMPLEMENTED();
+      add_data_source = false;
+    }
   }
 
   if (add_data_source) {
@@ -382,15 +434,16 @@ void ClipboardMap::CommitToAndroidClipboard(GURL data_source) {
   UpdateLastModifiedTime(base::Time::Now());
 }
 
-std::optional<DataTransferEndpoint> ClipboardMap::GetSource() {
+void ClipboardMap::GetSource(Clipboard::GetSourceCallback callback) {
   base::AutoLock lock(lock_);
 
   auto iter = map_.find(ClipboardFormatType::InternalSourceUrlType());
   if (iter == map_.end()) {
-    return {};
+    std::move(callback).Run(std::nullopt);
+    return;
   }
 
-  return DataTransferEndpoint(GURL(iter->second));
+  std::move(callback).Run(DataTransferEndpoint(GURL(iter->second)));
 }
 
 void ClipboardMap::Clear() {
@@ -402,6 +455,24 @@ void ClipboardMap::Clear() {
   map_state_ = MapState::kUpToDate;
   sequence_number_ = ClipboardSequenceNumberToken();
   UpdateLastModifiedTime(base::Time::Now());
+}
+
+std::vector<std::u16string> ClipboardMap::GetCustomTypes() {
+  base::AutoLock lock(lock_);
+  // Ensure map_ is up-to-date with Android system clipboard.
+  UpdateFromAndroidClipboard();
+  std::vector<std::u16string> types;
+  if (auto it = map_.find(ClipboardFormatType::DataTransferCustomType());
+      it != map_.end()) {
+    std::vector<std::u16string> custom_types;
+    ui::ReadCustomDataTypes(base::as_byte_span(it->second), &custom_types);
+    for (const auto& type : custom_types) {
+      if (std::find(types.begin(), types.end(), type) == types.end()) {
+        types.push_back(type);
+      }
+    }
+  }
+  return types;
 }
 
 void ClipboardMap::MarkPasswordData() {
@@ -453,7 +524,25 @@ void ClipboardMap::UpdateFromAndroidClipboard() {
   JNI_Clipboard_AddMapEntry(env, &map_, ClipboardFormatType::BitmapType(),
                             jimageuri);
 
+  ReadWebCustomData(env);
+
   map_state_ = MapState::kUpToDate;
+}
+
+void ClipboardMap::ReadWebCustomData(JNIEnv* env) {
+  lock_.AssertAcquired();
+  std::string custom_type_name =
+      ClipboardFormatType::DataTransferCustomType().GetName();
+  std::optional<std::string> encoded_data = Java_Clipboard_getCustomClipData(
+      env, clipboard_manager_, custom_type_name);
+  if (!encoded_data) {
+    return;
+  }
+  std::string decoded_data;
+  if (!base::Base64Decode(*encoded_data, &decoded_data)) {
+    return;
+  }
+  map_[ClipboardFormatType::DataTransferCustomType()] = std::move(decoded_data);
 }
 
 }  // namespace
@@ -511,16 +600,17 @@ ClipboardAndroid::ClipboardAndroid() {
 
 ClipboardAndroid::~ClipboardAndroid() {
   DCHECK(CalledOnValidThread());
+  GetClipboardMap().SetJavaSideNativePtr(nullptr);
 }
 
 void ClipboardAndroid::OnPreShutdown() {}
 
-std::optional<DataTransferEndpoint> ClipboardAndroid::GetSource(
-    ClipboardBuffer buffer) const {
+void ClipboardAndroid::GetSource(ClipboardBuffer buffer,
+                                 GetSourceCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
 
-  return GetClipboardMap().GetSource();
+  GetClipboardMap().GetSource(std::move(callback));
 }
 
 const ClipboardSequenceNumberToken& ClipboardAndroid::GetSequenceNumber(
@@ -529,15 +619,14 @@ const ClipboardSequenceNumberToken& ClipboardAndroid::GetSequenceNumber(
   return GetClipboardMap().GetSequenceNumber();
 }
 
-// |data_dst| is not used. It's only passed to be consistent with other
-// platforms.
-bool ClipboardAndroid::IsFormatAvailable(
-    const ClipboardFormatType& format,
+void ClipboardAndroid::GetAllAvailableFormats(
     ClipboardBuffer buffer,
-    const DataTransferEndpoint* data_dst) const {
+    const std::optional<DataTransferEndpoint>& data_dst,
+    base::OnceCallback<void(base::flat_set<ClipboardFormatType>)> callback)
+    const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
-  return GetClipboardMap().HasFormat(format);
+  std::move(callback).Run(GetClipboardMap().GetAllAvailableFormats(buffer));
 }
 
 void ClipboardAndroid::Clear(ClipboardBuffer buffer) {
@@ -547,117 +636,133 @@ void ClipboardAndroid::Clear(ClipboardBuffer buffer) {
   ClipboardMonitor::GetInstance()->NotifyClipboardDataChanged();
 }
 
-std::vector<std::u16string> ClipboardAndroid::GetStandardFormats(
+void ClipboardAndroid::GetStandardFormats(
     ClipboardBuffer buffer,
-    const DataTransferEndpoint* data_dst) const {
+    const std::optional<DataTransferEndpoint>& data_dst,
+    GetStandardFormatsCallback callback) const {
   std::vector<std::u16string> types;
-  // would be nice to ask the ClipboardMap to enumerate the types it supports,
-  // rather than hardcode the list here.
-  if (IsFormatAvailable(ClipboardFormatType::PlainTextType(), buffer,
-                        data_dst)) {
+  auto available_formats = GetClipboardMap().GetAllAvailableFormats(buffer);
+  if (available_formats.contains(ClipboardFormatType::PlainTextType())) {
     types.push_back(kMimeTypePlainText16);
   }
-  if (IsFormatAvailable(ClipboardFormatType::HtmlType(), buffer, data_dst)) {
+  if (available_formats.contains(ClipboardFormatType::HtmlType())) {
     types.push_back(kMimeTypeHtml16);
   }
-  if (IsFormatAvailable(ClipboardFormatType::SvgType(), buffer, data_dst)) {
+  if (available_formats.contains(ClipboardFormatType::SvgType())) {
     types.push_back(kMimeTypeSvg16);
   }
   // We can read images from either the Android clipboard or the local map.
-  if (IsFormatAvailable(ClipboardFormatType::BitmapType(), buffer, data_dst) ||
-      IsFormatAvailable(ClipboardFormatType::PngType(), buffer, data_dst)) {
+  if (available_formats.contains(ClipboardFormatType::BitmapType()) ||
+      available_formats.contains(ClipboardFormatType::PngType())) {
     types.push_back(kMimeTypeImageUri16);
     types.push_back(kMimeTypePng16);
   }
-  if (IsFormatAvailable(ClipboardFormatType::FilenamesType(), buffer,
-                        data_dst)) {
+  if (available_formats.contains(ClipboardFormatType::FilenamesType())) {
     types.push_back(kMimeTypeUriList16);
   }
   // these formats aren't supported by the ClipboardMap currently, but might
   // be one day?
-  if (IsFormatAvailable(ClipboardFormatType::RtfType(), buffer, data_dst)) {
+  if (available_formats.contains(ClipboardFormatType::RtfType())) {
     types.push_back(kMimeTypeRtf16);
   }
-  return types;
+  std::move(callback).Run(std::move(types));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
 void ClipboardAndroid::ReadAvailableTypes(
     ClipboardBuffer buffer,
-    const DataTransferEndpoint* data_dst,
-    std::vector<std::u16string>* types) const {
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadAvailableTypesCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
-  DCHECK(types);
 
-  types->clear();
-  *types = GetStandardFormats(buffer, data_dst);
+  auto combine_types_callback = base::BindOnce(
+      [](ReadAvailableTypesCallback callback,
+         std::vector<std::u16string> types) {
+        // Add custom types from the system clipboard to enable pasting of custom
+        // types.
+        std::vector<std::u16string> custom_types =
+            GetClipboardMap().GetCustomTypes();
+        for (const auto& type : custom_types) {
+          if (std::find(types.begin(), types.end(), type) == types.end()) {
+            types.push_back(type);
+          }
+        }
+        std::move(callback).Run(std::move(types));
+      },
+      std::move(callback));
+
+  GetStandardFormats(buffer, data_dst, std::move(combine_types_callback));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
-void ClipboardAndroid::ReadText(ClipboardBuffer buffer,
-                                const DataTransferEndpoint* data_dst,
-                                std::u16string* result) const {
-  DCHECK(CalledOnValidThread());
-  DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
-  std::string utf8;
-  ReadAsciiText(buffer, data_dst, &utf8);
-  *result = base::UTF8ToUTF16(utf8);
-}
-
-// |data_dst| is not used. It's only passed to be consistent with other
-// platforms.
-void ClipboardAndroid::ReadAsciiText(ClipboardBuffer buffer,
-                                     const DataTransferEndpoint* data_dst,
-                                     std::string* result) const {
+void ClipboardAndroid::ReadText(
+    ClipboardBuffer buffer,
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadTextCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   RecordRead(ClipboardFormatMetric::kText);
-  *result = GetClipboardMap().Get(ClipboardFormatType::PlainTextType());
+  std::move(callback).Run(base::UTF8ToUTF16(
+      GetClipboardMap().Get(ClipboardFormatType::PlainTextType())));
+}
+
+// |data_dst| is not used. It's only passed to be consistent with other
+// platforms.
+void ClipboardAndroid::ReadAsciiText(
+    ClipboardBuffer buffer,
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadAsciiTextCallback callback) const {
+  DCHECK(CalledOnValidThread());
+  DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
+  RecordRead(ClipboardFormatMetric::kText);
+  std::move(callback).Run(
+      GetClipboardMap().Get(ClipboardFormatType::PlainTextType()));
 }
 
 // |src_url| isn't really used. It is only implemented in Windows.
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
-void ClipboardAndroid::ReadHTML(ClipboardBuffer buffer,
-                                const DataTransferEndpoint* data_dst,
-                                std::u16string* markup,
-                                std::string* src_url,
-                                uint32_t* fragment_start,
-                                uint32_t* fragment_end) const {
+void ClipboardAndroid::ReadHTML(
+    ClipboardBuffer buffer,
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadHtmlCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   RecordRead(ClipboardFormatMetric::kHtml);
-  if (src_url)
-    src_url->clear();
 
   std::string input = GetClipboardMap().Get(ClipboardFormatType::HtmlType());
-  *markup = base::UTF8ToUTF16(input);
+  std::u16string markup = base::UTF8ToUTF16(input);
 
-  *fragment_start = 0;
-  *fragment_end = static_cast<uint32_t>(markup->length());
+  uint32_t fragment_start = 0;
+  uint32_t fragment_end = static_cast<uint32_t>(markup.length());
+  std::move(callback).Run(std::move(markup), GURL(), fragment_start,
+                          fragment_end);
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
-void ClipboardAndroid::ReadSvg(ClipboardBuffer buffer,
-                               const DataTransferEndpoint* data_dst,
-                               std::u16string* result) const {
+void ClipboardAndroid::ReadSvg(
+    ClipboardBuffer buffer,
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadSvgCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   std::string utf8 = GetClipboardMap().Get(ClipboardFormatType::SvgType());
-  *result = base::UTF8ToUTF16(utf8);
+  std::move(callback).Run(base::UTF8ToUTF16(utf8));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
-void ClipboardAndroid::ReadRTF(ClipboardBuffer buffer,
-                               const DataTransferEndpoint* data_dst,
-                               std::string* result) const {
+void ClipboardAndroid::ReadRTF(
+    ClipboardBuffer buffer,
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadRTFCallback callback) const {
   DCHECK(CalledOnValidThread());
   NOTIMPLEMENTED();
+  std::move(callback).Run("");
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
@@ -677,42 +782,57 @@ void ClipboardAndroid::ReadPng(
 void ClipboardAndroid::ReadDataTransferCustomData(
     ClipboardBuffer buffer,
     const std::u16string& type,
-    const DataTransferEndpoint* data_dst,
-    std::u16string* result) const {
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadDataTransferCustomDataCallback callback) const {
   DCHECK(CalledOnValidThread());
-  NOTIMPLEMENTED();
+  DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
+  RecordRead(ClipboardFormatMetric::kCustomData);
+
+  std::string data =
+      GetClipboardMap().Get(ClipboardFormatType::DataTransferCustomType());
+  if (!data.empty()) {
+    if (std::optional<std::u16string> result =
+            ui::ReadCustomDataForType(base::as_byte_span(data), type);
+        result) {
+      std::move(callback).Run(std::move(*result));
+      return;
+    }
+  }
+  std::move(callback).Run(u"");
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
-void ClipboardAndroid::ReadFilenames(ClipboardBuffer buffer,
-                                     const DataTransferEndpoint* data_dst,
-                                     std::vector<ui::FileInfo>* result) const {
+void ClipboardAndroid::ReadFilenames(
+    ClipboardBuffer buffer,
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadFilenamesCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   RecordRead(ClipboardFormatMetric::kFilenames);
-  std::ranges::copy(GetClipboardMap().GetFilenames(),
-                    std::back_inserter(*result));
+  std::move(callback).Run(GetClipboardMap().GetFilenames());
 }
-
-// 'data_dst' and 'title' are not used. It's only passed to be consistent with
+// 'data_dst' is not used. It's only passed to be consistent with
 // other platforms.
-void ClipboardAndroid::ReadBookmark(const DataTransferEndpoint* data_dst,
-                                    std::u16string* title,
-                                    std::string* url) const {
+void ClipboardAndroid::ReadBookmark(
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadBookmarkCallback callback) const {
   DCHECK(CalledOnValidThread());
   RecordRead(ClipboardFormatMetric::kBookmark);
-  *url = GetClipboardMap().Get(ClipboardFormatType::UrlType());
+  std::move(callback).Run(
+      std::u16string(),
+      GURL(GetClipboardMap().Get(ClipboardFormatType::UrlType())));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
-void ClipboardAndroid::ReadData(const ClipboardFormatType& format,
-                                const DataTransferEndpoint* data_dst,
-                                std::string* result) const {
+void ClipboardAndroid::ReadData(
+    const ClipboardFormatType& format,
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadDataCallback callback) const {
   DCHECK(CalledOnValidThread());
   RecordRead(ClipboardFormatMetric::kData);
-  *result = GetClipboardMap().Get(format);
+  std::move(callback).Run(GetClipboardMap().Get(format));
 }
 
 base::Time ClipboardAndroid::GetLastModifiedTime() const {

@@ -19,6 +19,7 @@
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #else
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
@@ -89,13 +90,12 @@ ExtensionFunction::ResponseAction SearchQueryFunction::Run() {
   }
 
   // If the extension didn't specify a tab, we need to find a browser to use.
-  Browser* browser = nullptr;
-  TabModel* tab_model = nullptr;
   if (!web_contents) {
     // If the extension called the API from a tab, we can use that tab -
     // find the associated browser or tab model.
     web_contents = GetSenderWebContents();
 #if BUILDFLAG(ENABLE_EXTENSIONS)
+    BrowserWindowInterface* browser = nullptr;
     if (web_contents) {
       browser = chrome::FindBrowserWithTab(web_contents);
     }
@@ -108,9 +108,10 @@ ExtensionFunction::ResponseAction SearchQueryFunction::Run() {
       if (!browser) {
         return RespondNow(Error("No active browser."));
       }
-      web_contents = browser->tab_strip_model()->GetActiveWebContents();
+      web_contents = browser->GetTabStripModel()->GetActiveWebContents();
     }
 #else
+    TabModel* tab_model = nullptr;
     if (web_contents) {
       tab_model = TabModelList::GetTabModelForWebContents(web_contents);
     }
@@ -122,9 +123,6 @@ ExtensionFunction::ResponseAction SearchQueryFunction::Run() {
     web_contents = GetActiveWebContents();
 #endif
   }
-
-  DCHECK(browser || tab_model ||
-         (web_contents && disposition == Disposition::kNone));
 
   // GURL for default search provider.
   TemplateURLService* url_service =

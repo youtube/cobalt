@@ -345,15 +345,15 @@ func recordVersionToWire(vers uint16, protocol protocol) uint16 {
 
 // encodeDERValues encodes a series of bytestrings in comma-separated-hex form.
 func encodeDERValues(values [][]byte) string {
-	var ret string
+	var ret strings.Builder
 	for i, v := range values {
 		if i > 0 {
-			ret += ","
+			ret.WriteString(",")
 		}
-		ret += hex.EncodeToString(v)
+		ret.WriteString(hex.EncodeToString(v))
 	}
 
-	return ret
+	return ret.String()
 }
 
 func decodeHexOrPanic(in string) []byte {
@@ -453,6 +453,9 @@ type connectionExpectations struct {
 	// serverNameAck, if not nil, is whether the server should have acknowledged
 	// the server name. This field is only checked in full handshakes.
 	serverNameAck *bool
+	// selectedPSK, if not nil, is the PSK credential that should have been
+	// negotiated.
+	selectedPSK *Credential
 }
 
 type testCase struct {
@@ -945,6 +948,13 @@ func doExchange(test *testCase, config *Config, conn net.Conn, isResume bool, tr
 		}
 	}
 
+	if expectations.selectedPSK != nil && expectations.selectedPSK != connState.SelectedPSK {
+		if connState.SelectedPSK == nil {
+			return errors.New("tls: expected a PSK, but none was selected")
+		}
+		return errors.New("tls: connection selected a different PSK from what was expected")
+	}
+
 	if test.exportKeyingMaterial > 0 {
 		actual := make([]byte, test.exportKeyingMaterial)
 		if _, err := io.ReadFull(tlsConn, actual); err != nil {
@@ -1210,12 +1220,12 @@ func rrOf(path string, args ...string) *exec.Cmd {
 }
 
 func removeFirstLineIfSuffix(s, suffix string) string {
-	idx := strings.IndexByte(s, '\n')
-	if idx < 0 {
+	before, after, ok := strings.Cut(s, "\n")
+	if !ok {
 		return s
 	}
-	if strings.HasSuffix(s[:idx], suffix) {
-		return s[idx+1:]
+	if strings.HasSuffix(before, suffix) {
+		return after
 	}
 	return s
 }
@@ -1335,7 +1345,7 @@ func doExchanges(test *testCase, shim *shimProcess, resumeCount int, transcripts
 	}
 
 	nextTicketKey := config.SessionTicketKey
-	for i := 0; i < resumeCount; i++ {
+	for i := range resumeCount {
 		var resumeConfig Config
 		if test.resumeConfig != nil {
 			resumeConfig = *test.resumeConfig
@@ -1432,6 +1442,8 @@ func appendCredentialFlags(flags []string, cred *Credential, prefix string, newC
 			flags = append(flags, prefix+"-new-delegated-credential")
 		case CredentialTypeSPAKE2PlusV1:
 			flags = append(flags, prefix+"-new-spake2plusv1-credential")
+		case CredentialTypePreSharedKey:
+			flags = append(flags, prefix+"-new-psk-credential")
 		default:
 			panic(fmt.Errorf("unknown credential type %d", cred.Type))
 		}
@@ -1467,6 +1479,19 @@ func appendCredentialFlags(flags []string, cred *Credential, prefix string, newC
 	if cred.WrongPAKERole {
 		flags = append(flags, prefix+"-wrong-pake-role")
 	}
+	handleBase64Field("psk-importer-key", cred.PreSharedKey)
+	handleBase64Field("psk-importer-identity", cred.PSKIdentity)
+	handleBase64Field("psk-importer-context", cred.PSKContext)
+	switch cred.PSKHash {
+	case 0:
+		break
+	case crypto.SHA256:
+		flags = append(flags, prefix+"-psk-importer-sha256")
+	case crypto.SHA384:
+		flags = append(flags, prefix+"-psk-importer-sha384")
+	default:
+		panic(fmt.Sprintf("unknown PSK hash %s", cred.PSKHash))
+	}
 	handleBase64Field("trust-anchor-id", cred.TrustAnchorID)
 	return flags
 }
@@ -1484,6 +1509,9 @@ func runTest(dispatcher *shimDispatcher, statusChan chan statusMsg, test *testCa
 	test = ptrTo(*test)
 	if test.resumeConfig != nil {
 		test.resumeConfig = ptrTo(*test.resumeConfig)
+	}
+	if test.resumeExpectations != nil {
+		test.resumeExpectations = ptrTo(*test.resumeExpectations)
 	}
 
 	var flags []string
@@ -2051,11 +2079,11 @@ func statusPrinter(doneChan chan *testresult.Results, statusChan chan statusMsg,
 	for msg := range statusChan {
 		if !*pipe {
 			// Erase the previous status line.
-			var erase string
-			for i := 0; i < lineLen; i++ {
-				erase += "\b \b"
+			var erase strings.Builder
+			for range lineLen {
+				erase.WriteString("\b \b")
 			}
-			fmt.Print(erase)
+			fmt.Print(erase.String())
 		}
 
 		if msg.statusType == statusStarted {
@@ -2154,12 +2182,7 @@ func checkTests() {
 					found = found || test.resumeExpectations.version == ver.version
 				}
 				shimFlag := ver.shimFlag(test.protocol)
-				for _, flag := range test.flags {
-					if flag == shimFlag {
-						found = true
-						break
-					}
-				}
+				found = found || slices.Contains(test.flags, shimFlag)
 				if !found {
 					panic(fmt.Sprintf("The name of test %q suggests that it's version specific, but the test does not reference %s", test.name, ver.name))
 				}
@@ -2249,6 +2272,7 @@ func main() {
 	addKeyUpdateTests()
 	addPAKETests()
 	addTrustAnchorTests()
+	addPSKTests()
 
 	toAppend, err := convertToSplitHandshakeTests(testCases)
 	if err != nil {

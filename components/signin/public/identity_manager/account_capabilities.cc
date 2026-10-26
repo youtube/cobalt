@@ -11,7 +11,6 @@
 
 #include "base/containers/heap_array.h"
 #include "base/containers/span.h"
-#include "base/feature_list.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
@@ -23,11 +22,6 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "components/signin/public/android/jni_headers/AccountCapabilities_jni.h"
-#endif
-
-#if !defined(NDEBUG)
-BASE_FEATURE(kEnableFakeCapabilityForTesting,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 AccountCapabilities::AccountCapabilities() = default;
@@ -125,9 +119,37 @@ signin::Tribool AccountCapabilities::can_run_chrome_privacy_sandbox_trials()
 
 signin::Tribool AccountCapabilities::
     can_show_history_sync_opt_ins_without_minor_mode_restrictions() const {
+#if BUILDFLAG(IS_IOS)
+  // If the flag is enabled, read the contextual capability. If the contextual
+  // capability is unknown, fall back to the non-contextual capability - this
+  // is because when the flag is first enabled the new capability may not yet
+  // have been fetched.
+  // TODO(crbug.com/481654422): Remove the unknown fallback once contextual
+  // capabilities are fully rolled out.
+  if (base::FeatureList::IsEnabled(
+          switches::kReadContextualAccountCapabilities) &&
+      GetCapabilityByName(
+          kCanContextuallyShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName) !=
+          signin::Tribool::kUnknown) {
+    return GetCapabilityByName(
+        kCanContextuallyShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName);
+  }
+#endif
   return GetCapabilityByName(
       kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName);
 }
+
+#if BUILDFLAG(IS_IOS)
+signin::Tribool AccountCapabilities::can_sign_in_to_chrome() const {
+  return GetCapabilityByName(kCanSignInToChromeCapabilityName);
+}
+#endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+signin::Tribool AccountCapabilities::can_submit_feedback() const {
+  return GetCapabilityByName(kCanSubmitFeedbackInChromeCapabilityName);
+}
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
 signin::Tribool AccountCapabilities::can_toggle_auto_updates() const {
@@ -177,6 +199,20 @@ signin::Tribool AccountCapabilities::can_use_manta_service() const {
 }
 
 signin::Tribool AccountCapabilities::can_use_model_execution_features() const {
+#if BUILDFLAG(IS_IOS)
+  // If the flag is enabled, read the contextual capability. If the contextual
+  // capability is unknown, fall back to the non-contextual capability - this
+  // is because when the flag is first enabled the new capability may not yet
+  // have been fetched.
+  // TODO(crbug.com/481654422): Remove the unknown fallback once contextual
+  // capabilities are fully rolled out.
+  if (base::FeatureList::IsEnabled(
+          switches::kReadContextualAccountCapabilities) &&
+      GetCapabilityByName(kCanContextuallyUseModelExecutionFeaturesName) !=
+          signin::Tribool::kUnknown) {
+    return GetCapabilityByName(kCanContextuallyUseModelExecutionFeaturesName);
+  }
+#endif
   return GetCapabilityByName(kCanUseModelExecutionFeaturesName);
 }
 

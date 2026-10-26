@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/containers/flat_map.h"
-#include "base/containers/flat_set.h"
+#include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
@@ -24,8 +24,10 @@
 #include "components/history/core/browser/history_service.h"
 #include "components/send_tab_to_self/features.h"
 #include "components/send_tab_to_self/metrics_util.h"
+#include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/pref_names.h"
 #include "components/send_tab_to_self/proto/send_tab_to_self.pb.h"
+#include "components/send_tab_to_self/proto_conversions.h"
 #include "components/send_tab_to_self/target_device_info.h"
 #include "components/sync/base/deletion_origin.h"
 #include "components/sync/model/data_type_local_change_processor.h"
@@ -33,6 +35,7 @@
 #include "components/sync/model/metadata_batch.h"
 #include "components/sync/model/metadata_change_list.h"
 #include "components/sync/model/mutable_data_batch.h"
+#include "components/sync_device_info/device_name_util.h"
 #include "components/sync_device_info/local_device_info_util.h"
 #include "components/sync_sessions/open_tabs_ui_delegate.h"
 #include "components/sync_sessions/session_sync_service.h"
@@ -66,15 +69,10 @@ std::unique_ptr<syncer::EntityData> CopyToEntityData(
 std::optional<syncer::ModelError> ParseLocalEntriesOnBackendSequence(
     base::Time now,
     std::map<std::string, std::unique_ptr<SendTabToSelfEntry>>* entries,
-    std::string* local_personalizable_device_name,
     std::unique_ptr<DataTypeStore::RecordList> record_list) {
   DCHECK(entries);
   DCHECK(entries->empty());
-  DCHECK(local_personalizable_device_name);
   DCHECK(record_list);
-
-  *local_personalizable_device_name =
-      syncer::GetPersonalizableDeviceNameBlocking();
 
   for (const syncer::DataTypeStore::Record& r : *record_list) {
     auto specifics = std::make_unique<SendTabToSelfLocal>();
@@ -296,6 +294,14 @@ bool SendTabToSelfBridge::IsEntityDataValid(
   return !specifics.guid().empty() && GURL(specifics.url()).is_valid();
 }
 
+sync_pb::EntitySpecifics
+SendTabToSelfBridge::TrimAllSupportedFieldsFromRemoteSpecifics(
+    const sync_pb::EntitySpecifics& entity_specifics) const {
+  // Clears all fields by default to avoid the memory and I/O overhead of an
+  // additional copy of the data.
+  return sync_pb::EntitySpecifics();
+}
+
 void SendTabToSelfBridge::ApplyDisableSyncChanges(
     std::unique_ptr<syncer::MetadataChangeList> delete_metadata_change_list) {
   DCHECK(store_);
@@ -330,7 +336,8 @@ const SendTabToSelfEntry* SendTabToSelfBridge::GetEntryByGUID(
 const SendTabToSelfEntry* SendTabToSelfBridge::AddEntry(
     const GURL& url,
     const std::string& title,
-    const std::string& target_device_cache_guid) {
+    const std::string& target_device_cache_guid,
+    const PageContext& context) {
   if (!change_processor()->IsTrackingMetadata()) {
     // TODO(crbug.com/40617641) handle failure case.
     return nullptr;
@@ -365,8 +372,12 @@ const SendTabToSelfEntry* SendTabToSelfBridge::AddEntry(
   }
 
   auto entry = std::make_unique<SendTabToSelfEntry>(
-      guid, url, trimmed_title, shared_time, local_device_name_,
-      target_device_cache_guid);
+      guid, url, trimmed_title, shared_time, GetLocalFullName(),
+      target_device_cache_guid, context);
+
+  // The size is recorded before potential truncation (dropping) of the context
+  // due to the per-entity size limit.
+  RecordPageContextSize(PageContextToProto(context).ByteSizeLong());
 
   std::unique_ptr<DataTypeStore::WriteBatch> batch = store_->CreateWriteBatch();
   // This entry is new. Add it to the store and model.
@@ -503,49 +514,28 @@ SendTabToSelfBridge::GetTargetDeviceInfoSortedList() {
         return a.last_active > b.last_active;
       });
 
-  std::vector<TargetDeviceInfo> target_device_info_sorted_list;
-  base::flat_set<std::string> seen_full_names;
-  base::flat_map<std::string, int> short_names_counter;
-
+  std::vector<const syncer::DeviceInfo*> devices;
   for (const auto& entry : devices_with_timestamps) {
-    const syncer::DeviceInfo* device = entry.device;
-    base::Time last_active = entry.last_active;
-
-    // If the current device is expired, stop here because subsequent devices
-    // in the sorted list are also expired.
-    if (clock_->Now() - last_active > kDeviceExpiration) {
+    // Filter out devices that are too old or don't support the feature.
+    if (clock_->Now() - entry.last_active > kDeviceExpiration) {
       break;
     }
-
-    if (!ShouldIncludeDevice(*device)) {
-      continue;
-    }
-
-    SharingDeviceNames device_names = GetSharingDeviceNames(device);
-
-    // Don't include this device if it has the same name as the local device.
-    if (device_names.full_name == local_device_name_) {
-      continue;
-    }
-
-    // De-duplicate by full name. Only keep the most recent occurrence.
-    if (seen_full_names.insert(device_names.full_name).second) {
-      target_device_info_sorted_list.emplace_back(
-          device_names.full_name, device_names.short_name, device->guid(),
-          device->form_factor(), last_active);
-      ++short_names_counter[device_names.short_name];
+    if (ShouldIncludeDevice(*entry.device)) {
+      devices.push_back(entry.device);
     }
   }
 
-  // Finalize the display name. Use the short name if it's unique among the
-  // target list, otherwise fall back to the full name.
-  for (auto& device_info : target_device_info_sorted_list) {
-    device_info.device_name = (short_names_counter[device_info.short_name] == 1)
-                                  ? device_info.short_name
-                                  : device_info.full_name;
-  }
+  // Resolve display names for the filtered list. This handles de-duplication
+  // by name and chooses between short/full names based on collisions.
+  std::vector<syncer::DeviceInfoWithName> device_names =
+      syncer::DetermineDisplayNamesAndDeduplicate(devices, GetLocalFullName());
 
-  return target_device_info_sorted_list;
+  return base::ToVector(device_names, [&](const auto& info) {
+    auto it = std::ranges::find(devices_with_timestamps, info.device,
+                                &DeviceWithTimestamp::device);
+    return TargetDeviceInfo(info.display_name, info.device->guid(),
+                            info.device->form_factor(), it->last_active);
+  });
 }
 
 // static
@@ -557,7 +547,7 @@ SendTabToSelfBridge::DestroyAndStealStoreForTest(
 
 void SendTabToSelfBridge::SetLocalDeviceNameForTest(
     const std::string& local_device_name) {
-  local_device_name_ = local_device_name;
+  local_device_name_for_testing_ = local_device_name;
 }
 
 void SendTabToSelfBridge::NotifyRemoteSendTabToSelfEntryAdded(
@@ -586,8 +576,7 @@ void SendTabToSelfBridge::NotifyRemoteSendTabToSelfEntryAdded(
   }
 
 #if BUILDFLAG(IS_IOS)
-  if (IsSendTabIOSPushNotificationsEnabledWithMagicStackCard() &&
-      !new_local_entries.empty()) {
+  if (!new_local_entries.empty()) {
     pref_service_->SetString(prefs::kIOSSendTabToSelfLastReceivedTabURLPref,
                              new_local_entries.back()->GetURL().spec());
   }
@@ -632,25 +621,19 @@ void SendTabToSelfBridge::OnStoreCreated(
   auto initial_entries = std::make_unique<SendTabToSelfEntries>();
   SendTabToSelfEntries* initial_entries_copy = initial_entries.get();
 
-  auto local_device_name = std::make_unique<std::string>();
-  std::string* local_device_name_copy = local_device_name.get();
-
   store_ = std::move(store);
   store_->ReadAllDataAndPreprocess(
       base::BindOnce(&ParseLocalEntriesOnBackendSequence, clock_->Now(),
-                     base::Unretained(initial_entries_copy),
-                     base::Unretained(local_device_name_copy)),
+                     base::Unretained(initial_entries_copy)),
       base::BindOnce(&SendTabToSelfBridge::OnReadAllData,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(initial_entries),
-                     std::move(local_device_name)));
+                     weak_ptr_factory_.GetWeakPtr(),
+                     std::move(initial_entries)));
 }
 
 void SendTabToSelfBridge::OnReadAllData(
     std::unique_ptr<SendTabToSelfEntries> initial_entries,
-    std::unique_ptr<std::string> local_device_name,
     const std::optional<syncer::ModelError>& error) {
   DCHECK(initial_entries);
-  DCHECK(local_device_name);
 
   if (error) {
     change_processor()->ReportError(*error);
@@ -658,7 +641,6 @@ void SendTabToSelfBridge::OnReadAllData(
   }
 
   entries_ = std::move(*initial_entries);
-  local_device_name_ = std::move(*local_device_name);
 
   store_->ReadAllMetadata(base::BindOnce(
       &SendTabToSelfBridge::OnReadAllMetadata, weak_ptr_factory_.GetWeakPtr()));
@@ -699,6 +681,18 @@ SendTabToSelfEntry* SendTabToSelfBridge::GetMutableEntryByGUID(
     return nullptr;
   }
   return it->second.get();
+}
+
+std::string SendTabToSelfBridge::GetLocalFullName() const {
+  if (local_device_name_for_testing_.has_value()) {
+    return *local_device_name_for_testing_;
+  }
+  CHECK(change_processor()->IsTrackingMetadata());
+  const syncer::DeviceInfo* local_device = device_info_tracker_->GetDeviceInfo(
+      change_processor()->TrackedCacheGuid());
+  CHECK(local_device, base::NotFatalUntil::M148);
+
+  return syncer::GetDeviceDisplayNames(local_device).full_name;
 }
 
 bool SendTabToSelfBridge::ShouldIncludeDevice(

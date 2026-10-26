@@ -25,7 +25,6 @@
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
 #include "base/test/gtest_tags.h"
-#include "base/test/scoped_feature_list.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/apps/app_service/app_icon/app_icon_factory.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
@@ -66,7 +65,6 @@
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
-#include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/permissions/permission_util.h"
@@ -292,12 +290,11 @@ IN_PROC_BROWSER_TEST_P(SystemWebAppManagerLaunchWithUrlBrowserTest,
   params.launch_source = apps::LaunchSource::kFromOtherApp;
   params.url = GetStartUrl();
   bool is_called = false;
-  LaunchSystemWebAppAsync(
-      browser()->profile(), GetAppType(), params, nullptr,
-      base::BindLambdaForTesting(
-          [&is_called](apps::LaunchResult&& callback_result) {
-            is_called = true;
-          }));
+  LaunchSystemWebAppAsync(browser()->profile(), GetAppType(), params, nullptr,
+                          base::BindLambdaForTesting(
+                              [&is_called](apps::LaunchResult callback_result) {
+                                is_called = true;
+                              }));
   navigation_observer.Wait();
   EXPECT_TRUE(is_called);
 }
@@ -1874,10 +1871,6 @@ class SystemWebAppIconHealthMetricsTest
         .Post(FROM_HERE, run_loop.QuitClosure());
     run_loop.Run();
   }
-
- private:
-  base::test::ScopedFeatureList feature_list_{
-      ::features::kWebAppUsePrimaryIcon};
 };
 
 IN_PROC_BROWSER_TEST_P(SystemWebAppIconHealthMetricsTest, ReportsMetrics) {

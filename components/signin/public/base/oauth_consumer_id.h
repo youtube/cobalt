@@ -20,7 +20,7 @@ enum class OAuthConsumerId {
   kSync = 0,
   kWallpaperGooglePhotosFetcher = 1,
   kWallpaperFetcherDelegate = 2,
-  kIpProtectionService = 3,
+  // kIpProtectionService = 3, // Removed due to deprecation.
   kSanitizedImageSource = 4,
   kOptimizationGuideGetHints = 5,
   kOptimizationGuideModelExecution = 6,
@@ -105,9 +105,12 @@ enum class OAuthConsumerId {
   kAshScannerKeyedService = 84,
   kAshAutotestPrivateApi = 85,
   kSyncDeviceStatisticsMetrics = 86,
-  kLegionService = 87,
+  kPrivateAiService = 87,
   kWalletPasses = 88,
-  kMaxValue = kWalletPasses,
+  kAimEligibilityService = 89,
+  kDevtoolsAiCode = 90,
+  kAccessibilityAnnotator = 91,
+  kMaxValue = kAccessibilityAnnotator,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:OAuthConsumerId)
 

@@ -28,6 +28,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/system/sys_info.h"
 #include "base/task/single_thread_task_runner.h"
@@ -322,13 +323,6 @@ std::string GetSecurityLevelString(
   return "";
 }
 
-int GetFirstApiLevel() {
-  JNIEnv* env = AttachCurrentThread();
-  int first_api_level = Java_MediaDrmBridge_getFirstApiLevel(env);
-  base::UmaHistogramSparse("Media.EME.MediaDrm.FirstApiLevel", first_api_level);
-  return first_api_level;
-}
-
 CreateCdmTypedStatus ConvertMediaDrmCreateError(
     MediaDrmBridge::MediaDrmCreateError error,
     MediaDrmBridge::SecurityLevel security_level) {
@@ -360,6 +354,21 @@ CreateCdmTypedStatus ConvertMediaDrmCreateError(
   return CreateCdmTypedStatus::Codes::kUnknownError;
 }
 
+CdmSessionClosedReason ToCdmSessionClosedReason(
+    MediaDrmBridge::MediaDrmCdmSessionClosedReason reason) {
+  switch (reason) {
+    case MediaDrmBridge::MediaDrmCdmSessionClosedReason::CLOSE:
+      return CdmSessionClosedReason::kClose;
+    case MediaDrmBridge::MediaDrmCdmSessionClosedReason::SESSION_RECLAIMED:
+      return CdmSessionClosedReason::kResourceEvicted;
+    case MediaDrmBridge::MediaDrmCdmSessionClosedReason::SESSION_LOST:
+      return CdmSessionClosedReason::kHardwareContextReset;
+  }
+
+  // Default return a generic close.
+  return CdmSessionClosedReason::kClose;
+}
+
 }  // namespace
 
 // static
@@ -373,7 +382,9 @@ bool MediaDrmBridge::IsPerApplicationProvisioningSupported() {
   // If it is non-zero, then it is the API level.
   // Checking FirstApiLevel is known to be expensive (see crbug.com/1366106),
   // and thus is cached.
-  static int first_api_level = GetFirstApiLevel();
+  static int first_api_level;
+  base::StringToInt(base::SysInfo::GetAndroidFirstApiLevel(), &first_api_level);
+  base::UmaHistogramSparse("Media.EME.MediaDrm.FirstApiLevel", first_api_level);
   DVLOG(1) << "first_api_level = " << first_api_level;
   if (first_api_level >= base::android::android_info::SDK_VERSION_OREO) {
     return true;
@@ -420,7 +431,22 @@ std::vector<uint8_t> MediaDrmBridge::GetUUID(const std::string& key_system) {
 }
 
 // static
-MediaDrmBridge::GetVersionResult MediaDrmBridge::GetVersion(
+base::Version MediaDrmBridge::MaybeParseCdmVersion(
+    std::string_view version_str) {
+  // Some systems return an empty string for version.
+  if (version_str.empty()) {
+    return base::Version();
+  }
+
+  // Anything past the '@' is not related to the CDM version, and is related to
+  // Android builds, which we can safely ignore. If the split version cannot be
+  // parsed, we use the whole version string.
+  auto split_version = base::SplitStringOnce(version_str, '@');
+  return base::Version(split_version ? split_version->first : version_str);
+}
+
+// static
+MediaDrmBridge::GetVersionResult MediaDrmBridge::MaybeGetVersion(
     const std::string& key_system,
     MediaDrmBridge::SecurityLevel security_level) {
   auto media_drm_bridge = MediaDrmBridge::CreateWithoutSessionSupport(
@@ -434,12 +460,7 @@ MediaDrmBridge::GetVersionResult MediaDrmBridge::GetVersion(
   }
 
   std::string version_str = media_drm_bridge->GetVersionInternal();
-
-  // Some devices return the version with an additional level (e.g. 18.0.0@1),
-  // so simply replace any '@'.
-  base::ReplaceChars(version_str, "@", ".", &version_str);
-
-  auto version = base::Version(version_str);
+  auto version = MaybeParseCdmVersion(version_str);
   DVLOG_IF(1, !version.IsValid()) << "Unable to convert " << version_str;
   return version;
 }
@@ -902,14 +923,17 @@ void MediaDrmBridge::OnSessionMessage(JNIEnv* env,
 }
 
 void MediaDrmBridge::OnSessionClosed(JNIEnv* env,
-                                     const JavaRef<jbyteArray>& j_session_id) {
+                                     const JavaRef<jbyteArray>& j_session_id,
+                                     int32_t j_reason) {
   DVLOG(2) << __func__;
   std::string session_id;
   JavaByteArrayToString(env, j_session_id, &session_id);
-  // TODO(crbug.com/40181810): Support other closed reasons.
   task_runner_->PostTask(
-      FROM_HERE, base::BindOnce(session_closed_cb_, std::move(session_id),
-                                CdmSessionClosedReason::kClose));
+      FROM_HERE,
+      base::BindOnce(
+          session_closed_cb_, std::move(session_id),
+          ToCdmSessionClosedReason(
+              static_cast<MediaDrmCdmSessionClosedReason>(j_reason))));
 }
 
 void MediaDrmBridge::OnSessionKeysChange(
@@ -936,7 +960,7 @@ void MediaDrmBridge::OnSessionKeysChange(
     CdmKeyInformation::KeyStatus key_status =
         ConvertKeyStatus(static_cast<KeyStatus>(j_status_code), is_key_release);
 
-    DVLOG(2) << __func__ << "Key status change: " << base::HexEncode(key_id)
+    DVLOG(2) << __func__ << " Key status change: " << base::HexEncode(key_id)
              << ", " << key_status;
 
     cdm_keys_info.push_back(

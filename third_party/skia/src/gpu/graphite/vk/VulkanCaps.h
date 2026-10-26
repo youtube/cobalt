@@ -8,7 +8,7 @@
 #ifndef skgpu_graphite_VulkanCaps_DEFINED
 #define skgpu_graphite_VulkanCaps_DEFINED
 
-#include "include/private/base/SkTDArray.h"
+#include "include/private/base/SkTArray.h"
 #include "src/gpu/graphite/Caps.h"
 #include "src/gpu/vk/VulkanInterface.h"
 #include "src/gpu/vk/VulkanUtilsPriv.h"
@@ -28,26 +28,6 @@ public:
                Protected);
     ~VulkanCaps() override;
 
-    bool isSampleCountSupported(TextureFormat, SampleCount requestedSampleCount) const override;
-    TextureFormat getDepthStencilFormat(SkEnumBitMask<DepthStencilFlags>) const override;
-
-    TextureInfo getDefaultAttachmentTextureInfo(AttachmentDesc,
-                                                Protected,
-                                                Discardable) const override;
-
-    TextureInfo getDefaultSampledTextureInfo(SkColorType,
-                                             Mipmapped,
-                                             Protected,
-                                             Renderable) const override;
-
-    TextureInfo getTextureInfoForSampledCopy(const TextureInfo&, Mipmapped) const override;
-
-    TextureInfo getDefaultCompressedTextureInfo(SkTextureCompressionType,
-                                                Mipmapped,
-                                                Protected) const override;
-
-    TextureInfo getDefaultStorageTextureInfo(SkColorType) const override;
-
     // Override Caps's implementation in order to consult Vulkan-specific texture properties.
     DstReadStrategy getDstReadStrategy() const override;
 
@@ -61,16 +41,6 @@ public:
                               RenderPassDesc*,
                               const RendererProvider*) const override;
     UniqueKey makeComputePipelineKey(const ComputePipelineDesc&) const override { return {}; }
-
-
-    bool isRenderable(const TextureInfo&) const override;
-    bool isStorage(const TextureInfo&) const override;
-
-    bool isFormatSupported(VkFormat) const;
-    bool isTexturable(const VulkanTextureInfo&) const;
-    bool isRenderable(const VulkanTextureInfo&) const;
-    bool isTransferSrc(const VulkanTextureInfo&) const;
-    bool isTransferDst(const VulkanTextureInfo&) const;
 
     void buildKeyForTexture(SkISize dimensions,
                             const TextureInfo&,
@@ -125,6 +95,14 @@ public:
         return fSupportsPipelineCreationCacheControl;
     }
 
+    bool supportsOcclusionQueryPrecise() const { return fOcclusionQueryPrecise; }
+
+    uint32_t timestampValidBits(uint32_t queueIndex) const {
+        return fQueueFamilyTimestampValidBits[queueIndex];
+    }
+
+    float timestampPeriod() const { return fTimestampPeriod; }
+
 private:
     void init(const ContextOptions&,
               const skgpu::VulkanInterface*,
@@ -137,6 +115,7 @@ private:
     struct EnabledFeatures {
         // VkPhysicalDeviceFeatures
         bool fDualSrcBlend = false;
+        bool fOcclusionQueryPrecise = false;
         // From VkPhysicalDeviceSamplerYcbcrConversionFeatures or VkPhysicalDeviceVulkan11Features:
         bool fSamplerYcbcrConversion = false;
         // From VkPhysicalDeviceFaultFeaturesEXT:
@@ -197,20 +176,16 @@ private:
                                      const VkPhysicalDeviceProperties&);
 
     SkSpan<const ColorTypeInfo> getColorTypeInfos(const TextureInfo&) const override;
-
-    bool onIsTexturable(const TextureInfo&) const override;
-
-    bool isCopyableDst(const TextureInfo&) const override;
-    bool isCopyableSrc(const TextureInfo&) const override;
-
-    /*
-     * Whether the texture supports multisampled-render-to-single-sampled.  When
-     * VK_EXT_multisampled_render_to_single_sampled is supported, all textures created by Graphite
-     * that are renderable will support this feature.  Textures imported into Graphite however
-     * depend on whether the application has created the image with the
-     * VK_IMAGE_CREATE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT flag.
-     */
-    bool msaaTextureRenderToSingleSampledSupport(const TextureInfo&) const override;
+    TextureInfo onGetDefaultTextureInfo(SkEnumBitMask<TextureUsage> usage,
+                                        TextureFormat,
+                                        SampleCount,
+                                        Mipmapped,
+                                        Protected,
+                                        Discardable) const override;
+    std::pair<SkEnumBitMask<TextureUsage>, SkEnumBitMask<SampleCount>> getTextureSupport(
+            TextureFormat format, Tiling) const override;
+    std::pair<SkEnumBitMask<TextureUsage>, Tiling> getTextureUsage(
+            const TextureInfo&) const override;
 
     // Struct that determines and stores which sample count quantities a VkFormat supports.
     struct SupportedSampleCounts {
@@ -241,8 +216,6 @@ private:
         bool isTexturable(VkImageTiling) const;
         bool isRenderable(VkImageTiling, SampleCount sampleCount) const;
         bool isStorage(VkImageTiling) const;
-        bool isTransferSrc(VkImageTiling) const;
-        bool isTransferDst(VkImageTiling) const;
         bool isEfficientWithHostImageCopy(VkImageTiling, Protected) const;
 
         std::unique_ptr<ColorTypeInfo[]> fColorTypeInfos;
@@ -273,13 +246,8 @@ private:
         SkDEBUGCODE(bool fIsWrappedOnly = false;)
     };
 
-    // Map SkColorType to VkFormat.
-    VkFormat fColorTypeToFormatTable[kSkColorTypeCnt];
-    void setColorType(SkColorType, std::initializer_list<VkFormat> formats);
-    VkFormat getFormatFromColorType(SkColorType) const;
-
     // Map VkFormat to FormatInfo.
-    static const size_t kNumVkFormats = 24;
+    static const int kNumVkFormats = 24;
     FormatInfo fFormatTable[kNumVkFormats];
 
     FormatInfo& getFormatInfoForInit(VkFormat);
@@ -293,10 +261,6 @@ private:
         VkFormatProperties fFormatProperties = {};
         SupportedSampleCounts fSupportedSampleCounts;
     };
-
-    // Map DepthStencilFlags to VkFormat.
-    static const size_t kNumDepthStencilFlags = 4;
-    VkFormat fDepthStencilFlagsToFormatTable[kNumDepthStencilFlags];
 
     // Map depth/stencil VkFormats to DepthStencilFormatInfo.
     static const size_t kNumDepthStencilVkFormats = 5;
@@ -321,9 +285,13 @@ private:
     bool fIsInputAttachmentReadCoherent = false;
     bool fSupportsFrameBoundary = false;
     bool fSupportsPipelineCreationCacheControl = false;
+    bool fOcclusionQueryPrecise = false;
 
     // Flags to enable workarounds for driver bugs
     bool fMustLoadFullImageForMSAA = false;
+
+    skia_private::TArray<uint32_t> fQueueFamilyTimestampValidBits;
+    float fTimestampPeriod = 1.0f;
 };
 
 } // namespace skgpu::graphite

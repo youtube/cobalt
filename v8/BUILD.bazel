@@ -170,6 +170,11 @@ v8_flag(
 
 v8_flag(name = "v8_enable_experimental_tq_to_tsa")
 
+v8_flag(
+    name = "v8_use_host_cpu_arm_features",
+    default = True,
+)
+
 # Default setting for v8_enable_maglev
 selects.config_setting_group(
     name = "maglev_by_default",
@@ -237,6 +242,11 @@ v8_flag(
 
 v8_flag(
     name = "v8_enable_drumbrake_tracing",
+    default = False,
+)
+
+v8_flag(
+    name = "v8_enable_seeded_array_index_hash",
     default = False,
 )
 
@@ -512,9 +522,11 @@ v8_config(
         "v8_enable_webassembly": "V8_ENABLE_WEBASSEMBLY",
         "v8_enable_drumbrake": "V8_ENABLE_DRUMBRAKE",
         "v8_enable_drumbrake_tracing": "V8_ENABLE_DRUMBRAKE_TRACING",
+        "v8_enable_seeded_array_index_hash": "V8_ENABLE_SEEDED_ARRAY_INDEX_HASH",
         "v8_jitless": "V8_JITLESS",
         "v8_enable_vtunejit": "ENABLE_VTUNE_JIT_INTERFACE",
         "v8_enable_undefined_double": "V8_ENABLE_UNDEFINED_DOUBLE",
+        "v8_use_host_cpu_arm_features": "V8_USE_HOST_CPU_ARM_FEATURES",
     },
     defines = [
         "GOOGLE3",
@@ -1473,6 +1485,7 @@ filegroup(
         "src/builtins/constants-table-builder.h",
         "src/builtins/data-view-ops.h",
         "src/builtins/profile-data-reader.h",
+        "src/builtins/superspread.h",
         "src/codegen/aligned-slot-allocator.cc",
         "src/codegen/aligned-slot-allocator.h",
         "src/codegen/assembler.cc",
@@ -2028,6 +2041,7 @@ filegroup(
         "src/numbers/conversions.h",
         "src/numbers/conversions-inl.h",
         "src/numbers/hash-seed.h",
+        "src/numbers/hash-seed.cc",
         "src/numbers/hash-seed-inl.h",
         "src/numbers/ieee754.cc",
         "src/numbers/ieee754.h",
@@ -2146,6 +2160,9 @@ filegroup(
         "src/objects/js-collection-inl.h",
         "src/objects/js-collection-iterator.h",
         "src/objects/js-collection-iterator-inl.h",
+        "src/objects/js-data-object-builder.cc",
+        "src/objects/js-data-object-builder.h",
+        "src/objects/js-data-object-builder-inl.h",
         "src/objects/js-disposable-stack.cc",
         "src/objects/js-disposable-stack.h",
         "src/objects/js-disposable-stack-inl.h",
@@ -2973,6 +2990,7 @@ filegroup(
             "src/maglev/maglev-ir-inl.h",
             "src/maglev/maglev-ir.h",
             "src/maglev/maglev-kna-processor.h",
+            "src/maglev/maglev-map-inference.h",
             "src/maglev/maglev-node-type.h",
             "src/maglev/maglev-phi-representation-selector.h",
             "src/maglev/maglev-truncation.h",
@@ -3093,6 +3111,7 @@ filegroup(
             "src/wasm/constant-expression-interface.cc",
             "src/wasm/constant-expression-interface.h",
             "src/wasm/decoder.h",
+            "src/wasm/effect-handler.h",
             "src/wasm/function-body-decoder.cc",
             "src/wasm/function-body-decoder.h",
             "src/wasm/function-body-decoder-impl.h",
@@ -3454,8 +3473,6 @@ filegroup(
         "src/compiler/operator-properties.h",
         "src/compiler/osr.cc",
         "src/compiler/osr.h",
-        "src/compiler/pair-load-store-reducer.cc",
-        "src/compiler/pair-load-store-reducer.h",
         "src/compiler/per-isolate-compiler-cache.h",
         "src/compiler/persistent-map.h",
         "src/compiler/phase.h",
@@ -3595,8 +3612,8 @@ filegroup(
         "src/compiler/turboshaft/operations.cc",
         "src/compiler/turboshaft/operations.h",
         "src/compiler/turboshaft/opmasks.h",
-        "src/compiler/turboshaft/optimize-phase.cc",
-        "src/compiler/turboshaft/optimize-phase.h",
+        "src/compiler/turboshaft/memory-optimization-phase.cc",
+        "src/compiler/turboshaft/memory-optimization-phase.h",
         "src/compiler/turboshaft/phase.cc",
         "src/compiler/turboshaft/phase.h",
         "src/compiler/turboshaft/pipelines.cc",
@@ -3618,8 +3635,8 @@ filegroup(
         "src/compiler/turboshaft/snapshot-table.h",
         "src/compiler/turboshaft/snapshot-table-opindex.h",
         "src/compiler/turboshaft/stack-check-lowering-reducer.h",
-        "src/compiler/turboshaft/store-store-elimination-phase.cc",
-        "src/compiler/turboshaft/store-store-elimination-phase.h",
+        "src/compiler/turboshaft/load-elimination-phase.cc",
+        "src/compiler/turboshaft/load-elimination-phase.h",
         "src/compiler/turboshaft/store-store-elimination-reducer-inl.h",
         "src/compiler/turboshaft/string-escape-analysis-reducer.cc",
         "src/compiler/turboshaft/string-escape-analysis-reducer.h",

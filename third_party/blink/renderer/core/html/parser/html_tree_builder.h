@@ -28,6 +28,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_PARSER_HTML_TREE_BUILDER_H_
 
 #include "base/dcheck_is_on.h"
+#include "third_party/blink/renderer/core/html/html_template_element.h"
 #include "third_party/blink/renderer/core/html/parser/html_construction_site.h"
 #include "third_party/blink/renderer/core/html/parser/html_element_stack.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_options.h"
@@ -89,15 +90,13 @@ class HTMLTreeBuilder final : public GarbageCollected<HTMLTreeBuilder> {
     return !!fragment_context_.FragmentTarget();
   }
   bool IsParsingTemplateContents() const {
-    return tree_.OpenElements()->HasTemplateInHTMLScope();
+    return tree_.OpenElements()->HasTemplateInHTMLScope() ||
+           (RuntimeEnabledFeatures::CorrectTemplateFormParsingEnabled() &&
+            IsParsingFragment() &&
+            IsA<HTMLTemplateElement>(fragment_context_.ContextElement()));
   }
   bool IsParsingFragmentOrTemplateContents() const {
     return IsParsingFragment() || IsParsingTemplateContents();
-  }
-
-  void SetDOMPartsAllowedState(DOMPartsAllowed state) {
-    DCHECK(RuntimeEnabledFeatures::DOMPartsAPIEnabled());
-    tree_.SetDOMPartsAllowedState(state);
   }
 
   void Detach();
@@ -161,7 +160,6 @@ class HTMLTreeBuilder final : public GarbageCollected<HTMLTreeBuilder> {
   void ProcessComment(AtomicHTMLToken*);
   void ProcessCharacter(AtomicHTMLToken*);
   void ProcessEndOfFile(AtomicHTMLToken*);
-  void ProcessDOMPart(AtomicHTMLToken*);
   void ProcessProcessingInstruction(AtomicHTMLToken*);
 
   bool ProcessStartTagForInHead(AtomicHTMLToken*);

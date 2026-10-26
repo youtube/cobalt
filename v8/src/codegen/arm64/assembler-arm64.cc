@@ -113,7 +113,9 @@ bool CpuFeatures::SupportsWasmSimd128() { return true; }
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) {
+#ifdef V8_USE_HOST_CPU_ARM_FEATURES
     supported_ |= CpuFeaturesFromCompiler();
+#endif
     supported_ |= CpuFeaturesFromTargetOS();
     return;
   }
@@ -3541,6 +3543,14 @@ void Assembler::eor3(const VRegister& vd, const VRegister& vn,
   DCHECK(IsEnabled(SHA3));
   DCHECK(vd.Is16B() && vn.Is16B() && vm.Is16B() && va.Is16B());
   Emit(NEON_EOR3 | Rd(vd) | Rn(vn) | Rm(vm) | Ra(va));
+}
+
+void Assembler::xar(const VRegister& vd, const VRegister& vn,
+                    const VRegister& vm, unsigned imm) {
+  DCHECK(IsEnabled(SHA3));
+  DCHECK(vd.Is2D() && vn.Is2D() && vm.Is2D());
+  DCHECK_EQ(imm & 0x3F, imm);
+  Emit(NEON_XAR | Rd(vd) | Rn(vn) | Rm(vm) | imm << 10);
 }
 
 void Assembler::addp(const VRegister& vd, const VRegister& vn) {

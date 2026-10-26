@@ -660,8 +660,9 @@ cl_int GetKernelSubGroupInfo(cl_kernel kernel,
                              void *param_value,
                              size_t *param_value_size_ret)
 {
-    WARN_NOT_SUPPORTED(GetKernelSubGroupInfo);
-    return CL_INVALID_OPERATION;
+    CL_RETURN_ERROR(kernel->cast<Kernel>().getSubWorkGroupInfo(device, param_name, input_value_size,
+                                                               input_value, param_value_size,
+                                                               param_value, param_value_size_ret));
 }
 
 cl_int WaitForEvents(cl_uint num_events, const cl_event *event_list)
@@ -1282,6 +1283,19 @@ cl_int EnqueueTask(cl_command_queue command_queue,
 {
     CL_RETURN_ERROR(command_queue->cast<CommandQueue>().enqueueTask(kernel, num_events_in_wait_list,
                                                                     event_wait_list, event));
+}
+
+cl_int GetKernelSubGroupInfoKHR(cl_kernel in_kernel,
+                                cl_device_id in_device,
+                                KernelSubGroupInfo param_namePacked,
+                                size_t input_value_size,
+                                const void *input_value,
+                                size_t param_value_size,
+                                void *param_value,
+                                size_t *param_value_size_ret)
+{
+    return GetKernelSubGroupInfo(in_kernel, in_device, param_namePacked, input_value_size,
+                                 input_value, param_value_size, param_value, param_value_size_ret);
 }
 
 }  // namespace cl

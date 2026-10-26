@@ -9,12 +9,13 @@
 #import "components/sync_preferences/testing_pref_service_syncable.h"
 #import "ios/chrome/browser/content_suggestions/magic_stack/ui/magic_stack_collection_view_audience.h"
 #import "ios/chrome/browser/content_suggestions/magic_stack/ui/magic_stack_module_container_delegate.h"
-#import "ios/chrome/browser/content_suggestions/price_tracking_promo/ui/price_tracking_promo_item.h"
+#import "ios/chrome/browser/content_suggestions/price_tracking_promo/ui/price_tracking_promo_config.h"
 #import "ios/chrome/browser/content_suggestions/public/content_suggestions_constants.h"
 #import "ios/chrome/browser/content_suggestions/shortcuts/ui/shortcuts_config.h"
 #import "ios/chrome/browser/shared/model/prefs/browser_prefs.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
+#import "ios/chrome/test/app/uikit_test_util.h"
 #import "ios/chrome/test/testing_application_context.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/platform_test.h"
@@ -37,7 +38,8 @@ class MagicStackCollectionViewControllerTest : public PlatformTest {
     // Create and initialize PrefService
     RegisterProfilePrefs(pref_service_.registry());
 
-    _window = [[UIWindow alloc] init];
+    _window = [[UIWindow alloc]
+        initWithWindowScene:chrome_test_util::GetAnyWindowScene()];
     UIView.animationsEnabled = NO;
     view_controller_ = [[MagicStackCollectionViewController alloc] init];
     audience_ = OCMStrictProtocolMock(
@@ -77,7 +79,7 @@ TEST_F(MagicStackCollectionViewControllerTest, TestEphemeralCardAudienceCall) {
                                                       kPriceTrackingPromo]);
   // Test that populating the Magic Stack triggers audience call
   [view_controller_ populateItems:@[
-    [[PriceTrackingPromoItem alloc] init], [[ShortcutsConfig alloc] init]
+    [[PriceTrackingPromoConfig alloc] init], [[ShortcutsConfig alloc] init]
   ]];
   EXPECT_OCMOCK_VERIFY((id)audience_);
 
@@ -99,7 +101,7 @@ TEST_F(MagicStackCollectionViewControllerTest,
   // Test that populating the Magic Stack does not trigger audience call since
   // it is not top card.
   [view_controller_ populateItems:@[
-    [[ShortcutsConfig alloc] init], [[PriceTrackingPromoItem alloc] init]
+    [[ShortcutsConfig alloc] init], [[PriceTrackingPromoConfig alloc] init]
   ]];
   EXPECT_OCMOCK_VERIFY((id)audience_);
 

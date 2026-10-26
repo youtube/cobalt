@@ -20,6 +20,7 @@
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presenter.h"
+#import "ios/chrome/browser/policy/model/browser_management_service_factory.h"
 #import "ios/chrome/browser/popup_menu/coordinator/popup_menu_help_coordinator.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/coordinator/overflow_menu_mediator.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/coordinator/overflow_menu_orderer.h"
@@ -295,6 +296,8 @@ using base::UserMetricsAction;
   mediator.syncService = SyncServiceFactory::GetForProfile(profile);
   mediator.templateURLService =
       ios::TemplateURLServiceFactory::GetForProfile(profile);
+  mediator.browserManagementService =
+      policy::BrowserManagementServiceFactory::GetForProfile(profile);
   mediator.promosManager = PromosManagerFactory::GetForProfile(profile);
   mediator.readingListBrowserAgent =
       ReadingListBrowserAgent::FromBrowser(browser);
@@ -340,6 +343,7 @@ using base::UserMetricsAction;
                                   customizationEventHandler:self];
 
   LayoutGuideCenter* layoutGuideCenter = LayoutGuideCenterForBrowser(browser);
+  mediator.layoutGuideCenter = layoutGuideCenter;
   UILayoutGuide* layoutGuide =
       [layoutGuideCenter makeLayoutGuideNamed:kToolsMenuGuide];
   [self.baseViewController.view addLayoutGuide:layoutGuide];
@@ -490,8 +494,7 @@ using base::UserMetricsAction;
 }
 
 - (void)displayPopupMenuTabRemindersIPH {
-  CHECK(
-      send_tab_to_self::IsSendTabIOSPushNotificationsEnabledWithTabReminders());
+  CHECK(send_tab_to_self::AreIOSTabRemindersEnabled());
 
   [self.popupMenuHelpCoordinator displayPopupMenuTabRemindersIPH];
 }

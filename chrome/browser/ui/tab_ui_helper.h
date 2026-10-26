@@ -12,21 +12,30 @@
 #include "base/byte_size.h"
 #include "base/callback_list.h"
 #include "base/functional/callback_forward.h"
+#include "base/types/pass_key.h"
 #include "chrome/browser/ui/tabs/contents_observing_tab_feature.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+class Browser;
+#endif
+
+enum class TabNetworkState;
+
+namespace content {
+class NavigationEntry;
+class NavigationHandle;
+class Page;
+}  // namespace content
 
 namespace tabs {
 class TabInterface;
-}
+}  // namespace tabs
 
 namespace ui {
 class ImageModel;
 }  // namespace ui
-
-namespace content {
-class NavigationEntry;
-class Page;
-}
 
 // TabUIHelper is used by UI code to obtain the title and favicon for a
 // WebContents. The values returned by TabUIHelper differ from the WebContents
@@ -48,9 +57,18 @@ class TabUIHelper : public tabs::ContentsObservingTabFeature {
   // a customized title is used.
   std::u16string GetTitle() const;
 
+  bool ShouldRenderLoadingTitle();
+
+  bool ShouldThemifyFavicon();
+
+#if !BUILDFLAG(IS_ANDROID)
+  bool ShouldDisplayFavicon();
+  bool IsMonochromeFavicon();
+#endif
+
   // Get the favicon of the tab. It will return a favicon from history service
   // if it needs to, otherwise, it will return the favicon of the WebContents.
-  ui::ImageModel GetFavicon() const;
+  ui::ImageModel GetFavicon();
 
   // Return true if the throbber should be hidden during a page load.
   bool ShouldHideThrobber() const;
@@ -60,24 +78,34 @@ class TabUIHelper : public tabs::ContentsObservingTabFeature {
   // Returns true if the tab is crashed and false otherwise.
   bool IsCrashed();
 
+  bool ShouldDisplayURL();
+
+  GURL GetVisibleURL();
+
+  GURL GetLastCommittedURL();
+
   // tabs::ContentsObservingTabFeature override:
   void TitleWasSet(content::NavigationEntry* entry) override;
   void DidStopLoading() override;
   void OnVisibilityChanged(content::Visibility visiblity) override;
   void WasDiscarded() override;
+  void DidFinishNavigation(
+      content::NavigationHandle* navigation_handle) override;
+  void PrimaryMainFrameRenderProcessGone(
+      base::TerminationStatus status) override;
 #if !BUILDFLAG(IS_ANDROID)
   void PrimaryPageChanged(content::Page& page) override;
 #endif
 
-  void set_created_by_session_restore(bool created_by_session_restore) {
-    created_by_session_restore_ = created_by_session_restore;
-  }
+  void SetCreatedBySessionRestore(bool created_by_session_restore);
   bool is_created_by_session_restore_for_testing() {
     return created_by_session_restore_;
   }
 
-  void set_needs_attention(bool attention) { needs_attention_ = attention; }
+  void SetNeedsAttention(bool needs_attention);
   bool needs_attention() const { return needs_attention_; }
+
+  bool IsDiscarded();
 
   // Returns true if the tab is eligible to show the discard UI.
   bool ShouldShowDiscardStatus();
@@ -85,10 +113,24 @@ class TabUIHelper : public tabs::ContentsObservingTabFeature {
   // Returns the amount of bytes saved from discarding the tab.
   std::optional<base::ByteSize> GetDiscardedMemorySavings();
 
+  bool was_active_at_least_once_for_testing() const {
+    return was_active_at_least_once_;
+  }
+
+  TabNetworkState GetTabNetworkState();
+
+#if !BUILDFLAG(IS_ANDROID)
+  void NotifyTabUIChanged(base::PassKey<Browser> pass_key);
+#endif
+
  private:
+  void OnTabPinnedStatusChange(tabs::TabInterface* tab_interface,
+                               bool new_pinned_state);
+
   bool was_active_at_least_once_ = false;
   bool created_by_session_restore_ = false;
   bool needs_attention_ = false;
+  base::CallbackListSubscription pin_tab_subscription_;
 
   base::RepeatingClosureList tab_ui_change_callbacks_;
 

@@ -178,11 +178,6 @@ void MapperPlaystationSixAxis(const Gamepad& input, Gamepad* mapped) {
 }
 
 void MapperDualshock4(const Gamepad& input, Gamepad* mapped) {
-  enum Dualshock4Buttons {
-    DUALSHOCK_BUTTON_TOUCHPAD = BUTTON_INDEX_COUNT,
-    DUALSHOCK_BUTTON_COUNT
-  };
-
   *mapped = input;
   mapped->buttons[BUTTON_INDEX_PRIMARY] = input.buttons[1];
   mapped->buttons[BUTTON_INDEX_SECONDARY] = input.buttons[2];
@@ -206,11 +201,6 @@ void MapperDualshock4(const Gamepad& input, Gamepad* mapped) {
 }
 
 void MapperDualSense(const Gamepad& input, Gamepad* mapped) {
-  enum DualSenseButtons {
-    DUAL_SENSE_BUTTON_TOUCHPAD = BUTTON_INDEX_COUNT,
-    DUAL_SENSE_BUTTON_COUNT
-  };
-
   *mapped = input;
   mapped->buttons[BUTTON_INDEX_PRIMARY] = input.buttons[1];
   mapped->buttons[BUTTON_INDEX_SECONDARY] = input.buttons[2];
@@ -906,7 +896,8 @@ GamepadStandardMappingFunction GetGamepadStandardMappingFunction(
     const uint16_t product_id,
     const uint16_t hid_specification_version,
     const uint16_t version_number,
-    GamepadBusType bus_type) {
+    GamepadBusType bus_type,
+    GamepadDriver driver) {
   GamepadId gamepad_id =
       GamepadIdList::Get().GetGamepadId(product_name, vendor_id, product_id);
   const auto* find_it = std::ranges::find(kAvailableMappings, gamepad_id,

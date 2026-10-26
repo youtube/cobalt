@@ -36,10 +36,10 @@ export function getHtml(this: ContextualActionMenuElement) {
             ${this.enableMultiTabSelection_ ? html`
               ${this.disabledTabIds.has(tab.tabId) ? html`
                 <cr-icon class="multi-tab-icon"
-                    icon="cr:check" id="multi-tab-check"></cr-icon>
+                    icon="composebox:checkCircle" id="multi-tab-check"></cr-icon>
               ` : html`
                 <cr-icon class="multi-tab-icon"
-                    icon="cr:add" id="multi-tab-add"></cr-icon>
+                    icon="composebox:addCircle" id="multi-tab-add"></cr-icon>
               `}
             ` : ''}
           </button>
@@ -52,14 +52,14 @@ export function getHtml(this: ContextualActionMenuElement) {
     `: ''}
     ${this.imageUploadAllowed_ ? html`
       <button id="imageUpload" class="dropdown-item" role="menuitem"
-          @click="${this.openImageUpload_}"
+          @click="${this.onImageUploadClick_}"
           ?disabled="${this.imageUploadDisabled_}">
         <cr-icon icon="composebox:imageUpload"></cr-icon>
         ${this.getInputTypeLabel_(InputType.kLensImage)}
       </button>` : ''}
     ${this.fileUploadAllowed_ ? html`<button id="fileUpload" class="dropdown-item"
         role="menuitem"
-        @click="${this.openFileUpload_}"
+        @click="${this.onFileUploadClick_}"
         ?disabled="${this.fileUploadDisabled_}">
       <cr-icon icon="composebox:fileUpload"></cr-icon>
       ${this.getInputTypeLabel_(InputType.kLensFile)}

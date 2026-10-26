@@ -8,13 +8,19 @@ assert(is_win || is_mac || is_linux || is_chromeos)
 
 source_set("skills") {
   sources = [
+    "skills_glic_mojom_util.cc",
+    "skills_glic_mojom_util.h",
+    "skills_metrics_provider.cc",
+    "skills_metrics_provider.h",
     "skills_service_factory.cc",
     "skills_service_factory.h",
   ]
 
   public_deps = [
     "//base",
+    "//chrome/browser/glic:mojo_bindings",
     "//components/keyed_service/content",
+    "//components/sync/protocol",
   ]
 
   deps = [
@@ -33,15 +39,16 @@ source_set("skills") {
 source_set("public") {
   sources = [
     "skills_dialog_launcher.h",
-    "skills_ui_window_controller.h",
     "skills_ui_tab_controller_interface.cc",
     "skills_ui_tab_controller_interface.h",
+    "skills_ui_window_controller.h",
   ]
   deps = [
     "//base",
     "//chrome/browser/ui/toasts",
     "//chrome/browser/ui/toasts/api:toasts",
     "//components/skills/public",
+    "//components/skills/public:mojo_bindings",
     "//components/tabs:public",
     "//ui/base/unowned_user_data",
   ]
@@ -64,6 +71,8 @@ source_set("ui") {
 
   deps = [
     ":skills",
+    "//chrome/browser/glic",
+    "//chrome/browser/glic:mojo_bindings",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/browser_window",
@@ -77,24 +86,21 @@ source_set("ui") {
     "//components/skills:features",
     "//components/skills/proto",
     "//components/skills/public",
+    "//components/skills/public:mojo_bindings",
     "//components/web_modal",
     "//services/service_manager/public/cpp",
     "//ui/base/unowned_user_data",
   ]
-
-  if (enable_glic) {
-    deps += [
-      "//chrome/browser/glic",
-      "//chrome/browser/glic:mojo_bindings",
-    ]
-  }
 }
 
 source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
+    "skills_api_functional_browsertest.cc",
     "skills_dialog_launcher_browsertest.cc",
+    "skills_functional_browsertest.cc",
+    "skills_functional_browsertest.h",
     "skills_ui_tab_controller_browsertest.cc",
     "skills_ui_window_controller_browsertest.cc",
   ]
@@ -102,6 +108,8 @@ source_set("browser_tests") {
     ":public",
     ":skills",
     ":ui",
+    "//chrome/browser/glic",
+    "//chrome/browser/glic/test_support",
     "//chrome/browser/ui",
     "//chrome/browser/ui/toasts",
     "//chrome/browser/ui/toasts/api:toasts",
@@ -110,41 +118,64 @@ source_set("browser_tests") {
     "//chrome/test:test_support",
     "//components/skills:features",
     "//components/skills/public",
+    "//components/skills/public:mojo_bindings",
   ]
-  if (enable_glic) {
-    deps += [ "//chrome/browser/glic" ]
-  }
 }
 
-if (enable_glic) {
-  source_set("unit_tests") {
-    testonly = true
-    sources = [
-      "skills_ui_tab_controller_unittest.cc",
-      "skills_update_observer_unittest.cc",
-    ]
+source_set("interactive_ui_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [ "skills_interactive_uitest.cc" ]
+  deps = [
+    ":browser_tests",
+    ":public",
+    ":skills",
+    "//base/test:test_support",
+    "//chrome/browser",
+    "//chrome/browser/glic",
+    "//chrome/browser/glic:mojo_bindings",
+    "//chrome/browser/glic/test_support",
+    "//chrome/browser/ui/webui/skills",
+    "//chrome/browser/sync:factories",
+    "//chrome/browser/ui:browser_list",
+    "//chrome/test:test_support",
+    "//components/skills:features",
+    "//components/skills/internal",
+    "//components/skills/public",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
 
-    deps = [
-      ":skills",
-      ":ui",
-      "//base",
-      "//base/test:test_support",
-      "//chrome/browser/glic",
-      "//chrome/browser/glic:mojo_bindings",
-      "//chrome/browser/glic/test_support",
-      "//chrome/browser/optimization_guide:test_support",
-      "//chrome/browser/profiles:profile",
-      "//chrome/test:test_support",
-      "//components/keyed_service/core",
-      "//components/skills:features",
-      "//components/skills/proto",
-      "//components/skills/public",
-      "//components/tabs:test_support",
-      "//content/public/browser",
-      "//content/test:test_support",
-      "//testing/gmock",
-      "//testing/gtest",
-      "//ui/base/unowned_user_data",
-    ]
-  }
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "skills_metrics_provider_unittest.cc",
+    "skills_ui_tab_controller_unittest.cc",
+    "skills_update_observer_unittest.cc",
+  ]
+
+  deps = [
+    ":skills",
+    ":ui",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/glic",
+    "//chrome/browser/glic:mojo_bindings",
+    "//chrome/browser/glic/test_support",
+    "//chrome/browser/optimization_guide:test_support",
+    "//chrome/browser/profiles:profile",
+    "//chrome/test:test_support",
+    "//components/keyed_service/core",
+    "//components/skills:features",
+    "//components/skills/mocks",
+    "//components/skills/proto",
+    "//components/skills/public",
+    "//components/tabs:test_support",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/base/unowned_user_data",
+  ]
 }

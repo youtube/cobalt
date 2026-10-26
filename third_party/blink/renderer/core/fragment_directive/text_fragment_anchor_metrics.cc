@@ -42,12 +42,20 @@ void TextFragmentAnchorMetrics::ReportMetrics() {
 #ifndef NDEBUG
   DCHECK(!metrics_reported_);
 #endif
+  if (selector_count_ == 0) {
+#ifndef NDEBUG
+    metrics_reported_ = true;
+#endif
+    return;
+  }
+
   DCHECK_GT(selector_count_, 0);
   DCHECK_GE(matches_count_, 0);
   DCHECK_LE(matches_count_, selector_count_);
   DCHECK(!search_start_time_.is_null());
 
-  if (matches_count_ > 0) {
+  if (matches_count_ > 0 &&
+      open_source_ != TextFragmentLinkOpenSource::kSendTabToSelf) {
     UseCounter::Count(document_, WebFeature::kTextFragmentAnchorMatchFound);
   }
 
@@ -85,9 +93,7 @@ void TextFragmentAnchorMetrics::ReportMetrics() {
   }
 
   base::UmaHistogramEnumeration("TextFragmentAnchor.LinkOpenSource",
-                                has_search_engine_source_
-                                    ? TextFragmentLinkOpenSource::kSearchEngine
-                                    : TextFragmentLinkOpenSource::kUnknown);
+                                open_source_);
 #ifndef NDEBUG
   metrics_reported_ = true;
 #endif
@@ -131,15 +137,25 @@ void TextFragmentAnchorMetrics::SetTickClockForTesting(
   tick_clock_ = tick_clock;
 }
 
-void TextFragmentAnchorMetrics::SetSearchEngineSource(
-    bool has_search_engine_source) {
-  has_search_engine_source_ = has_search_engine_source;
+void TextFragmentAnchorMetrics::SetLinkOpenSource(
+    TextFragmentLinkOpenSource open_source) {
+  open_source_ = open_source;
 }
 
 std::string TextFragmentAnchorMetrics::GetPrefixForHistograms() const {
-  std::string source = has_search_engine_source_ ? "SearchEngine" : "Unknown";
-  std::string uma_prefix = base::StrCat({"TextFragmentAnchor.", source, "."});
-  return uma_prefix;
+  const char* source = "Unknown";
+  switch (open_source_) {
+    case TextFragmentLinkOpenSource::kSendTabToSelf:
+      source = "SendTabToSelf";
+      break;
+    case TextFragmentLinkOpenSource::kSearchEngine:
+      source = "SearchEngine";
+      break;
+    case TextFragmentLinkOpenSource::kUnknown:
+      source = "Unknown";
+      break;
+  }
+  return base::StrCat({"TextFragmentAnchor.", source, "."});
 }
 
 }  // namespace blink

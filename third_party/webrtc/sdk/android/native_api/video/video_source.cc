@@ -14,6 +14,7 @@
 
 #include <optional>
 
+#include "api/environment/environment.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
 #include "api/scoped_refptr.h"
@@ -36,17 +37,19 @@ namespace {
 // VideoTrackSourceInterface.
 class JavaVideoTrackSourceImpl : public JavaVideoTrackSourceInterface {
  public:
-  JavaVideoTrackSourceImpl(JNIEnv* env,
+  JavaVideoTrackSourceImpl(JNIEnv* jni,
                            Thread* signaling_thread,
                            bool is_screencast,
-                           bool align_timestamps)
+                           bool align_timestamps,
+                           std::optional<Environment> env)
       : android_video_track_source_(
             make_ref_counted<jni::AndroidVideoTrackSource>(signaling_thread,
-                                                           env,
+                                                           jni,
                                                            is_screencast,
-                                                           align_timestamps)),
+                                                           align_timestamps,
+                                                           env)),
         native_capturer_observer_(jni::CreateJavaNativeCapturerObserver(
-            env,
+            jni,
             android_video_track_source_)) {}
 
   ScopedJavaLocalRef<jobject> GetJavaVideoCapturerObserver(
@@ -119,9 +122,10 @@ scoped_refptr<JavaVideoTrackSourceInterface> CreateJavaVideoSource(
     JNIEnv* jni,
     Thread* signaling_thread,
     bool is_screencast,
-    bool align_timestamps) {
+    bool align_timestamps,
+    std::optional<Environment> env) {
   return make_ref_counted<JavaVideoTrackSourceImpl>(
-      jni, signaling_thread, is_screencast, align_timestamps);
+      jni, signaling_thread, is_screencast, align_timestamps, env);
 }
 
 }  // namespace webrtc

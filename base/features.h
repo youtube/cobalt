@@ -93,6 +93,24 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMaxMemoryForPrepaint);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                        kCobaltMaxMemoryForPrepaintPercentage);
+
+// When enabled, gates Cobalt persistent storage cleanup and unused database
+// removal optimizations (disabling BTM/DIPS, relocating GPU shader caches to
+// DIR_CACHE and purging orphaned USER_DATA cache directories, disabling unused
+// Chromium databases, and running SessionStorage and VideoDecodeStats in
+// memory). Disabled by default to allow controlled Finch/Mendel A/B
+// experimentation (--enable-features=CobaltStorageCleanup).
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltStorageCleanup);
+
+#if BUILDFLAG(IS_ANDROID)
+// When enabled, sets InProcessRendererThread to kDisplayCritical thread type
+// on Android, matching multi-process Chromium renderer main thread priority.
+// Disabled by default to enable controlled Finch experimentation
+// (--enable-features=CobaltAndroidDisplayCriticalInProcessRenderer).
+// This is strictly turned off / omitted on Starboard/Linux.
+BASE_EXPORT BASE_DECLARE_FEATURE(
+    kCobaltAndroidDisplayCriticalInProcessRenderer);
+#endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kFeatureParamWithCache);
@@ -127,13 +145,6 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kPartialLowEndModeOnMidRangeDevices);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-// When enabled, sets InProcessRendererThread to kDisplayCritical thread type
-// on Android, matching multi-process Chromium renderer main thread priority.
-// Disabled by default to enable controlled Finch experimentation
-// (--enable-features=CobaltAndroidDisplayCriticalInProcessRenderer).
-// This is strictly turned off / omitted on Starboard/Linux.
-BASE_EXPORT BASE_DECLARE_FEATURE(
-    kCobaltAndroidDisplayCriticalInProcessRenderer);
 BASE_EXPORT BASE_DECLARE_FEATURE(kBackgroundNotPerceptibleBinding);
 BASE_EXPORT BASE_DECLARE_FEATURE(
     kPostPowerMonitorBroadcastReceiverInitToBackground);
@@ -156,6 +167,7 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kUseTerminationStatusMemoryExhaustion);
 
 #if BUILDFLAG(IS_WIN)
 BASE_EXPORT BASE_DECLARE_FEATURE(kUserBlockingAboveNormalPriority);
+BASE_EXPORT BASE_DECLARE_FEATURE(kRetryCreateFileMappingOnCommitLimit);
 #endif
 
 // Whether the ReducePPMs feature is enabled. Unlike

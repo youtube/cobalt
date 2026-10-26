@@ -12,6 +12,8 @@ import org.chromium.base.PackageManagerUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.util.ChromePackageNameVariant;
+import org.chromium.chrome.browser.util.DefaultBrowserInfo;
 import org.chromium.chrome.browser.util.DefaultBrowserInfo.DefaultBrowserState;
 
 /**
@@ -20,16 +22,6 @@ import org.chromium.chrome.browser.util.DefaultBrowserInfo.DefaultBrowserState;
  */
 @NullMarked
 public class DefaultBrowserStateProvider {
-    static final String CHROME_STABLE_PACKAGE_NAME = "com.android.chrome";
-
-    // TODO(crbug.com/40697015): move to some util class for reuse.
-    static final String[] CHROME_PACKAGE_NAMES = {
-        CHROME_STABLE_PACKAGE_NAME,
-        "org.chromium.chrome",
-        "com.chrome.canary",
-        "com.chrome.beta",
-        "com.chrome.dev"
-    };
 
     /**
      * This decides whether the promo should be promoted base on the current default browser state.
@@ -41,12 +33,7 @@ public class DefaultBrowserStateProvider {
      * @return boolean if promo dialog can be displayed.
      */
     public boolean shouldShowPromo() {
-        ResolveInfo info = getDefaultWebBrowserActivityResolveInfo();
-        if (info == null) {
-            return false;
-        }
-
-        int state = getCurrentDefaultBrowserState(info);
+        int state = getCurrentDefaultBrowserState(true);
         if (state == DefaultBrowserState.CHROME_DEFAULT) {
             return false;
         } else if (state == DefaultBrowserState.NO_DEFAULT) {
@@ -54,25 +41,36 @@ public class DefaultBrowserStateProvider {
             return !isChromeStable() || !isChromePreStableInstalled();
         } else { // other default
             // Criteria 1
-            return !isCurrentDefaultBrowserChrome(info);
+            return state != DefaultBrowserState.OTHER_CHROME_DEFAULT;
         }
     }
 
     public @DefaultBrowserState int getCurrentDefaultBrowserState() {
-        ResolveInfo info = PackageManagerUtils.resolveDefaultWebBrowserActivity();
-        return getCurrentDefaultBrowserState(info);
+        return getCurrentDefaultBrowserState(false);
     }
 
-    boolean isCurrentDefaultBrowserChrome(ResolveInfo info) {
-        String packageName = info.activityInfo.packageName;
-        for (String name : CHROME_PACKAGE_NAMES) {
-            if (name.equals(packageName)) return true;
-        }
-        return false;
+    /**
+     * Gets the current default browser state. After {@link
+     * ChromeFeatureList.sDefaultBrowserPromoEntryPoint} enable by default, The parameter will be
+     * deleted and the no the no-arg method can also be removed.
+     *
+     * @param needIdentifyOtherChromeDefault Determines whether the result includes
+     *     OTHER_CHROME_DEFAULT.
+     * @return The current default browser state.
+     */
+    public @DefaultBrowserState int getCurrentDefaultBrowserState(
+            boolean needIdentifyOtherChromeDefault) {
+        DefaultBrowserInfo.DefaultInfo defaultBrowserInfo =
+                DefaultBrowserInfo.getDefaultBrowserInfoCacheResult();
+        return defaultBrowserInfo != null
+                ? defaultBrowserInfo.defaultBrowserState
+                : getCurrentDefaultBrowserState(
+                        getDefaultWebBrowserActivityResolveInfo(), needIdentifyOtherChromeDefault);
     }
 
     @DefaultBrowserState
-    int getCurrentDefaultBrowserState(@Nullable ResolveInfo info) {
+    int getCurrentDefaultBrowserState(
+            @Nullable ResolveInfo info, boolean needIdentifyOtherChromeDefault) {
         if (info == null || info.match == 0) return DefaultBrowserState.NO_DEFAULT; // no default
 
         String defaultPackage = info.activityInfo.packageName;
@@ -83,11 +81,10 @@ public class DefaultBrowserStateProvider {
 
         //  Check if it is a different Chrome (e.g. the user is in Canary, but Stable is the
         // default).
-        if (ChromeFeatureList.sDefaultBrowserPromoEntryPoint.isEnabled()) {
-            for (String chromePackage : CHROME_PACKAGE_NAMES) {
-                if (chromePackage.equals(defaultPackage)) {
-                    return DefaultBrowserState.OTHER_CHROME_DEFAULT;
-                }
+        if (ChromeFeatureList.sDefaultBrowserPromoEntryPoint.isEnabled()
+                || needIdentifyOtherChromeDefault) {
+            if (ChromePackageNameVariant.CHROME_PACKAGE_NAMES.contains(defaultPackage)) {
+                return DefaultBrowserState.OTHER_CHROME_DEFAULT;
             }
         }
 
@@ -97,20 +94,20 @@ public class DefaultBrowserStateProvider {
     boolean isChromeStable() {
         return ContextUtils.getApplicationContext()
                 .getPackageName()
-                .equals(CHROME_STABLE_PACKAGE_NAME);
+                .equals(ChromePackageNameVariant.CHROME_STABLE_PACKAGE_NAME);
     }
 
     boolean isChromePreStableInstalled() {
         for (ResolveInfo info : PackageManagerUtils.queryAllWebBrowsersInfo()) {
-            for (String name : CHROME_PACKAGE_NAMES) {
-                if (name.equals(CHROME_STABLE_PACKAGE_NAME)) continue;
-                if (name.equals(info.activityInfo.packageName)) return true;
+            if (ChromePackageNameVariant.CHROME_PRE_STABLE_PACKAGE_NAMES.contains(
+                    info.activityInfo.packageName)) {
+                return true;
             }
         }
         return false;
     }
 
     @Nullable ResolveInfo getDefaultWebBrowserActivityResolveInfo() {
-        return PackageManagerUtils.resolveDefaultWebBrowserActivity();
+        return DefaultBrowserInfo.getDefaultWebBrowserInfo();
     }
 }

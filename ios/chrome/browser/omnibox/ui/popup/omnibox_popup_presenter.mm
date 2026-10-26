@@ -11,7 +11,6 @@
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
-#import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/omnibox_position_util.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/toolbar_constants.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
@@ -101,16 +100,12 @@ const CGFloat kFadeAnimationVerticalOffset = 12;
     _popupContainerView.overrideUserInterfaceStyle = userInterfaceStyle;
     viewController.overrideUserInterfaceStyle = userInterfaceStyle;
 
-    // TODO(crbug.com/469986429): The final state of this should be us exposing
-    // the presenter property OmniboxPopupPresenterDelegate and set it there.
+    if (IsComposeboxIOSEnabled()) {
+      [self.delegate popupDidInitializePresenter:self];
+    }
     if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
-      if (IsComposeboxIpadEnabled()) {
-        _popupContainerView.backgroundColor =
-            [self.delegate popupBackgroundColorForPresenter:self];
-      } else {
         _popupContainerView.backgroundColor =
             [UIColor colorNamed:kPrimaryBackgroundColor];
-      }
     } else {
       _popupContainerView.backgroundColor =
           [self.delegate popupBackgroundColorForPresenter:self];
@@ -163,9 +158,7 @@ const CGFloat kFadeAnimationVerticalOffset = 12;
     BOOL isBottomOmnibox =
         IsBottomOmniboxAvailable() &&
         _unfocusedOmniboxToolbarType == ToolbarType::kSecondary;
-    BOOL enableFocusAnimation =
-        isFocusingOmnibox &&
-        (isBottomOmnibox || IsMultilineBrowserOmniboxEnabled());
+    BOOL enableFocusAnimation = isFocusingOmnibox && isBottomOmnibox;
 
     [self initialLayoutAnimated:enableFocusAnimation];
 
@@ -410,30 +403,8 @@ const CGFloat kFadeAnimationVerticalOffset = 12;
 }
 
 - (BOOL)useBottomOmniboxInPopup {
-  if (_presentationContext == OmniboxPresentationContext::kComposebox) {
-    return _preferredOmniboxPosition == ToolbarType::kSecondary;
-  }
-
-  if (_presentationContext == OmniboxPresentationContext::kLensOverlay) {
-    return NO;
-  }
-
-  BOOL inPortrait = IsPortrait(self.viewController.view.window);
-  if (omnibox::ForceBottomOmniboxInEditState()) {
-    return inPortrait;
-  }
-
-  BOOL unfocusedToolbarBottom =
-      _unfocusedOmniboxToolbarType == ToolbarType::kSecondary;
-  BOOL userPreferenceBottom =
-      _preferredOmniboxPosition == ToolbarType::kSecondary;
-  if (omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition()) {
-    // NTP portrait with bottom omnibox has a special handling.
-    return (userPreferenceBottom && _isNTP && inPortrait) ||
-           unfocusedToolbarBottom;
-  }
-
-  return NO;
+  return _presentationContext == OmniboxPresentationContext::kComposebox &&
+         _preferredOmniboxPosition == ToolbarType::kSecondary;
 }
 
 @end

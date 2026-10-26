@@ -106,6 +106,10 @@ class JavaClass:
     return self.package_with_slashes.replace('/', '.')
 
   @property
+  def package_with_colons(self):
+    return self.package_with_slashes.replace('/', '::')
+
+  @property
   def full_name_with_slashes(self):
     return self._fqn
 
@@ -272,6 +276,13 @@ class JavaType:
   def to_proxy(self):
     """Converts to types used over JNI boundary."""
     return self if self.is_primitive() else OBJECT
+
+  def enable_mirror(self, java_class=None):
+    """Whether to use a jobject subclass e.g. JMyClass."""
+    return (self.java_class and self.java_class.full_name_with_slashes
+            not in CPP_TYPE_BY_JAVA_TYPE and not self.converted_type
+            and self.array_dimensions == 0
+            and (not java_class or self.java_class == java_class))
 
 
 @dataclasses.dataclass(frozen=True)

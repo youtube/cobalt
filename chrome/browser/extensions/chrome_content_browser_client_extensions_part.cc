@@ -75,7 +75,7 @@
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "chrome/browser/extensions/component_loader.h"
-#include "chrome/browser/extensions/extension_web_ui.h"
+#include "chrome/browser/extensions/extension_url_overrides.h"
 #include "extensions/browser/extension_webkit_preferences.h"
 #endif
 
@@ -787,7 +787,8 @@ void ChromeContentBrowserClientExtensionsPart::SiteInstanceGotProcessAndSite(
   constexpr bool is_oopif_pdf_extension = false;
 #endif  // BUILDFLAG(ENABLE_PDF)
 
-  if (site_instance->IsGuest() && !is_oopif_pdf_extension) {
+  if (site_instance->GetSecurityPrincipal().IsGuest() &&
+      !is_oopif_pdf_extension) {
     return;
   }
 #endif  // BUILDFLAG(ENABLE_GUEST_VIEW)
@@ -828,7 +829,7 @@ bool ChromeContentBrowserClientExtensionsPart::
   // `extension` below, they are not unset when navigating a tab from an
   // extension page to a regular web page. We should clear extension settings in
   // this case.
-  if (!main_frame_site.GetSiteURL().SchemeIs(kExtensionScheme)) {
+  if (!main_frame_site.GetSecurityPrincipal().SchemeIs(kExtensionScheme)) {
     return false;
   }
 
@@ -839,7 +840,7 @@ bool ChromeContentBrowserClientExtensionsPart::
   // after a navigation, we can remove this case so that extension settings can
   // apply to webview accessible resources without impacting web pages
   // subsequently loaded in the webview.
-  if (main_frame_site.IsGuest()) {
+  if (main_frame_site.GetSecurityPrincipal().IsGuest()) {
     return false;
   }
 #endif  // BUILDFLAG(ENABLE_GUEST_VIEW)
@@ -871,10 +872,11 @@ void ChromeContentBrowserClientExtensionsPart::OverrideWebPreferences(
 void ChromeContentBrowserClientExtensionsPart::BrowserURLHandlerCreated(
     BrowserURLHandler* handler) {
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  handler->AddHandlerPair(&ExtensionWebUI::HandleChromeURLOverride,
+  handler->AddHandlerPair(&ExtensionUrlOverrides::HandleChromeURLOverride,
                           BrowserURLHandler::null_handler());
-  handler->AddHandlerPair(BrowserURLHandler::null_handler(),
-                          &ExtensionWebUI::HandleChromeURLOverrideReverse);
+  handler->AddHandlerPair(
+      BrowserURLHandler::null_handler(),
+      &ExtensionUrlOverrides::HandleChromeURLOverrideReverse);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 }
 

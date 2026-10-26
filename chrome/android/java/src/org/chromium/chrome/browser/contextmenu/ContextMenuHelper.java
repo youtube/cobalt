@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.contextmenu;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.app.Activity;
@@ -32,13 +33,20 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** A helper class that handles generating and dismissing context menus for {@link WebContents}. */
 @NullMarked
 public class ContextMenuHelper {
     private static @Nullable Callback<@Nullable ContextMenuCoordinator>
             sMenuShownCallbackForTesting;
+
+    // Using ScopedJavaGlobalRef in the owning C++ object to keep the Java object alive consumes an
+    // entry per instance in the finite global ref table. This scales poorly with a large number of
+    // WebContents. As a workaround, use this map to keep track of the ContextMenuHelper instances.
+    private static final Map<Long, ContextMenuHelper> sContextMenuHelperMap = new HashMap<>();
 
     private final WebContents mWebContents;
     private long mNativeContextMenuHelper;
@@ -63,6 +71,8 @@ public class ContextMenuHelper {
     private ContextMenuHelper(long nativeContextMenuHelper, WebContents webContents) {
         mNativeContextMenuHelper = nativeContextMenuHelper;
         mWebContents = webContents;
+        var storedValue = sContextMenuHelperMap.put(nativeContextMenuHelper, this);
+        assert storedValue == null;
     }
 
     @CalledByNative
@@ -75,6 +85,8 @@ public class ContextMenuHelper {
         dismissContextMenu();
         if (mCurrentNativeDelegate != null) mCurrentNativeDelegate.destroy();
         if (mPopulatorFactory != null) mPopulatorFactory.onDestroy();
+        var removedValue = sContextMenuHelperMap.remove(mNativeContextMenuHelper);
+        assert removedValue == this;
         mNativeContextMenuHelper = 0;
     }
 
@@ -242,6 +254,11 @@ public class ContextMenuHelper {
             float topContentOffsetPx) {
         setPopulatorFactory(populatorFactory);
         showContextMenu(params, renderFrameHost, view, topContentOffsetPx);
+    }
+
+    @CalledByNative
+    private static ContextMenuHelper getJavaObject(long nativeContextMenuHelper) {
+        return assertNonNull(sContextMenuHelperMap.get(nativeContextMenuHelper));
     }
 
     @NativeMethods

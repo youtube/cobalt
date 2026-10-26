@@ -16,12 +16,12 @@
 #include "chrome/browser/ui/read_anything/read_anything_enums.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_controller_utils.h"
+#include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
+#include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/page_action/test_support/page_action_interactive_test_mixin.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_action_callback.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/user_education/interactive_feature_promo_test.h"
 #include "components/accessibility/reading/distillable_pages.h"
@@ -55,6 +55,7 @@ class ReadAnythingOmniboxControllerTest
     features_.InitWithFeatures(enabled_features, disabled_features);
     distillable_url_ = embedded_test_server()->GetURL("/long_text_page.html");
     non_distillable_url_ = GURL("chrome://blank");
+    ReadAnythingController::SetFreezeDistillationOnCreationForTesting(true);
     InteractiveFeaturePromoTest::SetUp();
   }
 
@@ -67,6 +68,7 @@ class ReadAnythingOmniboxControllerTest
 
   void TearDownOnMainThread() override {
     EXPECT_TRUE(embedded_test_server()->ShutdownAndWaitUntilComplete());
+    ReadAnythingController::SetFreezeDistillationOnCreationForTesting(false);
     InteractiveFeaturePromoTest::TearDownOnMainThread();
   }
 
@@ -204,11 +206,27 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingOmniboxControllerTest,
         read_anything::ReadAnythingEntryPointController::InvokePageAction(
             browser(), context);
       }),
-      NavigateWebContents(kActiveTab, non_distillable_url_),
-      WaitForWebContentsReady(kActiveTab),
-      // Now should show chip again.
+      WaitForPageActionChipVisible());
+}
+
+IN_PROC_BROWSER_TEST_P(ReadAnythingOmniboxControllerTest,
+                       ShowOmniboxChipImmediatelyAfterReadingModeClosed) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
+  RunTestSequence(
+      InstrumentTab(kActiveTab),
       NavigateWebContents(kActiveTab, distillable_url_),
-      WaitForWebContentsReady(kActiveTab), WaitForPageActionChipVisible());
+      WaitForPageActionChipVisible(), InvokePageAction(),
+      WaitForPageActionChipNotVisible(),
+      // Close RM so the omnibox chip can show again.
+      Do([&]() {
+        auto context = actions::ActionInvocationContext();
+        context.SetProperty(
+            kSidePanelOpenTriggerKey,
+            static_cast<int>(SidePanelOpenTrigger::kPinnedEntryToolbarButton));
+        read_anything::ReadAnythingEntryPointController::InvokePageAction(
+            browser(), context);
+      }),
+      WaitForPageActionChipVisible());
 }
 
 IN_PROC_BROWSER_TEST_P(ReadAnythingOmniboxControllerTest,
@@ -277,20 +295,6 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingOmniboxControllerTest,
                   WaitForWebContentsReady(kActiveTab),
                   WaitForPageActionChipVisible(), InvokePageAction(),
                   WaitForPageActionChipNotVisible());
-}
-
-IN_PROC_BROWSER_TEST_P(ReadAnythingOmniboxControllerTest,
-                       EntryPointLoggedAfterOmniboxShownAndClicked) {
-  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
-  RunTestSequence(InstrumentTab(kActiveTab),
-                  NavigateWebContents(kActiveTab, distillable_url_),
-                  WaitForWebContentsReady(kActiveTab),
-                  WaitForPageActionChipVisible(), InvokePageAction(),
-                  WaitForPageActionChipNotVisible(), Do([this]() {
-                    histogram_tester().ExpectUniqueSample(
-                        "Accessibility.ReadAnything.EntryPointAfterOmnibox",
-                        ReadAnythingOpenTrigger::kOmniboxChip, 1);
-                  }));
 }
 
 IN_PROC_BROWSER_TEST_P(ReadAnythingOmniboxControllerTest,

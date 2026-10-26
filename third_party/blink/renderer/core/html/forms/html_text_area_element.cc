@@ -74,12 +74,14 @@ namespace blink {
 
 using mojom::blink::FormControlType;
 
-static const unsigned kDefaultRows = 2;
-static const unsigned kDefaultCols = 20;
+namespace {
 
-static bool is_default_font_prewarmed_ = false;
+constexpr unsigned kDefaultRows = 2;
+constexpr unsigned kDefaultCols = 20;
 
-static inline unsigned ComputeLengthForAPIValue(const String& text) {
+bool g_is_default_font_prewarmed = false;
+
+inline unsigned ComputeLengthForAPIValue(const String& text) {
   unsigned length = text.length();
   unsigned crlf_count = 0;
   for (unsigned i = 0; i < length; ++i) {
@@ -88,6 +90,8 @@ static inline unsigned ComputeLengthForAPIValue(const String& text) {
   }
   return text.length() - crlf_count;
 }
+
+}  // namespace
 
 HTMLTextAreaElement::HTMLTextAreaElement(Document& document)
     : TextControlElement(html_names::kTextareaTag, document),
@@ -98,14 +102,14 @@ HTMLTextAreaElement::HTMLTextAreaElement(Document& document)
       is_placeholder_visible_(false) {
   EnsureUserAgentShadowRoot();
 
-  if (!is_default_font_prewarmed_) {
+  if (!g_is_default_font_prewarmed) {
     if (Settings* settings = document.GetSettings()) {
       // Prewarm 'monospace', the default font family for `<textarea>`. The
       // default language should be fine for this purpose because most users set
       // the same family for all languages.
       FontCache::PrewarmFamily(settings->GetGenericFontFamilySettings().Fixed(
           LayoutLocale::GetDefault().GetScript()));
-      is_default_font_prewarmed_ = true;
+      g_is_default_font_prewarmed = true;
     }
   }
 }
@@ -252,14 +256,15 @@ void HTMLTextAreaElement::ParseAttribute(
     // deprecated.  The soft/hard /off values are a recommendation for HTML 4
     // extension by IE and NS 4.
     WrapMethod wrap;
-    if (EqualIgnoringASCIICase(value, "physical") ||
-        EqualIgnoringASCIICase(value, "hard") ||
-        EqualIgnoringASCIICase(value, "on"))
+    if (EqualIgnoringAsciiCase(value, "physical") ||
+        EqualIgnoringAsciiCase(value, "hard") ||
+        EqualIgnoringAsciiCase(value, "on")) {
       wrap = kHardWrap;
-    else if (EqualIgnoringASCIICase(value, "off"))
+    } else if (EqualIgnoringAsciiCase(value, "off")) {
       wrap = kNoWrap;
-    else
+    } else {
       wrap = kSoftWrap;
+    }
     if (wrap != wrap_) {
       wrap_ = wrap;
       if (LayoutObject* layout_object = GetLayoutObject()) {
@@ -387,8 +392,8 @@ void HTMLTextAreaElement::SubtreeHasChanged() {
     CalculateAndAdjustAutoDirectionality();
   }
 
-  if (RuntimeEnabledFeatures::FormControlRangeEnabled()) {
-    CommitFormControlRangeEdit();
+  if (RuntimeEnabledFeatures::OpaqueRangeEnabled()) {
+    CommitOpaqueRangeEdit();
   }
 
   if (!IsFocused())
@@ -536,14 +541,14 @@ void HTMLTextAreaElement::SetValueCommon(const String& new_value,
   SetInnerEditorValue(value_);
 
   // Programmatic value changes trigger a full-replace update so
-  // FormControlRange offsets are recomputed against the new text. Callers that
+  // OpaqueRange offsets are recomputed against the new text. Callers that
   // perform a targeted update (e.g., setRangeText) set the skip flag to
   // suppress this pass and prevent redundant notifications or offset
   // adjustments.
-  if (RuntimeEnabledFeatures::FormControlRangeEnabled() &&
+  if (RuntimeEnabledFeatures::OpaqueRangeEnabled() &&
       !ShouldSkipNextSetValueAutoDiff()) {
-    CommitProgrammaticFormControlRangeEdit(old_value, /*old_sel_start=*/0u,
-                                           /*old_sel_end=*/old_value.length());
+    CommitProgrammaticOpaqueRangeEdit(old_value, /*old_sel_start=*/0u,
+                                      /*old_sel_end=*/old_value.length());
   }
   if (event_behavior == TextFieldEventBehavior::kDispatchNoEvent)
     SetLastChangeWasNotUserEdit();
@@ -838,6 +843,14 @@ void HTMLTextAreaElement::SetFocused(bool is_focused,
     SetUserHasEditedTheFieldAndBlurred();
   }
   TextControlElement::SetFocused(is_focused, focus_type);
+}
+
+bool HTMLTextAreaElement::SupportsBaseAppearanceInternal(
+    Element::BaseAppearanceValue value) const {
+  if (!RuntimeEnabledFeatures::AppearanceBaseEnabled()) {
+    return false;
+  }
+  return value == Element::BaseAppearanceValue::kBase;
 }
 
 }  // namespace blink

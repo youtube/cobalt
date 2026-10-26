@@ -9,6 +9,7 @@ import '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import '//resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
 import '//resources/cr_elements/icons.html.js';
 import './favicon_group.js';
+import './reopen_tabs.js';
 import './sources_menu.js';
 
 import {AnchorAlignment} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
@@ -27,12 +28,10 @@ import {getHtml} from './top_toolbar.html.js';
 export interface TopToolbarElement {
   $: {
     closeButton: HTMLImageElement,
-    contextButton: HTMLImageElement,
     menu: CrLazyRenderLitElement<CrActionMenuElement>,
     newThreadButton: HTMLImageElement,
     sourcesMenu: CrLazyRenderLitElement<SourcesMenuElement>,
     threadHistoryButton: HTMLImageElement,
-    topToolbarLogo: HTMLImageElement,
   };
 }
 
@@ -62,8 +61,13 @@ export class TopToolbarElement extends CrLitElement {
         reflect: true,
         attribute: 'is-ai-page',
       },
+      enableOpenInNewTabButton: {
+        type: Boolean,
+        reflect: true,
+      },
       logoImageUrl_: {type: String},
       title: {type: String},
+      showReopenTabs_: {type: Boolean},
     };
   }
 
@@ -71,6 +75,8 @@ export class TopToolbarElement extends CrLitElement {
   accessor contextInfos: ContextInfo[] = [];
   accessor darkMode: boolean = false;
   accessor isAiPage: boolean = false;
+  accessor enableOpenInNewTabButton: boolean = false;
+  accessor showReopenTabs_: boolean = false;
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
   private listenerIds_: number[] = [];
   protected isExpandButtonEnabled: boolean =
@@ -79,10 +85,15 @@ export class TopToolbarElement extends CrLitElement {
   override connectedCallback() {
     super.connectedCallback();
     const callbackRouter = this.browserProxy_.callbackRouter;
-    this.listenerIds_ = [callbackRouter.onContextUpdated.addListener(
-        (contextInfos: ContextInfo[]) => {
-          this.contextInfos = contextInfos;
-        })];
+    this.listenerIds_ = [
+      callbackRouter.onContextUpdated.addListener(
+          (contextInfos: ContextInfo[]) => {
+            this.contextInfos = contextInfos;
+          }),
+      callbackRouter.setShowReopenTabs.addListener((show: boolean) => {
+        this.showReopenTabs_ = show;
+      }),
+    ];
   }
 
   override disconnectedCallback() {
@@ -156,6 +167,14 @@ export class TopToolbarElement extends CrLitElement {
     chrome.metricsPrivate.recordBoolean(
         'ContextualTasks.WebUI.UserAction.OpenHelp', true);
     this.browserProxy_.handler.openHelpUi();
+  }
+
+  protected onReopenTabsReopenClick_() {
+    this.browserProxy_.handler.reopenTabs();
+  }
+
+  protected onReopenTabsDismissClick_() {
+    this.showReopenTabs_ = false;
   }
 }
 

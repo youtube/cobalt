@@ -14,7 +14,7 @@ namespace {
 // Escapes special chars that can be part of text fragment directive, including
 // hyphen (-), ampersand (&), and comma (,).
 String EscapeSelectorSpecialCharacters(const String& target_text) {
-  String escaped_str = EncodeWithURLEscapeSequences(target_text);
+  String escaped_str = EncodeWithUrlEscapeSequences(target_text);
   escaped_str.Replace("-", "%2D");
   return escaped_str;
 }
@@ -102,11 +102,11 @@ TextFragmentSelector TextFragmentSelector::FromTextDirective(
 
   DCHECK(terms.empty());
 
-  return TextFragmentSelector(
-      type, DecodeURLEscapeSequences(start, DecodeURLMode::kUTF8),
-      DecodeURLEscapeSequences(end, DecodeURLMode::kUTF8),
-      DecodeURLEscapeSequences(prefix, DecodeURLMode::kUTF8),
-      DecodeURLEscapeSequences(suffix, DecodeURLMode::kUTF8));
+  constexpr auto kMode = DecodeUrlMode::kUtf8;
+  return TextFragmentSelector(type, DecodeUrlEscapeSequences(start, kMode),
+                              DecodeUrlEscapeSequences(end, kMode),
+                              DecodeUrlEscapeSequences(prefix, kMode),
+                              DecodeUrlEscapeSequences(suffix, kMode));
 }
 
 TextFragmentSelector::TextFragmentSelector(SelectorType type,

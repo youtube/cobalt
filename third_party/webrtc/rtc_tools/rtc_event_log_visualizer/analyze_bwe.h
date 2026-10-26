@@ -40,10 +40,13 @@ void CreateGoogCcSimulationGraph(const ParsedRtcEventLog& parsed_log,
                                  const AnalyzerConfig& config,
                                  Plot* plot);
 
+void CreateScreamSimulationDelayGraph(const ParsedRtcEventLog& parsed_log,
+                                      const AnalyzerConfig& config,
+                                      Plot* plot);
+
 void CreateScreamSimulationBitrateGraph(const ParsedRtcEventLog& parsed_log,
                                         const AnalyzerConfig& config,
                                         Plot* plot);
-
 void CreateScreamSimulationRefWindowGraph(const ParsedRtcEventLog& parsed_log,
                                           const AnalyzerConfig& config,
                                           Plot* plot);

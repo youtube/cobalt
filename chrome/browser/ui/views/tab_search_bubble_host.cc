@@ -30,7 +30,6 @@
 #include "chrome/browser/ui/views/tabs/tab_strip_controller.h"
 #include "chrome/browser/ui/webui/tab_search/tab_search_prefs.h"
 #include "chrome/browser/ui/webui/tab_search/tab_search_ui.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/feature_engagement/public/event_constants.h"
@@ -69,6 +68,7 @@ TabSearchBubbleHost::TabSearchBubbleHost(
     BrowserWindowInterface* browser_window_interface)
     : button_(button),
       profile_(browser_window_interface->GetProfile()),
+      browser_window_interface_(browser_window_interface),
       webui_bubble_manager_(WebUIBubbleManager::Create<TabSearchUI>(
           button,
           browser_window_interface,
@@ -95,7 +95,11 @@ TabSearchBubbleHost::TabSearchBubbleHost(
   webui_bubble_manager_observer_.Observe(webui_bubble_manager_.get());
 }
 
-TabSearchBubbleHost::~TabSearchBubbleHost() = default;
+TabSearchBubbleHost::~TabSearchBubbleHost() {
+  for (auto& observer : observers_) {
+    observer.OnHostDestroying();
+  }
+}
 
 void TabSearchBubbleHost::OnWidgetVisibilityChanged(views::Widget* widget,
                                                     bool visible) {
@@ -124,13 +128,6 @@ void TabSearchBubbleHost::OnWidgetVisibilityChanged(views::Widget* widget,
             *bubble_created_time_,
             webui_bubble_manager_->bubble_using_cached_web_contents(),
             webui_bubble_manager_->contents_warmup_level()));
-
-    const PrefService* prefs = profile_->GetPrefs();
-    const auto section = tab_search_prefs::GetTabSearchSectionFromInt(
-        prefs->GetInteger(tab_search_prefs::kTabSearchTabIndex));
-    if (section == tab_search::mojom::TabSearchSection::kSearch) {
-      return;
-    }
   } else if (!visible && bubble_created_time_.has_value()) {
     const base::TimeDelta time_to_close =
         base::TimeTicks::Now() - bubble_created_time_.value();
@@ -165,9 +162,7 @@ void TabSearchBubbleHost::OnOrganizationAccepted(Browser* browser) {
 
 void TabSearchBubbleHost::OnUserInvokedFeature(const Browser* browser) {
   if (browser == GetBrowser()) {
-    ShowTabSearchBubble(
-        false, tab_search::mojom::TabSearchSection::kOrganize,
-        tab_search::mojom::TabOrganizationFeature::kAutoTabGroups);
+    ShowTabSearchBubble(false);
   }
 }
 
@@ -178,6 +173,13 @@ void TabSearchBubbleHost::BeforeBubbleWidgetShowed(views::Widget* widget) {
   DCHECK(!bubble_widget_observation_.IsObserving());
   bubble_widget_observation_.Observe(widget);
   widget_open_timer_.Reset(widget);
+
+  // Notify the TabSearchUI that the bubble widget is shown. Since the bubble
+  // manager can preload the page, this allows the UI to force refresh the
+  // contents of the page.
+  if (auto* tab_search_ui = GetTabSearchUI()) {
+    tab_search_ui->BeforeBubbleWidgetShowed();
+  }
 
   widget->GetCompositor()->RequestSuccessfulPresentationTimeForNextFrame(
       base::BindOnce(
@@ -203,24 +205,9 @@ void TabSearchBubbleHost::RemoveObserver(
 }
 
 bool TabSearchBubbleHost::ShowTabSearchBubble(
-    bool triggered_by_keyboard_shortcut,
-    tab_search::mojom::TabSearchSection section,
-    tab_search::mojom::TabOrganizationFeature organization_feature) {
+    bool triggered_by_keyboard_shortcut) {
   TRACE_EVENT0("ui", "TabSearchBubbleHost::ShowTabSearchBubble");
   base::trace_event::EmitNamedTrigger("show-tab-search-bubble");
-  if (section != tab_search::mojom::TabSearchSection::kNone) {
-    profile_->GetPrefs()->SetInteger(
-        tab_search_prefs::kTabSearchTabIndex,
-        tab_search_prefs::GetIntFromTabSearchSection(section));
-  }
-
-  if (organization_feature !=
-      tab_search::mojom::TabOrganizationFeature::kNone) {
-    profile_->GetPrefs()->SetInteger(
-        tab_search_prefs::kTabOrganizationFeature,
-        tab_search_prefs::GetIntFromTabOrganizationFeature(
-            organization_feature));
-  }
 
   if (webui_bubble_manager_->GetBubbleWidget()) {
     return false;
@@ -239,7 +226,8 @@ bool TabSearchBubbleHost::ShowTabSearchBubble(
       },
       *bubble_created_time_));
 
-  const tabs::TabSearchPosition position = tabs::GetTabSearchPosition(profile_);
+  const tabs::TabSearchPosition position =
+      tabs::GetTabSearchPosition(browser_window_interface_);
   webui_bubble_manager_->ShowBubble(
       std::nullopt,
       (position == tabs::TabSearchPosition::kLeadingHorizontalTabstrip ||
@@ -291,4 +279,23 @@ void TabSearchBubbleHost::ButtonPressed(const ui::Event& event) {
     return;
   }
   CloseTabSearchBubble();
+}
+
+TabSearchUI* TabSearchBubbleHost::GetTabSearchUI() {
+  auto* wrapper = webui_bubble_manager_->GetContentsWrapper();
+  if (!wrapper) {
+    return nullptr;
+  }
+
+  auto* web_contents = wrapper->web_contents();
+  if (!web_contents) {
+    return nullptr;
+  }
+
+  auto* web_ui = web_contents->GetWebUI();
+  if (!web_ui) {
+    return nullptr;
+  }
+
+  return web_ui->GetController()->GetAs<TabSearchUI>();
 }

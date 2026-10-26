@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "base/functional/callback_forward.h"
-#include "chrome/common/chrome_features.h"
+#include "chrome/common/buildflags.h"
 #include "components/sessions/core/session_id.h"
 #include "components/split_tabs/split_tab_id.h"
 #include "components/tab_groups/tab_group_id.h"
@@ -214,7 +214,6 @@ class TabStripModelDelegate {
       const std::vector<tab_groups::TabGroupId>& group_ids,
       base::OnceCallback<void()> callback) = 0;
 
-#if BUILDFLAG(ENABLE_GLIC)
   // Glic related delegation (see GlicKeyedService and GlicSharingManager).
   // Note: 'Pinning' in Glic is a distinct notion.
 
@@ -233,7 +232,6 @@ class TabStripModelDelegate {
   // Unpins the specified tabs from all Glic conversations.
   virtual void GlicUnpinTabsFromAllConversations(
       base::span<const tabs::TabHandle> tab_handles);
-#endif
 };
 
 #endif  // CHROME_BROWSER_UI_TABS_TAB_STRIP_MODEL_DELEGATE_H_

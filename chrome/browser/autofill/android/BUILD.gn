@@ -59,10 +59,15 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/autofill/editors/autofill_ai/EntityEditorViewBinder.java",
     "java/src/org/chromium/chrome/browser/autofill/editors/common/EditTextNoAutofillView.java",
     "java/src/org/chromium/chrome/browser/autofill/editors/common/EditorComponentsProperties.java",
+    "java/src/org/chromium/chrome/browser/autofill/editors/common/EditorComponentsUtil.java",
     "java/src/org/chromium/chrome/browser/autofill/editors/common/EditorComponentsViewBinder.java",
     "java/src/org/chromium/chrome/browser/autofill/editors/common/EditorDialogToolbar.java",
     "java/src/org/chromium/chrome/browser/autofill/editors/common/EditorObserverForTest.java",
     "java/src/org/chromium/chrome/browser/autofill/editors/common/EditorViewBase.java",
+    "java/src/org/chromium/chrome/browser/autofill/editors/common/date_field/DateFieldProperties.java",
+    "java/src/org/chromium/chrome/browser/autofill/editors/common/date_field/DateFieldValidator.java",
+    "java/src/org/chromium/chrome/browser/autofill/editors/common/date_field/DateFieldView.java",
+    "java/src/org/chromium/chrome/browser/autofill/editors/common/date_field/DateFieldViewBinder.java",
     "java/src/org/chromium/chrome/browser/autofill/editors/common/dropdown_field/DropdownFieldAdapter.java",
     "java/src/org/chromium/chrome/browser/autofill/editors/common/dropdown_field/DropdownFieldProperties.java",
     "java/src/org/chromium/chrome/browser/autofill/editors/common/dropdown_field/DropdownFieldView.java",
@@ -75,6 +80,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/autofill/editors/common/text_field/TextFieldView.java",
     "java/src/org/chromium/chrome/browser/autofill/editors/common/text_field/TextFieldViewBinder.java",
     "java/src/org/chromium/chrome/browser/autofill/helpers/FaviconHelper.java",
+    "java/src/org/chromium/chrome/browser/autofill/options/AutofillAiPreference.java",
     "java/src/org/chromium/chrome/browser/autofill/options/AutofillOptionsCoordinator.java",
     "java/src/org/chromium/chrome/browser/autofill/options/AutofillOptionsFragment.java",
     "java/src/org/chromium/chrome/browser/autofill/options/AutofillOptionsMediator.java",
@@ -91,7 +97,7 @@ android_library("java") {
     "//base:base_java",
     "//build/android:build_java",
     "//chrome/android:chrome_app_java_resources",
-    "//chrome/browser/android/customtabs/branding:java",
+    "//chrome/browser/device_reauth/android:java",
     "//chrome/browser/feedback/android:factory_java",
     "//chrome/browser/feedback/android:java",
     "//chrome/browser/feedback/android:java_resources",
@@ -104,7 +110,6 @@ android_library("java") {
     "//chrome/browser/ui/android/edge_to_edge:java",
     "//chrome/browser/ui/android/favicon:java",
     "//chrome/browser/util:java",
-    "//components/android_autofill/browser:features_java",
     "//components/android_autofill/browser:java",
     "//components/autofill/android:autofill_features_java",
     "//components/autofill/android:autofill_java",
@@ -118,6 +123,7 @@ android_library("java") {
     "//components/browser_ui/util/android:java",
     "//components/browser_ui/widget/android:java",
     "//components/browser_ui/widget/android:java_resources",
+    "//components/device_reauth:device_reauth_java_enums",
     "//components/embedder_support/android:simple_factory_key_java",
     "//components/favicon/android:java",
     "//components/image_fetcher:java",
@@ -198,12 +204,19 @@ generate_jni("jni_headers") {
 }
 
 android_resources("java_resources") {
-  deps = [ "//components/strings:components_strings_grd" ]
+  deps = [
+    "//components/browser_ui/settings/android:java_resources",
+    "//components/strings:components_strings_grd",
+  ]
   sources = [
     "java/res/drawable/autofill_editor_notice_background.xml",
+    "java/res/drawable/google_24dp.xml",
     "java/res/drawable/store_locally_tooltip_background.xml",
+    "java/res/drawable/text_analysis_24dp.xml",
     "java/res/layout/autofill_ai_attribute_info.xml",
+    "java/res/layout/autofill_ai_preference.xml",
     "java/res/layout/autofill_ai_save_entity_prompt.xml",
+    "java/res/layout/autofill_ai_settings_info_item.xml",
     "java/res/layout/autofill_editor_base.xml",
     "java/res/layout/autofill_editor_base_buttons.xml",
     "java/res/layout/autofill_editor_dialog.xml",
@@ -220,6 +233,7 @@ android_resources("java_resources") {
     "java/res/layout/radio_button_group_third_party_preference.xml",
     "java/res/menu/prefeditor_editor_menu.xml",
     "java/res/values/dimens.xml",
+    "java/res/values/ids.xml",
     "java/res/xml/autofill_options_preferences.xml",
   ]
 }
@@ -235,6 +249,7 @@ android_library("test_java") {
   sources = [
     "javatest/src/org/chromium/chrome/browser/autofill/AutofillThirdPartyModeContentProviderIntegrationTest.java",
     "javatest/src/org/chromium/chrome/browser/autofill/SaveUpdateAddressProfilePromptRenderTest.java",
+    "javatest/src/org/chromium/chrome/browser/autofill/autofill_ai/AutofillAiSaveUpdateEntityPromptRenderTest.java",
     "javatest/src/org/chromium/chrome/browser/autofill/editors/address/AddressEditorRenderTest.java",
     "javatest/src/org/chromium/chrome/browser/autofill/editors/common/dropdown_field/DropdownFieldViewTest.java",
   ]
@@ -281,12 +296,15 @@ robolectric_library("junit") {
     "junit/src/org/chromium/chrome/browser/autofill/AutofillThirdPartyModeContentProviderTest.java",
     "junit/src/org/chromium/chrome/browser/autofill/SaveUpdateAddressProfilePromptTest.java",
     "junit/src/org/chromium/chrome/browser/autofill/autofill_ai/AutofillAiSaveUpdateEntityPromptTest.java",
+    "junit/src/org/chromium/chrome/browser/autofill/autofill_ai/EntityDataManagerTest.java",
     "junit/src/org/chromium/chrome/browser/autofill/bottom_sheet_utils/DetailScreenScrollListenerTest.java",
     "junit/src/org/chromium/chrome/browser/autofill/editors/address/AddressEditorTest.java",
     "junit/src/org/chromium/chrome/browser/autofill/editors/autofill_ai/EntityEditorModuleTest.java",
     "junit/src/org/chromium/chrome/browser/autofill/editors/autofill_ai/EntityEditorViewTest.java",
+    "junit/src/org/chromium/chrome/browser/autofill/editors/common/date_field/DateFieldViewTest.java",
     "junit/src/org/chromium/chrome/browser/autofill/editors/common/dropdown_field/DropdownFieldViewUnitTest.java",
     "junit/src/org/chromium/chrome/browser/autofill/editors/common/text_field/TextFieldViewUnitTest.java",
+    "junit/src/org/chromium/chrome/browser/autofill/editors/utils/TestUtils.java",
     "junit/src/org/chromium/chrome/browser/autofill/options/AutofillOptionsTest.java",
   ]
 
@@ -298,6 +316,7 @@ robolectric_library("junit") {
     "//base:base_java",
     "//base:base_java_test_support",
     "//base:base_junit_test_support",
+    "//chrome/browser/device_reauth/android:java",
     "//chrome/browser/feedback/android:factory_java",
     "//chrome/browser/feedback/android:java",
     "//chrome/browser/flags:java",
@@ -306,11 +325,13 @@ robolectric_library("junit") {
     "//chrome/browser/signin/services/android:java",
     "//chrome/browser/sync/android:java",
     "//chrome/test/android:chrome_java_unit_test_support",
+    "//components/autofill/android:autofill_ai_test_utils_java",
     "//components/autofill/android:autofill_features_java",
     "//components/autofill/android:main_autofill_java",
     "//components/browser_ui/bottomsheet/android:java",
     "//components/browser_ui/settings/android:java",
     "//components/browser_ui/widget/android:java",
+    "//components/device_reauth:device_reauth_java_enums",
     "//components/prefs/android:java",
     "//components/signin/public/android:java",
     "//components/sync/android:sync_java",

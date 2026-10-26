@@ -156,6 +156,10 @@ class OmniboxViewViews
   void OnPaint(gfx::Canvas* canvas) override;
   void ExecuteCommand(int command_id, int event_flags) override;
   void OnInputMethodChanged() override;
+  void ShowContextMenuForViewImpl(
+      views::View* source,
+      const gfx::Point& point,
+      ui::mojom::MenuSourceType source_type) override;
   void AddedToWidget() override;
   void RemovedFromWidget() override;
   std::u16string GetLabelForCommandId(int command_id) const override;
@@ -218,6 +222,10 @@ class OmniboxViewViews
   // for details). The function invokes OnBefore/AfterPossibleChange() as
   // necessary.
   void OnOmniboxPaste();
+  void OnOmniboxPasteComplete(std::u16string text);
+
+  void HandleCutOrCopyAdjustments(ui::ClipboardBuffer clipboard_buffer,
+                                  std::u16string* text);
 
   // Handle keyword hint tab-to-search and tabbing through dropdown results.
   bool HandleEarlyTabActions(const ui::KeyEvent& event);
@@ -273,13 +281,21 @@ class OmniboxViewViews
   bool HandleAccessibleAction(const ui::AXActionData& action_data) override;
   void OnFocus() override;
   void OnBlur() override;
-  std::u16string GetSelectionClipboardText() const override;
+  void PasteSelectionClipboard(
+      base::OnceCallback<void(bool)> callback) override;
+  void OnTextReadForPasteSelectionClipboard(
+      base::OnceCallback<void(bool)> callback,
+      std::u16string text);
   void DoInsertChar(char16_t ch) override;
   bool IsTextEditCommandEnabled(ui::TextEditCommand command) const override;
   void ExecuteTextEditCommand(ui::TextEditCommand command) override;
   bool ShouldShowPlaceholderText() const override;
 
   void UpdateAccessibleValue() override;
+
+  void ShowContextMenuForViewImplComplete(const gfx::Point& point,
+                                          ui::mojom::MenuSourceType source_type,
+                                          std::u16string text);
 
   // ash::input_method::InputMethodManager::CandidateWindowObserver:
 #if BUILDFLAG(IS_CHROMEOS)
@@ -296,6 +312,8 @@ class OmniboxViewViews
                       const ui::KeyEvent& key_event) override;
   void OnBeforeUserAction(views::Textfield* sender) override;
   void OnAfterUserAction(views::Textfield* sender) override;
+  bool OnBeforeCutOrCopy(views::Textfield* sender,
+                         std::u16string* copy_contents) override;
   void OnAfterCutOrCopy(ui::ClipboardBuffer clipboard_buffer) override;
   void OnWriteDragData(ui::OSExchangeData* data) override;
   void OnGetDragOperationsForTextfield(int* drag_operations) override;
@@ -306,6 +324,8 @@ class OmniboxViewViews
   views::View::DropCallback CreateDropCallback(
       const ui::DropTargetEvent& event) override;
   void UpdateContextMenu(ui::SimpleMenuModel* menu_contents) override;
+  std::unique_ptr<ui::ScopedClipboardWriter> CreateClipboardWriter() override;
+  void UpdateSelectionClipboard() override;
 
   // ui::SimpleMenuModel::Delegate:
   bool IsCommandIdChecked(int id) const override;
@@ -362,6 +382,10 @@ class OmniboxViewViews
   // Returns the AI Mode page action icon view, if present, or nullptr if the
   // view doesn't exist.
   IconLabelBubbleView* GetAiModePageActionIconView() const;
+
+  // Helper for updating the text in the Omnibox based on current focus state
+  // and whether the user is currently on a "contextual tasks" page.
+  void UpdateTextForContextualTasksPage();
 
   // When true, the location bar view is read only and also is has a slightly
   // different presentation (smaller font size). This is used for popups.
@@ -443,6 +467,10 @@ class OmniboxViewViews
   // "Google https://google.com location from bookmark", or
   // "cats are liquid search suggestion".
   std::u16string friendly_suggestion_text_;
+
+  // Cached clipboard text for menu paste state. This cache is only updated
+  // before a menu is shown, so it should only be used by menu delegates.
+  std::u16string clipboard_text_for_menu_;
 
   // The number of added labelling characters before editable text begins.
   // For example,  "Google https://google.com location from history",

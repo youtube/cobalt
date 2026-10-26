@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.autofill.options;
 
-import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.ON_THIRD_PARTY_TOGGLE_CHANGED;
-
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 import androidx.lifecycle.DefaultLifecycleObserver;
@@ -45,6 +43,7 @@ public class AutofillOptionsCoordinator {
 
                 @Override
                 public void onDestroy(LifecycleOwner lifecycleOwner) {
+                    mMediator.destroy();
                     lifecycleOwner.getLifecycle().removeObserver(this);
                 }
             };
@@ -98,23 +97,9 @@ public class AutofillOptionsCoordinator {
      */
     @VisibleForTesting
     PropertyModel initializeNow() {
-        PropertyModel model =
-                new PropertyModel.Builder(AutofillOptionsProperties.ALL_KEYS)
-                        .with(ON_THIRD_PARTY_TOGGLE_CHANGED, mMediator::onThirdPartyToggleChanged)
-                        .with(
-                                AutofillOptionsProperties.AUTOFILL_AI_SETTING_ELIGIBLE,
-                                mMediator.isEligibleToAutofillAi())
-                        .with(
-                                AutofillOptionsProperties.AUTOFILL_AI_SETTING_ON,
-                                mMediator.isAutofillAiOn())
-                        .with(
-                                AutofillOptionsProperties.ON_AUTOFILL_AI_SETTING_TOGGLED,
-                                mMediator::onAutofillAiSettingToggled)
-                        .with(
-                                AutofillOptionsProperties.AUTOFILL_AI_ENABLED,
-                                mMediator.isAutofillAiEnabled())
-                        .build();
-        mMediator.initialize(model, mFragment.getReferrer(), mFragment.getContext());
+        mMediator.initialize(
+                mFragment.getReferrer(), mFragment.getContext(), mFragment.getActivity());
+        PropertyModel model = mMediator.getModel();
 
         PropertyModelChangeProcessor.create(model, mFragment, AutofillOptionsViewBinder::bind);
         return model;

@@ -7,10 +7,10 @@
 
 namespace blink {
 class AtomicString;
+class FragmentParserOptions;
 class ContainerNode;
 class ExceptionState;
 class ScriptState;
-class SetHTMLUnsafeOptions;
 class WritableStream;
 
 // This creates a Writable stream that takes string and inserts them into an
@@ -19,7 +19,7 @@ class HTMLStream {
  public:
   static WritableStream* Create(ScriptState*,
                                 ContainerNode* target,
-                                const SetHTMLUnsafeOptions* options,
+                                FragmentParserOptions options,
                                 const AtomicString& property_name,
                                 ExceptionState&);
 };

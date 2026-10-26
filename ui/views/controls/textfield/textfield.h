@@ -15,6 +15,7 @@
 #include <string_view>
 #include <utility>
 
+#include "base/containers/flat_set.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -22,6 +23,7 @@
 #include "build/build_config.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
+#include "ui/base/clipboard/clipboard_format_type.h"
 #include "ui/base/ime/text_edit_commands.h"
 #include "ui/base/ime/text_input_client.h"
 #include "ui/base/ime/text_input_type.h"
@@ -524,8 +526,12 @@ class VIEWS_EXPORT Textfield : public View,
   // Returns the last click root location (relative to the root window).
   gfx::Point GetLastClickRootLocation() const;
 
-  // Get the text from the selection clipboard.
-  virtual std::u16string GetSelectionClipboardText() const;
+  // Called when PasteSelectionClipboard() is done reading text from the
+  // clipboard. The callback is passed the result of the paste operation, i.e.
+  // whether or not the paste succeeded.
+  void OnTextReadForPasteSelectionClipboard(
+      base::OnceCallback<void(bool)> callback,
+      std::u16string text);
 
   // Executes the given |command|.
   virtual void ExecuteTextEditCommand(ui::TextEditCommand command);
@@ -552,8 +558,9 @@ class VIEWS_EXPORT Textfield : public View,
   // gesture event.
   void RequestFocusForGesture(const ui::GestureEventDetails& details);
 
-  virtual Textfield::EditCommandResult DoExecuteTextEditCommand(
-      ui::TextEditCommand command);
+  virtual void DoExecuteTextEditCommand(
+      ui::TextEditCommand command,
+      base::OnceCallback<void(Textfield::EditCommandResult)> callback);
 
   // Handles key press event ahead of OnKeyPressed(). This is used for Textarea
   // to handle the return key. Use TextfieldController::HandleKeyEvent to
@@ -573,6 +580,12 @@ class VIEWS_EXPORT Textfield : public View,
   bool IsMenuShowing() const;
 
   void AddedToWidget() override;
+
+  // Convenience method to call TextfieldController::OnBeforeUserAction();
+  void OnBeforeUserAction();
+
+  // Convenience method to call TextfieldController::OnAfterUserAction();
+  void OnAfterUserAction();
 
 #if BUILDFLAG(SUPPORTS_AX_TEXT_OFFSETS)
   void UpdateAccessibleTextOffsetsIfNeeded();
@@ -602,7 +615,8 @@ class VIEWS_EXPORT Textfield : public View,
   void OnAfterPointerAction(bool text_changed, bool selection_changed) override;
   // Callers within Textfield should call UpdateAfterChange depending on the
   // return value.
-  bool PasteSelectionClipboard() override;
+  void PasteSelectionClipboard(
+      base::OnceCallback<void(bool)> callback) override;
   void UpdateSelectionClipboard() override;
 
   // Updates the painted background color.
@@ -652,12 +666,6 @@ class VIEWS_EXPORT Textfield : public View,
   // Convenience method to notify the InputMethod and TouchSelectionController.
   void OnCaretBoundsChanged();
 
-  // Convenience method to call TextfieldController::OnBeforeUserAction();
-  void OnBeforeUserAction();
-
-  // Convenience method to call TextfieldController::OnAfterUserAction();
-  void OnAfterUserAction();
-
   // Calls |model_->Cut()| and notifies TextfieldController on success.
   bool Cut();
 
@@ -666,10 +674,21 @@ class VIEWS_EXPORT Textfield : public View,
 
   // Calls |model_->Paste()| and calls TextfieldController::ContentsChanged()
   // explicitly if paste succeeded.
-  bool Paste();
+  void Paste(base::OnceCallback<void(bool)> callback);
+
+  // Called when Paste() is done reading text from the clipboard. The callback
+  // is passed the result of the paste operation, i.e. whether or not the paste
+  // succeeded.
+  void OnTextReadForPaste(base::OnceCallback<void(bool)> callback,
+                          std::u16string text);
 
   // Utility function to prepare the context menu.
   void UpdateContextMenu();
+
+  void ShowContextMenuForViewImplComplete(
+      const gfx::Point& point,
+      ui::mojom::MenuSourceType source_type,
+      base::flat_set<ui::ClipboardFormatType> available_formats);
 
   // Returns true if the current text input type allows access by the IME.
   bool ImeEditingAllowed() const;
@@ -741,6 +760,12 @@ class VIEWS_EXPORT Textfield : public View,
   // accessibility. Currently only on Windows when UIA is enabled.
   void RefreshAccessibleTextOffsets();
 #endif  // BUILDFLAG(SUPPORTS_AX_TEXT_OFFSETS)
+
+  void OnTextCommandExecuted(gfx::SelectionModel selection_model,
+                             Textfield::EditCommandResult result);
+
+  void OnPasted(base::OnceCallback<void(Textfield::EditCommandResult)> callback,
+                bool pasted);
 
   // The text model.
   std::unique_ptr<TextfieldModel> model_;
@@ -938,6 +963,10 @@ class VIEWS_EXPORT Textfield : public View,
   bool is_background_enabled_ = true;
 
   bool is_processing_focus_ = false;
+
+  // Whether the clipboard contains text. This cache is only updated
+  // before a menu is shown, so it should only be used by menu delegates.
+  bool clipboard_contains_text_for_menu_ = true;
 
   // Holds the subscription object for the enabled changed callback.
   base::CallbackListSubscription enabled_changed_subscription_ =

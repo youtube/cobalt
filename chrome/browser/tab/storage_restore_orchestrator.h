@@ -47,15 +47,15 @@ class StorageRestoreOrchestrator
                     const NodeData& node_data) override;
   void SaveChildNodeOnly(TabCollectionNodeHandle handle) override;
 
-  void OnChildRejected(const StorageId parent);
+  void OnNodeRejected(StorageId node);
+  void OnRestoreCancelled() override;
 
  private:
   class ObserverImpl : public StorageLoadedData::Observer {
    public:
     explicit ObserverImpl(StorageRestoreOrchestrator* orchestrator);
     ~ObserverImpl() override;
-    void OnChildRejected(StorageId parent) override;
-    void OnDestroyed() override;
+    void OnNodeRejected(StorageId node) override;
 
    private:
     raw_ptr<StorageRestoreOrchestrator> orchestrator_;
@@ -65,12 +65,6 @@ class StorageRestoreOrchestrator
                       bool was_inserted);
   void OnSaveChildCollection(const TabCollection::NodeHandle& handle,
                              bool was_inserted);
-  void MaybeAddModifiedParent(const StorageId& id,
-                              std::optional<TabCollectionHandle> handle);
-  void OnDataDestroyed();
-
-  // Represents default observer methods.
-  CollectionStorageObserver default_observer_;
 
   // Tracks events performed on StorageLoadedData.
   ObserverImpl data_observer_;
@@ -79,14 +73,7 @@ class StorageRestoreOrchestrator
   raw_ptr<TabStateStorageService> service_;
   raw_ptr<StorageLoadedData> loaded_data_;
 
-  // Used to keep track of nodes that were restored from the disk.
-  absl::flat_hash_set<TabCollectionNodeHandle> restored_nodes_;
-
-  // Used to keep track of parents that have had their children vector modified.
-  absl::flat_hash_map<StorageId, std::optional<TabCollectionHandle>>
-      modified_parents_;
-
-  bool is_data_observer_registered_;
+  bool is_restore_cancelled_;
 };
 
 }  // namespace tabs

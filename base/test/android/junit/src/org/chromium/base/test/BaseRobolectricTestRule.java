@@ -13,7 +13,6 @@ import org.jni_zero.JniTestInstancesSnapshot;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
-import org.robolectric.Shadows;
 import org.robolectric.android.util.concurrent.PausedExecutorService;
 import org.robolectric.shadows.ShadowLog;
 
@@ -29,6 +28,7 @@ import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.lifetime.LifetimeAssert;
 import org.chromium.base.metrics.UmaRecorderHolder;
+import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.test.BaseRobolectricTestRunner.HelperTestRunner;
 import org.chromium.base.test.util.CommandLineFlags;
@@ -51,7 +51,7 @@ public class BaseRobolectricTestRule implements TestRule {
     private static final Locale ORIG_LOCALE = Locale.getDefault();
     private static final TimeZone ORIG_TIMEZONE = TimeZone.getDefault();
     private static final String TAG = "BaseRobolectric";
-    private static @Nullable PausedExecutorService sPausedExecutor;
+    static @Nullable PausedExecutorService sPausedExecutor;
 
     // Removes the API Level suffix. E.g. "testSomething[28]" -> "testSomething".
     private static String stripBrackets(String methodName) {
@@ -113,6 +113,7 @@ public class BaseRobolectricTestRule implements TestRule {
         }
 
         sPausedExecutor = new PausedExecutorService();
+        AsyncTask.takeOverAndroidThreadPool();
         PostTask.setPrenativeThreadPoolExecutorForTesting(sPausedExecutor);
         Handler mainLooperHandler = new Handler(Looper.getMainLooper());
         PostTask.setPrenativeThreadPoolDelayedExecutorForTesting(
@@ -154,56 +155,12 @@ public class BaseRobolectricTestRule implements TestRule {
         }
     }
 
-    /**
-     * Runs all queued background and UI non-delayed tasks and waits for them to finish.
-     *
-     * <p>Warning: This will deadlock if a background tasks blocks on the UI thread.
-     *
-     * @return How many background tasks were run.
-     */
+    // TODO(agrieve): Remove once unused internally.
     public static int runAllBackgroundAndUi() {
-        assert sPausedExecutor != null;
-
-        int taskCount = 0;
-        for (int i = 0; i < 100; ++i) {
-            Shadows.shadowOf(Looper.getMainLooper()).idle();
-            if (!sPausedExecutor.hasQueuedTasks()) {
-                return taskCount;
-            }
-            taskCount += sPausedExecutor.runAll();
-        }
-        throw new AssertionError("Infinite loop of background->foreground->background jobs");
+        return RobolectricUtil.runAllBackgroundAndUi();
     }
 
-    /**
-     * Runs all queued background and UI tasks, delayed and non-delayed, and waits for them to
-     * finish.
-     *
-     * <p>Warning: This will deadlock if a background or a delayed task blocks on the UI thread.
-     *
-     * @return How many background or delayed tasks were run.
-     */
-    public static int runAllBackgroundAndUiIncludingDelayed() {
-        assert sPausedExecutor != null;
-
-        int taskCount = 0;
-        for (int i = 0; i < 100; ++i) {
-            Shadows.shadowOf(Looper.getMainLooper()).runToEndOfTasks();
-            if (!sPausedExecutor.hasQueuedTasks()) {
-                return taskCount;
-            }
-            taskCount += sPausedExecutor.runAll();
-        }
-        throw new AssertionError("Infinite loop of background/foreground/delayed jobs");
-    }
-
-    public static void uninstallPausedExecutorService() {
-        assert sPausedExecutor != null;
-
-        // Should uninstall before any tasks are posted.
-        assert !sPausedExecutor.hasQueuedTasks();
-
-        PostTask.setPrenativeThreadPoolExecutorForTesting(null);
-        PostTask.setPrenativeThreadPoolDelayedExecutorForTesting(null);
+    public static PausedExecutorService getPausedExecutor() {
+        return sPausedExecutor;
     }
 }

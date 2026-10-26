@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "base/check_op.h"
-#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
@@ -25,11 +24,6 @@
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace blink {
-
-// TODO(crbug.com/420150619): Re-enable this feature.
-BASE_FEATURE(kDelayStopForMediaElementSourceNode,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // TeeFilter is a RenderCallback implementation that allows for a client to get
 // a copy of the data being rendered by the |renderer_| on Render(). This class
 // also holds on to the necessary audio parameters.
@@ -144,15 +138,13 @@ void WebAudioSourceProviderImpl::SetClient(
 
   base::AutoLock auto_lock(sink_lock_);
   if (client) {
-    if (!base::FeatureList::IsEnabled(kDelayStopForMediaElementSourceNode)) {
-      // Detach the audio renderer from normal playback.
-      if (sink_) {
-        sink_->Stop();
+    // Detach the audio renderer from normal playback.
+    if (sink_) {
+      sink_->Stop();
 
-        // It's not possible to resume an element after disconnection, so just
-        // drop the sink entirely for now.
-        sink_ = nullptr;
-      }
+      // It's not possible to resume an element after disconnection, so just
+      // drop the sink entirely for now.
+      sink_ = nullptr;
     }
 
     // The client will now take control by calling provideInput() periodically.
@@ -184,7 +176,7 @@ void WebAudioSourceProviderImpl::SetClient(
 }
 
 void WebAudioSourceProviderImpl::ProvideInput(
-    const std::vector<float*>& audio_data,
+    base::span<const base::span<float>> audio_data,
     int number_of_frames) {
   if (!bus_wrapper_ ||
       static_cast<size_t>(bus_wrapper_->channels()) != audio_data.size()) {
@@ -194,11 +186,7 @@ void WebAudioSourceProviderImpl::ProvideInput(
 
   bus_wrapper_->set_frames(number_of_frames);
   for (size_t i = 0; i < audio_data.size(); ++i) {
-    // TODO(crbug.com/375449662): Spanify `audio_data` parameter.
-    bus_wrapper_->SetChannelData(
-        static_cast<int>(i),
-        UNSAFE_TODO(base::span(audio_data[i],
-                               base::checked_cast<size_t>(number_of_frames))));
+    bus_wrapper_->SetChannelData(static_cast<int>(i), audio_data[i]);
   }
 
   // Use a try lock to avoid contention in the real-time audio thread.
@@ -238,30 +226,6 @@ void WebAudioSourceProviderImpl::ProvideInput(
   bus_wrapper_->Scale(volume_);
 }
 
-void WebAudioSourceProviderImpl::ConnectToDestinationReady() {
-  if (!base::FeatureList::IsEnabled(kDelayStopForMediaElementSourceNode)) {
-    return;
-  }
-
-  if (!client_) {
-    return;
-  }
-
-  base::AutoLock auto_lock(sink_lock_);
-  if (!sink_) {
-    return;
-  }
-
-  // If client is set and sink is playing, then we finally stop the sink at this
-  // time. It is expected that the newly connected node, which is calling this
-  // method, will start the audio output.
-  sink_->Stop();
-
-  // It's not possible to resume an element after disconnection, so just
-  // drop the sink entirely for now.
-  sink_ = nullptr;
-}
-
 void WebAudioSourceProviderImpl::Initialize(
     const media::AudioParameters& params,
     RenderCallback* renderer) {
@@ -289,8 +253,9 @@ void WebAudioSourceProviderImpl::Start() {
 void WebAudioSourceProviderImpl::Stop() {
   base::AutoLock auto_lock(sink_lock_);
   state_ = kStopped;
-  if (!client_ && sink_)
+  if (sink_) {
     sink_->Stop();
+  }
 }
 
 void WebAudioSourceProviderImpl::Play() {

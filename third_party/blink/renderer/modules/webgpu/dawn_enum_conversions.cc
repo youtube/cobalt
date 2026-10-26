@@ -1117,6 +1117,10 @@ const char* FromDawnEnum(wgpu::WGSLLanguageFeatureName dawn_enum) {
       return "subgroup_uniformity";
     case wgpu::WGSLLanguageFeatureName::TextureAndSamplerLet:
       return "texture_and_sampler_let";
+    case wgpu::WGSLLanguageFeatureName::SwizzleAssignment:
+      return "swizzle_assignment";
+    case wgpu::WGSLLanguageFeatureName::LinearIndexing:
+      return "linear_indexing";
 
     // Non-standard.
     case wgpu::WGSLLanguageFeatureName::ChromiumTestingUnimplemented:

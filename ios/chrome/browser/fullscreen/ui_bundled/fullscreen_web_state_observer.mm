@@ -6,10 +6,12 @@
 
 #import "base/check_op.h"
 #import "base/ios/ios_util.h"
-#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_mediator.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_metrics.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_model.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_web_view_proxy_observer.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/legacy_fullscreen_mediator.h"
 #import "ios/public/provider/chrome/browser/fullscreen/fullscreen_api.h"
+#import "ios/web/common/features.h"
 #import "ios/web/common/url_util.h"
 #import "ios/web/public/navigation/navigation_context.h"
 #import "ios/web/public/navigation/navigation_item.h"
@@ -21,7 +23,7 @@
 FullscreenWebStateObserver::FullscreenWebStateObserver(
     FullscreenController* controller,
     FullscreenModel* model,
-    FullscreenMediator* mediator)
+    LegacyFullscreenMediator* mediator)
     : controller_(controller),
       model_(model),
       mediator_(mediator),
@@ -81,13 +83,23 @@ void FullscreenWebStateObserver::DidFinishNavigation(
   bool is_pdf = web_state->GetContentsMimeType() == "application/pdf";
   id<CRWWebViewProxy> web_view_proxy =
       WebViewProxyTabHelper::FromWebState(web_state)->GetWebViewProxy();
-  web_view_proxy.shouldUseViewContentInset = is_pdf;
+  bool resizes_scroll_view =
+      !is_pdf && !ios::provider::IsFullscreenSmoothScrollingSupported();
+  if (@available(iOS 26, *)) {
+    if (is_pdf) {
+      // Starting from iOS 26, PDFs use frame-based resizing rather than
+      // content insets to avoid document misalignment, unless smooth scrolling
+      // is enabled.
+      web_view_proxy.shouldUseViewContentInset =
+          ios::provider::IsFullscreenSmoothScrollingSupported();
+      resizes_scroll_view = !web_view_proxy.shouldUseViewContentInset;
+    }
+  } else {
+    web_view_proxy.shouldUseViewContentInset = is_pdf;
+  }
 
-  model_->SetResizesScrollView(
-      !is_pdf && !ios::provider::IsFullscreenSmoothScrollingSupported());
-
+  model_->SetResizesScrollView(resizes_scroll_view);
   model_->SetScrollViewHeight(web_state->GetView().bounds.size.height);
-
   // Only reset the model for document-changing navigations.
   if (!navigation_context->IsSameDocument()) {
     model_->ResetForNavigation();
@@ -99,7 +111,7 @@ void FullscreenWebStateObserver::DidStartLoading(web::WebState* web_state) {
   // considered as being in the SameDocument by the NavigationContext, so the
   // toolbar isn't shown in the DidFinishNavigation. For example this is
   // needed to load AMP pages from Google Search Result Page.
-  controller_->ExitFullscreen(FullscreenExitReason::kForcedByCode);
+  controller_->ExitFullscreen(FullscreenModeTransitionTrigger::kForcedByCode);
 }
 
 void FullscreenWebStateObserver::WebStateDestroyed(web::WebState* web_state) {

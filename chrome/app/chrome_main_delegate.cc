@@ -29,6 +29,7 @@
 #include "base/process/process.h"
 #include "base/process/process_handle.h"
 #include "base/profiler/thread_group_profiler.h"
+#include "base/rand_util.h"
 #include "base/strings/string_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
@@ -706,6 +707,14 @@ bool IsCanaryDev() {
          channel == version_info::Channel::DEV;
 }
 
+bool IsHangWatcherCrashReportingEnabled() {
+  const auto channel = chrome::GetChannel();
+  const bool canary_dev_beta = (channel == version_info::Channel::CANARY ||
+                                channel == version_info::Channel::DEV ||
+                                channel == version_info::Channel::BETA);
+  return canary_dev_beta || base::ShouldRecordSubsampledMetric(0.01);
+}
+
 }  // namespace
 
 #if BUILDFLAG(IS_ANDROID)
@@ -982,16 +991,8 @@ void ChromeMainDelegate::CommonEarlyInitialization() {
     hang_watcher_process_type = base::HangWatcher::ProcessType::kUnknownProcess;
   }
 
-  const bool emit_crashes =
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC) || \
-    BUILDFLAG(IS_WIN)
-      IsCanaryDev();
-#else
-      false;
-#endif
-
-  base::HangWatcher::InitializeOnMainThread(hang_watcher_process_type,
-                                            emit_crashes);
+  base::HangWatcher::InitializeOnMainThread(
+      hang_watcher_process_type, IsHangWatcherCrashReportingEnabled());
 
   base::features::Init();
 }
@@ -1147,11 +1148,14 @@ std::optional<int> ChromeMainDelegate::BasicStartupComplete() {
   // Attempt to launch an isolated browser. If this is successful, this browser
   // process becomes the stub, and will terminate after the main browser has
   // terminated, with the exit code from the main browser.
-  if (is_browser && !command_line.HasSwitch(::switches::kIsolated) &&
-      chrome::IsIsolationEnabled(command_line)) {
-    const auto isolated_process = chrome::IsolatedBrowser::Launch(command_line);
+  if (is_browser && chrome::IsIsolationEnabled(&command_line)) {
+    const auto isolated_process = chrome::LaunchIsolatedBrowser(command_line);
     if (isolated_process.has_value()) {
-      return isolated_process.value()->WaitForExit();
+      int exit_code = 0;
+      if (isolated_process->WaitForExit(&exit_code)) {
+        return exit_code;
+      }
+      return CHROME_RESULT_CODE_INVALID_ISOLATED_BROWSER_PROCESS;
     }
   }
 

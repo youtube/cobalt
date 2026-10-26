@@ -3111,22 +3111,24 @@ void ProvokingVertexANGLE(GLenum provokeMode) {
 }
 
 void FramebufferMemorylessPixelLocalStorageANGLE(GLint plane,
-                                                 GLenum internalformat) {
+                                                 GLenum internalformat,
+                                                 GLbitfield usage) {
   gles2::cmds::FramebufferMemorylessPixelLocalStorageANGLE* c =
       GetCmdSpace<gles2::cmds::FramebufferMemorylessPixelLocalStorageANGLE>();
   if (c) {
-    c->Init(plane, internalformat);
+    c->Init(plane, internalformat, usage);
   }
 }
 
 void FramebufferTexturePixelLocalStorageANGLE(GLint plane,
                                               GLuint backingtexture,
                                               GLint level,
-                                              GLint layer) {
+                                              GLint layer,
+                                              GLbitfield usage) {
   gles2::cmds::FramebufferTexturePixelLocalStorageANGLE* c =
       GetCmdSpace<gles2::cmds::FramebufferTexturePixelLocalStorageANGLE>();
   if (c) {
-    c->Init(plane, backingtexture, level, layer);
+    c->Init(plane, backingtexture, level, layer, usage);
   }
 }
 
@@ -3186,6 +3188,14 @@ void EndPixelLocalStorageANGLEImmediate(GLsizei count, const GLenum* storeops) {
           gles2::cmds::EndPixelLocalStorageANGLEImmediate>(size);
   if (c) {
     c->Init(count, storeops);
+  }
+}
+
+void EndPixelLocalStorageImplicitANGLE() {
+  gles2::cmds::EndPixelLocalStorageImplicitANGLE* c =
+      GetCmdSpace<gles2::cmds::EndPixelLocalStorageImplicitANGLE>();
+  if (c) {
+    c->Init();
   }
 }
 

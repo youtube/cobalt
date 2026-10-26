@@ -178,6 +178,26 @@ TEST(RenderingSimulatorStreamTest, NumDecoderDroppedFrames) {
   EXPECT_EQ(stream.NumDecoderDroppedFrames(), 3);
 }
 
+TEST(RenderingSimulatorStreamTest, InterFrameDurations) {
+  RenderingSimulator::Stream stream{
+      .frames = {{.render_timestamp = Timestamp::Millis(1),
+                  .decoded_timestamp = Timestamp::Millis(2),
+                  .rendered_timestamp = Timestamp::Millis(3)},
+                 {.render_timestamp = Timestamp::Millis(11),
+                  .decoded_timestamp = Timestamp::Millis(102),
+                  .rendered_timestamp = Timestamp::Millis(1003)}}};
+
+  EXPECT_THAT(
+      stream.InterRenderTimeMs().GetTimedSamples(),
+      ElementsAre(Field(&SamplesStatsCounter::StatsSample::value, Eq(10))));
+  EXPECT_THAT(
+      stream.InterDecodedTimeMs().GetTimedSamples(),
+      ElementsAre(Field(&SamplesStatsCounter::StatsSample::value, Eq(100))));
+  EXPECT_THAT(
+      stream.InterRenderedTimeMs().GetTimedSamples(),
+      ElementsAre(Field(&SamplesStatsCounter::StatsSample::value, Eq(1000))));
+}
+
 TEST(RenderingSimulatorStreamTest, WebrtcStatsSamples) {
   RenderingSimulator::Stream stream{
       .frames = {{.rendered_timestamp = Timestamp::Zero(),

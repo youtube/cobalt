@@ -36,13 +36,12 @@ import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.UrlBarEditingTextStateProvider;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
+import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionDelegateImpl;
 import org.chromium.chrome.browser.omnibox.suggestions.basic.BasicSuggestionProcessor;
 import org.chromium.chrome.browser.omnibox.test.R;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.components.omnibox.AutocompleteRequestType;
-import org.chromium.components.omnibox.action.OmniboxActionDelegate;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
@@ -53,13 +52,9 @@ import java.util.function.Supplier;
 public class AutocompleteCoordinatorUnitTest {
     public @Rule MockitoRule mMockitoRule = MockitoJUnit.rule();
 
-    private Context mContext;
     private AutocompleteCoordinator mAutocompleteCoordinator;
     private final SettableNonNullObservableSupplier<@ControlsPosition Integer>
             mControlsPositionSupplier = ObservableSuppliers.createNonNull(ControlsPosition.TOP);
-    private final SettableNonNullObservableSupplier<@AutocompleteRequestType Integer>
-            mAutocompleteRequestTypeSupplier =
-                    ObservableSuppliers.createNonNull(AutocompleteRequestType.SEARCH);
     private final SettableNonNullObservableSupplier<@FuseboxState Integer> mFuseboxStateSupplier =
             ObservableSuppliers.createNonNull(FuseboxState.DISABLED);
     private final MonotonicObservableSupplier<Profile> mProfileObservableSupplier =
@@ -74,7 +69,7 @@ public class AutocompleteCoordinatorUnitTest {
     @Mock private LocationBarDataProvider mLocationBarDataProvider;
     @Mock private Callback<String> mBringToForegroundCallback;
     @Mock private BasicSuggestionProcessor.BookmarkState mBookmarkState;
-    @Mock private OmniboxActionDelegate mOmniboxActionDelegate;
+    @Mock private OmniboxActionDelegateImpl mOmniboxActionDelegate;
     @Mock private ActivityLifecycleDispatcher mLifecycleDispatcher;
     @Mock private WindowAndroid mWindowAndroid;
     @Mock private DeferredIMEWindowInsetApplicationCallback mDeferredImeInsetCb;
@@ -84,12 +79,12 @@ public class AutocompleteCoordinatorUnitTest {
 
     @Before
     public void setUp() {
-        mContext =
+        Context context =
                 new ContextThemeWrapper(
                         ApplicationProvider.getApplicationContext(),
                         R.style.Theme_BrowserUI_DayNight);
 
-        lenient().when(mParentView.getContext()).thenReturn(mContext);
+        lenient().when(mParentView.getContext()).thenReturn(context);
         lenient()
                 .when(mLocationBarDataProvider.getToolbarPositionSupplier())
                 .thenReturn(mControlsPositionSupplier);

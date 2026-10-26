@@ -22,35 +22,64 @@ namespace blink {
 
 uint64_t SoftNavigationContext::last_context_id_ = 0;
 
-SoftNavigationContext::SoftNavigationContext(LocalDOMWindow& window)
+SoftNavigationContext::SoftNavigationContext(
+    LocalDOMWindow& window,
+    PerformanceEventTiming* initial_event_timing)
     : window_(&window),
       lcp_calculator_(MakeGarbageCollected<LargestContentfulPaintCalculator>(
           DOMWindowPerformance::performance(window),
-          this)) {
-  window_->GetSoftNavigationHeuristics()->ForEachInteractionEffectsMonitor(
+          this)),
+      initial_event_timing_(initial_event_timing) {
+  CHECK(initial_event_timing_);
+  CHECK(initial_event_timing_->IsKnownToBeAnInteraction());
+
+  TRACE_EVENT_BEGIN("loading", "SoftNavigation",
+                    perfetto::Track::FromPointer(this), TimeOrigin());
+
+  TRACE_EVENT_INSTANT("loading", "SoftNavigationContextCreated",
+                      perfetto::Track::FromPointer(this), "context", *this);
+
+  GetSoftNavigationHeuristics()->ForEachInteractionEffectsMonitor(
       [&](InteractionEffectsMonitor& monitor) {
         monitor.OnSoftNavigationContextCreated();
       });
 }
 
+PerformanceTimelineEntryIdInfo SoftNavigationContext::GetInteractionIdInfo()
+    const {
+  return initial_event_timing_->GetInteractionIdInfo().value();
+}
+
+SoftNavigationHeuristics* SoftNavigationContext::GetSoftNavigationHeuristics()
+    const {
+  // Before this context is Garbage-collected, it may become disposed, and
+  // window_ may get cleared.
+  if (HasBeenShutdown()) {
+    return nullptr;
+  }
+  return window_->GetSoftNavigationHeuristics();
+}
+
 base::TimeTicks SoftNavigationContext::TimeOrigin() const {
-  if (processing_end_.is_null()) {
-    return url_change_time_;
-  }
-  if (url_change_time_.is_null()) {
-    return processing_end_;
-  }
-  return std::min(url_change_time_, processing_end_);
+  return initial_event_timing_->GetStartTime();
 }
 
 void SoftNavigationContext::AddUrl(
     const String& url,
+    V8NavigationType::Enum navigation_type,
     base::UnguessableToken same_document_metrics_token) {
-  if (initial_url_.empty()) {
-    initial_url_ = url;
-    same_document_metrics_token_ = same_document_metrics_token;
-    url_change_time_ = base::TimeTicks::Now();
+  // The navigation layer should never pass an empty URL.
+  CHECK(!url.empty());
+
+  // An interaction can lead to multiple URL changes, e.g. because of
+  // client-side redirects. Subsequent URL changes are no-ops.
+  if (!initial_url_.empty()) {
+    return;
   }
+  initial_url_ = url;
+  navigation_type_ = navigation_type;
+  same_document_metrics_token_ = same_document_metrics_token;
+  url_change_time_ = base::TimeTicks::Now();
 }
 
 void SoftNavigationContext::AddModifiedNode(Node* node) {
@@ -106,13 +135,18 @@ bool SoftNavigationContext::AddPaintedArea(PaintTimingRecord* record) {
 }
 
 bool SoftNavigationContext::SatisfiesSoftNavNonPaintCriteria() const {
-  if (HasDomModification() && HasUrl() && !ProcessingEnd().is_null()) {
-    CHECK(!UrlChangeTime().is_null());  // Implied by HasUrl()
-    // Implied by !UrlChangeTime().is_null() and !ProcessingEnd().is_null()
-    CHECK(!TimeOrigin().is_null());
-    return true;
+  // TODO(crbug.com/490814752): Event StartTime value seems to be missing in
+  // some unittests.  It should not be missing from any real events.
+  if (TimeOrigin().is_null()) {
+    return false;
   }
-  return false;
+  // These start false, and become true as we observe effects.
+  if (!HasDomModification() || !HasUrl()) {
+    return false;
+  }
+  CHECK(!UrlChangeTime().is_null());
+  CHECK(!TimeOrigin().is_null());
+  return true;
 }
 
 bool SoftNavigationContext::SatisfiesSoftNavPaintCriteria(
@@ -135,7 +169,7 @@ bool SoftNavigationContext::OnPaintFinished() {
   }
 
   if (new_painted_area > 0) {
-    window_->GetSoftNavigationHeuristics()->ForEachInteractionEffectsMonitor(
+    GetSoftNavigationHeuristics()->ForEachInteractionEffectsMonitor(
         [&](InteractionEffectsMonitor& monitor) {
           monitor.OnContentfulPaint(this, new_painted_area);
         });
@@ -161,7 +195,6 @@ void SoftNavigationContext::OnInputOrScroll() {
     return;
   }
   first_input_or_scroll_time_ = base::TimeTicks::Now();
-  latest_unemitted_icp_entry_ = nullptr;
 }
 
 // TODO(crbug.com/419386429): This gets called after each new presentation time
@@ -201,6 +234,9 @@ SoftNavigationContext::LatestLcpDetailsForUkm() {
 
 void SoftNavigationContext::WriteIntoTrace(
     perfetto::TracedValue context) const {
+  // Ensure we don't try to trace after shutdown has been called.  If you want
+  // to trace the final values-- do so right before shutdown.
+  CHECK(!HasBeenShutdown());
   perfetto::TracedDictionary dict = std::move(context).WriteDictionary();
 
   dict.Add("softNavContextId", context_id_);
@@ -209,7 +245,8 @@ void SoftNavigationContext::WriteIntoTrace(
   dict.Add("URL", AttributionUrl());
   dict.Add("timeOrigin", TimeOrigin());
   dict.Add("urlChangeTime", url_change_time_);
-  dict.Add("processingEnd", processing_end_);
+  dict.Add("processingEnd", initial_event_timing_->GetEventTimingReportingInfo()
+                                ->processing_end_time);
   dict.Add("firstContentfulPaint", FirstContentfulPaint());
 
   dict.Add("domModifications", num_modified_dom_nodes_);
@@ -220,26 +257,45 @@ void SoftNavigationContext::Trace(Visitor* visitor) const {
   visitor->Trace(lcp_calculator_);
   visitor->Trace(first_image_or_text_);
   visitor->Trace(window_);
-  visitor->Trace(latest_unemitted_icp_entry_);
+  visitor->Trace(largest_icp_entry_);
+  visitor->Trace(initial_event_timing_);
 }
 
 void SoftNavigationContext::Shutdown() {
+  TRACE_EVENT_END("loading", perfetto::Track::FromPointer(this));
+
   lcp_calculator_ = nullptr;
   first_image_or_text_ = nullptr;
   window_ = nullptr;
-  latest_unemitted_icp_entry_ = nullptr;
+  largest_icp_entry_ = nullptr;
+  initial_event_timing_ = nullptr;
 }
 
 void SoftNavigationContext::EmitSoftNavigation() {
+  CHECK(!HasBeenShutdown());
   CHECK(!WasEmitted());
   CHECK(HasFirstContentfulPaint());
+  CHECK(SatisfiesSoftNavNonPaintCriteria());
   was_emitted_ = true;
 
   if (base::FeatureList::IsEnabled(kSoftNavigationTraceEvents)) {
+    // This trace event reports the TimeOrigin() value which we already report
+    // as part of the umbrella "SoftNavigation" trace, as an instant event.
+    // However, that other event reports all new *potential* soft navs, while
+    // this event only reports actually *emitted* soft navs.
+    // This is used by DevTools performance profiler to mark the perf timeline.
     TRACE_EVENT_INSTANT(
         "scheduler,devtools.timeline,loading", "SoftNavigationStart",
         perfetto::Track::FromPointer(this), TimeOrigin(), "context", *this,
         "frame", GetFrameIdForTracing(window_->GetFrame()));
+
+    // This trace event reports the when the soft nav heuristics were observerd,
+    // and thus when the new navigationId was created, and when the performance
+    // timeline is logically "sliced" into soft-nav sub-timelines.
+    TRACE_EVENT_INSTANT("scheduler,devtools.timeline,loading",
+                        "SoftNavigationEmitted",
+                        perfetto::Track::FromPointer(this),
+                        soft_navigation_slicing_time_, "context", *this);
   }
 
   if (!RuntimeEnabledFeatures::SoftNavigationHeuristicsEnabled(window_)) {
@@ -250,35 +306,18 @@ void SoftNavigationContext::EmitSoftNavigation() {
   CHECK(performance);
   performance->AddSoftNavigationEntry(
       AtomicString(AttributionUrl()), TimeOrigin(),
-      FirstContentfulPaintTimingInfo(), NavigationId());
-
-  // TODO(crbug.com/448974465): We currently don't emit ICP entries or record
-  // metrics for soft navs that are interrupted by a new interaction when there
-  // is pending presentation feedback for FCP, but we do emit the soft nav
-  // entry. We might want to reconsider this.
-  if (!IsRecordingLargestContentfulPaint()) {
-    return;
-  }
-
-  // See method comments in the header for reasons why there might not be a
-  // pending ICP entry.
-  if (!latest_unemitted_icp_entry_) {
-    return;
-  }
-
-  performance->OnInteractionContentfulPaintUpdated(
-      std::exchange(latest_unemitted_icp_entry_, nullptr));
+      FirstContentfulPaintTimingInfo(), NavigationId(), NavigationType(),
+      initial_event_timing_->interactionId(), largest_icp_entry_);
 }
 
 void SoftNavigationContext::Dispose() {
-  // `window_` will be null if this context was already shut down.
-  if (!window_) {
+  if (HasBeenShutdown()) {
     return;
   }
   // `heuristics` will be null if the `window_` was detached but this context
   // wasn't shut down by the associated `SoftNavigationHeuristics`, which
   // happens in some unit tests where the context isn't created by the SNH.
-  SoftNavigationHeuristics* heuristics = window_->GetSoftNavigationHeuristics();
+  SoftNavigationHeuristics* heuristics = GetSoftNavigationHeuristics();
   if (!heuristics) {
     return;
   }
@@ -295,31 +334,25 @@ void SoftNavigationContext::EmitLcpPerformanceEntry(
   if (!RuntimeEnabledFeatures::SoftNavigationHeuristicsEnabled(window_)) {
     return;
   }
-
   // This should not be called after we've been shut down.
-  CHECK(window_);
+  CHECK(!HasBeenShutdown());
+
   WindowPerformance* performance = DOMWindowPerformance::performance(*window_);
+
   auto* entry = MakeGarbageCollected<InteractionContentfulPaint>(
-      /*start_time=*/paint_timing_info.presentation_time,
+      /*start_time=*/performance->MonotonicTimeToDOMHighResTimeStamp(
+          TimeOrigin()),
       /*render_time=*/paint_timing_info.presentation_time, paint_size,
       performance->MonotonicTimeToDOMHighResTimeStamp(load_time), id, url,
-      element, window_, navigation_id_);
+      element, window_, navigation_id_, initial_event_timing_->interactionId());
   entry->SetPaintTimingInfo(paint_timing_info);
+  performance->OnInteractionContentfulPaintUpdated(entry);
 
-  // If the soft nav entry for this context was emitted, emit the ICP entry now;
-  // otherwise, buffer it until all the soft nav criteria are met, if ever, and
-  // emit in `EmitSoftNavigation()`.
-  if (WasEmitted() ||
-      RuntimeEnabledFeatures::SoftNavigationEagerIcpEntryEmissionEnabled()) {
-    CHECK(!latest_unemitted_icp_entry_);
-    performance->OnInteractionContentfulPaintUpdated(entry);
-  } else {
-    latest_unemitted_icp_entry_ = entry;
-  }
+  largest_icp_entry_ = entry;
 }
 
 void SoftNavigationContext::OnLcpMetricsForReportingChanged() {
-  window_->GetSoftNavigationHeuristics()->UpdateSoftLcpMetricsForContext(this);
+  GetSoftNavigationHeuristics()->UpdateSoftLcpMetricsForContext(this);
 }
 
 }  // namespace blink

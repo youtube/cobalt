@@ -269,9 +269,7 @@ export class HistoryListElement extends HistoryListElementBase {
     this.historyData_ = [...this.historyData_, ...results];
     this.resultLoadingDisabled_ = finished;
 
-    if (loadTimeData.getBoolean('enableBrowsingHistoryActorIntegrationM1')) {
-      this.recordActorVisitShown_(results);
-    }
+    this.recordActorVisitShown_(results);
   }
 
   private recordActorVisitShown_(historyResults: HistoryEntry[]) {
@@ -489,10 +487,6 @@ export class HistoryListElement extends HistoryListElementBase {
   }
 
   private recordContextMenuActionsHistogram_(action: VisitContextMenuAction) {
-    if (!loadTimeData.getBoolean('enableBrowsingHistoryActorIntegrationM1')) {
-      return;
-    }
-
     this.browserService_.recordHistogram(
         this.actionMenuModel_!.item.isActorVisit ?
             'HistoryPage.ActorContextMenuActions' :
@@ -567,7 +561,7 @@ export class HistoryListElement extends HistoryListElementBase {
 
     // Handle shift selection. Change the selection state of all items between
     // |path| and |lastSelected| to the selection state of |item|.
-    if (e.detail.shiftKey && this.lastSelectedIndex !== undefined) {
+    if (e.detail.shiftKey && this.lastSelectedIndex !== -1) {
       for (let i = Math.min(index, this.lastSelectedIndex);
            i <= Math.max(index, this.lastSelectedIndex); i++) {
         indices.push(i);

@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 import '/strings.m.js';
-import 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_input/cr_input.js';
 
@@ -47,7 +46,6 @@ export class AppElement extends AppElementBase {
   static override get properties() {
     return {
       isBrowserSwitcherEnabled_: {type: Boolean},
-      showSearch_: {type: Boolean},
       lastFetch_: {type: String},
       nextFetch_: {type: String},
       urlCheckerInput_: {type: String},
@@ -59,7 +57,6 @@ export class AppElement extends AppElementBase {
   }
 
   protected accessor isBrowserSwitcherEnabled_: boolean = true;
-  protected accessor showSearch_: boolean = false;
   protected accessor greyListRules_: RuleItem[] = [];
   protected accessor siteListRules_: RuleItem[] = [];
   protected accessor xmlSiteLists_: XmlSiteListItem[] = [];
@@ -85,6 +82,10 @@ export class AppElement extends AppElementBase {
     if (changedPrivateProperties.has('urlCheckerInput_')) {
       this.checkUrl_(this.urlCheckerInput_);
     }
+  }
+
+  get showXmlRow(): boolean {
+    return this.xmlSiteLists_.some(item => item.url !== this.i18n('notConfigured'));
   }
 
   getRuleBrowserName(rule: string) {
@@ -200,7 +201,7 @@ export class AppElement extends AppElementBase {
         });
   }
 
-  refreshXml() {
+  protected onRefreshXmlClick() {
     getProxy().refreshXml();
   }
 

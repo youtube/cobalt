@@ -18,6 +18,8 @@
 #include "build/buildflag.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
+#include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
+#include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_init_params.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
@@ -33,6 +35,7 @@
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/signin/promos/signin_promo_tab_helper.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -991,11 +994,15 @@ IN_PROC_BROWSER_TEST_F(DiceSigninUiUtilBrowserTest,
   ShowExtensionSigninPrompt(new_profile, /*enable_sync=*/false,
                             /*email_hint=*/std::string());
   // `ShowExtensionSigninPrompt()` creates a new browser.
-  Browser* browser = chrome::FindBrowserWithProfile(new_profile);
+  BrowserWindowInterface* browser =
+      chrome::FindBrowserWithProfile(new_profile);
   ASSERT_TRUE(browser);
-  EXPECT_EQ(1, browser->tab_strip_model()->count());
+  EXPECT_EQ(1, browser->GetTabStripModel()->count());
 
-  // Profile deletion closes the browser.
+  // Scheduling a profile for deletion closes the browser. Prevent Profile from
+  // being destroyed before we attempt to show the signin prompt.
+  ScopedProfileKeepAlive profile_keep_alive(
+      new_profile, ProfileKeepAliveOrigin::kBackgroundMode);
   ui_test_utils::BrowserDestroyedObserver observer(browser);
   g_browser_process->profile_manager()
       ->GetDeleteProfileHelper()

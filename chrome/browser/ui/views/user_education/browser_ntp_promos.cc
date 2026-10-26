@@ -18,7 +18,8 @@
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_action_callback.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_user_education_context.h"
 #include "chrome/browser/user_education/ntp_promo_identifiers.h"
 #include "chrome/grit/branded_strings.h"
@@ -110,15 +111,7 @@ void InvokeExtensionsPromo(ContextPtr context) {
   std::string_view utm_source;
   switch (user_education::features::GetNtpBrowserPromoType()) {
     case user_education::features::NtpBrowserPromoType::kSimple:
-      if (user_education::features::GetNtpBrowserPromoIndividualPromoLimit() >
-          1) {
-        utm_source = extension_urls::kNtpPromo2pUtmSource;
-      } else {
-        utm_source = extension_urls::kNtpPromo1pUtmSource;
-      }
-      break;
-    case user_education::features::NtpBrowserPromoType::kSetupList:
-      utm_source = extension_urls::kNtpPromoSlUtmSource;
+      utm_source = extension_urls::kNtpPromo1pUtmSource;
       break;
     default:
       NOTREACHED();
@@ -160,7 +153,11 @@ NtpPromoSpecification::Eligibility CheckCustomizationPromoEligibility(
 
 void InvokeCustomizationPromo(ContextPtr context) {
   actions::ActionManager::Get()
-      .FindAction(kActionSidePanelShowCustomizeChrome)
+      .FindAction(kActionSidePanelShowCustomizeChrome,
+                  context->AsA<BrowserUserEducationContext>()
+                      ->GetBrowser()
+                      ->GetActions()
+                      ->root_action_item())
       ->InvokeAction(
           actions::ActionInvocationContext::Builder()
               .SetProperty(

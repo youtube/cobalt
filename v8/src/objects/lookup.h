@@ -252,8 +252,8 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   PropertyLocation location() const { return property_details().location(); }
   PropertyConstness constness() const { return property_details().constness(); }
   FieldIndex GetFieldIndex() const;
-  int GetFieldDescriptorIndex() const;
-  int GetAccessorIndex() const;
+  InternalIndex GetFieldDescriptorIndex() const;
+  InternalIndex GetAccessorIndex() const;
   DirectHandle<PropertyCell> GetPropertyCell() const;
   DirectHandle<Object> GetAccessors() const;
   inline DirectHandle<InterceptorInfo> GetInterceptor() const;
@@ -319,6 +319,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   enum class InterceptorState {
     kUninitialized,
     kSkipNonMasking,
+    kSkipNonMaskingOwnProperty,
     kProcessNonMasking
   };
 

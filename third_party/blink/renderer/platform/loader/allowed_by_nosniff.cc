@@ -125,8 +125,8 @@ static bool AllowMimeTypeAsScript(
   // we still wish to accept them (or log them using UseCounter, or add a
   // deprecation warning to the console).
 
-  if (EqualIgnoringASCIICase(mime_type, "text/javascript1.6") ||
-      EqualIgnoringASCIICase(mime_type, "text/javascript1.7")) {
+  if (EqualIgnoringAsciiCase(mime_type, "text/javascript1.6") ||
+      EqualIgnoringAsciiCase(mime_type, "text/javascript1.7")) {
     // We've been excluding these legacy values from UseCounter stats since
     // before.
     return true;
@@ -142,8 +142,8 @@ static bool AllowMimeTypeAsScript(
     counter = kTextPlainFeatures[same_origin];
   } else if (mime_type.StartsWithIgnoringAsciiCase("text/xml")) {
     counter = kTextXmlFeatures[same_origin];
-  } else if (mime_type.DeprecatedStartsWithIgnoringCase("text/json") ||
-             mime_type.DeprecatedStartsWithIgnoringCase("application/json")) {
+  } else if (mime_type.StartsWithIgnoringAsciiCase("text/json") ||
+             mime_type.StartsWithIgnoringAsciiCase("application/json")) {
     counter = kJsonFeatures[same_origin];
   } else {
     counter = kUnknownFeatures[same_origin];
@@ -159,7 +159,7 @@ bool AllowedByNosniff::MimeTypeAsScript(UseCounter& use_counter,
                                         const ResourceResponse& response,
                                         MimeTypeCheck mime_type_check_mode) {
   // The content type is really only meaningful for `http:`-family schemes.
-  if (!response.CurrentRequestUrl().ProtocolIsInHTTPFamily()) {
+  if (!response.CurrentRequestUrl().ProtocolIsInHttpFamily()) {
     StringView last_path_component =
         response.CurrentRequestUrl().LastPathComponent();
     if (last_path_component.ends_with(".js") ||

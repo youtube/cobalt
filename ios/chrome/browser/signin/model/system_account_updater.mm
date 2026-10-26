@@ -50,6 +50,7 @@ class SystemIdentityInfo {
   ~SystemIdentityInfo() = default;
 
   const GaiaId& gaia_id() const { return gaia_id_; }
+  // Returns the full name or an empty string.
   NSString* full_name() const { return full_name_; }
   NSString* user_email() const { return user_email_; }
   UIImage* cached_avatar() const { return cached_avatar_; }
@@ -63,6 +64,7 @@ class SystemIdentityInfo {
 
  private:
   GaiaId gaia_id_;
+  // The name may be empty.
   NSString* full_name_;
   NSString* user_email_;
   UIImage* cached_avatar_;
@@ -290,15 +292,9 @@ void SystemAccountUpdater::HandleMigrationIfNeeded() {
     // Only migrate prefs if a migration was never performed.
     local_state->SetBoolean(prefs::kMigrateWidgetsPrefs, true);
     UpdateLoadedAccounts();
-  } else if (!local_state->GetBoolean(prefs::kWidgetsForMultiProfile) &&
-             AreSeparateProfilesForManagedAccountsEnabled()) {
+  } else if (!local_state->GetBoolean(prefs::kWidgetsForMultiProfile)) {
     // Reload timelines if multi-profile was enabled since last build.
     local_state->SetBoolean(prefs::kWidgetsForMultiProfile, true);
-    ReloadAllTimelines();
-  } else if (local_state->GetBoolean(prefs::kWidgetsForMultiProfile) &&
-             !AreSeparateProfilesForManagedAccountsEnabled()) {
-    // Reload timelines if multi-profile was disabled since last build.
-    local_state->SetBoolean(prefs::kWidgetsForMultiProfile, false);
     ReloadAllTimelines();
   }
 }

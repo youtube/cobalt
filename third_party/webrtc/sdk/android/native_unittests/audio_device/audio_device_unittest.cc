@@ -35,7 +35,6 @@
 #include "modules/audio_device/include/mock_audio_transport.h"
 #include "rtc_base/event.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/time_utils.h"
 #include "sdk/android/generated_native_unittests_jni/BuildInfo_jni.h"
 #include "sdk/android/native_api/audio_device_module/audio_device_android.h"
 #include "sdk/android/native_api/jni/application_context_provider.h"
@@ -44,6 +43,7 @@
 #include "sdk/android/src/jni/audio_device/audio_device_module.h"
 #include "sdk/android/src/jni/audio_device/opensles_common.h"
 #include "sdk/android/src/jni/jvm.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
@@ -258,8 +258,9 @@ class FifoAudioStream : public AudioStreamInterface {
 // See http://source.android.com/devices/audio/loopback.html for details.
 class LatencyMeasuringAudioStream : public AudioStreamInterface {
  public:
-  explicit LatencyMeasuringAudioStream(size_t frames_per_buffer)
-      : frames_per_buffer_(frames_per_buffer),
+  LatencyMeasuringAudioStream(size_t frames_per_buffer, Environment env)
+      : env_(env),
+        frames_per_buffer_(frames_per_buffer),
         bytes_per_buffer_(frames_per_buffer_ * sizeof(int16_t)),
         play_count_(0),
         rec_count_(0),
@@ -275,7 +276,7 @@ class LatencyMeasuringAudioStream : public AudioStreamInterface {
     memset(destination, 0, bytes_per_buffer_);
     if (play_count_ % (kNumCallbacksPerSecond / kImpulseFrequencyInHz) == 0) {
       if (pulse_time_ == 0) {
-        pulse_time_ = webrtc::TimeMillis();
+        pulse_time_ = env_.clock().TimeInMilliseconds();
       }
       PRINT(".");
       const int16_t impulse = std::numeric_limits<int16_t>::max();
@@ -305,7 +306,7 @@ class LatencyMeasuringAudioStream : public AudioStreamInterface {
         std::distance(vec.begin(), std::find(vec.begin(), vec.end(), max));
     if (max > kImpulseThreshold) {
       PRINTD("(%d,%d)", max, index_of_max);
-      int64_t now_time = webrtc::TimeMillis();
+      int64_t now_time = env_.clock().TimeInMilliseconds();
       int extra_delay = IndexToMilliseconds(static_cast<double>(index_of_max));
       PRINTD("[%d]", static_cast<int>(now_time - pulse_time_));
       PRINTD("[%d]", extra_delay);
@@ -358,6 +359,7 @@ class LatencyMeasuringAudioStream : public AudioStreamInterface {
   }
 
  private:
+  const Environment env_;
   const size_t frames_per_buffer_;
   const size_t bytes_per_buffer_;
   size_t play_count_;
@@ -685,7 +687,7 @@ class AudioDeviceTest : public ::testing::Test {
   }
 
   JNIEnv* jni_;
-  const Environment webrtc_env_ = CreateEnvironment();
+  const Environment webrtc_env_ = CreateTestEnvironment();
   ScopedJavaLocalRef<jobject> context_;
   webrtc::Event test_is_done_;
   webrtc::scoped_refptr<AudioDeviceModule> audio_device_;
@@ -1163,8 +1165,8 @@ TEST_F(AudioDeviceTest, DISABLED_MeasureLoopbackLatency) {
   EXPECT_EQ(record_channels(), playout_channels());
   EXPECT_EQ(record_sample_rate(), playout_sample_rate());
   NiceMock<MockAudioTransportAndroid> mock(kPlayout | kRecording);
-  std::unique_ptr<LatencyMeasuringAudioStream> latency_audio_stream(
-      new LatencyMeasuringAudioStream(playout_frames_per_10ms_buffer()));
+  auto latency_audio_stream = std::make_unique<LatencyMeasuringAudioStream>(
+      playout_frames_per_10ms_buffer(), webrtc_env_);
   mock.HandleCallbacks(&test_is_done_, latency_audio_stream.get(),
                        kMeasureLatencyTime.seconds() * kNumCallbacksPerSecond);
   EXPECT_EQ(0, audio_device()->RegisterAudioCallback(&mock));

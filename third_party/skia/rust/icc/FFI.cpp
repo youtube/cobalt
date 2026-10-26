@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Google LLC.
+ * Copyright 2025 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -15,42 +15,6 @@
 #include <type_traits>
 
 namespace rust_icc {
-
-bool ApproximateCurveWrapper(rust::Slice<const uint16_t> table,
-                             TransferFunction& out_approx,
-                             float& out_max_error) {
-    if (table.empty()) {
-        return false;
-    }
-
-    // Construct skcms_Curve for the table
-    skcms_Curve curve;
-    memset(&curve, 0, sizeof(skcms_Curve));
-    curve.table_entries = static_cast<uint32_t>(table.size());
-    curve.table_8 = nullptr;
-    curve.table_16 = reinterpret_cast<const uint8_t*>(table.data());
-
-    // Call skcms_ApproximateCurve (signature verified at compile time)
-    skcms_TransferFunction skcms_approx;
-    float max_error = 0.0f;
-    bool success = skcms_ApproximateCurve(&curve, &skcms_approx, &max_error);
-
-    if (!success) {
-        return false;
-    }
-
-    // Copy result field-by-field to avoid memcpy of non-trivial type
-    out_approx.g = skcms_approx.g;
-    out_approx.a = skcms_approx.a;
-    out_approx.b = skcms_approx.b;
-    out_approx.c = skcms_approx.c;
-    out_approx.d = skcms_approx.d;
-    out_approx.e = skcms_approx.e;
-    out_approx.f = skcms_approx.f;
-    out_max_error = max_error;
-
-    return true;
-}
 
 void ToSkcmsMatrix3x3(const Matrix3x3& rust_matrix, skcms_Matrix3x3* out_skcms) {
     // Note: std::is_layout_compatible_v (C++20) is not yet implemented in LLVM (P0466R5).
@@ -124,10 +88,12 @@ static bool ToSkcmsA2B(const rust_icc::A2B& rust_a2b, skcms_A2B* out_skcms) {
         return false;
     }
     memcpy(out_skcms->grid_points, rust_a2b.grid_points.data(), 4);
-    if (rust_a2b.is_16bit_grid) {
-        out_skcms->grid_16 = rust_a2b.grid_data.data();
-    } else {
-        out_skcms->grid_8 = rust_a2b.grid_data.data();
+    if (!rust_a2b.grid_data.empty()) {
+        if (rust_a2b.is_16bit_grid) {
+            out_skcms->grid_16 = rust_a2b.grid_data.data();
+        } else {
+            out_skcms->grid_8 = rust_a2b.grid_data.data();
+        }
     }
 
     // Matrix curves and matrix
@@ -236,10 +202,12 @@ static bool ToSkcmsB2A(const rust_icc::B2A& rust_b2a, skcms_B2A* out_skcms) {
         return false;
     }
     memcpy(out_skcms->grid_points, rust_b2a.grid_points.data(), 4);
-    if (rust_b2a.is_16bit_grid) {
-        out_skcms->grid_16 = rust_b2a.grid_data.data();
-    } else {
-        out_skcms->grid_8 = rust_b2a.grid_data.data();
+    if (!rust_b2a.grid_data.empty()) {
+        if (rust_b2a.is_16bit_grid) {
+            out_skcms->grid_16 = rust_b2a.grid_data.data();
+        } else {
+            out_skcms->grid_8 = rust_b2a.grid_data.data();
+        }
     }
 
     // Output curves
@@ -269,15 +237,13 @@ bool ToSkcmsIccProfile(const IccProfile& rust_profile, skcms_ICCProfile* out_skc
         ToSkcmsMatrix3x3(rust_profile.to_xyzd50, &out_skcms->toXYZD50);
     }
 
-    // Copy transfer curves if present
+    // Copy transfer curves if present preserving the original curve type
+    // (parametric or table).
     out_skcms->has_trc = rust_profile.has_trc;
     if (rust_profile.has_trc) {
-        // Convert each channel's transfer function
-        for (int i = 0; i < 3; i++) {
-            // Set up the skcms_Curve as a parametric function (not a LUT)
-            out_skcms->trc[i].table_entries = 0;  // 0 = parametric, not table
-            ToSkcmsTransferFunction(rust_profile.trc[i], &out_skcms->trc[i].parametric);
-        }
+        ToSkcmsCurve(rust_profile.trc_r, &out_skcms->trc[0]);
+        ToSkcmsCurve(rust_profile.trc_g, &out_skcms->trc[1]);
+        ToSkcmsCurve(rust_profile.trc_b, &out_skcms->trc[2]);
     }
 
     // Copy CICP data if present

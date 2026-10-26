@@ -85,12 +85,24 @@ const char kEnableRGBA4444Textures[] = "enable-rgba-4444-textures";
 const char kEnableRasterSideDarkModeForImages[] =
     "enable-raster-side-dark-mode-for-images";
 
+#if BUILDFLAG(IS_CHROMEOS)
+// Enables WebGL rendering into a scanout buffer for overlay support.
+// Restricted to ChromeOS, where this functionality is enabled on a per-board
+// basis.
+const char kEnableWebGLImageChromium[] = "enable-webgl-image-chromium";
+#endif
+
 // Enable rasterizer that writes directly to GPU memory associated with tiles.
 const char kEnableZeroCopy[] = "enable-zero-copy";
 
 // Sets the total amount of memory that may be allocated for GPU resources in
 // cc.
 const char kForceGpuMemAvailableMb[] = "force-gpu-mem-available-mb";
+
+// Disables the GpuMemoryBufferReadbackFromTexture codepath for debugging
+// purposes.
+const char kGpuMemoryBufferReadbackFromTextureForceDisabledForDebugging[] =
+    "gmb-readback-from-texture-disabled-for-debugging";
 
 // The number of multisample antialiasing samples for GPU rasterization.
 // Requires MSAA support on GPU to have an effect. 0 disables MSAA.

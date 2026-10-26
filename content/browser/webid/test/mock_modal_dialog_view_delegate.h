@@ -5,9 +5,11 @@
 #ifndef CONTENT_BROWSER_WEBID_TEST_MOCK_MODAL_DIALOG_VIEW_DELEGATE_H_
 #define CONTENT_BROWSER_WEBID_TEST_MOCK_MODAL_DIALOG_VIEW_DELEGATE_H_
 
+#include "content/browser/webid/identity_registry.h"
 #include "content/browser/webid/identity_registry_delegate.h"
 #include "content/common/content_export.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -27,8 +29,7 @@ class MockModalDialogViewDelegate : public IdentityRegistryDelegate {
               OnResolve,
               (GURL,
                const std::optional<std::string>&,
-               const std::optional<GURL>&,
-               const base::Value&),
+               blink::mojom::ResolveTokenParamsPtr),
               (override));
 };
 

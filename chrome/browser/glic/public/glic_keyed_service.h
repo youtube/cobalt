@@ -15,6 +15,7 @@
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
+#include "chrome/browser/glic/common/local_hotkey_manager.h"
 #include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/glic_zero_state_suggestions_manager.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
@@ -24,10 +25,12 @@
 #include "chrome/browser/glic/public/context/glic_sharing_manager.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_instance.h"
+#include "chrome/browser/glic/public/glic_invoke_options.h"
+#include "chrome/browser/glic/public/glic_passkeys.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom-forward.h"
-#include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
+#include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
@@ -69,17 +72,6 @@ class HostManager;
 class GlicWebContentsWarmingPool;
 
 enum class GlicPrewarmingChecksResult;
-
-// LINT.IfChange(GlicPrewarmingFreSource)
-enum class GlicPrewarmingFreSource {
-  kWhatsNew = 0,
-  kNudge = 1,
-  kIph = 2,
-  kTest = 3,
-  kBrowserCommand = 4,
-  kMaxValue = kBrowserCommand,
-};
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicPrewarmingFreSource)
 
 #if !BUILDFLAG(IS_ANDROID)  // Single instance only
 class GlicActorTaskManager;
@@ -131,17 +123,22 @@ class GlicKeyedService : public KeyedService,
   // Show, summon or activate the panel, or close it if it's already active and
   // prevent_close is false. If `bwi` is non-null, attach the panel to its
   // Browser.
-  // If `auto_send` is true and `prompt_suggestion` is provided, the prompt will
-  // be automatically submitted after the panel opens.
   // TODO(b:448888544): remove `prevent_close` in favor of a Show method.
   virtual void ToggleUI(BrowserWindowInterface* bwi,
                         bool prevent_close,
                         mojom::InvocationSource source,
-                        std::optional<std::string> prompt_suggestion,
-                        bool auto_send = false);
+                        std::optional<std::string> prompt_suggestion);
   void ToggleUI(BrowserWindowInterface* bwi,
                 bool prevent_close,
                 mojom::InvocationSource source);
+
+  // Invokes Glic with the given options and automatically submits the prompt.
+  // Access is restricted to authorized callers via InvokeWithAutoSubmitPasskey.
+  void InvokeWithAutoSubmit(InvokeWithAutoSubmitPasskey auto_submit_passkey,
+                            tabs::TabInterface* tab,
+                            GlicInvokeOptions options);
+
+  virtual void Invoke(tabs::TabInterface* tab, GlicInvokeOptions options);
 
   virtual void OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
                                      mojom::InvocationSource source);
@@ -324,7 +321,6 @@ class GlicKeyedService : public KeyedService,
 
   virtual void TryPreload();
   void TryPreloadAfterDelay();
-  virtual void TryPreloadFre(GlicPrewarmingFreSource source);
   void Reload(content::RenderFrameHost* render_frame_host);
   // Close the active embedder for an instance associated with this render frame
   // host.
@@ -402,6 +398,7 @@ class GlicKeyedService : public KeyedService,
   void RequestToShowAutofillSuggestionsDialog(
       actor::TaskId task_id,
       std::vector<autofill::ActorFormFillingRequest> requests,
+      base::WeakPtr<actor::AutofillSelectionDialogEventHandler> event_handler,
       AutofillSuggestionSelectedCallback callback) override;
 #endif
 
@@ -422,9 +419,15 @@ class GlicKeyedService : public KeyedService,
           GetZeroStateSuggestionsForFocusedTabCallback callback,
       std::vector<std::string> returned_suggestions);
 
+  // Shared implementation for ToggleUI and ShowUIWithAutoSend.
+  void ToggleUIInternal(BrowserWindowInterface* bwi,
+                        bool prevent_close,
+                        mojom::InvocationSource source,
+                        std::optional<std::string> prompt_suggestion,
+                        bool auto_send,
+                        std::optional<std::string> conversation_id);
+
   void FinishPreload(GlicPrewarmingChecksResult reason);
-  void FinishPreloadFre(GlicPrewarmingFreSource source,
-                        GlicPrewarmingChecksResult result);
 
   // List of callbacks to be notified when the client requests a change to the
   // context access indicator status.
@@ -440,8 +443,6 @@ class GlicKeyedService : public KeyedService,
 
   // Never null - GlicActorTaskManager and GlicInstanceCoordinatorImpl hold a
   // reference to this so it must be destroyed after them.
-  // NEEDS_ANDROID_IMPL: This is temporarily null on Android until
-  // ActorKeyedService stops crashing at runtime.
   std::unique_ptr<GlicActorPolicyChecker> actor_policy_checker_;
 
   std::unique_ptr<GlicEnabling> enabling_;

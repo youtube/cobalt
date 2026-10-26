@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Google Inc.
+ * Copyright 2017 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -8,7 +8,7 @@
 #ifndef GrDeferredUpload_DEFINED
 #define GrDeferredUpload_DEFINED
 
-#include "src/gpu/AtlasTypes.h"
+#include "src/gpu/ganesh/GrAtlasTypes.h"
 
 #include <cstddef>
 #include <functional>

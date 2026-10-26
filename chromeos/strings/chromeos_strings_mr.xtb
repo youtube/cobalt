@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">चार्ज चाचणी रन करा</translation>
 <translation id="1622402072367425417">चमकणारे बुडबुडे</translation>
 <translation id="1626590945318984973">शॉर्टकट उपलब्ध नाही. फंक्शन आणि <ph name="META_KEY" /> की न वापरता नवीन शॉर्टकट प्रेस करा.</translation>
+<translation id="163774412591892664">तुमच्या अ‍ॅडमिनिस्ट्रेटरने तुमचे डिव्हाइस बंद केले आहे आणि ते त्याचे स्थान अ‍ॅक्सेस करू शकतात.</translation>
 <translation id="1639239467298939599">लोड करत आहे</translation>
 <translation id="1641857168437328880">दस्तऐवज फीडर (एक बाजू असलेले)</translation>
 <translation id="1642396894598555413">सायकल</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814"><ph name="LANGUAGE_NAME" /> ट्रान्स्क्रिप्शन मॉडेल डाउनलोड करणे पूर्ण झाले आहे</translation>
 <translation id="42126664696688958">एक्सपोर्ट</translation>
 <translation id="4213104098953699324">USB कीबोर्ड</translation>
+<translation id="4217571870635786043">डिक्टेशन</translation>
 <translation id="4227825898293920515"><ph name="TIME" /> मध्ये पासवर्ड एक्स्पायर होईल</translation>
 <translation id="4238516577297848345">कोणतेही प्रिंट जॉब प्रगतीपथावर नाहीत</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1685,6 +1687,7 @@
 <translation id="8420955526972171689">हार्डवेअरशी संबंधित समस्यांसाठी चाचण्या आणि ट्रबलशूटिंग रन करा</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">खाली</translation>
+<translation id="8427213022735114808">कोणत्याही मजकूर फील्डमध्ये व्हॉइस टायपिंगची अनुमती देण्यासाठी डिक्टेशन तुमचा व्हॉइस Google ला पाठवेल.</translation>
 <translation id="8428213095426709021">सेटिंग्ज</translation>
 <translation id="8431300646573772016">ChromeOS मध्ये नवीन</translation>
 <translation id="8433186206711564395">नेटवर्क सेटिंग्ज</translation>
@@ -1723,6 +1726,7 @@
 <translation id="8584654835905316966"><ph name="DEVICE_NAME" /> साठी <ph name="VERSION" /> आवृत्तीवर फर्मवेअरचे इंस्टॉलेशन पूर्ण करण्यासाठी रीस्‍टार्टची आवश्‍यकता आहे. तुमचा काँप्युटर अनेक वेळा रीबूट होताना दिसेल. हे वर्तन अपेक्षित आहे.</translation>
 <translation id="8593058461203131755">मीडिया थांबवा</translation>
 <translation id="8620617069779373398">रोमिंग स्थिती</translation>
+<translation id="8624524972189162859">तुमच्या <ph name="DOMAIN_NAME" /> ॲडमिनिस्ट्रेटरने तुमचे डिव्हाइस बंद केले आहे आणि ते त्याचे स्थान ॲक्सेस करू शकतात.</translation>
 <translation id="8626489604350149811"><ph name="APN_NAME" /> साठी आणखी कृती</translation>
 <translation id="86356131183441916">फिकट जांभळा</translation>
 <translation id="8647595191512746911">ऑडिओ ट्रान्स्क्रिप्शन</translation>

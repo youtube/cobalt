@@ -103,9 +103,9 @@ class MinorGCHeapGrowing
 // static
 std::unique_ptr<CppHeap> CppHeap::Create(v8::Platform* platform,
                                          const CppHeapCreateParams& params) {
-  return std::make_unique<internal::CppHeap>(platform, params.custom_spaces,
-                                             params.marking_support,
-                                             params.sweeping_support);
+  return std::make_unique<internal::CppHeap>(
+      platform, params.custom_spaces, params.marking_support,
+      params.sweeping_support, params.stack_start_marker);
 }
 
 cppgc::AllocationHandle& CppHeap::GetAllocationHandle() {
@@ -235,8 +235,7 @@ void FatalOutOfMemoryHandlerImpl(const std::string& reason, SourceLocation,
   if (v8_flags.heap_snapshot_on_oom) {
     cppgc::internal::ClassNameAsHeapObjectNameScope names_scope(
         cpp_heap->AsBase());
-    isolate->heap()->heap_profiler()->WriteSnapshotToDiskAfterGC(
-        v8::HeapProfiler::HeapSnapshotMode::kExposeInternals);
+    isolate->heap()->heap_profiler()->WriteSnapshotToDiskAfterGC();
   }
   V8::FatalProcessOutOfMemory(isolate, reason.c_str());
 }
@@ -518,12 +517,13 @@ CppHeap::CppHeap(
     v8::Platform* platform,
     const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
     cppgc::Heap::MarkingType marking_support,
-    cppgc::Heap::SweepingType sweeping_support)
+    cppgc::Heap::SweepingType sweeping_support,
+    std::optional<cppgc::StackStartMarker> stack_start_marker)
     : cppgc::internal::HeapBase(
           std::make_shared<CppgcPlatformAdapter>(platform), custom_spaces,
           cppgc::internal::HeapBase::StackSupport::
               kSupportsConservativeStackScan,
-          marking_support, sweeping_support, *this),
+          marking_support, sweeping_support, *this, stack_start_marker),
       minor_gc_heap_growing_(
           std::make_unique<MinorGCHeapGrowing>(*stats_collector())),
       cross_heap_remembered_set_(*this) {
@@ -1349,7 +1349,8 @@ bool CppHeap::RetryAllocate(v8::base::FunctionRef<bool()> allocate) {
     return false;
   }
   return isolate_->heap()->allocator()->RetryCustomAllocate(
-      std::move(allocate), AllocationType::kOld);
+      std::move(allocate), AllocationType::kOld,
+      GarbageCollectionReason::kAllocationFailure);
 }
 
 size_t CppHeap::epoch() const { UNIMPLEMENTED(); }

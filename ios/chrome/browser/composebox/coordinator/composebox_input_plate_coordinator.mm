@@ -12,11 +12,14 @@
 #import "components/contextual_search/contextual_search_service.h"
 #import "components/contextual_search/contextual_search_session_handle.h"
 #import "components/lens/lens_overlay_invocation_source.h"
+#import "components/omnibox/browser/aim_eligibility_service.h"
 #import "components/omnibox/browser/location_bar_model_impl.h"
 #import "components/omnibox/composebox/ios/composebox_query_controller_ios.h"
 #import "components/search_engines/template_url_service.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "ios/chrome/browser/aim/model/ios_chrome_aim_eligibility_service_factory.h"
+#import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
+#import "ios/chrome/browser/composebox/coordinator/composebox_cobrowse_omnibox_client.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_entrypoint.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_input_plate_mediator.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_mode_holder.h"
@@ -56,6 +59,7 @@
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
 #import "ios/chrome/browser/shared/public/commands/qr_scanner_commands.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
@@ -72,6 +76,7 @@
 #import "ios/web/public/web_state.h"
 #import "net/base/apple/url_conversions.h"
 #import "services/network/public/cpp/shared_url_loader_factory.h"
+#import "third_party/omnibox_proto/searchbox_config.pb.h"
 
 namespace {
 const size_t kMaxURLDisplayChars = 32 * 1024;
@@ -116,6 +121,11 @@ const CGFloat kSnackbarBottomMargin = 10;
   ComposeboxMetricsRecorder* _metricsRecorder;
   ComposeboxModeHolder* _modeHolder;
   ComposeboxSnackbarPresenter* _snackbarPresenter;
+
+  // Service to check for AI mode eligibility.
+  raw_ptr<AimEligibilityService> _aimEligibilityService;
+  // Subscription for AIM eligibility changes.
+  base::CallbackListSubscription _aimEligibilitySubscription;
 }
 
 - (instancetype)initWithBaseViewController:(UIViewController*)baseViewController
@@ -141,6 +151,7 @@ const CGFloat kSnackbarBottomMargin = 10;
   _viewController =
       [[ComposeboxInputPlateViewController alloc] initWithTheme:_theme];
   _viewController.delegate = self;
+  _viewController.metricsRecorder = _metricsRecorder;
 
   if (_entrypoint == ComposeboxEntrypoint::kNTPAIMButton) {
     [_metricsRecorder
@@ -150,26 +161,34 @@ const CGFloat kSnackbarBottomMargin = 10;
   _voiceSearchController =
       ios::provider::CreateVoiceSearchController(self.browser);
 
-  auto query_controller_config_params = std::make_unique<
-      contextual_search::ContextualSearchContextController::ConfigParams>();
-  query_controller_config_params->send_lns_surface = false;
-  query_controller_config_params->enable_viewport_images = true;
-  query_controller_config_params
-      ->prioritize_suggestions_for_the_first_attached_document = true;
-
-  _contextualService =
-      ContextualSearchServiceFactory::GetForProfile(self.profile);
-
   std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
-      contextualSearchSession = _contextualService->CreateSession(
-          std::move(query_controller_config_params),
-          contextual_search::ContextualSearchSource::kOmnibox,
-          lens::LensOverlayInvocationSource::kOmniboxContextualQuery);
+      contextualSearchSession = nullptr;
+  if (!IsComposeboxAIMDisabled()) {
+    auto query_controller_config_params = std::make_unique<
+        contextual_search::ContextualSearchContextController::ConfigParams>();
+    query_controller_config_params->send_lns_surface = false;
+    query_controller_config_params->enable_viewport_images = true;
+    query_controller_config_params
+        ->prioritize_suggestions_for_the_first_attached_document = true;
+
+    _contextualService =
+        ContextualSearchServiceFactory::GetForProfile(self.profile);
+
+    contextualSearchSession = _contextualService->CreateSession(
+        std::move(query_controller_config_params),
+        contextual_search::ContextualSearchSource::kOmnibox,
+        lens::LensOverlayInvocationSource::kOmniboxContextualQuery);
+  }
 
   FaviconLoader* faviconLoader =
       IOSChromeFaviconLoaderFactory::GetForProfile(self.profile);
   TemplateURLService* templateURLService =
       ios::TemplateURLServiceFactory::GetForProfile(self.profile);
+  _aimEligibilityService =
+      IOSChromeAimEligibilityServiceFactory::GetForProfile(self.profile);
+
+  CommandDispatcher* dispatcher = self.browser->GetCommandDispatcher();
+
   _mediator = [[ComposeboxInputPlateMediator alloc]
       initWithContextualSearchSession:std::move(contextualSearchSession)
                          webStateList:self.browser->GetWebStateList()
@@ -179,14 +198,21 @@ const CGFloat kSnackbarBottomMargin = 10;
                           isIncognito:self.isOffTheRecord
                            modeHolder:_modeHolder
                    templateURLService:templateURLService
-                aimEligibilityService:IOSChromeAimEligibilityServiceFactory::
-                                          GetForProfile(self.profile)
-                          prefService:self.profile->GetPrefs()];
+                aimEligibilityService:_aimEligibilityService
+                          prefService:self.profile->GetPrefs()
+            browserCoordinatorHandler:HandlerForProtocol(
+                                          dispatcher,
+                                          BrowserCoordinatorCommands)
+                         sceneHandler:HandlerForProtocol(dispatcher,
+                                                         SceneCommands)
+                           entrypoint:_entrypoint];
   _mediator.debugLogger = self.debugLogger;
   _mediator.URLLoader = _URLLoader;
   _mediator.consumer = _viewController;
   _mediator.delegate = self;
   _mediator.metricsRecorder = _metricsRecorder;
+
+  [self monitorSearchboxConfig];
 
   _viewController.mutator = _mediator;
   // Mediator is the voice search delegate to load queries in composebox.
@@ -199,16 +225,26 @@ const CGFloat kSnackbarBottomMargin = 10;
   _locationBarModel = std::make_unique<LocationBarModelImpl>(
       _locationBarModelDelegate.get(), kMaxURLDisplayChars);
 
-  auto omniboxClient = std::make_unique<ComposeboxOmniboxClient>(
-      _locationBar.get(), self.browser,
-      feature_engagement::TrackerFactory::GetForProfile(self.profile),
-      _mediator);
+  std::unique_ptr<OmniboxClient> omniboxClient;
+  if (_entrypoint == ComposeboxEntrypoint::kCobrowse) {
+    omniboxClient = std::make_unique<ComposeboxCobrowseOmniboxClient>(
+        self.browser,
+        feature_engagement::TrackerFactory::GetForProfile(self.profile),
+        _mediator);
+  } else {
+    omniboxClient = std::make_unique<ComposeboxOmniboxClient>(
+        _locationBar.get(), self.browser,
+        feature_engagement::TrackerFactory::GetForProfile(self.profile),
+        _mediator);
+  }
 
   _omniboxCoordinator = [[OmniboxCoordinator alloc]
       initWithBaseViewController:nil
                          browser:self.browser
                    omniboxClient:std::move(omniboxClient)
-             presentationContext:OmniboxPresentationContext::kComposebox];
+             presentationContext:_entrypoint == ComposeboxEntrypoint::kCobrowse
+                                     ? OmniboxPresentationContext::kCobrowse
+                                     : OmniboxPresentationContext::kComposebox];
   _omniboxCoordinator.presenterDelegate = self.omniboxPopupPresenterDelegate;
   _omniboxCoordinator.focusDelegate = self;
   [_omniboxCoordinator start];
@@ -227,9 +263,13 @@ const CGFloat kSnackbarBottomMargin = 10;
 }
 
 - (void)stop {
+  _aimEligibilitySubscription = {};
+  _aimEligibilityService = nullptr;
   [_snackbarPresenter dismissAllSnackbars];
+  _snackbarPresenter = nil;
   if (_tabPickerCoordinator.started) {
     [_tabPickerCoordinator stop];
+    _tabPickerCoordinator = nil;
   }
   [_metricsRecorder recordAttachmentButtonsUsageInSession];
 
@@ -245,6 +285,13 @@ const CGFloat kSnackbarBottomMargin = 10;
   [_omniboxCoordinator stop];
   _omniboxCoordinator = nil;
   _metricsRecorder = nil;
+  _theme = nil;
+  _modeHolder = nil;
+  _contextualService = nullptr;
+
+  _locationBar = nullptr;
+  _locationBarModel = nullptr;
+  _locationBarModelDelegate = nullptr;
 }
 
 - (UIViewController*)inputViewController {
@@ -256,11 +303,17 @@ const CGFloat kSnackbarBottomMargin = 10;
   [_omniboxCoordinator toggleOmniboxDebuggerView];
 }
 
+- (void)endEditing {
+  [_omniboxCoordinator endEditing];
+}
+
 #pragma mark - ComposeboxInputPlateViewControllerDelegate
 
 - (void)composeboxViewController:
             (ComposeboxInputPlateViewController*)composeboxViewController
                  didTapMicButton:(UIButton*)micButton {
+  [_metricsRecorder recordVoiceSearchButtonUsed];
+
   WebStateList* webStateList = self.browser->GetWebStateList();
   if (!webStateList) {
     return;
@@ -281,6 +334,8 @@ const CGFloat kSnackbarBottomMargin = 10;
 - (void)composeboxViewController:
             (ComposeboxInputPlateViewController*)composeboxViewController
                 didTapLensButton:(UIButton*)lensButton {
+  [_metricsRecorder recordLensSearchButtonUsed];
+
   OpenLensInputSelectionCommand* command = [[OpenLensInputSelectionCommand
       alloc]
           initWithEntryPoint:LensEntrypoint::Composebox
@@ -298,6 +353,8 @@ const CGFloat kSnackbarBottomMargin = 10;
 - (void)composeboxViewController:
             (ComposeboxInputPlateViewController*)composeboxViewController
            didTapQRScannerButton:(UIButton*)button {
+  [_metricsRecorder recordQRScannerButtonUsed];
+
   __weak id<QRScannerCommands> handler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), QRScannerCommands);
   [self.baseViewController dismissViewControllerAnimated:YES
@@ -687,6 +744,31 @@ const CGFloat kSnackbarBottomMargin = 10;
   }
   _snackbarPresenter =
       [[ComposeboxSnackbarPresenter alloc] initWithBrowser:self.browser];
+}
+
+// Observes the changes in eligibility and sends the searchbox config.
+- (void)monitorSearchboxConfig {
+  if (!_aimEligibilityService) {
+    return;
+  }
+
+  [self updateSearchboxConfig];
+  __weak __typeof(self) weakSelf = self;
+  _aimEligibilitySubscription =
+      _aimEligibilityService->RegisterEligibilityChangedCallback(
+          base::BindRepeating(^{
+            [weakSelf updateSearchboxConfig];
+          }));
+}
+
+// Propagates the searchbox config.
+- (void)updateSearchboxConfig {
+  if (!_aimEligibilityService) {
+    return;
+  }
+  const omnibox::SearchboxConfig* config =
+      _aimEligibilityService->GetSearchboxConfig();
+  [_mediator setSearchboxConfig:config];
 }
 
 @end

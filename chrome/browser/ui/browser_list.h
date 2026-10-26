@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/functional/function_ref.h"
+#include "base/gtest_prod_util.h"
 #include "base/lazy_instance.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
@@ -53,16 +54,20 @@ class BrowserList {
   static void AddObserver(BrowserListObserver* observer);
   static void RemoveObserver(BrowserListObserver* observer);
 
+ private:
+  friend class Browser;
+  friend class BrowserObserverChild;
+  FRIEND_TEST_ALL_PREFIXES(BrowserListBrowserTest, ObserverAddedInFlight);
+
+  BrowserList();
+  ~BrowserList();
+
   // Called by Browser objects when their window is activated (focused).  This
   // allows us to determine what the last active Browser was on each desktop.
   static void SetLastActive(Browser* browser);
 
   // Notifies the observers when the current active browser becomes not active.
   static void NotifyBrowserNoLongerActive(Browser* browser);
-
- private:
-  BrowserList();
-  ~BrowserList();
 
   const_iterator deprecated_begin() const { return browsers_.begin(); }
   const_iterator deprecated_end() const { return browsers_.end(); }

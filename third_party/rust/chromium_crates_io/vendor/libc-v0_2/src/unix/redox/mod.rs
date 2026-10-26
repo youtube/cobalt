@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 pub type wchar_t = i32;
 
-pub type blkcnt_t = c_ulong;
+pub type blkcnt_t = c_longlong;
 pub type blksize_t = c_long;
 pub type clock_t = c_long;
 pub type clockid_t = c_int;
@@ -153,7 +153,7 @@ s! {
     #[allow(unpredictable_function_pointer_comparisons)]
     pub struct sigaction {
         pub sa_sigaction: crate::sighandler_t,
-        pub sa_flags: c_ulong,
+        pub sa_flags: c_int,
         pub sa_restorer: Option<extern "C" fn()>,
         pub sa_mask: crate::sigset_t,
     }
@@ -1096,6 +1096,8 @@ pub const PRIO_PROCESS: c_int = 0;
 pub const PRIO_PGRP: c_int = 1;
 pub const PRIO_USER: c_int = 2;
 
+pub const RENAME_NOREPLACE: c_uint = 1;
+
 f! {
     //sys/socket.h
     pub const fn CMSG_ALIGN(len: size_t) -> size_t {
@@ -1329,6 +1331,15 @@ extern "C" {
     pub fn mkostemp(template: *mut c_char, flags: c_int) -> c_int;
     pub fn mkostemps(template: *mut c_char, suffixlen: c_int, flags: c_int) -> c_int;
     pub fn reallocarray(ptr: *mut c_void, nmemb: size_t, size: size_t) -> *mut c_void;
+
+    // stdio.h
+    pub fn renameat2(
+        olddirfd: c_int,
+        oldpath: *const c_char,
+        newdirfd: c_int,
+        newpath: *const c_char,
+        flags: c_uint,
+    ) -> c_int;
 
     // string.h
     pub fn explicit_bzero(p: *mut c_void, len: size_t);

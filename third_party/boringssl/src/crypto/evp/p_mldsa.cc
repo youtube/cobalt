@@ -50,6 +50,7 @@ constexpr int kMaxContextLength = 255;
     static constexpr Span<const uint8_t> kOID = kMLDSA##kl##OID;              \
     static constexpr auto PrivateKeyFromSeed =                                \
         &MLDSA##kl##_private_key_from_seed;                                   \
+    static constexpr auto GenerateKey = &MLDSA##kl##_generate_key;            \
     static constexpr auto Sign = &MLDSA##kl##_sign;                           \
     static constexpr auto ParsePublicKey = &MLDSA##kl##_parse_public_key;     \
     static constexpr auto PublicOfPrivate =                                   \
@@ -352,7 +353,7 @@ struct MLDSAImplementation {
     return Traits::kPublicKeyBytes * 8;
   }
 
-  static int Init(EvpPkeyCtx *ctx) {
+  static int Init(EvpPkeyCtx *ctx, const EVP_PKEY_ALG *) {
     MldsaPkeyCtx *mctx = New<MldsaPkeyCtx>();
     if (mctx == nullptr) {
       return 0;
@@ -366,7 +367,7 @@ struct MLDSAImplementation {
   }
 
   static int CopyContext(EvpPkeyCtx *dst, EvpPkeyCtx *src) {
-    if (!Init(dst)) {
+    if (!Init(dst, nullptr)) {
       return 0;
     }
     MldsaPkeyCtx *sctx = static_cast<MldsaPkeyCtx *>(src->data);
@@ -374,6 +375,19 @@ struct MLDSAImplementation {
     if (!dctx->context.CopyFrom(sctx->context)) {
       return 0;
     }
+    return 1;
+  }
+
+  static int KeyGen(EvpPkeyCtx *ctx, EvpPkey *pkey) {
+    auto priv = MakeUnique<PrivateKeyData<Traits>>();
+    if (priv == nullptr) {
+      return 0;
+    }
+    uint8_t unused_public[Traits::kPublicKeyBytes];
+    if (!Traits::GenerateKey(unused_public, priv->seed, &priv->priv)) {
+      return 0;
+    }
+    evp_pkey_set0(pkey, &asn1_method, priv.release());
     return 1;
   }
 
@@ -417,13 +431,14 @@ struct MLDSAImplementation {
     MldsaPkeyCtx *mctx = static_cast<MldsaPkeyCtx *>(ctx->data);
     switch (type) {
       case EVP_PKEY_CTRL_SIGNATURE_CONTEXT_STRING: {
-        if (p1 < 0 || p1 > kMaxContextLength) {
+        const auto *context_string =
+            reinterpret_cast<const Span<const uint8_t> *>(p2);
+        if (context_string == nullptr ||
+            context_string->size() > kMaxContextLength) {
           OPENSSL_PUT_ERROR(EVP, EVP_R_INVALID_PARAMETERS);
           return 0;
         }
-        uint8_t *context = reinterpret_cast<uint8_t *>(p2);
-        return mctx->context.CopyFrom(
-            bssl::Span<uint8_t>(context, p1));
+        return mctx->context.CopyFrom(*context_string);
       }
 
       default:
@@ -437,8 +452,7 @@ struct MLDSAImplementation {
       &Init,
       &CopyContext,
       &Cleanup,
-      // TODO(crbug.com/449751916): Add keygen support.
-      /*keygen=*/nullptr,
+      &KeyGen,
       /*sign=*/nullptr,
       &SignMessage,
       /*verify=*/nullptr,
@@ -497,7 +511,7 @@ struct MLDSAImplementation {
   }
 
   static constexpr EVP_PKEY_ASN1_METHOD asn1_method = BuildASN1Method();
-  static constexpr EVP_PKEY_ALG pkey_alg = {&asn1_method};
+  static constexpr EVP_PKEY_ALG pkey_alg = {&asn1_method, &pkey_method};
 };
 
 }  // namespace

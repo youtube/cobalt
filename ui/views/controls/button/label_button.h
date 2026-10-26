@@ -28,7 +28,6 @@
 #include "ui/views/metadata/view_factory.h"
 #include "ui/views/native_theme_delegate.h"
 #include "ui/views/style/typography.h"
-#include "ui/views/widget/widget.h"
 
 namespace actions {
 class ActionItem;
@@ -329,6 +328,9 @@ class VIEWS_EXPORT LabelButton : public Button,
   base::CallbackListSubscription paint_as_active_subscription_;
 
   bool appear_disabled_in_inactive_widget_ = false;
+
+  // Updates the icon when ink drop highlight changes (forced-colors mode).
+  base::CallbackListSubscription ink_drop_highlighted_subscription_;
 
   base::CallbackListSubscription flip_canvas_on_paint_subscription_ =
       AddFlipCanvasOnPaintForRTLUIChangedCallback(

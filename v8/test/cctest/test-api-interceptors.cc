@@ -153,7 +153,7 @@ v8::Intercepted InterceptorGetter(
   for (i = 0; name_str[i] && prefix[i]; ++i) {
     if (name_str[i] != prefix[i]) return v8::Intercepted::kNo;
   }
-  Local<Object> self = info.HolderV2().As<Object>();
+  Local<Object> self = info.Holder().As<Object>();
   info.GetReturnValue().Set(
       self->GetPrivate(
               info.GetIsolate()->GetCurrentContext(),
@@ -179,7 +179,7 @@ v8::Intercepted InterceptorSetter(Local<Name> generic_name, Local<Value> value,
 
   Local<Context> context = info.GetIsolate()->GetCurrentContext();
   if (value->IsInt32() && value->Int32Value(context).FromJust() < 10000) {
-    Local<Object> self = info.HolderV2().As<Object>();
+    Local<Object> self = info.Holder().As<Object>();
     Local<v8::Private> symbol = v8::Private::ForApi(info.GetIsolate(), name);
     self->SetPrivate(context, symbol, value).FromJust();
     return v8::Intercepted::kYes;
@@ -203,7 +203,7 @@ v8::Intercepted GenericInterceptorGetter(
     str = String::Concat(isolate, v8_str("_str_"), name);
   }
 
-  Local<Object> self = info.HolderV2();
+  Local<Object> self = info.Holder();
   info.GetReturnValue().Set(
       self->Get(isolate->GetCurrentContext(), str).ToLocalChecked());
   return v8::Intercepted::kYes;
@@ -226,7 +226,7 @@ v8::Intercepted GenericInterceptorSetter(
     str = String::Concat(info.GetIsolate(), v8_str("_str_"), name);
   }
 
-  Local<Object> self = info.HolderV2();
+  Local<Object> self = info.Holder();
   self->Set(info.GetIsolate()->GetCurrentContext(), str, value).FromJust();
   return v8::Intercepted::kYes;
 }
@@ -486,10 +486,11 @@ void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
   query_counter = 0;
   CHECK(v8_run_bool("obj.hasOwnProperty('enum');"));
   CHECK(v8_run_bool("obj.hasOwnProperty('not_enum');"));
-  // Runtime_ObjectHasOwnProperty has an fast path - it checks own properties
-  // on the object first and calls the query callback only if the property
-  // was not found.
-  CHECK_EQ(0, query_counter);
+  if (interceptor_is_object && masking) {
+    CHECK_EQ(2, query_counter);
+  } else {
+    CHECK_EQ(0, query_counter);
+  }
 
   query_counter = 0;
   CHECK(!v8_run_bool("obj.hasOwnProperty('x');"));
@@ -538,8 +539,11 @@ void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
   // Either the property already existed on the object or it was added
   // by the last store.
   CHECK(v8_run_bool("obj.hasOwnProperty('prop_rw');"));
-  CHECK_EQ(0, query_counter);  // not triggered, since it's on the object
-
+  if (interceptor_is_object && masking) {
+    CHECK_EQ(1, query_counter);
+  } else {
+    CHECK_EQ(0, query_counter);
+  }
   // Attempt to store to interceptor's RO property should trigger query
   // and since it's RO the store shouldn't happen.
 
@@ -559,12 +563,14 @@ void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
 
   query_counter = 0;
   CHECK(!v8_run_bool("obj.hasOwnProperty('proto_prop_rw');"));
-  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && masking) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && !masking) CHECK_EQ(0, query_counter);
   if (interceptor_is_proto) CHECK_EQ(0, query_counter);
 
   query_counter = 0;
   CHECK(!v8_run_bool("obj.hasOwnProperty('proto_prop_ro');"));
-  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && masking) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && !masking) CHECK_EQ(0, query_counter);
   if (interceptor_is_proto) CHECK_EQ(0, query_counter);
 
   // Attempt to store to interceptor's prototype's RW property should trigger
@@ -581,10 +587,8 @@ void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
 
   query_counter = 0;
   CHECK(v8_run_bool("obj.hasOwnProperty('proto_prop_rw');"));
-  // Runtime_ObjectHasOwnProperty has an fast path - it checks own properties
-  // on the object first and calls the query callback only if the property
-  // was not found.
-  if (interceptor_is_object) CHECK_EQ(0, query_counter);
+  if (interceptor_is_object && masking) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && !masking) CHECK_EQ(0, query_counter);
   if (interceptor_is_proto) CHECK_EQ(0, query_counter);
 
   // Attempt to store to interceptor's prototype's RO property should not
@@ -601,7 +605,8 @@ void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
 
   query_counter = 0;
   CHECK(!v8_run_bool("obj.hasOwnProperty('proto_prop_ro');"));
-  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && masking) CHECK_EQ(1, query_counter);
+  if (interceptor_is_object && !masking) CHECK_EQ(0, query_counter);
   if (interceptor_is_proto) CHECK_EQ(0, query_counter);
 }
 
@@ -1305,7 +1310,7 @@ THREADED_TEST(InterceptorLoadICInvalidatedFieldViaGlobal) {
 namespace {
 void SetOnHolder(Local<Name> name, Local<Value> value,
                  const v8::PropertyCallbackInfo<void>& info) {
-  info.HolderV2()
+  info.Holder()
       ->CreateDataProperty(info.GetIsolate()->GetCurrentContext(), name, value)
       .FromJust();
 }
@@ -2903,8 +2908,8 @@ THREADED_TEST(PropertyHandlerInPrototype) {
                                  ->NewInstance(env.local())
                                  .ToLocalChecked();
 
-  bottom->SetPrototypeV2(env.local(), middle).FromJust();
-  middle->SetPrototypeV2(env.local(), top).FromJust();
+  bottom->SetPrototype(env.local(), middle).FromJust();
+  middle->SetPrototype(env.local(), top).FromJust();
   env->Global()->Set(env.local(), v8_str("obj"), bottom).FromJust();
 
   // Indexed and named get.
@@ -2959,8 +2964,8 @@ TEST(PropertyHandlerInPrototypeWithDefine) {
                                  ->NewInstance(env.local())
                                  .ToLocalChecked();
 
-  bottom->SetPrototypeV2(env.local(), middle).FromJust();
-  middle->SetPrototypeV2(env.local(), top).FromJust();
+  bottom->SetPrototype(env.local(), middle).FromJust();
+  middle->SetPrototype(env.local(), top).FromJust();
   env->Global()->Set(env.local(), v8_str("obj"), bottom).FromJust();
 
   // Indexed and named get.
@@ -3550,7 +3555,7 @@ namespace {
 v8::Intercepted SetXOnPrototypeGetter(
     Local<Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   // Set x on the prototype object and do not handle the get request.
-  v8::Local<v8::Value> proto = info.HolderV2()->GetPrototypeV2();
+  v8::Local<v8::Value> proto = info.Holder()->GetPrototype();
   proto.As<v8::Object>()
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("x"),
             v8::Integer::New(info.GetIsolate(), 23))
@@ -6385,6 +6390,40 @@ THREADED_TEST(NonMaskingInterceptorPrototypePropertyIC) {
   ExpectInt32("f(outer)", 4);
 }
 
+THREADED_TEST(NonMaskingInterceptorOwnPropertyTransition) {
+  LocalContext context;
+  auto isolate = context.isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  ShouldInterceptData intercept_data;
+  intercept_data.value = 239;
+  intercept_data.should_intercept = true;
+
+  auto interceptor_templ = v8::ObjectTemplate::New(isolate);
+  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedGetterInterceptor);
+  conf.flags = v8::PropertyHandlerFlags::kNonMasking;
+  conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data);
+  interceptor_templ->SetHandler(conf);
+
+  auto interceptor =
+      interceptor_templ->NewInstance(context.local()).ToLocalChecked();
+  context->Global()
+      ->Set(context.local(), v8_str("obj"), interceptor)
+      .FromJust();
+
+  // Need prototype property to force lookup failure during transition below.
+  CompileRun("Object.getPrototypeOf(obj).prop = 42;");
+
+  CompileRun(R"(
+    Object.defineProperty(obj, "prop", {
+      get: function () {
+        return 139;
+      }
+    });
+  )");
+  ExpectInt32("obj.prop", 139);
+}
+
 namespace {
 
 v8::Intercepted ConcatNamedPropertyGetter(
@@ -6654,7 +6693,7 @@ v8::Intercepted DatabaseGetter(Local<Name> name,
                                const v8::PropertyCallbackInfo<Value>& info) {
   auto context = info.GetIsolate()->GetCurrentContext();
   v8::MaybeLocal<Value> maybe_db =
-      info.HolderV2()->GetRealNamedProperty(context, v8_str("db"));
+      info.Holder()->GetRealNamedProperty(context, v8_str("db"));
   if (maybe_db.IsEmpty()) return v8::Intercepted::kNo;
   Local<v8::Object> db = maybe_db.ToLocalChecked().As<v8::Object>();
   if (!db->Has(context, name).FromJust()) return v8::Intercepted::kNo;
@@ -6673,7 +6712,7 @@ v8::Intercepted DatabaseSetter(Local<Name> name, Local<Value> value,
 
   // Side effects are allowed only when the property is present or throws.
   ApiTestFuzzer::Fuzz();
-  Local<v8::Object> db = info.HolderV2()
+  Local<v8::Object> db = info.Holder()
                              ->GetRealNamedProperty(context, v8_str("db"))
                              .ToLocalChecked()
                              .As<v8::Object>();
@@ -6718,6 +6757,99 @@ THREADED_TEST(NonMaskingInterceptorGlobalEvalRegression) {
       "obj.x = 9;"
       "eval('obj.x');",
       9);
+}
+
+class ArrayLike {
+ public:
+  static v8::Intercepted Getter(
+      uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
+    auto& data = GetData<ArrayLike>(info)->data_;
+    if (index < data.size()) {
+      info.GetReturnValue().Set(data[index]);
+      return v8::Intercepted::kYes;
+    }
+    return v8::Intercepted::kNo;
+  }
+  static v8::Intercepted Query(
+      uint32_t index, const v8::PropertyCallbackInfo<v8::Integer>& info) {
+    auto& data = GetData<ArrayLike>(info)->data_;
+    if (index < data.size()) {
+      return v8::Intercepted::kYes;
+    }
+    return v8::Intercepted::kNo;
+  }
+
+  static uint32_t IndexOf(Local<Value> value, uint32_t start_index,
+                          uint32_t end_index, uint32_t* in_out_length,
+                          const v8::PropertyCallbackInfo<void>& info) {
+    auto& self = *GetData<ArrayLike>(info);
+    self.index_of_count_++;
+
+    Local<Context> context = info.GetIsolate()->GetCurrentContext();
+    auto& data = self.data_;
+    uint32_t length = static_cast<uint32_t>(data.size());
+    *in_out_length = length;
+
+    // This array contains only int32_t values.
+    if (!value->IsInt32()) return i::kMaxUInt32;
+    int32_t needle = value->ToInt32(context).ToLocalChecked()->Value();
+
+    // Cap the indices, in case the builtin used arbitrary "length" value.
+    start_index = std::min(start_index, length);
+    end_index = std::min(end_index, length);
+
+    auto begin = data.begin() + start_index;
+    auto end = data.begin() + end_index;
+
+    auto iter = std::find(begin, end, needle);
+    if (iter == data.end()) return i::kMaxUInt32;
+    return static_cast<uint32_t>(std::distance(data.begin(), iter));
+  }
+
+  static void LengthGetter(Local<Name> property,
+                           const v8::PropertyCallbackInfo<Value>& info) {
+    ArrayLike* self = GetData<ArrayLike>(info);
+
+    info.GetReturnValue().Set(static_cast<uint32_t>(self->data_.size()));
+  }
+
+  std::vector<int32_t> data_;
+  uint32_t index_of_count_ = 0;
+};
+
+THREADED_TEST(ArrayLikeInterceptor) {
+  auto isolate = CcTest::isolate();
+  i::v8_flags.fast_api_indexof = true;
+  v8::HandleScope handle_scope(isolate);
+  LocalContext context;
+
+  const size_t N = 512;
+  ArrayLike array_like;
+  array_like.data_.reserve(N);
+  for (size_t i = 0; i < N; i++) {
+    array_like.data_.push_back(static_cast<int32_t>(i + 15));
+  }
+
+  auto interceptor_templ = v8::ObjectTemplate::New(isolate);
+  v8::IndexedPropertyHandlerConfiguration conf(ArrayLike::Getter, nullptr,
+                                               ArrayLike::Query);
+  conf.index_of = ArrayLike::IndexOf;
+  conf.data = MakeData(isolate, &array_like);
+  interceptor_templ->SetHandler(conf);
+  interceptor_templ->SetNativeDataProperty(
+      v8_str("length"), ArrayLike::LengthGetter, nullptr, conf.data,
+      v8::PropertyAttribute::ReadOnly, v8::SideEffectType::kHasNoSideEffect);
+
+  context->Global()
+      ->Set(context.local(), v8_str("interceptor"),
+            interceptor_templ->NewInstance(context.local()).ToLocalChecked())
+      .FromJust();
+
+  ExpectInt32("interceptor.length", N);
+  ExpectInt32("interceptor[153-15]", 153);
+  ExpectInt32("Array.prototype.indexOf.call(interceptor, 153);", 153 - 15);
+
+  CHECK_EQ(array_like.index_of_count_, 1);
 }
 
 namespace {
@@ -6788,4 +6920,62 @@ THREADED_TEST(Regress42204611) {
   //   2. The definer when trying to intercept the define itself,
   //   3. The setter when applying the property descriptor.
   CHECK_EQ(calls, std::vector<std::string>({"getter", "definer", "setter"}));
+}
+
+namespace {
+
+v8::Intercepted ThrowingQueryCallback(
+    Local<Name> property, const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  ApiTestFuzzer::Fuzz();
+  auto throw_on_query = *GetData<bool>(info);
+  if (!throw_on_query) return v8::Intercepted::kNo;
+  auto isolate = info.GetIsolate();
+  auto context = isolate->GetCurrentContext();
+  if (v8_str("foo")->Equals(context, property).FromJust()) {
+    isolate->ThrowException(v8_str("interceptor exception"));
+    return v8::Intercepted::kYes;
+  }
+  return v8::Intercepted::kNo;
+}
+
+}  // namespace
+
+THREADED_TEST(HasOwnPropertyWithInterceptorThrow) {
+  LocalContext env;
+  auto isolate = env.isolate();
+  v8::HandleScope scope(isolate);
+  auto fun_templ = v8::FunctionTemplate::New(isolate);
+  auto instance_templ = fun_templ->InstanceTemplate();
+  bool throw_on_query;
+  auto data = MakeData(isolate, &throw_on_query);
+  instance_templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      nullptr, nullptr, ThrowingQueryCallback, nullptr, nullptr, data,
+      v8::PropertyHandlerFlags::kNone));
+  auto function = fun_templ->GetFunction(env.local()).ToLocalChecked();
+  auto obj = function->NewInstance(env.local()).ToLocalChecked();
+  env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust();
+
+  // Turn off throw while installing property behind masking interceptor.
+  throw_on_query = false;
+  CHECK(obj->Set(env.local(), v8_str("foo"), v8_num(42)).FromJust());
+  throw_on_query = true;
+
+  // Check hasOwnProperty via api.
+  {
+    v8::TryCatch try_catch(isolate);
+    v8::Maybe<bool> result = obj->HasOwnProperty(env.local(), v8_str("foo"));
+    CHECK(result.IsNothing());
+    CHECK(try_catch.HasCaught());
+    CHECK(try_catch.Exception()->StrictEquals(v8_str("interceptor exception")));
+  }
+  // Check hasOwnProperty via js.
+  {
+    v8::TryCatch try_catch(isolate);
+    v8::Local<v8::Value> result = CompileRun(R"(
+      var r;
+      try { r = obj.hasOwnProperty('foo'); } catch(e) { r = e; }
+      r;
+    )");
+    CHECK(result->StrictEquals(v8_str("interceptor exception")));
+  }
 }

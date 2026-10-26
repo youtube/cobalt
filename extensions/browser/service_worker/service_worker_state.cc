@@ -4,6 +4,9 @@
 
 #include "extensions/browser/service_worker/service_worker_state.h"
 
+#include "base/debug/alias.h"
+#include "base/debug/dump_without_crashing.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/common/child_process_id.h"
@@ -18,6 +21,29 @@ namespace {
 
 // Prevent check on multiple workers per extension for testing purposes.
 bool g_allow_multiple_workers_per_extension = false;
+
+// NOTE: These values are persisted to logs. Entries should not be renumbered
+// and numeric values should never be reused.
+enum class WorkerVersionIdState {
+  kNewVersionIsOlder = 0,  // The newly received `version_id` is older.
+  kNewVersionIsEqual = 1,  // The newly received `version_id` is equal.
+  kNewVersionIsNewer = 2,  // The newly received `version_id` is newer.
+  kMaxValue = kNewVersionIsNewer,
+};
+
+void RecordWorkerVersionIdStateHistogram(int64_t new_version_id,
+                                         int64_t preexisting_version_id) {
+  WorkerVersionIdState state = WorkerVersionIdState::kNewVersionIsEqual;
+  if (new_version_id < preexisting_version_id) {
+    state = WorkerVersionIdState::kNewVersionIsOlder;
+  } else if (new_version_id > preexisting_version_id) {
+    state = WorkerVersionIdState::kNewVersionIsNewer;
+  }
+  base::UmaHistogramEnumeration(
+      "Extensions.ServiceWorkerBackground.WorkerVersionIdState_OnInitialized_"
+      "NotActive",
+      state);
+}
 
 }  // namespace
 
@@ -93,6 +119,7 @@ void ServiceWorkerState::SetWorkerId(const WorkerId& worker_id) {
   }
 
   worker_id_ = worker_id;
+  CHECK(worker_id_->start_token);
 }
 
 void ServiceWorkerState::StartWorker(const SequencedContextId& context_id) {
@@ -118,8 +145,9 @@ void ServiceWorkerState::DidStartWorkerForScope(
     const SequencedContextId& context_id,
     base::Time start_time,
     int64_t version_id,
-    int process_id,
-    int thread_id) {
+    content::ChildProcessId process_id,
+    int thread_id,
+    const blink::ServiceWorkerToken& token) {
   UMA_HISTOGRAM_BOOLEAN("Extensions.ServiceWorkerBackground.StartWorkerStatus",
                         true);
   UMA_HISTOGRAM_TIMES("Extensions.ServiceWorkerBackground.StartWorkerTime",
@@ -129,9 +157,14 @@ void ServiceWorkerState::DidStartWorkerForScope(
       << "Worker was already loaded";
 
   const ExtensionId& extension_id = context_id.extension_id;
-  const WorkerId worker_id = {
-      extension_id, content::ChildProcessId::FromUnsafeValue(process_id),
-      version_id, thread_id};
+  const WorkerId worker_id = {extension_id, process_id, version_id, thread_id,
+                              token};
+
+  if (!service_worker_context_->IsLiveServiceWorkerWithToken(version_id,
+                                                             token)) {
+    // Drop the IPC message. It is from a stale worker instance.
+    return;
+  }
 
   // HACK: The service worker layer might invoke this callback with an ID for a
   // RenderProcessHost that has already terminated. This isn't the right fix for
@@ -142,9 +175,9 @@ void ServiceWorkerState::DidStartWorkerForScope(
   // this callback with stale processes.
   // https://crbug.com/1335821.
   if (!content::RenderProcessHost::FromID(worker_id.render_process_id)) {
-    // This is definitely hit, and often enough that we can't NOTREACHED(),
-    // CHECK(), or DumpWithoutCrashing(). Instead, log an error and gracefully
-    // return.
+    // The IsLiveServiceWorkerWithToken() check above *should* have caught
+    // this instance.
+    base::debug::DumpWithoutCrashing();
     // TODO(crbug.com/40913640): Investigate and fix.
     LOG(ERROR) << "Received bad DidStartWorkerForScope() message. "
                   "No corresponding RenderProcessHost.";
@@ -166,73 +199,132 @@ void ServiceWorkerState::DidStartWorkerFail(
   }
 }
 
+void ServiceWorkerState::RendererDidInitializeServiceWorkerContext(
+    const SequencedContextId& context_id,
+    const WorkerId& worker_id) {
+  CHECK(worker_id.start_token);
+  if (!service_worker_context_->IsLiveServiceWorkerWithToken(
+          worker_id.version_id, *worker_id.start_token)) {
+    // Drop the IPC message. It is from a stale worker instance.
+    return;
+  }
+
+  if (renderer_state() != RendererState::kNotActive) {
+    // Must be set because the renderer state must have gone through
+    // `kInitialized`, and set the `worker_id`.
+    CHECK(worker_id_.has_value());
+
+    // For a given service worker instance, we can only see one
+    // `RendererDidInitializeServiceWorkerContext` and it will always come
+    // before the associated `RendererDidStartServiceWorkerContext`. So we
+    // can't see the same token twice here.
+    auto preexisting_token = *worker_id_->start_token;
+    auto new_token = *worker_id.start_token;
+    CHECK_NE(preexisting_token, new_token);
+
+    auto preexisting_version_id = worker_id_->version_id;
+    auto new_version_id = worker_id.version_id;
+    RecordWorkerVersionIdStateHistogram(new_version_id, preexisting_version_id);
+
+    if (new_version_id < preexisting_version_id) {
+      // Drop the IPC message. It is from a stale worker version.
+      // TODO(andreaorru): we can also see a stale service worker instance with
+      // the same `version_id` and an "older" service worker token. However, we
+      // do not currently have a way to order service worker tokens. We should
+      // introduce a sequence id.
+      return;
+    }
+    // TODO(andreaorru): if the preexisting `version_id` / service worker token
+    // is not valid anymore, should we untrack it from `ProcessManager` here?
+  }
+
+  SetWorkerId(worker_id);
+  SetRendererState(RendererState::kInitialized);
+}
+
 void ServiceWorkerState::RendererDidStartServiceWorkerContext(
     const SequencedContextId& context_id,
     const WorkerId& worker_id) {
-  DCHECK_NE(RendererState::kActive, renderer_state())
-      << "Worker already started";
+  CHECK(worker_id.start_token);
+  if (!service_worker_context_->IsLiveServiceWorkerWithToken(
+          worker_id.version_id, *worker_id.start_token)) {
+    // Drop the IPC message. It is from a stale worker instance.
+    return;
+  }
 
-  SetWorkerId(worker_id);
+  if (renderer_state() != RendererState::kInitialized) {
+    // We should always see `RendererDidInitializeServiceWorkerContext`
+    // before `RendererDidStartServiceWorkerContext`, so if that's not the
+    // case, we drop this IPC message, because it must be from a stale service
+    // worker.
+    return;
+  }
+
+  // Must be set because the renderer state is `kInitialized`.
+  CHECK(worker_id_.has_value());
+  if (worker_id.start_token != worker_id_->start_token) {
+    // Drop the IPC message. It's from a different worker instance than the one
+    // associated with the `RendererDidInitializeServiceWorkerContext`, so it
+    // must be stale.
+    return;
+  }
+
   SetRendererState(RendererState::kActive);
   NotifyObserversIfReady(context_id);
 }
 
 void ServiceWorkerState::NotifyObserversIfReady(
     const SequencedContextId& context_id) {
-  if (IsReady()) {
-    worker_starting_ = false;
-
-    if (!base::FeatureList::IsEnabled(
-            extensions_features::kOptimizeServiceWorkerStartRequests)) {
-      SetBrowserState(ServiceWorkerState::BrowserState::kReady);
-    }
-
-    for (auto& observer : observers_) {
-      observer.OnWorkerStart(context_id, *worker_id_);
-    }
+  if (!IsReady()) {
+    return;
+  }
+  worker_starting_ = false;
+  for (auto& observer : observers_) {
+    observer.OnWorkerStart(context_id, *worker_id_);
   }
 }
 
 void ServiceWorkerState::RendererDidStopServiceWorkerContext(
     const WorkerId& worker_id,
     const GURL& scope) {
-  if (worker_id_ != worker_id) {
-    // We can see `RendererDidStopServiceWorkerContext` right after
-    // `RendererDidInitializeServiceWorkerContext` and without
-    // `RendererDidStartServiceWorkerContext`.
-    return;
-  }
-
-  if (renderer_state() != RendererState::kActive) {
-    // We can see `RendererDidStopServiceWorkerContext` before or after
-    // `OnStoppingSync`.
-    return;
-  }
-
-  HandleStop(worker_id_->version_id, scope);
+  CHECK(worker_id.start_token);
+  HandleStop(worker_id.version_id, scope, *worker_id.start_token);
 }
 
-void ServiceWorkerState::OnStoppingSync(int64_t version_id, const GURL& scope) {
-  // TODO(crbug.com/40936639): Confirming this is true in order to allow for
-  // synchronous notification of this status change.
+void ServiceWorkerState::OnStoppingSync(
+    int64_t version_id,
+    const GURL& scope,
+    const blink::ServiceWorkerToken& service_worker_token) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  HandleStop(version_id, scope);
+  HandleStop(version_id, scope, service_worker_token);
 }
 
-void ServiceWorkerState::OnStoppedSync(int64_t version_id, const GURL& scope) {
-  // If `OnStoppingSync` was not called for some reason, try again here.
-  if (browser_state_ != BrowserState::kNotActive) {
-    OnStoppingSync(version_id, scope);
+void ServiceWorkerState::OnStoppedSync(
+    int64_t version_id,
+    const GURL& scope,
+    const blink::ServiceWorkerToken& service_worker_token) {
+  HandleStop(version_id, scope, service_worker_token);
+}
+
+void ServiceWorkerState::HandleStop(
+    int64_t version_id,
+    const GURL& scope,
+    const blink::ServiceWorkerToken& service_worker_token) {
+  // NOTE: this method may be called multiple times for the same service worker,
+  // or even for service workers whose token is not tracked by this class
+  // anymore. It needs to handle those cases gracefully.
+
+  // Service workers registered for subscopes via
+  // `navigation.serviceWorker.register()` rather than being declared in the
+  // manifest's background section are not allowed to use extensions API, and
+  // should be ignored here.
+  if (scope.GetPath() != "/") {
+    return;
   }
-}
 
-void ServiceWorkerState::HandleStop(int64_t version_id, const GURL& scope) {
-  // Check that the version ID of the worker that is stopping refers to an
-  // extension service worker that is tracked by this class. Service workers
-  // registered for subscopes via `navigation.serviceWorker.register()` rather
-  // than being declared in the manifest's background section are not allowed
-  // to use extensions API, and should be ignored here. See crbug.com/395536907.
-  if (worker_id_ && worker_id_->version_id == version_id) {
+  // Check that the worker that is stopping refers to an extension service
+  // worker that is tracked by this class.
+  if (worker_id_ && worker_id_->start_token == service_worker_token) {
     // Untrack all the worker state because once a worker begin stopping or
     // stops, a new instance must start before the worker can be considered
     // ready to receive tasks/events again and the renderer stop notifications
@@ -240,8 +332,13 @@ void ServiceWorkerState::HandleStop(int64_t version_id, const GURL& scope) {
     Reset();
   }
 
+  // NOTE: we still signal to our observers that a service worker version is
+  // stopping, even when we don't track the state of that version in this class
+  // anymore. Observers may still care about those versions for tracking or
+  // testing purposes. Importantly, ServiceWorkerTaskQueue needs this to untrack
+  // old service worker versions from ProcessManager. See crbug.com/40936639.
   for (auto& observer : observers_) {
-    observer.OnWorkerStop(version_id, scope);
+    observer.OnWorkerStop(version_id, service_worker_token, scope);
   }
 }
 

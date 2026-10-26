@@ -82,6 +82,7 @@
 #include "third_party/blink/renderer/core/page/viewport_description.h"
 #include "third_party/blink/renderer/core/permissions_policy/policy_helper.h"
 #include "third_party/blink/renderer/core/speculation_rules/speculation_rule_set.h"
+#include "third_party/blink/renderer/core/timing/performance_timeline_entry_id_generator.h"
 #include "third_party/blink/renderer/platform/allow_discouraged_type.h"
 #include "third_party/blink/renderer/platform/bindings/source_location.h"
 #include "third_party/blink/renderer/platform/exported/wrapped_resource_response.h"
@@ -249,9 +250,11 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
       WebFrameLoadType,
       FirePopstate,
       bool should_skip_screenshot,
+      UserNavigationInvolvement involvement,
+      PerformanceTimelineEntryIdInfo interaction_id =
+          PerformanceTimelineEntryIdInfo::kNone,
       bool is_browser_initiated = false,
-      bool is_synchronously_committed = true,
-      std::optional<scheduler::TaskAttributionId> task_state_id = std::nullopt);
+      bool is_synchronously_committed = true);
 
   // |is_synchronously_committed| is described in comment for
   // CommitSameDocumentNavigation.
@@ -265,10 +268,12 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
       const SecurityOrigin* initiator_origin,
       bool is_browser_initiated,
       bool is_synchronously_committed,
-      std::optional<scheduler::TaskAttributionId> task_state_id,
       bool has_transient_user_activation,
+      UserNavigationInvolvement involvement,
       bool has_ua_visual_transition,
-      bool should_skip_screenshot);
+      bool should_skip_screenshot,
+      PerformanceTimelineEntryIdInfo interaction_id =
+          PerformanceTimelineEntryIdInfo::kNone);
 
   const ResourceResponse& GetResponse() const { return response_; }
 
@@ -413,6 +418,14 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
   // to ensure the token can only be used to invoke a single text fragment.
   bool ConsumeTextFragmentToken();
 
+  // Returns the text fragment to scroll to and clears it.
+  std::optional<String> TakeInternalScrollToTextFragment();
+
+  // For testing purposes.
+  void SetInternalScrollToTextFragment(const String& text_fragment) {
+    internal_scroll_to_text_fragment_ = text_fragment;
+  }
+
   // Notifies that the prerendering document this loader is working for is
   // activated.
   void NotifyPrerenderingDocumentActivated(
@@ -547,9 +560,11 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
       bool is_browser_initiated,
       bool is_synchronously_committed,
       mojom::blink::TriggeringEventInfo,
-      std::optional<scheduler::TaskAttributionId> task_state_id,
+      UserNavigationInvolvement involvement,
       bool has_ua_visual_transition,
-      bool should_skip_screenshot);
+      bool should_skip_screenshot,
+      PerformanceTimelineEntryIdInfo interaction_id =
+          PerformanceTimelineEntryIdInfo::kNone);
 
   // Use these method only where it's guaranteed that |m_frame| hasn't been
   // cleared.
@@ -762,6 +777,10 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
   // through a redirect.
   bool has_text_fragment_token_ = false;
 
+  // If set, the document should attempt to scroll this text fragment into view
+  // upon load, without highlighting it.
+  std::optional<String> internal_scroll_to_text_fragment_;
+
   // See WebNavigationParams for definition.
   const bool was_discarded_ = false;
 
@@ -881,6 +900,24 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
   // Stores the total time taken by `UpdateSubresourceLoadMetrics()` for the
   // measurement purpose.
   base::TimeDelta total_taken_time_to_update_subresource_load_metrics_;
+
+  // Special case for same-document navigations initiated by a cross-origin
+  // frame: When a same-document navigation occurs in an iframe, we call
+  // FrameOwner::DispatchLoad() to fire a load event on the iframe that is
+  // embedding this frame. The parent frame containing that iframe might be
+  // cross-origin, and therefore shouldn't know whether the navigation was
+  // same-document or cross-document. We therefore schedule the DispatchLoad
+  // on a timer, which allows us to coalesce repeated same-document navigations
+  // into a single DispatchLoad, emulating the behavior of repeated
+  // cross-document navigations that will cancel each other if one doesn't have
+  // time to finish before the next one begins.
+  TaskHandle cross_origin_parent_load_event_task_;
+
+  // Token used to derive a consistent opaque origin for the initial empty
+  // document of a newly created sandboxed frame or window. Non-null only
+  // when committing the initial empty document with the `kOrigin` sandbox
+  // flag set, null for all cross-document navigations.
+  std::unique_ptr<base::UnguessableToken> sandbox_origin_token_;
 };
 
 DECLARE_WEAK_IDENTIFIER_MAP(DocumentLoader);

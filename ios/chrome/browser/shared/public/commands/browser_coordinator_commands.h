@@ -107,6 +107,14 @@ enum class TrustedVaultUserActionTriggerForUMA;
 // Preloads voice search in the current BVC.
 - (void)preloadVoiceSearch;
 
+// Shows the voice search UI after stopping it on all other browsers in the
+// scene.
+- (void)startVoiceSearch;
+
+// Stops voice search on this browser. To stop voice search on all browsers in
+// a scene, `stopAllVoiceSearch` from `SceneCommands` can be used.
+- (void)stopVoiceSearch;
+
 // Dismiss the password suggestions.
 - (void)dismissPasswordSuggestions;
 
@@ -142,6 +150,14 @@ enum class TrustedVaultUserActionTriggerForUMA;
 // Shows and dismisses the Search What You See promo.
 - (void)showSearchWhatYouSeePromo;
 - (void)dismissSearchWhatYouSeePromo;
+
+// Shows and dismisses the Price Tracking promo.
+- (void)showPriceTrackingPromo;
+- (void)dismissPriceTrackingPromo;
+
+// Shows and dismisses the Tab Groups promo.
+- (void)showTabGroupsPromo;
+- (void)dismissTabGroupsPromo;
 
 // Shows the notifications opt-in view from `accessPoint`.
 - (void)showNotificationsOptInFromAccessPoint:

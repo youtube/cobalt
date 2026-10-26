@@ -508,12 +508,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Branch(&prepare_step_in_suspended_generator, eq, a1, Operand(a6));
   __ bind(&stepping_prepared);
 
-  // Check the stack for overflow. We are not trying to catch interruptions
-  // (i.e. debug break and preemption) here, so check the "real stack limit".
-  Label stack_overflow;
-  __ LoadStackLimit(kScratchReg, StackLimitKind::kRealStackLimit);
-  __ Branch(&stack_overflow, Uless, sp, Operand(kScratchReg));
-
   Register argc = kJavaScriptCallArgCountRegister;
   // Compute actual arguments count value as a formal parameter count without
   // receiver, loaded from the dispatch table entry or shared function info.
@@ -551,12 +545,18 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- ra    : return address
   // -----------------------------------
   // Copy the function arguments from the generator object's register file.
+  Label stack_overflow;
   {
     Label done_loop, loop;
     __ SubWord(a3, argc, Operand(kJSArgcReceiverSlots));
     __ LoadTaggedField(
         t1,
         FieldMemOperand(a1, JSGeneratorObject::kParametersAndRegistersOffset));
+    {
+      UseScratchRegisterScope temps(masm);
+      __ StackOverflowCheck(a3, temps.Acquire(), temps.Acquire(),
+                            &stack_overflow);
+    }
     __ bind(&loop);
     __ SubWord(a3, a3, Operand(1));
     __ Branch(&done_loop, lt, a3, Operand(zero_reg), Label::Distance::kNear);
@@ -3121,13 +3121,14 @@ static void SaveVectorRegisters(MacroAssembler* masm,
                                 const VRegList& reg_list) {
   // Check if the machine has simd128 support. Otherwise, the
   // vector registers might not exist and accessing them would SIGILL.
-  Label done;
+  Label not_simd, done;
 
   ASM_CODE_COMMENT(masm);
   __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
   __ Lb(kScratchReg, MemOperand(kScratchReg, 0));
   // If != 0, then simd is available.
-  __ Branch(&done, eq, kScratchReg, Operand(zero_reg), Label::Distance::kNear);
+  __ Branch(&not_simd, eq, kScratchReg, Operand(zero_reg),
+            Label::Distance::kNear);
 
   // Since the builtins are compiled into a snapshot, we can't query the
   // actual hardware vector length. This means that we are not allowed to use
@@ -3138,7 +3139,9 @@ static void SaveVectorRegisters(MacroAssembler* masm,
     __ SubWord(sp, sp, Operand(kSimd128Size));
     __ vs(vector_reg, sp, 0, E8);
   }
-
+  __ Branch(&done);
+  __ bind(&not_simd);
+  __ SubWord(sp, sp, Operand(reg_list.Count() * kSimd128Size));
   __ bind(&done);
 }
 
@@ -3146,12 +3149,13 @@ static void RestoreVectorRegisters(MacroAssembler* masm,
                                    const VRegList& reg_list) {
   // Check if the machine has simd128 support. Otherwise, the
   // vector registers might not exist and accessing them would SIGILL.
-  Label done;
+  Label not_simd, done;
   ASM_CODE_COMMENT(masm);
   __ li(kScratchReg, ExternalReference::supports_wasm_simd_128_address());
   __ Lb(kScratchReg, MemOperand(kScratchReg, 0));
   // If != 0, then simd is available.
-  __ Branch(&done, eq, kScratchReg, Operand(zero_reg), Label::Distance::kNear);
+  __ Branch(&not_simd, eq, kScratchReg, Operand(zero_reg),
+            Label::Distance::kNear);
 
   // Since the builtins are compiled into a snapshot, we can't query the
   // actual hardware vector length. This means that we are not allowed to use
@@ -3163,6 +3167,9 @@ static void RestoreVectorRegisters(MacroAssembler* masm,
     __ AddWord(sp, sp, Operand(kSimd128Size));
   }
 
+  __ Branch(&done);
+  __ bind(&not_simd);
+  __ AddWord(sp, sp, Operand(reg_list.Count() * kSimd128Size));
   __ bind(&done);
 }
 
@@ -3171,6 +3178,8 @@ static void SaveWasmParams(MacroAssembler* masm) {
   // overwritten in the subsequent runtime call. We don't have any
   // callee-saved registers in Wasm, so no need to store anything else.
   __ MultiPush(kSavedGpRegs);
+  static_assert(kSavedVectorRegs.Count() ==
+                WasmLiftoffSetupFrameConstants::kNumberOfSavedVpParamRegs);
   SaveVectorRegisters(masm, kSavedVectorRegs);
   __ MultiPushFPU(kSavedFpRegs);
 }
@@ -3836,7 +3845,8 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     DCHECK(old_stack.is_valid());
-    bool is_return = fn == ExternalReference::wasm_return_stack();
+    bool is_return = fn == ExternalReference::wasm_return_jspi_stack() ||
+                     fn == ExternalReference::wasm_return_wasmfx_stack();
     int num_args = is_return ? 2 : 5;
     if (maybe_suspender.is_valid()) {
       num_args++;
@@ -3874,8 +3884,9 @@ void ReloadParentStack(MacroAssembler* masm, Register return_reg,
   __ LoadWord(parent, MemOperand(active_stack, wasm::kStackParentOffset));
 
   // Switch stack!
-  SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
-               no_reg, tmp3, {return_reg, return_value, context, parent});
+  SwitchStacks(masm, ExternalReference::wasm_return_jspi_stack(), parent,
+               nullptr, no_reg, tmp3,
+               {return_reg, return_value, context, parent});
   LoadJumpBuffer(masm, parent, false, tmp3);
 }
 
@@ -4228,8 +4239,8 @@ void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
   DEFINE_PINNED(parent, a2);
   __ Move(parent, MemOperand(active_stack, wasm::kStackParentOffset));
   DEFINE_REG(scratch);
-  SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
-               no_reg, scratch, {parent, arg_buffer});
+  SwitchStacks(masm, ExternalReference::wasm_return_wasmfx_stack(), parent,
+               nullptr, no_reg, scratch, {parent, arg_buffer});
   LoadJumpBuffer(masm, parent, true, scratch);
   __ Trap();
 }
@@ -4917,16 +4928,14 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
 
   // Make place for arguments to fit C calling convention. Callers use
   // EnterExitFrame/LeaveExitFrame so they handle stack restoring and we don't
-  // have to do that here. Any caller must drop kCArgsSlotsSize stack space
-  // after the call.
-  __ AddWord(sp, sp, -kCArgsSlotsSize);
+  // have to do that here.
 #ifdef V8_ENABLE_RISCV_SHADOW_STACK
   __ sspush_ra();
 #endif
   __ StoreWord(ra,
-               MemOperand(sp, kCArgsSlotsSize));  // Store the return address.
+               MemOperand(sp));                   // Store the return address.
   __ Call(t6);                                    // Call the C++ function.
-  __ LoadWord(ra, MemOperand(sp, kCArgsSlotsSize));  // Return to calling code.
+  __ LoadWord(ra, MemOperand(sp));                // Return to calling code.
 #ifdef V8_ENABLE_RISCV_SHADOW_STACK
   __ sspopchk_ra();
 #endif

@@ -107,7 +107,8 @@ bool ScopeInfo::Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare,
 // static
 template <typename IsolateT>
 Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
-                                    MaybeDirectHandle<ScopeInfo> outer_scope) {
+                                    MaybeDirectHandle<ScopeInfo> outer_scope,
+                                    FunctionKind closure_function_kind) {
   // Collect variables.
   int context_local_count = 0;
   int module_vars_count = 0;
@@ -215,10 +216,8 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   static_assert(OffsetOfElementAt(kContextLocalCount) ==
                 kContextLocalCountOffset);
 
-  FunctionKind function_kind = FunctionKind::kNormalFunction;
   bool sloppy_eval_can_extend_vars = false;
   if (scope->is_declaration_scope()) {
-    function_kind = scope->AsDeclarationScope()->function_kind();
     sloppy_eval_can_extend_vars =
         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars();
   }
@@ -277,7 +276,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         HasInferredFunctionNameBit::encode(has_inferred_function_name) |
         IsAsmModuleBit::encode(is_asm_module) |
         HasSimpleParametersBit::encode(has_simple_parameters) |
-        FunctionKindBits::encode(function_kind) |
+        FunctionKindBits::encode(closure_function_kind) |
         HasOuterScopeInfoBit::encode(has_outer_scope_info) |
         IsDebugEvaluateScopeBit::encode(false) |
         ForceContextAllocationBit::encode(
@@ -470,11 +469,13 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<ScopeInfo> ScopeInfo::Create(
         Isolate* isolate, Zone* zone, Scope* scope,
-        MaybeDirectHandle<ScopeInfo> outer_scope);
+        MaybeDirectHandle<ScopeInfo> outer_scope,
+        FunctionKind closure_function_kind);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<ScopeInfo> ScopeInfo::Create(
         LocalIsolate* isolate, Zone* zone, Scope* scope,
-        MaybeDirectHandle<ScopeInfo> outer_scope);
+        MaybeDirectHandle<ScopeInfo> outer_scope,
+        FunctionKind closure_function_kind);
 
 // static
 DirectHandle<ScopeInfo> ScopeInfo::CreateForWithScope(
@@ -1128,6 +1129,13 @@ int ScopeInfo::ParametersStartIndex() const {
   return ContextHeaderLength();
 }
 
+int ScopeInfo::FunctionContextSlotIndex() const {
+  if (HasContextAllocatedFunctionName()) {
+    return function_variable_info_context_or_stack_slot_index();
+  }
+  return -1;
+}
+
 int ScopeInfo::FunctionContextSlotIndex(Tagged<String> name) const {
   DCHECK(IsInternalizedString(name));
   if (HasContextAllocatedFunctionName()) {
@@ -1365,9 +1373,10 @@ template DirectHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
 template DirectHandle<SourceTextModuleInfo> SourceTextModuleInfo::New(
     LocalIsolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
 
-int SourceTextModuleInfo::RegularExportCount() const {
-  DCHECK_EQ(regular_exports()->length() % kRegularExportLength, 0);
-  return regular_exports()->length() / kRegularExportLength;
+uint32_t SourceTextModuleInfo::RegularExportCount() const {
+  uint32_t len = regular_exports()->ulength().value();
+  DCHECK_EQ(len % kRegularExportLength, 0);
+  return len / kRegularExportLength;
 }
 
 Tagged<String> SourceTextModuleInfo::RegularExportLocalName(int i) const {

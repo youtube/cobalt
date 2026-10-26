@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Google Inc.
+ * Copyright 2019 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -25,6 +25,7 @@
 #include "include/gpu/ganesh/GrTypes.h"
 #include "include/gpu/ganesh/SkImageGanesh.h"
 #include "include/gpu/ganesh/SkSurfaceGanesh.h"
+#include "include/gpu/ganesh/mock/GrMockBackendSurface.h"
 #include "include/private/gpu/ganesh/GrTypesPriv.h"
 #include "src/core/SkAutoPixmapStorage.h"
 #include "src/core/SkColorData.h"
@@ -79,8 +80,11 @@
 #endif
 
 #if defined(SK_DIRECT3D)
+#include "include/gpu/ganesh/d3d/GrD3DBackendSurface.h"
 #include "include/private/gpu/ganesh/GrD3DTypesMinimal.h"
 #endif
+
+#include "include/gpu/ganesh/mock/GrMockBackendSurface.h"
 
 #if defined(SK_VULKAN)
 #include "include/gpu/ganesh/vk/GrVkBackendSurface.h"
@@ -203,20 +207,18 @@ static bool isBGRA8(const GrBackendFormat& format) {
 #endif
         case GrBackendApi::kDirect3D: {
 #ifdef SK_DIRECT3D
-            DXGI_FORMAT d3dFormat;
-            format.asDxgiFormat(&d3dFormat);
-            return d3dFormat == DXGI_FORMAT_B8G8R8A8_UNORM;
+            return GrBackendFormats::AsDxgiFormat(format) == DXGI_FORMAT_B8G8R8A8_UNORM;
 #else
             return false;
 #endif
         }
         case GrBackendApi::kMock: {
-            SkTextureCompressionType compression = format.asMockCompressionType();
+            SkTextureCompressionType compression = GrBackendFormats::AsMockCompressionType(format);
             if (compression != SkTextureCompressionType::kNone) {
                 return false; // No compressed formats are BGRA
             }
 
-            return format.asMockColorType() == GrColorType::kBGRA_8888;
+            return GrBackendFormats::AsMockColorType(format) == GrColorType::kBGRA_8888;
         }
         case GrBackendApi::kUnsupported: {
             return false;
@@ -247,7 +249,7 @@ static bool isRGB(const GrBackendFormat& format) {
         case GrBackendApi::kDirect3D:
             return false;  // Not supported in Direct3D 12
         case GrBackendApi::kMock:
-            return format.asMockColorType() == GrColorType::kRGB_888;
+            return GrBackendFormats::AsMockColorType(format) == GrColorType::kRGB_888;
         case GrBackendApi::kUnsupported:
             return false;
     }

@@ -5,6 +5,8 @@
 #ifndef REMOTING_PROTOCOL_JINGLE_SESSION_H_
 #define REMOTING_PROTOCOL_JINGLE_SESSION_H_
 
+#include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -19,10 +21,10 @@
 #include "remoting/protocol/authenticator.h"
 #include "remoting/protocol/datagram_channel_factory.h"
 #include "remoting/protocol/errors.h"
-#include "remoting/protocol/jingle_messages.h"
 #include "remoting/protocol/session.h"
-#include "remoting/protocol/session_config.h"
 #include "remoting/signaling/iq_sender.h"
+#include "remoting/signaling/jingle_data_structures.h"
+#include "remoting/signaling/session_config.h"
 
 namespace remoting::protocol {
 
@@ -54,7 +56,9 @@ class JingleSession : public Session {
  private:
   friend class JingleSessionManager;
 
-  using ReplyCallback = base::OnceCallback<void(JingleMessageReply::ErrorType)>;
+  using ReplyCallback =
+      base::OnceCallback<void(const JingleMessage&,
+                              std::optional<JingleMessageReply::ErrorType>)>;
 
   explicit JingleSession(JingleSessionManager* session_manager);
 
@@ -64,7 +68,6 @@ class JingleSession : public Session {
 
   // Called by JingleSessionManager for incoming connections.
   void InitializeIncomingConnection(
-      const std::string& message_id,
       const JingleMessage& initiate_message,
       std::unique_ptr<Authenticator> authenticator);
   void AcceptIncomingConnection(const JingleMessage& initiate_message);
@@ -80,34 +83,28 @@ class JingleSession : public Session {
   // Iq response handler.
   void OnMessageResponse(JingleMessage::ActionType request_type,
                          IqRequest* request,
-                         const jingle_xmpp::XmlElement* response);
+                         const JingleMessageReply& response);
 
   // Response handler for transport-info responses. Transport-info timeouts are
   // ignored and don't terminate connection.
   void OnTransportInfoResponse(IqRequest* request,
-                               const jingle_xmpp::XmlElement* response);
+                               const JingleMessageReply& response);
 
   // Called by JingleSessionManager on incoming |message|. Must call
   // |reply_callback| to send reply message before sending any other
   // messages.
-  void OnIncomingMessage(const std::string& id,
-                         std::unique_ptr<JingleMessage> message,
-                         ReplyCallback reply_callback);
+  void OnIncomingMessage(JingleMessage&& message, ReplyCallback reply_callback);
 
   // Called by OnIncomingMessage() to process the incoming Jingle messages
   // in the same order that they are sent.
-  void ProcessIncomingMessage(std::unique_ptr<JingleMessage> message,
+  void ProcessIncomingMessage(JingleMessage&& message,
                               ReplyCallback reply_callback);
 
   // Message handlers for incoming messages.
-  void OnAccept(std::unique_ptr<JingleMessage> message,
-                ReplyCallback reply_callback);
-  void OnSessionInfo(std::unique_ptr<JingleMessage> message,
-                     ReplyCallback reply_callback);
-  void OnTransportInfo(std::unique_ptr<JingleMessage> message,
-                       ReplyCallback reply_callback);
-  void OnTerminate(std::unique_ptr<JingleMessage> message,
-                   ReplyCallback reply_callback);
+  void OnAccept(JingleMessage&& message, ReplyCallback reply_callback);
+  void OnSessionInfo(JingleMessage&& message, ReplyCallback reply_callback);
+  void OnTransportInfo(JingleMessage&& message, ReplyCallback reply_callback);
+  void OnTerminate(JingleMessage&& message, ReplyCallback reply_callback);
   void OnAuthenticatorStateChangeAfterAccepted();
 
   // Called from OnAccept() to initialize session config. If initialization
@@ -168,11 +165,10 @@ class JingleSession : public Session {
   struct PendingMessage {
     PendingMessage();
     PendingMessage(PendingMessage&& moved);
-    PendingMessage(std::unique_ptr<JingleMessage> message,
-                   ReplyCallback reply_callback);
+    PendingMessage(JingleMessage message, ReplyCallback reply_callback);
     ~PendingMessage();
     PendingMessage& operator=(PendingMessage&& moved);
-    std::unique_ptr<JingleMessage> message;
+    JingleMessage message;
     ReplyCallback reply_callback;
   };
 

@@ -119,6 +119,7 @@
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_operations.h"
+#include "ui/gfx/image/image_skia_rep.h"
 #include "ui/gfx/image/image_unittest_util.h"
 
 namespace {
@@ -495,8 +496,8 @@ class ArcAppModelBuilderTest : public extensions::ExtensionServiceTestBase,
       arc::SetArcAlwaysStartWithoutPlayStoreForTesting();
     }
 
-    model_ = std::make_unique<ash::ShelfModel>();
     browser_controller_.emplace();
+    model_ = std::make_unique<ash::ShelfModel>();
 
     arc_app_test_.set_initialize_real_intent_helper_bridge(true);
     arc_app_test_.PreProfileSetUp();
@@ -520,11 +521,12 @@ class ArcAppModelBuilderTest : public extensions::ExtensionServiceTestBase,
 
   void TearDown() override {
     shelf_controller_.reset();
+    model_.reset();
     arc_app_test_.PreProfileTearDown();
     ResetBuilder();
     extensions::ExtensionServiceTestBase::TearDown();
-    browser_controller_.reset();
     arc_app_test_.PostProfileTearDown();
+    browser_controller_.reset();
   }
 
   ArcState GetArcState() const { return GetParam(); }

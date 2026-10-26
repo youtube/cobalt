@@ -52,7 +52,6 @@ namespace extensions {
 class AutomationInternalApiDelegate;
 class AppViewGuestDelegate;
 class ContentRulesRegistry;
-class UsbDevicePermissionsPrompt;
 class DisplayInfoProvider;
 class ExtensionOptionsGuest;
 class ExtensionOptionsGuestDelegate;
@@ -70,6 +69,7 @@ class NativeMessagePortDispatcher;
 class NonNativeFileSystemDelegate;
 class RulesCacheDelegate;
 class SupervisedUserExtensionsDelegate;
+class UsbDevicePermissionsPrompt;
 class ValueStoreCache;
 class VirtualKeyboardDelegate;
 struct WebRequestInfo;

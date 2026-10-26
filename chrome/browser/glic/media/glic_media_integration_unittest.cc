@@ -4,6 +4,7 @@
 
 #include "chrome/browser/glic/media/glic_media_integration.h"
 
+#include "base/strings/string_util.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/accessibility/live_caption/live_caption_controller_factory.h"
@@ -152,11 +153,13 @@ class GlicMediaIntegrationTest : public ChromeRenderViewHostTestHarness {
         static_cast<int>(glic::prefs::FreStatus::kCompleted));
   }
 
+ protected:
+  speech::MockSodaInstaller soda_installer_;
+
  private:
   std::optional<base::test::ScopedFeatureList> scoped_feature_list_;
   raw_ptr<captions::LiveCaptionController> live_caption_controller_ = nullptr;
   raw_ptr<user_prefs::PrefRegistrySyncable> pref_registry_ = nullptr;
-  speech::MockSodaInstaller soda_installer_;
 };
 
 TEST_F(GlicMediaIntegrationTest, GetWithNullReturnsNull) {
@@ -241,6 +244,32 @@ TEST_F(GlicMediaIntegrationTest, ContextContainsNoTranscript) {
   EXPECT_TRUE(root_node.has_content_attributes());
   EXPECT_EQ(root_node.content_attributes().text_data().text_content().length(),
             0u);
+}
+
+TEST_F(GlicMediaIntegrationTest, ContextTruncatesUTF8Correctly) {
+  auto* integration = GetIntegration();
+
+  // Create a 20002-byte string: one 4-byte character + 19998 'A's.
+  // max_size_bytes_ is 20000. 20002 - 20000 = 2.
+  // The truncation index falls in the middle of the 4-byte character.
+  std::string test_cap = "𐍈";
+  test_cap.append(19998, 'A');
+
+  live_caption_controller()->DispatchTranscription(
+      rfh(), nullptr,
+      media::SpeechRecognitionResult(test_cap, /*is_final=*/true));
+
+  optimization_guide::proto::ContentNode root_node;
+  integration->AppendContextForFrame(rfh(), &root_node);
+
+  EXPECT_EQ(root_node.children_nodes_size(), 0);
+  EXPECT_TRUE(root_node.has_content_attributes());
+
+  // The 4-byte character should be entirely removed to avoid invalid UTF-8.
+  std::string result_text =
+      root_node.content_attributes().text_data().text_content();
+  EXPECT_TRUE(base::IsStringUTF8(result_text));
+  EXPECT_EQ(result_text, std::string(19998, 'A'));
 }
 
 TEST_F(GlicMediaIntegrationTest, HeadlessPrefTurnsOnAndOff) {
@@ -444,6 +473,24 @@ TEST_F(GlicMediaIntegrationTest,
   integration->AppendContext(web_contents(), &root_node);
   EXPECT_EQ(root_node.children_nodes_size(), 0);
   EXPECT_FALSE(root_node.has_content_attributes());
+}
+
+TEST_F(GlicMediaIntegrationTest, InstallsSodaIfMissing) {
+  // SODA is not installed by default in this test setup.
+  EXPECT_CALL(soda_installer_, InstallLanguage(testing::_, testing::_));
+  GetIntegration();
+}
+
+TEST_F(GlicMediaIntegrationTest, DoesNotInstallSodaIfPresent) {
+  // Mark SODA as installed.
+  const std::string language_code =
+      ::prefs::GetLiveCaptionLanguageCode(pref_service());
+  soda_installer_.NotifySodaInstalledForTesting(speech::LanguageCode::kNone);
+  soda_installer_.NotifySodaInstalledForTesting(
+      speech::GetLanguageCode(language_code));
+
+  EXPECT_CALL(soda_installer_, InstallLanguage(testing::_, testing::_)).Times(0);
+  GetIntegration();
 }
 
 }  // namespace glic

@@ -6,6 +6,7 @@
 #define CONTENT_COMMON_MEMORY_COORDINATOR_MEMORY_COORDINATOR_POLICY_MANAGER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -14,6 +15,8 @@
 #include "base/functional/function_ref.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory_coordinator/memory_consumer.h"
+#include "base/observer_list.h"
+#include "content/common/buildflags.h"
 #include "content/common/content_export.h"
 #include "content/common/memory_coordinator/memory_consumer_group_controller.h"
 #include "content/public/common/child_process_id.h"
@@ -39,6 +42,37 @@ struct GlobalMemoryConsumerUpdate {
 class CONTENT_EXPORT MemoryCoordinatorPolicyManager
     : public MemoryConsumerGroupController {
  public:
+  // An interface for observing the lifecycle of memory consumers.
+  class Observer : public base::CheckedObserver {
+   public:
+    ~Observer() override = default;
+
+    // Called when a new consumer group is added/removed.
+    virtual void OnConsumerGroupAdded(
+        uint32_t consumer_id,
+        std::string_view consumer_name,
+        std::optional<base::MemoryConsumerTraits> traits,
+        ProcessType process_type,
+        ChildProcessId child_process_id) = 0;
+    virtual void OnConsumerGroupRemoved(uint32_t consumer_id,
+                                        ChildProcessId child_process_id) = 0;
+  };
+
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+  // An interface for observing diagnostic-only events. This is separate from
+  // `Observer` because producing memory limit changed events has an associated
+  // runtime cost. This way that cost is paid only when needed.
+  class DiagnosticObserver : public base::CheckedObserver {
+   public:
+    ~DiagnosticObserver() override = default;
+
+    // Called when the aggregate memory limit for a consumer group changes.
+    virtual void OnMemoryLimitChanged(uint32_t consumer_id,
+                                      ChildProcessId child_process_id,
+                                      int memory_limit) = 0;
+  };
+#endif
+
   MemoryCoordinatorPolicyManager();
   ~MemoryCoordinatorPolicyManager() override;
 
@@ -46,6 +80,17 @@ class CONTENT_EXPORT MemoryCoordinatorPolicyManager
       delete;
   MemoryCoordinatorPolicyManager& operator=(
       const MemoryCoordinatorPolicyManager&) = delete;
+
+  // Adds/removes an observer.
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
+
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+  // Adds/removes a diagnostic observer. Whenever there is one or more
+  // diagnostic observer registered, additional diagnostic reporting is enabled.
+  void AddDiagnosticObserver(DiagnosticObserver* observer);
+  void RemoveDiagnosticObserver(DiagnosticObserver* observer);
+#endif
 
   // Registers a policy with the manager. `policy` must remain valid until it is
   // removed with a call to RemovePolicy().
@@ -58,12 +103,18 @@ class CONTENT_EXPORT MemoryCoordinatorPolicyManager
   void AddMemoryConsumerGroupHost(ChildProcessId child_process_id,
                                   MemoryConsumerGroupHost* host) override;
   void RemoveMemoryConsumerGroupHost(ChildProcessId child_process_id) override;
-  void OnConsumerGroupAdded(std::string_view consumer_id,
-                            base::MemoryConsumerTraits traits,
+  void OnConsumerGroupAdded(uint32_t consumer_id,
+                            std::string_view consumer_name,
+                            std::optional<base::MemoryConsumerTraits> traits,
                             ProcessType process_type,
                             ChildProcessId child_process_id) override;
-  void OnConsumerGroupRemoved(std::string_view consumer_id,
+  void OnConsumerGroupRemoved(uint32_t consumer_id,
                               ChildProcessId child_process_id) override;
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+  void OnMemoryLimitChanged(uint32_t consumer_id,
+                            ChildProcessId child_process_id,
+                            int memory_limit) override;
+#endif
 
   // Called by policies to request actions on multiple consumer groups across
   // potentially different child processes.
@@ -76,8 +127,8 @@ class CONTENT_EXPORT MemoryCoordinatorPolicyManager
                        std::vector<MemoryConsumerUpdate> updates);
 
   using ConsumerFilter =
-      base::FunctionRef<bool(std::string_view consumer_id,
-                             base::MemoryConsumerTraits traits,
+      base::FunctionRef<bool(uint32_t consumer_id,
+                             std::optional<base::MemoryConsumerTraits> traits,
                              ProcessType process_type,
                              ChildProcessId child_process_id)>;
 
@@ -95,7 +146,9 @@ class CONTENT_EXPORT MemoryCoordinatorPolicyManager
  private:
   class GroupState {
    public:
-    GroupState(base::MemoryConsumerTraits traits, ProcessType process_type);
+    GroupState(std::string_view consumer_name,
+               std::optional<base::MemoryConsumerTraits> traits,
+               ProcessType process_type);
     ~GroupState();
 
     // Updates the limit requested by `policy`. Returns the new aggregate limit
@@ -108,7 +161,8 @@ class CONTENT_EXPORT MemoryCoordinatorPolicyManager
     std::optional<int> ClearMemoryLimitForPolicy(
         MemoryCoordinatorPolicy* policy);
 
-    base::MemoryConsumerTraits traits() const { return traits_; }
+    const std::string& consumer_name() const { return consumer_name_; }
+    std::optional<base::MemoryConsumerTraits> traits() const { return traits_; }
     ProcessType process_type() const { return process_type_; }
     int current_limit() const { return current_limit_; }
 
@@ -118,7 +172,8 @@ class CONTENT_EXPORT MemoryCoordinatorPolicyManager
     // Computes the memory limit based on existing policies.
     int RecomputeMemoryLimit() const;
 
-    const base::MemoryConsumerTraits traits_;
+    const std::string consumer_name_;
+    const std::optional<base::MemoryConsumerTraits> traits_;
     const ProcessType process_type_;
 
     // The limit requested by each policy.
@@ -133,16 +188,21 @@ class CONTENT_EXPORT MemoryCoordinatorPolicyManager
     ~HostState();
 
     raw_ptr<MemoryConsumerGroupHost> host;
-    absl::flat_hash_map<std::string, std::unique_ptr<GroupState>> groups;
+    absl::flat_hash_map<uint32_t, std::unique_ptr<GroupState>> groups;
   };
 
   HostState& GetHostState(ChildProcessId child_process_id);
-  GroupState& GetGroupState(HostState& host_state,
-                            std::string_view consumer_id);
+  GroupState& GetGroupState(HostState& host_state, uint32_t consumer_id);
 
   void UpdateConsumersForProcess(MemoryCoordinatorPolicy* policy,
                                  ChildProcessId child_process_id,
                                  std::vector<MemoryConsumerUpdate> updates);
+
+  base::ObserverList<Observer> observers_;
+
+#if BUILDFLAG(ENABLE_MEMORY_COORDINATOR_INTERNALS)
+  base::ObserverList<DiagnosticObserver> diagnostic_observers_;
+#endif
 
   base::flat_set<MemoryCoordinatorPolicy*> policies_;
 

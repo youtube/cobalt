@@ -48,6 +48,7 @@ class ScreamV2 {
   DataRate pacing_rate() const {
     return target_rate_ * params_.pacing_factor.Get();
   }
+
   TimeDelta rtt() const { return delay_based_congestion_control_.rtt(); }
 
   // Max data in flight before the send window is full.
@@ -60,11 +61,19 @@ class ScreamV2 {
   // Last inflection point where ref_window started to decrease.
   DataSize ref_window_i() const { return ref_window_i_; }
 
+  // Returns the maximum allowed reference window based on data in flight during
+  // the last RTT.
+  DataSize max_allowed_ref_window() const;
+
   // Returns the average fraction of ECN-CE marked data units per RTT.
   double l4s_alpha() const { return l4s_alpha_; }
 
   Timestamp last_reference_window_decrease_time() const {
     return last_ref_window_decrease_time_;
+  }
+
+  Timestamp last_reaction_to_congestion_time() const {
+    return last_reaction_to_congestion_time_;
   }
 
   // Exposed for easier logging.
@@ -80,11 +89,9 @@ class ScreamV2 {
     return std::min(1.0, params_.max_segment_size.Get() / ref_window_);
   }
 
- private:
-  void UpdateL4SAlpha(const TransportPacketsFeedback& msg);
-  void UpdateRefWindow(const TransportPacketsFeedback& msg);
-  void UpdateFeedbackHoldTime(const TransportPacketsFeedback& msg);
-  void UpdateTargetRate(const TransportPacketsFeedback& msg);
+  double last_ref_window_increase_scale_factor() const {
+    return last_ref_window_increase_scale_factor_;
+  }
 
   // Scaling factor for reference window adjustment
   // when close to the last known inflection point.
@@ -106,6 +113,12 @@ class ScreamV2 {
                      params_.max_segment_size.Get();
   }
 
+ private:
+  void UpdateL4SAlpha(const TransportPacketsFeedback& msg);
+  void UpdateRefWindow(const TransportPacketsFeedback& msg);
+  void UpdateFeedbackHoldTime(const TransportPacketsFeedback& msg);
+  void UpdateTargetRate(const TransportPacketsFeedback& msg);
+
   const Environment env_;
   const ScreamV2Parameters params_;
 
@@ -123,6 +136,8 @@ class ScreamV2 {
   // `allow_ref_window_i_update_` is set to true if `ref_window_` has increased
   // since `ref_window_i_` was last set.
   bool allow_ref_window_i_update_ = true;
+
+  double last_ref_window_increase_scale_factor_ = 1.0;
 
   // `l4s_alpha_` tracks the average fraction of ECN-CE marked data units per
   // Round-Trip Time.

@@ -5595,6 +5595,30 @@ TEST_P(PaintPropertyTreeBuilderTest, ImageBorderRadius) {
       border_radius_clip);
 }
 
+TEST_P(PaintPropertyTreeBuilderTest, BackdropFilterWhenPrinting) {
+  SetBodyInnerHTML(R"HTML(
+    <div id="target" style="backdrop-filter: blur(5px)"></div>
+  )HTML");
+
+  // When printing backdrop filter should be ignored.
+  gfx::SizeF page_size(100, 100);
+  GetFrame().StartPrinting(WebPrintParams(page_size));
+  GetDocument().View()->UpdateLifecyclePhasesForPrinting();
+
+  auto* properties = PaintPropertiesForElement("target");
+  ASSERT_TRUE(properties);
+  ASSERT_TRUE(properties->Effect());
+  EXPECT_FALSE(properties->Effect()->BackdropFilter());
+
+  GetFrame().EndPrinting();
+  UpdateAllLifecyclePhasesForTest();
+
+  properties = PaintPropertiesForElement("target");
+  ASSERT_TRUE(properties);
+  ASSERT_TRUE(properties->Effect());
+  EXPECT_TRUE(properties->Effect()->BackdropFilter());
+}
+
 TEST_P(PaintPropertyTreeBuilderTest, FrameClipWhenPrinting) {
   SetBodyInnerHTML("<iframe></iframe>");
   SetChildFrameHTML("");
@@ -7646,6 +7670,17 @@ TEST_P(PaintPropertyTreeBuilderTest, ClipPathWithMaskDoNotCreateExpandedRect) {
 
   // The expanded and precise layout clip rects should be equal.
   EXPECT_EQ(mask_clip->LayoutClipRect(), mask_clip->PreciseLayoutClipRect());
+}
+
+TEST_P(PaintPropertyTreeBuilderTest, OverscrollContainerOnInlineDoesNotCrash) {
+  SetBodyInnerHTML(
+      R"HTML(<div id="target" style="display:inline">text</div>)HTML");
+  UpdateAllLifecyclePhasesForTest();
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  target->setAttribute(QualifiedName(AtomicString("overscrollcontainer")),
+                       AtomicString(""));
+  UpdateAllLifecyclePhasesForTest();
 }
 
 }  // namespace blink

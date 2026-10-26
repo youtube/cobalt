@@ -76,6 +76,7 @@
 <translation id="1698376642261615901">Google Chrome হৈছে ৱেবপৃষ্ঠা আৰু এপ্লিকেশ্বনসমূহক বিজুলী বেগেৰে চলোৱা এক ৱেব ব্ৰাউজাৰ। এইটো ক্ষিপ্ৰ, স্থিৰ আৰু ব্যৱহাৰৰ বাবে সুবিধাজনক। মালৱেৰ আৰু ফিশ্বিঙৰ পৰা বিশেষভাৱে সুৰক্ষা পোৱা সুবিধাৰে নির্মিত Google Chromeৰ জৰিয়তে অতি সুৰক্ষিতভাৱে ৱেব ব্ৰাউজ কৰক।</translation>
 <translation id="1713301662689114961">{0,plural, =1{১ঘণ্টাত Chromium পুনৰ লঞ্চ হ’ব}one{#ঘণ্টাত Chromium পুনৰ লঞ্চ হ’ব}other{#ঘণ্টাত Chromium পুনৰ লঞ্চ হ’ব}}</translation>
 <translation id="1722488837206509557">এইটোৱে আপোনাক উপলব্ধ ডিভাইচসমূহৰ পৰা বাছনি কৰিবলৈ আৰু সেইসমূহত সমল প্ৰদৰ্শন কৰিবলৈ দিব।</translation>
+<translation id="177180974022074201">Chromeত Geminiৰ জৰিয়তে চেষ্টা কৰি চাওক</translation>
 <translation id="1786003790898721085">আপোনাৰ <ph name="TARGET_DEVICE_NAME" />ত Chromeত আপুনি ছাইন ইন হৈ থকাটো নিশ্চিত কৰক আৰু তাৰ পাছত পুনৰ পঠিয়াবলৈ চেষ্টা কৰক।</translation>
 <translation id="1786044937610313874">শ্বৰ্টকাটসমূহ Chromeত খোল খায়</translation>
 <translation id="178701303897325119">এই এক্সটেনশ্বনটো আৰু সমৰ্থিত নহয়। Chromeএ তাৰ পৰিৱৰ্তে আপুনি এইটো আঁতৰোৱাটো চুপাৰিছ কৰে।</translation>
@@ -154,6 +155,7 @@
 <translation id="2586406160782125153">এই কাৰ্যই এই ডিভাইচটোৰ পৰা আপোনাৰ ব্ৰাউজিং ডেটা মচি পেলাব৷ আপোনাৰ ডেটা পাছত পুনৰুদ্ধাৰ কৰিবলৈ, Chromeত <ph name="USER_EMAIL" />.হিচাপে ছাইন ইন কৰক।</translation>
 <translation id="259935314519650377">ডাউনল’ড কৰা ইনষ্টলাৰটো কেশ্ব কৰাত বিফল হৈছে। আসোঁৱাহ: <ph name="UNPACK_CACHING_ERROR_CODE" />।</translation>
 <translation id="2620436844016719705">ছিষ্টেম</translation>
+<translation id="263447411082773721">আপোনাৰ পাছৱৰ্ড, বুকমাৰ্ক আৰু ইতিহাস সমগ্ৰ ডিভাইচসমূহত নিখুঁতভাৱে ছিংক কৰি ৰাখক। আপোনাৰ ডিফ’ল্ট ব্ৰাউজাৰটো Chromeলৈ আপডে’ট কৰি আপুনি জনা আৰু ভালপোৱা সুবিধাসমূহ সহজে এক্সেছ কৰক। তাৎক্ষণিক এক্সেছৰ বাবে Chromeক আপোনাৰ টাস্কবাৰত পিন কৰা হ’ব।</translation>
 <translation id="2645435784669275700">ChromeOS</translation>
 <translation id="2649768380733403658">আপোনাৰ ব্ৰাউজাৰত আটাইতকৈ সুৰক্ষিত ছেটিং আছে নে নাই সেয়া নিশ্চিত কৰিবলৈ Chromeএ নিয়মিতভাৱে পৰীক্ষা কৰে। যদি আপুনি কিবা পৰ্যালোচনা কৰাৰ প্ৰয়োজন হয় তেন্তে আমি আপোনাক জনাম।</translation>
 <translation id="2652691236519827073">Chromeৰ নতুন &amp;টেবত লিংক খোলক</translation>
@@ -225,12 +227,14 @@
 <translation id="3226612997184048185">যদি আপুনি নিজৰ Google একাউণ্টত নিজৰ বুকমাৰ্কসমূহো ছেভ কৰে, আপুনি Chromeত প্ৰ’ডাক্টৰ দামসমূহ ট্ৰেক কৰিব পাৰে আৰু দাম কৰিলে জাননী পাব পাৰে</translation>
 <translation id="3242123554343253302">Chrome প্ৰ'ফাইল যোগ দিয়ক</translation>
 <translation id="3245429137663807393">যদি আপুনি Chrome ব্যৱহাৰ কৰাৰ ৰিপ’ৰ্টও শ্বেয়াৰ কৰে, সেই ৰিপ’ৰ্টত আপুনি চোৱা URLসমূহ অন্তৰ্ভুক্ত হয়</translation>
+<translation id="3259748324892322072">Chrome এপ্‌টো লাভ কৰক</translation>
 <translation id="3286538390144397061">এতিয়াই ৰিষ্টাৰ্ট কৰক</translation>
 <translation id="3292333338048274092">আপুনি তাৰ পাছত Chrome ৰিষ্টাৰ্ট কৰিব লাগিব।</translation>
 <translation id="3324218984287646518">Google Lensক এই ভিডিঅ’টোৰ বিষয়ে সোধক</translation>
 <translation id="3327226547491422998">পাছত, Chromeএ আপোনাৰ বাবে স্বয়ংক্ৰিয়ভাৱে ফৰ্ম পূৰ কৰিবলৈ আপুনি ছেভ কৰি থোৱা তথ্য ব্যৱহাৰ কৰিব বিচাৰে নেকি সুধিব পাৰে</translation>
 <translation id="3352986031709923790">সন্ধান এলেকাৰ ওপৰৰ সোঁফালৰ কোণ: <ph name="RIGHT" />% সোঁফালে, <ph name="TOP" />% ওপৰলৈ</translation>
 <translation id="3360895254066713204">Chromeৰ সহায়ক</translation>
+<translation id="3373752068427117404">Chromeৰ কিছুমান সুবিধা আৰু এক্সটেনশ্বনৰ শ্বৰ্টকাট থাকে। আপুনি সেইসমূহ পুনৰ অন কৰিবলৈ বাছনি কৰিব পাৰে।</translation>
 <translation id="3379938682270551431">{0,plural, =0{এতিয়া Chrome পুনৰ লঞ্চ হ’ব}=1{১ ছেকেণ্ডত Chrome পুনৰ লঞ্চ হ’ব}one{# ছেকেণ্ডত Chrome পুনৰ লঞ্চ হ’ব}other{# ছেকেণ্ডত Chrome পুনৰ লঞ্চ হ’ব}}</translation>
 <translation id="3380249972812870825">Chromeত Gemini খুলিবলৈ, <ph name="GLOBAL_HOTKEY" />ত টিপক</translation>
 <translation id="3396977131400919238">ইনষ্টলেশ্বনৰ সময়ত অপাৰেটিং ছিষ্টেম সম্পর্কীয় এটা আসোঁৱাহ হৈছে। অনুগ্ৰহ কৰি Google Chrome পুনৰ ডাউনল’ড কৰক।</translation>
@@ -283,7 +287,6 @@
 <translation id="3892148308691398805">পাঠৰ প্ৰতিলিপি কৰক</translation>
 <translation id="3893985792899396936">Chrome সম্পৰ্কীয় কিটিপ: Lensৰ জৰিয়তে সন্ধান কৰক</translation>
 <translation id="3906096710440765802">আপোনাৰ আটাইবোৰ ডিভাইচত নিজৰ পাছৱৰ্ড, বুকমাৰ্ক আৰু আন বহুতো বস্তু পাবলৈ Chromeত ছাইন ইন কৰক</translation>
-<translation id="3921132130819999051">Chromeক আপোনাৰ বাবে ব্ৰাউজ কৰিবলৈ দিয়ক</translation>
 <translation id="3941890832296813527">ইনষ্টল কৰোঁতে আসোঁৱাহ হৈছে: ইনষ্টলাৰৰ ফাইলৰ নামটো অমান্য অথবা অসমৰ্থিত।</translation>
 <translation id="395904275706073188">সুৰক্ষিত পৃষ্ঠা পঢ়িব নোৱাৰি। এটা বেলেগ পৃষ্ঠা ব্যৱহাৰ কৰি চাওক।</translation>
 <translation id="3968962723676998462">আপোনাৰ একাউণ্টত Chromeৰ ডেটা ব্যৱহাৰ আৰু ছেভ কৰিবলৈ নিজৰ পাছফ্ৰে’জ দিয়ক, <ph name="ACCOUNT_EMAIL" /></translation>
@@ -498,7 +501,6 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> - Google Chrome বিটা</translation>
 <translation id="6180522807229584611">এই টেবটোৱে অতিৰিক্ত সম্পদ ব্যৱহাৰ কৰি আছে। আপোনাৰ কাৰ্যদক্ষতা উন্নত কৰিবলৈ Chromeক এইটো নিষ্ক্ৰিয় কৰিবলৈ দিয়ক।</translation>
 <translation id="6182736845697986886">আপডে’ট ছাৰ্ভাৰৰ অভ্যন্তৰীণ আসোঁৱাহৰ বাবে ইনষ্টলেশ্বন কৰিব পৰা নগ’ল।</translation>
-<translation id="6183773856988300112">আপোনাৰ টেবসমূহত কাম কৰিবলৈ আৰু আপুনি Geminiক দিয়া কাৰ্যসমূহ সম্পূৰ্ণ কৰিবলৈ Chromeত Geminiএ স্বয়ংক্ৰিয় ব্ৰাউজ ব্যৱহাৰ কৰে। <ph name="LINK_BEGIN" />অধিক জানক<ph name="LINK_END" /></translation>
 <translation id="6187085551300363958">Chromeৰ কিটিপ: পাছৱৰ্ড ছেভ কৰক</translation>
 <translation id="6192058120268468905">Chromeত আপোনাৰ একাউণ্ট</translation>
 <translation id="6220551899604141979"><ph name="PARTNER_NAME" />এ এটা এক্সটেনশ্বন যোগ দিছে, যিটোৱে Chromeৰ কাৰ্যপ্ৰণালী সলনি কৰিব পাৰে।
@@ -510,6 +512,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="6251759518630934363">মানক সুৰক্ষাৰ তুলনাত ছাইটসমূহৰ পৰা অধিক ডেটা বিশ্লেষণ কৰি আনকি Googleৰ বাবেও পূৰ্বে অজ্ঞাত বিপজ্জনক ছাইটসমূহৰ বিষয়ে আপোনাক সতৰ্ক কৰি দিয়ে। আপুনি Chromeৰ সকীয়নি এৰি যোৱাটো বাছনি কৰিব পাৰে।</translation>
 <translation id="6277547788421725101">আপোনাৰ অভিভাৱকে Chromeৰ বাবে "ছাইট, এপ্‌ আৰু এক্সটেনশ্বনসমূহৰ বাবে অনুমতি" অফ কৰিছে</translation>
 <translation id="627882678981830918">Chrome কাষ্টমাইজ আৰু নিয়ন্ত্ৰণ কৰক। Chromeক আপোনাৰ ডিফ’ল্ট হিচাপে ছেট কৰক।</translation>
+<translation id="6280042952415350607">Chromeৰ বাবে অপৰিচিত ছাইটসমূহৰ ক্ষেত্ৰত বৰ্ধিত সুৰক্ষাই JavaScript অপ্টিমাইজেশ্বন অফ কৰে</translation>
 <translation id="6288580400488258237">Google Chromeক আপোনাৰ ডিফ’ল্ট ব্ৰাউজাৰ হিচাপে ছেট কৰক আৰু ইয়াক আপোনাৰ টাস্কবাৰত পিন কৰক</translation>
 <translation id="6291089322031436445">Chrome Dev এপ্‌</translation>
 <translation id="6291549208091401781">আপোনাৰ কম্পিউটাৰত থকা সকলো ব্যৱহাৰকাৰীৰ বাবে Google Chrome ইতিমধ্যে ইনষ্টল কৰা আছে।</translation>
@@ -533,6 +536,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="6481963882741794338">ব্যক্তিগতকৰণ কৰিবলৈ আৰু অন্য উদ্দেশ্যে Chrome আৰু অন্য Google সেৱাসমূহ লিংক কৰক</translation>
 <translation id="648319183876919572">বৰ্ধিত সুৰক্ষিত ব্ৰাউজিঙে আপোনাক বিপজ্জনক ৱেবছাইট আৰু ডাউনল’ডৰ পৰা সুৰক্ষিত কৰিবলৈ অধিক কাৰ্য কৰে</translation>
 <translation id="6489302989675808168">অন আছে • এই এক্সটেনশ্বনটো ক’ৰ পৰা আহিছে সেয়া Chromeএ সত্যাপন কৰিব নোৱাৰে</translation>
+<translation id="6491330562720922580">ম’বাইল ডিভাইচত Chrome ব্ৰাউজাৰ ডাউনল’ড কৰিবলৈ কিউআৰ ক’ড</translation>
 <translation id="6493527311031785448">Google Chromeএ <ph name="AUTHENTICATION_PURPOSE" /> চেষ্টা কৰি আছে</translation>
 <translation id="6497147134301593682">Chrome স্বয়ংক্ৰিয়াভাৱে বন্ধ কৰা হৈছে</translation>
 <translation id="6506909944137591434">আপোনাৰ ওচৰ-পাজৰৰ ঠাইসমূহৰ এখন 3D মেপ সৃষ্টি কৰিবলৈ Chromeক কেমেৰাৰ অনুমতিৰ আৱশ্যক</translation>
@@ -611,6 +615,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="7308322188646931570">ফাইল ডাউনল’ড কৰিবলৈ Chromeক ষ্ট’ৰেজৰ এক্সেছৰ আৱশ্যক</translation>
 <translation id="7339898014177206373">নতুন ৱিণ্ড'</translation>
 <translation id="7352651011704765696">কিবা সমস্যা হৈছে</translation>
+<translation id="73786666777299047">Chrome Web Store খোলক</translation>
 <translation id="7386878009611068389">আপোনাৰ অভিভাৱকৰ পচন্দসমূহৰ জৰিয়তে অনলাইনত সুৰক্ষিত হৈ থাকিবলৈ, আপোনাৰ Chrome প্ৰ’ফাইললৈ সলনি কৰক, য’ত আপুনি ইতিমধ্যে <ph name="USER_EMAIL_ADDRESS" /> হিচাপে ছাইন ইন কৰি থৈছে</translation>
 <translation id="7398801000654795464">আপুনি Chromeত <ph name="USER_EMAIL_ADDRESS" /> হিচাপে ছাইন ইন হৈ আছিল। অনুগ্ৰহ কৰি আকৌ ছাইন ইন কৰিবলৈ একেটা একাউন্টেই ব্যৱহাৰ কৰক।</translation>
 <translation id="7412494426921990001">Chromeৰ মেনুত ক্লিক কৰক</translation>
@@ -694,6 +699,10 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="8041795619940733262">এই টেবটোৰ বিষয়ে<ph name="LINE_BREAK" />Googleক সোধক</translation>
 <translation id="80471789339884597">ইনষ্টল কৰাৰ বাবে ধন্যবাদ। আপুনি <ph name="BUNDLE_NAME" /> ব্যৱহাৰ কৰাৰ পূৰ্বে আপোনাৰ আটাইবোৰ ব্ৰাউজাৰ ৰিষ্টাৰ্ট কৰিবই লাগিব।</translation>
 <translation id="8064015586118426197">ChromeOS Flex</translation>
+<translation id="8064965390968184078">১) তলৰ <ph name="BUTTON_LABEL" />ত ক্লিক কৰক
+২) আপোনাৰ Windowsৰ ছেটিঙত <ph name="BUTTON_2" />ত ক্লিক কৰক
+৩) দ্ৰুত এক্সেছৰ বাবে Chromeক আপোনাৰ টাস্কবাৰত পিন কৰিবলৈ Windowsৰ জাননীত <ph name="BUTTON_3" />ত ক্লিক কৰক</translation>
+<translation id="8074398340364918139">Chromeৰ কোনো নিৰ্দিষ্ট সুবিধা বা এক্সটেনশ্বন সন্ধান কৰিবলৈ, ঠিকনাৰ বাৰত ইয়াৰ শ্বৰ্টকাটটো টাইপ কৰি তাৰ পাছত আপুনি বাছনি কৰা কীব’ৰ্ডৰ কীটো টিপক</translation>
 <translation id="8077579734294125741">Chromeৰ অন্য প্ৰ’ফাইল</translation>
 <translation id="8086881907087796310">আপোনাৰ কম্পিউটাৰটোৱে হাৰ্ডৱেৰৰ ন্যূনতম আৱশ্যকতাসমূহ পূৰণ নকৰে বাবে ইনষ্টল কৰিব পৰা নগ’ল।</translation>
 <translation id="8113883687556086139">আপোনাৰ একাউণ্টত Chromeৰ ডেটা ব্যৱহাৰ আৰু ছেভ কৰিবলৈ নিজৰ পৰিচয় সত্যাপন কৰক, <ph name="ACCOUNT_EMAIL" /></translation>
@@ -702,6 +711,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="8129812357326543296">&amp;Google Chromeৰ বিষয়ে</translation>
 <translation id="813913629614996137">আৰম্ভ কৰা হৈছে…</translation>
 <translation id="8162006532256575008">কোনো একাউণ্টৰ অবিহনে Chrome ব্যৱহাৰ কৰক</translation>
+<translation id="8172231188687329735">অন্য কামৰ মাজতো পাছৱৰ্ড ছেভ কৰিবলৈ Chrome এপ্‌টো ডাউনল’ড কৰক</translation>
 <translation id="8177472873527554730">পৃষ্ঠাত সমল বিচাৰি পোৱা নাই</translation>
 <translation id="8221491193165283816">আপুনি সাধাৰণতে জাননীসমূহ অৱৰোধ কৰে। এই ছাইটটোৱে আপোনাক জাননী দিয়াত অনুমতি দিবলৈ ইয়াত ক্লিক কৰক।</translation>
 <translation id="8253851811470049684">যিকোনো এপৰ পৰা Chromeত লিংক খোলক আৰু ব্ৰাউজাৰটো আপোনাৰ টাস্কবাৰত এক্সেছ কৰিব পৰা কৰি ৰাখক</translation>
@@ -729,6 +739,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 
 আপুনি কিছুমান বুকমাৰ্ক মচি নেপেলোৱালৈকে আপোনাৰ একাউণ্টত নতুন বুকমাৰ্ক ছেভ কৰিব নোৱাৰি। যদি আপুনি এতিয়াই ছাইন আউট কৰে, ছেভ নকৰা বুকমাৰ্কসমূহ মচি পেলোৱা হ’ব।</translation>
 <translation id="8433638294851456451">ইয়াৰ পৰা আপোনাৰ Android ফ’নলৈ নম্বৰ পঠিয়াবলৈ দুয়োটা ডিভাইচত Chromeত ছাইন ইন কৰক।</translation>
+<translation id="8458117863387545390">আপোনাৰ ফ’নত Chrome ডাউনল’ড কৰক</translation>
 <translation id="8496177819998570653">Google P&amp;assword Manager</translation>
 <translation id="8498858610309223613">Google Chromeৰ এটা বিশেষ সুৰক্ষা আপডে’ট এইমাত্ৰ প্ৰয়োগ কৰা হৈছে। এতিয়াই ৰিষ্টাৰ্ট কৰক আৰু আমি আপোনাৰ টেববোৰ পুনঃস্থাপন কৰিম।</translation>
 <translation id="8516431725144212809">Chromeএ অনুমান কৰা অনুসৰি আপোনাৰ আগ্ৰহ</translation>
@@ -772,6 +783,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="8914504000324227558">Chrome পুনৰ লঞ্চ কৰক</translation>
 <translation id="8922193594870374009"><ph name="ORIGIN" />ৰ পৰা এটা নম্বৰ আপোনাৰ Android ফ’নলৈ পঠিয়াবলৈ দুয়োটা ডিভাইচত Chromeত ছাইন ইন কৰক।</translation>
 <translation id="8922998289262614701">Chromeৰ পৰা এই এপৰ ডেটা আঁতৰাওক</translation>
+<translation id="8925636929359899517">আমি এই সেৱাটো উন্নত কৰিবলৈ তথ্য ব্যৱহাৰ কৰোঁ। <ph name="BEGIN_LINK1" />গোপনীয়তাৰ নীতি<ph name="END_LINK1" /> আৰু <ph name="BEGIN_LINK2" />সেৱাৰ চৰ্তাৱলী<ph name="END_LINK2" /> চাওক।</translation>
 <translation id="8936233353620149764">Chromeত Gemini ট’গল কৰক</translation>
 <translation id="8948460679427074738">এই এক্সটেনশ্বনে গোপনীয়তাৰ ব্যৱস্থাসমূহ প্ৰকাশ কৰা নাই, যেনে ই কেনেকৈ ডেটা সংগ্ৰহ আৰু ব্যৱহাৰ কৰে। Chromeএ আপুনি এইটো আঁতৰোৱাটো চুপাৰিছ কৰে।</translation>
 <translation id="8958307504142971576">Chromeত এতিয়া আপোনাৰ বাবে অধিক সুবিধা উপলব্ধ</translation>
@@ -781,7 +793,6 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="8999208279178790196">{0,plural, =0{Chromeৰ এটা আপডে’ট উপলব্ধ}=1{Chromeৰ এটা আপডে’ট উপলব্ধ}one{# দিনৰ বাবে Chromeৰ এটা আপডে’ট উপলব্ধ}other{# দিনৰ বাবে Chromeৰ এটা আপডে’ট উপলব্ধ}}</translation>
 <translation id="9010418943148193727">আপোনাৰ ডিফ’ল্ট সন্ধান ইঞ্জিনটো Chromeৰ বাহিৰৰ পৰা সলনি কৰা হৈছে। আপোনাক সুৰক্ষিত কৰিবলৈ, Chromeএ এইটো ৰিছেট কৰিছে।</translation>
 <translation id="9014771989710951291">একাধিক প্ৰতিষ্ঠানে Chrome পৰিচালনা কৰে</translation>
-<translation id="9024318700713112071">Chromeক আপোনাৰ ডিফ’ল্ট হিচাপে ছেট কৰক</translation>
 <translation id="9066987883552592250">Chrome কেনেৰীত Gemini বন্ধ কৰক</translation>
 <translation id="9090566250983691233">Chromeএ কিয় কিছুমান ফাইল অৱৰোধ কৰে সেই বিষয়ে জানক</translation>
 <translation id="9106236359747881194">সন্ধান কৰিবলৈ পাঠ বাছনি কৰক</translation>

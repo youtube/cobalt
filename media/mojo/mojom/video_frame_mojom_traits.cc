@@ -39,7 +39,7 @@ namespace {
 
 base::ReadOnlySharedMemoryRegion CreateRegion(const media::VideoFrame& frame,
                                               std::vector<uint32_t>& offsets,
-                                              std::vector<int32_t>& strides) {
+                                              std::vector<uint32_t>& strides) {
   TRACE_EVENT0("media", "VideoFrameDataPtr::CreateRegion");
   size_t num_planes = media::VideoFrame::NumPlanes(frame.format());
   DCHECK_LE(num_planes, 3u);
@@ -105,7 +105,7 @@ media::mojom::VideoFrameDataPtr MakeVideoFrameData(
       input->storage_type() == media::VideoFrame::STORAGE_UNOWNED_MEMORY ||
       input->storage_type() == media::VideoFrame::STORAGE_OWNED_MEMORY) {
     std::vector<uint32_t> offsets;
-    std::vector<int32_t> strides;
+    std::vector<uint32_t> strides;
     auto region = CreateRegion(*input, offsets, strides);
     if (!region.IsValid()) {
       DLOG(ERROR) << "Failed to create region from VideoFrame";
@@ -272,7 +272,7 @@ bool StructTraits<media::mojom::VideoFrameDataView,
     mojo::ArrayDataView<uint32_t> offsets;
     shared_memory_data.GetOffsetsDataView(&offsets);
 
-    mojo::ArrayDataView<int32_t> strides;
+    mojo::ArrayDataView<uint32_t> strides;
     shared_memory_data.GetStridesDataView(&strides);
 
     base::ReadOnlySharedMemoryMapping mapping = region.Map();
@@ -282,13 +282,15 @@ bool StructTraits<media::mojom::VideoFrameDataView,
     }
 
     const size_t num_planes = offsets.size();
-    if (num_planes == 0 || num_planes > 3) {
-      DLOG(ERROR) << "Invalid number of planes: " << num_planes;
+    if (num_planes != strides.size() ||
+        num_planes != media::VideoFrame::NumPlanes(format)) {
+      DLOG(ERROR) << "Invalid number of planes: offsets=" << num_planes
+                  << ", strides=" << strides.size()
+                  << ", format=" << VideoPixelFormatToString(format);
       return false;
     }
 
     auto mapped_region = mapping.GetMemoryAsSpan<uint8_t>();
-    std::array<base::span<const uint8_t>, 3> plane_data;
     std::vector<media::ColorPlaneLayout> planes(num_planes);
     for (size_t i = 0; i < num_planes; i++) {
       if (offsets[i] > mapped_region.size()) {
@@ -300,16 +302,8 @@ bool StructTraits<media::mojom::VideoFrameDataView,
 
       planes[i].stride = strides[i];
       planes[i].offset = base::strict_cast<size_t>(offsets[i]);
-      const size_t space_till_mapping_end = mapping.size() - offsets[i];
-      const size_t calculated_plane_size =
+      planes[i].size =
           media::VideoFrame::Rows(i, format, coded_size.height()) * strides[i];
-
-      // TODO(crbug.com/378046071) For H.264 content Widevine outputs planes
-      // in IMC4 pixel format. Since Y and V planes in IMC4 overlap,
-      // the distance to the next plane can't be used to determent the size of
-      // the current plane.
-      planes[i].size = std::min(calculated_plane_size, space_till_mapping_end);
-      plane_data[i] = mapped_region.subspan(offsets[i], planes[i].size);
     }
 
     auto layout = media::VideoFrameLayout::CreateWithPlanes(format, coded_size,
@@ -317,6 +311,12 @@ bool StructTraits<media::mojom::VideoFrameDataView,
     if (!layout || !layout->FitsInContiguousBufferOfSize(mapping.size())) {
       DLOG(ERROR) << "Invalid layout";
       return false;
+    }
+
+    std::array<base::span<const uint8_t>, 3> plane_data;
+    for (size_t i = 0; i < num_planes; i++) {
+      plane_data[i] = mapped_region.subspan(layout->planes()[i].offset,
+                                            layout->planes()[i].size);
     }
 
     if (media::IsYuvPlanar(format) && media::IsOpaque(format)) {

@@ -1294,14 +1294,9 @@ TEST_F(NavigationControllerTest, LoadURL_IgnorePreemptsPending) {
   EXPECT_FALSE(controller.GetPendingEntry());
   // The pending entry deletion and commit of the new NavigationEntry both
   // count as "navigation state change", though only one notification will be
-  // sent if kSkipRedundantNavigationStateNotification is enabled.
+  // sent.
   EXPECT_EQ(0, controller.GetLastCommittedEntryIndex());
-  if (base::FeatureList::IsEnabled(
-          features::kSkipRedundantNavigationStateNotification)) {
-    EXPECT_EQ(2, delegate->navigation_state_change_count());
-  } else {
-    EXPECT_EQ(3, delegate->navigation_state_change_count());
-  }
+  EXPECT_EQ(2, delegate->navigation_state_change_count());
 
   contents()->SetDelegate(nullptr);
 }
@@ -1524,9 +1519,11 @@ TEST_F(NavigationControllerTest, ReloadWithGuest) {
 
   // Ensure the entry's SiteInstance and RenderProcessHost are for a guest.
   NavigationEntryImpl* entry1 = controller.GetVisibleEntry();
-  ASSERT_EQ(entry1->site_instance()->GetStoragePartitionConfig(),
+  ASSERT_EQ(entry1->site_instance()
+                ->GetSecurityPrincipal()
+                .GetStoragePartitionConfig(),
             kGuestPartitionConfig);
-  ASSERT_TRUE(entry1->site_instance()->IsGuest());
+  ASSERT_TRUE(entry1->site_instance()->GetSecurityPrincipal().IsGuest());
   ASSERT_TRUE(entry1->site_instance()->GetProcess()->IsForGuestsOnly());
 
   // And reload.

@@ -77,8 +77,8 @@ class GlicActorPopupUiTest : public GlicActorUiTest,
            "before searching annotated page content.";
     CHECK(annotated_page_content_->has_popup_window());
 
-    // Traverse the APC in depth-first preorder, returning the parent of the
-    // first node that matches the given text.
+    // Traverse the APC in depth-first preorder, returning the first node
+    // that is a select control (FORM_CONTROL_TYPE_SELECT_ONE).
     std::stack<const ContentNode*> nodes;
     nodes.push(&annotated_page_content_->popup_window().root_node());
 
@@ -128,9 +128,7 @@ IN_PROC_BROWSER_TEST_P(GlicActorPopupUiTest, ActOnPopupWidgetWithId) {
         tab_handle_.Get()->GetContents()->GetPrimaryMainFrame();
     apc::Actions action = actor::MakeClick(
         *frame, element->content_attributes().common_ancestor_dom_node_id(),
-        apc::ClickAction::LEFT, apc::ClickAction::SINGLE);
-
-    action.set_task_id(task_id_.value());
+        apc::ClickAction::LEFT, apc::ClickAction::SINGLE, task_id_);
     return EncodeActionProto(action);
   });
 
@@ -179,9 +177,7 @@ IN_PROC_BROWSER_TEST_P(GlicActorPopupUiTest, ActOnPopupWidgetWithCoords) {
         gfx::ScaleToRoundedPoint(coordinate, 1.0 / GetDeviceScaleFactor());
     apc::Actions action =
         actor::MakeClick(tab_handle_, coordinate, apc::ClickAction::LEFT,
-                         apc::ClickAction::SINGLE);
-
-    action.set_task_id(task_id_.value());
+                         apc::ClickAction::SINGLE, task_id_);
     return EncodeActionProto(action);
   });
 
@@ -227,8 +223,7 @@ IN_PROC_BROWSER_TEST_P(GlicActorPopupUiTest, ActOnPopupWidgetWithSelectTool) {
             tab_handle_.Get()->GetContents()->GetPrimaryMainFrame();
         apc::Actions action = actor::MakeSelect(
             *frame, element->content_attributes().common_ancestor_dom_node_id(),
-            kSelectPopupText);
-        action.set_task_id(task_id_.value());
+            kSelectPopupText, task_id_);
         return EncodeActionProto(action);
       });
 

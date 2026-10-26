@@ -58,6 +58,7 @@ source_set("coordinator") {
     "//ios/chrome/browser/feature_engagement/model",
     "//ios/chrome/browser/first_run/public:best_features_item",
     "//ios/chrome/browser/fullscreen/ui_bundled",
+    "//ios/chrome/browser/fullscreen/ui_bundled:metrics",
     "//ios/chrome/browser/https_upgrades/model",
     "//ios/chrome/browser/intents/model:constants",
     "//ios/chrome/browser/intents/model:model_donation_helper",
@@ -161,6 +162,7 @@ source_set("unit_tests") {
     "//ios/chrome/browser/toolbar/legacy/ui_bundled/fullscreen",
     "//ios/chrome/browser/web/model/web_view_proxy",
     "//ios/chrome/test:test_support",
+    "//ios/chrome/test/app:test_support",
     "//ios/chrome/test/providers/lens",
     "//ios/public/provider/chrome/browser/lens:lens_overlay_api",
     "//ios/testing:nserror_support",
@@ -169,6 +171,7 @@ source_set("unit_tests") {
     "//ios/web/public/test",
     "//testing/gtest",
     "//third_party/ocmock",
+    "//ui/base:test_support",
   ]
 }
 

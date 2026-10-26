@@ -11,7 +11,7 @@ import("//extensions/buildflags/buildflags.gni")
 # TODO(https://crbug.com/356905053): Continue moving more here.
 extensions_api_schema_files_ = [
   "alarms.webidl",
-  "declarative_net_request.idl",
+  "declarative_net_request.webidl",
   "dns.webidl",
   "events.json",
   "extension_types.json",
@@ -26,11 +26,12 @@ extensions_api_schema_files_ = [
   "runtime.json",
   "storage.json",
   "system_cpu.webidl",
+  "system_display.webidl",
   "system_memory.webidl",
   "system_network.webidl",
   "test.json",
   "types.json",
-  "user_scripts.idl",
+  "user_scripts.webidl",
   "web_request.json",
 ]
 
@@ -39,7 +40,7 @@ extensions_api_schema_files_ = [
 # parsing.
 extensions_types_only_schema_files_ = [
   "chrome_url_overrides.webidl",
-  "content_scripts.idl",
+  "content_scripts.webidl",
   "cross_origin_isolation.webidl",
   "extensions_manifest_types.json",
   "incognito.json",
@@ -65,12 +66,12 @@ if (enable_extensions) {
     "app_current_window_internal.webidl",
     "app_runtime.webidl",
     "app_view_guest_internal.json",
-    "app_window.idl",
+    "app_window.webidl",
     "audio.webidl",
     "automation_internal.webidl",
     "automation.idl",
     "bluetooth_low_energy.webidl",
-    "bluetooth_private.idl",
+    "bluetooth_private.webidl",
     "bluetooth_socket.webidl",
     "bluetooth.webidl",
     "cec_private.webidl",
@@ -82,15 +83,13 @@ if (enable_extensions) {
     "mime_handler_view_guest_internal.json",
     "mojo_private.webidl",
     "networking_private.webidl",
-    "printer_provider_internal.idl",
-    "printer_provider.idl",
-    "scripts_internal.idl",
-    "serial.webidl",
+    "printer_provider_internal.webidl",
+    "printer_provider.webidl",
+    "scripts_internal.webidl",
     "socket.idl",
     "sockets_tcp_server.idl",
     "sockets_tcp.idl",
     "sockets_udp.idl",
-    "system_display.webidl",
     "system_storage.webidl",
     "usb.webidl",
     "virtual_keyboard_private.json",
@@ -101,6 +100,7 @@ if (enable_extensions) {
     extensions_api_schema_files_ += [
       "diagnostics.webidl",
       "media_perception_private.webidl",
+      "serial.webidl",
       "webcam_private.webidl",
     ]
   }
@@ -113,8 +113,7 @@ if (enable_extensions) {
 if (enable_desktop_android_extensions) {
   extensions_types_only_schema_files_ += [
     "clipboard.webidl",
-    "scripts_internal.idl",
-    "system_display.webidl",
+    "scripts_internal.webidl",
     "usb.webidl",
     "virtual_keyboard_private.json",
     "virtual_keyboard.webidl",

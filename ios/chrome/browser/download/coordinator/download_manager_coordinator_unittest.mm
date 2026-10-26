@@ -28,6 +28,7 @@
 #import "ios/chrome/browser/download/ui/download_manager_view_controller+Testing.h"
 #import "ios/chrome/browser/download/ui/download_manager_view_controller.h"
 #import "ios/chrome/browser/download/ui/download_manager_view_controller_delegate.h"
+#import "ios/chrome/browser/drive/model/drive_tab_helper.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_request_queue.h"
 #import "ios/chrome/browser/overlays/model/public/web_content_area/alert_overlay.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
@@ -39,8 +40,11 @@
 #import "ios/chrome/browser/shared/public/commands/download_list_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/file_size_util.h"
+#import "ios/chrome/browser/signin/model/authentication_service_factory.h"
+#import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/fakes/fake_contained_presenter.h"
+#import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/chrome/test/scoped_key_window.h"
 #import "ios/web/public/test/fakes/fake_download_task.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
@@ -71,7 +75,12 @@ const base::FilePath::CharType kTestSuggestedFileName[] =
 class DownloadManagerCoordinatorTest : public PlatformTest {
  protected:
   DownloadManagerCoordinatorTest() {
-    profile_ = TestProfileIOS::Builder().Build();
+    TestProfileIOS::Builder builder;
+    builder.AddTestingFactory(
+        AuthenticationServiceFactory::GetInstance(),
+        AuthenticationServiceFactory::GetFactoryWithDelegate(
+            std::make_unique<FakeAuthenticationServiceDelegate>()));
+    profile_ = std::move(builder).Build();
     browser_ = std::make_unique<TestBrowser>(profile_.get());
     presenter_ = [[FakeContainedPresenter alloc] init];
     base_view_controller_ = [[UIViewController alloc] init];
@@ -81,6 +90,7 @@ class DownloadManagerCoordinatorTest : public PlatformTest {
     OverlayRequestQueue::CreateForWebState(web_state_.get());
     DownloadManagerTabHelper::CreateForWebState(web_state_.get());
     DocumentDownloadTabHelper::CreateForWebState(web_state_.get());
+    DriveTabHelper::CreateForWebState(web_state_.get());
     web_state_->SetBrowserState(profile_.get());
     coordinator_ = [[DownloadManagerCoordinator alloc]
         initWithBaseViewController:base_view_controller_
@@ -117,6 +127,8 @@ class DownloadManagerCoordinatorTest : public PlatformTest {
     return task;
   }
 
+  // ScopedTestingLocalState needed for the authentication service.
+  IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   base::test::ScopedFeatureList feature_list_;
   web::WebTaskEnvironment task_environment_;
   std::unique_ptr<TestProfileIOS> profile_;

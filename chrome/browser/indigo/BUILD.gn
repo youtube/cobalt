@@ -1,0 +1,82 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+assert(!is_android)
+
+source_set("indigo") {
+  sources = [
+    "indigo_agent_host.h",
+    "indigo_alpha_rpc.h",
+    "indigo_page_action_controller.h",
+    "indigo_script_loader.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//chrome/browser/ui/tabs",
+    "//chrome/common:mojo_bindings",
+    "//components/optimization_guide/core",
+    "//components/signin/public/identity_manager",
+    "//components/tabs:public",
+    "//url",
+  ]
+
+  deps = [ "//content/public/browser" ]
+}
+
+source_set("impl") {
+  sources = [
+    "indigo_agent_host.cc",
+    "indigo_alpha_rpc.cc",
+    "indigo_page_action_controller.cc",
+    "indigo_script_loader.cc",
+  ]
+
+  deps = [
+    ":indigo",
+    "//base",
+    "//chrome/browser/indigo/onboarding",
+    "//chrome/browser/optimization_guide",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/signin",
+    "//chrome/browser/ui/actions:actions_headers",
+    "//chrome/browser/ui/views/page_action",
+    "//chrome/common:chrome_features",
+    "//chrome/common:mojo_bindings",
+    "//components/optimization_guide/core",
+    "//components/signin/public/identity_manager",
+    "//content/public/browser",
+    "//net",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "indigo_agent_host_unittest.cc",
+    "indigo_alpha_rpc_unittest.cc",
+    "indigo_page_action_controller_unittest.cc",
+    "indigo_script_loader_unittest.cc",
+  ]
+  deps = [
+    ":impl",
+    ":indigo",
+    "//base/test:test_support",
+    "//chrome/browser/optimization_guide:test_support",
+    "//chrome/browser/ui/views/page_action:test_support",
+    "//chrome/common:chrome_features",
+    "//chrome/test:test_support",
+    "//services/network:test_support",
+    "//services/network/public/cpp",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//url",
+  ]
+
+  if (is_chromeos) {
+    deps += [ "//chromeos/ash/components/network:test_support" ]
+  }
+}

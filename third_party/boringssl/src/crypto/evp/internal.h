@@ -36,8 +36,9 @@ typedef struct evp_pkey_ctx_method_st EVP_PKEY_CTX_METHOD;
 BSSL_NAMESPACE_END
 
 struct evp_pkey_alg_st {
-  // method implements operations for this |EVP_PKEY_ALG|.
+  // method and pkey_method implement operations for this |EVP_PKEY_ALG|.
   const bssl::EVP_PKEY_ASN1_METHOD *method;
+  const bssl::EVP_PKEY_CTX_METHOD *pkey_method;
 };
 
 BSSL_NAMESPACE_BEGIN
@@ -165,9 +166,6 @@ class EvpPkey : public evp_pkey_st, public RefCounted<EvpPkey> {
 
 #define EVP_PKEY_OP_TYPE_CRYPT (EVP_PKEY_OP_ENCRYPT | EVP_PKEY_OP_DECRYPT)
 
-#define EVP_PKEY_OP_TYPE_NOGEN \
-  (EVP_PKEY_OP_SIG | EVP_PKEY_OP_CRYPT | EVP_PKEY_OP_DERIVE)
-
 #define EVP_PKEY_OP_TYPE_GEN (EVP_PKEY_OP_KEYGEN | EVP_PKEY_OP_PARAMGEN)
 
 // EVP_PKEY_CTX_ctrl performs |cmd| on |ctx|. The |keytype| and |optype|
@@ -224,7 +222,10 @@ class EvpPkeyCtx : public evp_pkey_ctx_st {
  public:
   static constexpr bool kAllowUniquePtr = true;
 
-  ~EvpPkeyCtx();
+  // TODO(crbug.com/487376811): This destructor is virtual to confirm that we
+  // can emit vtables in libcrypto. Later we should replace |pmeth| with virtual
+  // methods and subclassing.
+  virtual ~EvpPkeyCtx();
 
   // Method associated with this operation
   const bssl::EVP_PKEY_CTX_METHOD *pmeth = nullptr;
@@ -235,16 +236,17 @@ class EvpPkeyCtx : public evp_pkey_ctx_st {
   // operation contains one of the |EVP_PKEY_OP_*| values.
   int operation = EVP_PKEY_OP_UNDEFINED;
   // Algorithm specific data.
-  // TODO(davidben): Since a |EVP_PKEY_CTX| never has its type change after
-  // creation, this should instead be a base class, with the algorithm-specific
-  // data on the subclass, coming from the same allocation.
+  // TODO(crbug.com/487376811): Since a |EVP_PKEY_CTX| never has its type change
+  // after creation, this should instead be a base class, with the
+  // algorithm-specific data on the subclass, coming from the same allocation.
   void *data = nullptr;
 };
 
 struct evp_pkey_ctx_method_st {
   int pkey_id;
 
-  int (*init)(EvpPkeyCtx *ctx);
+  // |alg| may be nullptr. If non-null, |ctx| will have a key set.
+  int (*init)(EvpPkeyCtx *ctx, const EVP_PKEY_ALG *alg);
   int (*copy)(EvpPkeyCtx *dst, EvpPkeyCtx *src);
   void (*cleanup)(EvpPkeyCtx *ctx);
 
@@ -278,13 +280,17 @@ struct evp_pkey_ctx_method_st {
   int (*ctrl)(EvpPkeyCtx *ctx, int type, int p1, void *p2);
 } /* EVP_PKEY_CTX_METHOD */;
 
-extern const EVP_PKEY_CTX_METHOD rsa_pkey_meth;
-extern const EVP_PKEY_CTX_METHOD rsa_pss_pkey_meth;
-extern const EVP_PKEY_CTX_METHOD ec_pkey_meth;
-extern const EVP_PKEY_CTX_METHOD ed25519_pkey_meth;
-extern const EVP_PKEY_CTX_METHOD x25519_pkey_meth;
-extern const EVP_PKEY_CTX_METHOD hkdf_pkey_meth;
-extern const EVP_PKEY_CTX_METHOD dh_pkey_meth;
+// evp_pkey_ec_no_curve returns an internal curveless EC |EVP_PKEY_ALG|. This
+// cannot be used to parse anything and is only useful for key generation.
+const EVP_PKEY_ALG *evp_pkey_ec_no_curve();
+
+// evp_pkey_hkdf returns an internal |EVP_PKEY_ALG| used to implement
+// |EVP_PKEY_HKDF|. It has no associated key type.
+const EVP_PKEY_ALG *evp_pkey_hkdf();
+
+// evp_pkey_ctx_new_alg behaves like |EVP_PKEY_CTX_new_id| but takes an
+// |EVP_PKEY_ALG|.
+UniquePtr<EvpPkeyCtx> evp_pkey_ctx_new_alg(const EVP_PKEY_ALG *alg);
 
 // evp_pkey_set0 sets |pkey|'s method to |method| and data to |pkey_data|,
 // freeing any key that may previously have been configured. This function takes

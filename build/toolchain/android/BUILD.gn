@@ -100,7 +100,13 @@ android_clang_toolchain("android_clang_arm64") {
 android_clang_toolchain("android_clang_arm64_webview") {
   toolchain_args = {
     current_cpu = "arm64"
-    pgo_data_path = "//android_webview/tools/orderfiles/arm64/pgo_profile.arm64.profdata"
+    if (pgo_override_filename != "") {
+      # Used on Webview orderfile bots to apply profile from their parent build.
+      pgo_data_path = "//chrome/build/pgo_profiles/$pgo_override_filename"
+    } else {
+      # Used in official(-like) builds for Standalone Webview's native library.
+      pgo_data_path = "//android_webview/tools/orderfiles/arm64/pgo_profile.arm64.profdata"
+    }
     is_high_end_android_secondary_toolchain = true
   }
 }

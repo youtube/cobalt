@@ -98,6 +98,8 @@ std::string_view ConvertIconToPrintableString(Suggestion::Icon icon) {
       return "kMagic";
     case Suggestion::Icon::kOfferTag:
       return "kOfferTag";
+    case Suggestion::Icon::kPassport:
+      return "kPassport";
     case Suggestion::Icon::kPenSpark:
       return "kPenSpark";
     case Suggestion::Icon::kPersonCheck:
@@ -301,6 +303,23 @@ Suggestion::IdentityCredentialPayload::operator=(IdentityCredentialPayload&&) =
     default;
 
 Suggestion::IdentityCredentialPayload::~IdentityCredentialPayload() = default;
+
+Suggestion::AtMemoryPayload::AtMemoryPayload() = default;
+
+Suggestion::AtMemoryPayload::AtMemoryPayload(std::u16string value)
+    : value(std::move(value)) {}
+
+Suggestion::AtMemoryPayload::AtMemoryPayload(const AtMemoryPayload&) = default;
+
+Suggestion::AtMemoryPayload::AtMemoryPayload(AtMemoryPayload&&) = default;
+
+Suggestion::AtMemoryPayload& Suggestion::AtMemoryPayload::operator=(
+    const AtMemoryPayload&) = default;
+
+Suggestion::AtMemoryPayload& Suggestion::AtMemoryPayload::operator=(
+    AtMemoryPayload&&) = default;
+
+Suggestion::AtMemoryPayload::~AtMemoryPayload() = default;
 
 Suggestion::PaymentsPayload::PaymentsPayload() = default;
 

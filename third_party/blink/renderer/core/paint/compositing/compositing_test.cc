@@ -18,6 +18,8 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/web/web_script_source.h"
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
+#include "third_party/blink/renderer/core/editing/frame_selection.h"
+#include "third_party/blink/renderer/core/editing/selection_template.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/frame/visual_viewport.h"
@@ -26,6 +28,7 @@
 #include "third_party/blink/renderer/core/html/html_iframe_element.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
+#include "third_party/blink/renderer/core/page/focus_controller.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/svg_names.h"
@@ -3934,6 +3937,250 @@ TEST_P(CompositingSimTest, CanvasDrawElementLayers) {
   // Non-direct children should still not get layers.
   EXPECT_FALSE(CcLayerByDOMElementId("grandchild_a_wct"));
   EXPECT_FALSE(CcLayerByDOMElementId("grandchild_a_bdf"));
+}
+
+TEST_P(CompositingSimTest, CanvasDrawElementLayersWithWillChange) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  InitializeWithHTML(R"HTML(
+    <!DOCTYPE html>
+    <style>
+      #target {
+        width: 100px;
+        height: 100px;
+        background: lightblue;
+      }
+      #willchange {
+        width: 100px;
+        height: 100px;
+        will-change: transform;
+        background: blue;
+      }
+    </style>
+    <canvas id="canvas" width="200" height="200" layoutsubtree>
+      <div id="target">
+        <div id="willchange"></div>
+      </div>
+    </canvas>
+  )HTML");
+  Compositor().BeginFrame();
+
+  // Direct children of canvas get a layer.
+  EXPECT_TRUE(CcLayerByDOMElementId("target"));
+  EXPECT_TRUE(paint_artifact_compositor()->GetCanvasChildPaintRecord(
+      GetElementById("target")->GetDomNodeId()));
+
+  // Composited content under canvas, other than direct children, is disabled.
+  EXPECT_FALSE(CcLayerByDOMElementId("willchange"));
+  EXPECT_FALSE(paint_artifact_compositor()->GetCanvasChildPaintRecord(
+      GetElementById("willchange")->GetDomNodeId()));
+}
+
+TEST_P(CompositingSimTest, CanvasDrawElementLayersWithScrolling) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  InitializeWithHTML(R"HTML(
+    <!DOCTYPE html>
+    <style>
+      #target {
+        width: 100px;
+        height: 100px;
+        background: lightblue;
+      }
+      #scroller {
+        width: 100px;
+        height: 100px;
+        overflow-y: scroll;
+        background: blue;
+      }
+      #scrolled {
+        width: 50px;
+        height: 500px;
+        background: darkblue;
+      }
+    </style>
+    <canvas id="canvas" width="200" height="200" layoutsubtree>
+      <div id="target">
+        <div id="scroller">
+          <div id="scrolled"></div>
+        </div>
+      </div>
+    </canvas>
+  )HTML");
+  Compositor().BeginFrame();
+
+  // Direct children of canvas get a layer.
+  auto* target_layer = CcLayerByDOMElementId("target");
+  EXPECT_TRUE(target_layer);
+  EXPECT_TRUE(paint_artifact_compositor()->GetCanvasChildPaintRecord(
+      GetElementById("target")->GetDomNodeId()));
+
+  // Composited content under canvas, other than direct children, is disabled.
+  EXPECT_FALSE(CcLayerByDOMElementId("scroller"));
+  auto* scroller_element = GetElementById("scroller");
+  EXPECT_FALSE(paint_artifact_compositor()->GetCanvasChildPaintRecord(
+      scroller_element->GetDomNodeId()));
+  EXPECT_FALSE(CcLayerByDOMElementId("scrolled"));
+  EXPECT_FALSE(paint_artifact_compositor()->GetCanvasChildPaintRecord(
+      GetElementById("scrolled")->GetDomNodeId()));
+
+  // The scroller should have a main-thread scroll hit test region in the
+  // target's layer.
+  EXPECT_FALSE(target_layer->main_thread_scroll_hit_test_region().IsEmpty());
+  EXPECT_EQ(gfx::Rect(gfx::Rect(0, 0, 100, 100)),
+            target_layer->main_thread_scroll_hit_test_region().bounds());
+
+  // Adding will-change: transform should not change things; scroll layers
+  // should still not be created.
+  scroller_element->setAttribute(html_names::kStyleAttr,
+                                 AtomicString("will-change: transform"));
+  Compositor().BeginFrame();
+
+  // Direct children of canvas get a layer.
+  target_layer = CcLayerByDOMElementId("target");
+  EXPECT_TRUE(target_layer);
+  EXPECT_TRUE(paint_artifact_compositor()->GetCanvasChildPaintRecord(
+      GetElementById("target")->GetDomNodeId()));
+
+  // Composited content under canvas, other than direct children, is disabled.
+  EXPECT_FALSE(CcLayerByDOMElementId("scroller"));
+  EXPECT_FALSE(paint_artifact_compositor()->GetCanvasChildPaintRecord(
+      scroller_element->GetDomNodeId()));
+  EXPECT_FALSE(CcLayerByDOMElementId("scrolled"));
+  EXPECT_FALSE(paint_artifact_compositor()->GetCanvasChildPaintRecord(
+      GetElementById("scrolled")->GetDomNodeId()));
+
+  // The scroller should have a main-thread scroll hit test region in the
+  // target's layer.
+  EXPECT_FALSE(target_layer->main_thread_scroll_hit_test_region().IsEmpty());
+  EXPECT_EQ(gfx::Rect(gfx::Rect(0, 0, 100, 100)),
+            target_layer->main_thread_scroll_hit_test_region().bounds());
+}
+
+TEST_P(CompositingSimTest, CanvasDrawElementLayersWithCaret) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  InitializeWithHTML(R"HTML(
+    <!DOCTYPE html>
+    <style>
+      #target {
+        width: 100px;
+        height: 100px;
+        background: lightblue;
+      }
+    </style>
+    <canvas id="canvas" width="200" height="200" layoutsubtree>
+      <div id="target">
+        <input id="input">
+      </div>
+    </canvas>
+    <input id="other_input">
+  )HTML");
+  Compositor().BeginFrame();
+  GetDocument().GetPage()->GetFocusController().SetActive(true);
+  GetDocument().GetPage()->GetFocusController().SetFocused(true);
+
+  GetElementById("input")->Focus();
+
+  Compositor().BeginFrame();
+
+  // Direct children of canvas get a layer.
+  EXPECT_TRUE(CcLayerByDOMElementId("target"));
+
+  // Composited content under canvas, other than direct children, is disabled.
+  EXPECT_FALSE(CcLayerByDOMElementId("input"));
+
+  GetElementById("other_input")->Focus();
+  Compositor().BeginFrame();
+
+  EXPECT_FALSE(CcLayerByDOMElementId("input"));
+  EXPECT_TRUE(CcLayerByDOMElementId("other_input"));
+
+  GetElementById("input")->Focus();
+  Compositor().BeginFrame();
+
+  EXPECT_FALSE(CcLayerByDOMElementId("input"));
+  EXPECT_FALSE(CcLayerByDOMElementId("other_input"));
+}
+
+TEST_P(CompositingSimTest, CanvasDrawElementLayersWithAnonymousCaret) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  InitializeWithHTML(R"HTML(
+    <!DOCTYPE html>
+    <style>
+      #target {
+        width: 100px;
+        height: 100px;
+        background: lightblue;
+      }
+    </style>
+    <canvas id="canvas" width="200" height="200" layoutsubtree>
+      <div id="target" contenteditable="true">
+        Text
+        <div>Block</div>
+      </div>
+    </canvas>
+  )HTML");
+
+  Compositor().BeginFrame();
+  GetDocument().GetPage()->GetFocusController().SetActive(true);
+  GetDocument().GetPage()->GetFocusController().SetFocused(true);
+
+  auto* target = GetElementById("target");
+  target->Focus();
+
+  // Place caret in the text node, which will be in an anonymous block
+  GetDocument().GetFrame()->Selection().SetSelection(
+      SelectionInDOMTree::Builder()
+          .Collapse(Position(target->firstChild(), 0))
+          .Build(),
+      SetSelectionOptions());
+
+  Compositor().BeginFrame();
+
+  const auto& caret_effect =
+      GetDocument().GetFrame()->Selection().CaretEffectNode();
+  EXPECT_FALSE(caret_effect.HasDirectCompositingReasons());
+}
+
+TEST_P(CompositingSimTest, CanvasDrawElementLayersWithScrollableDrawnElement) {
+  ScopedCanvasDrawElementForTest forced_canvas_draw_element_feature(true);
+
+  InitializeWithHTML(R"HTML(
+    <!DOCTYPE html>
+    <style>
+      #scroller {
+        width: 100px;
+        height: 100px;
+        overflow-y: scroll;
+        background: blue;
+      }
+      #scrolled {
+        width: 50px;
+        height: 500px;
+        background: darkblue;
+      }
+    </style>
+    <canvas id="canvas" width="200" height="200" layoutsubtree>
+      <div id="scroller">
+        <div id="scrolled"></div>
+      </div>
+    </canvas>
+  )HTML");
+  Compositor().BeginFrame();
+
+  // Direct children of canvas get a layer.
+  auto* scroller_layer = CcLayerByDOMElementId("scroller");
+  EXPECT_TRUE(scroller_layer);
+  EXPECT_TRUE(paint_artifact_compositor()->GetCanvasChildPaintRecord(
+      GetElementById("scroller")->GetDomNodeId()));
+
+  // Main thread hit test regions should be emitted for scrollable content
+  // under canvas, including for direct children of the canvas.
+  EXPECT_FALSE(scroller_layer->main_thread_scroll_hit_test_region().IsEmpty());
+  EXPECT_EQ(gfx::Rect(0, 0, 100, 100),
+            scroller_layer->main_thread_scroll_hit_test_region().bounds());
 }
 
 }  // namespace blink

@@ -12,14 +12,10 @@
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
-#include "remoting/protocol/jingle_messages.h"
 #include "remoting/protocol/session_manager.h"
 #include "remoting/protocol/session_observer.h"
+#include "remoting/signaling/jingle_data_structures.h"
 #include "remoting/signaling/signal_strategy.h"
-
-namespace jingle_xmpp {
-class XmlElement;
-}  // namespace jingle_xmpp
 
 namespace remoting {
 
@@ -62,16 +58,17 @@ class JingleSessionManager : public SessionManager,
   void RemoveSessionObserver(SessionObserver* observer);
 
   // SignalStrategy::Listener interface.
-  void OnSignalStrategyStateChange(SignalStrategy::State state) override;
-  bool OnSignalStrategyIncomingStanza(
-      const jingle_xmpp::XmlElement* stanza) override;
+  void OnSignalingStateChanged(SignalStrategy::State state) override;
+  bool OnSignalingMessage(const SignalingAddress& sender_address,
+                          const JingleMessage& message) override;
 
   typedef std::map<std::string, raw_ptr<JingleSession, CtnExperimental>>
       SessionsMap;
 
   IqSender* iq_sender() { return iq_sender_.get(); }
-  void SendReply(std::unique_ptr<jingle_xmpp::XmlElement> original_stanza,
-                 JingleMessageReply::ErrorType error);
+  void SendReply(
+      const JingleMessage& original_message,
+      std::optional<JingleMessageReply::ErrorType> error = std::nullopt);
 
   // Called by JingleSession when it is being destroyed.
   void SessionDestroyed(JingleSession* session);

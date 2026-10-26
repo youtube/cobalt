@@ -101,23 +101,24 @@ void ConfigurationPolicyHandlerList::PrepareForDisplaying(
 
 bool ConfigurationPolicyHandlerList::IsBlockedDesktopAndroidPolicy(
     const std::string& policy_name) const {
+// TODO(b/478012386): We shouldn't use IS_DESKTOP_ANDROID long-term. The feature
+// flag needs to be removed as soon as we feel comfortable about all exist
+// Android
 #if BUILDFLAG(IS_DESKTOP_ANDROID)
-  // The allowlist is not used if kDesktopAndroidPolicy is off. So that all
-  // policies are allowed by default without Finch config.
-  if (!base::FeatureList::IsEnabled(features::kDesktopAndroidPolicy)) {
+   if (!base::FeatureList::IsEnabled(features::kDesktopAndroidPolicy)) {
     return false;
   }
 
-  auto allowlist_str =
-      features::kDesktopAndroidPolicyAllowlist.Get();
-  for (const auto& allowed_policy :
-       base::SplitStringPiece(allowlist_str, ",", base::TRIM_WHITESPACE,
+  auto blocklist_str =
+      features::kDesktopAndroidPolicyBlocklist.Get();
+  for (const auto& blocked_policy :
+       base::SplitStringPiece(blocklist_str, ",", base::TRIM_WHITESPACE,
                               base::SPLIT_WANT_NONEMPTY)) {
-    if (allowed_policy == policy_name) {
-      return false;
+    if (blocked_policy == policy_name) {
+      return true;
     }
   }
-  return true;
+  return false;
 #else
   return false;
 #endif  // BUILDFLAG(IS_DESKTOP_ANDROID)

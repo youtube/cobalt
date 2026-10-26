@@ -72,15 +72,6 @@ base::expected<void, CorsErrorStatus> CheckAccess(
     mojom::CredentialsMode credentials_mode,
     const url::Origin& origin);
 
-// Performs a CORS access check and reports result and error.
-COMPONENT_EXPORT(NETWORK_CPP)
-base::expected<void, CorsErrorStatus> CheckAccessAndReportMetrics(
-    const GURL& response_url,
-    const std::optional<std::string>& allow_origin_header,
-    const std::optional<std::string>& allow_credentials_header,
-    mojom::CredentialsMode credentials_mode,
-    const url::Origin& origin);
-
 // Returns true if |request_mode| is not kNavigate nor kNoCors, and the
 // |request_initiator| is not same as the origin of |request_url|. The
 // |request_url| is expected to have a http or https scheme as they are only
@@ -94,12 +85,20 @@ COMPONENT_EXPORT(NETWORK_CPP)
 bool IsCorsEnabledRequestMode(mojom::RequestMode mode);
 
 // Checks safelisted request parameters.
+//
+// `is_ad_auction_trusted_signals_request` should only be true for Protected
+// Audiences trusted signals requests, which allow the
+// "message/ad-auction-trusted-signals-request" Content-Type without a
+// preflight. This parameter is slated to be removed when the Protect Audiences
+// code is. It is always assumed to be false  by IsCorsSafelistedContentType().
 COMPONENT_EXPORT(NETWORK_CPP)
 bool IsCorsSafelistedMethod(const std::string& method);
 COMPONENT_EXPORT(NETWORK_CPP)
 bool IsCorsSafelistedContentType(const std::string& name);
 COMPONENT_EXPORT(NETWORK_CPP)
-bool IsCorsSafelistedHeader(const std::string& name, const std::string& value);
+bool IsCorsSafelistedHeader(const std::string& name,
+                            const std::string& value,
+                            bool is_ad_auction_trusted_signals_request = false);
 COMPONENT_EXPORT(NETWORK_CPP)
 bool IsNoCorsSafelistedHeaderName(const std::string& name);
 COMPONENT_EXPORT(NETWORK_CPP)

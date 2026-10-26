@@ -23,41 +23,50 @@ class NGShapeCacheTest : public FontTestBase {
 };
 
 TEST_F(NGShapeCacheTest, AddEntriesAndCacheHits) {
-  auto ShapeResultFunc = []() -> const ShapeResult* {
+  auto ShapeResultFunc = []() -> ShaperResult {
     // For the purposes of this test the actual internals of the shape result
     // doesn't matter.
-    return MakeGarbageCollected<ShapeResult>(0, 0, TextDirection::kLtr);
+    return {MakeGarbageCollected<ShapeResult>(0, 0, TextDirection::kLtr),
+            /*can_cache=*/true};
+  };
+
+  auto CreateKey = [](const String& text,
+                      TextDirection direction) -> ShapeCacheKey {
+    return ShapeCacheKey(text, 0, text.length(), g_null_atom, {}, direction);
   };
 
   // Adding an entry is successful.
   const auto* entry_A_LTR =
-      cache->GetOrCreate("A", TextDirection::kLtr, ShapeResultFunc);
+      cache->GetOrCreate(CreateKey("A", TextDirection::kLtr), ShapeResultFunc);
   ASSERT_TRUE(entry_A_LTR);
 
   // Adding the same entry again hits cache.
-  EXPECT_EQ(cache->GetOrCreate("A", TextDirection::kLtr, ShapeResultFunc),
-            entry_A_LTR);
+  EXPECT_EQ(
+      cache->GetOrCreate(CreateKey("A", TextDirection::kLtr), ShapeResultFunc),
+      entry_A_LTR);
 
   // Adding the an entry with different text does not hit cache.
   const auto* entry_B_LTR =
-      cache->GetOrCreate("B", TextDirection::kLtr, ShapeResultFunc);
+      cache->GetOrCreate(CreateKey("B", TextDirection::kLtr), ShapeResultFunc);
   ASSERT_TRUE(entry_B_LTR);
   EXPECT_NE(entry_B_LTR, entry_A_LTR);
 
   // Adding the same entry again hits cache.
-  EXPECT_EQ(cache->GetOrCreate("B", TextDirection::kLtr, ShapeResultFunc),
-            entry_B_LTR);
+  EXPECT_EQ(
+      cache->GetOrCreate(CreateKey("B", TextDirection::kLtr), ShapeResultFunc),
+      entry_B_LTR);
 
   // Adding the an entry with different direction does not hit cache.
   const auto* entry_A_RTL =
-      cache->GetOrCreate("A", TextDirection::kRtl, ShapeResultFunc);
+      cache->GetOrCreate(CreateKey("A", TextDirection::kRtl), ShapeResultFunc);
   ASSERT_TRUE(entry_A_RTL);
   EXPECT_NE(entry_A_RTL, entry_A_LTR);
   EXPECT_NE(entry_A_RTL, entry_B_LTR);
 
   // Adding the same entry again hits cache.
-  EXPECT_EQ(cache->GetOrCreate("A", TextDirection::kRtl, ShapeResultFunc),
-            entry_A_RTL);
+  EXPECT_EQ(
+      cache->GetOrCreate(CreateKey("A", TextDirection::kRtl), ShapeResultFunc),
+      entry_A_RTL);
 }
 
 }  // namespace blink

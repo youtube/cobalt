@@ -31,6 +31,8 @@ class ImageIndex;
 
 namespace rx
 {
+class GraphicsDriverUniforms;
+
 namespace vk
 {
 constexpr VkBufferUsageFlags kVertexBufferUsageFlags =
@@ -1961,6 +1963,10 @@ class RenderPassCommandBufferHelper final : public CommandBufferHelperCommon
 
     bool isDefault() const { return mFramebuffer.isDefault(); }
 
+    void addCurrentDriverUniforms(const vk::PipelineLayout *pipelineLayout,
+                                  const GraphicsDriverUniforms &graphicsDriverUniforms);
+    void dirtyCurrentDriverUniforms();
+
   private:
     uint32_t getSubpassCommandBufferCount() const { return mCurrentSubpassCommandBufferIndex + 1; }
 
@@ -2048,6 +2054,10 @@ class RenderPassCommandBufferHelper final : public CommandBufferHelperCommon
 
     // The list of VkEvents copied from RefCountedEventArray
     EventArray mVkEventArray;
+
+    // pushConstant at beginning of this renderPass
+    const vk::PipelineLayout *mPipelineLayout;
+    std::unique_ptr<GraphicsDriverUniforms> mGraphicsDriverUniforms;
 
     friend class CommandBufferHelperCommon;
 };
@@ -2294,14 +2304,14 @@ class ImageHelper final : public Resource, public angle::Subject
     // pNext chain based on the given parameters, and adjust create flags.  In some cases, these
     // shouldn't be automatically derived, for example when importing images through
     // EXT_external_objects and ANGLE_external_objects_flags.
-    static constexpr uint32_t kImageListFormatCount = 2;
-    using ImageListFormats                          = std::array<VkFormat, kImageListFormatCount>;
+    static constexpr uint32_t kImageColorspaceOverrideFormatCount = 2;
+    using ImageFormats = angle::FixedVector<VkFormat, kImageColorspaceOverrideFormatCount>;
     static const void *DeriveCreateInfoPNext(
         ErrorContext *context,
         angle::FormatID actualFormatID,
         const void *pNext,
         VkImageFormatListCreateInfoKHR *imageFormatListInfoStorage,
-        ImageListFormats *imageListFormatsStorage,
+        ImageFormats *imageFormats,
         ImageFormatReinterpretability formatReinterpretability,
         VkImageCreateFlags *createFlagsOut);
 
@@ -2322,14 +2332,8 @@ class ImageHelper final : public Resource, public angle::Subject
                                     const FormatSupportCheck formatSupportCheck);
 
     // Image formats used for the creation of imageless framebuffers.
-    using ImageFormats = angle::FixedVector<VkFormat, kImageListFormatCount>;
     ImageFormats &getViewFormats() { return mViewFormats; }
     const ImageFormats &getViewFormats() const { return mViewFormats; }
-
-    // Helper for initExternal and users to extract the view formats of the image from the pNext
-    // chain in VkImageCreateInfo.
-    void deriveImageViewFormatFromCreateInfoPNext(const VkImageCreateInfo &imageInfo,
-                                                  ImageFormats &formatOut);
 
     // Release the underlying VkImage object for garbage collection.
     void releaseImage(Renderer *renderer);
@@ -2362,7 +2366,8 @@ class ImageHelper final : public Resource, public angle::Subject
                              VkImageCreateFlags createFlags,
                              VkImageUsageFlags usage,
                              GLint samples,
-                             bool isRobustResourceInitEnabled);
+                             bool isRobustResourceInitEnabled,
+                             const ImageFormats &imageFormats);
     void resetImageWeakReference();
 
     const Image &getImage() const { return mImage; }
@@ -3057,10 +3062,6 @@ class ImageHelper final : public Resource, public angle::Subject
     using LevelContentDefinedMask = angle::BitSet8<kMaxContentDefinedLayerCount>;
 
     void deriveExternalImageTiling(const void *createInfoChain);
-
-    // Used to initialize ImageFormats from actual format, with no pNext from a VkImageCreateInfo
-    // object.
-    void setImageFormatsFromActualFormat(VkFormat actualFormat, ImageFormats &imageFormatsOut);
 
     // Called from flushStagedUpdates, removes updates that are later superseded by another.  This
     // cannot be done at the time the updates were staged, as the image is not created (and thus the

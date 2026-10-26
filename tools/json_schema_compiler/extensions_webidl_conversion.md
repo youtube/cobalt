@@ -147,7 +147,46 @@ enum VendorIdSource {
   "usb"
 };
 ```
-Each enum value should be put on a new line. Descriptive comments above the whole enum should be moved along with them.
+Descriptive comments above the whole enum should be moved along with them.
+
+### Typedefs for Referencing External Types or Local Aliasing
+WebIDL does not allow Type names to contain periods, so any references to Types defined in other schema files (e.g. `extensionTypes.FrameType` or `tabs.Tab`) must be updated. We handle this by creating a local `Typedef object` at the top level of the file with a name combining the capitalized namespace and Type name, and giving it an `ExternalExtensionType=]` extended attribute with the original string.
+
+Typedefs can also be used to create local aliases for types when you want to apply specific extended attributes to them, such as `[instanceOf=...]`, which is useful when they need to be used in places where extended attributes are not normally allowed by the IDL parser (e.g. on the Type of a `Promise<Type>`).
+
+If a Typedef has an `ExternalExtensionType` extended attribute it is treated as an external type reference; otherwise it is treated as a local alias and the underlying type of the Typedef is used, along with any extended attributes on it.
+
+**Example of External Type:**
+```
+// Old .idl file
+dictionary contentScripts {
+  extensionTypes.RunAt? run_at;
+}
+```
+Would become:
+```
+// New .webidl file
+[ExternalExtensionType="extensionTypes.RunAt"]
+typedef object ExtensionTypesRunAt;
+
+dictionary contentScripts {
+  ExtensionTypesRunAt run_at;
+}
+```
+
+**Example of Local Alias with instanceOf:**
+```
+// Old .idl file
+callback BlobCallback = void([instanceOf=Blob] object blob);
+```
+Would become:
+```
+// New .webidl file
+[instanceOf=Blob]
+typedef object Blob;
+
+[requiredCallback] static Promise<Blob> getBlob();
+```
 
 ### Functions and Callbacks to Promises
 All functions that used a trailing callback must be converted to return a `Promise`.
@@ -255,7 +294,7 @@ interface OnFooEvent : ExtensionEvent {
 };
 ```
 
-3. **Add Event Attribute.** In the main API interface (e.g., `Alarms`), add a `static attribute` for the event. The general descriptive comment for the event (e.g., "Fired when...") should be moved above this new attribute.
+3. **Add Event Attribute.** In the main API interface (e.g., `Alarms`), add a `static attribute` for the event. The general descriptive comment for the event (e.g., "Fired when...") and any extended attributes which were on the original event definition (e.g. `[maxListeners=1]`) should be moved to this new attribute definition.
 ```
 // Fired when something interesting happens.
 static attribute OnFooEvent onFoo;

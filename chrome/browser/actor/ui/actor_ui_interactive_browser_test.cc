@@ -19,16 +19,14 @@ ActorUiInteractiveBrowserTest::~ActorUiInteractiveBrowserTest() = default;
 void ActorUiInteractiveBrowserTest::SetUpCommandLine(
     base::CommandLine* command_line) {
   InteractiveBrowserTest::SetUpCommandLine(command_line);
-#if BUILDFLAG(ENABLE_GLIC)
   command_line->AppendSwitch(switches::kGlicDev);
   // Skips FRE experience.
   command_line->AppendSwitch(switches::kGlicAutomation);
-#endif
 }
 
 void ActorUiInteractiveBrowserTest::StartActingOnTab() {
-  task_id_ =
-      actor_keyed_service()->CreateTask(actor::NoEnterprisePolicyChecker());
+  task_id_ = actor_keyed_service()->CreateTask(
+      actor::TestTaskSourceInfo(), actor::NoEnterprisePolicyChecker());
   TestFuture<actor::mojom::ActionResultPtr> future;
   actor_keyed_service()->GetTask(task_id_)->AddTab(
       browser()->GetActiveTabInterface()->GetHandle(), future.GetCallback());

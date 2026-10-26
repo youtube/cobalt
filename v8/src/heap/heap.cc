@@ -25,6 +25,7 @@
 #include "src/base/once.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/accessors.h"
@@ -134,7 +135,6 @@
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils-inl.h"
 #include "src/utils/utils.h"
-#include "third_party/rapidhash-v8/secret.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-engine.h"
@@ -1346,18 +1346,32 @@ namespace {
 
 // Frees caches when under memory pressure. The method assumes that callsites
 // are close to crashing and will very aggressively free memory.
-void FreeCachesOnMemoryPressure(Isolate* isolate) {
+void FreeCachesOnMemoryPressure(Isolate* isolate,
+                                GarbageCollectionReason gc_reason) {
   isolate->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   isolate->ClearSerializerData();
   isolate->compilation_cache()->Clear();
-
   // TODO(ishell): consider trimming number to string caches to initial size.
 
+  // These GC types signal almost crashing state and should result in purging
+  // all caches somehow possible.
+  const bool emergency_or_memory_pressure_gc =
+      gc_reason == GarbageCollectionReason::kLastResort ||
+      gc_reason == GarbageCollectionReason::kMemoryPressure;
+
   if (auto* memory_pool = IsolateGroup::current()->memory_pool()) {
-    if (v8_flags.memory_pool_release_before_memory_pressure_gcs) {
+    if (emergency_or_memory_pressure_gc) {
+      memory_pool->ReleaseAllImmediately();
+    } else {
       memory_pool->ReleaseImmediately(isolate);
     }
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (emergency_or_memory_pressure_gc && v8_flags.flush_liftoff_code) {
+    wasm::GetWasmEngine()->FlushLiftoffCode();
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 }  // anonymous namespace
@@ -1395,7 +1409,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   }
   RCS_SCOPE(isolate(), RuntimeCallCounterId::kGC_Custom_AllAvailableGarbage);
 
-  FreeCachesOnMemoryPressure(isolate());
+  FreeCachesOnMemoryPressure(isolate(), gc_reason);
 
   GCFlags gc_flags = GCFlag::kReduceMemoryFootprint;
   GCCallbackFlags gc_callback_flags =
@@ -1445,7 +1459,6 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
         tracer()->AverageMarkCompactMutatorUtilization());
   }
 
-  FlushLiftoffCode(gc_reason);
   CompleteArrayBufferSweeping();
 
   if (gc_reason == GarbageCollectionReason::kLastResort &&
@@ -1470,6 +1483,20 @@ void Heap::HandleExternalMemoryInterrupt() {
           kGCCallbackFlagSynchronousPhantomCallbackProcessing |
           kGCCallbackFlagCollectAllExternalMemory);
   uint64_t current = external_memory();
+  if (v8_flags.external_memory_accounted_in_global_limit) {
+    // Under `external_memory_accounted_in_global_limit`, external interrupt
+    // only triggers a check to allocation limits.
+    limits()->UpdateExternalMemoryLimitForInterrupt(current);
+    StartIncrementalMarkingIfAllocationLimitIsReached(
+        main_thread_local_heap(), GCFlagsForIncrementalMarking(),
+        kGCCallbackFlagsForExternalMemory);
+    if (incremental_marking()->IsMajorMarking() &&
+        AllocationLimitOvershotByLargeMargin()) {
+      CollectGarbageWithRetry(OLD_SPACE,
+                              GarbageCollectionReason::kExternalMemoryPressure);
+    }
+    return;
+  }
   if (current > external_memory_hard_limit()) {
     TRACE_EVENT2("devtools.timeline,v8", "V8.ExternalMemoryPressure",
                  "external_memory_mb", static_cast<int>((current) / MB),
@@ -1480,15 +1507,6 @@ void Heap::HandleExternalMemoryInterrupt() {
         GarbageCollectionReason::kExternalMemoryPressure,
         static_cast<GCCallbackFlags>(kGCCallbackFlagCollectAllAvailableGarbage |
                                      kGCCallbackFlagsForExternalMemory));
-    return;
-  }
-  if (v8_flags.external_memory_accounted_in_global_limit) {
-    // Under `external_memory_accounted_in_global_limit`, external interrupt
-    // only triggers a check to allocation limits.
-    limits()->UpdateExternalMemoryLimitForInterrupt(current);
-    StartIncrementalMarkingIfAllocationLimitIsReached(
-        main_thread_local_heap(), GCFlagsForIncrementalMarking(),
-        kGCCallbackFlagsForExternalMemory);
     return;
   }
   uint64_t soft_limit = external_memory_soft_limit();
@@ -1787,7 +1805,11 @@ void Heap::CollectGarbage(
   }
 }
 
-bool Heap::ReachedHeapLimit() { return !CanExpandOldGeneration(0); }
+bool Heap::ReachedHeapLimit() {
+  return !CanExpandOldGeneration(0) ||
+         (v8_flags.enforce_global_heap_limit &&
+          GlobalConsumedBytes() >= limits()->max_global_memory_size());
+}
 
 bool Heap::HasConsecutiveIneffectiveMarkCompact() const {
   return consecutive_ineffective_mark_compacts_.load(
@@ -2242,12 +2264,16 @@ void Heap::RestoreHeapLimit(size_t heap_limit) {
                             physical_memory());
 }
 
-void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
-                                   GarbageCollectionReason gc_reason,
-                                   const GCCallbackFlags gc_callback_flags) {
+void Heap::CollectGarbageWithRetry(AllocationSpace space,
+                                   GarbageCollectionReason gc_reason) {
   std::ignore = allocator()->RetryCustomAllocate(
-      [&]() { return !ReachedHeapLimit(); },
-      space == NEW_SPACE ? AllocationType::kYoung : AllocationType::kOld);
+      [&]() {
+        // RetryCustomAllocate() already checks heap limits before calling
+        // the allocate function.
+        return true;
+      },
+      space == NEW_SPACE ? AllocationType::kYoung : AllocationType::kOld,
+      gc_reason);
 }
 
 void Heap::PerformRequestedGC(LocalHeap* local_heap) {
@@ -2877,18 +2903,38 @@ void Heap::EvaluateOldSpaceLocalPretenuring(
       (static_cast<double>(size_of_objects_after_gc) * 100) /
       static_cast<double>(size_of_objects_before_gc);
 
-  if (old_generation_survival_rate < kOldSurvivalRateLowThreshold) {
+  const bool reset_allocation_sites =
+      old_generation_survival_rate < kOldSurvivalRateLowThreshold;
+
+  if (reset_allocation_sites) {
     // Too many objects died in the old generation, pretenuring of wrong
     // allocation sites may be the cause for that. We have to deopt all
     // dependent code registered in the allocation sites to re-evaluate
     // our pretenuring decisions.
     ResetAllAllocationSitesDependentCode(AllocationType::kOld);
-    if (v8_flags.trace_pretenuring) {
+    if (V8_UNLIKELY(v8_flags.trace_pretenuring)) {
       PrintF(
           "Deopt all allocation sites dependent code due to low survival "
           "rate in the old generation %f\n",
           old_generation_survival_rate);
     }
+  }
+
+  if (is_gc_tracing_category_enabled()) {
+    TRACE_EVENT_INSTANT(
+        TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+        "V8.GCEvaluateOldSpaceLocalPretenuring", "value",
+        [reset_allocation_sites, old_generation_survival_rate,
+         size_of_objects_before_gc, size_of_objects_after_gc,
+         threshold = kOldSurvivalRateLowThreshold](perfetto::TracedValue ctx) {
+          auto dict = std::move(ctx).WriteDictionary();
+          dict.Add("reset_allocation_sites", reset_allocation_sites);
+          dict.Add("old_generation_survival_rate",
+                   old_generation_survival_rate);
+          dict.Add("size_of_objects_before_gc", size_of_objects_before_gc);
+          dict.Add("size_of_objects_after_gc", size_of_objects_after_gc);
+          dict.Add("threshold", threshold);
+        });
   }
 }
 
@@ -2988,7 +3034,8 @@ void* Heap::AllocateExternalBackingStore(
     return result;
   }
   std::ignore = allocator()->RetryCustomAllocate(
-      [&]() { return result = allocate(byte_length); }, AllocationType::kOld);
+      [&]() { return result = allocate(byte_length); }, AllocationType::kOld,
+      GarbageCollectionReason::kAllocationFailure);
   return result;
 }
 
@@ -3294,7 +3341,7 @@ void Heap::OnMoveEvent(Tagged<HeapObject> source, Tagged<HeapObject> target,
 }
 
 Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
-                                                int elements_to_trim) {
+                                                uint32_t elements_to_trim) {
   if (elements_to_trim == 0) {
     // This simplifies reasoning in the rest of the function.
     return object;
@@ -3305,7 +3352,7 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   // is added.
   DCHECK(IsFixedArray(object) || IsFixedDoubleArray(object));
   const int element_size = IsFixedArray(object) ? kTaggedSize : kDoubleSize;
-  const int bytes_to_trim = elements_to_trim * element_size;
+  const uint32_t bytes_to_trim = elements_to_trim * element_size;
   Tagged<Map> map = object->map();
 
   // For now this trick is only applied to fixed arrays which may be in new
@@ -3318,8 +3365,8 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   static_assert(offsetof(FixedArrayBase, length_) == kTaggedSize);
   static_assert(sizeof(FixedArrayBase) == 2 * kTaggedSize);
 
-  const int len = object->length();
-  DCHECK(elements_to_trim <= len);
+  const uint32_t len = object->ulength().value();
+  DCHECK_LE(elements_to_trim, len);
 
   // Calculate location of new array start.
   Address old_start = object.address();
@@ -3341,7 +3388,7 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   RELAXED_WRITE_FIELD(object, bytes_to_trim,
                       Tagged<Object>(MapWord::FromMap(map).ptr()));
   RELAXED_WRITE_FIELD(object, bytes_to_trim + kTaggedSize,
-                      Smi::FromInt(len - elements_to_trim));
+                      Smi::FromUInt(len - elements_to_trim));
 
   Tagged<FixedArrayBase> new_object =
       Cast<FixedArrayBase>(HeapObject::FromAddress(new_start));
@@ -3386,7 +3433,7 @@ void Heap::RightTrimArray(Tagged<Array> object, uint32_t new_capacity_raw,
                           uint32_t old_capacity_raw) {
   int new_capacity = new_capacity_raw;
   int old_capacity = old_capacity_raw;
-  DCHECK_EQ(old_capacity, object->capacity());
+  DCHECK_EQ(old_capacity_raw, object->capacity().value());
   DCHECK_LT(new_capacity, old_capacity);
   DCHECK_GE(new_capacity, 0);
 
@@ -3657,7 +3704,7 @@ bool Heap::IsIneffectiveMarkCompact(size_t old_generation_size,
   bool high_heap_ratio =
       (old_generation_size >= v8_flags.ineffective_gc_size_threshold *
                                   limits()->max_old_generation_size());
-  if (v8_flags.ineffective_gc_includes_global) {
+  if (v8_flags.enforce_global_heap_limit) {
     high_heap_ratio |= (global_size >= v8_flags.ineffective_gc_size_threshold *
                                            limits()->max_global_memory_size());
   }
@@ -4089,7 +4136,8 @@ class MemoryPressureInterruptTask : public CancelableTask {
 
 void Heap::CheckMemoryPressure() {
   if (HighMemoryPressure()) {
-    FreeCachesOnMemoryPressure(isolate());
+    FreeCachesOnMemoryPressure(isolate(),
+                               GarbageCollectionReason::kMemoryPressure);
   }
   // Reset the memory pressure level to avoid recursive GCs triggered by
   // CheckMemoryPressure from AdjustAmountOfExternalMemory called by
@@ -4119,7 +4167,6 @@ void Heap::CollectGarbageOnMemoryPressure() {
   double start = MonotonicallyIncreasingTimeInMs();
   CollectAllGarbage(GCFlag::kReduceMemoryFootprint, gc_reason,
                     kGCCallbackFlagCollectAllAvailableGarbage);
-  FlushLiftoffCode(gc_reason);
   CompleteArrayBufferSweeping();
   double end = MonotonicallyIncreasingTimeInMs();
 
@@ -4163,17 +4210,6 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
           std::make_unique<MemoryPressureInterruptTask>(this));
     }
   }
-}
-
-void Heap::FlushLiftoffCode(GarbageCollectionReason gc_reason) {
-#if V8_ENABLE_WEBASSEMBLY
-  const bool should_flush =
-      gc_reason == GarbageCollectionReason::kLastResort ||
-      gc_reason == GarbageCollectionReason::kMemoryPressure;
-  if (should_flush && v8_flags.flush_liftoff_code) {
-    wasm::GetWasmEngine()->FlushLiftoffCode();
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 void Heap::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
@@ -5435,7 +5471,7 @@ size_t Heap::EmbedderSizeOfObjects() const {
   return cpp_heap_ ? CppHeap::From(cpp_heap_)->used_size() : 0;
 }
 
-size_t Heap::GlobalSizeOfObjects() const {
+uint64_t Heap::GlobalSizeOfObjects() const {
   return OldGenerationSizeOfObjects() + EmbedderSizeOfObjects() +
          (v8_flags.external_memory_accounted_in_global_limit ? external_memory()
                                                              : 0);
@@ -5444,7 +5480,8 @@ size_t Heap::GlobalSizeOfObjects() const {
 size_t Heap::GlobalWastedBytes() const { return OldGenerationWastedBytes(); }
 
 size_t Heap::GlobalConsumedBytes() const {
-  return GlobalSizeOfObjects() + GlobalWastedBytes();
+  return base::saturated_cast<size_t>(GlobalSizeOfObjects() +
+                                      GlobalWastedBytes());
 }
 
 size_t Heap::OldGenerationAllocationLimitForTesting() const {
@@ -5477,20 +5514,22 @@ bool Heap::AllocationLimitOvershotByLargeMargin() const {
 
   const size_t old_generation_limit =
       limits()->old_generation_allocation_limit();
+  const size_t global_limit = limits()->global_allocation_limit();
+
+  // Bail out if the V8 and global sizes are still below their respective
+  // limits.
+  if (old_generation_consumed < old_generation_limit &&
+      global_consumed < global_limit) {
+    return false;
+  }
+
   const size_t old_generation_overshoot =
       old_generation_limit < old_generation_consumed
           ? old_generation_consumed - old_generation_limit
           : 0;
 
-  const size_t global_limit = limits()->global_allocation_limit();
   const size_t global_overshoot =
       global_limit < global_consumed ? global_consumed - global_limit : 0;
-
-  // Bail out if the V8 and global sizes are still below their respective
-  // limits.
-  if (old_generation_overshoot == 0 && global_overshoot == 0) {
-    return false;
-  }
 
   return old_generation_overshoot >=
              limits()->old_generation_overshoot_margin() ||
@@ -6207,31 +6246,6 @@ void Heap::SetUpSpaces() {
   }
 }
 
-void Heap::InitializeHashSeed() {
-  DCHECK(!deserialization_complete_);
-  uint64_t new_hash_seed;
-  if (v8_flags.hash_seed == 0) {
-    int64_t rnd = isolate()->random_number_generator()->NextInt64();
-    new_hash_seed = static_cast<uint64_t>(rnd);
-  } else {
-    new_hash_seed = static_cast<uint64_t>(v8_flags.hash_seed);
-  }
-
-  Tagged<ByteArray> hash_seed = ReadOnlyRoots(this).hash_seed();
-
-  MemCopy(hash_seed->begin(), reinterpret_cast<uint8_t*>(&new_hash_seed),
-          kInt64Size);
-
-#if V8_USE_DEFAULT_HASHER_SECRET
-  MemCopy(hash_seed->begin() + kInt64Size,
-          reinterpret_cast<const uint8_t*>(RAPIDHASH_DEFAULT_SECRET),
-          kInt64Size * 3);
-#else
-  rapidhash_make_secret(new_hash_seed, reinterpret_cast<uint64_t*>(
-                                           hash_seed->begin() + kInt64Size));
-#endif  // V8_USE_DEFAULT_HASHER_SECRET
-}
-
 std::shared_ptr<v8::TaskRunner> Heap::GetForegroundTaskRunner(
     TaskPriority priority) const {
   return V8::GetCurrentPlatform()->GetForegroundTaskRunner(
@@ -6382,7 +6396,7 @@ void Heap::SetStackStart() {
   // If no main thread local heap has been set up (we're still in the
   // deserialization process), we don't need to set the stack start.
   if (main_thread_local_heap_ == nullptr) return;
-  stack().SetStackStart();
+  stack().SetStackStart(v8::base::Stack::GetStackStart());
 }
 
 ::heap::base::Stack& Heap::stack() {
@@ -7125,6 +7139,22 @@ uint64_t Heap::UpdateExternalMemory(int64_t delta) {
       limits()->external_memory_low_since_last_gc();
   if (total_after < low_since_mark_compact) {
     limits()->UpdateExternalMemoryLowSinceLastGC(total_after);
+  }
+
+  if (delta <= 0) {
+    return total_after;
+  }
+
+#if V8_VERIFY_WRITE_BARRIERS
+  // Incrementing the number of allocated bytes may trigger GC.
+  main_thread_local_heap()->allocator()->ResetMostRecentYoungAllocation();
+#endif
+
+  if (ReachedHeapLimit()) {
+    CollectGarbageWithRetry(OLD_SPACE,
+                            GarbageCollectionReason::kExternalMemoryPressure);
+  } else if (total_after > external_memory_limit_for_interrupt()) {
+    HandleExternalMemoryInterrupt();
   }
   return total_after;
 }

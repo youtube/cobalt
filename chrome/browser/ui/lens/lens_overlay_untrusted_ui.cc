@@ -46,7 +46,9 @@ constexpr int kCopyTextTimeoutMs = 500;
 constexpr int kTranslateTextTimeoutMs = 500;
 
 LensOverlayUntrustedUI::LensOverlayUntrustedUI(content::WebUI* web_ui)
-    : UntrustedTopChromeWebUIController(web_ui) {
+    : UntrustedTopChromeWebUIController(web_ui,
+                                        /*enable_chrome_send=*/false,
+                                        /*enable_chrome_histograms=*/true) {
   // Set up the chrome-untrusted://lens-overlay source.
   content::WebUIDataSource* html_source =
       content::WebUIDataSource::CreateAndAdd(
@@ -238,7 +240,8 @@ LensOverlayUntrustedUI::LensOverlayUntrustedUI(content::WebUI* web_ui)
       lens::LensOverlayShouldUseDarkMode(
           ThemeServiceFactory::GetForProfile(Profile::FromWebUI(web_ui))));
   html_source->AddBoolean("enableOverlayContextualSearchbox",
-                          lens::IsLensOverlayContextualSearchboxEnabled());
+                          lens::IsLensOverlayContextualSearchboxEnabled(
+                              Profile::FromWebUI(web_ui)));
   html_source->AddBoolean(
       "enableGhostLoader",
       lens::features::EnableContextualSearchboxGhostLoader());
@@ -288,6 +291,7 @@ LensOverlayUntrustedUI::LensOverlayUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean(
       "enableKeyboardSelection",
       lens::features::IsLensOverlayKeyboardSelectionEnabled());
+  html_source->AddBoolean("enableMultiRegionSelection", false);
 
   LensOverlayController& controller = GetLensOverlayController();
   html_source->AddDouble("invocationTime",
@@ -362,8 +366,7 @@ LensOverlayUntrustedUI::LensOverlayUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean(
       "enablePrivacyNotice",
       lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled() &&
-          !MaybeIncrementPrivacyNoticeShownCountAndGrantPermissions(
-              profile->GetPrefs()));
+          !MaybeIncrementPrivacyNoticeShownCountAndGrantPermissions(profile));
 }
 
 void LensOverlayUntrustedUI::BindInterface(

@@ -230,6 +230,9 @@ class RTC_EXPORT VideoEncoder {
     // thresholds will be used in CPU adaptation.
     bool is_hardware_accelerated;
 
+    // If this field is true, this encoder opts into CPU overuse detection.
+    bool enable_cpu_overuse_detection;
+
     // For each spatial layer (simulcast stream or SVC layer), represented as an
     // element in `fps_allocation` a vector indicates how many temporal layers
     // the encoder is using for that spatial layer.

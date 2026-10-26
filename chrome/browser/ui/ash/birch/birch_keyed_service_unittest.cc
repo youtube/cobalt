@@ -47,6 +47,7 @@
 #include "chrome/test/base/testing_profile_manager.h"
 #include "chromeos/crosapi/mojom/video_conference.mojom.h"
 #include "components/favicon/core/test/mock_favicon_service.h"
+#include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
 #include "components/send_tab_to_self/send_tab_to_self_model.h"
 #include "components/send_tab_to_self/target_device_info.h"
@@ -83,7 +84,6 @@ constexpr char16_t kTabTitle1[] = u"Tab Title 1";
 constexpr char16_t kTabTitle2[] = u"Tab Title 2";
 
 constexpr char kTargetDeviceFullName[] = "Device_1";
-constexpr char kTargetDeviceShortName[] = "Device_1";
 constexpr char kTargetDeviceCacheGuid[] = "device_guid_1";
 
 constexpr char kChromeSyncGuid[] = "Entry Guid";
@@ -260,10 +260,11 @@ class SendTabToSelfModelMock : public send_tab_to_self::TestSendTabToSelfModel {
   send_tab_to_self::SendTabToSelfEntry* AddEntry(
       const GURL& url,
       const std::string& title,
-      const std::string& target_device_cache_guid) override {
+      const std::string& target_device_cache_guid,
+      const send_tab_to_self::PageContext& context) override {
     auto entry = std::make_unique<send_tab_to_self::SendTabToSelfEntry>(
         kChromeSyncGuid, url, title, base::Time::Now(), kChromeSyncDeviceName,
-        target_device_cache_guid);
+        target_device_cache_guid, context);
 
     auto* result = entry.get();
 
@@ -302,9 +303,8 @@ class SendTabToSelfModelMock : public send_tab_to_self::TestSendTabToSelfModel {
   }
 
   void AddMockTargetDevice(syncer::DeviceInfo::FormFactor form_factor) {
-    devices_.emplace_back(kTargetDeviceFullName, kTargetDeviceShortName,
-                          kTargetDeviceCacheGuid, form_factor,
-                          base::Time::Now());
+    devices_.emplace_back(kTargetDeviceFullName, kTargetDeviceCacheGuid,
+                          form_factor, base::Time::Now());
   }
 
  private:
@@ -508,7 +508,8 @@ class BirchKeyedServiceTest : public BrowserWithTestWindowTest {
     const GURL kUrl(kChromeSyncUrl);
     const std::string kTitle("Chrome Sync Title");
     const std::string kTargetDeviceSyncCacheGuid(kTargetDeviceCacheGuid);
-    send_tab_to_self_model_->AddEntry(kUrl, kTitle, kTargetDeviceSyncCacheGuid);
+    send_tab_to_self_model_->AddEntry(kUrl, kTitle, kTargetDeviceSyncCacheGuid,
+                                      send_tab_to_self::PageContext());
   }
 
   void SimulateMediaMetadataInit() {

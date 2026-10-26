@@ -167,6 +167,25 @@ impl CFGBuilder {
     fn add_variable_declaration(&mut self, variable_id: VariableId) {
         if !self.current_block.new_instructions_are_dead_code {
             self.current_block.block.add_variable_declaration(variable_id);
+        } else {
+            // GLSL supports declaring a variable in one case and using it in the next, even if the
+            // declaration is in dead code!  To support this, the variable declaration is added to
+            // the block anyway if inside a switch case.
+            let mut non_merge_blocks =
+                self.interm_blocks.iter().rev().filter(|&block| !block.is_merge_block);
+            // If this is the first block of the first `case`, the parent would be the `switch`.
+            let parent_is_switch = matches!(
+                non_merge_blocks.next().unwrap().block.get_terminating_op(),
+                OpCode::Switch(..)
+            );
+            // Otherwise the grandparent is the `switch`.
+            let grandparent = non_merge_blocks.next();
+            let grandparent_is_switch = grandparent
+                .map(|block| matches!(block.block.get_terminating_op(), OpCode::Switch(..)))
+                .unwrap_or(false);
+            if parent_is_switch || grandparent_is_switch {
+                self.current_block.block.add_variable_declaration(variable_id);
+            }
         }
     }
 
@@ -270,7 +289,8 @@ impl CFGBuilder {
 
         // If the condition of the if is a constant, it can be constant-folded.
         let mut if_block = self.interm_blocks.pop().unwrap();
-        let if_condition = if_block.block.get_terminating_op().get_if_condition().id.get_constant();
+        let if_condition =
+            if_block.block.get_terminating_op().get_if_condition().id.get_if_constant();
 
         match if_condition {
             Some(condition) => {
@@ -430,7 +450,7 @@ impl CFGBuilder {
             .get_merge_chain_terminating_op()
             .get_loop_condition()
             .id
-            .get_constant();
+            .get_if_constant();
 
         match loop_condition {
             Some(condition) if condition == CONSTANT_ID_FALSE => {
@@ -540,7 +560,11 @@ impl CFGBuilder {
                     // To support this, pull the variable declaration to the parent scope so it's
                     // not declared only in one case block.
                     let switch_block = &mut self.interm_blocks.last_mut().unwrap().block;
-                    switch_block.variables.append(&mut std::mem::take(&mut case_block.variables));
+                    let mut case_block_iter = Some(&mut case_block);
+                    while let Some(block) = case_block_iter {
+                        switch_block.variables.append(&mut std::mem::take(&mut block.variables));
+                        case_block_iter = block.merge_block.as_mut().map(|block| block.as_mut());
+                    }
                     switch_block.add_switch_case_block(case_block);
                 }
             }
@@ -563,7 +587,7 @@ impl CFGBuilder {
     }
 
     fn begin_case(&mut self, value: TypedId) {
-        self.begin_case_impl(value.id.get_constant());
+        self.begin_case_impl(value.id.get_if_constant());
     }
 
     fn begin_default(&mut self) {
@@ -583,7 +607,7 @@ impl CFGBuilder {
 
         // If the expression is constant, but no matching cases (or default) exists, the switch is
         // a no-op.
-        if let Some(switch_expr) = switch_expr.id.get_constant() {
+        if let Some(switch_expr) = switch_expr.id.get_if_constant() {
             // First check if there's an exact match
             let any_exact = switch_cases
                 .iter()
@@ -1015,6 +1039,16 @@ impl Builder {
         self.ir.meta.declare_const_variable(Name::new_temp(""), type_id, precision)
     }
 
+    // Rescope a temporary variable to a `for` loop variable declared in its initializer
+    // expression.  This is nearly identically treated as a `Local` variable, except it's easier to
+    // identify its scope by the generators, since the variable declaration is otherwise moved to
+    // the block leading to the `for` loop.
+    pub fn rescope_as_for_loop_variable(&mut self, variable_id: VariableId) {
+        let variable = self.ir.meta.get_variable_mut(variable_id);
+        debug_assert!(variable.scope == VariableScope::Local);
+        variable.scope = VariableScope::ForLoopVariable;
+    }
+
     // In GLSL, it's possible to mark a variable as invariant or precise in a separate line,
     // especially useful for built-ins that are otherwise not necessarily declared explicitly.
     // The following allow these declarations to add invariant and precise decorations.
@@ -1438,7 +1472,7 @@ impl Builder {
     // Called when a constant expression used as an array size is evaluated.  The result is found
     // on the stack, but is not used by an instruction; it's returned to the parser instead.
     pub fn pop_array_size(&mut self) -> u32 {
-        let size_id = self.interm_ids.pop().unwrap().id.get_constant().unwrap();
+        let size_id = self.interm_ids.pop().unwrap().id.get_constant();
         // Use get_index() because the expression may either be int or uint, both of which are
         // acceptable; get_index() returns a u32 for either case.
         self.ir.meta.get_constant(size_id).value.get_index()
@@ -2939,7 +2973,6 @@ pub mod ffi {
         TessEvaluationOut,
         TessCoord,
         SpecConst,
-        PixelLocalEXT,
     }
 
     #[derive(Copy, Clone)]
@@ -3156,6 +3189,7 @@ pub mod ffi {
             name: &'static str,
             ast_type: &ASTType,
         ) -> VariableId;
+        fn rescope_as_for_loop_variable(self: &mut BuilderWrapper, variable_id: VariableId);
         fn mark_variable_invariant(self: &mut BuilderWrapper, variable_id: VariableId);
         fn mark_variable_precise(self: &mut BuilderWrapper, variable_id: VariableId);
         fn new_function(
@@ -3579,7 +3613,7 @@ fn builder_finish(mut builder: Box<BuilderWrapper>) -> Box<IR> {
 
     // Propagate precision to constant
     let mut ir = builder.builder.take_ir();
-    transform::propagate_precision::run(&mut ir);
+    transform::run!(propagate_precision, &mut ir);
 
     Box::new(ir)
 }
@@ -3922,7 +3956,9 @@ impl BuilderWrapper {
             ffi::ASTQualifier::SampleMask => Some(BuiltIn::SampleMask),
             ffi::ASTQualifier::NumSamples => Some(BuiltIn::NumSamples),
             ffi::ASTQualifier::NumWorkGroups => Some(BuiltIn::NumWorkGroups),
-            ffi::ASTQualifier::WorkGroupSize => Some(BuiltIn::WorkGroupSize),
+            ffi::ASTQualifier::WorkGroupSize => {
+                panic!("Internal error: gl_WorkGroupSize should be constant folded")
+            }
             ffi::ASTQualifier::WorkGroupID => Some(BuiltIn::WorkGroupID),
             ffi::ASTQualifier::LocalInvocationID => Some(BuiltIn::LocalInvocationID),
             ffi::ASTQualifier::GlobalInvocationID => Some(BuiltIn::GlobalInvocationID),
@@ -3939,7 +3975,6 @@ impl BuilderWrapper {
             ffi::ASTQualifier::TessLevelInner => Some(BuiltIn::TessLevelInner),
             ffi::ASTQualifier::TessCoord => Some(BuiltIn::TessCoord),
             ffi::ASTQualifier::BoundingBox => Some(BuiltIn::BoundingBoxOES),
-            ffi::ASTQualifier::PixelLocalEXT => Some(BuiltIn::PixelLocalEXT),
             _ => None,
         }
     }
@@ -4070,7 +4105,6 @@ impl BuilderWrapper {
             }
             ffi::ASTQualifier::PatchIn => vec![Decoration::Input, Decoration::Patch],
 
-            ffi::ASTQualifier::PixelLocalEXT => unimplemented!(),
             _ => panic!("Internal error: Unexpected qualifier"),
         });
 
@@ -4448,6 +4482,10 @@ impl BuilderWrapper {
             )
         }
         .into()
+    }
+
+    fn rescope_as_for_loop_variable(&mut self, variable_id: ffi::VariableId) {
+        self.builder.rescope_as_for_loop_variable(variable_id.into());
     }
 
     fn mark_variable_invariant(&mut self, variable_id: ffi::VariableId) {

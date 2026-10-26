@@ -16,9 +16,11 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {ContentController, ContentType} from '../content/content_controller.js';
 import type {ContentListener, ContentState} from '../content/content_controller.js';
-import {LineFocusController, type LineFocusListener} from '../content/line_focus_controller.js';
+import {LineFocusController} from '../content/line_focus_controller.js';
+import type {LineFocusListener} from '../content/line_focus_controller.js';
 import {NodeStore} from '../content/node_store.js';
-import {DEFAULT_SETTINGS, type LineFocusMovement, type LineFocusStyle, LineFocusType, type SettingsPrefs} from '../content/read_anything_types.js';
+import {DEFAULT_SETTINGS, LineFocusType} from '../content/read_anything_types.js';
+import type {LineFocusMovement, LineFocusStyle, SettingsPrefs} from '../content/read_anything_types.js';
 import {SelectionController} from '../content/selection_controller.js';
 import type {LanguageToastElement} from '../read_aloud/language_toast.js';
 import type {Segment} from '../read_aloud/read_aloud_types.js';
@@ -200,7 +202,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
 
     // Clear state. We don't do this in disconnectedCallback because that's
     // not always reliabled called.
-    this.nodeStore_.clearDomNodes();
+    this.nodeStore_.clear();
     this.showLoading();
 
     this.settingsPrefs_ = {
@@ -290,6 +292,10 @@ export class AppElement extends AppElementBase implements SpeechListener,
       this.speechController_.onLockScreen();
     };
 
+    chrome.readingMode.onAnchorsReadyForReadability = () => {
+      this.onReadabilityAnchorsReady_();
+    };
+
     chrome.readingMode.readingModeWillClose = () => {
       this.speechController_.onReadingModeWillClose();
     };
@@ -363,7 +369,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
     this.onTextLocationsChange_();
   }
 
-  protected onContainerScrollEnd_() {
+  protected onContainerScrollend_() {
     this.nodeStore_.estimateWordsSeenWithDelay();
     if (chrome.readingMode.isLineFocusEnabled) {
       this.lineFocusController_.onScrollEnd(this.$.containerScroller.scrollTop);
@@ -404,11 +410,19 @@ export class AppElement extends AppElementBase implements SpeechListener,
     return this.shadowRoot.getSelection();
   }
 
-  protected updateLinks_() {
+  protected onLinksToggle_() {
+    this.updateLinks_();
+  }
+
+  private updateLinks_() {
     this.contentController_.updateLinks(this.shadowRoot);
   }
 
-  protected updateImages_() {
+  protected onImagesToggle_() {
+    this.updateImages_();
+  }
+
+  private updateImages_() {
     this.contentController_.updateImages(this.shadowRoot);
   }
 
@@ -432,13 +446,13 @@ export class AppElement extends AppElementBase implements SpeechListener,
     this.speechController_.previewVoice(event.detail.previewVoice);
   }
 
-  protected onVoiceMenuOpen_(event: CustomEvent) {
+  protected onVoiceMenuOpen_(event: CustomEvent<void>) {
     event.preventDefault();
     event.stopPropagation();
     this.speechController_.onVoiceMenuOpen();
   }
 
-  protected onVoiceMenuClose_(event: CustomEvent) {
+  protected onVoiceMenuClose_(event: CustomEvent<void>) {
     event.preventDefault();
     event.stopPropagation();
     this.speechController_.onVoiceMenuClose();
@@ -483,6 +497,8 @@ export class AppElement extends AppElementBase implements SpeechListener,
     this.lineFocusStyle_ = this.lineFocusController_.getCurrentLineFocusStyle();
     this.lineFocusMovement_ =
         this.lineFocusController_.getCurrentLineFocusMovement();
+    this.setLineFocus_();
+    this.requestUpdate();
   }
 
   onContentStateChange(): void {
@@ -568,6 +584,13 @@ export class AppElement extends AppElementBase implements SpeechListener,
     this.voiceLanguageController_.onLanguageToggle(event.detail.language);
   }
 
+  protected onReadabilityAnchorsReady_() {
+    if (chrome.readingMode.isReadabilityEnabled &&
+        chrome.readingMode.isReadabilityWithLinksEnabled) {
+      this.contentController_.updateAnchorsForReadability(this.shadowRoot);
+    }
+  }
+
   protected onSpeechRateChange_() {
     this.speechController_.onSpeechSettingsChange();
   }
@@ -646,7 +669,7 @@ export class AppElement extends AppElementBase implements SpeechListener,
     this.styleUpdater_.setHighlight();
   }
 
-  protected onAllMenusClose_() {
+  protected onCloseAllMenus_() {
     if (chrome.readingMode.isLineFocusEnabled) {
       this.lineFocusController_.onAllMenusClose();
     }
@@ -717,6 +740,8 @@ export class AppElement extends AppElementBase implements SpeechListener,
   languageChanged() {
     this.pageLanguage_ = chrome.readingMode.baseLanguageForSpeech;
     this.voiceLanguageController_.onPageLanguageChanged();
+    // Update the font to ensure the font is valid for the page language.
+    this.styleUpdater_.setFont();
     TextSegmenter.getInstance().updateLanguage(this.pageLanguage_);
   }
 

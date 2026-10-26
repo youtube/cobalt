@@ -567,12 +567,10 @@ void LiftoffAssembler::LoadCodeEntrypointViaCodePointer(Register dst,
 }
 #endif
 
-void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
-                                          Register offset_reg,
-                                          int32_t offset_imm, Register src,
-                                          LiftoffRegList pinned,
-                                          uint32_t* protected_store_pc,
-                                          SkipWriteBarrier skip_write_barrier) {
+void LiftoffAssembler::StoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, uint32_t* protected_store_pc,
+    compiler::WriteBarrierKind write_barrier) {
   UseScratchRegisterScope temps(this);
   Operand offset_op = Operand(offset_imm);
   // For the write barrier (below), we cannot have both an offset register and
@@ -602,7 +600,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 
   if (v8_flags.disable_write_barriers) return;
 
-  if (skip_write_barrier) {
+  if (write_barrier == compiler::kNoWriteBarrier) {
     if (v8_flags.verify_write_barriers) {
       CallVerifySkippedWriteBarrierStubSaveRegisters(dst_addr, src,
                                                      SaveFPRegsMode::kSave);
@@ -804,9 +802,12 @@ void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
                                                AtomicMemoryOrder memory_order,
                                                uint32_t* protected_load_pc,
                                                bool needs_shift) {
-  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
-         memory_order == AtomicMemoryOrder::kAcqRel);
-  int dbar_hint = memory_order == AtomicMemoryOrder::kSeqCst ? 0x10 : 0x14;
+  // TODO(rezvan): pass memory_order when implementing AcqRel semantic for
+  // shared-everything-thread proposal.
+  if (memory_order != AtomicMemoryOrder::kSeqCst) {
+    UNIMPLEMENTED();
+  }
+  int dbar_hint = 0x10;
   BlockTrampolinePoolScope block_trampoline_pool(this);
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
 
@@ -876,20 +877,24 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
     LiftoffRegList pinned, AtomicMemoryOrder memory_order,
     uint32_t* protected_store_pc) {
-  DCHECK(memory_order == AtomicMemoryOrder::kSeqCst ||
-         memory_order == AtomicMemoryOrder::kAcqRel);
-  int dbar_hint = memory_order == AtomicMemoryOrder::kSeqCst ? 0x10 : 0x12;
+  // TODO(rezvan): pass memory_order when implementing AcqRel semantic for
+  // shared-everything-thread proposal.
+  if (memory_order != AtomicMemoryOrder::kSeqCst) {
+    UNIMPLEMENTED();
+  }
+  int dbar_hint = 0x10;
   BlockTrampolinePoolScope block_trampoline_pool(this);
   MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
 
   if (COMPRESS_POINTERS_BOOL) {
     dbar(dbar_hint);
     St_w(src, dst_op, reinterpret_cast<int*>(protected_store_pc));
+    dbar(dbar_hint);
   } else {
     dbar(dbar_hint);
     St_d(src, dst_op, reinterpret_cast<int*>(protected_store_pc));
+    dbar(dbar_hint);
   }
-  if (memory_order == AtomicMemoryOrder::kSeqCst) dbar(dbar_hint);
   DCHECK_IMPLIES(protected_store_pc != nullptr,
                  Instruction::At(reinterpret_cast<uint8_t*>(
                                      *protected_store_pc + buffer_start_))
@@ -2608,10 +2613,11 @@ void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
                                                         LiftoffRegister lhs,
                                                         LiftoffRegister rhs,
                                                         LiftoffRegister acc) {
-  DCHECK_NE(dst, acc);
-  Dotp_h(dst.fp().toV(), lhs.fp().toV(), rhs.fp().toV());
-  vhaddw_w_h(dst.fp().toV(), dst.fp().toV(), dst.fp().toV());
-  vadd_w(dst.fp().toV(), dst.fp().toV(), acc.fp().toV());
+  UseScratchRegisterScope temps(this);
+  VRegister scratch = temps.AcquireFp().toV();
+  Dotp_h(scratch, lhs.fp().toV(), rhs.fp().toV());
+  vhaddw_w_h(scratch, scratch, scratch);
+  vadd_w(dst.fp().toV(), scratch, acc.fp().toV());
 }
 
 void LiftoffAssembler::emit_i8x16_eq(LiftoffRegister dst, LiftoffRegister lhs,
@@ -3398,8 +3404,11 @@ void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  vfcmp_cond_s(CLT, dstReg, rhsReg, lhsReg);
-  vbitsel_v(dstReg, lhsReg, rhsReg, dstReg);
+  UseScratchRegisterScope temps(this);
+  VRegister scratchReg = temps.AcquireFp().toV();
+
+  vfcmp_cond_s(CLT, scratchReg, rhsReg, lhsReg);
+  vbitsel_v(dstReg, lhsReg, rhsReg, scratchReg);
 }
 
 void LiftoffAssembler::emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
@@ -3407,8 +3416,11 @@ void LiftoffAssembler::emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  vfcmp_cond_s(CLT, dstReg, lhsReg, rhsReg);
-  vbitsel_v(dstReg, lhsReg, rhsReg, dstReg);
+  UseScratchRegisterScope temps(this);
+  VRegister scratchReg = temps.AcquireFp().toV();
+
+  vfcmp_cond_s(CLT, scratchReg, lhsReg, rhsReg);
+  vbitsel_v(dstReg, lhsReg, rhsReg, scratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_abs(LiftoffRegister dst,
@@ -3519,8 +3531,11 @@ void LiftoffAssembler::emit_f64x2_pmin(LiftoffRegister dst, LiftoffRegister lhs,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  vfcmp_cond_d(CLT, kSimd128ScratchReg, rhsReg, lhsReg);
-  vbitsel_v(dstReg, lhsReg, rhsReg, kSimd128ScratchReg);
+  UseScratchRegisterScope temps(this);
+  VRegister scratchReg = temps.AcquireFp().toV();
+
+  vfcmp_cond_d(CLT, scratchReg, rhsReg, lhsReg);
+  vbitsel_v(dstReg, lhsReg, rhsReg, scratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
@@ -3528,8 +3543,11 @@ void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
   VRegister dstReg = dst.fp().toV();
   VRegister lhsReg = lhs.fp().toV();
   VRegister rhsReg = rhs.fp().toV();
-  vfcmp_cond_d(CLT, kSimd128ScratchReg, lhsReg, rhsReg);
-  vbitsel_v(dstReg, lhsReg, rhsReg, kSimd128ScratchReg);
+  UseScratchRegisterScope temps(this);
+  VRegister scratchReg = temps.AcquireFp().toV();
+
+  vfcmp_cond_d(CLT, scratchReg, lhsReg, rhsReg);
+  vbitsel_v(dstReg, lhsReg, rhsReg, scratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_relaxed_min(LiftoffRegister dst,

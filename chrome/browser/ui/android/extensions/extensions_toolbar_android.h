@@ -47,7 +47,8 @@ class ExtensionsToolbarAndroid : public ExtensionsToolbarViewModel::Delegate,
   void OnActionRemoved(const ToolbarActionsModel::ActionId& action_id) override;
   void OnActionUpdated(const ToolbarActionsModel::ActionId& action_id) override;
   void OnPinnedActionsChanged() override;
-  void OnActiveWebContentsChanged() override;
+  void OnActiveWebContentsChanged(bool is_same_document) override;
+  void OnToolbarControlStateUpdated() override;
   void OnRequestAccessButtonParamsChanged(
       content::WebContents* web_contents) override;
 
@@ -58,7 +59,8 @@ class ExtensionsToolbarAndroid : public ExtensionsToolbarViewModel::Delegate,
       content::WebContents* web_contents);
   base::android::ScopedJavaLocalRef<jobject> GetAction(
       JNIEnv* env,
-      const ToolbarActionsModel::ActionId& action_id);
+      const ToolbarActionsModel::ActionId& action_id,
+      content::WebContents* web_contents);
   base::android::ScopedJavaLocalRef<jobject> GetIcon(
       JNIEnv* env,
       const ToolbarActionsModel::ActionId& action_id,
@@ -68,6 +70,8 @@ class ExtensionsToolbarAndroid : public ExtensionsToolbarViewModel::Delegate,
       float scale_factor);
   std::vector<ToolbarActionsModel::ActionId> GetAllActionIds(JNIEnv* env);
   std::vector<ToolbarActionsModel::ActionId> GetPinnedActionIds(JNIEnv* env);
+  int GetExtensionsMenuButtonState(JNIEnv* env,
+                                   content::WebContents* web_contents);
   void ExecuteUserAction(const ToolbarActionsModel::ActionId& action_id,
                          ToolbarActionViewModel::InvocationSource source);
   void MovePinnedAction(const ToolbarActionsModel::ActionId& action_id,

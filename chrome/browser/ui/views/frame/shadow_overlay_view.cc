@@ -6,7 +6,9 @@
 
 #include <memory>
 
+#include "base/feature_list.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/themed_background.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
@@ -42,8 +44,15 @@ class ShadowOverlayView::CornerView : public views::View {
   // of the overlay. They will render correctly by virtue of being on a layer.
   static constexpr int kCornerOutset = 1;
 
+  // Additional amount to overpaint the border to prevent subpixel issues with
+  // antialiasing and alignment between webcontents and corners.
+  static constexpr float kCornerSubpixelOverpaint = 0.5f;
+
   CornerView(Corner corner, BrowserView& browser_view) : corner_(corner) {
-    SetBackground(std::make_unique<ThemedBackground>(&browser_view));
+    SetBackground(std::make_unique<ThemedBackground>(
+        &browser_view, base::FeatureList::IsEnabled(features::kDetachedTabs)
+                           ? ThemedBackground::ThemeChoice::kFrameTheme
+                           : ThemedBackground::ThemeChoice::kToolbarTheme));
   }
   ~CornerView() override = default;
 
@@ -81,44 +90,46 @@ class ShadowOverlayView::CornerView : public views::View {
   SkPath GetClipPath() const {
     gfx::Rect visible_area = GetLocalBounds();
     visible_area.Inset(kCornerOutset);
+    gfx::RectF clip_area = gfx::RectF(GetLocalBounds());
+    clip_area.Outset(kCornerSubpixelOverpaint);
 
     SkPathBuilder path;
     switch (corner_) {
       case Corner::kTopLeading:
-        path.moveTo(0, 0);
-        path.lineTo(visible_area.right(), 0);
+        path.moveTo(clip_area.x(), clip_area.y());
+        path.lineTo(visible_area.right(), clip_area.y());
         path.lineTo(visible_area.right(), visible_area.y());
         path.arcTo(SkVector(visible_area.width(), visible_area.height()), 0,
                    SkPathBuilder::kSmall_ArcSize, SkPathDirection::kCCW,
                    SkPoint(visible_area.x(), visible_area.bottom()));
-        path.lineTo(0, visible_area.bottom());
+        path.lineTo(clip_area.x(), visible_area.bottom());
         break;
       case Corner::kTopTrailing:
-        path.moveTo(width(), 0);
-        path.lineTo(width(), visible_area.bottom());
+        path.moveTo(clip_area.right(), clip_area.y());
+        path.lineTo(clip_area.right(), visible_area.bottom());
         path.lineTo(visible_area.right(), visible_area.bottom());
         path.arcTo(SkVector(visible_area.width(), visible_area.height()), 0,
                    SkPathBuilder::kSmall_ArcSize, SkPathDirection::kCCW,
                    SkPoint(visible_area.x(), visible_area.y()));
-        path.lineTo(visible_area.x(), 0);
+        path.lineTo(visible_area.x(), clip_area.y());
         break;
       case Corner::kBottomLeading:
-        path.moveTo(0, height());
-        path.lineTo(0, visible_area.y());
+        path.moveTo(clip_area.x(), clip_area.bottom());
+        path.lineTo(clip_area.x(), visible_area.y());
         path.lineTo(visible_area.x(), visible_area.y());
         path.arcTo(SkVector(visible_area.width(), visible_area.height()), 0,
                    SkPathBuilder::kSmall_ArcSize, SkPathDirection::kCCW,
                    SkPoint(visible_area.right(), visible_area.bottom()));
-        path.lineTo(visible_area.right(), height());
+        path.lineTo(visible_area.right(), clip_area.bottom());
         break;
       case Corner::kBottomTrailing:
-        path.moveTo(width(), height());
-        path.lineTo(visible_area.x(), height());
+        path.moveTo(clip_area.right(), clip_area.bottom());
+        path.lineTo(visible_area.x(), clip_area.bottom());
         path.lineTo(visible_area.x(), visible_area.bottom());
         path.arcTo(SkVector(visible_area.width(), visible_area.height()), 0,
                    SkPathBuilder::kSmall_ArcSize, SkPathDirection::kCCW,
                    SkPoint(visible_area.right(), visible_area.y()));
-        path.lineTo(width(), visible_area.y());
+        path.lineTo(clip_area.right(), visible_area.y());
         break;
     }
 
@@ -252,7 +263,8 @@ ShadowOverlayView::~ShadowOverlayView() = default;
 
 void ShadowOverlayView::VisibilityChanged(View* starting_from, bool visible) {
   if (starting_from == this) {
-    shadow_box_->SetShadowVisible(visible);
+    shadow_box_->SetShadowVisible(
+        visible && !base::FeatureList::IsEnabled(features::kDetachedTabs));
 
     // Ensure the opacity matches the current animation value in cases where the
     // panel should not animate but is open such as swapping between tabs.
@@ -339,15 +351,23 @@ views::ProposedLayout ShadowOverlayView::CalculateProposedLayout(
 }
 
 void ShadowOverlayView::OnAnimationSequenceProgressed(
-    const SidePanelAnimationCoordinator::SidePanelAnimationId& animation_id,
+    SidePanelAnimationId animation_id,
     double animation_value) {
+  if (base::FeatureList::IsEnabled(features::kDetachedTabs)) {
+    return;
+  }
+
   CHECK_EQ(kShadowOverlayOpacityAnimation, animation_id);
 
   shadow_box_->SetShadowOpacity(animation_value);
 }
 
 void ShadowOverlayView::OnAnimationSequenceEnded(
-    const SidePanelAnimationCoordinator::SidePanelAnimationId& animation_id) {
+    SidePanelAnimationId animation_id) {
+  if (base::FeatureList::IsEnabled(features::kDetachedTabs)) {
+    return;
+  }
+
   // When the animation ends, set the final opacity based on whether the side
   // panel is closing or opening.
   const double ending_opacity =

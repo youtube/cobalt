@@ -117,7 +117,7 @@ void WebAppMenuModel::ExecuteCommand(int command_id, int event_flags) {
                 features::kWebAppPredictableAppUpdating) ||
             base::FeatureList::IsEnabled(blink::features::kWebAppMigrationApi));
       LogMenuAction(MENU_ACTION_TRIGGER_APP_UPDATE_DIALOG);
-      browser()->app_controller()->CreateMetadataAndTriggerAppUpdateDialog(
+      browser()->app_controller()->TriggerAppUpdateOrMigrationDialog(
           base::TimeTicks::Now());
       break;
     default:
@@ -180,6 +180,8 @@ void WebAppMenuModel::Build() {
           browser()->app_controller()->GetAppShortName();
       // For Isolated Web Apps, |GetAppShortName()| must be non-empty.
       display_text = short_name;
+    } else {
+      SetMinorTextIsUrlAt(app_info_index, true);
     }
     SetMinorText(app_info_index, display_text);
   }

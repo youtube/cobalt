@@ -229,6 +229,118 @@ TEST(DelayBasedCongestionControlTest,
   EXPECT_FALSE(delay_controller.IsQueueDrainedInTime(clock.CurrentTime()));
 }
 
+TEST(DelayBasedCongestionControlTest,
+     RefWindowScaleFactorDueToMinAverageQueueDelay) {
+  SimulatedClock clock(Timestamp::Seconds(1234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  ScreamV2Parameters params(env.field_trials());
+  DelayBasedCongestionControl delay_controller(params);
+
+  const TimeDelta kQueueDelyMinThreshold =
+      params.queue_delay_min_threshold.Get();
+
+  // Helper to establish queue delay.
+  // Assumes base delay is 100ms.
+  auto feed_packets = [&](TimeDelta qdelay, int count) {
+    for (int i = 0; i < count; ++i) {
+      clock.AdvanceTime(TimeDelta::Millis(10));
+      TransportPacketsFeedback msg;
+      msg.feedback_time = clock.CurrentTime();
+      PacketResult packet;
+      packet.receive_time = clock.CurrentTime();
+      packet.sent_packet.send_time =
+          clock.CurrentTime() - TimeDelta::Millis(100) - qdelay;
+      packet.sent_packet.sequence_number = i;
+      msg.packet_feedbacks.push_back(packet);
+      delay_controller.OnTransportPacketsFeedback(msg);
+    }
+  };
+
+  // Establish base delay (100ms) with qdelay=0.
+  feed_packets(TimeDelta::Zero(), 100);
+  EXPECT_DOUBLE_EQ(
+      delay_controller.ref_window_scale_factor_due_to_avg_min_delay(), 1.0);
+
+  // Drive queue delay to kQueueDelyMinThreshold.
+  feed_packets(kQueueDelyMinThreshold + TimeDelta::Millis(10), 250);
+  EXPECT_NEAR(delay_controller.ref_window_scale_factor_due_to_avg_min_delay(),
+              0.1, 0.01);
+
+  // Drive queue delay to `0.5 * kQueueDelyMinThreshold`.
+  // Expected: 0.1 + 1.2 * 0.5 = 0.7
+  feed_packets(kQueueDelyMinThreshold / 2, 250);
+  EXPECT_NEAR(delay_controller.ref_window_scale_factor_due_to_avg_min_delay(),
+              0.7, 0.01);
+
+  // Drive queue delay to `0.25 * kQueueDelyMinThreshold`.
+  // Expected: 0.1 + 1.2 * 0.75 = 1.0.
+  feed_packets(kQueueDelyMinThreshold / 4, 250);
+  EXPECT_NEAR(delay_controller.ref_window_scale_factor_due_to_avg_min_delay(),
+              1.0, 0.01);
+}
+
+TEST(DelayBasedCongestionControlTest,
+     RefWindowScaleFactorDueToLatencyDifference) {
+  SimulatedClock clock(Timestamp::Seconds(1234));
+  Environment env = CreateTestEnvironment({.time = &clock});
+  ScreamV2Parameters params(env.field_trials());
+  DelayBasedCongestionControl delay_controller(params);
+
+  const TimeDelta kLatencyThreshold = params.latency_diff_threshold.Get();
+
+  // Helper to establish latency differences within feedbacks.
+  // Assumes a base one-way delay of 100ms.
+  auto feed_packets = [&](TimeDelta latency_diff, int count) {
+    for (int i = 0; i < count; ++i) {
+      clock.AdvanceTime(TimeDelta::Millis(10));
+      TransportPacketsFeedback msg;
+      msg.feedback_time = clock.CurrentTime();
+
+      PacketResult packet1;
+      packet1.receive_time = clock.CurrentTime();
+      packet1.sent_packet.send_time =
+          clock.CurrentTime() - TimeDelta::Millis(100);
+      packet1.sent_packet.sequence_number = i * 2;
+
+      PacketResult packet2;
+      packet2.receive_time = clock.CurrentTime();
+      packet2.sent_packet.send_time =
+          clock.CurrentTime() - TimeDelta::Millis(100) - latency_diff;
+      packet2.sent_packet.sequence_number = i * 2 + 1;
+
+      msg.packet_feedbacks.push_back(packet1);
+      msg.packet_feedbacks.push_back(packet2);
+      delay_controller.OnTransportPacketsFeedback(msg);
+    }
+  };
+
+  // Establish 0 latency difference.
+  feed_packets(TimeDelta::Zero(), 100);
+  EXPECT_DOUBLE_EQ(
+      delay_controller.ref_window_scale_factor_due_to_latency_difference(),
+      1.0);
+
+  // Drive to `kLatencyThreshold`.
+  feed_packets(kLatencyThreshold + TimeDelta::Millis(10), 250);
+  EXPECT_NEAR(
+      delay_controller.ref_window_scale_factor_due_to_latency_difference(), 0.1,
+      0.01);
+
+  // Drive to `0.5 * kLatencyThreshold`.
+  // Expected: 0.1 + 1.2 * 0.5 = 0.7
+  feed_packets(kLatencyThreshold / 2, 250);
+  EXPECT_NEAR(
+      delay_controller.ref_window_scale_factor_due_to_latency_difference(), 0.7,
+      0.01);
+
+  // Drive to `0.25 * kLatencyThreshold`.
+  // Expected: 0.1 + 1.2 * 0.75 = 1.0.
+  feed_packets(kLatencyThreshold / 4, 250);
+  EXPECT_NEAR(
+      delay_controller.ref_window_scale_factor_due_to_latency_difference(), 1.0,
+      0.01);
+}
+
 // TODO: bugs.webrtc.org/447037083 - add tests for clock drift in feedback NTP
 // time.
 

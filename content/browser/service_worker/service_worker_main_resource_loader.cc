@@ -95,11 +95,17 @@ void MaybeSetHeaderReceivedTiming(net::LoadTimingInfo& timing) {
 
 constexpr char kHistogramSyntheticResponseEligibility[] =
     "ServiceWorker.SyntheticResponse.Eligibility";
+constexpr char kHistogramHasSearchPrefetchCache[] =
+    "ServiceWorker.SyntheticResponse.HasSearchPrefetchCache";
 
 void RecordSyntheticResponseEligibility(
     SyntheticResponseEligibility eligibility) {
   base::UmaHistogramEnumeration(kHistogramSyntheticResponseEligibility,
                                 eligibility);
+}
+
+void RecordHasSearchPrefetchCache(bool has_cache) {
+  base::UmaHistogramBoolean(kHistogramHasSearchPrefetchCache, has_cache);
 }
 
 void MaybeSetFetchHandlerBypassOptionForsyntheticResponse(
@@ -1034,7 +1040,8 @@ bool ServiceWorkerMainResourceLoader::MaybeStartSyntheticNetworkRequest(
     scoped_refptr<ServiceWorkerVersion> version) {
   if (!service_worker_client_ || !resource_request_.is_outermost_main_frame ||
       !service_worker_loader_helpers::IsEligibleForSyntheticResponse(
-          context_wrapper->browser_context(), resource_request_.url)) {
+          context_wrapper->browser_context(),
+          context_wrapper->storage_partition(), resource_request_.url)) {
     return false;
   }
   const int kReloadFlags = net::LOAD_VALIDATE_CACHE | net::LOAD_BYPASS_CACHE;
@@ -1043,6 +1050,34 @@ bool ServiceWorkerMainResourceLoader::MaybeStartSyntheticNetworkRequest(
     RecordSyntheticResponseEligibility(
         SyntheticResponseEligibility::kNotEligibleByReload);
     return false;
+  }
+
+  // Check if an embedder-level interceptor (like Search Prefetch) wants to
+  // handle this request.
+  //
+  // NOTE: We must take the handler here rather than just checking if it
+  // exists. Some interceptors (specifically Search Prefetch) destructively
+  // remove the cached response from memory when queried. If we only checked
+  // for existence and then let the request fall back to the default network
+  // stack, the cache would be empty when the network stack tries to claim it.
+  // Instead, we take ownership of the callback and execute it directly during
+  // Fallback().
+  //
+  // This is a temporary workaround to fix the Search Prefetch case. After the
+  // Search Prefetch migration to DSEv2, we will remove this as the unified
+  // prefetch cache used by DSEv2 supports responses from service workers.
+  std::optional<ContentBrowserClient::URLLoaderRequestHandler> handler =
+      service_worker_client_->TakeInterceptingPreloadHandler(resource_request_);
+  RecordHasSearchPrefetchCache(handler.has_value());
+  if (handler.has_value()) {
+    RecordSyntheticResponseEligibility(
+        SyntheticResponseEligibility::kNotEligibleByIntercepted);
+    CHECK(url_loader_client_.is_bound());
+    CHECK(receiver_.is_bound());
+    std::move(handler.value())
+        .Run(resource_request_, receiver_.Unbind(),
+             url_loader_client_.Unbind());
+    return true;
   }
 
   if (service_worker_loader_helpers::IsSyntheticResponseDryRunModeEnabled()) {
@@ -1383,7 +1418,11 @@ bool ServiceWorkerMainResourceLoader::ShouldDelayDeletion() {
 
 void ServiceWorkerMainResourceLoader::InvalidateAndDeleteIfNeeded() {
   if (ShouldDelayDeletion()) {
-    CHECK(fetch_dispatcher_);
+    // `kRaceNetworkAndCache` doesn't dispatch a fetch event.
+    CHECK(fetch_dispatcher_ ||
+          IsMatchedRouterSourceType(
+              network::mojom::ServiceWorkerRouterSourceType::
+                  kRaceNetworkAndCache));
     return;
   }
 

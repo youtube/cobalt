@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
+#include "chrome/browser/ui/views/web_apps/web_app_install_flow_dialog_delegate.h"
 #include "chrome/browser/ui/web_applications/pwa_install_page_action.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
@@ -84,6 +85,21 @@ void OnWebAppInstallShowInstallDialog(
                 .SetAppId(app_id));
       }
 #endif
+      if (base::FeatureList::IsEnabled(features::kWebAppInstallDialog)) {
+        InstallDialogType install_type = kSimple;
+        if (screenshot_fetcher) {
+          install_type = kDetailed;
+        } else if (web_app_info->is_diy_app) {
+          install_type = kDiy;
+        }
+        WebAppInstallFlowDialogDelegate::Show(
+            initiator_web_contents, std::move(web_app_info),
+            std::move(install_tracker), std::move(web_app_acceptance_callback),
+            iph_state, std::move(screenshot_fetcher), show_initiating_origin,
+            install_type);
+        return;
+      }
+
       if (screenshot_fetcher) {
         ShowWebAppDetailedInstallDialog(
             initiator_web_contents, std::move(web_app_info),

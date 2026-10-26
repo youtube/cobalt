@@ -93,12 +93,6 @@ BASE_DECLARE_FEATURE(kAllowWithholdingExtensionPermissionsOnInstall);
 // extension).
 BASE_DECLARE_FEATURE(kCheckingNoExtensionIdInExtensionIpcs);
 
-// If enabled, `ResetURLLoaderFactories()` will not reset extensions'
-// service workers URLLoaderFactories used for fetching scripts and
-// sub-resources. This avoids disrupting the worker(s) registration(s)
-// when they are in flight.
-BASE_DECLARE_FEATURE(kSkipResetServiceWorkerURLLoaderFactories);
-
 // If enabled, <webview>s will be allowed to request permission from an
 // embedding Chrome App to request access to Human Interface Devices.
 BASE_DECLARE_FEATURE(kEnableWebHidInWebView);
@@ -254,6 +248,10 @@ BASE_DECLARE_FEATURE(kDisableDisableExtensionsExceptCommandLineSwitch);
 // flag `--extensions-on-extension-urls` flag.
 BASE_DECLARE_FEATURE(kDisableExtensionsOnChromeUrlsSwitch);
 
+// If enabled, high-risk extension DOM activity is collected and reported
+// for enterprise auditing.
+BASE_DECLARE_FEATURE(kEnterpriseExtensionDOMActivityTelemetry);
+
 // Changes the chrome.userScript API to be enabled by a per-extension toggle
 // rather than the developer mode toggle on chrome://extensions.
 BASE_DECLARE_FEATURE(kUserScriptUserExtensionToggle);
@@ -272,10 +270,6 @@ BASE_DECLARE_FEATURE(kDebuggerAPIRestrictedToDevMode);
 // cases (like listeners sending unserializable responses or throwing errors
 // during execution) the error is passed back to the sender.
 BASE_DECLARE_FEATURE(kExtensionBrowserNamespaceAndPolyfillSupport);
-
-// Optimizes service worker start requests by checking readiness before
-// initiating a start.
-BASE_DECLARE_FEATURE(kOptimizeServiceWorkerStartRequests);
 
 // When enabled, a call to base::ListValue::Clone is avoided when dispatching an
 // extension function. Behind a feature to assess impact
@@ -313,6 +307,7 @@ BASE_DECLARE_FEATURE(kEnableShouldShowPromotion);
 // must be used to confirm the choice of using the new search engine, or
 // returning to the previous provider.
 BASE_DECLARE_FEATURE(kSearchEngineExplicitChoiceDialog);
+BASE_DECLARE_FEATURE_PARAM(bool, kSearchEngineExplicitChoiceDialogEscapable);
 
 // When enabled, all search extensions will unconditionally get the search
 // engine override dialog.
@@ -323,15 +318,10 @@ BASE_DECLARE_FEATURE(kSearchEngineUnconditionalDialog);
 BASE_DECLARE_FEATURE(kWebRequestSecurityInfo);
 
 // When enabled, filtered webRequest event listeners for service worker-based
-// extensions are persisted to ExtensionPrefs. This allows the browser to know
-// about the listeners before starting the extension service worker (e.g. on
-// browser startup).
-BASE_DECLARE_FEATURE(kWebRequestPersistFilteredEvents);
-
-// When enabled, use an alternative way to add listeners for the webRequest API,
-// which uses the standard `addListener` only, rather than using
-// WebRequestInternal's custom API.
-BASE_DECLARE_FEATURE(kWebRequestAlternativeAddListener);
+// extensions are persisted to ExtensionPrefs by the general mechanism in
+// EventRouter. If disabled, they're instead persisted by the custom mechanism
+// in WebRequestEventRouter.
+BASE_DECLARE_FEATURE(kWebRequestPersistFilteredEventsViaEventRouter);
 
 }  // namespace extensions_features
 

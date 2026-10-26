@@ -55,6 +55,7 @@ import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.CallbackUtils;
+import org.chromium.base.MathUtils;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
@@ -254,10 +255,11 @@ public class StripLayoutHelperManagerTest {
                         mActionConfirmationManager,
                         mDataSharingTabManager,
                         mBottomSheetController,
-                        () -> mShareDelegate,
+                        ObservableSuppliers.createMonotonic(mShareDelegate),
                         /* xrSpaceModeObservableSupplier= */ null,
                         mBackPressManager,
-                        mSnackbarManager);
+                        mSnackbarManager,
+                        () -> {});
         mStripLayoutHelperManager.setTabModelSelector(mTabModelSelector, mTabCreatorManager);
         mStripLayoutHelperManager.setIsTabStripHiddenByHeightTransition(false);
     }
@@ -1389,6 +1391,59 @@ public class StripLayoutHelperManagerTest {
 
         StripLayoutHelper incognitoHelper = mStripLayoutHelperManager.getStripLayoutHelper(true);
         assertNull(incognitoHelper.getGlicButtonForTesting());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.GLIC)
+    public void testSetGlicButtonText() {
+        initializeTest();
+        assertNotNull("Glic button should be created.", mStripLayoutHelperManager.getGlicButton());
+
+        float initialWidth = mStripLayoutHelperManager.getGlicButton().getWidth();
+        when(mLayerTitleCache.getUpdatedGlicButtonText(any())).thenReturn(123);
+        when(mLayerTitleCache.getTitleWidth(anyBoolean(), any())).thenReturn(100);
+
+        mStripLayoutHelperManager.setGlicButtonText("Glic Text");
+
+        verify(mLayerTitleCache).getUpdatedGlicButtonText("Glic Text");
+        assertTrue(
+                "Glic button width should increase to accommodate text.",
+                mStripLayoutHelperManager.getGlicButton().getWidth() > initialWidth);
+
+        mStripLayoutHelperManager.setGlicButtonText(null);
+
+        assertEquals(
+                "Glic button width should return to original singular icon width.",
+                initialWidth,
+                mStripLayoutHelperManager.getGlicButton().getWidth(),
+                MathUtils.EPSILON);
+    }
+
+    @Test
+    @Config(sdk = 30)
+    @EnableFeatures(ChromeFeatureList.GLIC)
+    public void testGlicButtonUnfocusedOpacity() {
+        var appHeaderState =
+                new AppHeaderState(new Rect(), new Rect(), /* isInDesktopWindow= */ true);
+        when(mDesktopWindowStateManager.getAppHeaderState()).thenReturn(appHeaderState);
+        initializeTest();
+        assertNotNull("Glic button should be created.", mStripLayoutHelperManager.getGlicButton());
+
+        // Focused state
+        mStripLayoutHelperManager.onTopResumedActivityChanged(true);
+        assertEquals(
+                "Glic button opacity should be 1.0 when focused in desktop windowing mode.",
+                1.0f,
+                mStripLayoutHelperManager.getGlicButton().getOpacity(),
+                MathUtils.EPSILON);
+
+        // Unfocused state
+        mStripLayoutHelperManager.onTopResumedActivityChanged(false);
+        assertEquals(
+                "Glic button opacity should be 0.65 when unfocused in desktop windowing mode.",
+                0.65f,
+                mStripLayoutHelperManager.getGlicButton().getOpacity(),
+                MathUtils.EPSILON);
     }
 
     @Test

@@ -22,6 +22,7 @@
 #include "ash/shell.h"
 #include "ash/system/session/logout_confirmation_controller.h"
 #include "ash/system/session/logout_confirmation_dialog.h"
+#include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"
@@ -80,7 +81,6 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/chromeos/extensions/external_loader/device_local_account_external_policy_loader.h"
-#include "chrome/browser/extensions/crx_installer.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/browser/extensions/updater/chromeos_extension_cache_delegate.h"
@@ -150,6 +150,7 @@
 #include "extensions/browser/app_window/app_window.h"
 #include "extensions/browser/app_window/app_window_registry.h"
 #include "extensions/browser/app_window/native_app_window.h"
+#include "extensions/browser/crx_installer.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/management_policy.h"
@@ -400,7 +401,8 @@ DeviceLocalAccountPolicyBroker* GetDeviceLocalAccountPolicyBroker(
 
 bool IsFullManagementDisclosureNeeded(AccountId account) {
   auto* broker = GetDeviceLocalAccountPolicyBroker(account);
-  return ash::login::IsFullManagementDisclosureNeeded(broker);
+  return ash::login::IsFullManagementDisclosureNeeded(
+      CHECK_DEREF(g_browser_process->local_state()), broker);
 }
 
 ukm::UkmService* GetUkmService() {
@@ -611,7 +613,7 @@ class DeviceLocalAccountTest : public DevicePolicyCrosBrowserTest,
     proto.mutable_system_timezone()->set_timezone_detection_type(policy);
     RefreshDevicePolicy();
 
-    LocalStateValueWaiter(prefs::kSystemTimezoneAutomaticDetectionPolicy,
+    LocalStateValueWaiter(ash::prefs::kSystemTimezoneAutomaticDetectionPolicy,
                           base::Value(policy))
         .Wait();
     policy_test_server_mixin_.UpdateDevicePolicy(proto);

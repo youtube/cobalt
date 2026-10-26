@@ -704,6 +704,37 @@ TEST(BIOTest, Gets) {
   EXPECT_EQ(c, 'a');
 }
 
+TEST(BIOTest, FileEOF) {
+  if (SkipTempFileTests()) {
+    GTEST_SKIP();
+  }
+
+  TemporaryFile file;
+  ASSERT_TRUE(file.Init("abcd"));
+  UniquePtr<BIO> bio(BIO_new_file(file.path().c_str(), "rb"));
+  ASSERT_TRUE(bio);
+  EXPECT_EQ(BIO_eof(bio.get()), 0);
+  // Read everything.
+  char buf[4];
+  ASSERT_EQ(4, BIO_read(bio.get(), buf, sizeof(buf)));
+  EXPECT_EQ(Bytes(buf, sizeof(buf)), Bytes("abcd"));
+  EXPECT_EQ(BIO_eof(bio.get()), 0);
+  // Try to keep reading. The BIO should now signal EOF.
+  ASSERT_EQ(0, BIO_read(bio.get(), buf, sizeof(buf)));
+  EXPECT_EQ(BIO_eof(bio.get()), 1);
+  // Reset the BIO. File BIOs have an unusual return value convention for
+  // |BIO_reset|.
+  EXPECT_EQ(BIO_reset(bio.get()), 0);
+  // This should clear the EOF indicator for the stream.
+  EXPECT_EQ(BIO_eof(bio.get()), 0);
+  // Repeat the test.
+  ASSERT_EQ(4, BIO_read(bio.get(), buf, sizeof(buf)));
+  EXPECT_EQ(Bytes(buf, sizeof(buf)), Bytes("abcd"));
+  EXPECT_EQ(BIO_eof(bio.get()), 0);
+  ASSERT_EQ(0, BIO_read(bio.get(), buf, sizeof(buf)));
+  EXPECT_EQ(BIO_eof(bio.get()), 1);
+}
+
 // Test that, on Windows, file BIOs correctly handle text vs binary mode.
 TEST(BIOTest, FileMode) {
   if (SkipTempFileTests()) {
@@ -922,6 +953,37 @@ TEST_P(BIOPairTest, TestPair) {
 }
 
 INSTANTIATE_TEST_SUITE_P(All, BIOPairTest, testing::Values(false, true));
+
+// |BIO_free| returns whether the input |BIO| was shared.
+TEST(BIOTest, BIOFreeReturnValue) {
+  BIO *bio = BIO_new_mem_buf(nullptr, 0);
+  ASSERT_TRUE(bio);
+  BIO_up_ref(bio);
+  BIO_up_ref(bio);
+
+  // |BIO_free| should return one when the last reference is dropped.
+  EXPECT_EQ(0, BIO_free(bio));
+  EXPECT_EQ(0, BIO_free(bio));
+  EXPECT_EQ(1, BIO_free(bio));
+
+  // |BIO_free| of nullptr vacuously returns one.
+  EXPECT_EQ(1, BIO_free(nullptr));
+}
+
+TEST(BIOTest, BIOFreeReturnValueChain) {
+  // We have no built-in filter BIOs, but |BIO_push| works with any |BIO|, so
+  // just chain memory |BIO|s, even though it does nothing.
+  UniquePtr<BIO> bio1(BIO_new_mem_buf(nullptr, 0));
+  ASSERT_TRUE(bio1);
+  UniquePtr<BIO> bio2(BIO_new_mem_buf(nullptr, 0));
+  ASSERT_TRUE(bio2);
+  BIO_push(bio1.get(), UpRef(bio2).release());
+
+  // |bio1| now owns a copy of |bio2|, but it is still shared with the |bio2|
+  // pointer. |BIO_free| should still return one because the input object was
+  // freed.
+  EXPECT_EQ(1, BIO_free(bio1.release()));
+}
 
 }  // namespace
 BSSL_NAMESPACE_END

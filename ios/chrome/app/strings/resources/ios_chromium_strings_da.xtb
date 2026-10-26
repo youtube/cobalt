@@ -89,6 +89,7 @@ Prøv at vente et par minutter, før du logger ud. Hvis du logger ud nu, slettes
 <translation id="2517624234762908348">Synkroniser dine Chromium-data</translation>
 <translation id="2575968074225731646">Få hurtigere adgang til Chromium via din iPhones dock.</translation>
 <translation id="2592940277904433508">Fortsæt med at bruge Chromium</translation>
+<translation id="2601766165676560303">Chromium-tema til iPhone og iPad</translation>
 <translation id="2607609479243848905">Hvis du glemmer din adgangssætning eller vil ændre denne indstilling, skal du <ph name="BEGIN_LINK" />slette Chromium-dataene på din konto<ph name="END_LINK" />.</translation>
 <translation id="2640367368802736659">Tip til Chromium: Søg efter det, du ser, med Google Lens</translation>
 <translation id="2650312721222849884">Aktivér synkronisering for at se dine faner på alle de enheder, hvor du bruger Chromium</translation>
@@ -156,7 +157,7 @@ Dine data krypteres med din adgangssætning. Angiv adgangssætningen for at brug
 <translation id="420541179527342563">Hvis du vil deaktivere funktionen Låsning i Chromium, skal du deaktivere den på din iPad.</translation>
 <translation id="4272892696084633551">Vær med til at forbedre Chromiums funktioner og ydeevne</translation>
 <translation id="4302397443352897529">Chromium-indstillinger</translation>
-<translation id="4304713468139749426">Adgangs­kode­admin­istrator</translation>
+<translation id="4304713468139749426">Adgangskode­administrator</translation>
 <translation id="4408912345039114853">Kør Chromium-sikkerhedstjek</translation>
 <translation id="4432744876818348753">Log ind for at få mest muligt ud af Chromium.</translation>
 <translation id="4445228361214254027">Din organisation har deaktiveret muligheden for at bruge og gemme Chromium-data på din Google-konto. Nye bogmærker, adgangskoder m.m. gemmes kun på denne enhed.</translation>
@@ -374,4 +375,5 @@ Prøv at vente et par minutter, før du logger ud. Hvis du logger ud nu, slettes
 <translation id="924957577793602335">Tilpas Chromium</translation>
 <translation id="981812233959540767">Spil Chromium Dino-spillet</translation>
 <translation id="985602178874221306">Forfatterne til Chromium</translation>
+<translation id="986520777495807752">Angiv Chromium som standard</translation>
 </translationbundle>

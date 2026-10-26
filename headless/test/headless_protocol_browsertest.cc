@@ -594,6 +594,10 @@ HEADLESS_PROTOCOL_TEST(ScreenDetailsMultipleScreens,
 HEADLESS_PROTOCOL_TEST(ScreenDetailsMultipleScreensScaled,
                        "shared/screen-details-multiple-screens-scaled.js")
 
+HEADLESS_PROTOCOL_TEST(
+    ScreenDetailsMultipleScreensPrimaryScaled,
+    "shared/screen-details-multiple-screens-primary-scaled.js")
+
 HEADLESS_PROTOCOL_TEST(ScreenDetailsPixelRatio,
                        "shared/screen-details-pixel-ratio.js")
 
@@ -626,6 +630,9 @@ HEADLESS_PROTOCOL_TEST(FullscreenWindowSize, "shared/fullscreen-window-size.js")
 
 HEADLESS_PROTOCOL_TEST(FullscreenWindowSizeScaled,
                        "shared/fullscreen-window-size-scaled.js")
+
+HEADLESS_PROTOCOL_TEST(SetZoomedWindowBounds,
+                       "shared/set-zoomed-window-bounds.js")
 
 HEADLESS_PROTOCOL_TEST(WindowOpenOnSecondaryScreen,
                        "shared/window-open-on-secondary-screen.js")
@@ -704,6 +711,33 @@ HEADLESS_PROTOCOL_TEST(RemoveScreenGetScreenDetails,
 
 HEADLESS_PROTOCOL_TEST(AddRemoveScreen, "shared/add-remove-screen.js")
 
+HEADLESS_PROTOCOL_TEST(UpdateScreenBounds, "shared/update-screen-bounds.js")
+
+HEADLESS_PROTOCOL_TEST(UpdateScreenWorkArea,
+                       "shared/update-screen-work-area.js")
+
+HEADLESS_PROTOCOL_TEST(UpdateScreenDevicePixelRatio,
+                       "shared/update-screen-device-pixel-ratio.js")
+
+HEADLESS_PROTOCOL_TEST(UpdateScreenRotationPortrait,
+                       "shared/update-screen-rotation-portrait.js")
+
+HEADLESS_PROTOCOL_TEST(UpdateScreenRotationLandscape,
+                       "shared/update-screen-rotation-landscape.js")
+
+HEADLESS_PROTOCOL_TEST(UpdateScreenColorDepth,
+                       "shared/update-screen-color-depth.js")
+
+HEADLESS_PROTOCOL_TEST(UpdateScreenLabel, "shared/update-screen-label.js")
+
+HEADLESS_PROTOCOL_TEST(UpdateScreenIsInternal,
+                       "shared/update-screen-is-internal.js")
+
+HEADLESS_PROTOCOL_TEST(SetPrimaryScreen, "shared/set-primary-screen.js")
+
+HEADLESS_PROTOCOL_TEST(SetPrimaryScreenScaled,
+                       "shared/set-primary-screen-scaled.js")
+
 HEADLESS_PROTOCOL_TEST(DispatchMouseEventScreenCoordinates,
                        "shared/dispatch-mouse-event-screen-coordinates.js")
 
@@ -716,9 +750,6 @@ HEADLESS_PROTOCOL_TEST(
 
 HEADLESS_PROTOCOL_TEST(WindowWithNewContext,
                        "shared/window-with-new-context.js")
-
-HEADLESS_PROTOCOL_TEST(SetZoomedWindowBounds,
-                       "shared/set-zoomed-window-bounds.js")
 
 HEADLESS_PROTOCOL_TEST(RangeMouseEventAfterNodeRemoval,
                        "shared/range-mouse-event-after-node-removal.js")

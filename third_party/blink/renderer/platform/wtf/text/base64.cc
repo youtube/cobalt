@@ -123,8 +123,9 @@ bool Base64Decode(const StringView& in,
 }
 
 bool Base64UnpaddedUrlDecode(const String& in, Vector<uint8_t>& out) {
-  if (in.Contains('+') || in.Contains('/') || in.Contains('='))
+  if (in.contains('+') || in.contains('/') || in.contains('=')) {
     return false;
+  }
 
   return Base64Decode(NormalizeToBase64(in), out);
 }
@@ -141,7 +142,7 @@ String Base64UrlEncode(base::span<const uint8_t> data,
     }
     DCHECK_LE(first_padding_index, result.length());
     DCHECK_LT(result.length() - first_padding_index, 4u);
-    result.Truncate(first_padding_index);
+    result = result.substr(0, first_padding_index);
   }
   return result;
 }

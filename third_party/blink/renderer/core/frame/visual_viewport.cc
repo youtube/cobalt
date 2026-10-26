@@ -736,7 +736,39 @@ void VisualViewport::UpdateScrollbarLayer(ScrollbarOrientation orientation) {
 }
 
 bool VisualViewport::VisualViewportSuppliesScrollbars() const {
-  return IsActiveViewport() && GetPage().GetSettings().GetViewportEnabled();
+  // Only the active viewport should supply scrollbars.
+  if (!IsActiveViewport()) {
+    return false;
+  }
+
+  const auto& settings = GetPage().GetSettings();
+
+  // If we are forcing mobile-style scrollbars (can be set by emulation of
+  // overlay scrollbars or mobile emulation), the VisualViewport must supply
+  // them regardless of other settings.
+  if (settings.GetForceAndroidOverlayScrollbar()) {
+    return true;
+  }
+
+  // The VisualViewport is distinct from the LayoutViewport only when the
+  // mobile-style viewport logic is enabled. On desktop, the LayoutViewport
+  // handles all scrollbars.
+  if (!settings.GetViewportEnabled()) {
+    return false;
+  }
+
+  // Even if the mobile viewport is enabled, on "desktop Android" (e.g.
+  // large screen optimizations), we prefer the LayoutViewport to handle
+  // scrollbars for a desktop-like experience.
+  if (ScrollbarTheme::DesktopAndroidScrollbarsEnabled()) {
+    return false;
+  }
+
+  // If none of the above conditions are met, we are in the standard mobile
+  // behavior (ViewportEnabled is true, and DesktopAndroidScrollbarsEnabled is
+  // false). In this case, the VisualViewport is distinct from the
+  // LayoutViewport and handles the "screen" scrollbars.
+  return true;
 }
 
 const Document* VisualViewport::GetDocument() const {
@@ -760,7 +792,8 @@ bool VisualViewport::SetScrollOffsetInternal(
     mojom::blink::ScrollType scroll_type,
     cc::ScrollSourceType source_type,
     mojom::blink::ScrollBehavior scroll_behavior,
-    bool targeted_scroll) {
+    bool targeted_scroll,
+    std::unique_ptr<ScopedScrollPromiseResolver> promise_resolver) {
   // We clamp the offset here, because the ScrollAnimator may otherwise be
   // set to a non-clamped offset by ScrollableArea::setScrollOffsetInternal,
   // which may lead to incorrect scrolling behavior in RootFrameViewport down
@@ -770,9 +803,9 @@ bool VisualViewport::SetScrollOffsetInternal(
   // stores fractional offsets and that truncation happens elsewhere, see
   // crbug.com/626315.
   ScrollOffset new_scroll_offset = ClampScrollOffset(offset);
-  return ScrollableArea::SetScrollOffsetInternal(new_scroll_offset, scroll_type,
-                                                 source_type, scroll_behavior,
-                                                 /*targeted_scroll=*/false);
+  return ScrollableArea::SetScrollOffsetInternal(
+      new_scroll_offset, scroll_type, source_type, scroll_behavior,
+      /*targeted_scroll=*/false, std::move(promise_resolver));
 }
 
 PhysicalOffset VisualViewport::LocalToScrollOriginOffset() const {

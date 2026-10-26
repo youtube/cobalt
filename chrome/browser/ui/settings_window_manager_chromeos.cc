@@ -10,8 +10,10 @@
 #include "ash/public/cpp/resources/grit/ash_public_unscaled_resources.h"
 #include "ash/public/cpp/shelf_item.h"
 #include "ash/public/cpp/window_properties.h"
+#include "ash/webui/settings/public/constants/routes_util.h"
 #include "ash/webui/system_apps/public/system_web_app_type.h"
 #include "ash/wm/window_properties.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
@@ -24,7 +26,6 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
@@ -102,6 +103,11 @@ bool SettingsWindowManager::UseDeprecatedSettingsWindow(Profile* profile) {
 
 void SettingsWindowManager::Open(const user_manager::User& user,
                                  OpenParams params) {
+  if (params.entry_point.has_value()) {
+    base::UmaHistogramEnumeration("AppManagement.EntryPoints",
+                                  params.entry_point.value());
+  }
+
   Profile* profile = Profile::FromBrowserContext(
       ash::BrowserContextHelper::Get()->GetBrowserContextByUser(&user));
 
@@ -134,7 +140,7 @@ void SettingsWindowManager::ShowChromePageForProfile(
     LOG(ERROR) << "Unable to open settings for this profile, url "
                << gurl.spec();
     if (callback) {
-      std::move(callback).Run(apps::LaunchResult(apps::State::kFailed));
+      std::move(callback).Run(apps::LaunchResult::kFailed);
     }
     return;
   }
@@ -161,7 +167,7 @@ void SettingsWindowManager::ShowChromePageForProfile(
     if (web_contents && web_contents->GetURL() == gurl) {
       browser->window()->Show();
       if (callback) {
-        std::move(callback).Run(apps::LaunchResult(apps::State::kSuccess));
+        std::move(callback).Run(apps::LaunchResult::kSuccess);
       }
       return;
     }
@@ -171,7 +177,7 @@ void SettingsWindowManager::ShowChromePageForProfile(
     params.user_gesture = true;
     Navigate(&params);
     if (callback) {
-      std::move(callback).Run(apps::LaunchResult(apps::State::kSuccess));
+      std::move(callback).Run(apps::LaunchResult::kSuccess);
     }
     return;
   }
@@ -205,7 +211,7 @@ void SettingsWindowManager::ShowChromePageForProfile(
   legacy_settings_title_updater_->Add(window);
 
   if (callback) {
-    std::move(callback).Run(apps::LaunchResult(apps::State::kSuccess));
+    std::move(callback).Run(apps::LaunchResult::kSuccess);
   }
 }
 
@@ -217,7 +223,8 @@ void SettingsWindowManager::ShowOSSettings(Profile* profile,
 void SettingsWindowManager::ShowOSSettings(Profile* profile,
                                            std::string_view sub_page,
                                            int64_t display_id) {
-  ShowChromePageForProfile(profile, chrome::GetOSSettingsUrl(sub_page),
+  ShowChromePageForProfile(profile,
+                           chromeos::settings::GetOSSettingsUrl(sub_page),
                            display_id, /*callback=*/{});
 }
 

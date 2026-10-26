@@ -486,7 +486,7 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
             initiatedByUser:(BOOL)initiatedByUser {
   // Check if requested web state is a popup and block it if necessary.
   if (!initiatedByUser) {
-    auto* helper = BlockedPopupTabHelper::GetOrCreateForWebState(webState);
+    auto* helper = BlockedPopupTabHelper::FromWebState(webState);
     if (helper->ShouldBlockPopup(openerURL)) {
       // It's possible for a page to inject a popup into a window created via
       // window.open before its initial load is committed.  Rather than relying
@@ -535,6 +535,15 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
                                                    NSString* password))handler {
   _browserWebStateDelegate->OnAuthRequired(
       webState, protectionSpace, proposedCredential, base::BindOnce(handler));
+}
+
+- (void)webState:(web::WebState*)webState
+    didRequestClientCertAuthForProtectionSpace:
+        (NSURLProtectionSpace*)protectionSpace
+                             completionHandler:
+                                 (void (^)(SecIdentityRef))handler {
+  _browserWebStateDelegate->OnAuthRequired(webState, protectionSpace,
+                                           base::BindOnce(handler));
 }
 
 // This API can be used to show custom input views in the web view.

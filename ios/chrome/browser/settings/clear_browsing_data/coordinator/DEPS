@@ -1,0 +1,6 @@
+include_rules = [
+# keep-sorted start
+  "+ios/chrome/browser/saved_tab_groups/model",
+  "+ios/chrome/browser/search_engines/model",
+# keep-sorted end
+]

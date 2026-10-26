@@ -16,12 +16,12 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/call/bitrate_allocation.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
@@ -102,7 +102,7 @@ class MockRtpVideoSender : public RtpVideoSenderInterface {
               GetRtpPayloadStates,
               (),
               (const, override));
-  MOCK_METHOD(void, DeliverRtcp, (ArrayView<const uint8_t>), (override));
+  MOCK_METHOD(void, DeliverRtcp, (std::span<const uint8_t>), (override));
   MOCK_METHOD(void,
               OnBitrateAllocationUpdated,
               (const VideoBitrateAllocation&),
@@ -123,10 +123,10 @@ class MockRtpVideoSender : public RtpVideoSenderInterface {
   MOCK_METHOD(uint32_t, GetPayloadBitrateBps, (), (const, override));
   MOCK_METHOD(uint32_t, GetProtectionBitrateBps, (), (const, override));
   MOCK_METHOD(void, SetEncodingData, (size_t, size_t, size_t), (override));
-  MOCK_METHOD(void, SetCsrcs, (ArrayView<const uint32_t> csrcs), (override));
+  MOCK_METHOD(void, SetCsrcs, (std::span<const uint32_t> csrcs), (override));
   MOCK_METHOD(std::vector<RtpSequenceNumberMap::Info>,
               GetSentRtpPacketInfos,
-              (uint32_t ssrc, ArrayView<const uint16_t> sequence_numbers),
+              (uint32_t ssrc, std::span<const uint16_t> sequence_numbers),
               (const, override));
 
   MOCK_METHOD(void, SetFecAllowed, (bool fec_allowed), (override));
@@ -207,7 +207,9 @@ class VideoSendStreamImplTest : public ::testing::Test {
         /*metronome=*/nullptr, &bitrate_allocator_, &send_delay_stats_,
         config_.Copy(), std::move(encoder_config), suspended_ssrcs,
         suspended_payload_states,
-        /*fec_controller=*/nullptr, std::move(video_stream_encoder));
+        /*fec_controller=*/nullptr,
+        /*encoder_switch_request_callback=*/nullptr,
+        std::move(video_stream_encoder));
 
     // The call to GetStartBitrate() executes asynchronously on the tq.
     // Ensure all tasks get to run.
@@ -1113,6 +1115,27 @@ TEST_F(VideoSendStreamImplTest, KeepAliveOnDroppedFrame) {
     // Keep the stream from deallocating by dropping a frame.
     static_cast<EncodedImageCallback*>(vss_impl.get())
         ->OnDroppedFrame(EncodedImageCallback::DropReason::kDroppedByEncoder);
+  });
+  time_controller_.AdvanceTime(TimeDelta::Seconds(2));
+  testing::Mock::VerifyAndClearExpectations(&bitrate_allocator_);
+  vss_impl->Stop();
+}
+
+TEST_F(VideoSendStreamImplTest, KeepAliveOnFrameDropped) {
+  auto vss_impl = CreateVideoSendStreamImpl(TestVideoEncoderConfig());
+  EXPECT_CALL(bitrate_allocator_, RemoveObserver(vss_impl.get())).Times(0);
+  vss_impl->Start();
+  const uint32_t kBitrateBps = 100000;
+  EXPECT_CALL(rtp_video_sender_, GetPayloadBitrateBps())
+      .Times(1)
+      .WillOnce(Return(kBitrateBps));
+  static_cast<BitrateAllocatorObserver*>(vss_impl.get())
+      ->OnBitrateUpdated(CreateAllocation(kBitrateBps));
+  encoder_queue_->PostTask([&] {
+    // Keep the stream from deallocating by dropping a frame.
+    static_cast<EncodedImageCallback*>(vss_impl.get())
+        ->OnFrameDropped(/*rtp_timestamp=*/0, /*spatial_id=*/0,
+                         /*is_end_of_temporal_unit=*/true);
   });
   time_controller_.AdvanceTime(TimeDelta::Seconds(2));
   testing::Mock::VerifyAndClearExpectations(&bitrate_allocator_);

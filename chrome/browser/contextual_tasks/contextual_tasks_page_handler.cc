@@ -11,7 +11,9 @@
 #include "base/uuid.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_tasks/ai_mode_context_library_converter.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks.mojom-shared.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
 #include "chrome/browser/feedback/public/feedback_source.h"
 #include "chrome/browser/feedback/show_feedback_page.h"
 #include "chrome/browser/global_features.h"
@@ -23,6 +25,7 @@
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/application_locale_storage/application_locale_storage.h"
+#include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_tasks/public/context_decoration_params.h"
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "components/contextual_tasks/public/contextual_task_context.h"
@@ -37,6 +40,7 @@
 #include "google_apis/gaia/gaia_constants.h"
 #include "net/base/url_util.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
+#include "third_party/lens_server_proto/modality_chip_props.pb.h"
 #include "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
@@ -62,12 +66,23 @@ PopulateContextualResources(contextual_tasks::ContextualTaskContext* context) {
     return {};
   }
   std::vector<contextual_tasks::mojom::ContextInfoPtr> context_items;
-  for (const auto& attachment : context->GetUrlAttachments()) {
+  for (const auto& attachment : context->GetUniqueUrlAttachments()) {
+    const GURL url = attachment.GetURL();
+    const std::string title = base::UTF16ToUTF8(attachment.GetTitle());
+
+    // Skip if the title is empty. Empty URLs are right now allowed for PDF /
+    // images.
+    if (title.empty() ||
+        (!url.is_valid() && attachment.GetResourceType() ==
+                                contextual_tasks::ResourceType::kWebpage)) {
+      continue;
+    }
+
     switch (attachment.GetResourceType()) {
       case contextual_tasks::ResourceType::kWebpage: {
         auto tab_context = contextual_tasks::mojom::TabContext::New();
-        tab_context->title = base::UTF16ToUTF8(attachment.GetTitle());
-        tab_context->url = attachment.GetURL();
+        tab_context->title = title;
+        tab_context->url = url;
         tab_context->tab_id = attachment.GetTabSessionId().id();
         context_items.push_back(contextual_tasks::mojom::ContextInfo::NewTab(
             std::move(tab_context)));
@@ -75,16 +90,16 @@ PopulateContextualResources(contextual_tasks::ContextualTaskContext* context) {
       }
       case contextual_tasks::ResourceType::kPdf: {
         auto file_context = contextual_tasks::mojom::FileContext::New();
-        file_context->title = base::UTF16ToUTF8(attachment.GetTitle());
-        file_context->url = attachment.GetURL();
+        file_context->title = title;
+        file_context->url = url;
         context_items.push_back(contextual_tasks::mojom::ContextInfo::NewFile(
             std::move(file_context)));
         break;
       }
       case contextual_tasks::ResourceType::kImage: {
         auto image_context = contextual_tasks::mojom::ImageContext::New();
-        image_context->title = base::UTF16ToUTF8(attachment.GetTitle());
-        image_context->url = attachment.GetURL();
+        image_context->title = title;
+        image_context->url = url;
         context_items.push_back(contextual_tasks::mojom::ContextInfo::NewImage(
             std::move(image_context)));
         break;
@@ -94,6 +109,23 @@ PopulateContextualResources(contextual_tasks::ContextualTaskContext* context) {
     }
   }
   return context_items;
+}
+
+contextual_tasks::mojom::IconType IconTypeToMojom(lens::IconType icon_id) {
+  switch (icon_id) {
+    case lens::IconType::ICON_TYPE_ADD:
+      return contextual_tasks::mojom::IconType::kAdd;
+    case lens::IconType::ICON_TYPE_CHECK:
+      return contextual_tasks::mojom::IconType::kCheck;
+    case lens::IconType::ICON_TYPE_FORMAT_QUOTE_FILLED:
+      return contextual_tasks::mojom::IconType::kFormatQuoteFilled;
+    case lens::IconType::ICON_TYPE_IMAGE:
+      return contextual_tasks::mojom::IconType::kImage;
+    case lens::IconType::ICON_TYPE_DRIVE_PDF:
+      return contextual_tasks::mojom::IconType::kDrivePdf;
+    default:
+      return contextual_tasks::mojom::IconType::kUnspecified;
+  }
 }
 
 }  // namespace
@@ -211,6 +243,12 @@ void ContextualTasksPageHandler::IsAiPage(const GURL& url,
   std::move(callback).Run(ui_service_->IsAiUrl(url));
 }
 
+void ContextualTasksPageHandler::IsPendingErrorPage(
+    const base::Uuid& task_id,
+    IsPendingErrorPageCallback callback) {
+  std::move(callback).Run(ui_service_->IsPendingErrorPage(task_id));
+}
+
 void ContextualTasksPageHandler::CloseSidePanel() {
   web_ui_controller_->CloseSidePanel();
 }
@@ -244,6 +282,7 @@ void ContextualTasksPageHandler::OpenHelpUi() {
       }
     }
   }
+#if !BUILDFLAG(IS_ANDROID)
   chrome::ShowFeedbackPage(page_url, web_ui_controller_->GetProfile(),
                            feedback::kFeedbackSourceAI,
                            /*description_template=*/std::string(),
@@ -251,6 +290,7 @@ void ContextualTasksPageHandler::OpenHelpUi() {
                            l10n_util::GetStringUTF8(IDS_LENS_SEND_FEEDBACK),
                            /*category_tag=*/"cobrowse",
                            /*extra_diagnostics=*/std::string());
+#endif
 }
 
 void ContextualTasksPageHandler::OpenOnboardingHelpUi() {
@@ -266,15 +306,7 @@ void ContextualTasksPageHandler::OpenUrl(const GURL& url,
 }
 
 void ContextualTasksPageHandler::MoveTaskUiToNewTab() {
-  auto* browser = web_ui_controller_->GetBrowser();
-  const auto& task_id = web_ui_controller_->GetTaskId();
-  if (!task_id.has_value()) {
-    LOG(ERROR) << "Attempted to open in new tab with no valid task ID.";
-    return;
-  }
-
-  ui_service_->MoveTaskUiToNewTab(task_id.value(), browser,
-                                  web_ui_controller_->GetInnerFrameUrl());
+  web_ui_controller_->MoveTaskUiToNewTab();
 }
 
 void ContextualTasksPageHandler::OnTabClickedFromSourcesMenu(int32_t tab_id,
@@ -336,6 +368,12 @@ void ContextualTasksPageHandler::OnWebviewMessage(
     web_ui_controller_->OnZeroStateChange(
         aim_to_client_message.notify_zero_state_rendered()
             .is_zero_state_rendered());
+  } else if (aim_to_client_message.has_inject_input()) {
+    OnReceivedInjectInput(std::make_unique<lens::ModalityChipProps>(
+        aim_to_client_message.inject_input().modality()));
+  } else if (aim_to_client_message.has_remove_injected_input()) {
+    OnReceivedRemoveInjectedInput(
+        std::string(aim_to_client_message.remove_injected_input().id()));
   } else if (aim_to_client_message.has_lock_input()) {
     web_ui_controller_->GetPageRemote()->LockInput();
   } else if (aim_to_client_message.has_unlock_input()) {
@@ -388,6 +426,10 @@ void ContextualTasksPageHandler::OnboardingTooltipDismissed() {
       count + 1);
 }
 
+void ContextualTasksPageHandler::ReopenTabs() {
+  // TODO(crbug.com/489832161): Implement tab restoration logic.
+}
+
 void ContextualTasksPageHandler::PostMessageToWebview(
     const lens::ClientToAimMessage& message) {
   DCHECK(web_ui_controller_->GetPageRemote());
@@ -407,6 +449,16 @@ void ContextualTasksPageHandler::PostMessageToWebview(
   }
 
   web_ui_controller_->GetPageRemote()->PostMessageToWebview(serialized_message);
+}
+
+void ContextualTasksPageHandler::OnTaskAdded(
+    const contextual_tasks::ContextualTask& task,
+    contextual_tasks::ContextualTasksService::TriggerSource source) {
+  if (!web_ui_controller_->GetPageRemote()) {
+    return;
+  }
+
+  UpdateContextForTask(task.GetTaskId());
 }
 
 void ContextualTasksPageHandler::OnTaskUpdated(
@@ -475,4 +527,33 @@ void ContextualTasksPageHandler::OnReceivedUpdatedThreadContextLibrary(
                                                            submitted_context);
   contextual_tasks_service_->SetUrlResourcesFromServer(*task_id,
                                                        committed_context);
+}
+
+void ContextualTasksPageHandler::OnReceivedInjectInput(
+    std::unique_ptr<lens::ModalityChipProps> modality) {
+  contextual_search::ContextualSearchSessionHandle* handle =
+      web_ui_controller_->GetOrCreateContextualSessionHandle();
+  auto token = handle->CreateContextToken();
+  if (modality->has_icon_id()) {
+    web_ui_controller_->GetPageRemote()->InjectInputWithIcon(
+        std::string(modality->title()), IconTypeToMojom(modality->icon_id()),
+        token, modality->is_unimodal());
+  } else {
+    web_ui_controller_->GetPageRemote()->InjectInput(
+        std::string(modality->title()), std::string(modality->thumbnail_src()),
+        token, modality->is_unimodal());
+  }
+  // This does not actually upload anything, but allows the injected input to be
+  // shown in the chip carousel in the UI.
+  handle->StartModalityChipUploadFlow(token, std::move(modality));
+}
+
+void ContextualTasksPageHandler::OnReceivedRemoveInjectedInput(
+    const std::string& id) {
+  contextual_search::ContextualSearchSessionHandle* handle =
+      web_ui_controller_->GetOrCreateContextualSessionHandle();
+  auto token = handle->GetController()->FindTokenForInjectedInput(id);
+  if (token.has_value()) {
+    web_ui_controller_->GetPageRemote()->RemoveInjectedInput(token.value());
+  }
 }

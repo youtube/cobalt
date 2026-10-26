@@ -26,7 +26,6 @@
 #include "chrome/browser/ui/ash/login/login_display_host_webui.h"
 #include "chrome/browser/ui/webui/ash/lock_screen_reauth/lock_screen_reauth_dialogs.h"
 #include "chrome/browser/ui/webui/ash/login/online_login_utils.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/installer/util/google_update_settings.h"
@@ -109,8 +108,9 @@ const char kMainElement[] = "$(\'main-element\').";
 
 }  // namespace
 
-LockScreenReauthHandler::LockScreenReauthHandler(const std::string& email)
-    : email_(email) {}
+LockScreenReauthHandler::LockScreenReauthHandler(PrefService* local_state,
+                                                 const std::string& email)
+    : email_(email), auth_flow_auto_reload_manager_(local_state) {}
 
 LockScreenReauthHandler::~LockScreenReauthHandler() = default;
 

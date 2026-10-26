@@ -217,12 +217,6 @@ AX_BASE_EXPORT BASE_DECLARE_FEATURE(
 AX_BASE_EXPORT bool
 IsExperimentalAccessibilityDictationContextCheckingEnabled();
 
-// Download Google TTS High Quality voices.
-AX_BASE_EXPORT BASE_DECLARE_FEATURE(
-    kExperimentalAccessibilityGoogleTtsHighQualityVoices);
-AX_BASE_EXPORT bool
-IsExperimentalAccessibilityGoogleTtsHighQualityVoicesEnabled();
-
 // Whether the screen magnifier can follow the ChromeVox focus.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityMagnifierFollowsChromeVox);
 AX_BASE_EXPORT bool IsAccessibilityMagnifierFollowsChromeVoxEnabled();
@@ -355,6 +349,11 @@ AX_BASE_EXPORT bool IsReadAnythingDocsLoadMoreButtonEnabled();
 // Enable ReadabilityJS as the distillation source for Reading Mode.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAnythingWithReadability);
 AX_BASE_EXPORT bool IsReadAnythingWithReadabilityEnabled();
+
+// Enable links when the Readability distillation source for Reading Mode.
+// Intended for safer rolling out of the Readability flag.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAnythingWithReadabilityAllowLinks);
+AX_BASE_EXPORT bool IsReadAnythingWithReadabilityAllowLinksEnabled();
 
 // Write some ScreenAI library debug data in /tmp.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kScreenAIDebugMode);

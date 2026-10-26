@@ -47,6 +47,7 @@
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
+#include "third_party/blink/renderer/platform/text/text_justify.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
@@ -170,10 +171,7 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
   unsigned NumGlyphs() const;
   bool HasFallbackFonts(const SimpleFontData* primary_font) const;
 
-  // TODO(eae): Remove start_x and return value once ShapeResultBuffer has been
-  // removed.
-  float IndividualCharacterRanges(Vector<CharacterRange>* ranges,
-                                  float start_x = 0) const;
+  Vector<CharacterRange> IndividualCharacterRanges() const;
 
   // The character start/end index of a range shape result.
   unsigned StartIndex() const { return start_index_; }
@@ -388,6 +386,7 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
                                       TextDirection,
                                       Vector<uint16_t> safe_break_offsets = {});
 #if DCHECK_IS_ON()
+  bool operator==(const ShapeResult&) const;
   void CheckConsistency() const;
 #endif
 

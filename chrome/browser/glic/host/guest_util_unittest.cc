@@ -23,32 +23,19 @@ namespace {
 class GuestUtilTest : public testing::Test {};
 
 // Test fixture for multi-instance feature.
-class GuestUtilMultiInstanceTest : public testing::TestWithParam<bool> {
+class GuestUtilMultiInstanceTest : public testing::Test {
  public:
   GuestUtilMultiInstanceTest()
       : profile_manager_(TestingBrowserProcess::GetGlobal()) {
-    if (IsMultiInstanceEnabled()) {
-      scoped_feature_list_.InitWithFeaturesAndParameters(
-          /*enabled_features=*/
-          {
-              {features::kGlicMultiInstance, {}},
-              {features::kGlicMultitabUnderlines, {}},
-              {mojom::features::kGlicMultiTab, {}},
-              {features::kGlicURLConfig,
-               {{features::kGlicGuestURL.name,
-                 "https://www.example.com/glic"}}},
-          },
-          /*disabled_features=*/{});
-    } else {
-      scoped_feature_list_.InitWithFeaturesAndParameters(
-          /*enabled_features=*/
-          {
-              {features::kGlicURLConfig,
-               {{features::kGlicGuestURL.name,
-                 "https://www.example.org/glic"}}},
-          },
-          /*disabled_features=*/{});
-    }
+    std::vector<base::test::FeatureRefAndParams> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    enabled_features.push_back(
+        {features::kGlicURLConfig,
+         {{features::kGlicGuestURL.name, "https://www.example.com/glic"}}});
+
+    scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                       disabled_features);
   }
 
   void SetUp() override { ASSERT_TRUE(profile_manager_.SetUp()); }
@@ -58,10 +45,9 @@ class GuestUtilMultiInstanceTest : public testing::TestWithParam<bool> {
   }
 
  protected:
-  bool IsMultiInstanceEnabled() const { return GetParam(); }
+  base::test::ScopedFeatureList scoped_feature_list_;
 
  private:
-  base::test::ScopedFeatureList scoped_feature_list_;
   content::BrowserTaskEnvironment task_environment_;
   TestingProfileManager profile_manager_;
 };
@@ -76,84 +62,55 @@ TEST(GuestUtilTest, GetLocalizedGuestURLDoesNotChangeLanguageParameter) {
             GetLocalizedGuestURL(GURL("https://www.google.com?hl=es")));
 }
 
-TEST_P(GuestUtilMultiInstanceTest,
+TEST_F(GuestUtilMultiInstanceTest,
        MaybeAddMultiInstanceParameterAddsParameter) {
-  if (IsMultiInstanceEnabled()) {
-    EXPECT_EQ(MaybeAddMultiInstanceParameter(GURL("https://www.google.com")),
-              GURL("https://www.google.com?mode=mi"));
-    EXPECT_EQ(MaybeAddMultiInstanceParameter(GURL("https://www.google.com/")),
-              GURL("https://www.google.com/?mode=mi"));
-    EXPECT_EQ(MaybeAddMultiInstanceParameter(GURL("https://www.google.com/?")),
-              GURL("https://www.google.com/?mode=mi"));
-    EXPECT_EQ(MaybeAddMultiInstanceParameter(GURL("https://www.google.com/?&")),
-              GURL("https://www.google.com/?mode=mi"));
-    EXPECT_EQ(
-        MaybeAddMultiInstanceParameter(GURL("https://www.google.com/?a=b")),
-        GURL("https://www.google.com/?a=b&mode=mi"));
-    EXPECT_EQ(
-        MaybeAddMultiInstanceParameter(GURL("https://www.google.com/?a=b&")),
-        GURL("https://www.google.com/?a=b&mode=mi"));
-    EXPECT_EQ(MaybeAddMultiInstanceParameter(GURL("https://www.google.com/?c")),
-              GURL("https://www.google.com/?c&mode=mi"));
-  } else {
-    EXPECT_EQ(MaybeAddMultiInstanceParameter(GURL("https://www.google.com")),
-              GURL("https://www.google.com"));
-    EXPECT_EQ(
-        MaybeAddMultiInstanceParameter(GURL("https://www.google.com?a=b")),
-        GURL("https://www.google.com?a=b"));
-    EXPECT_EQ(MaybeAddMultiInstanceParameter(GURL("https://www.google.com/")),
-              GURL("https://www.google.com/"));
-  }
+  EXPECT_EQ(MaybeAddMultiInstanceParameter(GURL("https://www.google.com")),
+            GURL("https://www.google.com?mode=mi"));
+  EXPECT_EQ(MaybeAddMultiInstanceParameter(GURL("https://www.google.com/")),
+            GURL("https://www.google.com/?mode=mi"));
+  EXPECT_EQ(MaybeAddMultiInstanceParameter(GURL("https://www.google.com/?")),
+            GURL("https://www.google.com/?mode=mi"));
+  EXPECT_EQ(MaybeAddMultiInstanceParameter(GURL("https://www.google.com/?&")),
+            GURL("https://www.google.com/?mode=mi"));
+  EXPECT_EQ(MaybeAddMultiInstanceParameter(GURL("https://www.google.com/?a=b")),
+            GURL("https://www.google.com/?a=b&mode=mi"));
+  EXPECT_EQ(
+      MaybeAddMultiInstanceParameter(GURL("https://www.google.com/?a=b&")),
+      GURL("https://www.google.com/?a=b&mode=mi"));
+  EXPECT_EQ(MaybeAddMultiInstanceParameter(GURL("https://www.google.com/?c")),
+            GURL("https://www.google.com/?c&mode=mi"));
 }
 
-TEST_P(GuestUtilMultiInstanceTest,
+TEST_F(GuestUtilMultiInstanceTest,
        MaybeAddMultiInstanceParameterReplacesParameter) {
-  if (IsMultiInstanceEnabled()) {
-    EXPECT_EQ(
-        MaybeAddMultiInstanceParameter(GURL("https://www.google.com?mode=si")),
-        GURL("https://www.google.com?mode=mi"));
-    EXPECT_EQ(
-        MaybeAddMultiInstanceParameter(GURL("https://www.google.com/?mode=si")),
-        GURL("https://www.google.com/?mode=mi"));
-    EXPECT_EQ(MaybeAddMultiInstanceParameter(
-                  GURL("https://www.google.com/?a=b&mode=si")),
-              GURL("https://www.google.com/?a=b&mode=mi"));
-    EXPECT_EQ(MaybeAddMultiInstanceParameter(
-                  GURL("https://www.google.com/?mode=si&a=b")),
-              GURL("https://www.google.com/?mode=mi&a=b"));
-  } else {
-    EXPECT_EQ(
-        MaybeAddMultiInstanceParameter(GURL("https://www.google.com/?mode=si")),
-        GURL("https://www.google.com/?mode=si"));
-  }
+  EXPECT_EQ(
+      MaybeAddMultiInstanceParameter(GURL("https://www.google.com?mode=si")),
+      GURL("https://www.google.com?mode=mi"));
+  EXPECT_EQ(
+      MaybeAddMultiInstanceParameter(GURL("https://www.google.com/?mode=si")),
+      GURL("https://www.google.com/?mode=mi"));
+  EXPECT_EQ(MaybeAddMultiInstanceParameter(
+                GURL("https://www.google.com/?a=b&mode=si")),
+            GURL("https://www.google.com/?a=b&mode=mi"));
+  EXPECT_EQ(MaybeAddMultiInstanceParameter(
+                GURL("https://www.google.com/?mode=si&a=b")),
+            GURL("https://www.google.com/?mode=mi&a=b"));
 }
 
-TEST_P(GuestUtilMultiInstanceTest, GetGlicGuestURLs) {
+TEST_F(GuestUtilMultiInstanceTest, GetGlicGuestURLs) {
   TestingProfile* profile = CreateTestingProfile();
-  if (IsMultiInstanceEnabled()) {
     EXPECT_EQ(GURL("https://www.example.com/glic?mode=mi&hl=en"),
               GetGuestURL());
     EXPECT_TRUE(
         net::GetValueForKeyInQuery(GetFreURL(profile), "mode", nullptr));
-  } else {
-    EXPECT_EQ(GURL("https://www.example.org/glic?hl=en"), GetGuestURL());
-    EXPECT_FALSE(
-        net::GetValueForKeyInQuery(GetFreURL(profile), "mode", nullptr));
-  }
 }
 
-TEST_P(GuestUtilMultiInstanceTest, MaybeAddMultiInstanceParameterDisabled) {
+TEST_F(GuestUtilMultiInstanceTest, MaybeAddMultiInstanceParameterDisabled) {
   // Test that disabling the feature does not add any multi-instance params.
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(kGlicGuestUrlMultiInstanceParam);
-  if (IsMultiInstanceEnabled()) {
-    EXPECT_EQ(GURL("https://www.example.com/glic?hl=en"), GetGuestURL());
-  } else {
-    EXPECT_EQ(GURL("https://www.example.org/glic?hl=en"), GetGuestURL());
-  }
+  EXPECT_EQ(GURL("https://www.example.com/glic?hl=en"), GetGuestURL());
 }
-
-INSTANTIATE_TEST_SUITE_P(All, GuestUtilMultiInstanceTest, testing::Bool());
 
 }  // namespace
 

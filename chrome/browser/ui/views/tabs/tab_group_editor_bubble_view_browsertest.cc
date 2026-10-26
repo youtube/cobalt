@@ -37,6 +37,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/events/event.h"
 #include "ui/gfx/geometry/point_f.h"
+#include "ui/views/bubble/bubble_border.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/button/label_button_image_container.h"
@@ -44,8 +45,14 @@
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/view.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/any_widget_observer.h"
 #include "ui/views/widget/widget.h"
+#include "ui/views/widget/widget_delegate.h"
+
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
 
 class TabGroupEditorBubbleViewDialogBrowserTest : public DialogBrowserTest {
  public:
@@ -463,7 +470,7 @@ IN_PROC_BROWSER_TEST_F(
               editor_bubble->GetRootView()));
   ASSERT_NE(nullptr, focus_button_view);
   views::LabelButton* const focus_button =
-      static_cast<views::LabelButton*>(focus_button_view);
+      views::AsViewClass<views::LabelButton>(focus_button_view);
   EXPECT_EQ(focus_button->GetText(),
             l10n_util::GetStringUTF16(IDS_TAB_GROUP_HEADER_CXMENU_FOCUS_GROUP));
 
@@ -491,7 +498,7 @@ IN_PROC_BROWSER_TEST_F(
               editor_bubble2->GetRootView()));
   ASSERT_NE(nullptr, unfocus_button_view);
   views::LabelButton* const unfocus_button =
-      static_cast<views::LabelButton*>(unfocus_button_view);
+      views::AsViewClass<views::LabelButton>(unfocus_button_view);
   EXPECT_EQ(
       unfocus_button->GetText(),
       l10n_util::GetStringUTF16(IDS_TAB_GROUP_HEADER_CXMENU_UNFOCUS_GROUP));
@@ -502,3 +509,51 @@ IN_PROC_BROWSER_TEST_F(
 
   EXPECT_FALSE(tsm->GetFocusedGroup().has_value());
 }
+
+#if BUILDFLAG(IS_OZONE)
+IN_PROC_BROWSER_TEST_F(TabGroupEditorBubbleViewDialogBrowserTest,
+                       ArrowPositionNearBottom) {
+  if (ui::OzonePlatform::GetInstance()
+          ->GetPlatformProperties()
+          .supports_global_screen_coordinates) {
+    GTEST_SKIP() << "Only test when global screen coordinates aren't supported";
+  }
+  browser()->window()->SetBounds(gfx::Rect(0, 0, 1000, 1000));
+
+  group_ = browser()->tab_strip_model()->AddToNewGroup({0});
+  ASSERT_TRUE(group_.has_value());
+
+  // Try showing the bubble near the top of the window. The arrow should be on
+  // the top left.
+  gfx::Rect top_anchor_rect(100, 100, 50, 50);
+  views::Widget* top_widget = TabGroupEditorBubbleView::Show(
+      browser(), group_.value(),
+      BrowserView::GetBrowserViewForBrowser(browser())->tab_strip_view(),
+      top_anchor_rect, false);
+  views::test::WidgetVisibleWaiter(top_widget).Wait();
+
+  TabGroupEditorBubbleView* top_bubble_view =
+      static_cast<TabGroupEditorBubbleView*>(
+          top_widget->widget_delegate()->AsBubbleDialogDelegate());
+
+  EXPECT_EQ(top_bubble_view->arrow(), views::BubbleBorder::Arrow::TOP_LEFT);
+  top_widget->CloseNow();
+
+  // Try showing the bubble near the bottom of the window. The arrow should be
+  // on the bottom left.
+  gfx::Rect bottom_anchor_rect(100, 900, 50, 50);
+  views::Widget* bottom_widget = TabGroupEditorBubbleView::Show(
+      browser(), group_.value(),
+      BrowserView::GetBrowserViewForBrowser(browser())->tab_strip_view(),
+      bottom_anchor_rect, false);
+  views::test::WidgetVisibleWaiter(bottom_widget).Wait();
+
+  TabGroupEditorBubbleView* bottom_bubble_view =
+      static_cast<TabGroupEditorBubbleView*>(
+          bottom_widget->widget_delegate()->AsBubbleDialogDelegate());
+
+  EXPECT_EQ(bottom_bubble_view->arrow(),
+            views::BubbleBorder::Arrow::BOTTOM_LEFT);
+  bottom_widget->CloseNow();
+}
+#endif

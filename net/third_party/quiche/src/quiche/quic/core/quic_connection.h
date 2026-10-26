@@ -836,6 +836,7 @@ class QUICHE_EXPORT QuicConnection
   // QuicIdleNetworkDetector::Delegate
   void OnHandshakeTimeout() override;
   void OnIdleNetworkDetected() override;
+  void OnMemoryReductionTimeout() override;
 
   // QuicPingManager::Delegate
   void OnKeepAliveTimeout() override;
@@ -935,6 +936,12 @@ class QUICHE_EXPORT QuicConnection
   // Sets the handshake and idle state connection timeouts.
   void SetNetworkTimeouts(QuicTime::Delta handshake_timeout,
                           QuicTime::Delta idle_timeout);
+  // Trim memory usage when network has been idle for
+  // `memory_reduction_timeout`. The timeout only takes effect after handshake
+  // completes.
+  void SetMemoryReductionTimeout(QuicTime::Delta memory_reduction_timeout) {
+    idle_network_detector_.SetMemoryReductionTimeout(memory_reduction_timeout);
+  }
 
   void SetMultiPortProbingInterval(QuicTime::Delta probing_interval) {
     multi_port_probing_interval_ = probing_interval;
@@ -1460,10 +1467,6 @@ class QUICHE_EXPORT QuicConnection
 
   QuicEcnCodepoint ecn_codepoint() const {
     return packet_writer_params_.ecn_codepoint;
-  }
-
-  bool quic_limit_new_streams_per_loop_2() const {
-    return quic_limit_new_streams_per_loop_2_;
   }
 
   bool quic_close_on_idle_timeout() const {
@@ -2564,8 +2567,6 @@ class QUICHE_EXPORT QuicConnection
   // ReceivedPacketInfo.
   const bool store_one_dcid_ : 1;
 
-  const bool quic_limit_new_streams_per_loop_2_ : 1 =
-      GetQuicReloadableFlag(quic_limit_new_streams_per_loop_2);
   const bool quic_test_peer_addr_change_after_normalize_ : 1 =
       GetQuicReloadableFlag(quic_test_peer_addr_change_after_normalize);
   const bool quic_fix_timeouts_ : 1 = GetQuicReloadableFlag(quic_fix_timeouts);

@@ -35,9 +35,6 @@
 #include <vector>
 
 #include "base/command_line.h"
-#include "base/debug/alias.h"
-#include "base/debug/crash_logging.h"
-#include "base/debug/dump_without_crashing.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
@@ -52,7 +49,6 @@
 #include "third_party/blink/public/common/fingerprinting_protection/noise_token.h"
 #include "third_party/blink/public/common/history/session_history_constants.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
-#include "third_party/blink/public/common/input/web_menu_source_type.h"
 #include "third_party/blink/public/common/page/color_provider_color_maps.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
@@ -193,6 +189,7 @@
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_to_number.h"
 #include "third_party/icu/source/common/unicode/uscript.h"
+#include "ui/base/mojom/menu_source_type.mojom-blink.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 
@@ -547,20 +544,6 @@ void WebViewImpl::SetNoStatePrefetchClient(
 }
 
 void WebViewImpl::CloseWindow() {
-#if !(BUILDFLAG(IS_ANDROID) || \
-      (BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_ARM64)))
-  auto close_task_trace = close_task_posted_stack_trace_;
-  base::debug::Alias(&close_task_trace);
-  auto close_trace = close_called_stack_trace_;
-  base::debug::Alias(&close_trace);
-  auto prev_close_window_trace = close_window_called_stack_trace_;
-  base::debug::Alias(&prev_close_window_trace);
-  close_window_called_stack_trace_.emplace();
-  auto cur_close_window_trace = close_window_called_stack_trace_;
-  base::debug::Alias(&cur_close_window_trace);
-#endif
-  SCOPED_CRASH_KEY_BOOL("Bug1499519", "page_exists", !!page_);
-
   // Have the browser process a close request. We should have either a
   // |local_main_frame_host_remote_| or |remote_main_frame_host_remote_|.
   // This method will not execute if Close has been called as WeakPtrs
@@ -726,16 +709,6 @@ void WebViewImpl::EnableFakePageScaleAnimationForTesting(bool enable) {
   fake_page_scale_animation_target_position_ = gfx::Point();
   fake_page_scale_animation_use_anchor_ = false;
   fake_page_scale_animation_page_scale_factor_ = 0;
-}
-
-void WebViewImpl::AcceptLanguagesChanged() {
-  FontCache::AcceptLanguagesChanged(
-      String::FromUTF8(renderer_preferences_.accept_languages));
-
-  if (!GetPage())
-    return;
-
-  GetPage()->AcceptLanguagesChanged();
 }
 
 gfx::Rect WebViewImpl::WidenRectWithinPageBounds(const gfx::Rect& source,
@@ -1058,8 +1031,6 @@ void WebViewImpl::ZoomToFindInPageRect(const gfx::Rect& rect_in_root_frame) {
   StartPageScaleAnimation(scroll, false, scale, kFindInPageAnimationDuration);
 }
 
-#if !BUILDFLAG(IS_MAC)
-// Mac has no way to open a context menu based on a keyboard event.
 WebInputEventResult WebViewImpl::SendContextMenuEvent() {
   // The contextMenuController() holds onto the last context menu that was
   // popped up on the page until a new one is created. We need to clear
@@ -1081,14 +1052,9 @@ WebInputEventResult WebViewImpl::SendContextMenuEvent() {
             focused_local_frame->GetDocument()->FocusedElement())
       focused_element->scrollIntoViewIfNeeded();
     return focused_local_frame->GetEventHandler().ShowNonLocatedContextMenu(
-        nullptr, kMenuSourceKeyboard);
+        nullptr, ui::mojom::blink::MenuSourceType::kKeyboard);
   }
 }
-#else
-WebInputEventResult WebViewImpl::SendContextMenuEvent() {
-  return WebInputEventResult::kNotHandled;
-}
-#endif
 
 WebPagePopupImpl* WebViewImpl::OpenPagePopup(PagePopupClient* client) {
   DCHECK(client);
@@ -1199,20 +1165,6 @@ Frame* WebViewImpl::FocusedCoreFrame() const {
 // WebWidget ------------------------------------------------------------------
 
 void WebViewImpl::Close() {
-#if !(BUILDFLAG(IS_ANDROID) || \
-      (BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_ARM64)))
-  auto close_task_trace = close_task_posted_stack_trace_;
-  base::debug::Alias(&close_task_trace);
-  auto prev_close_trace = close_called_stack_trace_;
-  base::debug::Alias(&prev_close_trace);
-  close_called_stack_trace_.emplace();
-  auto cur_close_trace = close_called_stack_trace_;
-  base::debug::Alias(&cur_close_trace);
-  auto close_window_trace = close_window_called_stack_trace_;
-  base::debug::Alias(&close_window_trace);
-#endif
-  SCOPED_CRASH_KEY_BOOL("Bug1499519", "page_exists", !!page_);
-
   // Closership is a single relationship, so only 1 call to Close() should
   // occur.
   CHECK(page_);
@@ -1934,8 +1886,12 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
   RuntimeEnabledFeatures::SetPaymentRequestEnabled(
       prefs.payment_request_enabled);
 
-  if (prefs.ai_prompt_api_enabled) {
+  if (prefs.ai_ot_apis_enabled) {
     RuntimeEnabledFeatures::SetAIPromptAPIEnabled(true);
+    RuntimeEnabledFeatures::SetAIPromptAPIMultimodalInputEnabled(true);
+    RuntimeEnabledFeatures::SetAIProofreadingAPIEnabled(true);
+    RuntimeEnabledFeatures::SetAIRewriterAPIEnabled(true);
+    RuntimeEnabledFeatures::SetAIWriterAPIEnabled(true);
   }
 
 #if BUILDFLAG(IS_MAC) && BUILDFLAG(USE_EXTERNAL_POPUP_MENU)
@@ -2999,10 +2955,10 @@ void WebViewImpl::UpdatePageDefinedViewportConstraints(
 
   Document* document = GetPage()->DeprecatedLocalMainFrame()->GetDocument();
 
-  Length default_min_width =
+  ViewportLength default_min_width =
       document->GetViewportData().ViewportDefaultMinWidth();
   if (default_min_width.IsAuto())
-    default_min_width = Length::ExtendToZoom();
+    default_min_width = ViewportLength::ExtendToZoom();
 
   float old_initial_scale =
       GetPageScaleConstraintsSet().PageDefinedConstraints().initial_scale;
@@ -3012,11 +2968,12 @@ void WebViewImpl::UpdatePageDefinedViewportConstraints(
   if (SettingsImpl()->ClobberUserAgentInitialScaleQuirk() &&
       GetPageScaleConstraintsSet().UserAgentConstraints().initial_scale != -1 &&
       GetPageScaleConstraintsSet().UserAgentConstraints().initial_scale <= 1) {
-    if (description.max_width == Length::DeviceWidth() ||
+    if (description.max_width.IsDeviceWidth() ||
         (description.max_width.IsAuto() &&
          GetPageScaleConstraintsSet().PageDefinedConstraints().initial_scale ==
-             1.0f))
+             1.0f)) {
       SetInitialPageScaleOverride(-1);
+    }
   }
 
   Settings& page_settings = GetPage()->GetSettings();
@@ -3767,8 +3724,14 @@ void WebViewImpl::UpdateRendererPreferences(
     SetFocusRingColor(renderer_preferences_.focus_ring_color);
   }
 
-  if (old_accept_languages != renderer_preferences_.accept_languages)
-    AcceptLanguagesChanged();
+  if (old_accept_languages != renderer_preferences_.accept_languages) {
+    FontCache::AcceptLanguagesChanged(
+        String::FromUTF8(renderer_preferences_.accept_languages));
+    if (GetPage()) {
+      GetPage()->GetSettings().SetAcceptLanguages(
+          String::FromUTF8(renderer_preferences_.accept_languages));
+    }
+  }
 
   GetSettings()->SetCaretBrowsingEnabled(
       renderer_preferences_.caret_browsing_enabled);
@@ -4319,18 +4282,6 @@ void WebViewImpl::DraggableRegionsChanged() {
 }
 
 void WebViewImpl::MojoDisconnected() {
-#if !(BUILDFLAG(IS_ANDROID) || \
-      (BUILDFLAG(IS_CHROMEOS) && defined(ARCH_CPU_ARM64)))
-  auto prev_close_task_trace = close_task_posted_stack_trace_;
-  base::debug::Alias(&prev_close_task_trace);
-  close_task_posted_stack_trace_.emplace();
-  auto cur_close_task_trace = close_task_posted_stack_trace_;
-  base::debug::Alias(&cur_close_task_trace);
-  auto close_trace = close_called_stack_trace_;
-  base::debug::Alias(&close_trace);
-  auto close_window_trace = close_window_called_stack_trace_;
-  base::debug::Alias(&close_window_trace);
-#endif
   // This IPC can be called from re-entrant contexts. We can't destroy a
   // RenderViewImpl while references still exist on the stack, so we dispatch a
   // non-nestable task. This method is called exactly once by the browser

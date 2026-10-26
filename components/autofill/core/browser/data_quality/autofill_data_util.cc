@@ -307,7 +307,7 @@ bool IsSupportedFormType(uint32_t groups) {
              2;
 }
 
-std::string GetSuffixForProfileFormType(uint32_t bitmask) {
+std::string_view GetSuffixForProfileFormType(uint32_t bitmask) {
   switch (bitmask) {
     case kAddress | kEmail | kPhone:
     case kName | kAddress | kEmail | kPhone:
@@ -491,6 +491,15 @@ std::u16string JoinNameParts(std::u16string_view given,
 
 const PaymentRequestData& GetPaymentRequestData(
     std::string_view issuer_network) {
+  if (issuer_network == autofill::kAmericanExpressCard &&
+      base::FeatureList::IsEnabled(
+          features::kAutofillEnableNewAmexNetworkArt)) {
+    static const PaymentRequestData& payments_request_data = {
+        autofill::kAmericanExpressCard, "amex",
+        IDR_AUTOFILL_METADATA_CC_AMEX_NEW, IDS_AUTOFILL_CC_AMEX};
+    return payments_request_data;
+  }
+
   for (const PaymentRequestData& data : kPaymentRequestData) {
     if (issuer_network == data.issuer_network) {
       return data;
@@ -515,10 +524,7 @@ bool IsValidBasicCardIssuerNetwork(std::string_view basic_card_issuer_network) {
 }
 
 bool IsValidCountryCode(std::string_view country_code) {
-  if (country_code.size() != 2) {
-    return false;
-  }
-  return std::ranges::all_of(country_code, base::IsAsciiUpper<char>);
+  return GetCountryCodes().contains(country_code);
 }
 
 bool IsValidCountryCode(std::u16string_view country_code) {

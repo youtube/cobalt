@@ -13,16 +13,10 @@ export function getHtml(this: CommerceInternalsAppElement) {
   <commerce-internals-eligibility-list></commerce-internals-eligibility-list>
   <h2>Subscriptions</h2>
   <subscription-list></subscription-list>
-  <h2>Product specifications sets</h2>
-  <product-specifications-set-list></product-specifications-set-list>
-  <button id="resetProductSpecsBtn"
-      @click="${this.onClickResetProductSpecifications_}">
-    Reset product specifications
-  </button>
   <h2>Utilities</h2>
   <div class="utils">
     <a href="view_product.html">Product URL Viewer</a>
-    <button @click="${this.resetPriceTrackingEmailPreference_}">
+    <button @click="${this.onResetPriceTrackingEmailPreferenceClick_}">
       Reset price tracking email preference
     </button>
   </div>`;

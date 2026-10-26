@@ -5,6 +5,7 @@
 #include "content/browser/preloading/preload_pipeline_info_impl.h"
 
 #include "base/trace_event/trace_event.h"
+#include "content/browser/preloading/prerender/prerender_host.h"
 
 namespace content {
 
@@ -60,6 +61,18 @@ void PreloadPipelineInfoImpl::SetPrefetchEligibility(
 void PreloadPipelineInfoImpl::SetPrefetchStatus(
     PrefetchStatus prefetch_status) {
   prefetch_status_ = prefetch_status;
+}
+
+bool PreloadPipelineInfoImpl::IsPrerenderMatchedWithPrefetch(
+    const PrerenderHostId& prerender_host_id) const {
+  return prerender_ids_matched_with_prefetch_.contains(prerender_host_id);
+}
+
+void PreloadPipelineInfoImpl::MarkPrerenderMatchedWithPrefetch(
+    PrerenderHostId prerender_host_id) {
+  CHECK(!IsPrerenderMatchedWithPrefetch(prerender_host_id));
+
+  prerender_ids_matched_with_prefetch_.insert(prerender_host_id);
 }
 
 }  // namespace content

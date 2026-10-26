@@ -14,10 +14,10 @@
 #include "base/unguessable_token.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/chrome_select_file_policy.h"
 #include "chrome/browser/ui/contextual_search/searchbox_context_data.h"
 #include "chrome/browser/ui/omnibox/omnibox_context_menu_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
+#include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/cr_components/composebox/composebox_handler.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
@@ -105,6 +105,10 @@ void OmniboxPopupFileSelector::FileSelectionCanceled() {
 
 void OmniboxPopupFileSelector::OnFileDataReady(
     std::unique_ptr<FileData> file_data) {
+  base::UmaHistogramExactLinear(
+      "ContextualSearch.ContextAdded.ContextAddedMethod.Omnibox",
+      /*ContextMenu*/ 0, 4);
+
   lens::MimeType mime_type;
   if (file_data->mime_type.find("pdf") != std::string::npos) {
     mime_type = lens::MimeType::kPdf;
@@ -113,7 +117,7 @@ void OmniboxPopupFileSelector::OnFileDataReady(
   } else {
     UpdateSearchboxContextData(lens::MimeType::kUnknown, "", file_data->name,
                                file_data->mime_type,
-                               base::UnguessableToken::Create());
+                               base::ok(base::UnguessableToken::Create()));
     edit_model_->OpenAiMode(false, /*via_context_menu=*/true);
     return;
   }
@@ -169,9 +173,13 @@ void OmniboxPopupFileSelector::UpdateSearchboxContextData(
     std::string image_data_url,
     std::string file_name,
     std::string mime_string,
-    const base::UnguessableToken& file_token) {
+    base::expected<base::UnguessableToken,
+                   contextual_search::ContextUploadErrorType> result) {
+  if (!result.has_value()) {
+    return;
+  }
   auto file_attachment = searchbox::mojom::FileAttachment::New();
-  file_attachment->uuid = file_token;
+  file_attachment->uuid = result.value();
   file_attachment->name = file_name;
   file_attachment->mime_type = mime_string;
 

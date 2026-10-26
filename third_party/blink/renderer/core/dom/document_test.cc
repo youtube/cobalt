@@ -37,6 +37,7 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "components/ukm/test_ukm_recorder.h"
+#include "services/network/public/cpp/web_sandbox_flags.h"
 #include "services/network/public/mojom/referrer_policy.mojom-blink.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -181,6 +182,12 @@ class DocumentTest : public PageTestBase {
         mock_policy_container_host.BindNewEndpointAndPassDedicatedRemote());
     params->policy_container->policies.sandbox_flags =
         network::mojom::blink::WebSandboxFlags::kAll;
+    if ((params->policy_container->policies.sandbox_flags &
+         network::mojom::blink::WebSandboxFlags::kOrigin) !=
+        network::mojom::blink::WebSandboxFlags::kNone) {
+      params->origin_to_commit =
+          SecurityOrigin::Create(url)->DeriveNewOpaqueOrigin();
+    }
     GetFrame().Loader().CommitNavigation(std::move(params),
                                          /*extra_data=*/nullptr);
     test::RunPendingTasks();
@@ -2043,12 +2050,7 @@ TEST_F(DocumentTest, LifecycleState_DirtyStyle_NoBody) {
             DocumentLifecycle::kVisualUpdatePending);
 }
 
-class SyntheticSelectTest : public DocumentTest {
-  base::test::ScopedFeatureList feature_list_{
-      features::kAutofillEnableSyntheticSelectMetricsLogging};
-};
-
-TEST_F(SyntheticSelectTest,
+TEST_F(DocumentTest,
        MetricsAreReported_WhenPotentialSyntheticSelectIsInNestedForm) {
   SetHtmlInnerHTML(R"HTML(
     <form id="f1">
@@ -2067,7 +2069,7 @@ TEST_F(SyntheticSelectTest,
       blink::mojom::WebFeature::kAutofillSyntheticSelect));
 }
 
-TEST_F(SyntheticSelectTest,
+TEST_F(DocumentTest,
        MetricsAreReported_WhenSyntheticSelectIsInNestedForm) {
   SetHtmlInnerHTML(R"HTML(
     <form id="f1">
@@ -2094,7 +2096,7 @@ struct SyntheticSelectTestCase {
 };
 
 class ParametrizedSyntheticSelectTest
-    : public SyntheticSelectTest,
+    : public DocumentTest,
       public testing::WithParamInterface<SyntheticSelectTestCase> {};
 
 TEST_P(ParametrizedSyntheticSelectTest, MetricsAreReported_WhenSelectIsInForm) {

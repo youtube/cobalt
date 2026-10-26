@@ -446,20 +446,22 @@ bool ValidateGetPointerv(const Context *context,
 
 bool ValidateGetSamplerParameterIiv(const Context *context,
                                     angle::EntryPoint entryPoint,
-                                    SamplerID sampler,
-                                    GLenum pname,
+                                    SamplerID samplerPacked,
+                                    SamplerParameter pnamePacked,
                                     const GLint *params)
 {
-    return ValidateGetSamplerParameterBase(context, entryPoint, sampler, pname, nullptr, params);
+    return ValidateGetSamplerParameterBase(context, entryPoint, samplerPacked, pnamePacked, params,
+                                           nullptr);
 }
 
 bool ValidateGetSamplerParameterIuiv(const Context *context,
                                      angle::EntryPoint entryPoint,
-                                     SamplerID sampler,
-                                     GLenum pname,
+                                     SamplerID samplerPacked,
+                                     SamplerParameter pnamePacked,
                                      const GLuint *params)
 {
-    return ValidateGetSamplerParameterBase(context, entryPoint, sampler, pname, nullptr, params);
+    return ValidateGetSamplerParameterBase(context, entryPoint, samplerPacked, pnamePacked, params,
+                                           nullptr);
 }
 
 bool ValidateGetTexParameterIiv(const Context *context,
@@ -622,20 +624,20 @@ bool ValidateReadnPixels(const Context *context,
 
 bool ValidateSamplerParameterIiv(const Context *context,
                                  angle::EntryPoint entryPoint,
-                                 SamplerID sampler,
-                                 GLenum pname,
+                                 SamplerID samplerPacked,
+                                 SamplerParameter pnamePacked,
                                  const GLint *param)
 {
-    return ValidateSamplerParameterBase(context, entryPoint, sampler, pname, -1, true, param);
+    return ValidateSamplerParameterBase(context, entryPoint, samplerPacked, pnamePacked, param);
 }
 
 bool ValidateSamplerParameterIuiv(const Context *context,
                                   angle::EntryPoint entryPoint,
-                                  SamplerID sampler,
-                                  GLenum pname,
+                                  SamplerID samplerPacked,
+                                  SamplerParameter pnamePacked,
                                   const GLuint *param)
 {
-    return ValidateSamplerParameterBase(context, entryPoint, sampler, pname, -1, true, param);
+    return ValidateSamplerParameterBase(context, entryPoint, samplerPacked, pnamePacked, param);
 }
 
 bool ValidateTexBuffer(const Context *context,
@@ -665,7 +667,7 @@ bool ValidateTexParameterIiv(const Context *context,
                              GLenum pname,
                              const GLint *params)
 {
-    return ValidateTexParameterBase(context, entryPoint, targetPacked, pname, -1, true, params);
+    return ValidateTexParameterBase(context, entryPoint, targetPacked, pname, params);
 }
 
 bool ValidateTexParameterIuiv(const Context *context,
@@ -674,7 +676,7 @@ bool ValidateTexParameterIuiv(const Context *context,
                               GLenum pname,
                               const GLuint *params)
 {
-    return ValidateTexParameterBase(context, entryPoint, targetPacked, pname, -1, true, params);
+    return ValidateTexParameterBase(context, entryPoint, targetPacked, pname, params);
 }
 
 bool ValidateTexStorage3DMultisample(const Context *context,

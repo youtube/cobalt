@@ -383,10 +383,7 @@ struct BLINK_EXPORT WebNavigationParams {
 
   // The origin in which a navigation should commit. When provided, Blink
   // should use this origin directly and not compute locally the new document
-  // origin. It is currently only specified on error document navigations, where
-  // the origin should be an opaque origin based on the URL that failed to load.
-  //
-  // TODO(https://crbug.com/888079): Always provide origin_to_commit.
+  // origin.
   WebSecurityOrigin origin_to_commit;
 
   // The storage key of the document that will be created by the navigation.
@@ -403,6 +400,13 @@ struct BLINK_EXPORT WebNavigationParams {
   // The devtools token for this navigation. See DocumentLoader
   // for details.
   base::UnguessableToken devtools_navigation_token;
+
+  // Token used to derive a consistent opaque origin for the initial empty
+  // document of a newly created sandboxed frame (e.g., `<iframe sandbox>`) or
+  // window (e.g., `window.open()` with sandbox flags). Set only when the frame
+  // has the `kOrigin` sandbox flag, null for regular cross-document navigation
+  // commit, which use `DocumentLoader::origin_to_commit_` instead.
+  std::unique_ptr<base::UnguessableToken> sandbox_origin_token;
 
   // Seed for all PAAPI Auction Nonces generated in this document.
   base::Uuid base_auction_nonce;
@@ -612,6 +616,14 @@ struct BLINK_EXPORT WebNavigationParams {
   // the URL seems like a match. This matters for cross-origin navigations
   // (apart from error pages with the same precursor origin).
   bool force_new_document_sequence_number = false;
+
+  // A text fragment selector (that uses the syntax defined in
+  // https://wicg.github.io/scroll-to-text-fragment/#syntax) to scroll the
+  // matched text into the viewport without applying the standard highlight
+  // styling. This is used for cross-device scroll restoration.
+  // The string should contain only the selector value (the part after
+  // "text=" in a URL directive), not the "text=" prefix itself.
+  std::optional<WebString> internal_scroll_to_text_fragment;
 };
 
 }  // namespace blink

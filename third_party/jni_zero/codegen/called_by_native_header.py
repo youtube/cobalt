@@ -9,6 +9,28 @@ import common
 import java_types
 
 
+_CPP_RESERVED_KEYWORDS = {
+    "alignas", "alignof", "and", "and_eq", "asm", "atomic_cancel",
+    "atomic_commit", "atomic_noexcept", "auto", "bitand", "bitor", "bool",
+    "break", "case", "catch", "char", "char16_t", "char32_t", "char8_t",
+    "class", "compl", "concept", "const", "const_cast", "consteval",
+    "constexpr", "constinit", "continue", "contract_assert", "co_await",
+    "co_return", "co_yield", "decltype", "default", "delete", "do", "double",
+    "dynamic_cast", "else", "enum", "explicit", "export", "extern", "false",
+    "final", "float", "for", "friend", "goto", "if", "import", "inline", "int",
+    "long", "module", "mutable", "namespace", "new", "noexcept", "not",
+    "not_eq", "nullptr", "operator", "or", "or_eq", "override", "post", "pre",
+    "private", "protected", "public", "reflexpr", "register",
+    "reinterpret_cast", "replaceable_if_eligible", "requires", "return",
+    "short", "signed", "sizeof", "static", "static_assert", "static_cast",
+    "struct", "switch", "synchronized", "template", "this", "thread_local",
+    "throw", "transaction_safe", "transaction_safe_dynamic",
+    "trivially_relocatable_if_eligible", "true", "try", "typedef", "typeid",
+    "typename", "union", "unsigned", "using", "virtual", "void", "volatile",
+    "wchar_t", "while", "xor", "xor_eq"
+}
+
+
 def _jni_field_function_name(field, is_setter):
   if field.java_type.is_primitive():
     call = common.capitalize(field.java_type.primitive_name)
@@ -78,7 +100,7 @@ def field_definition(sb, java_class, field):
   # Getter
   if field.is_system_class:
     sb('[[maybe_unused]] ')
-  sb(f'static {_return_type_cpp(field.java_type)} {accessor_name}')
+  sb(f'static {_return_type_cpp_non_mirror(field.java_type)} {accessor_name}')
   with sb.param_list() as plist:
     plist.append('JNIEnv* env')
     if not field.static:
@@ -130,7 +152,7 @@ def field_definition(sb, java_class, field):
       plist.append('JNIEnv* env')
       if not field.static:
         plist.append('const jni_zero::JavaRef<jobject>& obj')
-      plist.append(f'{_param_type_cpp(field.java_type)} value')
+      plist.append(f'{_param_type_cpp_non_mirror(field.java_type)} value')
 
     with sb.block(after='\n'):
       if field.static:
@@ -167,7 +189,7 @@ def constants_enums(sb, java_class, constant_fields):
   sb('};\n\n')
 
 
-def _return_type_cpp(return_type):
+def _return_type_cpp_non_mirror(return_type):
   if ret := return_type.converted_type:
     return ret
   ret = return_type.to_cpp()
@@ -176,9 +198,54 @@ def _return_type_cpp(return_type):
   return ret
 
 
-def _param_type_cpp(java_type):
+def _return_type_cpp_mirror_self(cbn):
+  """
+  Try to make the return type to be ScopedJavaLocalRef<JMyClass> where MyClass
+  is the name of the Java class that this @CalledByNative method belongs to.
+  Fall back to the non mirror version of the method if unsuccessful.
+  Return True if successful, and return False if unsuccessful.
+  """
+  java_class_name = cbn.java_class.nested_name
+  returned_mirrored_class = f'jni_zero::ScopedJavaLocalRef<J{java_class_name}>'
+  if cbn.is_constructor:
+    return returned_mirrored_class, True
+  elif cbn.return_type.enable_mirror(cbn.java_class):
+    return returned_mirrored_class, True
+  else:
+    return _return_type_cpp_non_mirror(cbn.return_type), False
+
+
+def _return_type_cpp_mirror_others(cbn):
+  """
+  Try to make the return type to be ScopedJavaLocalRef<JMyClass> where MyClass
+  is the name of the Java class that this @CalledByNative method belongs to.
+  If unsuccessful, try to make the return type to be
+  ScopedJavaLocalRef<JReturnTypeClass> where ReturnTypeClass is the name of
+  the Java class of the return type in Java. If still unsuccessful,
+  fall back to the non mirror version of the method.
+  Return True if returned JReturnTypeClass, and return False otherwise.
+  """
+  java_class_name = cbn.java_class.nested_name
+  returned_mirrored_class = f'jni_zero::ScopedJavaLocalRef<J{java_class_name}>'
+  if cbn.is_constructor:
+    return returned_mirrored_class, False
+  elif cbn.return_type.enable_mirror(cbn.java_class):
+    return returned_mirrored_class, False
+  elif cbn.return_type.enable_mirror():
+    java_class_name = cbn.return_type.java_class.nested_name
+    cpp_class_namespace = cbn.return_type.java_class.package_with_colons
+    returned_mirrored_class = (f'jni_zero::ScopedJavaLocalRef'
+                               f'<::{cpp_class_namespace}::J{java_class_name}>')
+    return returned_mirrored_class, True
+  else:
+    return _return_type_cpp_non_mirror(cbn.return_type), False
+
+
+def _param_type_cpp_non_mirror(java_type):
   if type_str := java_type.converted_type:
     if java_type.is_primitive():
+      return type_str
+    if type_str.endswith('&&'):
       return type_str
     return f'{type_str} const&'
   ret = java_type.to_cpp()
@@ -189,21 +256,32 @@ def _param_type_cpp(java_type):
   return f'const jni_zero::JavaRef<{ret}>&'
 
 
+def _param_type_cpp_mirror(java_type):
+  if java_type.enable_mirror():
+    java_class_name = java_type.java_class.nested_name
+    cpp_class_namespace = java_type.java_class.package_with_colons
+    return (f'const jni_zero::JavaRef'
+            f'<::{cpp_class_namespace}::J{java_class_name}>&')
+  return _param_type_cpp_non_mirror(java_type)
+
+
 def _prep_param(sb, param):
   """Returns the snippet to use for the parameter."""
-  orig_name = param.cpp_name()
+  ret = param.cpp_name()
   java_type = param.java_type
 
   if converted_type := java_type.converted_type:
+    if not java_type.is_primitive():
+      ret = f'std::move({ret})'
     converted_name = f'converted_{param.name}'
-    convert_type.to_jni_assignment(sb, converted_name, orig_name, java_type)
-    orig_name = converted_name
+    convert_type.to_jni_assignment(sb, converted_name, ret, java_type)
+    ret = converted_name
 
   if java_type.is_primitive():
     if java_type.primitive_name == 'int' and not converted_type:
-      return f'as_jint({orig_name})'
-    return orig_name
-  return f'{orig_name}.obj()'
+      return f'as_jint({ret})'
+    return ret
+  return f'{ret}.obj()'
 
 
 def _jni_function_name(called_by_native):
@@ -219,24 +297,40 @@ def _jni_function_name(called_by_native):
   return f'Call{call}Method'
 
 
+def _sanitize_method_name(method_name_string):
+  """
+  Add the string 1 to the method name if it is a C++ reserved keyword.
+  This is necessary because some strings are reserved keywords in C++ but not
+  Java, so we need to ensure these strings are not used in generated C++ code.
+  """
+  if method_name_string in _CPP_RESERVED_KEYWORDS:
+    return method_name_string + '1'
+  elif method_name_string == 'Constructor':
+    return 'New'
+  else:
+    return method_name_string
+
+
 def method_definition(sb, cbn):
   java_class = cbn.java_class
+  java_class_name = cbn.java_class.nested_name
   reciever_arg_is_class = cbn.static or cbn.is_constructor
   if cbn.is_constructor:
     return_type = cbn.java_class.as_type()
   else:
     return_type = cbn.return_type
   is_void = return_type.is_void()
+  return_type_cpp, returned_mirrored_class = _return_type_cpp_mirror_self(cbn)
 
   if cbn.is_system_class:
     sb('[[maybe_unused]] ')
-  sb(f'static {_return_type_cpp(return_type)} ')
-  sb(f'Java_{java_class.nested_name}_{cbn.method_id_function_name}')
+  sb(f'static {return_type_cpp} ')
+  sb(f'Java_{java_class_name}_{cbn.method_id_function_name}')
   with sb.param_list() as plist:
     plist.append('JNIEnv* env')
     if not reciever_arg_is_class:
       plist.append('const jni_zero::JavaRef<jobject>& obj')
-    plist.extend(f'{_param_type_cpp(p.java_type)} {p.cpp_name()}'
+    plist.extend(f'{_param_type_cpp_non_mirror(p.java_type)} {p.cpp_name()}'
                  for p in cbn.params)
 
   with sb.block(after='\n'):
@@ -289,6 +383,93 @@ def method_definition(sb, cbn):
         return_rvalue = '_ret2'
         sb(f'{jobject_type} _ret2 = static_cast<{jobject_type}>(_ret);\n')
 
+      if returned_mirrored_class:
+        sb(f'auto _ret3 = static_cast<J{java_class_name}>({return_rvalue});\n')
+        return_rvalue = '_ret3'
+        jobject_type = f'J{java_class_name}'
+
       with sb.statement():
         sb(f'return jni_zero::ScopedJavaLocalRef<{jobject_type}>::Adopt(env, '
            f'{return_rvalue})')
+
+
+def mirrored_cpp_class_lazy_definition(sb,
+                                       java_class,
+                                       using_jni_namespace=False,
+                                       jni_namespace=None):
+  java_class_name = java_class.nested_name
+  cpp_class_superclass = java_types.CPP_TYPE_BY_JAVA_TYPE.get(
+      java_class.full_name_with_slashes, 'jobject')
+  cpp_class_namespace = java_class.package_with_colons
+  macro_name = (f'_JNI_ZERO_{cpp_class_namespace.replace("::", "_")}'
+                f'_J{java_class_name}_DEFINED')
+
+  sb(f'#ifndef {macro_name}\n')
+  with sb.namespace(cpp_class_namespace, skip_newline=True):
+    sb(f'class _J{java_class_name} : public _{cpp_class_superclass} {{}};\n')
+    sb(f'using J{java_class_name} = _J{java_class_name}*;\n')
+  sb(f'#define {macro_name}\n')
+  sb('#endif\n')
+  sb('\n')
+
+  if using_jni_namespace:
+    with sb.namespace(jni_namespace):
+      sb(f'using J{java_class_name} = ')
+      sb(f'::{cpp_class_namespace}::J{java_class_name};\n')
+      sb(f'using J{java_class_name}Class = ')
+      sb(f'::jni_zero::internal::_CalledByNatives<J{java_class_name}>;\n')
+    sb('\n')
+
+
+def mirrored_cpp_class_actual_implementation(sb, java_class, called_by_natives):
+  java_class_name = java_class.nested_name
+  sb('template<>\n')
+  sb(f'class _CalledByNatives<J{java_class_name}>')
+  with sb.block(after=';'):
+    sb('public:\n')
+    for cbn in called_by_natives:
+      mirrored_cpp_method(sb, cbn)
+      sb('\n')
+  sb('\n')
+
+
+def mirrored_cpp_method(sb, cbn):
+  java_class_name = cbn.java_class.nested_name
+  is_static = cbn.static or cbn.is_constructor
+  method_name_cpp = _sanitize_method_name(cbn.method_id_function_name)
+  return_type_cpp, returned_mirrored_class = _return_type_cpp_mirror_others(cbn)
+
+  if is_static:
+    sb('static ')
+  sb(f'{return_type_cpp} {method_name_cpp}')
+  with sb.param_list() as plist:
+    plist.append('JNIEnv* env')
+    plist.extend(f'{_param_type_cpp_mirror(p.java_type)} {p.cpp_name()}'
+                 for p in cbn.params)
+  if not is_static:
+    sb(' const')
+
+  with sb.block():
+    if not is_static:
+      sb('auto this_obj = reinterpret_cast')
+      sb(f'<const JavaRef<J{java_class_name}>*>(this);\n')
+
+    with sb.statement():
+      sb('return ')
+      sb(f'Java_{java_class_name}_{cbn.method_id_function_name}')
+      with sb.param_list() as plist:
+        plist.append('env')
+        if not is_static:
+          plist.append('*this_obj')
+        for p in cbn.params:
+          expr = p.cpp_name()
+          if java_type := p.java_type.converted_type:
+            if not p.java_type.is_primitive():
+              expr = f'std::move({expr})'
+          plist.append(expr)
+      if returned_mirrored_class:
+        return_type_java_class_name = cbn.return_type.java_class.nested_name
+        return_type_namespace = cbn.return_type.java_class.package_with_colons
+        return_type_mirrored_class = (f'::{return_type_namespace}'
+                                      f'::J{return_type_java_class_name}')
+        sb(f'\n    .As<{return_type_mirrored_class}>()')

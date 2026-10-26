@@ -73,6 +73,8 @@
 #include "chrome/browser/enterprise/client_certificates/cert_utils.h"
 #include "chrome/browser/enterprise/connectors/device_trust/key_management/browser/device_trust_key_manager_impl.h"
 #include "chrome/browser/enterprise/connectors/device_trust/key_management/browser/key_rotation_launcher.h"
+#include "chrome/browser/enterprise/reporting/saas_usage/saas_usage_reporting_delegate_factory_desktop.h"
+#include "components/enterprise/browser/reporting/saas_usage/saas_usage_reporting_delegate_factory.h"
 #include "components/enterprise/client_certificates/core/browser_cloud_management_delegate.h"
 #include "components/enterprise/client_certificates/core/certificate_provisioning_service.h"
 #include "components/enterprise/client_certificates/core/dm_server_client.h"
@@ -264,6 +266,17 @@ ChromeBrowserCloudManagementControllerDesktop::GetReportingDelegateFactory() {
       enterprise_reporting::ReportingDelegateFactoryDesktop>();
 }
 
+std::unique_ptr<enterprise_reporting::SaasUsageReportingDelegateFactory>
+ChromeBrowserCloudManagementControllerDesktop::
+    GetSaasUsageReportingDelegateFactory() {
+#if BUILDFLAG(IS_CHROMEOS)
+  return nullptr;
+#else
+  return enterprise_reporting::SaasUsageReportingDelegateFactoryDesktop::
+      CreateForBrowser();
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+}
+
 void ChromeBrowserCloudManagementControllerDesktop::SetGaiaURLLoaderFactory(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory) {
   gaia_url_loader_factory_ = url_loader_factory;
@@ -351,14 +364,11 @@ void ChromeBrowserCloudManagementControllerDesktop::StartInvalidations() {
       PolicyInvalidationScope::kCBCM, policy_invalidation_listener, core,
       base::SingleThreadTaskRunner::GetCurrentDefault(),
       base::DefaultClock::GetInstance());
-  if (base::FeatureList::IsEnabled(
-          policy::features::kEnableExtensionInstallPolicyFetching)) {
-    extension_install_invalidator_ =
-        std::make_unique<ExtensionInstallPolicyInvalidator>(
-            PolicyInvalidationScope::kCBCM, policy_invalidation_listener, core,
-            base::SingleThreadTaskRunner::GetCurrentDefault(),
-            base::DefaultClock::GetInstance());
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  if (CanStartExtensionInstallPolicyInvalidator()) {
+    StartExtensionInstallPolicyInvalidator();
   }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   core->StartRemoteCommandsService(
       std::make_unique<enterprise_commands::CBCMRemoteCommandsFactory>(),
@@ -384,6 +394,44 @@ void ChromeBrowserCloudManagementControllerDesktop::StartInvalidations() {
       std::make_unique<DeviceIdentityProvider>(
           DeviceOAuth2TokenServiceFactory::Get()),
       g_browser_process->local_state());
+}
+
+bool ChromeBrowserCloudManagementControllerDesktop::
+    CanStartExtensionInstallPolicyInvalidator() const {
+  return base::FeatureList::IsEnabled(
+             policy::features::kEnableExtensionInstallPolicyFetching) &&
+        !extension_install_invalidator_ &&
+         IsInvalidationsServiceStarted() &&
+         g_browser_process->browser_policy_connector()
+             ->machine_level_user_cloud_policy_manager()
+             ->extension_install_core();
+}
+
+void ChromeBrowserCloudManagementControllerDesktop::
+    StartExtensionInstallPolicyInvalidator() {
+  if (!base::FeatureList::IsEnabled(
+          policy::features::kEnableExtensionInstallPolicyFetching)) {
+    return;
+  }
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  // Must be called after normal invalidations have started
+  CHECK(IsInvalidationsServiceStarted());
+  auto* extension_install_core = g_browser_process->browser_policy_connector()
+                                     ->machine_level_user_cloud_policy_manager()
+                                     ->extension_install_core();
+  CHECK(extension_install_core);
+  extension_install_invalidator_ =
+      std::make_unique<ExtensionInstallPolicyInvalidator>(
+          PolicyInvalidationScope::kCBCM,
+          invalidation_listener_per_project_
+              [policy::kPolicyInvalidationProjectNumber]
+                  .get(),
+          extension_install_core,
+          base::SingleThreadTaskRunner::GetCurrentDefault(),
+          base::DefaultClock::GetInstance());
+#else
+  NOTREACHED();
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 }
 
 scoped_refptr<network::SharedURLLoaderFactory>

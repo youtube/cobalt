@@ -799,10 +799,6 @@ int64_t NavigationEntryImpl::GetMainFrameDocumentSequenceNumber() const {
   return frame_tree_->frame_entry->document_sequence_number();
 }
 
-bool NavigationEntryImpl::IsPossiblySkippableAdEntryForTesting() const {
-  return is_possibly_skippable_ad_entry();
-}
-
 void NavigationEntryImpl::SetCanLoadLocalResources(bool allow) {
   can_load_local_resources_ = allow;
 }
@@ -1053,7 +1049,8 @@ NavigationEntryImpl::ConstructCommitNavigationParams(
 #else
           false,
 #endif
-          /*permissions_policy_override=*/std::nullopt);
+          /*permissions_policy_override=*/std::nullopt,
+          /*internal_scroll_to_text_fragment=*/std::nullopt);
 #if BUILDFLAG(IS_ANDROID)
   // `data_url_as_string` is saved in NavigationEntry but should only be used by
   // main frames, because loadData* navigations can only happen on the main

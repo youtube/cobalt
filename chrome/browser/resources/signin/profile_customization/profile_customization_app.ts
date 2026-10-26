@@ -82,7 +82,10 @@ export class ProfileCustomizationAppElement extends
 
       isLocalProfileCreation_: {type: Boolean},
 
-      shouldShowDefaultProfileName_: {type: Boolean},
+      shouldShowInputLabels_: {type: Boolean},
+
+      /** Exposed to CSS as 'is-refreshed-ui_'. */
+      isRefreshedUI_: {type: Boolean, reflect: true},
     };
   }
 
@@ -96,7 +99,11 @@ export class ProfileCustomizationAppElement extends
   private confirmedAvatar_: AvatarIcon|null = null;
   protected accessor isLocalProfileCreation_: boolean =
       loadTimeData.getBoolean('isLocalProfileCreation');
-  protected accessor shouldShowDefaultProfileName_: boolean =
+  protected accessor isRefreshedUI_: boolean =
+      loadTimeData.getBoolean('isRefreshedUI');
+  protected accessor shouldShowInputLabels_: boolean = this.isRefreshedUI_ ||
+      loadTimeData.getBoolean('shouldShowDefaultProfileName');
+  protected shouldPrefillProfileName_: boolean =
       loadTimeData.getBoolean('shouldShowDefaultProfileName');
   private profileCustomizationBrowserProxy_: ProfileCustomizationBrowserProxy =
       ProfileCustomizationBrowserProxyImpl.getInstance();
@@ -105,7 +112,7 @@ export class ProfileCustomizationAppElement extends
     // profileName_ is only set now, because it triggers a validation of the
     // input which crashes if it's done too early.
     // set profileName_ for local profiles in friction reduction experiment.
-    if (!this.isLocalProfileCreation_ || this.shouldShowDefaultProfileName_) {
+    if (!this.isLocalProfileCreation_ || this.shouldPrefillProfileName_) {
       this.profileName_ = loadTimeData.getString('profileName');
     }
     this.addWebUiListener(
@@ -126,7 +133,7 @@ export class ProfileCustomizationAppElement extends
    * Called when the Done button is clicked. Sends the profile name back to
    * native.
    */
-  protected onDoneCustomizationClicked_() {
+  protected onDoneCustomizationClick_() {
     this.profileCustomizationBrowserProxy_.done(this.profileName_);
   }
 
@@ -146,7 +153,7 @@ export class ProfileCustomizationAppElement extends
   }
 
   protected getNameInputPlaceHolder_(): string {
-    return this.shouldShowDefaultProfileName_ ?
+    return this.shouldShowInputLabels_ ?
         '' :
         this.i18n('profileCustomizationInputPlaceholder');
   }
@@ -155,11 +162,11 @@ export class ProfileCustomizationAppElement extends
     return !this.isLocalProfileCreation_;
   }
 
-  protected onSkipCustomizationClicked_() {
+  protected onSkipCustomizationClick_() {
     this.profileCustomizationBrowserProxy_.skip();
   }
 
-  protected onDeleteProfileClicked_() {
+  protected onDeleteProfileClick_() {
     this.profileCustomizationBrowserProxy_.deleteProfile();
   }
 
@@ -185,7 +192,7 @@ export class ProfileCustomizationAppElement extends
     this.availableIcons_ = icons;
   }
 
-  protected onSelectAvatarConfirmClicked_() {
+  protected onSelectAvatarConfirmClick_() {
     assert(this.isLocalProfileCreation_);
     assert(this.selectedAvatar_);
     this.profileCustomizationBrowserProxy_.setAvatarIcon(
@@ -194,7 +201,7 @@ export class ProfileCustomizationAppElement extends
     this.closeSelectAvatar_();
   }
 
-  protected onSelectAvatarBackClicked_() {
+  protected onSelectAvatarBackClick_() {
     assert(this.isLocalProfileCreation_);
     this.closeSelectAvatar_();
     this.selectedAvatar_ = this.confirmedAvatar_;
@@ -204,11 +211,11 @@ export class ProfileCustomizationAppElement extends
     this.$.viewManager.switchView('customizeDialog', 'fade-in', 'fade-out');
   }
 
-  protected validateInputOnBlur_() {
+  protected onNameInputBlur_() {
     this.$.nameInput.validate();
   }
 
-  protected onProfileNameChanged_(e: CustomEvent<{value: string}>) {
+  protected onProfileNameValueChanged_(e: CustomEvent<{value: string}>) {
     this.profileName_ = e.detail.value;
   }
 

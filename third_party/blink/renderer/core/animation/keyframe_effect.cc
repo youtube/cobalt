@@ -71,7 +71,7 @@ bool ValidatePseudoElement(String& pseudo, ExceptionState& exception_state) {
   }
 
   AtomicString pseudo_argument = g_null_atom;
-  PseudoId pseudo_id = pseudo.StartsWith(":")
+  PseudoId pseudo_id = pseudo.starts_with(':')
                            ? CSSSelectorParser::ParsePseudoElement(
                                  pseudo, /*parent=*/nullptr, pseudo_argument)
                            : kPseudoIdInvalid;
@@ -98,13 +98,13 @@ bool ValidatePseudoElement(String& pseudo, ExceptionState& exception_state) {
 
     default:
       // Convert to canonical form.
-      if (!pseudo.StartsWith("::")) {
+      if (!pseudo.starts_with("::")) {
         StringBuilder sb;
         sb.Append(":");
         sb.Append(pseudo);
         pseudo = sb.ToString();
       }
-      pseudo = pseudo.LowerASCII();
+      pseudo = pseudo.ToAsciiLower();
       return true;
   }
 }
@@ -703,7 +703,8 @@ void KeyframeEffect::ApplyEffects() {
     return;
 
   if (GetAnimation() && HasIncompatibleStyle()) {
-    GetAnimation()->CancelAnimationOnCompositor();
+    GetAnimation()->SetCompositorPending(
+        Animation::CompositorPendingReason::kPendingCancel);
   }
 
   std::optional<double> iteration = CurrentIteration();

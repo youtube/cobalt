@@ -90,6 +90,7 @@ class CobaltVideoOverlayWindow : public content::VideoOverlayWindow,
   void SetFaviconImages(
       const std::vector<media_session::MediaImage>& images) override;
   void SetSurfaceId(const viz::SurfaceId& surface_id) override;
+  void SetPlaybackControlsVisibility(bool is_visible) override;
 
   // JNI callbacks from CobaltPictureInPictureActivity.java
   void SetJavaActivity(JNIEnv* env,

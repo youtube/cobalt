@@ -6,7 +6,7 @@
 
 #import "base/test/metrics/histogram_tester.h"
 #import "base/test/metrics/user_action_tester.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "testing/platform_test.h"
 
 namespace {
@@ -36,6 +36,7 @@ const char kFeedbackThumbsDown[] = "MobileGeminiFeedbackThumbsDown";
 const char kImageActionButtonTapped[] = "MobileGeminiImageActionButtonTapped";
 const char kInputPlateAttachmentOptionTapped[] =
     "MobileGeminiInputPlateAttachmentOptionTapped";
+const char kEntryPointAvailable[] = "MobileGeminiEntryPointAvailable";
 }  // namespace
 
 class GeminiMetricsTest : public PlatformTest {
@@ -379,4 +380,17 @@ TEST_F(GeminiMetricsTest, RecordGeminiIneligibilityReasons) {
       1);
 
   histogram_tester_.ExpectTotalCount(histogram, 2);
+}
+
+TEST_F(GeminiMetricsTest, RecordGeminiEditMenuSelectedTextLength) {
+  RecordGeminiEditMenuSelectedTextLength(100);
+  histogram_tester_.ExpectBucketCount(kEditMenuSelectedTextLengthHistogram, 100,
+                                      1);
+}
+
+TEST_F(GeminiMetricsTest, RecordGeminiEntryPointAvailable) {
+  RecordGeminiEntryPointAvailable(gemini::EntryPoint::EditMenu);
+  histogram_tester_.ExpectBucketCount(kEntryPointAvailableHistogram,
+                                      gemini::EntryPoint::EditMenu, 1);
+  EXPECT_EQ(1, user_action_tester_.GetActionCount(kEntryPointAvailable));
 }

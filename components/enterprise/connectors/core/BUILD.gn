@@ -10,6 +10,8 @@ if (is_android) {
 }
 
 source_set("core") {
+  configs += [ "//components/enterprise:extra_warnings" ]
+
   sources = [
     "analysis_service_settings_base.cc",
     "analysis_service_settings_base.h",
@@ -17,6 +19,8 @@ source_set("core") {
     "analysis_settings.h",
     "common.cc",
     "common.h",
+    "connectors_internals_utils.cc",
+    "connectors_internals_utils.h",
     "connectors_manager_base.cc",
     "connectors_manager_base.h",
     "connectors_prefs.cc",
@@ -61,6 +65,7 @@ source_set("core") {
     "//components/enterprise/common/proto:browser_events_proto",
     "//components/enterprise/common/proto:chrome_reporting_entity",
     "//components/enterprise/common/proto:upload_request_response",
+    "//components/enterprise/connectors:mojom",
     "//components/enterprise/device_trust",
     "//components/enterprise/obfuscation/core:enterprise_obfuscation",
     "//components/keyed_service/core",
@@ -76,6 +81,7 @@ source_set("core") {
     "//components/strings:components_strings_grit",
     "//components/ukm",
     "//components/url_matcher",
+    "//crypto",
     "//ui/base",
     "//ui/base/clipboard:clipboard_types",
     "//ui/gfx/range",
@@ -99,6 +105,8 @@ source_set("core") {
 }
 
 source_set("cloud_content_scanning") {
+  configs += [ "//components/enterprise:extra_warnings" ]
+
   sources = [
     "cloud_content_scanning/binary_upload_ack.cc",
     "cloud_content_scanning/binary_upload_ack.h",
@@ -113,8 +121,12 @@ source_set("cloud_content_scanning") {
     "cloud_content_scanning/connector_data_pipe_getter.h",
     "cloud_content_scanning/connector_upload_request.cc",
     "cloud_content_scanning/connector_upload_request.h",
+    "cloud_content_scanning/deep_scanning_utils.cc",
+    "cloud_content_scanning/deep_scanning_utils.h",
     "cloud_content_scanning/file_analysis_request_base.cc",
     "cloud_content_scanning/file_analysis_request_base.h",
+    "cloud_content_scanning/file_opening_job.cc",
+    "cloud_content_scanning/file_opening_job.h",
     "cloud_content_scanning/multipart_uploader.cc",
     "cloud_content_scanning/multipart_uploader.h",
     "cloud_content_scanning/multipart_uploader_base.cc",
@@ -231,6 +243,7 @@ source_set("cloud_content_scanning_unittests") {
   sources = [
     "cloud_content_scanning/connector_data_pipe_getter_unittest.cc",
     "cloud_content_scanning/file_analysis_request_base_unittest.cc",
+    "cloud_content_scanning/file_opening_job_unittest.cc",
     "cloud_content_scanning/multipart_uploader_base_unittest.cc",
     "cloud_content_scanning/multipart_uploader_unittest.cc",
     "cloud_content_scanning/resumable_uploader_base_unittest.cc",

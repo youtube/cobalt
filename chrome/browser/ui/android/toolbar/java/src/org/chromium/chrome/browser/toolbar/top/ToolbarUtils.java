@@ -39,9 +39,12 @@ public class ToolbarUtils {
                 ToolbarComponentId.BACK,
                 ToolbarComponentId.INCOGNITO_INDICATOR,
                 ToolbarComponentId.ADAPTIVE_BUTTON,
+                ToolbarComponentId.SIGNIN_BUTTON,
                 ToolbarComponentId.RELOAD,
                 ToolbarComponentId.FORWARD,
                 ToolbarComponentId.HOME,
+                ToolbarComponentId.EXTENSIONS_MENU_BUTTON,
+                ToolbarComponentId.EXTENSION_ACTION_LIST,
                 ToolbarComponentId.OMNIBOX_BOOKMARK,
                 ToolbarComponentId.OMNIBOX_CHIP_COLLAPSED,
                 ToolbarComponentId.OMNIBOX_ZOOM,
@@ -58,6 +61,8 @@ public class ToolbarUtils {
                 ToolbarComponentId.OMNIBOX_BOOKMARK
             };
 
+    // LINT.IfChange(toolbar_tablet_components)
+
     @IntDef({
         ToolbarComponentId.HOME,
         ToolbarComponentId.BACK,
@@ -73,9 +78,12 @@ public class ToolbarUtils {
         ToolbarComponentId.OMNIBOX_LENS,
         ToolbarComponentId.ADAPTIVE_BUTTON,
         ToolbarComponentId.INCOGNITO_INDICATOR,
+        ToolbarComponentId.EXTENSIONS_MENU_BUTTON,
+        ToolbarComponentId.EXTENSION_ACTION_LIST,
         ToolbarComponentId.TAB_SWITCHER,
         ToolbarComponentId.MENU,
         ToolbarComponentId.PADDING,
+        ToolbarComponentId.SIGNIN_BUTTON,
         ToolbarComponentId.COUNT
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -94,12 +102,16 @@ public class ToolbarUtils {
         int OMNIBOX_LENS = 11;
         int ADAPTIVE_BUTTON = 12;
         int INCOGNITO_INDICATOR = 13;
-        int TAB_SWITCHER = 14;
-        int MENU = 15;
-        int PADDING = 16;
-
-        int COUNT = 17;
+        int EXTENSIONS_MENU_BUTTON = 14;
+        int EXTENSION_ACTION_LIST = 15;
+        int TAB_SWITCHER = 16;
+        int MENU = 17;
+        int PADDING = 18;
+        int SIGNIN_BUTTON = 19;
+        int COUNT = 20;
     }
+
+    // LINT.ThenChange(//chrome/browser/ui/android/toolbar/java/res/layout/toolbar_tablet.xml:toolbar_tablet_components|//chrome/browser/ui/android/omnibox/java/res/layout/url_action_container.xml:toolbar_tablet_components)
 
     /**
      * Sets values in the animator (interpolator, duration, etc) for fading in animations. Returns

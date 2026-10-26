@@ -164,6 +164,7 @@ blink_core_sources_bindings =
                     "core/v8/v8_local_compile_hints_producer.h",
                     "core/v8/v8_metrics.cc",
                     "core/v8/v8_metrics.h",
+                    "core/v8/v8_microtasks_scope.h",
                     "core/v8/v8_object_builder.cc",
                     "core/v8/v8_object_builder.h",
                     "core/v8/v8_object_parser.cc",
@@ -252,6 +253,7 @@ bindings_unittest_files = get_path_info(
           "core/v8/v8_binding_for_testing.cc",
           "core/v8/v8_binding_for_testing.h",
           "core/v8/v8_compile_hints_for_streaming_test.cc",
+          "core/v8/v8_microtasks_scope_test.cc",
           "core/v8/v8_object_builder_test.cc",
           "core/v8/v8_script_runner_test.cc",
           "core/v8/window_proxy_test.cc",
@@ -273,6 +275,7 @@ if (is_cobalt) {
     "*blob_event*",
     "*v8_media_recorder.*",
     "*v8_recording_state*",
+    "*v8_resolve_redirect_request_method*",
   ]
 
   cobalt_hardware_exclude_patterns = [
@@ -305,6 +308,7 @@ if (is_cobalt) {
     "*v8_translator*",
     "*v8_writer*",
     "*v8_summarizer*",
+    "*v8_classifier*",
     "*v8_language_model*",
     "*v8_union_language_model_*",
     "*v8_union_languagemodeltool*",

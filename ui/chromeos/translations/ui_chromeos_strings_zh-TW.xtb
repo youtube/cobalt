@@ -17,7 +17,6 @@
 <translation id="1138691154716715755">本月稍早</translation>
 <translation id="1150565364351027703">太陽眼鏡</translation>
 <translation id="115443833402798225">安馬太韓文</translation>
-<translation id="1155759005174418845">加泰隆尼亞文</translation>
 <translation id="1168100932582989117">Google 名稱伺服器</translation>
 <translation id="1170788066030116158">拍攝日期</translation>
 <translation id="1172970565351728681">大約還剩 <ph name="REMAINING_TIME" /></translation>
@@ -61,12 +60,10 @@
 <translation id="146691674290220697">有 <ph name="NUMBER_OF_FILES" /> 個檔案已加密，因此無法複製。</translation>
 <translation id="1471718551822868769">斯洛伐克文</translation>
 <translation id="1482884275703521657">芬蘭文</translation>
-<translation id="148466539719134488">瑞士文</translation>
 <translation id="1497522201463361063">無法重新命名「<ph name="FILE_NAME" />」。<ph name="ERROR_MESSAGE" /></translation>
 <translation id="1499943022354839699">英文 (美國) 搭配 Dvorak 鍵盤</translation>
 <translation id="1515909359182093592"><ph name="INPUT_LABEL" /> - 主機</translation>
 <translation id="1521655867290435174">Google 試算表</translation>
-<translation id="1547964879613821194">加拿大英文</translation>
 <translation id="1556189134700913550">全部套用</translation>
 <translation id="1561842594491319104">Chrome 裝置</translation>
 <translation id="1572585716423026576">設為桌布</translation>
@@ -103,6 +100,7 @@
 <translation id="1761091787730831947">與 <ph name="VM_NAME" /> 共用</translation>
 <translation id="1773212559869067373">本機已拒絕驗證憑證</translation>
 <translation id="1775381402323441512">影片資訊</translation>
+<translation id="1787208118234640571">比利時式</translation>
 <translation id="180035236176489073">你必須連上網路才能存取這些檔案。</translation>
 <translation id="1807938677607439181">所有檔案</translation>
 <translation id="1810764548349082891">無法預覽</translation>
@@ -116,12 +114,12 @@
 <translation id="1853795129690976061">已與 Linux 共用這個資料夾</translation>
 <translation id="1864756863218646478">找不到檔案。</translation>
 <translation id="1877377730633446520">這會使用大約 <ph name="REQUIRED_SPACE" /> 的空間。你目前的可用空間為 <ph name="FREE_SPACE" />。</translation>
+<translation id="18790189037341066">挪威文</translation>
 <translation id="1884013283844450420">第 <ph name="NETWORK_INDEX" /> 個網路 (共 <ph name="NETWORK_COUNT" /> 個)，<ph name="NETWORK_NAME" />，連線</translation>
 <translation id="1920670151694390848">馬拉雅拉姆文 (音譯)</translation>
 <translation id="1920798810075583923">西瓜</translation>
+<translation id="1922341967219151064">烏克蘭文</translation>
 <translation id="1924372192547904021">已格式化 <ph name="DRIVE_NAME" /></translation>
-<translation id="1931134289871235022">斯洛伐克文</translation>
-<translation id="1936717151811561466">芬蘭文</translation>
 <translation id="1942765061641586207">影像解析度</translation>
 <translation id="1972984168337863910">展開檔案意見回饋面板</translation>
 <translation id="1995337122023280937">前往檔案位置</translation>
@@ -129,15 +127,19 @@
 <translation id="2004942826429452291">檔案會儲存在雲端和這部 Chromebook 中。</translation>
 <translation id="2009067268969781306">若將硬碟格式化，其中儲存的所有資料都將遭到刪除。這項操作無法復原。</translation>
 <translation id="2025955442973426285">蒂格里亞文</translation>
+<translation id="2029385776150020336">美式改良</translation>
 <translation id="2037845485764049925">俄文</translation>
 <translation id="2044023416777079300">數據機尚未註冊</translation>
 <translation id="2046702855113914483">拉麵</translation>
+<translation id="2070397826966158357">愛沙尼亞文</translation>
 <translation id="2070909990982335904">以點號開頭的名稱僅供系統使用，請選擇其他名稱。</translation>
 <translation id="2079545284768500474">復原</translation>
 <translation id="2084108471225856927">裝置設定</translation>
 <translation id="2084809735218147718">表達感謝</translation>
 <translation id="2088690981887365033">VPN 網路</translation>
+<translation id="2096167581623663959">荷蘭文</translation>
 <translation id="209653272837065803">儲存空間不足，無法繼續同步處理檔案</translation>
+<translation id="2101288073618388449">蒙古文</translation>
 <translation id="2114191879048183086"><ph name="NUMBER_OF_ITEMS" /> 個項目將遭刪除且無法還原。</translation>
 <translation id="2122305276694332719">自動連線至隱藏網路會讓其他人可以查看你的裝置和部分網路設定，建議你不要啟用這項設定。</translation>
 <translation id="2125607626296734455">高棉文</translation>
@@ -199,13 +201,13 @@
 <translation id="2541377937973966830">這個資料夾的內容為唯讀檔案，因此不支援部分活動。</translation>
 <translation id="2542049655219295786">Google 表格</translation>
 <translation id="2544853746127077729">網路已拒絕驗證憑證</translation>
-<translation id="255937426064304553">美國國際</translation>
 <translation id="2563185590376525700">青蛙</translation>
 <translation id="2578394532502990878">泰米爾文 (拼音)</translation>
 <translation id="2579959351793446050">歐利亞文</translation>
 <translation id="2587195714949534472">正在準備進行同步處理「<ph name="FILE_NAME" />」...</translation>
 <translation id="2602810353103180630">第 <ph name="NETWORK_INDEX" /> 個網路 (共 <ph name="NETWORK_COUNT" /> 個)，<ph name="NETWORK_NAME" />，<ph name="CONNECTION_STATUS" />，訊號強度 <ph name="SIGNAL_STRENGTH" />%，遭到管理員封鎖，詳細資料</translation>
 <translation id="2614589611416690597"><ph name="VIDEO_TYPE" /> 影片</translation>
+<translation id="2619043364735935227">Dvorak 英式配置</translation>
 <translation id="2620090360073999360">目前無法使用 Google 雲端硬碟。</translation>
 <translation id="2621713457727696555">已受到安全保護</translation>
 <translation id="2638942478653899953">無法連上 Google 雲端硬碟。請<ph name="BEGIN_LINK" />登出<ph name="END_LINK" />並重新登入帳戶。</translation>
@@ -213,30 +215,32 @@
 <translation id="2653059201992392941">你還有 <ph name="RETRIES" /> 次重試機會。</translation>
 <translation id="2663066752008346276">緬甸文搭配 Myansan 鍵盤</translation>
 <translation id="2664412712123763093">檔案位置</translation>
+<translation id="2672394942808662069">加拿大多語</translation>
+<translation id="2707357721402813583">愛爾蘭文</translation>
+<translation id="2708477391501452176">法文 BÉPO</translation>
 <translation id="2719020180254996569">第 <ph name="NETWORK_INDEX" /> 個網路 (共 <ph name="NETWORK_COUNT" /> 個)，<ph name="NETWORK_NAME" />，<ph name="CONNECTION_STATUS" />，詳細資料</translation>
 <translation id="2724954091494693138">土耳其文搭配 F 鍵盤</translation>
+<translation id="2728450421877450246">法文</translation>
 <translation id="2732288874651063549">管理 <ph name="VM_NAME" /> 共用設定</translation>
 <translation id="2732839045120506979">越南文 (VNI)</translation>
 <translation id="2735623501230989521">授權 Parallels Desktop 存取「<ph name="FOLDER_NAME" />」資料夾中的檔案</translation>
 <translation id="2764206540577097904">你的個人 Google Workspace 儲存空間已用盡。</translation>
 <translation id="2771816809568414714">乳酪</translation>
-<translation id="2781645665747935084">比利時文</translation>
 <translation id="2802583107108007218">進一步瞭解這些限制</translation>
 <translation id="2803375539583399270">輸入 PIN</translation>
+<translation id="2817444452774702982">喬治亞文</translation>
 <translation id="2819519502129272135">檔案同步處理功能已關閉</translation>
 <translation id="2820957248982571256">掃描中...</translation>
 <translation id="2830077785865012357">中文 (注音)</translation>
 <translation id="2843806747483486897">變更預設值...</translation>
 <translation id="2873951654529031587">垃圾桶</translation>
-<translation id="288024221176729610">捷克文</translation>
+<translation id="2887314858867008269">Colemak 美式配置</translation>
 <translation id="2887525882758501333">PDF 文件</translation>
 <translation id="2888807692577297075">找不到符合「<ph name="SEARCH_STRING" />」&lt;b&gt;&lt;/b&gt;的項目</translation>
 <translation id="2894654529758326923">資訊</translation>
-<translation id="2902734494705624966">美式改良</translation>
 <translation id="2904378509913846215">已經有資料夾使用「<ph name="FILENAME" />」這個名稱，要將它取代成你要移動的資料夾嗎？</translation>
 <translation id="290843123675549676">馬拉地文</translation>
-<translation id="2923240520113693977">愛沙尼亞</translation>
-<translation id="2938685643439809023">蒙古語</translation>
+<translation id="2939595088421183401">斯洛維尼亞文</translation>
 <translation id="2943503720238418293">請縮短名稱</translation>
 <translation id="2949781154072577687">正在格式化 <ph name="DRIVE_NAME" />...</translation>
 <translation id="2951236788251446349">水母</translation>
@@ -254,6 +258,7 @@
 <translation id="3067790092342515856">Windows 檔案</translation>
 <translation id="3083975830683400843">Chromebit</translation>
 <translation id="3085752524577180175">SOCKS 主機</translation>
+<translation id="3091469289665833668">羅馬尼亞文</translation>
 <translation id="3104793765551262433">第 <ph name="NETWORK_INDEX" /> 個網路 (共 <ph name="NETWORK_COUNT" /> 個)，<ph name="NETWORK_NAME" />，<ph name="SECURITY_STATUS" />，<ph name="CONNECTION_STATUS" />，訊號強度 <ph name="SIGNAL_STRENGTH" />%，遭到管理員封鎖，詳細資料</translation>
 <translation id="3113592018909187986">你只剩 1 次重試機會。你必須設定新的 PIN 碼才能使用這個網路。</translation>
 <translation id="3124404833828281817">做白日夢的人</translation>
@@ -263,19 +268,16 @@
 <translation id="3160842278951476457"><ph name="ISSUED_BY" /> [<ph name="ISSUED_TO" />] (使用硬體加密金鑰)</translation>
 <translation id="3188257591659621405">我的檔案</translation>
 <translation id="3194553149358267393">最近沒有任何音訊檔案</translation>
-<translation id="3197563288998582412">Dvorak 英式配置</translation>
 <translation id="3202131003361292969">路徑</translation>
 <translation id="3205852408225871810">葡萄牙文 (巴西)</translation>
-<translation id="3224239078034945833">加拿大文 (多語言)</translation>
 <translation id="3236289833370040187">擁有權將轉移至 <ph name="DESTINATION_DOMAIN" />。</translation>
-<translation id="3241720467332021590">愛爾蘭文</translation>
 <translation id="3248185426436836442">待處理</translation>
-<translation id="3252266817569339921">法文</translation>
 <translation id="3253225298092156258">無法使用</translation>
 <translation id="3254434849914415189">選擇開啟 <ph name="FILE_TYPE" /> 檔案的預設應用程式：</translation>
 <translation id="3255159654094949700">阿拉伯文</translation>
 <translation id="326396468955264502">有 <ph name="NUMBER_OF_FILES" /> 個檔案已加密，因此無法移動。</translation>
 <translation id="3264582393905923483">內容</translation>
+<translation id="3269333278563769269">葡萄牙文</translation>
 <translation id="3272909651715601089">無法開啟「<ph name="PATH" />」</translation>
 <translation id="3280431534455935878">準備中</translation>
 <translation id="3280719573299097127">你使用的是計量付費網路，因此檔案同步處理作業已暫停。</translation>
@@ -285,7 +287,6 @@
 <translation id="3293023191599135697">系統不支援 WEP 網路</translation>
 <translation id="3295006446256079333">這個磁碟區</translation>
 <translation id="3295357220137379386">裝置忙碌中</translation>
-<translation id="3296763833017966289">喬治亞文</translation>
 <translation id="3307875152560779385">烏克蘭文</translation>
 <translation id="3326821416087822643">正在壓縮 <ph name="FILE_NAME" />...</translation>
 <translation id="3335337277364016868">錄音年份</translation>
@@ -298,6 +299,8 @@
 <translation id="3408072735282270043">啟用，<ph name="NETWORK_NAME" /></translation>
 <translation id="3408236822532681288">德文 (德國) 搭配 Neo 2 鍵盤</translation>
 <translation id="3414856743105198592">將卸除式媒體格式化會清除所有資料，你要繼續嗎？</translation>
+<translation id="3430687179542180192">加拿大法文</translation>
+<translation id="3436358745602312794">土耳其文 F</translation>
 <translation id="3437801641691368414">建立時間</translation>
 <translation id="343907260260897561">即可拍相機</translation>
 <translation id="3455931012307786678">愛沙尼亞文</translation>
@@ -306,7 +309,6 @@
 <translation id="3486821258960016770">蒙古文</translation>
 <translation id="3509680540198371098">第 <ph name="NETWORK_INDEX" /> 個網路 (共 <ph name="NETWORK_COUNT" /> 個)，<ph name="NETWORK_NAME" />，<ph name="SECURITY_STATUS" />，<ph name="CONNECTION_STATUS" />，訊號強度 <ph name="SIGNAL_STRENGTH" />%，詳細資料</translation>
 <translation id="3511705761158917664">正在準備進行同步處理 <ph name="NUMBER_OF_ITEMS" /> 個項目...</translation>
-<translation id="3522708245912499433">葡萄牙文</translation>
 <translation id="3523225005467146490">已與 <ph name="VM_NAME" /> 共用 1 個資料夾</translation>
 <translation id="3524311639100184459">注意：這些是暫存檔案，系統可能會自動將其刪除，以釋出磁碟空間。<ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
 <translation id="3527085408025491307">資料夾</translation>
@@ -316,13 +318,12 @@
 <translation id="3553048479571901246">如要使用「<ph name="APP_NAME" />」開啟檔案，請先將檔案複製到 Windows 檔案資料夾。</translation>
 <translation id="3556731189587832921">英文 (美國) 搭配國際 PC 鍵盤</translation>
 <translation id="3557414470514932909">正在將 <ph name="FILE_NAME" /> 移至垃圾桶</translation>
+<translation id="3560848236447534728">亞美尼亞文 (拼音)</translation>
 <translation id="3567221313191587603">如要將檔案設為可離線使用，請選取該檔案，然後將 <ph name="OFFLINE_CHECKBOX_NAME" /> 改為勾選狀態。</translation>
-<translation id="357479282490346887">立陶宛文</translation>
 <translation id="3587482841069643663">全部</translation>
 <translation id="3592251141500063301">無法將「<ph name="FILE_NAME" />」設為可離線使用</translation>
+<translation id="3599083260824681324">日文</translation>
 <translation id="3601151620448429694"><ph name="NETWORK_NAME" /> · <ph name="CARRIER_NAME" /></translation>
-<translation id="3603385196401704894">加拿大法文</translation>
-<translation id="3606220979431771195">土耳其文 F</translation>
 <translation id="3616113530831147358">音訊</translation>
 <translation id="3619115746895587757">卡布奇諾</translation>
 <translation id="3619593063686672873">最近沒有任何影片</translation>
@@ -343,23 +344,23 @@
 <translation id="3786301125658655746">你處於離線狀態</translation>
 <translation id="3789841737615482174">安裝</translation>
 <translation id="3793469551756281394">大約還剩 <ph name="REMAINING_TIME_HOUR" /> <ph name="REMAINING_TIME_MINUTE" /></translation>
-<translation id="3801082500826908679">法羅文</translation>
 <translation id="3809272675881623365">兔子</translation>
 <translation id="3810973564298564668">管理</translation>
 <translation id="3811408895933919563">英文 (巴基斯坦)</translation>
 <translation id="3811494700605067549">已選取 1 個檔案</translation>
 <translation id="3817579325494460411">未提供</translation>
 <translation id="3819448694985509187">PIN 碼不正確，你只剩 1 次重試機會。</translation>
+<translation id="3826081788392587762">法羅文</translation>
 <translation id="3830674330436234648">無法播放</translation>
-<translation id="383652340667548381">塞爾維亞文</translation>
 <translation id="3839045880592694915">電信業者不接受你的數據機連線，詳情請洽詢電信業者。</translation>
 <translation id="385051799172605136">返回</translation>
-<translation id="3855472144336161447">德文 Neo 2</translation>
 <translation id="3858860766373142691">名稱</translation>
+<translation id="3874963587970919929">美式</translation>
 <translation id="3899991606604168269">法文 (加拿大) 搭配多語鍵盤</translation>
 <translation id="3901991538546252627">正在連線至：<ph name="NAME" /></translation>
 <translation id="3906232975181435906">正在安裝行動裝置設定檔，第 <ph name="NETWORK_INDEX" /> 個網路 (共 <ph name="NETWORK_COUNT" /> 個)，<ph name="NETWORK_NAME" /></translation>
 <translation id="3924145049010392604">Meta</translation>
+<translation id="3934861075411093298">德文 Neo 2</translation>
 <translation id="3943857333388298514">貼上</translation>
 <translation id="3950820424414687140">登入</translation>
 <translation id="3952872973865944257">泰盧固文 (拼音)</translation>
@@ -372,9 +373,11 @@
 <translation id="4002066346123236978">標題</translation>
 <translation id="4017788180641807848">英文 (美國) 搭配 Workman 鍵盤</translation>
 <translation id="4040753847560036377">PUK 不正確</translation>
+<translation id="4043426908238742491">英式</translation>
 <translation id="4057991113334098539">啟用中...</translation>
 <translation id="4092890906744441904">愛爾蘭文</translation>
 <translation id="4101601646343868113">登入行動網路並確認行動數據方案已啟用</translation>
+<translation id="4103534645423593971">拉脫維亞文</translation>
 <translation id="4124731372776320263">正在同步處理 1 個雲端硬碟檔案</translation>
 <translation id="4124935795427217608">獨角獸</translation>
 <translation id="4131235941541910880">你可以將不需要的項目移到垃圾桶</translation>
@@ -394,7 +397,6 @@
 <translation id="4261901459838235729">Google 簡報</translation>
 <translation id="4277536868133419688"><ph name="FILTER_NAME" /> 篩選器已開啟。</translation>
 <translation id="4290535918735525311">已與 Linux 共用 1 個資料夾</translation>
-<translation id="4299729908419173967">巴西語系</translation>
 <translation id="4302605047395093221">使用這部裝置的所有使用者都必須輸入 PIN 碼才能連上行動網路</translation>
 <translation id="4303531889494116116">這個網路忙碌中，請稍後再試。</translation>
 <translation id="4309915981827077375">一般資訊</translation>
@@ -430,7 +432,6 @@
 <translation id="4472575034687746823">開始使用</translation>
 <translation id="4474142134969976028">沒有相符的搜尋結果</translation>
 <translation id="4477002475007461989">羅馬尼亞文</translation>
-<translation id="4477219268485577442">保加利亞文 (拼音)</translation>
 <translation id="4508265954913339219">啟用失敗</translation>
 <translation id="4509667233588080747">英文 (美國) 搭配 Workman 國際鍵盤</translation>
 <translation id="4527800702232535228">已與 Parallls Desktop 共用這個資料夾</translation>
@@ -451,20 +452,17 @@
 <translation id="4658782175094886150">雪中人</translation>
 <translation id="4669606053856530811">「<ph name="SOURCE_NAME" />」的成員將失去存取權，除非有人與他們共用這些項目。</translation>
 <translation id="467809019005607715">Google 簡報</translation>
-<translation id="4690246192099372265">瑞典文</translation>
 <translation id="4693155481716051732">壽司</translation>
 <translation id="4694604912444486114">猴子</translation>
 <translation id="469612310041132144">中文 (速成)</translation>
 <translation id="4697043402264950621">檔案清單已依<ph name="COLUMN_NAME" />遞增排序。</translation>
 <translation id="469897186246626197">這個檔案是專為使用 Windows 軟體的個人電腦所設計，與搭載 Chrome OS 的裝置不相容。<ph name="BEGIN_LINK_HELP" />進一步瞭解<ph name="END_LINK_HELP" />如何在 Chrome OS 中開啟檔案。</translation>
 <translation id="4706042980341760088">泰米爾文搭配打字機式鍵盤</translation>
-<translation id="4711094779914110278">土耳其文</translation>
 <translation id="4712283082407695269">正在開啟「<ph name="PATH" />」</translation>
 <translation id="4720185134442950733">行動數據網路</translation>
 <translation id="4725096204469550614">今年稍早</translation>
 <translation id="4725511304875193254">柯基犬</translation>
 <translation id="4737050008115666127">降落跑道</translation>
-<translation id="4747271164117300400">馬其頓文</translation>
 <translation id="4759238208242260848">下載</translation>
 <translation id="4779041693283480986">葡萄牙文 (葡萄牙)</translation>
 <translation id="4779136857077979611">飯糰</translation>
@@ -473,12 +471,14 @@
 <translation id="4789067489790477934">授權 Parallels Desktop 存取 Google 雲端硬碟中的檔案。系統會將變更內容同步至你的其他裝置。</translation>
 <translation id="4790766916287588578">北印度文搭配 InScript 鍵盤</translation>
 <translation id="4801956050125744859">兩個版本都保留</translation>
+<translation id="4802185962157240723">匈牙利文</translation>
 <translation id="4804827417948292437">酪梨</translation>
 <translation id="4805966553127040832">正在還原 <ph name="COUNT" /> 個項目</translation>
+<translation id="4823376603577118337">巴西式</translation>
 <translation id="4826849268470072925">泰米爾文 (印度文音譯)</translation>
+<translation id="4838707632718400841">丹麥文</translation>
 <translation id="4843566743023903107">Chromebase</translation>
 <translation id="4850886885716139402">檢視</translation>
-<translation id="485316830061041779">德文</translation>
 <translation id="4862885579661885411">檔案設定</translation>
 <translation id="4867079195717347957">按一下即可依遞減順序排列資料欄。</translation>
 <translation id="4867297348137739678">一週內</translation>
@@ -506,6 +506,7 @@
 <translation id="5010406651457630570">電腦</translation>
 <translation id="5011233892417813670">Chromebook</translation>
 <translation id="5024856940085636730">作業處理時間超出預期。你想中斷作業嗎？</translation>
+<translation id="5036141350290856713">俄文 (拼音)</translation>
 <translation id="5036159836254554629">管理 Parallels Desktop 共用項目</translation>
 <translation id="5038625366300922036">顯示更多...</translation>
 <translation id="5044852990838351217">亞美尼亞文</translation>
@@ -515,13 +516,11 @@
 <translation id="5081517858322016911">系統將刪除 <ph name="TOTAL_FILE_SIZE" /> 的檔案</translation>
 <translation id="508423945471810158">正在將 <ph name="NUMBER_OF_ITEMS" /> 個項目移至「<ph name="FOLDER_NAME" />」</translation>
 <translation id="509429900233858213">發生錯誤。</translation>
-<translation id="5098629044894065541">希伯來文</translation>
 <translation id="5102922915594634436">管理已同步的資料夾</translation>
 <translation id="5109254780565519649">發生錯誤，某些項目可能未順利還原。</translation>
 <translation id="5110329002213341433">英文 (加拿大)</translation>
 <translation id="5119780910075847424">同步處理作業已暫停</translation>
 <translation id="5123433949759960244">籃球</translation>
-<translation id="5129662217315786329">波蘭文</translation>
 <translation id="5144820558584035333">韓文 3 Set (390)</translation>
 <translation id="5145331109270917438">修改日期</translation>
 <translation id="515594325917491223">西洋棋</translation>
@@ -530,12 +529,11 @@
    <ph name="LINE_BREAKS" />
    你的裝置仍在運作中，如果立即移除裝置，你的資料很可能會遺失。請耐心等候作業結束，再使用「檔案」應用程式退出裝置。</translation>
 <translation id="5163869187418756376">共用失敗。請檢查連線狀態，然後再試一次。</translation>
-<translation id="516592729076796170">Programmer Dvorak 美式配置</translation>
 <translation id="5177526793333269655">縮圖檢視</translation>
+<translation id="5178355323709925287">保加利亞文 (拼音)</translation>
 <translation id="5181896909298187506">最近沒有任何檔案</translation>
 <translation id="5194713942430106590">按一下即可依遞增順序排列資料欄。</translation>
 <translation id="5211614973734216083">法羅文</translation>
-<translation id="5218183485292899140">瑞士法文</translation>
 <translation id="5234764350956374838">關閉</translation>
 <translation id="5253070652067921974">建立者</translation>
 <translation id="5254207638927440400">無法移動檔案，這個檔案正在使用中。</translation>
@@ -553,7 +551,6 @@
 <translation id="5305688511332277257">未安裝任何憑證</translation>
 <translation id="5317780077021120954">儲存</translation>
 <translation id="5318819489018851358">與 Linux 共用</translation>
-<translation id="5323213332664049067">拉丁美洲</translation>
 <translation id="5330145655348521461">這些檔案已在其他電腦上開啟。前往 <ph name="USER_NAME" /> (<ph name="MAIL_ADDRESS" />) 查看。</translation>
 <translation id="5330512191124428349">取得資訊</translation>
 <translation id="535792325654997756">人與貓</translation>
@@ -565,18 +562,15 @@
 <translation id="5411472733320185105">不要對以下主機和網域使用 Proxy 設定：</translation>
 <translation id="541890217011173530">索拉尼庫爾德文搭配英文鍵盤</translation>
 <translation id="5422221874247253874">存取點</translation>
-<translation id="5428105026674456456">西班牙文</translation>
 <translation id="5438282218546237410">找不到與「<ph name="SEARCH_TERM" />」相符的結果。</translation>
 <translation id="5447680084201416734">儲存空間不足。</translation>
 <translation id="5449551289610225147">密碼無效</translation>
 <translation id="5459064203055649751">已經有檔案使用「<ph name="FILENAME" />」這個名稱，要替換成你正在移動的這個檔案嗎？</translation>
 <translation id="5463231940765244860">輸入</translation>
-<translation id="5469868506864199649">義大利文</translation>
 <translation id="5473333559083690127">再次輸入新的 PIN 碼</translation>
 <translation id="5489067830765222292">拉脫維亞文</translation>
 <translation id="5489965683297092283"><ph name="FILTER_NAME" /> 篩選器已關閉。</translation>
 <translation id="5494920125229734069">全選</translation>
-<translation id="5500122897333236901">冰島文</translation>
 <translation id="5508696409934741614">圓點</translation>
 <translation id="5522908512596376669">檔案清單已變更為清單檢視模式。</translation>
 <translation id="5524517123096967210">無法讀取檔案。</translation>
@@ -584,16 +578,18 @@
 <translation id="5534520101572674276">正在計算大小</translation>
 <translation id="554153475311314364">希臘文 (音譯)</translation>
 <translation id="5554171655917412781">已選取 <ph name="SELECTED_FOLDERS_COUNT" /> 個資料夾</translation>
+<translation id="5568003358606822240">捷克 QWERTY</translation>
 <translation id="5580591966435005537">虛擬機器</translation>
 <translation id="5583640892426849032">Backspace</translation>
 <translation id="5583664733673201137">標點符號寬度為全形</translation>
 <translation id="5596627076506792578">更多選項</translation>
 <translation id="5602622065581044566">保加利亞文搭配拼音鍵盤</translation>
-<translation id="5605830556594064952">Dvorak 美式配置</translation>
+<translation id="5604409170937514933">瑞典文</translation>
 <translation id="560739212255190568">管理員除了強制執行下列 Proxy 政策，還設定了 Proxy 覆寫規則</translation>
 <translation id="5618330573454123917">這個檔案是專為使用 Macintosh 軟體的電腦所設計，與搭載 Chrome OS 的裝置不相容。<ph name="BEGIN_LINK_HELP" />進一步瞭解<ph name="END_LINK_HELP" />如何在 Chrome OS 中開啟檔案。</translation>
 <translation id="5625294776298156701">泰米爾文搭配 Tamil99 鍵盤</translation>
 <translation id="5633226425545095130">這個項目移動至「<ph name="DESTINATION_NAME" />」共用資料夾後，就會與所有看得到該資料夾的使用者共用。</translation>
+<translation id="5646106346566990960">土耳其文</translation>
 <translation id="5649768706273821470">聆聽</translation>
 <translation id="5650895901941743674">請檢查 APN 設定</translation>
 <translation id="5669691691057771421">輸入新的 PIN 碼</translation>
@@ -603,11 +599,12 @@
 <translation id="5691596662111998220">糟糕！「<ph name="FILE_NAME" />」已不存在。</translation>
 <translation id="5698411045597658393"><ph name="NETWORK_NAME" />，解除鎖定</translation>
 <translation id="5700087501958648444">音訊資訊</translation>
+<translation id="5718459114973371204">馬其頓文</translation>
 <translation id="5720028165859493293"><ph name="FILE_NAME" /> 已移至垃圾桶</translation>
 <translation id="5724172041621205163">泰文搭配 Pattachote 鍵盤</translation>
 <translation id="57383366388012121">上個月</translation>
+<translation id="5744221903031815187">瑞士式</translation>
 <translation id="575175778971367197">目前無法同步這個檔案</translation>
-<translation id="5756666464756035725">匈牙利文 QWERTY</translation>
 <translation id="5760252553414789727">已選取 <ph name="SELECTED_FILES_COUNT" /> 個項目</translation>
 <translation id="5763377084591234761">德文 (瑞士)</translation>
 <translation id="5769519078756170258">要排除的主機或網域</translation>
@@ -615,7 +612,6 @@
 <translation id="5776325638577448643">清除並格式化</translation>
 <translation id="57838592816432529">靜音</translation>
 <translation id="5788127256798019331">Play 檔案</translation>
-<translation id="5790193330357274855">哈薩克文</translation>
 <translation id="5804245609861364054">卡納達文 (音譯)</translation>
 <translation id="5814126672212206791">連線類型</translation>
 <translation id="5817397429773072584">繁體中文</translation>
@@ -624,7 +620,6 @@
 <translation id="5832976493438355584">已鎖定</translation>
 <translation id="5833610766403489739">這個檔案不見了！請檢查你的下載位置設定，然後再試一次。</translation>
 <translation id="5838451609423551646">從所選範圍中移除所有項目。</translation>
-<translation id="5838825566232597749">美式 Workman 國際</translation>
 <translation id="5845721951356578987">護士</translation>
 <translation id="5858478190805449225">已開啟省電模式。請在省電模式關閉時再試一次。</translation>
 <translation id="5860491529813859533">開啟</translation>
@@ -638,9 +633,10 @@
 <translation id="5948255720516436063">第 <ph name="NETWORK_INDEX" /> 個網路，共 <ph name="NETWORK_COUNT" /> 個網路，<ph name="NETWORK_NAME" />，在裝置完成設定後啟用</translation>
 <translation id="5955954492236143329"><ph name="NUMBER_OF_ITEMS" /> 個項目</translation>
 <translation id="5957366693331451795">Chromebox</translation>
+<translation id="5959163675722155317">美式國際鍵盤</translation>
 <translation id="5982621672636444458">排序選項</translation>
 <translation id="6011074160056912900">乙太網路</translation>
-<translation id="60357267506638014">捷克 QWERTY</translation>
+<translation id="6023337265947005432">捷克文</translation>
 <translation id="603895874132768835">你必須設定新的 PIN 碼才能使用這個網路</translation>
 <translation id="6040143037577758943">關閉</translation>
 <translation id="6055907707645252013"><ph name="NETWORK_TYPE" />網路，未連線</translation>
@@ -657,6 +653,7 @@
 <translation id="6138894911715675297"><ph name="NETWORK_TYPE" />，沒有網路連線</translation>
 <translation id="6146563240635539929">影片</translation>
 <translation id="6150853954427645995">如要儲存這個檔案以供離線使用，請重新上網，在檔案上按一下滑鼠右鍵，然後選取 [<ph name="OFFLINE_CHECKBOX_NAME" />] 選項。</translation>
+<translation id="6162247388574239985">立陶宛文</translation>
 <translation id="6164412158936057769">蝴蝶</translation>
 <translation id="6165508094623778733">瞭解詳情</translation>
 <translation id="6170470584681422115">三明治</translation>
@@ -666,6 +663,7 @@
 <translation id="6198252989419008588">變更 PIN 碼</translation>
 <translation id="6199801702437275229">正在等待空間資訊...</translation>
 <translation id="6205710420833115353">部分作業所需時間超出預期。你想中斷這些作業嗎？</translation>
+<translation id="6214593504928642973">塞爾維亞文</translation>
 <translation id="6220423280121890987">旁遮普文</translation>
 <translation id="6224240818060029162">丹麥文</translation>
 <translation id="6224253798271602650">將「<ph name="DRIVE_NAME" />」格式化</translation>
@@ -683,7 +681,6 @@
 <translation id="6320212353742551423"><ph name="ARCHIVE_TYPE" /> 封存檔</translation>
 <translation id="6321303798550928047">揮手</translation>
 <translation id="6327785803543103246">網路 Proxy 自動探索</translation>
-<translation id="6339145975392024142">美式國際鍵盤 (PC)</translation>
 <translation id="6356685157277930264">檔案狀態視窗</translation>
 <translation id="6358884629796491903">龍</translation>
 <translation id="636254897931573416">網域字尾比對值無效</translation>
@@ -693,18 +690,22 @@
 <translation id="6394388407447716302">唯讀</translation>
 <translation id="6395575651121294044"><ph name="NUMBER_OF_FILES" /> 個項目</translation>
 <translation id="6407769893376380348"><ph name="FILE_NAME" /> 已加密，因此無法移動。</translation>
+<translation id="6417922483715629770">德文</translation>
+<translation id="6421174876526901486">希伯來文</translation>
 <translation id="642282551015776456">無法使用這個名稱做為檔案名稱或資料夾名稱</translation>
 <translation id="6423031066725912715">越南文搭配 TCVN 鍵盤</translation>
 <translation id="6430271654280079150">你只剩 1 次重試機會。</translation>
 <translation id="643243556292470964">已刪除的檔案現在會移到垃圾桶</translation>
 <translation id="6438480100790416671">正在檢查儲存空間…</translation>
 <translation id="6451527188465304418">正在檢查檔案是否符合貴機構的安全性政策...</translation>
+<translation id="6480474281747138552">Programmer Dvorak 美式配置</translation>
+<translation id="6483241221370343062">波蘭文</translation>
 <translation id="6485131920355264772">無法擷取空間資訊</translation>
 <translation id="6495925982925244349">第 <ph name="NETWORK_INDEX" /> 個網路 (共 <ph name="NETWORK_COUNT" /> 個)，<ph name="NETWORK_NAME" />，<ph name="SECURITY_STATUS" />，<ph name="CONNECTION_STATUS" />，訊號強度 <ph name="SIGNAL_STRENGTH" />%，由系統管理員管理，詳細資料</translation>
 <translation id="649877868557234318">將 <ph name="FILE_NAME" /> 解壓縮至 <ph name="FOLDER_NAME" /></translation>
 <translation id="6499681088828539489">不允許共用網路使用 Proxy</translation>
 <translation id="6503285896705205014">根據系統管理員政策，你無法複製這 <ph name="COUNT" /> 個檔案</translation>
-<translation id="6509122719576673235">挪威文</translation>
+<translation id="652312300422421604">俄文</translation>
 <translation id="6528513914570774834">允許這個裝置的其他使用者使用這個網路</translation>
 <translation id="6549689063733911810">近期</translation>
 <translation id="6558280019477628686">發生錯誤，系統可能尚未刪除部分項目。</translation>
@@ -719,6 +720,7 @@
 <translation id="6650726141019353908">粉紅蝴蝶</translation>
 <translation id="6657585470893396449">密碼</translation>
 <translation id="6658865850469097484">移入垃圾桶超過 30 天的檔案將會自動刪除。</translation>
+<translation id="6660283757324568684">瑞士法文</translation>
 <translation id="6673674183150363784">法文 (法國) 搭配 Bépo 鍵盤</translation>
 <translation id="670380500182402678">全部取代</translation>
 <translation id="6710022688720561421">機器人</translation>
@@ -736,13 +738,13 @@
 <translation id="6806796368146926706">英數字元輸入法搭配日文鍵盤</translation>
 <translation id="6808193438228982088">狐狸</translation>
 <translation id="6823166707458800069">所有儲存在這個資料夾的檔案都會自動在線上備份。</translation>
-<translation id="6825883775269213504">俄文</translation>
 <translation id="6847101934483209767">已從所選範圍中移除「<ph name="ENTRY_NAME" />」。</translation>
 <translation id="6848194403851638089">「<ph name="ORGANIZATION_NAME" />」的 Google Workspace 儲存空間已用盡。</translation>
 <translation id="6856459657722366306">第 <ph name="NETWORK_INDEX" /> 個網路 (共 <ph name="NETWORK_COUNT" /> 個)，<ph name="NETWORK_NAME" />，<ph name="NETWORK_PROVIDER_NAME" />，<ph name="CONNECTION_STATUS" />，訊號強度 <ph name="SIGNAL_STRENGTH" />%，詳細資料</translation>
 <translation id="6861394552169064235">波斯文</translation>
 <translation id="6862635236584086457">所有儲存在這個資料夾的檔案都會自動在線上備份</translation>
 <translation id="6864328437977279120">梵文</translation>
+<translation id="6870343452066868538">拉丁美洲式</translation>
 <translation id="6874758081814639712">打太極拳的人</translation>
 <translation id="6876155724392614295">自行車</translation>
 <translation id="6878261347041253038">梵文鍵盤 (拼音)</translation>
@@ -750,20 +752,20 @@
 <translation id="6896758677409633944">複製</translation>
 <translation id="6898028766943174120">更多子資料夾…</translation>
 <translation id="6915678159055240887">Chromebox</translation>
-<translation id="6918340160281024199">美式 Workman</translation>
 <translation id="6930242544192836755">持續時間</translation>
 <translation id="6935521024859866267">上下顛倒</translation>
 <translation id="6943836128787782965">HTTP 擷取失敗</translation>
 <translation id="6949408524333579394">塞爾維亞文 (音譯)</translation>
+<translation id="6950304227892369683">白俄羅斯文</translation>
 <translation id="69548399407432279">去年</translation>
 <translation id="6960565108681981554">未啟用。請與你的電信業者聯絡。</translation>
 <translation id="696203921837389374">啟用透過行動數據進行同步處理的功能</translation>
 <translation id="6965382102122355670">確定</translation>
 <translation id="6965648386495488594">連接埠</translation>
-<translation id="6970230597523682626">保加利亞文</translation>
 <translation id="6973630695168034713">資料夾</translation>
 <translation id="6976795442547527108">獅子</translation>
 <translation id="6979158407327259162">Google 雲端硬碟</translation>
+<translation id="6987318887406266229">希臘文</translation>
 <translation id="6989942356279143254">瑞典文</translation>
 <translation id="6990081529015358884">沒有可用的空間</translation>
 <translation id="6993826899923627728">這些項目位於垃圾桶中</translation>
@@ -778,6 +780,7 @@
 <translation id="7048024426273850086">第 <ph name="NETWORK_INDEX" /> 個網路 (共 <ph name="NETWORK_COUNT" /> 個)，<ph name="PHONE_NAME" />，<ph name="PROVIDER_NAME" />，訊號強度 <ph name="SIGNAL_STRENGTH" />%，手機電量 <ph name="BATTERY_STATUS" />%，連線</translation>
 <translation id="7070804685954057874">直接輸入</translation>
 <translation id="7075931588889865715">泰文搭配 TIS 820-2531 鍵盤</translation>
+<translation id="7080126840087683316">西班牙文</translation>
 <translation id="708278670402572152">中斷連線即可啟用掃描功能</translation>
 <translation id="7086590977277044826">泰米爾文搭配 InScript 鍵盤</translation>
 <translation id="7088615885725309056">較舊</translation>
@@ -788,12 +791,15 @@
 <translation id="7135561821015524160">卡納達文 (拼音)</translation>
 <translation id="714034171374937760">Chromebase</translation>
 <translation id="7162080671816799010">缺少「主體替代名稱比對」或「網域字尾比對」，因此無法對驗證伺服器身分進行驗證</translation>
+<translation id="7163653800467169701">義大利文</translation>
 <translation id="7165320105431587207">無法設定網路</translation>
 <translation id="7170041865419449892">超出範圍</translation>
 <translation id="7179579940054351344">所有網站和網址都能存取檔案，但 <ph name="NON_RESTRICTED_DESTINATIONS" /> 除外</translation>
 <translation id="7180611975245234373">重新整理</translation>
 <translation id="7189874332498648577"><ph name="NUMBER_OF_GB" /> GB</translation>
 <translation id="7191454237977785534">另存新檔</translation>
+<translation id="7192364647705823015">克羅埃西亞文</translation>
+<translation id="7224162581405244205">冰島文</translation>
 <translation id="7229570126336867161">需要 EVDO</translation>
 <translation id="7230898482850090046">管理員已要求你關閉「鎖定 SIM 卡」設定</translation>
 <translation id="7238097264433196391">硬碟名稱</translation>
@@ -820,21 +826,19 @@
 <translation id="7417453074306512035">衣索比亞文鍵盤</translation>
 <translation id="7417705661718309329">Google 地圖</translation>
 <translation id="7419668828140929293">正在還原「<ph name="FILENAME" />」</translation>
+<translation id="7435577899926900307">Dvorak 美式配置</translation>
 <translation id="7458955835361612701">最近沒有任何圖片</translation>
-<translation id="7460898608667578234">烏克蘭語</translation>
 <translation id="7469894403370665791">自動連線至這個網路</translation>
 <translation id="7486315294984620427">如要將檔案拖曳到 Parallels Desktop，必須先將檔案複製到 Windows 檔案中。</translation>
 <translation id="749452993132003881">平假名</translation>
 <translation id="7495372004724182530">馬拉雅拉姆文 (拼音)</translation>
 <translation id="7505167922889582512">顯示隱藏的檔案</translation>
 <translation id="7514365320538308">下載</translation>
-<translation id="751507702149411736">白俄羅斯語</translation>
 <translation id="7521790570754130607">必須輸入 PIN 碼才能使用行動數據</translation>
 <translation id="7532029025027028521">波斯文 (音譯)</translation>
 <translation id="7544830582642184299">授權 Linux 應用程式存取你的 Google 雲端硬碟檔案。系統會將變更內容同步至你的其他裝置。</translation>
 <translation id="7547009467130558110">運動鞋</translation>
 <translation id="7547780573915868306">立陶宛文</translation>
-<translation id="7547811415869834682">荷蘭文</translation>
 <translation id="7551643184018910560">固定至檔案櫃</translation>
 <translation id="7553492409867692754">授權 Linux 應用程式存取「<ph name="FOLDER_NAME" />」資料夾中的檔案</translation>
 <translation id="7555339735447658365">目前為離線狀態，系統會在連上網際網路後繼續同步檔案</translation>
@@ -854,7 +858,6 @@
 <translation id="7693909743393669729">將硬碟格式化會清除其中儲存的所有資料，並移除所有的現有分割區，包括未顯示的分割區。這項操作無法復原。</translation>
 <translation id="7695430100978772476">無法格式化 <ph name="DRIVE_NAME" /></translation>
 <translation id="76959938259365003">無法清空垃圾桶。</translation>
-<translation id="770015031906360009">希臘文</translation>
 <translation id="7705251383879779343">已複製 <ph name="FILE_NAME" />。</translation>
 <translation id="7707941139430559579">無法移動檔案。<ph name="ERROR_MESSAGE" /></translation>
 <translation id="7708271999969613024">如要使用這個網路，請輸入由電信業者提供的 8 位數個人解鎖金鑰 (PUK)。</translation>
@@ -862,8 +865,10 @@
 <translation id="7724603315864178912">剪下</translation>
 <translation id="7732111077498238432">網路受到政策控制</translation>
 <translation id="7736003208887389532">要永久刪除這些檔案嗎？</translation>
+<translation id="7737249716250841853">匈牙利文 QWERTY</translation>
 <translation id="7740287852186792672">搜尋結果</translation>
 <translation id="7748626145866214022">動作列中有更多可用的選項。按下 Alt+A 即可將焦點移到動作列。</translation>
+<translation id="7758806833942383902">加泰隆尼亞文</translation>
 <translation id="7760449188139285140">中文 (五筆)</translation>
 <translation id="7765158879357617694">移動</translation>
 <translation id="7774365994322694683">鳥</translation>
@@ -875,6 +880,7 @@
 <translation id="7794058097940213561">格式化裝置</translation>
 <translation id="7799329977874311193">HTML 文件</translation>
 <translation id="7801354353640549019">Chromebook</translation>
+<translation id="7804303447453320114">哈薩克文</translation>
 <translation id="7805768142964895445">狀態</translation>
 <translation id="7806708061868529807">希伯來文</translation>
 <translation id="78104721049218340">泰文搭配 Kedmanee 鍵盤</translation>
@@ -883,11 +889,12 @@
 <translation id="7831491651892296503">網路設定錯誤</translation>
 <translation id="7839804798877833423">擷取這些檔案大約會使用 <ph name="FILE_SIZE" /> 行動數據流量。</translation>
 <translation id="7846076177841592234">全部取消選取</translation>
-<translation id="7853966320808728790">法文 BÉPO</translation>
 <translation id="7857117644404132472">新增例外狀況</translation>
+<translation id="7859924767769322048">韓文</translation>
 <translation id="7868774406711971383">波蘭文</translation>
 <translation id="7874321682039004450">菲律賓文</translation>
 <translation id="78946041517601018">共用的雲端硬碟</translation>
+<translation id="7901567919203965902">美式 Workman 國際鍵盤</translation>
 <translation id="7903984238293908205">片假名</translation>
 <translation id="7908793776359722643">若將分割區格式化，其中儲存的所有資料都將遭到清除。這項操作無法復原。</translation>
 <translation id="7911118814695487383">Linux</translation>
@@ -895,9 +902,7 @@
 <translation id="7925247922861151263">AAA 檢查失敗</translation>
 <translation id="7928710562641958568">退出裝置</translation>
 <translation id="7933875256234974853">正在準備同步處理雲端硬碟檔案...</translation>
-<translation id="7943385054491506837">Colemak 美式配置</translation>
 <translation id="7953739707111622108">這個裝置所用的檔案系統無法識別，因此系統無法開啟這個裝置。</translation>
-<translation id="7969525169268594403">斯洛維尼亞文</translation>
 <translation id="7972920761225148017">法文 (瑞士)</translation>
 <translation id="7973962044839454485">使用者名稱或密碼錯誤，導致 PPP 驗證失敗</translation>
 <translation id="7980421588063892270">英文 (美國) 搭配 Colemak 鍵盤</translation>
@@ -908,7 +913,6 @@
 <translation id="803771048473350947">檔案</translation>
 <translation id="8038111231936746805">(預設)</translation>
 <translation id="8042602468072383151"><ph name="AUDIO_TYPE" /> 音訊</translation>
-<translation id="8045462269890919536">羅馬尼亞文</translation>
 <translation id="8049184478152619004">輸入個人解鎖金鑰 (PUK)</translation>
 <translation id="8055538340801153769">這個資料夾</translation>
 <translation id="807187749540895545">正在擷取 <ph name="FILE_NAME" />…</translation>
@@ -940,11 +944,9 @@
 <translation id="8262872909443689080">管理員政策</translation>
 <translation id="8264024885325823677">這項設定是由管理員管理。</translation>
 <translation id="8269755669432358899">收合檔案意見回饋面板</translation>
-<translation id="8280151743281770066">亞美尼亞文 (拼音)</translation>
 <translation id="8285791779547722821">已加密的<ph name="ORIGINAL_MIME_TYPE" /></translation>
 <translation id="8294431847097064396">來源</translation>
 <translation id="8297012244086013755">韓文 3 Set (No Shift)</translation>
-<translation id="8299269255470343364">日文</translation>
 <translation id="8300849813060516376">OTASP 失敗</translation>
 <translation id="8312871300878166382">貼入資料夾</translation>
 <translation id="8329978297633540474">純文字</translation>
@@ -954,6 +956,7 @@
 <translation id="8336153091935557858">昨天<ph name="YESTERDAY_DAYTIME" /></translation>
 <translation id="8342318071240498787">已存在名稱相同的檔案或目錄。</translation>
 <translation id="83651606385705612">授權 <ph name="VM_NAME" /> 存取「<ph name="FOLDER_NAME" />」資料夾中的檔案</translation>
+<translation id="837225070446042993">Workman 美式配置</translation>
 <translation id="8372369524088641025">WEP 金鑰有誤</translation>
 <translation id="8372852072747894550">希臘文</translation>
 <translation id="8377269993083688872">電子郵件版面配置</translation>
@@ -966,7 +969,6 @@
 <translation id="8428213095426709021">設定</translation>
 <translation id="8429998526804961548">已與 <ph name="VM_NAME" /> 共用 <ph name="NUMBER_OF_ITEMS" /> 個資料夾</translation>
 <translation id="8431909052837336408">變更 SIM 卡的 PIN 碼</translation>
-<translation id="8437209419043462667">美式配置</translation>
 <translation id="8452135315243592079">找不到 SIM 卡</translation>
 <translation id="8456681095658380701">名稱無效</translation>
 <translation id="8457767749626250697">SIM 卡已鎖定</translation>
@@ -981,14 +983,13 @@
 <translation id="8499098729323186194">正在擷取 <ph name="NUMBER_OF_ITEMS" /> 個項目...</translation>
 <translation id="8502913769543567768">第 <ph name="NETWORK_INDEX" /> 個網路，共 <ph name="NETWORK_COUNT" /> 個網路，<ph name="NETWORK_NAME" />，<ph name="NETWORK_PROVIDER_NAME" />，在裝置完成設定後啟用，由管理員管理</translation>
 <translation id="8512483403832814140">不限時間</translation>
-<translation id="8521441079177373948">英式配置</translation>
 <translation id="853494022971700746">法文 (法國)</translation>
 <translation id="8540608333167683902">第 <ph name="NETWORK_INDEX" /> 個網路 (共 <ph name="NETWORK_COUNT" /> 個)，<ph name="NETWORK_NAME" />，<ph name="CONNECTION_STATUS" />，訊號強度 <ph name="SIGNAL_STRENGTH" />%，詳細資料</translation>
+<translation id="8543218582821188600">加拿大英文</translation>
 <translation id="8545476925160229291">英文 (美國)</translation>
 <translation id="854655314928502177">網路 Proxy 自動探索網址：</translation>
 <translation id="8547747809824590510">管理員已設定 Proxy 覆寫規則</translation>
 <translation id="8549186985808798022">義大利文</translation>
-<translation id="8551494947769799688">拉脫維亞文</translation>
 <translation id="8560515948038859357">粵語</translation>
 <translation id="8561206103590473338">大象</translation>
 <translation id="8566466896628108558">第 <ph name="NETWORK_INDEX" /> 個網路 (共 <ph name="NETWORK_COUNT" /> 個)，<ph name="NETWORK_NAME" />，<ph name="SECURITY_STATUS" />，訊號強度 <ph name="SIGNAL_STRENGTH" />%，遭到管理員封鎖，詳細資料</translation>
@@ -999,6 +1000,7 @@
 <translation id="8600173386174225982">檔案清單已變更為縮圖檢視模式。</translation>
 <translation id="8601932370724196034">Crostini 映像檔</translation>
 <translation id="8609695766746872526">冰島文</translation>
+<translation id="86185366481240448">斯洛伐克文</translation>
 <translation id="8630384863424041081">輸入 SIM 卡 PIN 碼或電信業者提供的預設 PIN 碼。請向電信業者尋求支援。</translation>
 <translation id="863903787380594467">PIN 碼不正確，你還有 <ph name="RETRIES" /> 次重試機會。</translation>
 <translation id="8639391553632924850"><ph name="INPUT_LABEL" /> - 連接埠</translation>
@@ -1011,7 +1013,6 @@
 <translation id="8713112442029511308">馬爾他文</translation>
 <translation id="8714406895390098252">單車</translation>
 <translation id="8719721339511222681">已選取「<ph name="ENTRY_NAME" />」。</translation>
-<translation id="872537912056138402">克羅埃西亞文</translation>
 <translation id="8743164338060742337">第 <ph name="NETWORK_INDEX" /> 個網路 (共 <ph name="NETWORK_COUNT" /> 個)，<ph name="NETWORK_NAME" />，<ph name="NETWORK_PROVIDER_NAME" />，訊號強度 <ph name="SIGNAL_STRENGTH" />%，由系統管理員管理，連線</translation>
 <translation id="8787254343425541995">允許共用網路使用 Proxy</translation>
 <translation id="8790981080411996443">澆水的人</translation>
@@ -1028,10 +1029,9 @@
 <translation id="8873014196523807561">如要還原這些項目，請將項目拖曳到新資料夾，因為部分項目所屬的資料夾已經刪除。</translation>
 <translation id="8874184842967597500">未連線</translation>
 <translation id="8876368061475701452">已加入佇列</translation>
-<translation id="8900820606136623064">匈牙利文</translation>
+<translation id="8902208737522818687">美式國際鍵盤 (PC)</translation>
 <translation id="8903931173357132290">畢業生</translation>
 <translation id="8912078710089354287">搖尾巴的狗</translation>
-<translation id="8919081441417203123">丹麥文</translation>
 <translation id="8949925099261528566">已連線，但沒有網際網路</translation>
 <translation id="8965697826696209160">空間不足。</translation>
 <translation id="8970887620466824814">發生錯誤。</translation>
@@ -1040,7 +1040,6 @@
 <translation id="8998871447376656508">你的 Google 雲端硬碟可用空間不足，無法完成上傳。</translation>
 <translation id="9003940392834790328">第 <ph name="NETWORK_INDEX" /> 個網路 (共 <ph name="NETWORK_COUNT" /> 個)，<ph name="NETWORK_NAME" />，<ph name="CONNECTION_STATUS" />，訊號強度 <ph name="SIGNAL_STRENGTH" />%，由系統管理員管理，詳細資料</translation>
 <translation id="9007990314804111233">登入 Microsoft 帳戶</translation>
-<translation id="9017798300203431059">俄文 (拼音)</translation>
 <translation id="9034924485347205037">Linux 檔案</translation>
 <translation id="9035012421917565900">這些項目無法移回「<ph name="DESTINATION_NAME" />」，因此無法復原這項操作。</translation>
 <translation id="9035689366572880647">輸入目前的 PIN 碼</translation>
@@ -1073,11 +1072,13 @@
 <translation id="931652069802536959">網路已根據政策封鎖</translation>
 <translation id="938470336146445890">請安裝使用者憑證。</translation>
 <translation id="939736085109172342">新增資料夾</translation>
+<translation id="941005944931359847">保加利亞文</translation>
 <translation id="943972244133411984">修改者</translation>
 <translation id="945522503751344254">提供意見</translation>
 <translation id="947144732524271678">已選取「<ph name="FROM_ENTRY_NAME" />」至「<ph name="TO_ENTRY_NAME" />」範圍內的 <ph name="ENTRY_COUNT" /> 個項目。</translation>
 <translation id="954194396377670556">根據管理員政策，你無法：</translation>
 <translation id="965477715979482472">英文 (南非)</translation>
+<translation id="97351090361893336">芬蘭文</translation>
 <translation id="976666271385981812">正在將 <ph name="NUMBER_OF_ITEMS" /> 個項目移至垃圾桶</translation>
 <translation id="981121421437150478">離線</translation>
 <translation id="988685240266037636">名稱為「<ph name="FILE_NAME" />」的檔案已經存在，你要取代這個檔案嗎？</translation>

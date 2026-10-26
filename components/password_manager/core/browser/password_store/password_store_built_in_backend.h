@@ -11,8 +11,10 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/sequence_checker.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
+#include "components/password_manager/core/browser/password_store/actionable_error.h"
 #include "components/password_manager/core/browser/password_store/password_store.h"
 #include "components/password_manager/core/browser/password_store/password_store_backend.h"
 #include "components/password_manager/core/browser/password_store/password_store_change.h"
@@ -20,6 +22,7 @@
 #include "components/password_manager/core/browser/password_store/smart_bubble_stats_store.h"
 #include "components/prefs/pref_service.h"
 #include "components/sync/model/wipe_model_upon_sync_disabled_behavior.h"
+#include "components/sync/service/sync_service_observer.h"
 
 namespace base {
 class SequencedTaskRunner;
@@ -42,7 +45,8 @@ class LoginDatabaseAsyncHelper;
 // Simple password store implementation that delegates everything to
 // the LoginDatabaseAsyncHelper. Works only on the main sequence.
 class PasswordStoreBuiltInBackend : public PasswordStoreBackend,
-                                    public SmartBubbleStatsStore {
+                                    public SmartBubbleStatsStore,
+                                    public syncer::SyncServiceObserver {
  public:
   // The |login_db| must not have been Init()-ed yet. It will be initialized in
   // a deferred manner on the background sequence.
@@ -53,6 +57,10 @@ class PasswordStoreBuiltInBackend : public PasswordStoreBackend,
                               os_crypt_async::OSCryptAsync* os_crypt_async);
 
   ~PasswordStoreBuiltInBackend() override;
+
+  // syncer::SyncServiceObserver:
+  void OnStateChanged(syncer::SyncService* sync) override;
+  void OnSyncShutdown(syncer::SyncService* sync) override;
 
   void NotifyCredentialsChangedForTesting(
       base::PassKey<class PasswordStoreBuiltInBackendPasswordLossMetricsTest>,
@@ -66,7 +74,7 @@ class PasswordStoreBuiltInBackend : public PasswordStoreBackend,
                    base::RepeatingClosure sync_enabled_or_disabled_cb,
                    base::OnceCallback<void(bool)> completion) override;
   void Shutdown(base::OnceClosure shutdown_completed) override;
-  bool IsAbleToSavePasswords() override;
+  ActionableError GetError() override;
   void GetAllLoginsAsync(LoginsOrErrorReply callback) override;
   void GetAllLoginsWithAffiliationAndBrandingAsync(
       LoginsOrErrorReply callback) override;
@@ -158,6 +166,15 @@ class PasswordStoreBuiltInBackend : public PasswordStoreBackend,
 
   raw_ptr<os_crypt_async::OSCryptAsync> const os_crypt_async_
       GUARDED_BY_CONTEXT(sequence_checker_);
+
+  // Propagates potential password changes to observers.
+  RemoteChangesReceived remote_form_changes_received_callback_;
+
+  // Invoked whenever sync is enabled or disabled.
+  base::RepeatingClosure sync_enabled_or_disabled_cb_;
+
+  base::ScopedObservation<syncer::SyncService, syncer::SyncServiceObserver>
+      sync_observation_{this};
 
   base::WeakPtrFactory<PasswordStoreBuiltInBackend> weak_ptr_factory_{this};
 };

@@ -89,7 +89,7 @@ AudioDecoderConfig* CopyConfig(const AudioDecoderConfig& config) {
 }
 
 std::optional<media::AudioCodec> TryGetPcmCodec(const String& codec) {
-  String codecs_str = codec.LowerASCII();
+  String codecs_str = codec.ToAsciiLower();
   if (codecs_str == "ulaw") {
     return media::AudioCodec::kPCM_MULAW;
   }
@@ -108,7 +108,7 @@ std::optional<media::AudioCodec> TryGetPcmCodec(const String& codec) {
 }
 
 media::SampleFormat PcmCodecToSampleFormat(const String& codec) {
-  String codecs_str = codec.LowerASCII();
+  String codecs_str = codec.ToAsciiLower();
 
   if (codecs_str == "pcm-u8") {
     return media::SampleFormat::kSampleFormatU8;
@@ -283,11 +283,8 @@ AudioDecoder::MakeMediaAudioDecoderConfig(const ConfigType& config,
     }
   }
 
-  media::ChannelLayout channel_layout =
-      config.numberOfChannels() > 8
-          // GuesschannelLayout() doesn't know how to guess above 8 channels.
-          ? media::CHANNEL_LAYOUT_DISCRETE
-          : media::GuessChannelLayout(config.numberOfChannels());
+  media::ChannelLayoutConfig channel_layout =
+      media::ChannelLayoutConfig::Guess(config.numberOfChannels());
 
   auto encryption_scheme = media::EncryptionScheme::kUnencrypted;
   if (config.hasEncryptionScheme()) {
@@ -315,8 +312,8 @@ AudioDecoder::MakeMediaAudioDecoderConfig(const ConfigType& config,
 
   media_config.Initialize(audio_type->codec, format, channel_layout,
                           config.sampleRate(), extra_data, encryption_scheme,
-                          base::TimeDelta() /* seek preroll */,
-                          0 /* codec delay */);
+                          /*seek_preroll=*/base::TimeDelta(),
+                          /*codec_delay=*/0);
   if (!media_config.IsValidConfig()) {
     *js_error_message = "Unsupported config.";
     return std::nullopt;

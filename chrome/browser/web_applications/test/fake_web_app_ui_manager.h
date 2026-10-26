@@ -29,6 +29,11 @@ class MlInstallOperationTracker;
 }  // namespace webapps
 namespace web_app {
 
+// A fake implementation of WebAppUiManager used in unit tests to prevent
+// actually opening browser windows or showing UI dialogs.
+// It allows tests to track UI interactions (like tab reparenting and window
+// launches) and can be configured to automatically accept or reject dialogs
+// (e.g., install dialogs, identity update dialogs).
 class FakeWebAppUiManager : public WebAppUiManager {
  public:
   FakeWebAppUiManager();
@@ -168,6 +173,13 @@ class FakeWebAppUiManager : public WebAppUiManager {
   void MaybeCreateEnableSupportedLinksInfobar(
       content::WebContents* web_contents,
       const std::string& launch_name) override;
+
+  void MaybeCreateWebAppBlockedMigrationInfoBar(
+      content::WebContents* web_contents,
+      base::OnceClosure on_dismiss_callback) override;
+
+  void MaybeRemoveWebAppBlockedMigrationInfoBar(
+      content::WebContents* web_contents) override;
 
   void MaybeShowIPHPromoForAppsLaunchedViaLinkCapturing(
       Browser* browser,

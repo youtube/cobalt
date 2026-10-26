@@ -505,6 +505,22 @@ void TabGroupSyncServiceImpl::UpdateGroupPosition(
   }
 }
 
+void TabGroupSyncServiceImpl::ReorderGroupBefore(
+    const base::Uuid& sync_id,
+    const base::Uuid& next_sync_id) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  VLOG(2) << __func__;
+  model_->ReorderGroupBefore(sync_id, next_sync_id);
+}
+
+void TabGroupSyncServiceImpl::ReorderGroupAfter(
+    const base::Uuid& sync_id,
+    const base::Uuid& prev_sync_id) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  VLOG(2) << __func__;
+  model_->ReorderGroupAfter(sync_id, prev_sync_id);
+}
+
 void TabGroupSyncServiceImpl::UpdateBookmarkNodeId(
     const base::Uuid& sync_id,
     std::optional<base::Uuid> bookmark_node_id) {
@@ -1655,6 +1671,15 @@ void TabGroupSyncServiceImpl::SavedTabGroupTabLastSeenTimeUpdated(
 
 void TabGroupSyncServiceImpl::SavedTabGroupModelLoaded() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  // Migrate tab groups from the pinned_position field to the projects_position
+  // field.
+  if (tab_groups::IsProjectsPanelFeatureEnabled() &&
+      !IsTabGroupPinnedPositionToProjectsPositionMigrated(pref_service_)) {
+    SetTabGroupPinnedPositionToProjectsPositionMigrated(pref_service_);
+    model_->MigratePinnedPositionToProjectsPosition();
+  }
+
   // Store a snapshot of shared tab groups before notifying anyone else that
   // the service is initialized.
   // It is not safe to use observers to listen for Observer::OnInitialized and

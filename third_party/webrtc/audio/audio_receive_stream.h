@@ -132,10 +132,6 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
 
   void SetSyncGroup(absl::string_view sync_group);
 
-  void SetLocalSsrc(uint32_t local_ssrc);
-
-  uint32_t local_ssrc() const;
-
   uint32_t remote_ssrc() const override {
     // The remote_ssrc member variable of config_ will never change and can be
     // considered const.

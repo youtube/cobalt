@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "base/barrier_closure.h"
+#include "base/byte_size.h"
 #include "base/containers/flat_map.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
@@ -62,6 +63,8 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
 #include "third_party/blink/public/common/service_worker/service_worker_scope_match.h"
+#include "third_party/blink/public/mojom/frame/policy_container.mojom.h"
+#include "third_party/blink/public/mojom/loader/fetch_client_settings_object.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_container_type.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration_options.mojom.h"
@@ -460,10 +463,11 @@ ServiceWorkerClientOwner::CreateServiceWorkerClientForPrefetch(
 
 ScopedServiceWorkerClient
 ServiceWorkerClientOwner::CreateServiceWorkerClientForWorker(
-    int process_id,
+    ChildProcessId process_id,
     ServiceWorkerClientInfo client_info) {
-  auto client = std::make_unique<ServiceWorkerClient>(context_->AsWeakPtr(),
-                                                      process_id, client_info);
+  // TODO(crbug.com/379869738) Remove GetUnsafeValue().
+  auto client = std::make_unique<ServiceWorkerClient>(
+      context_->AsWeakPtr(), process_id.GetUnsafeValue(), client_info);
   auto weak_client = client->AsWeakPtr();
   auto inserted = service_worker_clients_by_uuid_
                       .emplace(weak_client->client_uuid(), std::move(client))
@@ -584,9 +588,13 @@ void ServiceWorkerContextCore::UpdateServiceWorkerWithoutExecutionContext(
     bool force_bypass_cache) {
   // Use an empty fetch client settings object because this method is for
   // browser-initiated update and there is no associated execution context.
+  auto fetch_client_settings_object =
+      blink::mojom::FetchClientSettingsObject::New();
+  fetch_client_settings_object->policy_container_policies =
+      blink::mojom::PolicyContainerPolicies::New();
   UpdateServiceWorkerImpl(
       registration, force_bypass_cache, /*skip_script_comparison=*/false,
-      blink::mojom::FetchClientSettingsObject::New(), base::NullCallback());
+      std::move(fetch_client_settings_object), base::NullCallback());
 }
 
 void ServiceWorkerContextCore::UpdateServiceWorker(
@@ -953,7 +961,8 @@ void ServiceWorkerContextCore::RemoveLiveVersion(int64_t id) {
     observer_list_->Notify(FROM_HERE,
                            &ServiceWorkerContextCoreObserver::OnStopped, id);
     for (auto& observer : sync_observer_list_->observers) {
-      observer.OnStoppedSync(id, version->scope());
+      observer.OnStoppedSync(id, version->scope(),
+                             *version->start_worker_token());
     }
   }
 
@@ -1025,7 +1034,8 @@ void ServiceWorkerContextCore::DeleteAndStartOver(StatusCallback callback) {
         blink::EmbeddedWorkerStatus::kStopped) {
       for (auto& observer : sync_observer_list_->observers) {
         observer.OnStoppedSync(live_version->version_id(),
-                               live_version->scope());
+                               live_version->scope(),
+                               *live_version->start_worker_token());
       }
     }
   }
@@ -1110,7 +1120,7 @@ void ServiceWorkerContextCore::NotifyRegistrationStored(
     const int64_t registration_id,
     const GURL& scope,
     const blink::StorageKey& key,
-    uint64_t stored_resources_total_size_bytes) {
+    base::ByteSize stored_resources_total_size) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   ServiceWorkerRegistrationInformation service_worker_info;
@@ -1119,8 +1129,7 @@ void ServiceWorkerContextCore::NotifyRegistrationStored(
           GetLiveRegistration(registration_id);
       registration) {
     registration->SetStored();
-    registration->set_resources_total_size_bytes(
-        stored_resources_total_size_bytes);
+    registration->set_resources_total_size(stored_resources_total_size);
 
     ServiceWorkerRegistry::ResourceList resources;
     if (ServiceWorkerVersion* version = registration->GetNewestVersion();
@@ -1252,7 +1261,8 @@ void ServiceWorkerContextCore::OnRunningStateChanged(
                              &ServiceWorkerContextCoreObserver::OnStopped,
                              version->version_id());
       for (auto& observer : sync_observer_list_->observers) {
-        observer.OnStoppedSync(version->version_id(), version->scope());
+        observer.OnStoppedSync(version->version_id(), version->scope(),
+                               *version->start_worker_token());
       }
       break;
     case blink::EmbeddedWorkerStatus::kStarting:
@@ -1261,18 +1271,23 @@ void ServiceWorkerContextCore::OnRunningStateChanged(
                              version->version_id());
       break;
     case blink::EmbeddedWorkerStatus::kRunning:
-      observer_list_->Notify(
-          FROM_HERE, &ServiceWorkerContextCoreObserver::OnStarted,
-          version->version_id(), version->scope(),
-          version->embedded_worker()->process_id(), version->script_url(),
-          version->worker_host()->token(), version->key());
+      // TODO(crbug.com/379869738) Remove FromUnsafeValue.
+      observer_list_->Notify(FROM_HERE,
+                             &ServiceWorkerContextCoreObserver::OnStarted,
+                             version->version_id(), version->scope(),
+                             ChildProcessId::FromUnsafeValue(
+                                 version->embedded_worker()->process_id()),
+                             version->script_url(),
+                             version->worker_host()->token(), version->key());
       break;
     case blink::EmbeddedWorkerStatus::kStopping:
       observer_list_->Notify(FROM_HERE,
                              &ServiceWorkerContextCoreObserver::OnStopping,
                              version->version_id());
       for (auto& observer : sync_observer_list_->observers) {
-        observer.OnStoppingSync(version->version_id(), version->scope());
+        CHECK(version->start_worker_token());
+        observer.OnStoppingSync(version->version_id(), version->scope(),
+                                *version->start_worker_token());
       }
       break;
   }
@@ -1300,10 +1315,12 @@ void ServiceWorkerContextCore::OnDevToolsRoutingIdChanged(
   if (!version->embedded_worker()) {
     return;
   }
+  // TODO(crbug.com/379869738) Remove FromUnsafeValue.
   observer_list_->Notify(
       FROM_HERE,
       &ServiceWorkerContextCoreObserver::OnVersionDevToolsRoutingIdChanged,
-      version->version_id(), version->embedded_worker()->process_id(),
+      version->version_id(),
+      ChildProcessId::FromUnsafeValue(version->embedded_worker()->process_id()),
       version->embedded_worker()->worker_devtools_agent_route_id());
 }
 
@@ -1348,9 +1365,12 @@ void ServiceWorkerContextCore::OnReportConsoleMessage(
       version->version_id(), version->scope(), version->key(), console_message);
 
   for (auto& observer : sync_observer_list_->observers) {
+    // TODO(crbug.com/379869738) Remove FromUnsafeValue.
     observer.OnReportConsoleMessageSync(
-        version->embedded_worker() ? version->embedded_worker()->process_id()
-                                   : ChildProcessHost::kInvalidUniqueID,
+        version->embedded_worker()
+            ? ChildProcessId::FromUnsafeValue(
+                  version->embedded_worker()->process_id())
+            : ChildProcessId(),
         version->version_id(), version->scope(), console_message);
   }
 }

@@ -32,6 +32,7 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/types/optional_util.h"
 #include "net/base/filename_util.h"
 #include "skia/ext/skia_utils_base.h"
 #include "skia/ext/skia_utils_mac.h"
@@ -158,29 +159,31 @@ void ClipboardMac::StopNotifying() {
 
 void ClipboardMac::OnPreShutdown() {}
 
-std::optional<DataTransferEndpoint> ClipboardMac::GetSource(
-    ClipboardBuffer buffer) const {
-  return GetSourceInternal(buffer, GetPasteboard());
+void ClipboardMac::GetSource(ClipboardBuffer buffer,
+                             GetSourceCallback callback) const {
+  GetSourceInternal(buffer, GetPasteboard(), std::move(callback));
 }
 
-std::optional<DataTransferEndpoint> ClipboardMac::GetSourceInternal(
-    ClipboardBuffer buffer,
-    NSPasteboard* pasteboard) const {
+void ClipboardMac::GetSourceInternal(ClipboardBuffer buffer,
+                                     NSPasteboard* pasteboard,
+                                     GetSourceCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
 
   NSString* source_url = [pasteboard stringForType:kUTTypeChromiumSourceUrl];
 
   if (!source_url) {
-    return std::nullopt;
+    std::move(callback).Run(std::nullopt);
+    return;
   }
 
   GURL gurl(base::SysNSStringToUTF8(source_url));
   if (!gurl.is_valid()) {
-    return std::nullopt;
+    std::move(callback).Run(std::nullopt);
+    return;
   }
 
-  return DataTransferEndpoint(std::move(gurl));
+  std::move(callback).Run(DataTransferEndpoint(std::move(gurl)));
 }
 
 const ClipboardSequenceNumberToken& ClipboardMac::GetSequenceNumber(
@@ -196,32 +199,37 @@ const ClipboardSequenceNumberToken& ClipboardMac::GetSequenceNumber(
   return clipboard_sequence_.token;
 }
 
-// |data_dst| is not used. It's only passed to be consistent with other
-// platforms.
-bool ClipboardMac::IsFormatAvailable(
-    const ClipboardFormatType& format,
+void ClipboardMac::GetAllAvailableFormats(
     ClipboardBuffer buffer,
-    const DataTransferEndpoint* data_dst) const {
+    const std::optional<DataTransferEndpoint>& data_dst,
+    base::OnceCallback<void(base::flat_set<ClipboardFormatType>)> callback)
+    const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
 
   // https://crbug.com/1016740#c21: The pasteboard types array may end up going
   // away; make a copy.
   NSArray* types = [GetPasteboard().types copy];
+  base::flat_set<ClipboardFormatType> formats;
+  for (NSString* type in types) {
+    formats.insert(
+        ClipboardFormatType::Deserialize(base::SysNSStringToUTF8(type)));
+  }
 
   // Safari only places RTF on the pasteboard, never HTML. We can convert RTF
   // to HTML, so the presence of either indicates success when looking for HTML.
-  if (format == ClipboardFormatType::HtmlType()) {
-    return [types containsObject:NSPasteboardTypeHTML] ||
-           [types containsObject:NSPasteboardTypeRTF];
+  if ([types containsObject:NSPasteboardTypeHTML] ||
+      [types containsObject:NSPasteboardTypeRTF]) {
+    formats.insert(ClipboardFormatType::HtmlType());
   }
   // Chrome can retrieve an image from the clipboard as either a bitmap or PNG.
-  if (format == ClipboardFormatType::PngType() ||
-      format == ClipboardFormatType::BitmapType()) {
-    return [types containsObject:NSPasteboardTypePNG] ||
-           [types containsObject:NSPasteboardTypeTIFF];
+  if ([types containsObject:NSPasteboardTypePNG] ||
+      [types containsObject:NSPasteboardTypeTIFF]) {
+    formats.insert(ClipboardFormatType::PngType());
+    formats.insert(ClipboardFormatType::BitmapType());
   }
-  return [types containsObject:format.ToNSString()];
+
+  std::move(callback).Run(std::move(formats));
 }
 
 bool ClipboardMac::IsMarkedByOriginatorAsConfidential() const {
@@ -248,104 +256,115 @@ void ClipboardMac::ClearInternal(ClipboardBuffer buffer,
   [pasteboard clearContents];
 }
 
-std::vector<std::u16string> ClipboardMac::GetStandardFormats(
+void ClipboardMac::GetStandardFormats(
     ClipboardBuffer buffer,
-    const DataTransferEndpoint* data_dst) const {
-  std::vector<std::u16string> types;
-  NSPasteboard* pb = GetPasteboard();
-  if (IsFormatAvailable(ClipboardFormatType::PlainTextType(), buffer,
-                        data_dst)) {
-    types.push_back(kMimeTypePlainText16);
-  }
-  if (IsFormatAvailable(ClipboardFormatType::HtmlType(), buffer, data_dst)) {
-    types.push_back(kMimeTypeHtml16);
-  }
-  if (IsFormatAvailable(ClipboardFormatType::SvgType(), buffer, data_dst)) {
-    types.push_back(kMimeTypeSvg16);
-  }
-  if (IsFormatAvailable(ClipboardFormatType::RtfType(), buffer, data_dst)) {
-    types.push_back(kMimeTypeRtf16);
-  }
-  if (IsFormatAvailable(ClipboardFormatType::FilenamesType(), buffer,
-                        data_dst)) {
-    types.push_back(kMimeTypeUriList16);
-  } else if (pb && [NSImage canInitWithPasteboard:pb]) {
-    // Finder Cmd+C places both file and icon onto the clipboard
-    // (http://crbug.com/553686), so ignore images if we have detected files.
-    // This means that if an image is present with file content, we will always
-    // ignore the image, but this matches observable Safari behavior.
-    types.push_back(kMimeTypePng16);
-  }
-  return types;
+    const std::optional<DataTransferEndpoint>& data_dst,
+    GetStandardFormatsCallback callback) const {
+  GetAllAvailableFormats(
+      buffer, data_dst,
+      base::BindOnce(
+          [](ClipboardBuffer buffer,
+             const std::optional<DataTransferEndpoint>& data_dst,
+             GetStandardFormatsCallback callback,
+             base::flat_set<ClipboardFormatType> available_formats) {
+            std::vector<std::u16string> types;
+            NSPasteboard* pb = GetPasteboard();
+            if (available_formats.contains(
+                    ClipboardFormatType::PlainTextType())) {
+              types.push_back(kMimeTypePlainText16);
+            }
+            if (available_formats.contains(ClipboardFormatType::HtmlType())) {
+              types.push_back(kMimeTypeHtml16);
+            }
+            if (available_formats.contains(ClipboardFormatType::SvgType())) {
+              types.push_back(kMimeTypeSvg16);
+            }
+            if (available_formats.contains(ClipboardFormatType::RtfType())) {
+              types.push_back(kMimeTypeRtf16);
+            }
+            if (available_formats.contains(
+                    ClipboardFormatType::FilenamesType())) {
+              types.push_back(kMimeTypeUriList16);
+            } else if (pb && [NSImage canInitWithPasteboard:pb]) {
+              // Finder Cmd+C places both file and icon onto the clipboard
+              // (http://crbug.com/553686), so ignore images if we have detected
+              // files. This means that if an image is present with file
+              // content, we will always ignore the image, but this matches
+              // observable Safari behavior.
+              types.push_back(kMimeTypePng16);
+            }
+            std::move(callback).Run(std::move(types));
+          },
+          buffer, data_dst, std::move(callback)));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
 void ClipboardMac::ReadAvailableTypes(
     ClipboardBuffer buffer,
-    const DataTransferEndpoint* data_dst,
-    std::vector<std::u16string>* types) const {
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadAvailableTypesCallback callback) const {
   DCHECK(CalledOnValidThread());
-  DCHECK(types);
-
-  NSPasteboard* pb = GetPasteboard();
-  types->clear();
-  *types = GetStandardFormats(buffer, data_dst);
-
-  if ([pb.types containsObject:kUTTypeChromiumDataTransferCustomData]) {
-    NSData* data = [pb dataForType:kUTTypeChromiumDataTransferCustomData];
-    if ([data length]) {
-      ReadCustomDataTypes(base::apple::NSDataToSpan(data), types);
-    }
-  }
+  GetStandardFormats(
+      buffer, data_dst,
+      base::BindOnce(
+          [](ReadAvailableTypesCallback callback,
+             std::vector<std::u16string> types) {
+            NSPasteboard* pb = GetPasteboard();
+            if ([pb.types
+                    containsObject:kUTTypeChromiumDataTransferCustomData]) {
+              NSData* data =
+                  [pb dataForType:kUTTypeChromiumDataTransferCustomData];
+              if ([data length]) {
+                ReadCustomDataTypes(base::apple::NSDataToSpan(data), &types);
+              }
+            }
+            std::move(callback).Run(std::move(types));
+          },
+          std::move(callback)));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
 void ClipboardMac::ReadText(ClipboardBuffer buffer,
-                            const DataTransferEndpoint* data_dst,
-                            std::u16string* result) const {
+                            const std::optional<DataTransferEndpoint>& data_dst,
+                            ReadTextCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   RecordRead(ClipboardFormatMetric::kText);
   NSString* contents = [GetPasteboard() stringForType:NSPasteboardTypeString];
 
-  *result = base::SysNSStringToUTF16(contents);
+  std::move(callback).Run(base::SysNSStringToUTF16(contents));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
-void ClipboardMac::ReadAsciiText(ClipboardBuffer buffer,
-                                 const DataTransferEndpoint* data_dst,
-                                 std::string* result) const {
+void ClipboardMac::ReadAsciiText(
+    ClipboardBuffer buffer,
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadAsciiTextCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   RecordRead(ClipboardFormatMetric::kText);
   NSString* contents = [GetPasteboard() stringForType:NSPasteboardTypeString];
 
-  if (!contents)
-    result->clear();
-  else
-    result->assign(base::SysNSStringToUTF8(contents));
+  std::string result;
+  if (contents) {
+    result.assign(base::SysNSStringToUTF8(contents));
+  }
+  std::move(callback).Run(std::move(result));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
 void ClipboardMac::ReadHTML(ClipboardBuffer buffer,
-                            const DataTransferEndpoint* data_dst,
-                            std::u16string* markup,
-                            std::string* src_url,
-                            uint32_t* fragment_start,
-                            uint32_t* fragment_end) const {
+                            const std::optional<DataTransferEndpoint>& data_dst,
+                            ReadHtmlCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   RecordRead(ClipboardFormatMetric::kHtml);
 
-  // TODO(avi): src_url?
-  markup->clear();
-  if (src_url)
-    src_url->clear();
-
+  std::u16string markup;
   NSPasteboard* pb = GetPasteboard();
   NSArray* supportedTypes =
       @[ NSPasteboardTypeHTML, NSPasteboardTypeRTF, NSPasteboardTypeString ];
@@ -357,36 +376,38 @@ void ClipboardMac::ReadHTML(ClipboardBuffer buffer,
     } else {
       contents = [pb stringForType:bestType];
     }
-    *markup = base::SysNSStringToUTF16(contents);
+    markup = base::SysNSStringToUTF16(contents);
   }
 
-  *fragment_start = 0;
-  DCHECK_LE(markup->length(), std::numeric_limits<uint32_t>::max());
-  *fragment_end = static_cast<uint32_t>(markup->length());
+  uint32_t fragment_start = 0;
+  DCHECK_LE(markup.length(), std::numeric_limits<uint32_t>::max());
+  uint32_t fragment_end = static_cast<uint32_t>(markup.length());
+  std::move(callback).Run(std::move(markup), GURL(), fragment_start,
+                          fragment_end);
 }
 
 void ClipboardMac::ReadSvg(ClipboardBuffer buffer,
-                           const DataTransferEndpoint* data_dst,
-                           std::u16string* result) const {
+                           const std::optional<DataTransferEndpoint>& data_dst,
+                           ReadSvgCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   RecordRead(ClipboardFormatMetric::kSvg);
   NSString* contents = [GetPasteboard()
       stringForType:ClipboardFormatType::SvgType().ToNSString()];
 
-  *result = base::SysNSStringToUTF16(contents);
+  std::move(callback).Run(base::SysNSStringToUTF16(contents));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
 void ClipboardMac::ReadRTF(ClipboardBuffer buffer,
-                           const DataTransferEndpoint* data_dst,
-                           std::string* result) const {
+                           const std::optional<DataTransferEndpoint>& data_dst,
+                           ReadRTFCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   RecordRead(ClipboardFormatMetric::kRtf);
 
-  return ReadData(ClipboardFormatType::RtfType(), data_dst, result);
+  ReadData(ClipboardFormatType::RtfType(), data_dst, std::move(callback));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
@@ -403,12 +424,13 @@ void ClipboardMac::ReadPng(ClipboardBuffer buffer,
 void ClipboardMac::ReadDataTransferCustomData(
     ClipboardBuffer buffer,
     const std::u16string& type,
-    const DataTransferEndpoint* data_dst,
-    std::u16string* result) const {
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadDataTransferCustomDataCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   RecordRead(ClipboardFormatMetric::kCustomData);
 
+  std::u16string result;
   NSPasteboard* pb = GetPasteboard();
   if ([[pb types] containsObject:kUTTypeChromiumDataTransferCustomData]) {
     NSData* data = [pb dataForType:kUTTypeChromiumDataTransferCustomData];
@@ -416,59 +438,58 @@ void ClipboardMac::ReadDataTransferCustomData(
       if (std::optional<std::u16string> maybe_result =
               ReadCustomDataForType(base::apple::NSDataToSpan(data), type);
           maybe_result) {
-        *result = std::move(*maybe_result);
+        result = std::move(*maybe_result);
       }
     }
   }
+  std::move(callback).Run(std::move(result));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
-void ClipboardMac::ReadFilenames(ClipboardBuffer buffer,
-                                 const DataTransferEndpoint* data_dst,
-                                 std::vector<ui::FileInfo>* result) const {
+void ClipboardMac::ReadFilenames(
+    ClipboardBuffer buffer,
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadFilenamesCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   RecordRead(ClipboardFormatMetric::kFilenames);
 
-  std::vector<ui::FileInfo> files =
-      clipboard_util::FilesFromPasteboard(GetPasteboard());
-  std::ranges::move(files, std::back_inserter(*result));
+  std::move(callback).Run(clipboard_util::FilesFromPasteboard(GetPasteboard()));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
-void ClipboardMac::ReadBookmark(const DataTransferEndpoint* data_dst,
-                                std::u16string* title,
-                                std::string* url) const {
+void ClipboardMac::ReadBookmark(
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadBookmarkCallback callback) const {
   DCHECK(CalledOnValidThread());
   RecordRead(ClipboardFormatMetric::kBookmark);
   NSPasteboard* pb = GetPasteboard();
 
-  if (title) {
-    NSString* contents = [pb stringForType:kUTTypeUrlName];
-    *title = base::SysNSStringToUTF16(contents);
+  std::u16string title =
+      base::SysNSStringToUTF16([pb stringForType:kUTTypeUrlName]);
+  NSString* url_string = [pb stringForType:NSPasteboardTypeURL];
+  std::string url;
+  if (url_string) {
+    url = base::SysNSStringToUTF8(url_string);
   }
-
-  if (url) {
-    NSString* url_string = [pb stringForType:NSPasteboardTypeURL];
-    if (!url_string)
-      url->clear();
-    else
-      url->assign(base::SysNSStringToUTF8(url_string));
-  }
+  std::move(callback).Run(std::move(title), GURL(url));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
 void ClipboardMac::ReadData(const ClipboardFormatType& format,
-                            const DataTransferEndpoint* data_dst,
-                            std::string* result) const {
+                            const std::optional<DataTransferEndpoint>& data_dst,
+                            ReadDataCallback callback) const {
   DCHECK(CalledOnValidThread());
   RecordRead(ClipboardFormatMetric::kData);
   NSData* data = [GetPasteboard() dataForType:format.ToNSString()];
-  if ([data length])
-    *result = as_string_view(base::apple::NSDataToSpan(data));
+  std::string result;
+  if ([data length]) {
+    result = as_string_view(base::apple::NSDataToSpan(data));
+  }
+  std::move(callback).Run(std::move(result));
 }
 
 void ClipboardMac::WritePortableAndPlatformRepresentations(

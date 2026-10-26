@@ -36,6 +36,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/multiprocess_test.h"
 #include "base/test/scoped_logging_settings.h"
 #include "base/test/task_environment.h"
@@ -1803,6 +1804,117 @@ TEST_F(FileUtilTest, DeleteDeep) {
 }
 #endif  // BUILDFLAG(IS_POSIX)
 
+#if BUILDFLAG(IS_WIN)
+
+TEST_F(FileUtilTest, ReplaceFileNotFoundMoveFailed) {
+  HistogramTester tester;
+  const FilePath to_file_path =
+      temp_dir_.GetPath().Append(FILE_PATH_LITERAL("to_file"));
+  const FilePath from_file_path =
+      temp_dir_.GetPath().Append(FILE_PATH_LITERAL("from_file"));
+
+  // only to_file_path exists
+  ASSERT_TRUE(WriteFile(to_file_path, "hello"));
+
+  // from_file_path doesn't exist, so ReplaceFile should fail and the fallback
+  // MoveFile will also fail.
+  EXPECT_FALSE(ReplaceFile(from_file_path, to_file_path, /*error=*/nullptr));
+
+  tester.ExpectUniqueSample(
+      "Windows.ReplaceFileResult",
+      /*sample=*/6,  // ReplaceFileResult::kFileNotFoundMoveFailed
+      /*count=*/1);
+}
+
+TEST_F(FileUtilTest, ReplaceFileSuccess) {
+  HistogramTester tester;
+  const FilePath to_file_path =
+      temp_dir_.GetPath().Append(FILE_PATH_LITERAL("to_file"));
+  const FilePath from_file_path =
+      temp_dir_.GetPath().Append(FILE_PATH_LITERAL("from_file"));
+
+  const std::string old_content = "old";
+  const std::string new_content = "new";
+  ASSERT_TRUE(WriteFile(to_file_path, old_content));
+  ASSERT_TRUE(WriteFile(from_file_path, new_content));
+
+  // Perform the replace.  It should succeed and remove the temporary
+  // backup file that may have been created during the operation.  A success
+  // sample should still be logged.
+  EXPECT_TRUE(ReplaceFile(from_file_path, to_file_path, /*error=*/nullptr));
+
+  // The backup is cleaned up on success.
+  EXPECT_FALSE(PathExists(
+      FilePath(to_file_path.value() + FILE_PATH_LITERAL(".replace_backup"))));
+
+  std::string file_content;
+  ASSERT_TRUE(ReadFileToString(to_file_path, &file_content));
+  EXPECT_EQ(file_content, new_content);
+
+  // Verify histogram entry for success is recorded exactly once.
+  tester.ExpectUniqueSample("Windows.ReplaceFileResult",
+                            /*sample=*/0,  // ReplaceFileResult::kSuccess
+                            /*count=*/1);
+}
+
+TEST_F(FileUtilTest, ReplaceFileUnableToFindValidBackupFilePath) {
+  HistogramTester tester;
+  // Use an invalid file path to force ReplaceFile to fail to find a valid
+  // backup file path.
+  const FilePath to_file_path = temp_dir_.GetPath()
+                                    .Append(FILE_PATH_LITERAL("invalid_path"))
+                                    .Append(FILE_PATH_LITERAL("to_file"));
+  const FilePath from_file_path =
+      temp_dir_.GetPath().Append(FILE_PATH_LITERAL("from_file"));
+
+  const std::string content = "new";
+  ASSERT_TRUE(WriteFile(from_file_path, content));
+
+  // The replace should fail because the backup file path is invalid.
+  EXPECT_FALSE(ReplaceFile(from_file_path, to_file_path, /*error=*/nullptr));
+
+  // The histogram should record a "unable to find valid backup file path"
+  // sample.
+  tester.ExpectUniqueSample(
+      "Windows.ReplaceFileResult",
+      /*sample=*/1,  // ReplaceFileResult::kUnableToFindValidBackupFilePath
+      /*count=*/1);
+}
+
+TEST_F(FileUtilTest, ReplaceFileOtherErrorsMoveFailed) {
+  HistogramTester tester;
+  const FilePath to_file_path =
+      temp_dir_.GetPath().Append(FILE_PATH_LITERAL("to_file"));
+  const FilePath from_file_path =
+      temp_dir_.GetPath().Append(FILE_PATH_LITERAL("from_file"));
+
+  const std::string old_content = "old";
+  const std::string new_content = "new";
+  ASSERT_TRUE(WriteFile(to_file_path, old_content));
+  ASSERT_TRUE(WriteFile(from_file_path, new_content));
+
+  // Open the to_file for reading to lock it.
+  File to_file(to_file_path, File::FLAG_OPEN | File::FLAG_READ);
+  ASSERT_TRUE(to_file.IsValid());
+
+  // Try to replace the file while it's open. This should fail because
+  // the file is locked and cannot be replaced.
+  EXPECT_FALSE(ReplaceFile(from_file_path, to_file_path, /*error=*/nullptr));
+
+  // The histogram should record an "other errors, move failed" sample.
+  tester.ExpectUniqueSample(
+      "Windows.ReplaceFileResult",
+      /*sample=*/8,  // ReplaceFileResult::kOtherErrorsMoveFailed
+      /*count=*/1);
+
+  // The to_file content should remain unchanged.
+  std::string file_content;
+  ASSERT_TRUE(ReadFileToString(to_file_path, &file_content));
+  EXPECT_EQ(file_content, old_content);
+}
+
+#endif  // BUILDFLAG(IS_WIN)
+
 #if BUILDFLAG(IS_ANDROID)
 TEST_F(FileUtilTest, ContentUriPathExists) {
   FilePath dir = temp_dir_.GetPath().Append("dir");
@@ -3371,12 +3483,13 @@ TEST_F(FileUtilTest, AllocateFileRegionTest_ZeroOffset) {
   ASSERT_GE(file.GetLength(), 0);
   ASSERT_EQ(checked_cast<size_t>(file.GetLength()), test_data.size());
 
-  const int kExtendedFileLength = 23;
+  constexpr size_t kExtendedFileLength = 23;
   ASSERT_TRUE(AllocateFileRegion(&file, 0, kExtendedFileLength));
   EXPECT_EQ(file.GetLength(), kExtendedFileLength);
 
-  char data_read[32] = {};
-  int bytes_read = UNSAFE_TODO(file.Read(0, data_read, kExtendedFileLength));
+  std::array<char, 32> data_read = {};
+  std::optional<size_t> bytes_read =
+      file.Read(0, as_writable_byte_span(data_read).first(kExtendedFileLength));
   EXPECT_EQ(bytes_read, kExtendedFileLength);
   auto [front, back] = base::span(data_read).split_at(test_data.size());
   EXPECT_EQ(front, test_data);
@@ -3395,14 +3508,15 @@ TEST_F(FileUtilTest, AllocateFileRegionTest_NonZeroOffset) {
   ASSERT_GE(file.GetLength(), 0);
   ASSERT_EQ(checked_cast<size_t>(file.GetLength()), test_data.size());
 
-  const int kExtensionOffset = 5;
-  const int kExtensionSize = 10;
+  constexpr size_t kExtensionOffset = 5;
+  constexpr size_t kExtensionSize = 10;
   ASSERT_TRUE(AllocateFileRegion(&file, kExtensionOffset, kExtensionSize));
-  const int kExtendedFileLength = kExtensionOffset + kExtensionSize;
+  constexpr size_t kExtendedFileLength = kExtensionOffset + kExtensionSize;
   EXPECT_EQ(file.GetLength(), kExtendedFileLength);
 
-  char data_read[32] = {};
-  int bytes_read = UNSAFE_TODO(file.Read(0, data_read, kExtendedFileLength));
+  std::array<char, 32> data_read = {};
+  std::optional<size_t> bytes_read =
+      file.Read(0, as_writable_byte_span(data_read).first(kExtendedFileLength));
   EXPECT_EQ(bytes_read, kExtendedFileLength);
   auto [front, back] = base::span(data_read).split_at(test_data.size());
   EXPECT_EQ(front, test_data);
@@ -4688,10 +4802,8 @@ TEST_F(FileUtilTest, ValidContentUriTest) {
   // We should be able to read the file.
   File file(path, File::FLAG_OPEN | File::FLAG_READ);
   EXPECT_TRUE(file.IsValid());
-  auto buffer = std::make_unique<char[]>(image_size.value());
-  // SAFETY: required for test.
-  EXPECT_TRUE(
-      UNSAFE_BUFFERS(file.ReadAtCurrentPos(buffer.get(), image_size.value())));
+  std::vector<uint8_t> buffer(image_size.value());
+  EXPECT_TRUE(file.ReadAtCurrentPos(buffer));
 }
 
 TEST_F(FileUtilTest, WriteContentUri) {

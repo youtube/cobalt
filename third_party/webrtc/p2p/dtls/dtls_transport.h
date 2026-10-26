@@ -16,12 +16,12 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/crypto/crypto_options.h"
 #include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
@@ -76,7 +76,7 @@ class StreamInterfaceChannel : public StreamInterface {
   StreamInterfaceChannel& operator=(const StreamInterfaceChannel&) = delete;
 
   // Push in a packet; this gets pulled out from Read().
-  bool OnPacketReceived(ArrayView<const uint8_t> data);
+  bool OnPacketReceived(std::span<const uint8_t> data);
 
   // Sets the options for the next packet to be written to ice_transport,
   // corresponding to the next Write() call. Safe since BoringSSL guarantees
@@ -89,10 +89,10 @@ class StreamInterfaceChannel : public StreamInterface {
   // Implementations of StreamInterface
   StreamState GetState() const override;
   void Close() override;
-  StreamResult Read(ArrayView<uint8_t> buffer,
+  StreamResult Read(std::span<uint8_t> buffer,
                     size_t& read,
                     int& error) override;
-  StreamResult Write(ArrayView<const uint8_t> data,
+  StreamResult Write(std::span<const uint8_t> data,
                      size_t& written,
                      int& error) override;
   bool Flush() override;
@@ -293,7 +293,7 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
   void OnNetworkRouteChanged(std::optional<NetworkRoute> network_route);
   bool SetupDtls();
   void MaybeStartDtls();
-  bool HandleDtlsPacket(ArrayView<const uint8_t> payload);
+  bool HandleDtlsPacket(std::span<const uint8_t> payload);
   void OnDtlsHandshakeError(SSLHandshakeError error);
   void ConfigureHandshakeTimeout();
   void UpdateHandshakeTimeout();
@@ -302,6 +302,8 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
   void set_writable(bool writable);
   // Sets the DTLS state, signaling if necessary.
   void set_dtls_state(DtlsTransportState state);
+
+  void CompleteDtlsInStun(bool success);
   void SetPiggybackDtlsDataCallback(
       absl::AnyInvocable<void(PacketTransportInternal* transport,
                               const ReceivedIpPacket& packet)> callback);
@@ -355,6 +357,9 @@ class DtlsTransportInternalImpl : public DtlsTransportInternal {
   // (so that we return PIGGYBACK_ACK to client if we get STUN_BINDING_REQUEST
   // directly). Maybe disabled in SetupDtls has been called.
   bool dtls_in_stun_ = false;
+  // Has DtlsInStun Complete been run?
+  // This variable is used to prevent reinitializing after dtls-restart.
+  bool dtls_in_stun_complete_ = false;
 
   // A controller for piggybacking DTLS in STUN.
   DtlsStunPiggybackController dtls_stun_piggyback_controller_;

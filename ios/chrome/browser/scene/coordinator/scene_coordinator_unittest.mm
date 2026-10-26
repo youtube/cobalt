@@ -16,6 +16,7 @@
 #import "ios/chrome/app/profile/profile_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_util_test_support.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/incognito_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser_provider.h"
 #import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
@@ -82,14 +83,8 @@ class SceneCoordinatorTest : public PlatformTest {
         base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
             &test_loader_factory_));
 
-    scene_handler_ = OCMProtocolMock(@protocol(SceneCommands));
-    [browser_->GetCommandDispatcher()
-        startDispatchingToTarget:scene_handler_
-                     forProtocol:@protocol(SceneCommands)];
-
     coordinator_ = [[SceneCoordinator alloc]
-        initWithSceneCommandsEndpoint:scene_handler_
-                            tabOpener:OCMProtocolMock(@protocol(TabOpening))];
+        initWithTabOpener:OCMProtocolMock(@protocol(TabOpening))];
 
     id mock_interface = OCMProtocolMock(@protocol(BrowserProviderInterface));
     id mock_main_provider = OCMProtocolMock(@protocol(BrowserProvider));
@@ -128,7 +123,6 @@ class SceneCoordinatorTest : public PlatformTest {
   std::unique_ptr<Browser> browser_;
   raw_ptr<Browser> inactive_browser_;
   std::unique_ptr<Browser> incognito_browser_;
-  id<SceneCommands> scene_handler_;
   SceneCoordinator* coordinator_;
   SceneState* scene_state_;
   ProfileState* profile_state_;
@@ -210,6 +204,17 @@ TEST_F(SceneCoordinatorTest, TestReportAnIssueViewControllerForSignedOutUser) {
                                  timeout:base::Seconds(1)
                               completion:std::move(completion)];
   run_loop.Run();
+}
+
+// Tests that scene coordinator updates scene state's incognitoContentVisible
+// when the relevant scene commands is called.
+TEST_F(SceneCoordinatorTest, UpdatesIncognitoContentVisibility) {
+  [coordinator_ setIncognitoContentVisible:NO];
+  EXPECT_FALSE(scene_state_.incognitoState.incognitoContentVisible);
+  [coordinator_ setIncognitoContentVisible:YES];
+  EXPECT_TRUE(scene_state_.incognitoState.incognitoContentVisible);
+  [coordinator_ setIncognitoContentVisible:NO];
+  EXPECT_FALSE(scene_state_.incognitoState.incognitoContentVisible);
 }
 
 }  // namespace

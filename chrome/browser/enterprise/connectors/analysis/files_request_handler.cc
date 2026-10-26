@@ -15,10 +15,13 @@
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "chrome/browser/enterprise/connectors/common.h"
+#include "chrome/browser/enterprise/connectors/reporting/reporting_event_router_factory.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/file_opening_job.h"
+#include "chrome/browser/safe_browsing/cloud_content_scanning/file_analysis_request.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_service.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/deep_scanning_utils.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/file_opening_job.h"
 #include "components/enterprise/connectors/core/reporting_constants.h"
 #include "components/file_access/scoped_file_access.h"
 #include "components/file_access/scoped_file_access_delegate.h"
@@ -77,10 +80,6 @@ std::string AccessPointToTriggerString(DeepScanAccessPoint access_point) {
 }
 
 }  // namespace
-
-FilesRequestHandler::FileInfo::FileInfo() = default;
-FilesRequestHandler::FileInfo::FileInfo(FileInfo&& other) = default;
-FilesRequestHandler::FileInfo::~FileInfo() = default;
 
 FilesRequestHandler::FilesRequestHandler(
     ContentAnalysisInfo* content_analysis_info,
@@ -206,8 +205,8 @@ bool FilesRequestHandler::UploadDataImpl() {
   return false;
 }
 
-safe_browsing::FileAnalysisRequest* FilesRequestHandler::PrepareFileRequest(
-    size_t index) {
+enterprise_connectors::FileAnalysisRequestBase*
+FilesRequestHandler::PrepareFileRequest(size_t index) {
   DCHECK_LT(index, paths_.size());
   base::FilePath path = paths_[index];
   auto request = std::make_unique<safe_browsing::FileAnalysisRequest>(
@@ -218,7 +217,7 @@ safe_browsing::FileAnalysisRequest* FilesRequestHandler::PrepareFileRequest(
                      weak_ptr_factory_.GetWeakPtr(), index),
       base::BindOnce(&FilesRequestHandler::FileRequestStartCallback,
                      weak_ptr_factory_.GetWeakPtr(), index));
-  safe_browsing::FileAnalysisRequest* request_raw = request.get();
+  enterprise_connectors::FileAnalysisRequestBase* request_raw = request.get();
   content_analysis_info_->InitializeRequest(request_raw);
   request_raw->set_analysis_connector(
       AccessPointToEnterpriseConnector(access_point_));
@@ -360,13 +359,12 @@ void FilesRequestHandler::FileRequestCallback(
   }
 
   MaybeReportDeepScanningVerdict(
-      profile_, content_analysis_info_.get(), source_, destination_,
-      path.AsUTF8Unsafe(), file_info_[index].sha256,
-      file_info_[index].mime_type, AccessPointToTriggerString(access_point_),
-      content_transfer_method_,
+      ReportingEventRouterFactory::GetForBrowserContext(profile_),
+      content_analysis_info_.get(), source_, destination_, path.AsUTF8Unsafe(),
+      file_info_[index].sha256, file_info_[index].mime_type,
+      AccessPointToTriggerString(access_point_), content_transfer_method_,
       content_analysis_info_->GetContentAreaAccountEmail(),
-      file_info_[index].size, content_analysis_info_->referrer_chain(),
-      upload_result, response,
+      file_info_[index].size, upload_result, response,
       CalculateEventResult(analysis_settings, request_handler_result.complies,
                            result_is_warning));
 

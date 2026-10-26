@@ -15,7 +15,10 @@
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/profiles/profile_manager_observer.h"
 #include "chrome/browser/profiles/profile_observer.h"
+
+#if BUILDFLAG(IS_WIN)
 #include "chrome/browser/startup/startup_launch_manager.h"
+#endif
 
 class ScopedKeepAlive;
 class StatusTray;
@@ -54,7 +57,7 @@ class GlicBackgroundModeManager : public GlicLauncherConfiguration::Observer,
 
   // GlicConfiguration::Observer
   void OnEnabledChanged(bool enabled) override;
-  void OnGlobalHotkeyChanged(ui::Accelerator hotkey) override;
+  void OnGlobalHotkeyChanged() override;
 
   // ProfileManagerObserver:
   void OnProfileAdded(Profile* profile) override;
@@ -66,8 +69,13 @@ class GlicBackgroundModeManager : public GlicLauncherConfiguration::Observer,
 
   void Shutdown();
 
-  ui::Accelerator RegisteredHotkeyForTesting() {
-    return actual_registered_hotkey_;
+  enum class HotkeyIndex : uint8_t {
+    kPanelKey,
+    kSelectionKey,
+  };
+
+  const std::vector<ui::Accelerator>& RegisteredHotkeyForTesting() {
+    return actual_registered_hotkeys_;
   }
 
   bool IsInBackgroundModeForTesting() {
@@ -83,7 +91,7 @@ class GlicBackgroundModeManager : public GlicLauncherConfiguration::Observer,
  private:
   class AcceleratorRegistrar;
 
-  void RegisterHotkey(ui::Accelerator updated_hotkey);
+  void RegisterHotkeys(const std::vector<ui::Accelerator>& updated_hotkeys);
   void UnregisterHotkey();
   void UpdateState();
 
@@ -104,9 +112,11 @@ class GlicBackgroundModeManager : public GlicLauncherConfiguration::Observer,
   // mode is enabled.
   std::unique_ptr<GlicStatusIcon> status_icon_;
 
+#if BUILDFLAG(IS_WIN)
   // Handles interactions with StartupLaunchManager
   StartupLaunchManager::Client startup_launch_client_{
       StartupLaunchReason::kGlic};
+#endif
 
   // The current state of the launcher_enabled pref. Note that the pref is a
   // local state and is thus per-installation. Each profile also has a
@@ -119,8 +129,8 @@ class GlicBackgroundModeManager : public GlicLauncherConfiguration::Observer,
   // because the Glic launcher may be disabled or registration fails which
   // results in no hotkey being registered and is represented with an empty
   // accelerator.
-  ui::Accelerator expected_registered_hotkey_;
-  ui::Accelerator actual_registered_hotkey_;
+  std::vector<ui::Accelerator> expected_registered_hotkeys_;
+  std::vector<ui::Accelerator> actual_registered_hotkeys_;
 
   // Accelerator subclass to control accelerator registration between different
   // platform.

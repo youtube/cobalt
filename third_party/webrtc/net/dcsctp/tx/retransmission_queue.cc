@@ -19,7 +19,6 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "net/dcsctp/common/internal_types.h"

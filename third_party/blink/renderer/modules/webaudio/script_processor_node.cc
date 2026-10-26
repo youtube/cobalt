@@ -28,6 +28,7 @@
 #include <memory>
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/trace_event/trace_event.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -143,7 +144,7 @@ ScriptProcessorNode::ScriptProcessorNode(BaseAudioContext& context,
 ScriptProcessorNode* ScriptProcessorNode::Create(
     BaseAudioContext& context,
     ExceptionState& exception_state) {
-  DCHECK(IsMainThread());
+  CHECK(IsMainThread());
 
   // Default buffer size is 0 (let WebAudio choose) with 2 inputs and 2
   // outputs.
@@ -154,7 +155,7 @@ ScriptProcessorNode* ScriptProcessorNode::Create(
     BaseAudioContext& context,
     uint32_t requested_buffer_size,
     ExceptionState& exception_state) {
-  DCHECK(IsMainThread());
+  CHECK(IsMainThread());
 
   // Default is 2 inputs and 2 outputs.
   return Create(context, requested_buffer_size, 2, 2, exception_state);
@@ -165,7 +166,7 @@ ScriptProcessorNode* ScriptProcessorNode::Create(
     uint32_t requested_buffer_size,
     uint32_t number_of_input_channels,
     ExceptionState& exception_state) {
-  DCHECK(IsMainThread());
+  CHECK(IsMainThread());
 
   // Default is 2 outputs.
   return Create(context, requested_buffer_size, number_of_input_channels, 2,
@@ -178,7 +179,7 @@ ScriptProcessorNode* ScriptProcessorNode::Create(
     uint32_t number_of_input_channels,
     uint32_t number_of_output_channels,
     ExceptionState& exception_state) {
-  DCHECK(IsMainThread());
+  CHECK(IsMainThread());
 
   if (number_of_input_channels == 0 && number_of_output_channels == 0) {
     exception_state.ThrowDOMException(
@@ -261,7 +262,7 @@ uint32_t ScriptProcessorNode::bufferSize() const {
 
 void ScriptProcessorNode::DispatchEvent(double playback_time,
                                         uint32_t double_buffer_index) {
-  DCHECK(IsMainThread());
+  CHECK(IsMainThread());
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("webaudio.audionode"),
                "ScriptProcessorNode::DispatchEvent");
@@ -299,12 +300,8 @@ void ScriptProcessorNode::DispatchEvent(double playback_time,
 
       for (unsigned channel = 0;
           channel < backing_input_buffer->numberOfChannels(); ++channel) {
-        const float* source = static_cast<float*>(
-            backing_input_buffer->getChannelData(channel)->buffer()->Data());
-        float* destination = static_cast<float*>(
-            external_input_buffer_->getChannelData(channel)->buffer()->Data());
-        UNSAFE_TODO(memcpy(destination, source,
-                           backing_input_buffer->length() * sizeof(float)));
+        external_input_buffer_->getChannelData(channel)->AsSpan().copy_from(
+            backing_input_buffer->getChannelData(channel)->AsSpan());
       }
     }
   }
@@ -339,12 +336,8 @@ void ScriptProcessorNode::DispatchEvent(double playback_time,
 
       for (unsigned channel = 0;
           channel < backing_output_buffer->numberOfChannels(); ++channel) {
-        const float* source = static_cast<float*>(
-            external_output_buffer_->getChannelData(channel)->buffer()->Data());
-        float* destination = static_cast<float*>(
-            backing_output_buffer->getChannelData(channel)->buffer()->Data());
-        UNSAFE_TODO(memcpy(destination, source,
-                           backing_output_buffer->length() * sizeof(float)));
+        backing_output_buffer->getChannelData(channel)->AsSpan().copy_from(
+            external_output_buffer_->getChannelData(channel)->AsSpan());
       }
     }
   }

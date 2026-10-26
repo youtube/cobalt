@@ -65,7 +65,6 @@
 #include "src/compiler/node-observer.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/osr.h"
-#include "src/compiler/pair-load-store-reducer.h"
 #include "src/compiler/phase.h"
 #include "src/compiler/pipeline-data-inl.h"
 #include "src/compiler/pipeline-statistics.h"
@@ -3285,7 +3284,7 @@ wasm::WasmCompilationResult Pipeline::GenerateWasmCode(
       code_generator->GetProtectedInstructionsData();
   result.deopt_data = code_generator->GenerateWasmDeoptimizationData();
   result.result_tier = wasm::ExecutionTier::kTurbofan;
-  result.effect_handlers = code_generator->GenerateWasmEffectHandler();
+  result.effect_handlers = code_generator->GenerateWasmEffectHandlers();
 
   if (data.info()->trace_turbo_json()) {
     TurboJsonFile json_of(data.info(), std::ios_base::app);

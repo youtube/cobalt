@@ -79,7 +79,7 @@ void AudioEncoder::SetTargetBitrate(int /* target_bps */) {}
 
 ArrayView<std::unique_ptr<AudioEncoder>>
 AudioEncoder::ReclaimContainedEncoders() {
-  return nullptr;
+  return {};
 }
 
 bool AudioEncoder::EnableAudioNetworkAdaptor(absl::string_view /*config*/) {

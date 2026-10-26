@@ -316,7 +316,6 @@ if (is_ios || is_mac) {
           ":audio_session_observer",
           ":base_objc",
           ":core_audio_helpers_objc",
-          "../api:array_view",
           "../api:scoped_refptr",
           "../api:sequence_checker",
           "../api/audio:audio_device",
@@ -506,7 +505,6 @@ if (is_ios || is_mac) {
       deps = [
         ":audio_device_api_objc",
         ":core_audio_helpers_objc",
-        "../api:array_view",
         "../api:make_ref_counted",
         "../api:refcountedbase",
         "../api:scoped_refptr",
@@ -1221,7 +1219,6 @@ if (is_ios || is_mac) {
             ":videoframebuffer_objc",
             ":videosource_objc",
             ":videotoolbox_objc",
-            "../api:array_view",
             "../api:jsep",
             "../api:rtc_error_matchers",
             "../api:scoped_refptr",
@@ -1756,7 +1753,6 @@ if (is_ios || is_mac) {
         "objc/components/video_codec/nalu_rewriter.h",
       ]
       deps = [
-        "../api:array_view",
         "../common_video",
         "../modules/video_coding:webrtc_h264",
         "../rtc_base:buffer",
@@ -1795,7 +1791,6 @@ if (is_ios || is_mac) {
         ":video_toolbox_cc",
         ":videocodec_objc",
         ":videoframebuffer_objc",
-        "../api:array_view",
         "../api/video:video_rtp_headers",
         "../api/video_codecs:video_codecs_api",
         "../common_video",

@@ -367,53 +367,23 @@ static bool ValidateES3CompressedFormatForTexture2DArray(const Context *context,
     return true;
 }
 
-static bool ValidateES3CompressedFormatForTexture3D(const Context *context,
-                                                    angle::EntryPoint entryPoint,
-                                                    GLenum format)
+static bool ValidCompressedFormatForTexture3D(GLenum format, const Extensions &extensions)
 {
-    if (IsETC1Format(format) || IsPVRTC1Format(format))
+    if (IsASTC2DFormat(format))
     {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kInternalFormatRequiresTexture2D);
-        return false;
+        return extensions.textureCompressionAstcHdrKHR ||
+               extensions.textureCompressionAstcSliced3dKHR;
     }
 
-    if (IsETC2EACFormat(format))
+    if (IsASTC3DFormat(format) || IsBPTCFormat(format))
     {
-        // ES 3.1, Section 8.7, page 169.
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kInternalFormatRequiresTexture2DArray);
-        return false;
+        return true;
     }
 
-    if (IsASTC2DFormat(format) && !(context->getExtensions().textureCompressionAstcHdrKHR ||
-                                    context->getExtensions().textureCompressionAstcSliced3dKHR))
-    {
-        // GL_KHR_texture_compression_astc_hdr, TEXTURE_3D is not supported without HDR profile
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kInternalFormatRequiresTexture2DArrayASTC);
-        return false;
-    }
-
-    if (IsS3TCFormat(format))
-    {
-        // GL_EXT_texture_compression_s3tc
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kInternalFormatRequiresTexture2DArrayS3TC);
-        return false;
-    }
-
-    if (IsRGTCFormat(format))
-    {
-        // GL_EXT_texture_compression_rgtc
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kInternalFormatRequiresTexture2DArrayRGTC);
-        return false;
-    }
-
-    if (IsBPTCFormat(format) && (context->getLimitations().noCompressedTexture3D))
-    {
-        // GL_EXT_texture_compression_bptc
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kInternalFormatRequiresTexture2DArrayBPTC);
-        return false;
-    }
-
-    return true;
+    // All other compressed formats are specified to not support 3D textures.
+    ASSERT((IsS3TCFormat(format) || IsRGTCFormat(format)) ||
+           (IsETC1Format(format) || IsETC2EACFormat(format)) || IsPVRTC1Format(format));
+    return false;
 }
 
 bool ValidateES3TexImageParametersBase(const Context *context,
@@ -644,13 +614,12 @@ bool ValidateES3TexImageParametersBase(const Context *context,
                 return false;
             }
         }
-
-        if (texType == TextureType::_3D)
+        else if (texType == TextureType::_3D)
         {
             GLenum compressedDataFormat = isSubImage ? format : internalformat;
-            if (!ValidateES3CompressedFormatForTexture3D(context, entryPoint, compressedDataFormat))
+            if (!ValidCompressedFormatForTexture3D(compressedDataFormat, context->getExtensions()))
             {
-                // Error already generated.
+                ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kInternalFormatNotSupportedTexture3D);
                 return false;
             }
         }
@@ -1490,13 +1459,12 @@ bool ValidateES3TexStorageParametersFormat(const Context *context,
                 return false;
             }
         }
-
-        if (target == TextureType::_3D)
+        else if (target == TextureType::_3D)
         {
-            if (!ValidateES3CompressedFormatForTexture3D(context, entryPoint,
-                                                         formatInfo.internalFormat))
+            if (!ValidCompressedFormatForTexture3D(formatInfo.internalFormat,
+                                                   context->getExtensions()))
             {
-                // Error already generated.
+                ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kInternalFormatNotSupportedTexture3D);
                 return false;
             }
         }
@@ -1628,20 +1596,20 @@ bool ValidateEndQuery(const Context *context, angle::EntryPoint entryPoint, Quer
 
 bool ValidateGetQueryiv(const Context *context,
                         angle::EntryPoint entryPoint,
-                        QueryType target,
-                        GLenum pname,
+                        QueryType targetPacked,
+                        QueryParameter pnamePacked,
                         const GLint *params)
 {
-    return ValidateGetQueryivBase(context, entryPoint, target, pname, nullptr);
+    return ValidateGetQueryivBase(context, entryPoint, targetPacked, pnamePacked, nullptr);
 }
 
 bool ValidateGetQueryObjectuiv(const Context *context,
                                angle::EntryPoint entryPoint,
-                               QueryID id,
-                               GLenum pname,
+                               QueryID idPacked,
+                               QueryObjectParameter pnamePacked,
                                const GLuint *params)
 {
-    return ValidateGetQueryObjectValueBase(context, entryPoint, id, pname, nullptr);
+    return ValidateGetQueryObjectBase(context, entryPoint, idPacked, pnamePacked, nullptr);
 }
 
 bool ValidateFramebufferTextureLayer(const Context *context,
@@ -3303,6 +3271,13 @@ bool ValidateCopyBufferSubData(const Context *context,
         return false;
     }
 
+    const Limitations &limitations = context->getLimitations();
+    if (size > limitations.bufferSizeLimit)
+    {
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kBufferSizeLimitation);
+        return false;
+    }
+
     if (checkedReadSum.ValueOrDie() > readBuffer->getSize() ||
         checkedWriteSum.ValueOrDie() > writeBuffer->getSize())
     {
@@ -4337,13 +4312,13 @@ bool ValidateGetUniformBlockIndex(const Context *context,
 
 bool ValidateGetActiveUniformBlockiv(const Context *context,
                                      angle::EntryPoint entryPoint,
-                                     ShaderProgramID program,
-                                     UniformBlockIndex uniformBlockIndex,
-                                     GLenum pname,
+                                     ShaderProgramID programPacked,
+                                     UniformBlockIndex uniformBlockIndexPacked,
+                                     UniformBlockParameter pnamePacked,
                                      const GLint *params)
 {
-    return ValidateGetActiveUniformBlockivBase(context, entryPoint, program, uniformBlockIndex,
-                                               pname, nullptr);
+    return ValidateGetActiveUniformBlockivBase(context, entryPoint, programPacked,
+                                               uniformBlockIndexPacked, pnamePacked, nullptr);
 }
 
 bool ValidateGetActiveUniformBlockName(const Context *context,
@@ -4589,56 +4564,58 @@ bool ValidateGetBufferParameteri64v(const Context *context,
 
 bool ValidateGetSamplerParameterfv(const Context *context,
                                    angle::EntryPoint entryPoint,
-                                   SamplerID sampler,
-                                   GLenum pname,
+                                   SamplerID samplerPacked,
+                                   SamplerParameter pnamePacked,
                                    const GLfloat *params)
 {
-    return ValidateGetSamplerParameterBase(context, entryPoint, sampler, pname, nullptr, params);
+    return ValidateGetSamplerParameterBase(context, entryPoint, samplerPacked, pnamePacked, params,
+                                           nullptr);
 }
 
 bool ValidateGetSamplerParameteriv(const Context *context,
                                    angle::EntryPoint entryPoint,
-                                   SamplerID sampler,
-                                   GLenum pname,
+                                   SamplerID samplerPacked,
+                                   SamplerParameter pnamePacked,
                                    const GLint *params)
 {
-    return ValidateGetSamplerParameterBase(context, entryPoint, sampler, pname, nullptr, params);
+    return ValidateGetSamplerParameterBase(context, entryPoint, samplerPacked, pnamePacked, params,
+                                           nullptr);
 }
 
 bool ValidateSamplerParameterf(const Context *context,
                                angle::EntryPoint entryPoint,
-                               SamplerID sampler,
-                               GLenum pname,
+                               SamplerID samplerPacked,
+                               SamplerParameter pnamePacked,
                                GLfloat param)
 {
-    return ValidateSamplerParameterBase(context, entryPoint, sampler, pname, -1, false, &param);
+    return ValidateSamplerParameterBase(context, entryPoint, samplerPacked, pnamePacked, &param);
 }
 
 bool ValidateSamplerParameterfv(const Context *context,
                                 angle::EntryPoint entryPoint,
-                                SamplerID sampler,
-                                GLenum pname,
+                                SamplerID samplerPacked,
+                                SamplerParameter pnamePacked,
                                 const GLfloat *params)
 {
-    return ValidateSamplerParameterBase(context, entryPoint, sampler, pname, -1, true, params);
+    return ValidateSamplerParameterBase(context, entryPoint, samplerPacked, pnamePacked, params);
 }
 
 bool ValidateSamplerParameteri(const Context *context,
                                angle::EntryPoint entryPoint,
-                               SamplerID sampler,
-                               GLenum pname,
+                               SamplerID samplerPacked,
+                               SamplerParameter pnamePacked,
                                GLint param)
 {
-    return ValidateSamplerParameterBase(context, entryPoint, sampler, pname, -1, false, &param);
+    return ValidateSamplerParameterBase(context, entryPoint, samplerPacked, pnamePacked, &param);
 }
 
 bool ValidateSamplerParameteriv(const Context *context,
                                 angle::EntryPoint entryPoint,
-                                SamplerID sampler,
-                                GLenum pname,
+                                SamplerID samplerPacked,
+                                SamplerParameter pnamePacked,
                                 const GLint *params)
 {
-    return ValidateSamplerParameterBase(context, entryPoint, sampler, pname, -1, true, params);
+    return ValidateSamplerParameterBase(context, entryPoint, samplerPacked, pnamePacked, params);
 }
 
 bool ValidateGetVertexAttribIiv(const Context *context,
@@ -4647,7 +4624,7 @@ bool ValidateGetVertexAttribIiv(const Context *context,
                                 GLenum pname,
                                 const GLint *params)
 {
-    return ValidateGetVertexAttribBase(context, entryPoint, index, pname, nullptr, false);
+    return ValidateGetVertexAttribBase(context, entryPoint, index, pname, nullptr);
 }
 
 bool ValidateGetVertexAttribIuiv(const Context *context,
@@ -4656,7 +4633,7 @@ bool ValidateGetVertexAttribIuiv(const Context *context,
                                  GLenum pname,
                                  const GLuint *params)
 {
-    return ValidateGetVertexAttribBase(context, entryPoint, index, pname, nullptr, false);
+    return ValidateGetVertexAttribBase(context, entryPoint, index, pname, nullptr);
 }
 
 bool ValidateGetInternalformativ(const Context *context,
@@ -4771,22 +4748,24 @@ bool ValidateTexStorage2DMultisampleANGLE(const Context *context,
 
 bool ValidateGetTexLevelParameterfvANGLE(const Context *context,
                                          angle::EntryPoint entryPoint,
-                                         TextureTarget target,
+                                         TextureTarget targetPacked,
                                          GLint level,
-                                         GLenum pname,
+                                         TextureImageParameter pnamePacked,
                                          const GLfloat *params)
 {
-    return ValidateGetTexLevelParameterBase(context, entryPoint, target, level, pname, nullptr);
+    return ValidateGetTexLevelParameterBase(context, entryPoint, targetPacked, level, pnamePacked,
+                                            nullptr);
 }
 
 bool ValidateGetTexLevelParameterivANGLE(const Context *context,
                                          angle::EntryPoint entryPoint,
-                                         TextureTarget target,
+                                         TextureTarget targetPacked,
                                          GLint level,
-                                         GLenum pname,
+                                         TextureImageParameter pnamePacked,
                                          const GLint *params)
 {
-    return ValidateGetTexLevelParameterBase(context, entryPoint, target, level, pname, nullptr);
+    return ValidateGetTexLevelParameterBase(context, entryPoint, targetPacked, level, pnamePacked,
+                                            nullptr);
 }
 
 bool ValidateGetMultisamplefvANGLE(const Context *context,
@@ -4795,7 +4774,7 @@ bool ValidateGetMultisamplefvANGLE(const Context *context,
                                    GLuint index,
                                    const GLfloat *val)
 {
-    return ValidateGetMultisamplefvBase(context, entryPoint, pname, index, val);
+    return ValidateGetMultisamplefvBase(context, entryPoint, pname, index, nullptr);
 }
 
 bool ValidateSampleMaskiANGLE(const PrivateState &state,

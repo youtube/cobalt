@@ -61,6 +61,8 @@ These builders must pass before a CL may land that affects files outside of
 
 * [linux_chromium_tsan_rel_ng](https://ci.chromium.org/p/chromium/builders/try/linux_chromium_tsan_rel_ng) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""linux_chromium_tsan_rel_ng""))
 
+* [mac-gpu-rel](https://ci.chromium.org/p/chromium/builders/try/mac-gpu-rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""mac-gpu-rel""))
+
 * [mac-rel](https://ci.chromium.org/p/chromium/builders/try/mac-rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""mac-rel""))
 
 * [mac_chromium_compile_dbg_ng](https://ci.chromium.org/p/chromium/builders/try/mac_chromium_compile_dbg_ng) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""mac_chromium_compile_dbg_ng""))
@@ -555,11 +557,14 @@ builder.
   * [`//components/cast/.+`](https://cs.chromium.org/chromium/src/components/cast/)
   * [`//components/cast_receiver/.+`](https://cs.chromium.org/chromium/src/components/cast_receiver/)
   * [`//components/cast_streaming/.+`](https://cs.chromium.org/chromium/src/components/cast_streaming/)
+  * [`//components/viz/common/display/overlay_strategy\.h`](https://cs.chromium.org/search?q=+file:components/viz/common/display/overlay_strategy\.h)
+  * [`//components/viz/service/display/overlay_strategy_underlay\.h`](https://cs.chromium.org/search?q=+file:components/viz/service/display/overlay_strategy_underlay\.h)
   * [`//third_party/cast_core/.+`](https://cs.chromium.org/chromium/src/third_party/cast_core/)
   * [`//third_party/openscreen/.+`](https://cs.chromium.org/chromium/src/third_party/openscreen/)
   * [`//ui/events/platform/platform_event_dispatcher\.h`](https://cs.chromium.org/search?q=+file:ui/events/platform/platform_event_dispatcher\.h)
   * [`//ui/gfx/client_native_pixmap\.h`](https://cs.chromium.org/search?q=+file:ui/gfx/client_native_pixmap\.h)
   * [`//ui/gfx/client_native_pixmap_factory\.h`](https://cs.chromium.org/search?q=+file:ui/gfx/client_native_pixmap_factory\.h)
+  * [`//ui/gfx/native_pixmap\.h`](https://cs.chromium.org/search?q=+file:ui/gfx/native_pixmap\.h)
   * [`//ui/gl/gl_surface_egl\.h`](https://cs.chromium.org/search?q=+file:ui/gl/gl_surface_egl\.h)
   * [`//ui/ozone/common/gl_ozone_egl\.h`](https://cs.chromium.org/search?q=+file:ui/ozone/common/gl_ozone_egl\.h)
   * [`//ui/ozone/platform/cast/.+`](https://cs.chromium.org/chromium/src/ui/ozone/platform/cast/)
@@ -946,6 +951,9 @@ by CQ. These are often used to test new configurations before they are added
 as required builders.
 
 ### chrome
+* [android-internal-desktop-x64-rel](https://ci.chromium.org/p/chrome/builders/try/android-internal-desktop-x64-rel) ([definition](https://source.corp.google.com/search?q=+file:/try/.*\.star$+""android-internal-desktop-x64-rel""))
+  * Experiment percentage: 5.0
+
 * [linux-perf-trigger](https://ci.chromium.org/p/chrome/builders/try/linux-perf-trigger) ([definition](https://source.corp.google.com/search?q=+file:/try/.*\.star$+""linux-perf-trigger""))
   * Experiment percentage: 100.0
 
@@ -981,9 +989,6 @@ as required builders.
 
 * [linux-full-remote-rel](https://ci.chromium.org/p/chromium/builders/try/linux-full-remote-rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""linux-full-remote-rel""))
   * Experiment percentage: 10.0
-
-* [mac15-arm64-rel](https://ci.chromium.org/p/chromium/builders/try/mac15-arm64-rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""mac15-arm64-rel""))
-  * Experiment percentage: 100.0
 
 * [tricium-clang-tidy](https://ci.chromium.org/p/chromium/builders/try/tricium-clang-tidy) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""tricium-clang-tidy""))
   * Experiment percentage: 100.0

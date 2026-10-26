@@ -42,24 +42,15 @@ void TextInputType::CountUsage() {
     CountUsageIfVisible(WebFeature::kInputTypeTextMaxLength);
   const AtomicString& type =
       GetElement().FastGetAttribute(html_names::kTypeAttr);
-  if (EqualIgnoringASCIICase(type, input_type_names::kDatetime))
+  if (EqualIgnoringAsciiCase(type, input_type_names::kDatetime)) {
     CountUsageIfVisible(WebFeature::kInputTypeDateTimeFallback);
-  else if (EqualIgnoringASCIICase(type, input_type_names::kWeek))
+  } else if (EqualIgnoringAsciiCase(type, input_type_names::kWeek)) {
     CountUsageIfVisible(WebFeature::kInputTypeWeekFallback);
+  }
 }
 
 bool TextInputType::SupportsInputModeAttribute() const {
   return true;
-}
-
-bool TextInputType::SupportsBaseAppearance(
-    Element::BaseAppearanceValue value) const {
-  if (!RuntimeEnabledFeatures::AppearanceBaseEnabled()) {
-    return false;
-  }
-  // TODO(crbug.com/450139531): Remove the type check here and implement base
-  // appearance for all text input types.
-  return type() == Type::kText && value == Element::BaseAppearanceValue::kBase;
 }
 
 }  // namespace blink

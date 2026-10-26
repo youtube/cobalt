@@ -26,7 +26,6 @@ import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
-import org.chromium.chrome.browser.chrome_item_picker.TabItemPickerCoordinator.ItemPickerSelectionHandler;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab_ui.RecyclerViewPosition;
@@ -109,6 +108,22 @@ public class TabListEditorCoordinator {
         void postHiding();
     }
 
+    /** An interface to handle the selection logic for the TabListEditor. */
+    public interface ItemPickerSelectionHandler {
+        /** Receives the current selection state of the TabListEditor. */
+        void onSelectionStateChange(Set<TabListEditorItemSelectionId> selectedItems);
+
+        /** Returns a supplier for whether the done button should be enabled. */
+        NonNullObservableSupplier<Boolean> getEnableDoneButtonSupplier();
+
+        /**
+         * Executes the successful selection logic, typically finishing the host activity.
+         *
+         * @param selectedItems The list of items chosen by the user.
+         */
+        void finishSelection(List<TabListEditorItemSelectionId> selectedItems);
+    }
+
     /** An interface to control the TabListEditor. */
     public interface TabListEditorController extends BackPressHandler {
         /**
@@ -154,9 +169,6 @@ public class TabListEditorCoordinator {
         /** Sets the toolbar title when no items are selected. */
         void setToolbarTitle(String title);
 
-        /** Sets a custom {@link ItemPickerSelectionHandler} to handle "done" actions. */
-        void setSelectionHandler(ItemPickerSelectionHandler selectionHandler);
-
         /** Sets a custom {@link NavigationProvider} to handle "back" actions. */
         void setNavigationProvider(NavigationProvider navigationProvider);
 
@@ -175,12 +187,12 @@ public class TabListEditorCoordinator {
         void selectTabs(Set<TabListEditorItemSelectionId> itemIds);
 
         /**
-         * Preselects tabs through this TabListEditor.
+         * Sets the visibility of the thumbnail spinner for a specific tab.
          *
-         * @param itemIds The item ids representing the tabs to be selected. This can either be a
-         *     tabId for tabs or syncId for groups.
+         * @param tab The tab to update.
+         * @param isVisible Whether the spinner should be visible.
          */
-        void preselectTabs(Set<TabListEditorItemSelectionId> itemIds);
+        void setThumbnailSpinnerVisibility(Tab tab, boolean isVisible);
     }
 
     /** An interface for embedders to provide navigation. */
@@ -271,11 +283,6 @@ public class TabListEditorCoordinator {
                 }
 
                 @Override
-                public void setSelectionHandler(ItemPickerSelectionHandler selectionHandler) {
-                    mTabListEditorMediator.setSelectionHandler(selectionHandler);
-                }
-
-                @Override
                 public boolean handleBackPressed() {
                     return mTabListEditorMediator.handleBackPressed();
                 }
@@ -307,8 +314,8 @@ public class TabListEditorCoordinator {
                 }
 
                 @Override
-                public void preselectTabs(Set<TabListEditorItemSelectionId> itemIds) {
-                    mTabListEditorMediator.preselectTabs(itemIds);
+                public void setThumbnailSpinnerVisibility(Tab tab, boolean isVisible) {
+                    mTabListEditorMediator.setThumbnailSpinnerVisibility(tab, isVisible);
                 }
             };
 
@@ -376,6 +383,8 @@ public class TabListEditorCoordinator {
      * @param isSingleContextMode Whether the picker is operating in a mode where only one item can
      *     be selected at a time. If true, selecting a new tab will replace the current selection
      *     instead of appending to it.
+     * @param itemPickerSelectionHandler Handler to set the selection state of the items in the item
+     *     picker.
      */
     public TabListEditorCoordinator(
             Activity activity,
@@ -395,6 +404,7 @@ public class TabListEditorCoordinator {
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
             @Nullable MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
             @CreationMode int creationMode,
+            @Nullable ItemPickerSelectionHandler itemPickerSelectionHandler,
             @Nullable UndoBarExplicitTrigger undoBarExplicitTrigger,
             @Nullable String componentName,
             int allowedSelectionCount,
@@ -442,7 +452,8 @@ public class TabListEditorCoordinator {
                             mTabListEditorLayout,
                             mTabActionState,
                             desktopWindowStateManager,
-                            creationMode);
+                            creationMode,
+                            itemPickerSelectionHandler);
             mTabListEditorMediator.setNavigationProvider(
                     new TabListEditorNavigationProvider(activity, mTabListEditorController));
             mNeedsCleanUp = false;

@@ -11,6 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/chrome_views_export.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -141,6 +142,10 @@ class ToolbarButton : public views::LabelButton,
   // button will have no accessible name.
   std::u16string GetAlternativeAccessibleName() const override;
 
+  ChromeColorIds GetDefaultBackgroundColorId() const {
+    return default_background_color_id_;
+  }
+
   // views::ContextMenuController:
   void ShowContextMenuForViewImpl(
       View* source,
@@ -182,6 +187,9 @@ class ToolbarButton : public views::LabelButton,
   // Shows the given `menu_model` anchored to this button.
   void ShowMenuForModel(ui::mojom::MenuSourceType source_type,
                         ui::MenuModel* menu_model);
+
+  // Sets a default background color
+  void SetDefaultBackgroundColorId(ChromeColorIds color_id);
 
   // Updates the button's background and border.
   virtual void UpdateColorsAndInsets();
@@ -228,7 +236,7 @@ class ToolbarButton : public views::LabelButton,
   const gfx::Size GetTargetSize() const;
 
   // Returns the button's rounded corner radius based on its size.
-  int GetRoundedCornerRadius() const;
+  virtual int GetRoundedCornerRadius() const;
 
   // Updates the images using the given icons and specific colors.
   void UpdateIconsWithColors(const gfx::VectorIcon& icon,
@@ -239,9 +247,10 @@ class ToolbarButton : public views::LabelButton,
 
   std::optional<SkColor> GetBackgroundColor() const;
 
-  static constexpr int kDefaultIconSize = 16;
-  static constexpr int kDefaultIconSizeChromeRefresh = 20;
-  static constexpr int kDefaultTouchableIconSize = 24;
+  // views::LabelButton:
+  // Callers should use SetHighlight() instead which sets an optional color as
+  // well.
+  void SetText(std::u16string_view text) override;
 
  private:
   friend test::ToolbarButtonTestApi;
@@ -307,11 +316,6 @@ class ToolbarButton : public views::LabelButton,
   // Callback for MenuModelAdapter.
   void OnMenuClosed();
 
-  // views::LabelButton:
-  // This is private to avoid a foot-shooter. Callers should use SetHighlight()
-  // instead which sets an optional color as well.
-  void SetText(std::u16string_view text) override;
-
   // Sets the in product help promo. Called after the kHasInProductHelpPromoKey
   // property changes. When this button has an in product help promo, the button
   // gets a blue highlight that pulses.
@@ -375,6 +379,12 @@ class ToolbarButton : public views::LabelButton,
       ui::TouchUiController::Get()->RegisterCallback(
           base::BindRepeating(&ToolbarButton::TouchUiChanged,
                               base::Unretained(this)));
+
+  // Default background color
+  std::optional<SkColor> default_background_color_;
+  // Default background color id
+  ChromeColorIds default_background_color_id_ =
+      ChromeColorIds::kChromeColorsStart;
 
   // A factory for tasks that show the dropdown context menu for the button.
   base::WeakPtrFactory<ToolbarButton> show_menu_factory_{this};

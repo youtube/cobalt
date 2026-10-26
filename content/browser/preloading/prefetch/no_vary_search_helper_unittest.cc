@@ -22,7 +22,7 @@ namespace {
 
 network::mojom::URLResponseHeadPtr CreateHead() {
   network::mojom::URLResponseHeadPtr head =
-      network::mojom::URLResponseHead::New();
+      SuccessfulPrefetchResponseHeadForTesting();
   head->parsed_headers = network::mojom::ParsedHeaders::New();
   head->parsed_headers->no_vary_search_with_parse_error =
       network::mojom::NoVarySearchWithParseError::NewNoVarySearch(
@@ -125,18 +125,7 @@ class NoVarySearchHelperTester final {
   std::map<PrefetchKey, base::WeakPtr<PrefetchContainer>> prefetches_by_key_;
 };
 
-class NoVarySearchHelperTest : public RenderViewHostTestHarness {
- public:
-  NoVarySearchHelperTest()
-      : RenderViewHostTestHarness(
-            base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
-
-  void SetUp() override { RenderViewHostTestHarness::SetUp(); }
-
-  RenderFrameHostImpl* main_rfhi() {
-    return static_cast<RenderFrameHostImpl*>(main_rfh());
-  }
-};
+class NoVarySearchHelperTest : public PrefetchingMetricsTestBase {};
 
 TEST_F(NoVarySearchHelperTest, AddAndMatchUrlNonEmptyVaryParams) {
   network::mojom::URLResponseHeadPtr head = CreateHead();
@@ -249,7 +238,7 @@ TEST_F(NoVarySearchHelperTest, AddAndMatchUrlEmptyNoVaryParams) {
 
 TEST_F(NoVarySearchHelperTest, AddUrlWithoutNoVarySearchTest) {
   network::mojom::URLResponseHeadPtr head =
-      network::mojom::URLResponseHead::New();
+      SuccessfulPrefetchResponseHeadForTesting();
   head->parsed_headers = network::mojom::ParsedHeaders::New();
 
   std::unique_ptr<NoVarySearchHelperTester> helper =
@@ -300,8 +289,9 @@ TEST_F(NoVarySearchHelperTest, DoNotPrefixMatch) {
       helper->AddUrl(*main_rfhi(), no_match_url_foo, head->Clone());
   auto* pc_matching_url_a_1 =
       helper->AddUrl(*main_rfhi(), matching_url_a_1, head->Clone());
-  auto* pc_matching_url_a_0 = helper->AddUrl(
-      *main_rfhi(), matching_url_a_0, network::mojom::URLResponseHead::New());
+  auto* pc_matching_url_a_0 =
+      helper->AddUrl(*main_rfhi(), matching_url_a_0,
+                     SuccessfulPrefetchResponseHeadForTesting());
   auto* pc_matching_url_a_2 =
       helper->AddUrl(*main_rfhi(), matching_url_a_2, head->Clone());
   auto* pc_no_match_url_top =

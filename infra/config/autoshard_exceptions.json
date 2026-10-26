@@ -12,7 +12,7 @@
                 "try_builder": "android-x64-rel"
             }
         },
-        "android-15-x64-rel": {
+        "android-16-x64-rel": {
             "android_browsertests": {
                 "shards": 10,
                 "try_builder": "android-x64-rel"
@@ -47,10 +47,6 @@
     },
     "chromium.android.desktop": {
         "android-desktop-x64-rel-15-tests": {
-            "android_browsertests": {
-                "shards": 36,
-                "try_builder": "android-desktop-x64-rel"
-            },
             "unit_tests": {
                 "shards": 3,
                 "try_builder": "android-desktop-x64-rel"
@@ -70,11 +66,11 @@
                 "try_builder": "linux-chromeos-rel"
             },
             "ash_unittests": {
-                "shards": 4,
+                "shards": 3,
                 "try_builder": "linux-chromeos-rel"
             },
             "browser_tests": {
-                "shards": 153,
+                "shards": 151,
                 "try_builder": "linux-chromeos-rel"
             },
             "components_unittests": {
@@ -82,11 +78,11 @@
                 "try_builder": "linux-chromeos-rel"
             },
             "content_browsertests": {
-                "shards": 9,
+                "shards": 10,
                 "try_builder": "linux-chromeos-rel"
             },
             "interactive_ui_tests": {
-                "shards": 11,
+                "shards": 13,
                 "try_builder": "linux-chromeos-rel"
             },
             "sync_integration_tests": {
@@ -164,14 +160,10 @@
             "not_site_per_process_headless_shell_wpt_tests": {
                 "shards": 14,
                 "try_builder": "linux-rel"
-            }
-        }
-    },
-    "chromium.mac": {
-        "mac15-arm64-rel-tests": {
-            "interactive_ui_tests": {
-                "shards": 9,
-                "try_builder": "mac15-arm64-rel"
+            },
+            "sync_integration_tests": {
+                "shards": 4,
+                "try_builder": "linux-rel"
             }
         }
     },
@@ -186,7 +178,7 @@
                 "try_builder": "linux_chromium_asan_rel_ng"
             },
             "interactive_ui_tests": {
-                "shards": 94,
+                "shards": 102,
                 "try_builder": "linux_chromium_asan_rel_ng"
             },
             "sync_integration_tests": {
@@ -204,7 +196,7 @@
                 "try_builder": "linux_chromium_tsan_rel_ng"
             },
             "components_unittests": {
-                "shards": 5,
+                "shards": 6,
                 "try_builder": "linux_chromium_tsan_rel_ng"
             },
             "content_browsertests": {
@@ -212,7 +204,7 @@
                 "try_builder": "linux_chromium_tsan_rel_ng"
             },
             "content_unittests": {
-                "shards": 3,
+                "shards": 2,
                 "try_builder": "linux_chromium_tsan_rel_ng"
             },
             "interactive_ui_tests": {
@@ -224,7 +216,7 @@
                 "try_builder": "linux_chromium_tsan_rel_ng"
             },
             "unit_tests": {
-                "shards": 10,
+                "shards": 8,
                 "try_builder": "linux_chromium_tsan_rel_ng"
             }
         }
@@ -244,11 +236,11 @@
                 "try_builder": "win-rel"
             },
             "interactive_ui_tests": {
-                "shards": 23,
+                "shards": 25,
                 "try_builder": "win-rel"
             },
             "pixel_browser_tests": {
-                "shards": 6,
+                "shards": 7,
                 "try_builder": "win-rel"
             },
             "updater_tests": {

@@ -21,7 +21,7 @@ void FillCommonFields(FormFieldData* data) {
   data->set_form_control_type(FormControlType::kInputPassword);
   data->set_autocomplete_attribute("off");
   data->set_max_length(200);
-  data->set_is_autofilled(true);
+  data->set_is_autofilled_according_to_renderer(true);
   data->set_check_status(FormFieldData::CheckStatus::kChecked);
   data->set_is_focusable(true);
   data->set_should_autocomplete(false);
@@ -66,7 +66,7 @@ void WriteSection1(const FormFieldData& data, base::Pickle* pickle) {
   pickle->WriteString(FormControlTypeToString(data.form_control_type()));
   pickle->WriteString(data.autocomplete_attribute());
   pickle->WriteUInt64(data.max_length());
-  pickle->WriteBool(data.is_autofilled());
+  pickle->WriteBool(data.is_autofilled_according_to_renderer());
 }
 
 void WriteSection3(const FormFieldData& data, base::Pickle* pickle) {
@@ -517,27 +517,6 @@ TEST(FormFieldDataTest, IsTextInputElement) {
     data.set_form_control_type(test_case.form_control_type);
     EXPECT_EQ(test_case.expected, data.IsTextInputElement());
   }
-}
-
-// Tests that FormFieldData::selected_option() finds the first matching option.
-TEST(FormFieldDataTest, SelectedOption) {
-  FormFieldData f;
-  EXPECT_EQ(f.selected_option(), std::nullopt);
-
-  f.set_options({SelectOption{.value = u"value1", .text = u"text1"},
-                 SelectOption{.value = u"value2", .text = u"text2"},
-                 SelectOption{.value = u"value2", .text = u"text3"}});
-
-  f.set_value(u"garbage");
-  EXPECT_EQ(f.selected_option(), std::nullopt);
-
-  f.set_value(u"value1");
-  EXPECT_EQ(f.selected_option().CopyAsOptional(),
-            (SelectOption{.value = u"value1", .text = u"text1"}));
-
-  f.set_value(u"value2");
-  EXPECT_EQ(f.selected_option().CopyAsOptional(),
-            (SelectOption{.value = u"value2", .text = u"text2"}));
 }
 
 }  // namespace

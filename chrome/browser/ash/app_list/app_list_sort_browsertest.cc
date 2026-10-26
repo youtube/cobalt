@@ -7,6 +7,7 @@
 #include "ash/app_list/views/app_list_item_view.h"
 #include "ash/app_list/views/apps_grid_view.h"
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/drag_drop/drag_drop_controller.h"
 #include "ash/public/cpp/accelerators.h"
 #include "ash/public/cpp/app_list/app_list_model_delegate.h"
@@ -35,7 +36,6 @@
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/login/user_adding_screen.h"
-#include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/services/app_service/public/cpp/icon_loader.h"
 #include "content/public/test/browser_test.h"
@@ -221,7 +221,7 @@ class AppListSortBrowserTest : public extensions::ExtensionBrowserTest {
 
   ash::AppListSortOrder GetPermanentSortingOrder() {
     return static_cast<ash::AppListSortOrder>(
-        profile()->GetPrefs()->GetInteger(prefs::kAppListPreferredOrder));
+        profile()->GetPrefs()->GetInteger(ash::prefs::kAppListPreferredOrder));
   }
 
   // extensions::ExtensionBrowserTest:
@@ -762,8 +762,8 @@ IN_PROC_BROWSER_TEST_F(AppListSortBrowserTest, UndoTemporarySortingClamshell) {
   // Wait for one additional frame so that the metric data is collected.
   ui::Compositor* compositor =
       app_list_test_api_.GetTopLevelAppsGridView()->layer()->GetCompositor();
-  base::IgnoreResult(
-      ui::WaitForNextFrameToBePresented(compositor, base::Milliseconds(300)));
+  std::ignore =
+      ui::WaitForNextFrameToBePresented(compositor, base::Milliseconds(300));
 
   histograms.ExpectTotalCount(
       ash::kClamshellReorderAnimationSmoothnessHistogram, 1);
@@ -779,8 +779,8 @@ IN_PROC_BROWSER_TEST_F(AppListSortBrowserTest, UndoTemporarySortingClamshell) {
       event_generator_.get());
 
   // Wait for the metric data to be collected.
-  base::IgnoreResult(
-      ui::WaitForNextFrameToBePresented(compositor, base::Milliseconds(300)));
+  std::ignore =
+      ui::WaitForNextFrameToBePresented(compositor, base::Milliseconds(300));
 
   // Smoothness of the reorder animation triggered by undo button is recorded.
   histograms.ExpectTotalCount(
@@ -823,8 +823,8 @@ IN_PROC_BROWSER_TEST_F(AppListSortBrowserTest, UndoTemporarySortingTablet) {
   // Wait for one additional frame so that the metric data is collected.
   ui::Compositor* compositor =
       app_list_test_api_.GetTopLevelAppsGridView()->layer()->GetCompositor();
-  base::IgnoreResult(
-      ui::WaitForNextFrameToBePresented(compositor, base::Milliseconds(300)));
+  std::ignore =
+      ui::WaitForNextFrameToBePresented(compositor, base::Milliseconds(300));
 
   histograms.ExpectTotalCount(ash::kTabletReorderAnimationSmoothnessHistogram,
                               1);
@@ -840,8 +840,8 @@ IN_PROC_BROWSER_TEST_F(AppListSortBrowserTest, UndoTemporarySortingTablet) {
   EXPECT_EQ(ash::AppListToastType::kNone, app_list_test_api_.GetToastType());
 
   // Wait for the metric data to be collected.
-  base::IgnoreResult(
-      ui::WaitForNextFrameToBePresented(compositor, base::Milliseconds(300)));
+  std::ignore =
+      ui::WaitForNextFrameToBePresented(compositor, base::Milliseconds(300));
 
   // Smoothness of the reorder animation triggered by undo button is recorded.
   histograms.ExpectTotalCount(ash::kTabletReorderAnimationSmoothnessHistogram,

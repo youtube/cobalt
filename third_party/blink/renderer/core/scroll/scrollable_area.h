@@ -37,7 +37,9 @@
 #include "cc/trees/scroll_source_type.h"
 #include "third_party/blink/public/common/input/web_gesture_device.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink-forward.h"
+#include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_scroll_behavior.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_scroll_result.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
 #include "third_party/blink/renderer/core/loader/history_item.h"
@@ -75,6 +77,7 @@ class MacScrollbarAnimator;
 class Node;
 class PaintLayer;
 class ProgrammaticScrollAnimator;
+class ScopedScrollPromiseResolver;
 class ScrollAnchor;
 class ScrollAnimatorBase;
 struct SerializedAnchor;
@@ -119,19 +122,28 @@ class CORE_EXPORT ScrollableArea : public GarbageCollectedMixin {
   // Used to scale a length in dip units into a length in layout/paint units.
   virtual float ScaleFromDIP() const;
 
-  virtual ScrollResult UserScroll(ui::ScrollGranularity,
-                                  const ScrollOffset&,
-                                  cc::ScrollSourceType source_type,
-                                  ScrollCallback on_finish);
+  virtual ScrollConsumption UserScroll(ui::ScrollGranularity,
+                                       const ScrollOffset&,
+                                       cc::ScrollSourceType source_type,
+                                       ScrollCallback on_finish);
 
-  // A non-virtual wrapper that allows default arguments over the virtual method
-  // `SetScrollOffsetInternal`.
+  // Sets the scroll offset on this `ScrollableArea`. This method is used by
+  // internal callers (e.g. from `cc::ScrollTree::NotifyDidCompositorScroll`),
+  // vs the callers from the JS side (like `Element.scroll()`).
   bool SetScrollOffset(
       const ScrollOffset&,
       mojom::blink::ScrollType,
       cc::ScrollSourceType,
       mojom::blink::ScrollBehavior = mojom::blink::ScrollBehavior::kInstant,
       bool targeted_scroll = false);
+
+  // Sets the scroll offset on this `ScrollableArea`. This method is used only
+  // by the callers from the JS side (like `Element.scroll()`).
+  bool SetProgrammaticScrollOffset(
+      const ScrollOffset&,
+      cc::ScrollSourceType,
+      mojom::blink::ScrollBehavior,
+      std::unique_ptr<ScopedScrollPromiseResolver>);
 
   void ScrollBy(
       const ScrollOffset&,
@@ -624,11 +636,13 @@ class CORE_EXPORT ScrollableArea : public GarbageCollectedMixin {
   }
 
  protected:
-  virtual bool SetScrollOffsetInternal(const ScrollOffset&,
-                                       mojom::blink::ScrollType,
-                                       cc::ScrollSourceType,
-                                       mojom::blink::ScrollBehavior,
-                                       bool targeted_scroll);
+  virtual bool SetScrollOffsetInternal(
+      const ScrollOffset&,
+      mojom::blink::ScrollType,
+      cc::ScrollSourceType,
+      mojom::blink::ScrollBehavior,
+      bool targeted_scroll,
+      std::unique_ptr<ScopedScrollPromiseResolver>);
 
   // Deduces the mojom::blink::ScrollBehavior based on the
   // element style and the parameter set by programmatic scroll into either
@@ -698,10 +712,12 @@ class CORE_EXPORT ScrollableArea : public GarbageCollectedMixin {
 
   void SetScrollbarsHiddenIfOverlayInternal(bool);
 
-  bool ProgrammaticScrollHelper(const ScrollOffset&,
-                                mojom::blink::ScrollBehavior,
-                                gfx::Vector2d animation_adjustment,
-                                cc::ScrollSourceType);
+  bool InitiateScrollAnimation(const ScrollOffset&,
+                               mojom::blink::ScrollType,
+                               mojom::blink::ScrollBehavior,
+                               gfx::Vector2d animation_adjustment,
+                               cc::ScrollSourceType,
+                               std::unique_ptr<ScopedScrollPromiseResolver>);
   void UserScrollHelper(const ScrollOffset&,
                         mojom::blink::ScrollBehavior,
                         cc::ScrollSourceType);
@@ -754,11 +770,11 @@ class CORE_EXPORT ScrollableArea : public GarbageCollectedMixin {
         incoming_type != mojom::blink::ScrollType::kCompositor) {
       return true;
     }
-    // TODO(crbug.com/325081538, crbug.com/342093060): Ideally, if the incoming
-    // scroll is a gesture scroll we'd cancel the current animation here.
-    // But to do that, we must be able to distinguish between compositor updates
-    // due to gesture scrolls from compositor updates due to impl-ticked
-    // programmatic scrolls. So we'd need to:
+    // TODO(https://crbug.com/40712058): Ideally, if the incoming scroll is a
+    // gesture scroll we'd cancel the current animation here. But to do that, we
+    // must be able to distinguish between compositor updates due to gesture
+    // scrolls from compositor updates due to impl-ticked programmatic scrolls.
+    // So we'd need to:
     //   - split kCompositor ScrollType into kCompositorUser and
     //     kCompositorProgrammatic and
     //   - pass the ScrollType from the compositor to the main thread.

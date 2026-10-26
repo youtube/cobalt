@@ -1184,6 +1184,8 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerBrowserTest,
   ui_test_utils::WaitUntilBrowserBecomeActive(opened_browser);
   EXPECT_FALSE(browser_shutdown::IsTryingToQuit());
   EXPECT_NE(other_profile_ptr, opened_browser->profile());
+  EXPECT_TRUE(content::WaitForLoadStop(
+      opened_browser->tab_strip_model()->GetActiveWebContents()));
   EXPECT_EQ(GURL(chrome::kChromeUIDownloadsURL),
             opened_browser->tab_strip_model()
                 ->GetActiveWebContents()
@@ -1332,7 +1334,6 @@ IN_PROC_BROWSER_TEST_F(
 
 #endif  // BUILDFLAG(ENABLE_BACKGROUND_MODE)
 
-#if BUILDFLAG(ENABLE_GLIC)
 
 class BrowserCloseManagerWithGlicBrowserTest
     : public BrowserCloseManagerBrowserTest {
@@ -1369,5 +1370,3 @@ IN_PROC_BROWSER_TEST_F(BrowserCloseManagerWithGlicBrowserTest,
   EXPECT_TRUE(browser_shutdown::IsTryingToQuit());
   EXPECT_TRUE(GlobalBrowserCollection::GetInstance()->IsEmpty());
 }
-
-#endif  // BUILDFLAG(ENABLE_GLIC)

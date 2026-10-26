@@ -21,7 +21,7 @@ import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import {deselectItems, selectAll, selectItem, updateAnchor} from './actions.js';
 import {BookmarksCommandManagerElement} from './command_manager.js';
-import {MenuSource} from './constants.js';
+import {MenuSource, ROOT_NODE_ID} from './constants.js';
 import type {BookmarksItemElement} from './item.js';
 import {getCss} from './list.css.js';
 import {getHtml} from './list.html.js';
@@ -87,6 +87,8 @@ export class BookmarksListElement extends BookmarksListElementBase {
     super.disconnectedCallback();
 
     this.eventTracker_.remove(document, 'highlight-items');
+    this.eventTracker_.remove(document, 'import-began');
+    this.eventTracker_.remove(document, 'import-ended');
   }
 
   override willUpdate(changedProperties: PropertyValues<this>) {
@@ -141,6 +143,13 @@ export class BookmarksListElement extends BookmarksListElementBase {
   }
 
   override onStateChanged(state: BookmarksPageState) {
+    // The tree may be ill-formed, temporarily during updates. In that case,
+    // ignore the update.
+    const children = state.nodes?.[ROOT_NODE_ID]?.children;
+    if (!children || children.length === 0) {
+      return;
+    }
+
     this.displayedIds_ = getDisplayedList(state);
     this.searchTerm_ = state.search.term;
     this.selectedFolder_ = state.selectedFolder;
@@ -367,15 +376,11 @@ export class BookmarksListElement extends BookmarksListElementBase {
     e.preventDefault();
     this.deselectItems_();
 
-    this.dispatchEvent(new CustomEvent('open-command-menu', {
-      bubbles: true,
-      composed: true,
-      detail: {
-        x: e.clientX,
-        y: e.clientY,
-        source: MenuSource.LIST,
-      },
-    }));
+    this.fire('open-command-menu', {
+      x: e.clientX,
+      y: e.clientY,
+      source: MenuSource.LIST,
+    });
   }
 
   protected onItemFocus_(e: Event) {
@@ -401,8 +406,9 @@ export class BookmarksListElement extends BookmarksListElementBase {
     return this.selectedItems_.has(id);
   }
 
-  protected updateShouldShowPromoCard_(e: Event) {
-    this.shouldShowPromoCard_ = (e as CustomEvent).detail.shouldShowPromoCard;
+  protected onShouldShowPromoCard_(
+      e: CustomEvent<{shouldShowPromoCard: boolean}>) {
+    this.shouldShowPromoCard_ = e.detail.shouldShowPromoCard;
   }
 
   setDisplayedIdsForTesting(ids: string[]) {

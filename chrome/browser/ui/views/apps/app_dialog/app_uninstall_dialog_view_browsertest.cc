@@ -47,6 +47,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/views/controls/image_view.h"
 #include "ui/views/view.h"
 #include "ui/views/widget/any_widget_observer.h"
 
@@ -357,7 +358,6 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppsUninstallDialogViewBrowserTest,
         web_app::WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);
     web_app_info->parent_app_id = parent_app_id;
     web_app_info->title = sub_app_name;
-    web_app_info->parent_app_manifest_id = webapps::ManifestId(parent_app_url);
 
     web_app::test::InstallWebApp(browser()->profile(), std::move(web_app_info),
                                  /*overwrite_existing_manifest_fields=*/true,

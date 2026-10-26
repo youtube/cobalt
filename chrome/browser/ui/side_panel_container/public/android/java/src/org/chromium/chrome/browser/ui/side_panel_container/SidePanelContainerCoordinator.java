@@ -11,6 +11,21 @@ import org.chromium.build.annotations.NullMarked;
 public interface SidePanelContainerCoordinator {
 
     /**
+     * Initializes this {@link SidePanelContainerCoordinator}.
+     *
+     * <p>This method is for initialization work that requires a complete {@link
+     * SidePanelContainerCoordinator} object. Examples include:
+     *
+     * <ul>
+     *   <li>Register {@link SidePanelContainerCoordinator} with {@link
+     *       org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator},
+     *   <li>Allow {@link SidePanelContainerCoordinator} to listen for events,
+     *   <li>etc.
+     * </ul>
+     */
+    void init();
+
+    /**
      * Populates {@link SidePanelContent} into this side panel container.
      *
      * <p>This method is intended for a side panel feature.
@@ -26,6 +41,9 @@ public interface SidePanelContainerCoordinator {
      * <p>This method is for a side panel feature. Calling it will also close the container.
      */
     void removeContent();
+
+    /** Returns whether the given {@link SidePanelContent} is shown in this side panel container. */
+    boolean isShowing(SidePanelContent sidePanelContent);
 
     /** Destroys all objects owned by this coordinator. */
     void destroy();

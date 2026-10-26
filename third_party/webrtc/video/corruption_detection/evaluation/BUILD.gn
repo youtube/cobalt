@@ -15,7 +15,6 @@ rtc_library("av1_qp_parser") {
     "av1_qp_parser.h",
   ]
   deps = [
-    "../../../api:array_view",
     "../../../api/video:video_frame",
     "../../../api/video:video_frame_type",
     "//third_party/libgav1:libgav1_parser",
@@ -108,7 +107,6 @@ rtc_library("qp_parser") {
   ]
   deps = [
     ":av1_qp_parser",
-    "../../../api:array_view",
     "../../../api/video:video_frame",
     "../../../modules/video_coding:video_coding_utility",
     "../../../rtc_base:checks",
@@ -138,7 +136,6 @@ rtc_library("utils") {
     "utils.h",
   ]
   deps = [
-    "../../../api:array_view",
     "../../../api/video:video_frame",
     "../../../api/video_codecs:video_codecs_api",
     "../../../rtc_base:checks",

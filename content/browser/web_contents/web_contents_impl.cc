@@ -183,6 +183,7 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/common/referrer_type_converters.h"
 #include "content/public/common/url_constants.h"
+#include "content/public/common/widget_type.h"
 #include "ipc/constants.mojom.h"
 #include "media/base/media_switches.h"
 #include "net/base/url_util.h"
@@ -280,6 +281,10 @@
 #if BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_IOS_TVOS)
 #include "content/browser/ios/nfc_host.h"
 #endif
+
+#if BUILDFLAG(ENABLE_SURFACE_EMBED)
+#include "content/browser/surface_embed/surface_embed_connector_impl.h"
+#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
 
 namespace content {
 
@@ -2055,6 +2060,17 @@ RenderWidgetHostView* WebContentsImpl::GetTopLevelRenderWidgetHostView() {
   return GetRenderManager()->GetRenderWidgetHostView();
 }
 
+std::vector<RenderWidgetHostView*> WebContentsImpl::GetPopupWidgets() {
+  std::vector<RenderWidgetHostView*> result;
+  for (const auto& [_, host] : created_widgets_) {
+    RenderWidgetHostViewBase* view = host->GetView();
+    if (view && view->GetWidgetType() == WidgetType::kPopup) {
+      result.push_back(view);
+    }
+  }
+  return result;
+}
+
 RenderWidgetHost* WebContentsImpl::FindWidgetAtPoint(const gfx::PointF& point) {
   if (GetOuterWebContents()) {
     return GetOuterWebContents()->FindWidgetAtPoint(point);
@@ -3461,6 +3477,13 @@ void WebContentsImpl::DetachUnownedInnerWebContents(
   inner_main_frame->UpdateAXTreeData();
 }
 
+#if BUILDFLAG(ENABLE_SURFACE_EMBED)
+SurfaceEmbedConnector* WebContentsImpl::GetSurfaceEmbedConnector() const {
+  return SurfaceEmbedConnectorImpl::FromWebContents(
+      const_cast<WebContentsImpl*>(this));
+}
+#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
+
 void WebContentsImpl::AttachGuestPage(
     std::unique_ptr<GuestPageHolder> guest_page,
     RenderFrameHost* outer_render_frame_host) {
@@ -4577,9 +4600,6 @@ bool WebContentsImpl::PreHandleGestureEvent(
     }
   }
 
-  // TODO(crbug.com/475836809)
-  // Remove this delegate method. It exposes Blink types to the embedder. Since
-  // zoom blocking is now handled natively, we should audit remaining consumers.
   return delegate_ && delegate_->PreHandleGestureEvent(this, event);
 }
 
@@ -5196,8 +5216,12 @@ bool WebContentsImpl::RequestKeyboardLock(
   }
 
   // KeyboardLock is only supported when called by the top-level browsing
-  // context and is not supported in embedded content scenarios.
-  if (GetOuterWebContents()) {
+  // context and is not supported in embedded content scenarios such as
+  // GuestView guests (<webview> tags, PDF viewer). However, some embedders
+  // (e.g. WebUIBrowserWindow) attach top-level tabs as inner WebContents and
+  // opt in via AllowKeyboardLockForInnerContents().
+  if (GetOuterWebContents() &&
+      (!delegate_ || !delegate_->AllowKeyboardLockForInnerContents(this))) {
     render_widget_host->GotResponseToKeyboardLockRequest(false);
     return false;
   }
@@ -5291,7 +5315,7 @@ FrameTree* WebContentsImpl::CreateNewWindow(
   int render_process_id = opener->GetProcess()->GetDeprecatedID();
   SiteInstanceImpl* source_site_instance = opener->GetSiteInstance();
   const auto& partition_config =
-      source_site_instance->GetStoragePartitionConfig();
+      source_site_instance->GetSecurityPrincipal().GetStoragePartitionConfig();
 
   {
     StoragePartition* partition =
@@ -5314,7 +5338,8 @@ FrameTree* WebContentsImpl::CreateNewWindow(
         static_cast<WebContentsImpl*>(delegate_->CreateCustomWebContents(
             opener, source_site_instance, is_new_browsing_instance,
             opener->GetLastCommittedURL(), params.frame_name, params.target_url,
-            partition_config, session_storage_namespace));
+            params.disposition, *params.features, partition_config,
+            session_storage_namespace));
     if (!web_contents_impl) {
       return nullptr;
     }
@@ -5332,7 +5357,7 @@ FrameTree* WebContentsImpl::CreateNewWindow(
           : IsGuest();
   // While some guest types do not have a guest SiteInstance, the ones that
   // don't all override WebContents creation above.
-  CHECK_EQ(source_site_instance->IsGuest(), is_guest);
+  CHECK_EQ(source_site_instance->GetSecurityPrincipal().IsGuest(), is_guest);
 
   // We usually create the new window in the same BrowsingInstance (group of
   // script-related windows), by passing in the current SiteInstance.  However,
@@ -5400,8 +5425,10 @@ FrameTree* WebContentsImpl::CreateNewWindow(
       // should be in the same StoragePartition.
       SiteInstanceImpl* new_site_instance = new_contents->GetSiteInstance();
       DCHECK(!new_site_instance->IsRelatedSiteInstance(source_site_instance));
-      DCHECK_EQ(new_site_instance->GetStoragePartitionConfig(),
-                source_site_instance->GetStoragePartitionConfig());
+      DCHECK_EQ(
+          new_site_instance->GetSecurityPrincipal().GetStoragePartitionConfig(),
+          source_site_instance->GetSecurityPrincipal()
+              .GetStoragePartitionConfig());
     }
   }
 
@@ -5722,6 +5749,16 @@ void WebContentsImpl::ShowCreatedWidget(int process_id,
     return;
   }
 
+  RenderWidgetHostImpl* rwh = GetPrimaryMainFrame()->GetRenderWidgetHost();
+  if (base::FeatureList::IsEnabled(
+          blink::features::kBlockSelectPopupUnfocusedWindow) &&
+      !rwh->is_active()) {
+    // If the OS window isn't focused, then don't open select element popups for
+    // it: https://issues.chromium.org/issues/365089001
+    widget_host_view->host()->ShutdownAndDestroyWidget(true);
+    return;
+  }
+
   // GetOutermostWebContents() returns |this| if there are no outer WebContents.
   auto* outer_web_contents = GetOuterWebContents();
   auto* outermost_web_contents = GetOutermostWebContents();
@@ -5759,6 +5796,13 @@ void WebContentsImpl::ShowCreatedWidget(int process_id,
   }
 
   RenderWidgetHostImpl* render_widget_host_impl = widget_host_view->host();
+
+  // A background tab cannot show a popup over the active tab.
+  if (GetVisibility() != Visibility::VISIBLE) {
+    render_widget_host_impl->ShutdownAndDestroyWidget(true);
+    return;
+  }
+
   auto permission_exclusion_area_bounds =
       PermissionControllerImpl::FromBrowserContext(GetBrowserContext())
           ->GetExclusionAreaBoundsInScreen(outermost_web_contents);
@@ -6791,9 +6835,7 @@ void WebContentsImpl::SaveFrameWithHeaders(
             "triggered by user request."
           policy_exception_justification: "Not implemented."
         })");
-  auto params = std::make_unique<download::DownloadUrlParameters>(
-      url, rfh->GetProcess()->GetDeprecatedID(), rfh->GetRoutingID(),
-      traffic_annotation);
+  auto params = rfh->CreateDownloadUrlParameters(url, traffic_annotation);
   params->set_referrer(referrer.url);
   params->set_referrer_policy(
       Referrer::ReferrerPolicyForUrlRequest(referrer.policy));
@@ -6827,6 +6869,7 @@ void WebContentsImpl::SaveFrameWithHeaders(
           .GetLastCommittedEntry()
           ->GetFrameEntry(frame_tree_node);
   if (frame_navigation_entry) {
+    // Replay the original initiator, rather than using the current frame origin
     params->set_initiator(frame_navigation_entry->initiator_origin());
   }
 
@@ -7028,8 +7071,12 @@ bool WebContentsImpl::GotResponseToKeyboardLockRequest(bool allowed) {
     return false;
   }
   // KeyboardLock is only supported when called by the top-level browsing
-  // context and is not supported in embedded content scenarios.
-  if (GetOuterWebContents()) {
+  // context and is not supported in embedded content scenarios such as
+  // GuestView guests (<webview> tags, PDF viewer). However, some embedders
+  // (e.g. WebUIBrowserWindow) attach top-level tabs as inner WebContents and
+  // opt in via AllowKeyboardLockForInnerContents().
+  if (GetOuterWebContents() &&
+      (!delegate_ || !delegate_->AllowKeyboardLockForInnerContents(this))) {
     keyboard_lock_widget_->GotResponseToKeyboardLockRequest(false);
     return false;
   }
@@ -7709,16 +7756,8 @@ void WebContentsImpl::DidNavigateMainFramePreCommit(
   }
 #endif
 
-  // Ensure fullscreen mode is exited before committing the navigation to a
-  // different page.  The next page will not start out assuming it is in
-  // fullscreen mode.
   if (navigation_is_within_page) {
-    // No page change?  Then, the renderer and browser can remain in fullscreen.
     return;
-  }
-
-  if (IsFullscreen()) {
-    ExitFullscreen(false);
   }
 
   auto* rwhvb = static_cast<RenderWidgetHostViewBase*>(
@@ -7727,8 +7766,45 @@ void WebContentsImpl::DidNavigateMainFramePreCommit(
     rwhvb->OnOldViewDidNavigatePreCommit();
   }
 
-  // Clean up keyboard lock state when navigating.
   CancelKeyboardLock(keyboard_lock_widget_);
+}
+
+void WebContentsImpl::DidNavigateAnyFramePreCommit(
+    NavigationHandle* navigation_handle,
+    bool navigation_is_within_page) {
+  // Ensure fullscreen mode is exited before committing the navigation to a
+  // different page.  The next page will not start out assuming it is in
+  // fullscreen mode.
+  if (navigation_is_within_page || !IsFullscreen()) {
+    return;
+  }
+
+  bool should_exit_fullscreen = false;
+  if (navigation_handle->IsInPrimaryMainFrame()) {
+    should_exit_fullscreen = true;
+  } else {
+    // For iframe navigation, exit if the fullscreen was requested by the
+    // iframe or one of its descendants.
+    const FrameTreeNodeId navigating_id =
+        navigation_handle->GetFrameTreeNodeId();
+    should_exit_fullscreen =
+        std::any_of(fullscreen_frames_.begin(), fullscreen_frames_.end(),
+                    [navigating_id](RenderFrameHostImpl* rfh) {
+                      for (RenderFrameHostImpl* current = rfh; current;
+                           current = current->GetParentOrOuterDocument()) {
+                        if (current->frame_tree_node()->frame_tree_node_id() ==
+                            navigating_id) {
+                          return true;
+                        }
+                      }
+                      return false;
+                    });
+  }
+
+  if (should_exit_fullscreen) {
+    ExitFullscreen(false);
+    CancelKeyboardLock(keyboard_lock_widget_);
+  }
 }
 
 void WebContentsImpl::DidNavigateMainFramePostCommit(
@@ -10624,15 +10700,6 @@ bool WebContentsImpl::CreateRenderViewForRenderManager(
     ReattachOuterDelegateIfNeeded();
   }
 
-  // With SetHistoryInfoOnViewCreation enabled, the history and index length are
-  // sent as part of the the CreateView() IPC via the CreateViewParams.
-  if (!base::FeatureList::IsEnabled(features::kSetHistoryInfoOnViewCreation)) {
-    SetHistoryIndexAndLengthForView(
-        render_view_host,
-        rvh_impl->frame_tree()->controller().GetLastCommittedEntryIndex(),
-        rvh_impl->frame_tree()->controller().GetEntryCount());
-  }
-
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
   // Force a ViewMsg_Resize to be sent, needed to make plugins show up on
   // linux. See crbug.com/83941.
@@ -11548,6 +11615,14 @@ void WebContentsImpl::OnTextCopiedToClipboard(
                              render_frame_host, copied_text);
 }
 
+void WebContentsImpl::TextSelectionChanged(
+    RenderFrameHostImpl* render_frame_host,
+    std::u16string_view selected_text) {
+  // Notify observers.
+  observers_.NotifyObservers(&WebContentsObserver::OnTextSelectionChanged,
+                             render_frame_host, selected_text);
+}
+
 void WebContentsImpl::IsClipboardPasteAllowedWrapperCallback(
     IsClipboardPasteAllowedCallback callback,
     std::optional<ClipboardPasteData> clipboard_paste_data) {
@@ -12123,9 +12198,9 @@ void WebContentsImpl::OnInputIgnored(const blink::WebInputEvent& event) {
 }
 
 #if BUILDFLAG(IS_ANDROID)
-float WebContentsImpl::GetCurrentTouchSequenceYOffset() {
+gfx::PointF WebContentsImpl::GetCurrentTouchSequenceOffset() {
   ui::ViewAndroid* view_android = GetNativeView();
-  return view_android->event_forwarder()->GetCurrentTouchSequenceYOffset();
+  return view_android->event_forwarder()->GetCurrentTouchSequenceOffset();
 }
 #endif
 
@@ -12287,14 +12362,9 @@ bool WebContentsImpl::CancelPrerendering(FrameTreeNode* frame_tree_node,
     return frame_tree_node->GetParentOrOuterDocumentOrEmbedder()
         ->CancelPrerendering(PrerenderCancellationReason(final_status));
   }
-  PrerenderHost* prerender_host =
-      GetPrerenderHostRegistry()->FindNonReservedHostById(
-          frame_tree_node->frame_tree_node_id());
-  if (!prerender_host) {
-    return false;
-  }
   return GetPrerenderHostRegistry()->CancelHost(
-      prerender_host->prerender_host_id(), final_status);
+            frame_tree_node->frame_tree().delegate()->GetPrerenderHostId(),
+            final_status);
 }
 
 ui::mojom::VirtualKeyboardMode WebContentsImpl::GetVirtualKeyboardMode() const {

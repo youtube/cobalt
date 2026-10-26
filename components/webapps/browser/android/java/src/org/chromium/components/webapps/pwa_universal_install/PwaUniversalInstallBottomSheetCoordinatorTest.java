@@ -16,12 +16,13 @@ import androidx.test.filters.MediumTest;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.LooperMode;
 
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -32,15 +33,14 @@ import org.chromium.url.GURL;
 
 /** Instrumentation tests for PWA Universal Install bottom sheet. */
 @RunWith(BaseRobolectricTestRunner.class)
-@LooperMode(LooperMode.Mode.PAUSED)
 public class PwaUniversalInstallBottomSheetCoordinatorTest {
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
     Activity mActivity;
 
     @Mock private BottomSheetController mBottomSheetControllerMock;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
 
         PwaUniversalInstallBottomSheetCoordinator.sEnableManualIconFetchingForTesting = true;
     }

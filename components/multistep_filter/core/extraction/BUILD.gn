@@ -1,0 +1,31 @@
+import("//testing/test.gni")
+
+source_set("extraction") {
+  sources = [
+    "filter_extractor.cc",
+    "filter_extractor.h",
+  ]
+
+  deps = [
+    "//base",
+    "//components/multistep_filter/core/annotation_index",
+    "//components/multistep_filter/core/data_models",
+    "//components/multistep_filter/core/storage",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "filter_extractor_unittest.cc" ]
+
+  deps = [
+    ":extraction",
+    "//base",
+    "//base/test:test_support",
+    "//components/multistep_filter/core/annotation_index:test_support",
+    "//components/multistep_filter/core/storage",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

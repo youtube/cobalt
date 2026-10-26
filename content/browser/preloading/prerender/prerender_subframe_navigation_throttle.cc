@@ -76,13 +76,9 @@ PrerenderSubframeNavigationThrottle::WillProcessResponse() {
         frame_tree_node->current_frame_host()
             ->delegate()
             ->GetPrerenderHostRegistry();
-    PrerenderHost* prerender_host =
-        prerender_host_registry->FindNonReservedHostById(
-            frame_tree_node->frame_tree().root()->frame_tree_node_id());
-    if (prerender_host) {
-      prerender_host_registry->CancelHost(prerender_host->prerender_host_id(),
-                                          PrerenderFinalStatus::kDownload);
-    }
+    prerender_host_registry->CancelHost(
+        frame_tree_node->frame_tree().delegate()->GetPrerenderHostId(),
+        PrerenderFinalStatus::kDownload);
     return CANCEL;
   }
 

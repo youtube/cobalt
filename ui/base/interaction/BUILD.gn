@@ -10,16 +10,16 @@ component("interaction") {
 
   public = [
     "element_events.h",
+    "element_highlighter.h",
     "element_identifier.h",
     "element_specifier.h",
     "element_tracker.h",
     "framework_specific_implementation.h",
     "framework_specific_registration_list.h",
     "interaction_sequence.h",
-    "typed_data.h",
-    "typed_data_collection.h",
-    "typed_identifier.h",
   ]
+
+  public_deps = [ "//ui/base/identifier" ]
 
   deps = [
     "//base",
@@ -29,12 +29,12 @@ component("interaction") {
 
   sources = [
     "element_events.cc",
+    "element_highlighter.cc",
     "element_identifier.cc",
     "element_specifier.cc",
     "element_tracker.cc",
     "framework_specific_implementation.cc",
     "interaction_sequence.cc",
-    "typed_data_collection.cc",
   ]
 
   if (is_mac) {
@@ -60,7 +60,6 @@ static_library("test_support") {
     "interactive_test_internal.cc",
     "interactive_test_internal.h",
     "polling_state_observer.h",
-    "scoped_typed_data.h",
     "state_observer.h",
   ]
 
@@ -76,6 +75,7 @@ static_library("test_support") {
     "//base/test:test_support",
     "//testing/gmock",
     "//testing/gtest",
+    "//ui/base/identifier",
   ]
 
   deps = [
@@ -89,14 +89,13 @@ source_set("unit_tests") {
   testonly = true
 
   sources = [
-    "element_identifier_unittest.cc",
+    "element_highlighter_unittest.cc",
     "element_tracker_unittest.cc",
     "framework_specific_implementation_unittest.cc",
     "framework_specific_registration_list_unittest.cc",
     "interaction_sequence_unittest.cc",
     "interaction_test_util_unittest.cc",
     "interactive_test_unittest.cc",
-    "typed_data_collection_unittest.cc",
   ]
 
   if (is_mac) {

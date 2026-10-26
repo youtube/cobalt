@@ -7,10 +7,12 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
-#include "chrome/browser/ui/webui/webui_toolbar/split_tabs_utils.h"
+#include "chrome/browser/ui/webui/webui_toolbar/utils/split_tabs_utils.h"
 #include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
+#include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
 #include "components/prefs/pref_member.h"
 #include "ui/base/models/menu_model.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/views/controls/menu/menu_runner.h"
 
 class WebUIToolbarWebView;
@@ -32,7 +34,7 @@ class WebUISplitTabsControl : public TabStripModelObserver {
   bool IsVisible() const;
 
   // Handles context menu requests from the WebUI.
-  void HandleContextMenu(browser_controls_api::mojom::ContextMenuType menu_type,
+  void HandleContextMenu(toolbar_ui_api::mojom::ContextMenuType menu_type,
                          const gfx::Point& screen_location,
                          ui::mojom::MenuSourceType source);
 
@@ -44,29 +46,24 @@ class WebUISplitTabsControl : public TabStripModelObserver {
   void OnSplitTabChanged(const SplitTabChange& change) override;
 
  private:
-  struct SplitTabsButtonState {
-    webui_toolbar::TabSplitStatus split_status;
-    bool is_pinned = false;
-  };
-
   FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewPixelBrowserTest,
                            CheckSplitTabsButtonColor);
+  FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewSplitTabsBrowserTest,
+                           CheckSplitTabsButtonSourceType);
 
-  SplitTabsButtonState GetCurrentState() const;
-  void UpdateVisibility(const SplitTabsButtonState& state);
-  void UpdateTabSplitStatus();
-  void UpdatePinState();
-  void RunMenuAt(int x, int y);
-  void OnMenuClosed();
+  void UpdateVisibility(
+      const toolbar_ui_api::mojom::SplitTabsControlState* state);
+  void UpdateState();
+  void RunMenuAt(int x, int y, ui::mojom::MenuSourceType source_type);
 
   raw_ptr<WebUIToolbarWebView> toolbar_view_;
   BooleanPrefMember pin_state_;
   bool is_visible_ = false;
 
-  webui_toolbar::TabSplitStatus last_sent_tab_split_status_;
-  bool last_sent_pin_state_ = false;
-  browser_controls_api::mojom::ContextMenuType current_menu_type_ =
-      browser_controls_api::mojom::ContextMenuType::kUnspecified;
+  toolbar_ui_api::mojom::ContextMenuType current_menu_type_ =
+      toolbar_ui_api::mojom::ContextMenuType::kUnspecified;
+  ui::mojom::MenuSourceType last_source_type_for_testing_ =
+      ui::mojom::MenuSourceType::kNone;
 
   std::unique_ptr<ui::MenuModel> split_tab_menu_;
   std::unique_ptr<views::MenuRunner> menu_runner_;

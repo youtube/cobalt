@@ -15,13 +15,13 @@
 #include "base/time/time.h"
 #include "base/uuid.h"
 #include "components/send_tab_to_self/features.h"
-#include "components/send_tab_to_self/target_device_info.h"
 #include "components/sharing_message/fake_device_info.h"
 #include "components/sharing_message/features.h"
 #include "components/sharing_message/sharing_constants.h"
 #include "components/sharing_message/sharing_utils.h"
 #include "components/sync/test/test_sync_service.h"
 #include "components/sync_device_info/device_info.h"
+#include "components/sync_device_info/device_name_util.h"
 #include "components/sync_device_info/fake_device_info_sync_service.h"
 #include "components/sync_device_info/fake_device_info_tracker.h"
 #include "components/sync_device_info/fake_local_device_info_provider.h"
@@ -100,13 +100,9 @@ TEST_F(SharingDeviceSourceSyncTest, RunsReadyCallback) {
 
   auto device_source = CreateDeviceSource(/*wait_until_ready=*/false);
 
-  base::RunLoop run_loop;
   bool did_run_callback = false;
-  device_source->AddReadyCallback(
-      base::BindLambdaForTesting([&did_run_callback, &run_loop]() {
-        did_run_callback = true;
-        run_loop.Quit();
-      }));
+  device_source->AddReadyCallback(base::BindLambdaForTesting(
+      [&did_run_callback]() { did_run_callback = true; }));
   EXPECT_FALSE(did_run_callback);
 
   // Make DeviceInfoTracker ready.
@@ -115,10 +111,6 @@ TEST_F(SharingDeviceSourceSyncTest, RunsReadyCallback) {
 
   // Set LocalDeviceInfoProvider ready.
   fake_local_device_info_provider_.SetReady(true);
-  EXPECT_FALSE(did_run_callback);
-
-  // Wait until local device name is ready.
-  run_loop.Run();
   EXPECT_TRUE(did_run_callback);
 }
 
@@ -158,6 +150,7 @@ TEST_F(SharingDeviceSourceSyncTest, GetDeviceCandidates_Ready) {
 }
 
 TEST_F(SharingDeviceSourceSyncTest, GetDeviceCandidates_NotReady) {
+  fake_local_device_info_provider_.SetReady(false);
   auto device_source = CreateDeviceSource(/*wait_until_ready=*/false);
   auto device_info = CreateDeviceInfo(
       "client_name", sync_pb::SharingSpecificFields::CLICK_TO_CALL_V2);
@@ -203,14 +196,6 @@ TEST_F(SharingDeviceSourceSyncTest, GetDeviceCandidates_Deduplicated) {
                        local_device_info_->model_name());
   fake_device_info_tracker_.Add(device_info_5.get());
 
-  // Add a device with the local personalizable device name as client_name to
-  // simulate old versions without hardware info.
-  task_environment_.FastForwardBy(base::Seconds(10));
-  auto device_info_6 =
-      CreateDeviceInfo(syncer::GetPersonalizableDeviceNameBlocking(),
-                       sync_pb::SharingSpecificFields::CLICK_TO_CALL_V2);
-  fake_device_info_tracker_.Add(device_info_6.get());
-
   auto devices = device_source->GetDeviceCandidates(
       sync_pb::SharingSpecificFields::CLICK_TO_CALL_V2);
   ASSERT_EQ(2u, devices.size());
@@ -247,18 +232,14 @@ TEST_F(SharingDeviceSourceSyncTest, GetDeviceCandidates_DeviceNaming) {
   auto devices = device_source->GetDeviceCandidates(
       sync_pb::SharingSpecificFields::CLICK_TO_CALL_V2);
   ASSERT_EQ(4u, devices.size());
-  EXPECT_EQ(
-      send_tab_to_self::GetSharingDeviceNames(device_info_4.get()).short_name,
-      devices[0].client_name());
-  EXPECT_EQ(
-      send_tab_to_self::GetSharingDeviceNames(device_info_3.get()).full_name,
-      devices[1].client_name());
-  EXPECT_EQ(
-      send_tab_to_self::GetSharingDeviceNames(device_info_2.get()).full_name,
-      devices[2].client_name());
-  EXPECT_EQ(
-      send_tab_to_self::GetSharingDeviceNames(device_info_1.get()).short_name,
-      devices[3].client_name());
+  EXPECT_EQ(syncer::GetDeviceDisplayNames(device_info_4.get()).short_name,
+            devices[0].client_name());
+  EXPECT_EQ(syncer::GetDeviceDisplayNames(device_info_3.get()).full_name,
+            devices[1].client_name());
+  EXPECT_EQ(syncer::GetDeviceDisplayNames(device_info_2.get()).full_name,
+            devices[2].client_name());
+  EXPECT_EQ(syncer::GetDeviceDisplayNames(device_info_1.get()).short_name,
+            devices[3].client_name());
 }
 
 TEST_F(SharingDeviceSourceSyncTest, GetDeviceCandidates_Expired) {
@@ -332,13 +313,11 @@ TEST_F(SharingDeviceSourceSyncTest, GetDeviceCandidates_RenameAfterFiltering) {
       sync_pb::SharingSpecificFields::CLICK_TO_CALL_V2);
   ASSERT_EQ(2u, devices.size());
   EXPECT_EQ(device_info_4->guid(), devices[0].guid());
-  EXPECT_EQ(
-      send_tab_to_self::GetSharingDeviceNames(device_info_4.get()).short_name,
-      devices[0].client_name());
+  EXPECT_EQ(syncer::GetDeviceDisplayNames(device_info_4.get()).short_name,
+            devices[0].client_name());
   EXPECT_EQ(device_info_2->guid(), devices[1].guid());
-  EXPECT_EQ(
-      send_tab_to_self::GetSharingDeviceNames(device_info_2.get()).short_name,
-      devices[1].client_name());
+  EXPECT_EQ(syncer::GetDeviceDisplayNames(device_info_2.get()).short_name,
+            devices[1].client_name());
 }
 
 TEST_F(SharingDeviceSourceSyncTest, GetDeviceCandidates_NoChannel) {

@@ -9,6 +9,9 @@ import type {AppRefreshElement} from './app_refresh.js';
 export function getHtml(this: AppRefreshElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
+<img class="background-shape" id="background-right" alt="">
+<img class="background-shape" id="background-bottom" alt="">
+
 <div id="header"></div>
 <div id="content-div">
 
@@ -18,7 +21,7 @@ export function getHtml(this: AppRefreshElement) {
 
   <div class="content-child" id="showcase-description">
     <div id="stepper-placeholder">
-      <img id="keep-icon" src="images/keep_icon.svg" alt="">
+      <img id="product-logo" src="images/product-logo.svg" alt="">
     </div>
     <div id="showcase-text">
       <h1 class="title">$i18n{refreshDefaultBrowserTitle}</h1>

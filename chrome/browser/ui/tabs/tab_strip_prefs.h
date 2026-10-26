@@ -9,7 +9,8 @@ namespace user_prefs {
 class PrefRegistrySyncable;
 }
 
-class Profile;
+class PrefService;
+class BrowserWindowInterface;
 
 namespace tabs {
 
@@ -26,8 +27,12 @@ bool GetDefaultTabSearchRightAligned();
 // Registers Tab Strip specific prefs.
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
+// Migrates the tab search toolbar pin pref to the combo button pin pref.
+void MigrateTabSearchPref(PrefService* profile_prefs);
+
 // Return the value of the preference for TabSearchPosition.
-TabSearchPosition GetTabSearchPosition(const Profile* profile);
+TabSearchPosition GetTabSearchPosition(
+    const BrowserWindowInterface* browser_window);
 
 void SetTabSearchRightAlignedForTesting(bool is_right_aligned);
 

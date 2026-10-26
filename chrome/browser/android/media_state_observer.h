@@ -9,6 +9,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/media/webrtc/media_stream_capture_indicator.h"
+#include "chrome/browser/tab/media_state.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
 
@@ -47,6 +48,8 @@ class MediaStateObserver
   // Called when the mirroring state of the WebContents has changed.
   void OnIsBeingMirroredChanged(content::WebContents* web_contents,
                                 bool is_being_mirrored) override;
+  // Called when the picture in picture state has changed.
+  void MediaPictureInPictureChanged(bool is_in_picture_in_picture) override;
 
  private:
   friend class content::WebContentsUserData<MediaStateObserver>;
@@ -69,6 +72,9 @@ class MediaStateObserver
   bool is_capturing_audio_ = false;
   bool is_audio_muted_ = false;
   bool is_audible_ = false;
+  bool is_in_pip_ = false;
+
+  tabs::MediaState media_state_ = tabs::MediaState::kNone;
 
   // Subscription to be notified when the recently audible state has changed.
   const base::CallbackListSubscription recently_audible_subscription_;

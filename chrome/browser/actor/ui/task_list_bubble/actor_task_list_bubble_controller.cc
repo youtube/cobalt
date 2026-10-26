@@ -6,25 +6,27 @@
 
 #include <string>
 
+#include "base/check.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/ui/actor_ui_metrics.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/tabs/glic_actor_task_icon_manager_factory.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_action_container.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_glic_actor_task_icon.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
 #include "ui/base/base_window.h"
 #include "ui/base/l10n/l10n_util.h"
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/public/glic_keyed_service.h"
-#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
-#include "chrome/browser/ui/tabs/glic_actor_task_icon_manager_factory.h"
-#endif
 
 DEFINE_USER_DATA(ActorTaskListBubbleController);
 
@@ -33,7 +35,7 @@ ActorTaskListBubbleController::ActorTaskListBubbleController(
     : browser_(browser_window),
       scoped_unowned_user_data_(browser_window->GetUnownedUserDataHost(),
                                 *this) {
-#if BUILDFLAG(ENABLE_GLIC)
+  CHECK(base::FeatureList::IsEnabled(features::kGlicActor));
   if (auto* manager = tabs::GlicActorTaskIconManagerFactory::GetForProfile(
           browser_->GetProfile())) {
     bubble_state_change_callback_subscription_.push_back(
@@ -41,12 +43,10 @@ ActorTaskListBubbleController::ActorTaskListBubbleController(
             base::BindRepeating(&ActorTaskListBubbleController::OnStateUpdate,
                                 base::Unretained(this))));
   }
-#endif
 }
 
 ActorTaskListBubbleController::~ActorTaskListBubbleController() = default;
 
-#if BUILDFLAG(ENABLE_GLIC)
 void ActorTaskListBubbleController::ShowBubble(views::View* anchor_view) {
   if (!browser_->IsActive()) {
     // Only show the bubble in the active window.
@@ -82,24 +82,26 @@ void ActorTaskListBubbleController::ShowBubble(views::View* anchor_view) {
 }
 
 void ActorTaskListBubbleController::OnStateUpdate() {
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::BindOnce(&ActorTaskListBubbleController::OnStateUpdateImpl,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
-
-void ActorTaskListBubbleController::OnStateUpdateImpl() {
   if (auto* browser_view = BrowserElementsViews::From(browser_)) {
-    TabStripActionContainer* tab_strip_action_container =
-        browser_view->GetViewAs<TabStripActionContainer>(
-            kTabStripActionContainerElementId);
-    if (tab_strip_action_container &&
-        tab_strip_action_container->GetIsShowingGlicActorTaskIconNudge()) {
-      ShowBubble(tab_strip_action_container->glic_actor_task_icon());
+    auto* vertical_tab_strip_state_controller =
+        tabs::VerticalTabStripStateController::From(browser_);
+    if (vertical_tab_strip_state_controller->ShouldDisplayVerticalTabs()) {
+      ToolbarView* toolbar_view =
+          browser_view->GetViewAs<ToolbarView>(ToolbarView::kToolbarElementId);
+      if (toolbar_view && toolbar_view->GetIsShowingGlicActorTaskIconNudge()) {
+        ShowBubble(toolbar_view->glic_actor_task_icon());
+      }
+    } else {
+      TabStripActionContainer* tab_strip_action_container =
+          browser_view->GetViewAs<TabStripActionContainer>(
+              kTabStripActionContainerElementId);
+      if (tab_strip_action_container &&
+          tab_strip_action_container->GetIsShowingGlicActorTaskIconNudge()) {
+        ShowBubble(tab_strip_action_container->glic_actor_task_icon());
+      }
     }
   }
 }
-#endif
 
 void ActorTaskListBubbleController::OnWidgetDestroyed(views::Widget* widget) {
   bubble_widget_ = nullptr;
@@ -121,7 +123,6 @@ ActorTaskListBubbleController::RegisterBubbleDestroyedCallback(
 }
 
 void ActorTaskListBubbleController::OnTaskRowClicked(actor::TaskId task_id) {
-#if BUILDFLAG(ENABLE_GLIC)
   Profile* profile = browser_->GetProfile();
   actor::ui::ActorUiStateManagerInterface* manager =
       actor::ActorKeyedService::Get(profile)->GetActorUiStateManager();
@@ -153,7 +154,6 @@ void ActorTaskListBubbleController::OnTaskRowClicked(actor::TaskId task_id) {
     bubble_widget_->Close();
   }
   actor::ui::LogTaskListBubbleRowClicked();
-#endif
 }
 
 // static

@@ -39,6 +39,7 @@
 #include "src/gpu/graphite/CommandBuffer.h"
 #include "src/gpu/graphite/Device.h"
 #include "src/gpu/graphite/DrawContext.h"
+#include "src/gpu/graphite/Image_Base_Graphite.h"
 #include "src/gpu/graphite/Image_Graphite.h"
 #include "src/gpu/graphite/Log.h"
 #include "src/gpu/graphite/RecorderPriv.h"
@@ -64,21 +65,102 @@ namespace skgpu::graphite {
 
 namespace {
 
-sk_sp<Surface> make_renderable_scratch_surface(
-        Recorder* recorder,
-        const SkImageInfo& info,
-        SkBackingFit backingFit,
-        std::string_view label,
-        const SkSurfaceProps* surfaceProps = nullptr) {
-    SkColorType ct = recorder->priv().caps()->getRenderableColorType(info.colorType());
-    if (ct == kUnknown_SkColorType) {
-        return nullptr;
-    }
+// We choose a fallback color type that will map to the same texture format as `dstCT` but will be
+// considered renderable (assuming the format is supported). This allows the content to be
+// rendered and then we "cast" back to the original requested color type for the image view of the
+// scratch surface.
+//
+// This function takes in the `srcCT` as well because it can enable some fallbacks that are not
+// otherwise possible (e.g. gray -> red -> gray).
+SkColorType renderable_colortype(SkColorType srcCT, SkColorType dstCT) {
+    // This mapping only includes color types that are often deemed non-renderable because of
+    // semantics (e.g. can't blend into an alpha channel that is meant to be masked during sampling,
+    // or can't render gray from an arbitrary RGB source).
+    //
+    // We intentionally don't support falling back from one color type to another if it changes
+    // the underlying data type. It is better to fail the operation to signal to the client that
+    // the action isn't possible and let them choose what sort of fallback should happen.
+    switch (dstCT) {
+        // For these types we can always render with the alpha channel and not worry about
+        // blending because every draw operation uses kSrc and we're filling all pixels. The
+        // image view will then still use an rgb1 swizzle to hide any bad alpha data from the
+        // original image.
+        case kRGB_101010x_SkColorType:    return kRGBA_1010102_SkColorType;
+        case kBGR_101010x_SkColorType:    return kBGRA_1010102_SkColorType;
+        case kRGB_F16F16F16x_SkColorType: return kRGBA_F16_SkColorType;
+        case kRGBA_F16Norm_SkColorType:   return kRGBA_F16_SkColorType;
 
-    // TODO(b/323886870): Historically the scratch surfaces used here were exact-fit but they should
-    // be able to be approx-fit and uninstantiated.
-    return Surface::MakeScratch(
-            recorder, info.makeColorType(ct), label, Budgeted::kYes, Mipmapped::kNo, backingFit);
+        // While it is the case that a BGRA format can be used with a kRGB_888x colortype, we
+        // don't look at srcCT to guess the format and switch to kBGRA_8888. In the event that
+        // this copied image will be read back to the CPU, it's best to match the color type's
+        // channel ordering.
+        case kRGB_888x_SkColorType:       return kRGBA_8888_SkColorType;
+
+        // Normally kGray is never renderable from arbitrary RGB color data because calculating the
+        // luminance/gray level is a dot product. However, if the source color type is also gray,
+        // then the only channel we care about is R, which is renderable. After rendering to R,
+        // the image view's swizzle can splat that out to produce grayscale.
+        case kGray_8_SkColorType:
+            if (srcCT == kGray_8_SkColorType) {
+                return kR8_unorm_SkColorType;
+            } else {
+                return kUnknown_SkColorType;
+            }
+
+        default:
+            // If this color type isn't renderable or doesn't map to a supported format, then there
+            // isn't any other fallback that can happen.
+            return dstCT;
+    }
+}
+
+SkAlphaType renderable_alphatype(SkAlphaType srcAT, SkAlphaType dstAT) {
+    switch (srcAT) {
+        case kUnknown_SkAlphaType:
+            // The src image will be forced opaque as part of sampling, so the output pixels will
+            // be guaranteed opaque (can upgrade requested kPremul or kUnpremul to kOpaque since the
+            // RGB values are unchanged).
+            return kOpaque_SkAlphaType;
+        case kOpaque_SkAlphaType:
+            // The src image claims to be opaque, so the output pixels should be opaque.
+            return kOpaque_SkAlphaType;
+        case kPremul_SkAlphaType:
+            // Always render to kPremul, regardless of the requested dst AT. If the dst AT was
+            // kPremul this is a no-op. If it was kOpaque, SkColorSpaceXformSteps treats it as the
+            // src AT, so it's also a no-op. If it was kUnknown, the image view will presumably be
+            // sampled with a masked opaque alpha channel, so producing premul RGB values emulates
+            // having blended with solid black. If it is kUnpremul, there is no current way to
+            // render to a kUnpremul render target; using kPremul here allows the copy to proceed
+            // and then any unpremul math will happen during sampling or readback conversion.
+            return kPremul_SkAlphaType;
+        case kUnpremul_SkAlphaType:
+            // If the requested dst AT is kPremul, then keep that so the premultiply is performed
+            // during the copy conversion. In all other cases, switch to kOpaque so that we are
+            // deemed renderable and color conversion in SkColorSpaceXformSteps produces a no-op.
+            // Since the only actual rendering to this surface will be pixel-filling with kSrc
+            // blending, this alpha type manipulation is valid.
+            return dstAT == kPremul_SkAlphaType ? kPremul_SkAlphaType : kOpaque_SkAlphaType;
+    }
+    SkUNREACHABLE;
+}
+
+SkAlphaType final_alphatype(SkAlphaType srcAT, SkAlphaType renderedAT) {
+    // Assuming `renderedAT` was the result of calling `renderable_alphatype` for `srcAT` and some
+    // `dstAT`, the final AT to use for the image view is almost always `renderedAT` because it is
+    // either more accurate (propogates src opaque-ness into the copy's alpha type), a no-op (it
+    // was premul), or unpremul output was requested for premul input and that's not supported so
+    // we need to reflect the copy as premul still in its image info.
+    //
+    // The only exception is for when both srcAT and dstAT were unpremul, in which case
+    // `renderedAT` is manipulated to be kOpaque for rendering but in actuality the output remains
+    // unpremul and that should be reflected in the final image info as well.
+    return (srcAT == kUnpremul_SkAlphaType && renderedAT == kOpaque_SkAlphaType) ?
+            kUnpremul_SkAlphaType : renderedAT;
+}
+
+SkColorInfo make_renderable(const SkColorInfo& srcInfo, const SkColorInfo& dstInfo) {
+    return dstInfo.makeColorType(renderable_colortype(srcInfo.colorType(), dstInfo.colorType()))
+                  .makeAlphaType(renderable_alphatype(srcInfo.alphaType(), dstInfo.alphaType()));
 }
 
 bool valid_client_provided_image(const SkImage* clientProvided,
@@ -165,15 +247,15 @@ private:
 
 } // anonymous namespace
 
-std::tuple<TextureProxyView, SkColorType> MakeBitmapProxyView(Recorder* recorder,
-                                                              const SkBitmap& bitmap,
-                                                              sk_sp<SkMipmap> mipmapsIn,
-                                                              Mipmapped mipmapped,
-                                                              Budgeted budgeted,
-                                                              std::string_view label) {
+TextureProxyView MakeBitmapProxyView(Recorder* recorder,
+                                     const SkBitmap& bitmap,
+                                     sk_sp<SkMipmap> mipmapsIn,
+                                     Mipmapped mipmapped,
+                                     Budgeted budgeted,
+                                     std::string_view label) {
     // Adjust params based on input and Caps
     const Caps* caps = recorder->priv().caps();
-    SkColorType ct = bitmap.info().colorType();
+    const SkColorType ct = bitmap.info().colorType();
 
     if (bitmap.dimensions().area() <= 1) {
         mipmapped = Mipmapped::kNo;
@@ -183,43 +265,26 @@ std::tuple<TextureProxyView, SkColorType> MakeBitmapProxyView(Recorder* recorder
     auto textureInfo = caps->getDefaultSampledTextureInfo(ct, mipmapped, isProtected,
                                                           Renderable::kNo);
     if (!textureInfo.isValid()) {
-        ct = kRGBA_8888_SkColorType;
-        textureInfo = caps->getDefaultSampledTextureInfo(ct, mipmapped, isProtected,
-                                                         Renderable::kNo);
+        return {};
     }
-    SkASSERT(textureInfo.isValid());
-
-    // Convert bitmap to texture colortype if necessary
-    SkBitmap bmpToUpload;
-    if (ct != bitmap.info().colorType()) {
-        if (!bmpToUpload.tryAllocPixels(bitmap.info().makeColorType(ct)) ||
-            !bitmap.readPixels(bmpToUpload.pixmap())) {
-            return {};
-        }
-        bmpToUpload.setImmutable();
-    } else {
-        bmpToUpload = bitmap;
-    }
-
-    if (!SkImageInfoIsValid(bmpToUpload.info())) {
+    if (!SkImageInfoIsValid(bitmap.info())) {
         return {};
     }
 
     int mipLevelCount = (mipmapped == Mipmapped::kYes) ?
             SkMipmap::ComputeLevelCount(bitmap.width(), bitmap.height()) + 1 : 1;
 
-
     // setup MipLevels
     sk_sp<SkMipmap> mipmaps;
     std::vector<MipLevel> texels;
     if (mipLevelCount == 1) {
         texels.resize(mipLevelCount);
-        texels[0].fPixels = bmpToUpload.getPixels();
-        texels[0].fRowBytes = bmpToUpload.rowBytes();
+        texels[0].fPixels = bitmap.getPixels();
+        texels[0].fRowBytes = bitmap.rowBytes();
     } else {
         mipmaps = SkToBool(mipmapsIn)
                           ? mipmapsIn
-                          : sk_sp<SkMipmap>(SkMipmap::Build(bmpToUpload.pixmap(), nullptr));
+                          : sk_sp<SkMipmap>(SkMipmap::Build(bitmap.pixmap(), nullptr));
         if (!mipmaps) {
             return {};
         }
@@ -227,8 +292,8 @@ std::tuple<TextureProxyView, SkColorType> MakeBitmapProxyView(Recorder* recorder
         SkASSERT(mipLevelCount == mipmaps->countLevels() + 1);
         texels.resize(mipLevelCount);
 
-        texels[0].fPixels = bmpToUpload.getPixels();
-        texels[0].fRowBytes = bmpToUpload.rowBytes();
+        texels[0].fPixels = bitmap.getPixels();
+        texels[0].fRowBytes = bitmap.rowBytes();
 
         for (int i = 1; i < mipLevelCount; ++i) {
             SkMipmap::Level generatedMipLevel;
@@ -236,29 +301,31 @@ std::tuple<TextureProxyView, SkColorType> MakeBitmapProxyView(Recorder* recorder
             texels[i].fPixels = generatedMipLevel.fPixmap.addr();
             texels[i].fRowBytes = generatedMipLevel.fPixmap.rowBytes();
             SkASSERT(texels[i].fPixels);
-            SkASSERT(generatedMipLevel.fPixmap.colorType() == bmpToUpload.colorType());
+            SkASSERT(generatedMipLevel.fPixmap.colorType() == bitmap.colorType());
         }
     }
 
     // Create proxy
     sk_sp<TextureProxy> proxy = TextureProxy::Make(caps,
                                                    recorder->priv().resourceProvider(),
-                                                   bmpToUpload.dimensions(),
+                                                   bitmap.dimensions(),
                                                    textureInfo,
                                                    label,
                                                    budgeted);
     if (!proxy) {
         return {};
     }
-    SkASSERT(caps->areColorTypeAndTextureInfoCompatible(ct, proxy->textureInfo()));
+
+    const TextureFormat format = TextureInfoPriv::ViewFormat(proxy->textureInfo());
+    SkASSERT(AreColorTypeAndFormatCompatible(ct, format));
     SkASSERT(mipmapped == Mipmapped::kNo || proxy->mipmapped() == Mipmapped::kYes);
 
     // Src and dst colorInfo are the same
-    const SkColorInfo& colorInfo = bmpToUpload.info().colorInfo();
+    const SkColorInfo& colorInfo = bitmap.info().colorInfo();
     // Add upload to the root upload list. These bitmaps are uploaded to unique textures so there is
     // no need to coordinate resource sharing. It is better to then group them into a single task
     // at the start of the Recording.
-    const SkIRect dimensions = SkIRect::MakeSize(bmpToUpload.dimensions());
+    const SkIRect dimensions = SkIRect::MakeSize(bitmap.dimensions());
     UploadSource uploadSource = UploadSource::Make(
             recorder->priv().caps(), *proxy, colorInfo, colorInfo, texels, dimensions);
     if (!uploadSource.isValid()) {
@@ -276,12 +343,8 @@ std::tuple<TextureProxyView, SkColorType> MakeBitmapProxyView(Recorder* recorder
         return {};
     }
 
-    Swizzle swizzle = caps->getReadSwizzle(ct, textureInfo);
-    // If the color type is alpha-only, propagate the alpha value to the other channels.
-    if (SkColorTypeIsAlphaOnly(colorInfo.colorType())) {
-        swizzle = Swizzle::Concat(swizzle, Swizzle("aaaa"));
-    }
-    return {{std::move(proxy), swizzle}, ct};
+    const Swizzle swizzle = ReadSwizzleForColorType(ct, format);
+    return {std::move(proxy), swizzle};
 }
 
 sk_sp<TextureProxy> MakePromiseImageLazyProxy(
@@ -309,24 +372,6 @@ sk_sp<TextureProxy> MakePromiseImageLazyProxy(
                                   std::move(callback));
 }
 
-sk_sp<SkImage> MakeFromBitmap(Recorder* recorder,
-                              const SkColorInfo& colorInfo,
-                              const SkBitmap& bitmap,
-                              sk_sp<SkMipmap> mipmaps,
-                              Budgeted budgeted,
-                              SkImage::RequiredProperties requiredProps,
-                              std::string_view label) {
-    auto mm = requiredProps.fMipmapped ? Mipmapped::kYes : Mipmapped::kNo;
-    auto [view, ct] =
-            MakeBitmapProxyView(recorder, bitmap, std::move(mipmaps), mm, budgeted, label);
-    if (!view) {
-        return nullptr;
-    }
-
-    SkASSERT(!requiredProps.fMipmapped || view.proxy()->mipmapped() == Mipmapped::kYes);
-    return sk_make_sp<skgpu::graphite::Image>(std::move(view), colorInfo.makeColorType(ct));
-}
-
 size_t ComputeSize(SkISize dimensions, const TextureInfo& info) {
     TextureFormat format = TextureInfoPriv::ViewFormat(info);
     SkTextureCompressionType compression = TextureFormatCompressionType(format);
@@ -339,7 +384,7 @@ size_t ComputeSize(SkISize dimensions, const TextureInfo& info) {
                                                 info.mipmapped() == Mipmapped::kYes);
     } else {
         // TODO(b/401016699): Add logic to handle multiplanar formats
-        size_t bytesPerPixel = TextureFormatBytesPerBlock(format);
+        int bytesPerPixel = TextureFormatBytesPerBlock(format);
 
         colorSize = (size_t)dimensions.width() * dimensions.height() * bytesPerPixel;
     }
@@ -361,13 +406,11 @@ sk_sp<Image> CopyAsDraw(Recorder* recorder,
                         Mipmapped mipmapped,
                         SkBackingFit backingFit,
                         std::string_view label) {
-    SkColorType ct = recorder->priv().caps()->getRenderableColorType(dstColorInfo.colorType());
-    if (ct == kUnknown_SkColorType) {
-        return nullptr;
-    }
-    SkImageInfo dstInfo = SkImageInfo::Make(subset.size(),
-                                            dstColorInfo.makeColorType(ct)
-                                                        .makeAlphaType(kPremul_SkAlphaType));
+    // NOTE: This info may not exactly match `dstColorInfo` but will be castable back to
+    // `dstColorInfo` when we create the Image view.
+    SkImageInfo dstInfo = SkImageInfo::Make(
+            subset.size(), make_renderable(image->imageInfo().colorInfo(), dstColorInfo));
+
     // The surface goes out of scope when we return, so it can be scratch, but it may or may
     // not be budgeted depending on how the copied image is used (or returned to the client).
     sk_sp<Surface> surface =
@@ -381,41 +424,40 @@ sk_sp<Image> CopyAsDraw(Recorder* recorder,
     surface->getCanvas()->drawImage(image, -subset.left(), -subset.top(),
                                     SkFilterMode::kNearest, &paint);
     surface->flushToDrawContext(drawContext);
-    return surface->asImage();
+    // Get the image with the actual requested color type and the final alpha type.
+    return surface->asImage(dstColorInfo.colorType(),
+                            final_alphatype(image->alphaType(), dstInfo.alphaType()));
 }
 
-sk_sp<SkImage> RescaleImage(Recorder* recorder,
-                            const SkImage* srcImage,
-                            SkIRect srcIRect,
-                            const SkImageInfo& dstInfo,
-                            SkImage::RescaleGamma rescaleGamma,
-                            SkImage::RescaleMode rescaleMode) {
+sk_sp<Image> RescaleImage(Recorder* recorder,
+                          const Image_Base* srcImage,
+                          SkIRect srcIRect,
+                          const SkImageInfo& dstInfo,
+                          SkImage::RescaleGamma rescaleGamma,
+                          SkImage::RescaleMode rescaleMode) {
     TRACE_EVENT0("skia.gpu", TRACE_FUNC);
     TRACE_EVENT_INSTANT2("skia.gpu", "RescaleImage Src", TRACE_EVENT_SCOPE_THREAD,
                          "width", srcIRect.width(), "height", srcIRect.height());
     TRACE_EVENT_INSTANT2("skia.gpu", "RescaleImage Dst", TRACE_EVENT_SCOPE_THREAD,
                          "width", dstInfo.width(), "height", dstInfo.height());
 
-    // RescaleImage() should only be called when we already know that srcImage is graphite-backed
-    SkASSERT(srcImage && as_IB(srcImage)->isGraphiteBacked());
+    // Other than the final step, rescaling will be performed in the source color type and color
+    // space, possibly with a linear gamma adjustment (although changing the SkColorSpace can be
+    // applied to the result of make_renderable).
+    SkColorInfo stepInfo = make_renderable(srcImage->imageInfo().colorInfo(),
+                                           srcImage->imageInfo().colorInfo());
 
-    // For now this needs to be texturable because we can't depend on copies to scale.
-    // NOTE: srcView may be empty if srcImage is YUVA.
-    const TextureProxyView srcView = AsView(srcImage);
-    if (srcView && !recorder->priv().caps()->isTexturable(srcView.proxy()->textureInfo())) {
-        // With the current definition of SkImage, this shouldn't happen. If we allow non-texturable
-        // formats for compute, we'll need to copy to a texturable format.
-        SkASSERT(false);
-        return nullptr;
-    }
-
-    // make a Surface *exactly* matching dstInfo to rescale into
-    SkSurfaceProps surfaceProps = {};
-    sk_sp<SkSurface> dst = make_renderable_scratch_surface(recorder,
-                                                           dstInfo,
-                                                           SkBackingFit::kExact,
-                                                           "RescaleDstTexture",
-                                                           &surfaceProps);
+    // Make a Surface *exactly* (barring renderable adjustments) matching dstInfo for the final
+    // scaling step.
+    SkColorInfo renderableDstInfo =
+            make_renderable(srcImage->imageInfo().colorInfo(), dstInfo.colorInfo());
+    sk_sp<Surface> dst = Surface::MakeScratch(
+            recorder,
+            SkImageInfo::Make(dstInfo.dimensions(), renderableDstInfo),
+            "RescaleDstTexture",
+            Budgeted::kYes,
+            Mipmapped::kNo,
+            SkBackingFit::kExact);
     if (!dst) {
         return nullptr;
     }
@@ -431,23 +473,22 @@ sk_sp<SkImage> RescaleImage(Recorder* recorder,
 
     // Within a rescaling pass tempInput is read from and tempOutput is written to.
     // At the end of the pass tempOutput's texture is wrapped and assigned to tempInput.
-    sk_sp<SkImage> tempInput = sk_ref_sp(srcImage);
-    sk_sp<SkSurface> tempOutput;
+    sk_sp<Image_Base> tempInput = sk_ref_sp(srcImage);
+    sk_sp<Surface> tempOutput;
 
     // Assume we should ignore the rescale linear request if the surface has no color space since
     // it's unclear how we'd linearize from an unknown color space.
-    const SkImageInfo& srcImageInfo = srcImage->imageInfo();
     if (rescaleGamma == Image::RescaleGamma::kLinear &&
-        srcImageInfo.colorSpace() &&
-        !srcImageInfo.colorSpace()->gammaIsLinear()) {
+        stepInfo.colorSpace() &&
+        !stepInfo.colorSpace()->gammaIsLinear()) {
         // Draw the src image into a new surface with linear gamma, and make that the new tempInput
-        sk_sp<SkColorSpace> linearGamma = srcImageInfo.colorSpace()->makeLinearGamma();
+        sk_sp<SkColorSpace> linearGamma = stepInfo.colorSpace()->makeLinearGamma();
         SkImageInfo gammaDstInfo = SkImageInfo::Make(srcIRect.size(),
-                                                     tempInput->imageInfo().colorType(),
-                                                     kPremul_SkAlphaType,
-                                                     std::move(linearGamma));
-        tempOutput = make_renderable_scratch_surface(recorder, gammaDstInfo, SkBackingFit::kApprox,
-                                                     "RescaleLinearGammaTexture", &surfaceProps);
+                                                     stepInfo.makeColorSpace(linearGamma));
+        tempOutput = Surface::MakeScratch(recorder,
+                                          gammaDstInfo,
+                                          "RescaleLinearGammaTexture");
+
         if (!tempOutput) {
             return nullptr;
         }
@@ -459,11 +500,11 @@ sk_sp<SkImage> RescaleImage(Recorder* recorder,
         gammaDst->drawImageRect(tempInput, srcRect, gammaDstRect,
                                 SkSamplingOptions(SkFilterMode::kNearest), &paint,
                                 SkCanvas::kStrict_SrcRectConstraint);
-        tempInput = SkSurfaces::AsImage(std::move(tempOutput));
+        tempInput = tempOutput->asImage();
         srcRect = gammaDstRect;
+        stepInfo = gammaDstInfo.colorInfo(); // remaining steps output linear gamma too
     }
 
-    SkImageInfo outImageInfo = tempInput->imageInfo().makeAlphaType(kPremul_SkAlphaType);
     do {
         SkISize nextDims = finalSize;
         if (rescaleMode != Image::RescaleMode::kNearest &&
@@ -482,12 +523,13 @@ sk_sp<SkImage> RescaleImage(Recorder* recorder,
 
         SkRect stepDstRect;
         if (nextDims == finalSize) {
+            // The final surface's color info is `renderableDstInfo`
             tempOutput = dst;
             stepDstRect = dstRect;
         } else {
-            SkImageInfo nextInfo = outImageInfo.makeDimensions(nextDims);
-            tempOutput = make_renderable_scratch_surface(recorder, nextInfo, SkBackingFit::kApprox,
-                                                         "RescaleImageTempTexture", &surfaceProps);
+            tempOutput = Surface::MakeScratch(recorder,
+                                              SkImageInfo::Make(nextDims, stepInfo),
+                                              "RescaleImageTempTexture");
             if (!tempOutput) {
                 return nullptr;
             }
@@ -507,50 +549,68 @@ sk_sp<SkImage> RescaleImage(Recorder* recorder,
         tempOutput->getCanvas()->drawImageRect(tempInput, srcRect, stepDstRect, samplingOptions,
                                                &paint, SkCanvas::kStrict_SrcRectConstraint);
 
-        tempInput = SkSurfaces::AsImage(std::move(tempOutput));
+        tempInput = tempOutput->asImage();
         srcRect = SkRect::Make(nextDims);
     } while (srcRect.width() != finalSize.width() || srcRect.height() != finalSize.height());
 
-    return SkSurfaces::AsImage(std::move(dst));
+    // Cast back to the requested color type and final alpha type now that rendering is finished.
+    return dst->asImage(dstInfo.colorType(),
+                        final_alphatype(srcImage->alphaType(), renderableDstInfo.alphaType()));
 }
 
-bool GenerateMipmaps(Recorder* recorder,
-                     DrawContext* drawContext,
-                     sk_sp<TextureProxy> texture,
-                     const SkColorInfo& colorInfo) {
-    constexpr SkSamplingOptions kSamplingOptions = SkSamplingOptions(SkFilterMode::kLinear);
-
+bool GenerateMipmaps(Recorder* recorder, DrawContext* drawContext, sk_sp<TextureProxy> texture) {
     SkASSERT(texture->mipmapped() == Mipmapped::kYes);
 
-    // Within a rescaling pass scratchImg is read from and a scratch surface is written to.
-    // At the end of the pass the scratch surface's texture is wrapped and assigned to scratchImg.
+    // GenerateMipmaps uses Surface and Image to generate mipmaps by drawing each level at 1/2
+    // scale compared to the last level and then copying from the scratch surface into `texture`.
+    // Surface and Image require SkColorInfo but it does not matter what is chosen so long as the
+    // final color management results in the identity function (including read/write swizzles).
+    // This ensures that whatever the original color handling of `texture` is, the regenerated
+    // levels will match. To do this, we use these settings for both surface and images
+    //   - the default color type for the texture's format
+    //   - kOpaque_SkAlphaType to disable all premul/unpremul conversions and remain renderable,
+    //     (which is okay since all our drawing uses kSrc blending anyways)
+    //   - provide no SkColorSpace
+    //
+    // NOTE: In the future, if we were generate mipmaps in linear gamma, we would need to know about
+    // the original image's color space and alpha type.  We would also have to implement a custom
+    // filtering shader that sampled the base level several times with nearest filtering, convert
+    // each sample to linear+premul space, average them, and then convert that to the source color
+    // space and alpha type.
+    auto [colorType, _] =
+            TextureFormatColorTypeInfo(TextureInfoPriv::ViewFormat(texture->textureInfo()));
+    SkColorInfo colorInfo{colorType, kOpaque_SkAlphaType, /*cs=*/nullptr};
+    // Since we are creating the color info from the default color type for the texture format,
+    // it should match what we'd expect from make_renderable already.
+    SkASSERT(make_renderable(colorInfo, colorInfo) == colorInfo);
 
-    // The scratch surface we create below will use a write swizzle derived from SkColorType and
-    // pixel format. We have to be consistent and swizzle on the read.
-    auto imgSwizzle = recorder->priv().caps()->getReadSwizzle(colorInfo.colorType(),
-                                                              texture->textureInfo());
+    // Configure swizzle for the initial image to match what happens in Surface::asImage()
+    auto imgSwizzle = ReadSwizzleForColorType(colorInfo.colorType(),
+                                              TextureInfoPriv::ViewFormat(texture->textureInfo()));
     sk_sp<SkImage> scratchImg(new Image(TextureProxyView(texture, imgSwizzle), colorInfo));
-
-    SkISize srcSize = texture->dimensions();
-    const SkColorInfo outColorInfo = colorInfo.makeAlphaType(kPremul_SkAlphaType);
 
     // Alternate between two scratch surfaces to avoid reading from and writing to a texture in the
     // same pass. The dimensions of the first usages of the two scratch textures will be 1/2 and 1/4
     // those of the original texture, respectively.
+    SkISize srcSize = texture->dimensions();
     sk_sp<Surface> scratchSurfaces[2];
     for (int i = 0; i < 2; ++i) {
-        scratchSurfaces[i] = make_renderable_scratch_surface(
+        scratchSurfaces[i] = Surface::MakeScratch(
                 recorder,
                 SkImageInfo::Make(SkISize::Make(std::max(1, srcSize.width() >> (i + 1)),
                                                 std::max(1, srcSize.height() >> (i + 1))),
-                                  outColorInfo),
-                SkBackingFit::kApprox,
-                "GenerateMipmapsScratchTexture");
+                                  colorInfo),
+                "GenerateMipmapsScratchTexture",
+                Budgeted::kYes,
+                Mipmapped::kNo,
+                SkBackingFit::kApprox);
         if (!scratchSurfaces[i]) {
             return false;
         }
     }
 
+    // Within a rescaling pass scratchImg is read from and a scratch surface is written to.
+    // At the end of the pass the scratch surface's texture is wrapped and assigned to scratchImg.
     for (int mipLevel = 1; srcSize.width() > 1 || srcSize.height() > 1; ++mipLevel) {
         const SkISize dstSize = SkISize::Make(std::max(srcSize.width() >> 1, 1),
                                               std::max(srcSize.height() >> 1, 1));
@@ -562,7 +622,7 @@ bool GenerateMipmaps(Recorder* recorder,
         scratchSurface->getCanvas()->drawImageRect(scratchImg,
                                                    SkRect::Make(srcSize),
                                                    SkRect::Make(dstSize),
-                                                   kSamplingOptions,
+                                                   SkFilterMode::kLinear,
                                                    &paint,
                                                    SkCanvas::kStrict_SrcRectConstraint);
 
@@ -710,8 +770,9 @@ public:
         }
 
         const SkColorInfo& colorInfo = data.info().colorInfo();
-        skgpu::Swizzle swizzle = fRecorder->priv().caps()->getReadSwizzle(colorInfo.colorType(),
-                                                                          proxy->textureInfo());
+        skgpu::Swizzle swizzle = skgpu::graphite::ReadSwizzleForColorType(
+                colorInfo.colorType(),
+                skgpu::graphite::TextureInfoPriv::ViewFormat(proxy->textureInfo()));
         return sk_make_sp<skgpu::graphite::Image>(
                 skgpu::graphite::TextureProxyView(std::move(proxy), swizzle),
                 colorInfo);

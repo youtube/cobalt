@@ -9,9 +9,9 @@
 #include "chrome/browser/actor/ui/actor_overlay_ui.h"
 #include "chrome/browser/chrome_browser_interface_binders_webui_parts.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks.mojom.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_context_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_internals.mojom.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
+#include "chrome/browser/glic/selection/selection_overlay_untrusted_ui.h"
 #include "chrome/browser/history_clusters/history_clusters_service_factory.h"
 #include "chrome/browser/history_embeddings/history_embeddings_utils.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/drive_suggestion.mojom.h"
@@ -39,11 +39,11 @@
 #include "chrome/browser/ui/webui/data_sharing/data_sharing_ui.h"
 #include "chrome/browser/ui/webui/downloads/downloads.mojom.h"
 #include "chrome/browser/ui/webui/downloads/downloads_ui.h"
+#include "chrome/browser/ui/webui/feedback/feedback_ui.h"
+#include "chrome/browser/ui/webui/feedback/report_unsafe_site/report_unsafe_site.mojom.h"
 #include "chrome/browser/ui/webui/history/history_ui.h"
 #include "chrome/browser/ui/webui/infobar_internals/infobar_internals.mojom.h"
 #include "chrome/browser/ui/webui/infobar_internals/infobar_internals_ui.h"
-#include "chrome/browser/ui/webui/legion_internals/legion_internals.mojom.h"
-#include "chrome/browser/ui/webui/legion_internals/legion_internals_ui.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter_service.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer_ui.h"
@@ -64,6 +64,8 @@
 #include "chrome/browser/ui/webui/privacy_sandbox/privacy_sandbox_internals_ui.h"
 #include "chrome/browser/ui/webui/privacy_sandbox/private_state_tokens/private_state_tokens.mojom.h"
 #include "chrome/browser/ui/webui/privacy_sandbox/related_website_sets/related_website_sets.mojom.h"
+#include "chrome/browser/ui/webui/private_ai_internals/private_ai_internals.mojom.h"
+#include "chrome/browser/ui/webui/private_ai_internals/private_ai_internals_ui.h"
 #include "chrome/browser/ui/webui/search_engine_choice/search_engine_choice.mojom.h"  // nogncheck crbug.com/1125897
 #include "chrome/browser/ui/webui/search_engine_choice/search_engine_choice_ui.h"
 #include "chrome/browser/ui/webui/settings/settings_ui.h"
@@ -93,19 +95,21 @@
 #include "chrome/common/chrome_features.h"
 #include "components/autofill/core/browser/ml_model/logging/autofill_ml_internals.mojom.h"
 #include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
+#include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api.mojom.h"
 #include "components/commerce/core/mojom/shopping_service.mojom.h"  // nogncheck crbug.com/1125897
 #include "components/contextual_tasks/public/features.h"
 #include "components/data_sharing/public/features.h"
 #include "components/guest_contents/common/guest_contents.mojom.h"
 #include "components/history_clusters/core/history_clusters_service.h"
-#include "components/legion/features.h"
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/page_image_service/mojom/page_image_service.mojom.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
+#include "components/private_ai/features.h"
 #include "components/search/ntp_features.h"
+#include "components/surface_embed/buildflags/buildflags.h"
 #include "components/sync/base/features.h"
 #include "components/user_education/common/user_education_features.h"
 #include "content/public/browser/render_frame_host.h"
@@ -196,6 +200,12 @@
 #include "chrome/browser/default_browser/default_browser_features.h"
 #include "chrome/browser/ui/webui/default_browser/default_browser_modal.mojom.h"
 #include "chrome/browser/ui/webui/default_browser/default_browser_modal_ui.h"
+#endif
+
+#if BUILDFLAG(ENABLE_SURFACE_EMBED)
+#include "components/surface_embed/browser/surface_embed_host.h"
+#include "components/surface_embed/common/features.h"
+#include "components/surface_embed/common/surface_embed.mojom.h"
 #endif
 
 namespace chrome::internal {
@@ -498,6 +508,22 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
 
   map->Add<color_change_listener::mojom::PageHandler>(&BindColorChangeListener);
 
+#if BUILDFLAG(ENABLE_SURFACE_EMBED)
+  if (base::FeatureList::IsEnabled(surface_embed::features::kSurfaceEmbed)) {
+    map->Add<surface_embed::mojom::SurfaceEmbedHost>(base::BindRepeating(
+        [](content::RenderFrameHost* render_frame_host,
+           mojo::PendingReceiver<surface_embed::mojom::SurfaceEmbedHost>
+               receiver) {
+          auto* web_ui = render_frame_host->GetWebUI();
+          if (!web_ui || !web_ui->GetController()->GetAs<WebUIBrowserUI>()) {
+            return;
+          }
+          surface_embed::SurfaceEmbedHost::Create(render_frame_host,
+                                                  std::move(receiver));
+        }));
+  }
+#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
+
   RegisterWebUIControllerInterfaceBinder<::mojom::WebAppInternalsHandler,
                                          WebAppInternalsUI>(map);
 #if !BUILDFLAG(IS_COBALT)
@@ -568,17 +594,13 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
                                          webapps::AppHomeUI>(map);
 #endif
 
-  if (base::FeatureList::IsEnabled(legion::kLegion)) {
+  if (base::FeatureList::IsEnabled(private_ai::kPrivateAi)) {
     RegisterWebUIControllerInterfaceBinder<
-        legion_internals::mojom::LegionInternalsPageHandler, LegionInternalsUI>(
-        map);
+        private_ai_internals::mojom::PrivateAiInternalsPageHandler,
+        private_ai::PrivateAiInternalsUI>(map);
   }
 
-  auto* contextual_tasks_context_service =
-      contextual_tasks::ContextualTasksContextServiceFactory::GetForProfile(
-          Profile::FromBrowserContext(
-              render_frame_host->GetProcess()->GetBrowserContext()));
-  if (contextual_tasks_context_service) {
+  if (is_contextual_tasks_enabled) {
     RegisterWebUIControllerInterfaceBinder<
         contextual_tasks_internals::mojom::
             ContextualTasksInternalsPageHandlerFactory,
@@ -597,12 +619,20 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
 #endif  // BUILDFLAG(IS_MAC)
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
-  if (default_browser::IsDefaultBrowserFrameworkEnabled()) {
+  auto prompt_surface = default_browser::GetDefaultBrowserPromptSurface();
+
+  if (prompt_surface == default_browser::DefaultBrowserPromptSurface::
+                            kModalDialogWithoutSettingsIllustration ||
+      prompt_surface == default_browser::DefaultBrowserPromptSurface::
+                            kModalDialogWithSettingsIllustration) {
     RegisterWebUIControllerInterfaceBinder<
         default_browser_modal::mojom::PageHandlerFactory,
         DefaultBrowserModalUI>(map);
   }
 #endif
+
+  RegisterWebUIControllerInterfaceBinder<
+      feedback::report_unsafe_site::mojom::PageHandlerFactory, FeedbackUI>(map);
 }
 
 void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
@@ -653,6 +683,7 @@ void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
   if (features::IsWebUIToolbarEnabled()) {
     registry.ForWebUI<WebUIToolbarUI>()
         .Add<browser_controls_api::mojom::BrowserControlsService>()
+        .Add<toolbar_ui_api::mojom::ToolbarUIService>()
         .Add<tracked_element::mojom::TrackedElementHandler>();
   }
 
@@ -691,6 +722,11 @@ void PopulateChromeWebUIFrameInterfaceBrokersUntrustedPartsDesktop(
   registry.ForWebUI<NtpMicrosoftAuthUntrustedUI>()
       .Add<new_tab_page::mojom::
                MicrosoftAuthUntrustedDocumentInterfacesFactory>();
+
+  if (base::FeatureList::IsEnabled(features::kGlicRegionSelectionNew)) {
+    registry.ForWebUI<glic::SelectionOverlayUntrustedUI>()
+        .Add<glic::selection::SelectionOverlayPageHandlerFactory>();
+  }
 }
 
 }  // namespace chrome::internal

@@ -44,7 +44,7 @@
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 #include "net/cookies/cookie_setting_override.h"
 #include "services/network/public/cpp/network_service_buildflags.h"
-#include "services/network/public/cpp/originating_process.h"
+#include "services/network/public/cpp/originating_process_id.h"
 #include "services/network/public/mojom/cert_verifier_service_updater.mojom.h"
 #include "services/network/public/mojom/device_bound_sessions.mojom.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
@@ -241,20 +241,17 @@ class CONTENT_EXPORT StoragePartitionImpl
   leveldb_proto::ProtoDatabaseProvider* GetProtoDatabaseProviderForTesting()
       override;
   void ClearDataForOrigin(uint32_t remove_mask,
-                          uint32_t quota_storage_remove_mask,
                           const GURL& storage_origin,
                           base::OnceClosure callback) override;
   void ClearDataForBuckets(const blink::StorageKey& storage_key,
                            const std::set<std::string>& storage_buckets,
                            base::OnceClosure callback) override;
   void ClearData(uint32_t remove_mask,
-                 uint32_t quota_storage_remove_mask,
                  const blink::StorageKey& storage_key,
                  const base::Time begin,
                  const base::Time end,
                  base::OnceClosure callback) override;
   void ClearData(uint32_t remove_mask,
-                 uint32_t quota_storage_remove_mask,
                  BrowsingDataFilterBuilder* filter_builder,
                  StorageKeyPolicyMatcherFunction storage_key_policy_matcher,
                  network::mojom::CookieDeletionFilterPtr cookie_deletion_filter,
@@ -332,7 +329,7 @@ class CONTENT_EXPORT StoragePartitionImpl
       mojo::PendingReceiver<blink::mojom::StorageArea> receiver) override;
 
   // network::mojom::NetworkContextClient interface.
-  void OnFileUploadRequested(int32_t process_id,
+  void OnFileUploadRequested(const network::OriginatingProcessId& process_id,
                              bool async,
                              const std::vector<base::FilePath>& file_paths,
                              const GURL& destination_url,
@@ -504,7 +501,7 @@ class CONTENT_EXPORT StoragePartitionImpl
 
   mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver>
   CreateURLLoaderNetworkObserverForServiceOrSharedWorker(
-      const network::OriginatingProcess& process_id,
+      const network::OriginatingProcessId& process_id,
       const url::Origin& worker_origin);
 
   mojo::PendingRemote<network::mojom::DeviceBoundSessionAccessObserver>
@@ -595,7 +592,6 @@ class CONTENT_EXPORT StoragePartitionImpl
 
  private:
   class DataDeletionHelper;
-  class QuotaManagedDataDeletionHelper;
   class ServiceWorkerCookieAccessObserver;
   class ServiceWorkerTrustTokenAccessObserver;
   class ServiceWorkerSharedDictionaryAccessObserver;
@@ -665,7 +661,7 @@ class CONTENT_EXPORT StoragePartitionImpl
         GlobalRenderFrameHostId global_render_frame_host_id);
 
     // Used when `type` is `kSharedOrServiceWorkerContext`.
-    URLLoaderNetworkContext(const network::OriginatingProcess& process_id,
+    URLLoaderNetworkContext(const network::OriginatingProcessId& process_id,
                             const url::Origin& worker_origin);
 
     // Used when `type` is `kNavigationRequestContext`.
@@ -680,7 +676,7 @@ class CONTENT_EXPORT StoragePartitionImpl
       return navigation_or_document_.get();
     }
 
-    network::OriginatingProcess process_id() const { return process_id_; }
+    network::OriginatingProcessId process_id() const { return process_id_; }
     const std::optional<url::Origin>& worker_origin() const {
       return worker_origin_;
     }
@@ -697,7 +693,7 @@ class CONTENT_EXPORT StoragePartitionImpl
     scoped_refptr<NavigationOrDocumentHandle> navigation_or_document_;
 
     // Only valid when `type_` is kSharedOrServiceWorkerContext.
-    network::OriginatingProcess process_id_;
+    network::OriginatingProcessId process_id_;
 
     // Only valid and non-nullopt when `type_` is kSharedOrServiceWorkerContext.
     std::optional<url::Origin> worker_origin_;
@@ -739,7 +735,6 @@ class CONTENT_EXPORT StoragePartitionImpl
   // `filter_builder`/`storage_key_policy_matcher` will never both be populated.
   void ClearDataImpl(
       uint32_t remove_mask,
-      uint32_t quota_storage_remove_mask,
       const blink::StorageKey& storage_key,
       BrowsingDataFilterBuilder* filter_builder,
       StorageKeyPolicyMatcherFunction storage_key_policy_matcher,

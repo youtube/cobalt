@@ -6,11 +6,37 @@
 
 #include "chrome/browser/glic/media/glic_media_context.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "components/optimization_guide/content/browser/page_content_metadata_observer.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "content/public/browser/web_contents.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/mojom/content_extraction/ai_page_content_metadata.mojom.h"
 
 namespace glic {
+
+namespace {
+
+class MockPageContentMetadataObserver
+    : public optimization_guide::PageContentMetadataObserver {
+ public:
+  explicit MockPageContentMetadataObserver(content::WebContents* web_contents)
+      : optimization_guide::PageContentMetadataObserver(web_contents,
+                                                        {"test"},
+                                                        base::DoNothing()) {}
+  ~MockPageContentMetadataObserver() override = default;
+
+  MOCK_METHOD(void, OnTranscriptionBegin, (content::RenderFrameHost*), ());
+
+  base::WeakPtr<PageContentMetadataObserver> GetWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+ private:
+  base::WeakPtrFactory<PageContentMetadataObserver> weak_ptr_factory_{this};
+};
+
+}  // namespace
 
 class MediaTranscriptProviderImplTest : public ChromeRenderViewHostTestHarness {
  public:
@@ -51,6 +77,7 @@ TEST_F(MediaTranscriptProviderImplTest, GetTranscriptsForFrame) {
   // Verify the returned transcripts.
   auto transcripts = provider().GetTranscriptsForFrame(rfh());
   ASSERT_EQ(transcripts.size(), 3u);
+  EXPECT_TRUE(provider().HasTranscriptsForFrame(*rfh()));
 
   // The timed chunk should come first due to sorting.
   EXPECT_EQ(transcripts[0].text(), "timed chunk");
@@ -67,11 +94,25 @@ TEST_F(MediaTranscriptProviderImplTest, GetTranscriptsForFrame) {
 
 TEST_F(MediaTranscriptProviderImplTest, GetTranscriptsForFrameEdgeCases) {
   EXPECT_TRUE(provider().GetTranscriptsForFrame(nullptr).empty());
+
   EXPECT_TRUE(provider().GetTranscriptsForFrame(rfh()).empty());
+  EXPECT_FALSE(provider().HasTranscriptsForFrame(*rfh()));
 
   // No transcripts are provided.
   GlicMediaContext::GetOrCreateForCurrentDocument(rfh());
   EXPECT_TRUE(provider().GetTranscriptsForFrame(rfh()).empty());
+  EXPECT_FALSE(provider().HasTranscriptsForFrame(*rfh()));
+}
+
+TEST_F(MediaTranscriptProviderImplTest, OnTranscriptionBeginForFrame) {
+  auto mock_owner =
+      std::make_unique<MockPageContentMetadataObserver>(web_contents());
+  optimization_guide::MediaTranscriptObserver::GetOrCreateForCurrentDocument(
+      rfh())
+      ->AddOwner(mock_owner->GetWeakPtr());
+
+  EXPECT_CALL(*mock_owner, OnTranscriptionBegin(rfh()));
+  provider().OnTranscriptionBeginForFrame(rfh());
 }
 
 }  // namespace glic

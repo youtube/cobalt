@@ -67,7 +67,7 @@ void DidDrawCheckLayer::ClearDidDrawCheck() {
 }
 
 DidDrawCheckLayer::DidDrawCheckLayer(LayerTreeImpl* tree_impl, int id)
-    : LayerImpl(tree_impl, id),
+    : FakePictureLayerImpl(tree_impl, id),
       will_draw_returns_false_(false),
       will_draw_returned_true_(false),
       append_quads_called_(false),
@@ -316,7 +316,7 @@ gfx::Size LayerTreeHostImplTestBase::DipSizeToPixelSize(const gfx::Size& size) {
 
 void LayerTreeHostImplTestBase::PushScrollOffsetsToPendingTree(
     const base::flat_map<ElementId, gfx::PointF>& offsets) {
-  PropertyTrees property_trees(*host_impl_);
+  PropertyTrees property_trees;
   auto& scroll_tree =
       host_impl_->active_tree()->property_trees()->scroll_tree_mutable();
   if (auto* layer = InnerViewportScrollLayer()) {

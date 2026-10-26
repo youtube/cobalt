@@ -26,21 +26,28 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
+<!-- LINT.IfChange(ActionChipIconType) -->
+
+<enum name="ActionChipIconType">
+  <int value="0" label="Unspecified"/>
+  <int value="1" label="History"/>
+  <int value="2" label="Search Loop"/>
+  <int value="3" label="Search Loop With Sparkle"/>
+  <int value="4" label="Trending"/>
+  <int value="5" label="Sub Arrow Right"/>
+  <int value="6" label="Globe With Search Loop"/>
+  <int value="7" label="Banana"/>
+  <int value="8" label="Favicon"/>
+  <int value="9" label="Notes Spark"/>
+  <int value="10" label="Draft Spark"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom:IconType) -->
+
 <enum name="BooleanFromHTTPCache">
   <int value="0" label="Downloaded from network"/>
   <int value="1" label="HTTP cache hit"/>
 </enum>
-
-<!-- LINT.IfChange(ChipType) -->
-
-<enum name="ChipType">
-  <int value="0" label="Create Image Chip"/>
-  <int value="1" label="Deep Search Chip"/>
-  <int value="2" label="Recent Tab Chip"/>
-  <int value="3" label="Deep Dive Chip"/>
-</enum>
-
-<!-- LINT.ThenChange(//chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom:ChipType) -->
 
 <enum name="FailToShowHomeSurfaceReason">
   <int value="0" label="Fail to create a NTP Tab"/>
@@ -669,6 +676,19 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/ntp/IncognitoNtpOmniboxAutofocusTracker.java:OmniboxAutofocusOutcome) -->
 
+<!-- LINT.IfChange(OmniboxAutofocusTabHeightChange) -->
+
+<enum name="OmniboxAutofocusTabHeightChange">
+  <int value="0" label="Increased from zero"/>
+  <int value="1" label="Unchanged at zero"/>
+  <int value="2" label="Decreased to zero"/>
+  <int value="3" label="Increased from non-zero"/>
+  <int value="4" label="Unchanged at non-zero"/>
+  <int value="5" label="Decreased to non-zero"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/ntp/IncognitoNtpOmniboxAutofocusTracker.java:OmniboxAutofocusTabHeightChange) -->
+
 <enum name="OutlookCalendarRequestResult">
   <int value="0" label="Success"/>
   <int value="1" label="Network error"/>
@@ -700,28 +720,12 @@ chromium-metrics-reviews@google.com.
   <int value="16" label="Open Glic"/>
   <int value="17" label="Open Glic settings"/>
   <int value="18" label="Prewarm Glic FRE"/>
-  <int value="19" label="Open Split View"/>
+  <int value="19" label="[Deprecated] Open Split View"/>
   <int value="20" label="Open Autofill Settings"/>
+  <int value="21" label="Enable Vertical Tabs"/>
 </enum>
 
 <!-- LINT.ThenChange(//ui/webui/resources/js/browser_command/browser_command.mojom:Command) -->
-
-<enum name="SearchResumptionModule.ModuleNotShownReason">
-  <int value="0" label="Not enough suggestions available"/>
-  <int value="1" label="Feature flags aren't enabled"/>
-  <int value="2" label="The user doesn't sign in"/>
-  <int value="3" label="The user doesn't turn on sync"/>
-  <int value="4" label="The default search engine isn't google"/>
-  <int value="5" label="There isn't a tab to track"/>
-  <int value="6" label="The tracking tab isn't valid"/>
-  <int value="7" label="The tracking tab is expired"/>
-  <int value="8" label="The tracking tab has changed"/>
-</enum>
-
-<enum name="SearchResumptionModule.ModuleShowStatus">
-  <int value="0" label="Module is shown and expanded"/>
-  <int value="1" label="Module is shown and collapsed"/>
-</enum>
 
 <!-- LINT.IfChange(TabLaunchType) -->
 

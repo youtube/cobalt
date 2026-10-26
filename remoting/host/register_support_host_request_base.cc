@@ -67,7 +67,7 @@ void RegisterSupportHostRequestBase::StartRequest(
   Initialize(std::move(client_cert_store));
 }
 
-void RegisterSupportHostRequestBase::OnSignalStrategyStateChange(
+void RegisterSupportHostRequestBase::OnSignalingStateChanged(
     SignalStrategy::State state) {
   switch (state) {
     case SignalStrategy::State::CONNECTED:
@@ -80,11 +80,6 @@ void RegisterSupportHostRequestBase::OnSignalStrategyStateChange(
       // Do nothing.
       break;
   }
-}
-
-bool RegisterSupportHostRequestBase::OnSignalStrategyIncomingStanza(
-    const jingle_xmpp::XmlElement* stanza) {
-  return false;
 }
 
 void RegisterSupportHostRequestBase::RegisterHostInternal() {

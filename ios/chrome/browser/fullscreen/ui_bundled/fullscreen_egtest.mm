@@ -20,6 +20,7 @@
 #import "ios/chrome/test/earl_grey/web_http_server_chrome_test_case.h"
 #import "ios/chrome/test/scoped_eg_synchronization_disabler.h"
 #import "ios/testing/earl_grey/app_launch_manager.h"
+#import "ios/testing/earl_grey/disabled_test_macros.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "ios/web/common/features.h"
 #import "ios/web/public/test/http_server/error_page_response_provider.h"
@@ -122,10 +123,18 @@ std::unique_ptr<net::test_server::HttpResponse> CreateHttpResponse(
   [ChromeEarlGreyUI waitForToolbarVisible:YES];
 
   // Initial y scroll positions are set to make room for the toolbar.
-  CGFloat yOffset = -[FullscreenAppInterface currentViewportInsets].top;
-  DCHECK_LT(yOffset, 0);
+  // Starting from iOS 26, PDFs are using the framing resizing strategy. The
+  // webView frame starts below the toolbar. Since the container itself is
+  // already positioned correctly on the screen, the content offset should be 0
+  // to show the start of the document.
+  CGFloat expectedYOffset = 0;
+  if (!@available(iOS 26, *)) {
+    expectedYOffset = -[FullscreenAppInterface currentViewportInsets].top;
+    DCHECK_LT(expectedYOffset, 0);
+  }
   [[EarlGrey selectElementWithMatcher:WebStateScrollViewMatcher()]
-      assertWithMatcher:grey_scrollViewContentOffset(CGPointMake(0, yOffset))];
+      assertWithMatcher:grey_scrollViewContentOffset(
+                            CGPointMake(0, expectedYOffset))];
 }
 
 // Verifies that the toolbar is not hidden when scrolling a short pdf, as the
@@ -241,12 +250,6 @@ std::unique_ptr<net::test_server::HttpResponse> CreateHttpResponse(
 // Tests that reloading of a page shows the header even if it was not shown
 // previously.
 - (void)testShowHeaderOnReload {
-// TODO(crbug.com/482416484): Test fails on iphone device.
-#if !TARGET_IPHONE_SIMULATOR
-  if (![ChromeEarlGrey isIPadIdiom]) {
-    EARL_GREY_TEST_DISABLED(@"Fails on iPhone device.");
-  }
-#endif
   self.testServer->RegisterRequestHandler(base::BindRepeating(
       [](const net::test_server::HttpRequest& request)
           -> std::unique_ptr<net::test_server::HttpResponse> {
@@ -521,6 +524,26 @@ std::unique_ptr<net::test_server::HttpResponse> CreateHttpResponse(
 - (void)testEmpty {
 }
 
+// Override this tests as when smooth scrolling is enabled, PDF resizing
+// strategy is using content inset so the offset initial values are different.
+- (void)testLongPDFInitialState {
+  if (![ChromeEarlGrey isFullscreenSmoothScrollingSupported]) {
+    EARL_GREY_TEST_SKIPPED(@"Smooth scrolling not supported.");
+  }
+  GURL URL = web::test::HttpServer::MakeUrl(
+      "http://ios/testing/data/http_server_files/two_pages.pdf");
+  [ChromeEarlGrey loadURL:URL];
+  WaitforPDFExtensionView();
+  [ChromeEarlGreyUI waitForToolbarVisible:YES];
+
+  // Initial y scroll positions are set to make room for the toolbar.
+  CGFloat expectedYOffset = -[FullscreenAppInterface currentViewportInsets].top;
+  DCHECK_LT(expectedYOffset, 0);
+  [[EarlGrey selectElementWithMatcher:WebStateScrollViewMatcher()]
+      assertWithMatcher:grey_scrollViewContentOffset(
+                            CGPointMake(0, expectedYOffset))];
+}
+
 @end
 
 #pragma mark - Bottom omnibox Tests
@@ -565,6 +588,26 @@ std::unique_ptr<net::test_server::HttpResponse> CreateHttpResponse(
 
 // This is currently needed to prevent this test case from being ignored.
 - (void)testEmpty {
+}
+
+// Override this tests as when smooth scrolling is enabled, PDF resizing
+// strategy is using content inset so the offset initial values are different.
+- (void)testLongPDFInitialState {
+  if (![ChromeEarlGrey isFullscreenSmoothScrollingSupported]) {
+    EARL_GREY_TEST_SKIPPED(@"Smooth scrolling not supported.");
+  }
+  GURL URL = web::test::HttpServer::MakeUrl(
+      "http://ios/testing/data/http_server_files/two_pages.pdf");
+  [ChromeEarlGrey loadURL:URL];
+  WaitforPDFExtensionView();
+  [ChromeEarlGreyUI waitForToolbarVisible:YES];
+
+  // Initial y scroll positions are set to make room for the toolbar.
+  CGFloat expectedYOffset = -[FullscreenAppInterface currentViewportInsets].top;
+  DCHECK_LT(expectedYOffset, 0);
+  [[EarlGrey selectElementWithMatcher:WebStateScrollViewMatcher()]
+      assertWithMatcher:grey_scrollViewContentOffset(
+                            CGPointMake(0, expectedYOffset))];
 }
 
 @end

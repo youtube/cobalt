@@ -947,48 +947,76 @@ bool ValidateProgramUniformMatrix4x3fvBase(const Context *context,
 
 bool ValidateGetTexLevelParameterfv(const Context *context,
                                     angle::EntryPoint entryPoint,
-                                    TextureTarget target,
+                                    TextureTarget targetPacked,
                                     GLint level,
-                                    GLenum pname,
+                                    TextureImageParameter pnamePacked,
                                     const GLfloat *params)
 {
-    return ValidateGetTexLevelParameterBase(context, entryPoint, target, level, pname, nullptr);
+    return ValidateGetTexLevelParameterBase(context, entryPoint, targetPacked, level, pnamePacked,
+                                            nullptr);
 }
 
 bool ValidateGetTexLevelParameterfvRobustANGLE(const Context *context,
                                                angle::EntryPoint entryPoint,
-                                               TextureTarget target,
+                                               TextureTarget targetPacked,
                                                GLint level,
-                                               GLenum pname,
-                                               GLsizei bufSize,
+                                               TextureImageParameter pnamePacked,
+                                               GLsizei paramCount,
                                                const GLsizei *length,
                                                const GLfloat *params)
 {
-    UNIMPLEMENTED();
-    return false;
+    // Make sure ValidateGetTexLevelParameterBase sets numParams
+    GLsizei numParams = std::numeric_limits<GLsizei>::max();
+    if (!ValidateGetTexLevelParameterBase(context, entryPoint, targetPacked, level, pnamePacked,
+                                          &numParams))
+    {
+        return false;
+    }
+    ASSERT(numParams != std::numeric_limits<GLsizei>::max());
+
+    if (!ValidateRobustParamCount(context, entryPoint, paramCount, numParams))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 bool ValidateGetTexLevelParameteriv(const Context *context,
                                     angle::EntryPoint entryPoint,
-                                    TextureTarget target,
+                                    TextureTarget targetPacked,
                                     GLint level,
-                                    GLenum pname,
+                                    TextureImageParameter pnamePacked,
                                     const GLint *params)
 {
-    return ValidateGetTexLevelParameterBase(context, entryPoint, target, level, pname, nullptr);
+    return ValidateGetTexLevelParameterBase(context, entryPoint, targetPacked, level, pnamePacked,
+                                            nullptr);
 }
 
 bool ValidateGetTexLevelParameterivRobustANGLE(const Context *context,
                                                angle::EntryPoint entryPoint,
-                                               TextureTarget target,
+                                               TextureTarget targetPacked,
                                                GLint level,
-                                               GLenum pname,
-                                               GLsizei bufSize,
+                                               TextureImageParameter pnamePacked,
+                                               GLsizei paramCount,
                                                const GLsizei *length,
                                                const GLint *params)
 {
-    UNIMPLEMENTED();
-    return false;
+    // Make sure ValidateGetTexLevelParameterBase sets numParams
+    GLsizei numParams = std::numeric_limits<GLsizei>::max();
+    if (!ValidateGetTexLevelParameterBase(context, entryPoint, targetPacked, level, pnamePacked,
+                                          &numParams))
+    {
+        return false;
+    }
+    ASSERT(numParams != std::numeric_limits<GLsizei>::max());
+
+    if (!ValidateRobustParamCount(context, entryPoint, paramCount, numParams))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 bool ValidateTexStorage2DMultisample(const Context *context,
@@ -1025,19 +1053,31 @@ bool ValidateGetMultisamplefv(const Context *context,
                               GLuint index,
                               const GLfloat *val)
 {
-    return ValidateGetMultisamplefvBase(context, entryPoint, pname, index, val);
+    return ValidateGetMultisamplefvBase(context, entryPoint, pname, index, nullptr);
 }
 
 bool ValidateGetMultisamplefvRobustANGLE(const Context *context,
                                          angle::EntryPoint entryPoint,
                                          GLenum pname,
                                          GLuint index,
-                                         GLsizei bufSize,
+                                         GLsizei paramCount,
                                          const GLsizei *length,
                                          const GLfloat *val)
 {
-    UNIMPLEMENTED();
-    return false;
+    // Make sure ValidateGetMultisamplefvBase sets numParams
+    GLsizei numParams = std::numeric_limits<GLsizei>::max();
+    if (!ValidateGetMultisamplefvBase(context, entryPoint, pname, index, &numParams))
+    {
+        return false;
+    }
+    ASSERT(numParams != std::numeric_limits<GLsizei>::max());
+
+    if (!ValidateRobustParamCount(context, entryPoint, paramCount, numParams))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 bool ValidateFramebufferParameteri(const Context *context,

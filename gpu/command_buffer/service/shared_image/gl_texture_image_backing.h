@@ -37,8 +37,14 @@ class GLTextureImageBacking : public ClearTrackingSharedImageBacking {
       gl::ProgressReporter* progress_reporter,
       bool framebuffer_attachment_angle);
 
+  // Determines if access for a given stream and parameters is supported.
+  static bool CheckSupportForAccessStream(SharedImageAccessStream stream,
+                                          const AccessParams& params);
+
  private:
   // SharedImageBacking:
+  bool SupportsAccess(SharedImageAccessStream stream,
+                      const AccessParams& params) const override;
   SharedImageBackingType GetType() const override;
   gfx::Rect ClearedRect() const final;
   void SetClearedRect(const gfx::Rect& cleared_rect) final;
@@ -56,6 +62,10 @@ class GLTextureImageBacking : public ClearTrackingSharedImageBacking {
       std::vector<wgpu::TextureFormat> view_formats,
       scoped_refptr<SharedContextState> context_state) final;
   std::unique_ptr<SkiaGaneshImageRepresentation> ProduceSkiaGanesh(
+      SharedImageManager* manager,
+      MemoryTypeTracker* tracker,
+      scoped_refptr<SharedContextState> context_state) override;
+  std::unique_ptr<SkiaGraphiteImageRepresentation> ProduceSkiaGraphite(
       SharedImageManager* manager,
       MemoryTypeTracker* tracker,
       scoped_refptr<SharedContextState> context_state) override;

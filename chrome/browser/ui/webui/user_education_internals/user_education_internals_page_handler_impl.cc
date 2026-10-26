@@ -923,6 +923,13 @@ void UserEducationInternalsPageHandlerImpl::LaunchWhatsNewStaging() {
 #endif
 }
 
+void UserEducationInternalsPageHandlerImpl::UpdateWhatsNewVersionOverride(
+    int32_t version) {
+  auto* const registry = GetWhatsNewRegistry();
+  CHECK(registry);
+  registry->set_version_override(version);
+}
+
 void UserEducationInternalsPageHandlerImpl::GetNtpPromos(
     GetNtpPromosCallback callback) {
   std::vector<FeaturePromoDemoPageInfoPtr> promos;
@@ -982,9 +989,6 @@ void UserEducationInternalsPageHandlerImpl::GetNtpPromoPreferences(
         break;
       case user_education::features::NtpBrowserPromoType::kSimple:
         state = "Simple (single promo)";
-        break;
-      case user_education::features::NtpBrowserPromoType::kSetupList:
-        state = "Setup List";
         break;
     }
     data.emplace_back(FormatDemoPageData("NTP promo mode", state));

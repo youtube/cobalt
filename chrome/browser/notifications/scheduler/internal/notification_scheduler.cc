@@ -18,13 +18,13 @@
 #include "chrome/browser/notifications/scheduler/internal/background_task_coordinator.h"
 #include "chrome/browser/notifications/scheduler/internal/display_decider.h"
 #include "chrome/browser/notifications/scheduler/internal/impression_history_tracker.h"
-#include "chrome/browser/notifications/scheduler/internal/notification_entry.h"
 #include "chrome/browser/notifications/scheduler/internal/notification_scheduler_context.h"
 #include "chrome/browser/notifications/scheduler/internal/scheduled_notification_manager.h"
 #include "chrome/browser/notifications/scheduler/internal/scheduler_utils.h"
 #include "chrome/browser/notifications/scheduler/internal/stats.h"
 #include "chrome/browser/notifications/scheduler/public/display_agent.h"
 #include "chrome/browser/notifications/scheduler/public/notification_background_task_scheduler.h"
+#include "chrome/browser/notifications/scheduler/public/notification_entry.h"
 #include "chrome/browser/notifications/scheduler/public/notification_params.h"
 #include "chrome/browser/notifications/scheduler/public/notification_scheduler_client.h"
 #include "chrome/browser/notifications/scheduler/public/notification_scheduler_client_registrar.h"
@@ -171,6 +171,10 @@ class DisplayHelper {
     context_->display_agent()->ShowNotification(
         std::move(updated_notification_data), std::move(system_data));
 
+    auto* client = context_->client_registrar()->GetClient(entry->type);
+    DCHECK(client);
+    client->OnShowNotification(std::move(updated_notification_data));
+
     MaybeFinish(entry->guid, true /*shown*/);
   }
 
@@ -249,7 +253,8 @@ class NotificationSchedulerImpl : public NotificationScheduler,
       ImpressionDetail impression_detail) {
     std::vector<const NotificationEntry*> notifications;
     context_->notification_manager()->GetNotifications(type, &notifications);
-    ClientOverview result(std::move(impression_detail), notifications.size());
+    ClientOverview result(std::move(impression_detail),
+                          std::move(notifications));
     std::move(callback).Run(std::move(result));
   }
 

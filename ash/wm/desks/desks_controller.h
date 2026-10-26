@@ -23,6 +23,7 @@
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -72,7 +73,7 @@ class ASH_EXPORT DesksController : public chromeos::DesksHelper,
   using GetDeskTemplateCallback =
       base::OnceCallback<void(std::unique_ptr<DeskTemplate>)>;
 
-  class Observer {
+  class Observer : public base::CheckedObserver {
    public:
     // Called when `desk` has been created and added to
     // `DesksController::desks_`. It's important to note that `desk` can be
@@ -110,7 +111,7 @@ class ASH_EXPORT DesksController : public chromeos::DesksHelper,
                                    const std::u16string& new_name) {}
 
    protected:
-    virtual ~Observer() = default;
+    ~Observer() override = default;
   };
 
   DesksController();
@@ -581,7 +582,12 @@ class ASH_EXPORT DesksController : public chromeos::DesksHelper,
   // Dedicated controller for the desk bars.
   std::unique_ptr<DeskBarController> desk_bar_controller_;
 
-  base::ObserverList<Observer>::Unchecked observers_;
+  // TODO(crbug.com/484371187): Investigate if reentrancy can be removed.
+  base::ObserverList<
+      Observer,
+      /*check_empty=*/false,
+      base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>
+      observers_;
 
   // Scheduler for reporting the weekly active desks metric.
   base::OneShotTimer weekly_active_desks_scheduler_;

@@ -218,14 +218,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Import InternalizeString overloads from base class.
   using FactoryBase::InternalizeString;
 
-  Handle<String> InternalizeString(base::Vector<const char> str,
-                                   bool convert_encoding = false) {
+  Handle<InternalizedString> InternalizeString(base::Vector<const char> str,
+                                               bool convert_encoding = false) {
     return InternalizeString(base::Vector<const uint8_t>::cast(str),
                              convert_encoding);
   }
 
-  Handle<String> InternalizeString(const char* str,
-                                   bool convert_encoding = false) {
+  Handle<InternalizedString> InternalizeString(const char* str,
+                                               bool convert_encoding = false) {
     return InternalizeString(base::OneByteVector(str), convert_encoding);
   }
 
@@ -300,6 +300,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       base::Vector<const uint8_t> str, unibrow::Utf8Variant utf8_variant,
       AllocationType allocation = AllocationType::kYoung);
 
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewSharedStringFromUtf8(
+      base::Vector<const char> str);
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewSharedStringFromUtf8(
+      std::string_view str) {
+    return NewSharedStringFromUtf8(base::StrVector(str));
+  }
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewSharedStringFromUtf8(
+      base::Vector<const uint8_t> str, unibrow::Utf8Variant utf8_variant);
+
 #if V8_ENABLE_WEBASSEMBLY
   V8_WARN_UNUSED_RESULT MaybeDirectHandle<String> NewStringFromUtf8(
       DirectHandle<WasmArray> array, uint32_t begin, uint32_t end,
@@ -339,8 +348,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<JSStringIterator> NewJSStringIterator(Handle<String> string);
 
-  DirectHandle<String> NewInternalizedStringImpl(DirectHandle<String> string,
-                                                 int len, uint32_t hash_field);
+  DirectHandle<InternalizedString> NewInternalizedStringImpl(
+      DirectHandle<String> string, int len, uint32_t hash_field);
 
   // Compute the internalization strategy for the input string.
   //
@@ -359,7 +368,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Creates an internalized copy of an external string. |string| must be
   // of type StringClass.
   template <class StringClass>
-  DirectHandle<StringClass> InternalizeExternalString(
+  DirectHandle<InternalizedString> InternalizeExternalString(
       DirectHandle<String> string);
 
   // Compute the sharing strategy for the input string.
@@ -468,7 +477,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<AccessorInfo> NewAccessorInfo();
 
   DirectHandle<InterceptorInfo> NewInterceptorInfo(
-      AllocationType allocation = AllocationType::kOld);
+      InterceptorKind kind, AllocationType allocation = AllocationType::kOld);
 
   DirectHandle<ErrorStackData> NewErrorStackData(
       DirectHandle<UnionOf<JSAny, FixedArray>>
@@ -598,7 +607,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<FixedArray> CopyFixedArrayAndGrow(
-      DirectHandle<FixedArray> array, int grow_by,
+      DirectHandle<FixedArray> array, uint32_t grow_by,
       AllocationType allocation = AllocationType::kYoung);
 
   DirectHandle<WeakArrayList> NewWeakArrayList(
@@ -608,7 +617,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<WeakFixedArray> array);
 
   DirectHandle<WeakFixedArray> CopyWeakFixedArrayAndGrow(
-      DirectHandle<WeakFixedArray> array, int grow_by);
+      DirectHandle<WeakFixedArray> array, uint32_t grow_by);
 
   Handle<WeakArrayList> CopyWeakArrayListAndGrow(
       DirectHandle<WeakArrayList> array, int grow_by,
@@ -619,10 +628,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       AllocationType allocation = AllocationType::kYoung);
 
   DirectHandle<PropertyArray> CopyPropertyArrayAndGrow(
-      DirectHandle<PropertyArray> array, int grow_by);
+      DirectHandle<PropertyArray> array, uint32_t grow_by);
 
   Handle<FixedArray> CopyFixedArrayUpTo(
-      DirectHandle<FixedArray> array, int new_len,
+      DirectHandle<FixedArray> array, uint32_t new_len,
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
@@ -799,7 +808,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<WasmSuspenderObject> NewWasmSuspenderObject();
   DirectHandle<WasmSuspenderObject> NewWasmSuspenderObjectInitialized();
   DirectHandle<WasmContinuationObject> NewWasmContinuationObject(
-      wasm::StackMemory* stack);
+      DirectHandle<WasmStackObject> stack_obj);
+  DirectHandle<WasmStackObject> NewWasmStackObject(wasm::StackMemory* stack);
   DirectHandle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                          wasm::WasmValue* args,
                                          DirectHandle<Map> map);
@@ -813,13 +823,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DirectHandle<WasmArray> NewWasmArray(wasm::ValueType element_type,
                                        uint32_t length,
                                        wasm::WasmValue initial_value,
-                                       DirectHandle<Map> map);
+                                       DirectHandle<Map> map,
+                                       WriteBarrierMode write_barrier);
   DirectHandle<WasmArray> NewWasmArrayFromElements(
       const wasm::ArrayType* type, base::Vector<wasm::WasmValue> elements,
-      DirectHandle<Map> map);
+      DirectHandle<Map> map, WriteBarrierMode write_barrier);
   DirectHandle<WasmArray> NewWasmArrayFromMemory(
       uint32_t length, DirectHandle<Map> map,
-      wasm::CanonicalValueType element_type, Address source);
+      wasm::CanonicalValueType element_type,
+      base::Vector<const uint8_t> source);
   // Returns a handle to a WasmArray if successful, or a Smi containing a
   // {MessageTemplate} if computing the array's elements leads to an error.
   DirectHandle<Object> NewWasmArrayFromElementSegment(
@@ -1075,32 +1087,38 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Creates a new FixedArray that holds the data associated with the
   // atom regexp and stores it in the regexp.
   void SetRegExpAtomData(DirectHandle<JSRegExp> regexp,
-                         DirectHandle<String> source, JSRegExp::Flags flags,
+                         DirectHandle<String> original_source,
+                         DirectHandle<String> escaped_source,
+                         JSRegExp::Flags flags,
                          DirectHandle<String> match_pattern);
 
   // Creates a new FixedArray that holds the data associated with the
   // irregexp regexp and stores it in the regexp.
   void SetRegExpIrregexpData(DirectHandle<JSRegExp> regexp,
-                             DirectHandle<String> source, JSRegExp::Flags flags,
-                             int capture_count, uint32_t backtrack_limit,
-                             uint32_t bit_field);
+                             DirectHandle<String> original_source,
+                             DirectHandle<String> escaped_source,
+                             JSRegExp::Flags flags, int capture_count,
+                             uint32_t backtrack_limit, uint32_t bit_field);
 
   // Creates a new FixedArray that holds the data associated with the
   // experimental regexp and stores it in the regexp.
   void SetRegExpExperimentalData(DirectHandle<JSRegExp> regexp,
-                                 DirectHandle<String> source,
+                                 DirectHandle<String> original_source,
+                                 DirectHandle<String> escaped_source,
                                  JSRegExp::Flags flags, int capture_count);
 
-  DirectHandle<RegExpData> NewAtomRegExpData(DirectHandle<String> source,
-                                             JSRegExp::Flags flags,
-                                             DirectHandle<String> pattern);
-  DirectHandle<RegExpData> NewIrRegExpData(DirectHandle<String> source,
+  DirectHandle<RegExpData> NewAtomRegExpData(
+      DirectHandle<String> original_source, DirectHandle<String> escaped_source,
+      JSRegExp::Flags flags, DirectHandle<String> pattern);
+  DirectHandle<RegExpData> NewIrRegExpData(DirectHandle<String> original_source,
+                                           DirectHandle<String> escaped_source,
                                            JSRegExp::Flags flags,
                                            int capture_count,
                                            uint32_t backtrack_limit,
                                            uint32_t bit_field);
   DirectHandle<RegExpData> NewExperimentalRegExpData(
-      DirectHandle<String> source, JSRegExp::Flags flags, int capture_count);
+      DirectHandle<String> original_source, DirectHandle<String> escaped_source,
+      JSRegExp::Flags flags, int capture_count);
 
   // Returns the value for a known global constant (a property of the global
   // object which is neither configurable nor writable) like 'undefined'.
@@ -1112,6 +1130,16 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSPromise> NewJSPromiseWithoutHook();
   Handle<JSPromise> NewJSPromise();
+
+  DirectHandle<Context> CreatePromiseAllResolveElementContext(
+      DirectHandle<PromiseCapability> capability);
+  DirectHandle<Context> CreatePromiseResolvingFunctionsContext(
+      DirectHandle<JSPromise> promise);
+  DirectHandle<JSFunction> CreatePromiseAllResolveElementFunction(
+      DirectHandle<Context> context, int index);
+  DirectHandle<PromiseCapability> CreatePromiseCapabilityObject(
+      DirectHandle<JSPromise> promise, DirectHandle<JSFunction> resolve,
+      DirectHandle<JSFunction> reject);
 
   Tagged<HeapObject> NewForTest(DirectHandle<Map> map,
                                 AllocationType allocation) {
@@ -1371,7 +1399,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<T> src, DirectHandle<Map> map,
       AllocationType allocation = AllocationType::kYoung);
   template <typename T>
-  Handle<T> CopyArrayAndGrow(DirectHandle<T> src, int grow_by,
+  Handle<T> CopyArrayAndGrow(DirectHandle<T> src, uint32_t grow_by,
                              AllocationType allocation);
 
   MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string, int length,

@@ -16,12 +16,13 @@ import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
-import org.chromium.chrome.browser.DefaultBrowserInfo;
+import org.chromium.chrome.browser.DefaultBrowserMenuUtils;
 import org.chromium.chrome.browser.app.appmenu.AppMenuPropertiesDelegateImpl;
 import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
@@ -95,7 +96,7 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
             boolean isIncognitoBranded,
             boolean isOffTheRecord,
             boolean isStartIconMenu,
-            Supplier<ReadAloudController> readAloudControllerSupplier,
+            MonotonicObservableSupplier<ReadAloudController> readAloudControllerSupplier,
             Supplier<ContextualPageActionController> contextualPageActionControllerSupplier,
             boolean hasClientPackage,
             @Nullable OpenInAppMenuItemProvider openInAppMenuItemProvider) {
@@ -442,7 +443,7 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
         } else if (mIsOpenedByChrome) {
             title = context.getString(R.string.menu_open_in_new_tab);
         } else {
-            title = DefaultBrowserInfo.getTitleOpenInDefaultBrowser(false);
+            title = DefaultBrowserMenuUtils.getTitleOpenInDefaultBrowser(false);
         }
         PropertyModel model =
                 buildBaseModelForTextItem(R.id.open_in_browser_id)

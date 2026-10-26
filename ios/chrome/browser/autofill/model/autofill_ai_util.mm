@@ -5,6 +5,7 @@
 #import "ios/chrome/browser/autofill/model/autofill_ai_util.h"
 
 #import "base/strings/string_util.h"
+#import "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #import "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
 #import "components/autofill/core/browser/webdata/account_settings/account_setting_service.h"
 #import "components/variations/service/variations_service.h"
@@ -13,8 +14,10 @@
 #import "ios/chrome/browser/metrics/model/google_groups_manager_factory.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/common/ui/colors/semantic_color_names.h"
 
 namespace autofill {
 
@@ -26,7 +29,7 @@ const std::string GetCountryCodeFromVariations() {
              : std::string();
 }
 
-bool IsWalletStorageEnabled(ProfileIOS* profile) {
+bool IsWalletPublicPassStorageEnabled(ProfileIOS* profile) {
   AccountSettingService* setting_service =
       IOSAccountSettingServiceFactory::GetForProfile(profile);
   return setting_service &&
@@ -63,8 +66,30 @@ bool CanPerformAutofillAiAction(ProfileIOS* profile, AutofillAiAction action) {
       profile->GetPrefs(), entity_data_manager,
       IdentityManagerFactory::GetForProfile(profile->GetOriginalProfile()),
       SyncServiceFactory::GetForProfile(profile),
-      IsWalletStorageEnabled(profile), profile->IsOffTheRecord(),
+      IsWalletPublicPassStorageEnabled(profile), profile->IsOffTheRecord(),
       GeoIpCountryCode(GetCountryCodeFromVariations()), action);
+}
+
+bool IsEnhancedAutofillEnabled(ProfileIOS* profile) {
+  ProfileIOS* original_profile = profile->GetOriginalProfile();
+  return autofill::GetAutofillAiOptInStatus(
+      original_profile->GetPrefs(),
+      IdentityManagerFactory::GetForProfile(original_profile));
+}
+
+void SetEnhancedAutofillEnabled(ProfileIOS* profile, bool enabled) {
+  ProfileIOS* original_profile = profile->GetOriginalProfile();
+  autofill::SetAutofillAiOptInStatus(
+      GoogleGroupsManagerFactory::GetForProfile(original_profile),
+      original_profile->GetPrefs(),
+      IOSAutofillEntityDataManagerFactory::GetForProfile(original_profile),
+      IdentityManagerFactory::GetForProfile(original_profile),
+      SyncServiceFactory::GetForProfile(original_profile),
+      IsWalletPublicPassStorageEnabled(original_profile),
+      original_profile->IsOffTheRecord(),
+      GeoIpCountryCode(GetCountryCodeFromVariations()),
+      enabled ? autofill::AutofillAiOptInStatus::kOptedIn
+              : autofill::AutofillAiOptInStatus::kOptedOut);
 }
 
 }  // namespace autofill

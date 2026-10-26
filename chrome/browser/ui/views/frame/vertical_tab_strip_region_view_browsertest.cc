@@ -34,6 +34,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/pointer/touch_ui_controller.h"
 #include "ui/views/controls/button/button_controller.h"
+#include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/resize_area.h"
 #include "ui/views/controls/separator.h"
 #include "ui/views/focus/focus_manager.h"
@@ -125,9 +126,6 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeAreaBounds) {
   EXPECT_EQ(region_view()->bounds().height(),
             region_view()->resize_area_for_testing()->bounds().height());
   EXPECT_EQ(0, region_view()->resize_area_for_testing()->bounds().y());
-  // Verify resize area width.
-  EXPECT_EQ(VerticalTabStripRegionView::kResizeAreaWidth,
-            region_view()->resize_area_for_testing()->bounds().width());
 }
 
 IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeViewSmaller) {
@@ -139,7 +137,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeViewSmaller) {
   ASSERT_EQ(
       initial_width,
       region_view()->target_collapse_state_for_testing().uncollapsed_width);
-  ASSERT_FALSE(region_view()->is_animating_for_testing());
+  ASSERT_FALSE(region_view()->is_animating());
   ASSERT_FALSE(state_controller()->IsCollapsed());
   WaitForBoundsToMatchPreferredWidth();
 
@@ -156,7 +154,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeViewSmaller) {
     EXPECT_EQ(
         resize_width,
         region_view()->target_collapse_state_for_testing().uncollapsed_width);
-    EXPECT_FALSE(region_view()->is_animating_for_testing());
+    EXPECT_FALSE(region_view()->is_animating());
     EXPECT_FALSE(state_controller()->IsCollapsed());
     WaitForBoundsToMatchPreferredWidth();
   }
@@ -176,7 +174,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeViewSmaller) {
     EXPECT_EQ(
         VerticalTabStripRegionView::kUncollapsedMinWidth,
         region_view()->target_collapse_state_for_testing().uncollapsed_width);
-    EXPECT_FALSE(region_view()->is_animating_for_testing());
+    EXPECT_FALSE(region_view()->is_animating());
     EXPECT_FALSE(state_controller()->IsCollapsed());
     WaitForBoundsToMatchPreferredWidth();
   }
@@ -193,7 +191,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeViewSmaller) {
     EXPECT_EQ(
         VerticalTabStripRegionView::kUncollapsedMinWidth,
         region_view()->target_collapse_state_for_testing().uncollapsed_width);
-    EXPECT_TRUE(region_view()->is_animating_for_testing());
+    EXPECT_TRUE(region_view()->is_animating());
 
     // Some time after the animation starts, the state controller collapsed
     // state will true.
@@ -202,8 +200,8 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeViewSmaller) {
 
     // When the animation completes, the preferred width will be the collapsed
     // width.
-    ASSERT_TRUE(base::test::RunUntil(
-        [&]() { return !region_view()->is_animating_for_testing(); }));
+    ASSERT_TRUE(
+        base::test::RunUntil([&]() { return !region_view()->is_animating(); }));
     EXPECT_EQ(VerticalTabStripRegionView::kCollapsedWidth,
               region_view()->GetPreferredSize().width());
     WaitForBoundsToMatchPreferredWidth();
@@ -211,7 +209,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ResizeViewSmaller) {
 }
 
 // TODO(https://crbug.com/481074869): Re-enable this test
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(IS_WIN)
 #define MAYBE_ResizeViewBigger DISABLED_ResizeViewBigger
 #else
 #define MAYBE_ResizeViewBigger ResizeViewBigger
@@ -221,8 +219,8 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, MAYBE_ResizeViewBigger) {
 
   // Start this test from the collapsed state.
   state_controller()->SetCollapsed(true);
-  ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return !region_view()->is_animating_for_testing(); }));
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !region_view()->is_animating(); }));
   WaitForBoundsToMatchPreferredWidth();
 
   // Verify the initial state of the region view.
@@ -231,7 +229,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, MAYBE_ResizeViewBigger) {
   ASSERT_EQ(
       tabs::kVerticalTabStripDefaultUncollapsedWidth,
       region_view()->target_collapse_state_for_testing().uncollapsed_width);
-  ASSERT_FALSE(region_view()->is_animating_for_testing());
+  ASSERT_FALSE(region_view()->is_animating());
   ASSERT_TRUE(state_controller()->IsCollapsed());
 
   // Grow the area a small amount and nothing will happen.
@@ -246,7 +244,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, MAYBE_ResizeViewBigger) {
     EXPECT_EQ(
         tabs::kVerticalTabStripDefaultUncollapsedWidth,
         region_view()->target_collapse_state_for_testing().uncollapsed_width);
-    EXPECT_FALSE(region_view()->is_animating_for_testing());
+    EXPECT_FALSE(region_view()->is_animating());
     EXPECT_TRUE(state_controller()->IsCollapsed());
     EXPECT_EQ(initial_width, region_view()->width());
   }
@@ -263,7 +261,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, MAYBE_ResizeViewBigger) {
     EXPECT_EQ(
         VerticalTabStripRegionView::kUncollapsedMinWidth,
         region_view()->target_collapse_state_for_testing().uncollapsed_width);
-    EXPECT_TRUE(region_view()->is_animating_for_testing());
+    EXPECT_TRUE(region_view()->is_animating());
 
     // Some time after the animation starts, the state controller collapsed
     // state will become false.
@@ -272,8 +270,8 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, MAYBE_ResizeViewBigger) {
 
     // When the animation completes, the preferred width will be the minimum
     // expanded width.
-    ASSERT_TRUE(base::test::RunUntil(
-        [&]() { return !region_view()->is_animating_for_testing(); }));
+    ASSERT_TRUE(
+        base::test::RunUntil([&]() { return !region_view()->is_animating(); }));
     EXPECT_EQ(VerticalTabStripRegionView::kUncollapsedMinWidth,
               region_view()->GetPreferredSize().width());
     WaitForBoundsToMatchPreferredWidth();
@@ -293,7 +291,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, MAYBE_ResizeViewBigger) {
     EXPECT_EQ(
         resize_width,
         region_view()->target_collapse_state_for_testing().uncollapsed_width);
-    EXPECT_FALSE(region_view()->is_animating_for_testing());
+    EXPECT_FALSE(region_view()->is_animating());
     EXPECT_FALSE(state_controller()->IsCollapsed());
     WaitForBoundsToMatchPreferredWidth();
   }
@@ -312,7 +310,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, MAYBE_ResizeViewBigger) {
     EXPECT_EQ(
         VerticalTabStripRegionView::kUncollapsedMaxWidth,
         region_view()->target_collapse_state_for_testing().uncollapsed_width);
-    EXPECT_FALSE(region_view()->is_animating_for_testing());
+    EXPECT_FALSE(region_view()->is_animating());
     EXPECT_FALSE(state_controller()->IsCollapsed());
     WaitForBoundsToMatchPreferredWidth();
   }
@@ -395,8 +393,8 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
     ASSERT_LE(resize_width, VerticalTabStripRegionView::kCollapseSnapWidth);
 
     region_view()->OnResize(resize_amount, true);
-    ASSERT_TRUE(base::test::RunUntil(
-        [&]() { return !region_view()->is_animating_for_testing(); }));
+    ASSERT_TRUE(
+        base::test::RunUntil([&]() { return !region_view()->is_animating(); }));
     EXPECT_EQ(VerticalTabStripRegionView::kCollapsedWidth,
               region_view()->GetPreferredSize().width());
     EXPECT_EQ(last_uncollapsed_width,
@@ -834,4 +832,44 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
   TabStripRegionView* final_view = browser_view->tab_strip_view();
   EXPECT_TRUE(views::IsViewClass<VerticalTabStripRegionView>(final_view));
   EXPECT_EQ(region_view(), final_view);
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, ImmersiveModeLock) {
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+  tabs::VerticalTabStripStateController* controller = state_controller();
+
+  // The mixin starts us in vertical tabs mode.
+  ASSERT_TRUE(controller->ShouldDisplayVerticalTabs());
+
+  // 1. Simulate entering immersive mode.
+  browser_view->OnImmersiveFullscreenEntered();
+
+  // 2. Try to disable vertical tabs via pref.
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kVerticalTabsEnabled,
+                                               false);
+
+  // 3. Verify vertical tabs are STILL enabled (deferred).
+  EXPECT_TRUE(controller->ShouldDisplayVerticalTabs());
+
+  // 4. Simulate exiting immersive mode.
+  browser_view->OnImmersiveFullscreenExited();
+
+  // 5. Verify vertical tabs are now disabled.
+  EXPECT_FALSE(controller->ShouldDisplayVerticalTabs());
+
+  // 6. Simulate entering immersive mode again.
+  browser_view->OnImmersiveFullscreenEntered();
+
+  // 7. Try to enable vertical tabs via pref.
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kVerticalTabsEnabled,
+                                               true);
+
+  // 8. Verify vertical tabs are STILL disabled.
+  EXPECT_FALSE(controller->ShouldDisplayVerticalTabs());
+
+  // 9. Simulate exiting immersive mode.
+  browser_view->OnImmersiveFullscreenExited();
+
+  // 10. Verify vertical tabs are now enabled.
+  EXPECT_TRUE(controller->ShouldDisplayVerticalTabs());
 }

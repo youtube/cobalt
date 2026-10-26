@@ -279,7 +279,7 @@ export class PrintPreviewPagesSettingsElement extends
     this.selection_ = parseInt(value, 10);
   }
 
-  protected onCollapseChanged_() {
+  protected onTransitionend_() {
     if (this.selection_ === PagesValue.CUSTOM) {
       this.$.pageSettingsCustomInput.inputElement.focus();
     }
@@ -487,8 +487,7 @@ export class PrintPreviewPagesSettingsElement extends
       this.resetString();
       this.restoreLastInput_ = false;
     }
-    this.dispatchEvent(new CustomEvent(
-        'custom-input-blurred-for-test', {bubbles: true, composed: true}));
+    this.fire('custom-input-blurred-for-test');
   }
 
   /**

@@ -129,11 +129,11 @@ class MHTMLArchiveTest : public testing::Test {
       }
 
       line = builder.ToString();
-      wtf_size_t pos = line.find(":");
+      wtf_size_t pos = line.find(':');
       if (pos == kNotFound)
         continue;
-      String key = line.Substring(0, pos);
-      String value = line.Substring(pos + 2);
+      String key = line.substr(0, pos);
+      String value = line.substr(pos + 2);
       mhtml_headers.insert(key, value);
 
       line = next_line;
@@ -331,12 +331,13 @@ TEST_F(MHTMLArchiveTest, TestMHTMLPartsWithDefaultEncoding) {
     String encoding = part_headers.find("Content-Transfer-Encoding")->value;
     EXPECT_FALSE(encoding.empty());
 
-    if (content_type.StartsWith("text/"))
+    if (content_type.starts_with("text/")) {
       EXPECT_EQ("quoted-printable", encoding);
-    else if (content_type.StartsWith("image/"))
+    } else if (content_type.starts_with("image/")) {
       EXPECT_EQ("base64", encoding);
-    else
+    } else {
       FAIL() << "Unexpected Content-Type: " << content_type;
+    }
   }
   EXPECT_EQ(12, part_count);
 

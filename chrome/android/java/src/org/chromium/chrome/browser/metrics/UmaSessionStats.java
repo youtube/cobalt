@@ -28,7 +28,7 @@ import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
-import org.chromium.components.embedder_support.util.UrlUtilitiesJni;
+import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.variations.SyntheticTrialAnnotationMode;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
@@ -148,7 +148,7 @@ public class UmaSessionStats {
                         public void onDidFinishNavigationInPrimaryMainFrame(
                                 Tab tab, NavigationHandle navigation) {
                             if (!navigation.hasCommitted()) return;
-                            if (UrlUtilitiesJni.get().isGoogleSearchUrl(tab.getUrl().getSpec())) {
+                            if (UrlUtilities.isGoogleSearchUrl(tab.getUrl().getSpec())) {
                                 mTabbedSessionContainedGoogleSearch = true;
                             }
                         }
@@ -184,10 +184,6 @@ public class UmaSessionStats {
         }
 
         UmaSessionStatsJni.get().umaEndSession(sNativeUmaSessionStats);
-    }
-
-    public void flushSession() {
-        UmaSessionStatsJni.get().flushSession(sNativeUmaSessionStats);
     }
 
     /**
@@ -310,8 +306,6 @@ public class UmaSessionStats {
         void umaResumeSession(long nativeUmaSessionStats);
 
         void umaEndSession(long nativeUmaSessionStats);
-
-        void flushSession(long nativeUmaSessionStats);
 
         void registerExternalExperiment(int[] experimentIds, boolean overrideExistingIds);
 

@@ -34,6 +34,7 @@
 #include "components/content_settings/browser/ui/cookie_controls_util.h"
 #include "components/content_settings/core/browser/content_settings_registry.h"
 #include "components/content_settings/core/browser/content_settings_uma_util.h"
+#include "components/content_settings/core/browser/content_settings_utils.h"
 #include "components/content_settings/core/browser/cookie_settings.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/browser/permission_settings_registry.h"
@@ -93,6 +94,7 @@ namespace {
 
 const char kHttpPortSuffix[] = ":80";
 const char kHttpsPortSuffix[] = ":443";
+const char kExtensionSlashSuffix[] = "/";
 
 BrowserContext* unwrap(const JavaRef<jobject>& jbrowser_context_handle) {
   return content::BrowserContextFromJavaHandle(jbrowser_context_handle);
@@ -153,6 +155,12 @@ ScopedJavaLocalRef<jstring> ConvertOriginToJavaString(
                             base::CompareCase::INSENSITIVE_ASCII)) {
     return ConvertUTF8ToJavaString(
         env, origin.substr(0, origin.size() - strlen(kHttpPortSuffix)));
+  } else if (base::StartsWith(origin, content_settings::kExtensionScheme,
+                              base::CompareCase::INSENSITIVE_ASCII) &&
+             base::EndsWith(origin, kExtensionSlashSuffix,
+                            base::CompareCase::INSENSITIVE_ASCII)) {
+    return ConvertUTF8ToJavaString(
+        env, origin.substr(0, origin.size() - strlen(kExtensionSlashSuffix)));
   } else {
     return ConvertUTF8ToJavaString(env, origin);
   }
@@ -182,22 +190,12 @@ void GetOrigins(JNIEnv* env,
   ContentSettingsForOneType embargo_settings =
       content_settings_map->GetSettingsForOneType(
           ContentSettingsType::PERMISSION_AUTOBLOCKER_DATA);
-  PermissionSetting default_content_setting =
-      content_settings_map->GetDefaultPermissionSetting(content_type);
 
   // Use a vector since the overall number of origins should be small.
   std::vector<std::string> seen_origins;
 
-  auto* info = PermissionSettingsRegistry::GetInstance()->Get(content_type);
-
   // Now add all origins that have a non-default setting to the list.
   for (const auto& settings_it : all_settings) {
-    if (!base::FeatureList::IsEnabled(
-            permissions::features::kPermissionSiteSettingsRadioButton) &&
-        content_settings::ValueToPermissionSetting(
-            info, settings_it.setting_value) == default_content_setting) {
-      continue;
-    }
     if (managedOnly &&
         settings_it.source != content_settings::ProviderType::kPolicyProvider) {
       continue;
@@ -966,10 +964,9 @@ static void JNI_WebsitePreferenceBridge_ClearMediaLicenses(
 static bool JNI_WebsitePreferenceBridge_IsDSEOrigin(
     JNIEnv* env,
     const JavaRef<jobject>& jbrowser_context_handle,
-    const JavaRef<jstring>& jorigin) {
+    const GURL& jorigin) {
   return permissions::PermissionsClient::Get()->IsDseOrigin(
-      unwrap(jbrowser_context_handle),
-      url::Origin::Create(GURL(ConvertJavaStringToUTF8(env, jorigin))));
+      unwrap(jbrowser_context_handle), url::Origin::Create(jorigin));
 }
 
 static bool JNI_WebsitePreferenceBridge_GetAdBlockingActivated(

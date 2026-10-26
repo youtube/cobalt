@@ -16,6 +16,7 @@ import org.chromium.chrome.browser.tabmodel.SupportedProfileType;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.ui.base.ActivityWindowAndroid;
+import org.chromium.ui.base.WindowResizePrecheckResult;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -194,21 +195,14 @@ public interface ChromeAndroidTask {
     @Nullable ActivityWindowAndroid getTopActivityWindowAndroid();
 
     /**
-     * Called when native initialization has finished.
-     *
-     * <p>This signals when this {@link ChromeAndroidTask} is fully initialized.
-     */
-    void onNativeInitializationFinished();
-
-    /**
      * Adds a {@link ChromeAndroidTaskFeature} to this {@link ChromeAndroidTask}.
      *
      * <p>If an instance of the given {@code featureKey} hasn't been added to this Task, this method
      * will be the start of the feature's lifecycle, and {@link
      * ChromeAndroidTaskFeature#onAddedToTask} will be invoked.
      *
-     * <p>If the {@code featureKey} is profile-scoped and the profile doesn't have an associated
-     * browser window this method will throw an exception.
+     * <p>A feature's lifecycle is determined by its {@code featureKey} (e.g., Task-scoped,
+     * Profile-scoped, or Activity-scoped). See {@link ChromeAndroidTaskFeatureKey} for details.
      *
      * <p>If an instance of the given {@code featureKey} is already added, this method will be a
      * no-op and {@link ChromeAndroidTaskFeature#onAddedToTask} won't be invoked.
@@ -222,6 +216,15 @@ public interface ChromeAndroidTask {
      */
     <T extends ChromeAndroidTaskFeature> void addFeature(
             ChromeAndroidTaskFeatureKey featureKey, Supplier<@Nullable T> featureSupplier);
+
+    /**
+     * Removes all {@link ChromeAndroidTaskFeature}s associated with the given {@link
+     * ActivityWindowAndroid}.
+     *
+     * @param activityWindowAndroid The associated activity.
+     * @see #addFeature
+     */
+    void removeAllFeaturesForActivity(ActivityWindowAndroid activityWindowAndroid);
 
     /**
      * Creates the {@link Intent} to open a new window of type {@link BrowserWindowType#NORMAL}.
@@ -300,7 +303,8 @@ public interface ChromeAndroidTask {
      * when its state changed from nonexistent or inactive (minimized/unfocused), to the active
      * state (in the foreground and focused).
      *
-     * <p>The timestamp is in milliseconds since boot.
+     * <p>The timestamp is in milliseconds since boot. Returns 0 if this task has never been
+     * activated.
      */
     long getLastActivatedTimeMillis();
 
@@ -330,6 +334,13 @@ public interface ChromeAndroidTask {
      * window.
      */
     void deactivate();
+
+    /**
+     * Determines whether the window can be resized. Returns WindowResizePrecheckResult.NONE if
+     * resizing is permitted, or a specific failure reason otherwise.
+     */
+    @WindowResizePrecheckResult
+    int canResize();
 
     /** Maximize this {@link ChromeAndroidTask}. */
     void maximize();

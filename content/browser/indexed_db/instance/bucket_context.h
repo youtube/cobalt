@@ -11,6 +11,7 @@
 #include <optional>
 #include <queue>
 #include <string>
+#include <tuple>
 
 #include "base/auto_reset.h"
 #include "base/containers/flat_map.h"
@@ -51,6 +52,26 @@ namespace content::indexed_db {
 class BackingStore;
 class BucketContextHandle;
 class Database;
+
+// Used as a feature param by `kIdbSqliteOnDiskRollout`. Adding, removing and
+// reordering values is fine; just make sure to update
+// `kIdbSqliteOnDiskRolloutStages` when adding new values.
+enum class SqliteRolloutStage {
+  // Use LevelDB exclusively; delete SQLite stores if found.
+  // All on-disk stores emit metrics to the "OnDisk" variant.
+  kUseLevelDbOnly,
+  // Functionally, the same as `kUseLevelDbOnly`.
+  // On-disk stores created during this stage emit metrics to the "Experimental"
+  // variant and previously existing stores emit to the "OnDisk" variant.
+  kUseLevelDbAsControl,
+  // Use SQLite for new stores and corrupted LevelDB stores.
+  // On-disk SQLite stores emit metrics to the "Experimental" variant and
+  // on-disk LevelDB stores emit to the "OnDisk" variant.
+  kUseSqliteForNewStores,
+  // Use SQLite exclusively; delete LevelDB stores if found.
+  // All on-disk stores emit metrics to the "OnDisk" variant.
+  kUseSqliteOnly,
+};
 
 // BucketContext manages the per-bucket IndexedDB state, and other important
 // context like the backing store and lock manager.
@@ -154,7 +175,7 @@ class CONTENT_EXPORT BucketContext
 
   // All `BucketContext` instances created during the lifetime of the returned
   // object will use SQLite iff `use_sqlite` is true, unless overridden for a
-  // specific instance with `set_should_use_sqlite_for_testing()`.
+  // specific instance with `SetSqliteRolloutStageForTesting()`.
   static base::AutoReset<std::optional<bool>> OverrideShouldUseSqliteForTesting(
       bool use_sqlite);
 
@@ -162,7 +183,15 @@ class CONTENT_EXPORT BucketContext
   // crbug.com/340398745.
   static void InsertTeardownStepForTesting(base::OnceClosure on_teardown);
 
-  bool ShouldUseSqlite();
+  static base::TimeDelta GetIdleTimeoutForTesting();
+
+  // Whether the backing store is using SQLite. `CHECK`s that the backing store
+  // exists.
+  bool IsUsingSqlite() const;
+
+  // Returns the suffix to append to histogram names based on the backing store
+  // type. `CHECK`s that the backing store exists.
+  std::string_view GetHistogramSuffix() const;
 
   void QueueRunTasks();
 
@@ -212,7 +241,9 @@ class CONTENT_EXPORT BucketContext
   storage::BucketLocator bucket_locator() {
     return bucket_info_.ToBucketLocator();
   }
-  BackingStore* backing_store() { return backing_store_.get(); }
+  BackingStore* backing_store() {
+    return backing_store_ ? std::get<0>(*backing_store_).get() : nullptr;
+  }
   const DBMap& GetDatabasesForTesting() const { return databases_; }
   PartitionedLockManager& lock_manager() { return *lock_manager_; }
   const PartitionedLockManager& lock_manager() const { return *lock_manager_; }
@@ -296,18 +327,22 @@ class CONTENT_EXPORT BucketContext
   friend BucketContextHandle;
   friend class BackingStoreTestBase;
   friend class DatabaseTest;
-  friend class IndexedDBTest;
+  friend class IndexedDBTestBase;
+  friend class IndexedDBTestForSqliteMigration;
   friend class TransactionTestBase;
 
   FRIEND_TEST_ALL_PREFIXES(IndexedDBTest, CompactionKillSwitchWorks);
   FRIEND_TEST_ALL_PREFIXES(IndexedDBTest, TooLongOrigin);
   FRIEND_TEST_ALL_PREFIXES(IndexedDBTest, BasicFactoryCreationAndTearDown);
+  FRIEND_TEST_ALL_PREFIXES(IndexedDBSqliteTest, BlobReadPutsOffIdleWork);
   FRIEND_TEST_ALL_PREFIXES(BucketContextTest, BucketSpaceDecay);
   FRIEND_TEST_ALL_PREFIXES(BucketContextTest, MetadataRecordingStateHistory);
+  FRIEND_TEST_ALL_PREFIXES(BucketContextTest,
+                           OverrideShouldUseSqliteForTesting);
 
-  // Overrides the backing store type for this instance only. Must be called
-  // right after object construction.
-  void SetShouldUseSqliteForTesting(bool use_sqlite);
+  // Overrides the rollout stage for this instance only. Must be called before
+  // backing store initialization.
+  void SetSqliteRolloutStageForTesting(SqliteRolloutStage stage);
 
   // The data structure that stores everything bound to the receiver. This will
   // be stored together with the receiver in the `mojo::ReceiverSet`.
@@ -342,8 +377,12 @@ class CONTENT_EXPORT BucketContext
   void StartClosing();
   void CloseNow();
   void StartPreCloseTasks();
-
   void RunTasks();
+
+  // Called when there is any activity that should reset the idle timer.
+  void OnActivity();
+  // Called after a period of inactivity.
+  void RunIdleTasks();
 
   void OnGotBucketSpaceRemaining(storage::QuotaErrorOr<int64_t> space_left);
 
@@ -376,15 +415,18 @@ class CONTENT_EXPORT BucketContext
 
   std::string SanitizeErrorMessage(const std::string& message);
 
+  // Called when a Web Blob is being read from SQLite. `final_result` will hold
+  // a value IFF the read operation has completed.
+  void OnSqliteBlobActivity(std::optional<net::Error> final_result);
+
   const storage::BucketInfo bucket_info_;
 
   // Base directory for blobs and backing store files.
   const base::FilePath data_path_;
 
-  // True if the backing store is SQLite, or would be SQLite if it existed. This
-  // is lazily initialized based on flag state, or overridden with
-  // `set_should_use_sqlite_for_testing()`.
-  std::optional<bool> should_use_sqlite_;
+  // Set at construction. Can be overridden by
+  // `SetSqliteRolloutStageForTesting()`.
+  SqliteRolloutStage sqlite_rollout_stage_;
 
   // True if there are blobs referencing this backing store that are still
   // alive. This is used as closing criteria for this object, see CanClose.
@@ -394,9 +436,15 @@ class CONTENT_EXPORT BucketContext
   bool running_tasks_ = false;
 
   ClosingState closing_stage_ = ClosingState::kNotClosing;
+  base::RetainingOneShotTimer idle_timer_;
+  std::optional<base::TimeTicks> last_idle_tasks_completion_time_;
   base::OneShotTimer close_timer_;
   std::unique_ptr<PartitionedLockManager> lock_manager_;
-  std::unique_ptr<BackingStore> backing_store_;
+  // <BackingStore, is_sqlite, histogram_suffix>. Set only after a successful
+  // call to `InitBackingStore()`.
+  std::optional<
+      std::tuple<std::unique_ptr<BackingStore>, bool, std::string_view>>
+      backing_store_;
   scoped_refptr<storage::QuotaManagerProxy> quota_manager_proxy_;
 
   // Databases in the backing store which are already loaded/represented by

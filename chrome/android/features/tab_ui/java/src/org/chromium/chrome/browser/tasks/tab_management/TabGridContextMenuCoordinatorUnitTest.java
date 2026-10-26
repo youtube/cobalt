@@ -69,7 +69,7 @@ import java.util.function.Supplier;
 
 /** Unit tests for {@link TabGridContextMenuCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@EnableFeatures({ChromeFeatureList.ANDROID_PINNED_TABS, ChromeFeatureList.MEDIA_INDICATORS_ANDROID})
+@EnableFeatures(ChromeFeatureList.MEDIA_INDICATORS_ANDROID)
 public class TabGridContextMenuCoordinatorUnitTest {
     private static @TabId final int TAB_ID = 1;
     private static final int MENU_WIDTH = 300;
@@ -639,7 +639,7 @@ public class TabGridContextMenuCoordinatorUnitTest {
         assertNull(mCoordinator.getCollaborationIdOrNull(TAB_ID));
     }
 
-    private int getMenuItemTitleId(int mMenuItemListIndex) {
-        return mMenuItemList.get(mMenuItemListIndex).model.get(ListMenuItemProperties.TITLE_ID);
+    private int getMenuItemTitleId(int menuItemListIndex) {
+        return mMenuItemList.get(menuItemListIndex).model.get(ListMenuItemProperties.TITLE_ID);
     }
 }

@@ -147,22 +147,26 @@ bool SpdyHttpStream::IsConnectionReused() const {
   return is_reused_;
 }
 
-int64_t SpdyHttpStream::GetTotalReceivedBytes() const {
-  if (stream_closed_)
+base::ByteSize SpdyHttpStream::GetTotalReceivedBytes() const {
+  if (stream_closed_) {
     return closed_stream_received_bytes_;
+  }
 
-  if (!stream_)
-    return 0;
+  if (!stream_) {
+    return base::ByteSize(0);
+  }
 
   return stream_->raw_received_bytes();
 }
 
-int64_t SpdyHttpStream::GetTotalSentBytes() const {
-  if (stream_closed_)
+base::ByteSize SpdyHttpStream::GetTotalSentBytes() const {
+  if (stream_closed_) {
     return closed_stream_sent_bytes_;
+  }
 
-  if (!stream_)
-    return 0;
+  if (!stream_) {
+    return base::ByteSize(0);
+  }
 
   return stream_->raw_sent_bytes();
 }

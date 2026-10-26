@@ -38,9 +38,6 @@
 namespace webrtc {
 namespace jni {
 
-// TODO(sakal): Remove once clients have migrated.
-using ::webrtc::JavaToStdMapStrings;
-
 // Deprecated, use NativeToJavaPointer.
 inline long jlongFromPointer(void* ptr) {
   return NativeToJavaPointer(ptr);

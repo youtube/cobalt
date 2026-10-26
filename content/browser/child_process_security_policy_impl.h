@@ -14,10 +14,12 @@
 
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
+#include "base/feature_list.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/singleton.h"
+#include "base/metrics/field_trial_params.h"
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
@@ -54,6 +56,37 @@ class IsolationContext;
 class ProcessLock;
 struct UrlInfo;
 
+// When enabled, replaces certain ChildProcessSecurityPolicy functionality with
+// an experimental Rust implementation. See https://crbug.com/482216433.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kChildProcessSecurityPolicyRust);
+
+// Determines how the experimental Rust ChildProcessSecurityPolicy
+// implementation should be enabled.
+enum class RustPolicy {
+  // The Rust ChildProcessSecurityPolicy implementation is not used, and only
+  // the legacy C++ implementation is used.
+  kCppOnly,
+  // The Rust ChildProcessSecurityPolicy implementation is used, and the legacy
+  // C++ implementation is not used.
+  kRustOnly,
+  // Both Rust and C++ ChildProcessSecurityPolicy implementations run in
+  // parallel, and runtime checks ensure that they match.
+  kRustAndCpp,
+};
+
+CONTENT_EXPORT extern const base::FeatureParam<RustPolicy> kRustPolicyParam;
+
+// Note: This class's implementation is migrating to Rust in
+// https://crbug.com/482216433. Existing functions will be replaced with
+// wrappers that can forward to a Rust implementation or a C++ implementation
+// (named with a _Cpp suffix), based on the following feature flags:
+//   --enable-features=ChildProcessSecurityPolicyRust for only running the Rust
+//     implementations.
+//   --enable-features=ChildProcessSecurityPolicyRust:policy/rust-and-cpp for
+//     running both implementations and ensuring their results match. By
+//     default, only the C++ implementations are used.
+// The _Cpp implementations and the wrapper functions will be removed after
+// the Rust features have launched.
 class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
     : public ChildProcessSecurityPolicy {
  public:
@@ -143,8 +176,11 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
 
   // ChildProcessSecurityPolicy implementation.
   void RegisterWebSafeScheme(const std::string& scheme) override;
+  void RegisterWebSafeScheme_Cpp(const std::string& scheme);
   void RegisterWebSafeIsolatedScheme(const std::string& scheme) override;
+  void RegisterWebSafeIsolatedScheme_Cpp(const std::string& scheme);
   bool IsWebSafeScheme(const std::string& scheme) override;
+  bool IsWebSafeScheme_Cpp(const std::string& scheme);
   void GrantReadFile(ChildProcessId child_id,
                      const base::FilePath& file) override;
   void GrantCreateReadWriteFile(int child_id,
@@ -170,6 +206,7 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
                                  const std::string& filesystem_id) override;
   void GrantCommitOrigin(int child_id, const url::Origin& origin) override;
   void GrantRequestOrigin(int child_id, const url::Origin& origin) override;
+  void GrantCommitScheme(int child_id, const std::string& scheme) override;
   void GrantRequestScheme(int child_id, const std::string& scheme) override;
   bool CanRequestURL(int child_id, const GURL& url) override;
   bool CanReadFile(ChildProcessId child_id,
@@ -391,29 +428,21 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
   // cannot be requested like normal URLs.  There is no mechanism for revoking
   // pseudo schemes.
   void RegisterPseudoScheme(const std::string& scheme);
+  void RegisterPseudoScheme_Cpp(const std::string& scheme);
 
   // Returns true iff |scheme| has been registered as pseudo scheme.
   bool IsPseudoScheme(const std::string& scheme);
+  bool IsPseudoScheme_Cpp(const std::string& scheme);
 
   // Upon creation, child processes should register themselves by calling this
   // this method exactly once. This call must be made on the UI thread.
   void Add(ChildProcessId child_id, BrowserContext* browser_context);
-
-  // TODO(crbug.com/379869738) Remove this method when usages are ported.
-  inline void Add(int child_id, BrowserContext* browser_context) {
-    Add(ChildProcessId::FromUnsafeValue(child_id), browser_context);
-  }
 
   // Helper method for unit tests that calls Add() and
   // LockProcess() with an "allow_any_site" lock. This ensures that the process
   // policy is always in a state where it is valid to call
   // CanAccessDataForOrigin().
   void AddForTesting(ChildProcessId child_id, BrowserContext* browser_context);
-
-  // TODO(crbug.com/379869738) Remove this method when usages are ported.
-  inline void AddForTesting(int child_id, BrowserContext* browser_context) {
-    AddForTesting(ChildProcessId::FromUnsafeValue(child_id), browser_context);
-  }
 
   // Upon destruction, child processes should unregister themselves by calling
   // this method exactly once. This call must be made on the UI thread.
@@ -425,11 +454,6 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
   // thread, for this |child_id| are allowed to run before access is completely
   // revoked.
   void Remove(ChildProcessId child_id);
-
-  // TODO(crbug.com/379869738) Remove this method when usages are ported.
-  inline void Remove(int child_id) {
-    Remove(ChildProcessId::FromUnsafeValue(child_id));
-  }
 
   // Whenever the browser processes commands the child process to commit a URL,
   // it should call this method to grant the child process the capability to
@@ -641,6 +665,11 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
   size_t BrowsingInstanceIdCountForTesting(ChildProcessId child_id);
 
   void ClearRegisteredSchemeForTesting(const std::string& scheme);
+  void ClearRegisteredSchemeForTesting_Cpp(const std::string& scheme);
+
+  // Clears and re-registers the default web-safe and pseudo schemes. Used to
+  // reset state between unit tests.
+  void ResetRegisteredSchemesForTesting();
 
   // Checks if the provided `url` matches any committed origin in the process
   // `child_id`. Currently only exposed for testing, since normally this check
@@ -1065,12 +1094,20 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
   // process that only hosts PDF documents.
   bool IsAccessAllowedForPdfProcess(AccessType access_type);
 
+  // Helper to register the default web-safe and pseudo schemes.
+  void RegisterDefaultSchemes();
+
   // Utility function to simplify lookups for OriginAgentClusterOptInEntry
   // values by origin.
   OriginAgentClusterIsolationState* LookupOriginIsolationState(
       const BrowsingInstanceId& browsing_instance_id,
       const url::Origin& origin)
       EXCLUSIVE_LOCKS_REQUIRED(origins_isolation_opt_in_lock_);
+
+  // Helper used by CanCommitURL() to check if `scheme` can be committed in any
+  // process.
+  bool CanCommitSchemeInAnyProcess(const std::string& scheme);
+  bool CanCommitSchemeInAnyProcess_Cpp(const std::string& scheme);
 
   // You must acquire this lock before reading or writing any members of this
   // class, except for isolated_origins_, schemes_okay_to_*, and

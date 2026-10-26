@@ -14,6 +14,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
+#include "chrome/browser/ui/call_to_action/call_to_action_lock.h"
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
@@ -36,6 +37,7 @@
 #include "content/public/test/web_contents_tester.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "ui/gfx/animation/animation_test_api.h"
 #include "ui/views/test/views_test_utils.h"
 #include "ui/views/widget/widget.h"
@@ -43,8 +45,6 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ash/test/glic_user_session_test_helper.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
-
-static_assert(BUILDFLAG(ENABLE_GLIC));
 
 // TODO(crbug.com/461140208): Re-enable failing tests on ChromeOS.
 #if BUILDFLAG(IS_CHROMEOS)
@@ -170,8 +170,12 @@ class TabStripActionContainerTest : public ChromeViewsTestBase {
             tab_strip_->GetBrowserWindowInterface()->GetProfile()));
     ON_CALL(*browser_window_interface_, GetActiveTabInterface)
         .WillByDefault(::testing::Return(tab_interface_.get()));
-    ON_CALL(*browser_window_interface_, CanShowCallToAction)
-        .WillByDefault(::testing::Return(true));
+    ON_CALL(*browser_window_interface_, GetUnownedUserDataHost())
+        .WillByDefault(testing::ReturnRef(data_host_));
+
+    call_to_action_ =
+        std::make_unique<CallToActionLock>(browser_window_interface_.get());
+
     ON_CALL(*tab_interface_, GetContents)
         .WillByDefault(::testing::Return(web_contents_.get()));
     ON_CALL(*browser_window_interface_, RegisterActiveTabDidChange)
@@ -180,7 +184,7 @@ class TabStripActionContainerTest : public ChromeViewsTestBase {
           return base::CallbackListSubscription();
         });
 
-    glic_nudge_controller_ = std::make_unique<tabs::GlicNudgeController>(
+    glic_nudge_controller_ = std::make_unique<glic::GlicNudgeController>(
         browser_window_interface_.get());
 
     tab_strip_action_container_ = std::make_unique<TabStripActionContainer>(
@@ -196,9 +200,11 @@ class TabStripActionContainerTest : public ChromeViewsTestBase {
   glic::GlicUnitTestEnvironment glic_test_environment_;
   std::unique_ptr<TabStrip> tab_strip_;
   std::unique_ptr<TabStripModel> tab_strip_model_;
-  std::unique_ptr<tabs::GlicNudgeController> glic_nudge_controller_;
+  std::unique_ptr<glic::GlicNudgeController> glic_nudge_controller_;
   std::unique_ptr<tabs::MockTabInterface> tab_interface_;
   std::unique_ptr<MockBrowserWindowInterface> browser_window_interface_;
+  ui::UnownedUserDataHost data_host_;
+  std::unique_ptr<CallToActionLock> call_to_action_;
   TestTabStripModelDelegate tab_strip_model_delegate_;
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<views::View> locked_expansion_view_;
@@ -300,7 +306,8 @@ TEST_F(TabStripActionContainerTest, MAYBE(GlicButtonUpdateLabel)) {
 
 TEST_F(TabStripActionContainerTest, MAYBE(GlicButtonHideNudgeOnTabChange)) {
   BuildGlicContainer(/*use_otr_profile=*/false);
-  glic_nudge_controller_->SetDelegate(tab_strip_action_container_.get());
+  glic_nudge_controller_->SetTabStripDelegate(
+      tab_strip_action_container_.get());
 
   ASSERT_FALSE(tab_strip_action_container_->GetIsShowingGlicNudge());
 
@@ -312,5 +319,6 @@ TEST_F(TabStripActionContainerTest, MAYBE(GlicButtonHideNudgeOnTabChange)) {
 
   SimulateActiveTabChanged();
   ASSERT_FALSE(tab_strip_action_container_->GetIsShowingGlicNudge());
-  ASSERT_EQ(tab_strip_action_container_->GetGlicButton()->GetText(), u"Gemini");
+  ASSERT_EQ(tab_strip_action_container_->GetGlicButton()->GetText(),
+            u"Ask Gemini");
 }

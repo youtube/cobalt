@@ -63,8 +63,8 @@ class TabAlertControllerInteractiveUiTest
     : public glic::test::InteractiveGlicTest {
  public:
   TabAlertControllerInteractiveUiTest() {
-    scoped_feature_list_.InitWithFeatures(
-        {features::kGlic, glic::mojom::features::kGlicMultiTab}, {});
+    scoped_feature_list_.InitWithFeatures({features::kGlic},
+                                          {features::kGlicMultiInstance});
   }
   ~TabAlertControllerInteractiveUiTest() override = default;
 

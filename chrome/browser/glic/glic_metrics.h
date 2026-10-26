@@ -205,7 +205,27 @@ enum class ResponseSegmentation {
   kPdfSummarizeButtonAttachedAudio = 70,
   kPdfSummarizeButtonDetachedText = 71,
   kPdfSummarizeButtonDetachedAudio = 72,
-  kMaxValue = kPdfSummarizeButtonDetachedAudio,
+  kNavigationCaptureAttachedText = 73,
+  kNavigationCaptureAttachedAudio = 74,
+  kNavigationCaptureDetachedText = 75,
+  kNavigationCaptureDetachedAudio = 76,
+  kAutoOpenedForPdfAttachedText = 77,
+  kAutoOpenedForPdfAttachedAudio = 78,
+  kAutoOpenedForPdfDetachedText = 79,
+  kAutoOpenedForPdfDetachedAudio = 80,
+  kCaptureRegionHotkeyAttachedText = 81,
+  kCaptureRegionHotkeyAttachedAudio = 82,
+  kCaptureRegionHotkeyDetachedText = 83,
+  kCaptureRegionHotkeyDetachedAudio = 84,
+  kIphAttachedText = 85,
+  kIphAttachedAudio = 86,
+  kIphDetachedText = 87,
+  kIphDetachedAudio = 88,
+  kAnchoredContextualCueAttachedText = 89,
+  kAnchoredContextualCueAttachedAudio = 90,
+  kAnchoredContextualCueDetachedText = 91,
+  kAnchoredContextualCueDetachedAudio = 92,
+  kMaxValue = kAnchoredContextualCueDetachedAudio,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicResponseSegmentation)
 
@@ -296,21 +316,23 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   ~GlicMetrics() override;
 
   // `GlicInstanceMetricsBackwardsCompatibility`:
+  void OnUserInputSubmitted(mojom::WebClientMode mode) override;
+  void OnReaction(mojom::MetricUserInputReactionType reaction_type) override;
+  void OnResponseStarted() override;
+  void OnResponseStopped(mojom::ResponseStopCause cause) override;
+  void OnTurnCompleted(mojom::WebClientModel model,
+                       base::TimeDelta duration) override;
+  void DidRequestContextFromTab(tabs::TabInterface& tab) override;
   void OnGlicScrollAttempt() override;
   void OnGlicScrollComplete(bool success) override;
 
   // See glic.mojom for details. These are events from the web client. The
   // lifetime of the web client is scoped to that of the window, so if these
   // methods are called then controller_ is guaranteed to exist.
-  void OnUserInputSubmitted(mojom::WebClientMode mode);
   void OnContextUploadStarted();
   void OnContextUploadCompleted();
-  void OnReaction(mojom::MetricUserInputReactionType reaction_type);
-  void OnResponseStarted();
-  void OnResponseStopped(mojom::ResponseStopCause cause);
   void OnSessionTerminated();
   void OnResponseRated(bool positive);
-  void OnTurnCompleted(mojom::WebClientModel model, base::TimeDelta duration);
   void OnRecordUseCounter(uint16_t counter);
 
   void OnAttachedToBrowser(AttachChangeReason reason);
@@ -385,10 +407,11 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
                                   GlicSharingManager* sharing_manager);
   void ClearControllers();
 
-  void SetDelegateForTesting(std::unique_ptr<Delegate> delegate);
+  // Records user preferences for the profile. Called when the GlicKeyedService
+  // for each profile is created.
+  void RecordGlicProfilePreferences();
 
-  // Must be called when context is requested from a tab.
-  void DidRequestContextFromTab(content::WebContents& web_contents);
+  void SetDelegateForTesting(std::unique_ptr<Delegate> delegate);
 
   // Sets the input mode of the web client. Should be called when the panel is
   // opened and in every subsequent mode change.
@@ -412,6 +435,9 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
 
   // Called when kGlicTabContextEnabled changes.
   void OnTabContextEnabledPrefChanged();
+
+  // Records the time from startup until Glic was enabled for the profile.
+  void RecordStartupEnablement();
 
   // Returns the area in the display a given center point is.
   DisplayPosition GetDisplayPositionOfPoint(
@@ -482,6 +508,10 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // Whether Glic is enabled and FRE has been completed. Tracked to trigger
   // metric(s) on change.
   bool is_enabled_ = false;
+
+  // Whether we have already recorded the metric that tracks how long it took
+  // for Glic to be enabled since startup.
+  bool recorded_startup_enablement_ = false;
 
   std::vector<base::CallbackListSubscription> subscriptions_;
 

@@ -16,6 +16,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/controls/image_view.h"
 
 namespace ash {
 
@@ -56,7 +57,7 @@ class MouseKeysTrayTest : public AshTestBase {
   }
 
   // Gets the current tray image view.
-  views::ImageView* GetImageView() { return GetTray()->GetIcon(); }
+  views::ImageView* GetImageView() { return GetTray()->image_view(); }
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;

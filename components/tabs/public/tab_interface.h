@@ -115,21 +115,24 @@ class TabInterface : public SupportsTabHandles {
 
   // Returns the WebContents that is currently associated with this tab.
   //
-  // The returned pointer is guaranteed to be non-null.
+  // Windows/Mac/Linux:
+  // * The returned pointer is guaranteed to be non-null.
+  // * The WebContents object *itself* can be replaced, most notably when a
+  //   background tab's contents are discarded to save memory. Callers who need
+  //   to observe the tab for its entire lifetime should not cache the
+  //   WebContents pointer directly. Instead, they should hold a reference to
+  //   the TabInterface and call GetContents() when needed, or use
+  //   RegisterWillDiscardContents() to be notified of swaps.
   //
-  // However, the WebContents object *itself* can be replaced, most notably
-  // when a background tab's contents are discarded to save memory.
-  // Callers who need to observe the tab for its entire lifetime should not
-  // cache the WebContents pointer directly. Instead, they should hold a
-  // reference to the TabInterface and call GetContents() when needed, or use
-  // RegisterWillDiscardContents() to be notified of swaps.
-  //
-  // Note on Android there are different invariants:
-  // 1. This may return nullptr for tabs that have not loaded in the current
-  //    session. If kLoadAllTabsOnStartup is enabled, this will be non-null for
-  //    all tabs in models with TabModelType::kStandard.
-  // 2. This object will NOT be replaced on Android and discarding or swapping
-  //    contents is not supported.
+  // Android:
+  // * This may return nullptr for tabs that have not loaded in the current
+  //   session. If kLoadAllTabsOnStartup is enabled, this will be non-null for
+  //   all tabs in models with TabModelType::kStandard.
+  // * The WebContents object will never change after being populated.
+  //   Discarding WebContents does not change the WebContents pointer and
+  //   swapping WebContents is not supported. That said, for portability with
+  //   Windows/Mac/Linux, the recommendation is to hold a pointer to the
+  //   TabInterface and call GetContents() when needed as described above.
   virtual content::WebContents* GetContents() const = 0;
 
   // Closes the tab.
@@ -217,6 +220,12 @@ class TabInterface : public SupportsTabHandles {
   virtual base::CallbackListSubscription RegisterGroupChanged(
       GroupChangedCallback callback) = 0;
 
+  // Register for this callback to detect when the blocked state changes.
+  using BlockedStateChangedCallback =
+      base::RepeatingCallback<void(TabInterface*, bool new_blocked_state)>;
+  virtual base::CallbackListSubscription RegisterBlockedStateChanged(
+      BlockedStateChangedCallback callback) = 0;
+
   // Features that want to show tab-modal UI are mutually exclusive. Before
   // showing a modal UI first check `CanShowModal`. Then call ShowModal() and
   // keep `ScopedTabModal` alive to prevent other features from showing
@@ -249,9 +258,13 @@ class TabInterface : public SupportsTabHandles {
   // TabFeatures or BrowserWindowFeatures, you can safely assume that this is
   // always non-nullptr.
   //
-  // TODO(crbug.com/481636328): Support BrowserWindowInterface on all Android
-  // form factors. Currently, this is only supported on Desktop Android. On
-  // other Android form factors, this will return nullptr.
+  // Android specific notes:
+  // * Tabs that are reparenting, closing or in undoable closure state will
+  //   return nullptr.
+  // * Prior to associating the tab with a browser window (i.e. early in
+  //   startup), this will be nullptr.
+  // * After dissociation from a browser window (i.e. during activity/profile
+  //   destruction), this will be nullptr.
   virtual BrowserWindowInterface* GetBrowserWindowInterface() = 0;
   virtual const BrowserWindowInterface* GetBrowserWindowInterface() const = 0;
 

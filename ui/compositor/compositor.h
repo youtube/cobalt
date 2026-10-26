@@ -398,6 +398,7 @@ class COMPOSITOR_EXPORT Compositor : public base::PowerSuspendObserver,
 
   // LayerTreeHostClient implementation.
   void WillBeginMainFrame() override {}
+  void WillBeginImplCommit() override {}
   void DidBeginMainFrame() override;
   void OnDeferMainFrameUpdatesChanged(bool) override {}
   void OnDeferCommitsChanged(
@@ -634,14 +635,14 @@ class COMPOSITOR_EXPORT Compositor : public base::PowerSuspendObserver,
   // The root of the Layer tree drawn by this compositor.
   raw_ptr<Layer> root_layer_ = nullptr;
 
-  base::ObserverList<CompositorObserver, true>::Unchecked observer_list_;
-
-  // TODO(crbug.com/40562847): Allow skipping reentrancy check for
-  // `Check()` and change to kDisallowReentrancy.
+  // TODO(crbug.com/484371187): Investigate if reentrancy can be removed.
   base::ObserverList<
-      CompositorAnimationObserver,
-      /*check_empty=*/false,
+      CompositorObserver,
+      /*check_empty=*/true,
       base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>::Unchecked
+      observer_list_;
+
+  base::ObserverList<CompositorAnimationObserver>::Unchecked
       animation_observer_list_;
 
   gfx::AcceleratedWidget widget_ = gfx::kNullAcceleratedWidget;

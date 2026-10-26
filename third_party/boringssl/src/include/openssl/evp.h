@@ -434,6 +434,17 @@ OPENSSL_EXPORT int EVP_PKEY_get_raw_public_key(const EVP_PKEY *pkey,
                                                uint8_t *out, size_t *out_len);
 
 
+// Key generation
+
+// EVP_PKEY_generate_from_alg generates a new key of type |alg|. It returns a
+// newly-allocated |EVP_PKEY| or nullptr on error.
+//
+// When passed |EVP_pkey_rsa|, this function generates an RSA-2048 key with the
+// recommended public exponent of 65537, or |RSA_F4|. Use |EVP_RSA_gen| or
+// |EVP_PKEY_keygen| instead to customize these parameters.
+OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_generate_from_alg(const EVP_PKEY_ALG *alg);
+
+
 // Signing
 
 // EVP_DigestSignInit sets up |ctx| for a signing operation with |type| and
@@ -706,6 +717,8 @@ OPENSSL_EXPORT EVP_PKEY_CTX *EVP_PKEY_CTX_new(EVP_PKEY *pkey, ENGINE *e);
 // (e.g. |EVP_PKEY_HMAC|). This can be used for key generation where
 // |EVP_PKEY_CTX_new| can't be used because there isn't an |EVP_PKEY| to pass
 // it. It returns the context or NULL on error.
+//
+// For key generation, prefer to use |EVP_PKEY_generate_from_alg|.
 OPENSSL_EXPORT EVP_PKEY_CTX *EVP_PKEY_CTX_new_id(int id, ENGINE *e);
 
 // EVP_PKEY_CTX_free frees |ctx| and the data it owns.
@@ -897,10 +910,10 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_get_signature_md(EVP_PKEY_CTX *ctx,
                                                  const EVP_MD **out_md);
 
 // EVP_PKEY_CTX_set1_signature_context_string sets the context string for a
-// signature or verification operation. It returns one success and zero on
-// error. The context string is an additional input to some signature
-// algorithms, such as ML-DSA, to separate different uses of the same key.
-// This is known as domain separation. Section 8.3 of RFC 8032 provides some
+// signature or verification operation to |context|. It returns one success and
+// zero on error. The context string is an additional input to some signature
+// algorithms, such as ML-DSA, to separate different uses of the same key.  This
+// is known as domain separation. Section 8.3 of RFC 8032 provides some
 // additional guidance on context strings.
 //
 // Not all signature algorithms support context strings. Callers that support
@@ -908,12 +921,18 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_get_signature_md(EVP_PKEY_CTX *ctx,
 // separate the signature input itself. For example, callers can prepend
 // context-specific prefixes to signature inputs.
 OPENSSL_EXPORT int EVP_PKEY_CTX_set1_signature_context_string(
-    EVP_PKEY_CTX *ctx,
-    uint8_t *context,
-    size_t context_len);
+    EVP_PKEY_CTX *ctx, const uint8_t *context, size_t context_len);
 
 
 // RSA specific control functions.
+
+// EVP_RSA_gen generates a new RSA key with the specified number of bits. It
+// returns a newly-allocated |EVP_PKEY| or nullptr on error.
+//
+// This function sets the public exponent to the recommended value of 65537, or
+// |RSA_F4|. To use a less common value, instead use
+// |EVP_PKEY_CTX_set_rsa_keygen_pubexp| and |EVP_PKEY_keygen|.
+OPENSSL_EXPORT EVP_PKEY *EVP_RSA_gen(unsigned bits);
 
 // EVP_PKEY_CTX_set_rsa_padding sets the padding type to use. It should be one
 // of the |RSA_*_PADDING| values. Returns one on success or zero on error. By
@@ -1301,10 +1320,13 @@ OPENSSL_EXPORT EVP_PKEY *EVP_PKEY_new_raw_public_key(int type, ENGINE *unused,
 // constants to 'ctrl' functions. To avoid breaking #ifdefs in consumers, this
 // section defines a number of legacy macros.
 
-// |BORINGSSL_PREFIX| already makes each of these symbols into macros, so there
-// is no need to define conflicting macros.
-#if !defined(BORINGSSL_PREFIX)
+// |BORINGSSL_PREFIX| already makes some of these symbols into macros, so there
+// is no need to define conflicting macros; however it is compiler specific
+// which ones become macros.
+#if !defined(EVP_PKEY_CTX_set_rsa_oaep_md)
 #define EVP_PKEY_CTX_set_rsa_oaep_md EVP_PKEY_CTX_set_rsa_oaep_md
+#endif
+#if !defined(EVP_PKEY_CTX_set0_rsa_oaep_label)
 #define EVP_PKEY_CTX_set0_rsa_oaep_label EVP_PKEY_CTX_set0_rsa_oaep_label
 #endif
 

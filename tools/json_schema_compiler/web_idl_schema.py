@@ -151,6 +151,24 @@ def AddCommonExtendedAttributeProperties(node: IDLNode, properties: dict):
     properties['nocompile'] = True
 
 
+def AddEventOptionsExtendedAttributes(node: IDLNode, properties: dict):
+  """Looks for event option extended attributes and adds them to properties.
+
+  Extracts extended attributes that are only specific to Event definitions.
+  TODO(crbug.com/487746350): Add support for declarative event related
+  properties (`supportsFilters`, `supportsListeners`, `supportsRules`) to this
+  function as required for WebIDL schema conversions.
+
+  Args:
+    node: The IDLNode to look for the extended attributes on.
+    properties: The object to add the associated key value pairs to.
+  """
+  if (value := GetExtendedAttributeValue(node, 'maxListeners')) is not None:
+    if 'options' not in properties:
+      properties['options'] = {}
+    properties['options']['maxListeners'] = int(value)
+
+
 def _ExtractNodeComment(node: IDLNode) -> str:
   """Extract contiguous file comments above a node and return them as a string.
 
@@ -397,9 +415,6 @@ class Type():
           parent = parent.GetParent()
 
         referenced_type = GetChildWithName(parent, type_name)
-        # TODO(crbug.com/450443604): Add support for shared types, which are
-        # defined in a separate file that is referenced by several different
-        # schemas.
         if referenced_type is None:
           raise SchemaCompilerError(
               'Could not find definition of referenced type "%s" for node.' %
@@ -411,6 +426,26 @@ class Type():
           properties['$ref'] = type_name
         elif referenced_type.GetClass() == 'Callback':
           properties = Operation(referenced_type).process()
+        elif referenced_type.GetClass() == 'Typedef':
+          # Typedefs can be used for declaring shared Types referencing Types
+          # defined in other API namespaces, or for defining local aliases
+          # with specific extended attributes like [instanceOf].
+          if shared_type_name := GetExtendedAttributeValue(
+              referenced_type, 'ExternalExtensionType'):
+            # TODO(crbug.com/486928682): Eventually it would be good to follow
+            # the way Blink does this, by having shared types use globally
+            # unique names and be defined in their own files. Then all the
+            # relevant type files for an API schema could also be passed to the
+            # IDL parser and our `referenced_type` code above could search
+            # through those.
+            properties['$ref'] = shared_type_name
+          else:
+            # If it's not an external type, we process the underlying type of
+            # the typedef and apply any extended attributes from the typedef
+            # itself.
+            typedef_type_node = referenced_type.GetOneOf('Type')
+            properties.update(Type(typedef_type_node).Process())
+
         else:
           raise SchemaCompilerError(
               'Found a Typeref node referencing a node of type "%s", but we'
@@ -597,7 +632,13 @@ class DictionaryMember(TypedProperty):
   def Process(self) -> dict:
     # TODO(crbug.com/340297705): Add support for extended attributes on custom
     # type members.
-    self.properties['name'] = self.node.GetName()
+    name = self.node.GetName()
+    self.properties['name'] = name
+    # If this member is for a callback with a return (e.g. has a 'returns'
+    # property) the name specified on the 'returns' is actually inherited from
+    # the member name.
+    if 'returns' in self.properties:
+      self.properties['returns']['name'] = name
 
     if not self.node.GetProperty('REQUIRED'):
       self.properties['optional'] = True
@@ -796,6 +837,7 @@ class Event:
     properties['parameters'] = parameters
 
     AddCommonExtendedAttributeProperties(self.node, properties)
+    AddEventOptionsExtendedAttributes(self.node, properties)
 
     return properties
 

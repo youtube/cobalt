@@ -13,12 +13,13 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "build/build_config.h"
+#include "chrome/browser/accessibility_annotator/accessibility_annotator_backend_factory.h"
+#include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/autofill/account_setting_service_factory.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/collaboration/collaboration_service_factory.h"
-#include "chrome/browser/commerce/product_specifications/product_specifications_service_factory.h"
 #include "chrome/browser/consent_auditor/consent_auditor_factory.h"
 #include "chrome/browser/data_sharing/data_sharing_service_factory.h"
 #include "chrome/browser/data_sharing/personal_collaboration_data/personal_collaboration_data_service_factory.h"
@@ -189,6 +190,8 @@ syncer::DataTypeController::TypeVector CreateCommonControllers(
 #endif  // DCHECK_IS_ON()
 
   browser_sync::CommonControllerBuilder builder;
+  builder.SetAccessibilityAnnotatorBackend(
+      AccessibilityAnnotatorBackendFactory::GetForProfile(profile));
   builder.SetAccountSettingService(
       autofill::AccountSettingServiceFactory::GetForBrowserContext(profile));
   // A callback is needed here because `autofill::PersonalDataManagerFactory`
@@ -206,6 +209,8 @@ syncer::DataTypeController::TypeVector CreateCommonControllers(
   builder.SetCollaborationService(
       collaboration::CollaborationServiceFactory::GetForProfile(profile));
 #if !BUILDFLAG(IS_ANDROID)
+  builder.SetAimEligibilityService(
+      AimEligibilityServiceFactory::GetForProfile(profile));
   builder.SetContextualTasksService(
       contextual_tasks::ContextualTasksServiceFactory::GetForProfile(profile));
 #endif
@@ -244,9 +249,6 @@ syncer::DataTypeController::TypeVector CreateCommonControllers(
           profile, ServiceAccessType::IMPLICIT_ACCESS));
   builder.SetPrefService(profile->GetPrefs());
   builder.SetPrefServiceSyncable(PrefServiceSyncableFromProfile(profile));
-  builder.SetProductSpecificationsService(
-      commerce::ProductSpecificationsServiceFactory::GetForBrowserContext(
-          profile));
   builder.SetTabGroupSyncService(GetTabGroupSyncService(profile));
   builder.SetTemplateURLService(
 #if BUILDFLAG(IS_ANDROID)
@@ -524,9 +526,11 @@ SyncServiceFactory::SyncServiceFactory()
   // destruction order. Note that some of the dependencies are listed here but
   // actually plumbed in ChromeSyncClient, which this factory constructs.
   DependsOn(AboutSigninInternalsFactory::GetInstance());
+  DependsOn(AccessibilityAnnotatorBackendFactory::GetInstance());
   DependsOn(autofill::AccountSettingServiceFactory::GetInstance());
   DependsOn(AccountBookmarkSyncServiceFactory::GetInstance());
   DependsOn(AccountPasswordStoreFactory::GetInstance());
+  DependsOn(AimEligibilityServiceFactory::GetInstance());
   DependsOn(BookmarkModelFactory::GetInstance());
   DependsOn(BookmarkUndoServiceFactory::GetInstance());
   DependsOn(browser_sync::UserEventServiceFactory::GetInstance());
@@ -552,7 +556,6 @@ SyncServiceFactory::SyncServiceFactory()
   DependsOn(PasswordReceiverServiceFactory::GetInstance());
   DependsOn(PasswordSenderServiceFactory::GetInstance());
   DependsOn(PlusAddressSettingServiceFactory::GetInstance());
-  DependsOn(commerce::ProductSpecificationsServiceFactory::GetInstance());
   DependsOn(ProfilePasswordStoreFactory::GetInstance());
 
   DependsOn(SecurityEventRecorderFactory::GetInstance());

@@ -16,6 +16,7 @@
 #include "content/browser/background_sync/background_sync_network_observer.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
+#include "content/browser/service_worker/service_worker_context_wrapper_test_api.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/permission_result.h"
 #include "content/public/test/background_sync_test_util.h"
@@ -167,8 +168,8 @@ void BackgroundSyncServiceImplTestHarness::CreateStoragePartition() {
       CreateStoragePartitionConfigForTesting(/*in_memory=*/true),
       base::FilePath() /* relative_partition_path */);
   storage_partition_impl_->Initialize();
-  embedded_worker_helper_->context_wrapper()->set_storage_partition(
-      storage_partition_impl_.get());
+  ServiceWorkerContextWrapperTestApi(embedded_worker_helper_->context_wrapper())
+      .set_storage_partition(storage_partition_impl_.get());
 }
 
 void BackgroundSyncServiceImplTestHarness::CreateBackgroundSyncContext() {
@@ -201,9 +202,13 @@ void BackgroundSyncServiceImplTestHarness::CreateServiceWorkerRegistration() {
   options.scope = GURL(kServiceWorkerScope);
   const blink::StorageKey key =
       blink::StorageKey::CreateFromStringForTesting(kServiceWorkerScope);
+  auto fetch_client_settings_object =
+      blink::mojom::FetchClientSettingsObject::New();
+  fetch_client_settings_object->policy_container_policies =
+      blink::mojom::PolicyContainerPolicies::New();
   embedded_worker_helper_->context()->RegisterServiceWorker(
       GURL(kServiceWorkerScript), key, options,
-      blink::mojom::FetchClientSettingsObject::New(),
+      std::move(fetch_client_settings_object),
       base::BindOnce(&RegisterServiceWorkerCallback, &called,
                      &sw_registration_id_),
       /*requesting_frame_id=*/GlobalRenderFrameHostId(),

@@ -26,6 +26,7 @@
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/content_features.h"
 #include "ui/gfx/image/image.h"
 #include "url/gurl.h"
 
@@ -65,6 +66,7 @@ mojom::ActionResultCode LoginResultToActorResult(
     case actor_login::LoginStatusResult::kSuccessUsernameAndPasswordFilled:
     case actor_login::LoginStatusResult::kSuccessUsernameFilled:
     case actor_login::LoginStatusResult::kSuccessPasswordFilled:
+    case actor_login::LoginStatusResult::kSuccessFederated:
       return mojom::ActionResultCode::kOk;
     case actor_login::LoginStatusResult::kErrorNoSigninForm:
       return mojom::ActionResultCode::kLoginNotLoginPage;
@@ -76,6 +78,20 @@ mojom::ActionResultCode LoginResultToActorResult(
       return mojom::ActionResultCode::kLoginDeviceReauthRequired;
     case actor_login::LoginStatusResult::kErrorDeviceReauthFailed:
       return mojom::ActionResultCode::kLoginDeviceReauthFailed;
+    case actor_login::LoginStatusResult::kErrorFederatedContinuation:
+      // TODO(crbug.com/481685277): handle the continuation case.
+    case actor_login::LoginStatusResult::kErrorFederatedAccountNotLoggedIn:
+    case actor_login::LoginStatusResult::kErrorFederatedAccountIsSignUp:
+    case actor_login::LoginStatusResult::kErrorFederatedAccountNotAvailable:
+    case actor_login::LoginStatusResult::kErrorFederatedIdpReturnedError:
+    case actor_login::LoginStatusResult::kErrorFederatedIdpNetworkError:
+    case actor_login::LoginStatusResult::kErrorFederatedTokenRequestAborted:
+    case actor_login::LoginStatusResult::kErrorFederatedFrameNotActive:
+    case actor_login::LoginStatusResult::
+        kErrorFederatedExpectedAccountNotPresent:
+    case actor_login::LoginStatusResult::kErrorFederatedTimeout:
+      // TODO(crbug.com/477507796): Handle federated login errors.
+      return mojom::ActionResultCode::kLoginFillingNotAllowed;
   }
 }
 
@@ -107,8 +123,14 @@ AttemptLoginTool::~AttemptLoginTool() {
   }
   OptimizationGuideKeyedService* opt_guide_service =
       OptimizationGuideKeyedServiceFactory::GetForProfile(profile);
+  // Disable MQLS upload if FedCM support is enabled while prototyping to
+  // not upload wrong logs.
+  // TODO(crbug.com/480920277): Remove this check once the prototyping is
+  // complete.
   if (opt_guide_service &&
-      password_manager_util::ShouldUploadActorLoginMqls()) {
+      base::FeatureList::IsEnabled(
+          password_manager::features::kActorLoginQualityLogs) &&
+      !base::FeatureList::IsEnabled(features::kFedCmEmbedderInitiatedLogin)) {
     // TODO(crbug.com/459393643): Add a check for filtering out logs of
     // enterprise users.
     quality_logger_.UploadFinalLog(
@@ -184,20 +206,17 @@ void AttemptLoginTool::OnGetCredentials(
     return;
   }
 
-  if (base::FeatureList::IsEnabled(
-          actor::kGlicEnableAutoLoginPersistedPermissions)) {
-    const auto it_persistent_permission =
-        std::find_if(credentials_.begin(), credentials_.end(),
-                     [](const actor_login::Credential& cred) {
-                       return cred.has_persistent_permission;
-                     });
-    if (it_persistent_permission != credentials_.end()) {
-      OnCredentialSelected(webui::mojom::SelectCredentialDialogResponse::New(
-          task_id().value(), /*error_reason=*/std::nullopt,
-          webui::mojom::UserGrantedPermissionDuration::kAlwaysAllow,
-          it_persistent_permission->id.value()));
-      return;
-    }
+  const auto it_persistent_permission =
+      std::find_if(credentials_.begin(), credentials_.end(),
+                   [](const actor_login::Credential& cred) {
+                     return cred.has_persistent_permission;
+                   });
+  if (it_persistent_permission != credentials_.end()) {
+    OnCredentialSelected(webui::mojom::SelectCredentialDialogResponse::New(
+        task_id().value(), /*error_reason=*/std::nullopt,
+        webui::mojom::UserGrantedPermissionDuration::kAlwaysAllow,
+        it_persistent_permission->id.value()));
+    return;
   }
 
   std::erase_if(credentials_, [](const actor_login::Credential& cred) {
@@ -228,17 +247,7 @@ void AttemptLoginTool::OnGetCredentials(
     return;
   }
 
-  // Unless the flag is enabled, always auto-select the first credential, which
-  // is the credential that is most likely to be the correct one.
-  if (base::FeatureList::IsEnabled(actor::kGlicEnableAutoLoginDialogs)) {
-    FetchIcons();
-  } else {
-    // The task ID doesn't matter here because the task ID check is already
-    // done at this point.
-    auto response = webui::mojom::SelectCredentialDialogResponse::New();
-    response->selected_credential_id = credentials_[0].id.value();
-    OnCredentialSelected(std::move(response));
-  }
+  FetchIcons();
 }
 
 void AttemptLoginTool::FetchIcons() {
@@ -256,8 +265,15 @@ void AttemptLoginTool::FetchIcons() {
 
   base::flat_set<GURL> unique_sites;
   for (const auto& cred : credentials_) {
-    if (!cred.source_site_or_app.empty()) {
+    if (cred.source_site_or_app.empty()) {
+      continue;
+    }
+    if (cred.type == actor_login::CredentialType::kPassword) {
       unique_sites.insert(GURL(cred.source_site_or_app));
+    } else if (cred.federation_detail &&
+               !cred.federation_detail->brand_icon.IsEmpty()) {
+      fetched_icons_[base::UTF16ToUTF8(cred.source_site_or_app)] =
+          cred.federation_detail->brand_icon;
     }
   }
 

@@ -108,6 +108,17 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="Input.FirstGestureScrollUpdate.DeltaY" units="pixels"
+    expires_after="2027-02-10">
+  <owner>anandrv@google.com</owner>
+  <owner>clank-performance-team@google.com</owner>
+  <owner>input-dev@chromium.org</owner>
+  <summary>
+    Records the Y scroll delta of the first gesture scroll update event in a
+    touch sequence. Subsampled to 1/100.
+  </summary>
+</histogram>
+
 <histogram name="Input.PointerTypePrimary" enum="PrimaryPointerType"
     expires_after="2025-02-10">
   <owner>flackr@chromium.org</owner>
@@ -2187,7 +2198,8 @@ chromium-metrics-reviews@google.com.
 <histogram name="Stylus.Handwriting.RequestHandwritingForPointer"
     enum="Hresult" expires_after="2026-09-06">
   <owner>flackr@chromium.org</owner>
-  <owner>arakeri@microsoft.com</owner>
+  <owner>johna@microsoft.com</owner>
+  <owner>gerchiko@microsoft.com</owner>
   <summary>
     Records the HRESULT returned by RequestHandwritingForPointer. This is only
     applicable to users on Windows.
@@ -2197,7 +2209,8 @@ chromium-metrics-reviews@google.com.
 <histogram name="Stylus.Handwriting.TSFFocus" enum="Boolean"
     expires_after="2026-09-06">
   <owner>flackr@chromium.org</owner>
-  <owner>arakeri@microsoft.com</owner>
+  <owner>johna@microsoft.com</owner>
+  <owner>gerchiko@microsoft.com</owner>
   <summary>
     Records whether the TSF focus was successfully set. This is only applicable
     to users on Windows.
@@ -2205,13 +2218,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TextInputClient.CharacterIndex" units="ms"
-    expires_after="M147">
+    expires_after="2026-08-16">
   <owner>joenotcharles@google.com</owner>
   <owner>input-dev@chromium.org</owner>
   <summary>
     Recorded per call from a browser process thread to query
-    GetCharacterIndexAtPoint on a renderer process. The call is effectively
-    synchronous, blocking all other tasks from running on the browser thread.
+    GetCharacterIndexAtPoint on a renderer process, with the duration of the
+    query. The call is effectively synchronous, blocking all other tasks from
+    running on the browser thread for that duration.
 
     Only recorded on macOS.
 
@@ -2220,13 +2234,15 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="TextInputClient.FirstRect" units="ms" expires_after="M147">
+<histogram name="TextInputClient.FirstRect" units="ms"
+    expires_after="2026-08-16">
   <owner>joenotcharles@google.com</owner>
   <owner>input-dev@chromium.org</owner>
   <summary>
     Recorded per call from a browser process thread to query
-    GetFirstRectForRange on a renderer process. The call is effectively
-    synchronous, blocking all other tasks from running on the browser thread.
+    GetFirstRectForRange on a renderer process, with the duration of the query.
+    The call is effectively synchronous, blocking all other tasks from running
+    on the browser thread for that duration.
 
     Only recorded on macOS.
 
@@ -2235,7 +2251,51 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="TextInputClient.LockWait" units="ms" expires_after="M147">
+<histogram name="TextInputClient.GetCachedFirstRectResult"
+    enum="GetCachedFirstRectResult" expires_after="2026-08-16">
+  <owner>joenotcharles@google.com</owner>
+  <owner>input-dev@chromium.org</owner>
+  <summary>
+    Records the result of attempting to retrieve the first rect for a character
+    range from the cache on Mac. This is logged every time
+    RenderWidgetHostViewMac::GetCachedFirstRectForCharacterRange is called.
+
+    Only recorded on macOS.
+  </summary>
+</histogram>
+
+<histogram name="TextInputClient.InSyncRequest.CharacterIndex" enum="Boolean"
+    expires_after="2026-08-16">
+  <owner>joenotcharles@google.com</owner>
+  <owner>input-dev@chromium.org</owner>
+  <summary>
+    Recorded per call from a browser process thread to query
+    GetCharacterIndexAtPoint on a renderer process, with True if the thread is
+    already inside a call to GetCharacterIndexAtPoint or GetFirstRectForRange,
+    False otherwise. The call is intended to be synchronous, but nested event
+    loops can cause it to re-enter. This counts how often that happens.
+
+    Only recorded on macOS.
+  </summary>
+</histogram>
+
+<histogram name="TextInputClient.InSyncRequest.FirstRect" enum="Boolean"
+    expires_after="2026-08-16">
+  <owner>joenotcharles@google.com</owner>
+  <owner>input-dev@chromium.org</owner>
+  <summary>
+    Recorded per call from a browser process thread to query
+    GetFirstRectForRange on a renderer process, with True if the thread is
+    already inside a call to GetCharacterIndexAtPoint or GetFirstRectForRange,
+    False otherwise. The call is intended to be synchronous, but nested event
+    loops can cause it to re-enter. This counts how often that happens.
+
+    Only recorded on macOS.
+  </summary>
+</histogram>
+
+<histogram name="TextInputClient.LockWait" units="ms"
+    expires_after="2026-08-16">
   <owner>joenotcharles@google.com</owner>
   <owner>input-dev@chromium.org</owner>
   <summary>
@@ -2254,7 +2314,6 @@ chromium-metrics-reviews@google.com.
 <histogram name="Touch.DevicePosture.{Instance}" enum="PostureMode"
     expires_after="2026-06-20">
   <owner>robliao@chromium.org</owner>
-  <owner>arakeri@microsoft.com</owner>
   <owner>wangsongjin@microsoft.com</owner>
   <owner>gerchiko@microsoft.com</owner>
   <owner>input-dev@chromium.org</owner>

@@ -1,0 +1,39 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+static_library("core") {
+  sources = [
+    "finds_service.cc",
+    "finds_service.h",
+    "finds_tab_helper.cc",
+    "finds_tab_helper.h",
+  ]
+
+  deps = [
+    "//base",
+    "//chrome/browser/optimization_guide",
+    "//chrome/browser/profiles:profile",
+    "//components/history/core/browser",
+    "//components/optimization_guide/core",
+    "//components/optimization_guide/proto:optimization_guide_proto",
+    "//content/public/browser",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "finds_service_unittest.cc" ]
+  deps = [
+    ":core",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/optimization_guide:test_support",
+    "//chrome/test:test_support",
+    "//components/history/core/browser",
+    "//components/optimization_guide/core:test_support",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

@@ -88,6 +88,7 @@
 #include "third_party/blink/public/common/indexeddb/indexeddb_metadata.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/blob/blob.mojom.h"
+#include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom-shared.h"
 #include "third_party/leveldatabase/env_chromium.h"
 #include "third_party/leveldatabase/leveldb_chrome.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
@@ -1495,7 +1496,8 @@ BackingStore::DoOpenAndVerify(BucketContext& bucket_context,
                               base::FilePath blob_path,
                               PartitionedLockManager* lock_manager,
                               bool is_first_attempt,
-                              bool create_if_missing) {
+                              bool create_if_missing,
+                              bool skip_create_on_data_loss) {
   CHECK_EQ(database_path.empty(), data_directory.empty());
   CHECK_EQ(blob_path.empty(), data_directory.empty());
   TRACE_EVENT0("IndexedDB", "BackingStore::OpenAndVerify");
@@ -1506,7 +1508,7 @@ BackingStore::DoOpenAndVerify(BucketContext& bucket_context,
   bool in_memory = data_directory.empty();
   Status status;
   IndexedDBDataLossInfo data_loss_info;
-  if (!in_memory) {
+  if (!in_memory && create_if_missing) {
     // Check for previous corruption, and if found then try to delete the
     // database.
     std::string corruption_message =
@@ -1521,6 +1523,10 @@ BackingStore::DoOpenAndVerify(BucketContext& bucket_context,
       data_loss_info.status = blink::mojom::IDBDataLoss::Total;
       data_loss_info.message = base::StrCat(
           {"IndexedDB (database was corrupt): ", corruption_message});
+      if (skip_create_on_data_loss) {
+        return {nullptr, Status::NotFound("Skipped creation due to data loss"),
+                std::move(data_loss_info), /*is_disk_full=*/false};
+      }
       // This is a special case where we want to make sure the database is
       // deleted, so we try to delete again.
       status = DestroyDatabase(database_path);
@@ -1545,7 +1551,7 @@ BackingStore::DoOpenAndVerify(BucketContext& bucket_context,
       if (!ldb_status.IsNotFound()) {
         ReportLevelDBError("WebCore.IndexedDB.LevelDBOpenErrors", ldb_status);
       }
-      return {nullptr, std::move(ldb_status), IndexedDBDataLossInfo(),
+      return {nullptr, std::move(ldb_status), std::move(data_loss_info),
               is_disk_full};
     }
   }
@@ -1612,7 +1618,7 @@ BackingStore::DoOpenAndVerify(BucketContext& bucket_context,
     std::move(*backing_store).SignalWhenDestructionComplete(&destruct_event);
     backing_store.reset();
     destruct_event.Wait();
-    return {nullptr, status, IndexedDBDataLossInfo(), /*is_disk_full=*/false};
+    return {nullptr, status, std::move(data_loss_info), /*is_disk_full=*/false};
   }
   backing_store->db()->scopes()->StartRecoveryAndCleanupTasks();
   backing_store->bucket_context_ = &bucket_context;
@@ -1632,10 +1638,11 @@ BackingStore::OpenAndVerify(BucketContext& bucket_context,
                             base::FilePath blob_path,
                             PartitionedLockManager* lock_manager,
                             bool is_first_attempt,
-                            bool create_if_missing) {
-  auto return_values =
-      DoOpenAndVerify(bucket_context, data_directory, database_path, blob_path,
-                      lock_manager, is_first_attempt, create_if_missing);
+                            bool create_if_missing,
+                            bool skip_create_on_data_loss) {
+  auto return_values = DoOpenAndVerify(
+      bucket_context, data_directory, database_path, blob_path, lock_manager,
+      is_first_attempt, create_if_missing, skip_create_on_data_loss);
 
   Status& status = std::get<Status>(return_values);
   if (status.IsCorruption()) {
@@ -1766,7 +1773,7 @@ Status BackingStore::Database::DeleteDatabase(
     base::OnceClosure on_complete) {
   TRACE_EVENT0("IndexedDB", "BackingStore::DeleteDatabase");
 
-  scoped_refptr<TransactionalLevelDBTransaction> transaction =
+  std::unique_ptr<TransactionalLevelDBTransaction> transaction =
       GetTransactionalLevelDBFactory()->CreateLevelDBTransaction(
           backing_store_->db(),
           backing_store_->db()->scopes()->CreateScope(std::move(locks)));

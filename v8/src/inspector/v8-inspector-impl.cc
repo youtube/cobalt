@@ -32,7 +32,9 @@
 
 #include <vector>
 
+#include "include/cppgc/allocation.h"
 #include "include/v8-context.h"
+#include "include/v8-cppgc.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-microtask-queue.h"
 #include "include/v8-platform.h"
@@ -144,15 +146,54 @@ std::unique_ptr<V8StackTrace> V8InspectorImpl::createStackTrace(
   return m_debugger->createStackTrace(stackTrace);
 }
 
+namespace {
+
+// Wrapper to make Channel look like a ManagedChannel so we can just use
+// ManagedChannel in V8InspectorSessionImpl.
+class ChannelWrapper : public V8Inspector::ManagedChannel {
+ public:
+  explicit ChannelWrapper(V8Inspector::Channel* channel) : channel_(channel) {}
+  ~ChannelWrapper() override = default;
+
+  void sendResponse(int callId,
+                    std::unique_ptr<StringBuffer> message) override {
+    channel_->sendResponse(callId, std::move(message));
+  }
+
+  void sendNotification(std::unique_ptr<StringBuffer> message) override {
+    channel_->sendNotification(std::move(message));
+  }
+
+  void flushProtocolNotifications() override {
+    channel_->flushProtocolNotifications();
+  }
+
+ private:
+  V8Inspector::Channel* channel_;
+};
+
+}  // namespace
+
 std::unique_ptr<V8InspectorSession> V8InspectorImpl::connect(
     int contextGroupId, V8Inspector::Channel* channel, StringView state,
     ClientTrustLevel client_trust_level, SessionPauseState pause_state) {
+  ChannelWrapper* wrappedChannel = cppgc::MakeGarbageCollected<ChannelWrapper>(
+      m_isolate->GetCppHeap()->GetAllocationHandle(), channel);
   return std::unique_ptr<V8InspectorSession>(connectImpl(
-      contextGroupId, channel, state, client_trust_level, pause_state));
+      contextGroupId, wrappedChannel, state, client_trust_level, pause_state));
 }
 
 std::shared_ptr<V8InspectorSession> V8InspectorImpl::connectShared(
     int contextGroupId, V8Inspector::Channel* channel, StringView state,
+    ClientTrustLevel client_trust_level, SessionPauseState pause_state) {
+  ChannelWrapper* wrappedChannel = cppgc::MakeGarbageCollected<ChannelWrapper>(
+      m_isolate->GetCppHeap()->GetAllocationHandle(), channel);
+  return connectShared(contextGroupId, wrappedChannel, state,
+                       client_trust_level, pause_state);
+}
+
+std::shared_ptr<V8InspectorSession> V8InspectorImpl::connectShared(
+    int contextGroupId, V8Inspector::ManagedChannel* channel, StringView state,
     ClientTrustLevel client_trust_level, SessionPauseState pause_state) {
   std::shared_ptr<V8InspectorSessionImpl> session(connectImpl(
       contextGroupId, channel, state, client_trust_level, pause_state));
@@ -163,7 +204,7 @@ std::shared_ptr<V8InspectorSession> V8InspectorImpl::connectShared(
 }
 
 V8InspectorSessionImpl* V8InspectorImpl::connectImpl(
-    int contextGroupId, V8Inspector::Channel* channel, StringView state,
+    int contextGroupId, V8Inspector::ManagedChannel* channel, StringView state,
     ClientTrustLevel client_trust_level, SessionPauseState pause_state) {
   int sessionId = ++m_lastSessionId;
   std::shared_ptr<V8DebuggerBarrier> debuggerBarrier;
@@ -196,8 +237,8 @@ void V8InspectorImpl::disconnect(V8InspectorSessionImpl* session) {
   }
 }
 
-InspectedContext* V8InspectorImpl::getContext(int groupId,
-                                              int contextId) const {
+std::shared_ptr<InspectedContext> V8InspectorImpl::getContext(
+    int groupId, int contextId) const {
   if (!groupId || !contextId) return nullptr;
 
   auto contextGroupIt = m_contexts.find(groupId);
@@ -206,20 +247,21 @@ InspectedContext* V8InspectorImpl::getContext(int groupId,
   auto contextIt = contextGroupIt->second->find(contextId);
   if (contextIt == contextGroupIt->second->end()) return nullptr;
 
-  return contextIt->second.get();
+  return contextIt->second;
 }
 
-InspectedContext* V8InspectorImpl::getContext(int contextId) const {
+std::shared_ptr<InspectedContext> V8InspectorImpl::getContext(
+    int contextId) const {
   return getContext(contextGroupId(contextId), contextId);
 }
 
 v8::MaybeLocal<v8::Context> V8InspectorImpl::contextById(int contextId) {
-  InspectedContext* context = getContext(contextId);
+  std::shared_ptr<InspectedContext> context = getContext(contextId);
   return context ? context->context() : v8::MaybeLocal<v8::Context>();
 }
 
 V8DebuggerId V8InspectorImpl::uniqueDebuggerId(int contextId) {
-  InspectedContext* context = getContext(contextId);
+  std::shared_ptr<InspectedContext> context = getContext(contextId);
   internal::V8DebuggerId unique_id;
   if (context) unique_id = m_debugger->debuggerIdFor(context->contextGroupId());
 
@@ -271,11 +313,13 @@ void V8InspectorImpl::contextCollected(int groupId, int contextId) {
   if (storageIt != m_consoleStorageMap.end())
     storageIt->second->contextDestroyed(contextId);
 
-  InspectedContext* inspectedContext = getContext(groupId, contextId);
+  std::shared_ptr<InspectedContext> inspectedContext =
+      getContext(groupId, contextId);
   if (!inspectedContext) return;
 
   forEachSession(groupId, [&inspectedContext](V8InspectorSessionImpl* session) {
-    session->runtimeAgent()->reportExecutionContextDestroyed(inspectedContext);
+    session->runtimeAgent()->reportExecutionContextDestroyed(
+        inspectedContext.get());
   });
   discardInspectedContext(groupId, contextId);
 }
@@ -396,7 +440,7 @@ v8::MaybeLocal<v8::Context> V8InspectorImpl::exceptionMetaDataContext() {
 
 void V8InspectorImpl::discardInspectedContext(int contextGroupId,
                                               int contextId) {
-  auto* context = getContext(contextGroupId, contextId);
+  auto context = getContext(contextGroupId, contextId);
   if (!context) return;
   m_uniqueIdToContextId.erase(context->uniqueId().pair());
   m_contexts[contextGroupId]->erase(contextId);

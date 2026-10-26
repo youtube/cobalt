@@ -43,6 +43,7 @@ import org.chromium.chrome.browser.signin.services.UnifiedConsentServiceBridgeJn
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.search_engines.TemplateUrlService;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.sync.SyncService;
 import org.chromium.components.user_prefs.UserPrefsJni;
@@ -53,6 +54,10 @@ import java.io.IOException;
 
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(sdk = 30)
+@EnableFeatures({
+    SigninFeatures.ENABLE_SEAMLESS_SIGNIN,
+    SigninFeatures.ENABLE_ACTIVITYLESS_SIGNIN_ALL_ENTRY_POINT
+})
 public class MultiColumnSettingsTest {
 
     private ActivityScenario<SettingsActivity> mActivityScenario;
@@ -125,11 +130,12 @@ public class MultiColumnSettingsTest {
     @Config(qualifiers = "w400dp-h600dp")
     @EnableFeatures({
         ChromeFeatureList.SETTINGS_MULTI_COLUMN,
-        ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION
+        ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA
     })
     @DisableFeatures({
         ChromeFeatureList.DEFAULT_BROWSER_PROMO_ANDROID2,
-        ChromeFeatureList.PLUS_ADDRESSES_ENABLED
+        ChromeFeatureList.PLUS_ADDRESSES_ENABLED,
+        ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID
     })
     public void testSinglePane() {
         // Start the main settings, which is an embeddable fragment.
@@ -142,11 +148,12 @@ public class MultiColumnSettingsTest {
     @Config(qualifiers = "w840dp-h60dp")
     @EnableFeatures({
         ChromeFeatureList.SETTINGS_MULTI_COLUMN,
-        ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION
+        ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA
     })
     @DisableFeatures({
         ChromeFeatureList.DEFAULT_BROWSER_PROMO_ANDROID2,
-        ChromeFeatureList.PLUS_ADDRESSES_ENABLED
+        ChromeFeatureList.PLUS_ADDRESSES_ENABLED,
+        ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID
     })
     public void testTwoPane() {
         // Start the main settings, which is an embeddable fragment.

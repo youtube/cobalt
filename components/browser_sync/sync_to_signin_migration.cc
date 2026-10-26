@@ -147,6 +147,7 @@ SyncToSigninMigrationDecision GetSyncToSigninMigrationDecision(
       // In all these cases, the status is known, and migration can go ahead.
       break;
     case syncer::SyncFeatureStatusForSyncToSigninMigration::kPaused: {
+      base::FeatureList::IsEnabled(switches::kForceMigrateNoopForDebugging);
       if (base::FeatureList::IsEnabled(
               switches::kForceMigrateSyncingUserToSignedIn)) {
         forced = true;
@@ -168,6 +169,7 @@ SyncToSigninMigrationDecision GetSyncToSigninMigrationDecision(
     case syncer::SyncFeatureStatusForSyncToSigninMigration::kInitializing:
       // In the previous browser run, Sync didn't finish initializing. Defer
       // migration, unless force-migration is enabled.
+      base::FeatureList::IsEnabled(switches::kForceMigrateNoopForDebugging);
       if (base::FeatureList::IsEnabled(
               switches::kForceMigrateSyncingUserToSignedIn)) {
         forced = true;
@@ -178,6 +180,7 @@ SyncToSigninMigrationDecision GetSyncToSigninMigrationDecision(
       // The Sync status pref was never set (which should only happen once per
       // client), or has an unknown/invalid value (which should never happen).
       // Defer migration, unless force-migration is enabled.
+      base::FeatureList::IsEnabled(switches::kForceMigrateNoopForDebugging);
       if (base::FeatureList::IsEnabled(
               switches::kForceMigrateSyncingUserToSignedIn)) {
         forced = true;
@@ -559,6 +562,11 @@ void MaybeMigrateSyncingUserToSignedInInternal(
     blocking_operations.push_back(
         base::BindOnce(&RenameFileAndReportSuccess, from_path, to_path,
                        "Sync.SyncToSigninMigrationOutcome.PasswordsFileMove"));
+    // Mark clearing of the stats table from the newly migrated password store.
+    pref_service->SetBoolean(
+        syncer::prefs::kCleanUpStatsTableFromAccountPasswordStore, true);
+    syncer::RecordSyncToSigninMigrationStatsTableCleanupStep(
+        syncer::SyncToSigninMigrationStatsTableCleanupStep::kCleanupRequested);
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

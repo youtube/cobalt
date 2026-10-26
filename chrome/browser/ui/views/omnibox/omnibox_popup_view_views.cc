@@ -14,10 +14,10 @@
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
+#include "chrome/browser/page_load_metrics/observers/top_chrome_webui_metrics_observer.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
@@ -518,9 +518,8 @@ std::u16string_view OmniboxPopupViewViews::GetAccessibleButtonTextForResult(
   return static_cast<const views::LabelButton*>(button)->GetText();
 }
 
-raw_ptr<OmniboxPopupViewWebUI>
-OmniboxPopupViewViews::GetOmniboxPopupViewWebUI() {
-  return nullptr;
+bool OmniboxPopupViewViews::IsSelectionPopupControlled() const {
+  return false;
 }
 
 bool OmniboxPopupViewViews::OnMouseDragged(const ui::MouseEvent& event) {
@@ -596,15 +595,29 @@ void OmniboxPopupViewViews::OnWidgetVisibilityChanged(views::Widget* widget,
     // has been created.
     widget_->GetCompositor()->RequestSuccessfulPresentationTimeForNextFrame(
         base::BindOnce(
-            [](base::TimeTicks popup_create_start_time,
+            [](base::WeakPtr<OmniboxPopupViewViews> self,
+               base::TimeTicks popup_create_start_time,
                const viz::FrameTimingDetails& frame_timing_details) {
+              if (!self) {
+                return;
+              }
               base::TimeTicks presentation_timestamp =
                   frame_timing_details.presentation_feedback.timestamp;
-              base::UmaHistogramTimes(
-                  "Omnibox.Views.PopupFirstPaint",
-                  presentation_timestamp - popup_create_start_time);
+              base::TimeDelta delta =
+                  presentation_timestamp - popup_create_start_time;
+              base::UmaHistogramTimes("Omnibox.Views.PopupFirstPaint", delta);
+
+              // Record metrics via TopChromeWebUIMetricsObserver to allow
+              // comparison between WebUI and Views Omnibox versions.
+              // This is recorded at most once per window (View lifetime) to
+              // align with the WebUI behavior.
+              if (!self->recorded_first_paint_) {
+                self->recorded_first_paint_ = true;
+                TopChromeWebUIMetricsObserver::RecordFirstContentfulPaint(
+                    "OmniboxPopup", delta);
+              }
             },
-            popup_create_start_time_.value()));
+            weak_ptr_factory_.GetWeakPtr(), popup_create_start_time_.value()));
     popup_create_start_time_.reset();
   }
 }

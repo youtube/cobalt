@@ -16,6 +16,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
+#include "build/branding_buildflags.h"
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/regional_capabilities/regional_capabilities_service_factory.h"
@@ -301,8 +302,8 @@ base::DictValue SearchEnginesHandler::CreateDictionaryForEngine(
   dict.Set("canBeEdited", list_controller_.CanEdit(template_url));
   dict.Set("canBeActivated", list_controller_.CanActivate(template_url));
   dict.Set("canBeDeactivated", list_controller_.CanDeactivate(template_url));
-  dict.Set("shouldConfirmDeletion",
-           list_controller_.ShouldConfirmDeletion(template_url));
+  dict.Set("shouldConfirmRemoval",
+           list_controller_.ShouldConfirmRemoval(template_url));
   dict.Set("isManaged", list_controller_.IsManaged(template_url));
   TemplateURL::Type type = template_url->type();
   dict.Set("isOmniboxExtension", type == TemplateURL::OMNIBOX_API_EXTENSION);

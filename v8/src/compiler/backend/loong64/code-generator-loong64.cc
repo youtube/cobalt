@@ -1032,6 +1032,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleReturn(instr->InputAt(0));
       break;
 #if V8_ENABLE_WEBASSEMBLY
+    case kArchTrap:
+      __ Branch(zone()->New<WasmOutOfLineTrap>(this, instr)->entry());
+      break;
     case kArchStackPointer:
       // The register allocator expects an allocatable register for the output,
       // we cannot use sp directly.
@@ -1663,12 +1666,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 i.InputDoubleRegister(1));
       break;
     case kLoong64Float64Mod: {
-      // TODO(turbofan): implement directly.
-      FrameScope scope(masm(), StackFrame::MANUAL);
-      UseScratchRegisterScope temps(masm());
-      Register scratch = temps.Acquire();
-      __ PrepareCallCFunction(0, 2, scratch);
-      __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
+      __ Float64Mod(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                    i.InputDoubleRegister(1));
       break;
     }
     case kLoong64Float64Abs:

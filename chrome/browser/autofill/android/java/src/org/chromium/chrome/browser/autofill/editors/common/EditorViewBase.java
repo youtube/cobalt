@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.autofill.editors.common;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.DATE;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.DROPDOWN;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.NON_EDITABLE_TEXT;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.NOTICE;
@@ -21,6 +22,7 @@ import android.content.DialogInterface;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.os.Handler;
 import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -44,6 +46,8 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.autofill.R;
 import org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.EditorItem;
+import org.chromium.chrome.browser.autofill.editors.common.date_field.DateFieldView;
+import org.chromium.chrome.browser.autofill.editors.common.date_field.DateFieldViewBinder;
 import org.chromium.chrome.browser.autofill.editors.common.dropdown_field.DropdownFieldView;
 import org.chromium.chrome.browser.autofill.editors.common.dropdown_field.DropdownFieldViewBinder;
 import org.chromium.chrome.browser.autofill.editors.common.field.FieldView;
@@ -51,6 +55,7 @@ import org.chromium.chrome.browser.autofill.editors.common.text_field.TextFieldV
 import org.chromium.chrome.browser.autofill.editors.common.text_field.TextFieldViewBinder;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
+import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.ActionConfirmationDialog;
@@ -87,8 +92,8 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
     /** Duration of the animation to hide the UI. */
     private static final int DIALOG_EXIT_ANIMATION_MS = 195;
 
-    private static final String PROFILE_DELETION_CONFIRMATION_DIALOG_SHOWN_HISTOGRAM =
-            "Autofill.ProfileDeletion.Settings.ConfirmationDialogShown";
+    private static final String DELETION_CONFIRMATION_DIALOG_SHOWN_HISTOGRAM =
+            "Autofill.Deletion.Settings.ConfirmationDialogShown";
 
     protected @Nullable static EditorObserverForTest sObserverForTest;
 
@@ -105,10 +110,13 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
             mTextFieldMCPs = new ArrayList<>();
     private final List<PropertyModelChangeProcessor<PropertyModel, DropdownFieldView, PropertyKey>>
             mDropdownFieldMCPs = new ArrayList<>();
+    private final List<PropertyModelChangeProcessor<PropertyModel, DateFieldView, PropertyKey>>
+            mDateFieldMCPs = new ArrayList<>();
     private final List<EditText> mEditableTextFields = new ArrayList<>();
     private final List<Spinner> mDropdownFields = new ArrayList<>();
 
     private boolean mIsDismissed;
+    private boolean mValidateOnShow;
 
     private final View mButtonBar;
     private Button mDoneButton;
@@ -121,7 +129,7 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
 
     private @Nullable Callback<Activity> mOpenHelpCallback;
 
-    private @Nullable Runnable mDeleteRunnable;
+    private @Nullable Callback<Boolean> mDeleteCallback;
     private @Nullable Runnable mDoneRunnable;
     private @Nullable Runnable mCancelRunnable;
 
@@ -191,6 +199,10 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
         removeTextChangedListeners();
     }
 
+    public void setValidateOnShow(boolean validateOnShow) {
+        mValidateOnShow = validateOnShow;
+    }
+
     public void setEditorFields(ListModel<EditorItem> editorFields) {
         prepareEditor(editorFields);
         setDoneRunnableToFields();
@@ -198,10 +210,6 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
 
     public List<FieldView> getFieldViews() {
         return Collections.unmodifiableList(mFieldViews);
-    }
-
-    public void addFieldView(FieldView fieldView) {
-        mFieldViews.add(fieldView);
     }
 
     public void setEditorTitle(String editorTitle) {
@@ -244,8 +252,8 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
         toolbar.setShowDeleteMenuItem(allowDelete);
     }
 
-    public void setDeleteRunnable(Runnable deleteRunnable) {
-        mDeleteRunnable = deleteRunnable;
+    public void setDeleteCallback(Callback<Boolean> deleteCallback) {
+        mDeleteCallback = deleteCallback;
     }
 
     public void setDoneRunnable(Runnable doneRunnable) {
@@ -409,7 +417,9 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
                                     mDeleteConfirmationText,
                                     mDeleteConfirmationPrimaryButtonText);
                         } else {
-                            handleDelete();
+                            assert mDeleteCallback != null;
+                            mDeleteCallback.onResult(true);
+                            animateOutDialog();
                         }
                     } else if (item.getItemId() == R.id.help_menu_id) {
                         assumeNonNull(mOpenHelpCallback).onResult(mActivity);
@@ -461,8 +471,10 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
         mFieldViews.clear();
         mTextFieldMCPs.forEach(PropertyModelChangeProcessor::destroy);
         mDropdownFieldMCPs.forEach(PropertyModelChangeProcessor::destroy);
+        mDateFieldMCPs.forEach(PropertyModelChangeProcessor::destroy);
         mTextFieldMCPs.clear();
         mDropdownFieldMCPs.clear();
+        mDateFieldMCPs.clear();
         mEditableTextFields.clear();
         mDropdownFields.clear();
 
@@ -532,7 +544,7 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
                                     editorItem.model,
                                     dropdownView,
                                     DropdownFieldViewBinder::bindDropdownFieldView));
-                    addFieldView(dropdownView);
+                    mFieldViews.add(dropdownView);
                     mDropdownFields.add(dropdownView.getDropdown());
                     childView = dropdownView.getLayout();
                     break;
@@ -546,7 +558,7 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
                                     editorItem.model,
                                     inputLayout,
                                     TextFieldViewBinder::bindTextFieldView));
-                    addFieldView(inputLayout);
+                    mFieldViews.add(inputLayout);
                     mEditableTextFields.add(inputLayout.getEditText());
                     childView = inputLayout;
                     break;
@@ -567,15 +579,33 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
                 }
             case NOTICE:
                 {
+                    // Inflate the notice with the parent ViewGroup, but do not attach it. This is
+                    // done so that android:layout_margin* parameters take effect.
                     View noticeLayout =
                             LayoutInflater.from(getStyledContext())
-                                    .inflate(R.layout.autofill_editor_dialog_notice, null);
+                                    .inflate(
+                                            R.layout.autofill_editor_dialog_notice,
+                                            parent,
+                                            /* attachToRoot= */ false);
                     TextView textView = noticeLayout.findViewById(R.id.notice);
                     PropertyModelChangeProcessor.create(
                             editorItem.model,
                             textView,
                             EditorComponentsViewBinder::bindNoticeTextView);
                     childView = noticeLayout;
+                    break;
+                }
+            case DATE:
+                {
+                    DateFieldView dateField =
+                            new DateFieldView(getStyledContext(), editorItem.model);
+                    mDateFieldMCPs.add(
+                            PropertyModelChangeProcessor.create(
+                                    editorItem.model,
+                                    dateField,
+                                    DateFieldViewBinder::bindDateFieldView));
+                    mFieldViews.add(dateField);
+                    childView = dateField;
                     break;
                 }
         }
@@ -596,17 +626,11 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
         }
     }
 
-    private void handleDelete() {
-        assert mDeleteRunnable != null;
-        mDeleteRunnable.run();
-        animateOutDialog();
-    }
-
     private void handleDeleteWithConfirmation(
             String confirmationTitle, CharSequence confirmationText, int primaryButtonText) {
         boolean canShowConfirmation = mActivity instanceof ModalDialogManagerHolder;
         RecordHistogram.recordBooleanHistogram(
-                PROFILE_DELETION_CONFIRMATION_DIALOG_SHOWN_HISTOGRAM, canShowConfirmation);
+                DELETION_CONFIRMATION_DIALOG_SHOWN_HISTOGRAM, canShowConfirmation);
         if (!canShowConfirmation) return;
 
         ModalDialogManager modalDialogManager =
@@ -614,11 +638,11 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
         var confirmationDialog = new ActionConfirmationDialog(mContext, modalDialogManager);
         ConfirmationDialogHandler confirmationDialogHandler =
                 (dismissHandler, buttonClickResult, stopShowing) -> {
+                    assert mDeleteCallback != null;
+                    mDeleteCallback.onResult(buttonClickResult == ButtonClickResult.POSITIVE);
                     if (buttonClickResult == ButtonClickResult.POSITIVE) {
-                        recordDeletionHistogram(true);
-                        handleDelete();
+                        animateOutDialog();
                     } else {
-                        recordDeletionHistogram(false);
                         if (sObserverForTest != null) {
                             sObserverForTest.onEditorReadyToEdit();
                         }
@@ -627,16 +651,63 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
                 };
 
         confirmationDialog.show(
-                res -> confirmationTitle,
-                res -> confirmationText,
-                primaryButtonText,
-                R.string.cancel,
-                /* supportStopShowing= */ false,
+                confirmationDialog
+                        .createDialogParams()
+                        .withTitle(confirmationTitle)
+                        .withDescription(confirmationText)
+                        .withPositiveButton(primaryButtonText)
+                        .withNegativeButton(R.string.cancel)
+                        .withSupportStopShowing(false),
                 confirmationDialogHandler);
 
         if (sObserverForTest != null) {
             sObserverForTest.onEditorConfirmationDialogShown();
         }
+    }
+
+    private void initFocus() {
+        new Handler()
+                .post(
+                        () -> {
+                            List<FieldView> invalidViews = new ArrayList<>();
+                            if (mValidateOnShow) {
+                                for (FieldView view : getFieldViews()) {
+                                    if (!view.validate()) {
+                                        invalidViews.add(view);
+                                    }
+                                }
+                            }
+
+                            // If TalkBack is enabled, we want to keep the focus at the top
+                            // because the user would not learn about the elements that are
+                            // above the focused field.
+                            if (!ChromeAccessibilityUtil.get().isAccessibilityEnabled()) {
+                                if (!invalidViews.isEmpty()) {
+                                    // Immediately focus the first invalid field to make it faster
+                                    // to edit.
+                                    invalidViews.get(0).scrollToAndFocus();
+                                } else {
+                                    // Trigger default focus as it is not triggered automatically on
+                                    // Android
+                                    // P+.
+                                    getContainerView().requestFocus();
+                                }
+                            }
+                            // Note that keyboard will not be shown for dropdown field since it's
+                            // not
+                            // necessary.
+                            if (getCurrentFocus() != null) {
+                                KeyboardVisibilityDelegate.getInstance()
+                                        .showKeyboard(getCurrentFocus());
+                                // Put the cursor to the end of the text.
+                                if (getCurrentFocus() instanceof EditText) {
+                                    EditText focusedEditText = (EditText) getCurrentFocus();
+                                    focusedEditText.setSelection(
+                                            focusedEditText.getText().length());
+                                }
+                            }
+                            if (sObserverForTest != null) sObserverForTest.onEditorReadyToEdit();
+                        });
     }
 
     @Override
@@ -650,12 +721,6 @@ public abstract class EditorViewBase extends AlwaysDismissedDialog
             assumeNonNull(mCancelRunnable).run();
         }
     }
-
-    /** Called when the editor is shown to initialize the view focus. */
-    protected abstract void initFocus();
-
-    /** Called when the user attempted to delete the edited entry. */
-    protected abstract void recordDeletionHistogram(boolean deleted);
 
     public static void setEditorObserverForTest(EditorObserverForTest observerForTest) {
         sObserverForTest = observerForTest;

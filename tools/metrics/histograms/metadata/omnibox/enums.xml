@@ -136,6 +136,7 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="ThinkingModel"/>
   <int value="8" label="RegularModel"/>
   <int value="9" label="ProNoGenUiModel"/>
+  <int value="10" label="Unknown"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/omnibox/omnibox_context_menu_controller.h:ContextType) -->
@@ -176,6 +177,17 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Served then not served"/>
   <int value="3" label="Served then served"/>
 </enum>
+
+<!-- LINT.IfChange(EntryPreservationReason) -->
+
+<enum name="EntryPreservationReason">
+  <int value="1" label="MatchesDefaultSearchProvider"/>
+  <int value="2" label="MatchesOtherDefaultSearchProvider"/>
+  <int value="3" label="NotSafeForAutoreplace"/>
+  <int value="4" label="NonPrepopulatedFromRegulatoryProgram"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/search_engines/util.cc:EntryPreservationReason) -->
 
 <!-- LINT.IfChange(FocusResultedInNavigationTypes) -->
 
@@ -466,6 +478,9 @@ chromium-metrics-reviews@google.com.
   </int>
   <int value="8" label="kNotTriggeredOnPressNoSearchProviderOptIn">
     kNotTriggeredOnPressNoSearchProviderOptIn
+  </int>
+  <int value="9" label="kNotTriggeredThrottledByPrewarm">
+    kNotTriggeredThrottledByPrewarm
   </int>
 </enum>
 

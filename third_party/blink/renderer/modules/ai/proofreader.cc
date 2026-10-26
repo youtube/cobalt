@@ -452,10 +452,10 @@ ScriptPromise<ProofreadResult> Proofreader::proofread(
   auto pending_remote = CreateModelExecutionResponder(
       script_state, composite_signal, task_runner_,
       AIMetrics::AISessionType::kProofreader,
-
       BindOnce(&Proofreader::OnProofreadComplete, WrapPersistent(this),
                WrapPersistent(resolver), WrapPersistent(script_state),
                WrapPersistent(composite_signal), input),
+      /*tool_call_callback=*/base::NullCallback(),
       /*overflow_callback=*/base::DoNothingWithBoundArgs(WrapPersistent(this)),
       BindOnce(&Proofreader::OnProofreadError, WrapPersistent(this),
                WrapPersistent(resolver)),
@@ -608,6 +608,7 @@ void Proofreader::GetCorrectionTypes(
                WrapPersistent(resolver), WrapPersistent(script_state),
                WrapPersistent(signal), WrapPersistent(result), raw_corrections,
                input, correction_index),
+      /*tool_call_callback=*/base::NullCallback(),
       /*overflow_callback=*/
       base::DoNothingWithBoundArgs(WrapPersistent(this)),
       /*error_callback=*/
@@ -631,14 +632,14 @@ void Proofreader::GetCorrectionTypes(
 
   // Annotate the current error in the original input.
   String input_with_error =
-      StrCat({input.Substring(0, correction.error_start), "`", from, "`",
+      StrCat({input.subview(0, correction.error_start), "`", from, "`",
               input.Substring(correction.error_end)});
 
   // Annotate the current correction in the corrected input.
   String corrected_input = result->correctedInput();
   String corrected_input_with_correction =
-      StrCat({corrected_input.Substring(0, correction.correction_start), "`",
-              to, "`", corrected_input.Substring(correction.correction_end)});
+      StrCat({corrected_input.subview(0, correction.correction_start), "`", to,
+              "`", corrected_input.Substring(correction.correction_end)});
 
   remote_->GetCorrectionType(input_with_error, corrected_input_with_correction,
                              correction_instruction, std::move(pending_remote));
@@ -660,10 +661,10 @@ void Proofreader::OnLabelComplete(
     return;
   }
 
-  // Default correction type
+  // Set default correction type.
   String label = "Grammar";
 
-  // Parse the label from the response of the format {"label": "label0"}
+  // Parse the label from the response of the format {"label": "label0"}.
   RE2 pattern("{\"label\":\\s*\"([^\"]+)\"}");
   StringUtf8Adaptor adaptor(model_response);
   std::string_view response = adaptor.AsStringView();
@@ -671,8 +672,8 @@ void Proofreader::OnLabelComplete(
   if (RE2::FullMatch(response, pattern, &label_value)) {
     label = String::FromUTF8(label_value);
   }
-  result->corrections()[correction_index]->setType(
-      GetV8CorrectionTypeFromString(label));
+  result->corrections()[correction_index]->setTypes(
+      {GetV8CorrectionTypeFromString(label)});
 
   uint32_t next_index = correction_index + 1;
 

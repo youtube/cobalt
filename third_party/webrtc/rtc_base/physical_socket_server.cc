@@ -9,11 +9,15 @@
  */
 #include "rtc_base/physical_socket_server.h"
 
+#include <stdio.h>
+
+#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <span>
 #include <utility>
 
 #include "api/async_dns_resolver.h"
@@ -135,6 +139,8 @@ typedef char* SockOptArg;
 #endif  // !defined(EPOLLRDHUP)
 #endif  // defined(WEBRTC_LINUX)
 
+namespace webrtc {
+
 namespace {
 
 // RFC-3168, Section 5. ECN is the two least significant bits.
@@ -142,7 +148,7 @@ constexpr uint8_t kEcnMask = 0x03;
 
 #if defined(WEBRTC_POSIX)
 
-webrtc::EcnMarking EcnFromDs(uint8_t ds) {
+EcnMarking EcnFromDs(uint8_t ds) {
   // RFC-3168, Section 5.
   constexpr uint8_t ECN_ECT1 = 0x01;
   constexpr uint8_t ECN_ECT0 = 0x02;
@@ -150,15 +156,15 @@ webrtc::EcnMarking EcnFromDs(uint8_t ds) {
   const uint8_t ecn = ds & kEcnMask;
 
   if (ecn == ECN_ECT1) {
-    return webrtc::EcnMarking::kEct1;
+    return EcnMarking::kEct1;
   }
   if (ecn == ECN_ECT0) {
-    return webrtc::EcnMarking::kEct0;
+    return EcnMarking::kEct0;
   }
   if (ecn == ECN_CE) {
-    return webrtc::EcnMarking::kCe;
+    return EcnMarking::kCe;
   }
-  return webrtc::EcnMarking::kNotEct;
+  return EcnMarking::kNotEct;
 }
 
 #endif
@@ -177,7 +183,6 @@ class ScopedSetTrue {
 
 }  // namespace
 
-namespace webrtc {
 
 PhysicalSocket::PhysicalSocket(PhysicalSocketServer* ss, SOCKET s)
     : ss_(ss),
@@ -512,11 +517,14 @@ int PhysicalSocket::RecvFrom(ReceiveBuffer& buffer) {
   int64_t timestamp = -1;
   static constexpr int BUF_SIZE = 64 * 1024;
   buffer.payload.EnsureCapacity(BUF_SIZE);
-
-  int received = DoReadFromSocket(
-      buffer.payload.data(), buffer.payload.capacity(), &buffer.source_address,
-      &timestamp, ecn_ ? &buffer.ecn : nullptr);
-  buffer.payload.SetSize(received > 0 ? received : 0);
+  int received;
+  buffer.payload.SetData(BUF_SIZE, [&](std::span<uint8_t> payload) {
+    received =
+        DoReadFromSocket(payload.data(), payload.size(), &buffer.source_address,
+                         &timestamp, ecn_ ? &buffer.ecn : nullptr);
+    // return 0 if received is -1, indicating error.
+    return std::max(received, 0);
+  });
   if (received > 0 && timestamp != -1) {
     buffer.arrival_time = Timestamp::Micros(timestamp);
   }

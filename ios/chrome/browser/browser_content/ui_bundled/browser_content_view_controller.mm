@@ -34,8 +34,10 @@
 
 - (void)viewDidLoad {
   [super viewDidLoad];
-  self.view.autoresizingMask =
-      UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+  if (!IsFullscreenRefactoringEnabled()) {
+    self.view.autoresizingMask =
+        UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+  }
 }
 
 - (void)viewDidLayoutSubviews {

@@ -66,7 +66,6 @@
 #include "third_party/blink/renderer/core/frame/visual_viewport.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
 #include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
-#include "third_party/blink/renderer/core/html/forms/html_button_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_label_element.h"
@@ -79,9 +78,6 @@
 #include "third_party/blink/renderer/core/html/html_head_element.h"
 #include "third_party/blink/renderer/core/html/html_image_element.h"
 #include "third_party/blink/renderer/core/html/html_map_element.h"
-#include "third_party/blink/renderer/core/html/html_menu_element.h"
-#include "third_party/blink/renderer/core/html/html_object_element.h"
-#include "third_party/blink/renderer/core/html/html_olist_element.h"
 #include "third_party/blink/renderer/core/html/html_plugin_element.h"
 #include "third_party/blink/renderer/core/html/html_progress_element.h"
 #include "third_party/blink/renderer/core/html/html_script_element.h"
@@ -91,7 +87,6 @@
 #include "third_party/blink/renderer/core/html/html_table_element.h"
 #include "third_party/blink/renderer/core/html/html_table_row_element.h"
 #include "third_party/blink/renderer/core/html/html_title_element.h"
-#include "third_party/blink/renderer/core/html/html_ulist_element.h"
 #include "third_party/blink/renderer/core/html/shadow/shadow_element_names.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
@@ -186,7 +181,7 @@ bool IsInitialEmptyDocument(const Document& document) {
     return false;
 
   // No contents and not a child document, return true if about::blank.
-  return document.Url().IsAboutBlankURL();
+  return document.Url().IsAboutBlankUrl();
 }
 
 // Return true if display locked or inside slot recalc, false otherwise.
@@ -582,6 +577,10 @@ bool IsInPrunableHiddenContainerInclusive(const Node& node,
     // Objects inside a <script> are true.
     if (IsA<HTMLScriptElement>(ancestor))
       return true;
+    // Objects inside <noframes> are not rendered.
+    if (ancestor->HasTagName(html_names::kNoframesTag)) {
+      return true;
+    }
     // Elements inside of a frame/iframe are true unless inside a document
     // that is a child of the frame. In the case where descendants are allowed,
     // they will be in a different document, and therefore this loop will not
@@ -4430,6 +4429,17 @@ void AXObjectCacheImpl::SetMenuListOptionsBounds(
     const Vector<gfx::Rect>& options_bounds) {
   CHECK(select->PopupIsVisible());
   CHECK_EQ(select->GetDocument(), GetDocument());
+  if (select->IsAppearanceBasePicker()) {
+    // Customizable select does not render in a special popup document and does
+    // not need to supply bounding boxes via options_bounds_.
+    //
+    // During a picker appearance transition, this method can still be reached
+    // from the native popup code. Clear any stale native popup state to
+    // prevent CHECK failures in AXObjectCacheImpl::GetOptionsBounds().
+    current_menu_list_axid_ = ui::AXNodeData::kInvalidAXID;
+    options_bounds_ = {};
+    return;
+  }
   options_bounds_ = options_bounds;
   current_menu_list_axid_ = select->GetDomNodeId();
 }
@@ -4828,7 +4838,7 @@ void AXObjectCacheImpl::HandleRoleChangeWithCleanLayout(Node* node) {
 void AXObjectCacheImpl::HandleAttributeChanged(const QualifiedName& attr_name,
                                                Element* element) {
   DCHECK(element);
-  if (attr_name.LocalName().StartsWith("aria-")) {
+  if (attr_name.LocalName().starts_with("aria-")) {
     // Perform updates specific to each attribute.
     if (attr_name == html_names::kAriaActivedescendantAttr) {
       if (relation_cache_) {

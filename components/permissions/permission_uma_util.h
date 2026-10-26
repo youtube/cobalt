@@ -75,7 +75,7 @@ enum class RequestTypeForUma {
   PERMISSION_NOTIFICATIONS = 9,
   PERMISSION_PROTECTED_MEDIA_IDENTIFIER = 10,
   // PERMISSION_PUSH_MESSAGING = 11,
-  PERMISSION_FLASH = 12,
+  // PERMISSION_FLASH = 12,
   PERMISSION_MEDIASTREAM_MIC = 13,
   PERMISSION_MEDIASTREAM_CAMERA = 14,
   // PERMISSION_ACCESSIBILITY_EVENTS = 15,  // Removed in M131.
@@ -92,7 +92,7 @@ enum class RequestTypeForUma {
   PERMISSION_WINDOW_MANAGEMENT = 25,
   PERMISSION_LOCAL_FONTS = 26,
   PERMISSION_IDLE_DETECTION = 27,
-  PERMISSION_FILE_HANDLING = 28,
+  // PERMISSION_FILE_HANDLING = 28,
   // PERMISSION_U2F_API_REQUEST = 29,
   PERMISSION_TOP_LEVEL_STORAGE_ACCESS = 30,
   // PERMISSION_MIDI = 31,
@@ -109,6 +109,7 @@ enum class RequestTypeForUma {
   PERMISSION_LOCAL_NETWORK_ACCESS = 42,
   PERMISSION_LOCAL_NETWORK = 43,
   PERMISSION_LOOPBACK_NETWORK = 44,
+  PERMISSION_SENSORS = 45,
   // NUM must be the last value in the enum.
   NUM,
 };
@@ -764,7 +765,7 @@ class PermissionUmaUtil {
                                                      base::TimeDelta delta);
 
   static void RecordDSEEffectiveSetting(ContentSettingsType permission_type,
-                                        ContentSetting setting);
+                                        PermissionSetting setting);
 
   static void RecordPermissionPredictionConcurrentRequests(
       RequestType request_type);
@@ -789,10 +790,17 @@ class PermissionUmaUtil {
       PermissionAction previous_action,
       ContentSetting setting_after);
 
-  static void RecordPageInfoPermissionChange(ContentSettingsType type,
-                                             ContentSetting setting_before,
-                                             ContentSetting setting_after,
-                                             bool suppress_reload_page_bar);
+  static void RecordPageInfoCameraMicPermissionChange(
+      ContentSettingsType type,
+      ContentSetting setting_before,
+      ContentSetting setting_after,
+      bool is_subscribed_to_permission_change_event);
+
+  static void RecordPageInfoPermissionChange(
+      ContentSettingsType type,
+      ContentSetting setting_before,
+      ContentSetting setting_after,
+      bool is_subscribed_to_permission_change_event);
 
   static std::string GetPermissionActionString(
       PermissionAction permission_action);
@@ -849,6 +857,11 @@ class PermissionUmaUtil {
   // Records whether the 'Reload this page' info bar was shown after a quiet
   // permission prompt was granted.
   static void RecordPageReloadInfoBarShown(bool shown);
+
+  // Records whether the page that requested a permission is subscribed to the
+  // permission status change listener.
+  static void RecordOnPermissionStatusChangedEventSubscribed(RequestType type,
+                                                             bool subscribed);
 
   // Records UKM metrics for ContentSettingsTypes that have user facing
   // permission prompts triggered by the user clicking on the Embedded

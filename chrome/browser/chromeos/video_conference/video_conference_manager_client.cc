@@ -23,7 +23,6 @@
 #include "chrome/browser/media/webrtc/media_stream_capture_indicator.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chromeos/crosapi/mojom/video_conference.mojom.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "extensions/browser/process_manager.h"
@@ -53,27 +52,26 @@ bool IsWebApp(content::WebContents* contents) {
 }
 
 // Returns the AppType of the `contents`.
-// We only handled cases that are relevant to video conference apps.
-crosapi::mojom::VideoConferenceAppType GetAppType(
-    content::WebContents* contents) {
+// We only handle cases that are relevant to video conference apps.
+ash::VideoConferenceAppType GetAppType(content::WebContents* contents) {
   auto* ext = extensions::ProcessManager::Get(contents->GetBrowserContext())
                   ->GetExtensionForWebContents(contents);
   if (ext) {
     auto type = ext->GetType();
     if (type == extensions::Manifest::TYPE_EXTENSION) {
-      return crosapi::mojom::VideoConferenceAppType::kChromeExtension;
+      return ash::VideoConferenceAppType::kChromeExtension;
     }
     if (type == extensions::Manifest::TYPE_PLATFORM_APP) {
-      return crosapi::mojom::VideoConferenceAppType::kChromeApp;
+      return ash::VideoConferenceAppType::kChromeApp;
     }
 
-    return crosapi::mojom::VideoConferenceAppType::kBrowserUnknown;
+    return ash::VideoConferenceAppType::kBrowserUnknown;
   }
   if (IsWebApp(contents)) {
-    return crosapi::mojom::VideoConferenceAppType::kWebApp;
+    return ash::VideoConferenceAppType::kWebApp;
   }
 
-  return crosapi::mojom::VideoConferenceAppType::kChromeTab;
+  return ash::VideoConferenceAppType::kChromeTab;
 }
 
 }  // namespace
@@ -81,14 +79,7 @@ crosapi::mojom::VideoConferenceAppType GetAppType(
 VideoConferenceManagerClientImpl::VideoConferenceManagerClientImpl(
     ash::VideoConferenceManagerAsh* video_conference_manager_ash)
     : client_id_(base::UnguessableToken::Create()),
-      status_(crosapi::mojom::VideoConferenceMediaUsageStatus::New(
-          /*client_id=*/client_id_,
-          /*has_media_app=*/false,
-          /*has_camera_permission=*/false,
-          /*has_microphone_permission=*/false,
-          /*is_capturing_camera=*/false,
-          /*is_capturing_microphone=*/false,
-          /*is_capturing_screen=*/false)),
+      status_(client_id_),
       video_conference_manager_ash_(CHECK_DEREF(video_conference_manager_ash)) {
   media_listener_ = std::make_unique<
       VideoConferenceMediaListener>(/*media_usage_update_callback=*/
@@ -136,10 +127,8 @@ void VideoConferenceManagerClientImpl::RemoveMediaApp(
   id_to_webcontents_.erase(it);
 
   // Send a client update notification to the VCManager.
-  SendClientUpdate(crosapi::mojom::VideoConferenceClientUpdate::New(
-      /*added_or_removed_app=*/crosapi::mojom::VideoConferenceAppUpdate::
-          kAppRemoved,
-      /*title_change_info=*/nullptr));
+  SendClientUpdate(ash::VideoConferenceClientUpdate(
+      ash::VideoConferenceAppUpdate::kAppRemoved));
 
   HandleMediaUsageUpdate();
 }
@@ -168,10 +157,8 @@ VideoConferenceManagerClientImpl::CreateVideoConferenceWebApp(
   id_to_webcontents_.insert({id, web_contents});
 
   // Send a client update notification to the VCManager.
-  SendClientUpdate(crosapi::mojom::VideoConferenceClientUpdate::New(
-      /*added_or_removed_app=*/crosapi::mojom::VideoConferenceAppUpdate::
-          kAppAdded,
-      /*title_change_info=*/nullptr));
+  SendClientUpdate(ash::VideoConferenceClientUpdate(
+      ash::VideoConferenceAppUpdate::kAppAdded));
 
   return content::WebContentsUserData<VideoConferenceWebApp>::FromWebContents(
       web_contents);
@@ -224,35 +211,34 @@ void VideoConferenceManagerClientImpl::HandleMediaUsageUpdate() {
       base::MakeRefCounted<ash::PrivacyIndicatorsNotificationDelegate>(),
       ash::PrivacyIndicatorsSource::kApps);
 
-  crosapi::mojom::VideoConferenceMediaUsageStatusPtr status =
-      crosapi::mojom::VideoConferenceMediaUsageStatus::New(
-          /*client_id=*/client_id_,
-          /*has_media_app=*/has_media_app,
-          /*has_camera_permission=*/permissions.has_camera_permission,
-          /*has_microphone_permission=*/permissions.has_microphone_permission,
-          /*is_capturing_camera=*/is_capturing_camera,
-          /*is_capturing_microphone=*/is_capturing_microphone,
-          /*is_capturing_screen=*/is_capturing_screen);
+  ash::VideoConferenceMediaUsageStatus status(client_id_);
+  status.state.has_media_app = has_media_app;
+  status.state.has_camera_permission = permissions.has_camera_permission;
+  status.state.has_microphone_permission =
+      permissions.has_microphone_permission;
+  status.state.is_capturing_camera = is_capturing_camera;
+  status.state.is_capturing_microphone = is_capturing_microphone;
+  status.state.is_capturing_screen = is_capturing_screen;
 
   // If `status` equal the previously sent status, don't notify manager.
-  if (status.Equals(status_)) {
+  if (status == status_) {
     return;
   }
-  status_ = status->Clone();
+  status_ = status;
 
   NotifyManager(std::move(status));
 }
 
 void VideoConferenceManagerClientImpl::HandleDeviceUsedWhileDisabled(
-    crosapi::mojom::VideoConferenceMediaDevice device,
+    ash::VideoConferenceMediaDevice device,
     const std::u16string& app_name) {
   video_conference_manager_ash_->NotifyDeviceUsedWhileDisabled(
       std::move(device), app_name, base::DoNothing());
 }
 
-void VideoConferenceManagerClientImpl::GetMediaApps(
-    GetMediaAppsCallback callback) {
-  std::vector<crosapi::mojom::VideoConferenceMediaAppInfoPtr> apps;
+VideoConferenceManagerClientImpl::MediaApps
+VideoConferenceManagerClientImpl::GetMediaApps() {
+  MediaApps apps;
 
   for (auto [_, web_contents] : id_to_webcontents_) {
     auto* web_app =
@@ -268,23 +254,23 @@ void VideoConferenceManagerClientImpl::GetMediaApps(
       continue;
     }
 
-    apps.push_back(crosapi::mojom::VideoConferenceMediaAppInfo::New(
-        /*id=*/app_state.id,
-        /*last_activity_time=*/app_state.last_activity_time,
-        /*is_capturing_camera=*/app_state.is_capturing_camera,
-        /*is_capturing_microphone=*/app_state.is_capturing_microphone,
-        /*is_capturing_screen=*/app_state.is_capturing_screen,
-        /*title=*/web_contents->GetTitle(),
-        /*url=*/web_contents->GetURL(),
-        /*app_type=*/GetAppType(web_contents)));
+    ash::VideoConferenceMediaAppInfo app;
+    app.id = app_state.id;
+    app.last_activity_time = app_state.last_activity_time;
+    app.is_capturing_camera = app_state.is_capturing_camera;
+    app.is_capturing_microphone = app_state.is_capturing_microphone;
+    app.is_capturing_screen = app_state.is_capturing_screen;
+    app.title = web_contents->GetTitle();
+    app.url = web_contents->GetURL();
+    app.app_type = GetAppType(web_contents);
+    apps.push_back(std::move(app));
   }
 
-  std::move(callback).Run(std::move(apps));
+  return apps;
 }
 
-void VideoConferenceManagerClientImpl::ReturnToApp(
-    const base::UnguessableToken& id,
-    ReturnToAppCallback callback) {
+bool VideoConferenceManagerClientImpl::ReturnToApp(
+    const base::UnguessableToken& id) {
   if (auto it = id_to_webcontents_.find(id); it != id_to_webcontents_.end()) {
     auto* web_app =
         content::WebContentsUserData<VideoConferenceWebApp>::FromWebContents(
@@ -293,25 +279,24 @@ void VideoConferenceManagerClientImpl::ReturnToApp(
         << "WebContents with no corresponding VideoConferenceWebApp.";
 
     web_app->ActivateApp();
-    std::move(callback).Run(true);
-  } else {
-    // As the manager calls `ReturnToApp` on all clients, it is normal and
-    // expected that a client doesn't have any `VideoConferenceWebApp` with the
-    // provided `id`.
-    std::move(callback).Run(false);
+    return true;
   }
+
+  // As the manager calls `ReturnToApp` on all clients, it is normal and
+  // expected that a client doesn't have any `VideoConferenceWebApp` with the
+  // provided `id`.
+  return false;
 }
 
-void VideoConferenceManagerClientImpl::SetSystemMediaDeviceStatus(
-    crosapi::mojom::VideoConferenceMediaDevice device,
-    bool disabled,
-    SetSystemMediaDeviceStatusCallback callback) {
-  media_listener_->SetSystemMediaDeviceStatus(std::move(device), disabled);
-  std::move(callback).Run(true);
+bool VideoConferenceManagerClientImpl::SetSystemMediaDeviceStatus(
+    ash::VideoConferenceMediaDevice device,
+    bool enabled) {
+  media_listener_->SetSystemMediaDeviceStatus(std::move(device), enabled);
+  return true;
 }
 
 void VideoConferenceManagerClientImpl::NotifyManager(
-    crosapi::mojom::VideoConferenceMediaUsageStatusPtr status) {
+    ash::VideoConferenceMediaUsageStatus status) {
   auto callback = base::BindOnce([](bool success) {
     if (!success) {
       LOG(ERROR)
@@ -351,7 +336,7 @@ VideoConferenceManagerClientImpl::GetAggregatedPermissions() {
 }
 
 void VideoConferenceManagerClientImpl::SendClientUpdate(
-    crosapi::mojom::VideoConferenceClientUpdatePtr update) {
+    ash::VideoConferenceClientUpdate update) {
   video_conference_manager_ash_->NotifyClientUpdate(std::move(update));
 }
 

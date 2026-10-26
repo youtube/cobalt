@@ -15,9 +15,11 @@
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
 #include "base/memory/raw_ptr.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_timeouts.h"
 #include "base/timer/mock_timer.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "content/public/test/mock_navigation_handle.h"
 #include "content/test/test_web_contents.h"
@@ -56,6 +58,8 @@ class TestCobaltWebContentsObserver : public CobaltWebContentsObserver {
   void SetStartupDiagnosisInfo(const char* key, const char* value) override {
     // Do nothing in tests to avoid JNI calls.
   }
+
+  MOCK_METHOD(void, OnPrimaryMainFrameNavigationStarted, (), (override));
 
   void SetTimerForTestInternal(std::unique_ptr<base::OneShotTimer> timer) {
     CobaltWebContentsObserver::SetTimerForTestInternal(std::move(timer));
@@ -216,5 +220,41 @@ TEST_F(CobaltWebContentsObserverTest, SuccessAfterTimeout) {
   // The navigation finally finishes successfully after the timeout.
   navigation_handle().set_net_error_code(net::OK);
   observer()->DidFinishNavigation(&navigation_handle());
+}
+
+TEST_F(CobaltWebContentsObserverTest,
+       NotifiesPrimaryMainFrameNavigationStart_WhenFlagEnabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kDisableNetworkDialogDismissButton);
+  EXPECT_CALL(*observer(), OnPrimaryMainFrameNavigationStarted()).Times(1);
+
+  observer()->DidStartNavigation(&navigation_handle());
+}
+
+TEST_F(CobaltWebContentsObserverTest,
+       DoesNotNotifyNavigationStart_ForSameDocumentOrSubFrame) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kDisableNetworkDialogDismissButton);
+  EXPECT_CALL(*observer(), OnPrimaryMainFrameNavigationStarted()).Times(0);
+
+  navigation_handle().set_is_same_document(true);
+  observer()->DidStartNavigation(&navigation_handle());
+
+  navigation_handle().set_is_same_document(false);
+  navigation_handle().set_is_in_primary_main_frame(false);
+  observer()->DidStartNavigation(&navigation_handle());
+}
+
+TEST_F(CobaltWebContentsObserverTest,
+       DoesNotNotifyNavigationStart_WhenFlagDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kDisableNetworkDialogDismissButton);
+  EXPECT_CALL(*observer(), OnPrimaryMainFrameNavigationStarted()).Times(0);
+
+  observer()->DidStartNavigation(&navigation_handle());
+  EXPECT_TRUE(mock_timer()->IsRunning());
 }
 }  // namespace cobalt

@@ -44,19 +44,20 @@ class API_AVAILABLE(macos(14.4)) GraphImplCoreml final : public WebNNGraphImpl {
  public:
   static void CreateAndBuild(
       mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
-      ContextImplCoreml* context,
+      ContextImplCoreml& context,
       mojom::GraphInfoPtr graph_info,
       ComputeResourceInfo compute_resource_info,
       base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
           constant_operands,
-      base::flat_map<OperandId, WebNNTensorImpl*> constant_tensor_operands,
+      base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
+          constant_tensor_operands,
       mojom::CreateContextOptionsPtr context_options,
       ContextProperties context_properties,
       WebNNContextImpl::CreateGraphImplCallback callback);
 
   struct Params;
   GraphImplCoreml(mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
-                  base::WeakPtr<WebNNContextImpl> context,
+                  WebNNContextImpl& context,
                   std::unique_ptr<Params> params);
 
   GraphImplCoreml(const GraphImplCoreml&) = delete;

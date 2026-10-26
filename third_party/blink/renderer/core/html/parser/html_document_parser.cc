@@ -387,7 +387,12 @@ HTMLDocumentParser::HTMLDocumentParser(
   tokenizer_.SetState(TokenizerStateForContextElement(context_element,
                                                       report_errors, options_));
 
-  // No script_runner_ in fragment parser.
+  if (parser_content_policy == kAllowScriptingContentAndMarkAsParserInserted) {
+    CHECK(RuntimeEnabledFeatures::NewHTMLSettingMethodsEnabled());
+    script_runner_ = HTMLParserScriptRunner::Create(
+        ReentryPermit(), &fragment_target->GetDocument(), this);
+  }
+
   tree_builder_ = MakeGarbageCollected<HTMLTreeBuilder>(
       this, fragment_target, context_element, parser_content_policy, options_,
       include_shadow_roots, registry, sanitizer);
@@ -430,7 +435,7 @@ HTMLDocumentParser::HTMLDocumentParser(Document& document,
   if (sync_policy == kAllowDeferredParsing &&
       document.IsInOutermostMainFrame() &&
       base::TimeTicks::IsHighResolution() &&
-      document.Url().ProtocolIsInHTTPFamily()) {
+      document.Url().ProtocolIsInHttpFamily()) {
     metrics_reporter_ = std::make_unique<HTMLParserMetrics>(
         document.UkmSourceID(), document.UkmRecorder());
   }
@@ -1379,21 +1384,6 @@ void HTMLDocumentParser::ParseDocumentFragment(
       fragment, context_element, parser_content_policy,
       ParserPrefetchPolicy::kAllowPrefetching, registry, /*sanitizer*/ nullptr);
 
-  if (RuntimeEnabledFeatures::DOMPartsAPIEnabled()) {
-    // Within templates containing the `parseparts` attribute, allow parsing
-    // DOM Parts. Otherwise do not parse any DOM Part content.
-    DOMPartsAllowed parts_allowed{DOMPartsAllowed::kNever};
-    if (auto* template_element =
-            DynamicTo<HTMLTemplateElement>(context_element);
-        template_element &&
-        template_element->hasAttribute(html_names::kParsepartsAttr)) {
-      parts_allowed = DOMPartsAllowed::kAlways;
-    }
-    parser->tree_builder_->SetDOMPartsAllowedState(parts_allowed);
-    parser->tokenizer_.SetShouldAllowDOMParts(parts_allowed !=
-                                              DOMPartsAllowed::kNever);
-  }
-
   parser->Append(source);
   parser->Finish();
   // Allows ~DocumentParser to assert it was detached before destruction.
@@ -1832,14 +1822,21 @@ bool HTMLDocumentParser::AllowPreloading() {
     return false;
   }
 
+  CHECK_GE(seen_csp_meta_tags_, 0);
+  if (!seen_csp_meta_tags_) {
+    // No CSP meta tags seen - Early return allowing preloads.
+    return true;
+  }
+
   if (RuntimeEnabledFeatures::AllowPreloadingWithCSPMetaTagEnabled()) {
-    CHECK_GE(seen_csp_meta_tags_, 0);
-    if (!seen_csp_meta_tags_) {
-      // No CSP meta tags seen - Early return allowing preloads.
-      return true;
+    Document* document = GetDocument();
+    if (!document) {
+      // Seen CSP tag, but there is no document to check the CSP (detach()
+      // has been called). Disallow preloads.
+      return false;
     }
 
-    ExecutionContext* context = GetDocument()->GetExecutionContext();
+    ExecutionContext* context = document->GetExecutionContext();
     if (!context) {
       // Seen CSP meta tag but there's no CSP info yet. Disallow preloads.
       return false;
@@ -1854,9 +1851,9 @@ bool HTMLDocumentParser::AllowPreloading() {
     // Only allows preloads if all seen meta tags have been processed.
     return static_cast<int>(csp->GetParsedPolicies().size()) ==
            seen_csp_meta_tags_;
+  } else {
+    return false;
   }
-
-  return true;
 }
 
 }  // namespace blink

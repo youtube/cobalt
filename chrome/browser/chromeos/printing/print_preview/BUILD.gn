@@ -8,10 +8,6 @@ static_library("print_preview") {
   sources = [
     "print_preview_ui_wrapper.cc",
     "print_preview_ui_wrapper.h",
-    "print_preview_webcontents_manager.cc",
-    "print_preview_webcontents_manager.h",
-    "print_settings_converter.cc",
-    "print_settings_converter.h",
     "print_view_manager_common.cc",
     "print_view_manager_common.h",
     "print_view_manager_cros.cc",
@@ -28,7 +24,6 @@ static_library("print_preview") {
     "//base",
     "//chrome/browser/ash/printing/print_preview",
     "//chrome/common:chrome_features",
-    "//chromeos/crosapi/mojom",
     "//components/device_event_log",
     "//components/printing/browser",
     "//components/printing/common",
@@ -51,10 +46,7 @@ static_library("print_preview") {
 source_set("unit_tests") {
   testonly = true
 
-  sources = [
-    "print_settings_converter_unittest.cc",
-    "print_view_manager_unittest.cc",
-  ]
+  sources = [ "print_view_manager_unittest.cc" ]
 
   deps = [
     ":print_preview",
@@ -64,7 +56,6 @@ source_set("unit_tests") {
     "//chrome/browser/ui",
     "//chrome/common:chrome_features",
     "//chrome/test:test_support",
-    "//chromeos/crosapi/mojom",
     "//components/printing/common:mojo_interfaces",
     "//content/public/browser",
     "//content/test:test_support",
@@ -83,21 +74,23 @@ source_set("browser_tests") {
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
-  sources = [ "print_preview_webcontents_manager_browsertest.cc" ]
+  sources = [ "print_view_manager_cros_browsertest.cc" ]
 
   deps = [
     ":print_preview",
+    "//ash/webui/print_preview_cros:url_constants",
     "//base",
     "//base/test:test_support",
-    "//chrome/browser/chromeos/printing/print_preview/test:test_support",
+    "//chrome/browser",
+    "//chrome/browser/ash/browser_delegate",
+    "//chrome/browser/ash/printing/print_preview",
     "//chrome/browser/ui",
+    "//chrome/browser/ui/webui/ash/system_web_dialog",
     "//chrome/common:chrome_features",
     "//chrome/test:test_support_ui",
-    "//chromeos/crosapi/mojom",
+    "//components/printing/common:mojo_interfaces",
     "//content/public/browser",
     "//content/test:test_support",
-    "//mojo/public/cpp/bindings",
-    "//testing/gmock",
     "//testing/gtest",
     "//ui/base",
     "//url",

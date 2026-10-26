@@ -563,8 +563,12 @@ bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
     result->status = debug::LiveEditResult::COMPILE_ERROR;
     return false;
   }
-  CollectFunctionLiterals(isolate, parse_info->literal())
-      .Run(literals, eval_calls);
+  CollectFunctionLiterals visitor(isolate, parse_info->literal());
+  visitor.Run(literals, eval_calls);
+  if (visitor.HasStackOverflow()) {
+    visitor.ClearStackOverflow();
+    return false;
+  }
   return true;
 }
 
@@ -1078,7 +1082,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     for (Tagged<SharedFunctionInfo> sfi = script_it.Next(); !sfi.is_null();
          sfi = script_it.Next()) {
       DCHECK_EQ(sfi->script(), *new_script);
-      DCHECK_EQ(sfi->function_literal_id(kRelaxedLoad),
+      DCHECK_EQ(static_cast<uint32_t>(sfi->function_literal_id(kRelaxedLoad)),
                 script_it.CurrentIndex());
       // Don't check the start position of the top-level function, as it can
       // overlap with a function in the script.

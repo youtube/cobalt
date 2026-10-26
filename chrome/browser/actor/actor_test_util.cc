@@ -38,6 +38,7 @@
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/actor_constants.h"
 #include "chrome/common/actor/task_id.h"
+#include "components/actor/task_source_info.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/core/filters/bloom_filter.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
@@ -119,7 +120,8 @@ std::string CreateOptimizationGuideConfig(const std::string& blocked_host) {
 Actions MakeClick(RenderFrameHost& rfh,
                   int content_node_id,
                   ClickType click_type,
-                  ClickCount click_count) {
+                  ClickCount click_count,
+                  std::optional<actor::TaskId> task_id) {
   Actions actions;
   ClickAction* click = actions.add_actions()->mutable_click();
   click->mutable_target()->set_content_node_id(content_node_id);
@@ -129,13 +131,17 @@ Actions MakeClick(RenderFrameHost& rfh,
   click->set_click_type(click_type);
   click->set_click_count(click_count);
   click->set_tab_id(GetTabHandleForFrame(rfh).raw_value());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
 Actions MakeClick(TabHandle tab_handle,
                   const gfx::Point& click_point,
                   ClickType click_type,
-                  ClickCount click_count) {
+                  ClickCount click_count,
+                  std::optional<actor::TaskId> task_id) {
   Actions actions;
   ClickAction* click = actions.add_actions()->mutable_click();
   Coordinate* coordinate = click->mutable_target()->mutable_coordinate();
@@ -144,24 +150,37 @@ Actions MakeClick(TabHandle tab_handle,
   click->set_click_type(click_type);
   click->set_click_count(click_count);
   click->set_tab_id(tab_handle.raw_value());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
-Actions MakeHistoryBack(TabHandle tab_handle) {
+Actions MakeHistoryBack(TabHandle tab_handle,
+                        std::optional<actor::TaskId> task_id) {
   Actions actions;
   HistoryBackAction* back = actions.add_actions()->mutable_back();
   back->set_tab_id(tab_handle.raw_value());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
-Actions MakeHistoryForward(TabHandle tab_handle) {
+Actions MakeHistoryForward(TabHandle tab_handle,
+                           std::optional<actor::TaskId> task_id) {
   Actions actions;
   HistoryForwardAction* forward = actions.add_actions()->mutable_forward();
   forward->set_tab_id(tab_handle.raw_value());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
-Actions MakeMouseMove(RenderFrameHost& rfh, int content_node_id) {
+Actions MakeMouseMove(RenderFrameHost& rfh,
+                      int content_node_id,
+                      std::optional<actor::TaskId> task_id) {
   Actions actions;
   MoveMouseAction* move = actions.add_actions()->mutable_move_mouse();
   move->mutable_target()->set_content_node_id(content_node_id);
@@ -169,54 +188,83 @@ Actions MakeMouseMove(RenderFrameHost& rfh, int content_node_id) {
       *DocumentIdentifierUserData::GetDocumentIdentifier(
           rfh.GetGlobalFrameToken()));
   move->set_tab_id(GetTabHandleForFrame(rfh).raw_value());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
-Actions MakeMouseMove(TabHandle tab_handle, const gfx::Point& move_point) {
+Actions MakeMouseMove(TabHandle tab_handle,
+                      const gfx::Point& move_point,
+                      std::optional<actor::TaskId> task_id) {
   Actions actions;
   MoveMouseAction* move = actions.add_actions()->mutable_move_mouse();
   Coordinate* coordinate = move->mutable_target()->mutable_coordinate();
   coordinate->set_x(move_point.x());
   coordinate->set_y(move_point.y());
   move->set_tab_id(tab_handle.raw_value());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
-Actions MakeNavigate(tabs::TabHandle tab_handle, std::string_view target_url) {
+Actions MakeNavigate(tabs::TabHandle tab_handle,
+                     std::string_view target_url,
+                     std::optional<actor::TaskId> task_id) {
   Actions actions;
   NavigateAction* navigate = actions.add_actions()->mutable_navigate();
   navigate->mutable_url()->assign(target_url);
   navigate->set_tab_id(tab_handle.raw_value());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
-Actions MakeCreateTab(SessionID window_id, bool foreground) {
+Actions MakeCreateTab(SessionID window_id,
+                      bool foreground,
+                      std::optional<actor::TaskId> task_id) {
   Actions actions;
   CreateTabAction* create_tab = actions.add_actions()->mutable_create_tab();
   create_tab->set_foreground(foreground);
   create_tab->set_window_id(window_id.id());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
-Actions MakeActivateWindow(SessionID window_id) {
+Actions MakeActivateWindow(SessionID window_id,
+                           std::optional<actor::TaskId> task_id) {
   Actions actions;
   ActivateWindowAction* activate_window =
       actions.add_actions()->mutable_activate_window();
   activate_window->set_window_id(window_id.id());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
-Actions MakeCreateWindow() {
+Actions MakeCreateWindow(std::optional<actor::TaskId> task_id) {
   Actions actions;
   actions.add_actions()->mutable_create_window();
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
-Actions MakeCloseWindow(SessionID window_id) {
+Actions MakeCloseWindow(SessionID window_id,
+                        std::optional<actor::TaskId> task_id) {
   Actions actions;
   CloseWindowAction* close_window =
       actions.add_actions()->mutable_close_window();
   close_window->set_window_id(window_id.id());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
@@ -224,7 +272,8 @@ Actions MakeType(RenderFrameHost& rfh,
                  int content_node_id,
                  std::string_view text,
                  bool follow_by_enter,
-                 optimization_guide::proto::TypeAction::TypeMode mode) {
+                 optimization_guide::proto::TypeAction::TypeMode mode,
+                 std::optional<actor::TaskId> task_id) {
   // TODO(crbug.com/417270084): TypeAction currently only supports the
   // DELETE_EXISTING mode.
   CHECK_EQ(mode, optimization_guide::proto::TypeAction::TypeMode::
@@ -241,6 +290,9 @@ Actions MakeType(RenderFrameHost& rfh,
   type_action->set_mode(mode);
   type_action->set_follow_by_enter(follow_by_enter);
   type_action->set_tab_id(GetTabHandleForFrame(rfh).raw_value());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
@@ -248,7 +300,8 @@ Actions MakeType(TabHandle tab_handle,
                  const gfx::Point& type_point,
                  std::string_view text,
                  bool follow_by_enter,
-                 optimization_guide::proto::TypeAction::TypeMode mode) {
+                 optimization_guide::proto::TypeAction::TypeMode mode,
+                 std::optional<actor::TaskId> task_id) {
   Actions actions;
   TypeAction* type_action = actions.add_actions()->mutable_type();
   Coordinate* coordinate = type_action->mutable_target()->mutable_coordinate();
@@ -260,6 +313,9 @@ Actions MakeType(TabHandle tab_handle,
   type_action->set_mode(mode);
   type_action->set_follow_by_enter(follow_by_enter);
   type_action->set_tab_id(tab_handle.raw_value());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
@@ -296,7 +352,8 @@ ScrollAction* MakeScrollHelper(RenderFrameHost& rfh,
 Actions MakeScroll(RenderFrameHost& rfh,
                    std::optional<int> content_node_id,
                    float scroll_offset_x,
-                   float scroll_offset_y) {
+                   float scroll_offset_y,
+                   std::optional<actor::TaskId> task_id) {
   Actions actions;
   ScrollAction* scroll =
       MakeScrollHelper(rfh, actions, scroll_offset_x, scroll_offset_y);
@@ -312,14 +369,17 @@ Actions MakeScroll(RenderFrameHost& rfh,
     CHECK(rfh.IsInPrimaryMainFrame())
         << "Empty target is only used to scroll the main frame";
   }
-
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
 Actions MakeScroll(RenderFrameHost& rfh,
                    const gfx::Point& scroll_point,
                    float scroll_offset_x,
-                   float scroll_offset_y) {
+                   float scroll_offset_y,
+                   std::optional<actor::TaskId> task_id) {
   Actions actions;
   ScrollAction* scroll =
       MakeScrollHelper(rfh, actions, scroll_offset_x, scroll_offset_y);
@@ -327,11 +387,15 @@ Actions MakeScroll(RenderFrameHost& rfh,
   Coordinate* coordinate = scroll->mutable_target()->mutable_coordinate();
   coordinate->set_x(scroll_point.x());
   coordinate->set_y(scroll_point.y());
-
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
-Actions MakeScrollTo(RenderFrameHost& rfh, int content_node_id) {
+Actions MakeScrollTo(RenderFrameHost& rfh,
+                     int content_node_id,
+                     std::optional<actor::TaskId> task_id) {
   Actions actions;
   ScrollToAction* scroll_to = actions.add_actions()->mutable_scroll_to();
   auto* tab = TabInterface::GetFromContents(
@@ -342,12 +406,16 @@ Actions MakeScrollTo(RenderFrameHost& rfh, int content_node_id) {
       ->mutable_document_identifier()
       ->set_serialized_token(*DocumentIdentifierUserData::GetDocumentIdentifier(
           rfh.GetGlobalFrameToken()));
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
 Actions MakeSelect(RenderFrameHost& rfh,
                    int content_node_id,
-                   std::string_view value) {
+                   std::string_view value,
+                   std::optional<actor::TaskId> task_id) {
   Actions actions;
   SelectAction* select_action = actions.add_actions()->mutable_select();
   select_action->mutable_target()->set_content_node_id(content_node_id);
@@ -357,12 +425,16 @@ Actions MakeSelect(RenderFrameHost& rfh,
           rfh.GetGlobalFrameToken()));
   select_action->set_value(value);
   select_action->set_tab_id(GetTabHandleForFrame(rfh).raw_value());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
 Actions MakeDragAndRelease(tabs::TabHandle tab_handle,
                            const gfx::Point& from_point,
-                           const gfx::Point& to_point) {
+                           const gfx::Point& to_point,
+                           std::optional<actor::TaskId> task_id) {
   Actions actions;
   DragAndReleaseAction* drag_and_release =
       actions.add_actions()->mutable_drag_and_release();
@@ -375,12 +447,16 @@ Actions MakeDragAndRelease(tabs::TabHandle tab_handle,
   drag_and_release->mutable_to_target()->mutable_coordinate()->set_y(
       to_point.y());
   drag_and_release->set_tab_id(tab_handle.raw_value());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
 Actions MakeDragAndRelease(content::RenderFrameHost& rfh,
                            int from_node_id,
-                           int to_node_id) {
+                           int to_node_id,
+                           std::optional<actor::TaskId> task_id) {
   Actions actions;
   DragAndReleaseAction* drag_and_release =
       actions.add_actions()->mutable_drag_and_release();
@@ -398,11 +474,15 @@ Actions MakeDragAndRelease(content::RenderFrameHost& rfh,
           rfh.GetGlobalFrameToken()));
 
   drag_and_release->set_tab_id(GetTabHandleForFrame(rfh).raw_value());
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
 Actions MakeWait(std::optional<base::TimeDelta> duration,
-                 std::optional<TabHandle> observe_tab_handle) {
+                 std::optional<TabHandle> observe_tab_handle,
+                 std::optional<actor::TaskId> task_id) {
   Actions actions;
   WaitAction* wait = actions.add_actions()->mutable_wait();
   if (observe_tab_handle.has_value()) {
@@ -411,12 +491,16 @@ Actions MakeWait(std::optional<base::TimeDelta> duration,
   if (duration.has_value()) {
     wait->set_wait_time_ms(duration->InMilliseconds());
   }
+  if (task_id.has_value()) {
+    actions.set_task_id(task_id->value());
+  }
   return actions;
 }
 
 Actions MakeScriptTool(content::RenderFrameHost& rfh,
                        const std::string& name,
-                       const std::string& input_arguments) {
+                       const std::string& input_arguments,
+                       std::optional<actor::TaskId> task_id) {
   Actions action;
   auto* script_tool = action.add_actions()->mutable_script_tool();
   script_tool->mutable_document_identifier()->set_serialized_token(
@@ -426,12 +510,15 @@ Actions MakeScriptTool(content::RenderFrameHost& rfh,
   script_tool->set_input_arguments(input_arguments);
 
   script_tool->set_tab_id(GetTabHandleForFrame(rfh).raw_value());
-
+  if (task_id.has_value()) {
+    action.set_task_id(task_id->value());
+  }
   return action;
 }
 
 Actions MakeMediaControl(tabs::TabHandle tab_handle,
-                         MediaControl media_control) {
+                         MediaControl media_control,
+                         std::optional<actor::TaskId> task_id) {
   Actions action;
   auto* media_control_action = action.add_actions()->mutable_media_control();
   media_control_action->set_tab_id(tab_handle.raw_value());
@@ -443,6 +530,9 @@ Actions MakeMediaControl(tabs::TabHandle tab_handle,
   } else if (const auto* seek = std::get_if<SeekMedia>(&media_control)) {
     media_control_action->mutable_seek()->set_seek_time_milliseconds(
         seek->seek_time_milliseconds);
+  }
+  if (task_id.has_value()) {
+    action.set_task_id(task_id->value());
   }
   return action;
 }
@@ -630,31 +720,29 @@ void ExpectOkResult(const mojom::ActionResult& result) {
 }
 
 void ExpectOkResult(base::test::TestFuture<mojom::ActionResultPtr>& future) {
-  const auto& result = *(future.Get<0>());
+  const auto& result = *(future.Get());
   ExpectOkResult(result);
 }
 
 void ExpectOkResult(ActResultFuture& future) {
-  const auto& result = *(future.Get<0>());
-  ExpectOkResult(result);
-}
-
-void ExpectOkResult(PerformActionsFuture& future) {
-  const auto& result = future.Get<0>();
-  EXPECT_TRUE(IsOk(result)) << "Expected OK result, got " << result;
+  const auto& action_results = future.Get();
+  for (const auto& action_result : action_results) {
+    ExpectOkResult(*action_result.result);
+  }
 }
 
 void ExpectErrorResult(ActResultFuture& future,
                        mojom::ActionResultCode expected_code) {
-  const auto& result = *(future.Get<0>());
-  EXPECT_EQ(result.code, expected_code)
-      << "Result is " << ToDebugString(result);
-}
-
-void ExpectErrorResult(PerformActionsFuture& future,
-                       mojom::ActionResultCode expected_code) {
-  const auto& actual_code = future.Get<0>();
-  EXPECT_EQ(actual_code, expected_code);
+  const auto& action_results = future.Get();
+  bool found_error = false;
+  for (const auto& action_result : action_results) {
+    if (!IsOk(*action_result.result)) {
+      found_error = action_result.result->code == expected_code;
+      break;
+    }
+  }
+  EXPECT_TRUE(found_error) << "Expected error code " << expected_code
+                           << " not found in action results.";
 }
 
 bool SetUpOptimizationGuideComponentBlocklist(const base::FilePath& path,
@@ -669,12 +757,6 @@ void SetUpBlocklist(base::CommandLine* command_line,
   command_line->AppendSwitchASCII(
       optimization_guide::switches::kHintsProtoOverride,
       base::Base64Encode(CreateOptimizationGuideConfig(blocked_host)));
-}
-
-std::string EncodeURI(const std::string& component) {
-  url::RawCanonOutputT<char> encoded;
-  url::EncodeURIComponent(component, &encoded);
-  return std::string(encoded.view());
 }
 
 void WaitForPostedTask() {
@@ -756,6 +838,12 @@ const EnterprisePolicyUrlChecker* NoEnterprisePolicyChecker() {
   static base::NoDestructor<MockPolicyChecker> checker(
       EnterprisePolicyBlockReason::kNotBlocked);
   return checker.get();
+}
+
+const TaskSourceInfo& TestTaskSourceInfo() {
+  static base::NoDestructor<TaskSourceInfo> task_source_info(
+      TaskSourceInfo::Client::kTest, /*id=*/std::nullopt);
+  return *task_source_info.get();
 }
 
 TestTabState::TestTabState(content::WebContents* web_contents) {

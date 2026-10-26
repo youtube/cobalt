@@ -23,7 +23,6 @@ static_library("app_mode") {
   deps = [
     "//ash",
     "//ash/constants",
-    "//chrome/browser:browser_process",
     "//chrome/browser/ash/app_mode/arcvm_app",
     "//chrome/browser/ash/app_mode/isolated_web_app",
     "//chrome/browser/ash/app_mode/web_app",
@@ -33,6 +32,7 @@ static_library("app_mode") {
     "//chrome/browser/ui/ash/keyboard",
     "//chrome/browser/ui/webui/ash/system_web_dialog",
     "//chromeos/ash/components/install_attributes",
+    "//chromeos/ash/components/login/session",
     "//chromeos/ash/components/network",
     "//chromeos/ash/components/settings",
     "//components/crash/core/common",
@@ -70,7 +70,6 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//chrome/browser",
-    "//chrome/browser:browser_process",
     "//chrome/browser/ash/app_mode:test_support",
     "//chrome/browser/ash/app_mode/web_app",
     "//chrome/browser/ash/login/screens",

@@ -94,6 +94,7 @@ class ExtensionManagement : public KeyedService,
       const Extension* extension) override;
   bool UsesDefaultPolicyHostRestrictions(const Extension* extension) override;
   bool BlocklistedByDefault() const override;
+  GURL GetEffectiveUpdateURL(const Extension& extension) override;
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
@@ -134,10 +135,6 @@ class ExtensionManagement : public KeyedService,
   // Returns if an extension with `id` is force installed and the update URL is
   // overridden by policy.
   bool IsUpdateUrlOverridden(const ExtensionId& id);
-
-  // Get the effective update URL for the extension. Normally this URL comes
-  // from the extension manifest, but may be overridden by policies.
-  GURL GetEffectiveUpdateURL(const Extension& extension);
 
   // Returns if an extension with id `id` is explicitly blocked by enterprise
   // policy or not.
@@ -342,7 +339,12 @@ class ExtensionManagement : public KeyedService,
   raw_ptr<PrefService> pref_service_ = nullptr;
   bool is_signin_profile_ = false;
 
-  base::ObserverList<Observer, true>::Unchecked observer_list_;
+  // TODO(crbug.com/484371187): Investigate if reentrancy can be removed.
+  base::ObserverList<
+      Observer,
+      /*check_empty=*/true,
+      base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>::Unchecked
+      observer_list_;
   PrefChangeRegistrar pref_change_registrar_;
   std::vector<std::unique_ptr<ManagementPolicy::Provider>> providers_;
 

@@ -2,6 +2,7 @@ include_rules = [
   "+chromeos",
   "+components/back_forward_cache",
   "+components/crash/core",
+  "+components/content_settings",
   "+components/custom_handlers",
   "+components/guest_view",
   "+components/input",
@@ -18,6 +19,7 @@ include_rules = [
   "+components/supervised_user",
   "+components/sync_preferences",
   "+components/update_client",
+  "+components/user_manager",
   "+components/value_store",
   "+components/variations",
   "+components/vector_icons",
@@ -65,7 +67,6 @@ specific_include_rules = {
 
     "+components/account_id",
     "+components/javascript_dialogs",
-    "+components/user_manager",
     "+components/user_prefs",
 
     "+storage/browser/test",

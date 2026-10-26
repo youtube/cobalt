@@ -876,16 +876,22 @@ URLMatcher::~URLMatcher() = default;
 
 void URLMatcher::AddConditionSets(
     const URLMatcherConditionSet::Vector& condition_sets) {
-  for (auto i = condition_sets.begin(); i != condition_sets.end(); ++i) {
-    DCHECK(url_matcher_condition_sets_.find((*i)->id()) ==
+  if (condition_sets.empty()) {
+    return;
+  }
+  for (const auto& condition_set : condition_sets) {
+    DCHECK(url_matcher_condition_sets_.find(condition_set->id()) ==
            url_matcher_condition_sets_.end());
-    url_matcher_condition_sets_[(*i)->id()] = *i;
+    url_matcher_condition_sets_[condition_set->id()] = condition_set;
   }
   UpdateInternalDatastructures();
 }
 
 void URLMatcher::RemoveConditionSets(
     const std::vector<base::MatcherStringPattern::ID>& condition_set_ids) {
+  if (condition_set_ids.empty()) {
+    return;
+  }
   for (auto id : condition_set_ids) {
     DCHECK(url_matcher_condition_sets_.find(id) !=
            url_matcher_condition_sets_.end());

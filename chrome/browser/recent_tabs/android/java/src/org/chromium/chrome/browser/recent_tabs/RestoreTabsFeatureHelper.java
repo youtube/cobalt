@@ -9,6 +9,7 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 import android.app.Activity;
 
 import org.chromium.base.Callback;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.build.annotations.EnsuresNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -60,12 +61,12 @@ public class RestoreTabsFeatureHelper {
     /** Check the criteria for displaying the restore tabs promo. */
     public void maybeShowPromo(
             Activity activity,
-            Profile profile,
+            @Nullable Profile profile,
             TabCreatorManager tabCreatorManager,
             BottomSheetController bottomSheetController,
             Supplier<Integer> gtsTabListModelSizeSupplier,
             Callback<Integer> scrollGTSToRestoredTabsCallback,
-            Supplier<ModalDialogManager> modalDialogManagerSupplier) {
+            NonNullObservableSupplier<ModalDialogManager> modalDialogManagerSupplier) {
         if (profile == null || profile.isOffTheRecord()) {
             RestoreTabsMetricsHelper.recordPromoShowResultHistogram(
                     RestoreTabsOnFREPromoShowResult.NULL_PROFILE);
@@ -146,7 +147,7 @@ public class RestoreTabsFeatureHelper {
             BottomSheetController bottomSheetController,
             Supplier<Integer> gtsTabListModelSizeSupplier,
             Callback<Integer> scrollGTSToRestoredTabsCallback,
-            Supplier<ModalDialogManager> modalDialogManagerSupplier) {
+            NonNullObservableSupplier<ModalDialogManager> modalDialogManagerSupplier) {
         mDelegate =
                 (mDelegateForTesting != null)
                         ? mDelegateForTesting
@@ -161,7 +162,7 @@ public class RestoreTabsFeatureHelper {
                                                 profile,
                                                 tabCreatorManager,
                                                 bottomSheetController,
-                                                modalDialogManagerSupplier);
+                                                modalDialogManagerSupplier.get());
                                 mController.showHomeScreen(
                                         assumeNonNull(mForeignSessionHelper),
                                         sessions,

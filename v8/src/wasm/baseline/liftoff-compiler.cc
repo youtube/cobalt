@@ -503,7 +503,9 @@ class PrototypeSetupSequenceDetector : public Decoder {
     // call $configureAll
     final_call_position_ = position();
     final_call_pc_ = pc();
-    if (!ExpectCallWellKnownImport(WellKnownImport::kConfigureAllPrototypes)) {
+    if (!ExpectCallWellKnownImport(
+            WellKnownImport::kConfigureAllPrototypes,
+            TypeCanonicalizer::kPredefinedSigIndex_configureAll)) {
       return false;
     }
     return ok();
@@ -567,14 +569,18 @@ class PrototypeSetupSequenceDetector : public Decoder {
     const WasmGlobal& global = module_->globals[global_index];
     if (global.type != kWasmExternRef) return false;
     if (global.mutability) return false;
-    global_offset_ = global.offset;
+    global_offset_ = global.index_in_buffer;
     return true;
   }
 
-  bool ExpectCallWellKnownImport(WellKnownImport wki) {
+  bool ExpectCallWellKnownImport(WellKnownImport wki, CanonicalTypeIndex sig) {
     if (consume_u8() != kExprCallFunction) return false;
     function_index_ = consume_u32v(kNoTrace);
     if (function_index_ >= module_->num_imported_functions) return false;
+    if (module_->canonical_sig_id(
+            module_->functions[function_index_].sig_index) != sig) {
+      return false;
+    }
     // This isn't load bearing (due to code caching, we need to check at
     // runtime), it's just an early bailout to not emit the fast path when
     // the dynamic check can't possibly succeed.
@@ -1295,6 +1301,7 @@ class LiftoffCompiler {
     if (V8_UNLIKELY(v8_flags.trace_wasm)) TraceFunctionEntry(decoder);
 
     if (EnableCompilationHintsInfrastructure()) {
+      base::MutexGuard mutex(&decoder->module_->compilation_hints_mutex);
       decoder->module_->feedback_slots_to_wire_byte_offsets.emplace(
           func_index_, std::vector<uint32_t>());
     }
@@ -2034,8 +2041,7 @@ class LiftoffCompiler {
     unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: resume");
   }
 
-  void ResumeHandler(FullDecoder* decoder,
-                     base::Vector<const HandlerCase> handlers,
+  void ResumeHandler(FullDecoder* decoder, const HandlerCase& handler,
                      size_t handler_index, Value* cont, Value* tag_params) {
     // "Resume" bails out before this can be reached.
     UNREACHABLE();
@@ -2064,6 +2070,10 @@ class LiftoffCompiler {
               const Value args[], Value returns[]) {
     unsupported(decoder, kWasmfx, "unimplemented Liftoff instruction: switch");
   }
+
+  void BeginEffectHandlers(FullDecoder* decoder) { UNREACHABLE(); }
+
+  void EndEffectHandlers(FullDecoder* decoder) { UNREACHABLE(); }
 
   void Suspend(FullDecoder* decoder, const TagIndexImmediate& imm,
                const Value args[], const Value returns[]) {
@@ -3204,103 +3214,92 @@ class LiftoffCompiler {
     LocalSet(imm.index, true);
   }
 
-  Register GetGlobalBaseAndOffset(const WasmGlobal* global,
-                                  LiftoffRegList* pinned, uint32_t* offset) {
-    Register addr = pinned->set(__ GetUnusedRegister(kGpReg, {})).gp();
-    if (global->mutability && global->imported) {
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(addr, ImportedMutableGlobals, *pinned);
-      int field_offset =
-          wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
-              global->index);
-      __ LoadFullPointer(addr, addr, field_offset);
-      *offset = 0;
-#ifdef V8_ENABLE_SANDBOX
-      __ DecodeSandboxedPointer(addr);
-#endif
-    } else {
-      LOAD_INSTANCE_FIELD(addr, GlobalsStart, kSystemPointerSize, *pinned);
-      *offset = global->offset;
-    }
-      return addr;
+  void GetBufferAndOffsetForNumericGlobal(const WasmGlobal* global,
+                                          Register buffer, int* offset,
+                                          LiftoffRegList pinned) {
+    DCHECK(!global->mutability || !global->imported);
+    DCHECK(!global->type.is_ref());
+
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(buffer, UntaggedGlobalsBuffer, pinned);
+    *offset = wasm::ObjectAccess::ToTagged(
+        ByteArray::OffsetOfElementAt(global->index_in_buffer));
   }
 
-  void GetBaseAndOffsetForImportedMutableExternRefGlobal(
-      const WasmGlobal* global, LiftoffRegList* pinned, Register* base,
-      Register* offset) {
-    Register globals_buffer =
-        pinned->set(__ GetUnusedRegister(kGpReg, *pinned)).gp();
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(globals_buffer,
-                                   ImportedMutableGlobalsBuffers, *pinned);
-    *base = globals_buffer;
-    __ LoadTaggedPointer(
-        *base, globals_buffer, no_reg,
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(global->offset));
+  void GetBufferAndOffsetForRefGlobal(const WasmGlobal* global, Register buffer,
+                                      int* offset, LiftoffRegList pinned) {
+    DCHECK(!global->mutability || !global->imported);
+    DCHECK(global->type.is_ref());
 
-    // For the offset we need the index of the global in the buffer, and
-    // then calculate the actual offset from the index. Load the index from
-    // the ImportedMutableGlobals array of the instance.
-    Register imported_mutable_globals =
-        pinned->set(__ GetUnusedRegister(kGpReg, *pinned)).gp();
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(buffer, TaggedGlobalsBuffer, pinned);
+    *offset = wasm::ObjectAccess::ToTagged(
+        FixedArray::OffsetOfElementAt(global->index_in_buffer));
+  }
 
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_mutable_globals,
-                                   ImportedMutableGlobals, *pinned);
-    *offset = imported_mutable_globals;
-    int field_offset =
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
-            global->index);
-    __ Load(LiftoffRegister(*offset), imported_mutable_globals, no_reg,
-            field_offset, LoadType::kI32Load);
-    __ emit_i32_shli(*offset, *offset, kTaggedSizeLog2);
-    __ emit_i32_addi(*offset, *offset,
-                     wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0));
+  // Loads the tagged buffer (ByteArray or FixedArray) and the offset from that
+  // tagged address (no need to subtract kHeapObjectTag; this makes the
+  // generated code more compact).
+  void GetBufferAndOffsetForImportedMutableGlobal(const WasmGlobal* global,
+                                                  Register buffer,
+                                                  Register offset,
+                                                  LiftoffRegList pinned) {
+    SCOPED_CODE_COMMENT("GetBufferAndOffsetForImportedMutableGlobal");
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(buffer, ImportedMutableGlobalsBuffers,
+                                   pinned);
+    // Load the global-specific `FixedArray` from the
+    // `imported_mutable_globals_buffers` `FixedArray`.
+    __ LoadTaggedPointer(buffer, buffer, no_reg,
+                         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
+                             global->mutable_imported_global_index));
+
+    // Load the offset of the global within its buffer.
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(offset, ImportedMutableGlobalsOffsets,
+                                   pinned);
+    __ Load(LiftoffRegister(offset), offset, no_reg,
+            wasm::ObjectAccess::ElementOffsetInTaggedFixedUInt32Array(
+                global->mutable_imported_global_index),
+            LoadType::kI32Load);
   }
 
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate& imm) {
     const auto* global = &env_->module->globals[imm.index];
     ValueKind kind = global->type.kind();
-    if (!CheckSupportedType(decoder, kind, "global")) {
-      return;
-    }
-
-    if (is_reference(kind)) {
-      if (global->mutability && global->imported) {
-        LiftoffRegList pinned;
-        Register base = no_reg;
-        Register offset = no_reg;
-        GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &pinned,
-                                                          &base, &offset);
-        __ LoadTaggedPointer(base, base, offset, 0);
-        __ PushRegister(kind, LiftoffRegister(base));
-        if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
-          TraceGlobalOperation(imm.index, false, decoder->position());
-        }
-        return;
-      }
-
-      LiftoffRegList pinned;
-      Register globals_buffer =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(globals_buffer, TaggedGlobalsBuffer,
-                                     pinned);
-      Register value = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      __ LoadTaggedPointer(value, globals_buffer, no_reg,
-                           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                               imm.global->offset));
-      __ PushRegister(kind, LiftoffRegister(value));
-      if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
-        TraceGlobalOperation(imm.index, false, decoder->position());
-      }
-      return;
-    }
+    if (!CheckSupportedType(decoder, kind, "global")) return;
     LiftoffRegList pinned;
-    uint32_t offset = 0;
-    Register addr = GetGlobalBaseAndOffset(global, &pinned, &offset);
-    LiftoffRegister value =
-        pinned.set(__ GetUnusedRegister(reg_class_for(kind), pinned));
-    LoadType type = LoadType::ForValueKind(kind);
-    __ Load(value, addr, no_reg, offset, type, nullptr, false);
-    __ PushRegister(kind, value);
+    Register buffer = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    Register offset_reg = no_reg;
+    int offset_imm = 0;
+    LiftoffRegister dst{buffer};
+
+    if (global->mutability && global->imported) {
+      offset_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      GetBufferAndOffsetForImportedMutableGlobal(global, buffer, offset_reg,
+                                                 pinned);
+      RegClass dst_reg_class = reg_class_for(kind);
+      dst = dst_reg_class == kGpReg
+                ? LiftoffRegister{buffer}
+                : pinned.set(__ GetUnusedRegister(dst_reg_class, pinned));
+      if (is_reference(kind)) {
+        __ LoadTaggedPointer(dst.gp(), buffer, offset_reg, 0);
+      } else {
+        LoadType type = LoadType::ForValueKind(kind);
+        __ Load(dst, buffer, offset_reg, offset_imm, type);
+      }
+    } else if (is_reference(kind)) {
+      GetBufferAndOffsetForRefGlobal(global, buffer, &offset_imm, pinned);
+      dst = LiftoffRegister{buffer};
+      __ LoadTaggedPointer(dst.gp(), buffer, offset_reg, offset_imm);
+    } else {
+      GetBufferAndOffsetForNumericGlobal(global, buffer, &offset_imm, pinned);
+      RegClass dst_reg_class = reg_class_for(kind);
+      dst = dst_reg_class == kGpReg
+                ? LiftoffRegister{buffer}
+                : pinned.set(__ GetUnusedRegister(dst_reg_class, pinned));
+      LoadType type = LoadType::ForValueKind(kind);
+      __ Load(dst, buffer, offset_reg, offset_imm, type);
+    }
+
+    __ PushRegister(kind, dst);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
       TraceGlobalOperation(imm.index, false, decoder->position());
@@ -3311,48 +3310,32 @@ class LiftoffCompiler {
                  const GlobalIndexImmediate& imm) {
     auto* global = &env_->module->globals[imm.index];
     ValueKind kind = global->type.kind();
-    if (!CheckSupportedType(decoder, kind, "global")) {
-      return;
-    }
-
-    if (is_reference(kind)) {
-      if (global->mutability && global->imported) {
-        LiftoffRegList pinned;
-        Register value = pinned.set(__ PopToRegister(pinned)).gp();
-        Register base = no_reg;
-        Register offset = no_reg;
-        GetBaseAndOffsetForImportedMutableExternRefGlobal(global, &pinned,
-                                                          &base, &offset);
-        __ StoreTaggedPointer(base, offset, 0, value, pinned);
-
-        if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
-          TraceGlobalOperation(imm.index, true, decoder->position());
-        }
-        return;
-      }
-
-      LiftoffRegList pinned;
-      Register globals_buffer =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(globals_buffer, TaggedGlobalsBuffer,
-                                     pinned);
-      Register value = pinned.set(__ PopToRegister(pinned)).gp();
-      __ StoreTaggedPointer(globals_buffer, no_reg,
-                            wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
-                                imm.global->offset),
-                            value, pinned);
-
-      if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
-        TraceGlobalOperation(imm.index, true, decoder->position());
-      }
-      return;
-    }
+    if (!CheckSupportedType(decoder, kind, "global")) return;
     LiftoffRegList pinned;
-    uint32_t offset = 0;
-    Register addr = GetGlobalBaseAndOffset(global, &pinned, &offset);
-    LiftoffRegister reg = pinned.set(__ PopToRegister(pinned));
-    StoreType type = StoreType::ForValueKind(kind);
-    __ Store(addr, no_reg, offset, reg, type, {}, nullptr, false);
+    LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
+    Register buffer = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    Register offset_reg = no_reg;
+    int offset_imm = 0;
+
+    if (global->mutability && global->imported) {
+      offset_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      GetBufferAndOffsetForImportedMutableGlobal(global, buffer, offset_reg,
+                                                 pinned);
+      if (global->type.is_ref()) {
+        __ StoreTaggedPointer(buffer, offset_reg, offset_imm, value.gp(),
+                              pinned);
+      } else {
+        StoreType type = StoreType::ForValueKind(kind);
+        __ Store(buffer, offset_reg, offset_imm, value, type, pinned);
+      }
+    } else if (is_reference(kind)) {
+      GetBufferAndOffsetForRefGlobal(global, buffer, &offset_imm, pinned);
+      __ StoreTaggedPointer(buffer, offset_reg, offset_imm, value.gp(), pinned);
+    } else {
+      GetBufferAndOffsetForNumericGlobal(global, buffer, &offset_imm, pinned);
+      StoreType type = StoreType::ForValueKind(kind);
+      __ Store(buffer, offset_reg, offset_imm, value, type, pinned);
+    }
 
     if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
       TraceGlobalOperation(imm.index, true, decoder->position());
@@ -5650,7 +5633,7 @@ class LiftoffCompiler {
     __ StoreTaggedPointer(
         values_array, no_reg,
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index_in_array),
-        tmp_reg, pinned, nullptr, LiftoffAssembler::kSkipWriteBarrier);
+        tmp_reg, pinned, nullptr, compiler::kNoWriteBarrier);
 
     // Get the upper half word into tmp_reg and extend to a Smi.
     --*index_in_array;
@@ -5659,7 +5642,7 @@ class LiftoffCompiler {
     __ StoreTaggedPointer(
         values_array, no_reg,
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(*index_in_array),
-        tmp_reg, pinned, nullptr, LiftoffAssembler::kSkipWriteBarrier);
+        tmp_reg, pinned, nullptr, compiler::kNoWriteBarrier);
   }
 
   void Store64BitExceptionValue(Register values_array, int* index_in_array,
@@ -5886,6 +5869,7 @@ class LiftoffCompiler {
 
   void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
              const Value* /* args */) {
+    FUZZER_HEAVY_INSTRUCTION;
     LiftoffRegList pinned;
 
     // Load the encoded size in a register for the builtin call.
@@ -6505,7 +6489,7 @@ class LiftoffCompiler {
       if (__ cache_state()->is_used(value)) {
         result_reg =
             pinned.set(__ GetUnusedRegister(reg_class_for(field_kind), pinned));
-        __ Move(result_reg, value, field_kind);
+        __ Move(result_reg, value, unpacked(field_kind));
         pinned.clear(value);
         value = result_reg;
       }
@@ -6561,7 +6545,7 @@ class LiftoffCompiler {
     if (implicit_check) {
       RegisterProtectedInstruction(decoder, protected_load_pc);
     }
-    __ PushRegister(field_kind, result_reg);
+    __ PushRegister(unpacked(field_kind), result_reg);
   }
 
   void StructAtomicCompareExchange(FullDecoder* decoder, WasmOpcode opcode,
@@ -6655,7 +6639,55 @@ class LiftoffCompiler {
     if (implicit_check) {
       RegisterProtectedInstruction(decoder, protected_load_pc);
     }
-    __ PushRegister(field_kind, result_reg);
+    __ PushRegister(unpacked(field_kind), result_reg);
+  }
+
+  void StructWait(FullDecoder* decoder, const Value& /* struct_obj */,
+                  const FieldImmediate& imm, const Value& /* expected_value */,
+                  const Value& /* timeout_ns */, Value* /* result */) {
+    VarState timeout_ns_i64 = __ PopVarState();
+
+    // Convert the timeout from I64 to a BigInt.
+    CallBuiltin(
+        kNeedI64RegPair ? Builtin::kI32PairToBigInt : Builtin::kI64ToBigInt,
+        MakeSig::Returns(kRef).Params(kI64), {timeout_ns_i64},
+        decoder->position());
+
+    // We need to pop these two values after the previous builtin call, because
+    // register VarStates will get spilled and registers will be overwritten by
+    // it.
+    VarState expected_value = __ PopVarState();
+    VarState struct_obj = __ PopVarState();
+
+    int offset = WasmStruct::kHeaderSize +
+                 imm.struct_imm.struct_type->field_offset(imm.field_imm.index);
+    // Null check happens within the builtin.
+    CallBuiltin(Builtin::kWasmManagedObjectWait,
+                MakeSig::Params(kRef, kI32, kI32, kRef),
+                {struct_obj, VarState{kI32, offset, 0}, expected_value,
+                 VarState{kRef, LiftoffRegister{kReturnRegister0}, 0}},
+                decoder->position());
+    __ PushRegister(kI32, LiftoffRegister{kReturnRegister0});
+  }
+
+  void StructNotify(FullDecoder* decoder, const Value& struct_obj,
+                    const FieldImmediate& imm, const Value& /* max_waiters */,
+                    Value* /* result */) {
+    LiftoffRegList pinned;
+    LiftoffRegister max_waiters = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister struct_obj_reg = pinned.set(__ PopToRegister(pinned));
+
+    MaybeEmitNullCheck(decoder, struct_obj_reg.gp(), pinned, struct_obj.type);
+
+    int offset = WasmStruct::kHeaderSize +
+                 imm.struct_imm.struct_type->field_offset(imm.field_imm.index);
+
+    LiftoffRegister result = GenerateCCall(
+        kI32,
+        {VarState{kRefNull, struct_obj_reg, 0}, VarState{kI32, offset, 0},
+         VarState{kI32, max_waiters, 0}},
+        ExternalReference::wasm_managed_object_notify());
+    __ PushRegister(kI32, result);
   }
 
   void ArrayAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
@@ -7121,25 +7153,20 @@ class LiftoffCompiler {
   }
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
+    // TODO(14616): Fix sharedness.
+    CHECK(!decoder->module_->data_segments[imm.index].shared);
+
     LiftoffRegList pinned;
+    Register instance_data = __ cache_state() -> cached_instance_data;
+    if (instance_data == no_reg) {
+      instance_data = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+      __ LoadInstanceDataFromFrame(instance_data);
+    }
 
-    Register seg_size_array =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_TAGGED_PTR_INSTANCE_FIELD(seg_size_array, DataSegmentSizes, pinned);
-
-    LiftoffRegister seg_index =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    // Scale the seg_index for the array access.
-    __ LoadConstant(
-        seg_index,
-        WasmValue(wasm::ObjectAccess::ElementOffsetInTaggedFixedUInt32Array(
-            imm.index)));
-
-    // Set the length of the segment to '0' to drop it.
-    LiftoffRegister null_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(null_reg, WasmValue(0));
-    __ Store(seg_size_array, seg_index.gp(), 0, null_reg, StoreType::kI32Store,
-             pinned);
+    GenerateCCall(kVoid,
+                  {{kIntPtrKind, LiftoffRegister{instance_data}, 0},
+                   {kI32, static_cast<int32_t>(imm.index), 0}},
+                  ExternalReference::wasm_data_drop());
   }
 
   void MemoryCopy(FullDecoder* decoder, const MemoryCopyImmediate& imm,
@@ -7495,6 +7522,9 @@ class LiftoffCompiler {
     LiftoffRegister obj(kReturnRegister0);
     LiftoffRegList pinned{obj};
 
+    bool in_old_space =
+        type.is_shared || type.is_descriptor() || v8_flags.single_generation;
+
     for (uint32_t i = imm.struct_type->field_count(); i > 0;) {
       i--;
       int offset = StructFieldOffset(imm.struct_type, i);
@@ -7510,17 +7540,43 @@ class LiftoffCompiler {
         SetDefaultValue(value, field_type);
       }
       // Skipping the write barrier is safe as long as:
-      // (1) {obj} is freshly allocated, and
-      // (2) {obj} is in new-space (not pretenured).
+      // {obj} is freshly allocated, and
+      // {obj} is in new-space (not pretenured).
+      // OR
+      // {!initial_values_on_stack}, i.e., only RO-space objects as fields.
       // There currently is no shared new-space, and descriptors are allocated
       // in old-space as an optimization.
-      auto write_barrier = type.is_shared || type.is_descriptor()
-                               ? LiftoffAssembler::kNoSkipWriteBarrier
-                               : LiftoffAssembler::kSkipWriteBarrier;
+      auto write_barrier =
+          in_old_space && initial_values_on_stack && field_type.is_ref()
+              ? compiler::kFullWriteBarrier
+              : compiler::kNoWriteBarrier;
       StoreObjectField(decoder, obj.gp(), no_reg, offset, value, false, pinned,
                        field_type.kind(), write_barrier);
       pinned.clear(value);
+      if (field_type == kWasmWaitQueue) {
+        // We have to allocate the Managed part of waitqueue after finishing
+        // initialization of the fresh struct object. Therefore we initialize it
+        // with 0 here.
+        LiftoffRegister zero_reg =
+            pinned.set(__ GetUnusedRegister(reg_class_for(kRef), pinned));
+        LoadSmi(zero_reg, 0);
+        StoreObjectField(decoder, obj.gp(), no_reg,
+                         offset + kWaitQueueManagedOffset, zero_reg, false,
+                         pinned, kRef, compiler::kNoWriteBarrier);
+        pinned.clear(zero_reg);
+      }
     }
+
+    for (uint32_t i = imm.struct_type->field_count(); i > 0;) {
+      i--;
+      if (imm.struct_type->field(i) != kWasmWaitQueue) continue;
+      int offset = imm.struct_type->field_offset(i);
+      // This will overwrite {kReturnRegister0} but it returns the {obj} back.
+      CallBuiltin(Builtin::kWasmAllocateWaitQueue, MakeSig::Params(kRef, kI32),
+                  {VarState{kRef, obj, 0}, VarState{kI32, offset, 0}},
+                  decoder->position());
+    }
+
     // If this assert fails then initialization of padding field might be
     // necessary.
     static_assert(Heap::kMinObjectSizeInTaggedWords == 2 &&
@@ -7676,11 +7732,16 @@ class LiftoffCompiler {
 
     // Initialize the array's elements.
     // Skipping the write barrier is safe as long as:
-    // (1) {obj} is freshly allocated, and
-    // (2) {obj} is in new-space (not pretenured).
+    // {obj} is freshly allocated, and
+    // {obj} is in new-space (not pretenured).
+    // OR
+    // {value} is read-only.
+    bool in_old_space = is_shared || v8_flags.single_generation;
     ArrayFillImpl(decoder, pinned, obj, index, value, length, elem_kind,
-                  is_shared ? LiftoffAssembler::kNoSkipWriteBarrier
-                            : LiftoffAssembler::kSkipWriteBarrier);
+                  in_old_space && imm.array_type->element_type().is_ref() &&
+                          initial_value_on_stack
+                      ? compiler::kFullWriteBarrier
+                      : compiler::kNoWriteBarrier);
 
     __ PushRegister(kRef, obj);
   }
@@ -7741,7 +7802,9 @@ class LiftoffCompiler {
 
     ArrayFillImpl(decoder, pinned, obj, index, value, length,
                   imm.array_type->element_type().kind(),
-                  LiftoffAssembler::kNoSkipWriteBarrier);
+                  imm.array_type->element_type().is_ref()
+                      ? compiler::kFullWriteBarrier
+                      : compiler::kNoWriteBarrier);
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
@@ -7905,6 +7968,11 @@ class LiftoffCompiler {
     // Initialize the array with stack arguments.
     LiftoffRegister array(kReturnRegister0);
     if (!CheckSupportedType(decoder, elem_kind, "array.new_fixed")) return;
+    compiler::WriteBarrierKind write_barrier =
+        (is_shared || v8_flags.single_generation) &&
+                array_imm.array_type->element_type().is_ref()
+            ? compiler::kFullWriteBarrier
+            : compiler::kNoWriteBarrier;
     for (int i = elem_count - 1; i >= 0; i--) {
       LiftoffRegList pinned{array};
       LiftoffRegister element = pinned.set(__ PopToRegister(pinned));
@@ -7915,9 +7983,7 @@ class LiftoffCompiler {
       // (2) {array} is in new-space (not pretenured).
       StoreObjectField(decoder, array.gp(), no_reg,
                        wasm::ObjectAccess::ToTagged(offset), element, false,
-                       pinned, elem_kind,
-                       is_shared ? LiftoffAssembler::kNoSkipWriteBarrier
-                                 : LiftoffAssembler::kSkipWriteBarrier);
+                       pinned, elem_kind, write_barrier);
     }
 
     // Push the array onto the stack.
@@ -7931,7 +7997,9 @@ class LiftoffCompiler {
                        Value* /* result */) {
     FUZZER_HEAVY_INSTRUCTION;
 
-    if (prototype_setup_end_ == nullptr) {
+    if (prototype_setup_end_ == nullptr &&
+        decoder->enabled_.has_custom_descriptors() &&
+        v8_flags.experimental_wasm_js_interop) {
       PrototypeSetupSequenceDetector matcher(decoder->pc(), decoder->end(),
                                              decoder->pc_offset(),
                                              decoder->module_);
@@ -7961,9 +8029,12 @@ class LiftoffCompiler {
           LiftoffRegister expected = tmp2;
           LOAD_TAGGED_PTR_INSTANCE_FIELD(actual, WellKnownImports, pinned);
           int field_offset =
-              wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
+              wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                   matcher.function_index());
-          __ LoadFullPointer(actual, actual, field_offset);
+          // TODO(clemensb): Introduce `LoadTaggedPointerWithoutDecompressing`
+          // and use it here and elsewhere where we only compare the loaded
+          // value against another reference or Smi.
+          __ LoadTaggedPointer(actual, actual, no_reg, field_offset);
           LoadSmi(expected,
                   static_cast<int>(WellKnownImport::kConfigureAllPrototypes));
 
@@ -8012,11 +8083,13 @@ class LiftoffCompiler {
           static constexpr int kNumDroppedConstants = 2;
           __ DropValues(kNumDroppedConstants);
 
-          uint32_t stack_depth = __ cache_state() -> stack_height();
+          uint32_t num_locals = __ num_locals();
+          uint32_t stack_depth =
+              __ cache_state() -> stack_height() - num_locals;
           // The decoder has already dropped start/length and pushed the array.
-          DCHECK_EQ(decoder->stack_size(), stack_depth + 1);
+          DCHECK_EQ(decoder->stack_size(), stack_depth + 1 - num_exceptions_);
           prototype_setup_end_->state =
-              __ MergeIntoNewState(__ num_locals(), 0, stack_depth);
+              __ MergeIntoNewState(num_locals, 0, stack_depth);
           __ emit_jump(prototype_setup_end_->label.get());
 
           __ bind(else_state.label.get());
@@ -10471,16 +10544,16 @@ class LiftoffCompiler {
     if (trapping) RegisterProtectedInstruction(decoder, protected_load_pc);
   }
 
-  void StoreObjectField(FullDecoder* decoder, Register obj, Register offset_reg,
-                        int offset, LiftoffRegister value, bool trapping,
-                        LiftoffRegList pinned, ValueKind kind,
-                        LiftoffAssembler::SkipWriteBarrier skip_write_barrier =
-                            LiftoffAssembler::kNoSkipWriteBarrier) {
+  void StoreObjectField(
+      FullDecoder* decoder, Register obj, Register offset_reg, int offset,
+      LiftoffRegister value, bool trapping, LiftoffRegList pinned,
+      ValueKind kind,
+      compiler::WriteBarrierKind write_barrier = compiler::kFullWriteBarrier) {
     uint32_t protected_load_pc = 0;
     if (is_reference(kind)) {
       __ StoreTaggedPointer(obj, offset_reg, offset, value.gp(), pinned,
                             trapping ? &protected_load_pc : nullptr,
-                            skip_write_barrier);
+                            write_barrier);
     } else {
       // Primitive kind.
       StoreType store_type = StoreType::ForValueKind(kind);
@@ -10579,7 +10652,7 @@ class LiftoffCompiler {
                      LiftoffRegister obj, LiftoffRegister index,
                      LiftoffRegister value, LiftoffRegister length,
                      ValueKind elem_kind,
-                     LiftoffAssembler::SkipWriteBarrier skip_write_barrier) {
+                     compiler::WriteBarrierKind write_barrier) {
     // initial_offset = WasmArray::kHeaderSize + index * elem_size.
     LiftoffRegister offset = index;
     if (value_kind_size_log2(elem_kind) != 0) {
@@ -10603,7 +10676,7 @@ class LiftoffCompiler {
     __ emit_cond_jump(kUnsignedGreaterThanEqual, &done, kI32, offset.gp(),
                       end_offset.gp(), frozen_for_conditional_jumps);
     StoreObjectField(decoder, obj.gp(), offset.gp(), 0, value, false, pinned,
-                     elem_kind, skip_write_barrier);
+                     elem_kind, write_barrier);
     __ emit_i32_addi(offset.gp(), offset.gp(), value_kind_size(elem_kind));
     __ emit_jump(&loop);
 
@@ -10632,6 +10705,7 @@ class LiftoffCompiler {
                   static_cast<size_t>(std::numeric_limits<int>::max()));
 
     if (EnableCompilationHintsInfrastructure()) {
+      base::MutexGuard mutex(&decoder->module_->compilation_hints_mutex);
       decoder->module_->feedback_slots_to_wire_byte_offsets[func_index_]
           .push_back(decoder->pc_relative_offset());
     }

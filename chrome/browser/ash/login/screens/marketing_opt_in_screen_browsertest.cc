@@ -36,7 +36,6 @@
 #include "chrome/browser/ui/webui/ash/login/gaia_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/marketing_opt_in_screen_handler.h"
 #include "chrome/common/chrome_features.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/fake_gaia_mixin.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "components/prefs/pref_service.h"
@@ -130,8 +129,8 @@ class MarketingOptInScreenTest : public OobeBaseTest,
 
   // US as default location for non-parameterized tests.
   void SetUpLocalState() override {
-    g_browser_process->local_state()->SetString(::prefs::kSigninScreenTimezone,
-                                                "America/Los_Angeles");
+    g_browser_process->local_state()->SetString(
+        ash::prefs::kSigninScreenTimezone, "America/Los_Angeles");
   }
 
   // Logs in as a normal user. Overridden by subclasses.
@@ -476,8 +475,8 @@ class RegionAsParameterInterface
 
   void SetUpLocalStateRegion() {
     RegionToCodeMap param = GetParam();
-    g_browser_process->local_state()->SetString(::prefs::kSigninScreenTimezone,
-                                                param.region);
+    g_browser_process->local_state()->SetString(
+        ash::prefs::kSigninScreenTimezone, param.region);
   }
 };
 

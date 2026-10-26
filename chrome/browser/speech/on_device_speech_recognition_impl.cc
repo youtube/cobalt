@@ -164,8 +164,11 @@ void OnDeviceSpeechRecognitionImpl::Install(
     model_broker_client_ =
         optimization_guide_keyed_service->CreateModelBrokerClient();
 
-    // Call `GetSubscriber()` to trigger the download and installation of
+    // Call `RequestAssetsFor()` to trigger the download and installation of
     // the model.
+    model_broker_client_->RequestAssetsFor(
+        optimization_guide::mojom::OnDeviceFeature::kOnDeviceSpeechRecognition);
+
     model_broker_client_
         ->GetSubscriber(optimization_guide::mojom::OnDeviceFeature::
                             kOnDeviceSpeechRecognition)

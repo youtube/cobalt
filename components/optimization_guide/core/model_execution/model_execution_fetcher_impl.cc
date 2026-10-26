@@ -10,7 +10,6 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/strings/strcat.h"
 #include "components/optimization_guide/core/access_token_helper.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
@@ -434,15 +433,16 @@ net::NetworkTrafficAnnotationTag GetNetworkTrafficAnnotation(
         }
       }
     })");
+    case ModelBasedCapabilityKey::kContentAnnotation:
+      // TODO(crbug.com/486232932): Add network traffic annotation.
+      return MISSING_TRAFFIC_ANNOTATION;
+    case ModelBasedCapabilityKey::kFinds:
+      // TODO(crbug.com/490501055): Add network traffic annotation.
+      return MISSING_TRAFFIC_ANNOTATION;
+    case ModelBasedCapabilityKey::kAnnotationReducerQueryClassifier:
+      // TODO(crbug.com/492168146): Add network traffic annotation.
+      return MISSING_TRAFFIC_ANNOTATION;
   }
-}
-
-void RecordRequestStatusHistogram(ModelBasedCapabilityKey feature,
-                                  FetcherRequestStatus status) {
-  base::UmaHistogramEnumeration(
-      base::StrCat({"OptimizationGuide.ModelExecutionFetcher.RequestStatus.",
-                    GetStringNameForModelExecutionFeature(feature)}),
-      status);
 }
 
 // Appends headers as specified by the command line arguments.
@@ -470,6 +470,9 @@ bool IsAccessTokenRequiredForFeature(ModelBasedCapabilityKey feature) {
     case ModelBasedCapabilityKey::kAmountExtraction:
     case ModelBasedCapabilityKey::kIosSmartTabGrouping:
     case ModelBasedCapabilityKey::kSkills:
+    case ModelBasedCapabilityKey::kContentAnnotation:
+    case ModelBasedCapabilityKey::kFinds:
+    case ModelBasedCapabilityKey::kAnnotationReducerQueryClassifier:
       return true;
     case ModelBasedCapabilityKey::kFormsClassifications:
       return !base::FeatureList::IsEnabled(

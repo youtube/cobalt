@@ -8,14 +8,18 @@
 
 #include "base/time/tick_clock.h"
 #include "third_party/blink/renderer/core/dom/events/event.h"
+#include "third_party/blink/renderer/core/events/hash_change_event.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/events/pointer_event.h"
+#include "third_party/blink/renderer/core/events/pop_state_event.h"
 #include "third_party/blink/renderer/core/events/touch_event.h"
 #include "third_party/blink/renderer/core/events/wheel_event.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/loader/interactive_detector.h"
+#include "third_party/blink/renderer/core/navigation_api/navigate_event.h"
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/performance_event_timing.h"
+#include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
@@ -36,21 +40,9 @@ bool ShouldLogEvent(const Event& event) {
          event.type() == event_type_names::kMouseup;
 }
 
-}  // namespace
-
-EventTiming::EventTiming(base::TimeTicks processing_start,
-                         WindowPerformance* performance,
-                         const Event& event,
-                         EventTarget* hit_test_target)
-    : performance_(performance), event_(&event) {
-  performance_->EventTimingProcessingStart(event, processing_start,
-                                           hit_test_target);
-}
-
-// static
-void EventTiming::HandleInputDelay(LocalDOMWindow* window,
-                                   const Event& event,
-                                   base::TimeTicks processing_start) {
+void HandleInputDelay(LocalDOMWindow* window,
+                      const Event& event,
+                      base::TimeTicks processing_start) {
   auto* pointer_event = DynamicTo<PointerEvent>(&event);
   base::TimeTicks event_timestamp =
       pointer_event ? pointer_event->OldestPlatformTimeStamp()
@@ -66,65 +58,137 @@ void EventTiming::HandleInputDelay(LocalDOMWindow* window,
   }
 }
 
-// static
-bool EventTiming::IsEventTypeForEventTiming(const Event& event) {
-  // Include only trusted events of certain kinds. Explicitly excluding input
-  // events that are considered continuous: event types for which the user agent
-  // may have timer-based dispatch under certain conditions. These are excluded
-  // since EventCounts cannot be used to properly computed percentiles on those.
-  // See spec: https://wicg.github.io/event-timing/#sec-events-exposed.
-  // Needs to be kept in sync with WebInputEvent::IsWebInteractionEvent(),
-  // except non-raw web input event types, for example kCompositionend.
-  return (event.isTrusted() ||
-          event.type() == event_type_names::kCompositionend) &&
-         (IsA<MouseEvent>(event) || IsA<PointerEvent>(event) ||
-          IsA<TouchEvent>(event) || IsA<KeyboardEvent>(event) ||
-          IsA<WheelEvent>(event) || event.IsInputEvent() ||
-          event.IsCompositionEvent() || event.IsDragEvent()) &&
-         event.type() != event_type_names::kMousemove &&
-         event.type() != event_type_names::kPointermove &&
-         event.type() != event_type_names::kPointerrawupdate &&
-         event.type() != event_type_names::kTouchmove &&
-         event.type() != event_type_names::kWheel &&
-         event.type() != event_type_names::kDrag;
+// Returns true when the type of the event is one of the standard input events
+// measured by Event Timing (e.g. keyboard, mouse, touch, etc.).
+bool IsStandardEventType(const Event& event) {
+  const AtomicString& type = event.type();
+
+  // 1. Compositionend is measured even if untrusted (per spec).
+  if (type == event_type_names::kCompositionend) {
+    return true;
+  }
+
+  // 2. Reject all other untrusted events for standard types.
+  // Note: FullyTrusted instead of Trusted, because some untrusted events
+  // synthetically generate trusted events.
+  if (!event.IsFullyTrusted()) {
+    return false;
+  }
+
+  // 3. Fail-fast for high-frequency continuous events.
+  if (type == event_type_names::kMousemove ||
+      type == event_type_names::kPointermove ||
+      type == event_type_names::kTouchmove ||
+      type == event_type_names::kPointerrawupdate ||
+      type == event_type_names::kWheel || type == event_type_names::kDrag) {
+    return false;
+  }
+
+  // 4. Fallback for other types using virtual class-id checks (IsA).
+  return IsA<MouseEvent>(event) || IsA<PointerEvent>(event) ||
+         IsA<TouchEvent>(event) || IsA<KeyboardEvent>(event) ||
+         IsA<WheelEvent>(event) || event.IsInputEvent() ||
+         event.IsCompositionEvent() || event.IsDragEvent();
 }
 
-// static
-std::optional<EventTiming> EventTiming::TryCreate(
-    LocalDOMWindow* window,
-    const Event& event,
-    EventTarget* hit_test_target) {
-  auto* performance = DOMWindowPerformance::performance(*window);
-  if (!performance || !IsEventTypeForEventTiming(event)) {
-    return std::nullopt;
+// Returns true for navigation-related events if they meet the user-initiation
+// requirements.
+bool IsNavigationEventType(const Event& event) {
+  // TODO(crbug.com/418007230): The following events become trusted as part of
+  // EventDispatch, but EventTiming is created right before dispatch.
+  // These events are always unconditionally trusted, and we use userInitiated
+  // value (below), anyway, so we don't need to check this.  But we should
+  // re-architect to observe a little later in event dispatch flow.
+  // if (!event.isTrusted()) {
+  //   return false;
+  // }
+
+  if (const auto* navigate_event = DynamicTo<NavigateEvent>(event)) {
+    return navigate_event->userInitiated();
+  }
+
+  if (const auto* popstate_event = DynamicTo<PopStateEvent>(event)) {
+    return popstate_event->IsUserInitiated();
+  }
+
+  if (const auto* hashchange_event = DynamicTo<HashChangeEvent>(event)) {
+    return hashchange_event->IsUserInitiated();
+  }
+
+  return false;
+}
+
+}  // namespace
+
+UIEventTiming::UIEventTiming(LocalFrame* frame, const Event& event) {
+  if (IsStandardEventType(event)) {
+    timing_.emplace(base::PassKey<UIEventTiming>(), frame, event);
+  }
+}
+
+NavigationEventTiming::NavigationEventTiming(LocalFrame* frame,
+                                             const Event& event) {
+  if (IsNavigationEventType(event)) {
+    timing_.emplace(base::PassKey<NavigationEventTiming>(), frame, event);
+  }
+}
+
+EventTiming::EventTiming(base::PassKey<UIEventTiming>,
+                         LocalFrame* frame,
+                         const Event& event)
+    : EventTiming(frame, event) {}
+
+EventTiming::EventTiming(base::PassKey<NavigationEventTiming>,
+                         LocalFrame* frame,
+                         const Event& event)
+    : EventTiming(frame, event) {}
+
+EventTiming::EventTiming(LocalFrame* frame, const Event& event) {
+  if (!frame) {
+    return;
+  }
+  LocalDOMWindow* window = frame->DomWindow();
+  // The context is needed for performance->EventTimingProcessingStart.
+  if (!window || window->IsContextDestroyed()) {
+    return;
+  }
+  WindowPerformance* performance = DOMWindowPerformance::performance(*window);
+  if (!performance) {
+    return;
   }
 
   // Most events track their performance in EventDispatcher::Dispatch but
   // some event types which can be filtered are tracked at the point
   // where they may be filtered. This condition check ensures we don't create
   // two EventTiming objects for the same Event.
-  if (performance->GetCurrentEventTimingEvent() == &event)
-    return std::nullopt;
-
+  if (performance->GetCurrentEventTimingEvent() == &event) {
+    return;
+  }
   base::TimeTicks processing_start = Now();
 
-  // TODO(mmocny): Move this out of ::TryCreate and into the Constructor,
-  // or even further in window_performance / responsiveness_metrics
   HandleInputDelay(window, event, processing_start);
 
-  return EventTiming(processing_start, performance, event, hit_test_target);
+  performance_ = performance;
+  event_ = &event;
+  entry_ = performance->EventTimingProcessingStart(event, processing_start);
+  CHECK(entry_);
+
+  if (auto* heuristics = window->GetSoftNavigationHeuristics()) {
+    task_scope_ = heuristics->MaybeCreateTaskScopeForEvent(entry_);
+  }
+}
+
+EventTiming::~EventTiming() {
+  if (entry_) {
+    CHECK(event_);
+    CHECK(performance_);
+    performance_->EventTimingProcessingEnd(entry_, *event_, Now());
+  }
 }
 
 // static
 void EventTiming::SetTickClockForTesting(const base::TickClock* clock) {
   g_clock_for_testing = clock;
-}
-
-EventTiming::~EventTiming() {
-  // event_ might potentially be null if this is std::move()-ed.
-  if (event_) {
-    performance_->EventTimingProcessingEnd(*event_, Now());
-  }
 }
 
 }  // namespace blink

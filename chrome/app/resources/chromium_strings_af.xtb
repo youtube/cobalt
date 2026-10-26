@@ -10,6 +10,7 @@
 
 Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure sal nie gestoor word nie.</translation>
 <translation id="1083934481477628225">Jou ouer het “Toestemmings vir werwe, apps en uitbreidings” vir Chromium afgeskakel</translation>
+<translation id="1090946077924227754">Om ’n spesifieke Chromium-kenmerk of -uitbreiding te soek, moet jy sy kortpad in die adresbalk tik, gevolg deur jou gekose sleutelbordsleutel</translation>
 <translation id="1104942323762546749">Chromium wil jou wagwoorde uitvoer. Tik jou Windows-wagwoord in om dit toe te laat.</translation>
 <translation id="112640046208448578">Identifiseer dinge of plekke en kopieer of vertaal teks. Wanneer jy Prentsoektog gebruik, word ’n skermskoot van die bladsy na die bediener toe gestuur. <ph name="LEARN_MORE" /></translation>
 <translation id="113122355610423240">Chromium is jou verstekblaaier</translation>
@@ -27,8 +28,10 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="1262876892872089030">Geheue is beskikbaar gemaak terwyl hierdie oortjie onaktief was om Chromium vinnig te hou. Jy kan kies om hierdie werf altyd daarvan uit te sluit om onaktief te wees.</translation>
 <translation id="1265577313130862557">Chromium het hierdie aflaai geblokkeer omdat die lêer gevaarlik is</translation>
 <translation id="126567311906253476">Wanneer jy by Google-dienste soos Gmail of YouTube met <ph name="USER_EMAIL" /> aanmeld, kan jy met dieselfde rekening outomaties by Chromium aanmeld</translation>
+<translation id="1287534462498555020">Kry Chromium op jou foon</translation>
 <translation id="1290883685122687410">Opstellingfout: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">Stel jou nuwe Chromium-profiel op</translation>
+<translation id="132092532143527429">Probeer met Gemini in Chromium</translation>
 <translation id="1324107359134968521">Chromium het Bluetooth-toegang nodig om 
  Bluetooth-toestelle te verken. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Bespeur taal</translation>
@@ -241,7 +244,9 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="3509308970982693815">Maak asseblief alle Chromium-vensters toe en probeer weer.</translation>
 <translation id="3522404737534491619">Om jou venster te deel, moet jy skermopname vir Chromium in Stelselinstellings toelaat.</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> is reeds aangemeld.  Meld in jou eie profiel as <ph name="USER_EMAIL_ADDRESS" /> by Chromium aan om jou blaai-aktiwiteit apart te hou.</translation>
+<translation id="3531741627422851418">QR-kode om Chromium-blaaier op mobiele toestelle af te laai</translation>
 <translation id="3561853857681580870">Om jou skerm te deel, moet jy skermopname vir Chromium in Stelselinstellings toelaat.</translation>
+<translation id="3588112919289558122">Verbeterde beskerming skakel JavaScript-optimering af vir werwe wat Chromium nie herken nie</translation>
 <translation id="3597003331831379823">Kon nie opstelling met verhoogde voorregte laat loop nie. <ph name="METAINSTALLER_ERROR" /></translation>
 <translation id="3600428265489994557">Meld by Chromium aan</translation>
 <translation id="3639635944603682591">Hierdie persoon se blaaierdata sal van hierdie toestel af uitgevee word. Meld as <ph name="USER_EMAIL" /> by Chromium aan om die data te herwin.</translation>
@@ -375,11 +380,11 @@ Sommige kenmerke kan dalk nie beskikbaar wees nie en veranderings aan voorkeure 
 <translation id="5174969993834422967">Jy blokkeer gewoonlik kennisgewings. Klik die kennisgewing-ikoon in die regter hoek van jou liggingbalk sodat dié werf jou in kennis kan stel.</translation>
 <translation id="5174983315706567306">Te min skyfspasie.</translation>
 <translation id="5187123684706427865">Chromium-rekening vereis herstawing</translation>
-<translation id="5219681158518957165">Gebruik aanbevole blaaierinstellings</translation>
 <translation id="5224391634244552924">Geen gestoorde wagwoorde nie. Chromium kan jou wagwoorde nagaan wanneer jy hulle stoor.</translation>
 <translation id="5231355151045086930">Meld af uit Chromium</translation>
 <translation id="5234764350956374838">Verwerp</translation>
 <translation id="5254739261293693943">Vra oor hierdie video</translation>
+<translation id="5276305953263010518">Kry die Chromium-app om wagwoorde te stoor terwyl jy aan die beweeg is</translation>
 <translation id="5277894862589591112">Herbegin Chromium om jou veranderinge toe te pas</translation>
 <translation id="5286907366254680517">Bespeur</translation>
 <translation id="5289287148052354622">Kry die Chromium-app</translation>
@@ -586,9 +591,13 @@ Chromium kan nie jou instellings herwin nie.</translation>
 <translation id="7352651011704765696">Iets het verkeerd geloop</translation>
 <translation id="7368826207863345663">Jy het macOS 13 of nuwer nodig om in die toekoms Chromium-opdaterings te kry. Hierdie rekenaar gebruik macOS 12.</translation>
 <translation id="7376384068949534168">Jy het nie onlangs die webwerf besoek nie. Chromium het <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> verwyder.</translation>
+<translation id="73786666777299047">Maak Chrome Webwinkel oop</translation>
 <translation id="7384121030444253939">Hierdie uitbreiding word nie meer gesteun nie. Chromium beveel aan dat jy dit eerder verwyder.</translation>
 <translation id="7413153308467572558">Gaan voort waar jy opgehou het: Chromium stel elke keer as jy herbegin, jou oortjies terug. Om dit af te skakel, gaan na</translation>
 <translation id="7427879960656355200">Voer wagwoorde na Chromium in</translation>
+<translation id="744815265653811511">1. Klik <ph name="BUTTON_LABEL" /> hier onder
+2. Klik <ph name="BUTTON_2" /> in jou Windows-instellings
+3. Klik <ph name="BUTTON_3" /> in die Windows-kennisgewing om Chromium vir kitstoegang op jou taakbalk vas te speld</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> – Chromium Dev</translation>
 <translation id="7450541714075000668">Teks gekopieer</translation>
 <translation id="7451052299415159299">Chromium het toestemming nodig om toegang te kry tot jou kamera vir hierdie werf</translation>
@@ -604,7 +613,9 @@ Chromium kan nie jou instellings herwin nie.</translation>
 <translation id="761356813943268536">Chromium gebruik tans jou kamera en mikrofoon.</translation>
 <translation id="7617377681829253106">Chromium het pas beter geword</translation>
 <translation id="7622753900276619808">Jy het nou meer kenmerke beskikbaar in Chromium</translation>
+<translation id="7624307931717240213">Ons gebruik inligting om hierdie diens te verbeter. Sien privaatheidsbeleid en diensbepalings.</translation>
 <translation id="7649070708921625228">Hulp</translation>
+<translation id="7650134251917003571">Kry die Chromium-app</translation>
 <translation id="7656340475565475526">Laat Chromium vir jou blaai</translation>
 <translation id="7658239707568436148">Kanselleer</translation>
 <translation id="7686590090926151193">Chromium is nie jou verstekblaaier nie</translation>
@@ -688,6 +699,7 @@ Chromium kan nie jou instellings herwin nie.</translation>
 <translation id="8522801943730206384">Chromium kan jou wagwoorde nagaan wanneer jy hulle stoor</translation>
 <translation id="8548787790260785208">Kry ’n waarskuwing as Chromium een van jou wagwoorde in ’n publieke dataskending vind</translation>
 <translation id="8555465886620020932">Diensfout: <ph name="SERVICE_ERROR" />.</translation>
+<translation id="8556055872671007529">Sommige Chromium-kenmerke en -uitbreidings kom met kortpaaie. Jy kan kies om hulle weer aan te skakel.</translation>
 <translation id="8556420416730706394">Jy kan Prentsoektog vir vinnige toegang vasspeld; klik die Speld Vas-knoppie boaan die kantpaneel</translation>
 <translation id="856656450041460113">Deursoek lys tale</translation>
 <translation id="8568283329061645092">Chromium kan jou wagwoorde nagaan as jy met jou Google-rekening aanmeld</translation>
@@ -723,6 +735,7 @@ Chromium kan nie jou instellings herwin nie.</translation>
 <translation id="8988036198400390003">Bestuur Chromium-profiele</translation>
 <translation id="9019929317751753759">Om Chromium veiliger te maak, het ons die volgende uitbreiding, wat nie in die <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> gelys word nie en wat dalk sonder jou medewete bygevoeg is, gedeaktiveer.</translation>
 <translation id="904366664621834601">Chromium het hierdie aflaai geblokkeer omdat die argieflêer ander lêers insluit wat wanware kan versteek</translation>
+<translation id="9053882453960391422">Hou jou wagwoorde, boekmerke en geskiedenis perfek gesinkroniseer op alle toestelle. Kry maklik toegang tot die kenmerke wat jy ken en van hou deur jou verstekblaaier na Chromium op te dateer. Chromium sal vir kitstoegang op jou taakbalk vasgespeld word.</translation>
 <translation id="9062666675513499497">Meld aan by Chromium wanneer jy by ander Google-dienste aanmeld</translation>
 <translation id="9078733879136747090">Chromium is outomaties toegemaak</translation>
 <translation id="9089354809943900324">Chromium is verouderd</translation>

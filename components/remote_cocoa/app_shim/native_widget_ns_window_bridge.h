@@ -279,6 +279,7 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
   void SetTransitionsToAnimate(
       remote_cocoa::mojom::VisibilityTransition transitions) override;
   void SetVisibleOnAllSpaces(bool always_visible) override;
+  void MoveToActiveFullscreenSpace() override;
   void SetZoomed(bool zoomed) override;
   void EnterFullscreen(int64_t target_display_id) override;
   void ExitFullscreen() override;
@@ -396,6 +397,10 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
   // Returns true if window restoration data exists from session restore.
   bool HasWindowRestorationData();
 
+  // Restores the initial collection behavior after temporarily changing it in
+  // `MoveToActiveFullscreenSpace()`.
+  void RestoreCollectionBehavior();
+
   // CocoaMouseCaptureDelegate:
   bool PostCapturedEvent(NSEvent* event) override;
   void OnMouseCaptureLost() override;
@@ -476,9 +481,9 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
   // shadow needs to be invalidated when a frame is received for the new shape.
   bool invalidate_shadow_on_frame_swap_ = false;
 
-  // A blob representing the window's saved state, which is applied and cleared
-  // on the first call to SetVisibilityState().
-  std::vector<uint8_t> pending_restoration_data_;
+  // The window's saved state, which is applied and cleared on the first call to
+  // SetVisibilityState().
+  remote_cocoa::mojom::StateRestorationDataPtr pending_restoration_data_;
 
   // Manages immersive mode when in fullscreen.
   std::unique_ptr<ImmersiveModeControllerCocoa> immersive_mode_controller_;
@@ -496,6 +501,10 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
   // ImmersiveFullscreenRevealUnlock() calls so locks can persist across
   // immersive_mode_controller_ resets.
   int immersive_fullscreen_reveal_lock_count_ = 0;
+
+  // Tracks the initial collection behavior to restore to when we temporarily
+  // change it to move to the active fullscreen space.
+  std::optional<NSWindowCollectionBehavior> collection_behavior_to_restore_;
 
   base::OnceCallback<void(NativeWidgetMacNSWindow*)> window_set_callback_;
 

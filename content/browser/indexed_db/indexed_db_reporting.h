@@ -86,6 +86,31 @@ enum BackingStoreOpenResult {
   INDEXED_DB_BACKING_STORE_OPEN_MAX,
 };
 
+// The outcome of an `IDBFactory::Open` request from the browser's perspective,
+// after which subsequent outcomes are dependent on the client's behaviour.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(DatabaseConnectionOpenResult)
+enum class DatabaseConnectionOpenResult {
+  // Logged for all ostensibly valid requests before processing begins.
+  kReceivedRequest = 0,
+  // The database was opened directly without a version change.
+  kSuccessDirectOpen = 1,
+  // The database was opened successfully and a version change is needed.
+  kSuccessUpgradeNeeded = 2,
+  // A version change is needed, but the database had to be recreated due to
+  // data loss (e.g. corruption).
+  kSuccessUpgradeNeededWithDataLoss = 3,
+  // The backing store could not be initialized.
+  kErrorBackingStoreInitFailed = 4,
+  // Creating/opening the database in the backing store failed.
+  kErrorDatabaseOpenFailed = 5,
+  // The requested version is lower than the existing version.
+  kErrorVersionTooLow = 6,
+  kMaxValue = kErrorVersionTooLow,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/storage/enums.xml:DatabaseConnectionOpenResult)
+
 // These values are used for UMA metrics and should never be changed.
 enum class IndexedDBAction {
   // This is recorded every time there is an attempt to open an unopened backing
@@ -126,47 +151,48 @@ void ReportInternalError(const char* type, BackingStoreErrorSource location);
 void ReportLevelDBError(const std::string& histogram_name,
                         const leveldb::Status& s);
 
-inline constexpr static std::string_view ToVariantSuffix(bool in_memory) {
-  return in_memory ? ".InMemory" : ".OnDisk";
+inline void Log(DatabaseConnectionOpenResult result,
+                std::string_view histogram_suffix) {
+  base::UmaHistogramEnumeration(
+      base::StrCat(
+          {"IndexedDB.DatabaseConnectionOpenResult", histogram_suffix}),
+      result);
 }
 
-// Logs `duration` to `histogram_name` suffixed with a variant
-// indicating whether the backing store is `in_memory` or on-disk.
+// Logs `duration` to `histogram_name` concatenated with `histogram_suffix`.
 inline void LogDuration(const base::TimeDelta& duration,
                         std::string_view histogram_name,
-                        bool in_memory) {
-  base::UmaHistogramTimes(
-      base::StrCat({histogram_name, ToVariantSuffix(in_memory)}), duration);
+                        std::string_view histogram_suffix) {
+  base::UmaHistogramTimes(base::StrCat({histogram_name, histogram_suffix}),
+                          duration);
 }
 
-// Logs `status` to `histogram_name` suffixed with a variant indicating whether
-// the backing store is `in_memory` or on-disk.
+// Logs `status` to `histogram_name` concatenated with `histogram_suffix`.
 inline Status LogStatus(Status status,
                         std::string_view histogram_name,
-                        bool in_memory) {
-  status.Log(base::StrCat({histogram_name, ToVariantSuffix(in_memory)}));
+                        std::string_view histogram_suffix) {
+  status.Log(base::StrCat({histogram_name, histogram_suffix}));
   return status;
 }
 
-// Logs the `net::Error` `result` to `histogram_name` suffixed with a variant
-// indicating whether the backing store is `in_memory` or on-disk.
+// Logs the `net::Error` `result` to `histogram_name` concatenated with
+// `histogram_suffix`.
 inline void LogNetError(std::string_view histogram_name,
-                        bool in_memory,
+                        std::string_view histogram_suffix,
                         net::Error result) {
-  base::UmaHistogramSparse(
-      base::StrCat({histogram_name, ToVariantSuffix(in_memory)}),
-      std::abs(result));
+  base::UmaHistogramSparse(base::StrCat({histogram_name, histogram_suffix}),
+                           std::abs(result));
 }
 
 // Performs `action` and logs its result (expected to be a `StatusOr<>`) to
-// `histogram_name` suffixed with a variant indicating whether the backing store
-// is `in_memory` or on-disk.
-#define LOG_RESULT(action, histogram_name, in_memory)                       \
-  [&](std::string_view _histogram_name, bool _in_memory) {                  \
-    auto _result = action;                                                  \
-    LogStatus(_result.error_or(Status::OK()), _histogram_name, _in_memory); \
-    return _result;                                                         \
-  }(histogram_name, in_memory)
+// `histogram_name` concatenated with `histogram_suffix`.
+#define LOG_RESULT(action, histogram_name, histogram_suffix)                  \
+  [&](std::string_view _histogram_name, std::string_view _histogram_suffix) { \
+    auto _result = action;                                                    \
+    LogStatus(_result.error_or(Status::OK()), _histogram_name,                \
+              _histogram_suffix);                                             \
+    return _result;                                                           \
+  }(histogram_name, histogram_suffix)
 
 // Use to signal conditions caused by data corruption.
 // A macro is used instead of an inline function so that the assert and log

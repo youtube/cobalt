@@ -16,9 +16,88 @@ std::string GetDaisyChainSourceString(DaisyChainSource source) {
       return "ActorAddTab";
     case DaisyChainSource::kNewTab:
       return "NewTab";
+    case DaisyChainSource::kWebHandoff:
+      return "WebHandoff";
+    case DaisyChainSource::kAutoOpenPdf:
+      return "AutoOpenPdf";
     default:
       return "Unknown";
   }
 }
 
+GlicEntrypoint GetEntrypointFromInvocationSource(
+    mojom::InvocationSource source) {
+  switch (source) {
+    // OsButton sources bundles as one.
+    case glic::mojom::InvocationSource::kOsButton:
+    case glic::mojom::InvocationSource::kOsButtonMenu:
+      return GlicEntrypoint::kOsButton;
+    case glic::mojom::InvocationSource::kOsHotkey:
+      return GlicEntrypoint::kOsHotkey;
+    case glic::mojom::InvocationSource::kTopChromeButton:
+      return GlicEntrypoint::kTopChromeButton;
+    case glic::mojom::InvocationSource::kNudge:
+      return GlicEntrypoint::kNudge;
+    case glic::mojom::InvocationSource::kThreeDotsMenu:
+      return GlicEntrypoint::kThreeDotsMenu;
+    case glic::mojom::InvocationSource::kWhatsNew:
+      return GlicEntrypoint::kWhatsNew;
+    case glic::mojom::InvocationSource::kSharedTab:
+      return GlicEntrypoint::kSharedTab;
+    case glic::mojom::InvocationSource::kSharedImage:
+      return GlicEntrypoint::kSharedImage;
+    case glic::mojom::InvocationSource::kSkills:
+      return GlicEntrypoint::kSkills;
+    case glic::mojom::InvocationSource::kAutoOpenedByContextualCue:
+      return GlicEntrypoint::kAutoOpenedByContextualCue;
+    case glic::mojom::InvocationSource::kPdfSummarizeButton:
+      return GlicEntrypoint::kPdfSummarizeButton;
+    case glic::mojom::InvocationSource::kNavigationCapture:
+      return GlicEntrypoint::kNavigationCapture;
+    case glic::mojom::InvocationSource::kAutoOpenedForPdf:
+      return GlicEntrypoint::kAutoOpenedForPdf;
+    case glic::mojom::InvocationSource::kIph:
+      return GlicEntrypoint::kIph;
+    default:
+      // All other ones, including mojom::InvocationSource::kUnsupported.
+      return GlicEntrypoint::kOther;
+  }
+}
+
+std::string GetEntrypointString(GlicEntrypoint entrypoint) {
+  switch (entrypoint) {
+    case GlicEntrypoint::kAutoOpenedByContextualCue:
+      return "AutoOpenedByContextualCue";
+    case GlicEntrypoint::kAutoOpenedForPdf:
+      return "AutoOpenedForPdf";
+    case GlicEntrypoint::kIph:
+      return "Iph";
+    case GlicEntrypoint::kNavigationCapture:
+      return "NavigationCapture";
+    case GlicEntrypoint::kNudge:
+      return "Nudge";
+    case GlicEntrypoint::kOsButton:
+      return "OsButton";
+    case GlicEntrypoint::kOsHotkey:
+      return "OsHotkey";
+    case GlicEntrypoint::kOther:
+      return "Other";
+    case GlicEntrypoint::kPdfSummarizeButton:
+      return "PdfSummarizeButton";
+    case GlicEntrypoint::kSharedImage:
+      return "SharedImage";
+    case GlicEntrypoint::kSharedTab:
+      return "SharedTab";
+    case GlicEntrypoint::kSkills:
+      return "Skills";
+    case GlicEntrypoint::kThreeDotsMenu:
+      return "ThreeDotsMenu";
+    case GlicEntrypoint::kTopChromeButton:
+      return "TopChromeButton";
+    case GlicEntrypoint::kWhatsNew:
+      return "WhatsNew";
+    default:
+      return "Other";
+  }
+}
 }  // namespace glic

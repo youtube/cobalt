@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/349653202): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "services/webnn/dml/context_impl_dml.h"
 
 #include <limits>
@@ -133,7 +128,6 @@ ContextProperties ContextImplDml::GetProperties(
        // https://learn.microsoft.com/en-us/windows/win32/api/directml/ns-directml-dml_element_wise_dequantize_linear_operator_desc#tensor-support
        /*dequantize_linear_input=*/{kInts8To32, kMaxRank},
        /*dequantize_linear_scale=*/{DataTypeConstraint::kFloat32, kMaxRank},
-       /*dequantize_linear_zero_point=*/{kInts8To32, kMaxRank},
 
        // https://learn.microsoft.com/en-us/windows/win32/api/directml/ns-directml-dml_element_wise_add_operator_desc#tensor-support
        /*add_input=*/{kFloat16To32Ints32, kMaxRank},
@@ -570,8 +564,6 @@ ContextProperties ContextImplDml::GetProperties(
     properties.data_type_limits.input.data_types = SupportedDataTypes::All();
     properties.data_type_limits.constant.data_types = SupportedDataTypes::All();
     properties.data_type_limits.dequantize_linear_input.data_types = kInts4To32;
-    properties.data_type_limits.dequantize_linear_zero_point.data_types =
-        kInts4To32;
     properties.data_type_limits.quantize_linear_zero_point.data_types =
         DataTypeConstraint::kInts4ToInts8;
   }
@@ -595,6 +587,7 @@ ContextImplDml::ContextImplDml(
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner)
     : WebNNContextImpl(std::move(receiver),
                        std::move(context_provider),
+                       ContextBackendUma::kDirectML,
                        GetProperties(adapter->max_supported_feature_level()),
                        std::move(options),
                        std::move(write_tensor_consumer),
@@ -623,7 +616,8 @@ void ContextImplDml::CreateGraphImpl(
     WebNNGraphImpl::ComputeResourceInfo compute_resource_info,
     base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
         constant_operands,
-    base::flat_map<OperandId, WebNNTensorImpl*> constant_tensor_operands,
+    base::flat_map<OperandId, scoped_refptr<WebNNTensorImpl>>
+        constant_tensor_operands,
     WebNNContextImpl::CreateGraphImplCallback callback) {
   GraphImplDml::CreateAndBuild(
       std::move(receiver), adapter_, weak_factory_.GetWeakPtr(),
@@ -697,9 +691,8 @@ ContextImplDml::CreateTensorImpl(
   //
   // Safe to use ContextImplDml* because this context owns the buffer
   // being connected and that context cannot destruct before the buffer.
-  return base::MakeRefCounted<TensorImplDml>(std::move(receiver),
-                                             std::move(buffer), AsWeakPtr(),
-                                             std::move(tensor_info));
+  return base::MakeRefCounted<TensorImplDml>(
+      std::move(receiver), std::move(buffer), *this, std::move(tensor_info));
 }
 
 base::expected<scoped_refptr<WebNNTensorImpl>, mojom::ErrorPtr>
@@ -719,9 +712,9 @@ ContextImplDml::CreateTensorFromSharedImageImpl(
                                         "Failed to create tensor."));
   }
 
-  return base::MakeRefCounted<TensorImplDml>(
-      std::move(receiver), std::move(representation), AsWeakPtr(),
-      std::move(tensor_info));
+  return base::MakeRefCounted<TensorImplDml>(std::move(receiver),
+                                             std::move(representation), *this,
+                                             std::move(tensor_info));
 }
 
 void ContextImplDml::ReadTensor(
@@ -812,8 +805,9 @@ void ContextImplDml::OnReadbackComplete(
     return;
   }
 
-  mojo_base::BigBuffer dst_buffer = WriteDataToDataPipeOrBigBuffer(base::span(
-      static_cast<const uint8_t*>(mapped_download_data), read_byte_size));
+  mojo_base::BigBuffer dst_buffer =
+      WriteDataToDataPipeOrBigBuffer(UNSAFE_TODO(base::span(
+          static_cast<const uint8_t*>(mapped_download_data), read_byte_size)));
 
   download_buffer->Unmap(0, nullptr);
 

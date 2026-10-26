@@ -7,7 +7,10 @@
 #include <string_view>
 #include <vector>
 
+#include "ash/constants/ash_features.h"
+#include "base/check_deref.h"
 #include "base/compiler_specific.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/string_util.h"
@@ -17,8 +20,6 @@
 #include "base/version_info/version_info_values.h"
 #include "build/util/LASTCHANGE_commit_position.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/settings/cros_settings.h"
@@ -64,14 +65,16 @@ constexpr std::string_view GetVersionNumberWithInformationalSuffix() {
 ///////////////////////////////////////////////////////////////////////////////
 // VersionInfoUpdater public:
 
-VersionInfoUpdater::VersionInfoUpdater(Delegate* delegate)
-    : cros_settings_(CrosSettings::Get()), delegate_(delegate) {}
+VersionInfoUpdater::VersionInfoUpdater(
+    policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
+    Delegate* delegate)
+    : browser_policy_connector_ash_(CHECK_DEREF(browser_policy_connector_ash)),
+      cros_settings_(CrosSettings::Get()),
+      delegate_(delegate) {}
 
 VersionInfoUpdater::~VersionInfoUpdater() {
-  policy::BrowserPolicyConnectorAsh* connector =
-      g_browser_process->platform_part()->browser_policy_connector_ash();
   policy::DeviceCloudPolicyManagerAsh* policy_manager =
-      connector->GetDeviceCloudPolicyManager();
+      browser_policy_connector_ash_->GetDeviceCloudPolicyManager();
   if (policy_manager)
     policy_manager->core()->store()->RemoveObserver(this);
 }
@@ -90,10 +93,8 @@ void VersionInfoUpdater::StartUpdate(bool is_chrome_branded) {
     OnVersion("linux-chromeos");
   }
 
-  policy::BrowserPolicyConnectorAsh* connector =
-      g_browser_process->platform_part()->browser_policy_connector_ash();
   policy::DeviceCloudPolicyManagerAsh* policy_manager =
-      connector->GetDeviceCloudPolicyManager();
+      browser_policy_connector_ash_->GetDeviceCloudPolicyManager();
   if (policy_manager) {
     if (!policy_manager->core()->store()->HasObserver(this)) {
       policy_manager->core()->store()->AddObserver(this);
@@ -115,6 +116,15 @@ void VersionInfoUpdater::StartUpdate(bool is_chrome_branded) {
   // Update device bluetooth info.
   device::BluetoothAdapterFactory::Get()->GetAdapter(base::BindOnce(
       &VersionInfoUpdater::OnGetAdapter, weak_pointer_factory_.GetWeakPtr()));
+
+  // Get ADB sideloading status if supported on device. Otherwise, default is to
+  // not show.
+  if (base::FeatureList::IsEnabled(features::kArcAdbSideloadingFeature)) {
+    SessionManagerClient* client = SessionManagerClient::Get();
+    client->QueryAdbSideload(
+        base::BindOnce(&VersionInfoUpdater::OnQueryAdbSideload,
+                       weak_pointer_factory_.GetWeakPtr()));
+  }
 }
 
 std::optional<bool> VersionInfoUpdater::IsSystemInfoEnforced() const {
@@ -142,10 +152,8 @@ void VersionInfoUpdater::UpdateVersionLabel() {
 }
 
 void VersionInfoUpdater::UpdateEnterpriseInfo() {
-  policy::BrowserPolicyConnectorAsh* connector =
-      g_browser_process->platform_part()->browser_policy_connector_ash();
-  SetEnterpriseInfo(connector->GetEnterpriseDomainManager(),
-                    connector->GetDeviceAssetID());
+  SetEnterpriseInfo(browser_policy_connector_ash_->GetEnterpriseDomainManager(),
+                    browser_policy_connector_ash_->GetDeviceAssetID());
 }
 
 void VersionInfoUpdater::SetEnterpriseInfo(
@@ -209,6 +217,30 @@ void VersionInfoUpdater::OnStoreLoaded(policy::CloudPolicyStore* store) {
 
 void VersionInfoUpdater::OnStoreError(policy::CloudPolicyStore* store) {
   UpdateEnterpriseInfo();
+}
+
+void VersionInfoUpdater::OnQueryAdbSideload(
+    SessionManagerClient::AdbSideloadResponseCode response_code,
+    bool enabled) {
+  switch (response_code) {
+    case SessionManagerClient::AdbSideloadResponseCode::SUCCESS:
+      break;
+    case SessionManagerClient::AdbSideloadResponseCode::FAILED:
+      // Pretend to be enabled to show warning at login screen conservatively.
+      LOG(WARNING) << "Failed to query adb sideload status";
+      enabled = true;
+      break;
+    case SessionManagerClient::AdbSideloadResponseCode::NEED_POWERWASH:
+      // This can only happen on device initialized before M74, i.e. not
+      // powerwashed since then. Treat it as powerwash disabled to not show the
+      // message.
+      enabled = false;
+      break;
+  }
+
+  if (delegate_) {
+    delegate_->OnAdbSideloadStatusUpdated(enabled);
+  }
 }
 
 }  // namespace ash

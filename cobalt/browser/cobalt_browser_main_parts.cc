@@ -19,6 +19,8 @@
 #include "base/base_paths.h"
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/files/file_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/persistent_histogram_allocator.h"
@@ -39,6 +41,7 @@
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_stability_metrics_helper.h"
+#include "cobalt/browser/metrics/cobalt_storage_metrics_helper.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/memory/cobalt_memory_attribution_manager.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
@@ -51,6 +54,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
+#include "net/disk_cache/cache_util.h"
 
 // TODO: b/570507375 - CobaltSystemMemoryPressureEvaluator and tests need to be
 // adapted to the staging branch.
@@ -291,7 +295,45 @@ bool GetStabilityMetricsBaseDirectory(base::FilePath* base_dir) {
 #endif
 }
 
+constexpr base::TimeDelta kStorageCleanupDelay = base::Seconds(30);
+
+void CleanupOrphanedUserDataCacheDirectories() {
+  base::FilePath user_data_dir;
+  base::FilePath cache_dir;
+  if (!base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir) ||
+      !base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
+    return;
+  }
+  DeleteOrphanedUserDataCacheDirectories(user_data_dir, cache_dir);
+}
+
 }  // namespace
+
+void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
+                                            const base::FilePath& cache_dir) {
+  if (user_data_dir.empty() || cache_dir.empty() ||
+      user_data_dir == cache_dir) {
+    return;
+  }
+
+  constexpr const char* kOrphanedCacheDirs[] = {
+      "Cache",
+      "Code Cache",
+      "ShaderCache",
+      "GrShaderCache",
+  };
+  for (const char* dir_name : kOrphanedCacheDirs) {
+    base::FilePath orphaned_dir = user_data_dir.AppendASCII(dir_name);
+    if (orphaned_dir == cache_dir || orphaned_dir.IsParent(cache_dir) ||
+        !base::PathExists(orphaned_dir)) {
+      continue;
+    }
+    if (!disk_cache::CleanupDirectorySync(orphaned_dir)) {
+      LOG(ERROR) << "Failed to cleanup orphaned cache directory: "
+                 << orphaned_dir;
+    }
+  }
+}
 
 int CobaltBrowserMainParts::PreEarlyInitialization() {
   if (!base::GlobalHistogramAllocator::Get()) {
@@ -411,6 +453,16 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
                        kBrowserStabilityMetricsName, base::GetCurrentProcId()));
   }
 
+  if (base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)) {
+    base::ThreadPool::PostDelayedTask(
+        FROM_HERE,
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+         base::ThreadPolicy::PREFER_BACKGROUND,
+         base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
+        base::BindOnce(&CleanupOrphanedUserDataCacheDirectories),
+        kStorageCleanupDelay);
+  }
+
 #if BUILDFLAG(IS_ANDROID)
   if (base::android::android_info::sdk_int() >=
       base::android::android_info::SDK_VERSION_R) {
@@ -441,15 +493,20 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   client->SetUserAgentCrashAnnotation();
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
   auto* native_stability_manager =
       h5vcc_native_stability::NativeStabilityManager::GetInstance();
 
+#if BUILDFLAG(USE_EVERGREEN)
+  // Only 3P (Evergreen) platforms currently provide native stability tracking
+  // for crashes.
+  //
   // TODO: b/528362453 - Consider moving this to an earlier startup stage (e.g.
   // PreEarlyInitialization) to ensure early startup crashes are also tagged.
   native_stability_manager->ArmCrashUuidAnnotation();
-  native_stability_manager->PruneStorage();
 #endif  // BUILDFLAG(USE_EVERGREEN)
+  native_stability_manager->PruneStorage();
+#endif  // BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
 
   int result = ShellBrowserMainParts::PreMainMessageLoopRun();
 
@@ -499,6 +556,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   // #endif  // BUILDFLAG(IS_STARBOARD)
 
   StartStorageMigration();
+  ScheduleCobaltStorageMetricsRecording();
 
   return result;
 }

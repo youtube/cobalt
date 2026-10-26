@@ -18,7 +18,6 @@
 #include "gpu/command_buffer/service/context_state.h"
 #include "gpu/command_buffer/service/gles2_cmd_decoder.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
-#include "gpu/command_buffer/service/shared_image/shared_image_backing.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_factory.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
@@ -38,6 +37,11 @@
 
 #if BUILDFLAG(USE_DAWN) && BUILDFLAG(DAWN_ENABLE_BACKEND_OPENGLES)
 #include "gpu/command_buffer/service/shared_image/dawn_gl_texture_representation.h"
+#endif
+
+#if BUILDFLAG(SKIA_USE_DAWN)
+#include "gpu/command_buffer/service/dawn_context_provider.h"
+#include "gpu/command_buffer/service/shared_image/skia_graphite_dawn_image_representation.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -290,6 +294,34 @@ GLTextureImageBacking::~GLTextureImageBacking() {
   }
 }
 
+bool GLTextureImageBacking::CheckSupportForAccessStream(
+    SharedImageAccessStream stream,
+    const AccessParams& params) {
+  // `params.context_state` is not always available for all access streams. In
+  // such cases, we default to allowing access, assuming the context is
+  // compatible. When a context is provided, we explicitly check if it's a GL
+  // context to ensure correctness.
+  if (auto context_state = params.context_state) {
+    if (context_state->GrContextIsGL()) {
+      return true;
+    }
+#if BUILDFLAG(SKIA_USE_DAWN)
+    if (context_state->gr_context_type() == GrContextType::kGraphiteDawn &&
+        context_state->dawn_context_provider()->backend_type() ==
+            wgpu::BackendType::OpenGLES) {
+      return true;
+    }
+#endif
+    return false;
+  }
+  return true;
+}
+
+bool GLTextureImageBacking::SupportsAccess(SharedImageAccessStream stream,
+                                           const AccessParams& params) const {
+  return CheckSupportForAccessStream(stream, params);
+}
+
 SharedImageBackingType GLTextureImageBacking::GetType() const {
   return SharedImageBackingType::kGLTexture;
 }
@@ -431,6 +463,29 @@ GLTextureImageBacking::ProduceSkiaGanesh(
   return std::make_unique<SkiaGaneshImageRepresentationImpl>(
       manager, this, std::move(context_state), cached_promise_textures_,
       tracker);
+}
+
+std::unique_ptr<SkiaGraphiteImageRepresentation>
+GLTextureImageBacking::ProduceSkiaGraphite(
+    SharedImageManager* manager,
+    MemoryTypeTracker* tracker,
+    scoped_refptr<SharedContextState> context_state) {
+#if BUILDFLAG(SKIA_USE_DAWN)
+  auto device = context_state->dawn_context_provider()->GetDevice();
+  auto backend_type = context_state->dawn_context_provider()->backend_type();
+  auto dawn_representation = ProduceDawn(manager, tracker, device, backend_type,
+                                         /*view_formats=*/{}, context_state);
+  if (!dawn_representation) {
+    LOG(ERROR) << "Could not create Dawn Representation";
+    return nullptr;
+  }
+
+  return std::make_unique<SkiaGraphiteDawnImageRepresentation>(
+      std::move(dawn_representation), context_state,
+      context_state->gpu_main_graphite_recorder(), manager, this, tracker);
+#else
+  NOTREACHED();
+#endif
 }
 
 std::unique_ptr<VideoImageRepresentation> GLTextureImageBacking::ProduceVideo(

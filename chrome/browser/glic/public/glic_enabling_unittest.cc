@@ -5,8 +5,10 @@
 #include "chrome/browser/glic/public/glic_enabling.h"
 
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_features.mojom-features.h"
@@ -39,15 +41,26 @@ namespace {
 
 class TestDelegate : public GlicGlobalEnabling::Delegate {
  public:
-  std::string GetCountryCode() override { return country_code_; }
+  std::string GetPermanentCountryCode() override {
+    return permanent_country_code_;
+  }
+  std::string GetSessionCountryCode() override { return session_country_code_; }
   std::string GetLocale() override { return locale_; }
-  void SetCountryCode(const std::string& country_code) {
-    country_code_ = country_code;
+  void SetPermanentCountryCode(const std::string& country_code) {
+    permanent_country_code_ = country_code;
+  }
+  void SetSessionCountryCode(const std::string& country_code) {
+    session_country_code_ = country_code;
+  }
+  void SetBothCountryCodes(const std::string& country_code) {
+    session_country_code_ = country_code;
+    permanent_country_code_ = country_code;
   }
   void SetLocale(const std::string& locale) { locale_ = locale; }
 
  private:
-  std::string country_code_ = "us";
+  std::string permanent_country_code_ = "us";
+  std::string session_country_code_ = "us";
   std::string locale_ = "en-us";
 };
 
@@ -66,6 +79,7 @@ class GlicEnablingTest : public testing::Test {
 #endif  // BUILDFLAG(IS_CHROMEOS)
         },
         {});
+    histogram_tester_ = std::make_unique<base::HistogramTester>();
   }
 
   void TearDown() override {
@@ -77,6 +91,7 @@ class GlicEnablingTest : public testing::Test {
   TestDelegate delegate_;
   content::BrowserTaskEnvironment task_environment_;
   base::test::ScopedFeatureList scoped_feature_list_;
+  std::unique_ptr<base::HistogramTester> histogram_tester_;
 };
 
 // Test
@@ -94,36 +109,189 @@ TEST_F(GlicEnablingTest, GlicFeatureNotEnabledTest) {
 TEST_F(GlicEnablingTest, CountryFilteringNotEnabled) {
   base::test::ScopedFeatureList features;
   features.InitAndDisableFeature(features::kGlicCountryFiltering);
-  delegate_.SetCountryCode("zz");
+  delegate_.SetBothCountryCodes("zz");
   EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+  histogram_tester_->ExpectUniqueSample(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kAllowedFilteringDisabled, 1);
 }
 
-TEST_F(GlicEnablingTest, CountryFilteringEnabledWithDefaultParams) {
+TEST_F(GlicEnablingTest,
+       CountryFilteringEnabledWithDefaultParams_PermanentCountryCode) {
   base::test::ScopedFeatureList features;
   features.InitAndEnableFeatureWithParameters(features::kGlicCountryFiltering,
                                               {});
-  delegate_.SetCountryCode("us");
+  delegate_.SetSessionCountryCode("");
+  delegate_.SetPermanentCountryCode("us");
   EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
-  delegate_.SetCountryCode("US");
+  delegate_.SetPermanentCountryCode("US");
   EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
-  delegate_.SetCountryCode("zz");
+  delegate_.SetPermanentCountryCode("zz");
   EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kAllowedInInclusionList, 2);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kBlockedNotInInclusionList, 1);
+  histogram_tester_->ExpectTotalCount("Glic.CountryFilteringResult", 3);
 }
 
-TEST_F(GlicEnablingTest, CountryFilteringEnabledWithLists) {
+TEST_F(GlicEnablingTest,
+       CountryFilteringEnabledWithDefaultParams_SessionCountryCode) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeatureWithParameters(features::kGlicCountryFiltering,
+                                              {});
+  delegate_.SetPermanentCountryCode("");
+  delegate_.SetSessionCountryCode("us");
+  EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+  delegate_.SetSessionCountryCode("US");
+  EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+  delegate_.SetSessionCountryCode("zz");
+  EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kAllowedInInclusionList, 2);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kBlockedNotInInclusionList, 1);
+  histogram_tester_->ExpectTotalCount("Glic.CountryFilteringResult", 3);
+}
+
+TEST_F(GlicEnablingTest,
+       CountryFilteringEnabledWithLists_PermanentCountryCode) {
   base::test::ScopedFeatureList features;
   features.InitAndEnableFeatureWithParameters(
       features::kGlicCountryFiltering,
       {{"disabled_countries", "zz"}, {"enabled_countries", "us,uk,zz"}});
 
-  delegate_.SetCountryCode("us");
+  delegate_.SetSessionCountryCode("");
+  delegate_.SetPermanentCountryCode("us");
   EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
-  delegate_.SetCountryCode("UK");
+  delegate_.SetPermanentCountryCode("UK");
   EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
-  delegate_.SetCountryCode("zz");
+  delegate_.SetPermanentCountryCode("zz");
   EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
-  delegate_.SetCountryCode("qq");
+  delegate_.SetPermanentCountryCode("qq");
   EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kAllowedInInclusionList, 2);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kBlockedInExclusionList, 1);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kBlockedNotInInclusionList, 1);
+  histogram_tester_->ExpectTotalCount("Glic.CountryFilteringResult", 4);
+}
+
+TEST_F(GlicEnablingTest, CountryFilteringEnabledWithLists_SessionCountryCode) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeatureWithParameters(
+      features::kGlicCountryFiltering,
+      {{"disabled_countries", "zz"}, {"enabled_countries", "us,uk,zz"}});
+
+  delegate_.SetPermanentCountryCode("");
+  delegate_.SetSessionCountryCode("us");
+  EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+  delegate_.SetSessionCountryCode("UK");
+  EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+  delegate_.SetSessionCountryCode("zz");
+  EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+  delegate_.SetSessionCountryCode("qq");
+  EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kAllowedInInclusionList, 2);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kBlockedInExclusionList, 1);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kBlockedNotInInclusionList, 1);
+  histogram_tester_->ExpectTotalCount("Glic.CountryFilteringResult", 4);
+}
+
+TEST_F(GlicEnablingTest,
+       CountryFilteringEnabledWithLists_DifferentCountryCodes) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeatureWithParameters(
+      features::kGlicCountryFiltering,
+      {{"disabled_countries", "zz"}, {"enabled_countries", "us,uk,zz"}});
+
+  delegate_.SetPermanentCountryCode("zz");
+  delegate_.SetSessionCountryCode("us");
+  EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  delegate_.SetPermanentCountryCode("us");
+  delegate_.SetSessionCountryCode("zz");
+  EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  delegate_.SetPermanentCountryCode("qq");
+  delegate_.SetSessionCountryCode("us");
+  EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  delegate_.SetPermanentCountryCode("us");
+  delegate_.SetSessionCountryCode("qq");
+  EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  delegate_.SetBothCountryCodes("qq");
+  EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kBlockedInExclusionList, 2);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kAllowedInInclusionList, 2);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kBlockedNotInInclusionList, 1);
+  histogram_tester_->ExpectTotalCount("Glic.CountryFilteringResult", 5);
+}
+
+TEST_F(GlicEnablingTest,
+       CountryFilteringEnabledWithLists_SessionCountryIgnored) {
+  base::test::ScopedFeatureList features;
+  features.InitWithFeaturesAndParameters(
+      {{features::kGlicCountryFiltering,
+        {{"disabled_countries", "zz"}, {"enabled_countries", "us,uk,zz"}}}},
+      {features::kGlicUseSessionCountryForFiltering});
+
+  delegate_.SetPermanentCountryCode("zz");
+  delegate_.SetSessionCountryCode("us");
+  EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  delegate_.SetPermanentCountryCode("us");
+  delegate_.SetSessionCountryCode("zz");
+  EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  delegate_.SetPermanentCountryCode("qq");
+  delegate_.SetSessionCountryCode("us");
+  EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  delegate_.SetPermanentCountryCode("us");
+  delegate_.SetSessionCountryCode("qq");
+  EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  delegate_.SetBothCountryCodes("qq");
+  EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kBlockedInExclusionList, 1);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kAllowedInInclusionList, 2);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kBlockedNotInInclusionList, 2);
+  histogram_tester_->ExpectTotalCount("Glic.CountryFilteringResult", 5);
 }
 
 TEST_F(GlicEnablingTest, CountryFilteringEnabledWithStar) {
@@ -132,12 +300,28 @@ TEST_F(GlicEnablingTest, CountryFilteringEnabledWithStar) {
       features::kGlicCountryFiltering,
       {{"disabled_countries", "zz"}, {"enabled_countries", "*"}});
 
-  delegate_.SetCountryCode("us");
+  delegate_.SetBothCountryCodes("us");
   EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
-  delegate_.SetCountryCode("ru");
+  delegate_.SetBothCountryCodes("ru");
   EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
-  delegate_.SetCountryCode("zz");
+  delegate_.SetBothCountryCodes("zz");
   EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  delegate_.SetPermanentCountryCode("zz");
+  delegate_.SetSessionCountryCode("us");
+  EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  delegate_.SetPermanentCountryCode("us");
+  delegate_.SetSessionCountryCode("zz");
+  EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kAllowedWildcardInclusion, 2);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.CountryFilteringResult",
+      GlicFilteringResult::kBlockedInExclusionList, 3);
+  histogram_tester_->ExpectTotalCount("Glic.CountryFilteringResult", 5);
 }
 
 TEST_F(GlicEnablingTest, LocaleFilteringNotEnabled) {
@@ -145,6 +329,9 @@ TEST_F(GlicEnablingTest, LocaleFilteringNotEnabled) {
   features.InitAndDisableFeature(features::kGlicLocaleFiltering);
   delegate_.SetLocale("foobar");
   EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+  histogram_tester_->ExpectUniqueSample(
+      "Glic.LocaleFilteringResult",
+      GlicFilteringResult::kAllowedFilteringDisabled, 1);
 }
 
 TEST_F(GlicEnablingTest, LocaleFilteringEnabledWithDefaults) {
@@ -157,6 +344,14 @@ TEST_F(GlicEnablingTest, LocaleFilteringEnabledWithDefaults) {
   EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
   delegate_.SetLocale("");
   EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  histogram_tester_->ExpectBucketCount(
+      "Glic.LocaleFilteringResult",
+      GlicFilteringResult::kAllowedInInclusionList, 1);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.LocaleFilteringResult",
+      GlicFilteringResult::kBlockedNotInInclusionList, 2);
+  histogram_tester_->ExpectTotalCount("Glic.LocaleFilteringResult", 3);
 }
 
 TEST_F(GlicEnablingTest, LocaleFilteringEnabledWithLists) {
@@ -178,6 +373,17 @@ TEST_F(GlicEnablingTest, LocaleFilteringEnabledWithLists) {
   EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
   delegate_.SetLocale("en-ot");
   EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  histogram_tester_->ExpectBucketCount(
+      "Glic.LocaleFilteringResult",
+      GlicFilteringResult::kAllowedInInclusionList, 4);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.LocaleFilteringResult",
+      GlicFilteringResult::kBlockedInExclusionList, 1);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.LocaleFilteringResult",
+      GlicFilteringResult::kBlockedNotInInclusionList, 1);
+  histogram_tester_->ExpectTotalCount("Glic.LocaleFilteringResult", 6);
 }
 
 TEST_F(GlicEnablingTest, LocaleFilteringEnabledStar) {
@@ -192,6 +398,14 @@ TEST_F(GlicEnablingTest, LocaleFilteringEnabledStar) {
   EXPECT_TRUE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
   delegate_.SetLocale("en-zz");
   EXPECT_FALSE(GlicGlobalEnabling(delegate_).IsEnabledByFlags());
+
+  histogram_tester_->ExpectBucketCount(
+      "Glic.LocaleFilteringResult",
+      GlicFilteringResult::kAllowedWildcardInclusion, 2);
+  histogram_tester_->ExpectBucketCount(
+      "Glic.LocaleFilteringResult",
+      GlicFilteringResult::kBlockedInExclusionList, 1);
+  histogram_tester_->ExpectTotalCount("Glic.LocaleFilteringResult", 3);
 }
 
 // Test for `glic::GlicEnabling::IsProfileEligible`.

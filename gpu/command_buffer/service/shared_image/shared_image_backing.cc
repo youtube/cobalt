@@ -128,12 +128,14 @@ void SharedImageBacking::Update(std::unique_ptr<gfx::GpuFence> in_fence) {}
 
 bool SharedImageBacking::UploadFromMemory(
     const std::vector<SkPixmap>& pixmaps) {
-  NOTREACHED();
+  LOG(FATAL) << "Shared image debug info: " << debug_label()
+             << ", backing type = " << GetName();
 }
 
 bool SharedImageBacking::ReadbackToMemory(
     const std::vector<SkPixmap>& pixmaps) {
-  NOTREACHED();
+  LOG(FATAL) << "Shared image debug info: " << debug_label()
+             << ", backing type = " << GetName();
 }
 
 void SharedImageBacking::ReadbackToMemoryAsync(
@@ -486,6 +488,19 @@ bool SharedImageBacking::IsPurgeable() const {
 
 bool SharedImageBacking::IsImportedFromExo() {
   return false;
+}
+
+AccessParams::AccessParams() = default;
+AccessParams::AccessParams(const AccessParams&) = default;
+AccessParams& AccessParams::operator=(const AccessParams&) = default;
+AccessParams::~AccessParams() = default;
+
+bool SharedImageBacking::SupportsAccess(SharedImageAccessStream stream,
+                                        const AccessParams& params) const {
+  // The default implementation allows access, assuming the backing is
+  // compatible. Subclasses with specific context requirements (like GL vs.
+  // Vulkan) should override this method.
+  return true;
 }
 
 }  // namespace gpu

@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_GLIC_ACTOR_GLIC_ACTOR_TASK_MANAGER_H_
 #define CHROME_BROWSER_GLIC_ACTOR_GLIC_ACTOR_TASK_MANAGER_H_
 
+#include <string_view>
+
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
@@ -18,6 +20,7 @@
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
+#include "components/page_content_annotations/content/page_context_fetcher.h"
 #include "components/tabs/public/tab_interface.h"
 
 class Profile;
@@ -41,6 +44,7 @@ class GlicActorTaskManager {
   ~GlicActorTaskManager();
 
   void CreateTask(base::WeakPtr<actor::ActorTaskDelegate> delegate,
+                  std::string_view conversation_id,
                   actor::webui::mojom::TaskOptionsPtr options,
                   mojom::WebClientHandler::CreateTaskCallback callback);
   void PerformActions(const std::vector<uint8_t>& actions_proto,
@@ -78,17 +82,19 @@ class GlicActorTaskManager {
       actor::TaskId task_id,
       base::TimeTicks start_time,
       bool skip_async_observation_information,
-      actor::mojom::ActionResultCode result_code,
-      std::optional<size_t> index_of_failed_action,
+      std::optional<page_content_annotations::ScreenshotOptions::
+                        ScreenshotCollectionOptions>
+          screenshot_collection_options,
       std::vector<actor::ActionResultWithLatencyInfo> action_results);
   void DidFinishBuildObservation(
       mojom::WebClientHandler::PerformActionsCallback callback,
       base::TimeTicks start_time,
-      actor::mojom::ActionResultCode result_code,
-      std::optional<size_t> index_of_failed_action,
       std::vector<actor::ActionResultWithLatencyInfo> action_results,
       actor::TaskId task_id,
       bool skip_async_observation_information,
+      std::optional<page_content_annotations::ScreenshotOptions::
+                        ScreenshotCollectionOptions>
+          screenshot_collection_options,
       std::unique_ptr<optimization_guide::proto::ActionsResult> result,
       std::unique_ptr<actor::AggregatedJournal::PendingAsyncEntry>
           journal_entry);

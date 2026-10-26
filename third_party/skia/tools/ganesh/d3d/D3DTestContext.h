@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Google Inc.
+ * Copyright 2020 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -9,8 +9,6 @@
 #define D3DTestContext_DEFINED
 
 #include "tools/ganesh/TestContext.h"
-
-#ifdef SK_DIRECT3D
 
 #include "include/gpu/ganesh/d3d/GrD3DBackendContext.h"
 
@@ -44,4 +42,3 @@ D3DTestContext* CreatePlatformD3DTestContext(D3DTestContext*);
 
 #endif
 
-#endif

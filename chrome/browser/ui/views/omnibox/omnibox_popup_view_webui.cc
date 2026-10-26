@@ -11,7 +11,6 @@
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "build/build_config.h"
@@ -31,6 +30,7 @@
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
 #include "chrome/browser/ui/views/theme_copying_widget.h"
 #include "chrome/browser/ui/webui/searchbox/webui_omnibox_handler.h"
+#include "chrome/browser/ui/webui/top_chrome/webui_contents_preload_manager.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "ui/accessibility/ax_node_data.h"
@@ -96,6 +96,14 @@ void OmniboxPopupViewWebUI::UpdatePopupAppearance() {
     const bool was_visible = IsOpen();
 
     presenter_->Show();
+    if (!was_visible) {
+      // Set the request time to now when the popup is first shown. This ensures
+      // that latency is measured from the user interaction to show, even if the
+      // WebUI was preloaded at startup.
+      WebUIContentsPreloadManager::GetInstance()->SetRequestTime(
+          presenter_->GetWebUIContent()->GetWebContents(),
+          base::TimeTicks::Now());
+    }
     // Update the popup state manager that the classic popup is opening.
     controller()->popup_state_manager()->SetPopupState(
         OmniboxPopupState::kClassic);
@@ -110,6 +118,14 @@ void OmniboxPopupViewWebUI::UpdatePopupAppearance() {
                           ".ConstructionToFirstShownDuration"}),
             delta);
       }
+    }
+
+    auto* controller = presenter()
+                           ->GetWebUIContent()
+                           ->contents_wrapper()
+                           ->GetWebUIController();
+    if (auto* handler = controller ? controller->omnibox_handler() : nullptr) {
+      handler->SetAimButtonVisible(omnibox_view_->AimButtonVisible());
     }
   }
 }
@@ -127,7 +143,28 @@ void OmniboxPopupViewWebUI::OnDragCanceled() {}
 void OmniboxPopupViewWebUI::GetPopupAccessibleNodeData(
     ui::AXNodeData* node_data) const {}
 
-raw_ptr<OmniboxPopupViewWebUI>
-OmniboxPopupViewWebUI::GetOmniboxPopupViewWebUI() {
-  return this;
+void OmniboxPopupViewWebUI::StepSelection(
+    OmniboxPopupSelection::Direction direction,
+    OmniboxPopupSelection::Step step) {
+  auto* controller =
+      presenter()->GetWebUIContent()->contents_wrapper()->GetWebUIController();
+  if (auto* handler = controller ? controller->omnibox_handler() : nullptr) {
+    handler->SetAimButtonVisible(omnibox_view_->AimButtonVisible());
+    handler->StepSelection(direction, step);
+  }
+}
+
+void OmniboxPopupViewWebUI::OpenCurrentSelection(
+    WindowOpenDisposition disposition) {
+  auto* controller =
+      presenter()->GetWebUIContent()->contents_wrapper()->GetWebUIController();
+  if (auto* handler = controller ? controller->omnibox_handler() : nullptr) {
+    handler->OpenCurrentSelection(disposition);
+  }
+}
+
+bool OmniboxPopupViewWebUI::IsSelectionPopupControlled() const {
+  return base::FeatureList::IsEnabled(
+             omnibox::kWebUIOmniboxPopupSelectionControl) &&
+         IsOpen();
 }

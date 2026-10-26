@@ -22,8 +22,8 @@
 
 .card {
   align-items: flex-start;
-  background-color: var(--color-sys-surface1);
-  border-radius: var(--cr-card-border-radius);
+  background-color: var(--color-sys-surface2);
+  border-radius: 12px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -34,20 +34,26 @@
   width: 100%;
 }
 
+#editIcon {
+  --cr-icon-size: 16px;
+}
+
 #cardHeader {
   align-items: center;
   display: flex;
   justify-content: space-between;
   width: 100%;
+  height: 20px;
 }
 
 #infoContainer {
   color: var(--color-sys-on-surface);
   display: flex;
+  flex: 1;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
-  width: 100%;
+  min-width: 0;
 }
 
 #icon {
@@ -56,30 +62,45 @@
   width: var(--skill-icon);
 }
 
+cr-tooltip {
+  --paper-tooltip-min-width: 0;
+  max-width: 216px;
+}
+
 #name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: calc(var(--skills-card-width) - 2 * var(--skills-card-gap) - var(--skill-icon) - var(--more-menu-icon-container));
 }
 
-#cardBody {
+.card-body {
   -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
   /* Using -webkit-box to support multi-line text truncation. */
   color: var(--color-sys-on-surface-subtle);
   display: -webkit-box;
-  font-size: 13px;
-  font-weight: 400;
   height: 100px;
-  line-height: 20px;
   overflow: hidden;
   text-overflow: ellipsis;
   width: 100%;
 }
 
+#user-skill-cardBody {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+#discover-skill-cardBody {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+}
+
 #cardFooter {
-  flex: 1;
+  margin-top: auto;
 }
 
 #editButton,

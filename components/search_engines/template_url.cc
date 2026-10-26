@@ -2192,7 +2192,11 @@ bool TemplateURL::CreatedByEnterpriseSearchAggregatorPolicy() const {
 }
 
 bool TemplateURL::CreatedByRegulatoryProgram() const {
-  return GetRegulatoryExtensionType() != RegulatoryExtensionType::kDefault;
+  return data().CreatedByRegulatoryProgram();
+}
+
+bool TemplateURL::RequiresRemovalConfirmation() const {
+  return prepopulate_id() != 0 || CreatedByNonDefaultSearchProviderPolicy();
 }
 
 RegulatoryExtensionType TemplateURL::GetRegulatoryExtensionType() const {

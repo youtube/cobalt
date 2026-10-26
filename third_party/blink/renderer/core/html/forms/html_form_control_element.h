@@ -101,16 +101,16 @@ class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
     void Trace(Visitor* visitor) const { visitor->Trace(popover); }
   };
 
-  // Returns the popover target element and triggering behavior.
-  static PopoverTargetElement popoverTargetElement(HTMLElement& element);
+  enum class PopoverTriggerSupport {
+    kNone,
+    kSupported,
+  };
 
   // Retrieves the popover target element and triggering behavior.
   PopoverTargetElement popoverTargetElement();
-
-  bool IsValidInterestInvoker(Element& target) const override;
-
-  // Handles popover activation for the given event and element.
-  static void HandlePopoverActivation(Event& event, HTMLElement& element);
+  virtual PopoverTriggerSupport SupportsPopoverTriggering() const {
+    return PopoverTriggerSupport::kNone;
+  }
 
   void DefaultEventHandler(Event&) override;
 
@@ -184,9 +184,9 @@ class CORE_EXPORT HTMLFormControlElement : public HTMLElement,
 
   void HandlePopoverTriggering(HTMLElement* popover,
                                PopoverTriggerAction action);
-  // Checks if the element exists, is a valid Popover element, and (if it's a
-  // form control) supports popover triggering.
-  static bool IsValidPopoverTrigger(const HTMLElement& element);
+  // Checks if the element exists, is a valid Popover element, and supports
+  // popover triggering.
+  bool IsValidPopoverTrigger();
 
   enum WebAutofillState autofill_state_;
 

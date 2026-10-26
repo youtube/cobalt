@@ -4,7 +4,20 @@
 
 source_set("constants") {
   sources = [
-    "bwg_constants.h",
-    "bwg_constants.mm",
+    "gemini_constants.h",
+    "gemini_constants.mm",
+  ]
+}
+
+source_set("prefs") {
+  sources = [
+    "gemini_prefs.h",
+    "gemini_prefs.mm",
+  ]
+  deps = [
+    "//components/pref_registry",
+    "//components/prefs",
+    "//ios/chrome/browser/intelligence/bwg/utils:constants",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
   ]
 }

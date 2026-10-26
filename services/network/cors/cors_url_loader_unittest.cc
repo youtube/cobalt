@@ -128,7 +128,7 @@ TEST_F(CorsURLLoaderTest, ForbiddenMethods) {
           url::Origin::Create(GURL("https://example.com"));
       ResetFactory(
           url::Origin::Create(GURL("https://example.com")) /* initiator */,
-          OriginatingProcess::browser());
+          OriginatingProcessId::browser());
 
       bool expect_allowed = (mode == mojom::RequestMode::kNoCors &&
                              test_case.expect_allowed_for_no_cors);
@@ -193,7 +193,7 @@ TEST_F(CorsURLLoaderTest, NoCorsWithoutInitiator) {
   // `request_initiator`.  A renderer process would have run into NOTREACHED and
   // mojo::ReportBadMessage via InitiatorLockCompatibility::kNoInitiator case in
   // CorsURLLoaderFactory::IsValidRequest.
-  ResetFactory(std::nullopt /* initiator */, OriginatingProcess::browser());
+  ResetFactory(std::nullopt /* initiator */, OriginatingProcessId::browser());
 
   ResourceRequest request;
   request.mode = mojom::RequestMode::kNoCors;
@@ -235,7 +235,7 @@ TEST_F(CorsURLLoaderTest, CorsWithoutInitiator) {
 }
 
 TEST_F(CorsURLLoaderTest, NavigateWithoutInitiator) {
-  ResetFactory(std::nullopt /* initiator */, OriginatingProcess::browser());
+  ResetFactory(std::nullopt /* initiator */, OriginatingProcessId::browser());
 
   ResourceRequest request;
   request.mode = mojom::RequestMode::kNavigate;
@@ -257,7 +257,7 @@ TEST_F(CorsURLLoaderTest, NavigateWithoutInitiator) {
 }
 
 TEST_F(CorsURLLoaderTest, NavigateWithEarlyHints) {
-  ResetFactory(std::nullopt /* initiator */, OriginatingProcess::browser());
+  ResetFactory(std::nullopt /* initiator */, OriginatingProcessId::browser());
 
   ResourceRequest request;
   request.mode = mojom::RequestMode::kNavigate;
@@ -489,7 +489,7 @@ TEST_F(CorsURLLoaderTest, CorsEnabledSameCustomSchemeRequest) {
   // Scheme check can be skipped via the factory params.
   ResetFactoryParams factory_params;
   factory_params.skip_cors_enabled_scheme_check = true;
-  ResetFactory(url::Origin::Create(origin), OriginatingProcess::browser(),
+  ResetFactory(url::Origin::Create(origin), OriginatingProcessId::browser(),
                factory_params);
 
   // "Access-Control-Allow-Origin: *" accepts the custom scheme.
@@ -1783,7 +1783,7 @@ TEST_F(CorsURLLoaderTest, SameOriginCredentialsModeWithoutInitiator) {
   // `request_initiator`.  A renderer process would have run into NOTREACHED and
   // mojo::ReportBadMessage via InitiatorLockCompatibility::kNoInitiator case in
   // CorsURLLoaderFactory::IsValidRequest.
-  ResetFactory(std::nullopt /* initiator */, OriginatingProcess::browser());
+  ResetFactory(std::nullopt /* initiator */, OriginatingProcessId::browser());
 
   ResourceRequest request;
   request.mode = mojom::RequestMode::kNoCors;
@@ -1806,7 +1806,7 @@ TEST_F(CorsURLLoaderTest, SameOriginCredentialsModeWithoutInitiator) {
 }
 
 TEST_F(CorsURLLoaderTest, SameOriginCredentialsModeOnNavigation) {
-  ResetFactory(std::nullopt /* initiator */, OriginatingProcess::browser());
+  ResetFactory(std::nullopt /* initiator */, OriginatingProcessId::browser());
 
   ResourceRequest request;
   request.mode = mojom::RequestMode::kNavigate;
@@ -1830,7 +1830,7 @@ TEST_F(CorsURLLoaderTest, SameOriginCredentialsModeOnNavigation) {
 }
 
 TEST_F(CorsURLLoaderTest, OmitCredentialsModeOnNavigation) {
-  ResetFactory(std::nullopt /* initiator */, OriginatingProcess::browser());
+  ResetFactory(std::nullopt /* initiator */, OriginatingProcessId::browser());
 
   ResourceRequest request;
   request.mode = mojom::RequestMode::kNavigate;
@@ -2242,7 +2242,7 @@ TEST_F(CorsURLLoaderTest, NetLogCrossOriginSimpleRequest) {
 
 TEST_F(CorsURLLoaderTest, NetLogPreflightMissingAllowOrigin) {
   auto initiator = url::Origin::Create(GURL("https://foo.example"));
-  ResetFactory(initiator, OriginatingProcess::browser());
+  ResetFactory(initiator, OriginatingProcessId::browser());
 
   ResourceRequest request;
   request.method = "PUT";
@@ -2274,7 +2274,7 @@ TEST_F(CorsURLLoaderTest, NetLogPreflightMissingAllowOrigin) {
 
 TEST_F(CorsURLLoaderTest, NetLogPreflightMethodDisallowed) {
   auto initiator = url::Origin::Create(GURL("https://foo.example"));
-  ResetFactory(initiator, OriginatingProcess::browser());
+  ResetFactory(initiator, OriginatingProcessId::browser());
 
   ResourceRequest request;
   request.method = "PUT";
@@ -2314,7 +2314,7 @@ TEST_F(CorsURLLoaderTest, NetLogPreflightMethodDisallowed) {
 
 TEST_F(CorsURLLoaderTest, NetLogPreflightNetError) {
   auto initiator = url::Origin::Create(GURL("https://foo.example"));
-  ResetFactory(initiator, OriginatingProcess::browser());
+  ResetFactory(initiator, OriginatingProcessId::browser());
 
   ResourceRequest request;
   request.method = "PUT";
@@ -2340,7 +2340,7 @@ TEST_F(CorsURLLoaderTest, NetLogPreflightNetError) {
 
 TEST_F(CorsURLLoaderTest, PreflightMissingAllowOrigin) {
   auto initiator = url::Origin::Create(GURL("https://foo.example"));
-  ResetFactory(initiator, OriginatingProcess::browser());
+  ResetFactory(initiator, OriginatingProcessId::browser());
 
   ResourceRequest request;
   request.method = "PUT";
@@ -2358,6 +2358,109 @@ TEST_F(CorsURLLoaderTest, PreflightMissingAllowOrigin) {
   EXPECT_THAT(client().completion_status().cors_error_status,
               Optional(CorsErrorStatus(
                   mojom::CorsError::kPreflightMissingAllowOriginHeader)));
+}
+
+// A "Content-Type: message/ad-auction-trusted-signals-request" request header
+// should cause a preflight when issued from a renderer.
+TEST_F(CorsURLLoaderTest, PreflightAdAuctionTrustedSignalsFromRenderer) {
+  auto initiator = url::Origin::Create(GURL("https://foo.example"));
+  ResetFactory(initiator, kRendererProcessId);
+
+  ResourceRequest request;
+  request.method = "POST";
+  request.mode = mojom::RequestMode::kCors;
+  request.credentials_mode = mojom::CredentialsMode::kOmit;
+  request.url = GURL("https://example.com/");
+  request.request_initiator = initiator;
+  request.request_body = base::MakeRefCounted<network::ResourceRequestBody>();
+  request.headers.SetHeader("Content-Type",
+                            "message/ad-auction-trusted-signals-request");
+
+  CreateLoaderAndStart(request);
+  RunUntilCreateLoaderAndStartCalled();
+  NotifyLoaderClientOnReceiveResponse(
+      {{"Access-Control-Allow-Origin", "https://foo.example"}});
+  NotifyLoaderClientOnComplete(net::OK);
+  RunUntilComplete();
+
+  EXPECT_THAT(client().completion_status().error_code,
+              net::test::IsError(net::ERR_FAILED));
+  EXPECT_THAT(client().completion_status().cors_error_status,
+              Optional(CorsErrorStatus(
+                  mojom::CorsError::kHeaderDisallowedByPreflightResponse,
+                  /*failed_parameter=*/"content-type")));
+}
+
+// A "Content-Type: message/ad-auction-trusted-signals-request" request header
+// should cause a preflight when issued from the browser without
+// `is_ad_auction_trusted_signals_request` being set to true. This relies on the
+// default value being false, since no consumer is expected to explicitly set it
+// to false.
+TEST_F(CorsURLLoaderTest,
+       PreflightAdAuctionTrustedSignalsFromBrowserNonTrustedSignalsRequest) {
+  auto initiator = url::Origin::Create(GURL("https://foo.example"));
+  ResetFactoryParams factory_params;
+  factory_params.is_trusted = true;
+  ResetFactory(/*initiator=*/std::nullopt, OriginatingProcessId::browser(),
+               factory_params);
+
+  ResourceRequest request;
+  request.method = "POST";
+  request.mode = mojom::RequestMode::kCors;
+  request.credentials_mode = mojom::CredentialsMode::kOmit;
+  request.url = GURL("https://example.com/");
+  request.request_initiator = initiator;
+  request.request_body = base::MakeRefCounted<network::ResourceRequestBody>();
+  request.headers.SetHeader("Content-Type",
+                            "message/ad-auction-trusted-signals-request");
+  request.trusted_params = ResourceRequest::TrustedParams();
+
+  CreateLoaderAndStart(request);
+  RunUntilCreateLoaderAndStartCalled();
+  NotifyLoaderClientOnReceiveResponse(
+      {{"Access-Control-Allow-Origin", "https://foo.example"}});
+  NotifyLoaderClientOnComplete(net::OK);
+  RunUntilComplete();
+
+  EXPECT_THAT(client().completion_status().error_code,
+              net::test::IsError(net::ERR_FAILED));
+  EXPECT_THAT(client().completion_status().cors_error_status,
+              Optional(CorsErrorStatus(
+                  mojom::CorsError::kHeaderDisallowedByPreflightResponse,
+                  /*failed_parameter=*/"content-type")));
+}
+
+// A "Content-Type: message/ad-auction-trusted-signals-request" request header
+// should not require a preflight when issued from the browser with
+// `is_ad_auction_trusted_signals_request` set to true.
+TEST_F(CorsURLLoaderTest,
+       NoPreflightAdAuctionTrustedSignalsFromBrowserTrustedSignalsRequest) {
+  auto initiator = url::Origin::Create(GURL("https://foo.example"));
+  ResetFactoryParams factory_params;
+  factory_params.is_trusted = true;
+  ResetFactory(/*initiator=*/std::nullopt, OriginatingProcessId::browser(),
+               factory_params);
+
+  ResourceRequest request;
+  request.method = "POST";
+  request.mode = mojom::RequestMode::kCors;
+  request.credentials_mode = mojom::CredentialsMode::kOmit;
+  request.url = GURL("https://example.com/");
+  request.request_initiator = initiator;
+  request.request_body = base::MakeRefCounted<network::ResourceRequestBody>();
+  request.headers.SetHeader("Content-Type",
+                            "message/ad-auction-trusted-signals-request");
+  request.trusted_params = ResourceRequest::TrustedParams();
+  request.trusted_params->is_ad_auction_trusted_signals_request = true;
+
+  CreateLoaderAndStart(request);
+  RunUntilCreateLoaderAndStartCalled();
+  NotifyLoaderClientOnReceiveResponse(
+      {{"Access-Control-Allow-Origin", "https://foo.example"}});
+  NotifyLoaderClientOnComplete(net::OK);
+  RunUntilComplete();
+
+  EXPECT_THAT(client().completion_status().error_code, net::test::IsOk());
 }
 
 TEST_F(CorsURLLoaderTest, NonBrowserNavigationRedirect) {
@@ -2390,6 +2493,129 @@ TEST_F(CorsURLLoaderTest, NonBrowserNavigationRedirect) {
   EXPECT_THAT(bad_message_helper.bad_message_reports(),
               ElementsAre("CorsURLLoader: navigate from non-browser-process "
                           "should not call FollowRedirect"));
+}
+
+// Test that in manual redirect mode with empty destination (i.e., fetch()),
+// non-HTTP(S) redirect URLs are censored to "data:," for security.
+TEST_F(CorsURLLoaderTest, ManualRedirectCensorsUnsafeSchemes) {
+  struct TestCase {
+    std::string_view redirect_url;
+    std::string_view expected_url;
+  };
+  static constexpr TestCase kTestCases[] = {
+      // HTTP(S) URLs pass through unchanged.
+      {"https://other.example.com/bar.png",
+       "https://other.example.com/bar.png"},
+      {"http://other.example.com/bar.png", "http://other.example.com/bar.png"},
+      // All non-HTTP(S) URLs are censored to "data:," for security.
+      {"data:text/html,hello", "data:,"},
+      {"file:///etc/passwd", "data:,"},
+      {"javascript:alert(1)", "data:,"},
+  };
+
+  const GURL origin_url("https://example.com");
+  const url::Origin origin = url::Origin::Create(origin_url);
+  const GURL url("https://example.com/foo.png");
+
+  for (const auto& test_case : kTestCases) {
+    SCOPED_TRACE(test_case.redirect_url);
+    ResetFactory(origin, kRendererProcessId);
+
+    ResourceRequest request;
+    request.url = url;
+    request.request_initiator = origin;
+    request.mode = mojom::RequestMode::kCors;
+    request.redirect_mode = mojom::RedirectMode::kManual;
+    // destination defaults to kEmpty, which identifies this as a fetch() call.
+    // This triggers URL censoring for non-HTTP(S) redirects.
+    CreateLoaderAndStart(request);
+    RunUntilCreateLoaderAndStartCalled();
+
+    NotifyLoaderClientOnReceiveRedirect(
+        CreateRedirectInfo(302, "GET", GURL(test_case.redirect_url)));
+    RunUntilRedirectReceived();
+
+    EXPECT_TRUE(client().has_received_redirect());
+    EXPECT_EQ(client().redirect_info().new_url, GURL(test_case.expected_url));
+    ClearHasReceivedRedirect();
+  }
+}
+
+// Test that manual redirect mode with non-empty destination (i.e., navigations)
+// does NOT censor URLs.
+// Note: In practice, URLRequest would reject a redirect to file:// before
+// reaching CorsURLLoader. This test exercises the CorsURLLoader code path
+// in isolation to verify it doesn't incorrectly apply censoring.
+TEST_F(CorsURLLoaderTest, ManualRedirectWithoutFlagDoesNotCensor) {
+  const GURL url("https://example.com/foo.png");
+  const GURL file_redirect("file:///etc/passwd");
+
+  ResetFactory(std::nullopt, OriginatingProcessId::browser());
+
+  ResourceRequest request;
+  request.url = url;
+  request.request_initiator = std::nullopt;
+  request.mode = mojom::RequestMode::kNavigate;
+  request.redirect_mode = mojom::RedirectMode::kManual;
+  request.destination = mojom::RequestDestination::kDocument;
+  request.navigation_redirect_chain.push_back(request.url);
+  CreateLoaderAndStart(request);
+  RunUntilCreateLoaderAndStartCalled();
+
+  NotifyLoaderClientOnReceiveRedirect(
+      CreateRedirectInfo(302, "GET", file_redirect));
+  RunUntilRedirectReceived();
+
+  EXPECT_TRUE(client().has_received_redirect());
+  // With non-empty destination (navigation), URL should NOT be censored.
+  EXPECT_EQ(client().redirect_info().new_url, file_redirect);
+}
+
+// Test that service worker pass-through navigations (renderer process with
+// kNavigate mode and kManual redirect) DO censor non-HTTP(S) redirect URLs.
+// This prevents a compromised renderer from observing unsafe redirect targets
+// via the IPC redirect info.
+TEST_F(CorsURLLoaderTest,
+       ManualRedirectCensorsUnsafeSchemesForServiceWorkerNavigation) {
+  const GURL url("https://example.com/page");
+  const url::Origin origin = url::Origin::Create(url);
+
+  struct TestCase {
+    std::string_view redirect_url;
+    std::string_view expected_url;
+  };
+  static constexpr TestCase kTestCases[] = {
+      // HTTP(S) URLs pass through unchanged.
+      {"https://other.example.com/page2", "https://other.example.com/page2"},
+      {"http://other.example.com/page2", "http://other.example.com/page2"},
+      // Non-HTTP(S) URLs are censored to "data:," for security.
+      {"data:text/html,hello", "data:,"},
+      {"file:///etc/passwd", "data:,"},
+  };
+
+  for (const auto& test_case : kTestCases) {
+    SCOPED_TRACE(test_case.redirect_url);
+    // Use renderer process ID to simulate a service worker pass-through.
+    ResetFactory(origin, kRendererProcessId);
+
+    ResourceRequest request;
+    request.url = url;
+    request.request_initiator = origin;
+    request.mode = mojom::RequestMode::kNavigate;
+    request.redirect_mode = mojom::RedirectMode::kManual;
+    request.destination = mojom::RequestDestination::kDocument;
+    request.navigation_redirect_chain.push_back(request.url);
+    CreateLoaderAndStart(request);
+    RunUntilCreateLoaderAndStartCalled();
+
+    NotifyLoaderClientOnReceiveRedirect(
+        CreateRedirectInfo(302, "GET", GURL(test_case.redirect_url)));
+    RunUntilRedirectReceived();
+
+    EXPECT_TRUE(client().has_received_redirect());
+    EXPECT_EQ(client().redirect_info().new_url, GURL(test_case.expected_url));
+    ClearHasReceivedRedirect();
+  }
 }
 
 class StorageAccessHeadersCorsURLLoaderTest : public CorsURLLoaderTest {

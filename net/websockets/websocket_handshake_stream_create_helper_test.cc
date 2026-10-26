@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
@@ -76,6 +77,7 @@
 #include "net/third_party/quiche/src/quiche/common/platform/api/quiche_flags.h"
 #include "net/third_party/quiche/src/quiche/http2/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/quiche/quic/core/crypto/quic_crypto_client_config.h"
+#include "net/third_party/quiche/src/quiche/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quiche/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_connection_id.h"
@@ -530,6 +532,10 @@ class WebSocketHandshakeStreamCreateHelperTest
 
         session_->Initialize();
 
+        // Enable extended CONNECT protocol (required for WebSocket over
+        // HTTP/3).
+        session_->OnSetting(quic::SETTINGS_ENABLE_CONNECT_PROTOCOL, 1);
+
         // Blackhole QPACK decoder stream instead of constructing mock writes.
         session_->qpack_decoder()->set_qpack_stream_sender_delegate(
             &noop_qpack_stream_sender_delegate_);
@@ -564,6 +570,11 @@ class WebSocketHandshakeStreamCreateHelperTest
         EXPECT_THAT(rv, IsOk());
 
         EXPECT_EQ(200, response.headers->response_code());
+
+        // After the handshake, byte counts should reflect the HEADERS
+        // frames exchanged over the QUIC stream.
+        EXPECT_GT(handshake->GetTotalReceivedBytes().InBytes(), 0);
+        EXPECT_GT(handshake->GetTotalSentBytes().InBytes(), 0);
 
         return handshake->Upgrade();
       }

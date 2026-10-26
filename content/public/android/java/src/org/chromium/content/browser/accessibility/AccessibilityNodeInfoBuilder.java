@@ -65,6 +65,8 @@ import android.util.SparseArray;
 import android.view.View;
 
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat.SelectionCompat;
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat.SelectionPositionCompat;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -139,8 +141,10 @@ public class AccessibilityNodeInfoBuilder {
             "AccessibilityNodeInfo.requestImageData";
     public static final String EXTRAS_KEY_IMAGE_DATA = "AccessibilityNodeInfo.imageData";
 
+    // Match AccessibilityNodeInfo.EXTRA_DATA_REQUEST_LAYOUT_BASED_ACTIONS_KEY.
+    // TODO(crbug.com/484387130) Pull definition from AndroidX instead, when available.
     public static final String EXTRAS_KEY_REQUEST_LAYOUT_BASED_ACTIONS =
-            "AccessibilityNodeInfo.requestLayoutBasedActions";
+            "android.view.accessibility.extra.DATA_REQUEST_LAYOUT_BASED_ACTIONS_KEY";
 
     public static final String ACCESSIBILITY_SPANNABLE_CREATION_TIME =
             "Accessibility.Android.Performance.SpannableCreationTime2";
@@ -455,7 +459,6 @@ public class AccessibilityNodeInfoBuilder {
             String text,
             String targetUrl,
             boolean annotateAsLink,
-            boolean isEditableText,
             String language,
             int[] suggestionStarts,
             int[] suggestionEnds,
@@ -524,7 +527,6 @@ public class AccessibilityNodeInfoBuilder {
             AccessibilityNodeInfoCompat node,
             String text,
             boolean annotateAsLink,
-            boolean isEditableText,
             String stateDescription,
             String containerTitle,
             String contentDescription,
@@ -759,25 +761,18 @@ public class AccessibilityNodeInfoBuilder {
             int startOffset,
             int endVirtualViewId,
             int endOffset) {
-        var aconfigFlaggedApiDelegate = AconfigFlaggedApiDelegate.getInstance();
-        if (aconfigFlaggedApiDelegate != null) {
-            aconfigFlaggedApiDelegate.setSelection(
-                    node,
-                    mDelegate.getView(),
-                    startVirtualViewId,
-                    startOffset,
-                    endVirtualViewId,
-                    endOffset);
-        }
+        node.setSelection(
+                new SelectionCompat(
+                        new SelectionPositionCompat(
+                                mDelegate.getView(), startVirtualViewId, startOffset),
+                        new SelectionPositionCompat(
+                                mDelegate.getView(), endVirtualViewId, endOffset)));
     }
 
     @CalledByNative
     protected void clearAccessibilityNodeInfoExtendedSelectionAttrs(
             AccessibilityNodeInfoCompat node) {
-        var aconfigFlaggedApiDelegate = AconfigFlaggedApiDelegate.getInstance();
-        if (aconfigFlaggedApiDelegate != null) {
-            aconfigFlaggedApiDelegate.clearSelection(node);
-        }
+        node.setSelection(null);
     }
 
     @CalledByNative

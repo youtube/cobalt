@@ -48,7 +48,9 @@ class PasskeyTabHelper : public web::WebStateObserver,
     kGetResolvedNonGpm,
     kCreateResolvedGpm,
     kCreateResolvedNonGpm,
-    kMaxValue = kCreateResolvedNonGpm,
+    kIncognitoInterstitialShown,
+    kCancelRequested,
+    kMaxValue = kCancelRequested,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/webauthn/enums.xml)
 
@@ -59,6 +61,10 @@ class PasskeyTabHelper : public web::WebStateObserver,
 
   // Logs metric indicating that an event of the given type occurred.
   void LogEvent(WebAuthenticationIOSContentAreaEvent event_type);
+
+  // Handles passkey cancellation requests triggered by an AbortSignal.
+  void HandleCancelRequestEvent(
+      webauthn::IOSPasskeyClient::RequestInfo request_info);
 
   // Handles passkey assertion requests. Yields if the request ID is missing.
   void HandleGetRequestedEvent(AssertionRequestParams params);
@@ -108,6 +114,10 @@ class PasskeyTabHelper : public web::WebStateObserver,
 
   // Returns whether there is a pending remote validation for testing.
   bool HasPendingValidationForTesting() const;
+
+  // Returns whether the interstitial is necessary for the current state.
+  bool ShowCreationInterstitialIfNecessary(
+      base::OnceCallback<void(bool)> callback);
 
  private:
   friend class web::WebStateUserData<PasskeyTabHelper>;

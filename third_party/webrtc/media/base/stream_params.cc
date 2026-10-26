@@ -11,12 +11,12 @@
 #include "media/base/stream_params.h"
 
 #include <cstdint>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "media/base/rid_description.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
@@ -25,7 +25,7 @@
 namespace webrtc {
 namespace {
 
-void AppendSsrcs(ArrayView<const uint32_t> ssrcs, SimpleStringBuilder* sb) {
+void AppendSsrcs(std::span<const uint32_t> ssrcs, SimpleStringBuilder* sb) {
   *sb << "ssrcs:[";
   const char* delimiter = "";
   for (uint32_t ssrc : ssrcs) {
@@ -35,7 +35,7 @@ void AppendSsrcs(ArrayView<const uint32_t> ssrcs, SimpleStringBuilder* sb) {
   *sb << "]";
 }
 
-void AppendSsrcGroups(ArrayView<const SsrcGroup> ssrc_groups,
+void AppendSsrcGroups(std::span<const SsrcGroup> ssrc_groups,
                       SimpleStringBuilder* sb) {
   *sb << "ssrc_groups:";
   const char* delimiter = "";
@@ -45,7 +45,7 @@ void AppendSsrcGroups(ArrayView<const SsrcGroup> ssrc_groups,
   }
 }
 
-void AppendStreamIds(ArrayView<const std::string> stream_ids,
+void AppendStreamIds(std::span<const std::string> stream_ids,
                      SimpleStringBuilder* sb) {
   *sb << "stream_ids:";
   const char* delimiter = "";
@@ -55,7 +55,7 @@ void AppendStreamIds(ArrayView<const std::string> stream_ids,
   }
 }
 
-void AppendRids(ArrayView<const RidDescription> rids, SimpleStringBuilder* sb) {
+void AppendRids(std::span<const RidDescription> rids, SimpleStringBuilder* sb) {
   *sb << "rids:[";
   const char* delimiter = "";
   for (const RidDescription& rid : rids) {

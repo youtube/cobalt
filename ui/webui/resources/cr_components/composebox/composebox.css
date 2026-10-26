@@ -5,8 +5,9 @@
 /* #css_wrapper_metadata_start
  * #type=style-lit
  * #import=//resources/cr_elements/cr_icons_lit.css.js
+ * #import=./composebox_shared_style.css.js
  * #scheme=relative
- * #include=cr-icons-lit
+ * #include=cr-icons-lit composebox-shared-style
  * #css_wrapper_metadata_end */
 
 :host {
@@ -104,12 +105,16 @@
 :host([searchbox-next-enabled]) {
   --cr-composebox-font-size: var(--cr-composebox-custom-font-size, 16px);
   --contextual-entrypoint-and-carousel-context-menu-container-padding-inline-start: 0px;
-  --input-bottom-spacing: var(--cr-composebox-input-bottom-spacing, 12px);
+  /*
+   * TODO(crbug.com/470081925): Refactor and keep necessary
+   * --input-bottom-spacing values in this file.
+   */
+  --input-bottom-spacing: 12px;
   --text-input-inline-start-spacing: var(--cr-composebox-text-input-inline-start, 18px);
 }
 
 :host([searchbox-next-enabled]) #input::placeholder {
-  font-size: var(--cr-composebox-input-placeholder-font-size, 18px);
+  font-size: var(--cr-composebox-input-placeholder-font-size, 16px);
   font-weight: 400;
 }
 
@@ -122,6 +127,7 @@
 }
 
 #composebox {
+  border-radius: inherit;
   display: flex;
   flex-direction: column;
   pointer-events: auto;
@@ -130,6 +136,10 @@
   transition:
     opacity var(--fade-duration) ease-in-out,
     visibility var(--fade-duration) ease-in-out;
+}
+
+:host([searchbox-next-enabled]) #composebox {
+  padding-bottom: 10px;
 }
 
 :host([is-dragging-file_]) #composebox * {
@@ -187,6 +197,10 @@ search-animated-glow {
   width: 100%;
 }
 
+:host([searchbox-next-enabled]) #inputContainer {
+  --input-bottom-spacing: 0;
+}
+
 #textContainer {
   display: flex;
   flex-direction: row;
@@ -230,17 +244,40 @@ search-animated-glow {
 }
 
 #input,
+#mirror,
 #smartCompose {
   box-sizing: border-box;
   font-family: inherit;
   font-size: var(--cr-composebox-font-size, inherit);
   line-height: 24px;
-  min-height: 48px;
-  max-height: var(--text-input-max-height);
   padding-block: var(--text-input-top-spacing) 0;
   padding-inline: 12px var(--text-input-inline-end-spacing);
-  scrollbar-width: none;
   width: 100%;
+}
+
+#mirror {
+  color: transparent;
+  height: 100%;
+  left: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  user-select: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+:host([entrypoint-name='ContextualTasks']) #mirror {
+  padding-block: 12px;
+  padding-inline-end: var(--text-input-inline-end-spacing);
+  padding-inline-start: 0;
+}
+
+#input,
+#smartCompose {
+  max-height: var(--text-input-max-height);
+  scrollbar-width: none;
 }
 
 :host(:not[searchbox-next-enabled]) #input {
@@ -250,7 +287,6 @@ search-animated-glow {
 #input {
   background-color: inherit;
   border: none;
-  caret-color: var(--color-composebox-font-light);
   color: var(--color-composebox-font-light);
   field-sizing: content;
   mask-image: linear-gradient(transparent 7px, black var(--text-input-top-spacing));
@@ -260,9 +296,64 @@ search-animated-glow {
   resize: none;
 }
 
-:host(:not([disable-caret-color-animation])) #input:focus {
-  caret-color: var(--google-blue-500);
-  animation: color-change 5s infinite;
+:host(:not([disable-caret-color-animation])) #input {
+  caret-color: transparent;
+}
+
+#caret.caret-visible {
+  display: block;
+}
+
+#caret {
+  background-color: var(--google-blue-500);
+  display: none;
+  height: 24px;
+  pointer-events: none;
+  position: absolute;
+  top: -2px;
+  width: 2px;
+}
+
+:host([entrypoint-name='Omnibox']) #caret {
+  height: 18px;
+  top: 0;
+}
+
+#caret.animating {
+  animation: blink 1s step-end infinite, cycleColor step-end 4s infinite;
+}
+
+@keyframes blink {
+  0% {
+    opacity: 1;
+  }
+  49.9% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes cycleColor {
+  0% {
+    background-color: var(--google-blue-500);
+  }
+  25% {
+    background-color: var(--google-red-500);
+  }
+  50% {
+    background-color: var(--google-yellow-500);
+  }
+  75% {
+    background-color: var(--google-green-500);
+  }
+  100% {
+    background-color: var(--google-blue-500);
+  }
 }
 
 #input::placeholder {
@@ -313,23 +404,11 @@ search-animated-glow {
   --text-input-top-spacing: 24px;
 }
 
-@keyframes color-change {
-  0%,
-  100% { caret-color: var(--google-blue-500); }
-  25% { caret-color: var(--google-red-500); }
-  50% { caret-color: var(--google-yellow-500); }
-  75% { caret-color: var(--google-green-500); }
-}
-
 #input::-webkit-search-decoration,
 #input::-webkit-search-results-button,
 #input::-webkit-search-results-decoration,
 #input::-webkit-search-cancel-button{
   display: none;
-}
-
-:host([expanding_][show-dropdown_]) cr-composebox-dropdown {
-  padding-bottom: 8px;
 }
 
 .action-icon {
@@ -424,11 +503,11 @@ search-animated-glow {
 
 #submitContainer {
   border-radius: 50%;
+  bottom: var(--input-bottom-spacing);
   cursor: default; /* For Lens side panel. */
   height: var(--cr-composebox-submit-container-size, var(--cr-icon-button-size));
-  bottom: var(--input-bottom-spacing);
+  inset-inline-end: 10px;
   position: absolute;
-  inset-inline-end: 12px;
   width: var(--cr-composebox-submit-container-size, var(--cr-icon-button-size));
 }
 
@@ -525,18 +604,51 @@ search-animated-glow {
   --text-input-max-height: 130px;
 }
 
-.carousel-divider {
-  border-radius: 100px;
-  border-top: 1px solid
-    var(--color-composebox-file-carousel-divider);
-  margin-inline-end: 16px;
-  margin-inline-start: var(--text-input-inline-start-spacing);
-  margin-top: 8px;
-  margin-bottom: 10px;
+#carousel {
+  box-sizing: border-box;
+  margin-bottom: var(--context-non-top-carousel-bottom-margin, 8px);
+  margin-top: var(--context-non-top-carousel-top-margin, 4px);
+  /* Prefer using margin, but from legacy var name, we should be using inset. */
+  inset-inline-start: var(--context-carousel-inline-start-spacing, 50px);
+  position: relative;
+  width: calc(100% - var(--context-carousel-inline-start-spacing, 50px) -
+      var(--context-carousel-inline-end-spacing, 50px));
+}
+
+#carousel.top {
+  margin-bottom: var(--context-top-carousel-bottom-margin, 0);
+  margin-top: var(--context-top-carousel-top-margin, 0);
+  position: absolute;
+  top: var(--context-carousel-top-position, 14px);
+  width: auto;
+}
+
+:host([is-omnibox-in-compact-mode_]) .context-menu-container {
+  min-height: 0;
+}
+
+#contextEntrypoint {
+  color: var(--color-searchbox-results-foreground);
+  padding-inline-start: var(--contextual-entrypoint-and-carousel-context-entrypoint-padding-inline-start, 8px);
+  padding-inline-end: var(--contextual-entrypoint-and-carousel-context-entrypoint-padding-inline-end, 8px);
+}
+
+#toolChipsContainer {
+  padding-bottom: 4px;
+  padding-inline-start: 16px;
+  padding-top: 8px;
+}
+
+:host(:not([file-uploads-complete])) .upload-button {
+  cursor: not-allowed;
+}
+
+:host([upload-button-disabled_]) .upload-button {
+  color: var(--color-composebox-upload-button-disabled);
 }
 
 :host([searchbox-layout-mode='Compact'])
-    contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {
+    #contextEntrypoint::part(context-menu-entrypoint-icon) {
   position: absolute;
   top: 10px;
 }
@@ -547,7 +659,7 @@ search-animated-glow {
 
 :host([searchbox-next-enabled][searchbox-layout-mode='Compact']) {
   --expanded-border-radius: var(--cr-composebox-expanded-border-radius, 30px);
-  --input-bottom-spacing: 16px;
+  --input-bottom-spacing: 12px;
 }
 
 :host([searchbox-next-enabled][searchbox-layout-mode='Compact']) #iconContainer {
@@ -556,7 +668,7 @@ search-animated-glow {
 
 :host([searchbox-next-enabled][searchbox-layout-mode='Compact']) #textContainer {
   --text-input-inline-start-spacing: 40px;
-  padding-block: 6px 0;
+  padding-block: 6px 2px;
 }
 
 :host([searchbox-next-enabled]) #input,
@@ -572,20 +684,21 @@ search-animated-glow {
   --cr-icon-button-icon-size: 12px;
 }
 
-:host([searchbox-next-enabled][searchbox-layout-mode='Compact']) #context {
-  margin-top: var(--cr-composebox-context-margin-top, -48px);
-}
-
 :host([expanding_][show-dropdown_][searchbox-next-enabled][searchbox-layout-mode='Compact']) cr-composebox-dropdown {
   padding-bottom: 0;
-  padding-top: 8px;
+  padding-top: 4px;
 }
 
-:host-context([searchbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(carousel-divider) {
+:host-context([searchbox-layout-mode='TallTopContext']) .carousel-divider {
   margin-top: 10px;
 }
 
-contextual-entrypoint-and-carousel::part(voice-icon) {
+:host([searchbox-layout-mode='Compact'][show-dropdown_]) .carousel-divider {
+  --contextual-entrypoint-and-carousel-carousel-divider-margin-bottom: 8px;
+  --contextual-entrypoint-and-carousel-carousel-divider-margin-top: 12px;
+}
+
+#voiceSearchButton {
   --cr-icon-button-fill-color: var(--color-composebox-font-light);
   --cr-icon-button-hover-background-color: var(--color-composebox-context-entrypoint-hover-background);
   --cr-icon-button-margin-end: 0px;
@@ -594,7 +707,7 @@ contextual-entrypoint-and-carousel::part(voice-icon) {
 }
 
 @media (forced-colors: active) {
-  contextual-entrypoint-and-carousel::part(voice-icon) {
+  #voiceSearchButton {
     --cr-icon-button-fill-color: ButtonText;
   }
 }
@@ -604,24 +717,24 @@ contextual-entrypoint-and-carousel::part(voice-icon) {
   position: relative;
 }
 
-:host(:not([searchbox-next-enabled])) contextual-entrypoint-and-carousel::part(voice-icon),
-:host([searchbox-layout-mode='TallBottomContext']) contextual-entrypoint-and-carousel::part(voice-icon) {
+:host(:not([searchbox-next-enabled])) #voiceSearchButton,
+:host([searchbox-layout-mode='TallBottomContext']) #voiceSearchButton {
   bottom: 12px;
-  inset-inline-end: 14px;
+  inset-inline-end: 12px;
   position: absolute;
 }
 
-:host([submit-enabled_]:not([searchbox-next-enabled])) contextual-entrypoint-and-carousel::part(voice-icon) {
+:host([submit-enabled_]:not([searchbox-next-enabled])) #voiceSearchButton {
   inset-inline-end: calc(var(--cr-icon-button-size) + 18px);
 }
 
-:host([searchbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(voice-icon) {
-  margin-inline-end: 14px;
+:host([searchbox-layout-mode='TallTopContext']) #voiceSearchButton {
+  margin-inline-end: 12px;
   margin-inline-start: auto;
   position: static;
 }
 
-:host([submit-enabled_][searchbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(voice-icon) {
+:host([submit-enabled_][searchbox-layout-mode='TallTopContext']) #voiceSearchButton {
   margin-inline-end: 0;
 }
 
@@ -636,37 +749,27 @@ contextual-entrypoint-and-carousel::part(voice-icon) {
   position: relative;
 }
 
-:host([searchbox-layout-mode='Compact']) contextual-entrypoint-and-carousel::part(voice-icon) {
+:host([searchbox-layout-mode='Compact']) #voiceSearchButton {
   position: absolute;
   inset-inline-end: calc(var(--cr-composebox-submit-container-size) + 12px);
   top: 10px;
 }
 
-:host([searchbox-next-enabled][searchbox-layout-mode='Compact']) contextual-entrypoint-and-carousel::part(carousel-container),
-:host([searchbox-next-enabled][searchbox-layout-mode='TallBottomContext']) contextual-entrypoint-and-carousel::part(carousel-container) {
+:host([searchbox-next-enabled][searchbox-layout-mode='Compact']) #carouselContainer,
+:host([searchbox-next-enabled][searchbox-layout-mode='TallBottomContext']) #carouselContainer {
   align-items: flex-end;
   display: flex;
   flex-direction: row;
 }
 
 :host([submit-enabled_][searchbox-layout-mode='Compact']) #submitContainer {
-  margin-inline-end: 0;
-  margin-inline-start: auto;
+  inset-inline-end: 0;
+  margin-block: 12px 2px;
+  margin-inline: auto 10px;
   position: relative;
 }
 
-:host([submit-enabled_][searchbox-layout-mode='Compact'][context-files-size_='0']) #submitContainer {
-  bottom: 0;
-  margin-inline-end: -2px;
-  margin-top: 16px;
-}
-
-:host([submit-enabled_][searchbox-layout-mode='Compact']:not([context-files-size_='0'])) #submitContainer {
-  bottom: 14px;
-}
-
 :host([submit-enabled_][searchbox-layout-mode='TallBottomContext']) #submitContainer {
-  inset-inline-end: 10px;
   position: absolute;
 }
 
@@ -678,43 +781,43 @@ contextual-entrypoint-and-carousel::part(voice-icon) {
   top: var(--cr-composebox-submit-container-top, 58px);
 }
 
-:host([submit-enabled_][searchbox-layout-mode='TallBottomContext'][show-dropdown_][context-files-size_='0']) contextual-entrypoint-and-carousel::part(carousel-divider) {
+:host([submit-enabled_][searchbox-layout-mode='TallBottomContext'][show-dropdown_]:not([show-file-carousel_])) .carousel-divider {
   --contextual-entrypoint-and-carousel-carousel-divider-margin-top: 50px;
 }
 
-:host([submit-enabled_][searchbox-layout-mode='Compact'][show-dropdown_][context-files-size_='0']) contextual-entrypoint-and-carousel::part(carousel-divider) {
-  --contextual-entrypoint-and-carousel-carousel-divider-margin-top: 12px;
-}
-
-:host([submit-enabled_][searchbox-layout-mode='TallBottomContext'][show-dropdown_]:not([context-files-size_='0'])) contextual-entrypoint-and-carousel::part(carousel-divider),
-:host([submit-enabled_][searchbox-layout-mode='Compact'][show-dropdown_]:not([context-files-size_='0'])) contextual-entrypoint-and-carousel::part(carousel-divider) {
+:host([submit-enabled_][searchbox-layout-mode='TallBottomContext'][show-dropdown_][show-file-carousel_]) .carousel-divider {
   --contextual-entrypoint-and-carousel-carousel-divider-margin-top: 8px;
 }
 
-:host([submit-enabled_][searchbox-layout-mode='TallBottomContext']) contextual-entrypoint-and-carousel::part(voice-icon) {
+:host([submit-enabled_][searchbox-layout-mode='TallBottomContext']) #voiceSearchButton {
   inset-inline-end: calc(var(--cr-composebox-submit-container-size) + 18px);
 }
 
-:host([submit-enabled_][searchbox-layout-mode='TallBottomContext'][show-dropdown_]) contextual-entrypoint-and-carousel::part(voice-icon) {
+:host([submit-enabled_][searchbox-layout-mode='TallBottomContext'][show-dropdown_]) #voiceSearchButton {
   bottom: unset;
   top: var(--cr-composebox-voice-icon-top, 60px);
 }
 
-:host([searchbox-next-enabled]) contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {
+:host([searchbox-next-enabled]) #contextEntrypoint::part(context-menu-entrypoint-icon) {
   --cr-icon-button-icon-size: 24px;
   --cr-icon-button-margin-start: 2px;
   --cr-icon-button-size: 36px;
 }
 
-:host([searchbox-next-enabled][searchbox-layout-mode^='Tall']) contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {
+:host([searchbox-next-enabled][searchbox-layout-mode^='Tall']) #contextEntrypoint::part(context-menu-entrypoint-icon) {
   --cr-icon-button-icon-size: 20px;
 }
 
-:host([searchbox-next-enabled]) contextual-entrypoint-and-carousel::part(cr-composebox-file-carousel) {
-  margin-top: 16px;
+:host([searchbox-next-enabled]) #carousel {
+  --context-non-top-carousel-bottom-margin: 10px;
+  --context-non-top-carousel-top-margin: 6px;
 }
 
-contextual-entrypoint-and-carousel[is-omnibox-in-compact-mode_]::part(cr-composebox-file-carousel) {
+:host([searchbox-next-enabled]:not([in-tool-mode_])) #carousel {
+  --context-non-top-carousel-bottom-margin: 4px;
+}
+
+:host([is-omnibox-in-compact-mode_]) #carousel {
   margin-top: 12px !important;
 }
 
@@ -738,15 +841,15 @@ contextual-entrypoint-and-carousel[is-omnibox-in-compact-mode_]::part(cr-compose
 }
 
 cr-composebox-voice-search {
-  opacity: 1;
-  @starting-style {
-    opacity: 0;  /* Since hidden elements have no previous state. */
-  }
-  transition: opacity 90ms ease-in-out, display 100ms allow-discrete;
   z-index: 2;
 }
 
 :host(:not([in-voice-search-mode_])) cr-composebox-voice-search {
   display: none;
-  opacity: 0;
+}
+
+.carousel-container-inner {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
 }

@@ -61,7 +61,7 @@ class ActorOverlayTest : public InProcessBrowserTest {
     feature_list_.InitWithFeaturesAndParameters(
         /*enabled_features=*/{{features::kGlicActorUi,
                                {{features::kGlicActorUiOverlayName, "true"}}},
-                              {features::kGlicActorUiOverlayMagicCursor, {}}},
+                              {features::kGlicActorUiMagicCursor, {}}},
         /*disabled_features=*/{});
     InProcessBrowserTest::SetUp();
   }
@@ -567,8 +567,7 @@ class ActorOverlaySplitViewTest
       override {
     return {
         {features::kGlicActorUi, {{features::kGlicActorUiOverlayName, "true"}}},
-        {features::kGlicActorUiOverlayMagicCursor, {}},
-        {features::kSideBySide, {}}};
+        {features::kGlicActorUiMagicCursor, {}}};
   }
 
   void CreateSplitView() {

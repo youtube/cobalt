@@ -81,6 +81,7 @@ ci/Dawn Win10 x86 Release (NVIDIA)
 ci/Dawn Win11 arm64 Builder
 ci/Dawn Win11 arm64 DEPS Builder
 ci/Dawn Win11 arm64 DEPS Release (Qualcomm Snapdragon X Elite)
+ci/Dawn Win11 arm64 Release (Qualcomm Snapdragon X Elite)
 ci/Deterministic Android
 ci/Deterministic Android (dbg)
 ci/Deterministic Fuchsia (dbg)
@@ -281,6 +282,7 @@ ci/android-angle-chromium-arm64-builder
 ci/android-angle-chromium-arm64-pixel2
 ci/android-archive-rel
 ci/android-arm64-archive-rel
+ci/android-bfcache-rel
 ci/android-binary-size-generator
 ci/android-cast-arm-dbg
 ci/android-cast-arm-rel
@@ -328,8 +330,6 @@ ci/chromeos-amd64-generic-rel-tast
 ci/chromeos-arm-generic-dbg
 ci/chromeos-arm-generic-rel
 ci/chromeos-arm64-generic-rel
-ci/chromeos-jacuzzi-rel
-ci/chromeos-octopus-rel
 ci/chromeos-x64-libfuzzer-asan-rel-tests
 ci/fuchsia-angle-builder
 ci/fuchsia-arm64-cast-receiver-rel
@@ -447,6 +447,7 @@ try/android-angle-chromium-try
 try/android-arm-compile-dbg
 try/android-arm64-compile-dbg
 try/android-arm64-rel
+try/android-bfcache-rel
 try/android-binary-size
 try/android-cast-arm-dbg
 try/android-cast-arm-rel
@@ -502,10 +503,8 @@ try/chromeos-amd64-generic-rel-gtest-and-tast
 try/chromeos-arm-generic-dbg
 try/chromeos-arm-generic-rel
 try/chromeos-arm64-generic-rel
-try/chromeos-jacuzzi-rel
 try/chromeos-js-coverage-rel
 try/chromeos-libfuzzer-asan-rel
-try/chromeos-octopus-rel
 try/chromeos-x64-libfuzzer-asan-rel-tests
 try/compile-size
 try/fuchsia-angle-try
@@ -649,6 +648,7 @@ try/linux-utr-tester
 try/linux-v4l2-codec-rel
 try/linux-wayland-mutter-rel
 try/linux-wayland-weston-rel
+try/linux-webium-product-rel
 try/linux-win-cross-rel
 try/linux-x64-centipede-asan-rel-tests
 try/linux-x64-libfuzzer-asan-dbg-tests
@@ -677,6 +677,7 @@ try/mac-clobber-rel
 try/mac-enterprise-companion-try-builder-dbg
 try/mac-enterprise-companion-try-builder-rel
 try/mac-fieldtrial-tester
+try/mac-gpu-rel
 try/mac-libfuzzer-asan-rel
 try/mac-official
 try/mac-rel
@@ -731,6 +732,7 @@ try/win-swangle-try-x86
 try/win-updater-try-builder-dbg
 try/win-updater-try-builder-rel
 try/win-utr-tester
+try/win-webium-product-rel
 try/win-x64-libfuzzer-asan-rel-tests
 try/win10-dbg
 try/win11-rel

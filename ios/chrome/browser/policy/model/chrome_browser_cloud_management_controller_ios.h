@@ -8,6 +8,11 @@
 #include "base/task/single_thread_task_runner.h"
 #include "components/enterprise/browser/controller/chrome_browser_cloud_management_controller.h"
 
+namespace client_certificates {
+class CertificateProvisioningService;
+class CertificateStore;
+}  // namespace client_certificates
+
 namespace policy {
 
 // iOS implementation of the platform-specific operations of CBCMController.
@@ -47,11 +52,19 @@ class ChromeBrowserCloudManagementControllerIOS
       override;
   std::unique_ptr<enterprise_reporting::ReportingDelegateFactory>
   GetReportingDelegateFactory() override;
+  std::unique_ptr<enterprise_reporting::SaasUsageReportingDelegateFactory>
+  GetSaasUsageReportingDelegateFactory() override;
   void SetGaiaURLLoaderFactory(scoped_refptr<network::SharedURLLoaderFactory>
                                    url_loader_factory) override;
   bool ReadyToCreatePolicyManager() override;
   bool ReadyToInit() override;
   std::unique_ptr<ClientDataDelegate> CreateClientDataDelegate() override;
+  std::unique_ptr<client_certificates::CertificateProvisioningService>
+  CreateCertificateProvisioningService() override;
+
+ private:
+  // Responsible for storing and retrieving browser-level managed identities.
+  std::unique_ptr<client_certificates::CertificateStore> certificate_store_;
 };
 
 }  // namespace policy

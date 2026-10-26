@@ -310,7 +310,7 @@ void ResourceLoader::Start() {
   // stoppable. We also disable throttling and stopping for non-http[s]
   // requests.
   if (resource_->Options().synchronous_policy == kRequestSynchronously ||
-      request.GetKeepalive() || !request.Url().ProtocolIsInHTTPFamily()) {
+      request.GetKeepalive() || !request.Url().ProtocolIsInHttpFamily()) {
     throttle_option =
         ResourceLoadScheduler::ThrottleOption::kCanNotBeStoppedOrThrottled;
   } else if (!IsThrottlableRequestContext(request.GetRequestContext())) {
@@ -647,11 +647,11 @@ bool ResourceLoader::WillFollowRedirect(
                              reporting_disposition,
                              new_request->GetRedirectInfo());
 
-    if (Context().CalculateIfAdSubresource(
-            *new_request, /*alias_url=*/std::nullopt, resource_type,
-            options.initiator_info, /*scan_stack_for_ads=*/false,
-            /*out_rule=*/nullptr)) {
-      new_request->SetIsAdResource();
+    if (std::optional<AdProvenance> ad_provenance =
+            Context().CalculateIfAdSubresource(
+                *new_request, /*alias_url=*/std::nullopt, resource_type,
+                options.initiator_info, /*scan_stack_for_ads=*/false)) {
+      new_request->SetIsAdResource(std::move(*ad_provenance));
     }
 
     if (blocked_reason) {
@@ -800,7 +800,7 @@ void ResourceLoader::DidReceiveResponse(
     // Callback is bound to a WeakPersistent, as ResourceLoader is kept alive by
     // ResourceFetcher as long as we still care about the result of the load.
     fetcher_->GetBlobRegistry()->RegisterFromStream(
-        mime_type.IsNull() ? g_empty_string : mime_type.LowerASCII(), "",
+        mime_type.IsNull() ? g_empty_string : mime_type.ToAsciiLower(), "",
         std::max(static_cast<int64_t>(0), response.ExpectedContentLength()),
         std::move(body_handle),
         progress_receiver_.BindNewEndpointAndPassRemote(GetLoadingTaskRunner()),
@@ -829,7 +829,7 @@ void ResourceLoader::DidReceiveResponseInternal(
   AtomicString content_encoding =
       response.HttpHeaderField(http_names::kContentEncoding);
   bool used_zstd = false;
-  if (EqualIgnoringASCIICase(content_encoding, "zstd")) {
+  if (EqualIgnoringAsciiCase(content_encoding, "zstd")) {
     fetcher_->GetUseCounter().CountUse(WebFeature::kZstdContentEncoding);
     fetcher_->GetUseCounter().CountUse(
         WebFeature::kZstdContentEncodingForSubresource);
@@ -851,10 +851,10 @@ void ResourceLoader::DidReceiveResponseInternal(
     fetcher_->GetUseCounter().CountUse(WebFeature::kSharedDictionaryUsed);
     fetcher_->GetUseCounter().CountUse(
         WebFeature::kSharedDictionaryUsedForSubresource);
-    if (EqualIgnoringASCIICase(content_encoding, "dcb")) {
+    if (EqualIgnoringAsciiCase(content_encoding, "dcb")) {
       fetcher_->GetUseCounter().CountUse(
           WebFeature::kSharedDictionaryUsedWithSharedBrotli);
-    } else if (EqualIgnoringASCIICase(content_encoding, "dcz")) {
+    } else if (EqualIgnoringAsciiCase(content_encoding, "dcz")) {
       fetcher_->GetUseCounter().CountUse(
           WebFeature::kSharedDictionaryUsedWithSharedZstd);
     }
@@ -1574,13 +1574,14 @@ bool ResourceLoader::ShouldBlockRequestBasedOnSubresourceFilterDnsAliasCheck(
       return true;
     }
 
-    if (!resource_->GetResourceRequest().IsAdResource() &&
-        Context().CalculateIfAdSubresource(
-            resource_->GetResourceRequest(), alias_url, resource_type,
-            options.initiator_info, /*scan_stack_for_ads=*/false,
-            /*out_rule=*/nullptr)) {
-      resource_->SetIsAdResource();
-      cname_alias_info_for_testing_.was_ad_tagged_based_on_alias = true;
+    if (!resource_->GetResourceRequest().IsAdResource()) {
+      if (std::optional<AdProvenance> ad_provenance =
+              Context().CalculateIfAdSubresource(
+                  resource_->GetResourceRequest(), alias_url, resource_type,
+                  options.initiator_info, /*scan_stack_for_ads=*/false)) {
+        resource_->SetIsAdResource(std::move(*ad_provenance));
+        cname_alias_info_for_testing_.was_ad_tagged_based_on_alias = true;
+      }
     }
   }
 

@@ -42,6 +42,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
+#include "third_party/blink/renderer/core/frame/webdx_feature_tracing.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/blink/renderer/platform/weborigin/scheme_registry.h"
@@ -148,12 +149,12 @@ void UseCounterImpl::DidCommitLoad(const LocalFrame* frame) {
     context_ = kExtensionContext;
   } else if (url.ProtocolIs("file")) {
     context_ = kFileContext;
-  } else if (url.ProtocolIsInHTTPFamily() ||
+  } else if (url.ProtocolIsInHttpFamily() ||
              CommonSchemeRegistry::IsIsolatedAppScheme(protocol)) {
     // Isolated Apps use the same frames as regular web pages, thus IWA feature
     // usage is recorded in the same way as feature usage for normal frames.
     context_ = kDefaultContext;
-  } else if (url.IsAboutBlankURL() || url.IsAboutSrcdocURL()) {
+  } else if (url.IsAboutBlankUrl() || url.IsAboutSrcdocUrl()) {
     context_ = kAboutBlankOrSrcdoc;
   } else {
     // UseCounter is disabled for all other URL schemes.
@@ -220,6 +221,8 @@ void UseCounterImpl::Count(const UseCounterFeature& feature,
     if (ReportMeasurement(feature, source_frame))
       TraceMeasurement(feature);
   }
+
+  MaybeEmitWebDXFeatureTraceEvent(feature, source_frame);
 }
 
 void UseCounterImpl::Count(CSSPropertyID property,
@@ -340,7 +343,7 @@ void UseCounterImpl::ReportTotalTakenTime(const LocalFrame* frame,
   }
   const auto* document = frame->GetDocument();
   if (document->IsInitialEmptyDocument() ||
-      !document->Url().ProtocolIsInHTTPFamily()) {
+      !document->Url().ProtocolIsInHttpFamily()) {
     return;
   }
 

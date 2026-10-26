@@ -1,0 +1,7 @@
+This is a testharness.js-based test.
+[FAIL] Property display value 'inline grid-lanes'
+  assert_equals: expected "inline grid-lanes" but got "inline-grid-lanes"
+[FAIL] Property display value 'grid-lanes inline'
+  assert_equals: expected "inline grid-lanes" but got "inline-grid-lanes"
+Harness: the test ran to completion.
+

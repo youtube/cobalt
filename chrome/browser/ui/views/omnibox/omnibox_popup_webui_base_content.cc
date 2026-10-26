@@ -108,6 +108,10 @@ void OmniboxPopupWebUIBaseContent::ShowUI() {
   }
   SetWebContents(contents_wrapper_->web_contents());
 
+  // The View may have changed, so this reinstates auto-resizing to prevent
+  // the omnibox from staying collapsed until a resize is observed.
+  OnViewBoundsChanged(location_bar_view_);
+
   is_shown_ = true;
 }
 
@@ -211,7 +215,7 @@ void OmniboxPopupWebUIBaseContent::LoadContent() {
   OnViewBoundsChanged(location_bar_view_);
 }
 
-void OmniboxPopupWebUIBaseContent::OnPopupHidden() {
+void OmniboxPopupWebUIBaseContent::Detach() {
   // This removes the content from being considered for rendering by the
   // compositor while the popup is closed. The content is re-inserted right
   // before the view is displayed. This has the effect of tossing out old,

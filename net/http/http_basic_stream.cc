@@ -106,16 +106,18 @@ bool HttpBasicStream::CanReuseConnection() const {
   return state_.CanReuseConnection();
 }
 
-int64_t HttpBasicStream::GetTotalReceivedBytes() const {
-  if (parser())
+base::ByteSize HttpBasicStream::GetTotalReceivedBytes() const {
+  if (parser()) {
     return parser()->received_bytes();
-  return 0;
+  }
+  return base::ByteSize(0);
 }
 
-int64_t HttpBasicStream::GetTotalSentBytes() const {
-  if (parser())
+base::ByteSize HttpBasicStream::GetTotalSentBytes() const {
+  if (parser()) {
     return parser()->sent_bytes();
-  return 0;
+  }
+  return base::ByteSize(0);
 }
 
 bool HttpBasicStream::GetLoadTimingInfo(

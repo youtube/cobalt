@@ -9,7 +9,6 @@
 #include "third_party/blink/renderer/core/layout/gap/gap_intersection.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/paint/box_border_painter.h"
-#include "third_party/blink/renderer/core/paint/box_fragment_painter.h"
 #include "third_party/blink/renderer/core/paint/paint_auto_dark_mode.h"
 #include "third_party/blink/renderer/core/paint/paint_info.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
@@ -62,6 +61,19 @@ bool ShouldMoveIntersectionStartForward(
     const Vector<GapIntersection>& intersections) {
   const bool is_rule_segment_visible = IsRuleSegmentVisible(
       track_direction, gap_index, start_index, rule_visibility, gap_geometry);
+
+  // For flex containers, `start_index` cannot land on an open overlap state
+  // i.e. the beginning of an overlap window, because that would start the
+  // segment inside the overlapping region within the gap. It can land on a
+  // close overlap state i.e. the end of an overlap window, because the overlap
+  // has ended and it's a valid starting point for a new segment.
+  if (gap_geometry.GetContainerType() == GapGeometry::ContainerType::kFlex) {
+    if (intersections[start_index].IsOverlapWindowOpen()) {
+      return true;
+    } else if (intersections[start_index].IsOverlapWindowClose()) {
+      return false;
+    }
+  }
   if (rule_break == RuleBreak::kNone) {
     // Even with no breaks at intersections, skip segments that are not visible
     // based on `rule-visibility-items`.
@@ -123,6 +135,16 @@ bool ShouldMoveIntersectionEndForward(
   DCHECK_EQ(rule_break, RuleBreak::kIntersection);
 
   if (gap_geometry.GetContainerType() == GapGeometry::ContainerType::kFlex) {
+    // For flex, `end_index` cannot land on a close overlap state i.e. the end
+    // of an overlap window, because the segment would extend across the
+    // overlapping region within the gap. It can land on an open overlap state
+    // i.e. the beginning of an overlap window, because it ends the segment
+    // before the overlap starts.
+    if (intersections[end_index].IsOverlapWindowClose()) {
+      return true;
+    } else if (intersections[end_index].IsOverlapWindowOpen()) {
+      return false;
+    }
     // For flex, intersections will never be blocked before or after by
     // other items, due to the absence of spanners. Therefore, we can
     // break at each intersection point.
@@ -229,10 +251,6 @@ void GapDecorationsPainter::Paint(GridTrackSizingDirection track_direction,
   const BoxSide box_side =
       CSSGapDecorationUtils::BoxSideFromDirection(style, track_direction);
 
-  const LayoutUnit cross_gutter_width = track_direction == kForRows
-                                            ? gap_geometry.GetInlineGapSize()
-                                            : gap_geometry.GetBlockGapSize();
-
   const bool is_main = gap_geometry.IsMainDirection(track_direction);
   const wtf_size_t gap_count = is_main ? gap_geometry.GetMainGaps().size()
                                        : gap_geometry.GetCrossGaps().size();
@@ -276,50 +294,39 @@ void GapDecorationsPainter::Paint(GridTrackSizingDirection track_direction,
         break;
       }
 
-      // The cross gutter size is used to determine the "crossing gap width" at
-      // intersection points. The crossing gap width of an intersection point is
-      // defined as:
-      // * `0` if the intersection is at the content edge of the container.
-      // * The cross gutter size if it is an intersection with another gap.
-      // https://drafts.csswg.org/css-gaps-1/#crossing-gap-width
-      //
-      // TODO(crbug.com/446616449): Recently we have resolved to always use the
-      // cross gutter size for resolving the "crossing gap width", however, it
-      // is still an open question what this means for multicol containers where
-      // intersection points don't actually intersect another gap. As a result,
-      // for now, we continue to resolve the crossing gap width as `0` for any
-      // intersection in multicol containers. Discussion about this can be found
-      // in https://github.com/w3c/csswg-drafts/issues/12784.
-      const LayoutUnit start_width =
-                  gap_geometry.IsEdgeIntersection(gap_index, start,
-                                                  intersections.size(), is_main,
-                                                  intersections)
-              ? LayoutUnit()
-              : cross_gutter_width;
-      const LayoutUnit end_width =
-                  gap_geometry.IsEdgeIntersection(gap_index, end,
-                                                  intersections.size(), is_main,
-                                                  intersections)
-              ? LayoutUnit()
-              : cross_gutter_width;
+      // The `*inset_width` is the base value against which percentage inset
+      // values are resolved. It is `0` for edge intersections (content edges
+      // of the container). For interior intersections it is typically the
+      // cross gap width at that point. However, for flex main-direction
+      // overlap intersections, the inset width is the size of the overlap
+      // window.
+      const LayoutUnit start_max_inset_width = gap_geometry.GetMaxInsetWidth(
+          track_direction, gap_index, start, is_main, intersections);
+      const LayoutUnit end_max_inset_width = gap_geometry.GetMaxInsetWidth(
+          track_direction, gap_index, end, is_main, intersections);
 
       // Inset values are used to offset the end points of gap decorations.
-      // Percentage values are resolved against the crossing gap width of the
+      // Percentage values are resolved against the `*inset_width` of the
       // intersection point.
       // https://drafts.csswg.org/css-gaps-1/#propdef-column-rule-inset
-      LayoutUnit start_inset =
-          gap_geometry.ComputeInsetStart(style, gap_index, start, intersections,
-                                         is_column_gap, is_main, start_width);
-      LayoutUnit end_inset =
-          gap_geometry.ComputeInsetEnd(style, gap_index, end, intersections,
-                                       is_column_gap, is_main, end_width);
+      LayoutUnit start_inset = gap_geometry.ComputeInsetStart(
+          style, gap_index, start, intersections, is_column_gap, is_main,
+          start_max_inset_width);
+      LayoutUnit end_inset = gap_geometry.ComputeInsetEnd(
+          style, gap_index, end, intersections, is_column_gap, is_main,
+          end_max_inset_width);
 
-      // Compute the gap decorations offset as half of the `crossing_gap_width`
-      // plus the inset.
-      // https://drafts.csswg.org/css-gaps-1/#compute-the-offset
+      // `*_cross_width` is the width of the gap at the intersection point in
+      // the cross axis, which is used to compute the gap decoration offset from
+      // the intersection point.
+      LayoutUnit start_cross_width = gap_geometry.GetCrossWidthForIntersection(
+          track_direction, gap_index, start, is_main, intersections);
+      LayoutUnit end_cross_width = gap_geometry.GetCrossWidthForIntersection(
+          track_direction, gap_index, end, is_main, intersections);
       const LayoutUnit decoration_start_offset =
-          (start_width / 2) + start_inset;
-      const LayoutUnit decoration_end_offset = (end_width / 2) + end_inset;
+          (start_cross_width / 2) + start_inset;
+      const LayoutUnit decoration_end_offset =
+          (end_cross_width / 2) + end_inset;
 
       // Compute the primary axis values using the gap offsets.
       const LayoutUnit primary_start = center - (rule_thickness / 2);

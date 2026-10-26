@@ -76,10 +76,8 @@ bool CheckNewWebAppConflictsWithExistingInstallation(
 
   // If there is an existing crafted or DIY app that has the same manifest_id,
   // do not promote installation.
-  if (provider->registrar_unsafe().IsInstallState(
-          installing_app_id,
-          {web_app::proto::InstallState::INSTALLED_WITH_OS_INTEGRATION,
-           web_app::proto::InstallState::INSTALLED_WITHOUT_OS_INTEGRATION})) {
+  if (provider->registrar_unsafe().AppMatches(
+          installing_app_id, web_app::WebAppFilter::InstalledInChrome())) {
     return true;
   }
 
@@ -139,7 +137,10 @@ WebappInstallSource WebappsClientDesktop::GetInstallSource(
 AppBannerManager* WebappsClientDesktop::GetAppBannerManager(
     content::WebContents* web_contents) {
   CHECK(web_contents);
-  return AppBannerManagerDesktop::FromWebContents(web_contents);
+  if (auto* manager = AppBannerManagerDesktop::FromWebContents(web_contents)) {
+    return manager->app_banner_manager();
+  }
+  return nullptr;
 }
 
 void WebappsClientDesktop::DoesNewWebAppConflictWithExistingInstallation(

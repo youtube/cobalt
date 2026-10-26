@@ -640,7 +640,7 @@ std::tuple<int, bool, SourcePosition> WasmCode::GetInliningPosition(
 }
 
 size_t WasmCode::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmCode, 128);
+  UPDATE_WHEN_CLASS_CHANGES(WasmCode, 112);
   size_t result = sizeof(WasmCode);
   // For meta_data_.
   result += protected_instructions_size_ + reloc_info_size_ +
@@ -1321,9 +1321,8 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     base::Vector<const uint8_t> inlining_positions,
     base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
     ExecutionTier tier, ForDebugging for_debugging,
-    base::OwnedVector<const WasmCode::EffectHandler> effect_handlers,
-    bool frame_has_feedback_slot, base::Vector<uint8_t> dst_code_bytes,
-    const JumpTablesRef& jump_tables) {
+    base::Vector<const uint8_t> effect_handlers, bool frame_has_feedback_slot,
+    base::Vector<uint8_t> dst_code_bytes, const JumpTablesRef& jump_tables) {
   base::Vector<uint8_t> reloc_info{
       desc.buffer + desc.buffer_size - desc.reloc_size,
       static_cast<size_t>(desc.reloc_size)};
@@ -1413,7 +1412,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
                                               tier,
                                               for_debugging,
                                               signature_hash,
-                                              std::move(effect_handlers),
+                                              effect_handlers,
                                               frame_has_feedback_slot}};
 
   code->MaybePrint();
@@ -1632,8 +1631,7 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
     base::Vector<const uint8_t> source_position_table,
     base::Vector<const uint8_t> inlining_positions,
     base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
-    ExecutionTier tier,
-    base::OwnedVector<const WasmCode::EffectHandler> effect_handlers) {
+    ExecutionTier tier, base::Vector<const uint8_t> effect_handlers) {
   uint64_t signature_hash =
       module_->signature_hash(GetTypeCanonicalizer(), index);
 
@@ -1658,7 +1656,7 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
                                                 tier,
                                                 kNotForDebugging,
                                                 signature_hash,
-                                                std::move(effect_handlers)}};
+                                                effect_handlers}};
 }
 
 std::pair<std::vector<WasmCode*>, std::vector<WellKnownImport>>
@@ -2606,7 +2604,8 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
             code_space = TryAllocate(code_vmem_size);
             return code_space.IsReserved();
           },
-          internal::AllocationType::kOld);
+          internal::AllocationType::kOld,
+          GarbageCollectionReason::kAllocationFailure);
     }
     if (!code_space.IsReserved()) {
       auto oom_detail = base::FormattedString{}
@@ -2784,7 +2783,7 @@ std::vector<UnpublishedWasmCode> NativeModule::AddCompiledCode(
             result.inlining_positions.as_vector(),
             result.deopt_data.as_vector(), GetCodeKind(result),
             result.result_tier, result.for_debugging,
-            std::move(result.effect_handlers), result.frame_has_feedback_slot,
+            result.effect_handlers.as_vector(), result.frame_has_feedback_slot,
             this_code_space, jump_tables),
         std::move(result.assumptions));
   }
@@ -2919,10 +2918,6 @@ NamesProvider* NativeModule::GetNamesProvider() {
 size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(NativeModule, 552);
   size_t result = sizeof(NativeModule);
-  // The `WasmModule::signature_storage` is protected by the
-  // `NativeModule::allocation_mutex_`.
-  // Store it in an optional to release the mutex early, see below.
-  std::optional<base::RecursiveMutexGuard> lock(&allocation_mutex_);
   result += module_->EstimateCurrentMemoryConsumption();
 
   std::shared_ptr<base::OwnedVector<const uint8_t>> wire_bytes =
@@ -2947,20 +2942,24 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   // For fast api call targets.
   result += module_->num_imported_functions *
             (sizeof(std::atomic<Address>) + sizeof(CFunctionInfo*));
-  result += ContentSize(owned_code_);
-  for (auto& [address, unique_code_ptr] : owned_code_) {
-    result += unique_code_ptr->EstimateCurrentMemoryConsumption();
-  }
-  result += ContentSize(new_owned_code_);
-  for (std::unique_ptr<WasmCode>& code : new_owned_code_) {
-    result += code->EstimateCurrentMemoryConsumption();
-  }
-  // For {code_table_}.
-  result += module_->num_declared_functions * sizeof(void*);
-  result += ContentSize(code_space_data_);
-  DebugInfo* debug_info = debug_info_.get();
-  if (names_provider_) {
-    result += names_provider_->EstimateCurrentMemoryConsumption();
+  DebugInfo* debug_info;
+  {
+    base::RecursiveMutexGuard lock(&allocation_mutex_);
+    result += ContentSize(owned_code_);
+    for (auto& [address, unique_code_ptr] : owned_code_) {
+      result += unique_code_ptr->EstimateCurrentMemoryConsumption();
+    }
+    result += ContentSize(new_owned_code_);
+    for (std::unique_ptr<WasmCode>& code : new_owned_code_) {
+      result += code->EstimateCurrentMemoryConsumption();
+    }
+    // For {code_table_}.
+    result += module_->num_declared_functions * sizeof(void*);
+    result += ContentSize(code_space_data_);
+    debug_info = debug_info_.get();
+    if (names_provider_) {
+      result += names_provider_->EstimateCurrentMemoryConsumption();
+    }
   }
 
   result += counter_updates_.EstimateCurrentMemoryConsumption() -
@@ -2976,7 +2975,6 @@ size_t NativeModule::EstimateCurrentMemoryConsumption() const {
   // `debug_info_->EstimateCurrentMemoryConsumption`, as we would run into a
   // lock-order-inversion when acquiring the `mutex_`. The reverse order happens
   // when calling `WasmScript::SetBreakPointForFunction`.
-  lock.reset();
   if (debug_info) {
     result += debug_info->EstimateCurrentMemoryConsumption();
   }

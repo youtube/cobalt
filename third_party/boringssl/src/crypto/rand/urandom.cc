@@ -25,17 +25,20 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#if defined(STARBOARD)
+// Starboard's musl has no Linux UAPI headers; GRND_NONBLOCK is here.
+#include <sys/random.h>
+#else
+#include <linux/random.h>
+#endif
 #include <stdio.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
 #include "../internal.h"
-#include "getrandom_fillin.h"
 
 
 using namespace bssl;
-
-#if defined(USE_NR_getrandom)
 
 #if defined(OPENSSL_MSAN)
 extern "C" {
@@ -60,8 +63,6 @@ static ssize_t boringssl_getrandom(void *buf, size_t buf_len, unsigned flags) {
   return ret;
 }
 
-#endif  // USE_NR_getrandom
-
 // kHaveGetrandom in |urandom_fd| signals that |getrandom| or |getentropy| is
 // available and should be used instead.
 static const int kHaveGetrandom = -3;
@@ -75,7 +76,6 @@ static CRYPTO_once_t rand_once = CRYPTO_ONCE_INIT;
 // requested. This is the only function that modifies |urandom_fd|, which may be
 // read safely after calling the once.
 static void init_once() {
-#if defined(USE_NR_getrandom)
   int have_getrandom;
   uint8_t dummy;
   ssize_t getrandom_ret =
@@ -98,7 +98,6 @@ static void init_once() {
     urandom_fd = kHaveGetrandom;
     return;
   }
-#endif  // USE_NR_getrandom
 
   // FIPS builds must support getrandom.
 #if defined(BORINGSSL_FIPS)
@@ -136,12 +135,7 @@ void bssl::CRYPTO_sysrand(uint8_t *out, size_t len) {
     ssize_t r;
 
     if (urandom_fd == kHaveGetrandom) {
-#if defined(USE_NR_getrandom)
       r = boringssl_getrandom(out, len, 0);
-#else  // USE_NR_getrandom
-      fprintf(stderr, "urandom fd corrupt.\n");
-      abort();
-#endif
     } else {
       do {
         r = read(urandom_fd, out, len);

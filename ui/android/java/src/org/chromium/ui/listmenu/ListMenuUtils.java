@@ -11,12 +11,16 @@ import static org.chromium.ui.listmenu.ListMenuItemProperties.IS_HIGHLIGHTED;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.KEY_LISTENER;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE_ID;
+import static org.chromium.ui.listmenu.ListMenuSubmenuItemProperties.IS_EXPANDED;
 import static org.chromium.ui.listmenu.ListMenuSubmenuItemProperties.SUBMENU_ITEMS;
 
 import android.content.Context;
 import android.graphics.Rect;
+import android.graphics.drawable.GradientDrawable;
 import android.view.View;
 import android.widget.ListView;
+
+import androidx.annotation.AttrRes;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -32,6 +36,7 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModel.WritableBooleanPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableIntPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
+import org.chromium.ui.util.AttrUtils;
 
 import java.util.Collection;
 import java.util.List;
@@ -144,6 +149,22 @@ public class ListMenuUtils {
     }
 
     /**
+     * Clips the content view to a rounded outline defined by a theme attribute.
+     *
+     * @param contentView The view to be clipped.
+     * @param cornerRadiusAttr The attribute ID (e.g., R.attr.popupBgCornerRadius) defining the
+     *     radius.
+     */
+    public static void clipContentViewOutline(View contentView, @AttrRes int cornerRadiusAttr) {
+        GradientDrawable outlineDrawable = new GradientDrawable();
+        outlineDrawable.setShape(GradientDrawable.RECTANGLE);
+        outlineDrawable.setCornerRadius(
+                AttrUtils.getDimensionPixelSize(contentView.getContext(), cornerRadiusAttr));
+        contentView.setBackground(outlineDrawable);
+        contentView.setClipToOutline(true);
+    }
+
+    /**
      * Creates an instance of {@link HierarchicalMenuController} for {@link ListMenu}.
      *
      * @param context The {@link Context} for the controller to use.
@@ -159,6 +180,20 @@ public class ListMenuUtils {
                             keyProvider,
                             clickedItem.model.get(ListMenuItemProperties.TITLE),
                             backRunnable);
+
+                    if (clickedItem.model.containsKey(ListMenuItemProperties.TEXT_APPEARANCE_ID)) {
+                        builder.with(
+                                ListMenuItemProperties.TEXT_APPEARANCE_ID,
+                                clickedItem.model.get(ListMenuItemProperties.TEXT_APPEARANCE_ID));
+                    }
+                    if (clickedItem.model.containsKey(
+                            ListMenuItemProperties.ICON_TINT_COLOR_STATE_LIST_ID)) {
+                        builder.with(
+                                ListMenuItemProperties.ICON_TINT_COLOR_STATE_LIST_ID,
+                                clickedItem.model.get(
+                                        ListMenuItemProperties.ICON_TINT_COLOR_STATE_LIST_ID));
+                    }
+
                     return new ListItem(ListItemType.SUBMENU_HEADER, builder.build());
                 };
         return new HierarchicalMenuController(context, keyProvider, headerFactory);
@@ -203,6 +238,11 @@ public class ListMenuUtils {
         @Override
         public WritableBooleanPropertyKey getIsHighlightedKey() {
             return IS_HIGHLIGHTED;
+        }
+
+        @Override
+        public WritableBooleanPropertyKey getIsExpandedKey() {
+            return IS_EXPANDED;
         }
     }
 }

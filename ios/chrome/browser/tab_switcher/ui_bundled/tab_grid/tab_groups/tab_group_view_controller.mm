@@ -13,6 +13,7 @@
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
 #import "ios/chrome/browser/menu/ui_bundled/action_factory.h"
+#import "ios/chrome/browser/saved_tab_groups/ui/face_pile_color_updater.h"
 #import "ios/chrome/browser/saved_tab_groups/ui/face_pile_providing.h"
 #import "ios/chrome/browser/share_kit/model/sharing_state.h"
 #import "ios/chrome/browser/shared/model/web_state_list/tab_group.h"
@@ -55,7 +56,7 @@ constexpr CGFloat kBottomToolbarMargin = 8;
 constexpr CGFloat kButtonSpacing = 10;
 constexpr CGFloat kCloseImageSize = 12.5;
 constexpr CGFloat kMenuImageSize = 16;
-constexpr CGFloat kButtonAlpha = 0.6;
+constexpr CGFloat kButtonAlpha = 0.2;
 
 // Animation.
 constexpr CGFloat kTranslationCompletion = 0;
@@ -70,17 +71,18 @@ constexpr CGFloat kContainerMargin = 12;
 constexpr CGFloat kContainerMultiplier = 0.8;
 constexpr CGFloat kContainerCornerRadius = 24;
 constexpr CGFloat kContainerBackgroundAlpha = 0.8;
+constexpr CGFloat kContainerBackgroundAlphaWithGradient = 0.6;
 
 // Returns a button to be added to the top toolbar.
 UIButton* TopToolbarButton(NSString* symbol_name,
                            UIAction* action,
-                           CGFloat image_size) {
+                           CGFloat image_size,
+                           UIColor* background_color) {
   UIBackgroundConfiguration* background_configuration =
       [UIBackgroundConfiguration clearConfiguration];
   background_configuration.visualEffect = [UIBlurEffect
       effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialDark];
-  background_configuration.backgroundColor =
-      TabGroupViewButtonBackgroundColor();
+  background_configuration.backgroundColor = background_color;
 
   UIButtonConfiguration* configuration =
       [UIButtonConfiguration plainButtonConfiguration];
@@ -158,7 +160,7 @@ UIButton* TopToolbarButton(NSString* symbol_name,
   // The button containing the facepile.
   UIButton* _facePileContainer;
   // The face pile view that displays the share button or the face pile.
-  UIView* _facePileView;
+  UIView<FacePileColorUpdater>* _facePileView;
   // Constraints for the container on narrow vs large windows.
   NSArray<NSLayoutConstraint*>* _narrowWidthConstraints;
   NSArray<NSLayoutConstraint*>* _largeWidthConstraints;
@@ -172,6 +174,8 @@ UIButton* TopToolbarButton(NSString* symbol_name,
   id<FacePileProviding> _facePileProvider;
   // The color palette for the tab group view.
   TabGroupColorPalette* _tabGroupColorPalette;
+  // The gradient for the container background.
+  CAGradientLayer* _gradientBackground;
 }
 
 #pragma mark - Public
@@ -314,11 +318,9 @@ UIButton* TopToolbarButton(NSString* symbol_name,
   _container.translatesAutoresizingMaskIntoConstraints = NO;
   [self.view addSubview:_container];
 
-  _containerBackground = [[UIView alloc] init];
-  _containerBackground.translatesAutoresizingMaskIntoConstraints = NO;
-  _containerBackground.backgroundColor =
-      [UIColor.blackColor colorWithAlphaComponent:kContainerBackgroundAlpha];
+  _containerBackground = [self configuredBackground];
   [_container addSubview:_containerBackground];
+
   AddSameConstraints(_container, _containerBackground);
 
   _container.layer.cornerRadius = kContainerCornerRadius;
@@ -411,6 +413,13 @@ UIButton* TopToolbarButton(NSString* symbol_name,
 - (void)viewSafeAreaInsetsDidChange {
   [super viewSafeAreaInsetsDidChange];
   [self updateGridInsets];
+}
+
+- (void)viewDidLayoutSubviews {
+  [super viewDidLayoutSubviews];
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    _gradientBackground.frame = _containerBackground.bounds;
+  }
 }
 
 #pragma mark - UINavigationBarDelegate
@@ -526,16 +535,21 @@ UIButton* TopToolbarButton(NSString* symbol_name,
 
 // Returns the menu button, configured.
 - (UIButton*)configuredMenuButton {
-  UIButton* button = TopToolbarButton(kMenuSymbol, nil, kMenuImageSize);
+  UIColor* backgroundColor;
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    backgroundColor = [_tabGroupColorPalette.commonColor
+        colorWithAlphaComponent:kButtonAlpha];
+  } else {
+    backgroundColor = TabGroupViewButtonBackgroundColor();
+  }
+
+  UIButton* button =
+      TopToolbarButton(kMenuSymbol, nil, kMenuImageSize, backgroundColor);
   button.showsMenuAsPrimaryAction = YES;
   button.menu = [self configuredTabGroupMenu];
   button.accessibilityIdentifier = kTabGroupOverflowMenuButtonIdentifier;
   button.accessibilityLabel = l10n_util::GetNSString(
       IDS_IOS_TAB_GROUP_THREE_DOT_MENU_BUTTON_ACCESSIBILITY_LABEL);
-  if (IsTabGroupColorOnSurfaceEnabled()) {
-    button.backgroundColor = [_tabGroupColorPalette.commonColor
-        colorWithAlphaComponent:kButtonAlpha];
-  }
   return button;
 }
 
@@ -551,10 +565,7 @@ UIButton* TopToolbarButton(NSString* symbol_name,
                 primaryAction:[UIAction actionWithHandler:^(UIAction* action) {
                   [weakSelf didTapFacePileButton];
                 }]];
-  if (IsTabGroupColorOnSurfaceEnabled()) {
-    container.backgroundColor = [_tabGroupColorPalette.commonColor
-        colorWithAlphaComponent:kButtonAlpha];
-  }
+
   container.accessibilityIdentifier = kTabGroupFacePileButtonIdentifier;
   [self updateFacePileContainer:container withFacePile:_facePileView];
   return container;
@@ -579,13 +590,17 @@ UIButton* TopToolbarButton(NSString* symbol_name,
     [weakSelf didTapCloseButton];
   }];
 
-  _closeButton = TopToolbarButton(kXMarkSymbol, closeAction, kCloseImageSize);
+  UIColor* backgroundColor;
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    backgroundColor = [_tabGroupColorPalette.commonColor
+        colorWithAlphaComponent:kButtonAlpha];
+  } else {
+    backgroundColor = TabGroupViewButtonBackgroundColor();
+  }
+  _closeButton = TopToolbarButton(kXMarkSymbol, closeAction, kCloseImageSize,
+                                  backgroundColor);
   _closeButton.accessibilityLabel = l10n_util::GetNSString(IDS_CLOSE);
   _closeButton.accessibilityIdentifier = kTabGroupCloseButtonIdentifier;
-  if (IsTabGroupColorOnSurfaceEnabled()) {
-    _closeButton.backgroundColor = [_tabGroupColorPalette.commonColor
-        colorWithAlphaComponent:kButtonAlpha];
-  }
 
   [stackView addArrangedSubview:_closeButton];
 
@@ -742,6 +757,32 @@ UIButton* TopToolbarButton(NSString* symbol_name,
   ]];
 
   [self updateGridInsets];
+}
+
+// Returns the background, with a gradient if TabGroupColorOnSurface is enabled.
+- (UIView*)configuredBackground {
+  UIView* background = [[UIView alloc] init];
+  background.translatesAutoresizingMaskIntoConstraints = NO;
+
+  if (!IsTabGroupColorOnSurfaceEnabled()) {
+    background.backgroundColor =
+        [UIColor.blackColor colorWithAlphaComponent:kContainerBackgroundAlpha];
+    return background;
+  }
+
+  UIView* gradientBackgroundContainer = [[UIView alloc] init];
+  gradientBackgroundContainer.translatesAutoresizingMaskIntoConstraints = NO;
+  _gradientBackground = [CAGradientLayer layer];
+  _gradientBackground.colors = _tabGroupColorPalette.backgroundGradientColors;
+  _gradientBackground.locations = @[ @0.0, @0.15, @1.0 ];
+  [gradientBackgroundContainer.layer addSublayer:_gradientBackground];
+
+  background.backgroundColor = [UIColor.blackColor
+      colorWithAlphaComponent:kContainerBackgroundAlphaWithGradient];
+  [gradientBackgroundContainer addSubview:background];
+  AddSameConstraints(gradientBackgroundContainer, background);
+
+  return gradientBackgroundContainer;
 }
 
 // Displays the menu to rename and change the color of the currently displayed
@@ -948,6 +989,12 @@ UIButton* TopToolbarButton(NSString* symbol_name,
   }
   facePile.userInteractionEnabled = NO;
   facePile.translatesAutoresizingMaskIntoConstraints = NO;
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    [_facePileView setShareButtonBackgroundColor:
+                       [_tabGroupColorPalette.commonColor
+                           colorWithAlphaComponent:kButtonAlpha]];
+  }
+
   [facePileContainer addSubview:facePile];
   AddSameConstraints(facePile, facePileContainer);
 }
@@ -1011,12 +1058,23 @@ UIButton* TopToolbarButton(NSString* symbol_name,
 
 // Updates the UI elements' colors.
 - (void)updateGroupColorSurfaces {
-  _menuButton.backgroundColor =
+  UIColor* buttonColor =
       [_tabGroupColorPalette.commonColor colorWithAlphaComponent:kButtonAlpha];
-  _facePileContainer.backgroundColor =
-      [_tabGroupColorPalette.commonColor colorWithAlphaComponent:kButtonAlpha];
-  _closeButton.backgroundColor =
-      [_tabGroupColorPalette.commonColor colorWithAlphaComponent:kButtonAlpha];
+
+  UIButtonConfiguration* menuButtonConfig = _menuButton.configuration;
+  menuButtonConfig.background.backgroundColor = buttonColor;
+  _menuButton.configuration = menuButtonConfig;
+
+  UIButtonConfiguration* closeButtonConfig = _closeButton.configuration;
+  closeButtonConfig.background.backgroundColor = buttonColor;
+  _closeButton.configuration = closeButtonConfig;
+
+  _gradientBackground.colors = _tabGroupColorPalette.backgroundGradientColors;
+
+  [_facePileView
+      setShareButtonBackgroundColor:[_tabGroupColorPalette.commonColor
+                                        colorWithAlphaComponent:kButtonAlpha]];
+
   [_bottomToolbar
       updateNewTabButtonBackgroundColor:_tabGroupColorPalette.commonColor];
   _coloredDotView.backgroundColor = _tabGroupColorPalette.commonColor;

@@ -262,6 +262,7 @@ class CORE_EXPORT CSSSelector {
     kPseudoEnabled,
     kPseudoEnd,
     kPseudoFileSelectorButton,
+    kPseudoFiltered,
     kPseudoFirstChild,
     kPseudoFirstLetter,
     kPseudoFirstLine,
@@ -326,6 +327,7 @@ class CORE_EXPORT CSSSelector {
     kPseudoStart,
     kPseudoState,
     kPseudoTarget,
+    kPseudoTextField,
     kPseudoToolFormActive,
     kPseudoToolSubmitActive,
     kPseudoUnknown,
@@ -923,7 +925,7 @@ inline void CSSSelector::SetValue(const AtomicString& value,
     return;
   }
   data_.rare_data_->matching_value_ =
-      match_lower_case ? value.LowerASCII() : value;
+      match_lower_case ? value.ToAsciiLower() : value;
   data_.rare_data_->serializing_value_ = value;
 }
 

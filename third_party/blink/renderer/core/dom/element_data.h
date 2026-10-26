@@ -65,10 +65,10 @@ class ElementData : public GarbageCollected<ElementData> {
     class_names_.Set(class_names);
   }
   void SetClassFoldingCase(const AtomicString& class_names) const {
-    if (class_names.IsLowerASCII()) {
+    if (class_names.ContainsNoAsciiUpper()) {
       return SetClass(class_names);
     }
-    return SetClass(class_names.LowerASCII());
+    return SetClass(class_names.ToAsciiLower());
   }
   const SpaceSplitString& ClassNames() const { return class_names_; }
 

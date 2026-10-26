@@ -23,10 +23,6 @@
 #include "chrome/browser/signin/signin_promo.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/ui/webui/ash/settings/app_management/app_management_uma.h"
-#endif
-
 namespace apps {
 enum class LaunchSource;
 }
@@ -148,7 +144,6 @@ void ShowPaymentMethods(BrowserWindowInterface* bwi);
 void ShowContactInfo(BrowserWindowInterface* bwi);
 void ShowIdentityDocs(BrowserWindowInterface* bwi);
 void ShowTravel(BrowserWindowInterface* bwi);
-void ShowAutofill(BrowserWindowInterface* bwi);
 void ShowAllSitesSettingsFilteredByRwsOwner(
     Browser* browser,
     const std::string& rws_owner_host_name);
@@ -159,34 +154,6 @@ void ShowSharedTabGroupActivity(Profile* profile);
 // Shows the enterprise management info page in a browser tab.
 void ShowEnterpriseManagementPageInTabbedBrowser(Browser* browser);
 
-#if BUILDFLAG(IS_CHROMEOS)
-void ShowAppManagementPage(Profile* profile,
-                           const std::string& app_id,
-                           ash::settings::AppManagementEntryPoint entry_point);
-
-void ShowGraduationApp(Profile* profile);
-
-// Constructs an OS settings GURL for the specified `sub_page`.
-GURL GetOSSettingsUrl(std::string_view sub_page);
-
-void ShowPrintManagementApp(Profile* profile);
-
-void ShowConnectivityDiagnosticsApp(Profile* profile);
-
-void ShowScanningApp(Profile* profile);
-
-void ShowDiagnosticsApp(Profile* profile);
-
-void ShowFirmwareUpdatesApp(Profile* profile);
-
-void ShowShortcutCustomizationApp(Profile* profile);
-// The `action` and `category` will be appended the app URL in the following
-// format: url?action={action}&category={category}.
-void ShowShortcutCustomizationApp(Profile* profile,
-                                  const std::string& action,
-                                  const std::string& category);
-#endif
-
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 // Show chrome://app-settings/<app-id> page.
 void ShowWebAppSettings(Browser* browser,
@@ -196,8 +163,6 @@ void ShowWebAppSettings(Profile* profile,
                         const std::string& app_id,
                         web_app::AppSettingsPageEntryPoint entry_point);
 #endif
-
-void ShowAllComparisonTables(Browser* browser);
 
 }  // namespace chrome
 

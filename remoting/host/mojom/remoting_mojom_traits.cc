@@ -8,6 +8,7 @@
 
 #include "base/compiler_specific.h"
 #include "remoting/base/source_location.h"
+#include "remoting/host/mojom/desktop_session.mojom-shared.h"
 
 namespace mojo {
 
@@ -376,6 +377,16 @@ bool mojo::StructTraits<remoting::mojom::MouseEventDataView,
     out_event->set_delta_y(data_view.delta_y().value());
   }
 
+  remoting::mojom::FractionalCoordinateDataView fractional_coordinate_data_view;
+  data_view.GetFractionalCoordinateDataView(&fractional_coordinate_data_view);
+
+  if (!fractional_coordinate_data_view.is_null()) {
+    mojo::StructTraits<remoting::mojom::FractionalCoordinateDataView,
+                       ::remoting::protocol::FractionalCoordinate>::
+        Read(fractional_coordinate_data_view,
+             out_event->mutable_fractional_coordinate());
+  }
+
   return true;
 }
 
@@ -479,7 +490,10 @@ bool mojo::StructTraits<remoting::mojom::VideoTrackLayoutDataView,
                         ::remoting::protocol::VideoTrackLayout>::
     Read(remoting::mojom::VideoTrackLayoutDataView data_view,
          ::remoting::protocol::VideoTrackLayout* out_track) {
-  out_track->set_screen_id(data_view.screen_id());
+  std::optional<int64_t> screen_id = data_view.screen_id();
+  if (screen_id.has_value()) {
+    out_track->set_screen_id(screen_id.value());
+  }
 
   std::string media_stream_id;
   if (!data_view.ReadMediaStreamId(&media_stream_id)) {
@@ -534,6 +548,14 @@ bool mojo::StructTraits<remoting::mojom::VideoLayoutDataView,
       data_view.supports_full_desktop_capture());
 
   out_layout->set_primary_screen_id(data_view.primary_screen_id());
+
+  std::optional<::remoting::protocol::VideoLayout::PixelType> pixel_type;
+  if (!data_view.ReadPixelType(&pixel_type)) {
+    return false;
+  }
+  if (pixel_type.has_value()) {
+    out_layout->set_pixel_type(pixel_type.value());
+  }
 
   return true;
 }

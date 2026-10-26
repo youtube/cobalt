@@ -76,8 +76,8 @@ void QuotedPrintableDecode(base::span<const char> data, Vector<uint8_t>& out) {
     if (upper_character == '\r' && lower_character == '\n')
       continue;
 
-    if (!IsASCIIHexDigit(upper_character) ||
-        !IsASCIIHexDigit(lower_character)) {
+    if (!IsAsciiHexDigit(upper_character) ||
+        !IsAsciiHexDigit(lower_character)) {
       // Invalid sequence, = followed by non hex digits, just insert the
       // characters as is.
       out.push_back('=');
@@ -86,7 +86,7 @@ void QuotedPrintableDecode(base::span<const char> data, Vector<uint8_t>& out) {
       continue;
     }
     out.push_back(
-        static_cast<char>(ToASCIIHexValue(upper_character, lower_character)));
+        static_cast<char>(ToAsciiHexValue(upper_character, lower_character)));
   }
 }
 
@@ -156,7 +156,7 @@ static KeyValueMap RetrieveKeyValuePairs(SharedBufferChunkReader* buffer) {
     // RFC822 continuation: A line that starts with LWSP is a continuation of
     // the prior line.
     if ((line[0] == '\t') || (line[0] == ' ')) {
-      value.Append(line.Substring(1));
+      value.Append(line.subview(1));
       continue;
     }
     // New key/value, store the previous one if any.
@@ -174,9 +174,8 @@ static KeyValueMap RetrieveKeyValuePairs(SharedBufferChunkReader* buffer) {
       // This is not a key value pair, ignore.
       continue;
     }
-    key =
-        line.Substring(0, semi_colon_index).DeprecatedLower().StripWhiteSpace();
-    value.Append(line.Substring(semi_colon_index + 1));
+    key = line.substr(0, semi_colon_index).DeprecatedLower().StripWhiteSpace();
+    value.Append(line.subview(semi_colon_index + 1));
   }
   // Store the last property if there is one.
   if (!key.empty())
@@ -240,7 +239,7 @@ MIMEHeader* MIMEHeader::ParseHeader(SharedBufferChunkReader* buffer) {
 
 MIMEHeader::Encoding MIMEHeader::ParseContentTransferEncoding(
     const String& text) {
-  String encoding = text.StripWhiteSpace().LowerASCII();
+  String encoding = text.StripWhiteSpace().ToAsciiLower();
   if (encoding == "base64")
     return Encoding::kBase64;
   if (encoding == "quoted-printable")
@@ -418,12 +417,12 @@ ArchiveResource* MHTMLParser::ParseNextPart(
       }
       // Note that we use line.utf8() and not line.ascii() as ascii turns
       // special characters (such as tab, line-feed...) into '?'.
-      content.AppendSpan(base::span<const char>(line.Utf8()));
+      content.append_range(line.Utf8());
       if (content_transfer_encoding == MIMEHeader::Encoding::kQuotedPrintable) {
         // The line reader removes the \r\n, but we need them for the content in
         // this case as the QuotedPrintable decoder expects CR-LF terminated
         // lines.
-        content.AppendSpan(base::span_from_cstring("\r\n"));
+        content.append_range(base::span_from_cstring("\r\n"));
       }
     }
   }
@@ -446,7 +445,7 @@ ArchiveResource* MHTMLParser::ParseNextPart(
     case MIMEHeader::Encoding::kEightBit:
     case MIMEHeader::Encoding::kSevenBit:
     case MIMEHeader::Encoding::kBinary:
-      data.AppendVector(content);
+      data.append_range(content);
       break;
     default:
       DVLOG(1) << "Invalid encoding for MHTML part.";
@@ -458,7 +457,7 @@ ArchiveResource* MHTMLParser::ParseNextPart(
   // if it is.  The specs mentions 5 ways to resolve a URL:
   // http://tools.ietf.org/html/rfc2557#section-5
   // IE and Firefox (UNMht) seem to generate only absolute URLs.
-  KURL location = KURL(NullURL(), mime_header.ContentLocation());
+  KURL location = KURL(NullUrl(), mime_header.ContentLocation());
   return MakeGarbageCollected<ArchiveResource>(
       content_buffer, location, mime_header.ContentID(),
       AtomicString(mime_header.ContentType()),
@@ -478,13 +477,14 @@ KURL MHTMLParser::ConvertContentIDToURI(const String& content_id) {
   if (content_id.length() <= 2)
     return KURL();
 
-  if (!content_id.StartsWith('<') || !content_id.EndsWith('>'))
+  if (!content_id.starts_with('<') || !content_id.ends_with('>')) {
     return KURL();
+  }
 
   StringBuilder uri_builder;
   uri_builder.Append("cid:");
   uri_builder.Append(content_id, 1, content_id.length() - 2);
-  return KURL(NullURL(), uri_builder.ToString());
+  return KURL(NullUrl(), uri_builder.ToString());
 }
 
 }  // namespace blink

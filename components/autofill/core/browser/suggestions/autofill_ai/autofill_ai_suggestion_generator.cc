@@ -17,6 +17,7 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/span.h"
 #include "base/containers/to_vector.h"
+#include "base/feature_list.h"
 #include "base/memory/raw_ref.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
@@ -162,12 +163,16 @@ std::vector<Suggestion> GetFooterSuggestions(
   suggestions.reserve(3);
 
   suggestions.emplace_back(SuggestionType::kSeparator);
-  if (trigger_field.is_autofilled()) {
+  // TODO(crbug.com/393114125): Change to use `AutofillField::field_modifiers_`
+  // after launching `kAutofillFixIsAutofilled`.
+  if (trigger_field.is_autofilled_according_to_renderer()) {
     suggestions.emplace_back(CreateUndoSuggestion());
   }
   if (base::FeatureList::IsEnabled(
           autofill::features::
-              kSuggestionManageButtonSplitForEnhancedAutofill)) {
+              kSuggestionManageButtonSplitForEnhancedAutofill) &&
+      base::FeatureList::IsEnabled(
+          autofill::features::kYourSavedInfoSettingsPage)) {
     CHECK(suggestions_contain_travel_entity ||
           suggestions_contain_identity_docs_entity);
 
@@ -312,6 +317,7 @@ std::vector<const EntityInstance*> DedupedEntitiesForSuggestions(
       case EntityInstance::RecordType::kServerWallet:
         return true;
       case EntityInstance::RecordType::kLocal:
+      case EntityInstance::RecordType::kAccessibilityAnnotator:
         return false;
     }
     NOTREACHED();
@@ -362,8 +368,13 @@ Suggestion::Icon GetSuggestionIcon(EntityType trigger_entity_type) {
       return Suggestion::Icon::kFlight;
     case EntityTypeName::kNationalIdCard:
       return Suggestion::Icon::kIdCard;
+    case EntityTypeName::kOrder:
+      return Suggestion::Icon::kNoIcon;
     case EntityTypeName::kPassport:
-      return Suggestion::Icon::kIdCard;
+      return base::FeatureList::IsEnabled(
+                 features::kAutofillAiWalletPrivatePasses)
+                 ? Suggestion::Icon::kPassport
+                 : Suggestion::Icon::kIdCard;
     case EntityTypeName::kKnownTravelerNumber:
       return Suggestion::Icon::kPersonCheck;
     case EntityTypeName::kRedressNumber:
@@ -383,6 +394,7 @@ bool IsTravelType(EntityType trigger_entity_type) {
       return true;
     case EntityTypeName::kDriversLicense:
     case EntityTypeName::kNationalIdCard:
+    case EntityTypeName::kOrder:
     case EntityTypeName::kPassport:
       return false;
   }
@@ -397,6 +409,7 @@ bool IsIdentityDocsType(EntityType trigger_entity_type) {
       return true;
     case EntityTypeName::kFlightReservation:
     case EntityTypeName::kKnownTravelerNumber:
+    case EntityTypeName::kOrder:
     case EntityTypeName::kRedressNumber:
     case EntityTypeName::kVehicle:
       return false;

@@ -49,12 +49,11 @@ import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.settings.ChromeManagedPreferenceDelegate;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.settings.search.ChromeBaseSearchIndexProvider;
+import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherImpl;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
 import org.chromium.chrome.browser.signin.services.SigninManager;
-import org.chromium.chrome.browser.signin.services.UnifiedConsentServiceBridge;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
-import org.chromium.chrome.browser.sync.TrustedVaultClient;
 import org.chromium.chrome.browser.sync.ui.PassphraseCreationDialogFragment;
 import org.chromium.chrome.browser.sync.ui.PassphraseDialogFragment;
 import org.chromium.chrome.browser.sync.ui.PassphraseTypeDialogFragment;
@@ -82,6 +81,7 @@ import org.chromium.components.sync.SyncFirstSetupCompleteSource;
 import org.chromium.components.sync.SyncService;
 import org.chromium.components.sync.UserActionableError;
 import org.chromium.components.sync.UserSelectableType;
+import org.chromium.components.trusted_vault.TrustedVaultClient;
 import org.chromium.components.trusted_vault.TrustedVaultUserActionTriggerForUMA;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
@@ -109,7 +109,8 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
                 SyncService.SyncStateChangedListener,
                 IdentityManager.Observer,
                 SyncErrorCardPreference.SyncErrorCardPreferenceListener,
-                IdentityErrorCardPreference.Listener {
+                IdentityErrorCardPreference.Listener,
+                BatchUploadCardPreference.Listener {
     @VisibleForTesting public static final String FRAGMENT_ENTER_PASSPHRASE = "enter_password";
     @VisibleForTesting public static final String FRAGMENT_CUSTOM_PASSPHRASE = "custom_password";
     @VisibleForTesting public static final String FRAGMENT_PASSPHRASE_TYPE = "password_type";
@@ -195,9 +196,6 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
     public static final String PREF_ACCOUNT_ANDROID_DEVICE_ACCOUNTS =
             "account_android_device_accounts";
 
-    @VisibleForTesting
-    public static final String PREF_URL_KEYED_ANONYMIZED_DATA = "url_keyed_anonymized_data";
-
     @VisibleForTesting public static final String PREF_SIGN_OUT = "sign_out_button";
 
     private static final int REQUEST_CODE_TRUSTED_VAULT_KEY_RETRIEVAL = 1;
@@ -228,8 +226,6 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
     private Preference mGoogleActivityControls;
     private Preference mSyncEncryption;
     private @Nullable SignoutButtonPreference mSignOutPreference;
-
-    private ChromeSwitchPreference mUrlKeyedAnonymizedData;
 
     private SyncService.SyncSetupInProgressHandle mSyncSetupInProgressHandle;
 
@@ -431,7 +427,8 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
                 getActivity(),
                 profile,
                 ((ModalDialogManagerHolder) getActivity()).getModalDialogManager(),
-                assumeNonNull(mSnackbarManagerSupplier));
+                assumeNonNull(mSnackbarManagerSupplier),
+                this);
     }
 
     private void setupAccountDataTypePreferences() {
@@ -463,9 +460,7 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
         mSyncTypeSwitchPreferencesMap.put(UserSelectableType.PASSWORDS, passwordsToggle);
         ChromeSwitchPreference paymentsToggle =
                 (ChromeSwitchPreference) findPreference(PREF_ACCOUNT_SECTION_PAYMENTS_TOGGLE);
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_ENABLE_LOYALTY_CARDS_FILLING)) {
-            paymentsToggle.setTitle(R.string.account_section_payments_and_info_toggle);
-        }
+        paymentsToggle.setTitle(R.string.account_section_payments_and_info_toggle);
         mSyncTypeSwitchPreferencesMap.put(UserSelectableType.PAYMENTS, paymentsToggle);
         mSyncTypeSwitchPreferencesMap.put(
                 UserSelectableType.PREFERENCES,
@@ -517,7 +512,8 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
                     requireContext(),
                     profile,
                     getActivity().getSupportFragmentManager(),
-                    ((ModalDialogManagerHolder) getActivity()).getModalDialogManager());
+                    ((ModalDialogManagerHolder) getActivity()).getModalDialogManager(),
+                    SigninAndHistorySyncActivityLauncherImpl.get());
         }
         mSignOutPreference.setSnackbarManagerSupplier(assumeNonNull(mSnackbarManagerSupplier));
     }
@@ -541,7 +537,6 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
         // Prevent sync settings changes from taking effect until the user leaves this screen.
         mSyncSetupInProgressHandle = mSyncService.getSetupInProgressHandle();
 
-        setupUrlKeyedAnonymizedDataPreference(profile);
         setupReviewSyncDataPreference(PREF_SYNC_REVIEW_DATA);
     }
 
@@ -597,9 +592,7 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
                 UserSelectableType.PASSWORDS, findPreference(PREF_SYNC_PASSWORDS));
         ChromeBaseCheckBoxPreference paymentsToggle =
                 (ChromeBaseCheckBoxPreference) findPreference(PREF_SYNC_PAYMENTS_INTEGRATION);
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_ENABLE_LOYALTY_CARDS_FILLING)) {
-            paymentsToggle.setTitle(R.string.sync_payments_and_info_integration);
-        }
+        paymentsToggle.setTitle(R.string.sync_payments_and_info_integration);
         mSyncTypeCheckBoxPreferencesMap.put(UserSelectableType.PAYMENTS, paymentsToggle);
         mSyncTypeCheckBoxPreferencesMap.put(
                 UserSelectableType.PREFERENCES, findPreference(PREF_SYNC_SETTINGS));
@@ -623,24 +616,6 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
 
     private static boolean shouldShowSyncAppsPref() {
         return ChromeFeatureList.isEnabled(ChromeFeatureList.WEB_APK_BACKUP_AND_RESTORE_BACKEND);
-    }
-
-    private void setupUrlKeyedAnonymizedDataPreference(Profile profile) {
-        mUrlKeyedAnonymizedData =
-                (ChromeSwitchPreference) findPreference(PREF_URL_KEYED_ANONYMIZED_DATA);
-        boolean urlKeyedAnonymizedDataShouldBeEnabled =
-                !UnifiedConsentServiceBridge.isUrlKeyedAnonymizedDataCollectionManaged(profile)
-                        || UnifiedConsentServiceBridge.isUrlKeyedAnonymizedDataCollectionEnabled(
-                                profile);
-        mUrlKeyedAnonymizedData.setChecked(urlKeyedAnonymizedDataShouldBeEnabled);
-        mUrlKeyedAnonymizedData.setManagedPreferenceDelegate(
-                new ChromeManagedPreferenceDelegate(profile) {
-                    @Override
-                    public boolean isPreferenceControlledByPolicy(Preference preference) {
-                        return UnifiedConsentServiceBridge
-                                .isUrlKeyedAnonymizedDataCollectionManaged(profile);
-                    }
-                });
     }
 
     /**
@@ -878,6 +853,7 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
                 getActivity().getSupportFragmentManager(),
                 ((ModalDialogManagerHolder) getActivity()).getModalDialogManager(),
                 assertNonNull(assumeNonNull(mSnackbarManagerSupplier).get()),
+                SigninAndHistorySyncActivityLauncherImpl.get(),
                 SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS,
                 /* showConfirmDialog= */ false,
                 CallbackUtils.emptyRunnable(),
@@ -895,6 +871,7 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
                 getActivity().getSupportFragmentManager(),
                 ((ModalDialogManagerHolder) getActivity()).getModalDialogManager(),
                 assertNonNull(assumeNonNull(mSnackbarManagerSupplier).get()),
+                SigninAndHistorySyncActivityLauncherImpl.get(),
                 SignoutReason.USER_CLICKED_REVOKE_SYNC_CONSENT_SETTINGS,
                 /* showConfirmDialog= */ false,
                 CallbackUtils.emptyRunnable());
@@ -1061,6 +1038,7 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
     }
 
     // SyncErrorCardPreferenceListener implementation:
+
     @Override
     public void onSyncErrorCardPrimaryButtonClicked() {
         assert !mShouldReplaceSyncSettingsWithAccountSettings
@@ -1080,6 +1058,11 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
                 == UserActionableError.NEEDS_SETTINGS_CONFIRMATION;
         getSigninManager().signOut(SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS);
         finishCurrentSettings();
+    }
+
+    @Override
+    public void onSyncErrorCardVisibilityChanged() {
+        notifyPreferencesUpdated();
     }
 
     @Override
@@ -1118,6 +1101,7 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
                         getActivity().getSupportFragmentManager(),
                         ((ModalDialogManagerHolder) getActivity()).getModalDialogManager(),
                         assertNonNull(assumeNonNull(mSnackbarManagerSupplier).get()),
+                        SigninAndHistorySyncActivityLauncherImpl.get(),
                         profile.isChild()
                                 ? SignoutReason.USER_CLICKED_REVOKE_SYNC_CONSENT_SETTINGS
                                 : SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS,
@@ -1155,6 +1139,16 @@ public class ManageSyncSettings extends ChromeBaseSettingsFragment
             case UserActionableError.NONE:
             default:
         }
+    }
+
+    @Override
+    public void onIdentityErrorCardVisibilityChanged() {
+        notifyPreferencesUpdated();
+    }
+
+    @Override
+    public void onBatchUploadCardVisibilityChanged() {
+        notifyPreferencesUpdated();
     }
 
     private boolean isEeaChoiceCountry() {

@@ -46,8 +46,7 @@ class TestLocationIconDelegate : public IconLabelBubbleView::Delegate,
   const LocationBarModel* GetLocationBarModel() const override {
     return location_bar_model_;
   }
-  ui::ImageModel GetLocationIcon(
-      IconFetchedCallback on_icon_fetched) const override {
+  ui::ImageModel GetLocationIcon(IconFetchedCallback on_icon_fetched) override {
     return ui::ImageModel();
   }
 
@@ -71,7 +70,7 @@ class LocationIconViewTest : public ChromeViewsTestBase {
     gfx::FontList font_list;
 
     widget_ =
-        CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
+        CreateTestWidget(views::Widget::InitParams::CLIENT_OWNS_WIDGET);
 
     location_bar_model_ = std::make_unique<TestLocationBarModel>();
     delegate_ =

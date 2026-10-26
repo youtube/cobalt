@@ -632,8 +632,7 @@ public class OmniboxResourceProvider {
      * @param context The context to retrieve the resources from.
      * @return the color for the additional text.
      */
-    @ColorInt
-    public static int getAdditionalTextColor(Context context) {
+    public static @ColorInt int getAdditionalTextColor(Context context) {
         return SemanticColorUtils.getDefaultTextColorSecondary(context);
     }
 
@@ -788,6 +787,14 @@ public class OmniboxResourceProvider {
         boolean isIncognito =
                 convertBrandedColorSchemeToIncognitoOrDayNightAdaptive(brandedColorScheme);
         return IncognitoColors.getTextMediumPrimary(isIncognito);
+    }
+
+    /** Resolves the text appearance for header visibility text in the popup. */
+    public static @StyleRes int getPopupHeaderVisibilityTextRes(
+            @BrandedColorScheme int brandedColorScheme) {
+        boolean isIncognito =
+                convertBrandedColorSchemeToIncognitoOrDayNightAdaptive(brandedColorScheme);
+        return IncognitoColors.getTextSmallSecondary(isIncognito);
     }
 
     /** Returns the drawable that is to go behind the + button in the search box. */

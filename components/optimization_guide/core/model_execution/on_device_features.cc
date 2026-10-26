@@ -33,6 +33,27 @@ std::string_view GetVariantName(mojom::OnDeviceFeature feature) {
       return "WritingAssistanceApi";
     case mojom::OnDeviceFeature::kOnDeviceSpeechRecognition:
       return "OnDeviceSpeechRecognition";
+    case mojom::OnDeviceFeature::kClassifier:
+      return "Classifier";
+  }
+}
+
+OnDeviceModelType GetOnDeviceModelType(mojom::OnDeviceFeature feature) {
+  switch (feature) {
+    case mojom::OnDeviceFeature::kClassifier:
+      return OnDeviceModelType::kClassifierModel;
+    case mojom::OnDeviceFeature::kCompose:
+    case mojom::OnDeviceFeature::kTest:
+    case mojom::OnDeviceFeature::kPromptApi:
+    case mojom::OnDeviceFeature::kHistorySearch:
+    case mojom::OnDeviceFeature::kSummarize:
+    case mojom::OnDeviceFeature::kHistoryQueryIntent:
+    case mojom::OnDeviceFeature::kScamDetection:
+    case mojom::OnDeviceFeature::kPermissionsAi:
+    case mojom::OnDeviceFeature::kProofreaderApi:
+    case mojom::OnDeviceFeature::kWritingAssistanceApi:
+    case mojom::OnDeviceFeature::kOnDeviceSpeechRecognition:
+      return OnDeviceModelType::kBaseModel;
   }
 }
 
@@ -66,6 +87,8 @@ proto::OptimizationTarget GetOptimizationTargetForFeature(
     case mojom::OnDeviceFeature::kOnDeviceSpeechRecognition:
       return proto::
           OPTIMIZATION_TARGET_MODEL_EXECUTION_FEATURE_ON_DEVICE_SPEECH_RECOGNITION;
+    case mojom::OnDeviceFeature::kClassifier:
+      return proto::OPTIMIZATION_TARGET_MODEL_EXECUTION_FEATURE_CLASSIFIER;
   }
 }
 
@@ -101,6 +124,8 @@ proto::ModelExecutionFeature ToModelExecutionFeatureProto(
     case mojom::OnDeviceFeature::kOnDeviceSpeechRecognition:
       return proto::ModelExecutionFeature::
           MODEL_EXECUTION_FEATURE_ON_DEVICE_SPEECH_RECOGNITION;
+    case mojom::OnDeviceFeature::kClassifier:
+      return proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_CLASSIFIER;
   }
 }
 

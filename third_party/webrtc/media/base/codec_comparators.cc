@@ -163,15 +163,7 @@ bool MatchesWithReferenceAttributesAndComparator(
         potential_match.params.find(kCodecParamNotInNameValueFormat);
     bool has_parameters_1 = red_parameters_1 != codec_to_match.params.end();
     bool has_parameters_2 = red_parameters_2 != potential_match.params.end();
-    // If codec_to_match has unassigned PT and no parameter,
-    // we assume that it'll be assigned later and return a match.
-    // Note - this should be deleted. It's untidy.
-    if (potential_match.id == Codec::kIdNotSet && !has_parameters_2) {
-      return true;
-    }
-    if (codec_to_match.id == Codec::kIdNotSet && !has_parameters_1) {
-      return true;
-    }
+
     if (has_parameters_1 && has_parameters_2) {
       // Different levels of redundancy between offer and answer are OK
       // since RED is considered to be declarative.
@@ -203,7 +195,16 @@ bool MatchesWithReferenceAttributesAndComparator(
       return true;
     }
     if (!has_parameters_1 && !has_parameters_2) {
-      // Both parameters are missing. Happens for video RED.
+      return true;
+    }
+    // Exactly one lacks parameters.
+    // Allow match if it is an audio RED codec and at least one of the
+    // codecs has an unassigned payload type or they have the same ID.
+    if (codec_to_match.type == Codec::Type::kAudio &&
+        codec_to_match.name == kRedCodecName &&
+        (codec_to_match.id == Codec::kIdNotSet ||
+         potential_match.id == Codec::kIdNotSet ||
+         codec_to_match.id == potential_match.id)) {
       return true;
     }
     return false;
@@ -295,6 +296,11 @@ bool MatchesWithCodecRules(const Codec& left_codec, const Codec& right_codec) {
        right_codec.id <= kLowerDynamicRangeMax) ||
       (right_codec.id >= kUpperDynamicRangeMin &&
        right_codec.id <= kUpperDynamicRangeMax);
+
+  if (left_codec.type != right_codec.type) {
+    return false;
+  }
+
   bool matches_id;
   if ((is_id_in_dynamic_range && is_codec_id_in_dynamic_range) ||
       left_codec.id == Codec::kIdNotSet || right_codec.id == Codec::kIdNotSet) {
@@ -360,12 +366,22 @@ std::optional<Codec> FindMatchingCodec(const std::vector<Codec>& codecs1,
 bool IsSameRtpCodec(const Codec& codec, const RtpCodec& rtp_codec) {
   RtpCodecParameters rtp_codec2 = codec.ToCodecParameters();
 
-  return absl::EqualsIgnoreCase(rtp_codec.name, rtp_codec2.name) &&
-         rtp_codec.kind == rtp_codec2.kind &&
-         rtp_codec.num_channels == rtp_codec2.num_channels &&
-         rtp_codec.clock_rate == rtp_codec2.clock_rate &&
-         InsertDefaultParams(rtp_codec.name, rtp_codec.parameters) ==
-             InsertDefaultParams(rtp_codec2.name, rtp_codec2.parameters);
+  if (!absl::EqualsIgnoreCase(rtp_codec.name, rtp_codec2.name) ||
+      rtp_codec.kind != rtp_codec2.kind ||
+      rtp_codec.num_channels != rtp_codec2.num_channels ||
+      rtp_codec.clock_rate != rtp_codec2.clock_rate) {
+    return false;
+  }
+
+  // audio/RED should ignore the parameters which specify payload types so
+  // can not be compared.
+  if (rtp_codec.kind == MediaType::AUDIO &&
+      absl::EqualsIgnoreCase(rtp_codec.name, kRedCodecName)) {
+    return true;
+  }
+
+  return InsertDefaultParams(rtp_codec.name, rtp_codec.parameters) ==
+         InsertDefaultParams(rtp_codec2.name, rtp_codec2.parameters);
 }
 
 bool IsSameRtpCodecIgnoringLevel(const Codec& codec,
@@ -393,7 +409,8 @@ bool IsSameRtpCodecIgnoringLevel(const Codec& codec,
   }
   // audio/RED should ignore the parameters which specify payload types so
   // can not be compared.
-  if (rtp_codec.kind == MediaType::AUDIO && rtp_codec.name == kRedCodecName) {
+  if (rtp_codec.kind == MediaType::AUDIO &&
+      absl::EqualsIgnoreCase(rtp_codec.name, kRedCodecName)) {
     return true;
   }
 

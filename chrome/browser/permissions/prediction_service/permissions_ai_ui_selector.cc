@@ -46,7 +46,6 @@
 // tflite right now.
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "components/passage_embeddings/core/passage_embeddings_types.h"  // nogncheck
-#include "components/permissions/prediction_service/permissions_aiv3_handler.h"
 #include "components/permissions/prediction_service/permissions_aiv4_handler.h"
 #include "components/permissions/prediction_service/prediction_model_handler.h"
 #endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
@@ -58,7 +57,6 @@ using ::permissions::LanguageDetectionObserver;
 using ::permissions::PassageEmbedderDelegate;
 using ::permissions::PermissionRequest;
 using ::permissions::PermissionRequestRelevance;
-using ::permissions::PermissionsAiv3Handler;
 using ::permissions::PermissionsAiv4Handler;
 using ::permissions::PermissionUiSelector;
 using ::permissions::PermissionUmaUtil;
@@ -82,14 +80,13 @@ constexpr base::TimeDelta kPermissionActionCutoffAge = base::Days(28);
 // the particular permission type.
 constexpr size_t kRequestedPermissionMinimumHistoricalActions = 4;
 
-// The maximum length of a page's content. For now, page content is limited by
-// the passage embedders 64 token limit. We therefore limit the input text as
-// well.
-constexpr size_t kPageContentMaxLength = 500;
-
 // The minimum length of a page's content. It is needed to avoid analyzing pages
 // with too short text.
 constexpr size_t kPageContentMinLength = 10;
+
+// After this amount of time we will give up waiting for the readback. Our
+// global timeout will not allow for further delays here, anyways.
+const base::TimeDelta kSnapshotReadbackTimeout = base::Seconds(1);
 
 std::optional<
     permissions::PermissionPrediction_Likelihood_DiscretizedLikelihood>
@@ -226,17 +223,6 @@ void PermissionsAiUiSelector::InquireCpssV1OnDeviceModelIfAvailable(
   }
   VLOG(1) << "[CPSS] On device CPSSv1 model unavailable";
   FinishRequest(Decision::UseNormalUiAndShowNoWarning());
-}
-
-void PermissionsAiUiSelector::InquireOnDeviceAiv3AndServerModelIfAvailable(
-    content::RenderWidgetHostView* host_view,
-    permissions::PredictionRequestFeatures features,
-    PredictionRequestMetadata request_metadata) {
-  last_permission_ai_relevance_model_ =
-      permissions::PermissionAiRelevanceModel::kAIv3;
-  VLOG(1) << "[PermissionsAIv3] On device AI prediction requested";
-  TakeSnapshot(host_view, {std::move(features), std::move(request_metadata),
-                           PredictionModelType::kOnDeviceAiV3Model});
 }
 
 void PermissionsAiUiSelector::InquireOnDeviceAiv4AndServerModelIfAvailable(
@@ -411,16 +397,10 @@ void PermissionsAiUiSelector::SelectUiToUse(
     case PredictionSource::kOnDeviceAiv4AndServerSideModel:
       return InquireOnDeviceAiv4AndServerModelIfAvailable(
           web_contents, std::move(features), std::move(request_metadata));
-    case PredictionSource::kOnDeviceAiv3AndServerSideModel:
-      return InquireOnDeviceAiv3AndServerModelIfAvailable(
-          web_contents->GetRenderWidgetHostView(), std::move(features),
-          std::move(request_metadata));
     case PredictionSource::kOnDeviceCpssV1Model:
       return InquireCpssV1OnDeviceModelIfAvailable(features,
                                                    std::move(request_metadata));
 #else
-    case PredictionSource::kOnDeviceAiv3AndServerSideModel:
-      [[fallthrough]];
     case PredictionSource::kOnDeviceCpssV1Model:
       VLOG(1) << "[CPSS] Client doesn't support on-device tflite: "
               << static_cast<int>(prediction_source);
@@ -454,9 +434,16 @@ void PermissionsAiUiSelector::OnGetInnerTextForOnDeviceModel(
   if (rendered_text_useful) {
     VLOG(1) << "[PermissionsAI] OnGetInnerTextForOnDeviceModel: "
                "rendered_text_useful true";
-    std::string inner_text = std::move(result->inner_text);
-    if (inner_text.size() > kPageContentMaxLength) {
-      inner_text.resize(kPageContentMaxLength);
+
+    int passage_count = 1;
+    if (PredictionModelHandlerProvider* prediction_model_handler_provider =
+            PredictionModelHandlerProviderFactory::GetForBrowserContext(
+                profile_)) {
+      if (PermissionsAiv4Handler* handler =
+              prediction_model_handler_provider->GetPermissionsAiv4Handler(
+                  model_data.request_metadata.request_type)) {
+        passage_count = handler->GetPassageCount().value_or(1);
+      }
     }
 
     auto fallback_callback =
@@ -470,8 +457,8 @@ void PermissionsAiUiSelector::OnGetInnerTextForOnDeviceModel(
                        weak_ptr_factory_.GetWeakPtr(), std::move(model_data),
                        std::move(model_execution_callback));
 
-    return passage_embedder_delegate_->CreatePassageEmbeddingFromRenderedText(
-        std::move(inner_text),
+    return passage_embedder_delegate_->CreatePassageEmbeddingsFromRenderedText(
+        std::move(result->inner_text), passage_count,
         std::move(on_passage_embeddings_computed_callback),
         std::move(fallback_callback));
   }
@@ -561,10 +548,6 @@ PermissionsAiUiSelector::BuildPredictionRequestFeatures(
   features.permission_relevance = PermissionRequestRelevance::kUnspecified;
 
   switch (prediction_source) {
-    case PredictionSource::kOnDeviceAiv3AndServerSideModel:
-      features.experiment_id =
-          PredictionRequestFeatures::ExperimentId::kAiV3ExperimentId;
-      break;
     case PredictionSource::kOnDeviceAiv4AndServerSideModel:
       features.experiment_id =
           PredictionRequestFeatures::ExperimentId::kAiV4ExperimentId;
@@ -681,9 +664,6 @@ bool PermissionsAiUiSelector::ShouldHoldBack(
     case PredictionSource::kOnDeviceAiv4AndServerSideModel:
       prediction_model = PredictionModelType::kOnDeviceAiV4Model;
       break;
-    case PredictionSource::kOnDeviceAiv3AndServerSideModel:
-      prediction_model = PredictionModelType::kOnDeviceAiV3Model;
-      break;
     case PredictionSource::kServerSideCpssV3Model:
       prediction_model = PredictionModelType::kServerSideCpssV3Model;
       break;
@@ -740,16 +720,12 @@ PredictionSource PermissionsAiUiSelector::GetPredictionTypeToUse(
 #endif  // BUILDFLAG(IS_ANDROID)
   }
   if (use_server_side) {
-    // AIvX models take priority over each other in the following order:
-    // AIv4, AIv3
+    // The AIv4 model takes priority over the server-side CPSSv3 model if
+    // enabled.
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
     if (PredictionModelHandlerProvider::IsAIv4FeatureEnabled()) {
       VLOG(1) << "[CPSS] GetPredictionTypeToUse AIv4";
       return PredictionSource::kOnDeviceAiv4AndServerSideModel;
-    }
-    if (base::FeatureList::IsEnabled(permissions::features::kPermissionsAIv3)) {
-      VLOG(1) << "[CPSS] GetPredictionTypeToUse AIv3";
-      return PredictionSource::kOnDeviceAiv3AndServerSideModel;
     }
 #endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
     VLOG(1) << "[CPSS] GetPredictionTypeToUse CPSSv3";
@@ -806,7 +782,9 @@ void PermissionsAiUiSelector::TakeSnapshot(
     FinishRequest(Decision::UseNormalUiAndShowNoWarning());
   } else {
     host_view->CopyFromSurface(
-        gfx::Rect(), gfx::Size(), base::TimeDelta(),
+        /*src_rect=*/gfx::Rect(), /*output_size=*/gfx::Size(),
+        /*timeout=*/kSnapshotReadbackTimeout,
+        /*callback=*/
         base::BindOnce([](const content::CopyFromSurfaceResult& result) {
           // TODO(crbug.com/466199824): Update callsite to handle error
           // case.
@@ -849,30 +827,6 @@ void PermissionsAiUiSelector::ExecuteOnDeviceAivXModel(
         model_data.request_metadata.request_type;
 
     switch (model_data.model_type) {
-      case PredictionModelType::kOnDeviceAiV3Model: {
-        DCHECK(model_data.snapshot.has_value());
-        VLOG(1)
-            << "[PermissionsAI] ExecuteOnDeviceAivXModel kOnDeviceAiV3Model";
-        if (PermissionsAiv3Handler* aiv3_handler =
-                prediction_model_handler_provider->GetPermissionsAiv3Handler(
-                    request_type)) {
-          VLOG(1) << "[PermissionsAI] Inquire AIv3 model";
-          return aiv3_handler->ExecuteModel(
-              /*callback=*/base::BindOnce(
-                  &PermissionsAiUiSelector::
-                      OnDeviceTfliteAivXModelExecutionCallback,
-                  weak_ptr_factory_.GetWeakPtr(),
-                  /*model_inquire_start_time=*/base::TimeTicks::Now(),
-                  std::move(model_data.features),
-                  std::move(model_data.request_metadata),
-                  model_data.model_type),
-              /*model_input=*/PermissionsAiv3Handler::ModelInput(
-                  std::move(model_data.snapshot.value())));
-        } else {
-          VLOG(1) << "[PermissionsAI] No AIv3 handler";
-        }
-        break;
-      }
       case PredictionModelType::kOnDeviceAiV4Model: {
         DCHECK(model_data.snapshot.has_value());
         DCHECK(model_data.inner_text_embedding.has_value());

@@ -33,6 +33,11 @@ BASE_FEATURE(kBrowserWidgetCacheThemeService,
 BASE_FEATURE(kCreateNewTabGroupAppMenuTopLevel,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kTabStripDeclutter, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlassToolbar, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kToolbarGlowUp, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDetachedTabs, base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kDseIntegrity, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables the feature to remove the last confirmation dialog when relaunching
@@ -64,17 +69,6 @@ BASE_FEATURE(kOfferPinToTaskbarInfoBar, base::FEATURE_ENABLED_BY_DEFAULT);
 // Shows an infobar on PDFs offering to become the default PDF viewer if Chrome
 // isn't the default already.
 BASE_FEATURE(kPdfInfoBar, base::FEATURE_ENABLED_BY_DEFAULT);
-
-constexpr base::FeatureParam<PdfInfoBarTrigger>::Option
-    kPdfInfoBarTriggerOptions[] = {{PdfInfoBarTrigger::kPdfLoad, "pdf-load"},
-                                   {PdfInfoBarTrigger::kStartup, "startup"}};
-
-BASE_FEATURE_ENUM_PARAM(PdfInfoBarTrigger,
-                        kPdfInfoBarTrigger,
-                        &kPdfInfoBar,
-                        "trigger",
-                        PdfInfoBarTrigger::kPdfLoad,
-                        &kPdfInfoBarTriggerOptions);
 
 BASE_FEATURE(kSeparateDefaultAndPinPrompt, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(int,
@@ -122,14 +116,22 @@ BASE_FEATURE(kPreloadTopChromeWebUILessNavigations,
 BASE_FEATURE(kPressAndHoldEscToExitBrowserFullscreen,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_WIN)
+// Enables the UI for Process Isolation in chrome://settings/system.
+BASE_FEATURE(kProcessIsolationSettings, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN)
+
 #if BUILDFLAG(IS_MAC)
 // Add tab group colours when viewing tab groups using the top mac OS menu bar.
 BASE_FEATURE(kShowTabGroupsMacSystemMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_MAC)
 
-BASE_FEATURE(kSideBySide, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSideBySideLinkMenuNewBadge, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kSplitViewTabDraggingUpdates, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kShowDropTargetForTabDelay,
+                   &kSplitViewTabDraggingUpdates,
+                   "show_drop_target_for_tab_delay",
+                   base::Milliseconds(1000));
 
 BASE_FEATURE(kTabDuplicateMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -203,39 +205,6 @@ BASE_FEATURE_PARAM(bool,
                    "trigger_demo_mode",
                    false);
 
-BASE_FEATURE(kTabstripDeclutter, base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsTabstripDeclutterEnabled() {
-  return base::FeatureList::IsEnabled(features::kTabstripDeclutter);
-}
-
-BASE_FEATURE_PARAM(base::TimeDelta,
-                   kTabstripDeclutterStaleThresholdDuration,
-                   &kTabstripDeclutter,
-                   "stale_threshold_duration",
-                   base::Days(7));
-
-BASE_FEATURE_PARAM(base::TimeDelta,
-                   kTabstripDeclutterTimerInterval,
-                   &kTabstripDeclutter,
-                   "declutter_timer_interval",
-                   base::Minutes(10));
-
-BASE_FEATURE_PARAM(base::TimeDelta,
-                   kTabstripDeclutterNudgeTimerInterval,
-                   &kTabstripDeclutter,
-                   "nudge_timer_interval",
-                   base::Minutes(6 * 60));
-
-BASE_FEATURE(kTabstripDedupe, base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsTabstripDedupeEnabled() {
-  return IsTabstripDeclutterEnabled() &&
-         base::FeatureList::IsEnabled(features::kTabstripDedupe);
-}
-
-BASE_FEATURE(kTabOrganizationAppMenuItem, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kTabOrganizationModelStrategy, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabOrganizationUserInstruction,
@@ -255,27 +224,21 @@ BASE_FEATURE(kThreeButtonPasswordSaveDialog, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kToolbarHeightSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kSidePanelFlyoverAnimation, base::FEATURE_ENABLED_BY_DEFAULT);
+bool UseSidePanelFlyoverAnimation() {
+#if BUILDFLAG(IS_MAC)
+  // Mac can smoothly resize contents and does not need flyover.
+  return false;
+#else
+  return base::FeatureList::IsEnabled(kSidePanelFlyoverAnimation);
+#endif
+}
+
 // Enables enterprise profile badging for managed profiles on the toolbar avatar
 // and in the profile menu. On managed profiles, a building icon will be used as
 // a badge in the profile menu.
 BASE_FEATURE(kEnterpriseProfileBadgingForMenu,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables enterprise badging for managed browsers on the new tab page footer.
-// On managed browsers, a building icon and "Managed by <domain>" string will be
-// shown in the footer, unless the icon and label are customized by the admin.
-BASE_FEATURE(kEnterpriseBadgingForNtpFooter, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables enterprise badging for managed browsers with local management only on
-// the new tab page footer. On managed browsers, a building icon and "Managed by
-// your organization" string will be shown in the footer.
-BASE_FEATURE(kEnterpriseBadgingForLocalManagemenetNtpFooter,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables enterprise badging for managed browsers with local management only
-// AND 3 or more policies on the new tab page footer.
-BASE_FEATURE(kEnterpriseBadgingForNtpFooterWithOverThreePolicies,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the management notice in the NTP footer if the custom policies are
 // set. This acts as a kill switch for "EnterpriseCustomLabelForBrowser" and
@@ -328,12 +291,6 @@ BASE_FEATURE(kPageSpecificDataDialogRelatedInstalledAppsSection,
 BASE_FEATURE(kEnableManagementPromotionBanner,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_CHROMEOS)
-BASE_FEATURE(kEnablePolicyPromotionBanner, base::FEATURE_ENABLED_BY_DEFAULT);
-#else
-BASE_FEATURE(kEnablePolicyPromotionBanner, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
-
 BASE_FEATURE(kInlineFullscreenPerfExperiment, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPageActionsMigration, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -343,24 +300,6 @@ BASE_FEATURE_PARAM(bool,
                    &kPageActionsMigration,
                    "enable_all",
                    false);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationLensOverlay,
-                   &kPageActionsMigration,
-                   "lens_overlay",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationMemorySaver,
-                   &kPageActionsMigration,
-                   "memory_saver",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationTranslate,
-                   &kPageActionsMigration,
-                   "translate",
-                   true);
 
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationIntentPicker,
@@ -381,33 +320,9 @@ BASE_FEATURE_PARAM(bool,
                    false);
 
 BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationOfferNotification,
-                   &kPageActionsMigration,
-                   "offer_notification",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationFileSystemAccess,
                    &kPageActionsMigration,
                    "file_system_access",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationPwaInstall,
-                   &kPageActionsMigration,
-                   "pwa_install",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationPriceInsights,
-                   &kPageActionsMigration,
-                   "price_insights",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationDiscounts,
-                   &kPageActionsMigration,
-                   "discounts",
                    true);
 
 BASE_FEATURE_PARAM(bool,
@@ -429,21 +344,9 @@ BASE_FEATURE_PARAM(bool,
                    true);
 
 BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationFind,
-                   &kPageActionsMigration,
-                   "find",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationCollaborationMessaging,
                    &kPageActionsMigration,
                    "collaboration_messaging",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationPriceTracking,
-                   &kPageActionsMigration,
-                   "price_tracking",
                    true);
 
 BASE_FEATURE_PARAM(bool,
@@ -451,12 +354,6 @@ BASE_FEATURE_PARAM(bool,
                    &kPageActionsMigration,
                    "mandatory_reauth",
                    false);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationClickToCall,
-                   &kPageActionsMigration,
-                   "click_to_call",
-                   true);
 
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationSharingHub,
@@ -550,6 +447,11 @@ bool IsWebUIBackForwardButtonEnabled() {
          base::FeatureList::IsEnabled(features::kWebUIBackForwardButton);
 }
 
+bool IsWebUIPinnedToolbarActionsEnabled() {
+  return base::FeatureList::IsEnabled(features::kInitialWebUI) &&
+         base::FeatureList::IsEnabled(features::kWebUIPinnedToolbarActions);
+}
+
 bool IsWebUISplitTabsButtonEnabled() {
   return base::FeatureList::IsEnabled(features::kInitialWebUI) &&
          base::FeatureList::IsEnabled(features::kWebUISplitTabsButton);
@@ -563,7 +465,8 @@ bool IsWebUILocationBarEnabled() {
 bool IsWebUIToolbarEnabled() {
   return IsWebUIReloadButtonEnabled() || IsWebUISplitTabsButtonEnabled() ||
          IsWebUIHomeButtonEnabled() || IsWebUILocationBarEnabled() ||
-         IsWebUIBackForwardButtonEnabled();
+         IsWebUIBackForwardButtonEnabled() ||
+         IsWebUIPinnedToolbarActionsEnabled();
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -577,7 +480,9 @@ bool IsAndroidAnimatedProgressBarInBrowserEnabled() {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-BASE_FEATURE(kWhatsNewDesktopRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWhatsNewDesktopRefresh, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAiOverlayDialog, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabGroupsFocusing, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -585,6 +490,12 @@ BASE_FEATURE_PARAM(bool,
                    kTabGroupsFocusingPinnedTabs,
                    &kTabGroupsFocusing,
                    "tab_groups_focusing_pinned_tabs",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kTabGroupsFocusingDefaultToFocused,
+                   &kTabGroupsFocusing,
+                   "tab_groups_focusing_default_to_focused",
                    false);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)

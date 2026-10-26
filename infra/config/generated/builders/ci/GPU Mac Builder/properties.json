@@ -113,7 +113,7 @@
       ],
       "mirroring_builder_group_and_names": [
         {
-          "builder": "mac-rel",
+          "builder": "mac-gpu-rel",
           "group": "tryserver.chromium.mac"
         }
       ],

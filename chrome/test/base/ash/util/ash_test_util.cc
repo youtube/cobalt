@@ -13,16 +13,16 @@
 #include "base/unguessable_token.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "components/services/app_service/public/cpp/app_launch_params.h"
+#include "components/services/app_service/public/cpp/launch_result.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "storage/browser/file_system/external_mount_points.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -71,7 +71,7 @@ webapps::AppId CreateSystemWebAppImpl(Profile* profile,
   apps::AppServiceProxyFactory::GetForProfile(profile)->LaunchAppWithParams(
       std::move(params),
       base::BindLambdaForTesting(
-          [&](apps::LaunchResult&& result) { launch_wait.Quit(); }));
+          [&](apps::LaunchResult result) { launch_wait.Quit(); }));
   launch_wait.Run();
   return app_id;
 }
@@ -174,18 +174,17 @@ Browser* InstallAndLaunchPWA(Profile* profile,
 
 BrowsersWaiter::BrowsersWaiter(int expected_count)
     : expected_count_(expected_count) {
-  BrowserList::AddObserver(this);
+  browser_collection_observation_.Observe(
+      GlobalBrowserCollection::GetInstance());
 }
 
-BrowsersWaiter::~BrowsersWaiter() {
-  BrowserList::RemoveObserver(this);
-}
+BrowsersWaiter::~BrowsersWaiter() = default;
 
 void BrowsersWaiter::Wait() {
   run_loop_.Run();
 }
 
-void BrowsersWaiter::OnBrowserAdded(Browser* browser) {
+void BrowsersWaiter::OnBrowserCreated(BrowserWindowInterface* browser) {
   ++current_count_;
   if (current_count_ == expected_count_) {
     run_loop_.Quit();

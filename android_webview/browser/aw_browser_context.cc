@@ -42,6 +42,7 @@
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/containers/map_util.h"
+#include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -578,9 +579,6 @@ void AwBrowserContext::ConfigureNetworkContextParams(
           : network::mojom::CookieAccessDelegateType::ALWAYS_LEGACY;
 
   context_params->initial_ssl_config = network::mojom::SSLConfig::New();
-  // Allow SHA-1 to be used for locally-installed trust anchors, as WebView
-  // should behave like the Android system would.
-  context_params->initial_ssl_config->sha1_local_anchors_enabled = true;
 
   // WebView supports Certificate Transparency from Android B via Android's CT
   // policy. (http://crbug.com/921750).
@@ -663,21 +661,21 @@ void AwBrowserContext::SetExtraHeadersForUrl(const GURL& url,
 // static
 static bool JNI_AwBrowserContext_IsValidHttpHeaderName(
     JNIEnv* env,
-    std::string& header_name) {
+    const std::string& header_name) {
   return net::HttpUtil::IsValidHeaderName(header_name);
 }
 
 // static
 static bool JNI_AwBrowserContext_IsValidHttpHeaderValue(
     JNIEnv* env,
-    std::string& header_value) {
+    const std::string& header_value) {
   return net::HttpUtil::IsValidHeaderValue(header_value);
 }
 
 std::vector<std::string> AwBrowserContext::SetOriginMatchedHeader(
     JNIEnv* env,
-    std::string& header_name,
-    std::string& header_value,
+    const std::string& header_name,
+    const std::string& header_value,
     const std::vector<std::string>& rules) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
@@ -712,8 +710,8 @@ std::vector<std::string> AwBrowserContext::SetOriginMatchedHeader(
 
 std::vector<std::string> AwBrowserContext::AddOriginMatchedHeader(
     JNIEnv* env,
-    std::string& header_name,
-    std::string& header_value,
+    const std::string& header_name,
+    const std::string& header_value,
     const std::vector<std::string>& rules) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
@@ -790,11 +788,9 @@ AwBrowserContext::GetOriginMatchedHeaders() {
 
 void AwBrowserContext::AddQuicHints(JNIEnv* env,
                                     const std::vector<GURL>& origins) {
-  std::vector<url::SchemeHostPort> scheme_host_ports(origins.size());
-  for (const GURL& origin : origins) {
-    scheme_host_ports.emplace_back(origin);
-  }
-
+  auto scheme_host_ports = base::ToVector(origins, [](const GURL& origin) {
+    return url::SchemeHostPort(origin);
+  });
   GetDefaultStoragePartition()->GetNetworkContext()->AddQuicHints(
       scheme_host_ports, net::NetworkAnonymizationKey());
 }
@@ -910,7 +906,7 @@ AwBrowserContext::CreateURLLoaderFactory() {
   auto url_loader_factory_params =
       network::mojom::URLLoaderFactoryParams::New();
   url_loader_factory_params->process_id =
-      network::OriginatingProcess::browser();
+      network::OriginatingProcessId::browser();
   url_loader_factory_params->is_orb_enabled = false;
   mojo::PendingRemote<network::mojom::URLLoaderFactory> factory;
 

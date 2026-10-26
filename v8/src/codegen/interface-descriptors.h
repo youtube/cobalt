@@ -17,9 +17,9 @@
 namespace v8 {
 namespace internal {
 
-#define TORQUE_BUILTIN_LIST_TFC(V)                               \
-  BUILTIN_LIST_FROM_TORQUE(IGNORE_BUILTIN, IGNORE_BUILTIN, V, V, \
-                           IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+#define TORQUE_BUILTIN_LIST_TFC(V)                                            \
+  BUILTIN_LIST_FROM_TORQUE(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
+                           V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
 
 #define INTERFACE_DESCRIPTOR_LIST(V)                            \
   V(Abort)                                                      \
@@ -91,6 +91,10 @@ namespace internal {
   V(FastNewObject)                                              \
   V(FindNonDefaultConstructorOrConstruct)                       \
   V(ForInPrepare)                                               \
+  V(ForOfNextLoadDoneLazyDeoptContinuation)                     \
+  V(ForOfNextLoadValueLazyDeoptContinuation)                    \
+  V(ForOfNextLoadDoneEagerDeoptContinuation)                    \
+  V(ForOfNextLoadValueEagerDeoptContinuation)                   \
   V(GetIteratorStackParameter)                                  \
   V(GetProperty)                                                \
   V(GrowArrayElements)                                          \
@@ -134,6 +138,7 @@ namespace internal {
   V(RunMicrotasks)                                              \
   V(RunMicrotasksEntry)                                         \
   V(SingleParameterOnStack)                                     \
+  V(GeneratorNextLazyDeoptContinuation)                         \
   V(Store)                                                      \
   V(StoreNoFeedback)                                            \
   V(StoreBaseline)                                              \
@@ -1778,6 +1783,19 @@ class SingleParameterOnStackDescriptor final
   static constexpr auto registers();
 };
 
+class GeneratorNextLazyDeoptContinuationDescriptor final
+    : public StaticCallInterfaceDescriptor<
+          GeneratorNextLazyDeoptContinuationDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_PARAMETERS(kGenerator, kResult)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::AnyTagged())
+  DECLARE_DESCRIPTOR(GeneratorNextLazyDeoptContinuationDescriptor)
+
+  static constexpr auto registers();
+};
+
 class AsyncFunctionStackParameterDescriptor final
     : public StaticCallInterfaceDescriptor<
           AsyncFunctionStackParameterDescriptor> {
@@ -1801,6 +1819,71 @@ class GetIteratorStackParameterDescriptor final
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::AnyTagged(),
                          MachineType::AnyTagged(), MachineType::AnyTagged())
   DECLARE_DESCRIPTOR(GetIteratorStackParameterDescriptor)
+
+  static constexpr auto registers();
+};
+
+class ForOfNextLoadDoneLazyDeoptContinuationDescriptor final
+    : public StaticCallInterfaceDescriptor<
+          ForOfNextLoadDoneLazyDeoptContinuationDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(2, kResultObject, kValueDoneReg, kDone)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
+                                    MachineType::AnyTagged(),  // result done
+                                    MachineType::AnyTagged(),  // kResultObject
+                                    MachineType::AnyTagged(),  // kValueDoneReg
+                                    MachineType::AnyTagged())  // kDone
+  DECLARE_DESCRIPTOR(ForOfNextLoadDoneLazyDeoptContinuationDescriptor)
+
+  static constexpr auto registers();
+};
+
+class ForOfNextLoadValueLazyDeoptContinuationDescriptor final
+    : public StaticCallInterfaceDescriptor<
+          ForOfNextLoadValueLazyDeoptContinuationDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(2, kValueDoneReg, kValue)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
+                                    MachineType::AnyTagged(),  // result done
+                                    MachineType::AnyTagged(),  // kValueDoneReg
+                                    MachineType::AnyTagged())  // kValue
+  DECLARE_DESCRIPTOR(ForOfNextLoadValueLazyDeoptContinuationDescriptor)
+
+  static constexpr auto registers();
+};
+
+class ForOfNextLoadDoneEagerDeoptContinuationDescriptor final
+    : public StaticCallInterfaceDescriptor<
+          ForOfNextLoadDoneEagerDeoptContinuationDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(2, kResultObject, kValueDoneReg)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
+                                    MachineType::AnyTagged(),  // result done
+                                    MachineType::AnyTagged(),  // kResultObject
+                                    MachineType::AnyTagged())  // kValueDoneReg
+  DECLARE_DESCRIPTOR(ForOfNextLoadDoneEagerDeoptContinuationDescriptor)
+
+  static constexpr auto registers();
+};
+
+class ForOfNextLoadValueEagerDeoptContinuationDescriptor final
+    : public StaticCallInterfaceDescriptor<
+          ForOfNextLoadValueEagerDeoptContinuationDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(2, kResultObject, kValueDoneReg)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
+                                    MachineType::AnyTagged(),  // result done
+                                    MachineType::AnyTagged(),  // kResultObject
+                                    MachineType::AnyTagged())  // kValueDoneReg
+  DECLARE_DESCRIPTOR(ForOfNextLoadValueEagerDeoptContinuationDescriptor)
 
   static constexpr auto registers();
 };

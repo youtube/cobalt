@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/check_op.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
@@ -126,6 +127,9 @@ class MockConnectCompleter {
 
   // Convenience function that combines WaitForConnect() and Complete().
   void WaitForConnectAndComplete(int result);
+
+  // Returns true if the completer has a waiting connection attempt.
+  bool is_connecting() const { return !callback_.is_null(); }
 
  private:
   friend class MockTCPClientSocket;
@@ -1543,10 +1547,12 @@ extern const std::string_view kSOCKS5OkRequest;
 
 extern const std::string_view kSOCKS5OkResponse;
 
-// Helper function to get the total data size of the MockReads in |reads|.
+// Helper functions to get the total data size of the MockReads in |reads|.
+base::ByteSize CountReadByteSize(base::span<const MockRead> reads);
 int64_t CountReadBytes(base::span<const MockRead> reads);
 
-// Helper function to get the total data size of the MockWrites in |writes|.
+// Helper functions to get the total data size of the MockWrites in |writes|.
+base::ByteSize CountWriteByteSize(base::span<const MockWrite> writes);
 int64_t CountWriteBytes(base::span<const MockWrite> writes);
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1557,10 +1563,6 @@ bool CanGetTaggedBytes();
 // |expected_tag| for our UID.  Return the count of received bytes.
 uint64_t GetTaggedBytes(int32_t expected_tag);
 #endif
-
-// This should be kept in sync with the field trial config's default pool.
-const SocketPoolAdditionalCapacity kFieldTrialPool =
-    SocketPoolAdditionalCapacity::CreateForTest(0.000001, 256, 0.01, 0.2);
 
 // The goal of this test is to walk a pool back and forth between being
 // capped and uncapped, tracking at what point the transition occurs

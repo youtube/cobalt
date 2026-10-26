@@ -68,45 +68,50 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/ui/views/session_restore_infobar/session_restore_infobar_delegate.h:SessionRestoreInfoBarAction) -->
 
-<enum name="SessionStorageDatabaseOpen">
-  <int value="0" label="OK">Succesfully opened the database.</int>
-  <int value="1" label="Recovered">
-    Failed to open the existing db, deleted it, and created a new empty db.
-  </int>
-  <int value="2"
-      label="(Obsolete) Reopen: Total Fail. Deprecated 2016/11. Replaced by
-             other 'Reopen' errors.">
-    Failed to open the database and also failed to delete and start over.
-  </int>
-  <int value="3" label="Reopen: not found">
-    Reopen attempt failed with (not found) after successful database delete.
-  </int>
-  <int value="4" label="Reopen: not supported">
-    Reopen attempt failed with (not supported) after successful database delete.
-  </int>
-  <int value="5" label="Reopen: corruption">
-    Reopen attempt failed with (corruption) after successful database delete.
-  </int>
-  <int value="6" label="Reopen: invalid argument">
-    Reopen attempt failed with (invalid argument) after successful database
-    delete.
-  </int>
-  <int value="7" label="Reopen: I/O error">
-    Reopen attempt failed with (I/O error) after successful database delete.
-  </int>
-</enum>
-
-<enum name="SessionStorageFormat">
-  <int value="0" label="Legacy"/>
-  <int value="1" label="Optimized"/>
-</enum>
-
-<enum name="SessionStorageMigrationStatus">
-  <int value="0" label="MigrationSucceeded">The migration was successful.</int>
-  <int value="1" label="MigrationFailure">The migration failed.</int>
-  <int value="2" label="MigrationInterrupted">
-    The application crashed (or was terminated by the user) during migration.
-  </int>
+<enum name="SmartRestartability">
+  <int value="0" label="None"/>
+  <int value="1" label="Incognito"/>
+  <int value="2" label="Unsaved form data"/>
+  <int value="3" label="Incognito, Unsaved form data"/>
+  <int value="4" label="Active download"/>
+  <int value="5" label="Incognito, Active download"/>
+  <int value="6" label="Unsaved form data, Active download"/>
+  <int value="7" label="Incognito, Unsaved form data, Active download"/>
+  <int value="8" label="Active media"/>
+  <int value="9" label="Incognito, Active media"/>
+  <int value="10" label="Unsaved form data, Active media"/>
+  <int value="11" label="Incognito, Unsaved form data, Active media"/>
+  <int value="12" label="Active download, Active media"/>
+  <int value="13" label="Incognito, Active download, Active media"/>
+  <int value="14" label="Unsaved form data, Active download, Active media"/>
+  <int value="15"
+      label="Incognito, Unsaved form data, Active download, Active media"/>
+  <int value="16" label="App window"/>
+  <int value="17" label="Incognito, App window"/>
+  <int value="18" label="Unsaved form data, App window"/>
+  <int value="19" label="Incognito, Unsaved form data, App window"/>
+  <int value="20" label="Active download, App window"/>
+  <int value="21" label="Incognito, Active download, App window"/>
+  <int value="22" label="Unsaved form data, Active download, App window"/>
+  <int value="23"
+      label="Incognito, Unsaved form data, Active download, App window"/>
+  <int value="24" label="Active media, App window"/>
+  <int value="25" label="Incognito, Active media, App window"/>
+  <int value="26" label="Unsaved form data, Active media, App window"/>
+  <int value="27"
+      label="Incognito, Unsaved form data, Active media, App window"/>
+  <int value="28" label="Active download, Active media, App window"/>
+  <int value="29" label="Incognito, Active download, Active media, App window"/>
+  <int value="30"
+      label="Unsaved form data, Active download, Active media, App window"/>
+  <int value="31"
+      label="Incognito, Unsaved form data, Active download, Active media, App
+             window"/>
+  <int value="32" label="Total Browser Count Zero"/>
+  <int value="36" label="Active download, Total Browser Count Zero"/>
+  <int value="40" label="Active media, Total Browser Count Zero"/>
+  <int value="44"
+      label="Active download, Active media, Total Browser Count Zero"/>
 </enum>
 
 </enums>

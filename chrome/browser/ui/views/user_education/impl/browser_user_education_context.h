@@ -35,12 +35,16 @@ class BrowserUserEducationContext
   ui::ElementContext GetElementContext() const override;
   const ui::AcceleratorProvider* GetAcceleratorProvider() const override;
 
+  // Retrieves the browser window interface. Requires that `IsValid()` is true.
+  BrowserWindowInterface* GetBrowser() const;
+
   // Retrieves the browser view. Requires that `IsValid()` is true.
   BrowserView& GetBrowserView() const;
 
   using PreconditionPtr =
       std::unique_ptr<user_education::FeaturePromoPrecondition>;
-  using PreconditionId = user_education::FeaturePromoPrecondition::Identifier;
+  using PreconditionId =
+      user_education::FeaturePromoPrecondition::PreconditionIdentifier;
 
   // A number of preconditions are shared across all promos in the same context.
   // This returns the shared precondition with identifier `id`.

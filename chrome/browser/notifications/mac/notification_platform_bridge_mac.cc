@@ -23,7 +23,6 @@
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
-#include "chrome/common/chrome_features.h"
 #include "third_party/blink/public/common/notifications/notification_constants.h"
 #include "ui/message_center/public/cpp/notification.h"
 #include "ui/message_center/public/cpp/notification_types.h"
@@ -176,15 +175,10 @@ void NotificationPlatformBridgeMac::GetDisplayedForOrigin(
 
   std::vector<webapps::AppId> web_app_ids;
   if (web_app::UseNotificationAttributionForWebAppShims()) {
-    if (auto* web_app_provider =
-            web_app::WebAppProvider::GetForWebApps(profile)) {
-      web_app::WebAppRegistrar& registrar =
-          web_app_provider->registrar_unsafe();
-      for (const webapps::AppId& app_id : registrar.GetAppIds()) {
-        if (!registrar.IsInstallState(
-                app_id, {web_app::proto::INSTALLED_WITH_OS_INTEGRATION})) {
-          continue;
-        }
+    if (auto* provider = web_app::WebAppProvider::GetForWebApps(profile)) {
+      web_app::WebAppRegistrar& registrar = provider->registrar_unsafe();
+      for (const webapps::AppId& app_id : registrar.GetAppIds(
+               web_app::WebAppFilter::SupportsOsNotifications())) {
         if (!url::IsSameOriginWith(registrar.GetAppScope(app_id), origin)) {
           continue;
         }

@@ -98,6 +98,7 @@
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
+#include "third_party/blink/renderer/core/overscroll/overscroll_area_tracker.h"
 #include "third_party/blink/renderer/core/page/autoscroll_controller.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/focus_controller.h"
@@ -201,7 +202,7 @@ void PaintLayerScrollableArea::DisposeImpl() {
        scroll_marker_group_data_set_) {
     scroll_marker_group->SetNeedsScrollersMapUpdate();
   }
-  if (InResizeMode() && !GetLayoutBox()->DocumentBeingDestroyed()) {
+  if (InResizeMode()) {
     if (LocalFrame* frame = GetLayoutBox()->GetFrame())
       frame->GetEventHandler().ResizeScrollableAreaDestroyed();
   }
@@ -212,9 +213,8 @@ void PaintLayerScrollableArea::DisposeImpl() {
     probe::UpdateScrollableFlag(GetLayoutBox()->GetNode(), false);
   }
 
-  if (!GetLayoutBox()->DocumentBeingDestroyed()) {
-    if (auto* element = DynamicTo<Element>(GetLayoutBox()->GetNode()))
-      element->SetSavedLayerScrollOffset(scroll_offset_);
+  if (auto* element = DynamicTo<Element>(GetLayoutBox()->GetNode())) {
+    element->SetSavedLayerScrollOffset(scroll_offset_);
   }
 
   // Note: it is not safe to call ScrollAnchor::clear if the document is being
@@ -437,6 +437,10 @@ void PaintLayerScrollableArea::UpdateScrollOffset(
   CHECK(frame_view);
 
   UpdateLastScrolled(scroll_offset_, new_offset, source_type);
+
+  // If this is the first scroll offsets on the overscroll area parent, we need
+  // to send an overscrollstart event.
+  EnqueueOverscrollStartEventIfNeeded();
 
   // The ScrollOffsetTranslation paint property depends on the scroll offset.
   // (see: PaintPropertyTreeBuilder::UpdateScrollAndScrollTranslation).
@@ -1039,7 +1043,10 @@ bool PaintLayerScrollableArea::ScrollByPageWithSnap(
   gfx::PointF new_position = GetSnapPositionAndSetTarget(*strategy).value_or(
       current_position + displacement);
 
-  return ScrollToAbsolutePosition(new_position, scroll_behavior);
+  return SetScrollOffset(
+      ScrollOffset(new_position - gfx::PointF(ScrollOrigin())),
+      mojom::blink::ScrollType::kProgrammatic, cc::ScrollSourceType::kNone,
+      scroll_behavior);
 }
 
 void PaintLayerScrollableArea::UpdateAfterLayout() {
@@ -2391,7 +2398,7 @@ void PaintLayerScrollableArea::EnqueueForSnapUpdateIfNeeded() {
     return;
   }
 
-  if (box->IsPseudo(kPseudoIdOverscrollAreaParent)) {
+  if (box->IsOverscrollAreaParent()) {
     // ::-internal-overscroll-area-parent has implicit snap areas and should
     // always be enqueued for pending snap updates.
     box->GetFrameView()->AddPendingSnapUpdate(this);
@@ -2409,12 +2416,14 @@ void PaintLayerScrollableArea::EnqueueForSnapUpdateIfNeeded() {
 
 void PaintLayerScrollableArea::UpdateAllStickyConstraints() {
   for (const auto& fragment : GetLayoutBox()->PhysicalFragments()) {
-    if (auto* sticky_descendants = fragment.StickyDescendants()) {
-      for (auto& sticky_descendant : *sticky_descendants) {
-        auto* constraints =
-            sticky_descendant->ComputeStickyPositionConstraints();
-        constraints->ComputeStickyOffset(ScrollPosition());
-        sticky_descendant->SetStickyConstraints(constraints);
+    for (const auto& item : fragment.StickyDescendants()) {
+      if (auto* sticky_descendant = item.GetIfConsumed()) {
+        StickyConstraintsData data =
+            sticky_descendant->ComputeStickyPositionConstraints(
+                *Layer(), item.ConsumedAxes());
+        sticky_descendant->SetStickyConstraints(data);
+        sticky_descendant->StickyConstraints().ComputeStickyOffset(
+            ScrollPosition(), item.ConsumedAxes());
       }
     }
   }
@@ -2424,7 +2433,7 @@ void PaintLayerScrollableArea::EnqueueForStickyUpdateIfNeeded() {
   // Enqueue ourselves for a sticky update if we have any sticky descendants.
   const auto* box = GetLayoutBox();
   for (const auto& fragment : box->PhysicalFragments()) {
-    if (fragment.StickyDescendants()) {
+    if (fragment.HasConsumedStickyDescendants()) {
       box->GetFrameView()->AddPendingStickyUpdate(this);
       break;
     }
@@ -2445,12 +2454,12 @@ void PaintLayerScrollableArea::InvalidatePaintForStickyDescendants() {
   }
 
   for (const auto& fragment : GetLayoutBox()->PhysicalFragments()) {
-    if (auto* sticky_descendants = fragment.StickyDescendants()) {
-      for (auto& sticky_descendant : *sticky_descendants) {
+    for (const auto& item : fragment.StickyDescendants()) {
+      if (auto* sticky_descendant = item.GetIfConsumed()) {
         sticky_descendant->SetNeedsPaintPropertyUpdate();
         DCHECK(sticky_descendant->StickyConstraints());
-        sticky_descendant->StickyConstraints()->ComputeStickyOffset(
-            ScrollPosition());
+        sticky_descendant->StickyConstraints().ComputeStickyOffset(
+            ScrollPosition(), item.ConsumedAxes());
       }
     }
   }
@@ -2529,6 +2538,27 @@ void PaintLayerScrollableArea::Resize(
   // keep the point under the cursor in view.
 }
 
+PhysicalAxes PaintLayerScrollableArea::ScrollableAxes() const {
+  const auto* box = GetLayoutBox();
+
+  // The LayoutView (viewport) always scrolls both axes.
+  if (box->IsLayoutView()) {
+    return kPhysicalAxesBoth;
+  }
+
+  PhysicalAxes axes = kPhysicalAxesNone;
+  const auto& style = box->StyleRef();
+
+  if (style.IsOverflowValueScrollableX()) {
+    axes |= kPhysicalAxesHorizontal;
+  }
+  if (style.IsOverflowValueScrollableY()) {
+    axes |= kPhysicalAxesVertical;
+  }
+
+  return axes;
+}
+
 PhysicalOffset PaintLayerScrollableArea::LocalToScrollOriginOffset() const {
   PhysicalOffset border_origin_to_scroll_origin(-GetLayoutBox()->BorderLeft(),
                                                 -GetLayoutBox()->BorderTop());
@@ -2576,17 +2606,16 @@ PhysicalRect PaintLayerScrollableArea::ScrollIntoView(
   end_point = GetSnapPositionAndSetTarget(*strategy).value_or(end_point);
   new_scroll_offset = ScrollPositionToOffset(end_point);
 
-  if (params->is_for_scroll_sequence) {
-    mojom::blink::ScrollBehavior behavior = DetermineScrollBehavior(
-        params->behavior, GetLayoutBox()->StyleRef().GetScrollBehavior());
-    SetScrollOffsetInternal(new_scroll_offset, params->type,
-                            cc::ScrollSourceType::kAbsoluteScroll, behavior,
-                            true);
-  } else {
-    SetScrollOffsetInternal(new_scroll_offset, params->type,
-                            cc::ScrollSourceType::kAbsoluteScroll,
-                            mojom::blink::ScrollBehavior::kInstant, true);
-  }
+  mojom::blink::ScrollBehavior behavior =
+      params->is_for_scroll_sequence
+          ? DetermineScrollBehavior(
+                params->behavior,
+                GetLayoutBox()->StyleRef().GetScrollBehavior())
+          : mojom::blink::ScrollBehavior::kInstant;
+  SetScrollOffsetInternal(new_scroll_offset, params->type,
+                          cc::ScrollSourceType::kAbsoluteScroll, behavior, true,
+                          /*promise_handler=*/nullptr);
+
   ScrollOffset scroll_offset_difference = new_scroll_offset - old_scroll_offset;
   // The container hasn't performed the scroll yet if it's for scroll sequence.
   // To calculate the result from the scroll, we move the |local_expose_rect| to
@@ -2777,6 +2806,13 @@ bool PaintLayerScrollableArea::PrefersNonCompositedScrolling() const {
         return true;
       }
     }
+    if (RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+      if (auto* element = DynamicTo<Element>(node)) {
+        if (element->IsInCanvasSubtree()) {
+          return true;
+        }
+      }
+    }
   }
   return false;
 }
@@ -2798,9 +2834,24 @@ bool PaintLayerScrollableArea::VisualViewportSuppliesScrollbars() const {
   if (!frame || !frame->GetSettings())
     return false;
 
-  // On desktop, we always use the layout viewport's scrollbars.
-  if (!frame->GetSettings()->GetViewportEnabled())
-    return false;
+  // If we are forcing mobile-style scrollbars (can be set by emulation of
+  // overlay scrollbars or mobile emulation), the VisualViewport must supply
+  // them regardless of other settings.
+  if (!frame->GetSettings()->GetForceAndroidOverlayScrollbar()) {
+    // The VisualViewport is distinct from the LayoutViewport only when the
+    // mobile-style viewport logic is enabled. On desktop, the LayoutViewport
+    // handles all scrollbars.
+    if (!frame->GetSettings()->GetViewportEnabled()) {
+      return false;
+    }
+
+    // Even if the mobile viewport is enabled, on "desktop Android" (e.g.
+    // large screen optimizations), we prefer the LayoutViewport to handle
+    // scrollbars for a desktop-like experience.
+    if (ScrollbarTheme::DesktopAndroidScrollbarsEnabled()) {
+      return false;
+    }
+  }
 
   const TopDocumentRootScrollerController& controller =
       GetLayoutBox()->GetDocument().GetPage()->GlobalRootScrollerController();
@@ -3414,6 +3465,7 @@ void PaintLayerScrollableArea::
     rare_data.snapped_query_target_ids_ = new_target_ids;
     EnqueueScrollSnapChangeEvent();
   }
+  EnqueueOverscrollFinishedEventIfNeeded(scrollsnapchange);
 }
 
 void PaintLayerScrollableArea::SetScrollsnapchangingTargetIds(
@@ -3424,7 +3476,8 @@ void PaintLayerScrollableArea::SetScrollsnapchangingTargetIds(
 void PaintLayerScrollableArea::
     UpdateScrollSnapChangingTargetsAndEnqueueScrollSnapChanging(
         const cc::TargetSnapAreaElementIds& new_target_ids) {
-  if (!RuntimeEnabledFeatures::CSSScrollSnapChangingEventEnabled()) {
+  if (!RuntimeEnabledFeatures::CSSScrollSnapChangingEventEnabled() &&
+      !RuntimeEnabledFeatures::OverscrollGesturesEnabled()) {
     return;
   }
   const cc::SnapContainerData* container_data = GetSnapContainerData();
@@ -3436,14 +3489,29 @@ void PaintLayerScrollableArea::
 
   auto& rare_data = EnsureRareData();
   bool scrollsnapchanging =
-      (rare_data.scrollsnapchanging_target_ids_
-           ? (new_target_ids.x != rare_data.scrollsnapchanging_target_ids_->x ||
-              new_target_ids.y != rare_data.scrollsnapchanging_target_ids_->y)
-           : true);
+      !rare_data.scrollsnapchanging_target_ids_ ||
+      new_target_ids.x != rare_data.scrollsnapchanging_target_ids_->x ||
+      new_target_ids.y != rare_data.scrollsnapchanging_target_ids_->y;
+
   if (scrollsnapchanging) {
     rare_data.scrollsnapchanging_target_ids_ = new_target_ids;
     rare_data.snapped_query_target_ids_ = new_target_ids;
-    EnqueueScrollSnapChangingEvent();
+    if (RuntimeEnabledFeatures::CSSScrollSnapChangingEventEnabled()) {
+      EnqueueScrollSnapChangingEvent();
+    }
+
+    // We potentially need to send overscrollstart, since this snap change could
+    // have happened before any scroll update.
+    EnqueueOverscrollStartEventIfNeeded();
+
+    if (GetLayoutBox()->IsOverscrollAreaParent()) {
+      CHECK_EQ(container_data->size(), 2u);
+      const auto& first_data = container_data->at(0);
+
+      EnqueueOverscrollChangingEventIfNeeded(
+          new_target_ids.x != first_data.element_id ||
+          new_target_ids.y != first_data.element_id);
+    }
   }
 }
 
@@ -3610,6 +3678,56 @@ void PaintLayerScrollableArea::UpdateScrollMarkers() {
 bool PaintLayerScrollableArea::HasRunningAnimation() {
   return GetScrollAnimator().HasRunningAnimation() ||
          GetProgrammaticScrollAnimator().HasRunningAnimation();
+}
+
+void PaintLayerScrollableArea::EnqueueOverscrollStartEventIfNeeded() {
+  if (!GetLayoutBox()->IsOverscrollAreaParent() ||
+      (RareData() && RareData()->in_active_overscroll_)) {
+    return;
+  }
+
+  Element& overscroll_element = To<PseudoElement>(GetLayoutBox()->GetNode())
+                                    ->UltimateOriginatingElement();
+  Element* overscroll_container = overscroll_element.GetOverscrollContainer();
+
+  EnsureRareData().in_active_overscroll_ = true;
+  GetLayoutBox()->GetDocument().EnqueueOverscrollEvent(
+      event_type_names::kOverscrollstart, overscroll_container,
+      &overscroll_element);
+}
+
+void PaintLayerScrollableArea::EnqueueOverscrollChangingEventIfNeeded(
+    bool overscrolling) {
+  if (!GetLayoutBox()->IsOverscrollAreaParent() || !RareData() ||
+      !RareData()->in_active_overscroll_) {
+    return;
+  }
+
+  Element& overscroll_element = To<PseudoElement>(GetLayoutBox()->GetNode())
+                                    ->UltimateOriginatingElement();
+  Element* overscroll_container = overscroll_element.GetOverscrollContainer();
+
+  GetLayoutBox()->GetDocument().EnqueueOverscrollEvent(
+      event_type_names::kOverscrollchanging, overscroll_container,
+      &overscroll_element, overscrolling);
+}
+
+void PaintLayerScrollableArea::EnqueueOverscrollFinishedEventIfNeeded(
+    bool snap_changed) {
+  if (!GetLayoutBox()->IsOverscrollAreaParent() || !RareData() ||
+      !RareData()->in_active_overscroll_) {
+    return;
+  }
+
+  Element& overscroll_element = To<PseudoElement>(GetLayoutBox()->GetNode())
+                                    ->UltimateOriginatingElement();
+  Element* overscroll_container = overscroll_element.GetOverscrollContainer();
+
+  RareData()->in_active_overscroll_ = false;
+  GetLayoutBox()->GetDocument().EnqueueOverscrollEvent(
+      snap_changed ? event_type_names::kOverscrollend
+                   : event_type_names::kOverscrollcancel,
+      overscroll_container, &overscroll_element);
 }
 
 }  // namespace blink

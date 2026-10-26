@@ -631,7 +631,13 @@ const AnchorPositionScrollData* TransformTree::GetAnchorPositionScrollData(
 gfx::Vector2dF TransformTree::AnchorPositionOffset(
     TransformNode* node,
     int max_updated_node_id,
-    UpdateTransformsData* update_data) {
+    UpdateTransformsData* update_data,
+    base::flat_set<int>& visited) {
+  if (visited.contains(node->id)) {
+    return gfx::Vector2dF();
+  }
+  visited.insert(node->id);
+
   const AnchorPositionScrollData* data = GetAnchorPositionScrollData(node->id);
   if (!data)
     return gfx::Vector2dF();
@@ -665,7 +671,7 @@ gfx::Vector2dF TransformTree::AnchorPositionOffset(
       // because AnchorPositionOffset() is the opposite of
       // blink::AnchorPositionScrollData::AccmulatedOffset().
       accumulated_offset -= AnchorPositionOffset(
-          container_transform, max_updated_node_id, update_data);
+          container_transform, max_updated_node_id, update_data, visited);
     }
     if (container_transform_id > max_updated_node_id) {
       // The adjustment depends on a later transform node that may contain
@@ -834,7 +840,9 @@ void TransformTree::UpdateLocalTransform(
 
   transform.Translate(StickyPositionOffset(node));
   if (node->anchor_position_scroll_data_id >= 0) {
-    transform.Translate(AnchorPositionOffset(node, node->id - 1, update_data));
+    base::flat_set<int> visited;
+    transform.Translate(
+        AnchorPositionOffset(node, node->id - 1, update_data, visited));
     // Make sure the damage rect is tracked.
     node->SetTransformChanged(DamageReason::kUntracked);
   }
@@ -1669,6 +1677,9 @@ ScrollTree::~ScrollTree() = default;
 ScrollTree& ScrollTree::operator=(const ScrollTree& from) {
   PropertyTree::operator=(from);
   scrolling_contents_cull_rects_ = from.scrolling_contents_cull_rects_;
+  if (from.property_trees()->is_main_thread()) {
+    scroll_offset_map_ = from.scroll_offset_map_;
+  }
   currently_scrolling_node_id_ = kInvalidPropertyNodeId;
 
   // Remove obsolete overscroll amounts.
@@ -2364,19 +2375,11 @@ PropertyTreesChangeState::PropertyTreesChangeState(PropertyTreesChangeState&&) =
 PropertyTreesChangeState& PropertyTreesChangeState::operator=(
     PropertyTreesChangeState&&) = default;
 
-PropertyTrees::PropertyTrees(const ProtectedSequenceSynchronizer& synchronizer)
-    : synchronizer_(synchronizer),
-      transform_tree_(this),
+PropertyTrees::PropertyTrees()
+    : transform_tree_(this),
       effect_tree_(this),
       clip_tree_(this),
-      scroll_tree_(this),
-      needs_rebuild_(true),
-      changed_(false),
-      full_tree_damaged_(false),
-      is_main_thread_(true),
-      is_active_(false),
-      sequence_number_(0),
-      transform_delta_by_safe_area_inset_bottom_(0) {}
+      scroll_tree_(this) {}
 
 PropertyTrees::~PropertyTrees() = default;
 
@@ -2432,7 +2435,7 @@ void PropertyTrees::clear() {
   increment_sequence_number();
 
 #if DCHECK_IS_ON()
-  PropertyTrees tree(synchronizer());
+  PropertyTrees tree;
   tree.transform_tree_mutable() = transform_tree();
   tree.effect_tree_mutable() = effect_tree();
   tree.clip_tree_mutable() = clip_tree();
@@ -2451,7 +2454,7 @@ void PropertyTrees::SetInnerViewportContainerBoundsDelta(
   if (inner_viewport_container_bounds_delta() == bounds_delta)
     return;
 
-  inner_viewport_container_bounds_delta_.Write(synchronizer()) = bounds_delta;
+  inner_viewport_container_bounds_delta_ = bounds_delta;
 }
 
 void PropertyTrees::SetOuterViewportContainerBoundsDelta(
@@ -2459,7 +2462,7 @@ void PropertyTrees::SetOuterViewportContainerBoundsDelta(
   if (outer_viewport_container_bounds_delta() == bounds_delta)
     return;
 
-  outer_viewport_container_bounds_delta_.Write(synchronizer()) = bounds_delta;
+  outer_viewport_container_bounds_delta_ = bounds_delta;
   transform_tree_mutable().UpdateOuterViewportContainerBoundsDelta();
 }
 
@@ -2468,7 +2471,7 @@ void PropertyTrees::SetTransformDeltaBySafeAreaInsetBottom(float delta) {
     return;
   }
 
-  transform_delta_by_safe_area_inset_bottom_.Write(synchronizer()) = delta;
+  transform_delta_by_safe_area_inset_bottom_ = delta;
   transform_tree_mutable().NeedTransformUpdateForSafeAreaInsetBottom();
 }
 

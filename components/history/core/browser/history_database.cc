@@ -84,9 +84,15 @@ HistoryDatabase::HistoryDatabase(
               // Set the cache size. The page size, plus a little extra, times
               // this value, tells us how much memory the cache will use
               // maximum. 1000 * 4kB = 4MB
-              .set_cache_size(1000),
+              .set_cache_size(1000)
+#if !BUILDFLAG(IS_FUCHSIA)
+              .set_wal_mode(base::FeatureList::IsEnabled(
+                  kHistoryDatabaseWriteAheadLogging))
+#endif  // !BUILDFLAG(IS_FUCHSIA)
+              ,
           /*tag=*/"History"),
-      history_metadata_db_(&db_, &meta_table_) {}
+      history_metadata_db_(&db_, &meta_table_) {
+}
 
 HistoryDatabase::~HistoryDatabase() = default;
 
@@ -406,6 +412,10 @@ int HistoryDatabase::GetCurrentVersion() {
   return kCurrentVersionNumber;
 }
 
+int HistoryDatabase::GetDatabaseVersionForTesting() {
+  return meta_table_.GetVersionNumber();
+}
+
 std::unique_ptr<sql::Transaction> HistoryDatabase::CreateTransaction() {
   return std::make_unique<sql::Transaction>(&db_);
 }
@@ -445,10 +455,6 @@ void HistoryDatabase::Vacuum() {
   DCHECK_EQ(0, db_.transaction_nesting()) <<
       "Can not have a transaction when vacuuming.";
   std::ignore = db_.Execute("VACUUM");
-}
-
-void HistoryDatabase::TrimMemory() {
-  db_.TrimMemory();
 }
 
 bool HistoryDatabase::Raze() {

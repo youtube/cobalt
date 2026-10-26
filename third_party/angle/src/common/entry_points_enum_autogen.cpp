@@ -168,6 +168,8 @@ const char *GetEntryPointName(EntryPoint ep)
             return "clGetKernelInfo";
         case EntryPoint::CLGetKernelSubGroupInfo:
             return "clGetKernelSubGroupInfo";
+        case EntryPoint::CLGetKernelSubGroupInfoKHR:
+            return "clGetKernelSubGroupInfoKHR";
         case EntryPoint::CLGetKernelWorkGroupInfo:
             return "clGetKernelWorkGroupInfo";
         case EntryPoint::CLGetMemObjectInfo:
@@ -906,6 +908,8 @@ const char *GetEntryPointName(EntryPoint ep)
             return "glEndPerfMonitorAMD";
         case EntryPoint::GLEndPixelLocalStorageANGLE:
             return "glEndPixelLocalStorageANGLE";
+        case EntryPoint::GLEndPixelLocalStorageImplicitANGLE:
+            return "glEndPixelLocalStorageImplicitANGLE";
         case EntryPoint::GLEndQuery:
             return "glEndQuery";
         case EntryPoint::GLEndQueryEXT:
@@ -1108,6 +1112,10 @@ const char *GetEntryPointName(EntryPoint ep)
             return "glGetFramebufferPixelLocalStorageParameterivANGLE";
         case EntryPoint::GLGetFramebufferPixelLocalStorageParameterivRobustANGLE:
             return "glGetFramebufferPixelLocalStorageParameterivRobustANGLE";
+        case EntryPoint::GLGetFramebufferPixelLocalStorageParameteruivANGLE:
+            return "glGetFramebufferPixelLocalStorageParameteruivANGLE";
+        case EntryPoint::GLGetFramebufferPixelLocalStorageParameteruivRobustANGLE:
+            return "glGetFramebufferPixelLocalStorageParameteruivRobustANGLE";
         case EntryPoint::GLGetGraphicsResetStatus:
             return "glGetGraphicsResetStatus";
         case EntryPoint::GLGetGraphicsResetStatusEXT:

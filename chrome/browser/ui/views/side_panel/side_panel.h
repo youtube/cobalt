@@ -9,10 +9,11 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_multi_source_observation.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_animation_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_animation_ids.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "ui/base/interaction/element_tracker.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/animation/slide_animation.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
@@ -41,6 +42,8 @@ class SidePanel : public views::AccessiblePaneView,
   SidePanel(const SidePanel&) = delete;
   SidePanel& operator=(const SidePanel&) = delete;
   ~SidePanel() override;
+
+  DECLARE_CLASS_CUSTOM_ELEMENT_EVENT_TYPE(kOpenAnimationCompletedEvent);
 
   SidePanelAnimationCoordinator* animation_coordinator() {
     return animation_coordinator_.get();
@@ -129,9 +132,7 @@ class SidePanel : public views::AccessiblePaneView,
   // This method is the shared implementation of Open/Close.
   void UpdateVisibility(bool should_be_open, bool animated);
 
-  double GetAnimationValueFor(
-      const SidePanelAnimationCoordinator::SidePanelAnimationId& animation_id)
-      const;
+  double GetAnimationValueFor(SidePanelAnimationId animation_id) const;
 
   bool ShouldShowAnimation() const;
   void AnnounceResize();
@@ -142,9 +143,8 @@ class SidePanel : public views::AccessiblePaneView,
   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
 
   // SidePanelAnimationCoordinator::AnimationIdObserver
-  void OnAnimationSequenceProgressed(
-      const SidePanelAnimationCoordinator::SidePanelAnimationId& animation_id,
-      double animation_value) override;
+  void OnAnimationSequenceProgressed(SidePanelAnimationId animation_id,
+                                     double animation_value) override;
 
   // SidePanelAnimationCoordinator::AnimationTypeObserver:
   void OnAnimationTypeStarted(
@@ -202,8 +202,7 @@ class SidePanel : public views::AccessiblePaneView,
 
   State state_ = State::kClosed;
 
-  std::map<SidePanelAnimationCoordinator::SidePanelAnimationId, double>
-      last_animation_values_;
+  std::map<SidePanelAnimationId, double> last_animation_values_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_SIDE_PANEL_SIDE_PANEL_H_

@@ -86,6 +86,12 @@ struct FeaturesVk : FeatureSetBase
         &members,
     };
 
+    FeatureInfo useLargeSizeForDynamicBuffers = {
+        "useLargeSizeForDynamicBuffers",
+        FeatureCategory::VulkanWorkarounds,
+        &members,
+    };
+
     FeatureInfo supportsRenderpass2 = {
         "supportsRenderpass2",
         FeatureCategory::VulkanFeatures,
@@ -326,6 +332,12 @@ struct FeaturesVk : FeatureSetBase
         &members,
     };
 
+    FeatureInfo preferGPUForCopyBufferSubData = {
+        "preferGPUForCopyBufferSubData",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
     FeatureInfo persistentlyMappedBuffers = {
         "persistentlyMappedBuffers",
         FeatureCategory::VulkanFeatures,
@@ -448,6 +460,12 @@ struct FeaturesVk : FeatureSetBase
 
     FeatureInfo destroyOldSwapchainInSharedPresentMode = {
         "destroyOldSwapchainInSharedPresentMode",
+        FeatureCategory::VulkanWorkarounds,
+        &members,
+    };
+
+    FeatureInfo disableSubmitCommandsOnSyncStatusCheckForTesting = {
+        "disableSubmitCommandsOnSyncStatusCheckForTesting",
         FeatureCategory::VulkanWorkarounds,
         &members,
     };
@@ -1642,6 +1660,24 @@ struct FeaturesVk : FeatureSetBase
 
     FeatureInfo simulateTileMemoryForTesting = {
         "simulateTileMemoryForTesting",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
+    FeatureInfo supportsClKhrSubgroups = {
+        "supportsClKhrSubgroups",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
+    FeatureInfo clBestUniformFitWGS = {
+        "clBestUniformFitWGS",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
+    FeatureInfo supportsShaderDemoteToHelperInvocation = {
+        "supportsShaderDemoteToHelperInvocation",
         FeatureCategory::VulkanFeatures,
         &members,
     };

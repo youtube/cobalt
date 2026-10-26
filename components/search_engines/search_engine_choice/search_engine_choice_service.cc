@@ -6,6 +6,7 @@
 
 #include <inttypes.h>
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 
@@ -16,6 +17,7 @@
 #include "base/feature_list.h"
 #include "base/json/json_reader.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ref.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/puma_histogram_functions.h"
 #include "base/metrics/user_metrics.h"
@@ -28,6 +30,7 @@
 #include "base/version.h"
 #include "base/version_info/version_info.h"
 #include "components/country_codes/country_codes.h"
+#include "components/metrics/profile_metrics_service.h"
 #include "components/policy/core/common/management/management_service.h"
 #include "components/policy/core/common/policy_service.h"
 #include "components/policy/policy_constants.h"
@@ -277,6 +280,8 @@ regional_capabilities::FunnelStage ToFunnelStage(
     case SearchEngineChoiceScreenConditions::kAccountNotEligible:
     case SearchEngineChoiceScreenConditions::kIneligibleSurface:
     case SearchEngineChoiceScreenConditions::kManaged:
+    case SearchEngineChoiceScreenConditions::
+        kHasNonHighlightablePrepopulatedSearchEngine:
       return regional_capabilities::FunnelStage::kNotEligible;
   }
   NOTREACHED();
@@ -384,47 +389,47 @@ bool AccountCanMakeChoiceScreenChoice(
 #endif  // BUILDFLAG(CHOICE_SCREEN_IN_CHROME)
 }
 
-// Returns a pointer to a `TemplateURL` to highlight on the choice screen, if
+// Returns the index of the engine to highlight within `presented_engines`, if
 // this is requested by the client and program configs.
 //
-// - `regional_capabilities_service` is used to check whether highlighting the
+// - `eligibility_config` indicates whether highlighting the
 // current default is requested.
-// - `builtin_choice_screen_engines` are the entries that will be shown on the
+// - `presented_engines` are the entries that will be shown on the
 // choice screen. The returned value will be a pointer to one of these.
 // - `default_search_provider` is the current default search engine, if
 // available.
-const TemplateURL* MaybeGetCurrentDefaultToHighlight(
-    regional_capabilities::RegionalCapabilitiesService&
-        regional_capabilities_service,
-    const TemplateURLService::OwnedTemplateURLVector&
-        builtin_choice_screen_engines,
+//
+// Returns `std::nullopt` if highlighting is not needed or if the current
+// default is not found in the presented engines.
+std::optional<int> MaybeGetCurrentDefaultToHighlight(
+    const std::optional<regional_capabilities::ChoiceScreenEligibilityConfig>&
+        eligibility_config,
+    const std::vector<std::unique_ptr<TemplateURLData>>& presented_engines,
     const TemplateURL* default_search_provider) {
   if (!base::FeatureList::IsEnabled(
           switches::kCurrentDseHighlightOnChoiceScreenSupport)) {
-    return nullptr;
+    return std::nullopt;
   }
 
-  if (!regional_capabilities_service.GetChoiceScreenEligibilityConfig()
-           .has_value() ||
-      !regional_capabilities_service.GetChoiceScreenEligibilityConfig()
-           ->highlight_current_default) {
-    return nullptr;
+  if (!eligibility_config.has_value() ||
+      !eligibility_config->highlight_current_default) {
+    return std::nullopt;
   }
 
   if (!default_search_provider) {
-    return nullptr;
+    return std::nullopt;
   }
 
-  auto iter = std::ranges::find(builtin_choice_screen_engines,
-                                default_search_provider->prepopulate_id(),
-                                &TemplateURL::prepopulate_id);
-  if (iter == builtin_choice_screen_engines.end()) {
-    // TODO(crbug.com/454023518): Handle off-region default behind feature
-    // param.
-    return nullptr;
+  for (size_t i = 0; i < presented_engines.size(); ++i) {
+    if (presented_engines[i]->prepopulate_id ==
+        default_search_provider->prepopulate_id()) {
+      return i;
+    }
   }
 
-  return iter->get();
+  // TODO(crbug.com/484980000): Handle the case where the current default is not
+  // in this region's choice screen list.
+  return std::nullopt;
 }
 
 bool MaybeRecordChoiceScreenDisplayStateInternal(
@@ -521,14 +526,16 @@ SearchEngineChoiceService::SearchEngineChoiceService(
     regional_capabilities::RegionalCapabilitiesService& regional_capabilities,
     TemplateURLPrepopulateData::Resolver& prepopulate_data_resolver,
     signin::IdentityManager& identity_manager,
-    policy::ManagementService& platform_management_service)
+    policy::ManagementService& platform_management_service,
+    metrics::ProfileMetricsService& profile_metrics_service)
     : client_(std::move(client)),
       profile_prefs_(profile_prefs),
       local_state_(local_state),
       regional_capabilities_service_(regional_capabilities),
       prepopulate_data_resolver_(prepopulate_data_resolver),
       identity_manager_(identity_manager),
-      platform_management_service_(platform_management_service) {}
+      platform_management_service_(platform_management_service),
+      profile_metrics_service_(profile_metrics_service) {}
 
 SearchEngineChoiceService::~SearchEngineChoiceService() = default;
 
@@ -650,6 +657,9 @@ SearchEngineChoiceService::GetDynamicChoiceScreenConditions(
     case ChoiceStatus::kCurrentIsUnknownPrepopulated:
       return SearchEngineChoiceScreenConditions::
           kHasRemovedPrepopulatedSearchEngine;
+    case ChoiceStatus::kCurrentCannotBeHighlighted:
+      return SearchEngineChoiceScreenConditions::
+          kHasNonHighlightablePrepopulatedSearchEngine;
     case ChoiceStatus::kCurrentIsNotPrepopulated:
       return SearchEngineChoiceScreenConditions::kHasCustomSearchEngine;
     case ChoiceStatus::kCurrentIsNonGooglePrepopulated:
@@ -736,8 +746,8 @@ void SearchEngineChoiceService::RecordChoiceScreenEvent(
                                   event);
   }
 
-  base::UmaHistogramEnumeration(kSearchEngineChoiceScreenEventsHistogram,
-                                event);
+  profile_metrics_service_->UmaHistogramEnumeration(
+      kSearchEngineChoiceScreenEventsHistogram, event);
   base::PumaHistogramEnumeration(base::PumaType::kRc,
                                  kPumaSearchChoiceScreenEventsHistogram, event);
 
@@ -754,8 +764,8 @@ std::unique_ptr<search_engines::ChoiceScreenData>
 SearchEngineChoiceService::GetChoiceScreenData(
     const SearchTermsData& search_terms_data,
     const TemplateURL* default_search_provider) {
-  TemplateURLService::OwnedTemplateURLVector owned_template_urls;
-
+  CHECK(regional_capabilities_service_->IsInSearchEngineChoiceScreenRegion(),
+        base::NotFatalUntil::M149);
   // We call `GetPrepopulatedEngines` instead of
   // `GetSearchProvidersUsingLoadedEngines` because the latter will return the
   // list of search engines that might have been modified by the user (by
@@ -764,14 +774,23 @@ SearchEngineChoiceService::GetChoiceScreenData(
   // handled by `generate_search_engine_icons.py`.
   std::vector<std::unique_ptr<TemplateURLData>> engines =
       prepopulate_data_resolver_->GetPrepopulatedEngines();
+
+  std::optional<int> engine_index_to_highlight =
+      MaybeGetCurrentDefaultToHighlight(
+          regional_capabilities_service_->GetChoiceScreenEligibilityConfig(),
+          engines, default_search_provider);
+  base::UmaHistogramBoolean(
+      "RegionalCapabilities.Debug.DefaultHighlightingResult",
+      engine_index_to_highlight.has_value());
+
+  TemplateURLService::OwnedTemplateURLVector owned_template_urls;
   for (const auto& engine : engines) {
     owned_template_urls.push_back(std::make_unique<TemplateURL>(*engine));
   }
-
-  const TemplateURL* current_default_to_highlight =
-      MaybeGetCurrentDefaultToHighlight(regional_capabilities_service_.get(),
-                                        owned_template_urls,
-                                        default_search_provider);
+  TemplateURL* current_default_to_highlight =
+      engine_index_to_highlight.has_value()
+          ? owned_template_urls[*engine_index_to_highlight].get()
+          : nullptr;
 
   return std::make_unique<search_engines::ChoiceScreenData>(
       std::move(owned_template_urls), current_default_to_highlight,
@@ -1076,13 +1095,30 @@ SearchEngineChoiceService::EvaluateSearchProviderChoice(
     }
   }
 
-  // 3.4: Was the choice made on a different device?
+  // Note: as of M146, the precedence between the checks below is not very
+  // important as there are no program settings requiring multiple of these to
+  // be active at the same time. They may need to be reogranized in the future.
+
+  // 3.4: Is the current DSP highlight-able?
+  if (eligibility_config.highlight_current_default) {
+    if (base::FeatureList::IsEnabled(
+            switches::kCurrentDseHighlightOnChoiceScreenSupport) &&
+        !MaybeGetCurrentDefaultToHighlight(
+             eligibility_config,
+             prepopulate_data_resolver_->GetPrepopulatedEngines(),
+             default_search_provider)
+             .has_value()) {
+      return ChoiceStatus::kCurrentCannotBeHighlighted;
+    }
+  }
+
+  // 3.5: Was the choice made on a different device?
 
   if (renewal_reasons.Has(ChoiceRenewalReason::kOutdated)) {
     return ChoiceStatus::kFromRestoredDevice;
   }
 
-  // 3.5: Is the current DSP non-Google?
+  // 3.6: Is the current DSP non-Google?
 
   if (eligibility_config.should_preserve_non_google_dse) {
     if (default_search_provider->GetEngineType(

@@ -101,10 +101,10 @@ base::span<const PageInfoUI::PermissionUIInfo> GetContentSettingsUIInfo() {
       {
           ContentSettingsType::SENSORS,
           base::FeatureList::IsEnabled(features::kGenericSensorExtraClasses)
-              ? IDS_SITE_SETTINGS_TYPE_SENSORS
+              ? IDS_SITE_SETTINGS_TYPE_MOTION_AND_LIGHT_SENSORS
               : IDS_SITE_SETTINGS_TYPE_MOTION_SENSORS,
           base::FeatureList::IsEnabled(features::kGenericSensorExtraClasses)
-              ? IDS_SITE_SETTINGS_TYPE_SENSORS_MID_SENTENCE
+              ? IDS_SITE_SETTINGS_TYPE_MOTION_AND_LIGHT_SENSORS_MID_SENTENCE
               : IDS_SITE_SETTINGS_TYPE_MOTION_SENSORS_MID_SENTENCE,
       },
       {ContentSettingsType::USB_GUARD, IDS_SITE_SETTINGS_TYPE_USB_DEVICES,
@@ -172,11 +172,13 @@ base::span<const PageInfoUI::PermissionUIInfo> GetContentSettingsUIInfo() {
        IDS_SITE_SETTINGS_TYPE_POINTER_LOCK_MID_SENTENCE},
       {ContentSettingsType::SERIAL_GUARD, IDS_SITE_SETTINGS_TYPE_SERIAL_PORTS,
        IDS_SITE_SETTINGS_TYPE_SERIAL_PORTS_MID_SENTENCE},
-      {ContentSettingsType::WEB_PRINTING, IDS_SITE_SETTINGS_TYPE_WEB_PRINTING,
-       IDS_SITE_SETTINGS_TYPE_WEB_PRINTING_MID_SENTENCE},
       {ContentSettingsType::WEB_APP_INSTALLATION,
        IDS_SITE_SETTINGS_TYPE_WEB_APP_INSTALLATION,
        IDS_SITE_SETTINGS_TYPE_WEB_APP_INSTALLATION_MID_SENTENCE},
+#endif
+#if BUILDFLAG(IS_CHROMEOS)
+      {ContentSettingsType::WEB_PRINTING, IDS_SITE_SETTINGS_TYPE_WEB_PRINTING,
+       IDS_SITE_SETTINGS_TYPE_WEB_PRINTING_MID_SENTENCE},
 #endif
   };
   return kPermissionUIInfo;
@@ -262,6 +264,12 @@ std::u16string GetPermissionAskStateString(ContentSettingsType type) {
       break;
     case ContentSettingsType::NOTIFICATIONS:
       message_id = IDS_PAGE_INFO_STATE_TEXT_NOTIFICATIONS_ASK;
+      break;
+    case ContentSettingsType::SENSORS:
+      message_id =
+          base::FeatureList::IsEnabled(features::kGenericSensorExtraClasses)
+              ? IDS_PAGE_INFO_STATE_TEXT_MOTION_AND_LIGHT_SENSORS_ASK
+              : IDS_PAGE_INFO_STATE_TEXT_MOTION_SENSORS_ASK;
       break;
     case ContentSettingsType::MIDI_SYSEX:
       message_id = IDS_PAGE_INFO_STATE_TEXT_MIDI_SYSEX_ASK;
@@ -734,7 +742,7 @@ std::u16string PageInfoUI::PermissionAutoBlockedToUIString(
   // to contain all needed information regarding Automatically Blocked flag.
   auto* info = PermissionSettingsRegistry::GetInstance()->Get(permission.type);
   CHECK(info);
-  if (permission.setting && !info->delegate().IsBlocked(*permission.setting) &&
+  if (permission.setting &&
       permissions::PermissionDecisionAutoBlocker::IsEnabledForContentSetting(
           permission.type)) {
     content::PermissionResult permission_result(

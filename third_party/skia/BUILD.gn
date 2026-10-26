@@ -93,7 +93,7 @@ config("skia_private") {
       "SK_GAMMA_CONTRAST=0.0",
     ]
   }
-  if (is_skia_dev_build && !is_wasm) {
+  if (is_skia_dev_build && !is_canvaskit) {
     defines += [
       "SK_ALLOW_STATIC_GLOBAL_INITIALIZERS=1",
       "GPU_TEST_UTILS=1",
@@ -116,6 +116,10 @@ config("skia_private") {
 
   if (skia_dump_tasks) {
     defines += [ "SK_DUMP_TASKS" ]
+  }
+
+  if (skia_use_partition_alloc) {
+    defines += [ "SK_USE_PARTITION_ALLOC" ]
   }
 
   # Temporary staging flag:
@@ -421,7 +425,7 @@ optional("fontmgr_FontConfigInterface") {
 }
 
 optional("fontmgr_fontations_empty") {
-  enabled = skia_use_fontations
+  enabled = skia_enable_fontmgr_fontations_empty
   public_defines = [ "SK_FONTMGR_FONTATIONS_AVAILABLE" ]
 
   deps = [ ":typeface_fontations" ]
@@ -1018,7 +1022,8 @@ optional("gpu") {
   if (skia_use_direct3d) {
     public_defines += [ "SK_DIRECT3D" ]
     deps += [ "//third_party/d3d12allocator" ]
-    sources += skia_direct3d_sources
+    public += skia_ganesh_d3d_public
+    sources += skia_ganesh_d3d_private
     if (skia_enable_direct3d_debug_layer) {
       public_defines += [ "SK_ENABLE_D3D_DEBUG_LAYER" ]
     }
@@ -1798,7 +1803,23 @@ skia_source_set("core") {
   sources = skia_core_sources
 
   # These deps don't belong to :core, but they are currently needed to support (de)serialization.
+  deps = [
+    ":fontmgr_mac_ct",
+    ":fontmgr_win",
+    ":fontmgr_win_gdi",
+    ":png_decode_libpng",
+    ":png_encode_libpng",
+    ":typeface_fontations",
+    ":typeface_freetype",
+  ]
+}
+
+skia_component("skia") {
+  public_configs = [ ":skia_public" ]
+  configs = skia_library_configs
+
   public_deps = [
+    ":core",
     ":fontmgr_FontConfigInterface",
     ":fontmgr_android",
     ":fontmgr_android_ndk",
@@ -1810,23 +1831,13 @@ skia_source_set("core") {
     ":fontmgr_mac_ct",
     ":fontmgr_win",
     ":fontmgr_win_gdi",
-    ":png_decode_libpng",
-    ":png_encode_libpng",
-  ]
-  deps = [ ":typeface_fontations" ]
-}
-
-skia_component("skia") {
-  public_configs = [ ":skia_public" ]
-  configs = skia_library_configs
-
-  public_deps = [
-    ":core",
     ":gpu",
     ":graphite",
     ":jpeg_encode",
     ":pdf",
     ":pdf_jpeg_helpers",
+    ":png_decode_libpng",
+    ":png_encode_libpng",
     ":webp_encode",
     ":xps",
   ]
@@ -1846,6 +1857,7 @@ skia_component("skia") {
     ":rust_icc",
     ":skx",
     ":typeface_fontations",
+    ":typeface_freetype",
     ":vello",
     ":webp_decode",
     ":wuffs",
@@ -1994,7 +2006,7 @@ skia_component("skia") {
 }
 
 # DebugCanvas used in experimental/wasm-skp-debugger
-if (is_wasm) {
+if (is_canvaskit) {
   skia_static_library("debugcanvas") {
     public_configs = [ ":skia_public" ]
 
@@ -2018,7 +2030,7 @@ group("modules") {
     "modules/svg",
   ]
 
-  if (is_wasm) {
+  if (is_canvaskit) {
     deps += [ "modules/canvaskit" ]
   }
 }
@@ -2289,7 +2301,7 @@ if (skia_enable_tools) {
       libs = []
       frameworks = []
 
-      if (skia_use_gl && target_cpu != "wasm") {
+      if (skia_use_gl && !is_canvaskit) {
         if (is_android || skia_use_egl) {
           sources +=
               [ "tools/ganesh/gl/egl/CreatePlatformGLTestContext_egl.cpp" ]
@@ -2312,6 +2324,10 @@ if (skia_enable_tools) {
           if (target_cpu != "arm64") {
             libs += [ "OpenGL32.lib" ]
           }
+        } else if (is_wasm) {
+          # TODO: replace with webgl test context
+          sources +=
+              [ "tools/ganesh/gl/none/CreatePlatformGLTestContext_none.cpp" ]
         }
       }
 
@@ -2382,8 +2398,10 @@ if (skia_enable_tools) {
           sources += [ "tools/ganesh/mtl/MtlTestContext.mm" ]
         }
         if (skia_use_direct3d) {
-          sources += [ "tools/ganesh/d3d/D3DTestContext.cpp" ]
-          sources += [ "tools/ganesh/d3d/D3DTestUtils.cpp" ]
+          sources += [
+            "tools/ganesh/d3d/D3DTestContext.cpp",
+            "tools/ganesh/d3d/D3DTestUtils.cpp",
+          ]
         }
       }
       if (skia_enable_graphite) {
@@ -2556,7 +2574,7 @@ if (skia_enable_tools) {
       ]
     }
 
-    if (target_cpu != "wasm") {
+    if (!is_canvaskit) {
       sources += [ "tools/CrashHandler.cpp" ]
     }
     libs = []
@@ -2790,7 +2808,7 @@ if (skia_enable_tools) {
       "//third_party/libpng",
     ]
   }
-  if (target_cpu != "wasm") {
+  if (!is_canvaskit) {
     if (skia_enable_tools_that_might_need_ganesh) {
       test_app("convert-to-nia") {
         sources = [ "tools/convert-to-nia.cpp" ]
@@ -2840,6 +2858,9 @@ if (skia_enable_tools) {
         }
         if (skia_enable_ganesh) {
           deps += [ ":common_flags_ganesh" ]
+        }
+        if (skia_use_partition_alloc) {
+          deps += [ "tools/partition_alloc:test_support" ]
         }
       }
     }
@@ -2901,6 +2922,14 @@ if (skia_enable_tools) {
       ]
       if (skia_enable_graphite) {
         deps += [ ":common_flags_graphite" ]
+      }
+      if (skia_use_pprof) {
+        # https://packages.debian.org/trixie/libgoogle-perftools-dev
+        libs = [
+          "profiler",
+          "tcmalloc",
+        ]
+        defines = [ "SK_USE_PPROF" ]
       }
     }
   }
@@ -3434,7 +3463,7 @@ if (skia_enable_tools) {
     group("modules_testonly") {
       testonly = true
       deps = []
-      if (is_wasm) {
+      if (is_canvaskit) {
         deps += [ "modules/canvaskit:viewer_wasm" ]
       }
     }

@@ -40,6 +40,9 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/chrome_pages.h"
+#include "chrome/browser/ui/desktop_to_mobile_promos/ios_promo_trigger_service.h"
+#include "chrome/browser/ui/desktop_to_mobile_promos/ios_promo_trigger_service_factory.h"
+#include "chrome/browser/ui/desktop_to_mobile_promos/ios_promos_utils.h"
 #include "chrome/browser/ui/hats/trust_safety_sentiment_service_factory.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
@@ -50,9 +53,6 @@
 #include "chrome/browser/ui/passwords/password_dialog_prompts.h"
 #include "chrome/browser/ui/passwords/passwords_leak_dialog_delegate.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
-#include "chrome/browser/ui/promos/ios_promo_trigger_service.h"
-#include "chrome/browser/ui/promos/ios_promo_trigger_service_factory.h"
-#include "chrome/browser/ui/promos/ios_promos_utils.h"
 #include "chrome/browser/ui/simple_message_box.h"
 #include "chrome/browser/ui/singleton_tabs.h"
 #include "chrome/browser/ui/tab_dialogs.h"
@@ -377,6 +377,13 @@ void ManagePasswordsUIController::OnAutoSignin(
   UpdateBubbleAndIconVisibility();
 }
 
+void ManagePasswordsUIController::OnAutoSignInToastClosed() {
+  if (GetState() == password_manager::ui::AUTO_SIGNIN_STATE) {
+    passwords_data_.TransitionToState(password_manager::ui::MANAGE_STATE);
+    UpdateBubbleAndIconVisibility();
+  }
+}
+
 void ManagePasswordsUIController::ShowAutoSignInToast() {
   const password_manager::PasswordForm& form = GetPendingPassword();
   if (form.username_value.empty()) {
@@ -387,6 +394,9 @@ void ManagePasswordsUIController::ShowAutoSignInToast() {
         std::make_unique<ManagePasswordsAutoSigninToastDelegate>(
             web_contents());
   }
+  auto_signin_toast_delegate_->SetOnToastClosedCallback(
+      base::BindOnce(&ManagePasswordsUIController::OnAutoSignInToastClosed,
+                     weak_ptr_factory_.GetWeakPtr()));
   auto_signin_toast_delegate_->OnAutoSignInToast(form.username_value);
 }
 
@@ -1237,7 +1247,12 @@ void ManagePasswordsUIController::UpdateBubbleAndIconVisibility() {
     return;
   }
   if (IsPageActionMigrated(PageActionIconType::kManagePasswords)) {
-    tabs::TabInterface* const tab_interface = browser->GetActiveTabInterface();
+    tabs::TabInterface* const tab_interface =
+        tabs::TabInterface::MaybeGetFromContents(web_contents());
+    // The tab interface can be null if the web contents is not a tab.
+    if (!tab_interface) {
+      return;
+    }
     auto* const tab_features = tab_interface->GetTabFeatures();
     CHECK(tab_features);
     // Retrieve the controller responsible for managing the page action's
@@ -1282,6 +1297,14 @@ void ManagePasswordsUIController::UpdatePasswordIconAndBubbleState(
       state == password_manager::ui::CREDENTIAL_REQUEST_STATE) {
     state = password_manager::ui::INACTIVE_STATE;
   }
+
+  // If the auto sign-in toast is shown (Unified UI), hide the icon.
+  if (state == password_manager::ui::AUTO_SIGNIN_STATE &&
+      base::FeatureList::IsEnabled(
+          password_manager::features::kCredentialManagementUnifiedUi)) {
+    state = password_manager::ui::INACTIVE_STATE;
+  }
+
   // Update the visibility of the page action based on the current state,
   // blocklist status, and the passwords action item.
   controller->UpdateVisibility(state, is_blocklisted, *this,

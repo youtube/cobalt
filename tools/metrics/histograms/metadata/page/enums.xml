@@ -51,6 +51,17 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/page_load_metrics/observers/captcha_metrics_observer.h:CaptchaFrameAgentContext) -->
 
+<!-- LINT.IfChange(CaptchaProvider) -->
+
+<enum name="CaptchaProvider">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="reCaptcha"/>
+  <int value="2" label="hCaptcha"/>
+  <int value="3" label="Cloudflare Turnstile"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/page_load_metrics/observers/captcha_provider_manager.h:CaptchaProvider) -->
+
 <!-- LINT.IfChange(ConnectionReuseStatus) -->
 
 <enum name="ConnectionReuseStatus">
@@ -250,7 +261,7 @@ chromium-metrics-reviews@google.com.
 
 <enum name="PageActionIconType">
   <int value="0" label="Bookmarks Star"/>
-  <int value="1" label="Click to Call"/>
+  <int value="1" label="(Deprecated) Click to Call"/>
   <int value="2" label="Cookie Controls"/>
   <int value="3" label="File System Access"/>
   <int value="4" label="Find"/>
@@ -259,7 +270,7 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="(Deprecated) Local Card Migration"/>
   <int value="8" label="Manage Passwords"/>
   <int value="9" label="Payments Offer Notification"/>
-  <int value="10" label="Price Tracking"/>
+  <int value="10" label="(Deprecated) Price Tracking"/>
   <int value="11" label="PWA Install"/>
   <int value="12" label="(Deprecated) QR Code Generator"/>
   <int value="13" label="(Deprecated) Reader Mode"/>
@@ -289,6 +300,9 @@ chromium-metrics-reviews@google.com.
   <int value="37" label="Contextual Task"/>
   <int value="38" label="JS Optimizations"/>
   <int value="39" label="RecordReplay"/>
+  <int value="40" label="Indigo"/>
+  <int value="41" label="Federation"/>
+  <int value="42" label="Glic"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/page_action/page_action_icon_type.h:PageActionIconType) -->
@@ -397,6 +411,16 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//components/page_load_metrics/google/browser/prerender_prewarm_navigation_data.h:PrerenderPrewarmNavigationStatus) -->
+
+<!-- LINT.IfChange(PriorPrewarmCommitStatus) -->
+
+<enum name="PriorPrewarmCommitStatus">
+  <int value="0" label="No prewarm triggered"/>
+  <int value="1" label="Prewarm triggered, not committed"/>
+  <int value="2" label="Prewarm triggered, committed"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/page_load_metrics/google/browser/prerender_prewarm_navigation_data.h:PriorPrewarmCommitStatus) -->
 
 <!-- LINT.IfChange(WebViewPageAttemptResult) -->
 

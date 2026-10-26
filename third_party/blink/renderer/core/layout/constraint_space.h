@@ -23,6 +23,7 @@
 #include "third_party/blink/renderer/core/layout/min_max_sizes.h"
 #include "third_party/blink/renderer/core/layout/table/table_constraint_space_data.h"
 #include "third_party/blink/renderer/platform/geometry/physical_size.h"
+#include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "third_party/blink/renderer/platform/text/writing_mode.h"
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
@@ -732,8 +733,8 @@ class CORE_EXPORT ConstraintSpace final {
     return rare_data_ ? rare_data_->GetLineClampData() : LineClampData();
   }
 
-  MarginStrut LineClampEndMarginStrut() const {
-    return rare_data_ ? rare_data_->LineClampEndMarginStrut() : MarginStrut();
+  const LineClampAncestorChain* GetLineClampAncestorChain() const {
+    return rare_data_ ? rare_data_->GetLineClampAncestorChain() : nullptr;
   }
 
   // Return true if `text-box-trim:trim-start` is in effect at the beginning of
@@ -873,7 +874,6 @@ class CORE_EXPORT ConstraintSpace final {
       kTableSectionData,  // A table-section (display: table-section).
       kCustomData,        // A custom layout (display: layout(foo)).
       kStretchData,       // The target inline/block stretch sizes for MathML.
-      kSubgridData        // A nested grid with subgridded columns/rows.
     };
 
     RareData() {}
@@ -933,7 +933,9 @@ class CORE_EXPORT ConstraintSpace final {
           is_adjacent_to_paper_edge_block_start(
               other.is_adjacent_to_paper_edge_block_start),
           is_adjacent_to_paper_edge_block_end(
-              other.is_adjacent_to_paper_edge_block_end) {
+              other.is_adjacent_to_paper_edge_block_end),
+          line_clamp_ancestor_chain_(other.line_clamp_ancestor_chain_),
+          grid_layout_subtree_(other.grid_layout_subtree_) {
       switch (GetDataUnionType()) {
         case DataUnionType::kNone:
           break;
@@ -955,9 +957,6 @@ class CORE_EXPORT ConstraintSpace final {
           break;
         case DataUnionType::kStretchData:
           new (&stretch_data_) StretchData(other.stretch_data_);
-          break;
-        case DataUnionType::kSubgridData:
-          new (&subgrid_data_) SubgridData(other.subgrid_data_);
           break;
         default:
           NOTREACHED();
@@ -985,15 +984,15 @@ class CORE_EXPORT ConstraintSpace final {
         case DataUnionType::kStretchData:
           stretch_data_.~StretchData();
           break;
-        case DataUnionType::kSubgridData:
-          subgrid_data_.~SubgridData();
-          break;
         default:
           NOTREACHED();
       }
     }
 
-    void Trace(Visitor*) const {}
+    void Trace(Visitor* visitor) const {
+      visitor->Trace(line_clamp_ancestor_chain_);
+      visitor->Trace(grid_layout_subtree_);
+    }
 
     bool MaySkipLayout(const RareData& other) const {
       if (replaced_child_percentage_resolution_block_size !=
@@ -1043,7 +1042,10 @@ class CORE_EXPORT ConstraintSpace final {
               other.is_adjacent_to_paper_edge_block_start ||
           is_adjacent_to_paper_edge_block_end !=
               other.is_adjacent_to_paper_edge_block_end ||
-          ignore_margins_for_stretch != other.ignore_margins_for_stretch) {
+          ignore_margins_for_stretch != other.ignore_margins_for_stretch ||
+          !base::ValuesEquivalent(line_clamp_ancestor_chain_,
+                                  other.line_clamp_ancestor_chain_) ||
+          !base::ValuesEquivalent(grid_layout_subtree_, other.grid_layout_subtree_)) {
         return false;
       }
 
@@ -1062,8 +1064,6 @@ class CORE_EXPORT ConstraintSpace final {
           return custom_data_.MaySkipLayout(other.custom_data_);
         case DataUnionType::kStretchData:
           return stretch_data_.MaySkipLayout(other.stretch_data_);
-        case DataUnionType::kSubgridData:
-          return subgrid_data_.MaySkipLayout(other.subgrid_data_);
       }
       NOTREACHED();
     }
@@ -1093,7 +1093,8 @@ class CORE_EXPORT ConstraintSpace final {
           is_adjacent_to_paper_edge_inline_end ||
           is_adjacent_to_paper_edge_block_start ||
           is_adjacent_to_paper_edge_block_end ||
-          !ignore_margins_for_stretch.IsEmpty()) {
+          !ignore_margins_for_stretch.IsEmpty() || line_clamp_ancestor_chain_ ||
+          grid_layout_subtree_) {
         return false;
       }
 
@@ -1112,8 +1113,6 @@ class CORE_EXPORT ConstraintSpace final {
           return custom_data_.IsInitialForMaySkipLayout();
         case DataUnionType::kStretchData:
           return stretch_data_.IsInitialForMaySkipLayout();
-        case DataUnionType::kSubgridData:
-          return subgrid_data_.IsInitialForMaySkipLayout();
       }
       NOTREACHED();
     }
@@ -1177,14 +1176,12 @@ class CORE_EXPORT ConstraintSpace final {
       EnsureBlockData()->line_clamp_data = value;
     }
 
-    MarginStrut LineClampEndMarginStrut() const {
-      return GetDataUnionType() == DataUnionType::kBlockData
-                 ? block_data_.line_clamp_end_margin_strut
-                 : MarginStrut();
+    const LineClampAncestorChain* GetLineClampAncestorChain() const {
+      return line_clamp_ancestor_chain_;
     }
 
-    void SetLineClampEndMarginStrut(MarginStrut value) {
-      EnsureBlockData()->line_clamp_end_margin_strut = value;
+    void SetLineClampAncestorChain(const LineClampAncestorChain* value) {
+      line_clamp_ancestor_chain_ = value;
     }
 
     void SetIsTableCell() { EnsureTableCellData(); }
@@ -1310,13 +1307,11 @@ class CORE_EXPORT ConstraintSpace final {
     }
 
     const GridLayoutSubtree* GetGridLayoutSubtree() const {
-      return GetDataUnionType() == DataUnionType::kSubgridData
-                 ? &subgrid_data_.layout_subtree
-                 : nullptr;
+      return grid_layout_subtree_ ? grid_layout_subtree_.Get() : nullptr;
     }
 
-    void SetGridLayoutSubtree(GridLayoutSubtree&& grid_layout_subtree) {
-      EnsureSubgridData()->layout_subtree = std::move(grid_layout_subtree);
+    void SetGridLayoutSubtree(const GridLayoutSubtree* grid_layout_subtree) {
+      grid_layout_subtree_ = grid_layout_subtree;
     }
 
     DataUnionType GetDataUnionType() const {
@@ -1389,7 +1384,6 @@ class CORE_EXPORT ConstraintSpace final {
       std::optional<LayoutUnit> forced_bfc_block_offset;
       LayoutUnit clearance_offset = LayoutUnit::Min();
       LineClampData line_clamp_data;
-      MarginStrut line_clamp_end_margin_strut;
     };
 
     struct TableCellData {
@@ -1471,16 +1465,6 @@ class CORE_EXPORT ConstraintSpace final {
       std::optional<MathTargetStretchBlockSizes> target_stretch_block_sizes;
     };
 
-    struct SubgridData {
-      bool MaySkipLayout(const SubgridData& other) const {
-        return layout_subtree == other.layout_subtree;
-      }
-
-      bool IsInitialForMaySkipLayout() const { return !layout_subtree; }
-
-      GridLayoutSubtree layout_subtree;
-    };
-
     BlockData* EnsureBlockData() {
       DCHECK(GetDataUnionType() == DataUnionType::kNone ||
              GetDataUnionType() == DataUnionType::kBlockData);
@@ -1542,16 +1526,6 @@ class CORE_EXPORT ConstraintSpace final {
       return &stretch_data_;
     }
 
-    SubgridData* EnsureSubgridData() {
-      DCHECK(GetDataUnionType() == DataUnionType::kNone ||
-             GetDataUnionType() == DataUnionType::kSubgridData);
-      if (GetDataUnionType() != DataUnionType::kSubgridData) {
-        data_union_type = static_cast<unsigned>(DataUnionType::kSubgridData);
-        new (&subgrid_data_) SubgridData();
-      }
-      return &subgrid_data_;
-    }
-
     union {
       BlockData block_data_;
       TableCellData table_cell_data_;
@@ -1559,8 +1533,10 @@ class CORE_EXPORT ConstraintSpace final {
       TableSectionData table_section_data_;
       CustomData custom_data_;
       StretchData stretch_data_;
-      SubgridData subgrid_data_;
     };
+
+    Member<const LineClampAncestorChain> line_clamp_ancestor_chain_;
+    Member<const GridLayoutSubtree> grid_layout_subtree_;
   };
 
   // This struct simply allows us easily copy, compare, and initialize all the

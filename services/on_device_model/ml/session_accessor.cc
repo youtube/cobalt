@@ -33,44 +33,56 @@ uint32_t GetTopK(std::optional<uint32_t> top_k) {
 }  // namespace
 
 // Wrapper for the ChromeMLCancel object.
-class SessionAccessor::Canceler
-    : public base::RefCountedDeleteOnSequence<Canceler> {
+class SessionAccessor::Canceler : public base::RefCountedThreadSafe<Canceler> {
  public:
   Canceler(const ChromeML& chrome_ml,
            scoped_refptr<base::SequencedTaskRunner> task_runner)
-      : base::RefCountedDeleteOnSequence<Canceler>(task_runner),
-        chrome_ml_(chrome_ml),
-        task_runner_(task_runner) {
-    // `Canceler` is deleted on `task_runner_` so `base::Unretained` is safe.
-    task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&SessionAccessor::Canceler::CreateInternal,
-                                  base::Unretained(this)));
-  }
+      : chrome_ml_(chrome_ml), task_runner_(task_runner) {}
 
   void Cancel() {
-    // `Canceler` is deleted on `task_runner_` so `base::Unretained` is safe.
     task_runner_->PostTask(
         FROM_HERE, base::BindOnce(&SessionAccessor::Canceler::CancelInternal,
-                                  base::Unretained(this)));
+                                  base::RetainedRef(this)));
   }
 
-  ChromeMLCancel get() const { return cancel_; }
+  ChromeMLCancel get() {
+    if (cancel_ == 0) {
+      CreateInternal();
+    }
+    return cancel_;
+  }
 
  private:
-  friend class base::RefCountedDeleteOnSequence<Canceler>;
-  friend class base::DeleteHelper<Canceler>;
+  friend class base::RefCountedThreadSafe<Canceler>;
 
   DISABLE_CFI_DLSYM
-  virtual ~Canceler() { chrome_ml_->api().DestroyCancel(cancel_); }
+  static void DestroyChromeMLCancel(const raw_ref<const ChromeML> chrome_ml,
+                                    ChromeMLCancel cancel = 0) {
+    if (cancel == 0) {
+      return;
+    }
+
+    chrome_ml->api().DestroyCancel(cancel);
+  }
+
+  virtual ~Canceler() {
+    // Ensure that `ChromeMLCancel` is destroyed on the `task_runner_`.
+    task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&DestroyChromeMLCancel,
+                                  // Safe because `chrome_ml_` will never be
+                                  // destroyed, and `cancel_` should only be
+                                  // destroyed in this callback.
+                                  chrome_ml_, cancel_));
+  }
 
   DISABLE_CFI_DLSYM
   void CreateInternal() { cancel_ = chrome_ml_->api().CreateCancel(); }
 
   DISABLE_CFI_DLSYM
-  void CancelInternal() { chrome_ml_->api().CancelExecuteModel(cancel_); }
+  void CancelInternal() { chrome_ml_->api().CancelExecuteModel(get()); }
 
   const raw_ref<const ChromeML> chrome_ml_;
-  ChromeMLCancel cancel_;
+  ChromeMLCancel cancel_ = 0;
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
 };
 
@@ -258,11 +270,27 @@ void SessionAccessor::AppendInternal(
     scoped_refptr<Canceler> canceler) {
   TRACE_EVENT("optimization_guide", "SessionAccessor::AppendInternal");
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  InputSource source;
+  switch (append_options->input_source) {
+    case on_device_model::mojom::InputSource::kUserInput:
+      source = InputSource::kUserInput;
+      break;
+    case on_device_model::mojom::InputSource::kModelOutputFeedback:
+      source = InputSource::kModelOutputFeedback;
+      break;
+    case on_device_model::mojom::InputSource::kUnknown:
+      source = InputSource::kUnknown;
+      ABSL_LOG(WARNING) << "AppendOptions called with kUnknown InputSource";
+      break;
+  }
+
   ChromeMLAppendOptions options{
       .input = append_options->input->pieces.data(),
       .input_size = append_options->input->pieces.size(),
       .max_tokens = append_options->max_tokens,
       .context_saved_fn = &context_saved_fn,
+      .input_source = source,
   };
   chrome_ml_->api().SessionAppend(session_, &options, canceler->get());
 }

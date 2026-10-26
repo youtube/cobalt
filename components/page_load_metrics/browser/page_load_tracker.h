@@ -230,8 +230,8 @@ class PageLoadTracker : public PageLoadMetricsUpdateDispatcher::Client,
   void OnMainFrameMetadataChanged() override;
   void OnSubframeMetadataChanged(content::RenderFrameHost* rfh,
                                  const mojom::FrameMetadata& metadata) override;
-  void OnSoftNavigationChanged(
-      const mojom::SoftNavigationMetrics& soft_navigation_metrics) override;
+  void OnSoftNavigation() override;
+  void OnSoftNavigationLargestContentfulPaint(uint64_t num_soft_lcps) override;
   void UpdateFeaturesUsage(
       content::RenderFrameHost* rfh,
       const std::vector<blink::UseCounterFeature>& new_features) override;
@@ -282,6 +282,8 @@ class PageLoadTracker : public PageLoadMetricsUpdateDispatcher::Client,
       const override;
   const InteractionToNextPaintCalculator&
   GetSoftNavigationIntervalInteractionToNextPaintCalculator() const override;
+  const ContentfulPaintTimingInfo& GetSoftNavigationLargestContentfulPaint()
+      const override;
   const std::optional<blink::SubresourceLoadMetrics>&
   GetSubresourceLoadMetrics() const override;
   const PageRenderData& GetMainFrameRenderData() const override;
@@ -292,7 +294,8 @@ class PageLoadTracker : public PageLoadMetricsUpdateDispatcher::Client,
   const LargestContentfulPaintHandler&
   GetExperimentalLargestContentfulPaintHandler() const override;
   ukm::SourceId GetPageUkmSourceId() const override;
-  mojom::SoftNavigationMetrics& GetSoftNavigationMetrics() const override;
+  const mojom::SoftNavigationMetrics& GetSoftNavigationMetrics() const override;
+  uint64_t GetSoftNavigationCount() const override;
   // Maps main-frame same-document navigation identified
   // by |same_document_metrics_token| to its UKM source id.
   ukm::SourceId GetUkmSourceIdForSameDocumentNavigation(
@@ -455,17 +458,20 @@ class PageLoadTracker : public PageLoadMetricsUpdateDispatcher::Client,
   // Checks if this tracker is for outermost pages.
   bool IsOutermostTracker() const { return !parent_tracker_; }
 
-  void UpdateMetrics(content::RenderFrameHost* render_frame_host,
-                     mojom::PageLoadTimingPtr new_timing,
-                     mojom::FrameMetadataPtr new_metadata,
-                     const std::vector<blink::UseCounterFeature>& new_features,
-                     const std::vector<mojom::ResourceDataUpdatePtr>& resources,
-                     mojom::FrameRenderDataUpdatePtr render_data,
-                     mojom::CpuTimingPtr new_cpu_timing,
-                     std::vector<mojom::EventTimingPtr> event_timings,
-                     const std::optional<blink::SubresourceLoadMetrics>&
-                         subresource_load_metrics,
-                     mojom::SoftNavigationMetricsPtr soft_navigation_metrics);
+  void UpdateMetrics(
+      content::RenderFrameHost* render_frame_host,
+      mojom::PageLoadTimingPtr new_timing,
+      mojom::FrameMetadataPtr new_metadata,
+      const std::vector<blink::UseCounterFeature>& new_features,
+      const std::vector<mojom::ResourceDataUpdatePtr>& resources,
+      mojom::FrameRenderDataUpdatePtr render_data,
+      mojom::CpuTimingPtr new_cpu_timing,
+      std::vector<mojom::EventTimingPtr> event_timings,
+      const std::optional<blink::SubresourceLoadMetrics>&
+          subresource_load_metrics,
+      std::vector<mojom::SoftNavigationMetricsPtr> soft_navigation_metrics,
+      std::vector<mojom::LargestContentfulPaintTimingPtr>
+          soft_largest_contentful_paint);
 
   void AddCustomUserTimings(
       std::vector<mojom::CustomUserTimingMarkPtr> custom_timings);
@@ -604,8 +610,6 @@ class PageLoadTracker : public PageLoadMetricsUpdateDispatcher::Client,
       largest_contentful_paint_handler_;
   page_load_metrics::LargestContentfulPaintHandler
       experimental_largest_contentful_paint_handler_;
-
-  mojom::SoftNavigationMetricsPtr soft_navigation_metrics_;
 
   // Maps main-frame same-document navigations identified
   // by their token to their UKM source ids.

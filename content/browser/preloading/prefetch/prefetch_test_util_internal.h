@@ -10,6 +10,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "components/variations/scoped_variations_ids_provider.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
 #include "content/public/test/preloading_test_util.h"
 #include "content/public/test/test_renderer_host.h"
@@ -29,6 +30,8 @@ class RunLoop;
 }  // namespace base
 
 namespace content {
+
+network::mojom::URLResponseHeadPtr SuccessfulPrefetchResponseHeadForTesting();
 
 using OnPrefetchCompleteTestFuture =
     base::test::TestFuture<network::URLLoaderCompletionStatus>;
@@ -210,8 +213,7 @@ class TestPrefetchService final : public PrefetchService {
       base::WeakPtr<PrefetchContainer> prefetch_container) override;
   void OnPrefetchCompletedOrFailed(
       const PrefetchContainer& prefetch_container,
-      const network::URLLoaderCompletionStatus& completion_status,
-      const std::optional<int>& response_code) override;
+      const network::URLLoaderCompletionStatus& completion_status) override;
   void EvictPrefetch(size_t index);
 
   std::vector<base::WeakPtr<PrefetchContainer>> prefetches_;
@@ -224,6 +226,9 @@ class PrefetchingMetricsTestBase : public RenderViewHostTestHarness {
  public:
   PrefetchingMetricsTestBase();
   ~PrefetchingMetricsTestBase() override;
+
+  RenderFrameHostImpl* main_rfhi();
+  blink::DocumentToken MainDocumentToken();
 
   const int kTotalTimeDuration = 4321;
   const int kConnectTimeDuration = 123;
@@ -310,6 +315,13 @@ class PrefetchingMetricsTestBase : public RenderViewHostTestHarness {
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> test_ukm_recorder_;
   std::unique_ptr<test::PreloadingAttemptUkmEntryBuilder>
       attempt_entry_builder_;
+
+  // Except for some tests related to variations header (using
+  // `variations::VariationsIdsProvider::GetInstance()`), this is just to
+  // prevent `PrefetchContainer`'s resource request creation from crashing due
+  // to lack of a `VariationsIdsProvider`.
+  variations::test::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
+      variations::VariationsIdsProvider::Mode::kIgnoreSignedInState};
 };
 
 // Helpers for parametrized tests for rearchitecturing/refactoring of the core

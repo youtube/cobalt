@@ -20,7 +20,7 @@ import type {FileSuggestionElement} from './file_suggestion.js';
 export interface DriveModuleElement {
   $: {
     fileSuggestion: FileSuggestionElement,
-    moduleHeaderElementV2: ModuleHeaderElement,
+    moduleHeader: ModuleHeaderElement,
   };
 }
 
@@ -32,7 +32,7 @@ const DriveModuleElementBase = I18nMixinLit(CrLitElement);
  */
 export class DriveModuleElement extends DriveModuleElementBase {
   static get is() {
-    return 'ntp-drive-module-redesigned';
+    return 'ntp-drive-module';
   }
 
   override render() {
@@ -86,16 +86,12 @@ export class DriveModuleElement extends DriveModuleElementBase {
 
   protected onDismissButtonClick_() {
     FileProxy.getHandler().dismissModule();
-    this.dispatchEvent(new CustomEvent('dismiss-module-instance', {
-      bubbles: true,
-      composed: true,
-      detail: {
-        message: loadTimeData.getStringF(
-            'dismissModuleToastMessage',
-            loadTimeData.getString('modulesFilesSentence')),
-        restoreCallback: () => FileProxy.getHandler().restoreModule(),
-      },
-    }));
+    this.fire('dismiss-module-instance', {
+      message: loadTimeData.getStringF(
+          'dismissModuleToastMessage',
+          loadTimeData.getString('modulesFilesSentence')),
+      restoreCallback: () => FileProxy.getHandler().restoreModule(),
+    });
   }
 
   protected onInfoButtonClick_() {
@@ -109,7 +105,7 @@ export class DriveModuleElement extends DriveModuleElementBase {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'ntp-drive-module-redesigned': DriveModuleElement;
+    'ntp-drive-module': DriveModuleElement;
   }
 }
 

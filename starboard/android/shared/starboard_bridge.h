@@ -100,6 +100,8 @@ class StarboardBridge {
 
   jni_zero::ScopedJavaLocalRef<jobject> GetAudioOutputManager(JNIEnv* env);
 
+  jni_zero::ScopedJavaLocalRef<jobject> GetExoPlayerManager(JNIEnv* env);
+
   std::string GetUserAgentAuxField(JNIEnv* env) const;
 
   bool IsAmatiDevice(JNIEnv* env) const;
@@ -117,6 +119,7 @@ class StarboardBridge {
   void CloseAllCobaltService(JNIEnv* env) const;
 
   void HideSplashScreen(JNIEnv* env) const;
+  void OnPrimaryMainFrameNavigationStarted(JNIEnv* env) const;
 
   void SetStartupMilestone(jint milestone) const;
   void SetStartupDiagnosisInfo(const char* key, const char* value) const;

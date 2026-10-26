@@ -76,7 +76,6 @@
 #include "chrome/browser/ui/ash/shelf/shelf_spinner_controller.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/chrome_pages.h"
-#include "chrome/browser/ui/webui/ash/settings/app_management/app_management_uma.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/common/extensions/manifest_handlers/app_launch_info.h"
 #include "chrome/common/pref_names.h"
@@ -88,6 +87,7 @@
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
 #include "chromeos/ash/experiences/arc/arc_util.h"
+#include "chromeos/ash/experiences/settings_ui/settings_app_manager.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
 #include "components/account_id/account_id.h"
@@ -98,6 +98,7 @@
 #include "components/services/app_service/public/cpp/types_util.h"
 #include "components/session_manager/core/session.h"
 #include "components/session_manager/core/session_manager.h"
+#include "components/session_manager/core/session_manager_observer.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/sync_preferences/pref_service_syncable.h"
 #include "components/user_manager/user_manager.h"
@@ -195,13 +196,12 @@ bool CanShowAppInfoDialog(Profile* profile, const std::string& extension_id) {
 
 // A class to get events from ChromeOS when a user gets changed or added.
 class ChromeShelfControllerUserSwitchObserver
-    : public user_manager::UserManager::UserSessionStateObserver {
+    : public session_manager::SessionManagerObserver {
  public:
   explicit ChromeShelfControllerUserSwitchObserver(
       ChromeShelfController* controller)
       : controller_(controller) {
-    DCHECK(user_manager::UserManager::IsInitialized());
-    user_session_state_observer_.Observe(user_manager::UserManager::Get());
+    observation_.Observe(session_manager::SessionManager::Get());
   }
 
   ChromeShelfControllerUserSwitchObserver(
@@ -211,8 +211,8 @@ class ChromeShelfControllerUserSwitchObserver
 
   ~ChromeShelfControllerUserSwitchObserver() override = default;
 
-  // user_manager::UserManager::UserSessionStateObserver overrides:
-  void UserAddedToSession(const user_manager::User* added_user) override;
+  // session_manager::SessionManagerObserver:
+  void OnSessionCreated(const AccountId& account_id) override;
 
   // ChromeShelfControllerUserSwitchObserver:
   void OnUserProfileReadyToSwitch(Profile* profile);
@@ -224,23 +224,36 @@ class ChromeShelfControllerUserSwitchObserver
   // The owning ChromeShelfController.
   raw_ptr<ChromeShelfController> controller_;
 
-  base::ScopedObservation<user_manager::UserManager,
-                          user_manager::UserManager::UserSessionStateObserver>
-      user_session_state_observer_{this};
+  base::ScopedObservation<session_manager::SessionManager,
+                          session_manager::SessionManagerObserver>
+      observation_{this};
 
   // Users which were just added to the system, but which profiles were not yet
   // (fully) loaded.
   std::set<AccountId> added_user_ids_waiting_for_profiles_;
 };
 
-void ChromeShelfControllerUserSwitchObserver::UserAddedToSession(
-    const user_manager::User* active_user) {
-  const AccountId& account_id = active_user->GetAccountId();
-  if (active_user->is_profile_created()) {
+void ChromeShelfControllerUserSwitchObserver::OnSessionCreated(
+    const AccountId& account_id) {
+  auto* session_manager = session_manager::SessionManager::Get();
+  if (session_manager->GetPrimarySession()->account_id() == account_id) {
+    // If this is for the primary session, skip the process.
+    // TODO(crbug.com/473653626): Revisit here. Because ChromeShelfController
+    // is created after first (i.e. primary user session) login, this cannot be
+    // called for the primary user. We should consider to handle both cases
+    // in a uniform way.
+    return;
+  }
+
+  const auto* user = user_manager::UserManager::Get()->FindUser(account_id);
+  if (user->is_profile_created()) {
+    // TODO(crbug.com/473653626): because this callback is called at early
+    // stage of the log in flow, there should not be the created profile yet.
+    // Consider to remove this branch later.
     Profile* profile = Profile::FromBrowserContext(
         ash::BrowserContextHelper::Get()->GetBrowserContextByAccountId(
             account_id));
-    AddUser(active_user->GetAccountId(), profile);
+    AddUser(account_id, profile);
   } else {
     // If we do not have a profile yet, we postpone forwarding the notification
     // until it is loaded.
@@ -908,16 +921,24 @@ void ChromeShelfController::DoShowAppInfoFlow(const std::string& app_id) {
     return;
   }
 
+  std::string sub_page;
+  std::optional<ash::SettingsAppManager::EntryPoint> entry_point;
   if (app_type == apps::AppType::kWeb ||
       app_type == apps::AppType::kSystemWeb) {
-    chrome::ShowAppManagementPage(
-        profile_, app_id,
-        ash::settings::AppManagementEntryPoint::kShelfContextMenuAppInfoWebApp);
+    sub_page = ash::SettingsAppManager::CreateAppManagementPagePath(app_id);
+    entry_point =
+        ash::SettingsAppManager::EntryPoint::kShelfContextMenuAppInfoWebApp;
   } else {
-    chrome::ShowAppManagementPage(profile_, app_id,
-                                  ash::settings::AppManagementEntryPoint::
-                                      kShelfContextMenuAppInfoChromeApp);
+    sub_page = ash::SettingsAppManager::CreateAppManagementPagePath(app_id);
+    entry_point =
+        ash::SettingsAppManager::EntryPoint::kShelfContextMenuAppInfoChromeApp;
   }
+
+  const user_manager::User* user =
+      ash::BrowserContextHelper::Get()->GetUserByBrowserContext(profile_);
+  ash::SettingsAppManager::Get()->Open(
+      *user, ash::SettingsAppManager::OpenParams{.sub_page = sub_page,
+                                                 .entry_point = entry_point});
 }
 
 ///////////////////////////////////////////////////////////////////////////////

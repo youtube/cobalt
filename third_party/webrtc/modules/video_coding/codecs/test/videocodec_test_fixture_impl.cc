@@ -116,15 +116,14 @@ void ConfigureSimulcast(const FieldTrialsView& trials,
   }
 }
 
-void ConfigureSvc(VideoCodec* codec_settings) {
-  RTC_CHECK_EQ(kVideoCodecVP9, codec_settings->codecType);
-
+void ConfigureSvc(VideoCodec* codec_settings,
+                  size_t num_spatial_layers,
+                  size_t num_temporal_layers) {
   const std::vector<SpatialLayer> layers = GetSvcConfig(
       codec_settings->width, codec_settings->height, kDefaultMaxFramerateFps,
-      /*first_active_layer=*/0, codec_settings->VP9()->numberOfSpatialLayers,
-      codec_settings->VP9()->numberOfTemporalLayers,
+      /*first_active_layer=*/0, num_spatial_layers, num_temporal_layers,
       /* is_screen_sharing = */ false);
-  ASSERT_EQ(codec_settings->VP9()->numberOfSpatialLayers, layers.size())
+  ASSERT_EQ(num_spatial_layers, layers.size())
       << "GetSvcConfig returned fewer spatial layers than configured.";
 
   for (size_t i = 0; i < layers.size(); ++i) {
@@ -288,9 +287,8 @@ void VideoCodecTestFixtureImpl::Config::SetCodecSettings(
 
   if (codec_settings.numberOfSimulcastStreams > 1) {
     ConfigureSimulcast(field_trials, &codec_settings);
-  } else if (codec_settings.codecType == kVideoCodecVP9 &&
-             codec_settings.VP9()->numberOfSpatialLayers > 1) {
-    ConfigureSvc(&codec_settings);
+  } else if (num_spatial_layers > 1 || num_temporal_layers > 1) {
+    ConfigureSvc(&codec_settings, num_spatial_layers, num_temporal_layers);
   }
 }
 

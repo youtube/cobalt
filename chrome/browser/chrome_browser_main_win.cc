@@ -55,7 +55,6 @@
 #include "chrome/browser/active_use_util.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/enterprise/platform_auth/platform_auth_policy_observer.h"
 #include "chrome/browser/first_run/first_run.h"
 #include "chrome/browser/first_run/upgrade_util.h"
 #include "chrome/browser/first_run/upgrade_util_win.h"
@@ -69,7 +68,6 @@
 #include "chrome/browser/ui/simple_message_box.h"
 #include "chrome/browser/ui/uninstall_browser_prompt.h"
 #include "chrome/browser/web_applications/chrome_pwa_launcher/last_browser_file_util.h"
-#include "chrome/browser/web_applications/chrome_pwa_launcher/launcher_log_reporter.h"
 #include "chrome/browser/web_applications/chrome_pwa_launcher/launcher_update.h"
 #include "chrome/browser/web_applications/os_integration/web_app_handler_registration_utils_win.h"
 #include "chrome/browser/web_applications/os_integration/web_app_shortcut.h"
@@ -121,7 +119,6 @@
 #include "services/device/public/cpp/device_features.h"
 #include "services/device/public/cpp/geolocation/geolocation_system_permission_manager.h"
 #include "services/device/public/cpp/geolocation/system_geolocation_source_win.h"
-#include "ui/accessibility/platform/ax_platform.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/l10n/l10n_util_win.h"
 #include "ui/base/ui_base_switches.h"
@@ -590,19 +587,6 @@ int ChromeBrowserMainPartsWin::PreCreateThreads() {
         &DumpHungRendererProcessImpl);
   }
 
-  // Pass the value of the UiAutomationProviderEnabled enterprise policy, if
-  // set, down to the accessibility platform after the platform is initialized
-  // in BrowserMainLoop::PostCreateMainMessageLoop() but before any UI is
-  // created.
-  if (auto* local_state = g_browser_process->local_state(); local_state) {
-    if (auto* pref =
-            local_state->FindPreference(prefs::kUiAutomationProviderEnabled);
-        pref && pref->IsManaged()) {
-      ui::AXPlatform::GetInstance().SetUiaProviderEnabled(
-          pref->GetValue()->GetBool());
-    }
-  }
-
   return ChromeBrowserMainParts::PreCreateThreads();
 }
 
@@ -614,10 +598,6 @@ void ChromeBrowserMainPartsWin::PostCreateThreads() {
 
 void ChromeBrowserMainPartsWin::PostMainMessageLoopRun() {
   base::ImportantFileWriterCleaner::GetInstance().Stop();
-
-  // The `ProfileManager` has been destroyed, so no new platform authentication
-  // requests will be created.
-  platform_auth_policy_observer_.reset();
 
   ChromeBrowserMainParts::PostMainMessageLoopRun();
 }
@@ -641,12 +621,6 @@ void ChromeBrowserMainPartsWin::PreProfileInit() {
   // needs to be done before any child processes are initialized as the
   // `ModuleDatabase` is an endpoint for IPC from child processes.
   SetupModuleDatabase(&module_watcher_);
-
-  // Start up the platform auth SSO policy observer.
-  PrefService* const local_state = g_browser_process->local_state();
-  if (local_state)
-    platform_auth_policy_observer_ =
-        std::make_unique<PlatformAuthPolicyObserver>(local_state);
 
   if (base::FeatureList::IsEnabled(features::kWinSystemLocationPermission) &&
       !device::GeolocationSystemPermissionManager::GetInstance()) {
@@ -705,11 +679,6 @@ void ChromeBrowserMainPartsWin::PostBrowserStart() {
       FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
       base::BindOnce(&web_app::WriteChromePathToLastBrowserFile,
                      user_data_dir()));
-
-  // Record the result of the latest Progressive Web App launcher launch.
-  base::ThreadPool::PostTask(
-      FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
-      base::BindOnce(&web_app::RecordPwaLauncherResult));
 
   // Possibly migrate pinned taskbar shortcuts.
   content::GetUIThreadTaskRunner({base::TaskPriority::BEST_EFFORT})

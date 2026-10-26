@@ -13,8 +13,8 @@
 
 #include <array>
 #include <cstddef>
+#include <span>
 
-#include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/neural_residual_echo_estimator.h"
 #include "api/environment/environment.h"
@@ -40,14 +40,14 @@ class ResidualEchoEstimator {
   void Estimate(
       const AecState& aec_state,
       const RenderBuffer& render_buffer,
-      ArrayView<const std::array<float, kFftLengthBy2>> capture,
-      ArrayView<const std::array<float, kFftLengthBy2>> linear_aec_output,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>> S2_linear,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>> Y2,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>> E2,
+      std::span<const std::array<float, kFftLengthBy2>> capture,
+      std::span<const std::array<float, kFftLengthBy2>> linear_aec_output,
+      std::span<const std::array<float, kFftLengthBy2Plus1>> S2_linear,
+      std::span<const std::array<float, kFftLengthBy2Plus1>> Y2,
+      std::span<const std::array<float, kFftLengthBy2Plus1>> E2,
       bool dominant_nearend,
-      ArrayView<std::array<float, kFftLengthBy2Plus1>> R2,
-      ArrayView<std::array<float, kFftLengthBy2Plus1>> R2_unbounded);
+      std::span<std::array<float, kFftLengthBy2Plus1>> R2,
+      std::span<std::array<float, kFftLengthBy2Plus1>> R2_unbounded);
 
  private:
   enum class ReverbType { kLinear, kNonLinear };
@@ -67,7 +67,7 @@ class ResidualEchoEstimator {
 
   // Adds the estimated unmodelled echo power to the residual echo power
   // estimate.
-  void AddReverb(ArrayView<std::array<float, kFftLengthBy2Plus1>> R2) const;
+  void AddReverb(std::span<std::array<float, kFftLengthBy2Plus1>> R2) const;
 
   // Gets the echo path gain to apply.
   float GetEchoPathGain(const AecState& aec_state,

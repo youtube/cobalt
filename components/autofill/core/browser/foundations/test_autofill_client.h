@@ -22,6 +22,7 @@
 #include "base/notreached.h"
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
+#include "components/accessibility_annotator/core/accessibility_query_service.h"
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.h"
 #include "components/autofill/core/browser/crowdsourcing/mock_autofill_crowdsourcing_manager.h"
@@ -32,6 +33,7 @@
 #include "components/autofill/core/browser/data_manager/valuables/valuables_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_quality/addresses/test_address_normalizer.h"
+#include "components/autofill/core/browser/form_predictions_tracker.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/autofill_driver_factory.h"
 #include "components/autofill/core/browser/foundations/test_autofill_driver_factory.h"
@@ -201,6 +203,11 @@ class TestAutofillClientTemplate : public T {
 
   AutofillPlusAddressDelegate* GetPlusAddressDelegate() override {
     return plus_address_delegate_.get();
+  }
+
+  accessibility_annotator::AccessibilityQueryService*
+  GetAccessibilityQueryService() override {
+    return accessibility_query_service_.get();
   }
 
   IdentityCredentialDelegate* GetIdentityCredentialDelegate() override {
@@ -390,8 +397,8 @@ class TestAutofillClientTemplate : public T {
     return autofill_profile_enabled_;
   }
 
-  bool IsWalletStorageEnabled() const override {
-    return wallet_storage_enabled_;
+  bool IsWalletPublicPassStorageEnabled() const override {
+    return wallet_public_pass_storage_enabled_;
   }
 
   bool IsAutocompleteEnabled() const override { return true; }
@@ -498,8 +505,8 @@ class TestAutofillClientTemplate : public T {
     }
   }
 
-  void SetWalletStorageEnabled(bool wallet_storage_enabled) {
-    wallet_storage_enabled_ = wallet_storage_enabled;
+  void SetWalletPublicPassStorageEnabled(bool enabled) {
+    wallet_public_pass_storage_enabled_ = enabled;
   }
 
   // Sets up prefs and identity state to simulate an opted-in AutofillAI user.
@@ -633,6 +640,12 @@ class TestAutofillClientTemplate : public T {
     plus_address_delegate_ = std::move(plus_address_delegate);
   }
 
+  void set_accessibility_query_service(
+      std::unique_ptr<accessibility_annotator::AccessibilityQueryService>
+          accessibility_query_service) {
+    accessibility_query_service_ = std::move(accessibility_query_service);
+  }
+
   void set_identity_credential_delegate(
       std::unique_ptr<IdentityCredentialDelegate>
           identity_credential_delegate) {
@@ -683,12 +696,23 @@ class TestAutofillClientTemplate : public T {
     injected_one_time_token_service_ = std::move(one_time_token_service);
   }
 
+  FormPredictionsTracker* GetFormPredictionsTracker() override {
+    return form_predictions_tracker_.get();
+  }
+
+  void set_form_predictions_tracker(
+      std::unique_ptr<FormPredictionsTracker> form_predictions_tracker) {
+    form_predictions_tracker_ = std::move(form_predictions_tracker);
+  }
+
  private:
   ukm::TestAutoSetUkmRecorder test_ukm_recorder_;
   signin::IdentityTestEnvironment identity_test_env_;
   raw_ptr<syncer::SyncService> test_sync_service_ = nullptr;
   std::unique_ptr<OtpPhishGuardDelegate> otp_phish_guard_delegate_;
   std::unique_ptr<AutofillPlusAddressDelegate> plus_address_delegate_;
+  std::unique_ptr<accessibility_annotator::AccessibilityQueryService>
+      accessibility_query_service_;
   std::unique_ptr<IdentityCredentialDelegate> identity_credential_delegate_;
   std::unique_ptr<PasswordManagerDelegate> password_manager_delegate_;
   TestAddressNormalizer test_address_normalizer_;
@@ -716,7 +740,7 @@ class TestAutofillClientTemplate : public T {
 #endif
 
   bool autofill_profile_enabled_ = true;
-  bool wallet_storage_enabled_ = true;
+  bool wallet_public_pass_storage_enabled_ = true;
 
   // NULL by default.
   std::unique_ptr<test::AutofillTestingPrefService> prefs_;
@@ -802,6 +826,8 @@ class TestAutofillClientTemplate : public T {
 
   std::unique_ptr<AutofillCrowdsourcingManager> crowdsourcing_manager_;
   std::unique_ptr<TestVotesUploader> votes_uploader_;
+
+  std::unique_ptr<FormPredictionsTracker> form_predictions_tracker_;
 
   base::WeakPtrFactory<TestAutofillClientTemplate> weak_ptr_factory_{this};
 };

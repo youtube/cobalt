@@ -13,6 +13,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
 #include "third_party/blink/public/strings/grit/permission_element_generated_strings.h"
 #include "third_party/blink/public/strings/grit/permission_element_strings.h"
@@ -364,7 +365,7 @@ class DeferredChecker {
     EXPECT_TRUE(base::test::RunUntil(
         [&]() { return ConsoleMessages().size() > message_index; }));
 
-    EXPECT_TRUE(ConsoleMessages()[message_index].Contains(expected_text));
+    EXPECT_TRUE(ConsoleMessages()[message_index].contains(expected_text));
   }
 
  private:
@@ -1277,6 +1278,80 @@ TEST_F(HTMLCapabilityElementBaseFencedFrameTest, NotAllowedInFencedFrame) {
   }
 }
 
+class HTMLInstallElementSubframeTest : public HTMLCapabilityElementBaseSimTest {
+ public:
+  HTMLInstallElementSubframeTest() = default;
+  ~HTMLInstallElementSubframeTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_{
+      blink::features::kInstallElement};
+  ScopedInstallElementForTest scoped_install_feature_{true};
+};
+
+TEST_F(HTMLInstallElementSubframeTest, InstallNotAllowedInSameOriginSubframe) {
+  SimRequest main_resource("https://example.test", "text/html");
+  LoadURL("https://example.test");
+  SimRequest iframe_resource("https://example.test/foo.html", "text/html");
+  main_resource.Complete(R"(
+    <body>
+      <iframe src='https://example.test/foo.html'
+        allow="web-app-installation *">
+      </iframe>
+    </body>
+  )");
+  iframe_resource.Finish();
+
+  auto* child_frame = To<WebLocalFrameImpl>(MainFrame().FirstChild());
+  auto* child_doc = child_frame->GetFrame()->GetDocument();
+
+  auto* install_element = CreatePermissionElement(*child_doc, "install");
+  // PEPC registration should NOT be called for <install> in subframes.
+  permission_service()->set_pepc_registered_callback(
+      BindOnce(&NotReachedForPEPCRegistered));
+
+  // The element should NOT be valid, with reason "illegal_subframe".
+  EXPECT_TRUE(
+      base::test::RunUntil([&]() { return !install_element->isValid(); }));
+  EXPECT_EQ(install_element->invalidReason(), "illegal_subframe");
+
+  permission_service()->set_pepc_registered_callback(base::NullCallback());
+}
+
+TEST_F(HTMLInstallElementSubframeTest, InstallNotAllowedInCrossOriginSubframe) {
+  SimRequest::Params params;
+  params.response_http_headers = {
+      {"content-security-policy",
+       "frame-ancestors 'self' https://example.test"}};
+  SimRequest main_resource("https://example.test", "text/html");
+  LoadURL("https://example.test");
+  SimRequest iframe_resource("https://cross-example.test/foo.html", "text/html",
+                             params);
+  main_resource.Complete(R"(
+    <body>
+      <iframe src='https://cross-example.test/foo.html'
+        allow="web-app-installation *">
+      </iframe>
+    </body>
+  )");
+  iframe_resource.Finish();
+
+  auto* child_frame = To<WebLocalFrameImpl>(MainFrame().FirstChild());
+  auto* child_doc = child_frame->GetFrame()->GetDocument();
+
+  auto* install_element = CreatePermissionElement(*child_doc, "install");
+  // PEPC registration should NOT be called for <install> in subframes.
+  permission_service()->set_pepc_registered_callback(
+      BindOnce(&NotReachedForPEPCRegistered));
+
+  // The element should NOT be valid, with reason "illegal_subframe".
+  EXPECT_TRUE(
+      base::test::RunUntil([&]() { return !install_element->isValid(); }));
+  EXPECT_EQ(install_element->invalidReason(), "illegal_subframe");
+
+  permission_service()->set_pepc_registered_callback(base::NullCallback());
+}
+
 TEST_F(HTMLCapabilityElementBaseSimTest, BlockedByMissingFrameAncestorsCSP) {
   GetDocument().GetSettings()->SetDefaultFontSize(12);
   SimRequest::Params params;
@@ -1613,7 +1688,7 @@ TEST_F(HTMLCapabilityElementBaseIntersectionTest,
       protocol::Audits::PermissionElementIssueTypeEnum::ActivationDisabled);
   EXPECT_TRUE(issue);
   EXPECT_EQ(issue->getDisableReason(), "intersection occluded or distorted");
-  EXPECT_TRUE(issue->getOccluderNodeInfo().value().Contains(div->ToString()));
+  EXPECT_TRUE(issue->getOccluderNodeInfo().value().contains(div->ToString()));
 }
 
 TEST_F(HTMLCapabilityElementBaseIntersectionTest, IntersectionOccluderLogging) {
@@ -1679,9 +1754,9 @@ TEST_F(HTMLCapabilityElementBaseIntersectionTest, IntersectionOccluderLogging) {
           }));
   EXPECT_TRUE(issue);
   EXPECT_TRUE(issue->hasOccluderNodeInfo());
-  EXPECT_TRUE(issue->getOccluderNodeInfo().value().Contains(div->ToString()));
+  EXPECT_TRUE(issue->getOccluderNodeInfo().value().contains(div->ToString()));
   EXPECT_TRUE(issue->hasOccluderParentNodeInfo());
-  EXPECT_TRUE(issue->getOccluderParentNodeInfo().value().Contains(
+  EXPECT_TRUE(issue->getOccluderParentNodeInfo().value().contains(
       parent_div->ToString()));
   EXPECT_EQ(CountPermissionElementIssues(GetDocument()), 3u);
 }

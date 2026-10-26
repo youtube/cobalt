@@ -6,6 +6,12 @@
 Methodology:
   Scan for all study names that appear in fieldtrial config file,
   and removes ones that don't appear anywhere in the codebase.
+
+  First rule out studies that are exempted from removal. Then for each source
+  file in scope, look for traces of every study (by their names or involved
+  feature names) using regular expressions. Matches studies are retained,
+  studies that fail to be found anywhere are removed.
+
   The script ignores WebRTC entries as those often lead to false positives.
 
 Usage:
@@ -19,6 +25,7 @@ double-check the study or feature name for typos or case differences.
 
 from __future__ import print_function
 
+import collections
 import json
 import optparse
 import os
@@ -35,15 +42,34 @@ THREAD_COUNT = 16
 # the literal would be counted as being used. Use this to skip removal of
 # studies (and studies that depend on features) that are not visible in code.
 # Eg. ChromeOS where experiments are passed from ash to platform services.
-_LITERAL_SKIP_REGEX_STRINGS = ['^CrOSLateBoot.*', '^CrOSEarlyBoot.*']
+_LITERAL_SKIP_REGEX_STRINGS = [
+    '^CrOSLateBoot.*',
+    '^CrOSEarlyBoot.*',
+    '^V8Flag_.*',
+    '^WebRTC-.*',
+]
 
 _LITERAL_SKIP_REGEXES = [
     re.compile(regexp_str) for regexp_str in _LITERAL_SKIP_REGEX_STRINGS
 ]
-_LITERAL_CACHE = {}
+
+_DECLARE_FEATURE_PATTERNS = [
+    # Basic form: BASE_FEATURE(kMyFeature...)
+    re.compile(r'BASE_FEATURE\s*\([^)]*\bk(\w+)[^)]*\)'),
+    # Extra pattern for net/dns
+    re.compile(r'MAKE_BASE_FEATURE_WITH_STATIC_STORAGE\s*\([^)]*\bk(\w+)[^)]*\)'
+               ),
+    # Quoted old-style form: BASE_FEATURE(.., "My-Feature",...)
+    re.compile(r'BASE_FEATURE\s*\([^)]*"([\w-]+)"[^)]*\)'),
+    # Forward declaration: BASE_DECLARE_FEATURE(kMyFeature...)
+    re.compile(r'BASE_DECLARE_FEATURE\s*\([^)]*\bk(\w+)[^)]*\)'),
+    # Java syntax: Flag.baseFeature("My-Feature")
+    re.compile(r'Flag\.baseFeature\s*\([^)]*"([\w-]+)"[^)]*\)'),
+]
 
 
-def is_literal_in_skiplist(literal):
+def is_literal_in_skiplist(literal: str) -> bool:
+  """Returns true if the literal is in the skiplist."""
   for regex in _LITERAL_SKIP_REGEXES:
     if regex.match(literal):
       print('Skipping', repr(literal), 'due to', regex)
@@ -51,72 +77,120 @@ def is_literal_in_skiplist(literal):
   return False
 
 
-def is_literal_in_git(literal):
-  git_grep_cmd = ('git', 'grep', '--threads', '2', '-l', '\"%s\"' % literal)
-  git_grep_proc = subprocess.Popen(git_grep_cmd, stdout=subprocess.PIPE)
-  # Check for >1 since fieldtrial_testing_config.json will always be a result.
-  return len(git_grep_proc.stdout.read().splitlines()) > 1
+def read_literals(studies: dict[str, list[dict]]) -> dict[str, set[str]]:
+  """Returns the literals from the studies, organized per study."""
+  literals = {}
+  for study, configs in studies.items():
+    literals[study] = {study}
+    for config in configs:
+      for experiment in config.get('experiments', []):
+        literals[study].update(experiment.get('enable_features', []))
+        literals[study].update(experiment.get('disable_features', []))
+  return literals
 
 
-def is_literal_in_files(literal, code_files):
-  bash_files_using_literal = subprocess.Popen(
-      ('xargs', 'grep', '-s', '-l', '\\\"%s\\\"' % literal),
-      stdin=subprocess.PIPE,
-      stdout=subprocess.PIPE)
-  files_using_literal = bash_files_using_literal.communicate(code_files)[0]
-  return len(files_using_literal.splitlines()) > 0
+def skip_exempted_studies(literals: dict[str, set[str]]) -> set[str]:
+  """Skips exempted studies."""
+  found_studies = set()
+  for study, literals in literals.items():
+    for literal in literals:
+      if is_literal_in_skiplist(literal):
+        found_studies.add(study)
+        break
+  return found_studies
 
 
-def is_literal_used(literal, code_files):
-  """Check if a given string literal is used in the passed code files."""
-  if literal in _LITERAL_CACHE:
-    return _LITERAL_CACHE[literal]
+def thread_func(thread_limiter: threading.BoundedSemaphore, file_name: str,
+                literal_to_study: dict[str, set[str]],
+                found_studies: set[str]) -> None:
+  """Runs a task that scans a file for the presence of studies.
 
-  used = is_literal_in_skiplist(literal) or is_literal_in_git(
-      literal) or is_literal_in_files(literal, code_files)
-  if not used:
-    print('Did not find', repr(literal))
-  _LITERAL_CACHE[literal] = used
-  return used
-
-
-def is_study_used(study_name, configs, code_files):
-  """Checks if a given study is used in the codebase."""
-  if study_name.startswith('WebRTC-'):
-    return True  # Skip webrtc studies which give false positives.
-
-  if is_literal_used(study_name, code_files):
-    return True
-  for config in configs:
-    for experiment in config.get('experiments', []):
-      for feature in experiment.get('enable_features', []):
-        if is_literal_used(feature, code_files):
-          return True
-      for feature in experiment.get('disable_features', []):
-        if is_literal_used(feature, code_files):
-          return True
-  return False
-
-
-def thread_func(thread_limiter, studies_map, study_name, configs, code_files):
-  """Runs a limited number of tasks and updates the map with the results.
+  Essentially for given file this function performs regular expression matching.
+  For each match, it extracts the actual matched literal and looks up studies
+  that are referred to by that literal. Found study is marked by moving to the
+  `found_studies` set data structure.
 
   Args:
-    thread_limited: A lock used to limit the number of active threads.
-    studies_map: The map where confirmed studies are added to.
-    study_name: The name of the study to check.
-    configs: The configs for the given study.
-    code_files: A string with the paths to all code files (cc or h files).
-
-  Side-effect:
-    This function adds the study to |studies_map| if it used.
+    thread_limiter: Thread limiter to limit number of threads used.
+    file_name: File name to scan for studies.
+    studies: Studies to scan for.
+    found_studies: Set of studies that have been found.
   """
   thread_limiter.acquire()
   try:
-    if is_study_used(study_name, configs, code_files):
-      studies_map[study_name] = configs
+    with open(file_name, 'r', encoding='utf-8', errors='ignore') as file:
+      content = file.read()
+      for pattern in _DECLARE_FEATURE_PATTERNS:
+        for match in pattern.finditer(content):
+          found_literal = match.group(1)
+          for study in literal_to_study.get(found_literal, []):
+            found_studies.add(study)
+            print(f'Found study {study} by {pattern.pattern} for literal '
+                  f'{found_literal} in {file_name}. '
+                  f'Confirmed studies: {len(found_studies)}')
+
   finally:
     thread_limiter.release()
+
+
+def find_studies_by_literals(all_files: bytes,
+                             literals_by_study: dict[str, set[str]],
+                             found_studies: set[str],
+                             thread_limiter: threading.BoundedSemaphore):
+  """Finds studies by literals.
+
+  For each file in files, iterates over literals and checks if the literal is
+  in the file. If literal matches, the study name is copied to found_studies.
+
+  Args:
+    all_files: All files to scan for studies.
+    literals_by_study: Maps study to literals that are relevant to it.
+    found_studies: Set of studies that have been found.
+    thread_limiter: Thread limiter to limit number of threads used.
+  """
+  literal_to_study = invert_studies(literals_by_study)
+
+  threads = []
+  for file_name in all_files.splitlines():
+    args = (thread_limiter, file_name, literal_to_study, found_studies)
+    threads.append(threading.Thread(target=thread_func, args=args))
+
+  # Start all threads, then join all threads.
+  for t in threads:
+    t.start()
+  for t in threads:
+    t.join()
+
+
+def sort_find_output(find_output: bytes) -> bytes:
+  """Sort output from find command.
+
+  Args:
+    find_output: Output from find command.
+
+  Returns:
+    Sorted output from find command. Files with names that make it more likely
+    they are relevant to fieldtrials are first.
+  """
+
+  all_files = find_output.splitlines()
+
+  # False comes before True when sorting, so reverse=True puts the preferred
+  # filename first.
+  key_re = re.compile(rb'feature|switch|flag')
+  all_files.sort(key=lambda x: key_re.search(x) is not None, reverse=True)
+
+  # Revert splitlines() to recreate the original byte-output stream.
+  return b'\n'.join(all_files)
+
+
+def invert_studies(studies: dict[str, set[str]]) -> dict[str, set[str]]:
+  """Inverts the studies dict with literals to a literal to studies mapping."""
+  literal_to_study = collections.defaultdict(set)
+  for study, literals in studies.items():
+    for literal in literals:
+      literal_to_study[literal].add(study)
+  return literal_to_study
 
 
 def main():
@@ -138,29 +212,44 @@ def main():
     studies = json.load(fin)
   print('Loaded config from', input_path)
 
-  bash_list_files = subprocess.Popen(['find', '.', '-type', 'f'],
-                                     stdout=subprocess.PIPE)
-  bash_code_files = subprocess.Popen(['grep', '-E', '\\.(h|cc)$'],
-                                     stdin=bash_list_files.stdout,
-                                     stdout=subprocess.PIPE)
-  bash_filtered_code_files = subprocess.Popen(
-      ('grep', '-Ev', '(/out/|/build/|/gen/)'),
-      stdin=bash_code_files.stdout,
-      stdout=subprocess.PIPE)
-  filtered_code_files = bash_filtered_code_files.stdout.read()
+  # Use single find command to get all files to scan for studies.
+  command = ['find', '.', '-type', 'f']
+  # Ignore self-referential files and test files.
+  command.extend(['-not', '-name', 'fieldtrial_testing_config.*'])
+  command.extend(['-not', '-name', '*test.cc'])
+  command.extend(['-not', '-name', '*test.mm'])
+  command.extend(['-not', '-name', '*Test.java'])
+  # Pick headers, objective-c and c++ modules.
+  command.extend([
+      '(', '-name', '*.h', '-o', '-name', '*.cc', '-o', '-name', '*.mm', '-o',
+      '-name', '*.java', ')'
+  ])
 
-  threads = []
-  clean_studies = {}
-  for study_name, configs in studies.items():
-    args = (thread_limiter, clean_studies, study_name, configs,
-            filtered_code_files)
-    threads.append(threading.Thread(target=thread_func, args=args))
+  # All relevant source files.
+  all_files = sort_find_output(
+      subprocess.Popen(command,
+                       stdout=subprocess.PIPE,
+                       stderr=subprocess.DEVNULL).stdout.read())
+  print(f'Working with {len(all_files.splitlines())} source files')
 
-  # Start all threads, then join all threads.
-  for t in threads:
-    t.start()
-  for t in threads:
-    t.join()
+  # Feature and study name literals, per study.
+  literals_by_study = read_literals(studies)
+  print(f'Collected {len(literals_by_study)} studies')
+
+  found_studies = set()
+
+  # Stage one: do not process specific studies.
+  found_studies |= skip_exempted_studies(literals_by_study)
+
+  # Stage two: find studies that have any related literal present
+  # in the codebase.
+  find_studies_by_literals(all_files, literals_by_study, found_studies,
+                           thread_limiter)
+
+  # Stage three: copy over studies that are found.
+  clean_studies = dict()
+  for study in found_studies:
+    clean_studies[study] = studies[study]
 
   with open(output_path, 'wt') as fout:
     json.dump(clean_studies, fout)

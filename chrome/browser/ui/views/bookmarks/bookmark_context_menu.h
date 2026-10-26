@@ -48,7 +48,8 @@ class BookmarkContextMenu : public BookmarkContextMenuControllerDelegate,
                       BookmarkLaunchLocation opened_from,
                       const std::vector<raw_ptr<const bookmarks::BookmarkNode,
                                                 VectorExperimental>>& selection,
-                      bool close_on_remove);
+                      bool close_on_remove,
+                      bool can_paste);
 
   BookmarkContextMenu(const BookmarkContextMenu&) = delete;
   BookmarkContextMenu& operator=(const BookmarkContextMenu&) = delete;

@@ -5,6 +5,7 @@
 module guest_view.mojom;
 
 import "mojo/public/mojom/base/values.mojom";
+import "ui/gfx/geometry/mojom/geometry.mojom";
 import "url/mojom/url.mojom";
 
 // Bootstraps the PageHandler for communicating a SlimWebView to the browser.
@@ -14,6 +15,12 @@ interface PageHandlerFactory {
                     pending_remote<Page> page);
 };
 
+struct SetSizeParams {
+  bool enable_auto_size;
+  gfx.mojom.Size min;
+  gfx.mojom.Size max;
+};
+
 // Interface that implements page-to-browser messages for a SlimWebView.
 interface PageHandler {
   // Creates the GuestView from `create_params` and returns the created guest's
@@ -21,14 +28,28 @@ interface PageHandler {
   CreateGuest(mojo_base.mojom.DictionaryValue create_params)
       => (int32 guest_instance_id);
 
+  // Sets the sizing parameters of the GuestView.
+  SetSize(int32 guest_instance_id, SetSizeParams size_params);
+
   // Navigates the GuestView to the given URL. URL must be valid and either
   // https or about:blank.
   Navigate(int32 guest_instance_id, url.mojom.Url url);
+
+  // The action chosen by the client to take when setting a permission.
+  enum PermissionResponseAction {
+    kDeny = 0,
+    kAllow = 1,
+    kDefault = 2,
+  };
+  // Sets the permission for the given guest and request ID. Returns whether the
+  // permission was granted.
+  SetPermission(int32 guest_instance_id, int32 request_id,
+                PermissionResponseAction action) => (bool allowed);
 };
 
 // Interface that implements browser-to-page messages for a SlimWebView.
 interface Page {
-  // Dispatches an event to the SlimWebViewElement.
+  // Dispatches an event to the SlimWebviewElement.
   DispatchEvent(string event_name, mojo_base.mojom.DictionaryValue args,
                 int32 instance_id);
 };

@@ -30,6 +30,7 @@
 #include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
+#include "src/wasm/effect-handler.h"
 #include "src/wasm/wasm-code-coverage.h"
 #include "src/wasm/wasm-code-pointer-table.h"
 #include "src/wasm/wasm-features.h"
@@ -140,6 +141,25 @@ class V8_EXPORT_PRIVATE WasmCode final {
         return fp_mode == SaveFPRegsMode::kIgnore
                    ? Builtin::kTSANRelaxedStore64IgnoreFP
                    : Builtin::kTSANRelaxedStore64SaveFP;
+      }
+    } else if (order == std::memory_order_release) {
+      if (size == kInt8Size) {
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? Builtin::kTSANReleaseStore8IgnoreFP
+                   : Builtin::kTSANReleaseStore8SaveFP;
+      } else if (size == kInt16Size) {
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? Builtin::kTSANReleaseStore16IgnoreFP
+                   : Builtin::kTSANReleaseStore16SaveFP;
+      } else if (size == kInt32Size) {
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? Builtin::kTSANReleaseStore32IgnoreFP
+                   : Builtin::kTSANReleaseStore32SaveFP;
+      } else {
+        CHECK_EQ(size, kInt64Size);
+        return fp_mode == SaveFPRegsMode::kIgnore
+                   ? Builtin::kTSANReleaseStore64IgnoreFP
+                   : Builtin::kTSANReleaseStore64SaveFP;
       }
     } else {
       DCHECK_EQ(order, std::memory_order_seq_cst);
@@ -254,15 +274,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
         protected_instructions_data());
   }
 
-  struct __attribute__((packed)) EffectHandler {
-    int call_offset;
-    int tag_index;
-    int handler_offset;
-  };
-  static_assert(sizeof(WasmCode::EffectHandler) == 3 * kIntSize);
-
-  base::Vector<const EffectHandler> effect_handlers() const {
-    return effect_handlers_.as_vector();
+  base::Vector<const uint8_t> effect_handlers() const {
+    return {deopt_data().end(), effect_handlers_size_};
   }
 
   bool IsProtectedInstruction(Address pc);
@@ -415,15 +428,14 @@ class V8_EXPORT_PRIVATE WasmCode final {
            base::Vector<const uint8_t> inlining_positions,
            base::Vector<const uint8_t> deopt_data, Kind kind,
            ExecutionTier tier, ForDebugging for_debugging,
-           uint64_t signature_hash,
-           base::OwnedVector<const EffectHandler> effect_handlers,
+           uint64_t signature_hash, base::Vector<const uint8_t> effect_handlers,
            bool frame_has_feedback_slot = false)
       : native_module_(native_module),
         instructions_(instructions.begin()),
         signature_hash_(signature_hash),
         meta_data_(ConcatenateBytes({protected_instructions_data, reloc_info,
                                      source_position_table, inlining_positions,
-                                     deopt_data})),
+                                     deopt_data, effect_handlers})),
         instructions_size_(static_cast<uint32_t>(instructions.size())),
         reloc_info_size_(static_cast<uint32_t>(reloc_info.size())),
         source_positions_size_(
@@ -443,7 +455,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
         code_comments_offset_(code_comments_offset),
         jump_table_info_offset_(jump_table_info_offset),
         unpadded_binary_size_(unpadded_binary_size),
-        effect_handlers_(std::move(effect_handlers)),
+        effect_handlers_size_(static_cast<uint32_t>(effect_handlers.size())),
         flags_(KindField::encode(kind) | ExecutionTierField::encode(tier) |
                ForDebuggingField::encode(for_debugging) |
                FrameHasFeedbackSlotField::encode(frame_has_feedback_slot)) {
@@ -510,7 +522,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   const int jump_table_info_offset_;
   const int unpadded_binary_size_;
   int trap_handler_index_ = -1;
-  base::OwnedVector<const EffectHandler> effect_handlers_;
+  const uint32_t effect_handlers_size_;
 
   const uint8_t flags_;  // Bit field, see below.
   // Bits encoded in {flags_}:
@@ -624,15 +636,6 @@ class WasmCodeAllocator {
 
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
-  class V8_NODISCARD NativeModuleAllocationLockScope {
-   public:
-    explicit NativeModuleAllocationLockScope(NativeModule* module)
-        : lock_(module->allocation_mutex_) {}
-
-   private:
-    base::RecursiveMutexGuard lock_;
-  };
-
   static constexpr ExternalPointerTag kManagedTag = kWasmNativeModuleTag;
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64 || \
@@ -695,8 +698,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
       base::Vector<const uint8_t> source_position_table,
       base::Vector<const uint8_t> inlining_positions,
       base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
-      ExecutionTier tier,
-      base::OwnedVector<const WasmCode::EffectHandler> effect_handlers);
+      ExecutionTier tier, base::Vector<const uint8_t> effect_handlers);
 
   // Adds anonymous code for testing purposes.
   WasmCode* AddCodeForTesting(DirectHandle<Code> code, uint64_t signature_hash);
@@ -996,9 +998,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       base::Vector<const uint8_t> inlining_positions,
       base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
       ExecutionTier tier, ForDebugging for_debugging,
-      base::OwnedVector<const WasmCode::EffectHandler> effect_handlers,
-      bool frame_has_feedback_slot, base::Vector<uint8_t> code_space,
-      const JumpTablesRef& jump_tables_ref);
+      base::Vector<const uint8_t> effect_handlers, bool frame_has_feedback_slot,
+      base::Vector<uint8_t> code_space, const JumpTablesRef& jump_tables_ref);
 
   WasmCode* CreateEmptyJumpTableLocked(int jump_table_size, JumpTableType type);
 

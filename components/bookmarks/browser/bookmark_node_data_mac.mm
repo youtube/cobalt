@@ -13,41 +13,39 @@
 
 namespace bookmarks {
 
-#if defined(TOOLKIT_VIEWS)
-
 // static
-const ui::ClipboardFormatType& BookmarkNodeData::GetBookmarkFormatType() {
-  static const base::NoDestructor<ui::ClipboardFormatType> format(
-      ui::ClipboardFormatType::CustomPlatformType(
-          base::SysNSStringToUTF8(kUTTypeChromiumBookmarkDictionaryList)));
-
-  return *format;
-}
-
-#endif  // TOOLKIT_VIEWS
-
-// static
-bool BookmarkNodeData::ClipboardContainsBookmarks() {
+void BookmarkNodeData::ClipboardContainsBookmarks(
+    base::OnceCallback<void(bool)> callback) {
   NSPasteboard* pb =
       ui::clipboard_util::PasteboardFromBuffer(ui::ClipboardBuffer::kCopyPaste);
-  return PasteboardContainsBookmarks(pb);
+  std::move(callback).Run(PasteboardContainsBookmarks(pb));
 }
 
 void BookmarkNodeData::WriteToClipboard(bool is_off_the_record) {
   NSPasteboard* pb =
       ui::clipboard_util::PasteboardFromBuffer(ui::ClipboardBuffer::kCopyPaste);
-  WriteBookmarksToPasteboard(pb, elements, profile_path_, is_off_the_record);
+  // Copy/Cut/Paste operations do not require the profile path; writing an empty
+  // path ensures consistency with other platforms.
+  WriteBookmarksToPasteboard(pb, elements, /*profile_path=*/base::FilePath(),
+                             is_off_the_record);
 }
 
-bool BookmarkNodeData::ReadFromClipboard(ui::ClipboardBuffer buffer) {
+// static
+void BookmarkNodeData::ReadFromClipboard(
+    ui::ClipboardBuffer buffer,
+    base::OnceCallback<void(std::unique_ptr<BookmarkNodeData>)> callback) {
   NSPasteboard* pb = ui::clipboard_util::PasteboardFromBuffer(buffer);
+  auto data = std::make_unique<BookmarkNodeData>();
   base::FilePath file_path;
-  if (ReadBookmarksFromPasteboard(pb, &elements, &file_path)) {
-    profile_path_ = file_path;
-    return true;
+  if (ReadBookmarksFromPasteboard(pb, &data->elements, &file_path)) {
+    // Bookmark paste operations always use copy semantics instead of move
+    // semantics. Therefore, the paste logic does not depend on the profile path
+    // of the data source, so file_path can be ignored.
+    std::move(callback).Run(std::move(data));
+    return;
   }
 
-  return false;
+  std::move(callback).Run(nullptr);
 }
 
 #if defined(TOOLKIT_VIEWS)

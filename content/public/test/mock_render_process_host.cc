@@ -47,7 +47,8 @@ StoragePartitionConfig GetOrCreateStoragePartitionConfig(
   if (site_instance) {
     SiteInstanceImpl* site_instance_impl =
         static_cast<SiteInstanceImpl*>(site_instance);
-    return site_instance_impl->GetSiteInfo().storage_partition_config();
+    return site_instance_impl->GetSecurityPrincipal()
+        .GetStoragePartitionConfig();
   }
   return StoragePartitionConfig::CreateDefault(browser_context);
 }
@@ -83,19 +84,18 @@ MockRenderProcessHost::MockRenderProcessHost(
       foreground_service_worker_count_(0) {
   // Child process security operations can't be unit tested unless we add
   // ourselves as an existing child process.
-  ChildProcessSecurityPolicyImpl::GetInstance()->Add(GetDeprecatedID(),
-                                                     browser_context);
+  ChildProcessSecurityPolicyImpl::GetInstance()->Add(GetID(), browser_context);
 
-  RenderProcessHostImpl::RegisterHost(GetDeprecatedID(), this);
+  RenderProcessHostImpl::RegisterHost(GetID(), this);
 }
 
 MockRenderProcessHost::~MockRenderProcessHost() {
-  ChildProcessSecurityPolicyImpl::GetInstance()->Remove(GetDeprecatedID());
+  ChildProcessSecurityPolicyImpl::GetInstance()->Remove(GetID());
   // In unit tests, Cleanup() might not have been called.
   if (!deletion_callback_called_) {
     for (auto& observer : observers_)
       observer.RenderProcessHostDestroyed(this);
-    RenderProcessHostImpl::UnregisterHost(GetDeprecatedID());
+    RenderProcessHostImpl::UnregisterHost(GetID());
   }
 }
 
@@ -192,11 +192,9 @@ bool MockRenderProcessHost::GetIntersectsViewport() {
   return true;
 }
 
-#if !BUILDFLAG(IS_ANDROID)
-bool MockRenderProcessHost::IsForInitialWebUI() const {
-  return false;
+bool MockRenderProcessHost::IsForTopChromeWebUI() const {
+  return is_for_top_chrome_web_ui_;
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 bool MockRenderProcessHost::IsForGuestsOnly() {
   return is_for_guests_only_;
@@ -254,11 +252,13 @@ bool MockRenderProcessHost::ShutdownRequested() {
   return shutdown_requested_;
 }
 
-bool MockRenderProcessHost::FastShutdownIfPossible(size_t page_count,
-                                                   bool skip_unload_handlers,
-                                                   bool ignore_workers,
-                                                   bool ignore_keep_alive,
-                                                   bool ignore_pending_reuse) {
+bool MockRenderProcessHost::FastShutdownIfPossible(
+    size_t page_count,
+    bool skip_unload_handlers,
+    bool ignore_workers,
+    bool ignore_keep_alive,
+    bool ignore_pending_reuse,
+    bool use_outermost_main_frame_check) {
   if (GetActiveViewCount() != page_count)
     return false;
   // We aren't actually going to do anything, but set |fast_shutdown_started_|
@@ -341,7 +341,7 @@ void MockRenderProcessHost::Cleanup() {
 
     for (auto& observer : observers_)
       observer.RenderProcessHostDestroyed(this);
-    RenderProcessHostImpl::UnregisterHost(GetDeprecatedID());
+    RenderProcessHostImpl::UnregisterHost(GetID());
     has_connection_ = false;
     deletion_callback_called_ = true;
   }
@@ -434,6 +434,10 @@ MockRenderProcessHost::TakeMetricsAllocator() {
 const base::TimeTicks& MockRenderProcessHost::GetLastInitTime() {
   static base::TimeTicks dummy_time = base::TimeTicks::Now();
   return dummy_time;
+}
+
+base::TimeTicks MockRenderProcessHost::GetProcessLaunchedTime() const {
+  return process_launched_time_;
 }
 
 base::Process::Priority MockRenderProcessHost::GetPriority() const {
@@ -574,8 +578,7 @@ void MockRenderProcessHost::SetProcessLock(
 }
 
 ProcessLock MockRenderProcessHost::GetProcessLock() const {
-  return ChildProcessSecurityPolicyImpl::GetInstance()->GetProcessLock(
-      GetDeprecatedID());
+  return ChildProcessSecurityPolicyImpl::GetInstance()->GetProcessLock(GetID());
 }
 
 bool MockRenderProcessHost::IsProcessLockedToSiteForTesting() {
@@ -614,7 +617,7 @@ MockRenderProcessHost::GetInfoForBrowserContextDestructionCrashReporting() {
 
 void MockRenderProcessHost::WriteIntoTrace(
     perfetto::TracedProto<TraceProto> proto) const {
-  proto->set_id(GetDeprecatedID());
+  proto->set_id(GetID().value());
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -685,7 +688,8 @@ std::unique_ptr<MockRenderProcessHost>
 MockRenderProcessHostFactory::BuildRenderProcessHost(
     BrowserContext* browser_context,
     SiteInstance* site_instance) {
-  const bool is_for_guests_only = site_instance && site_instance->IsGuest();
+  const bool is_for_guests_only =
+      site_instance && site_instance->GetSecurityPrincipal().IsGuest();
   StoragePartitionConfig storage_partition_config =
       GetOrCreateStoragePartitionConfig(browser_context, site_instance);
   return std::make_unique<MockRenderProcessHost>(

@@ -10,14 +10,16 @@ assert(enable_guest_view)
 
 static_library("slim_web_view") {
   sources = [
+    "request_utils.cc",
+    "request_utils.h",
     "slim_web_view_constants.cc",
     "slim_web_view_constants.h",
     "slim_web_view_guest.cc",
     "slim_web_view_guest.h",
-    "slim_web_view_page_handler.cc",
-    "slim_web_view_page_handler.h",
-    "slim_web_view_page_handler_factory.cc",
-    "slim_web_view_page_handler_factory.h",
+    "slim_web_view_permission_helper.cc",
+    "slim_web_view_permission_helper.h",
+    "slim_web_view_url_loader_factory_interceptor.cc",
+    "slim_web_view_url_loader_factory_interceptor.h",
   ]
 
   deps = [
@@ -26,7 +28,27 @@ static_library("slim_web_view") {
     "//base",
     "//components/guest_view/browser",
     "//content/public/browser",
+    "//content/public/common",
     "//net",
+    "//third_party/abseil-cpp:absl",
+    "//third_party/blink/public:blink_headers",
+  ]
+}
+
+static_library("page_handler") {
+  sources = [
+    "slim_web_view_page_handler.cc",
+    "slim_web_view_page_handler.h",
+    "slim_web_view_page_handler_factory.cc",
+    "slim_web_view_page_handler_factory.h",
+  ]
+
+  public_deps = [ ":mojo_bindings" ]
+
+  deps = [
+    ":slim_web_view",
+    "//components/guest_view/browser",
+    "//content/public/browser",
   ]
 }
 
@@ -36,6 +58,7 @@ mojom("mojo_bindings") {
 
   deps = [
     "//mojo/public/mojom/base",
+    "//ui/gfx/geometry/mojom",
     "//url/mojom:url_mojom_gurl",
   ]
 }
@@ -44,4 +67,22 @@ grit_strings("strings") {
   source = "strings/slim_web_view_strings.grd"
   outputs = [ "grit/slim_web_view_strings.h" ]
   output_prefix = "slim_web_view_strings_"
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "slim_web_view_permission_helper_unittest.cc" ]
+
+  deps = [
+    ":mojo_bindings",
+    ":slim_web_view",
+    "//base",
+    "//base/test:test_support",
+    "//components/guest_view/browser",
+    "//components/guest_view/browser:test_support",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//testing/gtest",
+  ]
 }

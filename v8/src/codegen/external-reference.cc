@@ -510,11 +510,13 @@ FUNCTION_REFERENCE(verify_skipped_indirect_write_barrier,
 
 namespace {
 
-intptr_t DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {
+// Returns an smi if it needs to break, Code otherwise.
+Address DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {
   DisallowGarbageCollection no_gc;
   Tagged<SharedFunctionInfo> sfi =
       Cast<SharedFunctionInfo>(Tagged<Object>(raw_sfi));
-  return isolate->debug()->BreakAtEntry(sfi) ? 1 : 0;
+  return isolate->debug()->BreakAtEntry(sfi) ? Smi::zero().ptr()
+                                             : sfi->GetCode(isolate).ptr();
 }
 
 Address DebugGetCoverageInfo(Isolate* isolate, Address raw_sfi) {
@@ -602,7 +604,8 @@ FUNCTION_REFERENCE(wasm_suspend_stack, wasm::suspend_stack)
 FUNCTION_REFERENCE(wasm_resume_jspi_stack, wasm::resume_jspi_stack)
 FUNCTION_REFERENCE(wasm_resume_wasmfx_stack, wasm::resume_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_suspend_wasmfx_stack, wasm::suspend_wasmfx_stack)
-FUNCTION_REFERENCE(wasm_return_stack, wasm::return_stack)
+FUNCTION_REFERENCE(wasm_return_jspi_stack, wasm::return_jspi_stack)
+FUNCTION_REFERENCE(wasm_return_wasmfx_stack, wasm::return_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_retire_stack, wasm::retire_stack)
 FUNCTION_REFERENCE(wasm_switch_to_the_central_stack,
                    wasm::switch_to_the_central_stack)
@@ -696,6 +699,7 @@ FUNCTION_REFERENCE(wasm_f16x8_demote_f64x2_zero,
                    wasm::f16x8_demote_f64x2_zero_wrapper)
 FUNCTION_REFERENCE(wasm_f16x8_qfma, wasm::f16x8_qfma_wrapper)
 FUNCTION_REFERENCE(wasm_f16x8_qfms, wasm::f16x8_qfms_wrapper)
+FUNCTION_REFERENCE(wasm_data_drop, wasm::data_drop_wrapper)
 FUNCTION_REFERENCE(wasm_memory_init, wasm::memory_init_wrapper)
 FUNCTION_REFERENCE(wasm_memory_copy, wasm::memory_copy_wrapper)
 FUNCTION_REFERENCE(wasm_memory_fill, wasm::memory_fill_wrapper)
@@ -707,7 +711,10 @@ FUNCTION_REFERENCE_WITH_TYPE(wasm_string_to_f64, wasm::flat_string_to_f64,
 
 int32_t (&futex_emulation_wake)(void*, uint32_t) = FutexEmulation::Wake;
 FUNCTION_REFERENCE(wasm_atomic_notify, futex_emulation_wake)
-
+int32_t (&futex_emulation_managed_object_wait)(Address, int32_t,
+                                               uint32_t) = FutexEmulation::Wake;
+FUNCTION_REFERENCE(wasm_managed_object_notify,
+                   futex_emulation_managed_object_wait)
 #define V(Name) RAW_FUNCTION_REFERENCE(wasm_##Name, wasm::Name)
 WASM_JS_EXTERNAL_REFERENCE_LIST(V)
 #undef V
@@ -1861,6 +1868,43 @@ void tsan_seq_cst_store_64_bits(Address addr, int64_t value) {
 #endif  // V8_TARGET_ARCH_X64
 }
 
+// Same as above, for release stores.
+void tsan_release_store_8_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::Release_Store(reinterpret_cast<base::Atomic8*>(addr),
+                      static_cast<base::Atomic8>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_release_store_16_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::Release_Store(reinterpret_cast<base::Atomic16*>(addr),
+                      static_cast<base::Atomic16>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_release_store_32_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::Release_Store(reinterpret_cast<base::Atomic32*>(addr),
+                      static_cast<base::Atomic32>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
+void tsan_release_store_64_bits(Address addr, int64_t value) {
+#if V8_TARGET_ARCH_X64
+  base::Release_Store(reinterpret_cast<base::Atomic64*>(addr),
+                      static_cast<base::Atomic64>(value));
+#else
+  UNREACHABLE();
+#endif  // V8_TARGET_ARCH_X64
+}
+
 // Same as above, for relaxed loads.
 base::Atomic32 tsan_relaxed_load_32_bits(Address addr, int64_t value) {
 #if V8_TARGET_ARCH_X64
@@ -1897,6 +1941,14 @@ IF_TSAN(FUNCTION_REFERENCE, tsan_seq_cst_store_function_32_bits,
         tsan_seq_cst_store_32_bits)
 IF_TSAN(FUNCTION_REFERENCE, tsan_seq_cst_store_function_64_bits,
         tsan_seq_cst_store_64_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_release_store_function_8_bits,
+        tsan_release_store_8_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_release_store_function_16_bits,
+        tsan_release_store_16_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_release_store_function_32_bits,
+        tsan_release_store_32_bits)
+IF_TSAN(FUNCTION_REFERENCE, tsan_release_store_function_64_bits,
+        tsan_release_store_64_bits)
 IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_32_bits,
         tsan_relaxed_load_32_bits)
 IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_64_bits,

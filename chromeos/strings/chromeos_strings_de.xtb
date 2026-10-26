@@ -167,6 +167,7 @@
 <translation id="1621067168122174824">Ladetest ausführen</translation>
 <translation id="1622402072367425417">leuchtenden Blasen</translation>
 <translation id="1626590945318984973">Tastenkombination nicht verfügbar. Drücke eine neue Tastenkombination ohne die Verwendung von Funktionstasten oder <ph name="META_KEY" />-Tasten.</translation>
+<translation id="163774412591892664">Dein Administrator hat dein Gerät deaktiviert und kann auf den Standort des Geräts zugreifen.</translation>
 <translation id="1639239467298939599">Wird geladen</translation>
 <translation id="1641857168437328880">Dokumenteneinzug (einseitig)</translation>
 <translation id="1642396894598555413">Fahrräder</translation>
@@ -174,7 +175,7 @@
 <translation id="1644574205037202324">Verlauf</translation>
 <translation id="1651925268237749928">Du hast ein geteiltes Album ausgewählt. Andere Personen können Fotos hinzufügen oder ändern. Für deinen Hintergrund können Fotos verwendet werden, die sich derzeit nicht in diesem Album befinden.</translation>
 <translation id="1661512400125589646">Pausieren</translation>
-<translation id="1661865805917886535">Einige Konto- und Systeminformationen werden möglicherweise an Google gesendet. Wir verwenden diese Daten unter Einhaltung unserer Datenschutzerklärung (<ph name="PRIVACYPOLICYURL" />) und Nutzungsbedingungen (<ph name="TERMSOFSERVICEURL" />) dazu, technische Probleme zu beheben und unsere Dienste zu optimieren. Inhaltsänderungen kannst du in der Rechtliche Hinweise-Hilfe (<ph name="LEGALHELPPAGEURL" />) anfragen.</translation>
+<translation id="1661865805917886535">Einige Konto- und Systeminformationen werden möglicherweise an Google gesendet. Wir verwenden diese Daten unter Einhaltung unserer Datenschutzerklärung (<ph name="PRIVACYPOLICYURL" />) und Nutzungsbedingungen (<ph name="TERMSOFSERVICEURL" />) dazu, technische Probleme zu beheben und unsere Dienste zu optimieren. Inhaltsänderungen kannst du in der Rechtsthemen-Hilfe (<ph name="LEGALHELPPAGEURL" />) anfragen.</translation>
 <translation id="1662699081856352167">Zusammenfassung erfolgreich generiert</translation>
 <translation id="1662989795263954667">Angehalten – Keine Tinte</translation>
 <translation id="1664796644829245314">Vorschau anzeigen für „<ph name="PREVIEW_OBJECT" />“</translation>
@@ -727,6 +728,7 @@
 <translation id="4212169537710712814">Transkriptionsmodell für <ph name="LANGUAGE_NAME" /> wurde heruntergeladen</translation>
 <translation id="42126664696688958">Exportieren</translation>
 <translation id="4213104098953699324">USB-Tastatur</translation>
+<translation id="4217571870635786043">Spracheingabe</translation>
 <translation id="4227825898293920515">Passwort läuft in <ph name="TIME" /> ab</translation>
 <translation id="4238516577297848345">Keine laufenden Druckaufträge</translation>
 <translation id="4239069858505860023">GPRS</translation>
@@ -1036,7 +1038,7 @@
 <translation id="554517032089923082">GTC</translation>
 <translation id="5554741914132564590">Dieses Update wird vom Hersteller des externen Geräts bereitgestellt und wurde nicht von Google überprüft.</translation>
 <translation id="5559898619118303662">Dunkles Design bei Sonnenuntergang automatisch aktivieren</translation>
-<translation id="556042886152191864">Schaltfläche</translation>
+<translation id="556042886152191864">Button</translation>
 <translation id="5562551811867441927"><ph name="TERRAIN_FEATURE" /> in den Farbtönen <ph name="TERRAIN_COLOR" /></translation>
 <translation id="5572169899491758844">Scannen</translation>
 <translation id="5578477003638479617">UMTS</translation>
@@ -1273,7 +1275,7 @@
 <translation id="6595046262780525922">Transkriptfunktion aktivieren und Transkriptmodell herunterladen?</translation>
 <translation id="6596816719288285829">IP-Adresse</translation>
 <translation id="6599673642868607614">Vielen Dank für das Feedback! Dein Feedback wird von unserem Team gelesen und hilft uns dabei, Chromebooks noch weiter zu verbessern. Da wir sehr viele Rückmeldungen erhalten, können wir dir nicht persönlich antworten.</translation>
-<translation id="6608043585557830684">Sprache-zu-Text ist deaktiviert. Aktiviere die Funktion in den Einstellungen oder im Dreipunkt-Menü <ph name="THREE_DOTS_MENU_ICON" />.</translation>
+<translation id="6608043585557830684">Transkription ist deaktiviert. Aktiviere die Funktion in den Einstellungen oder im Dreipunkt-Menü <ph name="THREE_DOTS_MENU_ICON" />.</translation>
 <translation id="660846213831377756">Tastaturmaus</translation>
 <translation id="6618744767048954150">Läuft</translation>
 <translation id="6620487321149975369">Druckaufträge erscheinen im Verlauf, solange sie nicht manuell gelöscht werden</translation>
@@ -1526,7 +1528,7 @@ Wenn du das möchtest, lade das Transkriptmodell (bis zu 100 MB) herunter.</tra
 <translation id="7705524343798198388">VPN</translation>
 <translation id="7716280709122323042">WPA3</translation>
 <translation id="7718231387947923843">Tastaturbeleuchtung</translation>
-<translation id="7730077286107534951">Einige Konto- und Systeminformationen werden möglicherweise an Google gesendet. Wir verwenden diese Daten unter Einhaltung unserer <ph name="BEGIN_LINK2" />Datenschutzerklärung<ph name="END_LINK2" /> und <ph name="BEGIN_LINK3" />Nutzungsbedingungen<ph name="END_LINK3" /> dazu, technische Probleme zu beheben und unsere Dienste zu optimieren. Inhaltsänderungen kannst du in der <ph name="BEGIN_LINK1" />Rechtliche Hinweise-Hilfe<ph name="END_LINK1" /> anfragen.</translation>
+<translation id="7730077286107534951">Einige Konto- und Systeminformationen werden möglicherweise an Google gesendet. Wir verwenden diese Daten unter Einhaltung unserer <ph name="BEGIN_LINK2" />Datenschutzerklärung<ph name="END_LINK2" /> und <ph name="BEGIN_LINK3" />Nutzungsbedingungen<ph name="END_LINK3" /> dazu, technische Probleme zu beheben und unsere Dienste zu optimieren. Inhaltsänderungen kannst du in der <ph name="BEGIN_LINK1" />Rechtsthemen-Hilfe<ph name="END_LINK1" /> anfragen.</translation>
 <translation id="773153675489693198">Ladezyklen</translation>
 <translation id="7746357909584236306">bearbeitbar</translation>
 <translation id="7747039790905080783">Vorinstallierter Schlüssel</translation>
@@ -1685,6 +1687,7 @@ Wenn du das möchtest, lade das Transkriptmodell (bis zu 100 MB) herunter.</tra
 <translation id="8420955526972171689">Tests und Fehlerbehebungsschritte bei Hardwareproblemen</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8424039430705546751">Nach unten</translation>
+<translation id="8427213022735114808">Die Diktierfunktion sendet deine Spracheingaben an Google, damit sie in das entsprechende Textfeld eingetragen werden können.</translation>
 <translation id="8428213095426709021">Einstellungen</translation>
 <translation id="8431300646573772016">Neues bei Chrome OS</translation>
 <translation id="8433186206711564395">Netzwerkeinstellungen</translation>
@@ -1723,6 +1726,7 @@ Wenn du das möchtest, lade das Transkriptmodell (bis zu 100 MB) herunter.</tra
 <translation id="8584654835905316966">Ein Neustart ist erforderlich, um die Installation der Firmware für <ph name="DEVICE_NAME" /> auf Version <ph name="VERSION" /> abzuschließen. Möglicherweise startet dein Computer mehrmals neu. Dieses Verhalten ist so vorgesehen.</translation>
 <translation id="8593058461203131755">Medienwiedergabe pausieren</translation>
 <translation id="8620617069779373398">Roaming-Status</translation>
+<translation id="8624524972189162859">Dein <ph name="DOMAIN_NAME" />-Administrator hat dein Gerät deaktiviert und kann auf den Standort des Geräts zugreifen.</translation>
 <translation id="8626489604350149811">Weitere Aktionen für „<ph name="APN_NAME" />“</translation>
 <translation id="86356131183441916">Hellviolett</translation>
 <translation id="8647595191512746911">Audiotranskript</translation>
@@ -1821,7 +1825,7 @@ Wenn du das möchtest, lade das Transkriptmodell (bis zu 100 MB) herunter.</tra
 <translation id="9024331582947483881">Vollbild</translation>
 <translation id="9025198690966128418">Als persönliches Gerät nutzen</translation>
 <translation id="902638246363752736">Tastatureinstellungen</translation>
-<translation id="9028832514430399253">Aktiviere die Ein-/Aus-Schaltfläche, um die Bildschirmschoner-Optionen auszuwählen</translation>
+<translation id="9028832514430399253">Aktiviere den Ein/Aus-Button, um die Bildschirmschoner-Optionen auszuwählen</translation>
 <translation id="9030883440316693822">Aufnahme löschen?</translation>
 <translation id="9036971622563146214">Ergebnisse</translation>
 <translation id="9039663905644212491">PEAP</translation>

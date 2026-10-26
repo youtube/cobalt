@@ -14,8 +14,8 @@
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/views/views_constants.h"
 #import "ios/chrome/browser/recent_tabs/public/recent_tabs_constants.h"
+#import "ios/chrome/browser/settings/google_services/manage_accounts/public/manage_accounts_table_view_controller_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/google_services_settings_constants.h"
-#import "ios/chrome/browser/settings/ui_bundled/google_services/manage_accounts/manage_accounts_table_view_controller_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_sync_settings_constants.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_constants.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_navigation_controller_constants.h"
@@ -182,8 +182,7 @@ id<GREYMatcher> SignOutSnackbarLabelMatcher() {
 }
 
 + (void)signOutWithClearDataConfirmation:(BOOL)expectClearDataConfirmation {
-  [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI tapSettingsMenuButton:SettingsAccountButton()];
+  [SigninEarlGreyUI openSyncSettings];
   // Scroll to the signout button is at the very bottom.
   id<GREYMatcher> scrollViewMatcher =
       grey_accessibilityID(kManageSyncTableViewAccessibilityIdentifier);
@@ -410,10 +409,17 @@ id<GREYMatcher> SignOutSnackbarLabelMatcher() {
   }
 }
 
-+ (void)openAccountsListFromSettings {
++ (void)openSyncSettings {
   [ChromeEarlGreyUI openSettingsMenu];
   [ChromeEarlGreyUI tapSettingsMenuButton:SettingsAccountButton()];
+}
 
++ (void)openAccountsListFromSettings {
+  [SigninEarlGreyUI openManageAccountsFromSettings];
+}
+
++ (void)openManageAccountsFromSettings {
+  [SigninEarlGreyUI openSyncSettings];
   // Tap "Manage accounts on this device" to get to the accounts view.
   // First scroll down so that the button is visible.
   id<GREYMatcher> scrollViewMatcher =

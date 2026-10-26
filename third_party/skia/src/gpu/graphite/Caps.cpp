@@ -10,8 +10,10 @@
 #include "include/gpu/ShaderErrorHandler.h"
 #include "include/gpu/graphite/ContextOptions.h"
 #include "include/gpu/graphite/TextureInfo.h"
+#include "include/private/base/SkTArray.h"
 #include "include/private/base/SkTo.h"
 #include "src/gpu/graphite/ContextOptionsPriv.h"
+#include "src/gpu/graphite/RenderPassDesc.h"
 #include "src/gpu/graphite/ResourceTypes.h"
 #include "src/gpu/graphite/TextureInfoPriv.h"
 #include "src/sksl/SkSLUtil.h"
@@ -41,6 +43,7 @@ void Caps::finishInitialization(const ContextOptions& options) {
     if (options.fOptionsPriv) {
         fMaxTextureSize = std::min(fMaxTextureSize, options.fOptionsPriv->fMaxTextureSizeOverride);
         fRequestedPathRendererStrategy = options.fOptionsPriv->fPathRendererStrategy;
+        fDrawListLayer = options.fOptionsPriv->fDrawListLayer;
     }
 #endif
     fGlyphCacheTextureMaximumBytes = options.fGlyphCacheTextureMaximumBytes;
@@ -56,51 +59,259 @@ void Caps::finishInitialization(const ContextOptions& options) {
 
 sk_sp<SkCapabilities> Caps::capabilities() const { return fCapabilities; }
 
-SkISize Caps::getDepthAttachmentDimensions(const TextureInfo& textureInfo,
-                                           const SkISize colorAttachmentDimensions) const {
-    return colorAttachmentDimensions;
+bool Caps::isSampleCountSupported(TextureFormat format, SampleCount sampleCount) const {
+    // Assume optimal tiling
+    auto [formatSupport, sampleCounts] = this->getTextureSupport(format, Tiling::kOptimal);
+    return SkToBool(formatSupport & TextureUsage::kRender) && SkToBool(sampleCounts & sampleCount);
+}
+
+TextureFormat Caps::getDepthStencilFormat(SkEnumBitMask<DepthStencilFlags> dssFlags) const {
+    auto canUse = [this](TextureFormat format) {
+        auto [formatSupport, sampleCounts] = this->getTextureSupport(format, Tiling::kOptimal);
+        // Check that the format can be rendered into and that it supports single-sampled rendering,
+        // and if we aren't avoiding MSAA, that it also has some additional sample count.
+        return SkToBool(formatSupport & TextureUsage::kRender) &&
+               SkToBool(sampleCounts & SampleCount::k1) &&
+               (this->avoidMSAA() || sampleCounts != SampleCount::k1);
+    };
+
+    if (dssFlags == DepthStencilFlags::kDepth) {
+        // Prefer D16, but fallback to D32F or lastly a combined DS format if needed
+        if (canUse(TextureFormat::kD16)) {
+            return TextureFormat::kD16;
+        } else if (canUse(TextureFormat::kD32F)) {
+            return TextureFormat::kD32F;
+        } else {
+            return this->getDepthStencilFormat(DepthStencilFlags::kDepthStencil);
+        }
+    } else if (dssFlags == DepthStencilFlags::kStencil) {
+        // Prefer S8, but fallback to a combined DS format if needed
+        if (canUse(TextureFormat::kS8)) {
+            return TextureFormat::kS8;
+        } else {
+            return this->getDepthStencilFormat(DepthStencilFlags::kDepthStencil);
+        }
+    } else if (dssFlags == DepthStencilFlags::kDepthStencil) {
+        // Prefer D24_S8 over D32F_S8 for memory savings if it is available
+        if (canUse(TextureFormat::kD24_S8)) {
+            return TextureFormat::kD24_S8;
+        } else {
+            return TextureFormat::kD32F_S8;
+        }
+    }
+
+    return TextureFormat::kUnsupported; // i.e. no attachment needed
+}
+
+bool Caps::isSupported(const TextureInfo& info,
+                       SkEnumBitMask<TextureUsage> test,
+                       bool allowMSAA,
+                       bool allowExternal,
+                       bool allowCompressed,
+                       bool allowProtected) const {
+    const TextureFormat format = TextureInfoPriv::ViewFormat(info);
+    if (format == TextureFormat::kUnsupported) {
+        return false;
+    }
+    SkASSERT(info.isValid());
+
+    auto [textureUsage, tiling] = this->getTextureUsage(info);
+    auto [formatSupport, supportedSampleCounts] = this->getTextureSupport(format, tiling);
+
+    if (!allowMSAA) {
+        // Remove everything but 1x if the operation requires non-MSAA
+        supportedSampleCounts &= SampleCount::k1;
+    }
+
+    // Intersect what the format and the texture can do to see if `test` is available, and make
+    // sure that the texture's sample count is supported.
+    if ((formatSupport & textureUsage & test) == test &&
+        SkToBool(supportedSampleCounts & info.sampleCount())) {
+        // Basic rules that should be reflected in the supported operations bit masks
+        SkASSERT((allowProtected  || info.isProtected() == Protected::kNo) &&
+                 (allowMSAA       || info.sampleCount() == SampleCount::k1) &&
+                 (allowCompressed || TextureFormatCompressionType(format) ==
+                                            SkTextureCompressionType::kNone) &&
+                 (allowExternal   || format != TextureFormat::kExternal));
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool Caps::isTexturable(const TextureInfo& info, bool allowMSAA) const {
-    if (info.sampleCount() > SampleCount::k1) {
-        if (allowMSAA) {
-            return this->onIsTexturable(TextureInfoPriv::ReplaceSampleCount(info, SampleCount::k1));
-        } else {
-            return false;
+    return this->isSupported(info, TextureUsage::kSample,
+                             allowMSAA,
+                             /*allowExternal=*/true,
+                             /*allowCompressed=*/true,
+                             /*allowProtected=*/true);
+}
+
+bool Caps::isRenderable(const TextureInfo& info) const {
+    return this->isSupported(info, TextureUsage::kRender,
+                             /*allowMSAA=*/true,
+                             /*allowExternal=*/true,
+                             /*allowCompressed=*/false,
+                             /*allowProtected=*/true);
+}
+
+bool Caps::isCopyableSrc(const TextureInfo& info) const {
+    return this->isSupported(info, TextureUsage::kCopySrc,
+                             /*allowMSAA=*/false,
+                             /*allowExternal=*/false,
+                             /*allowCompressed=*/false,
+                             /*allowProtected=*/false);
+}
+
+bool Caps::isCopyableDst(const TextureInfo& info) const {
+    return this->isSupported(info, TextureUsage::kCopyDst,
+                             /*allowMSAA=*/false,
+                             /*allowExternal=*/false,
+                             /*allowCompressed=*/true,
+                             /*allowProtected=*/true);
+}
+
+bool Caps::isStorage(const TextureInfo& info) const {
+    return this->isSupported(info, TextureUsage::kStorage,
+                             /*allowMSAA=*/false,
+                             /*allowExternal=*/false,
+                             /*allowCompressed=*/false,
+                             /*allowProtected=*/false);
+}
+
+bool Caps::isRenderableWithMSRTSS(const TextureInfo& info) const {
+    return this->isSupported(info, TextureUsage::kMSRTSS | TextureUsage::kRender,
+                             /*allowMSAA=*/true,
+                             /*allowExternal=*/true,
+                             /*allowCompressed=*/false,
+                             /*allowProtected=*/true);
+}
+
+TextureInfo Caps::getDefaultTextureInfo(SkEnumBitMask<TextureUsage> usage,
+                                        SkSpan<const TextureFormat> formats,
+                                        SampleCount sampleCount,
+                                        Mipmapped mipmapped,
+                                        Protected isProtected,
+                                        Discardable discardable) const {
+    // Assert we're only requesting Discardable::kYes when the requested usages make sense for it.
+    [[maybe_unused]] static constexpr SkEnumBitMask<TextureUsage> kDiscardableAllowed =
+            TextureUsage::kRender | TextureUsage::kMSRTSS;
+    SkASSERT(discardable == Discardable::kNo || (usage & kDiscardableAllowed) == usage);
+
+    if (isProtected == Protected::kYes && !this->protectedSupport()) {
+        return {}; // Cannot handle protected content on this Context
+    }
+
+    for (TextureFormat format : formats) {
+        auto [supportedUsage, supportedSampleCounts] =
+                this->getTextureSupport(format, Tiling::kOptimal);
+        if ((supportedUsage & usage) != usage || !SkToBool(supportedSampleCounts & sampleCount)) {
+            continue; // unsupported, move on to the next possible format
         }
+
+        if (SkToBool(usage & TextureUsage::kRender) &&
+            SkToBool(supportedUsage & TextureUsage::kMSRTSS) &&
+            sampleCount == SampleCount::k1) {
+            // Proactivately prepare a single-sampled image for use with MSRTSS if it's supported by
+            // the format and kRender is requested. This flag is expected to be harmless (if not,
+            // it's a driver bug).
+            usage |= TextureUsage::kMSRTSS;
+        }
+
+        if (SkToBool(usage & TextureUsage::kCopyDst) &&
+            SkToBool(supportedUsage & TextureUsage::kHostCopy) &&
+            !SkToBool(usage & TextureUsage::kRender) &&
+            isProtected == Protected::kNo) {
+            // Proactively enable kHostCopy when supported by the format and kCopyDst is requested,
+            // so long as it's not going to be protected or rendered into. On every known driver
+            // where VK_EXT_host_image_copy is used by Skia, it's known that using the
+            // host-image-copy flag reduces the performance of renderable images.
+            usage |= TextureUsage::kHostCopy;
+        }
+        return this->onGetDefaultTextureInfo(usage, format, sampleCount, mipmapped,
+                                            isProtected, discardable);
     }
-    return this->onIsTexturable(info);
+
+    // None of the possible formats were supported
+    return {};
 }
 
-bool Caps::areColorTypeAndTextureInfoCompatible(SkColorType ct, const TextureInfo& info) const {
-    // TODO: add SkTextureCompressionType handling
-    // (can be handled by setting up the colorTypeInfo instead?)
-
-    return SkToBool(this->getColorTypeInfo(ct, info));
+TextureInfo Caps::getDefaultAttachmentTextureInfo(AttachmentDesc desc,
+                                                  Protected isProtected,
+                                                  Discardable discardable) const {
+    return this->getDefaultTextureInfo(TextureUsage::kRender,
+                                       SkSpan(&desc.fFormat, 1),
+                                       desc.fSampleCount,
+                                       Mipmapped::kNo,
+                                       isProtected,
+                                       discardable);
 }
 
-static inline SkColorType color_type_fallback(SkColorType ct) {
-    switch (ct) {
-        // kRGBA_8888 is our default fallback for many color types that may not have renderable
-        // backend formats.
-        case kAlpha_8_SkColorType:
-        case kRGB_565_SkColorType:
-        case kARGB_4444_SkColorType:
-        case kBGRA_8888_SkColorType:
-        case kRGBA_1010102_SkColorType:
-        case kBGRA_1010102_SkColorType:
-        case kRGBA_F16_SkColorType:
-        case kRGBA_F16Norm_SkColorType:
-            return kRGBA_8888_SkColorType;
-        case kA16_float_SkColorType:
-            return kRGBA_F16_SkColorType;
-        case kGray_8_SkColorType:
-        case kRGB_F16F16F16x_SkColorType:
-        case kRGB_101010x_SkColorType:
-            return kRGB_888x_SkColorType;
-        default:
-            return kUnknown_SkColorType;
+// Graphite by default requires copy-src and copy-dst for sampled textures.
+static constexpr SkEnumBitMask<TextureUsage> kDefaultSampledUsage =
+        TextureUsage::kSample | TextureUsage::kCopySrc | TextureUsage::kCopyDst;
+
+TextureInfo Caps::getDefaultSampledTextureInfo(SkColorType colorType,
+                                               Mipmapped mipmapped,
+                                               Protected isProtected,
+                                               Renderable renderable) const {
+    SkEnumBitMask<TextureUsage> usage = kDefaultSampledUsage;
+    SkSpan<const TextureFormat> formats = PreferredTextureFormats(colorType);
+    skia_private::STArray<3, TextureFormat> validFormats;
+    if (renderable == Renderable::kYes) {
+        usage |= TextureUsage::kRender;
+        // Any possible preferred format must also have a valid write swizzle for the requested
+        // color type.
+        for (TextureFormat f : formats) {
+            if (WriteSwizzleForColorType(colorType, f).has_value()) {
+                validFormats.push_back(f);
+            }
+        }
+        formats = validFormats;
     }
+
+    return this->getDefaultTextureInfo(usage,
+                                       formats,
+                                       SampleCount::k1,
+                                       mipmapped,
+                                       isProtected,
+                                       Discardable::kNo);
+}
+
+TextureInfo Caps::getTextureInfoForSampledCopy(const TextureInfo& info, Mipmapped mipmapped) const {
+    const TextureFormat format = TextureInfoPriv::ViewFormat(info);
+    return this->getDefaultTextureInfo(kDefaultSampledUsage,
+                                       SkSpan(&format, 1),
+                                       SampleCount::k1,
+                                       mipmapped,
+                                       info.isProtected(),
+                                       Discardable::kNo);
+}
+
+TextureInfo Caps::getDefaultCompressedTextureInfo(SkTextureCompressionType compressionType,
+                                                  Mipmapped mipmapped,
+                                                  Protected isProtected) const {
+    // Remove CopySrc for compressed textures
+    const TextureFormat format = CompressionTypeToTextureFormat(compressionType);
+    return this->getDefaultTextureInfo(kDefaultSampledUsage & ~TextureUsage::kCopySrc,
+                                       SkSpan(&format, 1),
+                                       SampleCount::k1,
+                                       mipmapped,
+                                       isProtected,
+                                       Discardable::kNo);
+}
+
+TextureInfo Caps::getDefaultStorageTextureInfo(SkColorType colorType) const {
+    // Storage textures are currently always assumed to be sampleable from a shader and can be
+    // copied out of (for unit tests).
+    return this->getDefaultTextureInfo(TextureUsage::kStorage |
+                                       TextureUsage::kSample |
+                                       TextureUsage::kCopySrc,
+                                       PreferredTextureFormats(colorType),
+                                       SampleCount::k1,
+                                       Mipmapped::kNo,
+                                       Protected::kNo,
+                                       Discardable::kNo);
 }
 
 const Caps::ColorTypeInfo* Caps::getColorTypeInfo(SkColorType ct, const TextureInfo& info) const {
@@ -114,35 +325,6 @@ const Caps::ColorTypeInfo* Caps::getColorTypeInfo(SkColorType ct, const TextureI
         }
     }
     return nullptr;
-}
-
-SkColorType Caps::getDefaultColorType(const TextureInfo& info) const {
-    if (!info.isValid()) {
-        return kUnknown_SkColorType;
-    }
-
-    const bool isRenderable = this->isRenderable(info);
-    for (const ColorTypeInfo& colorInfo : this->getColorTypeInfos(info)) {
-        if (!isRenderable || (colorInfo.fFlags & ColorTypeInfo::kRenderable_Flag)) {
-            return colorInfo.fColorType;
-        }
-    }
-    return kUnknown_SkColorType;
-}
-
-SkColorType Caps::getRenderableColorType(SkColorType ct) const {
-    do {
-        auto texInfo = this->getDefaultSampledTextureInfo(ct,
-                                                          Mipmapped::kNo,
-                                                          Protected::kNo,
-                                                          Renderable::kYes);
-        // We continue to the fallback color type if there is no default renderable format
-        if (texInfo.isValid() && this->isRenderable(texInfo)) {
-            return ct;
-        }
-        ct = color_type_fallback(ct);
-    } while (ct != kUnknown_SkColorType);
-    return kUnknown_SkColorType;
 }
 
 SampleCount Caps::getCompatibleMSAASampleCount(const TextureInfo& info) const {
@@ -166,29 +348,6 @@ SampleCount Caps::getCompatibleMSAASampleCount(const TextureInfo& info) const {
     // If we got here, MSAA has been disabled somehow (by ContextOption, driver workaround, or
     // no support for a particular TextureFormat).
     return SampleCount::k1;
-}
-
-skgpu::Swizzle Caps::getReadSwizzle(SkColorType ct, const TextureInfo& info) const {
-    // TODO: add SkTextureCompressionType handling
-    // (can be handled by setting up the colorTypeInfo instead?)
-
-    auto colorTypeInfo = this->getColorTypeInfo(ct, info);
-    if (!colorTypeInfo) {
-        SkDEBUGFAILF("Illegal color type (%d) and format combination.", static_cast<int>(ct));
-        return {};
-    }
-
-    return colorTypeInfo->fReadSwizzle;
-}
-
-skgpu::Swizzle Caps::getWriteSwizzle(SkColorType ct, const TextureInfo& info) const {
-    auto colorTypeInfo = this->getColorTypeInfo(ct, info);
-    if (!colorTypeInfo) {
-        SkDEBUGFAILF("Illegal color type (%d) and format combination.", static_cast<int>(ct));
-        return {};
-    }
-
-    return colorTypeInfo->fWriteSwizzle;
 }
 
 std::pair<SkColorType, bool /*isRGBFormat*/> Caps::supportedTransferColorType(

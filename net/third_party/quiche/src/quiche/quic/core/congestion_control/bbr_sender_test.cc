@@ -4,29 +4,37 @@
 
 #include "quiche/quic/core/congestion_control/bbr_sender.h"
 
-#include <algorithm>
-#include <map>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
-#include <utility>
 
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
+#include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_bandwidth.h"
-#include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_clock.h"
+#include "quiche/quic/core/quic_connection_stats.h"
+#include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_tag.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_unacked_packet_map.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/quic_config_peer.h"
 #include "quiche/quic/test_tools/quic_connection_peer.h"
 #include "quiche/quic/test_tools/quic_sent_packet_manager_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/send_algorithm_test_result.pb.h"
 #include "quiche/quic/test_tools/send_algorithm_test_utils.h"
+#include "quiche/quic/test_tools/simulator/link.h"
+#include "quiche/quic/test_tools/simulator/queue.h"
 #include "quiche/quic/test_tools/simulator/quic_endpoint.h"
+#include "quiche/quic/test_tools/simulator/quic_endpoint_base.h"
 #include "quiche/quic/test_tools/simulator/simulator.h"
 #include "quiche/quic/test_tools/simulator/switch.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
@@ -1284,6 +1292,29 @@ TEST_F(BbrSenderTest,
   bbr_sender_.connection()->AdjustNetworkParameters(network_params);
   EXPECT_EQ(200 * kDefaultTCPMSS,
             sender_->ExportDebugState().congestion_window);
+}
+
+TEST_F(BbrSenderTest, ExitStartupOnLossAdjustedByNetworkParameter) {
+  SetQuicReloadableFlag(quic_bbr_always_exit_startup_on_loss, false);
+
+  sender_ = SetupBbrSender(&bbr_sender_);
+  CreateDefaultSetup();
+
+  EXPECT_FALSE(
+      sender_->ExportDebugState().exit_startup_on_loss_even_if_app_limited)
+      << "Precondition failed: exit-startup-on-loss behavior must be disabled "
+      << "before the test adjusts network parameters.";
+
+  SendAlgorithmInterface::NetworkParams network_params;
+
+  bbr_sender_.connection()->AdjustNetworkParameters(network_params);
+  EXPECT_FALSE(
+      sender_->ExportDebugState().exit_startup_on_loss_even_if_app_limited);
+
+  network_params.enable_bbr_exit_startup_on_loss = true;
+  bbr_sender_.connection()->AdjustNetworkParameters(network_params);
+  EXPECT_TRUE(
+      sender_->ExportDebugState().exit_startup_on_loss_even_if_app_limited);
 }
 
 // Ensures bandwidth estimate does not change after a loss only event.

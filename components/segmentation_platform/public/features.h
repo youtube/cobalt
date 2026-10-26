@@ -157,9 +157,6 @@ BASE_DECLARE_FEATURE(kDefaultBrowserMagicStackIos);
 // card should be hidden.
 extern const base::FeatureParam<int> kMaxDefaultBrowserMagicStackIosImpressions;
 
-// Whether the Default Browser promo module should be shown in the Magic Stack.
-bool IsDefaultBrowserMagicStackEnabled();
-
 // Feature flag for enabling the tips notifications ranker.
 BASE_DECLARE_FEATURE(kAndroidTipsNotifications);
 
@@ -176,6 +173,29 @@ extern const base::FeatureParam<bool> kNewFeatures;
 extern const base::FeatureParam<int> kStartTimeMinutes;
 // The window time in minutes for the elapsed time since the start time.
 extern const base::FeatureParam<int> kWindowTimeMinutes;
+// The control param for the Enhanced Safe Browsing tip.
+extern const base::FeatureParam<bool> kEnableEnhancedSafeBrowsingTip;
+// The control param for the Quick Delete tip.
+extern const base::FeatureParam<bool> kEnableQuickDeleteTip;
+// The control param for the Google Lens tip.
+extern const base::FeatureParam<bool> kEnableGoogleLensTip;
+// The control param for the Bottom Omnibox tip.
+extern const base::FeatureParam<bool> kEnableBottomOmniboxTip;
+
+// The prioritization of tips notifications based on ecosystem lock-in.
+extern const base::FeatureParam<bool> kEcosystemLockIn;
+// The prioritization of tips notifications based on utility and organization.
+extern const base::FeatureParam<bool> kUtilityAndOrganization;
+// The control param for the Password Autofill tip.
+extern const base::FeatureParam<bool> kEnablePasswordAutofillTip;
+// The control param for the Signin tip.
+extern const base::FeatureParam<bool> kEnableSigninTip;
+// The control param for the Create Tab Groups tip.
+extern const base::FeatureParam<bool> kEnableCreateTabGroupsTip;
+// The control param for the Customize MVT tip.
+extern const base::FeatureParam<bool> kEnableCustomizeMVTTip;
+// The control param for the Recent Tabs tip.
+extern const base::FeatureParam<bool> kEnableRecentTabsTip;
 
 }  // namespace segmentation_platform::features
 

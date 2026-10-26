@@ -18,7 +18,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
-#include "components/history_embeddings/history_embeddings_features.h"
+#include "components/history_embeddings/core/history_embeddings_features.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_match_type.h"
@@ -405,6 +405,25 @@ TEST_F(FeaturedSearchProviderTest, FeaturedEnterpriseSearch) {
   };
 
   RunTest(typing_scheme_cases);
+}
+
+TEST_F(FeaturedSearchProviderTest, AssociatedKeyword) {
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures(
+      {omnibox::kStarterPackExpansion, omnibox::kAiModeStartPack}, {});
+
+  AddStarterPackEntriesToTemplateUrlService();
+  AddFeaturedEnterpriseSearchEngine(FeaturedKeywordN(1), FeaturedUrlN(1),
+                                    TemplateURLData::PolicyOrigin::kSiteSearch);
+
+  AutocompleteInput input(u"@", metrics::OmniboxEventProto::OTHER,
+                          TestSchemeClassifier());
+  provider_->Start(input, false);
+
+  for (const auto& match : provider_->matches()) {
+    EXPECT_FALSE(match.keyword.empty());
+    EXPECT_EQ(match.associated_keyword, match.keyword);
+  }
 }
 
 TEST_F(FeaturedSearchProviderTest, ZeroSuggestStarterPackIPHSuggestion) {

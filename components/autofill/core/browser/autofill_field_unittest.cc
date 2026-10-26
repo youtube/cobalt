@@ -119,24 +119,6 @@ TEST_F(AutofillFieldTest, IsFieldFillable) {
   EXPECT_TRUE(field.IsFieldFillable());
 }
 
-TEST_F(AutofillFieldTest, LoyaltyCardPredictionsIgnoredIfFlagIsDisabled) {
-  base::test::ScopedFeatureList feature_;
-  feature_.InitWithFeatures(
-      /*enabled_features=*/{},
-      /*disabled_features=*/{
-          features::kAutofillEnableLoyaltyCardsFilling,
-          features::kAutofillEnableEmailOrLoyaltyCardsFilling});
-
-  AutofillField field;
-  EXPECT_THAT(field.Type().GetTypes(), ElementsAre(UNKNOWN_TYPE));
-
-  // Both types set.
-  field.set_heuristic_type(GetActiveHeuristicSource(), NAME_FIRST);
-  field.set_server_predictions({CreateFieldPrediction(LOYALTY_MEMBERSHIP_ID)});
-
-  EXPECT_THAT(field.Type().GetTypes(), ElementsAre(NAME_FIRST));
-}
-
 TEST_F(AutofillFieldTest, NoPredictions) {
   AutofillField field;
   EXPECT_THAT(field.Type().GetTypes(), ElementsAre(UNKNOWN_TYPE));
@@ -339,7 +321,7 @@ TEST_F(AutofillFieldTest, UpdateFieldData) {
 
   // Update information in `AutofillField` that come from `FormFieldData`.
   field.set_value(u"John Doe");
-  field.set_is_autofilled(true);
+  field.set_is_autofilled_according_to_renderer(true);
   ASSERT_FALSE(
       FormFieldData::IdenticalAndEquivalentDomElements(field, autofill_field));
 
@@ -613,10 +595,6 @@ class AutofillPredictionPreferenceTest
     : public testing::TestWithParam<AutofillPredictionPreferenceTestParams> {
  public:
   AutofillPredictionPreferenceTest() = default;
-
- private:
-  base::test::ScopedFeatureList feature_{
-      features::kAutofillEnableEmailOrLoyaltyCardsFilling};
 };
 
 // Tests the correctness of local heuristic overrides while computing the
@@ -1039,6 +1017,67 @@ INSTANTIATE_TEST_SUITE_P(
             .password_manager_predicted_type = PASSWORD,
             .expected_result = PHONE_HOME_NUMBER,
             .expected_source = AutofillPredictionSource::kHeuristics}));
+
+// Tests the behavior of `AutofillField::last_modifier()` when the purpose is to
+// figure out whether a field was last modified by autofill.
+TEST_F(AutofillFieldTest, IsLastModifierAutofill) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(features::kAutofillFixIsAutofilled);
+  AutofillField field;
+  EXPECT_NE(field.last_modifier(), FieldModifier::kAutofill);
+
+  field.AddFieldModifier(FieldModifier::kUser);
+  EXPECT_NE(field.last_modifier(), FieldModifier::kAutofill);
+
+  field.AddFieldModifier(FieldModifier::kAutofill);
+  EXPECT_EQ(field.last_modifier(), FieldModifier::kAutofill);
+
+  field.AddFieldModifier(FieldModifier::kUser);
+  EXPECT_NE(field.last_modifier(), FieldModifier::kAutofill);
+}
+
+// Tests the behavior of `AutofillField::[last|all]_modifier()` when the purpose
+// is to figure out whether a field was previously autofilled (but now is not).
+TEST_F(AutofillFieldTest, PreviouslyAutofilled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(features::kAutofillFixIsAutofilled);
+  AutofillField field;
+  auto previously_autofilled = [](const AutofillField& field) {
+    return field.all_modifiers().contains(FieldModifier::kAutofill) &&
+           field.last_modifier() != FieldModifier::kAutofill;
+  };
+  EXPECT_FALSE(previously_autofilled(field));
+
+  field.AddFieldModifier(FieldModifier::kUser);
+  EXPECT_FALSE(previously_autofilled(field));
+
+  field.AddFieldModifier(FieldModifier::kAutofill);
+  EXPECT_FALSE(previously_autofilled(field));
+
+  field.AddFieldModifier(FieldModifier::kUser);
+  EXPECT_TRUE(previously_autofilled(field));
+
+  field.AddFieldModifier(FieldModifier::kAutofill);
+  EXPECT_FALSE(previously_autofilled(field));
+}
+
+// Tests the behavior of `AutofillField::[last|all]_modifier()` when the purpose
+// is to figure out whether a field was ever edited by the user.
+TEST_F(AutofillFieldTest, IsUserEdited) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(features::kAutofillFixIsAutofilled);
+  AutofillField field;
+  EXPECT_FALSE(field.all_modifiers().contains(FieldModifier::kUser));
+
+  field.AddFieldModifier(FieldModifier::kAutofill);
+  EXPECT_FALSE(field.all_modifiers().contains(FieldModifier::kUser));
+
+  field.AddFieldModifier(FieldModifier::kUser);
+  EXPECT_TRUE(field.all_modifiers().contains(FieldModifier::kUser));
+
+  field.AddFieldModifier(FieldModifier::kAutofill);
+  EXPECT_TRUE(field.all_modifiers().contains(FieldModifier::kUser));
+}
 
 }  // namespace
 }  // namespace autofill

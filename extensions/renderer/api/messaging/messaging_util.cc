@@ -148,6 +148,16 @@ StructuredCloneMessageData MessageFromV8UsingStructuredClone(
     v8::Isolate& isolate,
     v8::Local<v8::Value> value,
     std::string* error) {
+  // Catch top-level JS `SharedArrayBuffers` and fast-fail serialization so we
+  // don't inefficiently send them over IPC to the receiver where they will just
+  // serialize to JS `null` anyways. `SharedArrayBuffers` embedded in other
+  // objects will still serialize, but we'll handle them as deserialization
+  // errors in the message receiver.
+  if (value->IsSharedArrayBuffer()) {
+    *error = kErrorCouldNotSerialize;
+    return StructuredCloneMessageData();
+  }
+
   blink::WebSerializedScriptValue serialized =
       blink::WebSerializedScriptValue::Serialize(&isolate, value);
   if (!serialized.IsValid()) {
@@ -184,6 +194,9 @@ std::optional<Message> MessageFromV8(v8::Local<v8::Context> context,
   std::string json_message;
   StructuredCloneMessageData structured_message;
   switch (format) {
+    // TODO(crbug.com/40321352): Return an std::optional<> `std::string` or
+    // `StructuredCloneMessageData` to be clearer about when serialization has
+    // failed.
     case mojom::SerializationFormat::kJson: {
       json_message = MessageFromV8UsingJSON(context, *isolate, value, error);
       if (!error->empty()) {
@@ -217,15 +230,14 @@ std::optional<Message> MessageFromV8(v8::Local<v8::Context> context,
   MessageMetadata metadata = GetMessageMetadata(context);
   switch (format) {
     case mojom::SerializationFormat::kJson: {
-      return std::make_optional<Message>(
-          std::move(json_message), mojom::SerializationFormat::kJson,
-          metadata.has_user_gesture, metadata.is_from_privileged_context);
+      return std::make_optional<Message>(std::move(json_message),
+                                         metadata.has_user_gesture,
+                                         metadata.is_from_privileged_context);
     }
     case mojom::SerializationFormat::kStructuredClone: {
-      return std::make_optional<Message>(
-          std::move(structured_message),
-          mojom::SerializationFormat::kStructuredClone,
-          metadata.has_user_gesture, metadata.is_from_privileged_context);
+      return std::make_optional<Message>(std::move(structured_message),
+                                         metadata.has_user_gesture,
+                                         metadata.is_from_privileged_context);
     }
   }
 
@@ -235,15 +247,23 @@ std::optional<Message> MessageFromV8(v8::Local<v8::Context> context,
 
 // Deserializes the given `message` using structured cloning and returns it as a
 // v8::Value. Returns an empty handle on failure, and populates `error`.
+// TODO(crbug.com/40321352): Return a `std::optional<v8::Local<v8::Value>>` to
+// be more clear when deserialization has failed.
 v8::Local<v8::Value> MessageToV8UsingStructuredClone(v8::Isolate& isolate,
                                                      Message message,
                                                      std::string* error) {
-  blink::WebSerializedScriptValue serialized =
+  blink::WebSerializedScriptValue serialized_message =
       blink::WebSerializedScriptValue::CreateFromCloneableMessage(
           message.TakeStructuredMessage());
   // `message` no longer has valid message data because we've just taken it to
   // create `serialized`.
-  return serialized.Deserialize(&isolate);
+  base::expected<v8::Local<v8::Value>, blink::DeserializationError>
+      deserialized_message = serialized_message.Deserialize(&isolate);
+  if (!deserialized_message.has_value()) {
+    *error = "Could not deserialize message.";
+    return v8::Local<v8::Value>();
+  }
+  return deserialized_message.value();
 }
 
 // Deserializes the given JSON string `message` and returns it as a v8::Value.

@@ -66,15 +66,21 @@ class VerticalTabsBrowserTestMixin : public T {
     return region_view ? region_view->GetVerticalTabStripController() : nullptr;
   }
 
+  TabHoverCardController* hover_card_controller() {
+    if (VerticalTabStripController* controller =
+            vertical_tab_strip_controller()) {
+      return controller->GetHoverCardController();
+    }
+    return nullptr;
+  }
+
   void EnterVerticalTabsMode() {
-    T::browser()->profile()->GetPrefs()->SetBoolean(prefs::kVerticalTabsEnabled,
-                                                    true);
+    vertical_tab_strip_state_controller()->SetVerticalTabsEnabled(true);
     T::RunScheduledLayouts();
   }
 
   void ExitVerticalTabsMode() {
-    T::browser()->profile()->GetPrefs()->SetBoolean(prefs::kVerticalTabsEnabled,
-                                                    false);
+    vertical_tab_strip_state_controller()->SetVerticalTabsEnabled(false);
     T::RunScheduledLayouts();
   }
 

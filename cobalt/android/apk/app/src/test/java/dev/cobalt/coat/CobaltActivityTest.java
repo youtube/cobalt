@@ -20,6 +20,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -29,6 +30,8 @@ import static org.mockito.Mockito.when;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.KeyEvent;
+import dev.cobalt.browser.CobaltContentBrowserClient;
+import dev.cobalt.browser.CobaltContentBrowserClientJni;
 import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.JavaSwitches;
 import java.time.Duration;
@@ -39,6 +42,7 @@ import java.util.Map;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.content.browser.input.ImeAdapterImpl;
+import org.chromium.net.NetworkChangeNotifier;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -47,6 +51,7 @@ import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.shadows.ShadowLooper;
+import org.robolectric.shadows.ShadowSystemClock;
 
 /** CobaltActivityTest. */
 @RunWith(RobolectricTestRunner.class)
@@ -385,11 +390,14 @@ public class CobaltActivityTest {
     ContextUtils.initApplicationContextForTests(RuntimeEnvironment.getApplication());
     AppEventBridgeJni.setInstanceForTesting(mock(AppEventBridge.Natives.class));
     StartupGuard.getInstance().disarm();
+    NetworkChangeNotifier.resetInstanceForTests();
   }
 
   @After
   public void tearDown() {
     StartupGuard.getInstance().disarm();
+    NetworkChangeNotifier.resetInstanceForTests();
+    CobaltContentBrowserClientJni.setInstanceForTesting(null);
   }
 
   public CobaltActivity createActivityWithSwitches(final Map<String, String> switches) {
@@ -477,5 +485,194 @@ public class CobaltActivityTest {
             .getNextScheduledTaskTime()
             .minus(Duration.ofMillis(android.os.SystemClock.uptimeMillis()));
     org.junit.Assert.assertEquals(Duration.ofSeconds(120), nextTaskDelay);
+  }
+
+  // --- checkAndRetryOnNetworkOnline(), b/572816285 ---
+
+  /**
+   * A CobaltActivity whose real checkAndRetryOnNetworkOnline() sees the given platform error, or
+   * none if null.
+   */
+  private static CobaltActivity createActivityForNetworkRecovery(PlatformError platformError) {
+    StarboardBridge bridge = mock(StarboardBridge.class);
+    when(bridge.getPlatformError()).thenReturn(platformError);
+    CobaltActivity activity = mock(CobaltActivity.class);
+    when(activity.getStarboardBridge()).thenReturn(bridge);
+    doCallRealMethod().when(activity).checkAndRetryOnNetworkOnline();
+    // The retry throttle compares against elapsedRealtime(), which starts near 0 in Robolectric.
+    ShadowSystemClock.advanceBy(Duration.ofSeconds(2));
+    return activity;
+  }
+
+  /** A raised network error dialog that hasn't been retried yet. */
+  private static PlatformError createPendingPlatformError() {
+    PlatformError platformError = mock(PlatformError.class);
+    when(platformError.isRetryPending()).thenReturn(true);
+    return platformError;
+  }
+
+  @Test
+  public void checkAndRetryOnNetworkOnline_doesNothing_whenLoadDidNotFail() {
+    CobaltActivity activity = createActivityForNetworkRecovery(/* platformError= */ null);
+
+    // Online, splash screen not hidden, nothing loading: the old code reloaded here.
+    activity.checkAndRetryOnNetworkOnline();
+
+    verify(activity, never()).reloadUrl(any());
+  }
+
+  @Test
+  public void checkAndRetryOnNetworkOnline_retries_whenLoadFailedAndOnline() {
+    PlatformError platformError = createPendingPlatformError();
+    CobaltActivity activity = createActivityForNetworkRecovery(platformError);
+
+    activity.checkAndRetryOnNetworkOnline();
+
+    verify(platformError).retry();
+    verify(activity, never()).reloadUrl(any());
+  }
+
+  @Test
+  public void checkAndRetryOnNetworkOnline_doesNotRetry_whenErrorWasAlreadyRetried() {
+    PlatformError platformError = mock(PlatformError.class);
+    when(platformError.isRetryPending()).thenReturn(false);
+    CobaltActivity activity = createActivityForNetworkRecovery(platformError);
+
+    // E.g. a resume after Try again (or a previous auto-retry) already reloaded the page.
+    activity.checkAndRetryOnNetworkOnline();
+
+    verify(platformError, never()).retry();
+  }
+
+  @Test
+  public void checkAndRetryOnNetworkOnline_doesNotRetry_whileOffline() {
+    PlatformError platformError = createPendingPlatformError();
+    CobaltActivity activity = createActivityForNetworkRecovery(platformError);
+    NetworkChangeNotifier.forceConnectivityState(false);
+
+    activity.checkAndRetryOnNetworkOnline();
+
+    verify(platformError, never()).retry();
+  }
+
+  @Test
+  public void checkAndRetryOnNetworkOnline_throttlesRetries() {
+    PlatformError platformError = createPendingPlatformError();
+    CobaltActivity activity = createActivityForNetworkRecovery(platformError);
+
+    activity.checkAndRetryOnNetworkOnline();
+    activity.checkAndRetryOnNetworkOnline();
+
+    verify(platformError, times(1)).retry();
+  }
+
+  private CobaltActivity createActivityForFreezeTests(
+      final boolean isShield, final boolean finchFeatureEnabled) {
+    return new CobaltActivity() {
+      @Override
+      protected boolean isNvidiaShield() {
+        return isShield;
+      }
+
+      @Override
+      protected boolean isFreezeOnBackgroundFeatureEnabled() {
+        return finchFeatureEnabled;
+      }
+
+      @Override
+      protected ImeAdapterImpl getImeAdapterImpl() {
+        return null;
+      }
+
+      @Override
+      protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
+        return null;
+      }
+    };
+  }
+
+  private static void mockFreezeDelayParam(int delayMs) {
+    CobaltContentBrowserClient.Natives natives = mock(CobaltContentBrowserClient.Natives.class);
+    when(natives.getFreezeOnBackgroundDelayMs()).thenReturn(delayMs);
+    CobaltContentBrowserClientJni.setInstanceForTesting(natives);
+  }
+
+  @Test
+  public void testFreezeOnBackground_FeatureDisabled_NoFreezeAndParamIgnored() {
+    mockFreezeDelayParam(1500);
+    CobaltActivity activity =
+        createActivityForFreezeTests(/* isShield= */ false, /* finchFeatureEnabled= */ false);
+    assertFalse(activity.shouldFreezeOnBackground());
+    assertEquals(0L, activity.getFreezeOnBackgroundDelayMs());
+  }
+
+  @Test
+  public void testFreezeOnBackground_FeatureEnabled_UsesParam() {
+    mockFreezeDelayParam(1500);
+    CobaltActivity activity =
+        createActivityForFreezeTests(/* isShield= */ false, /* finchFeatureEnabled= */ true);
+    assertTrue(activity.shouldFreezeOnBackground());
+    assertEquals(1500L, activity.getFreezeOnBackgroundDelayMs());
+  }
+
+  @Test
+  public void testFreezeOnBackground_NegativeParam_ClampedToZero() {
+    mockFreezeDelayParam(-5);
+    CobaltActivity activity =
+        createActivityForFreezeTests(/* isShield= */ false, /* finchFeatureEnabled= */ true);
+    assertEquals(0L, activity.getFreezeOnBackgroundDelayMs());
+  }
+
+  @Test
+  public void testFreezeOnBackground_Shield_FreezesWithFixedDelayWhenFeatureDisabled() {
+    mockFreezeDelayParam(0);
+    CobaltActivity activity =
+        createActivityForFreezeTests(/* isShield= */ true, /* finchFeatureEnabled= */ false);
+    assertTrue(activity.shouldFreezeOnBackground());
+    assertEquals(1500L, activity.getFreezeOnBackgroundDelayMs());
+  }
+
+  @Test
+  public void testFreezeOnBackground_Shield_IgnoresFinchParam() {
+    mockFreezeDelayParam(0);
+    CobaltActivity activity =
+        createActivityForFreezeTests(/* isShield= */ true, /* finchFeatureEnabled= */ true);
+    assertTrue(activity.shouldFreezeOnBackground());
+    assertEquals(1500L, activity.getFreezeOnBackgroundDelayMs());
+  }
+
+  // --- onPrimaryMainFrameNavigationStarted() ---
+
+  @Test
+  public void onPrimaryMainFrameNavigationStarted_resetsSplashScreenState() {
+    CobaltActivity activity = mock(CobaltActivity.class);
+    doCallRealMethod().when(activity).hasHiddenSplashScreen();
+    doCallRealMethod().when(activity).onSplashScreenHidden();
+    doCallRealMethod().when(activity).onPrimaryMainFrameNavigationStarted();
+    activity.onSplashScreenHidden();
+    assertTrue(activity.hasHiddenSplashScreen());
+
+    // E.g. the web app reloaded itself: the new page has not hidden its splash screen yet.
+    activity.onPrimaryMainFrameNavigationStarted();
+
+    assertFalse(activity.hasHiddenSplashScreen());
+  }
+
+  @Test
+  public void checkAndRetryOnNetworkOnline_retriesAgain_afterNewNavigationStarted() {
+    PlatformError platformError = createPendingPlatformError();
+    CobaltActivity activity = createActivityForNetworkRecovery(platformError);
+    doCallRealMethod().when(activity).onSplashScreenHidden();
+    doCallRealMethod().when(activity).onPrimaryMainFrameNavigationStarted();
+
+    // Once the splash screen is hidden, network recovery is the web app's job.
+    activity.onSplashScreenHidden();
+    activity.checkAndRetryOnNetworkOnline();
+    verify(platformError, never()).retry();
+
+    // A new document load is a cold start again.
+    activity.onPrimaryMainFrameNavigationStarted();
+    activity.checkAndRetryOnNetworkOnline();
+    verify(platformError).retry();
   }
 }

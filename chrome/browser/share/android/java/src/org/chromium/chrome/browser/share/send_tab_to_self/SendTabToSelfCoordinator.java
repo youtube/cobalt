@@ -15,6 +15,7 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetCoordinator;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerDelegate;
@@ -28,10 +29,12 @@ import org.chromium.components.sync.SyncService;
 import org.chromium.ui.base.WindowAndroid;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Coordinator for displaying the send tab to self feature. */
 @NullMarked
 public class SendTabToSelfCoordinator {
+
     /**
      * Waits for Sync to download the list of target devices after sign-in. Aborts if the
      * user dismisses the sign-in bottom sheet ("account picker") before success.
@@ -142,25 +145,31 @@ public class SendTabToSelfCoordinator {
     private final @Nullable WindowAndroid mWindowAndroid;
     private final String mUrl;
     private final String mTitle;
+    private final @Nullable PageContext mPageContext;
     private final BottomSheetController mController;
     private final Profile mProfile;
     private final DeviceLockActivityLauncher mDeviceLockActivityLauncher;
+    private final Supplier<@Nullable Tab> mTabProvider;
 
     public SendTabToSelfCoordinator(
             Context context,
             @Nullable WindowAndroid windowAndroid,
             String url,
             String title,
+            @Nullable PageContext pageContext,
             BottomSheetController controller,
             Profile profile,
-            DeviceLockActivityLauncher deviceLockActivityLauncher) {
+            DeviceLockActivityLauncher deviceLockActivityLauncher,
+            Supplier<@Nullable Tab> tabProvider) {
         mContext = context;
         mWindowAndroid = windowAndroid;
         mUrl = url;
         mTitle = title;
+        mPageContext = pageContext;
         mController = controller;
         mProfile = profile;
         mDeviceLockActivityLauncher = deviceLockActivityLauncher;
+        mTabProvider = tabProvider;
     }
 
     public void show() {
@@ -169,7 +178,7 @@ public class SendTabToSelfCoordinator {
                 SendTabToSelfAndroidBridge.getEntryPointDisplayReason(mProfile, mUrl);
         assert displayReason != null;
 
-        MetricsRecorder.recordCrossDeviceTabJourney();
+        SendTabToSelfMetricsRecorder.recordCrossDeviceTabJourney();
         switch (displayReason) {
             case EntryPointDisplayReason.INFORM_NO_TARGET_DEVICE:
                 mController.requestShowContent(
@@ -180,7 +189,14 @@ public class SendTabToSelfCoordinator {
                         SendTabToSelfAndroidBridge.getAllTargetDeviceInfos(mProfile);
                 mController.requestShowContent(
                         new DevicePickerBottomSheetContent(
-                                mContext, mUrl, mTitle, mController, targetDevices, mProfile),
+                                mContext,
+                                mUrl,
+                                mTitle,
+                                mPageContext,
+                                mController,
+                                targetDevices,
+                                mProfile,
+                                mTabProvider),
                         true);
                 return;
             case EntryPointDisplayReason.OFFER_SIGN_IN:

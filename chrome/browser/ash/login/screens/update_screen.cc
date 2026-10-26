@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <string_view>
 
+#include "ash/constants/ash_pref_names.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/containers/fixed_flat_set.h"
@@ -26,7 +27,6 @@
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ash/system/timezone_util.h"
 #include "chrome/browser/ui/webui/ash/login/update_screen_handler.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/network/network_state.h"
@@ -111,7 +111,7 @@ void RecordUpdateCheckTimeout(bool timeout) {
 // Determines if the device is in EU zone to show info about opt out.
 bool CheckIfOptOutIsEnabled(PrefService& local_state) {
   auto country = system::GetCountryCodeFromTimezoneIfAvailable(
-      local_state.GetString(::prefs::kSigninScreenTimezone));
+      local_state.GetString(ash::prefs::kSigninScreenTimezone));
   if (!country.has_value()) {
     return false;
   }

@@ -45,13 +45,14 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.AppHooks;
+import org.chromium.chrome.browser.BrowserExitReasonTracker;
 import org.chromium.chrome.browser.ChromeActivitySessionTracker;
 import org.chromium.chrome.browser.ChromeStrictMode;
-import org.chromium.chrome.browser.DefaultBrowserInfo;
 import org.chromium.chrome.browser.DeferredStartupHandler;
 import org.chromium.chrome.browser.DevToolsServer;
 import org.chromium.chrome.browser.FileProviderHelper;
 import org.chromium.chrome.browser.accessibility.settings.AccessibilitySettingsBridge;
+import org.chromium.chrome.browser.actor.ActorForegroundServiceManager;
 import org.chromium.chrome.browser.app.bluetooth.BluetoothNotificationService;
 import org.chromium.chrome.browser.app.flags.ChromeCachedFlags;
 import org.chromium.chrome.browser.app.usb.UsbNotificationService;
@@ -79,6 +80,7 @@ import org.chromium.chrome.browser.media.MediaViewerUtils;
 import org.chromium.chrome.browser.metrics.LaunchMetrics;
 import org.chromium.chrome.browser.metrics.PackageMetrics;
 import org.chromium.chrome.browser.metrics.StorageSystem;
+import org.chromium.chrome.browser.metrics.UmaSessionStats;
 import org.chromium.chrome.browser.metrics.UmaUtils;
 import org.chromium.chrome.browser.notifications.TrampolineActivityTracker;
 import org.chromium.chrome.browser.notifications.channels.ChannelsUpdater;
@@ -115,7 +117,6 @@ import org.chromium.chrome.browser.webapps.WebappRegistry;
 import org.chromium.components.background_task_scheduler.BackgroundTaskSchedulerFactory;
 import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
 import org.chromium.components.browser_ui.photo_picker.DecoderServiceHost;
-import org.chromium.components.browser_ui.photo_picker.PhotoPickerDelegateBase;
 import org.chromium.components.browser_ui.photo_picker.PhotoPickerDialog;
 import org.chromium.components.browser_ui.share.ClipboardImageFileProvider;
 import org.chromium.components.browser_ui.share.ShareImageFileUtils;
@@ -130,12 +131,14 @@ import org.chromium.components.webapps.AppBannerManager;
 import org.chromium.components.webapps.AppDetailsDelegate;
 import org.chromium.content_public.browser.ChildProcessLauncherHelper;
 import org.chromium.content_public.browser.DeviceUtils;
+import org.chromium.content_public.browser.JavalessRenderersFeatureList;
 import org.chromium.content_public.browser.SpeechRecognition;
 import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.net.RegistrationPolicyApplicationStatus;
 import org.chromium.ui.accessibility.AccessibilityState;
 import org.chromium.ui.base.Clipboard;
 import org.chromium.ui.base.PhotoPicker;
+import org.chromium.ui.base.PhotoPickerDelegate;
 import org.chromium.ui.base.PhotoPickerListener;
 import org.chromium.ui.base.SelectFileDialog;
 import org.chromium.ui.base.WindowAndroid;
@@ -398,7 +401,7 @@ public class ProcessInitializationHandler {
                 });
 
         SelectFileDialog.setPhotoPickerDelegate(
-                new PhotoPickerDelegateBase() {
+                new PhotoPickerDelegate() {
                     @Override
                     public PhotoPicker showPhotoPicker(
                             WindowAndroid windowAndroid,
@@ -465,6 +468,13 @@ public class ProcessInitializationHandler {
         AppHooks.get().registerPolicyProviders(CombinedPolicyProvider.get());
         SpeechRecognition.initialize();
         TrampolineActivityTracker.getInstance().onNativeInitialized();
+
+        JavalessRenderersFeatureList.setRegisterSyntheticFieldTrialCallback(
+                UmaSessionStats::registerSyntheticFieldTrial);
+
+        if (ChromeFeatureList.sGlic.isEnabled()) {
+            ActorForegroundServiceManager.initialize();
+        }
     }
 
     /**
@@ -622,11 +632,11 @@ public class ProcessInitializationHandler {
     protected void addPerApplicationStartupDeferredTasks(List<Runnable> tasks, Profile profile) {
         tasks.add(
                 () -> {
+                    BrowserExitReasonTracker.initForegroundBrowserProcess();
+
                     initAsyncDiskTask();
 
                     StorageSystem.recordStorageType();
-
-                    DefaultBrowserInfo.initBrowserFetcher();
 
                     AfterStartupTaskUtils.setStartupComplete();
 
@@ -924,8 +934,8 @@ public class ProcessInitializationHandler {
     }
 
     /**
-     * Deletes the snapshot database which is no longer used because the feature has been removed
-     * in Chrome M41.
+     * Deletes the snapshot database which is no longer used because the feature has been removed in
+     * Chrome M41.
      */
     @WorkerThread
     private void removeSnapshotDatabase() {

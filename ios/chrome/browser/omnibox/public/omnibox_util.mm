@@ -22,9 +22,6 @@ const CGFloat kSymbolLocationBarPointSize = 10;
 
 OmniboxSuggestionIconType GetOmniboxSuggestionIconTypeForAutocompleteMatchType(
     AutocompleteMatchType::Type type) {
-  // TODO(crbug.com/40716245): Handle trending zero-prefix suggestions by
-  // checking the match subtype similar to AutocompleteMatch::GetVectorIcon().
-
   switch (type) {
     case AutocompleteMatchType::BOOKMARK_TITLE:
     case AutocompleteMatchType::CLIPBOARD_URL:
@@ -89,7 +86,7 @@ GetOmniboxSuggestionIconTypeForSuggestTemplateInfoIconType(
     omnibox::SuggestTemplateInfo::IconType type) {
   // Update this assertion and the switch below whenever values are added.
   static_assert(omnibox::SuggestTemplateInfo::IconType_MAX ==
-                omnibox::SuggestTemplateInfo::NOTES_SPARK);
+                omnibox::SuggestTemplateInfo::DRAFT_SPARK);
   switch (type) {
     case omnibox::SuggestTemplateInfo_IconType_HISTORY:
       return OmniboxSuggestionIconType::kSearchHistory;
@@ -108,6 +105,10 @@ GetOmniboxSuggestionIconTypeForSuggestTemplateInfoIconType(
       return OmniboxSuggestionIconType::kSearch;
     case omnibox::SuggestTemplateInfo_IconType_NOTES_SPARK:
       return OmniboxSuggestionIconType::kNotesSpark;
+    case omnibox::SuggestTemplateInfo_IconType_DRAFT_SPARK:
+      // TODO(crbug.com/486698515): Replace with the correct symbol when it's
+      // available.
+      return OmniboxSuggestionIconType::kSearch;
     case omnibox::SuggestTemplateInfo_IconType_FAVICON:
       return OmniboxSuggestionIconType::kDefaultFavicon;
     case omnibox::SuggestTemplateInfo_IconType_ICON_TYPE_UNSPECIFIED:

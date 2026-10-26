@@ -101,8 +101,8 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
     private final MonotonicObservableSupplier<BookmarkManagerOpener> mBookmarkManagerOpenerSupplier;
     private final RecyclerView mItemsRecyclerView;
     private final BookmarkBar mBookmarkBarView;
-    @StyleRes private int mCurrentTextStyleRes = R.style.TextAppearance_TextMedium_Primary_Baseline;
-    @ColorRes private int mCurrentIconTintRes = R.color.default_icon_color_tint_list;
+    private @StyleRes int mCurrentTextStyleRes = R.style.TextAppearance_TextMedium_Primary_Baseline;
+    private @ColorRes int mCurrentIconTintRes = R.color.default_icon_color_tint_list;
     @DrawableRes private int mCurrentBackgroundId;
 
     // The popup window that displays the contents of a bookmark folder. Instantiated in {@code
@@ -289,7 +289,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
     // Private methods.
 
     // TODO(crbug.com/394614779): Open in popup window instead of bookmark manager.
-    private void onAllBookmarksButtonClick(int metaState) {
+    private void onAllBookmarksButtonClick(int metaState, int buttonState) {
         // Open the manager iff the active profile and model are unchanged to prevent accidentally
         // opening the manager for the wrong profile/model. We will only record the click event if
         // this guard passes, so the data shows only actions that resulted in a change.
@@ -1047,7 +1047,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                 new PropertyModel.Builder(BookmarkBarButtonProperties.ALL_KEYS)
                         .with(
                                 BookmarkBarButtonProperties.CLICK_CALLBACK,
-                                (metaState) -> clickCallback.accept(item, metaState))
+                                (metaState, buttonState) -> clickCallback.accept(item, metaState))
                         .with(BookmarkBarButtonProperties.KEY_LISTENER, keyListener)
                         .with(
                                 BookmarkBarButtonProperties.ICON_TINT_LIST_ID,

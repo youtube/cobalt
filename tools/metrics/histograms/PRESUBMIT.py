@@ -18,7 +18,7 @@ import sys
 
 # PRESUBMIT infrastructure doesn't guarantee that the cwd() will be on
 # path requiring manual path manipulation to call setup_modules.
-# TODO(crbug.com/482274154): Consider using subprocesses to run actual
+# TODO(crbug.com/488351821): Consider using subprocesses to run actual
 #                            test as recommended by presubmit docs:
 # https://www.chromium.org/developers/how-tos/depottools/presubmit-scripts/
 sys.path.append('.')
@@ -46,12 +46,12 @@ class HistogramsPresubmitCheckType(enum.Enum):
   FORMATTING_VALIDATION = 3
 
 
-_CACHE_FILE_PATH = os.path.join(tempfile.gettempdir(),
-                                'histograms_presubmit_cache.json')
+_CACHE_DIR_PATH = os.path.join(tempfile.gettempdir(),
+                               'histograms_presubmit_cache')
 
 
-def _RunCheckWithCache(check_method: Callable[[Type, Type, Any], List[Any]],
-                       check_id: int, input_api: type, output_api: type,
+def _RunCheckWithCache(check_method: Callable[[Any, Any, Any], List[Any]],
+                       check_id: int, input_api: Any, output_api: Any,
                        cache_file_path: str, *args, **kwargs):
   """Runs a check method with caching support.
 
@@ -114,7 +114,7 @@ def GetTokenErrors(input_api, output_api, cwd, rel_path, results):
     results.append(output_api.PresubmitError(error_msg))
 
 
-def GetValidateHistogramsError(input_api: Type, output_api: Type, cwd: str,
+def GetValidateHistogramsError(input_api: Any, output_api: Any, cwd: str,
                                xml_paths_override: List[str],
                                results: List[Any]):
   """Validates histograms format using validate_format.py tool.
@@ -149,8 +149,8 @@ def GetValidateHistogramsError(input_api: Type, output_api: Type, cwd: str,
     results.append(output_api.PresubmitError(error_msg))
 
 
-def _GetValidateHistogramsIndexError(input_api: Type, output_api: Type,
-                                     cwd: str, results: List[Any]):
+def _GetValidateHistogramsIndexError(input_api: Any, output_api: Any, cwd: str,
+                                     results: List[Any]):
   """Validates if index file is up-to-date with current state of the tree using
   validate_histograms_index.py tool.
 
@@ -222,7 +222,7 @@ def ValidateSingleFile(input_api, output_api, file_obj, cwd, results,
 
 def CheckHistogramFormatting(input_api,
                              output_api,
-                             cache_file_path=_CACHE_FILE_PATH,
+                             cache_file_path=_CACHE_DIR_PATH,
                              allow_test_paths=False,
                              xml_paths_override=None):
   """Checks that histograms.xml is pretty-printed and well-formatted.
@@ -274,7 +274,7 @@ def ExecuteCheckHistogramFormatting(input_api, output_api, allow_test_paths,
 
 def CheckWebViewHistogramsAllowlistOnUpload(input_api,
                                             output_api,
-                                            cache_file_path=_CACHE_FILE_PATH,
+                                            cache_file_path=_CACHE_DIR_PATH,
                                             allowlist_path_override=None,
                                             xml_paths_override=None):
   """Checks that HistogramsAllowlist.java contains valid histograms.
@@ -326,7 +326,7 @@ def ExecuteCheckWebViewHistogramsAllowlistOnUpload(input_api, output_api,
 
 def CheckBooleansAreEnums(input_api,
                           output_api,
-                          cache_file_path=_CACHE_FILE_PATH):
+                          cache_file_path=_CACHE_DIR_PATH):
   """Checks that histograms that use Booleans do not use units.
 
   This function is a wrapper around ExecuteCheckBooleansAreEnums that adds

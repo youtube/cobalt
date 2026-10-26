@@ -8,8 +8,9 @@
 
 #import "base/check.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
-#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_mediator.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/legacy_fullscreen_mediator.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/scoped_fullscreen_disabler.h"
+#import "ios/public/provider/chrome/browser/fullscreen/fullscreen_api.h"
 #import "ios/web/common/features.h"
 
 @interface FullscreenSystemNotificationObserver () {
@@ -18,9 +19,9 @@
 }
 // The FullscreenController being enabled/disabled for system events.
 @property(nonatomic, readonly, nonnull) FullscreenController* controller;
-// The FullscreenMediator through which foreground events are propagated to
-// FullscreenControllerObservers.
-@property(nonatomic, readonly, nonnull) FullscreenMediator* mediator;
+// The LegacyFullscreenMediator through which foreground events are propagated
+// to FullscreenControllerObservers.
+@property(nonatomic, readonly, nonnull) LegacyFullscreenMediator* mediator;
 // Creates or destroys `_voiceOverDisabler` depending on whether VoiceOver is
 // enabled.
 - (void)voiceOverStatusChanged;
@@ -33,7 +34,7 @@
 @synthesize mediator = _mediator;
 
 - (instancetype)initWithController:(FullscreenController*)controller
-                          mediator:(FullscreenMediator*)mediator {
+                          mediator:(LegacyFullscreenMediator*)mediator {
   if ((self = [super init])) {
     _controller = controller;
     DCHECK(_controller);
@@ -54,7 +55,7 @@
           std::make_unique<ScopedFullscreenDisabler>(_controller);
     }
     // Register for application lifecycle events.
-    if (base::FeatureList::IsEnabled(web::features::kSmoothScrollingDefault)) {
+    if (ios::provider::IsFullscreenSmoothScrollingSupported()) {
       [defaultCenter addObserver:self
                         selector:@selector(applicationWillEnterForeground)
                             name:UIApplicationWillEnterForegroundNotification

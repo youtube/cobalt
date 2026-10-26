@@ -87,7 +87,7 @@ export class OnDeviceInternalsModelStatusElement extends CrLitElement {
             this.logProgress_.bind(this));
   }
 
-  private logProgress_(downloadedBytes: number, totalBytes: number) {
+  private logProgress_(downloadedBytes: bigint, totalBytes: bigint) {
     this.loadProgress = Number(downloadedBytes);
     this.loadMax = Number(totalBytes);
     this.readableLoadProgress = this.formatBytes(this.loadProgress);
@@ -120,7 +120,7 @@ export class OnDeviceInternalsModelStatusElement extends CrLitElement {
     this.pageData_ = (await this.proxy_.handler.getPageData()).pageData;
   }
 
-  protected uninstallDefaultModel_() {
+  protected onUninstallDefaultModelClick_() {
     this.proxy_.handler.uninstallDefaultModel();
   }
 }

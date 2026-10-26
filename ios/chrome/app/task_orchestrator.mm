@@ -7,6 +7,8 @@
 #import <map>
 #import <string>
 
+#import "base/metrics/histogram_functions.h"
+#import "ios/chrome/app/task_scheduling_outcome.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
@@ -46,9 +48,12 @@ struct SceneInfo {
 }
 
 - (void)addTaskRequest:(TaskRequest*)task {
-  // TODO(crbug.com/462018636): Don't add the task if it requires an
-  // account/profile change and there is already a task in a queue requiring a
-  // change to a different account. Record metrics when this happens.
+  // Don't add the task if it requires an account/profile change and there is
+  // already a task in a queue requiring a change to a different account.
+  if ([self shouldDropTaskRequest:task]) {
+    return;
+  }
+
   SceneInfo& sceneInfo = _tasksPerScene[task.sceneSessionID];
   sceneInfo.AddTask(task);
   [self executeTasksForScene:task.sceneSessionID];
@@ -56,15 +61,39 @@ struct SceneInfo {
 
 - (void)updateToStage:(TaskExecutionStage)stage
              forScene:(std::string_view)sceneSessionID {
-  TaskExecutionStage& currentStage =
+  TaskExecutionStage previousStage =
       _tasksPerScene[sceneSessionID].current_stage;
-  if (currentStage < stage) {
-    _tasksPerScene[sceneSessionID].current_stage = stage;
+  _tasksPerScene[sceneSessionID].current_stage = stage;
+  if (previousStage < stage) {
     [self executeTasksForScene:sceneSessionID];
   }
 }
 
 #pragma mark - Private
+
+// Returns whether the task should be dropped.
+- (BOOL)shouldDropTaskRequest:(TaskRequest*)task {
+  NSString* taskGaiaID = task.gaiaID;
+  if (!taskGaiaID) {
+    base::UmaHistogramEnumeration("IOS.TaskOrchestrator.TaskSchedulingOutcome",
+                                  TaskSchedulingOutcome::kScheduled);
+    return NO;
+  }
+
+  SceneInfo& sceneInfo = _tasksPerScene[task.sceneSessionID];
+  for (TaskRequest* pendingTask in sceneInfo.pending_tasks) {
+    NSString* pendingGaiaID = pendingTask.gaiaID;
+    if (pendingGaiaID && ![pendingGaiaID isEqualToString:taskGaiaID]) {
+      base::UmaHistogramEnumeration(
+          "IOS.TaskOrchestrator.TaskSchedulingOutcome",
+          TaskSchedulingOutcome::kDroppedGaiaMismatch);
+      return YES;
+    }
+  }
+  base::UmaHistogramEnumeration("IOS.TaskOrchestrator.TaskSchedulingOutcome",
+                                TaskSchedulingOutcome::kScheduled);
+  return NO;
+}
 
 // Internal logic to filter and execute tasks based on the current stage.
 - (void)executeTasksForScene:(std::string_view)sceneSessionID {

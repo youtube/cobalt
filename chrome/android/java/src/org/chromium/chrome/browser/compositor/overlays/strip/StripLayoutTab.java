@@ -35,8 +35,8 @@ import org.chromium.chrome.browser.compositor.overlays.strip.TabLoadTracker.TabL
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.layouts.animation.CompositorAnimator;
 import org.chromium.chrome.browser.layouts.components.VirtualView;
+import org.chromium.chrome.browser.tab.MediaState;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tab.Tab.MediaState;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
 import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
@@ -227,14 +227,15 @@ public class StripLayoutTab extends StripLayoutView {
                 new TintedCompositorButton(
                         context,
                         ButtonType.TAB_CLOSE,
-                        this,
+                        /* parentView= */ this,
                         /* width= */ 0,
                         /* height= */ 0,
                         /* tooltipHandler= */ null,
                         clickHandler,
                         keyboardFocusHandler,
                         R.drawable.btn_tab_close_normal,
-                        0f);
+                        /* clickSlopDp= */ 0f,
+                        /* hasLongClickAction= */ true);
         mCloseButton.setTintResources(
                 R.color.default_icon_color_tint_list,
                 R.color.default_icon_color_tint_list,
@@ -338,7 +339,7 @@ public class StripLayoutTab extends StripLayoutView {
      * @param isPinned whether this tab has been pinned.
      */
     public void setIsPinned(boolean isPinned) {
-        mIsPinned = StripLayoutUtils.isTabPinningFromStripEnabled() ? isPinned : false;
+        mIsPinned = isPinned;
     }
 
     /** Gets whether this tab has been pinned */

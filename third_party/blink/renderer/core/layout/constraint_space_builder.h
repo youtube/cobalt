@@ -549,14 +549,9 @@ class CORE_EXPORT ConstraintSpaceBuilder final {
     }
   }
 
-  void SetLineClampEndMarginStrut(MarginStrut end_margin_strut) {
-#if DCHECK_IS_ON()
-    DCHECK(!is_line_clamp_end_margin_strut_set_);
-    is_line_clamp_end_margin_strut_set_ = true;
-#endif
-    DCHECK(!is_new_fc_);
-    if (!end_margin_strut.IsEmpty()) {
-      EnsureRareData()->SetLineClampEndMarginStrut(end_margin_strut);
+  void SetLineClampAncestorChain(const LineClampAncestorChain* data) {
+    if (data) {
+      EnsureRareData()->SetLineClampAncestorChain(data);
     }
   }
 
@@ -614,12 +609,12 @@ class CORE_EXPORT ConstraintSpaceBuilder final {
     EnsureRareData()->SetTargetStretchBlockSizes(target_stretch_block_sizes);
   }
 
-  void SetGridLayoutSubtree(GridLayoutSubtree&& grid_layout_subtree) {
+  void SetGridLayoutSubtree(const GridLayoutSubtree* grid_layout_subtree) {
 #if DCHECK_IS_ON()
     DCHECK(!is_grid_layout_subtree_set_);
     is_grid_layout_subtree_set_ = true;
 #endif
-    EnsureRareData()->SetGridLayoutSubtree(std::move(grid_layout_subtree));
+    EnsureRareData()->SetGridLayoutSubtree(grid_layout_subtree);
   }
 
   // Creates a new constraint space.
@@ -681,7 +676,6 @@ class CORE_EXPORT ConstraintSpaceBuilder final {
   bool is_table_cell_with_collapsed_borders_set_ = false;
   bool is_custom_layout_data_set_ = false;
   bool is_line_clamp_data_set_ = false;
-  bool is_line_clamp_end_margin_strut_set_ = false;
   bool is_table_row_data_set_ = false;
   bool is_table_section_data_set_ = false;
   bool is_grid_layout_subtree_set_ = false;

@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/core/paint/compositing/compositing_reason_finder.h"
 
 #include "third_party/blink/renderer/core/css/css_property_names.h"
+#include "third_party/blink/renderer/core/css/properties/css_bitset.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -73,41 +74,64 @@ CompositingReasons CompositingReasonsForWillChange(const ComputedStyle& style) {
   if (style.SubtreeWillChangeContents())
     return reasons;
 
-  if (style.HasWillChangeTransformHint())
-    reasons |= CompositingReason::kWillChangeTransform;
-  if (style.HasWillChangeScaleHint())
-    reasons |= CompositingReason::kWillChangeScale;
-  if (style.HasWillChangeRotateHint())
-    reasons |= CompositingReason::kWillChangeRotate;
-  if (style.HasWillChangeTranslateHint())
-    reasons |= CompositingReason::kWillChangeTranslate;
-  if (style.HasWillChangeOpacityHint())
-    reasons |= CompositingReason::kWillChangeOpacity;
-  if (style.HasWillChangeFilterHint())
-    reasons |= CompositingReason::kWillChangeFilter;
-  if (style.HasWillChangeBackdropFilterHint())
-    reasons |= CompositingReason::kWillChangeBackdropFilter;
-  if (style.HasWillChangeClipPathHint()) {
-    reasons |= CompositingReason::kWillChangeClipPath;
+  const StyleWillChangeData* will_change = style.WillChange();
+  if (!will_change) {
+    return reasons;
   }
-  if (style.HasWillChangeMixBlendModeHint()) {
-    reasons |= CompositingReason::kWillChangeMixBlendMode;
-  }
-  // Even though 'mask' generally implies mask-image, will-change treats them
-  // separately, so we need to check them both to get accurate backdrop filter
-  // reasons.
-  if (style.HasWillChangeMaskHint()) {
-    reasons |= CompositingReason::kWillChangeMask;
-  }
-  if (style.HasWillChangeMaskImageHint()) {
-    reasons |= CompositingReason::kWillChangeMaskImage;
+
+  bool has_will_change_other = false;
+  for (CSSPropertyID id : will_change->resolved_longhand_ids) {
+    switch (id) {
+      case CSSPropertyID::kBackdropFilter:
+        reasons |= CompositingReason::kWillChangeBackdropFilter;
+        break;
+      case CSSPropertyID::kClipPath:
+        reasons |= CompositingReason::kWillChangeClipPath;
+        break;
+      case CSSPropertyID::kFilter:
+        reasons |= CompositingReason::kWillChangeFilter;
+        break;
+      case CSSPropertyID::kMaskImage:
+        reasons |= CompositingReason::kWillChangeMask;
+        break;
+      case CSSPropertyID::kMixBlendMode:
+        reasons |= CompositingReason::kWillChangeMixBlendMode;
+        break;
+      case CSSPropertyID::kOpacity:
+        reasons |= CompositingReason::kWillChangeOpacity;
+        break;
+      case CSSPropertyID::kRotate:
+        reasons |= CompositingReason::kWillChangeRotate;
+        break;
+      case CSSPropertyID::kScale:
+        reasons |= CompositingReason::kWillChangeScale;
+        break;
+      case CSSPropertyID::kTranslate:
+        reasons |= CompositingReason::kWillChangeTranslate;
+        break;
+      case CSSPropertyID::kTransform:
+      case CSSPropertyID::kPerspective:
+      case CSSPropertyID::kTransformStyle:
+        reasons |= CompositingReason::kWillChangeTransform;
+        break;
+      case CSSPropertyID::kOffsetPath:
+      case CSSPropertyID::kOffsetPosition:
+      case CSSPropertyID::kTop:
+      case CSSPropertyID::kLeft:
+      case CSSPropertyID::kBottom:
+      case CSSPropertyID::kRight:
+        has_will_change_other = true;
+        break;
+      default:
+        break;
+    }
   }
 
   // kWillChangeOther is needed only when none of the explicit kWillChange*
   // reasons are set.
-  if (reasons == CompositingReason::kNone &&
-      style.HasWillChangeCompositingHint())
+  if (reasons == CompositingReason::kNone && has_will_change_other) {
     reasons |= CompositingReason::kWillChangeOther;
+  }
 
   return reasons;
 }
@@ -285,11 +309,24 @@ CompositingReasons CompositingReasonsForScrollDependentPosition(
   // We check for |HasOverflow| instead of |ScrollsOverflow| to ensure sticky
   // position elements are composited under overflow: hidden, which can still
   // have smooth scroll animations.
-  if (const auto* constraints = layer.GetLayoutObject().StickyConstraints()) {
-    if (!constraints->is_fixed_to_view &&
-        constraints->containing_scroll_container_layer->GetScrollableArea()
-            ->HasOverflow())
+  auto constraints = layer.GetLayoutObject().StickyConstraints();
+  if (constraints.HasScrollDependentOffset()) {
+    const auto* x_data = constraints.AxisData(PhysicalAxis::kHorizontal);
+    const auto* y_data = constraints.AxisData(PhysicalAxis::kVertical);
+    const auto* x_layer =
+        x_data ? x_data->containing_scroll_container_layer.Get() : nullptr;
+    const auto* y_layer =
+        y_data ? y_data->containing_scroll_container_layer.Get() : nullptr;
+
+    bool has_multiple_scrollers = x_layer && y_layer && x_layer != y_layer;
+    CHECK(RuntimeEnabledFeatures::SingleAxisScrollContainersEnabled() ||
+          !has_multiple_scrollers);
+
+    if (!has_multiple_scrollers) {
+      // TODO(crbug.com/481019005): Implement compositor support for multiple
+      // scroll container parents. Fall back to main-thread scrolling for now.
       reasons |= CompositingReason::kStickyPosition;
+    }
   }
 
   return reasons;
@@ -347,7 +384,8 @@ CompositingReasons CompositingReasonFinder::DirectReasonsForPaintProperties(
   CompositingReasons reasons = CompositingReason::kNone;
 
   auto* element = DynamicTo<Element>(object.GetNode());
-  if (element && RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+  if (element && IsA<LayoutBox>(object) &&
+      RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
     if (element->IsInCanvasSubtree()) [[unlikely]] {
       auto* canvas_parent =
           DynamicTo<HTMLCanvasElement>(element->parentElement());
@@ -442,12 +480,27 @@ bool CompositingReasonFinder::ShouldForcePreferCompositingToLCDText(
     const LayoutObject& object,
     CompositingReasons reasons) {
   DCHECK_EQ(reasons, DirectReasonsForPaintProperties(object));
+
+  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
+    const auto* element = DynamicTo<Element>(object.GetNode());
+    if (element && element->IsInCanvasSubtree()) {
+      return false;
+    }
+  }
+
   if (reasons != CompositingReason::kNone) {
     return true;
   }
 
-  if (object.StyleRef().WillChangeScrollPosition())
+  // TODO(crbug.com/486987060): Support raster inducing scroll on non-overlay
+  // overscroll areas.
+  if (object.InternalOverscrollArea() == EInternalOverscrollArea::kAuto) {
     return true;
+  }
+
+  if (object.StyleRef().HasWillChangeScrollPosition()) {
+    return true;
+  }
 
   // Though we don't treat hidden backface as a direct compositing reason, it's
   // very likely that the object will be composited, and it also indicates
@@ -509,8 +562,19 @@ CompositingReasons CompositingReasonFinder::CompositingReasonsForAnimation(
   if (style.HasCurrentTranslateAnimation() &&
       ObjectTypeSupportsCompositedTransformAnimation(object))
     reasons |= CompositingReason::kActiveTranslateAnimation;
-  if (style.HasCurrentOpacityAnimation())
-    reasons |= CompositingReason::kActiveOpacityAnimation;
+  // Opacity needs an additional check that the base value for opacity is not
+  // marked as important. The compositor does not know about the effect
+  // of an important property on composite ordering, and it is unsafe to use
+  // the fast path even when updating opacity from main. Other properties do not
+  // require the same added safeguard since they don't have the same fast path
+  // mechanics for deferred updates from main.
+  if (style.HasCurrentOpacityAnimation()) {
+    const CSSBitset* important_properties = style.GetBaseImportantSet();
+    if (!important_properties ||
+        !important_properties->Has(CSSPropertyID::kOpacity)) {
+      reasons |= CompositingReason::kActiveOpacityAnimation;
+    }
+  }
   if (style.HasCurrentFilterAnimation())
     reasons |= CompositingReason::kActiveFilterAnimation;
   if (style.HasCurrentBackdropFilterAnimation())

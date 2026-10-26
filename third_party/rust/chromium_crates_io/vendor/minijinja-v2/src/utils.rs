@@ -76,7 +76,6 @@ pub fn write_escaped(
         AutoEscape::Custom(name) => invalid_autoescape(name),
     }
 }
-
 /// Controls the autoescaping behavior.
 ///
 /// For more information see
@@ -135,6 +134,7 @@ pub enum UndefinedBehavior {
     /// * **printing:** fails
     /// * **iteration:** fails
     /// * **attribute access of undefined values:** fails
+    /// * **string coercion in filters/functions:** fails
     /// * **if true:** allowed (is considered false)
     SemiStrict,
     /// Complains very quickly about undefined values.
@@ -142,6 +142,7 @@ pub enum UndefinedBehavior {
     /// * **printing:** fails
     /// * **iteration:** fails
     /// * **attribute access of undefined values:** fails
+    /// * **string coercion in filters/functions:** fails
     /// * **if true:** fails
     Strict,
 }
@@ -193,6 +194,24 @@ impl UndefinedBehavior {
     pub(crate) fn assert_iterable(self, value: &Value) -> Result<(), Error> {
         match (self, &value.0) {
             // silent undefined doesn't error, even in strict mode
+            (
+                UndefinedBehavior::Strict | UndefinedBehavior::SemiStrict,
+                &ValueRepr::Undefined(UndefinedType::Default),
+            ) => Err(Error::from(ErrorKind::UndefinedError)),
+            _ => Ok(()),
+        }
+    }
+
+    /// Checks that undefined cannot be coerced into a concrete type (e.g. string).
+    ///
+    /// This is called when an undefined value is passed to a filter or function
+    /// argument that expects a concrete type.  Filters that explicitly handle
+    /// undefined values (such as `default`) avoid this by using `&Value` as
+    /// their first argument instead of a concrete type like `String`.
+    #[inline]
+    pub(crate) fn assert_value_not_undefined(self, value: &Value) -> Result<(), Error> {
+        match (self, &value.0) {
+            // silent undefined never errors
             (
                 UndefinedBehavior::Strict | UndefinedBehavior::SemiStrict,
                 &ValueRepr::Undefined(UndefinedType::Default),

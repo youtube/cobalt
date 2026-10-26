@@ -21,8 +21,9 @@
 #include "src/gpu/graphite/PaintParams.h"
 #include "src/gpu/graphite/PaintParamsKey.h"
 #include "src/gpu/graphite/PrecompileInternal.h"
-#include "src/gpu/graphite/ReadSwizzle.h"
 #include "src/gpu/graphite/RecorderPriv.h"
+#include "src/gpu/graphite/TextureFormat.h"
+#include "src/gpu/graphite/TextureInfoPriv.h"
 #include "src/gpu/graphite/precompile/PrecompileBaseComplete.h"
 #include "src/gpu/graphite/precompile/PrecompileBasePriv.h"
 #include "src/gpu/graphite/precompile/PrecompileBlenderPriv.h"
@@ -300,16 +301,11 @@ void PrecompileImageShader::addToKey(const KeyContext& keyContext, int desiredCo
     const bool alphaOnly = SkColorTypeIsAlphaOnly(colorInfo.colorType());
 
     const Caps* caps = keyContext.caps();
-    Swizzle readSwizzle = caps->getReadSwizzle(
-            colorInfo.colorType(),
-            caps->getDefaultSampledTextureInfo(
-                    colorInfo.colorType(), Mipmapped::kNo, Protected::kNo, Renderable::kNo));
-    if (alphaOnly) {
-        readSwizzle = Swizzle::Concat(readSwizzle, Swizzle("000a"));
-    }
+    TextureFormat format = TextureInfoPriv::ViewFormat(caps->getDefaultSampledTextureInfo(
+            colorInfo.colorType(), Mipmapped::kNo, Protected::kNo, Renderable::kNo));
+    Swizzle readSwizzle = ReadSwizzleForColorType(colorInfo.colorType(), format);
 
-    ColorSpaceTransformBlock::ColorSpaceTransformData colorXformData(
-            SwizzleClassToReadEnum(readSwizzle));
+    ColorSpaceTransformBlock::ColorSpaceTransformData colorXformData(readSwizzle);
 
     if (!fRaw) {
         const SkColorSpace* dstColorSpace = sk_srgb_singleton();
@@ -466,12 +462,10 @@ private:
         const SkColorInfo& colorInfo = fColorInfos[desiredColorInfo];
 
         const Caps* caps = keyContext.caps();
-        Swizzle readSwizzle = caps->getReadSwizzle(
-                colorInfo.colorType(),
-                caps->getDefaultSampledTextureInfo(
-                        colorInfo.colorType(), Mipmapped::kNo, Protected::kNo, Renderable::kNo));
-        ColorSpaceTransformBlock::ColorSpaceTransformData colorXformData(
-                SwizzleClassToReadEnum(readSwizzle));
+        TextureFormat format = TextureInfoPriv::ViewFormat(caps->getDefaultSampledTextureInfo(
+                colorInfo.colorType(), Mipmapped::kNo, Protected::kNo, Renderable::kNo));
+        Swizzle readSwizzle = ReadSwizzleForColorType(colorInfo.colorType(), format);
+        ColorSpaceTransformBlock::ColorSpaceTransformData colorXformData(readSwizzle);
 
         const SkColorSpace* dstColorSpace = fUseDstColorSpace
                                             ? keyContext.dstColorInfo().colorSpace()

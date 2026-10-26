@@ -6,13 +6,10 @@
 
 #include "base/metrics/field_trial_params.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/common/chrome_features.h"
-#include "components/variations/service/variations_service.h"
-
-#if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/host/glic_features.mojom.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
-#endif  // BUILDFLAG(ENABLE_GLIC)
+#include "chrome/common/chrome_features.h"
+#include "components/variations/service/variations_service.h"
 
 namespace contextual_cueing {
 
@@ -20,12 +17,14 @@ BASE_FEATURE(kContextualCueing, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicZeroStateSuggestions, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kZeroStateSuggestionsUseLegion, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kZeroStateSuggestionsUsePrivateAi,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableAutoOpenGlicSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kUseAnchoredMessage, base::FEATURE_DISABLED_BY_DEFAULT);
+
 bool IsContextualCueingEnabled() {
-#if BUILDFLAG(ENABLE_GLIC)
   // If the feature is overridden (e.g. via server-side config or command-line),
   // use that state.
   auto* feature_list = base::FeatureList::GetInstance();
@@ -39,13 +38,9 @@ bool IsContextualCueingEnabled() {
   }
 
   return glic::GlicEnabling::IsEnabledByFlags();
-#else
-  return base::FeatureList::IsEnabled(kContextualCueing);
-#endif
 }
 
 bool IsZeroStateSuggestionsEnabled() {
-#if BUILDFLAG(ENABLE_GLIC)
   // If the feature is overridden (e.g. via server-side config or command-line),
   // use that state.
   auto* feature_list = base::FeatureList::GetInstance();
@@ -59,9 +54,6 @@ bool IsZeroStateSuggestionsEnabled() {
   }
 
   return glic::GlicEnabling::IsEnabledByFlags();
-#else
-  return false;
-#endif
 }
 
 const base::FeatureParam<base::TimeDelta> kBackoffTime(&kContextualCueing,
@@ -149,11 +141,9 @@ const base::FeatureParam<base::TimeDelta> kZSSPageContextTimeout(
     "ZSSPageContextTimeout",
     base::Seconds(5));
 
-#if BUILDFLAG(ENABLE_GLIC)
 const base::FeatureParam<int> kMaxPinnedPagesForTriggeringSuggestions(
     &glic::mojom::features::kZeroStateSuggestionsV2,
     "ZSSMaxPinnedPagesForTriggeringSuggestions",
     10);
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
 }  // namespace contextual_cueing

@@ -33,6 +33,7 @@ import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.educational_tip.cards.HistorySyncPromoCoordinator;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.magic_stack.ModuleDelegate;
@@ -47,16 +48,24 @@ import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.components.feature_engagement.Tracker;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.sync.SyncService;
+import org.chromium.components.sync.UserSelectableType;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.shadows.ShadowAppCompatResources;
+
+import java.util.Set;
 
 /** Unit tests for {@link EducationalTipModuleMediator} */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(
         manifest = Config.NONE,
         shadows = {ShadowAppCompatResources.class})
+@EnableFeatures({
+    SigninFeatures.ENABLE_SEAMLESS_SIGNIN,
+    SigninFeatures.ENABLE_ACTIVITYLESS_SIGNIN_ALL_ENTRY_POINT
+})
 public class EducationalTipModuleMediatorUnitTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Rule public FakeTimeTestRule mFakeTime = new FakeTimeTestRule();
@@ -119,7 +128,7 @@ public class EducationalTipModuleMediatorUnitTest {
         // Test showing default browser promo card.
         testShowModuleImpl(
                 ModuleType.DEFAULT_BROWSER_PROMO,
-                R.string.educational_tip_default_browser_title,
+                R.string.use_chrome_by_default,
                 R.string.educational_tip_default_browser_description,
                 R.drawable.default_browser_promo_logo);
 
@@ -221,6 +230,17 @@ public class EducationalTipModuleMediatorUnitTest {
 
     @Test
     @SmallTest
+    public void testShowSetupList_CelebratoryPromo() {
+        // Test showing celebratory promo card.
+        testShowModuleImpl(
+                ModuleType.SETUP_LIST_CELEBRATORY_PROMO,
+                R.string.setup_list_celebratory_promo_title,
+                R.string.setup_list_celebratory_promo_description,
+                R.drawable.setup_list_celebratory_promo_logo);
+    }
+
+    @Test
+    @SmallTest
     public void testShowSetupList_Completed() {
         when(mSetupListManager.isSetupListActive()).thenReturn(true);
         when(mSetupListManager.isSetupListModule(ModuleType.ENHANCED_SAFE_BROWSING_PROMO))
@@ -267,22 +287,60 @@ public class EducationalTipModuleMediatorUnitTest {
 
     @Test
     @SmallTest
+    public void testHistorySyncPromo_SetupList_AnimationFlow() {
+        mEducationalTipModuleMediator.setModuleTypeForTesting(ModuleType.HISTORY_SYNC_PROMO);
+        when(mSetupListManager.isSetupListModule(ModuleType.HISTORY_SYNC_PROMO)).thenReturn(true);
+        when(mProfile.getOriginalProfile()).thenReturn(mProfile);
+
+        mEducationalTipModuleMediator.showModule();
+
+        // 1. Simulate sync completion via system state (e.g. Settings).
+        when(mSyncService.getSelectedTypes())
+                .thenReturn(Set.of(UserSelectableType.HISTORY, UserSelectableType.TABS));
+
+        HistorySyncPromoCoordinator coordinator =
+                (HistorySyncPromoCoordinator)
+                        mEducationalTipModuleMediator.getCardProviderForTesting();
+
+        // This records completion but should NOT trigger the animation yet.
+        coordinator.syncStateChanged();
+        verify(mModuleDelegate, never()).removeModule(anyInt());
+        assertEquals(false, mModel.get(EducationalTipModuleProperties.MARK_COMPLETED));
+
+        // 2. Simulate user returning to NTP (calling updateModule).
+        when(mSetupListManager.isModuleAwaitingCompletionAnimation(ModuleType.HISTORY_SYNC_PROMO))
+                .thenReturn(true);
+        mEducationalTipModuleMediator.updateModule();
+
+        // Now the animation sequence should run. Strikethrough should be applied immediately.
+        assertEquals(true, mModel.get(EducationalTipModuleProperties.MARK_COMPLETED));
+    }
+
+    @Test
+    @SmallTest
     public void testUpdateModule_TriggersAnimation() {
         mEducationalTipModuleMediator.setModuleTypeForTesting(ModuleType.SIGN_IN_PROMO);
+        when(mSetupListManager.isSetupListModule(ModuleType.SIGN_IN_PROMO)).thenReturn(true);
         when(mSetupListManager.isModuleAwaitingCompletionAnimation(ModuleType.SIGN_IN_PROMO))
                 .thenReturn(true);
         when(mProfile.getOriginalProfile()).thenReturn(mProfile);
 
+        mEducationalTipModuleMediator.showModule();
         mEducationalTipModuleMediator.updateModule();
 
         // Verify priming was called immediately.
         verify(mSetupListManager).maybePrimeCompletionStatus(mProfile);
 
-        // Should be marked completed immediately.
+        // Completion image should be set immediately to trigger the icon animation.
+        assertEquals(
+                R.drawable.setup_list_completed_background_wavy_circle,
+                mModel.get(EducationalTipModuleProperties.MODULE_CONTENT_COMPLETED_IMAGE));
+
+        // Strikethrough should be applied immediately.
         assertEquals(true, mModel.get(EducationalTipModuleProperties.MARK_COMPLETED));
 
         // Verify reordering has NOT happened yet.
-        verify(mModuleDelegate, never()).updateModuleRanking(anyInt());
+        verify(mModuleDelegate, never()).refreshModules();
 
         // 1. Advance to the combined duration.
         mFakeTime.advanceMillis(
@@ -291,7 +349,7 @@ public class EducationalTipModuleMediatorUnitTest {
 
         // Final verification of completion signal and reordering trigger.
         verify(mSetupListManager).onCompletionAnimationFinished(ModuleType.SIGN_IN_PROMO);
-        verify(mModuleDelegate).updateModuleRanking(ModuleType.SIGN_IN_PROMO);
+        verify(mModuleDelegate).refreshModules();
     }
 
     @Test

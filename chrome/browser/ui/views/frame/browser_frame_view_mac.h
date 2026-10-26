@@ -42,6 +42,7 @@ class BrowserFrameViewMac : public BrowserFrameView,
 
   // BrowserFrameView:
   void OnFullscreenStateChanged() override;
+  void OnTabStripStateChanged() override;
   bool CaptionButtonsOnLeadingEdge() const override;
   BrowserLayoutParams GetBrowserLayoutParams() const override;
   int GetTopInset(bool restored) const override;
@@ -51,6 +52,7 @@ class BrowserFrameViewMac : public BrowserFrameView,
   void PaintAsActiveChanged() override;
   void OnThemeChanged() override;
   views::LayoutAlignment GetWindowTitleAlignment() const override;
+  gfx::RoundedCornersF GetWindowRoundedCorners() const override;
 
   // views::FrameView:
   gfx::Rect GetBoundsForClientView() const override;

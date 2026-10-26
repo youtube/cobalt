@@ -49,27 +49,42 @@ void RecordGroupDeletedMetric(const SavedTabGroup& removed_group) {
 }
 
 // Compare function for 2 SavedTabGroup.
+//
+// If projects panel is disabled:
 // SaveTabGroup with position set is always placed before the one without
 // position set. If both have position set, the one with lower position number
 // should place before. If both positions are the same or both are not set, the
 // one with more recent update time should place before.
+//
+// If projects panel is enabled:
+// Unpositioned groups are placed before positioned groups and ordered by
+// most to least recent creation time.
 bool ShouldPlaceBefore(const SavedTabGroup& group1,
                        const SavedTabGroup& group2) {
   std::optional<size_t> position1 = group1.position();
   std::optional<size_t> position2 = group2.position();
-  if (position1.has_value() && position2.has_value()) {
-    if (position1.value() != position2.value()) {
-      return position1.value() < position2.value();
-    } else {
-      return group1.update_time() >= group2.update_time();
-    }
-  } else if (position1.has_value() && !position2.has_value()) {
-    return true;
-  } else if (!position1.has_value() && position2.has_value()) {
-    return false;
-  } else {
-    return group1.update_time() >= group2.update_time();
+
+  const bool projects_panel_enabled =
+      tab_groups::IsProjectsPanelFeatureEnabled();
+
+  // Handle only one of the positions having a value.
+  if (position1.has_value() != position2.has_value()) {
+    return projects_panel_enabled ? !position1.has_value()
+                                  : position1.has_value();
   }
+
+  // Handle both positions with different values.
+  if (position1.has_value() && position2.has_value() &&
+      position1.value() != position2.value()) {
+    return position1.value() < position2.value();
+  }
+
+  // Handle no positions.
+  if (projects_panel_enabled && !position1.has_value()) {
+    return group1.creation_time() >= group2.creation_time();
+  }
+
+  return group1.update_time() >= group2.update_time();
 }
 
 // URL and title used for pending NTP.
@@ -665,36 +680,44 @@ const SavedTabGroup* SavedTabGroupModel::MergeRemoteGroupMetadata(
   // For unpinned groups, `pinned_index` should be std::nullopt since its
   // position doesn't matter.
   const int index = GetIndexOf(guid).value();
-  const std::optional<size_t> pinned_index =
+  const std::optional<size_t> old_pinned_index =
       saved_tab_groups_[index].is_pinned() ? std::optional<size_t>(index)
                                            : std::nullopt;
 
-  // Merge group and get `preferred_pinned_index`.
   saved_tab_groups_[index].MergeRemoteGroupMetadata(
       title, color, position, creator_cache_guid, last_updater_cache_guid,
       update_time);
   if (saved_tab_groups_[index].is_shared_tab_group()) {
     saved_tab_groups_[index].SetUpdatedByAttribution(updated_by);
   }
-  std::optional<size_t> preferred_pinned_index =
-      saved_tab_groups_[index].position();
 
-  if (pinned_index != preferred_pinned_index) {
-    int new_index = 0;
-    if (preferred_pinned_index.has_value()) {
-      // If the group is pinned, find the pinned position to insert.
-      new_index = preferred_pinned_index.value();
-    } else {
-      // If the group is unpinned, find the first unpinned group index to
-      // insert.
-      for (const SavedTabGroup& group : saved_tab_groups_) {
-        if (group.is_pinned()) {
-          ++new_index;
+  if (tab_groups::IsProjectsPanelFeatureEnabled()) {
+    if (position.has_value()) {
+      int new_index = position.value();
+      ReorderGroupFromSync(guid, std::clamp(new_index, 0, Count() - 1));
+    }
+  } else {
+    // Get `preferred_pinned_index` after merging the group.
+    std::optional<size_t> preferred_pinned_index =
+        saved_tab_groups_[index].position();
+
+    if (old_pinned_index != preferred_pinned_index) {
+      int new_index = 0;
+      if (preferred_pinned_index.has_value()) {
+        // If the group is pinned, find the pinned position to insert.
+        new_index = preferred_pinned_index.value();
+      } else {
+        // If the group is unpinned, find the first unpinned group index to
+        // insert.
+        for (const SavedTabGroup& group : saved_tab_groups_) {
+          if (group.is_pinned()) {
+            ++new_index;
+          }
         }
       }
-    }
 
-    ReorderGroupFromSync(guid, std::min(std::max(new_index, 0), Count() - 1));
+      ReorderGroupFromSync(guid, std::clamp(new_index, 0, Count() - 1));
+    }
   }
 
   for (SavedTabGroupModelObserver& observer : observers_) {
@@ -734,6 +757,15 @@ const SavedTabGroupTab* SavedTabGroupModel::MergeRemoteTab(
   return group->GetTab(tab_guid);
 }
 
+void SavedTabGroupModel::UpdateGroupPinnedPositionForMigration(
+    const base::Uuid& guid,
+    std::optional<size_t> pinned_position) {
+  CHECK(Contains(guid));
+
+  auto* group = GetMutableGroup(guid);
+  group->SetPinnedPositionForMigration(pinned_position);
+}
+
 void SavedTabGroupModel::ReorderGroupLocally(const base::Uuid& id,
                                              int new_index) {
   ReorderGroupImpl(id, new_index);
@@ -749,6 +781,46 @@ void SavedTabGroupModel::ReorderGroupFromSync(const base::Uuid& id,
   for (auto& observer : observers_) {
     observer.SavedTabGroupReorderedFromSync();
   }
+}
+
+void SavedTabGroupModel::ReorderGroupBefore(const base::Uuid& id,
+                                            const base::Uuid& next_id) {
+  if (id == next_id) {
+    return;
+  }
+
+  std::optional<int> index_to_move = GetIndexOf(id);
+  std::optional<int> reference_index = GetIndexOf(next_id);
+
+  if (!index_to_move.has_value() || !reference_index.has_value()) {
+    return;
+  }
+
+  int new_index = reference_index.value() > index_to_move.value()
+                      ? reference_index.value() - 1
+                      : reference_index.value();
+
+  ReorderGroupLocally(id, new_index);
+}
+
+void SavedTabGroupModel::ReorderGroupAfter(const base::Uuid& id,
+                                           const base::Uuid& prev_id) {
+  if (id == prev_id) {
+    return;
+  }
+
+  std::optional<int> index_to_move = GetIndexOf(id);
+  std::optional<int> reference_index = GetIndexOf(prev_id);
+
+  if (!index_to_move.has_value() || !reference_index.has_value()) {
+    return;
+  }
+
+  int new_index = reference_index.value() > index_to_move.value()
+                      ? reference_index.value()
+                      : reference_index.value() + 1;
+
+  ReorderGroupLocally(id, new_index);
 }
 
 std::pair<std::set<base::Uuid>, std::set<base::Uuid>>
@@ -912,11 +984,28 @@ void SavedTabGroupModel::RemoveObserver(SavedTabGroupModelObserver* observer) {
   observers_.RemoveObserver(observer);
 }
 
-void SavedTabGroupModel::MigrateTabGroupSavesUIUpdate() {
-  constexpr size_t kMaxNumberOfGroupToPin = 4;
-  // Pin the first 4 saved tab groups from V1.
-  for (size_t i = 0;
-       i < std::min(saved_tab_groups_.size(), kMaxNumberOfGroupToPin); ++i) {
+void SavedTabGroupModel::MigratePinnedPositionToProjectsPosition() {
+  CHECK(tab_groups::IsProjectsPanelFeatureEnabled());
+
+  // Keep the ordering of pinned groups. For any unpinned groups, order them by
+  // most to least recent creation time after the pinned groups.
+  std::stable_sort(
+      saved_tab_groups_.begin(), saved_tab_groups_.end(),
+      [](const tab_groups::SavedTabGroup& left,
+         const tab_groups::SavedTabGroup& right) {
+        bool left_pinned = left.pinned_position_for_migration().has_value();
+        bool right_pinned = right.pinned_position_for_migration().has_value();
+        if (left_pinned != right_pinned) {
+          return left_pinned;
+        }
+        if (left_pinned) {
+          return left.pinned_position_for_migration().value() <
+                 right.pinned_position_for_migration().value();
+        }
+        return left.creation_time() > right.creation_time();
+      });
+
+  for (size_t i = 0; i < saved_tab_groups_.size(); ++i) {
     saved_tab_groups_[i].SetPosition(i);
     for (auto& observer : observers_) {
       observer.SavedTabGroupUpdatedLocally(saved_tab_groups_[i].saved_guid(),
@@ -992,13 +1081,20 @@ void SavedTabGroupModel::ReorderGroupImpl(const base::Uuid& id, int new_index) {
   saved_tab_groups_.erase(saved_tab_groups_.begin() + index.value());
   saved_tab_groups_.emplace(saved_tab_groups_.begin() + new_index,
                             std::move(group));
+
+  if (tab_groups::IsProjectsPanelFeatureEnabled()) {
+    saved_tab_groups_[new_index].SetPosition(new_index);
+  }
 }
 
 void SavedTabGroupModel::UpdateGroupPositionsImpl() {
+  const bool projects_panel_enabled =
+      tab_groups::IsProjectsPanelFeatureEnabled();
+  bool positioned_group_seen = false;
   for (size_t i = 0; i < saved_tab_groups_.size(); ++i) {
-    //  Only update position for tab groups for which position is set.
-    if (saved_tab_groups_[i].position().has_value()) {
+    if (positioned_group_seen || saved_tab_groups_[i].position().has_value()) {
       saved_tab_groups_[i].SetPosition(i);
+      positioned_group_seen = projects_panel_enabled;
     }
   }
 }

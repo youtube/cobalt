@@ -6,6 +6,7 @@
 
 #include "build/build_config.h"
 #include "third_party/blink/renderer/core/layout/base_layout_algorithm_test.h"
+#include "third_party/blink/renderer/core/layout/grid/grid_layout_utils.h"
 #include "third_party/blink/renderer/core/layout/grid/grid_track_sizing_algorithm.h"
 #include "third_party/blink/renderer/core/layout/length_utils.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
@@ -33,7 +34,8 @@ class GridLayoutAlgorithmTest : public BaseLayoutAlgorithmTest {
   void SetUp() override { BaseLayoutAlgorithmTest::SetUp(); }
 
   void BuildGridGeometry(const GridLayoutAlgorithm& algorithm) {
-    auto grid_sizing_tree = algorithm.BuildGridSizingTree();
+    auto grid_sizing_tree = BuildGridSizingTree<GridLayoutAlgorithm>(
+        algorithm, algorithm.BuildGridLineResolver());
 
     algorithm.InitializeTrackSizes(&grid_sizing_tree);
     algorithm.CompleteTrackSizingAlgorithm(
@@ -41,12 +43,12 @@ class GridLayoutAlgorithmTest : public BaseLayoutAlgorithmTest {
     algorithm.CompleteTrackSizingAlgorithm(kForRows, SizingConstraint::kLayout,
                                            &grid_sizing_tree);
 
-    layout_data_ = std::move(grid_sizing_tree.LayoutData());
+    layout_data_ = &grid_sizing_tree.LayoutData();
     for (const auto& grid_item : grid_sizing_tree.GetGridItems()) {
       GridItemCachedData item_data;
 
       item_data.available_row_size =
-          grid_item.CalculateAvailableSize(layout_data_.Rows());
+          grid_item.CalculateAvailableSize(layout_data_->Rows());
       item_data.column_span_properties = grid_item.column_span_properties;
       item_data.row_span_properties = grid_item.row_span_properties;
       item_data.resolved_position = grid_item.resolved_position;
@@ -57,8 +59,8 @@ class GridLayoutAlgorithmTest : public BaseLayoutAlgorithmTest {
   const GridSizingTrackCollection& TrackCollection(
       GridTrackSizingDirection track_direction) {
     const auto& track_collection = (track_direction == kForColumns)
-                                       ? layout_data_.Columns()
-                                       : layout_data_.Rows();
+                                       ? layout_data_->Columns()
+                                       : layout_data_->Rows();
     return To<GridSizingTrackCollection>(track_collection);
   }
 
@@ -161,7 +163,7 @@ class GridLayoutAlgorithmTest : public BaseLayoutAlgorithmTest {
   };
 
   Vector<GridItemCachedData> grid_items_data_;
-  GridLayoutData layout_data_;
+  Persistent<GridLayoutData> layout_data_;
 };
 
 TEST_F(GridLayoutAlgorithmTest, GridLayoutAlgorithmAvailableRowSizes) {

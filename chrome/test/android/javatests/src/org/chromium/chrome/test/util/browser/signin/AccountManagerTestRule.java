@@ -95,6 +95,7 @@ public class AccountManagerTestRule implements TestRule {
     /** Removes an account with the given {@link CoreAccountId}. */
     public void removeAccount(CoreAccountId accountId) {
         mFakeAccountManagerFacade.removeAccount(accountId);
+        mFakeIdentityManager.removeAccount(accountId);
     }
 
     public void setAccountFetchFailed() {
@@ -103,10 +104,23 @@ public class AccountManagerTestRule implements TestRule {
 
     /**
      * Block updates from {@link FakeAccountManagerFacade}. See {@link
-     * FakeAccountManagerFacade#blockGetAccounts(boolean)}.
+     * FakeAccountManagerFacade#blockGetAccounts()}.
      */
-    public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdate(boolean populateCache) {
-        return mFakeAccountManagerFacade.blockGetAccounts(populateCache);
+    public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdate() {
+        mFakeIdentityManager.setAreRefreshTokensLoaded(false);
+        return mFakeAccountManagerFacade.blockGetAccounts(
+                () -> mFakeIdentityManager.setAreRefreshTokensLoaded(true));
+    }
+
+    /**
+     * Block updates from {@link FakeAccountManagerFacade} and populates the AccountManagerFacade
+     * with the currently available accounts. See {@link
+     * FakeAccountManagerFacade#blockGetAccountsAndPopulateCache()}.
+     */
+    public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdateAndPopulateCache() {
+        mFakeIdentityManager.setAreRefreshTokensLoaded(false);
+        return mFakeAccountManagerFacade.blockGetAccountsAndPopulateCache(
+                () -> mFakeIdentityManager.setAreRefreshTokensLoaded(true));
     }
 
     /**

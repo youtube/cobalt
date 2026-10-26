@@ -19,8 +19,8 @@ import type {FilePath} from '//resources/mojo/mojo/public/mojom/base/file_path.m
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 
 import {BrowserProxy} from './browser_proxy.js';
+import {InputSource, LoadModelResult, OnDeviceModelRemote, PerformanceClass, SessionRemote, StreamingResponderCallbackRouter, Token} from './on_device_model.mojom-webui.js';
 import type {AudioData, Capabilities, InputPiece, ResponseChunk, ResponseSummary} from './on_device_model.mojom-webui.js';
-import {LoadModelResult, OnDeviceModelRemote, PerformanceClass, SessionRemote, StreamingResponderCallbackRouter, Token} from './on_device_model.mojom-webui.js';
 import {ModelPerformanceHint} from './on_device_model_service.mojom-webui.js';
 import {getCss} from './tools.css.js';
 import {getHtml} from './tools.html.js';
@@ -164,6 +164,8 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
   private proxy_: BrowserProxy = BrowserProxy.getInstance();
   private responseRouter_: StreamingResponderCallbackRouter =
       new StreamingResponderCallbackRouter();
+  private sessionTemperature_: number = 0;
+  private sessionTopK_: number = 1;
 
   override firstUpdated() {
     this.getPerformanceClass_();
@@ -329,13 +331,18 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
         {
           maxTokens: 0,
           input: {pieces: textToInputPieces(this.contextText_)},
+          inputSource: InputSource.kUserInput,
         },
         null);
     this.contextLength_ += this.contextText_.split(/(\s+)/).length;
     this.contextText_ = '';
   }
 
-  protected startNewSession_() {
+  protected onStartNewSessionClick_() {
+    this.startNewSession_();
+  }
+
+  private startNewSession_() {
     if (this.model_ === null) {
       return;
     }
@@ -350,6 +357,8 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
         audioInput: this.audioEnabled_(),
       },
     });
+    this.sessionTopK_ = this.topK_;
+    this.sessionTemperature_ = this.temperature_;
   }
 
   protected onCancelClick_() {
@@ -419,6 +428,10 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
     if (!this.$.temperatureInput.validate()) {
       return;
     }
+    if (this.topK_ !== this.sessionTopK_ ||
+        this.temperature_ !== this.sessionTemperature_) {
+      this.startNewSession_();
+    }
     const pieces = textToInputPieces(this.text_);
     if (this.imageFile_ !== null) {
       const bitmap = await this.decodeBitmap_();
@@ -446,6 +459,7 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
         {
           maxTokens: 0,
           input: {pieces: pieces},
+          inputSource: InputSource.kUserInput,
         },
         null);
     clonedSession.generate(
@@ -524,23 +538,24 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
     this.contextExpanded_ = e.detail.value;
   }
 
-  protected onContextTextChanged_(e: CustomEvent<{value: string}>) {
+  protected onContextTextValueChanged_(e: CustomEvent<{value: string}>) {
     this.contextText_ = e.detail.value;
   }
 
-  protected onTextChanged_(e: CustomEvent<{value: string}>) {
+  protected onTextValueChanged_(e: CustomEvent<{value: string}>) {
     this.text_ = e.detail.value;
   }
 
-  protected onTopKChanged_(e: CustomEvent<{value: number}>) {
+  protected onTopKValueChanged_(e: CustomEvent<{value: number}>) {
     this.topK_ = e.detail.value;
   }
 
-  protected onTemperatureChanged_(e: CustomEvent<{value: number}>) {
+  protected onTemperatureValueChanged_(e: CustomEvent<{value: number}>) {
     this.temperature_ = e.detail.value;
   }
 
-  protected onUsePlatformModelChanged_(e: CustomEvent<{value: boolean}>) {
+  protected onUsePlatformModelCheckedChanged_(
+      e: CustomEvent<{value: boolean}>) {
     this.usePlatformModel_ = e.detail.value;
   }
 }

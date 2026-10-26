@@ -5,17 +5,46 @@
 #ifndef SANDBOX_WIN_TESTS_COMMON_CONTROLLER_H_
 #define SANDBOX_WIN_TESTS_COMMON_CONTROLLER_H_
 
-#include <windows.h>
-
+#include <concepts>
 #include <string>
+#include <string_view>
+#include <utility>
 
+#include "base/command_line.h"
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/dcheck_is_on.h"
 #include "base/memory/raw_ptr.h"
+#include "base/process/process.h"
+#include "base/strings/to_string.h"
 #include "base/time/time.h"
+#include "base/win/scoped_process_information.h"
+#include "base/win/windows_types.h"
 #include "sandbox/win/src/sandbox_policy.h"
 #include "sandbox/win/src/win_utils.h"
 
 namespace sandbox {
+
+namespace internal {
+
+// base::ToString can't handle passing std::wstring so implement our own wrapper
+// to handle this special case.
+template <typename T>
+std::string ToString(const T& value) {
+  return base::ToString(value);
+}
+
+template <>
+std::string ToString(const std::wstring& value);
+
+std::string ToString(const wchar_t* value);
+
+template <typename T>
+concept TestNameDefinition = requires {
+  { T::kTestName } -> std::convertible_to<std::string_view>;
+};
+
+}  // namespace internal
 
 // See winerror.h for details.
 #define SEVERITY_INFO_FLAGS   0x40000000
@@ -84,42 +113,40 @@ enum SboxTestsState {
   MAX_STATE
 };
 
-#define SBOX_TESTS_API __declspec(dllexport)
-#define SBOX_TESTS_COMMAND extern "C" SBOX_TESTS_API
+#define SBOX_TEST_DECLARE_COMMAND(name)                         \
+  struct name##Def {                                            \
+    static constexpr std::string_view kTestName = #name "Impl"; \
+  };                                                            \
+  using name##TestRunner = GenericTestRunner<name##Def>
 
-extern "C" {
-typedef int (*CommandFunction)(int argc, wchar_t **argv);
-}
+#define SBOX_TEST_DEFINE_COMMAND(name)             \
+  extern "C" __declspec(dllexport) int name##Impl( \
+      base::span<const std::wstring> args)
+
+// Declare a command runner type and its implementation.
+#define SBOX_TEST_COMMAND(name)    \
+  SBOX_TEST_DECLARE_COMMAND(name); \
+  SBOX_TEST_DEFINE_COMMAND(name)
 
 // Class to facilitate the launch of a test inside the sandbox.
-class TestRunner {
+class TestRunnerBase {
  public:
-  TestRunner(JobLevel job_level, TokenLevel startup_token,
-             TokenLevel main_token);
-
-  TestRunner();
-
-  ~TestRunner();
+  TestRunnerBase(const TestRunnerBase&) = delete;
+  TestRunnerBase& operator=(const TestRunnerBase&) = delete;
+  virtual ~TestRunnerBase();
 
   // Adds a filesystem rules with the path of a file in system32. The function
   // appends "pattern" to "system32" and then call AddRule. Return true if the
   // function succeeds.
-  bool AddRuleSys32(FileSemantics semantics, const wchar_t* pattern);
+  bool AddRuleSys32(FileSemantics semantics, std::wstring_view pattern);
 
   // Adds a filesystem rules to the policy. Returns true if the functions
   // succeeds.
-  bool AllowFileAccess(FileSemantics semantics, const wchar_t* pattern);
-
-  // Starts a child process in the sandbox and ask it to run |command|. Returns
-  // a SboxTestResult. By default, the test runs AFTER_REVERT.
-  int RunTest(const wchar_t* command);
+  bool AllowFileAccess(FileSemantics semantics, std::wstring_view pattern);
 
   // Sets the timeout value for the child to run the command and return.
   void SetTimeout(DWORD timeout_ms);
   void SetTimeout(base::TimeDelta timeout);
-
-  // Sets TestRunner to return without waiting for the process to exit.
-  void SetAsynchronous(bool is_async) { is_async_ = is_async; }
 
   // Sets whether TestRunner sandboxes the child process. ("--no-sandbox")
   void SetUnsandboxed(bool is_no_sandbox) { no_sandbox_ = is_no_sandbox; }
@@ -129,61 +156,105 @@ class TestRunner {
   void SetDisableCsrss(bool disable_csrss) { disable_csrss_ = disable_csrss; }
 
   // Sets the desired state for the test to run.
-  void SetTestState(SboxTestsState desired_state);
+  void SetTestState(SboxTestsState desired_state) { state_ = desired_state; }
 
-  // Sets a flag whether the process should be killed when the TestRunner is
-  // destroyed.
-  void SetKillOnDestruction(bool value) { kill_on_destruction_ = value; }
-
-  // Returns the pointers to the policy object. It can be used to modify
+  // Returns the pointer to the policy object. It can be used to modify
   // the policy manually.
   TargetPolicy* GetPolicy();
 
+  // Returns the pointer to the config object. It can be used to modify
+  // the config manually.
+  TargetConfig* GetConfig();
+
   BrokerServices* broker() { return broker_; }
-
-  // Returns the process handle for an asynchronous test.
-  HANDLE process() { return target_process_.get(); }
-
-  // Returns the process ID for an asynchronous test.
-  DWORD process_id() { return target_process_id_; }
 
   // Blocks until the number of tracked processes returns to zero.
   bool WaitForAllTargets();
 
+  // Starts a child process in the sandbox and ask it to run the callback
+  // command with optional arguments asynchronously. Return a running process
+  // object.
+  template <typename... Args>
+  base::Process RunTestAsync(Args&&... args) {
+    std::vector<std::string> args_vector = {internal::ToString(args)...};
+    return CreateTestProcess(args_vector);
+  }
+
+  // Starts a child process in the sandbox and ask it to run the callback
+  // command with optional arguments. Return a SboxTestResult.
+  template <typename... Args>
+  int RunTest(Args&&... args) {
+    base::Process process = RunTestAsync(std::forward<Args>(args)...);
+    if (!process.IsValid()) {
+      return SBOX_TEST_FAILED_TO_RUN_TEST;
+    }
+    return WaitForResult(process);
+  }
+
+ protected:
+  static base::CommandLine CreateCommandLine(std::string_view command,
+                                             base::span<const std::string> args,
+                                             SboxTestsState state,
+                                             bool no_sandbox);
+
+  TestRunnerBase(std::string_view command,
+                 JobLevel job_level,
+                 TokenLevel startup_token,
+                 TokenLevel main_token);
+
  private:
+  base::Process CreateTestProcess(base::span<const std::string> args);
 
-  // The actual runner.
-  int InternalRunTest(const wchar_t* command);
-  DWORD timeout_ms();
+  int WaitForResult(const base::Process& process) const;
 
+  base::Process LaunchSandboxProcess(const base::CommandLine& cmd_line);
+
+  std::string command_;
   raw_ptr<BrokerServices> broker_;
   std::unique_ptr<TargetPolicy> policy_;
   base::TimeDelta timeout_;
-  SboxTestsState state_;
-  bool is_init_;
-  bool is_async_;
-  bool no_sandbox_;
-  bool disable_csrss_;
-  bool kill_on_destruction_;
-  base::win::ScopedHandle target_process_;
-  DWORD target_process_id_;
+  SboxTestsState state_ = AFTER_REVERT;
+  bool no_sandbox_ = false;
+  bool disable_csrss_ = true;
 };
+
+template <internal::TestNameDefinition Test>
+class GenericTestRunner final : public TestRunnerBase {
+ public:
+  using type = Test;
+
+  GenericTestRunner()
+      : GenericTestRunner(JobLevel::kLockdown,
+                          USER_RESTRICTED_SAME_ACCESS,
+                          USER_LOCKDOWN) {}
+
+  GenericTestRunner(JobLevel job_level,
+                    TokenLevel startup_token,
+                    TokenLevel main_token)
+      : TestRunnerBase(Test::kTestName, job_level, startup_token, main_token) {}
+
+  static base::CommandLine CreateCommandLineForTesting() {
+    return CreateCommandLine(Test::kTestName, {}, BEFORE_INIT,
+                             /*no_sandbox=*/false);
+  }
+};
+
+// Declare built-in test commands.
+SBOX_TEST_DECLARE_COMMAND(WaitCommand);
+SBOX_TEST_DECLARE_COMMAND(PingCommand);
 
 // Returns the broker services.
 BrokerServices* GetBroker();
 
-// Constructs a full path to a file inside the system32 folder.
-std::wstring MakePathToSys32(const wchar_t* name, bool is_obj_man_path);
-
-// Constructs a full path to a file inside the syswow64 folder.
-std::wstring MakePathToSysWow64(const wchar_t* name, bool is_obj_man_path);
-
 // Constructs a full path to a file inside the system32 (or syswow64) folder
 // depending on whether process is running in wow64 or not.
-std::wstring MakePathToSys(const wchar_t* name, bool is_obj_man_path);
+std::wstring MakePathToSys(std::wstring_view name, bool is_obj_man_path);
+
+// Check if this is a child process for a test.
+bool IsChildProcessForTesting();
 
 // Runs the given test on the target process.
-int DispatchCall(int argc, wchar_t **argv);
+int DispatchCall();
 
 }  // namespace sandbox
 

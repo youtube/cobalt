@@ -83,9 +83,6 @@ BASE_DECLARE_FEATURE(kMlUrlScoring);
 BASE_DECLARE_FEATURE(kMlUrlSearchBlending);
 BASE_DECLARE_FEATURE(kUrlScoringModel);
 
-// Animate appearance of suggestions list.
-BASE_DECLARE_FEATURE(kAnimateSuggestionsListAppearance);
-
 // Allows for touch down events to send a signal to |SearchPrefetchService| to
 // start prefetching the suggestion. The feature only applies to search
 // suggestions and only controls whether the signal is sent.
@@ -116,6 +113,9 @@ BASE_DECLARE_FEATURE(kNumWebZpsRelatedSearches);
 BASE_DECLARE_FEATURE(kNumWebZpsMostVisitedUrls);
 BASE_DECLARE_FEATURE(kNumSrpZpsRecentSearches);
 BASE_DECLARE_FEATURE(kNumSrpZpsRelatedSearches);
+
+// Caret animation for omnibox
+BASE_DECLARE_FEATURE(kOmniboxAnimatedCaret);
 
 // Enterprise search aggregators features.
 BASE_DECLARE_FEATURE(kEnableSearchAggregatorPolicy);
@@ -166,6 +166,7 @@ BASE_DECLARE_FEATURE(kSuppressIntermediateACUpdatesOnLowEndDevices);
 BASE_DECLARE_FEATURE(kPostDelayedTaskFocusTab);
 BASE_DECLARE_FEATURE(kAndroidHubSearchTabGroups);
 BASE_DECLARE_FEATURE(kOmniboxImprovementForLFF);
+BASE_DECLARE_FEATURE(kResetSuggestionsScroll);
 #endif  // BUILDFLAG(IS_ANDROID)
 // Note: no new flags beyond this point.
 

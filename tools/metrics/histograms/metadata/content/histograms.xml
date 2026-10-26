@@ -26,6 +26,7 @@ chromium-metrics-reviews@google.com.
   <variant name="ComponentExtensionProvider"/>
   <variant name="CustomExtensionProvider"/>
   <variant name="DefaultProvider"/>
+  <variant name="ExtensionInstallTimePermissionProvider"/>
   <variant name="InstalledWebappProvider"/>
   <variant name="JavascriptOptimizerAndroidProvider"/>
   <variant name="NotificationAndroidProvider"/>
@@ -391,7 +392,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContentSettings.Popups.StrongBlockerActions"
-    enum="StrongPopupBlockerAction" expires_after="2026-06-14">
+    enum="StrongPopupBlockerAction" expires_after="2026-08-16">
   <owner>csharrison@chromium.org</owner>
   <summary>
     Counts of various events related to the strong popup blocker (aka abusive
@@ -441,6 +442,17 @@ chromium-metrics-reviews@google.com.
     The default JavaScript optimization setting at profile open. Records the
     setting explicitly set by the user and ignores whether the permission is
     disabled by an operating system permission or enterprise policy.
+
+    This histogram is only recorded for regular profiles.
+  </summary>
+</histogram>
+
+<histogram name="ContentSettings.RegularProfile.DefaultSensorsSetting"
+    enum="ContentSetting" expires_after="2027-02-19">
+  <owner>engedy@chromium.org</owner>
+  <owner>src/components/permissions/PERMISSIONS_OWNERS</owner>
+  <summary>
+    The default sensors setting at profile open.
 
     This histogram is only recorded for regular profiles.
   </summary>
@@ -531,6 +543,7 @@ chromium-metrics-reviews@google.com.
         summary="Request desktop site exceptions"/>
     <variant name="safe-browsing-url-check-data"
         summary="Safe browsing url check data"/>
+    <variant name="sensors" summary="Sensors exceptions"/>
     <variant name="serial-chooser-data" summary="Serial chooser data"/>
     <variant name="site-engagement" summary="Site engagement exceptions"/>
     <variant name="sound" summary="Sound exceptions"/>
@@ -819,7 +832,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ContentSettings.{RegularProfileFiltered}DefaultRequestDesktopSiteSetting"
-    enum="ContentSetting" expires_after="2026-07-05">
+    enum="ContentSetting" expires_after="2026-09-06">
   <owner>shuyng@google.com</owner>
   <owner>twellington@chromium.org</owner>
   <summary>
@@ -1248,7 +1261,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContentSuggestions.Feed.Network.ResponseSizeKB" units="KB"
-    expires_after="2026-06-07">
+    expires_after="2026-09-06">
   <owner>jianli@chromium.org</owner>
   <owner>feed@chromium.org</owner>
   <summary>
@@ -1300,7 +1313,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContentSuggestions.Feed.RefreshTrigger"
-    enum="FeedRefreshTrigger" expires_after="2026-06-21">
+    enum="FeedRefreshTrigger" expires_after="2026-08-23">
   <owner>adamta@google.com</owner>
   <owner>feed@chromium.org</owner>
   <summary>
@@ -1394,7 +1407,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContentSuggestions.Feed.UploadActionsStatus"
-    enum="FeedUploadActionsStatus" expires_after="2026-06-07">
+    enum="FeedUploadActionsStatus" expires_after="2026-08-30">
   <owner>jianli@chromium.org</owner>
   <owner>feed@chromium.org</owner>
   <summary>

@@ -94,6 +94,17 @@ chromium-metrics-reviews@google.com.
   <int value="58" label="WindowVisibilityChanged"/>
 </enum>
 
+<!-- LINT.IfChange(BackForwardCacheEntryMatchResult) -->
+
+<enum name="BackForwardCacheEntryMatchResult">
+  <int value="0" label="No entries in BackForwardCache"/>
+  <int value="1" label="No match found"/>
+  <int value="2" label="Match found but index mismatch"/>
+  <int value="3" label="Match found and index match"/>
+</enum>
+
+<!-- LINT.ThenChange(//content/browser/renderer_host/back_forward_cache_impl.h:BackForwardCacheEntryMatchResult) -->
+
 <enum name="BackForwardCacheEvictedAfterDocumentRestoredReason">
   <int value="0" label="Restored"/>
   <int value="1" label="By JavaScript"/>
@@ -200,6 +211,7 @@ chromium-metrics-reviews@google.com.
   <int value="73" label="SharedWorker has no active clients"/>
   <int value="74"
       label="Pages with web locks in bfcache encountered a lock contention"/>
+  <int value="75" label="Forward cache is disabled"/>
 </enum>
 
 <!-- LINT.ThenChange(//content/public/browser/back_forward_cache.h:NotRestoredReason) -->
@@ -267,6 +279,16 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//content/browser/renderer_host/render_frame_host_manager.h:DeferSpeculativeRFHAction) -->
+
+<!-- LINT.IfChange(DuplicateNavsCookieStatus) -->
+
+<enum name="DuplicateNavsCookieStatus">
+  <int value="0" label="No CookieChangeListener"/>
+  <int value="1" label="Cookies Changed"/>
+  <int value="2" label="Cookies Not Changed"/>
+</enum>
+
+<!-- LINT.ThenChange(//content/browser/renderer_host/navigator.cc:DuplicateNavsCookieStatus) -->
 
 <enum name="EarlyRFHSwapType">
   <int value="0" label="No early swap"/>

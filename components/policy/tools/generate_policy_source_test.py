@@ -147,6 +147,18 @@ class PolicyGenerationTest(unittest.TestCase):
           "caption": "UnsupportedPolicy caption",
           "desc": "UnsupportedPolicy desc"
       }, {
+          "name": "ExampleConflictingPolicy",
+          "type": "main",
+          "schema": {
+              "type": "boolean"
+          },
+          "supported_on": ["chrome_os:1-", "chrome.*:1-", "android:1-"],
+          "id": 10,
+          "uses_machine_and_user_values": True,
+          "tags": [],
+          "caption": "ExampleConflictingPolicy caption",
+          "desc": "ExampleConflictingPolicy desc",
+      }, {
           "name": "ChunkZeroLastFieldBooleanPolicy",
           "type": "main",
           "schema": {
@@ -347,7 +359,8 @@ class PolicyGenerationTest(unittest.TestCase):
             self.target_platform,
             f,
             self.risk_tags,
-            chunking=True)
+            chunking=True,
+            mutable=False)
 
     mocked_file.assert_called_once_with(output_path, 'w', encoding='utf-8')
 
@@ -365,7 +378,8 @@ class PolicyGenerationTest(unittest.TestCase):
             self.target_platform,
             f,
             self.risk_tags,
-            chunking=False)
+            chunking=False,
+            mutable=False)
 
     mocked_file.assert_called_once_with(output_path, 'w', encoding='utf-8')
 
@@ -383,7 +397,8 @@ class PolicyGenerationTest(unittest.TestCase):
             self.target_platform,
             f,
             self.risk_tags,
-            chunking=True)
+            chunking=True,
+            mutable=False)
 
       mocked_file.assert_called_once_with(output_path, 'w', encoding='utf-8')
 
@@ -401,7 +416,8 @@ class PolicyGenerationTest(unittest.TestCase):
             self.target_platform,
             f,
             self.risk_tags,
-            chunking=False)
+            chunking=False,
+            mutable=False)
 
       mocked_file.assert_called_once_with(output_path, 'w', encoding='utf-8')
 
@@ -460,6 +476,7 @@ class PolicyGenerationTest(unittest.TestCase):
               f,
               self.risk_tags,
               chunking=True,
+              mutable=False,
           )
       with self.subTest(target_platform=target_platform):
         mocked_file.assert_called_once_with(output_path, 'w', encoding='utf-8')
@@ -469,6 +486,35 @@ class PolicyGenerationTest(unittest.TestCase):
         else:
           windows_only_part = ''
         expected_formatted = test_data.EXPECTED_POLICY_CONSTANTS_HEADER % {
+            "windows_only_part": windows_only_part,
+        }
+
+        self._assertCallsEqual(expected_formatted,
+                               mocked_file().write.call_args_list)
+
+  def testWritePolicyConstantHeaderMutable(self):
+    output_path = 'mock_policy_constants_mutable_h'
+
+    for target_platform in self.all_target_platforms:
+      with patch('builtins.open', mock_open()) as mocked_file:
+        with open(output_path, 'w', encoding='utf-8') as f:
+          generate_policy_source._WritePolicyConstantHeader(
+              self.policies,
+              self.policy_atomic_groups,
+              target_platform,
+              f,
+              self.risk_tags,
+              chunking=True,
+              mutable=True,
+          )
+      with self.subTest(target_platform=target_platform):
+        mocked_file.assert_called_once_with(output_path, 'w', encoding='utf-8')
+
+        if target_platform == 'win':
+          windows_only_part = test_data.POLICY_CONSTANTS_HEADER_WIN_ONLY_PART
+        else:
+          windows_only_part = ''
+        expected_formatted = test_data.EXPECTED_POLICY_CONSTANTS_HEADER_MUTABLE % {
             "windows_only_part": windows_only_part,
         }
 
@@ -489,6 +535,7 @@ class PolicyGenerationTest(unittest.TestCase):
               f,
               self.risk_tags,
               chunking=True,
+              mutable=False,
           )
       with self.subTest(target_platform=target_platform):
         mocked_file.assert_called_once_with(output_path, 'w', encoding='utf-8')
@@ -500,6 +547,38 @@ class PolicyGenerationTest(unittest.TestCase):
         expected_formatted = test_data.EXPECTED_POLICY_CONSTANTS_SOURCE % {
             "windows_only_part": windows_only_part,
         }
+
+        self._assertCallsEqual(expected_formatted,
+                               mocked_file().write.call_args_list)
+
+
+  def testWritePolicyConstantSourceMutable(self):
+    self.maxDiff = None
+    output_path = 'mock_policy_constants_mutable_cc'
+
+    for target_platform in self.all_target_platforms:
+      with patch('builtins.open', mock_open()) as mocked_file:
+        with open(output_path, 'w', encoding='utf-8') as f:
+          generate_policy_source._WritePolicyConstantSource(
+              self.policies,
+              self.policy_atomic_groups,
+              target_platform,
+              f,
+              self.risk_tags,
+              chunking=True,
+              mutable=True,
+          )
+      with self.subTest(target_platform=target_platform):
+        mocked_file.assert_called_once_with(output_path, 'w', encoding='utf-8')
+
+        if target_platform == 'win':
+          windows_only_part = test_data.POLICY_CONSTANTS_SOURCE_WIN_ONLY_PART
+        else:
+          windows_only_part = ''
+        expected_formatted = (
+            test_data.EXPECTED_POLICY_CONSTANTS_SOURCE_MUTABLE % {
+                "windows_only_part": windows_only_part,
+            })
 
         self._assertCallsEqual(expected_formatted,
                                mocked_file().write.call_args_list)
@@ -526,6 +605,7 @@ class PolicyGenerationTest(unittest.TestCase):
             f,
             self.risk_tags,
             chunking=True,
+            mutable=False,
         )
     mocked_file.assert_called_once_with(output_path, 'w', encoding='utf-8')
     self._assertCallsEqual(test_data.EXPECTED_APP_RESTRICTIONS_XML,

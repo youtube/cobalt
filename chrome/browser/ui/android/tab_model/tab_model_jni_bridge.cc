@@ -24,11 +24,16 @@
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_contents/tab_util.h"
+#include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_observer_jni_bridge.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/browser_window/internal/android/android_browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_muted_utils.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -49,14 +54,6 @@
 #include "url/android/gurl_android.h"
 #include "url/origin.h"
 
-// "chrome/browser/ui/browser_window" is available on desktop Android, but not
-// other Android builds.
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
-#include "chrome/browser/ui/browser_window/internal/android/android_browser_window.h"  // nogncheck
-#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"  // nogncheck
-#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"  // nogncheck
-#endif
-
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/android/chrome_jni_headers/TabModelJniBridge_jni.h"
 
@@ -66,6 +63,7 @@ using base::android::JavaRef;
 using base::android::SafeGetArrayLength;
 using base::android::ScopedJavaLocalRef;
 using chrome::android::ActivityType;
+using chrome::android::CustomTabProfileType;
 using content::WebContents;
 using tab_groups::TabGroupColorId;
 using tab_groups::TabGroupVisualData;
@@ -89,7 +87,6 @@ std::vector<TabAndroid*> GetAllTabsFromHandles(const Container& handles) {
   return tabs;
 }
 
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
 AndroidBrowserWindow* GetAndroidBrowserWindow(SessionID session_id) {
   for (BrowserWindowInterface* window : GetAllBrowserWindowInterfaces()) {
     if (window->GetSessionID() == session_id) {
@@ -98,16 +95,17 @@ AndroidBrowserWindow* GetAndroidBrowserWindow(SessionID session_id) {
   }
   return nullptr;
 }
-#endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
 
 }  // namespace
 
-TabModelJniBridge::TabModelJniBridge(JNIEnv* env,
-                                     const jni_zero::JavaRef<jobject>& jobj,
-                                     Profile* profile,
-                                     ActivityType activity_type,
-                                     TabModelType tab_model_type)
-    : TabModel(profile, activity_type, tab_model_type),
+TabModelJniBridge::TabModelJniBridge(
+    JNIEnv* env,
+    const jni_zero::JavaRef<jobject>& jobj,
+    Profile* profile,
+    ActivityType activity_type,
+    std::optional<CustomTabProfileType> custom_tab_profile_type,
+    TabModelType tab_model_type)
+    : TabModel(profile, activity_type, custom_tab_profile_type, tab_model_type),
       java_object_(env, jobj) {
   // The archived tab model isn't tracked in native, except to comply with clear
   // browsing data.
@@ -125,9 +123,9 @@ void TabModelJniBridge::Destroy(JNIEnv* env) {
 void TabModelJniBridge::AssociateWithBrowserWindow(
     JNIEnv* env,
     long native_android_browser_window) {
-// BrowserWindowInterface is available on desktop Android, but not other Android
-// builds. For non-desktop Android, this function should be a no-op.
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
+  if (!TabModel::EnableBrowserWindowInterfaceMobile()) {
+    return;
+  }
   BrowserWindowInterface* android_browser_window =
       reinterpret_cast<BrowserWindowInterface*>(native_android_browser_window);
   CHECK(android_browser_window != nullptr);
@@ -136,15 +134,15 @@ void TabModelJniBridge::AssociateWithBrowserWindow(
       std::make_unique<ui::ScopedUnownedUserData<TabListInterface>>(
           android_browser_window->GetUnownedUserDataHost(), *this);
   SetSessionId(android_browser_window->GetSessionID());
-#endif
 }
 
 void TabModelJniBridge::DissociateWithBrowserWindow(JNIEnv* env) {
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
+  if (!TabModel::EnableBrowserWindowInterfaceMobile()) {
+    return;
+  }
   CHECK(scoped_unowned_user_data_ != nullptr);
   scoped_unowned_user_data_.reset();
   SetSessionId(SessionID::InvalidValue());
-#endif
 }
 
 void TabModelJniBridge::TabAddedToModel(JNIEnv* env,
@@ -171,14 +169,13 @@ void TabModelJniBridge::MoveTabToWindowForTesting(
     TabAndroid* tab,
     long android_browser_window_ptr,
     int new_index) {
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
+  if (!TabModel::EnableBrowserWindowInterfaceMobile()) {
+    return;
+  }
   SessionID destination_window_id =
       reinterpret_cast<AndroidBrowserWindow*>(android_browser_window_ptr)
           ->GetSessionID();
   MoveTabToWindow(tab->GetHandle(), destination_window_id, new_index);
-#else
-  NOTIMPLEMENTED();
-#endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
 }
 
 void TabModelJniBridge::MoveTabGroupToWindowForTesting(
@@ -186,15 +183,14 @@ void TabModelJniBridge::MoveTabGroupToWindowForTesting(
     const base::Token& group_id,
     long android_browser_window_ptr,
     int new_index) {
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
+  if (!TabModel::EnableBrowserWindowInterfaceMobile()) {
+    return;
+  }
   SessionID destination_window_id =
       reinterpret_cast<AndroidBrowserWindow*>(android_browser_window_ptr)
           ->GetSessionID();
   MoveTabGroupToWindow(tab_groups::TabGroupId::FromRawToken(group_id),
                        destination_window_id, new_index);
-#else
-  NOTIMPLEMENTED();
-#endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
 }
 
 bool TabModelJniBridge::IsThisTabListEditable() {
@@ -484,6 +480,7 @@ void TabModelJniBridge::CloseTabsNavigatedInTimeWindow(
 
 void TabModelJniBridge::ActivateTab(tabs::TabHandle tab) {
   int index = GetIndexOfTab(tab);
+  HighlightTabs(tab, {tab});
   CHECK_NE(-1, index);
   SetActiveIndex(index);
 }
@@ -517,6 +514,26 @@ tabs::TabInterface* TabModelJniBridge::GetOpenerForTab(tabs::TabHandle target) {
   return Java_TabModelJniBridge_getOpenerForTab(env, jobj, target_tab);
 }
 
+tabs::TabInterface* TabModelJniBridge::InsertWebContentsAt(
+    int index,
+    std::unique_ptr<content::WebContents> web_contents,
+    bool should_pin,
+    std::optional<tab_groups::TabGroupId> group) {
+  JNIEnv* env = AttachCurrentThread();
+
+  TabAndroid* new_tab = Java_TabModelJniBridge_insertWebContentsAt(
+      env, java_object_.get(env), index, web_contents->GetJavaWebContents(),
+      should_pin, tab_groups::TabGroupId::ToOptionalToken(group));
+
+  // If new tab creation is successful, Java assumes ownership of the lifetime
+  // of the WebContents.
+  if (new_tab) {
+    web_contents.release();
+  }
+
+  return new_tab;
+}
+
 content::WebContents* TabModelJniBridge::DiscardTab(tabs::TabHandle tab) {
   if (!base::FeatureList::IsEnabled(features::kWebContentsDiscard)) {
     return nullptr;
@@ -530,7 +547,9 @@ content::WebContents* TabModelJniBridge::DiscardTab(tabs::TabHandle tab) {
   }
 
   content::WebContents* web_contents = tab_android->web_contents();
-  if (!web_contents) {
+  // Don't discard if there are no WebContents or if the WebContents is already
+  // discarded.
+  if (!web_contents || web_contents->WasDiscarded()) {
     return nullptr;
   }
   web_contents->Discard(base::DoNothing());
@@ -810,17 +829,16 @@ void TabModelJniBridge::MoveTabGroupToWindow(tab_groups::TabGroupId group_id,
 
 ScopedJavaLocalRef<jobject> TabModelJniBridge::GetActivityForWindow(
     SessionID window_id) {
-  ScopedJavaLocalRef<jobject> jactivity;
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
+  if (!TabModel::EnableBrowserWindowInterfaceMobile()) {
+    return ScopedJavaLocalRef<jobject>();
+  }
   AndroidBrowserWindow* window = GetAndroidBrowserWindow(window_id);
   if (!window) {
-    return jactivity;
+    return ScopedJavaLocalRef<jobject>();
   }
   CHECK_EQ(window->GetProfile()->IsOffTheRecord(),
            GetProfile()->IsOffTheRecord());
-  jactivity = window->GetActivity();
-#endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
-  return jactivity;
+  return window->GetActivity();
 }
 
 // static
@@ -854,13 +872,22 @@ TabModelJniBridge::~TabModelJniBridge() {
   }
 }
 
-static int64_t JNI_TabModelJniBridge_Init(JNIEnv* env,
-                                          const JavaRef<jobject>& obj,
-                                          Profile* profile,
-                                          int32_t j_activity_type,
-                                          int32_t j_tab_model_type) {
+static int64_t JNI_TabModelJniBridge_Init(
+    JNIEnv* env,
+    const JavaRef<jobject>& obj,
+    Profile* profile,
+    int32_t j_activity_type,
+    std::optional<int32_t> j_custom_tab_profile_type,
+    int32_t j_tab_model_type) {
+  std::optional<chrome::android::CustomTabProfileType> custom_tab_profile_type =
+      j_custom_tab_profile_type.has_value()
+          ? std::make_optional(
+                static_cast<chrome::android::CustomTabProfileType>(
+                    j_custom_tab_profile_type.value()))
+          : std::nullopt;
   TabModel* tab_model = new TabModelJniBridge(
       env, obj, profile, static_cast<ActivityType>(j_activity_type),
+      custom_tab_profile_type,
       static_cast<TabModel::TabModelType>(j_tab_model_type));
   return reinterpret_cast<intptr_t>(tab_model);
 }

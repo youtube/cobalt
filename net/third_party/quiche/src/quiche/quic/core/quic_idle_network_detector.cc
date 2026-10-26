@@ -6,17 +6,12 @@
 
 #include <algorithm>
 
-#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
-
-namespace {
-
-}  // namespace
 
 QuicIdleNetworkDetector::QuicIdleNetworkDetector(Delegate* delegate,
                                                  QuicTime now,
@@ -31,7 +26,14 @@ QuicIdleNetworkDetector::QuicIdleNetworkDetector(Delegate* delegate,
 
 void QuicIdleNetworkDetector::OnAlarm() {
   if (handshake_timeout_.IsInfinite()) {
-    delegate_->OnIdleNetworkDetected();
+    if (last_alarm_type_ != AlarmType::kMemoryReductionTimeout) {
+      delegate_->OnIdleNetworkDetected();
+    } else {
+      QUICHE_DCHECK(last_alarm_type_ == AlarmType::kMemoryReductionTimeout);
+      delegate_->OnMemoryReductionTimeout();
+      // Rearms the alarm to idle network deadline.
+      UpdateAlarm(AlarmType::kIdleNetworkTimeout, GetIdleNetworkDeadline());
+    }
     return;
   }
   if (idle_network_timeout_.IsInfinite()) {
@@ -58,7 +60,8 @@ void QuicIdleNetworkDetector::StopDetection() {
   alarm_.PermanentCancel();
   handshake_timeout_ = QuicTime::Delta::Infinite();
   idle_network_timeout_ = QuicTime::Delta::Infinite();
-  handshake_timeout_ = QuicTime::Delta::Infinite();
+  memory_reduction_timeout_ = QuicTime::Delta::Infinite();
+  last_alarm_type_ = AlarmType::kUnknown;
   stopped_ = true;
 }
 
@@ -84,6 +87,26 @@ void QuicIdleNetworkDetector::OnPacketReceived(QuicTime now) {
   SetAlarm();
 }
 
+bool QuicIdleNetworkDetector::ShouldMemoryReductionTimeoutBeUsed() const {
+  if (shorter_idle_timeout_on_sent_packet_) {
+    // No benefit to consider memory reduction if shorter idle timeout on sent
+    // packet is enabled.
+    return false;
+  }
+  if (!handshake_timeout_.IsInfinite()) {
+    // No benefit to consider memory reduction if handshake has not completed.
+    return false;
+  }
+  if (memory_reduction_timeout_ >= idle_network_timeout_ ||
+      (idle_network_timeout_ - memory_reduction_timeout_ <
+       QuicTime::Delta::FromSeconds(60))) {
+    // No benefit to consider memory reduction if memory reduction timeout is
+    // too close to idle network timeout.
+    return false;
+  }
+  return true;
+}
+
 void QuicIdleNetworkDetector::SetAlarm() {
   if (stopped_) {
     // TODO(wub): If this QUIC_BUG fires, it indicates a problem in the
@@ -94,8 +117,10 @@ void QuicIdleNetworkDetector::SetAlarm() {
     return;
   }
   // Set alarm to the nearer deadline.
+  AlarmType alarm_type = AlarmType::kUnknown;
   QuicTime new_deadline = QuicTime::Zero();
   if (!handshake_timeout_.IsInfinite()) {
+    alarm_type = AlarmType::kHandshakeTimeout;
     new_deadline = start_time_ + handshake_timeout_;
   }
   if (!idle_network_timeout_.IsInfinite()) {
@@ -105,8 +130,16 @@ void QuicIdleNetworkDetector::SetAlarm() {
     } else {
       new_deadline = idle_network_deadline;
     }
+    if (new_deadline == idle_network_deadline) {
+      alarm_type = AlarmType::kIdleNetworkTimeout;
+    }
   }
-  alarm_.Update(new_deadline, kAlarmGranularity);
+  if (!memory_reduction_timeout_.IsInfinite() &&
+      ShouldMemoryReductionTimeoutBeUsed()) {
+    alarm_type = AlarmType::kMemoryReductionTimeout;
+    new_deadline = last_network_activity_time() + memory_reduction_timeout_;
+  }
+  UpdateAlarm(alarm_type, new_deadline);
 }
 
 void QuicIdleNetworkDetector::MaybeSetAlarmOnSentPacket(
@@ -122,7 +155,7 @@ void QuicIdleNetworkDetector::MaybeSetAlarmOnSentPacket(
   if (deadline > min_deadline) {
     return;
   }
-  alarm_.Update(min_deadline, kAlarmGranularity);
+  UpdateAlarm(AlarmType::kPtoDelay, min_deadline);
 }
 
 QuicTime QuicIdleNetworkDetector::GetIdleNetworkDeadline() const {

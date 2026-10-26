@@ -163,7 +163,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AuthTab.ExternalNavigationScheme"
-    enum="CustomTabsAuthScheme" expires_after="2026-06-22">
+    enum="CustomTabsAuthScheme" expires_after="2026-08-23">
   <owner>sinansahin@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -367,7 +367,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.DetachedResourceRequest.FinalStatus"
-    enum="NetErrorCodes" expires_after="2026-06-14">
+    enum="NetErrorCodes" expires_after="2026-08-16">
   <owner>lizeb@chromium.org</owner>
   <owner>cct-team@google.com</owner>
   <summary>
@@ -406,7 +406,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.FeatureUsage" enum="CustomTabsFeatureUsed"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>donnd@chromium.org</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -577,7 +577,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.MayLaunchUrlType" enum="MayLaunchUrlType"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>lizeb@chromium.org</owner>
   <summary>
     Android only. Which flavors of mayLaunchUrl() were used before a tab launch.
@@ -592,7 +592,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Minimized.MinimizeSuccess" enum="Boolean"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>sinansahin@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -614,7 +614,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Navigation.FinishReason" enum="FinishReason"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>adelm@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -635,7 +635,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Omnibox.EnabledState" enum="BooleanEnabled"
-    expires_after="2026-07-01">
+    expires_after="2026-08-30">
   <owner>ender@google.com</owner>
   <owner>sinansahin@google.com</owner>
   <summary>
@@ -658,13 +658,24 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Omnibox.NumNavigationsPerSession" units="count"
-    expires_after="2026-07-01">
+    expires_after="2026-08-30">
   <owner>ender@google.com</owner>
   <owner>sinansahin@google.com</owner>
   <summary>
     Records the number of navigations issued on CustomTab during its lifetime.
     Recorded only on CCTs that feature an interactive Omnibox. Recorded once per
     CCT when CCT is about to be destroyed. Android only.
+  </summary>
+</histogram>
+
+<histogram name="CustomTabs.OpenType" units="CustomTabsOpenType"
+    expires_after="2026-05-30">
+  <owner>jinsukkim@chromium.org</owner>
+  <owner>chrome-connective-tissue@google.com</owner>
+  <summary>
+    Records how CCT was opened i.e. opened as a new one, opened on top of Google
+    search widget results via CCT omnibox, or restored from a disk state file.
+    Recored once per CCT when it is initialized. Android only.
   </summary>
 </histogram>
 
@@ -730,7 +741,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Prefetch.PrefetchCalled" enum="Boolean"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>taiyo@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
   <summary>
@@ -861,7 +872,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.SpareRenderer" enum="Boolean"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>adelm@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -880,7 +891,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Startup.StartedNavigationEarly" enum="Boolean"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>mthiesse@chromium.org</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -890,7 +901,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Startup.TimeToFirstCommitNavigation2.{suffix}"
-    units="ms" expires_after="2026-06-21">
+    units="ms" expires_after="2026-08-23">
   <owner>mthiesse@chromium.org</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -911,7 +922,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Startup.TimeToFirstContentfulPaint.{suffix}"
-    units="ms" expires_after="2026-06-21">
+    units="ms" expires_after="2026-08-23">
   <owner>mthiesse@chromium.org</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -932,7 +943,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Startup.TimeToLargestContentfulPaint2.{suffix}"
-    units="ms" expires_after="2026-06-21">
+    units="ms" expires_after="2026-08-23">
   <owner>mthiesse@chromium.org</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -1048,7 +1059,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.WebContentsStateOnLaunch" enum="WebContentsState"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>lizeb@chromium.org</owner>
   <owner>mthiesse@chromium.org</owner>
   <summary>

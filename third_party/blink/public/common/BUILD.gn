@@ -187,7 +187,6 @@ source_set("headers") {
     "input/web_input_event.h",
     "input/web_input_event_attribution.h",
     "input/web_keyboard_event.h",
-    "input/web_menu_source_type.h",
     "input/web_mouse_event.h",
     "input/web_mouse_wheel_event.h",
     "input/web_pointer_event.h",
@@ -314,6 +313,7 @@ source_set("headers") {
     "unique_name/unique_name_helper.h",
     "use_counter/use_counter_feature.h",
     "use_counter/use_counter_feature_tracker.h",
+    "use_counter/webdx_feature_maps.h",
     "user_agent/user_agent_brand_version_type.h",
     "user_agent/user_agent_metadata.h",
     "view_source/rendering_preferences.h",
@@ -395,10 +395,6 @@ source_set("headers") {
   if (is_mac) {
     sources += [ "sandbox_support/sandbox_support_mac.h" ]
   }
-
-  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
-  # enable the diagnostic by removing this line.
-  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (is_android || is_win) {

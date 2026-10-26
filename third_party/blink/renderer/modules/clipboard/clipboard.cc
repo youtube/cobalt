@@ -39,26 +39,12 @@ ScriptPromise<IDLSequence<ClipboardItem>> Clipboard::read(
     ScriptState* script_state,
     ClipboardReadOptions* options,
     ExceptionState& exception_state) {
-  LocalDOMWindow* window = GetSupplementable()->DomWindow();
-  LocalFrame* local_frame = window ? window->GetFrame() : nullptr;
-  if (local_frame && local_frame->IsAdScriptInStack()) {
-    UseCounter::Count(GetExecutionContext(),
-                      WebFeature::kAdScriptInStackOnClipboardRead);
-  }
-
   return ClipboardPromise::CreateForRead(GetExecutionContext(), script_state,
                                          options, exception_state);
 }
 
 ScriptPromise<IDLString> Clipboard::readText(ScriptState* script_state,
                                              ExceptionState& exception_state) {
-  LocalDOMWindow* window = GetSupplementable()->DomWindow();
-  LocalFrame* local_frame = window ? window->GetFrame() : nullptr;
-  if (local_frame && local_frame->IsAdScriptInStack()) {
-    UseCounter::Count(GetExecutionContext(),
-                      WebFeature::kAdScriptInStackOnClipboardRead);
-  }
-
   return ClipboardPromise::CreateForReadText(GetExecutionContext(),
                                              script_state, exception_state);
 }
@@ -133,8 +119,8 @@ ExecutionContext* Clipboard::GetExecutionContext() const {
 
 // static
 String Clipboard::ParseWebCustomFormat(const String& format) {
-  if (format.StartsWith(ui::kWebClipboardFormatPrefix)) {
-    String web_custom_format_suffix = format.Substring(
+  if (format.starts_with(ui::kWebClipboardFormatPrefix)) {
+    String web_custom_format_suffix = format.substr(
         static_cast<unsigned>(std::strlen(ui::kWebClipboardFormatPrefix)));
     std::string web_top_level_mime_type;
     std::string web_mime_sub_type;

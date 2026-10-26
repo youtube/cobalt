@@ -96,7 +96,7 @@
             }
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 10
+          "shards": 12
         },
         "test": "android_browsertests",
         "test_id_prefix": "ninja://chrome/test:android_browsertests/"
@@ -998,7 +998,7 @@
             }
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 56
+          "shards": 50
         },
         "test": "chrome_public_test_apk",
         "test_id_prefix": "ninja://chrome/android:chrome_public_test_apk/"
@@ -1103,8 +1103,7 @@
               "caches": "android_35_google_apis_x64"
             }
           },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 10
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
         },
         "test": "components_browsertests",
         "test_id_prefix": "ninja://components:components_browsertests/"
@@ -3622,7 +3621,7 @@
             {
               "cipd_package": "chromium/android_webview/tools/cts_archive",
               "location": "android_webview/tools/cts_archive/cipd",
-              "revision": "8BpUBTnmt5bH3GiqPKpmTWTP-Ie2X1TuUgf4F0IsgVgC"
+              "revision": "oW6-jyOPGwPJeLlaldYwrxZoYqzXpjO1OZUdyF3Qq7sC"
             }
           ],
           "dimensions": {
@@ -3684,7 +3683,7 @@
             {
               "cipd_package": "chromium/android_webview/tools/cts_archive",
               "location": "android_webview/tools/cts_archive/cipd",
-              "revision": "8BpUBTnmt5bH3GiqPKpmTWTP-Ie2X1TuUgf4F0IsgVgC"
+              "revision": "oW6-jyOPGwPJeLlaldYwrxZoYqzXpjO1OZUdyF3Qq7sC"
             }
           ],
           "dimensions": {
@@ -3745,7 +3744,7 @@
             {
               "cipd_package": "chromium/android_webview/tools/cts_archive",
               "location": "android_webview/tools/cts_archive/cipd",
-              "revision": "8BpUBTnmt5bH3GiqPKpmTWTP-Ie2X1TuUgf4F0IsgVgC"
+              "revision": "oW6-jyOPGwPJeLlaldYwrxZoYqzXpjO1OZUdyF3Qq7sC"
             }
           ],
           "dimensions": {

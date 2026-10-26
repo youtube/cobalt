@@ -19,6 +19,7 @@
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/containers/flat_set.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
@@ -60,8 +61,9 @@
 #include "components/trusted_vault/proto/vault.pb.h"
 #include "components/trusted_vault/trusted_vault_connection.h"
 #include "crypto/aead.h"
-#include "crypto/hkdf.h"
+#include "crypto/hash.h"
 #include "crypto/hmac.h"
+#include "crypto/kdf.h"
 #include "crypto/scoped_fake_unexportable_key_provider.h"
 #include "crypto/scoped_fake_user_verifying_key_provider.h"
 #include "crypto/user_verifying_key.h"
@@ -227,11 +229,10 @@ std::vector<uint8_t> DecryptWrappedPin(
       0x3a, 0x63, 0x68, 0x72, 0x6f, 0x6d, 0x65, 0x3a, 0x47, 0x50, 0x4d,
       0x20, 0x50, 0x49, 0x4e, 0x20, 0x64, 0x61, 0x74, 0x61, 0x20, 0x77,
       0x72, 0x61, 0x70, 0x70, 0x69, 0x6e, 0x67, 0x20, 0x6b, 0x65, 0x79};
-  const std::array<uint8_t, 32> derived_key = crypto::HkdfSha256<32>(
-      security_domain_secret, /*salt=*/base::span<const uint8_t>(),
-      kKeyPurposePinDataKey);
-  crypto::Aead aead(crypto::Aead::AeadAlgorithm::AES_256_GCM);
-  aead.Init(derived_key);
+  const std::array<uint8_t, 32> derived_key = crypto::kdf::Hkdf<32>(
+      crypto::hash::kSha256, security_domain_secret,
+      /*salt=*/base::span<const uint8_t>(), kKeyPurposePinDataKey);
+  crypto::Aead aead(crypto::Aead::AeadAlgorithm::AES_256_GCM, derived_key);
   std::optional<std::vector<uint8_t>> pin = aead.Open(
       encrypted_pin, nonce, /*additional_data=*/base::span<const uint8_t>());
   CHECK(pin.has_value());
@@ -513,11 +514,13 @@ class EnclaveManagerTest : public testing::Test, EnclaveManager::Observer {
                        {trusted_vault::TrustedVaultKeyAndVersion(
                            std::move(key), last_key_version)},
                        std::nullopt);
-    histogram_tester.ExpectBucketCount(
-        "WebAuthentication.GPM.RecoveryEvent",
-        webauthn::metrics::WebAuthenticationGPMRecoveryEvent::
-            kStoreKeysFromExplicitFlowStarted,
-        1);
+    if (manager->IsStoringKeysFromOutOfContextRetrievalEnabled()) {
+      histogram_tester.ExpectBucketCount(
+          "WebAuthentication.GPM.RecoveryEvent",
+          webauthn::metrics::WebAuthenticationGPMRecoveryEvent::
+              kStoreKeysFromExplicitFlowStarted,
+          1);
+    }
   }
 
   base::test::TaskEnvironment task_env_;
@@ -739,6 +742,14 @@ TEST_F(EnclaveManagerTest, PrimaryUserChange) {
   // Remove all accounts from the cookie jar. The primary account should be
   // retained.
   identity_test_env_.SetCookieAccounts({});
+  if (base::FeatureList::IsEnabled(
+          device::
+              kWebAuthnDoNotAlwaysTerminateStateMachineDuringIdentityChange)) {
+    // Removal of accounts from cookie jar leads to scheduling enclave manager's
+    // state machine operation for updating the local state. So we need to wait
+    // for completion of that operation.
+    base::test::RunUntil([this]() { return manager_.is_idle(); });
+  }
   EXPECT_THAT(GaiaAccountsInState(), testing::UnorderedElementsAre(gaia2));
 
   // When the primary account changes, the second account should be dropped
@@ -749,6 +760,14 @@ TEST_F(EnclaveManagerTest, PrimaryUserChange) {
       identity_test_env_.identity_manager()
           ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
           .gaia.ToString();
+  if (base::FeatureList::IsEnabled(
+          device::
+              kWebAuthnDoNotAlwaysTerminateStateMachineDuringIdentityChange)) {
+    // Changing accounts leads to scheduling enclave manager's state machine
+    // operation for updating the local state. So we need to wait for completion
+    // of that operation.
+    base::test::RunUntil([this]() { return manager_.is_idle(); });
+  }
   EXPECT_THAT(GaiaAccountsInState(), testing::UnorderedElementsAre(gaia3));
 }
 
@@ -780,6 +799,67 @@ TEST_F(EnclaveManagerTest, PrimaryUserChangeDiscardsActions) {
   ASSERT_FALSE(register_future1.Get());
   EXPECT_TRUE(register_future2.Wait());
   ASSERT_FALSE(register_future2.Get());
+}
+
+TEST_F(EnclaveManagerTest, CookieJarChangeDoesNotDiscardActions) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      device::kWebAuthnDoNotAlwaysTerminateStateMachineDuringIdentityChange);
+
+  security_domain_service_->pretend_there_are_members();
+  const CoreAccountInfo account =
+      identity_test_env_.identity_manager()->GetPrimaryAccountInfo(
+          signin::ConsentLevel::kSignin);
+
+  NoArgFuture loaded_future;
+  manager_.Load(loaded_future.GetCallback());
+  EXPECT_TRUE(loaded_future.Wait());
+
+  // Simulating the presence of multiple accounts in the cookie jar.
+  identity_test_env_.MakePrimaryAccountAvailable("test2@gmail.com",
+                                                 signin::ConsentLevel::kSignin);
+  identity_test_env_.MakePrimaryAccountAvailable("test3@gmail.com",
+                                                 signin::ConsentLevel::kSignin);
+  identity_test_env_.MakePrimaryAccountAvailable(account.email,
+                                                 signin::ConsentLevel::kSync);
+
+  BoolFuture register_future;
+  manager_.RegisterIfNeeded(register_future.GetCallback());
+
+  // Updating the cookie jar.
+  identity_test_env_.SetCookieAccounts({});
+  base::test::RunUntil([this]() { return manager_.is_idle(); });
+  EXPECT_EQ(manager_.local_state_for_testing().mutable_users()->size(), 1u);
+
+  EXPECT_TRUE(register_future.Wait());
+  ASSERT_TRUE(register_future.Get());
+}
+
+TEST_F(EnclaveManagerTest,
+       PrimaryUserRemainsTheSame_SyncConsentChanges_DoesNotDiscardActions) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      device::kWebAuthnDoNotAlwaysTerminateStateMachineDuringIdentityChange);
+
+  security_domain_service_->pretend_there_are_members();
+  const CoreAccountInfo account =
+      identity_test_env_.identity_manager()->GetPrimaryAccountInfo(
+          signin::ConsentLevel::kSignin);
+
+  NoArgFuture loaded_future;
+  manager_.Load(loaded_future.GetCallback());
+  EXPECT_TRUE(loaded_future.Wait());
+
+  BoolFuture register_future;
+  manager_.RegisterIfNeeded(register_future.GetCallback());
+
+  identity_test_env_.MakePrimaryAccountAvailable(account.email,
+                                                 signin::ConsentLevel::kSync);
+  // Since the primary account remains the same, the on-going actions will not
+  // be cancelled.
+  ASSERT_FALSE(manager_.is_idle());
+  EXPECT_TRUE(register_future.Wait());
+  ASSERT_TRUE(register_future.Get());
 }
 
 TEST_F(EnclaveManagerTest, AddWithExistingPIN) {
@@ -2167,6 +2247,46 @@ TEST_F(EnclaveManagerTest, CheckGpmPinAvailabilityWhenPinIsAvailable) {
             EnclaveManager::GpmPinAvailability::kGpmPinSetAndUsable);
 }
 
+TEST_F(EnclaveManagerTest, CheckGpmPinAvailabilityWhenPinIsUnusable) {
+  const std::string pin = "123456";
+  ASSERT_TRUE(Register());
+
+  BoolFuture setup_future;
+  manager_.SetupWithPIN(pin, setup_future.GetCallback());
+  EXPECT_TRUE(setup_future.Wait());
+  ASSERT_TRUE(manager_.IsReady());
+  ASSERT_TRUE(manager_.has_wrapped_pin());
+  security_domain_service_->MakePinMemberUnusable();
+
+  base::test::TestFuture<EnclaveManager::GpmPinAvailability> future;
+  manager_.CheckGpmPinAvailability(future.GetCallback());
+  EXPECT_TRUE(future.Wait());
+  EXPECT_EQ(future.Get(),
+            EnclaveManager::GpmPinAvailability::kGpmPinSetButNotUsable);
+}
+
+TEST_F(EnclaveManagerTest, CheckGpmPinAvailabilityWhenPinIsNotAvailable) {
+  ASSERT_TRUE(Register());
+
+  base::test::TestFuture<EnclaveManager::GpmPinAvailability> future;
+  manager_.CheckGpmPinAvailability(future.GetCallback());
+  EXPECT_TRUE(future.Wait());
+  EXPECT_EQ(future.Get(), EnclaveManager::GpmPinAvailability::kGpmPinUnset);
+}
+
+class OpportunisticKeyRetrievalEnclaveManagerTest : public EnclaveManagerTest {
+ public:
+  OpportunisticKeyRetrievalEnclaveManagerTest() {
+    scoped_feature_list_.InitWithFeatures(
+        {device::kWebAuthnOpportunisticRetrieval,
+         device::kWebAuthnDoNotAlwaysTerminateStateMachineDuringIdentityChange},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
 #if !BUILDFLAG(IS_CHROMEOS)
 // This test verifies the following scenario:
 // - The system UV is not available.
@@ -2184,7 +2304,7 @@ TEST_F(EnclaveManagerTest, CheckGpmPinAvailabilityWhenPinIsAvailable) {
 //   "Account 1".
 //  - Since "Account 1" has a GPM PIN knowledge factor, the opportunistically
 //    retrieved passkey secret will be successfully stored.
-TEST_F(EnclaveManagerTest,
+TEST_F(OpportunisticKeyRetrievalEnclaveManagerTest,
        StoringOpportunisticallyRetrievedKeyAfterSignInOfMatchingAccount) {
   // Simulating the absence of system UV.
   auto disabled_uv = crypto::ScopedNullUserVerifyingKeyProvider();
@@ -2213,6 +2333,7 @@ TEST_F(EnclaveManagerTest,
       identity_test_env_.identity_manager()->GetPrimaryAccountInfo(
           signin::ConsentLevel::kSignin);
   identity_test_env_.SetCookieAccounts({});
+  base::test::RunUntil([this]() { return manager_.is_idle(); });
   EXPECT_THAT(GaiaAccountsInState(),
               testing::UnorderedElementsAre(account_2.gaia.ToString()));
 
@@ -2235,9 +2356,17 @@ TEST_F(EnclaveManagerTest,
       1);
 
   // Signing-in with the "Account 1" account again.
+  // The call to `identity_test_env_.MakePrimaryAccountAvailable(...)` triggers
+  // `EnclaveManager::HandleIdentityChange`, which should start storing the
+  // opportunistically retrieved key.
   identity_test_env_.MakePrimaryAccountAvailable(account_1.email,
                                                  signin::ConsentLevel::kSignin);
-  identity_test_env_.SetCookieAccounts({});
+  // Another call to `identity_test_env_.MakePrimaryAccountAvailable(...)`
+  // with the same account shouldn't interrupt the logic of storing
+  // opportunistically retrieved key.
+  identity_test_env_.MakePrimaryAccountAvailable(account_1.email,
+                                                 signin::ConsentLevel::kSync);
+  base::test::RunUntil([this]() { return manager_.is_idle(); });
   EXPECT_THAT(GaiaAccountsInState(),
               testing::UnorderedElementsAre(account_1.gaia.ToString()));
 
@@ -2268,15 +2397,6 @@ TEST_F(EnclaveManagerTest,
 }
 #endif
 
-TEST_F(EnclaveManagerTest, CheckGpmPinAvailabilityWhenPinIsNotAvailable) {
-  ASSERT_TRUE(Register());
-
-  base::test::TestFuture<EnclaveManager::GpmPinAvailability> future;
-  manager_.CheckGpmPinAvailability(future.GetCallback());
-  EXPECT_TRUE(future.Wait());
-  EXPECT_EQ(future.Get(), EnclaveManager::GpmPinAvailability::kGpmPinUnset);
-}
-
 class EnclaveManagerMockTimeTest : public EnclaveManagerTest {
  public:
   EnclaveManagerMockTimeTest()
@@ -2284,8 +2404,22 @@ class EnclaveManagerMockTimeTest : public EnclaveManagerTest {
   }
 };
 
+class OpportunisticKeyRetrievalEnclaveManagerMockTimeTest
+    : public EnclaveManagerMockTimeTest {
+ public:
+  OpportunisticKeyRetrievalEnclaveManagerMockTimeTest() {
+    scoped_feature_list_.InitWithFeatures(
+        {device::kWebAuthnOpportunisticRetrieval,
+         device::kWebAuthnDoNotAlwaysTerminateStateMachineDuringIdentityChange},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
 #if !BUILDFLAG(IS_CHROMEOS)
-TEST_F(EnclaveManagerMockTimeTest,
+TEST_F(OpportunisticKeyRetrievalEnclaveManagerMockTimeTest,
        DiscardingOpportunisticallyRetrievedKeyAfterTimeout) {
   // Trying to store the opportunistically retrieved key of some other account.
   std::vector<uint8_t> key(kTestKey.begin(), kTestKey.end());
@@ -2326,7 +2460,7 @@ TEST_F(EnclaveManagerMockTimeTest,
       1);
 }
 
-TEST_F(EnclaveManagerMockTimeTest,
+TEST_F(OpportunisticKeyRetrievalEnclaveManagerMockTimeTest,
        OverwritingAndDiscardingOpportunisticallyRetrievedKey) {
   // Trying to store the opportunistically retrieved key of some other account.
   std::vector<uint8_t> key_1(kTestKey.begin(), kTestKey.end());
@@ -2440,9 +2574,6 @@ TEST_F(EnclaveManagerMockTimeTest, AutomaticRenewal) {
   // Ensure that no operation is outstanding.
   task_env_.FastForwardBy(base::Hours(1));
 }
-
-// UV keys are only supported on Windows macOS, and ChromeOS at this time.
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
 
 std::string ToString(base::span<const uint8_t> v) {
   return std::string(v.begin(), v.end());
@@ -2666,7 +2797,20 @@ TEST_F(EnclaveUVTest, UserVerifyingKeyUseExisting) {
             EnclaveManager::UvKeyState::kUsesSystemUI);
 }
 
-TEST_F(EnclaveUVTest, OpportunisticStoreKeys) {
+class OpportunisticKeyRetrievalEnclaveUVTest : public EnclaveUVTest {
+ public:
+  OpportunisticKeyRetrievalEnclaveUVTest() {
+    scoped_feature_list_.InitWithFeatures(
+        {device::kWebAuthnOpportunisticRetrieval,
+         device::kWebAuthnDoNotAlwaysTerminateStateMachineDuringIdentityChange},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(OpportunisticKeyRetrievalEnclaveUVTest, OpportunisticStoreKeys) {
   security_domain_service_->pretend_there_are_members();
   ASSERT_FALSE(manager_.IsRegistered());
   EXPECT_EQ(manager_.store_keys_count(), 0u);
@@ -2683,6 +2827,7 @@ TEST_F(EnclaveUVTest, OpportunisticStoreKeys) {
   EXPECT_EQ(enclave_keys_waiter.Wait(),
             EnclaveManager::OutOfContextRecoveryOutcome::
                 kStoreKeysFromOpportunisticFlowSucceeded);
+  EXPECT_FALSE(manager_.has_wrapped_pin());
 
   histogram_tester.ExpectBucketCount(
       "WebAuthentication.GPM.RecoveryEvent",
@@ -2703,10 +2848,19 @@ TEST_F(EnclaveUVTest, OpportunisticStoreKeys) {
       /*expected_bucket_count=*/1);
 }
 
-TEST_F(EnclaveUVTest, OpportunisticStoreKeysAreIgnoredWhenFeatureIsDisabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndDisableFeature(
-      device::kWebAuthnOpportunisticRetrieval);
+class NoOpportunisticKeyRetrievalEnclaveUVTest : public EnclaveUVTest {
+ public:
+  NoOpportunisticKeyRetrievalEnclaveUVTest() {
+    scoped_feature_list_.InitAndDisableFeature(
+        device::kWebAuthnOpportunisticRetrieval);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(NoOpportunisticKeyRetrievalEnclaveUVTest,
+       OpportunisticStoreKeysAreIgnoredWhenFeatureIsDisabled) {
   security_domain_service_->pretend_there_are_members();
   ASSERT_FALSE(manager_.IsRegistered());
   EXPECT_EQ(manager_.store_keys_count(), 0u);
@@ -2731,7 +2885,8 @@ TEST_F(EnclaveUVTest, OpportunisticStoreKeysAreIgnoredWhenFeatureIsDisabled) {
   EXPECT_FALSE(manager_.IsRegistered());
 }
 
-TEST_F(EnclaveUVTest, OpportunisticStoreKeysRedundant) {
+TEST_F(OpportunisticKeyRetrievalEnclaveUVTest,
+       OpportunisticStoreKeysRedundant) {
   ASSERT_FALSE(manager_.IsRegistered());
   EXPECT_EQ(manager_.store_keys_count(), 0u);
 
@@ -2773,7 +2928,8 @@ TEST_F(EnclaveUVTest, OpportunisticStoreKeysRedundant) {
 // On Chrome OS, `AreUserVerifyingKeysSupported` always returns true, thus this
 // test cannot establish its preconditions.
 
-TEST_F(EnclaveUVTest, OpportunisticStoreKeysNoUVButHasUsableGpmPin) {
+TEST_F(OpportunisticKeyRetrievalEnclaveUVTest,
+       OpportunisticStoreKeysNoUVButHasUsableGpmPin) {
   const std::string pin = "123456";
   BoolFuture setup_future;
   manager_.SetupWithPIN(pin, setup_future.GetCallback());
@@ -2812,9 +2968,11 @@ TEST_F(EnclaveUVTest, OpportunisticStoreKeysNoUVButHasUsableGpmPin) {
       webauthn::metrics::WebAuthenticationGPMRecoveryEvent::
           kStoreKeysFromOpportunisticFlowSucceeded,
       1);
+  EXPECT_TRUE(manager_.has_wrapped_pin());
 }
 
-TEST_F(EnclaveUVTest, OpportunisticStoreKeysNoUVNoGpmPin) {
+TEST_F(OpportunisticKeyRetrievalEnclaveUVTest,
+       OpportunisticStoreKeysNoUVNoGpmPin) {
   ASSERT_FALSE(manager_.IsRegistered());
   EXPECT_EQ(manager_.store_keys_count(), 0u);
   DisableUVKeySupport();
@@ -2829,7 +2987,7 @@ TEST_F(EnclaveUVTest, OpportunisticStoreKeysNoUVNoGpmPin) {
                          kPasskeyUnlockProfileMenu);
   EXPECT_EQ(enclave_keys_waiter.Wait(),
             EnclaveManager::OutOfContextRecoveryOutcome::
-                kStoreKeysFromOpportunisticFlowIgnoredNoUV);
+                kStoreKeysFromOpportunisticFlowFailed);
 
   histogram_tester.ExpectBucketCount(
       "WebAuthentication.GPM.RecoveryEvent",
@@ -2839,7 +2997,7 @@ TEST_F(EnclaveUVTest, OpportunisticStoreKeysNoUVNoGpmPin) {
   histogram_tester.ExpectBucketCount(
       "WebAuthentication.GPM.RecoveryEvent",
       webauthn::metrics::WebAuthenticationGPMRecoveryEvent::
-          kStoreKeysFromOpportunisticFlowIgnoredNoUV,
+          kStoreKeysFromOpportunisticFlowFailed,
       1);
   EXPECT_EQ(manager_.store_keys_count(), 0u);
 
@@ -3102,7 +3260,5 @@ TEST_F(EnclaveUVTest, UnregisterOnMissingUserVerifyingKey) {
 }
 
 #endif  // BUILDFLAG(IS_WIN)
-
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
 
 #endif  // !defined(MEMORY_SANITIZER)

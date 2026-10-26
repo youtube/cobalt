@@ -19,6 +19,7 @@ import("//third_party/blink/renderer/bindings/bindings.gni")
 import("//third_party/blink/renderer/build/scripts/scripts.gni")
 import("//third_party/blink/renderer/config.gni")
 import("//third_party/blink/renderer/core/accessibility/build.gni")
+import("//third_party/blink/renderer/core/ad_tracker/build.gni")
 import("//third_party/blink/renderer/core/animation/build.gni")
 import("//third_party/blink/renderer/core/animation_frame/build.gni")
 import("//third_party/blink/renderer/core/annotation/build.gni")
@@ -43,6 +44,7 @@ import("//third_party/blink/renderer/core/geolocation/build.gni")
 import("//third_party/blink/renderer/core/geometry/build.gni")
 import("//third_party/blink/renderer/core/highlight/build.gni")
 import("//third_party/blink/renderer/core/html/build.gni")
+import("//third_party/blink/renderer/core/image_replacement/build.gni")
 import("//third_party/blink/renderer/core/imagebitmap/build.gni")
 import("//third_party/blink/renderer/core/input/build.gni")
 import("//third_party/blink/renderer/core/inspector/build.gni")
@@ -305,12 +307,15 @@ component("core") {
                          "",
                          "fragment_directive")
   sources += rebase_path(blink_core_sources_frame, "", "frame")
+  sources += rebase_path(blink_core_sources_ad_tracker, "", "ad_tracker")
   sources += get_target_outputs(":make_deprecation_info")
   sources += rebase_path(blink_core_sources_fullscreen, "", "fullscreen")
   sources += rebase_path(blink_core_sources_geolocation, "", "geolocation")
   sources += rebase_path(blink_core_sources_geometry, "", "geometry")
   sources += rebase_path(blink_core_sources_highlight, "", "highlight")
   sources += rebase_path(blink_core_sources_html, "", "html")
+  sources +=
+      rebase_path(blink_core_sources_image_replacement, "", "image_replacement")
   sources += rebase_path(blink_core_sources_imagebitmap, "", "imagebitmap")
   sources += rebase_path(blink_core_sources_input, "", "input")
   if (enable_devtools_backend) {
@@ -335,11 +340,13 @@ component("core") {
       "inspector/cobalt/inspector_event_breakpoints_agent_stub.cc",
       "inspector/cobalt/inspector_media_agent_stub.cc",
       "inspector/cobalt/inspector_performance_timeline_agent_stub.cc",
+      "inspector/cobalt/inspector_web_mcp_agent_stub.cc",
       "inspector/cobalt/inspector_preload_agent_stub.cc",
       "inspector/cobalt/inspector_overlay_agent_stub.cc",
       "inspector/cobalt/main_thread_debugger_stub.cc",
       "inspector/cobalt/inspector_media_context_impl_stub.cc",
       "inspector/cobalt/worker_thread_debugger_stub.cc",
+      "inspector/ad_tagging_utils.cc",
       "inspector/console_message.cc",
       "inspector/console_message_storage.cc",
       "inspector/dev_tools_emulator.cc",
@@ -631,7 +638,6 @@ source_set("testing") {
     "fetch/testing/internals_fetch.h",
     "fetch/testing/worker_internals_fetch.cc",
     "fetch/testing/worker_internals_fetch.h",
-    "frame/csp/test_util.cc",
     "frame/csp/test_util.h",
     "html/forms/mock_file_chooser.h",
     "streams/test_underlying_source.h",
@@ -1556,10 +1562,13 @@ source_set("unit_tests") {
   sources +=
       rebase_path(blink_core_tests_fragment_directive, "", "fragment_directive")
   sources += rebase_path(blink_core_tests_frame, "", "frame")
+  sources += rebase_path(blink_core_tests_ad_tracker, "", "ad_tracker")
   sources += rebase_path(blink_core_tests_fullscreen, "", "fullscreen")
   sources += rebase_path(blink_core_tests_geometry, "", "geometry")
   sources += rebase_path(blink_core_tests_highlight, "", "highlight")
   sources += rebase_path(blink_core_tests_html, "", "html")
+  sources +=
+      rebase_path(blink_core_tests_image_replacement, "", "image_replacement")
   sources += rebase_path(blink_core_tests_imagebitmap, "", "imagebitmap")
   sources += rebase_path(blink_core_tests_input, "", "input")
   sources += rebase_path(blink_core_tests_inspector, "", "inspector")
@@ -1899,17 +1908,6 @@ fuzzer_test("html_preload_scanner_fuzzer") {
     ":element_locator_proto",
     "../platform:blink_fuzzer_test_support",
   ]
-}
-
-fuzzer_test("content_security_policy_conversion_util_fuzzer") {
-  sources = [ "frame/csp/conversion_util_fuzzer.cc" ]
-  deps = [
-    ":core",
-    "//third_party/blink/renderer/core:testing",
-    "//third_party/blink/renderer/platform:blink_fuzzer_test_support",
-  ]
-  dict = "//testing/libfuzzer/fuzzers/dicts/content_security_policy.dict"
-  seed_corpus = "//testing/libfuzzer/fuzzers/content_security_policy_corpus"
 }
 
 css_properties("make_css_proto") {

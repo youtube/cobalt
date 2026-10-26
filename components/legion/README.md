@@ -1,3 +1,0 @@
-# Legion
-
-TODO!

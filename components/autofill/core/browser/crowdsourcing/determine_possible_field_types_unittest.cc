@@ -12,6 +12,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
 #include "base/types/zip.h"
+#include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/autofill_field_test_api.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_i18n_api.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
@@ -400,8 +401,7 @@ class DeterminePossibleFieldTypesForUploadTest : public ::testing::Test {
   DeterminePossibleFieldTypesForUploadTest() {
     scoped_feature_list_.InitWithFeatures(
         {features::kAutofillAiWithDataSchema,
-         features::kAutofillAiVoteForFormatStringsForFlightNumbers,
-         features::kAutofillEnableLoyaltyCardsFilling},
+         features::kAutofillAiVoteForFormatStringsForFlightNumbers},
         {});
   }
 
@@ -1082,7 +1082,7 @@ class FindDatesAndSetFormatStringsTest : public testing::Test {
       FormControlType form_control_type = FormControlType::kInputText) {
     auto field = std::make_unique<AutofillField>(CreateTestFormField(
         /*label=*/"", /*name=*/"", /*value=*/value, form_control_type));
-    field->set_is_user_edited(true);
+    field->AddFieldModifier(FieldModifier::kUser);
     return field;
   }
 
@@ -1092,7 +1092,7 @@ class FindDatesAndSetFormatStringsTest : public testing::Test {
     auto field = std::make_unique<AutofillField>(CreateTestSelectField(
         /*label=*/"", /*name=*/"", /*value=*/value, /*values=*/values,
         /*contents=*/values));
-    field->set_is_user_edited(true);
+    field->AddFieldModifier(FieldModifier::kUser);
     return field;
   }
 
@@ -1313,18 +1313,11 @@ TEST_P(FindDatesAndSetFormatStringsTest_MultipleTextInput, MultipleTextInput) {
 // Test fixture for DetermineAvailableFieldTypes().
 class DetermineAvailableFieldTypesTest : public ::testing::Test {
  public:
-  DetermineAvailableFieldTypesTest() {
-    features_.InitWithFeatures(
-        /*enabled_features=*/{features::kAutofillAiWithDataSchema,
-                              features::kAutofillEnableLoyaltyCardsFilling,
-                              features::
-                                  kAutofillEnableEmailOrLoyaltyCardsFilling},
-        /*disabled_features=*/{});
-  }
+  DetermineAvailableFieldTypesTest() = default;
 
  protected:
   test::AutofillUnitTestEnvironment autofill_test_environment_;
-  base::test::ScopedFeatureList features_;
+  base::test::ScopedFeatureList features_{features::kAutofillAiWithDataSchema};
 };
 
 // Tests that entities are included in the set of available field types.
@@ -1461,6 +1454,7 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest,
                  {.role = PHONE_HOME_CITY_AND_NUMBER_WITHOUT_TRUNK_PREFIX}},
   });
   test_api(form).field(1).set_value(u"US");
+  test_api(form).field(1).set_selected_option_text(u"United States (+1)");
   std::unique_ptr<FormStructure> form_structure =
       ConstructFormStructureFromFormData(form);
 

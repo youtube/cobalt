@@ -36,8 +36,8 @@ import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerType;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
-import org.chromium.chrome.browser.compositor.bottombar.OverlayPanel;
-import org.chromium.chrome.browser.compositor.bottombar.OverlayPanelStateProvider;
+import org.chromium.chrome.browser.compositor.overlay_panel.OverlayPanel;
+import org.chromium.chrome.browser.compositor.overlay_panel.OverlayPanelStateProvider;
 import org.chromium.chrome.browser.contextualsearch.ContextualSearchManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.keyboard_accessory.AccessorySheetVisualStateProvider;
@@ -733,7 +733,6 @@ public class BottomAttachedUiObserverTest {
 
     @Test
     @EnableFeatures({ChromeFeatureList.NAV_BAR_COLOR_ANIMATION})
-    @DisableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     public void testNavBarColorAnimationsOverlayPanel() {
         mBottomAttachedUiObserver.onOverlayPanelStateChanged(
                 OverlayPanel.PanelState.CLOSED, OVERLAY_PANEL_COLOR);
@@ -764,7 +763,6 @@ public class BottomAttachedUiObserverTest {
 
     @Test
     @EnableFeatures({ChromeFeatureList.NAV_BAR_COLOR_ANIMATION})
-    @DisableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     public void testNavBarColorAnimationsBottomSheet() {
         mBottomAttachedUiObserver.onSheetContentChanged(mSheetContent);
         mColorChangeObserver.assertState(null, false, false);
@@ -787,7 +785,6 @@ public class BottomAttachedUiObserverTest {
 
     @Test
     @EnableFeatures({ChromeFeatureList.NAV_BAR_COLOR_ANIMATION})
-    @DisableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     public void testNavBarColorAnimationsBrowserControls() {
         mColorChangeObserver.assertState(null, false, false);
         when(mBottomControlsStacker.hasVisibleLayersOtherThan(

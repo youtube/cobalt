@@ -529,9 +529,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientRequestedIndependentOption(k3AFF, perspective_)) {
     anti_amplification_factor_ = 3;
   }
-  if (GetQuicReloadableFlag(quic_enable_5aff_connection_option) &&
-      config.HasClientRequestedIndependentOption(k5AFF, perspective_)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_enable_5aff_connection_option);
+  if (config.HasClientRequestedIndependentOption(k5AFF, perspective_)) {
     anti_amplification_factor_ = 5;
   }
   if (config.HasClientRequestedIndependentOption(k10AF, perspective_)) {
@@ -2198,6 +2196,7 @@ bool QuicConnection::OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) {
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 3, 7);
   if (auto packet_number_space =
           QuicUtils::GetPacketNumberSpace(
               last_received_packet_info_.decrypted_level) == APPLICATION_DATA) {
@@ -2226,7 +2225,7 @@ bool QuicConnection::OnImmediateAckFrame(const QuicImmediateAckFrame& frame) {
     QUIC_LOG_EVERY_N_SEC(ERROR, 120) << "Got unexpected ImmediateAck Frame.";
     return false;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 1, 2);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 1, 7);
   if (last_received_packet_info_.decrypted_level == ENCRYPTION_FORWARD_SECURE) {
     uber_received_packet_manager_.OnImmediateAckFrame();
   } else {
@@ -5880,23 +5879,17 @@ QuicPacketLength QuicConnection::GetGuaranteedLargestDatagramPayload() const {
 
 uint32_t QuicConnection::cipher_id() const {
   if (version().IsIetfQuic()) {
-    if (quic_limit_new_streams_per_loop_2_) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_limit_new_streams_per_loop_2, 4, 4);
-      for (auto decryption_level :
-           {ENCRYPTION_FORWARD_SECURE, ENCRYPTION_HANDSHAKE,
-            ENCRYPTION_ZERO_RTT, ENCRYPTION_INITIAL}) {
-        const QuicDecrypter* decrypter = framer_.GetDecrypter(decryption_level);
-        if (decrypter != nullptr) {
-          return decrypter->cipher_id();
-        }
+    for (auto decryption_level :
+         {ENCRYPTION_FORWARD_SECURE, ENCRYPTION_HANDSHAKE, ENCRYPTION_ZERO_RTT,
+          ENCRYPTION_INITIAL}) {
+      const QuicDecrypter* decrypter = framer_.GetDecrypter(decryption_level);
+      if (decrypter != nullptr) {
+        return decrypter->cipher_id();
       }
-      QUICHE_BUG(no_decrypter_found)
-          << ENDPOINT << "No decrypter found at all encryption levels";
-      return 0;
-    } else {
-      return framer_.GetDecrypter(last_received_packet_info_.decrypted_level)
-          ->cipher_id();
     }
+    QUICHE_BUG(no_decrypter_found)
+        << ENDPOINT << "No decrypter found at all encryption levels";
+    return 0;
   }
   return framer_.decrypter()->cipher_id();
 }
@@ -6525,6 +6518,12 @@ void QuicConnection::OnIdleNetworkDetected() {
   }
   CloseConnection(error_code, error_details,
                   idle_timeout_connection_close_behavior_);
+}
+
+void QuicConnection::OnMemoryReductionTimeout() {
+  // TODO(haoyuewang): Remove this counter after testing.
+  QUICHE_CODE_COUNT(quic_connection_on_memory_reduction_timeout);
+  sent_packet_manager_.ReduceMemoryUsage();
 }
 
 void QuicConnection::OnKeepAliveTimeout() {

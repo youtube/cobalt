@@ -4,6 +4,19 @@
 
 import("//build/config/apple/symbols.gni")
 
+source_set("safe_area_provider") {
+  sources = [
+    "safe_area_provider.h",
+    "safe_area_provider.mm",
+  ]
+  deps = [
+    "//base",
+    "//ios/chrome/app/application_delegate:app_state",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/chrome/browser/shared/model/browser",
+  ]
+}
+
 source_set("ui_bundled") {
   sources = [
     "browser_coordinator+Testing.h",
@@ -16,8 +29,6 @@ source_set("ui_bundled") {
     "browser_view_controller.mm",
     "key_commands_provider.h",
     "key_commands_provider.mm",
-    "safe_area_provider.h",
-    "safe_area_provider.mm",
     "tab_consumer.h",
     "tab_events_mediator.h",
     "tab_events_mediator.mm",
@@ -25,9 +36,10 @@ source_set("ui_bundled") {
     "tab_lifecycle_mediator.mm",
   ]
   deps = [
+    ":safe_area_provider",
     "//base",
     "//base:i18n",
-    "//build/config/ios:buildflags",
+    "//build/config/ios:swift_buildflags",
     "//components/bookmarks/browser",
     "//components/collaboration/public",
     "//components/commerce/core:feature_list",
@@ -74,11 +86,14 @@ source_set("ui_bundled") {
     "//ios/chrome/browser/autocomplete/model",
     "//ios/chrome/browser/autofill/authentication/coordinator:card_unmask_authentication_coordinator",
     "//ios/chrome/browser/autofill/authentication/coordinator:otp_input_dialog",
+    "//ios/chrome/browser/autofill/autofill_ai/coordinator",
+    "//ios/chrome/browser/autofill/autofill_ai/public",
     "//ios/chrome/browser/autofill/form_input_accessory/coordinator",
     "//ios/chrome/browser/autofill/form_input_accessory/ui",
     "//ios/chrome/browser/autofill/model",
     "//ios/chrome/browser/autofill/model:model_internal",
     "//ios/chrome/browser/autofill/model/bottom_sheet",
+    "//ios/chrome/browser/autofill/scan_save_and_fill:coordinator",
     "//ios/chrome/browser/autofill/ui_bundled:coordinator",
     "//ios/chrome/browser/autofill/ui_bundled/address_editor:autofill_edit",
     "//ios/chrome/browser/autofill/ui_bundled/bottom_sheet",
@@ -132,12 +147,12 @@ source_set("ui_bundled") {
     "//ios/chrome/browser/first_run/omnibox_position/coordinator",
     "//ios/chrome/browser/first_run/public:utils",
     "//ios/chrome/browser/fullscreen/ui_bundled",
+    "//ios/chrome/browser/fullscreen/ui_bundled:metrics",
     "//ios/chrome/browser/fullscreen/ui_bundled:ui",
     "//ios/chrome/browser/geolocation/model",
     "//ios/chrome/browser/google_one/coordinator",
     "//ios/chrome/browser/history/ui_bundled:coordinator",
     "//ios/chrome/browser/home_customization/coordinator",
-    "//ios/chrome/browser/incognito_reauth/ui_bundled:features",
     "//ios/chrome/browser/incognito_reauth/ui_bundled:incognito_reauth_commands",
     "//ios/chrome/browser/incognito_reauth/ui_bundled:incognito_reauth_scene_agent",
     "//ios/chrome/browser/incognito_reauth/ui_bundled:incognito_reauth_util",
@@ -188,7 +203,6 @@ source_set("ui_bundled") {
     "//ios/chrome/browser/omnibox/ui/popup",
     "//ios/chrome/browser/overlays/model",
     "//ios/chrome/browser/overlays/model/public/web_content_area",
-    "//ios/chrome/browser/overlays/ui_bundled",
     "//ios/chrome/browser/overscroll_actions/model",
     "//ios/chrome/browser/overscroll_actions/ui_bundled",
     "//ios/chrome/browser/page_info/coordinator",
@@ -198,6 +212,8 @@ source_set("ui_bundled") {
     "//ios/chrome/browser/passwords/password_breach/coordinator",
     "//ios/chrome/browser/passwords/password_suggestion/coordinator",
     "//ios/chrome/browser/phone_number/ui_bundled:coordinator",
+    "//ios/chrome/browser/picture_in_picture/coordinator",
+    "//ios/chrome/browser/picture_in_picture/public",
     "//ios/chrome/browser/plus_addresses/coordinator",
     "//ios/chrome/browser/plus_addresses/ui",
     "//ios/chrome/browser/policy/model:policy_util",
@@ -230,9 +246,9 @@ source_set("ui_bundled") {
     "//ios/chrome/browser/send_tab_to_self/coordinator",
     "//ios/chrome/browser/send_tab_to_self/model",
     "//ios/chrome/browser/sessions/model",
+    "//ios/chrome/browser/settings/clear_browsing_data/coordinator",
     "//ios/chrome/browser/settings/model/sync/utils",
     "//ios/chrome/browser/settings/ui_bundled/autofill",
-    "//ios/chrome/browser/settings/ui_bundled/clear_browsing_data/coordinator",
     "//ios/chrome/browser/settings/ui_bundled/password/password_settings",
     "//ios/chrome/browser/shared/coordinator/alert",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
@@ -302,7 +318,6 @@ source_set("ui_bundled") {
     "//ios/chrome/browser/voice/ui_bundled",
     "//ios/chrome/browser/web/model",
     "//ios/chrome/browser/web/model:delegate",
-    "//ios/chrome/browser/web/model:feature_flags",
     "//ios/chrome/browser/web/model:page_placeholder",
     "//ios/chrome/browser/web/model:tab_helper_delegates",
     "//ios/chrome/browser/web/model/annotations",
@@ -377,6 +392,7 @@ source_set("unit_tests") {
     "key_commands_provider_unittest.mm",
   ]
   deps = [
+    ":safe_area_provider",
     ":test_support",
     ":ui_bundled",
     "//components/bookmarks/browser",
@@ -480,6 +496,7 @@ source_set("unit_tests") {
     "//ios/chrome/common/ui/reauthentication",
     "//ios/chrome/test:block_cleanup_test",
     "//ios/chrome/test:test_support",
+    "//ios/chrome/test/app:test_support",
     "//ios/net",
     "//ios/public/provider/chrome/browser/user_feedback:user_feedback_api",
     "//ios/web/common:uikit",

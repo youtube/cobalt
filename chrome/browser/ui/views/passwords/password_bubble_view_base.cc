@@ -10,9 +10,11 @@
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/passwords/passwords_model_delegate.h"
 #include "chrome/browser/ui/views/accessibility/theme_tracking_non_accessible_image_view.h"
+#include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -80,14 +82,13 @@ void PasswordBubbleViewBase::ShowBubble(content::WebContents* web_contents,
     return;
   }
 
-  // Handle view-based anchors for icon highlighting.
-  // If the anchor_view is a button, it will automatically be used as the
+  // Handle anchors for icon highlighting. If the anchor is highlightable
+  // (e.g. a button), it will automatically be used as the
   // highlighted button by BubbleDialogDelegate. If not, we set the page action
   // icon as the highlighted button here.
-  auto* anchor_view = std::get_if<views::View*>(&anchor);
-  if (anchor_view && !views::Button::AsButton(*anchor_view)) {
-    g_manage_passwords_bubble_->SetHighlightedButton(
-        button_provider->GetPageActionView(kActionShowPasswordsBubbleOrPage));
+  if (!bubble_anchor_util::IsHighlightable(anchor)) {
+    g_manage_passwords_bubble_->SetHighlightedElement(
+        kPasswordsOmniboxKeyIconElementId);
   }
 
   views::BubbleDialogDelegateView::CreateBubble(g_manage_passwords_bubble_);

@@ -99,21 +99,12 @@ CanvasRenderingContext::GetEnclosingContextForDrawElement(
     return builder.ToString();
   };
 
-  HTMLCanvasElement* canvas = nullptr;
-  for (Node* ancestor = element->parentNode(); ancestor && !canvas;
-       ancestor = ancestor->parentNode()) {
-    canvas = DynamicTo<HTMLCanvasElement>(ancestor);
-    if (!RuntimeEnabledFeatures::CanvasDrawElementInSubtreeEnabled()) {
-      break;
-    }
-  }
+  HTMLCanvasElement* canvas =
+      DynamicTo<HTMLCanvasElement>(element->parentNode());
   if (!canvas) {
     exception_state.ThrowTypeError(build_error(
-        RuntimeEnabledFeatures::CanvasDrawElementInSubtreeEnabled()
-            ? ("Only descendants of the <canvas> element can be passed "
-               "to %s.")
-            : ("Only immediate children of the <canvas> element can be "
-               "passed to %s.")));
+        "Only immediate children of the <canvas> element can be passed "
+        "to %s."));
 
     return nullptr;
   }
@@ -150,31 +141,11 @@ bool CanvasRenderingContext::IsDrawElementImageEligible(
     return builder.ToString();
   };
 
-  if (!RuntimeEnabledFeatures::CanvasDrawElementInSubtreeEnabled()) {
-    if (element->parentElement() != canvas_element) {
-      exception_state.ThrowTypeError(
-          build_error("Only immediate children of the <canvas> element can be "
-                      "passed to %s."));
-      return false;
-    }
-  } else {
-    if (!element->IsDescendantOf(canvas_element)) {
-      exception_state.ThrowTypeError(build_error(
-          "Only descendants of the <canvas> element can be passed to %s."));
-      return false;
-    }
-    // TODO(pdr): Update these checks to point to the updated spec. These are
-    // currently copied from element capture, which has similar paint reqs:
-    // https://screen-share.github.io/element-capture/#elements-eligible-for-restriction
-    auto* object = element->GetLayoutObject();
-    if (!object || !object->IsStackingContext() || !object->CreatesGroup() ||
-        !object->IsBox() ||
-        To<LayoutBox>(object)->PhysicalFragmentCount() > 1) {
-      exception_state.ThrowTypeError(
-          build_error("Only elements with certain requirements (stacking "
-                      "context, etc) can be passed to %s."));
-      return false;
-    }
+  if (element->parentElement() != canvas_element) {
+    exception_state.ThrowTypeError(
+        build_error("Only immediate children of the <canvas> element can be "
+                    "passed to %s."));
+    return false;
   }
 
   if (!canvas_element->layoutSubtree()) {
@@ -183,63 +154,12 @@ bool CanvasRenderingContext::IsDrawElementImageEligible(
     return false;
   }
 
-  if (!element->GetLayoutObject()) {
-    exception_state.ThrowTypeError(build_error(
-        "The canvas and element used with %s must have been laid "
-        "out. Detached canvases are not supported, nor canvas or children that "
-        "are `display: none`."));
-    return false;
-  }
-
   return true;
 }
 
-std::optional<cc::PaintRecord> CanvasRenderingContext::GetElementPaintRecord(
-    Element* element,
-    std::optional<CullRect> cull_rect,
-    const String& func_name,
-    ExceptionState& exception_state) {
-  if (!IsDrawElementImageEligible(element, func_name, exception_state)) {
-    return std::nullopt;
-  }
-
-  PaintRecordBuilder builder;
-  LayoutBox* layout_box = element->GetLayoutBox();
-  // All drawn elements should have their own stacking contexts.
-  CHECK(layout_box->HasLayer());
-  CHECK(layout_box->IsStacked());
-  PaintLayer* layer = layout_box->EnclosingLayer();
-
-  if (!cull_rect) {
-    auto box_rect =
-        gfx::Rect(ToCeiledSize(layer->GetLayoutBox()->StitchedSize()));
-    cull_rect.emplace(box_rect);
-  }
-
-  OverriddenCullRectScope cull_rect_scope(*layer, *cull_rect,
-                                          /*disable_expansion*/ true);
-
-  PaintLayerPainter paint_layer_painter = PaintLayerPainter(*layer);
-  paint_layer_painter.Paint(
-      builder.Context(),
-      PaintFlag::kPrivacyPreserving | PaintFlag::kOmitCompositingInfo);
-
-  // Use the drawn element's local property tree state to start drawing, but
-  // then modify this to include effects and clips between the drawn element
-  // and the canvas element. This will exclude transforms above the local
-  // border box state (e.g., css transform is ignored), but will include effects
-  // (e.g., css filter is not ignored).
-  PropertyTreeState property_tree_state = layer->GetLayoutBox()
-                                              ->FirstFragment()
-                                              .LocalBorderBoxProperties()
-                                              .Unalias();
-  HTMLCanvasElement* canvas_element = static_cast<HTMLCanvasElement*>(Host());
-  const auto& canvas_fragment = canvas_element->GetLayoutBox()->FirstFragment();
-  property_tree_state.SetEffect(canvas_fragment.ContentsEffect().Unalias());
-  property_tree_state.SetClip(canvas_fragment.ContentsClip().Unalias());
-
-  cc::PaintRecord paint_record = builder.EndRecording(property_tree_state);
-  return paint_record;
+std::optional<CanvasChildPaintRecord>
+CanvasRenderingContext::GetChildPaintRecord(Element* element) {
+  return Host()->GetCanvasChildPaintRecord(element->GetDomNodeId());
 }
 
 scoped_refptr<StaticBitmapImage> CanvasRenderingContext::GetElementImage(
@@ -252,26 +172,23 @@ scoped_refptr<StaticBitmapImage> CanvasRenderingContext::GetElementImage(
     std::optional<uint32_t> height,
     const String& func_name,
     ExceptionState& exception_state) {
-  element->GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
-      DocumentUpdateReason::kCanvasDrawElementImage);
+  if (!IsDrawElementImageEligible(element, func_name, exception_state)) {
+    return nullptr;
+  }
+
+  std::optional<CanvasChildPaintRecord> child_paint_record =
+      GetChildPaintRecord(element);
+  if (!child_paint_record) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "No cached paint record for element.");
+    return nullptr;
+  }
 
   // Element size in physical coordinates.
-  gfx::SizeF box_size;
-  if (element->GetLayoutBox()) {
-    box_size = gfx::SizeF(element->GetLayoutBox()->StitchedSize());
-  }
-  gfx::RectF src_rect(box_size);
-  std::optional<CullRect> cull_rect;
+  gfx::RectF src_rect(child_paint_record->box_size);
   if (sx && sy && swidth && sheight) {
-    float dpr = element->ComputedStyleRef().EffectiveZoom();
+    float dpr = child_paint_record->scale;
     src_rect = gfx::RectF(*sx * dpr, *sy * dpr, *swidth * dpr, *sheight * dpr);
-    cull_rect.emplace(gfx::ToEnclosingRect(src_rect));
-  }
-
-  std::optional<cc::PaintRecord> paint_record =
-      GetElementPaintRecord(element, cull_rect, func_name, exception_state);
-  if (!paint_record) {
-    return nullptr;
   }
 
   HTMLCanvasElement* canvas_element = static_cast<HTMLCanvasElement*>(Host());
@@ -303,7 +220,7 @@ scoped_refptr<StaticBitmapImage> CanvasRenderingContext::GetElementImage(
   SkiaPaintCanvas skia_paint_canvas(surface->getCanvas());
   skia_paint_canvas.scale(canvas_scale.x(), canvas_scale.y());
   skia_paint_canvas.translate(-src_rect.x(), -src_rect.y());
-  skia_paint_canvas.drawPicture(*paint_record);
+  skia_paint_canvas.drawPicture(child_paint_record->record);
   return UnacceleratedStaticBitmapImage::Create(surface->makeImageSnapshot());
 }
 

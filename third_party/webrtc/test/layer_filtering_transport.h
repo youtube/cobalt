@@ -13,8 +13,8 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <span>
 
-#include "api/array_view.h"
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
 #include "api/media_types.h"
@@ -43,8 +43,8 @@ class LayerFilteringTransport : public test::DirectTransport {
       const std::map<uint8_t, MediaType>& payload_type_map,
       uint32_t ssrc_to_filter_min,
       uint32_t ssrc_to_filter_max,
-      ArrayView<const RtpExtension> audio_extensions,
-      ArrayView<const RtpExtension> video_extensions);
+      std::span<const RtpExtension> audio_extensions,
+      std::span<const RtpExtension> video_extensions);
   LayerFilteringTransport(
       const Environment& env,
       TaskQueueBase* task_queue,
@@ -55,10 +55,10 @@ class LayerFilteringTransport : public test::DirectTransport {
       int selected_tl,
       int selected_sl,
       const std::map<uint8_t, MediaType>& payload_type_map,
-      ArrayView<const RtpExtension> audio_extensions,
-      ArrayView<const RtpExtension> video_extensions);
+      std::span<const RtpExtension> audio_extensions,
+      std::span<const RtpExtension> video_extensions);
   bool DiscardedLastPacket() const;
-  bool SendRtp(ArrayView<const uint8_t> data,
+  bool SendRtp(std::span<const uint8_t> data,
                const PacketOptions& options) override;
 
  private:

@@ -267,7 +267,7 @@ static bool MatchesLangPseudoClass(
       return {language_range_, subtag_start_, subtag_end_ - subtag_start_};
     }
     bool Matches(const LanguageTagIterator& other) const {
-      return EqualIgnoringASCIICase(CurrentSubtag(), other.CurrentSubtag());
+      return EqualIgnoringAsciiCase(CurrentSubtag(), other.CurrentSubtag());
     }
     bool MatchesWildcard() const {
       StringView subtag = CurrentSubtag();
@@ -713,6 +713,7 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
     case CSSSelector::kPseudoEnabled:
     case CSSSelector::kPseudoEnd:
     case CSSSelector::kPseudoFileSelectorButton:
+    case CSSSelector::kPseudoFiltered:
     case CSSSelector::kPseudoFirstChild:
     case CSSSelector::kPseudoFirstLetter:
     case CSSSelector::kPseudoFirstLine:
@@ -823,6 +824,7 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
     case CSSSelector::kPseudoTargetCurrent:
     case CSSSelector::kPseudoTargetBefore:
     case CSSSelector::kPseudoTargetAfter:
+    case CSSSelector::kPseudoTextField:
     case CSSSelector::kPseudoToolFormActive:
     case CSSSelector::kPseudoToolSubmitActive:
     case CSSSelector::kPseudoViewTransition:
@@ -1259,7 +1261,7 @@ static bool AttributeValueMatches(const Attribute& attribute_item,
       // so even for a case-insensitive match, we test that first.
       return selector_value == value ||
              (case_insensitive &&
-              EqualIgnoringASCIICase(selector_value, value));
+              EqualIgnoringAsciiCase(selector_value, value));
     case CSSSelector::kAttributeSet:
       return true;
     case CSSSelector::kAttributeList: {
@@ -1271,9 +1273,10 @@ static bool AttributeValueMatches(const Attribute& attribute_item,
 
       unsigned start_search_at = 0;
       while (true) {
-        wtf_size_t found_pos = value.Find(
-            selector_value, start_search_at,
-            case_insensitive ? kTextCaseASCIIInsensitive : kTextCaseSensitive);
+        wtf_size_t found_pos =
+            case_insensitive
+                ? value.FindIgnoringAsciiCase(selector_value, start_search_at)
+                : value.find(selector_value, start_search_at);
         if (found_pos == kNotFound) {
           return false;
         }
@@ -1293,30 +1296,27 @@ static bool AttributeValueMatches(const Attribute& attribute_item,
       if (selector_value.empty()) {
         return false;
       }
-      return value.Contains(selector_value, case_insensitive
-                                                ? kTextCaseASCIIInsensitive
-                                                : kTextCaseSensitive);
+      return case_insensitive ? value.ContainsIgnoringAsciiCase(selector_value)
+                              : value.contains(selector_value);
     case CSSSelector::kAttributeBegin:
       if (selector_value.empty()) {
         return false;
       }
-      return value.StartsWith(selector_value, case_insensitive
-                                                  ? kTextCaseASCIIInsensitive
-                                                  : kTextCaseSensitive);
+      return case_insensitive
+                 ? value.StartsWithIgnoringAsciiCase(selector_value)
+                 : value.starts_with(selector_value);
     case CSSSelector::kAttributeEnd:
       if (selector_value.empty()) {
         return false;
       }
-      return value.EndsWith(selector_value, case_insensitive
-                                                ? kTextCaseASCIIInsensitive
-                                                : kTextCaseSensitive);
+      return case_insensitive ? value.EndsWithIgnoringAsciiCase(selector_value)
+                              : value.ends_with(selector_value);
     case CSSSelector::kAttributeHyphen:
       if (value.length() < selector_value.length()) {
         return false;
       }
-      if (!value.StartsWith(selector_value, case_insensitive
-                                                ? kTextCaseASCIIInsensitive
-                                                : kTextCaseSensitive)) {
+      if (case_insensitive ? !value.StartsWithIgnoringAsciiCase(selector_value)
+                           : !value.starts_with(selector_value)) {
         return false;
       }
       // It they start the same, check for exact match or following '-':
@@ -2339,7 +2339,9 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
       if (IsTransitionPseudoElement(pseudo_id_to_check)) {
         ViewTransition* transition =
             ViewTransitionUtils::GetTransition(element);
-        CHECK(transition);
+        if (!transition) {
+          return false;
+        }
         DCHECK((transition->Scope() == &element && context.pseudo_id) ||
                element.IsPseudoElement());
         DCHECK(context.pseudo_argument || element.IsPseudoElement());
@@ -2547,16 +2549,27 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
       }
       return element.HasFocusWithin();
     case CSSSelector::kPseudoActiveOption:
-      if (!RuntimeEnabledFeatures::CustomizableComboboxEnabled()) {
-        return false;
-      }
-      // This will only match for a base appearance combobox because
-      // HTMLDataListElement::ActiveOption will only return an option if the
-      // datalist is being rendered with base appearance.
       if (auto* option = DynamicTo<HTMLOptionElement>(element)) {
-        if (HTMLDataListElement* datalist = option->OwnerDataListElement()) {
-          return datalist->ActiveOption() == option;
+        if (RuntimeEnabledFeatures::CustomizableComboboxEnabled()) {
+          // This will only match for a base appearance combobox because
+          // HTMLDataListElement::ActiveOption will only return an option if the
+          // datalist is being rendered with base appearance.
+          if (HTMLDataListElement* datalist = option->OwnerDataListElement()) {
+            return datalist->ActiveOption() == option;
+          }
         }
+        if (RuntimeEnabledFeatures::FilterableSelectEnabled()) {
+          if (HTMLSelectElement* select = option->OwnerSelectElement()) {
+            return option == select->ActiveOption();
+          }
+        }
+      }
+      return false;
+    case CSSSelector::kPseudoFiltered:
+      CHECK(RuntimeEnabledFeatures::CustomizableComboboxEnabled() ||
+            RuntimeEnabledFeatures::FilterableSelectEnabled());
+      if (auto* option = DynamicTo<HTMLOptionElement>(element)) {
+        return option->IsFiltered();
       }
       return false;
     case CSSSelector::kPseudoInterestSource:
@@ -2845,6 +2858,12 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
       }
       break;
     }
+    case CSSSelector::kPseudoTextField: {
+      if (auto* input = DynamicTo<HTMLInputElement>(element)) {
+        return input->IsTextField();
+      }
+      return false;
+    }
     case CSSSelector::kPseudoIndeterminate: {
       probe::ForcePseudoState(&element, CSSSelector::kPseudoIndeterminate,
                               &force_pseudo_state);
@@ -2865,8 +2884,7 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
       if (!RuntimeEnabledFeatures::CSSLangExtendedRangesEnabled()) {
         DCHECK_EQ(selector.ArgumentList()->size(), 1u);
         const AtomicString& argument = (*selector.ArgumentList())[0];
-        if (value.empty() ||
-            !value.StartsWith(argument, kTextCaseASCIIInsensitive)) {
+        if (value.empty() || !value.StartsWithIgnoringAsciiCase(argument)) {
           break;
         }
         if (value.length() != argument.length() &&
@@ -2884,9 +2902,9 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
       }
 
       TextDirection direction;
-      if (EqualIgnoringASCIICase(argument, "ltr")) {
+      if (EqualIgnoringAsciiCase(argument, "ltr")) {
         direction = TextDirection::kLtr;
-      } else if (EqualIgnoringASCIICase(argument, "rtl")) {
+      } else if (EqualIgnoringAsciiCase(argument, "rtl")) {
         direction = TextDirection::kRtl;
       } else {
         break;
@@ -3680,17 +3698,8 @@ bool SelectorChecker::MatchesActiveViewTransitionPseudoClass(
 }
 
 bool SelectorChecker::MatchesOverscrollTarget(const Element& element) {
-  if (!RuntimeEnabledFeatures::OverscrollGesturesEnabled()) {
-    return false;
-  }
-
-  const AtomicString& id = element.FastGetAttribute(html_names::kIdAttr);
-  if (id.empty() ||
-      !element.GetDocument().OverscrollCommandTargets().Contains(id)) {
-    return false;
-  }
-
-  return element.GetDocument().getElementById(id) == &element;
+  return RuntimeEnabledFeatures::OverscrollGesturesEnabled() &&
+         element.GetDocument().OverscrollCommandTargets().Contains(&element);
 }
 
 bool SelectorChecker::MatchesFocusPseudoClass(

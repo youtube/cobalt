@@ -268,21 +268,6 @@ public:
 
     const char* getLabel() const { return fLabel.c_str(); }
 
-    // We allow the label on a Resource to change when used for a different function. For example
-    // when reusing a scratch Texture we can change the label to match callers current use.
-    void setLabel(std::string_view label) {
-        if (fLabel == label) {
-            return;
-        }
-
-        fLabel = label;
-
-        if (!fLabel.empty()) {
-            const std::string fullLabel = "Skia_" + fLabel;
-            this->setBackendLabel(fullLabel.c_str());
-        }
-    }
-
     // Tests whether a object has been abandoned or released. All objects will be in this state
     // after their creating Context is destroyed or abandoned.
     //
@@ -311,11 +296,22 @@ protected:
     Resource(const SharedContext*,
              Ownership,
              size_t gpuMemorySize,
+             std::string_view label = {},
              bool reusableRequiresPurgeable = false,
              bool requiresPrepareForReturnToCache = false);
     virtual ~Resource();
 
     const SharedContext* sharedContext() const { return fSharedContext; }
+
+    // Update the backend GPU resource label to match fLabel. This should only ever be called by the
+    // ResourceCache or Resource subclass constructors.
+    void synchronizeBackendLabel() {
+        if (!fLabel.empty()) {
+            const std::string fullLabel = "Skia_" + fLabel;
+            this->setBackendLabel(fullLabel.c_str());
+        }
+        fBackendLabelDirty = false;
+    }
 
     // Needs to be protected for DawnBuffer's emscripten prepareForReturnToCache
     void setDeleteASAP() { fDeleteASAP = DeleteASAP::kYes; }
@@ -452,6 +448,22 @@ private:
                 next};
     }
 
+    // We allow the label on a Resource to change when used for a different function (e.g. when
+    // reusing a scratch Texture, we can change the label to reflect the caller's current usage).
+    // This method is only expected to be called when returning a non-shareable or scratch resource
+    // from the cache.
+    void setLabel(std::string_view label) {
+        if (fLabel == label) {
+            return;
+        }
+
+        fLabel = label;
+
+        // It is not always safe to immediately update the backend GPU resource label. Mark it
+        // as dirty so it can be updated when appropriate.
+        fBackendLabelDirty = true;
+    }
+
 #if defined(SK_DEBUG) || defined(GPU_TEST_UTILS)
     bool hasCacheRef() const {
         return (fRefs.load(std::memory_order_acquire) & RefMask(RefType::kCache)) != 0;
@@ -503,7 +515,9 @@ private:
     // Overridden to call any release callbacks, if necessary
     virtual void invokeReleaseProc() {}
 
-    // Overridden to set the label on the underlying GPU resource
+    // Overridden to set the label on the underlying GPU resource. This method is private to help
+    // enforce that backend label updates are performed in a threadsafe manner. This should only
+    // ever be called from within synchronizeBackendLabel().
     virtual void setBackendLabel(char const* label) {}
 
     // Overridden to add extra information to the memory dump.
@@ -733,11 +747,19 @@ private:
     // This value reflects how recently this resource was accessed in the cache. This is maintained
     // by the cache. It defines a total order over resources, even if their fLastAccess times are
     // the same (i.e. returned at time points less than the system's granularity).
-    uint32_t fLastUseToken;
+    uint32_t fLastUseToken = 0;
     skgpu::StdSteadyClock::time_point fLastAccess;
 
     // String used to describe the current use of this Resource.
     std::string fLabel;
+    // Flag to signal whether this Resource's label has been updated and its backend label is now
+    // out of sync. This attribute does not need to be atomic or otherwise explicitly threadsafe
+    // because labels will only ever be read from or written to when either:
+    // A) The current thread owns the sole ref to the resource (e.g. upon creation, or return from
+    //    findAndRefResource())
+    // B) Inserting a recording on the Context thread, which cannot overlap with A) because there is
+    //    a usage ref held during insertion.
+    bool fBackendLabelDirty = false;
 };
 
 } // namespace skgpu::graphite

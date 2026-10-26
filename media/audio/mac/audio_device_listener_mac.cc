@@ -2,17 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/audio/mac/audio_device_listener_mac.h"
 
 #include <optional>
 #include <vector>
 
 #include "base/apple/osstatus_logging.h"
+#include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -90,7 +86,7 @@ class AudioDeviceListenerMac::PropertyListener {
     if (context) {
       static_cast<PropertyListener*>(context)->ProcessEvent(
           object, std::vector<AudioObjectPropertyAddress>(
-                      addresses, addresses + num_addresses));
+                      addresses, UNSAFE_TODO(addresses + num_addresses)));
     }
     return noErr;
   }
@@ -389,17 +385,17 @@ AudioDeviceListenerMac::CreatePropertyListener(
 }
 
 std::vector<AudioObjectID> AudioDeviceListenerMac::GetAllAudioDeviceIDs() {
-  return core_audio_mac::GetAllAudioDeviceIDs();
+  return CoreAudioUtilMac().GetAllAudioDeviceIDs();
 }
 
 bool AudioDeviceListenerMac::IsOutputDevice(AudioObjectID id) {
-  return core_audio_mac::IsOutputDevice(id);
+  return CoreAudioUtilMac().IsOutputDevice(id);
 }
 
 std::optional<uint32_t> AudioDeviceListenerMac::GetDeviceSource(
     AudioObjectID device_id,
     bool is_input) {
-  return core_audio_mac::GetDeviceSource(device_id, is_input);
+  return CoreAudioUtilMac().GetDeviceSource(device_id, is_input);
 }
 
 OSStatus AudioDeviceListenerMac::AddPropertyListener(

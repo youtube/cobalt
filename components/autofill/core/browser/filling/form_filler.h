@@ -14,6 +14,7 @@
 #include "components/autofill/core/browser/autofill_trigger_source.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/filling/field_filling_skip_reason.h"
+#include "components/autofill/core/browser/filling/field_filling_util.h"
 #include "components/autofill/core/browser/filling/form_autofill_history.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/integrators/one_time_tokens/otp_suggestion.h"
@@ -71,11 +72,6 @@ using FillingPayload = std::variant<const AutofillProfile*,
 // It holds any state that is only relevant for [re]filling.
 class FormFiller {
  public:
-  struct ValueAndType {
-    std::u16string value;
-    FieldType type = NO_SERVER_DATA;
-  };
-
   explicit FormFiller(BrowserAutofillManager& manager);
 
   FormFiller(const FormFiller&) = delete;
@@ -105,7 +101,7 @@ class FormFiller {
   // `type_groups_originally_filled` denotes, in case of a refill, what groups
   // where filled in the initial filling.
   // `blocked_fields` are fields which must not be filled because another
-  // filling product of higher priority claims them.
+  // filling operation or product of higher priority claims them.
   // `filling_product` is the type of filling calling this function.
   // TODO(crbug.com/40281552): Make `type_groups_originally_filled` also a
   // FieldTypeSet.
@@ -130,6 +126,8 @@ class FormFiller {
 
   // Given a `form`, returns a map from each field's id to the skip reason for
   // that field. See additional comments in GetFieldFillingSkipReason.
+  // `blocked_fields` are fields which must not be filled because another
+  // filling operation or product of higher priority claims them.
   // TODO(crbug.com/40227496): Keep only one of 'form' and 'form_structure'.
   // TODO(crbug.com/40281552): Make `type_groups_originally_filled` also a
   // FieldTypeSet.
@@ -140,7 +138,8 @@ class FormFiller {
                              const RefillOptions& refill_options,
                              FillingProduct filling_product,
                              AutofillTriggerSource trigger_source,
-                             const AutofillClient& client);
+                             const AutofillClient& client,
+                             base::flat_set<FieldGlobalId> blocked_fields);
 
   // Reverts the last autofill operation on `form` that affected
   // `trigger_field`. `renderer_action` denotes whether this is an actual
@@ -162,6 +161,8 @@ class FormFiller {
                           std::optional<FieldType> field_type_used);
 
   // Fills or previews the data from `filling_payload` into `form`.
+  // `blocked_fields` are fields which must not be filled because another
+  // filling operation or product of higher priority claims them.
   // TODO(crbug.com/40227071): Clean up the API.
   void FillOrPreviewForm(
       mojom::ActionPersistence action_persistence,
@@ -170,7 +171,8 @@ class FormFiller {
       FormStructure& form_structure,
       AutofillField& autofill_field,
       AutofillTriggerSource trigger_source,
-      std::optional<RefillTriggerReason> refill_trigger_reason = std::nullopt);
+      std::optional<RefillTriggerReason> refill_trigger_reason = std::nullopt,
+      const base::flat_set<FieldGlobalId>& blocked_fields = {});
 
   // Prevents any automatic refill of the operation `fill_id`. A renderer may
   // call this when a JavaScript observes the `autofill` event and may therefore
@@ -226,7 +228,7 @@ class FormFiller {
                      AutofillTriggerSource trigger_source,
                      RefillTriggerReason refill_trigger_reason);
 
-  struct ValueAndTypeAndOverride : public ValueAndType {
+  struct ValueAndTypeAndOverride : public FillingValueAndType {
     bool value_is_an_override = false;
   };
 
@@ -235,7 +237,7 @@ class FormFiller {
   ValueAndTypeAndOverride GetFieldFillingData(
       const AutofillField& autofill_field,
       const AugmentedFillingPayload& filling_payload,
-      const std::map<FieldGlobalId, ValueAndType>& forced_fill_values,
+      const std::map<FieldGlobalId, FillingValueAndType>& forced_fill_values,
       const FormFieldData& field_data,
       mojom::ActionPersistence action_persistence,
       std::string* failure_to_fill);
@@ -248,11 +250,12 @@ class FormFiller {
   // the FieldType if the `autofill_field` is emptied.
   // TODO(crbug.com/40227071): Cleanup API and logic.
   std::optional<FieldType> FillField(
-      AutofillField& autofill_field,
+      const AutofillField& autofill_field,
       const AugmentedFillingPayload& filling_payload,
-      const std::map<FieldGlobalId, ValueAndType>& forced_fill_values,
+      const std::map<FieldGlobalId, FillingValueAndType>& forced_fill_values,
       FormFieldData& field_data,
       mojom::ActionPersistence action_persistence,
+      AutofillTriggerSource trigger_source,
       bool allow_suggestion_swapping,
       std::string* failure_to_fill);
 

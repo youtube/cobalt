@@ -8,8 +8,10 @@ import static org.chromium.chrome.browser.logo.LogoUtils.getGoogleLogoDrawable;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
-import android.view.View.MeasureSpec;
+import android.view.ViewGroup;
+import android.view.ViewGroup.MarginLayoutParams;
 
 import androidx.annotation.ColorInt;
 import androidx.core.content.ContextCompat;
@@ -29,13 +31,23 @@ import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
+import java.util.Objects;
+import java.util.function.Supplier;
+
 /** Coordinator used to fetch and load logo image for Start surface and NTP. */
 @NullMarked
 public class LogoCoordinator {
+    private final Context mContext;
     private final PropertyModel mLogoModel;
+    // This supplier is only used when the NTP surface is in tablet mode.
+    private final Supplier<Boolean> mIsInMultiWindowModeSupplier;
     private LogoMediator mMediator;
     private LogoView mLogoView;
+    private boolean mIsInMultiWindowModeOnTablet;
     private NtpCustomizationConfigManager.@Nullable HomepageStateListener mHomepageStateListener;
+    // The current tint color of logo if the DSE is Google. It is null when the default colorful
+    // Google logo is used.
+    private @Nullable Integer mLogoColor;
 
     /** Interface for the observers of the logo visibility change. */
     public interface VisibilityObserver {
@@ -47,24 +59,36 @@ public class LogoCoordinator {
      *
      * @param context Used to load colors and resources.
      * @param logoClickedCallback Supplies the StartSurface's parent tab.
-     * @param logoView The view that shows the search provider logo.
+     * @param parentView The parent view.
      * @param onLogoAvailableCallback The callback for when logo is available.
      * @param visibilityObserver Observer object monitoring logo visibility.
+     * @param isInMultiWindowModeSupplier The Supplier of whether the device is in multiple window
+     *     mode.
      */
     public LogoCoordinator(
             Context context,
             Callback<LoadUrlParams> logoClickedCallback,
-            LogoView logoView,
+            ViewGroup parentView,
             Callback<Logo> onLogoAvailableCallback,
-            @Nullable VisibilityObserver visibilityObserver) {
+            @Nullable VisibilityObserver visibilityObserver,
+            Supplier<Boolean> isInMultiWindowModeSupplier) {
         // TODO(crbug.com/40881870): This is weird that we're passing in our view,
         //  and we have to expose our view via getView. We shouldn't only have to do one of these.
+        mContext = context;
         mLogoModel = new PropertyModel(LogoProperties.ALL_KEYS);
-        mLogoView = logoView;
+        mLogoView = parentView.findViewById(R.id.search_provider_logo);
+        mIsInMultiWindowModeSupplier = isInMultiWindowModeSupplier;
         PropertyModelChangeProcessor.create(mLogoModel, mLogoView, new LogoViewBinder());
 
         Drawable defaultGoogleLogoDrawable = getGoogleLogoDrawable(context);
-        NtpCustomizationUtils.setTintForDefaultGoogleLogo(context, defaultGoogleLogoDrawable);
+        mLogoColor =
+                NtpCustomizationUtils.setTintForDefaultGoogleLogo(
+                        context, defaultGoogleLogoDrawable);
+        mIsInMultiWindowModeOnTablet = mIsInMultiWindowModeSupplier.get();
+        setDoodleSize(
+                mIsInMultiWindowModeOnTablet
+                        ? LogoUtils.DoodleSize.TABLET_SPLIT_SCREEN
+                        : LogoUtils.DoodleSize.REGULAR);
 
         mMediator =
                 new LogoMediator(
@@ -88,12 +112,12 @@ public class LogoCoordinator {
                     @Override
                     public void onBackgroundImageChanged(
                             Bitmap originalBitmap,
-                            @Nullable BackgroundImageInfo backgroundImageInfo,
+                            BackgroundImageInfo backgroundImageInfo,
                             boolean fromInitialization,
                             int oldType,
                             int newType) {
                         maybeUpdateTintForDefaultGoogleLogo(
-                                context, newType, /* primaryColor= */ null);
+                                context, newType, /* primaryColor= */ Color.WHITE);
                     }
 
                     @Override
@@ -144,13 +168,6 @@ public class LogoCoordinator {
     }
 
     /**
-     * @see LogoMediator#updateVisibility
-     */
-    public void updateVisibility(boolean animationEnabled) {
-        mMediator.updateVisibility(animationEnabled);
-    }
-
-    /**
      * @see LogoMediator#destroy
      */
     @SuppressWarnings("NullAway")
@@ -165,13 +182,22 @@ public class LogoCoordinator {
     }
 
     /**
-     * Convenience method to call measure() on the logo view with MeasureSpecs converted from the
-     * given dimensions (in pixels) with MeasureSpec.EXACTLY.
+     * Sets the width of the logo view in LayoutParams and clears its margins. This should be called
+     * before the parent view's measure pass to avoid double measurement.
+     *
+     * @param widthPx The expected width of the logo view.
      */
-    public void measureExactlyLogoView(int widthPx) {
-        mLogoView.measure(
-                MeasureSpec.makeMeasureSpec(widthPx, MeasureSpec.EXACTLY),
-                MeasureSpec.makeMeasureSpec(mLogoView.getMeasuredHeight(), MeasureSpec.EXACTLY));
+    public void setLayoutWidth(int widthPx) {
+        MarginLayoutParams layoutParams = (MarginLayoutParams) mLogoView.getLayoutParams();
+        if (layoutParams.width == widthPx
+                && layoutParams.leftMargin == 0
+                && layoutParams.rightMargin == 0) {
+            return;
+        }
+
+        layoutParams.width = widthPx;
+        layoutParams.leftMargin = 0;
+        layoutParams.rightMargin = 0;
     }
 
     /** Jumps to the end of the logo view's cross-fading animation, if any.*/
@@ -227,14 +253,39 @@ public class LogoCoordinator {
             @NtpBackgroundType int backgroundType,
             @Nullable @ColorInt Integer primaryColor) {
         // If the default Google logo isn't shown, returns here.
-        if (!mMediator.isDefaultGoogleLogoShown()) return;
+        if (!mMediator.isDefaultGoogleLogoShown() || Objects.equals(mLogoColor, primaryColor)) {
+            return;
+        }
 
+        mLogoColor = primaryColor;
         Drawable defaultGoogleLogoDrawable =
                 ContextCompat.getDrawable(context, R.drawable.ic_google_logo);
         Drawable tintedDrawable =
                 NtpCustomizationUtils.getTintedGoogleLogoDrawableImpl(
                         context, defaultGoogleLogoDrawable, backgroundType, primaryColor);
         mMediator.updateDefaultGoogleLogo(tintedDrawable);
+    }
+
+    /**
+     * Adjusts the doodle size while the tablet transitions to or from a multi-screen layout,
+     * ensuring the change occurs post-logo initialization.
+     */
+    public void updateDoodleOnTablet(boolean showingNonStandardGoogleLogo) {
+        boolean isInMultiWindowModeOnTabletPreviousValue = mIsInMultiWindowModeOnTablet;
+        mIsInMultiWindowModeOnTablet = mIsInMultiWindowModeSupplier.get();
+
+        if (isInMultiWindowModeOnTabletPreviousValue == mIsInMultiWindowModeOnTablet) return;
+
+        int doodleSize =
+                mIsInMultiWindowModeOnTablet
+                        ? LogoUtils.DoodleSize.TABLET_SPLIT_SCREEN
+                        : LogoUtils.DoodleSize.REGULAR;
+        setDoodleSize(doodleSize);
+
+        if (showingNonStandardGoogleLogo) {
+            LogoUtils.setLogoViewLayoutParamsForDoodle(
+                    mLogoView, mContext.getResources(), doodleSize);
+        }
     }
 
     /**
