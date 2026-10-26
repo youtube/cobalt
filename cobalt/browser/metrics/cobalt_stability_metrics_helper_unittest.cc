@@ -477,5 +477,129 @@ TEST_F(
       "Cobalt.StabilityMetrics.PriorPmaFilesMergedCount", 1, 1);
 }
 
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(CobaltStabilityMetricsHelperTest,
+       EmitPriorSessionExitSummaryHistograms_TriggeredKill) {
+  base::HistogramTester histogram_tester;
+  ProcessStateSummaryData summary;
+  summary.startup_guard_triggered_kill = true;
+  summary.startup_guard_armed = true;
+  summary.highest_milestone = 25;
+
+  EmitPriorSessionExitSummaryHistograms(/*exit_reason=*/3, summary);
+
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.StartupGuardWatchdogKilled.HighestMilestone",
+      25, 1);
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.LowMemory",
+      0);
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.AllExits",
+      0);
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.LowMemory",
+      0);
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.AllExits", 0);
+}
+
+TEST_F(CobaltStabilityMetricsHelperTest,
+       EmitPriorSessionExitSummaryHistograms_LowMemoryArmed) {
+  base::HistogramTester histogram_tester;
+  ProcessStateSummaryData summary;
+  summary.startup_guard_triggered_kill = false;
+  summary.startup_guard_armed = true;
+  summary.highest_milestone = 12;
+
+  // Exit reason 7 corresponds to
+  // ProcessExitReasonFromSystem.ExitReason.REASON_LOW_MEMORY
+  EmitPriorSessionExitSummaryHistograms(/*exit_reason=*/7, summary);
+
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.LowMemory",
+      true, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.LowMemory",
+      12, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.AllExits",
+      true, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.AllExits", 12,
+      1);
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Stability.Android.StartupGuardWatchdogKilled.HighestMilestone",
+      0);
+}
+
+TEST_F(CobaltStabilityMetricsHelperTest,
+       EmitPriorSessionExitSummaryHistograms_ExitSelfDisarmed) {
+  base::HistogramTester histogram_tester;
+  ProcessStateSummaryData summary;
+  summary.startup_guard_triggered_kill = false;
+  summary.startup_guard_armed = false;
+  summary.highest_milestone = 37;
+
+  // Exit reason 5 corresponds to
+  // ProcessExitReasonFromSystem.ExitReason.REASON_EXIT_SELF
+  EmitPriorSessionExitSummaryHistograms(/*exit_reason=*/5, summary);
+
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.ExitSelf",
+      false, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.ExitSelf", 37,
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.AllExits",
+      false, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.AllExits", 37,
+      1);
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Stability.Android.StartupGuardWatchdogKilled.HighestMilestone",
+      0);
+}
+
+TEST_F(CobaltStabilityMetricsHelperTest,
+       EmitPriorSessionExitSummaryHistograms_UnknownReasonMapsToOther) {
+  base::HistogramTester histogram_tester;
+  ProcessStateSummaryData summary;
+  summary.startup_guard_triggered_kill = false;
+  summary.startup_guard_armed = true;
+  summary.highest_milestone = 5;
+
+  // Exit reason 99 is unknown / not in enum -> maps to "Other"
+  EmitPriorSessionExitSummaryHistograms(/*exit_reason=*/99, summary);
+
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.Other", true,
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.Other", 5, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.AllExits",
+      true, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.AllExits", 5,
+      1);
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
+TEST_F(CobaltStabilityMetricsHelperTest,
+       ClearOtherStabilityMetricsPmaFiles_RecordsStartupTotalSizeKB) {
+  base::HistogramTester histogram_tester;
+  base::FilePath pma1 = metrics_dir().AppendASCII("test1.pma");
+  std::string data(2048, 'x');
+  ASSERT_TRUE(base::WriteFile(pma1, data));
+
+  ClearOtherStabilityMetricsPmaFiles(metrics_dir(), kExpectedAllocatorName,
+                                     /*current_pid=*/9999);
+
+  histogram_tester.ExpectUniqueSample("Cobalt.Stability.Pma.StartupTotalSizeKB",
+                                      2, 1);
+}
+
 }  // namespace
 }  // namespace cobalt
