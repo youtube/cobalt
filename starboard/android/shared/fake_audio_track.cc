@@ -25,8 +25,11 @@ namespace starboard {
 
 FakeAudioTrack::FakeAudioTrack(int channels,
                                int sampling_frequency_hz,
-                               SbMediaAudioSampleType sample_type)
-    : channels_(channels), sample_type_(sample_type) {
+                               SbMediaAudioSampleType sample_type,
+                               std::optional<int> tunnel_mode_audio_session_id)
+    : channels_(channels),
+      sample_type_(sample_type),
+      tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {
   SB_CHECK_GT(channels_, 0);
 }
 
