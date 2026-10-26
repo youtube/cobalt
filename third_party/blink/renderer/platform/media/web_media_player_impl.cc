@@ -2669,6 +2669,13 @@ void WebMediaPlayerImpl::OnPageShown() {
   // Foreground videos don't require user gesture to continue playback.
   video_locked_when_paused_when_hidden_ = false;
 
+#if BUILDFLAG(IS_COBALT)
+  if (was_suspended_for_frame_closed_or_frozen_ && paused_ && HasVideo()) {
+    delegate_->ClearStaleFlag(delegate_id_);
+    SetSuspendState(false);
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   was_suspended_for_frame_closed_or_frozen_ = false;
 
   if (watch_time_reporter_)
