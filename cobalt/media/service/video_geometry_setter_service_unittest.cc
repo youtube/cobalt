@@ -226,28 +226,26 @@ TEST_F(VideoGeometrySetterServiceTest, ForgetsGoneHoleWithoutSubscriber) {
   EXPECT_TRUE(inset_.changes().empty());
 }
 
-TEST_F(VideoGeometrySetterServiceTest, RestartsZIndicesOnceNoVideoIsLeft) {
+TEST_F(VideoGeometrySetterServiceTest, NewVideoGetsLargerZIndexThanOldOnes) {
   Subscribe(inset_id_, inset_);
   Subscribe(fullscreen_id_, fullscreen_);
   SetVideoGeometries(
       {{inset_id_, kInsetRect}, {fullscreen_id_, kFullscreenRect}});
-  SetVideoGeometries(
-      {{fullscreen_id_, kFullscreenRect}, {inset_id_, kInsetRect}});
-  ASSERT_GT(fullscreen_.last_z_index(), 1);
+  const int32_t largest_old_z_index = inset_.last_z_index();
 
-  // Both players go away.
+  // Both players go away. Their windows may still be torn down by the platform
+  // while the next video starts, so the next video must still end up on top.
   inset_.Disconnect();
   fullscreen_.Disconnect();
   task_environment_.RunUntilIdle();
 
-  // The next video starts from z-index 0 again.
   const base::UnguessableToken next_id = base::UnguessableToken::Create();
   FakeVideoGeometryChangeClient next;
   Subscribe(next_id, next);
   SetVideoGeometries({{next_id, kFullscreenRect}});
 
   ASSERT_EQ(next.changes().size(), 1u);
-  EXPECT_EQ(next.last_z_index(), 0);
+  EXPECT_GT(next.last_z_index(), largest_old_z_index);
 }
 
 }  // namespace
