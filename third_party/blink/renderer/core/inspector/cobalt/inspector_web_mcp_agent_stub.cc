@@ -18,6 +18,20 @@ namespace blink {
 
 void InspectorWebMCPAgent::WebMCPToolAdded(Document*, const ToolData&) {}
 void InspectorWebMCPAgent::WebMCPToolRemoved(Document*, const ToolData&) {}
+void InspectorWebMCPAgent::WebMCPToolExecuted(
+    Document*,
+    const String&,
+    const String& _arguments,
+    const base::UnguessableToken& _id) {}
+void InspectorWebMCPAgent::WebMCPToolResponded(
+    Document*,
+    const String&,
+    const base::UnguessableToken& _id) {}
+void InspectorWebMCPAgent::WebMCPToolFailed(
+    Document*,
+    const ScriptToolError&,
+    const base::UnguessableToken& _id,
+    std::optional<std::pair<ScriptValue, ScriptState*>>) {}
 void InspectorWebMCPAgent::Trace(Visitor*) const {}
 
 }  // namespace blink
