@@ -59,8 +59,13 @@ pipeline () {
   git config --global --add safe.directory '*'
   source tools/depot_tools/bootstrap_python3 && bootstrap_python3
   export PATH="${PATH}:${gclient_root}/tools/depot_tools"
+<<<<<<< HEAD
   gclient config --name=src --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' --custom-var='reapi_backend_config_path="cobalt.star"' "${git_url}"
   if [[ "${TARGET_PLATFORM}" =~ android ]]; then
+=======
+  gclient config --name=src --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' "${git_url}"
+  if [[ "${TARGET_PLATFORM}" =~ (android|aosp) ]]; then
+>>>>>>> e7666b374a (Add android target_os for Kokoro aosp platforms. (#13565))
     echo "target_os=['android']" >> .gclient
   fi
   if [[ "${TARGET_PLATFORM}" =~ evergreen-arm64 ]]; then
