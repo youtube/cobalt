@@ -310,3 +310,26 @@ class ReasoningEngineClient:
         expert_guidance=expert_guidance,
         use_expert=use_expert,
     )
+
+  def judge_commit(
+      self,
+      *,
+      phase: str,
+      trigger: str,
+      outcome: str,
+      diff: str,
+      rationales: str = "",
+  ) -> Dict[str, Any]:
+    """Asks whether pending build fixes form one commit-worthy fix.
+
+    Returns the engine's dict with a "judgement" JSON string; see
+    fix_commits.parse_judgement.
+    """
+    return self.query(
+        action="judge_commit",
+        phase=phase,
+        trigger=trigger,
+        outcome=outcome,
+        diff=diff,
+        rationales=rationales,
+    )

@@ -15,10 +15,8 @@ import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import warnings
 
-from base_resolver import (
-    AgentChangeRecord,
-    BaseResolver,
-)
+from base_resolver import BaseResolver
+from change_record import AgentChangeRecord
 from diagnostics import Diagnostic, GNDiagnostic
 from repo_guards import get_clean_build_env
 
@@ -159,6 +157,7 @@ class GNGenResolver(BaseResolver):
       max_iterations: int = 50,
       session_changes: Optional[List[AgentChangeRecord]] = None,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
+      commit_per_fix: bool = False,
   ):
     super().__init__(
         repo_path=repo_path,
@@ -166,6 +165,7 @@ class GNGenResolver(BaseResolver):
         max_iterations=max_iterations,
         session_changes=session_changes,
         on_patch_applied_fn=on_patch_applied_fn,
+        commit_per_fix=commit_per_fix,
     )
     self.platform = platform
     self.build_type = build_type

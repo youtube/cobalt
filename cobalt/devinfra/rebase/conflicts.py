@@ -15,13 +15,14 @@ import subprocess
 from typing import Any, List, Optional, Tuple
 import warnings
 
-from base_resolver import AgentChangeRecord, guidance_summary
+from base_resolver import consult_expert
+from change_record import NO_RATIONALE, AgentChangeRecord, guidance_summary
+from fix_commits import commit_files, conflict_commit_message
 from patching import (NEEDS_HUMAN_PREFIX, exec_script_calls, exec_script_spans)
 from repo_guards import is_unmodified_third_party
 from tools import (
     execute_local_tool,
     extract_line_anchored_tool_commands,
-    extract_tool_commands,
 )
 
 log = logging.getLogger(__name__)
@@ -435,39 +436,35 @@ def resolve_file_conflicts(
              block.index, block.start_line, block.end_line,
              len(block.raw_block.splitlines()))
 
-    # Step 1: Pre-Flight Strategic Review by Expert Agent
+    # Step 1: Pre-Flight Strategic Review by Expert Agent. The expert may
+    # ask for tools; consult_expert feeds the results back until it answers
+    # with a plan, so the worker (and the change record) get its conclusion
+    # rather than the sentence it wrote before its first tool request.
     trajectory_str = git_context
 
+    expert_plan = ""
     expert_guidance = ""
     if engine is not None and not mock_mode:
-      try:
-        guidance_res = engine.generate_expert_guidance(
-            target=rel_path,
-            diagnostics=(f"Merge conflict in {rel_path} ({lang}):\n"
-                         f"{block.raw_block}"),
-            source_contexts=(
-                f"Context before conflict:\n{block.context_before}\n\n"
-                f"Context after conflict:\n{block.context_after}"),
-            trajectory_history=trajectory_str,
-            mode="conflict",
-        )
-        expert_guidance = guidance_res.get("guidance", "")
-        # Shared parser, not a local '^TOOL_...$' regex. The anchored
-        # version missed any directive the model indented and merged
-        # run-on directives into one corrupted path. Sliced to one to
-        # keep the existing pre-flight pacing.
-        pre_flight_cmds = extract_tool_commands(expert_guidance)[:1]
-        for t_cmd in pre_flight_cmds:
-          t_out = execute_local_tool(
-              t_cmd, repo_path, session_changes=session_changes)
-          expert_guidance += (
-              f"\n\nTool Call: `{t_cmd}`\nResult:\n```\n{t_out}\n```")
-        if expert_guidance:
-          first_g_line = expert_guidance.splitlines()[0][:100]
-          log.info("    [TIER-2 ARCHITECT] Pre-Flight Plan:\n    >>> %s...",
-                   first_g_line)
-      except Exception as e:  # pylint: disable=broad-exception-caught
-        log.info("    [TIER-2 ARCHITECT] Notice: Pre-flight query: %s", e)
+      expert_plan, expert_tools = consult_expert(
+          engine,
+          repo_path,
+          session_changes,
+          log_label="resolve_conflicts",
+          target=rel_path,
+          diagnostics=(f"Merge conflict in {rel_path} ({lang}):\n"
+                       f"{block.raw_block}"),
+          source_contexts=(
+              f"Context before conflict:\n{block.context_before}\n\n"
+              f"Context after conflict:\n{block.context_after}"),
+          trajectory_history=trajectory_str,
+          mode="conflict",
+      )
+      # The worker sees the plan and what the expert looked at.
+      expert_guidance = expert_plan + expert_tools
+      if expert_plan:
+        first_g_line = expert_plan.splitlines()[0][:100]
+        log.info("    [TIER-2 ARCHITECT] Pre-Flight Plan:\n    >>> %s...",
+                 first_g_line)
 
     resolved_code: Optional[str] = None
     investigation_history = ""
@@ -534,7 +531,7 @@ def resolve_file_conflicts(
     # only code), and by which model.
     review = dict(
         _block_review(rel_path, block),
-        rationale=guidance_summary(expert_guidance),
+        rationale=guidance_summary(expert_plan) or NO_RATIONALE,
         model=model_used)
 
     if resolved_code is None or "<<<<<<<" in resolved_code:
@@ -636,12 +633,27 @@ class ConflictResolver:
       *,
       engine: Optional[Any] = None,
       session_changes: Optional[List[AgentChangeRecord]] = None,
+      commit_per_fix: bool = False,
   ):
     self.repo_path = repo_path
     self.reasoning_engine = engine
     self.session_changes = session_changes
+    # Commit each resolved file on its own, with the reason for every
+    # block in the message (see fix_commits.conflict_commit_message).
+    self.commit_per_fix = commit_per_fix
     self.git_context = extract_git_context(repo_path)
     self.escalations: List[EscalationItem] = []
+
+  def _commit_resolved_file(self, rel_path: str, first_record: int) -> None:
+    """Commits one resolved file; its records are session_changes[first:]."""
+    records = (
+        self.session_changes[first_record:]
+        if self.session_changes is not None else [])
+    subject, body = conflict_commit_message(rel_path, records)
+    sha = commit_files(self.repo_path, [rel_path], subject, body)
+    if sha:
+      for rec in records:
+        rec.commit = sha
 
   def run_resolution_loop(self) -> bool:
     """Resolves all conflicted files in the repository."""
@@ -667,6 +679,8 @@ class ConflictResolver:
     for tf in target_files:
       if not os.path.isfile(tf):
         continue
+      first_record = (
+          len(self.session_changes) if self.session_changes is not None else 0)
       if resolve_file_conflicts(
           file_path=tf,
           repo_path=self.repo_path,
@@ -676,6 +690,9 @@ class ConflictResolver:
           session_changes=self.session_changes,
       ):
         resolved += 1
+        if self.commit_per_fix:
+          self._commit_resolved_file(
+              os.path.relpath(tf, self.repo_path), first_record)
       else:
         log.warning("[WARNING] Issues detected in: %s", tf)
 

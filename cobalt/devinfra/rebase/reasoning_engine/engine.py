@@ -422,7 +422,71 @@ class CobaltReasoningEngine:
     if action in ("heal_compiler", "heal_compiler_break",
                   "heal_compiler_error"):
       return self.heal_compiler_error(**kwargs)
+    if action == "judge_commit":
+      return self.judge_commit(**kwargs)
     raise ValueError(f"Unknown Reasoning Engine action: {action}")
+
+  def judge_commit(
+      self,
+      *,
+      phase: str = "",
+      trigger: str = "",
+      outcome: str = "",
+      diff: str = "",
+      rationales: str = "",
+      flash_model: Optional[str] = None,
+      **kwargs,
+  ) -> Dict[str, Any]:
+    """Decides whether pending build fixes are one complete, commit-worthy fix.
+
+    Called by the Phase 2-4 loop when the error that prompted the pending
+    patches has changed after a build (the deterministic rule cannot tell
+    "fixed" from "same problem, different message"). The workhorse model
+    sees the triggering diagnostic, the new build outcome, the pending diff
+    and the per-patch rationales, and answers with JSON:
+      {"decision": "COMMIT" | "HOLD", "subject": ..., "body": ...,
+       "reason": ...}
+    subject/body are a reviewer-facing commit message in the style of the
+    hand-landed roll fixes ("<file>: Adapt to ..."); the pipeline appends
+    its own Trigger / Why / Model trailer.
+    """
+    del kwargs
+    chosen_model = flash_model or self.flash_model
+    sys_inst = (
+        "You review changes made by an automated Chromium-to-Cobalt rebase "
+        "agent and decide whether they should become one git commit now.\n"
+        "COMMIT when the pending changes are a complete, coherent fix for the "
+        "triggering error: the error is gone and the new outcome is a "
+        "different problem or a passing build. HOLD when the new error is the "
+        "same underlying problem with a different message, when the change "
+        "only moved or silenced the error, or when the fix is clearly half "
+        "done (e.g. a header changed but its .cc not yet).\n"
+        "Respond with ONLY a JSON object: "
+        "{\"decision\": \"COMMIT\" or \"HOLD\", "
+        "\"subject\": \"<file>: <what was fixed>, at most 72 characters\", "
+        "\"body\": \"1-3 sentences: what upstream changed and why this is the "
+        "right Cobalt-side fix\", \"reason\": \"one sentence for the log\"}. "
+        "No markdown fences, no extra text.")
+    rationales = rationales or "(none)"
+    diff = diff or "(empty)"
+    prompt = (f"Phase: {phase}\n\n"
+              f"--- Triggering error (before the pending changes) ---\n"
+              f"{trigger}\n\n"
+              f"--- Outcome of the build after the pending changes ---\n"
+              f"{outcome}\n\n"
+              f"--- Rationale recorded for each pending patch ---\n"
+              f"{rationales}\n\n"
+              f"--- Pending diff ---\n{diff}\n")
+    resp = self._generate_content_with_retry(
+        model=chosen_model,
+        contents=prompt,
+        config=self._create_generation_config(chosen_model, sys_inst),
+    )
+    return {
+        "status": "SUCCESS" if resp and resp.text else "ERROR",
+        "judgement": resp.text.strip() if resp and resp.text else "",
+        "model_used": chosen_model,
+    }
 
   def generate_expert_guidance(
       self,

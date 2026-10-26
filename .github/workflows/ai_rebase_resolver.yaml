@@ -226,7 +226,8 @@ jobs:
             --repo-path . \
             --model "${MODEL}" \
             --expert-model "${EXPERT_MODEL}" \
-            --mode "${MODE}"
+            --mode "${MODE}" \
+            --commit-per-fix
           EXIT_CODE=$?
 
           if [[ $EXIT_CODE -eq 0 ]]; then
@@ -352,6 +353,8 @@ jobs:
           git push origin "${AI_BRANCH}"
 
       - name: Create or Update AI PR
+        env:
+          CHANGE_HISTORY_GCS_DIR: gs://cobalt-actions-prod-agent/rebase_changes
         run: |
           set -x
           TARGET_PR="${PR_NUM:-custom}"
@@ -363,9 +366,17 @@ jobs:
           PR_TITLE="[AI] Fix conflicts and builds for PR #${TARGET_PR}"
 
           STATUS_STR=$([[ "${IS_RESOLVED}" == "true" ]] && echo "Build Verified" || echo "In Progress")
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          # Where the ai_resolve job uploaded this run's change_history.json
+          # (per change: trigger, both conflict sides, rationale, model) and
+          # the *_rebase_summary.md report. Same run id and attempt as here.
+          GCS_DIR="${CHANGE_HISTORY_GCS_DIR}/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          REPORT_LINE="- **Change history and summary report**: \`${GCS_DIR}/\`"
+
           COMMENT_BODY="#### Update from Rebase Agent Run
           - **Status**: ${STATUS_STR}
-          - **Workflow Run**: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          - **Workflow Run**: ${RUN_URL}
+          ${REPORT_LINE}"
 
           EXISTING_PR=$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${AI_BRANCH}" --json number --jq '.[0].number // ""')
           if [[ -n "${EXISTING_PR}" ]]; then
@@ -378,7 +389,9 @@ jobs:
           Automated rebase resolution for target PR #${TARGET_PR}.
           - **Status**: ${STATUS_STR}
           - **AI Branch**: \`${AI_BRANCH}\`
-          - **Target Base**: \`${TARGET_BASE}\`"
+          - **Target Base**: \`${TARGET_BASE}\`
+          - **Workflow Run**: ${RUN_URL}
+          ${REPORT_LINE}"
 
             gh pr create --repo "${GITHUB_REPOSITORY}" \
               --base "${TARGET_BASE}" \
