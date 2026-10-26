@@ -44,14 +44,16 @@ GrShaderCache::GrShaderCache(size_t max_cache_size_bytes, Client* client)
       curr_size_bytes_(0u),
       store_(Store::NO_AUTO_EVICT),
       client_(client),
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
-      defer_disk_writes_(
-          base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)),
-#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
       memory_pressure_listener_registration_(
           FROM_HERE,
           base::MemoryPressureListenerTag::kGrShaderCache,
-          this) {
+          this)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+      ,
+      defer_disk_writes_(
+          base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache))
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+{
   if (base::SingleThreadTaskRunner::HasCurrentDefault()) {
     base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
         this, "GrShaderCache",
