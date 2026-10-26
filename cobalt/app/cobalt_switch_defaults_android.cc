@@ -16,11 +16,9 @@
 
 #include <vector>
 
-#include "base/allocator/partition_alloc_features.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/strings/string_util.h"
-#include "build/build_config.h"
 #include "cc/base/features.h"
 #include "cc/base/switches.h"
 #include "cobalt/browser/switches.h"
@@ -33,7 +31,6 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/switches.h"
 #include "ui/gl/gl_features.h"
-#include "ui/gl/gl_switches.h"
 
 namespace cobalt {
 
@@ -75,11 +72,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
        ::switches::autoplay::kNoUserGestureRequiredPolicy},
       // Set default raster threads to 2 for smoother performance.
       {::switches::kNumRasterThreads, "2"},
-#if !defined(ARCH_CPU_ARM64)
-      // Enforce ANGLE to use GLES backend by default on Android platforms
-      // excluding arm64.
-      {::switches::kUseANGLE, gl::kANGLEImplementationOpenGLESName},
-#endif
       // Limit the HTTP disk cache to 25 MiB (25 * 1024 * 1024 bytes).
       {switches::kMaxHttpCacheSize, "26214400"},
       {blink::switches::kJavaScriptFlags,
@@ -115,9 +107,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {::switches::kDisableFeatures,
        base::JoinString(
            {
-               // Disable BackupRefPtr and have shim allocator tracked by
-               // MemoryReclaimer.
-               base::features::kPartitionAllocBackupRefPtr.name,
                // Disable AAudio to make the microphone use OpenSL ES.
                // OpenSL ES supports seamless switching to virtual microphones
                // like AtvRemote. For details, see http://b/478022126#comment6.
