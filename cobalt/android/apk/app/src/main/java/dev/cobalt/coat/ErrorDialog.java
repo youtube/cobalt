@@ -159,7 +159,9 @@ class ErrorDialog extends Dialog {
 
   /**
    * On API 34+ predictive back turns any BACK key-up into onBackInvoked(). OnBackAnimationCallback
-   * also reports the key-down, so only presses that started on this dialog suspend.
+   * also reports the key-down, so only presses that started on this dialog suspend. This helper
+   * class is stateless and not instantiated. Its lifetime is bound to the class loader. It must be
+   * called only on the application's main (UI) thread.
    */
   @RequiresApi(api = 34)
   private static class BackKeyPairingHelper {
