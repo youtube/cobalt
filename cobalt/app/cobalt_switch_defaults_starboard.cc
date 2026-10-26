@@ -94,8 +94,6 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {::switches::kUseGL, "angle"},
       {::switches::kUseANGLE, "gles-egl"},
 #endif
-      // Use passthrough command decoder.
-      {::switches::kUseCmdDecoder, "passthrough"},
       // Set the default size for the content shell/starboard window.
       {::switches::kContentShellHostWindowSize, "1920x1080"},
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
