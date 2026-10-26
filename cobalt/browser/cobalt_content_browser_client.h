@@ -83,7 +83,13 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   static CobaltContentBrowserClient* Get();
 
 #if BUILDFLAG(IS_ANDROID)
+  // Display-compositor shader cache; its location follows
+  // kCobaltStorageCleanup. With kCobaltGpuShaderDiskCache on, GpuHostImpl only
+  // opens the GrShaderCache, so this cache is never created.
   base::FilePath GetShaderDiskCacheDirectory() override;
+  // Only Skia's GrShaderCache is persisted (see kCobaltGpuShaderDiskCache),
+  // and only under base::DIR_CACHE. Returns an empty path while the feature is
+  // off.
   base::FilePath GetGrShaderDiskCacheDirectory() override;
 #endif
 
