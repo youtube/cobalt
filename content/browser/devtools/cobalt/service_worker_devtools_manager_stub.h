@@ -68,7 +68,7 @@ class CONTENT_EXPORT ServiceWorkerDevToolsManager {
   }
 
   ServiceWorkerDevToolsAgentHost* GetDevToolsAgentHostForWorker(
-      int worker_process_id,
+      ChildProcessId worker_process_id,
       int worker_route_id) {
     return nullptr;
   }
@@ -97,7 +97,7 @@ class CONTENT_EXPORT ServiceWorkerDevToolsManager {
       int64_t version_id) {}
 
   void WorkerStarting(
-      int worker_process_id,
+      ChildProcessId worker_process_id,
       int worker_route_id,
       scoped_refptr<ServiceWorkerContextWrapper> context_wrapper,
       int64_t version_id,
@@ -112,34 +112,35 @@ class CONTENT_EXPORT ServiceWorkerDevToolsManager {
       base::UnguessableToken* devtools_worker_token,
       bool* pause_on_start) {}
   void WorkerReadyForInspection(
-      int worker_process_id,
+      ChildProcessId worker_process_id,
       int worker_route_id,
       mojo::PendingRemote<blink::mojom::DevToolsAgent> agent_remote,
       mojo::PendingReceiver<blink::mojom::DevToolsAgentHost> host_receiver) {}
 
-  void WorkerVersionInstalled(int worker_process_id, int worker_route_id) {}
+  void WorkerVersionInstalled(ChildProcessId worker_process_id,
+                              int worker_route_id) {}
   void WorkerVersionDoomed(
-      int worker_process_id,
+      ChildProcessId worker_process_id,
       int worker_route_id,
       scoped_refptr<ServiceWorkerContextWrapper> context_wrapper,
       int64_t version_id) {}
-  void WorkerStopped(int worker_process_id, int worker_route_id) {}
-  void WorkerDestroyed(int worker_process_id,
+  void WorkerStopped(ChildProcessId worker_process_id, int worker_route_id) {}
+  void WorkerDestroyed(ChildProcessId worker_process_id,
                        int worker_route_id,
                        const blink::DedicatedWorkerToken& worker_token) {}
 
-  void NavigationPreloadRequestSent(int worker_process_id,
+  void NavigationPreloadRequestSent(ChildProcessId worker_process_id,
                                     int worker_route_id,
                                     const std::string& request_id,
                                     const network::ResourceRequest& request) {}
   void NavigationPreloadResponseReceived(
-      int worker_process_id,
+      ChildProcessId worker_process_id,
       int worker_route_id,
       const std::string& request_id,
       const GURL& url,
       const network::mojom::URLResponseHead& head) {}
   void NavigationPreloadCompleted(
-      int worker_process_id,
+      ChildProcessId worker_process_id,
       int worker_route_id,
       const std::string& request_id,
       const network::URLLoaderCompletionStatus& status) {}
