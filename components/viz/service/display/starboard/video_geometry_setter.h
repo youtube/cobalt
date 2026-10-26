@@ -7,7 +7,7 @@
 
 #include <vector>
 
-#include "base/memory/raw_ptr.h"
+#include "base/memory/stack_allocated.h"
 #include "base/unguessable_token.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "components/viz/service/viz_service_export.h"
@@ -38,6 +38,8 @@ void ConnectVideoGeometrySetter(
 // videos from the order of the holes, so they must be added front-most first,
 // i.e., in QuadList order. Must be used on the compositor thread.
 class VIZ_SERVICE_EXPORT ScopedVideoHoleGeometryBatch {
+  STACK_ALLOCATED();
+
  public:
   ScopedVideoHoleGeometryBatch();
 
@@ -55,7 +57,7 @@ class VIZ_SERVICE_EXPORT ScopedVideoHoleGeometryBatch {
 
  private:
   std::vector<cobalt::media::mojom::VideoHoleGeometryPtr> front_to_back_;
-  const raw_ptr<ScopedVideoHoleGeometryBatch> previous_batch_;
+  ScopedVideoHoleGeometryBatch* const previous_batch_;
 };
 
 }  // namespace viz

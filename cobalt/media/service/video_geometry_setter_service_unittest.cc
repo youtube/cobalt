@@ -50,6 +50,9 @@ class FakeVideoGeometryChangeClient : public mojom::VideoGeometryChangeClient {
     return receiver_.BindNewPipeAndPassRemote();
   }
 
+  // Simulates the client (e.g., a StarboardRenderer) going away.
+  void Disconnect() { receiver_.reset(); }
+
   // mojom::VideoGeometryChangeClient implementation.
   void OnVideoGeometryChange(const gfx::RectF& rect_f,
                              gfx::OverlayTransform /*transform*/,
@@ -221,6 +224,30 @@ TEST_F(VideoGeometrySetterServiceTest, ForgetsGoneHoleWithoutSubscriber) {
   Subscribe(inset_id_, inset_);
 
   EXPECT_TRUE(inset_.changes().empty());
+}
+
+TEST_F(VideoGeometrySetterServiceTest, RestartsZIndicesOnceNoVideoIsLeft) {
+  Subscribe(inset_id_, inset_);
+  Subscribe(fullscreen_id_, fullscreen_);
+  SetVideoGeometries(
+      {{inset_id_, kInsetRect}, {fullscreen_id_, kFullscreenRect}});
+  SetVideoGeometries(
+      {{fullscreen_id_, kFullscreenRect}, {inset_id_, kInsetRect}});
+  ASSERT_GT(fullscreen_.last_z_index(), 1);
+
+  // Both players go away.
+  inset_.Disconnect();
+  fullscreen_.Disconnect();
+  task_environment_.RunUntilIdle();
+
+  // The next video starts from z-index 0 again.
+  const base::UnguessableToken next_id = base::UnguessableToken::Create();
+  FakeVideoGeometryChangeClient next;
+  Subscribe(next_id, next);
+  SetVideoGeometries({{next_id, kFullscreenRect}});
+
+  ASSERT_EQ(next.changes().size(), 1u);
+  EXPECT_EQ(next.last_z_index(), 0);
 }
 
 }  // namespace
