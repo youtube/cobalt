@@ -223,15 +223,11 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     // map.
     const bool is_splash_asset =
         (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM) &&
-<<<<<<< HEAD
         resource_map.contains(key);
-=======
-        base::Contains(resource_map, key);
     // Whether to read the splash asset that the WebApp cached.
     const bool supports_splash_caching =
         is_splash_asset &&
         H5vccSchemeURLLoaderFactory::IsCachedSplashFileEnabled();
->>>>>>> 9923abcc81 (cobalt: Gate cached splash assets behind feature (#13552))
 
     // For splash assets, override resource_key with "fallback" query param.
     // If requested key is not found in cache, or the cache isn't read, loader
