@@ -15,7 +15,7 @@
 #include "net/base/test_completion_callback.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_LINUX)
 #include <linux/if.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
@@ -25,7 +25,7 @@
 
 namespace net {
 
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_LINUX)
 
 namespace {
 

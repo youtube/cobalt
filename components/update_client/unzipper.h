@@ -27,12 +27,6 @@ class Unzipper {
                      const base::FilePath& destination,
                      UnzipCompleteCallback callback) = 0;
 
-#if defined(IN_MEMORY_UPDATES)
-  virtual void Unzip(const std::string& zip_str,
-                     const base::FilePath& destination,
-                     UnzipCompleteCallback callback) = 0;
-#endif
-
   // Decode an `xz_file` into a `destination` file, then call `callback` with
   // true if and only if the operation is successful. Returns a cancellation
   // callback. The cancellation callback can be run on any sequence.

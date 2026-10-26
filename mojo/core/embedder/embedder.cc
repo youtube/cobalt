@@ -79,7 +79,7 @@ void InitFeatures() {
   CHECK(base::FeatureList::GetInstance());
 
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(MOJO_USE_APPLE_CHANNEL)
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   bool shared_mem_enabled = base::FeatureList::IsEnabled(kMojoUseEventFd);
   int num_pages = kMojoUseEventFdPages.Get();
   if (num_pages < 0) {
@@ -90,7 +90,7 @@ void InitFeatures() {
 
   ChannelLinux::SetSharedMemParameters(shared_mem_enabled,
                                        static_cast<unsigned int>(num_pages));
-#endif  // BUILDFLAG(IS_LINUX)  && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) ||
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
 

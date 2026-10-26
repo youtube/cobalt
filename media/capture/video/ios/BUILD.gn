@@ -13,10 +13,7 @@ source_set("ios") {
     "pixel_buffer_rotator.h",
   ]
 
-  deps = [
-    "//base",
-    "//media/capture:capture_base",
-  ]
+  deps = [ "//base" ]
 
   frameworks = [ "VideoToolbox.framework" ]
 }
