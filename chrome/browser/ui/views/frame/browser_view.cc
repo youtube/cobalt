@@ -196,7 +196,6 @@
 #include "chrome/browser/ui/views/sharing_hub/sharing_hub_icon_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/browser/ui/views/status_bubble_views.h"
 #include "chrome/browser/ui/views/tab_contents/chrome_web_contents_view_focus_helper.h"
 #include "chrome/browser/ui/views/tab_search_bubble_host.h"
@@ -901,9 +900,6 @@ BrowserView::BrowserView(Browser* browser)
 
   SetProperty(views::kElementIdentifierKey, kBrowserViewElementId);
 
-  // Add any legal notices required for the user to the queue.
-  QueueLegalAndPrivacyNotices(browser_->GetProfile());
-
   browser_->tab_strip_model()->AddObserver(this);
 
   main_background_region_ =
@@ -1285,7 +1281,7 @@ bool BrowserView::UsesImmersiveFullscreenMode() const {
 bool BrowserView::UsesImmersiveFullscreenTabbedMode() const {
   const bool is_pwa = GetIsWebAppType();
   const bool is_tabbed_window = GetSupportsTabStrip();
-  return is_tabbed_window && !is_pwa && !ShouldDrawVerticalTabStrip();
+  return is_tabbed_window && !is_pwa;
 }
 #endif
 
@@ -1532,7 +1528,7 @@ void BrowserView::OnVerticalTabStripModeChanged(
     horizontal_tab_strip_region_view_->InitializeTabStrip();
   }
 
-  ImmersiveModeController::From(browser())->OnVerticalTabStripModeChanged();
+  GetFrameView()->OnTabStripStateChanged();
 
   UpdateTabSearchBubbleHost();
   InvalidateLayout();
@@ -1638,6 +1634,13 @@ void BrowserView::Close() {
 }
 
 void BrowserView::Activate() {
+  if (browser_widget_->IsClosed()) {
+    // Since the activation is asynchronous, it's possible that the browser has
+    // been closed before the activation is ready, in this case, we don't have
+    // to continue.
+    return;
+  }
+
   if (auto* manager = InitialWebUIManager::From(browser())) {
     if (manager->RequestDeferShow(base::BindOnce(
             &BrowserView::Activate, weak_ptr_factory_.GetWeakPtr()))) {
@@ -2280,7 +2283,8 @@ void BrowserView::FullscreenStateChanged() {
 
     // Reshow the split view after completing the toolbar sizing.
     if (!IsFullscreen() && browser_->tab_strip_model()->IsActiveTabSplit()) {
-      ShowSplitView(GetActiveContentsWebView()->HasFocus());
+      ShowSplitView(GetActiveContentsWebView()->HasFocus() ||
+                    !GetFocusManager()->GetFocusedView());
     }
   }
 }
@@ -3598,7 +3602,8 @@ void BrowserView::OnSplitTabChanged(const SplitTabChange& change) {
       const tabs::TabInterface* active_tab =
           browser_->tab_strip_model()->GetActiveTab();
       if (active_tab->IsSplit()) {
-        ShowSplitView(GetActiveContentsWebView()->HasFocus());
+        ShowSplitView(GetActiveContentsWebView()->HasFocus() ||
+                      !GetFocusManager()->GetFocusedView());
       }
       break;
     }
@@ -4346,8 +4351,7 @@ const views::Widget* BrowserView::GetWidget() const {
   return View::GetWidget();
 }
 
-void BrowserView::CreateTabSearchBubble(
-    const tab_search::mojom::TabSearchSection section) {
+void BrowserView::CreateTabSearchBubble() {
   // Do not spawn the bubble if using the WebUITabStrip.
 #if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
   if (WebUITabStripContainerView::UseTouchableTabStrip(browser_.get())) {
@@ -4356,7 +4360,7 @@ void BrowserView::CreateTabSearchBubble(
 #endif  // BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
 
   if (auto* tab_search_host = GetTabSearchBubbleHost()) {
-    tab_search_host->ShowTabSearchBubble(true, section);
+    tab_search_host->ShowTabSearchBubble(true);
   }
 }
 
@@ -4790,6 +4794,22 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
                    screen_point)) {
       return HTCLIENT;
     }
+
+    // The vertical tabstrip is not part of the overlay in immersive mode and
+    // must be tested separately.
+    if (vertical_tab_strip_region_view_ &&
+        vertical_tab_strip_region_view_->GetVisible()) {
+      gfx::Point test_point(point);
+      if (ConvertedHitTest(parent(), vertical_tab_strip_region_view_,
+                           &test_point)) {
+        if (vertical_tab_strip_region_view_->IsPositionInWindowCaption(
+                test_point)) {
+          return HTCAPTION;
+        }
+        return HTCLIENT;
+      }
+    }
+
     return views::ClientView::NonClientHitTest(point);
   }
 #endif  // BUILDFLAG(IS_MAC)
@@ -4846,56 +4866,56 @@ int BrowserView::NonClientHitTest(const gfx::Point& point) {
     }
   }
 
-  // Determine if the TabStrip exists and is capable of being clicked on. We
-  // might be a popup window without a TabStrip. Use `GetTabStripVisible` as the
-  // tabstrip might have been hidden in immersive mode.
-  if (GetTabStripVisible()) {
-    if (vertical_tab_strip_region_view_ &&
-        vertical_tab_strip_region_view_->GetVisible()) {
-      // See if the mouse pointer is within the bounds of the
-      // VerticalTabStripRegionView.
-      gfx::Point test_point(point);
-      if (ConvertedHitTest(parent(), vertical_tab_strip_region_view_,
-                           &test_point)) {
-        if (vertical_tab_strip_region_view_->IsPositionInWindowCaption(
-                test_point)) {
-          return HTCAPTION;
-        }
-        return HTCLIENT;
-      } else {
-        gfx::Point test_point2(point);
-        if (ConvertedHitTest(parent(), top_container_, &test_point2) &&
-            top_container_->IsPositionInWindowCaption(test_point2)) {
-          return HTCAPTION;
-        }
+  if (vertical_tab_strip_region_view_ &&
+      vertical_tab_strip_region_view_->GetVisible()) {
+    // See if the mouse pointer is within the bounds of the
+    // VerticalTabStripRegionView.
+    gfx::Point test_point(point);
+    if (ConvertedHitTest(parent(), vertical_tab_strip_region_view_,
+                         &test_point)) {
+      if (vertical_tab_strip_region_view_->IsPositionInWindowCaption(
+              test_point)) {
+        return HTCAPTION;
       }
+      return HTCLIENT;
     } else {
-      // See if the mouse pointer is within the bounds of the
-      // HorizontalTabStripRegionView.
-      gfx::Point test_point(point);
-      if (ConvertedHitTest(parent(), horizontal_tab_strip_region_view_,
-                           &test_point)) {
-        if (horizontal_tab_strip_region_view_->IsPositionInWindowCaption(
-                test_point)) {
-          return HTCAPTION;
-        }
-        return HTCLIENT;
+      gfx::Point test_point2(point);
+      if (ConvertedHitTest(parent(), top_container_, &test_point2) &&
+          top_container_->IsPositionInWindowCaption(test_point2)) {
+        return HTCAPTION;
       }
+    }
+  } else if (GetTabStripVisible()) {
+    // Determine if the Horizontal TabStrip exists and is capable of being
+    // clicked on. We might be a popup window without a TabStrip. Use
+    // `GetTabStripVisible` as the tabstrip might have been hidden in immersive
+    // mode.
 
-      // The top few pixels of the TabStrip are a drop-shadow - as we're pretty
-      // starved of draggable area, let's give it to window dragging (this also
-      // makes sense visually).
-      // TODO(tluk): Investigate the impact removing this has on draggable area
-      // given the tab strip no longer uses shadows.
-      views::Widget* widget = GetWidget();
-      if (!(widget->IsMaximized() || widget->IsFullscreen()) &&
-          (point_in_browser_view_coords.y() <
-           (horizontal_tab_strip_region_view_->y() + kTabShadowSize))) {
-        // We return HTNOWHERE as this is a signal to our containing
-        // NonClientView that it should figure out what the correct hit-test
-        // code is given the mouse position...
-        return HTNOWHERE;
+    // See if the mouse pointer is within the bounds of the
+    // HorizontalTabStripRegionView.
+    gfx::Point test_point(point);
+    if (ConvertedHitTest(parent(), horizontal_tab_strip_region_view_,
+                         &test_point)) {
+      if (horizontal_tab_strip_region_view_->IsPositionInWindowCaption(
+              test_point)) {
+        return HTCAPTION;
       }
+      return HTCLIENT;
+    }
+
+    // The top few pixels of the TabStrip are a drop-shadow - as we're pretty
+    // starved of draggable area, let's give it to window dragging (this also
+    // makes sense visually).
+    // TODO(tluk): Investigate the impact removing this has on draggable area
+    // given the tab strip no longer uses shadows.
+    views::Widget* widget = GetWidget();
+    if (!(widget->IsMaximized() || widget->IsFullscreen()) &&
+        (point_in_browser_view_coords.y() <
+         (horizontal_tab_strip_region_view_->y() + kTabShadowSize))) {
+      // We return HTNOWHERE as this is a signal to our containing
+      // NonClientView that it should figure out what the correct hit-test
+      // code is given the mouse position...
+      return HTNOWHERE;
     }
   }
 
@@ -5667,7 +5687,8 @@ void BrowserView::ProcessFullscreen(bool fullscreen, const int64_t display_id) {
 
   // Reshow the split view after completing the toolbar sizing.
   if (!fullscreen && browser_->tab_strip_model()->IsActiveTabSplit()) {
-    ShowSplitView(GetActiveContentsWebView()->HasFocus());
+    ShowSplitView(GetActiveContentsWebView()->HasFocus() ||
+                  !GetFocusManager()->GetFocusedView());
   }
 }
 

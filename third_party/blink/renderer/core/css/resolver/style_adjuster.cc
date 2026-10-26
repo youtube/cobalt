@@ -664,22 +664,22 @@ void StyleAdjuster::AdjustOverflow(ComputedStyleBuilder& builder,
     } else if (builder.OverflowY() == EOverflow::kVisible) {
       builder.SetOverflowX(EOverflow::kVisible);
     }
-  } else if (!RuntimeEnabledFeatures::SingleAxisScrollContainersEnabled() &&
-             !IsOverflowClipOrVisible(builder.OverflowY())) {
+  } else if (!IsOverflowClipOrVisible(builder.OverflowY())) {
     // Values of 'clip' and 'visible' can only be used with 'clip' and
     // 'visible.' If they aren't, 'clip' and 'visible' is reset.
     if (builder.OverflowX() == EOverflow::kVisible) {
       builder.SetOverflowX(EOverflow::kAuto);
-    } else if (builder.OverflowX() == EOverflow::kClip) {
+    } else if (!RuntimeEnabledFeatures::SingleAxisScrollContainersEnabled() &&
+               builder.OverflowX() == EOverflow::kClip) {
       builder.SetOverflowX(EOverflow::kHidden);
     }
-  } else if (!RuntimeEnabledFeatures::SingleAxisScrollContainersEnabled() &&
-             !IsOverflowClipOrVisible(builder.OverflowX())) {
+  } else if (!IsOverflowClipOrVisible(builder.OverflowX())) {
     // Values of 'clip' and 'visible' can only be used with 'clip' and
     // 'visible.' If they aren't, 'clip' and 'visible' is reset.
     if (builder.OverflowY() == EOverflow::kVisible) {
       builder.SetOverflowY(EOverflow::kAuto);
-    } else if (builder.OverflowY() == EOverflow::kClip) {
+    } else if (!RuntimeEnabledFeatures::SingleAxisScrollContainersEnabled() &&
+               builder.OverflowY() == EOverflow::kClip) {
       builder.SetOverflowY(EOverflow::kHidden);
     }
   }
@@ -1179,8 +1179,8 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
     if (is_transition_scope && !is_document_element) {
       builder.SetContain(builder.Contain() | kContainsLayout);
       builder.SetViewTransitionScope(EViewTransitionScope::kAll);
-    } else if (builder.InternalOverscrollArea() ==
-               EInternalOverscrollArea::kAuto) {
+    } else if (builder.InternalOverscrollArea() !=
+               EInternalOverscrollArea::kNone) {
       // TODO(crbug.com/467112943): Layout containment is currently forced to
       // ensure that the container of the overscroll areas actually contains
       // the overscroll areas. However, requiring layout containment is
@@ -1195,13 +1195,12 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
 
   builder.SetForcesStackingContext(false);
 
-  // Make sure our z-index value is only applied if the object is positioned.
-  if (!builder.HasAutoZIndex()) {
-    if (builder.GetPosition() == EPosition::kStatic &&
-        !LayoutParentStyleForcesZIndexToCreateStackingContext(
-            layout_parent_style)) {
-      builder.SetEffectiveZIndexZero(true);
-    } else {
+  // z-index is only applicable if positioned, or if a flex/grid/etc item.
+  if (builder.GetPosition() != EPosition::kStatic ||
+      LayoutParentStyleForcesZIndexToCreateStackingContext(
+          layout_parent_style)) {
+    builder.SetAllowsZIndex(true);
+    if (!builder.HasAutoZIndex()) {
       builder.SetForcesStackingContext(true);
     }
   }

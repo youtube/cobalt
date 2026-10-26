@@ -337,7 +337,7 @@ TEST(
   EXPECT_THAT(
       result.caller().subspan(1, 3),
       Each(AvailableSendBitrateIsBetween(DataRate::KilobitsPerSec(10),
-                                         DataRate::KilobitsPerSec(100))));
+                                         DataRate::KilobitsPerSec(140))));
   EXPECT_THAT(result.caller()[3],
               CurrentRoundTripTimeIsBetween(TimeDelta::Millis(40),
                                             TimeDelta::Millis(200)));
@@ -347,7 +347,7 @@ TEST(
   // is disabled.
   EXPECT_THAT(result.caller_stats.back(),
               AvailableSendBitrateIsBetween(DataRate::KilobitsPerSec(100),
-                                            DataRate::KilobitsPerSec(5000)));
+                                            DataRate::KilobitsPerSec(6500)));
 }
 
 TEST(ScreamTest, MaybeTest(LinkCapacity600KbpsRtt20msNoEcn)) {
@@ -363,8 +363,8 @@ TEST(ScreamTest, MaybeTest(LinkCapacity600KbpsRtt20msNoEcn)) {
 
   SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
   EXPECT_THAT(result.caller().subspan(1), Each(AvailableSendBitrateIsBetween(
-                                              DataRate::KilobitsPerSec(300),
-                                              DataRate::KilobitsPerSec(700))));
+                                              DataRate::KilobitsPerSec(200),
+                                              DataRate::KilobitsPerSec(800))));
 }
 
 TEST(ScreamTest, MaybeTest(LinkCapacity600KbpsRtt100msEcn)) {
@@ -467,7 +467,7 @@ TEST(ScreamTest, MaybeTest(LinkCapacity1500KbpsRtt30msNoEcn)) {
   SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
   EXPECT_THAT(result.caller().subspan(1), Each(AvailableSendBitrateIsBetween(
                                               DataRate::KilobitsPerSec(800),
-                                              DataRate::KilobitsPerSec(1900))));
+                                              DataRate::KilobitsPerSec(2000))));
 }
 
 TEST(ScreamTest, MaybeTest(LinkCapacity2MbpsRtt50msNoEcn)) {
@@ -484,7 +484,7 @@ TEST(ScreamTest, MaybeTest(LinkCapacity2MbpsRtt50msNoEcn)) {
   SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
   EXPECT_THAT(result.caller().subspan(1), Each(AvailableSendBitrateIsBetween(
                                               DataRate::KilobitsPerSec(1300),
-                                              DataRate::KilobitsPerSec(2300))));
+                                              DataRate::KilobitsPerSec(2400))));
 }
 
 TEST(ScreamTest, MaybeTest(LinkCapacity2MbpsRtt50msEcn)) {
@@ -525,6 +525,26 @@ TEST(ScreamTest, MaybeTest(LinkCapacity2MbpsRtt50msNoEcnWithGoogCC)) {
                                             DataRate::KilobitsPerSec(2600)));
 }
 
+TEST(ScreamTest, MaybeTest(LinkCapacity4MbpsRtt50ms10MsDelayStdDev)) {
+  PeerScenario s(*testing::UnitTest::GetInstance()->current_test_info());
+  NetworkEmulationManager::SimulatedNetworkNode::Builder network_builder(
+      s.net());
+  network_builder.delay_ms(25);
+  network_builder.delay_standard_deviation_ms(10);
+  network_builder.capacity_Mbps(4);
+  SendMediaTestParams params;
+  params.test_duration = TimeDelta::Seconds(30);
+  params.callee_to_caller_path =
+      CreateNetworkPath(network_builder, /*use_dual_pi= */ false);
+  params.caller_to_callee_path =
+      CreateNetworkPath(network_builder, /*use_dual_pi= */ false);
+
+  SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
+  EXPECT_THAT(result.caller().subspan(1), Each(AvailableSendBitrateIsBetween(
+                                              DataRate::KilobitsPerSec(700),
+                                              DataRate::KilobitsPerSec(4100))));
+}
+
 TEST(ScreamTest, MaybeTest(LinkCapacity2MbpsRtt50msNoEcnWithTwcc)) {
   PeerScenario s(*testing::UnitTest::GetInstance()->current_test_info());
   SendMediaTestParams params;
@@ -545,7 +565,7 @@ TEST(ScreamTest, MaybeTest(LinkCapacity2MbpsRtt50msNoEcnWithTwcc)) {
   // approximately.
   EXPECT_THAT(result.caller().subspan(5), Each(AvailableSendBitrateIsBetween(
                                               DataRate::KilobitsPerSec(1200),
-                                              DataRate::KilobitsPerSec(2300))));
+                                              DataRate::KilobitsPerSec(2400))));
 }
 
 TEST(ScreamTest, MaybeTest(CallerPauseSendingVideoIfFeedbackNotReceived)) {
@@ -627,7 +647,7 @@ TEST(ScreamTest, MaybeTest(ScreencastSlideChange2Mbit50msRttNoEcn)) {
   // Ignore estimate during rampup.
   EXPECT_THAT(result.caller().subspan(1), Each(AvailableSendBitrateIsBetween(
                                               DataRate::KilobitsPerSec(1200),
-                                              DataRate::KilobitsPerSec(2600))));
+                                              DataRate::KilobitsPerSec(2800))));
 }
 
 TEST(ScreamTest, MaybeTest(ScreencastSlideChangeRepeatedDelaySpikes)) {
@@ -645,12 +665,9 @@ TEST(ScreamTest, MaybeTest(ScreencastSlideChangeRepeatedDelaySpikes)) {
                             .change_interval = TimeDelta::Seconds(5)}}};
   SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
 
-  // Ignore estimate during rampup.
-  // TODO: bugs.webrtc.org/447037083 - consider improving resilience by limiting
-  // queue delay from one feedback.
-  EXPECT_THAT(result.caller().subspan(1), Each(AvailableSendBitrateIsBetween(
-                                              DataRate::KilobitsPerSec(100),
-                                              DataRate::KilobitsPerSec(4000))));
+  EXPECT_THAT(result.caller(), Each(AvailableSendBitrateIsBetween(
+                                   DataRate::KilobitsPerSec(500),
+                                   DataRate::KilobitsPerSec(4300))));
 }
 
 TEST(ScreamTest, MaybeTest(LinkCapacity5MbitRepeatedDelaySpikesNoEcn)) {
@@ -664,16 +681,14 @@ TEST(ScreamTest, MaybeTest(LinkCapacity5MbitRepeatedDelaySpikesNoEcn)) {
       TimeDelta::Millis(200));
   SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
 
-  // TODO: bugs.webrtc.org/447037083 - consider improving resilience by limiting
-  // queue delay from one feedback.
   EXPECT_THAT(result.caller().subspan(1), Each(AvailableSendBitrateIsBetween(
-                                              DataRate::KilobitsPerSec(500),
+                                              DataRate::KilobitsPerSec(1200),
                                               DataRate::KilobitsPerSec(5000))));
 }
 
 TEST(ScreamTest, MaybeTest(RampupFastOnLinkCapacity50Mbit20MsRttNoEcn)) {
   PeerScenario s(*testing::UnitTest::GetInstance()->current_test_info());
-  SendMediaTestParams params{.test_duration = TimeDelta::Millis(300),
+  SendMediaTestParams params{.test_duration = TimeDelta::Seconds(1),
                              .stats_interval = TimeDelta::Millis(100)};
   params.caller_to_callee_path =
       CreateNetworkPath(s, /*use_dual_pi= */ false,
@@ -683,11 +698,10 @@ TEST(ScreamTest, MaybeTest(RampupFastOnLinkCapacity50Mbit20MsRttNoEcn)) {
                         DataRate::KilobitsPerSec(50000), TimeDelta::Millis(10));
   SendMediaTestResult result = SendMediaInOneDirection(std::move(params), s);
 
-  // TODO: bugs.webrtc.org/447037083 - On a good network, we should be able to
-  // let the bitrate increase by 50% every RTT.
-  EXPECT_THAT(result.caller_stats.back(),
-              AvailableSendBitrateIsBetween(DataRate::KilobitsPerSec(500),
-                                            DataRate::KilobitsPerSec(5000)));
+  // After 400ms.
+  EXPECT_THAT(result.caller_stats[3],
+              AvailableSendBitrateIsBetween(DataRate::KilobitsPerSec(1200),
+                                            DataRate::KilobitsPerSec(2500)));
 }
 
 TEST(ScreamTest, MaybeTest(LinkCapacity100Kbit50msRttNoEcn)) {
@@ -767,7 +781,7 @@ TEST(ScreamTest, MaybeTest(ReturnLinkWithBurstLoss)) {
             GetPacketsSent(result.caller_stats[5]));
   EXPECT_THAT(result.caller().subspan(1), Each(AvailableSendBitrateIsBetween(
                                               DataRate::KilobitsPerSec(300),
-                                              DataRate::KilobitsPerSec(1100))));
+                                              DataRate::KilobitsPerSec(1300))));
 }
 
 TEST(ScreamTest, MaybeTest(SendVideoOnlyReturnLinkWithBurstLoss)) {
@@ -792,7 +806,7 @@ TEST(ScreamTest, MaybeTest(SendVideoOnlyReturnLinkWithBurstLoss)) {
             GetPacketsSent(result.caller_stats[5]));
   EXPECT_THAT(result.caller().subspan(1), Each(AvailableSendBitrateIsBetween(
                                               DataRate::KilobitsPerSec(10),
-                                              DataRate::KilobitsPerSec(1100))));
+                                              DataRate::KilobitsPerSec(1200))));
 }
 
 // Test that Scream adapt to a link with traffic policing on the network path

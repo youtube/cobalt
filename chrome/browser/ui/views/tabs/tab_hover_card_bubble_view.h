@@ -38,9 +38,6 @@ enum class TabAlert;
 class TabStyle;
 class FadeLabelView;
 class HoverCardAnchorTarget;
-namespace tabs {
-struct TabData;
-}
 
 // Dialog that displays an informational hover card containing page information.
 class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
@@ -70,10 +67,6 @@ class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
   TabHoverCardBubbleView& operator=(const TabHoverCardBubbleView&) = delete;
   ~TabHoverCardBubbleView() override;
 
-  // Create the CollaborationMessagingRowData from tabs::TabData.
-  CollaborationMessagingRowData GetCollaborationMessagingData(
-      const tabs::TabData& tab_data);
-
   // Updates and formats title, alert state, domain, and preview image.
   void UpdateCardContent(const HoverCardAnchorTarget* anchor_target);
 
@@ -94,8 +87,10 @@ class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
   void SetSliding(bool sliding) { sliding_ = sliding; }
 
   // Accessors used by tests.
-  std::u16string_view GetTitleTextForTesting() const;
-  std::u16string_view GetDomainTextForTesting() const;
+  views::View* GetTabCardViewForTesting();
+  FadeLabelView* GetTitleViewForTesting() const;
+  FadeLabelView* GetDomainViewForTesting() const;
+
   views::View* GetThumbnailViewForTesting();
   FooterView* GetFooterViewForTesting();
 
@@ -105,13 +100,16 @@ class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
   static std::optional<double> GetPreviewImageCrossfadeStart();
 
  protected:
+  class ThumbnailView;
+
   // views::View:
   void AddedToWidget() override;
 
+  const InitParams& bubble_params() { return bubble_params_; }
+  int corner_radius() { return corner_radius_; }
+
  private:
-  FRIEND_TEST_ALL_PREFIXES(TabHoverCardFadeFooterInteractiveUiTest,
-                           BackgroundTabHoverCardContentsHaveCorrectDimensions);
-  class ThumbnailView;
+  class TabCardView;
 
   // views::BubbleDialogDelegateView:
   gfx::Size CalculatePreferredSize(
@@ -121,14 +119,8 @@ class TabHoverCardBubbleView : public views::BubbleDialogDelegateView {
   void OnAnchorBoundsChanged() override;
 
   bool sliding_ = false;
-
-  raw_ptr<FadeLabelView> title_label_ = nullptr;
-  raw_ptr<FadeLabelView> domain_label_ = nullptr;
-  raw_ptr<ThumbnailView> thumbnail_view_ = nullptr;
-  raw_ptr<FooterView> footer_view_ = nullptr;
-  std::optional<tabs::TabAlert> alert_state_;
+  raw_ptr<TabCardView> tab_card_view_ = nullptr;
   const raw_ptr<const TabStyle> tab_style_;
-
   const InitParams bubble_params_;
   int corner_radius_ = ChromeLayoutProvider::Get()->GetCornerRadiusMetric(
       views::Emphasis::kHigh);

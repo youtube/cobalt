@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Google Inc.
+ * Copyright 2020 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -7,6 +7,7 @@
 
 #include "bench/Benchmark.h"
 #include "include/gpu/ganesh/GrDirectContext.h"
+#include "include/gpu/ganesh/mock/GrMockTypes.h"
 #include "src/core/SkPathPriv.h"
 #include "src/core/SkRectPriv.h"
 #include "src/gpu/ganesh/GrDirectContextPriv.h"

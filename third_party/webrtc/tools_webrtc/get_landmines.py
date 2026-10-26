@@ -53,7 +53,7 @@ def print_landmines():  # pylint: disable=invalid-name
         print('Clobber because of libc++ issue - take 5 (crbug.com/1337238)')
         print('Clobber because of libc++ issue - take 6 (crbug.com/1337238)')
         print('Clobber because b/367066321')
-    if host_os() == 'mac':
+    if host_os() == 'mac':  # includes iOS
         print('Clobber due to iOS compile errors (crbug.com/694721)')
         print('Clobber to unblock https://codereview.webrtc.org/2709573003')
         print('Clobber to fix https://codereview.webrtc.org/2709573003 after '
@@ -69,6 +69,8 @@ def print_landmines():  # pylint: disable=invalid-name
         print('Switching rtc_executable to rtc_test')
         print('Lets clobber iOS due to signing issue b/396118151')
         print('Lets clobber iOS due to signing issue b/396118151 (2nd try)')
+        print('Lets clobber iOS due to rtc_executable -> rtc_test')
+        print('Lets clobber iOS due to rtc_executable -> rtc_test')
     if host_os() == 'android':
         print('Clobber due to Android "compile confirm no-op" errors.')
 

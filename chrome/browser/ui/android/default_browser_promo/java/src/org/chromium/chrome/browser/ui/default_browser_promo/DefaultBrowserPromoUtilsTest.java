@@ -439,7 +439,8 @@ public class DefaultBrowserPromoUtilsTest {
                         /* isDefaultSystem= */ false,
                         /* browserCount= */ 1,
                         /* systemCount= */ 0,
-                        /* isChromePreStableInstalled= */ false);
+                        /* isChromePreStableInstalled= */ false,
+                        /* defaultBrowserResolveInfo= */ null);
 
         reCreateUtilsWithTestInfo(info);
 
@@ -481,7 +482,8 @@ public class DefaultBrowserPromoUtilsTest {
                         /* isDefaultSystem= */ true,
                         /* browserCount= */ 0,
                         /* systemCount= */ 1,
-                        /* isChromePreStableInstalled= */ false);
+                        /* isChromePreStableInstalled= */ false,
+                        /* defaultBrowserResolveInfo= */ null);
 
         reCreateUtilsWithTestInfo(info);
 
@@ -510,7 +512,8 @@ public class DefaultBrowserPromoUtilsTest {
                         /* isDefaultSystem= */ false,
                         /* browserCount= */ 1,
                         /* systemCount= */ 0,
-                        /* isChromePreStableInstalled= */ false);
+                        /* isChromePreStableInstalled= */ false,
+                        /* defaultBrowserResolveInfo= */ null);
 
         reCreateUtilsWithTestInfo(info);
 
@@ -548,7 +551,8 @@ public class DefaultBrowserPromoUtilsTest {
                         /* isDefaultSystem= */ false,
                         /* browserCount= */ 1,
                         /* systemCount= */ 0,
-                        /* isChromePreStableInstalled= */ false);
+                        /* isChromePreStableInstalled= */ false,
+                        /* defaultBrowserResolveInfo= */ null);
 
         reCreateUtilsWithTestInfo(info);
 
@@ -583,6 +587,22 @@ public class DefaultBrowserPromoUtilsTest {
                         mWindowAndroid,
                         mMockTracker,
                         DefaultBrowserPromoUtils.DefaultBrowserPromoEntryPoint.SET_UP_LIST));
+    }
+
+    @Test
+    public void testPromo_SuppressedByDelegate() {
+        DefaultBrowserPromoUtils.DefaultBrowserPromoDelegate delegate =
+                Mockito.mock(DefaultBrowserPromoUtils.DefaultBrowserPromoDelegate.class);
+        when(delegate.shouldSuppressPromo()).thenReturn(true);
+        DefaultBrowserPromoUtils.setDelegate(delegate);
+
+        Assert.assertFalse(
+                "Should not promo when suppressed by delegate.",
+                mUtils.shouldShowRoleManagerPromo(
+                        mActivity,
+                        DefaultBrowserPromoUtils.DefaultBrowserPromoEntryPoint.CHROME_STARTUP));
+
+        DefaultBrowserPromoUtils.setDelegate(null);
     }
 
     private void verifyOSSettingsFallbackIntentLaunched() {

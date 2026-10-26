@@ -17,12 +17,12 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/base/nullability.h"
-#include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/audio/neural_residual_echo_estimator.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
@@ -82,8 +82,8 @@ std::optional<audioproc::ReeModelMetadata> ReadModelMetadata(
 
 // Downsamples the model output mask to the AEC3 frequency resolution and
 // transforms it from a nearend prediction to an echo power mask.
-void DownsampleAndTransformMask(ArrayView<const float> mask,
-                                ArrayView<float> downsampled_mask) {
+void DownsampleAndTransformMask(std::span<const float> mask,
+                                std::span<float> downsampled_mask) {
   const int kDownsampleFactor =
       static_cast<int>((mask.size() - 1) / kFftLengthBy2);
   downsampled_mask[0] = mask[0];
@@ -293,7 +293,7 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
     for (const auto input_enum :
          {ModelInputEnum::kMic, ModelInputEnum::kLinearAecOutput,
           ModelInputEnum::kAecRef}) {
-      ArrayView<float> input_tensor = GetInput(input_enum);
+      std::span<float> input_tensor = GetInput(input_enum);
       std::fill(input_tensor.begin(), input_tensor.end(), 0.0f);
     }
   }
@@ -305,34 +305,34 @@ class TfLiteModelRunner : public NeuralResidualEchoEstimatorImpl::ModelRunner {
     for (const auto input_enum :
          {ModelInputEnum::kMic, ModelInputEnum::kLinearAecOutput,
           ModelInputEnum::kAecRef}) {
-      ArrayView<float> input_tensor = GetInput(input_enum);
+      std::span<float> input_tensor = GetInput(input_enum);
       std::fill(input_tensor.begin(), input_tensor.end(), 0.0f);
     }
   }
 
   int StepSize() const override { return step_size_; }
 
-  ArrayView<float> GetInput(
+  std::span<float> GetInput(
       FeatureExtractor::ModelInputEnum input_enum) override {
     size_t index = input_tensor_indexes_[static_cast<size_t>(input_enum)];
     TfLiteTensor* input_tensor = tflite_interpreter_->tensor(index);
     float* input_typed_tensor =
         reinterpret_cast<float*>(input_tensor->data.data);
-    return ArrayView<float>(input_typed_tensor,
+    return std::span<float>(input_typed_tensor,
                             tflite::NumElements(input_tensor));
   }
 
-  ArrayView<const float> GetOutput(
+  std::span<const float> GetOutput(
       FeatureExtractor::ModelOutputEnum output_enum) override {
     if (!use_unbounded_mask_ &&
         output_enum == ModelOutputEnum::kUnboundedEchoMask) {
-      return ArrayView<const float>();
+      return std::span<const float>();
     }
     size_t index = output_tensor_indexes_[static_cast<size_t>(output_enum)];
     const TfLiteTensor* output_tensor = tflite_interpreter_->tensor(index);
     const float* output_typed_tensor =
         reinterpret_cast<const float*>(output_tensor->data.data);
-    return ArrayView<const float>(output_typed_tensor,
+    return std::span<const float>(output_typed_tensor,
                                   tflite::NumElements(output_tensor));
   }
 
@@ -488,14 +488,14 @@ void NeuralResidualEchoEstimatorImpl::Reset() {
 
 void NeuralResidualEchoEstimatorImpl::Estimate(
     const Block& render,
-    ArrayView<const std::array<float, kBlockSize>> y,
-    ArrayView<const std::array<float, kBlockSize>> e,
-    ArrayView<const std::array<float, kFftLengthBy2Plus1>> S2,
-    ArrayView<const std::array<float, kFftLengthBy2Plus1>> Y2,
-    ArrayView<const std::array<float, kFftLengthBy2Plus1>> E2,
+    std::span<const std::array<float, kBlockSize>> y,
+    std::span<const std::array<float, kBlockSize>> e,
+    std::span<const std::array<float, kFftLengthBy2Plus1>> S2,
+    std::span<const std::array<float, kFftLengthBy2Plus1>> Y2,
+    std::span<const std::array<float, kFftLengthBy2Plus1>> E2,
     bool dominant_nearend,
-    ArrayView<std::array<float, kFftLengthBy2Plus1>> R2,
-    ArrayView<std::array<float, kFftLengthBy2Plus1>> R2_unbounded) {
+    std::span<std::array<float, kFftLengthBy2Plus1>> R2,
+    std::span<std::array<float, kFftLengthBy2Plus1>> R2_unbounded) {
   DumpInputs(render, y, e);
   render_channels_.clear();
   for (int i = 0; i < render.NumChannels(); ++i) {
@@ -525,11 +525,11 @@ void NeuralResidualEchoEstimatorImpl::Estimate(
         ModelInputEnum::kAecRef);
     if (model_runner_->Invoke()) {
       // Downsample output mask to match the AEC3 frequency resolution.
-      ArrayView<const float> output_mask =
+      std::span<const float> output_mask =
           model_runner_->GetOutput(ModelOutputEnum::kEchoMask);
       DownsampleAndTransformMask(output_mask, output_mask_);
       if (use_unbounded_mask_) {
-        ArrayView<const float> output_mask_unbounded =
+        std::span<const float> output_mask_unbounded =
             model_runner_->GetOutput(ModelOutputEnum::kUnboundedEchoMask);
         DownsampleAndTransformMask(output_mask_unbounded,
                                    output_mask_unbounded_);
@@ -589,8 +589,8 @@ EchoCanceller3Config NeuralResidualEchoEstimatorImpl::GetConfiguration(
 
 void NeuralResidualEchoEstimatorImpl::DumpInputs(
     const Block& render,
-    ArrayView<const std::array<float, kBlockSize>> y,
-    ArrayView<const std::array<float, kBlockSize>> e) {
+    std::span<const std::array<float, kBlockSize>> y,
+    std::span<const std::array<float, kBlockSize>> e) {
   data_dumper_->DumpWav("ml_ree_mic_input", y[0], 16000, 1);
   data_dumper_->DumpWav("ml_ree_linear_aec_output", e[0], 16000, 1);
   data_dumper_->DumpWav("ml_ree_aec_ref", render.View(0, 0), 16000, 1);

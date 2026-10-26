@@ -69,6 +69,7 @@ class SaveUpdateAddressProfileFlowManager;
 class AutofillMessageController;
 #endif
 
+class ActorKeyMetricsRecorder;
 class AutofillOptimizationGuideDecider;
 class EmailVerifierDelegate;
 class FormFieldData;
@@ -203,6 +204,7 @@ class ChromeAutofillClient : public ContentAutofillClient {
       EntityType entity_type,
       const base::flat_set<EntityTypeName>& saved_entities) final;
   bool IsTabInActorMode() const final;
+  ActorKeyMetricsRecorder* GetActorKeyMetricsRecorder() final;
   bool IsAutofillEnabled() const final;
   bool IsAutofillProfileEnabled() const final;
   bool IsAutocompleteEnabled() const final;
@@ -247,7 +249,8 @@ class ChromeAutofillClient : public ContentAutofillClient {
       EntityImportPromptResultCallback prompt_result_callback) final;
   void CloseEntityImportBubble() final;
   void ShowAutofillAiLocalSaveNotification() final;
-  void ShowAutofillAiFailureNotification(std::u16string message) final;
+  void ShowAutofillAiSaveToWalletFailureNotification() final;
+  void ShowAutofillAiFetchFromWalletFailureNotification() final;
   void ShowEmailVerifiedToast() final;
 
   // TODO(crbug.com/407666146): Create a test API.
@@ -380,6 +383,8 @@ class ChromeAutofillClient : public ContentAutofillClient {
   std::optional<actor::TaskId> active_actor_task_;
 
   std::unique_ptr<FormPredictionsTracker> form_predictions_tracker_;
+
+  std::unique_ptr<ActorKeyMetricsRecorder> actor_key_metrics_recorder_;
 #endif  // BUILDFLAG(IS_ANDROID)
 
   SEQUENCE_CHECKER(sequence_checker_);

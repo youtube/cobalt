@@ -32,10 +32,7 @@ group("rtc_tools") {
     deps += [ ":tools_unittests" ]
   }
   if (rtc_include_tests && rtc_enable_protobuf) {
-    deps += [
-      ":rtp_analyzer",
-      "network_tester",
-    ]
+    deps += [ "network_tester" ]
   }
   if (rtc_include_tests && rtc_enable_protobuf && !build_with_chromium) {
     deps += [
@@ -625,18 +622,5 @@ if (rtc_include_tests) {
         ]
       }  # unpack_aecdump
     }
-  }
-
-  if (rtc_enable_protobuf) {
-    copy("rtp_analyzer") {
-      sources = [
-        "py_event_log_analyzer/misc.py",
-        "py_event_log_analyzer/pb_parse.py",
-        "py_event_log_analyzer/rtp_analyzer.py",
-        "py_event_log_analyzer/rtp_analyzer.sh",
-      ]
-      outputs = [ "$root_build_dir/{{source_file_part}}" ]
-      deps = [ "../logging:rtc_event_log_proto" ]
-    }  # rtp_analyzer
   }
 }

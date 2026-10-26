@@ -15,35 +15,78 @@ namespace on_device_translation {
 namespace {
 
 constexpr int kLanguagePairOffset = 1000;
+constexpr char kTranslatorApiName[] = "TranslatorApi";
+constexpr char kOnDeviceTranslationName[] = "OnDeviceTranslation";
+
 static_assert(static_cast<int>(SupportedLanguage::kMaxValue) <
               kLanguagePairOffset);
 
-std::string GetSourceUMANameForAPI(std::string_view api_name) {
+std::string GetSourceUMANameForAPI(std::string_view product_name,
+                                   std::string_view action_name) {
   return base::StrCat(
-      {"Translate.OnDeviceTranslation.", api_name, ".SourceLanguage"});
+      {"Translate.", product_name, ".", action_name, ".SourceLanguage"});
 }
 
-std::string GetTargetUMANameForAPI(std::string_view api_name) {
+std::string GetTargetUMANameForAPI(std::string_view product_name,
+                                   std::string_view action_name) {
   return base::StrCat(
-      {"Translate.OnDeviceTranslation.", api_name, ".TargetLanguage"});
+      {"Translate.", product_name, ".", action_name, ".TargetLanguage"});
 }
 
-std::string GetPairUMANameForAPI(std::string_view api_name) {
+std::string GetPairUMANameForAPI(std::string_view product_name,
+                                 std::string_view action_name) {
   return base::StrCat(
-      {"Translate.OnDeviceTranslation.", api_name, ".LanguagePair"});
+      {"Translate.", product_name, ".", action_name, ".LanguagePair"});
 }
 
-std::string GetCharacterCountUMAForSourceLanguage(
+std::string GetTranslationLengthUMAForSourceLanguage(
+    std::string_view product_name,
     std::string_view source_lang) {
-  return base::StrCat({"Translate.OnDeviceTranslation.SourceLanguage.",
-                       source_lang, ".CharacterCount"});
+  return base::StrCat({"Translate.", product_name, ".SourceLanguage.",
+                       source_lang, ".TranslationLength"});
 }
 
-std::string GetCharacterCountUMAForTargetLanguage(
+std::string GetTranslationLengthUMAForTargetLanguage(
+    std::string_view product_name,
     std::string_view target_lang) {
-  return base::StrCat({"Translate.OnDeviceTranslation.TargetLanguage.",
-                       target_lang, ".CharacterCount"});
+  return base::StrCat({"Translate.", product_name, ".TargetLanguage.",
+                       target_lang, ".TranslationLength"});
 }
+
+void RecordCallForLanguagePair(std::string_view product_name,
+                               std::string_view action_name,
+                               std::string_view source_lang,
+                               std::string_view target_lang) {
+  if (!ToSupportedLanguage(source_lang).has_value() ||
+      !ToSupportedLanguage(target_lang).has_value()) {
+    return;
+  }
+  RecordLanguageUma(GetSourceUMANameForAPI(product_name, action_name),
+                    source_lang);
+  RecordLanguageUma(GetTargetUMANameForAPI(product_name, action_name),
+                    target_lang);
+  RecordLanguagePairUma(GetPairUMANameForAPI(product_name, action_name),
+                        source_lang, target_lang);
+}
+
+void RecordTranslationLength(std::string_view product_name,
+                             std::string_view source_lang,
+                             std::string_view target_lang,
+                             size_t length) {
+  // The translate() API call requires the source and target language to be
+  // supported.
+  CHECK(ToSupportedLanguage(source_lang).has_value());
+  CHECK(ToSupportedLanguage(target_lang).has_value());
+  base::UmaHistogramCounts1M(
+      base::StrCat({"Translate.", product_name, ".TranslationLength"}), length);
+  base::UmaHistogramCounts1M(
+      GetTranslationLengthUMAForSourceLanguage(product_name, source_lang),
+      length);
+  base::UmaHistogramCounts1M(
+      GetTranslationLengthUMAForTargetLanguage(product_name, target_lang),
+      length);
+}
+
 }  // namespace
 
 void RecordLanguageUma(std::string_view uma_name,
@@ -67,33 +110,32 @@ void RecordLanguagePairUma(std::string_view uma_name,
                       static_cast<int>(target_code.value()));
   }
 }
-
-void RecordTranslationAPICallForLanguagePair(std::string_view api_name,
-                                             std::string_view source_lang,
-                                             std::string_view target_lang) {
-  if (!ToSupportedLanguage(source_lang).has_value() ||
-      !ToSupportedLanguage(target_lang).has_value()) {
-    return;
-  }
-  RecordLanguageUma(GetSourceUMANameForAPI(api_name), source_lang);
-  RecordLanguageUma(GetTargetUMANameForAPI(api_name), target_lang);
-  RecordLanguagePairUma(GetPairUMANameForAPI(api_name), source_lang,
-                        target_lang);
+void RecordOnDeviceTranslationCallForLanguagePair(
+    std::string_view action_name,
+    std::string_view source_lang,
+    std::string_view target_lang) {
+  RecordCallForLanguagePair(kOnDeviceTranslationName, action_name, source_lang,
+                            target_lang);
 }
 
-void RecordTranslationCharacterCount(std::string_view source_lang,
+void RecordTranslatorApiCallForLanguagePair(std::string_view action_name,
+                                            std::string_view source_lang,
+                                            std::string_view target_lang) {
+  RecordCallForLanguagePair(kTranslatorApiName, action_name, source_lang,
+                            target_lang);
+}
+
+void RecordTranslatorApiTranslationLength(std::string_view source_lang,
+                                          std::string_view target_lang,
+                                          size_t length) {
+  RecordTranslationLength(kTranslatorApiName, source_lang, target_lang, length);
+}
+
+void RecordOnDeviceTranslationLength(std::string_view source_lang,
                                      std::string_view target_lang,
-                                     int character_count) {
-  // The translate() API call requires the source and target language to be
-  // supported.
-  CHECK(ToSupportedLanguage(source_lang).has_value());
-  CHECK(ToSupportedLanguage(target_lang).has_value());
-  base::UmaHistogramCounts1M("Translate.OnDeviceTranslation.CharacterCount",
-                             character_count);
-  base::UmaHistogramCounts1M(GetCharacterCountUMAForSourceLanguage(source_lang),
-                             character_count);
-  base::UmaHistogramCounts1M(GetCharacterCountUMAForTargetLanguage(target_lang),
-                             character_count);
+                                     size_t length) {
+  RecordTranslationLength(kOnDeviceTranslationName, source_lang, target_lang,
+                          length);
 }
 
 }  // namespace on_device_translation

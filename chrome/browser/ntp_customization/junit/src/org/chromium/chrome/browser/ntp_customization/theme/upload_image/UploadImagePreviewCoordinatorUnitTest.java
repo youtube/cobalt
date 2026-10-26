@@ -441,10 +441,9 @@ public class UploadImagePreviewCoordinatorUnitTest {
     }
 
     @Test
-    public void testSearchBoxHeight_ComposeplateV2() {
-        // Forces the ComposeplateV2 state
+    public void testSearchBoxHeight_ComposeplateEnabled() {
+        // Forces the Composeplate enabled state
         when(mComposeplateUtilsJni.isAimEntrypointEligible(any())).thenReturn(true);
-        ChromeFeatureList.sAndroidComposeplateV2Enabled.setForTesting(true);
 
         mUploadImagePreviewCoordinator =
                 new UploadImagePreviewCoordinator(mActivity, mProfile, mBitmap, mOnClickedCallback);
@@ -453,9 +452,7 @@ public class UploadImagePreviewCoordinatorUnitTest {
 
         int expectedTallHeight =
                 NtpCustomizationUtils.getSearchBoxHeightWithShadows(
-                        mActivity.getResources(),
-                        /* showSearchBoxTall= */ true,
-                        /* hasShadowApplied= */ true);
+                        mActivity.getResources(), /* showSearchBoxTall= */ true);
 
         // Verifies the height passed to the model
         assertEquals(
@@ -525,8 +522,7 @@ public class UploadImagePreviewCoordinatorUnitTest {
         // 3. Verifies the top margin of the real search box view
         ConstraintLayout.LayoutParams layoutParams = getSearchBoxLayoutParams();
         int expectedTopMargin =
-                NtpCustomizationUtils.getLogoViewBottomMarginPx(
-                        mActivity.getResources(), /* applyShadow= */ true);
+                NtpCustomizationUtils.getLogoViewBottomMarginPx(mActivity.getResources());
         assertEquals(
                 "The real view should use logo bottom margin as top margin",
                 expectedTopMargin,
@@ -674,8 +670,7 @@ public class UploadImagePreviewCoordinatorUnitTest {
         // Verifies the value of SEARCH_BOX_TOP_MARGIN which is shared
         // by both visible and hidden logo states.
         int expectedModelMargin =
-                NtpCustomizationUtils.getLogoViewBottomMarginPx(
-                        mActivity.getResources(), /* applyShadow= */ true);
+                NtpCustomizationUtils.getLogoViewBottomMarginPx(mActivity.getResources());
         assertEquals(
                 "The model should hold the shadow-adjusted margin",
                 expectedModelMargin,

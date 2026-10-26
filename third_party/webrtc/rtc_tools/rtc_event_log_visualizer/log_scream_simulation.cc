@@ -172,17 +172,18 @@ void LogScreamSimulation::LogState(const TransportPacketsFeedback& msg) {
       .max_data_in_flight = scream_->max_data_in_flight(),
       .data_in_flight = data_in_flight_,
       .send_window_usage = send_window_usage_,
-      .queue_delay_dev_norm =
-          scream_->delay_based_congestion_control().queue_delay_dev_norm(),
-      .ref_window_scale_factor_due_to_increased_delay =
-          scream_->delay_based_congestion_control().IsQueueDelayDetected()
-              ? 0.0
-              : scream_->delay_based_congestion_control()
-                    .ref_window_scale_factor_due_to_increased_delay(),
-      .ref_window_scale_factor_due_to_delay_variation =
+      .smoothed_rtt = scream_->delay_based_congestion_control().rtt(),
+      .queue_delay = scream_->delay_based_congestion_control().queue_delay(),
+      .queue_delay_min_avg =
+          scream_->delay_based_congestion_control().queue_delay_min_avg(),
+      .latency_difference_avg =
+          scream_->delay_based_congestion_control().latency_difference_avg(),
+      .ref_window_scale_factor_due_to_avg_min_delay =
           scream_->delay_based_congestion_control()
-              .ref_window_scale_factor_due_to_delay_variation(
-                  scream_->ref_window_mss_ratio()),
+              .ref_window_scale_factor_due_to_avg_min_delay(),
+      .ref_window_scale_factor_due_to_latency_difference =
+          scream_->delay_based_congestion_control()
+              .ref_window_scale_factor_due_to_latency_difference(),
       .ref_window_scale_factor_close_to_ref_window_i =
           scream_->ref_window_scale_factor_close_to_ref_window_i(),
       .ref_window_combined_increase_scale_factor =

@@ -135,6 +135,9 @@ enum class LayoutConstant {
   // The total tab strip height, including all interior padding.
   kTabStripHeight,
 
+  // The spacing between the bottom of the tab group underline and the toolbar.
+  kDetachedTabGroupUnderlineBottomSpacing,
+
   // The padding value shared between the area above the tab, the bottom of the
   // detached tab, and on all sides of the controls padding.
   kTabStripPadding,
@@ -214,16 +217,13 @@ enum class LayoutConstant {
   // The width of the separator in the vertical tab strip when collapsed.
   kVerticalTabStripCollapsedSeparatorWidth,
 
-  // The icon size of top buttons in the vertical tab strip.
-  kVerticalTabStripTopButtonIconSize,
+  // The icon size of buttons in the vertical tab strip.
+  kVerticalTabStripButtonIconSize,
 
   // The padding between the buttons in the top container of the vertical tab
   // strip. When it is collapsed, this is vertical padding. When it is
   // uncollapsed and expanded, this is horizontal padding.
   kVerticalTabStripTopButtonPadding,
-
-  // The icon size of bottom buttons in the vertical tab strip.
-  kVerticalTabStripBottomButtonIconSize,
 
   // The vertical or horizontal padding between two buttons (tab groups and tab
   // search) that have flat edges in the top container of the vertical tab

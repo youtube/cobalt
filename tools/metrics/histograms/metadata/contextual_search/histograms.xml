@@ -23,7 +23,17 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="ContextualSearchAiModeButtonSurface">
+  <variant name="NtpOmnibox" summary="NTP Omnibox"/>
+  <variant name="NtpRealbox" summary="NTP Realbox"/>
+  <variant name="SrpOmnibox" summary="SRP Omnibox"/>
+  <variant name="WebOmnibox" summary="Web Omnibox"/>
+</variants>
+
 <variants name="ContextualSearchContextState">
+  <variant name="WithContextNoText"
+      summary="recorded when a query is submitted with context but no typed
+               text"/>
   <variant name="WithNonTabContext"
       summary="recorded when a query is submitted with non-tab context"/>
   <variant name="WithoutContext"
@@ -46,6 +56,12 @@ chromium-metrics-reviews@google.com.
   <variant name="DeepSearchChip"/>
   <variant name="PlusButton"/>
   <variant name="RecentTabChip"/>
+</variants>
+
+<variants name="ContextualSearchInputStateDeletionType">
+  <variant name="File"/>
+  <variant name="Tab"/>
+  <variant name="Tool"/>
 </variants>
 
 <!-- LINT.IfChange(ContextualSearchSource) -->
@@ -85,6 +101,19 @@ chromium-metrics-reviews@google.com.
     tab.
   </summary>
   <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</histogram>
+
+<histogram
+    name="ContextualSearch.AiModeButtonClick.{ContextualSearchAiModeButtonSurface}"
+    enum="Boolean" expires_after="2026-08-09">
+  <owner>niharm@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Recorded when the AI mode button is clicked on the
+    {ContextualSearchAiModeButtonSurface}. Always recorded as true.
+  </summary>
+  <token key="ContextualSearchAiModeButtonSurface"
+      variants="ContextualSearchAiModeButtonSurface"/>
 </histogram>
 
 <histogram name="ContextualSearch.ConfigParseSuccess.{ContextualSearchSource}"
@@ -140,7 +169,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContextualSearch.ErrorPageShown.{ContextualSearchSource}"
-    enum="ContextualSearchErrorPage" expires_after="2026-06-21">
+    enum="ContextualSearchErrorPage" expires_after="2026-09-13">
   <owner>nguyenbryan@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -239,7 +268,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ContextualSearch.Query.Modality.V2.FunnelMetrics.{ContextualSearchFunnel}.{ContextualSearchSource}"
-    enum="ContextualSearchMultimodalState" expires_after="2026-07-05">
+    enum="ContextualSearchMultimodalState" expires_after="2026-09-06">
   <owner>hujasonx@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -252,7 +281,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContextualSearch.Query.Modality.V2.{ContextualSearchSource}"
-    enum="ContextualSearchMultimodalState" expires_after="2026-07-05">
+    enum="ContextualSearchMultimodalState" expires_after="2026-09-06">
   <owner>hujaosonx@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -636,7 +665,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ContextualSearch.Session.QuerySubmittedWithoutSessionStart.{ContextualSearchSource}"
-    enum="Boolean" expires_after="2026-06-21">
+    enum="Boolean" expires_after="2026-09-13">
   <owner>hujasonx@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -722,6 +751,19 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="ContextualSearch.TypedSuggestNavigation.IsVerbatim.{ContextualSearchSource}"
+    enum="Boolean" expires_after="2026-08-09">
+  <owner>niharm@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Recorded when a user navigates to a suggestion in typed mode from
+    {ContextualSearchSource}. Logs true if the suggestion was verbatim, and
+    false otherwise (SearchSuggest).
+  </summary>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</histogram>
+
+<histogram
     name="ContextualSearch.UserAction.DeleteAutoSuggestedTab.{ContextualSearchSource}"
     enum="Boolean" expires_after="2026-08-09">
   <owner>sophiechang@google.com</owner>
@@ -734,16 +776,45 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="ContextualSearch.UserAction.SubmitQuery.{ContextualSearchContextState}.{ContextualSearchSource}"
-    enum="Boolean" expires_after="2026-08-09">
-  <owner>sophiechang@chromium.org</owner>
+    name="ContextualSearch.UserAction.InputStateDeletion.{ContextualSearchInputStateDeletionType}.{ContextualSearchSource}"
+    enum="Boolean" expires_after="2027-03-15">
+  <owner>niharm@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records every time the user deletes a
+    {ContextualSearchInputStateDeletionType} from the composebox. Always
+    recorded as true.
+  </summary>
+  <token key="ContextualSearchInputStateDeletionType"
+      variants="ContextualSearchInputStateDeletionType"/>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</histogram>
+
+<histogram
+    name="ContextualSearch.UserAction.SubmitQueryV2.{ContextualSearchContextState}.{ContextualSearchSource}"
+    enum="Boolean" expires_after="2027-03-15">
+  <owner>niharm@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
     Recorded when a query is submitted {ContextualSearchContextState} from
-    {ContextualSearchSource}. Always recorded as true.
+    {ContextualSearchSource}. Always recorded as true. Note that more than one
+    entry can be submitted per query submission if it overlaps with
+    WithContextNoText.
   </summary>
   <token key="ContextualSearchContextState"
       variants="ContextualSearchContextState"/>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</histogram>
+
+<histogram
+    name="ContextualSearch.UserAction.SubmitVoiceQuery.{ContextualSearchSource}"
+    enum="Boolean" expires_after="2027-03-10">
+  <owner>niharm@google.com</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Recorded when a query is submitted through a voice query from
+    {ContextualSearchSource}. Always recorded as true.
+  </summary>
   <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
 </histogram>
 

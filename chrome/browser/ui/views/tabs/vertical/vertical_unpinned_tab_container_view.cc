@@ -116,7 +116,9 @@ views::ProposedLayout VerticalUnpinnedTabContainerView::CalculateProposedLayout(
   const int horizontal_padding = GetLayoutConstant(
       is_collapsed ? LayoutConstant::kVerticalTabStripCollapsedPadding
                    : LayoutConstant::kVerticalTabStripUncollapsedPadding);
-  const auto children = collection_node_->GetDirectChildren();
+  const std::vector<views::View*> children =
+      collection_node_ ? collection_node_->GetDirectChildren()
+                       : std::vector<views::View*>();
 
   // Layout children in order. Children will have their preferred height and
   // fill available width.
@@ -170,6 +172,10 @@ views::ProposedLayout VerticalUnpinnedTabContainerView::CalculateProposedLayout(
 }
 
 gfx::Size VerticalUnpinnedTabContainerView::GetMinimumSize() const {
+  if (!collection_node_) {
+    return gfx::Size();
+  }
+
   // The minimum size should be enough to show a tab and a half, if needed.
   const int num_children = collection_node_->GetDirectChildren().size();
   const int min_height =
@@ -238,6 +244,13 @@ VerticalUnpinnedTabContainerView::GetLinkDropIndex(
   // Fallback to the end of the container.
   return GetDragHandler().GetLinkDropIndexForNode(*collection_node_,
                                                   std::nullopt);
+}
+
+bool VerticalUnpinnedTabContainerView::IsDragging() const {
+  if (!collection_node_ || !collection_node_->GetController()) {
+    return false;
+  }
+  return GetDragHandler().IsDragging();
 }
 
 bool VerticalUnpinnedTabContainerView::IsViewDragging(

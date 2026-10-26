@@ -25,7 +25,11 @@ enum class DaisyChainSource {
 std::string GetDaisyChainSourceString(DaisyChainSource source);
 
 // GlicEntrypoint defines entrypoints interesting from growth metrics
-// perspective. It's a subset of InvocationSource, and more.
+// perspective. It's a subset of InvocationSource, and more. When adding a new
+// invocation source, consider if a new entry should be added to the existing
+// enum (and add new mapping in GetEntrypointFromInvocationSource if so), or if
+// it can be mapped to an existing entry. By default each new InvocationSource
+// is mapped to kOther.
 // LINT.IfChange(GlicEntrypoint)
 enum class GlicEntrypoint {
   kOsButton = 0,
@@ -49,7 +53,7 @@ enum class GlicEntrypoint {
 
 GlicEntrypoint GetEntrypointFromInvocationSource(
     mojom::InvocationSource source);
-
+std::string GetEntrypointString(GlicEntrypoint entrypoint);
 }  // namespace glic
 
 #endif  // CHROME_BROWSER_GLIC_SERVICE_METRICS_METRICS_TYPES_H_

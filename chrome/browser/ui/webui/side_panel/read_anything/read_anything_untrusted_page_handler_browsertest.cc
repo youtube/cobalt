@@ -346,10 +346,7 @@ class ReadAnythingUntrustedPageHandlerTest
   }
 
   SidePanelEntry* read_anything_entry() {
-    return browser()
-        ->GetActiveTabInterface()
-        ->GetTabFeatures()
-        ->side_panel_registry()
+    return SidePanelRegistry::From(browser()->GetActiveTabInterface())
         ->GetEntryForKey(
             SidePanelEntry::Key(SidePanelEntry::Id::kReadAnything));
   }
@@ -2031,8 +2028,7 @@ class ReadAnythingUntrustedPageHandlerDistillerTest
  public:
   ReadAnythingUntrustedPageHandlerDistillerTest()
       : ReadAnythingUntrustedPageHandlerTest(
-            {features::kReadAnythingWithReadability,
-             features::kReadAnythingReadAloudTSTextSegmentation}) {}
+            {features::kReadAnythingWithReadability}) {}
 };
 
 IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerDistillerTest,

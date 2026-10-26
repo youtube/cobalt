@@ -16,11 +16,11 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <span>
 #include <string>
 #include <tuple>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
@@ -106,14 +106,14 @@ std::vector<float> RunSubtractorTest(
       num_render_channels);
   for (size_t ch = 0; ch < num_render_channels; ++ch) {
     x_hp_filter[ch] = std::make_unique<CascadedBiQuadFilter>(
-        ArrayView<const CascadedBiQuadFilter::BiQuadCoefficients>(
+        std::span<const CascadedBiQuadFilter::BiQuadCoefficients>(
             kHighPassFilterCoefficients));
   }
   std::vector<std::unique_ptr<CascadedBiQuadFilter>> y_hp_filter(
       num_capture_channels);
   for (size_t ch = 0; ch < num_capture_channels; ++ch) {
     y_hp_filter[ch] = std::make_unique<CascadedBiQuadFilter>(
-        ArrayView<const CascadedBiQuadFilter::BiQuadCoefficients>(
+        std::span<const CascadedBiQuadFilter::BiQuadCoefficients>(
             kHighPassFilterCoefficients));
   }
 
@@ -130,7 +130,7 @@ std::vector<float> RunSubtractorTest(
     } else {
       for (size_t capture_ch = 0; capture_ch < num_capture_channels;
            ++capture_ch) {
-        ArrayView<float> y_view = y.View(/*band=*/0, capture_ch);
+        std::span<float> y_view = y.View(/*band=*/0, capture_ch);
         for (size_t render_ch = 0; render_ch < num_render_channels;
              ++render_ch) {
           std::array<float, kBlockSize> y_channel;

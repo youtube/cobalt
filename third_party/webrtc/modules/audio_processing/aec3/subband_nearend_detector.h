@@ -13,12 +13,12 @@
 
 #include <array>
 #include <cstddef>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
-#include "modules/audio_processing/aec3/moving_average.h"
+#include "modules/audio_processing/aec3/moving_average_spectrum.h"
 #include "modules/audio_processing/aec3/nearend_detector.h"
 
 namespace webrtc {
@@ -34,17 +34,17 @@ class SubbandNearendDetector : public NearendDetector {
 
   // Updates the state selection based on latest spectral estimates.
   void Update(
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>> nearend_spectrum,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>>
+      std::span<const std::array<float, kFftLengthBy2Plus1>> nearend_spectrum,
+      std::span<const std::array<float, kFftLengthBy2Plus1>>
           residual_echo_spectrum,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>>
+      std::span<const std::array<float, kFftLengthBy2Plus1>>
           comfort_noise_spectrum,
       bool initial_state) override;
 
  private:
   const EchoCanceller3Config::Suppressor::SubbandNearendDetection config_;
   const size_t num_capture_channels_;
-  std::vector<aec3::MovingAverage> nearend_smoothers_;
+  std::vector<MovingAverageSpectrum> nearend_smoothers_;
   const float one_over_subband_length1_;
   const float one_over_subband_length2_;
   bool nearend_state_ = false;

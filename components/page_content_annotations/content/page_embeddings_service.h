@@ -18,6 +18,7 @@
 #include "base/scoped_observation.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/page_content_annotations/content/page_content_extraction_service.h"
+#include "components/page_content_annotations/core/page_embeddings_common.h"
 #include "components/passage_embeddings/core/passage_embeddings_types.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/visibility.h"
@@ -30,23 +31,6 @@ class WebContents;
 namespace page_content_annotations {
 
 class PageContentExtractionService;
-
-enum EmbeddingPassageType {
-  kPageContent,
-  kTitle,
-};
-
-// A passage from a page along with its computed embedding.
-struct PassageEmbedding {
-  PassageEmbedding();
-  PassageEmbedding(std::pair<std::string, EmbeddingPassageType> passage,
-                   passage_embeddings::Embedding embedding);
-  PassageEmbedding(const PassageEmbedding&);
-  ~PassageEmbedding();
-
-  std::pair<std::string, EmbeddingPassageType> passage;
-  passage_embeddings::Embedding embedding;
-};
 
 class PageEmbeddingsService : public KeyedService,
                               public PageContentExtractionService::Observer {
@@ -125,7 +109,8 @@ class PageEmbeddingsService : public KeyedService,
   PageEmbeddingsService(
       EmbeddingCandidatesGenerator candidates_generator,
       PageContentExtractionService* page_content_extraction_service,
-      passage_embeddings::Embedder* embedder);
+      passage_embeddings::Embedder* embedder,
+      passage_embeddings::EmbedderMetadataProvider* embedder_metadata_provider);
   explicit PageEmbeddingsService(
       PageContentExtractionService* page_content_extraction_service);
   ~PageEmbeddingsService() override;
@@ -146,6 +131,9 @@ class PageEmbeddingsService : public KeyedService,
   // Virtual for testing.
   virtual std::vector<PassageEmbedding> GetEmbeddings(
       content::Page& page) const;
+
+  // Returns the provider for embedder metadata.
+  passage_embeddings::EmbedderMetadataProvider* GetEmbedderMetadataProvider();
 
   // PageContentExtractionService:
   void OnPageContentExtracted(
@@ -190,6 +178,9 @@ class PageEmbeddingsService : public KeyedService,
 
   const raw_ptr<passage_embeddings::Embedder> embedder_;
 
+  const raw_ptr<passage_embeddings::EmbedderMetadataProvider>
+      embedder_metadata_provider_;
+
   raw_ptr<PageContentExtractionService> page_content_extraction_service_;
   base::ScopedObservation<PageContentExtractionService, PageEmbeddingsService>
       page_content_extraction_observation_{this};
@@ -201,7 +192,7 @@ class PageEmbeddingsService : public KeyedService,
 
   UsageMode current_usage_mode_ = kOnDemand;
 
-  std::map<content::WebContents*, WebContentsState> web_contents_state_;
+  std::map<content::WebContents*, WebContentsState> web_contents_states_;
 
   base::WeakPtrFactory<PageEmbeddingsService> weak_ptr_factory_{this};
 };

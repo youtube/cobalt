@@ -123,6 +123,7 @@ public class FuseboxCoordinatorUnitTest {
 
         lenient().doReturn(mTabModel).when(mTabModelSelector).getCurrentModel();
         lenient().doReturn(new ArrayList<>(mTabs).iterator()).when(mTabModel).iterator();
+        doReturn(true).when(mComposebox).isFuseboxEligible();
 
         doReturn(true).when(mIncognitoProfile).isIncognitoBranded();
 
@@ -148,7 +149,11 @@ public class FuseboxCoordinatorUnitTest {
     }
 
     private FuseboxSessionState createSession() {
-        return new FuseboxSessionState(mAutocompleteInput, mComposebox, null);
+        var session = mock(FuseboxSessionState.class);
+        lenient().doReturn(mAutocompleteController).when(session).getAutocompleteController();
+        lenient().doReturn(mAutocompleteInput).when(session).getAutocompleteInput();
+        lenient().doReturn(mComposebox).when(session).getComposeboxQueryControllerBridge();
+        return session;
     }
 
     @After
@@ -233,6 +238,30 @@ public class FuseboxCoordinatorUnitTest {
         mCoordinator.beginInput(createSession());
         verify(mMediator).beginInput(any());
 
+        mCoordinator.endInput();
+        verify(mMediator).endInput();
+    }
+
+    @Test
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
+    public void testToolbarVisibility_featureEnabled_disabledByServer() {
+        // setUp pre-initializes input for most tests, but this test verifies what this
+        // step (beginInput) actually does, so let's reset to valid start state.
+        mCoordinator.endInput();
+        clearInvocations(mMediator);
+
+        // Mediator set by setUp().
+        doReturn(false).when(mComposebox).isFuseboxEligible();
+        mCoordinator.beginInput(createSession());
+        // We never activate the Fusebox in this scenario
+        verify(mMediator, never()).beginInput(any());
+        // ... but we want to be sure we reset the Fusebox UI if the user jumped tabs.
+        verify(mMediator).endInput();
+
+        clearInvocations(mMediator);
+
+        // Ensure we still call endInput in the event the fusebox was previously active
+        // when flag state changed (e.g. user jumped tabs) to properly reset UI state.
         mCoordinator.endInput();
         verify(mMediator).endInput();
     }

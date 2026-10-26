@@ -692,17 +692,17 @@ Browser::~Browser() {
     OnWindowClosing();
   }
 
+  // Stop observing notifications and destroy the tab monitor before continuing
+  // with destruction. Profile destruction will unload extensions and reentrant
+  // calls to Browser:: should be avoided while it is being torn down.
+  ThemeServiceFactory::GetForProfile(profile_)->RemoveObserver(this);
+
   BrowserList::RemoveBrowser(this);
   window_.reset();
 
   // Tear down `BrowserWindowFeatures` to avoid exposing it to Browser in a
   // partially-destroyed state.
   features_.reset();
-
-  // Stop observing notifications and destroy the tab monitor before continuing
-  // with destruction. Profile destruction will unload extensions and reentrant
-  // calls to Browser:: should be avoided while it is being torn down.
-  ThemeServiceFactory::GetForProfile(profile_)->RemoveObserver(this);
 
   // The tab strip should not have any tabs at this point.
   //
@@ -1406,11 +1406,7 @@ void Browser::FullscreenTopUIStateChanged() {
 }
 
 void Browser::OnFindBarVisibilityChanged() {
-  if (!IsPageActionMigrated(PageActionIconType::kFind)) {
-    window()->UpdatePageActionIcon(PageActionIconType::kFind);
-  } else {
-    GetFeatures().GetFindBarController()->UpdatePageAction();
-  }
+  GetFeatures().GetFindBarController()->UpdatePageAction();
 
   GetCommandController()->FindBarVisibilityChanged();
 }
@@ -1537,7 +1533,7 @@ void Browser::OnTabStripModelChanged(TabStripModel* tab_strip_model,
     }
     case TabStripModelChange::kRemoved: {
       for (const auto& contents : change.GetRemove()->contents) {
-        if (contents.remove_reason == TabRemovedReason::kDeleted) {
+        if (TabRemoveReasonUtils::WillDeleteTab(contents.remove_reason)) {
           OnTabClosing(contents.contents);
         }
         OnTabDetached(contents.contents,
@@ -3066,8 +3062,8 @@ void Browser::OnActiveTabChanged(const TabStripModelChange& change,
           selection.old_contents, selection.new_contents,
           /*tab_removed_for_deletion=*/
           (change.type() == TabStripModelChange::kRemoved) &&
-              (change.GetRemove()->contents[0].remove_reason ==
-               TabRemovedReason::kDeleted));
+              (TabRemoveReasonUtils::WillDeleteTab(
+                  change.GetRemove()->contents[0].remove_reason)));
     }
   }
 

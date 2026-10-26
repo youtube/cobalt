@@ -25,13 +25,13 @@
 #include "chrome/browser/ui/lens/lens_search_feature_flag_utils.h"
 #include "chrome/browser/ui/lens/lens_searchbox_controller.h"
 #include "chrome/browser/ui/lens/page_content_type_conversions.h"
+#include "chrome/browser/ui/side_panel/side_panel_content_proxy.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
+#include "chrome/browser/ui/side_panel/side_panel_util.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_content_proxy.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "components/google/core/common/google_util.h"
@@ -786,9 +786,9 @@ LensOverlaySidePanelCoordinator::SidePanelInitializationData::
     ~SidePanelInitializationData() = default;
 
 void LensOverlaySidePanelCoordinator::DeregisterEntryAndCleanup() {
-  auto* registry = lens_search_controller_->GetTabInterface()
-                       ->GetTabFeatures()
-                       ->side_panel_registry();
+  auto* tab_interface = lens_search_controller_->GetTabInterface();
+  auto* registry = SidePanelRegistry::From(tab_interface);
+
   CHECK(registry);
 
   // Remove the side panel entry observer if it is present.
@@ -1127,9 +1127,9 @@ void LensOverlaySidePanelCoordinator::OpenURLInBrowser(
 }
 
 void LensOverlaySidePanelCoordinator::RegisterEntry() {
-  auto* registry = lens_search_controller_->GetTabInterface()
-                       ->GetTabFeatures()
-                       ->side_panel_registry();
+  auto* tab_interface = lens_search_controller_->GetTabInterface();
+  auto* registry = SidePanelRegistry::From(tab_interface);
+
   CHECK(registry);
 
   // If the entry is already registered, don't register it again.

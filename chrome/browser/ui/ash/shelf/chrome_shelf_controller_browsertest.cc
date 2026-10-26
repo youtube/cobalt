@@ -2348,8 +2348,8 @@ IN_PROC_BROWSER_TEST_F(ShelfWebAppBrowserTest, SettingsAndTaskManagerWindows) {
   settings_manager->ShowChromePageForProfile(
       browser()->profile(), chromeos::settings::GetOSSettingsUrl(std::string()),
       display::kInvalidDisplayId,
-      base::BindOnce([](apps::LaunchResult&& result) {
-        EXPECT_EQ(apps::State::kSuccess, result.state);
+      base::BindOnce([](apps::LaunchResult result) {
+        EXPECT_EQ(apps::LaunchResult::kSuccess, result);
       }).Then(run_loop.QuitClosure()));
   // Spin a run loop to sync Ash's ShelfModel change for the settings window.
   run_loop.Run();

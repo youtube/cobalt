@@ -1207,6 +1207,7 @@ void DocumentLoader::SetHistoryItemStateForCommit(
 
   history_item_->SetURL(UrlForHistory());
   history_item_->SetReferrer(referrer_.GetString());
+  history_item_->SetRequestorOrigin(requestor_origin_);
   if (EqualIgnoringAsciiCase(http_method_, "POST")) {
     // FIXME: Eventually we have to make this smart enough to handle the case
     // where we have a stream for the body to handle the "data interspersed with
@@ -1858,8 +1859,8 @@ void DocumentLoader::CommitSameDocumentNavigationInternal(
             [](Frame* frame) {
               // The delay might mean the frame is no longer attached to the
               // owner (e.g., iframe detach).
-              if (auto* owner = frame->Owner()) {
-                owner->DispatchLoad();
+              if (frame && frame->Owner()) {
+                frame->Owner()->DispatchLoad();
               }
             },
             WrapWeakPersistent(frame_.Get())),
@@ -2737,11 +2738,7 @@ void DocumentLoader::InitializeWindow(Document* owner_document) {
         GetWindowAgentForAgentClusterKey(frame_.Get(), agent_cluster_key);
     frame_->SetDOMWindow(MakeGarbageCollected<LocalDOMWindow>(*frame_, agent));
 
-    // No need to sync this back to the browser, since it just came from the
-    // browser.
-    frame_->DomWindow()->SetStorageAccessApiStatus(
-        storage_access_api_status_,
-        LocalDOMWindow::StorageAccessApiNotifyEmbedder::kNone);
+    frame_->DomWindow()->SetStorageAccessApiStatus(storage_access_api_status_);
     inherited_has_storage_access = [this]() -> bool {
       switch (storage_access_api_status_) {
         case net::StorageAccessApiStatus::kNone:

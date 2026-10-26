@@ -14,6 +14,7 @@
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "content/public/browser/service_worker_context.h"
+#include "content/public/common/child_process_id.h"
 #include "extensions/browser/service_worker/sequenced_context_id.h"
 #include "extensions/browser/service_worker/worker_id.h"
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
@@ -67,7 +68,10 @@ class ServiceWorkerState
     // TODO(crbug.com/485056792): observers should be aware that there's
     // currently no guarantee that the `version_id` matches the one this class
     // is currently tracking.
-    virtual void OnWorkerStop(int64_t version_id, const GURL& scope) {}
+    virtual void OnWorkerStop(
+        int64_t version_id,
+        const blink::ServiceWorkerToken& service_worker_token,
+        const GURL& scope) {}
   };
 
   void AddObserver(Observer* observer);
@@ -120,7 +124,7 @@ class ServiceWorkerState
   void DidStartWorkerForScope(const SequencedContextId& context_id,
                               base::Time start_time,
                               int64_t version_id,
-                              int process_id,
+                              content::ChildProcessId process_id,
                               int thread_id,
                               const blink::ServiceWorkerToken& token);
   // Called when the worker was requested to start, but failed.
@@ -141,18 +145,26 @@ class ServiceWorkerState
   // It is considered the "browser-side" signal that the worker is stopping.
   // NOTE: this can be called before or after
   // `RendererDidStopServiceWorkerContext`.
-  void OnStoppingSync(int64_t version_id, const GURL& scope) override;
+  void OnStoppingSync(
+      int64_t version_id,
+      const GURL& scope,
+      const blink::ServiceWorkerToken& service_worker_token) override;
 
   // Called when an extension service worker has stopped.
   // It is considered the "browser-side" signal that the worker has stopped.
   // NOTE: this can be called before or after
   // `RendererDidStopServiceWorkerContext`.
-  void OnStoppedSync(int64_t version_id, const GURL& scope) override;
+  void OnStoppedSync(
+      int64_t version_id,
+      const GURL& scope,
+      const blink::ServiceWorkerToken& service_worker_token) override;
 
  private:
   void SetWorkerId(const WorkerId& worker_id);
   void NotifyObserversIfReady(const SequencedContextId& context_id);
-  void HandleStop(int64_t version_id, const GURL& scope);
+  void HandleStop(int64_t version_id,
+                  const GURL& scope,
+                  const blink::ServiceWorkerToken& service_worker_token);
 
   BrowserState browser_state_ = BrowserState::kNotActive;
   RendererState renderer_state_ = RendererState::kNotActive;

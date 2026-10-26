@@ -14,7 +14,8 @@ import type {DomRepeat} from '//resources/polymer/v3_0/polymer/polymer_bundled.m
 
 import {BrowserProxyImpl} from './browser_proxy.js';
 import type {BrowserProxy} from './browser_proxy.js';
-import {type CursorTooltipData, CursorTooltipType} from './cursor_tooltip.js';
+import {CursorTooltipType} from './cursor_tooltip.js';
+import type {CursorTooltipData} from './cursor_tooltip.js';
 import {findWordsInRegion} from './find_words_in_region.js';
 import {CenterRotatedBox_CoordinateType} from './geometry.mojom-webui.js';
 import type {CenterRotatedBox} from './geometry.mojom-webui.js';
@@ -23,7 +24,7 @@ import {SemanticEvent, UserAction} from './lens.mojom-webui.js';
 import {INVOCATION_SOURCE} from './lens_overlay_app.js';
 import {recordLensOverlayInteraction, recordLensOverlaySemanticEvent} from './metrics_utils.js';
 import type {SelectedRegionContextMenuData, SelectedTextContextMenuData} from './selection_overlay.js';
-import type {CursorData} from './selection_overlay_base_element.js';
+import type {CursorData} from './selection_overlay_base.js';
 import {CursorType} from './selection_utils.js';
 import type {GestureEvent} from './selection_utils.js';
 import type {BackgroundImageData, Line, Paragraph, Text, TranslatedLine, TranslatedParagraph, Word} from './text.mojom-webui.js';

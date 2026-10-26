@@ -146,6 +146,7 @@ CcFeedbackGenerator::MaybeSendFeedback(Timestamp time) {
       PacketResult packet_result;
       packet_result.sent_packet.send_time =
           packets_in_flight_.front().send_time();
+      packet_result.reported_lost_for_the_first_time = true;
       packet_result.sent_packet.size = packets_in_flight_.front().packet_size();
       packets_in_flight_.pop_front();
       feedback.packet_feedbacks.push_back(packet_result);

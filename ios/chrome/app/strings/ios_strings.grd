@@ -182,6 +182,18 @@
   </translations>
   <release seq="1">
     <messages fallback_to_english="true">
+      <message name="IDS_AUTOFILL_SCAN_CARD_AND_AUTOFILL_PROMPT_CANCEL_BUTTON_LABEL" desc="Label for the cancel button of scan card and save prompt offer. This prompt is shown if the user clicks on the credit card form field and there are no saved cards on file on IOS devices.">
+        No thanks
+      </message>
+      <message name="IDS_AUTOFILL_SCAN_CARD_AND_AUTOFILL_PROMPT_PRIMARY_BUTTON_LABEL" desc="Label for the primary button of scan card and save prompt offer. This prompt is shown if the user clicks on the credit card form field and there are no saved cards on file on IOS devices.">
+        Scan Card and Autofill
+      </message>
+      <message name="IDS_AUTOFILL_SCAN_SAVE_AND_FILL_BOTTOM_SHEET_DESCRIPTION" desc="Description for the `Scan, Save and Fill` suggestion shown in the Autofill bottom sheet for users who don't have any cards saved in Autofill. When the suggestion is clicked, users are offered to scan, save and fill a credit card with a single click.">
+        Save your card in your Google Account to autofill it for this purchase and future purchases made on Chrome
+      </message>
+      <message name="IDS_AUTOFILL_SCAN_SAVE_AND_FILL_BOTTOM_SHEET_TITLE" desc="Title for the `Scan, Save and Fill` suggestion shown in the Autofill bottom sheet for users who don't have any cards saved in Autofill. When the suggestion is clicked, users are offered to scan, save and fill a credit card with a single click.">
+        Check out faster with autofill across your devices
+      </message>
       <message name="IDS_IOS_ACCNAME_CLEAR_TEXT" desc="The accessibility label for the clear text button in the location bar [Length: unlimited].">
         Clear text
       </message>
@@ -467,9 +479,18 @@
       <message name="IDS_IOS_APPLICATION_SHORTCUT_VOICE_SEARCH_TITLE" desc="Message when opening a Voice Search from springboard force touch static shortcuts. [Length: unlimited] [iOS only]." meaning="3D Touch entry to trigger a voice search.">
         Voice search
       </message>
+      <message name="IDS_IOS_APP_BAR_ALL_TABS" desc="Title of the button opening the TabGrid where all the tabs are visible. Note that if the translation is too long, the 'all' can be dropped and translate only 'Tabs'. [CHAR_LIMIT=14]" meaning="Tap this button to see all your tabs.">
+          All tabs
+          </message>
+      <message name="IDS_IOS_APP_BAR_ASK_GEMINI" desc="Title of the button opening a gemini prompt. [CHAR_LIMIT=14]" meaning="Tap this button to ask something to Gemini">
+          Ask Gemini
+          </message>
       <message name="IDS_IOS_APP_BAR_CONTEXT_MENU_NEW_TAB_GROUP" desc="The text for the button opening a new tab group from the app bar's context menu in the tab groups page of the tab grid.">
         New Tab Group...
       </message>
+      <message name="IDS_IOS_APP_BAR_NEW" desc="Title of the button that is either creating a new tab or a new tab group. [CHAR_LIMIT=14]" meaning="Tap this button to create a new entity based on your current context">
+          New
+          </message>
       <message name="IDS_IOS_APP_LAUNCHER_OPEN_APP_BUTTON_LABEL" desc="Label of a button to open an application. [Length: 10em] [iOS only]">
         Open
       </message>
@@ -517,6 +538,9 @@
            =1 {{count} option for address available above your keyboard.}
            other {{count} options for address available above your keyboard.}}
       </message>
+      <message name="IDS_IOS_AUTOFILL_ADD_ADDRESS_BUTTON_TEXT" desc="Button text for adding an address from Addresses and more screen of Settings [iOS only]">
+        Address
+      </message>
       <message name="IDS_IOS_AUTOFILL_ADD_CREDIT_CARD_OPEN_CAMERA_BUTTON_LABEL" desc="The text shown on a button to open the camera scanner to scan a credit card and extract the card number and expiry date, when adding a new credit card to Chrome Autofill [iOS only]">
         Use Camera
       </message>
@@ -546,6 +570,9 @@
       </message>
       <message name="IDS_IOS_AUTOFILL_AI_UPDATE_PROMPT" desc="The prompt text asking the user to update an existing entity in Autofill AI. [iOS only]">
         Update <ph name="ENTITY_TYPE">$1<ex>Passport</ex></ph>?
+      </message>
+      <message name="IDS_IOS_AUTOFILL_AI_VEHICLE_VIN_NAME" desc="The display name for the vehicle identification number (VIN) in Autofill AI. [iOS only]">
+        VIN
       </message>
       <message name="IDS_IOS_AUTOFILL_AUTOCOMPLETE_OPTIONS_AVAILABLE_ACCESSIBILITY_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="The accessibility announcement to indicate the number of options available to the user above the keyboard in relation to autocomplete. This announcement is triggered when the user enters edit mode in an autocomplete-related form field and has options available in the keyboard accessory for autofill purposes. According to the number of available options, the string goes from singular to plural. [iOS only]">
         {count, plural,
@@ -644,6 +671,11 @@
       </message>
       <message name="IDS_IOS_AUTOFILL_NICKNAME" desc="Title of the field representing the user defined nickname of a credit card. [Length: 15em] [iOS only]">
         Card nickname
+      </message>
+      <message name="IDS_IOS_AUTOFILL_OPTIONS_AVAILABLE_ACCESSIBILITY_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="The accessibility announcement to indicate the number of options available to the user above the keyboard in relation to enhanced autofill. This announcement is triggered when the user enters edit mode in an autocomplete-related form field and has options available in the keyboard accessory for autofill purposes. According to the number of available options, the string goes from singular to plural. [iOS only]">
+        {count, plural,
+           =1 {{count} autofill option available above your keyboard.}
+           other {{count} autofill options available above your keyboard.}}
       </message>
       <message name="IDS_IOS_AUTOFILL_PASSWORD_AUTOFILL_DATA" desc="The accessible name for the button in the keyboard accessory shown when filling out forms used to open the expanded view to see password autofill data. This is spoken by VoiceOver. [Length: unlimited] [iOS only]">
         Passwords
@@ -1876,17 +1908,8 @@
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_PRICE_TRACKING_PROMO_HIDE_CARD" desc="Button text indicating price tracking promo module can be removed">
         Hide "Get Price Tracking Notifications"
       </message>
-      <message name="IDS_IOS_CONTENT_SUGGESTIONS_PRICE_TRACKING_PROMO_SETTINGS_TURN_ON_NOTIFICATIONS_ACCEPT" desc="Button text indicating the user can accept turning on price tracking notifications in settings">
-          Go to Settings...
-      </message>
-      <message name="IDS_IOS_CONTENT_SUGGESTIONS_PRICE_TRACKING_PROMO_SETTINGS_TURN_ON_NOTIFICATIONS_DENY" desc="Button text indicating the user can deny turning on price tracking notifications in settings">
-          No, Thanks
-      </message>
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_PRICE_TRACKING_PROMO_SETTINGS_TURN_ON_NOTIFICATIONS_TEXT" desc="Text indicating the user needs to go to settings to turn on notifications (because they have previously turned it off)">
           To get price tracking notifications, turn on notifications in your iOS Settings.
-      </message>
-      <message name="IDS_IOS_CONTENT_SUGGESTIONS_PRICE_TRACKING_PROMO_SETTINGS_TURN_ON_NOTIFICATIONS_TITLE" desc="Title indicating the user needs to go to settings to turn on notifications (because they have previously turned it off)">
-          Turn on notifications?
       </message>
       <message name="IDS_IOS_CONTENT_SUGGESTIONS_PRICE_TRACKING_PROMO_SNACKBAR_MANAGE" desc="Snackbar action enabling management of price tracking notifications">
           Manage
@@ -2073,6 +2096,9 @@
       </message>
       <message name="IDS_IOS_CREDENTIAL_BOTTOM_SHEET_CONTINUE" desc="The action button to use the selected credentials to fill the username on a username only form without password.">
         Continue
+      </message>
+      <message name="IDS_IOS_CREDENTIAL_BOTTOM_SHEET_MORE_PASSKEYS" desc="The action button to dismiss the credential bottom sheet and defer the passkey request back to iOS, for potentially more passkey options.">
+        More passkeys
       </message>
       <message name="IDS_IOS_CREDENTIAL_BOTTOM_SHEET_NO_USERNAME" desc="Text shown for an option in a list of the user's saved passwords, when the user did not save a username along with the password.">
         No username ••••••••
@@ -2319,15 +2345,6 @@
       </message>
       <message name="IDS_IOS_DEVICE_ACCOUNTS_MANAGEMENT" desc="Title of a page that shows all accounts on the user's device and lets them add, remove and otherwise manage their accounts. Avoid long strings given the limited space between surrounding buttons. [iOS only]">
         Manage Accounts
-      </message>
-      <message name="IDS_IOS_DIAMOND_PROTOTYPE_ALL_TABS" desc="Title of the button opening the Tab Grid, containing all the tabs">
-        All Tabs
-      </message>
-      <message name="IDS_IOS_DIAMOND_PROTOTYPE_ASK_GEMINI" desc="Title of the button opening a gemini prompt">
-        Ask Gemini
-      </message>
-      <message name="IDS_IOS_DIAMOND_PROTOTYPE_NEW_TAB" desc="Title of the button opening a new tab">
-        New Tab
       </message>
       <message name="IDS_IOS_DIRECTIONS_OMNIBOX_ACTION" desc="Directions suggestion action button [iOS only]">
         Directions
@@ -2916,7 +2933,7 @@
         Explain with Gemini
       </message>
       <message name="IDS_IOS_EXPLAIN_GEMINI_PROMPT_PREFIX" desc="This text will be appended before a body of text which Gemini is being asked to explain to the user.">
-          Explain this to me
+          Explain this to me:
       </message>
       <message name="IDS_IOS_EXPORT_PASSWORDS" desc="Button that the user can press to export passwords. [Length: 22em] [iOS only]">
         Export passwords…
@@ -3300,6 +3317,9 @@
       </message>
       <message name="IDS_IOS_HOME_BACKGROUND_CUSTOMIZATION_IPH" desc="In-product help that points at the entrypoint for the Home Customization menu in the new tab page when background customization is added.">
         Pick a theme, color, or more for your background
+      </message>
+      <message name="IDS_IOS_HOME_BACKGROUND_CUSTOMIZATION_USER_UPLOAD_NOT_SYNCED_SNACKBAR" desc="The snackbar displayed at the bottom of the screen informing the user that their uploaded background image will not be synced to other devices.">
+        Photos from Camera Roll won’t sync across your devices
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_ACCESSIBILITY_LABEL" desc="Accessibility label for the Home Customization menu in the new tab page.">
         Customize your home screen

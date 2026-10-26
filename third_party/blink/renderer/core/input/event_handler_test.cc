@@ -1188,7 +1188,7 @@ TEST_F(EventHandlerTest, MisspellingContextMenuEvent) {
   ASSERT_TRUE(Selection().IsHandleVisible());
 
   GetDocument().GetFrame()->GetEventHandler().ShowNonLocatedContextMenu(
-      nullptr, kMenuSourceTouchHandle);
+      nullptr, ui::mojom::blink::MenuSourceType::kTouchHandle);
 
   ASSERT_TRUE(Selection().GetSelectionInDOMTree().IsCaret());
   ASSERT_TRUE(Selection().IsHandleVisible());
@@ -3670,10 +3670,11 @@ TEST_F(EventHandlerSimTest, ValidClickPointerIdForUnseenPointerEvent) {
 TEST_F(EventHandlerSimTest, GestureTapHoverState) {
   ResizeView(gfx::Size(800, 600));
 
-  // With this feature enabled, RecomputeMouseHoverState() fires synthetic
-  // mouse events for inactive pages. If the feature is disabled, we need to
-  // focus the page to avoid the early exit in RecomputeMouseHoverState().
-  // See crbug.com/385474535 for more details.
+  // With this feature enabled, RecomputeMouseHoverStateIfNeeded() fires
+  // synthetic mouse events for inactive pages. If the feature is disabled, we
+  // need to focus the page to avoid the early exit in
+  // RecomputeMouseHoverStateIfNeeded(). See crbug.com/385474535 for more
+  // details.
   if (!RuntimeEnabledFeatures::SyntheticMouseHoverOverInactivePageEnabled()) {
     GetPage().SetFocused(true);
   }

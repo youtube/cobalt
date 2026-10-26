@@ -19,6 +19,7 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <span>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -26,7 +27,6 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/base/nullability.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/fec_controller_override.h"
 #include "api/field_trials_view.h"
@@ -131,7 +131,7 @@ bool StreamQualityCompare(const SimulcastStream& a, const SimulcastStream& b) {
 }
 
 void GetLowestAndHighestQualityStreamIndixes(
-    ArrayView<const SimulcastStream> streams,
+    std::span<const SimulcastStream> streams,
     int* lowest_quality_stream_idx,
     int* highest_quality_stream_idx) {
   const auto lowest_highest_quality_streams =
@@ -385,7 +385,7 @@ int SimulcastEncoderAdapter::InitEncode(
   int highest_quality_stream_idx = 0;
   if (!is_legacy_singlecast) {
     GetLowestAndHighestQualityStreamIndixes(
-        ArrayView<SimulcastStream>(codec_.simulcastStream,
+        std::span<SimulcastStream>(codec_.simulcastStream,
                                    total_streams_count_),
         &lowest_quality_stream_idx, &highest_quality_stream_idx);
   }

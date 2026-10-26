@@ -12,8 +12,8 @@
 #define MODULES_AUDIO_PROCESSING_AEC3_NEAREND_DETECTOR_H_
 
 #include <array>
+#include <span>
 
-#include "api/array_view.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
 
 namespace webrtc {
@@ -27,10 +27,10 @@ class NearendDetector {
 
   // Updates the state selection based on latest spectral estimates.
   virtual void Update(
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>> nearend_spectrum,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>>
+      std::span<const std::array<float, kFftLengthBy2Plus1>> nearend_spectrum,
+      std::span<const std::array<float, kFftLengthBy2Plus1>>
           residual_echo_spectrum,
-      ArrayView<const std::array<float, kFftLengthBy2Plus1>>
+      std::span<const std::array<float, kFftLengthBy2Plus1>>
           comfort_noise_spectrum,
       bool initial_state) = 0;
 };

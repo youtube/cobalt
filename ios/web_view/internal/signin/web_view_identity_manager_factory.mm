@@ -18,6 +18,7 @@
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/signin/public/identity_manager/identity_manager_builder.h"
 #import "ios/web_view/internal/app/application_context.h"
+#import "ios/web_view/internal/metrics/web_view_profile_metrics_service_factory.h"
 #import "ios/web_view/internal/signin/account_fetcher_factory_ios_web_view.h"
 #import "ios/web_view/internal/signin/ios_web_view_signin_client.h"
 #import "ios/web_view/internal/signin/web_view_device_accounts_provider_impl.h"
@@ -36,6 +37,7 @@ WebViewIdentityManagerFactory::WebViewIdentityManagerFactory()
           "IdentityManager",
           BrowserStateDependencyManager::GetInstance()) {
   DependsOn(WebViewSigninClientFactory::GetInstance());
+  DependsOn(WebViewProfileMetricsServiceFactory::GetInstance());
 }
 
 WebViewIdentityManagerFactory::~WebViewIdentityManagerFactory() {}
@@ -63,7 +65,6 @@ WebViewIdentityManagerFactory::BuildServiceInstanceFor(
       WebViewSigninClientFactory::GetForBrowserState(browser_state);
 
   signin::IdentityManagerBuildParams params;
-  params.account_consistency = signin::AccountConsistencyMethod::kDisabled;
   params.device_accounts_provider =
       std::make_unique<WebViewDeviceAccountsProviderImpl>();
   params.image_decoder = image_fetcher::CreateIOSImageDecoder();
@@ -73,6 +74,8 @@ WebViewIdentityManagerFactory::BuildServiceInstanceFor(
   params.signin_client = client;
   params.account_fetcher_factory =
       std::make_unique<ios_web_view::AccountFetcherFactoryIOSWebView>();
+  params.profile_metrics_service =
+      WebViewProfileMetricsServiceFactory::GetForBrowserState(browser_state);
 
   return signin::BuildIdentityManager(&params);
 }

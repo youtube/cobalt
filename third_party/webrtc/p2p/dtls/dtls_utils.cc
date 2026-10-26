@@ -13,10 +13,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <vector>
 
 #include "absl/container/flat_hash_set.h"
-#include "api/array_view.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/crc32.h"
@@ -30,12 +30,12 @@ const uint8_t kDtlsHandshakeRecord = 22;
 
 }  // namespace
 
-bool IsDtlsPacket(ArrayView<const uint8_t> payload) {
+bool IsDtlsPacket(std::span<const uint8_t> payload) {
   const uint8_t* u = payload.data();
   return (payload.size() >= kDtlsRecordHeaderLen && (u[0] > 19 && u[0] < 64));
 }
 
-bool IsDtlsClientHelloPacket(ArrayView<const uint8_t> payload) {
+bool IsDtlsClientHelloPacket(std::span<const uint8_t> payload) {
   if (!IsDtlsPacket(payload)) {
     return false;
   }
@@ -43,7 +43,7 @@ bool IsDtlsClientHelloPacket(ArrayView<const uint8_t> payload) {
   return payload.size() > 17 && u[0] == kDtlsHandshakeRecord && u[13] == 1;
 }
 
-bool IsDtlsHandshakePacket(ArrayView<const uint8_t> payload) {
+bool IsDtlsHandshakePacket(std::span<const uint8_t> payload) {
   if (!IsDtlsPacket(payload)) {
     return false;
   }
@@ -55,11 +55,11 @@ bool IsDtlsHandshakePacket(ArrayView<const uint8_t> payload) {
                                  payload[0] == kDtlsChangeCipherSpecRecord);
 }
 
-uint32_t ComputeDtlsPacketHash(ArrayView<const uint8_t> dtls_packet) {
+uint32_t ComputeDtlsPacketHash(std::span<const uint8_t> dtls_packet) {
   return ComputeCrc32(dtls_packet.data(), dtls_packet.size());
 }
 
-bool PacketStash::AddIfUnique(ArrayView<const uint8_t> packet) {
+bool PacketStash::AddIfUnique(std::span<const uint8_t> packet) {
   uint32_t h = ComputeDtlsPacketHash(packet);
   for (const auto& [hash, p] : packets_) {
     if (h == hash) {
@@ -72,7 +72,7 @@ bool PacketStash::AddIfUnique(ArrayView<const uint8_t> packet) {
   return true;
 }
 
-void PacketStash::Add(ArrayView<const uint8_t> packet) {
+void PacketStash::Add(std::span<const uint8_t> packet) {
   packets_.push_back(
       {.hash = ComputeDtlsPacketHash(packet),
        .buffer = std::make_unique<Buffer>(packet.data(), packet.size())});
@@ -110,20 +110,20 @@ void PacketStash::Prune(uint32_t max_size) {
   }
 }
 
-ArrayView<const uint8_t> PacketStash::GetNext() {
+std::span<const uint8_t> PacketStash::GetNext() {
   RTC_DCHECK(!packets_.empty());
   auto pos = pos_;
   pos_ = (pos + 1) % packets_.size();
   const auto& buffer = packets_[pos].buffer;
-  return ArrayView<const uint8_t>(buffer->data(), buffer->size());
+  return std::span<const uint8_t>(buffer->data(), buffer->size());
 }
 
-std::vector<ArrayView<const uint8_t>> PacketStash::GetAll() const {
-  std::vector<ArrayView<const uint8_t>> ret;
+std::vector<std::span<const uint8_t>> PacketStash::GetAll() const {
+  std::vector<std::span<const uint8_t>> ret;
   ret.reserve(packets_.size());
   for (const auto& buffer : packets_) {
     const uint8_t* ptr = buffer.buffer->data();
-    ret.push_back(ArrayView<const uint8_t>(ptr, buffer.buffer->size()));
+    ret.push_back(std::span<const uint8_t>(ptr, buffer.buffer->size()));
   }
   return ret;
 }

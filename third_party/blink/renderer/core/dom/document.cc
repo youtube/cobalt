@@ -94,6 +94,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_focus_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_import_node_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_observable_array_css_style_sheet.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_overscroll_event_init.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_throw_dom_exception.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_elementcreationoptions_string.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_htmlscriptelement_svgscriptelement.h"
@@ -310,6 +311,7 @@
 #include "third_party/blink/renderer/core/mathml_names.h"
 #include "third_party/blink/renderer/core/mobile_metrics/mobile_friendliness_checker.h"
 #include "third_party/blink/renderer/core/origin_trials/origin_trial_context.h"
+#include "third_party/blink/renderer/core/overscroll/overscroll_event.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/event_with_hit_test_results.h"
 #include "third_party/blink/renderer/core/page/focus_controller.h"
@@ -611,7 +613,7 @@ std::optional<CharType> ParseElementLocalName(
       // digits, U+002D (-), U+002E (.), U+003A (:), U+005F (_), or in the range
       // U+0080 to U+10FFFF, inclusive, then return false.
       next_char = characters[i];
-      if (!IsASCIIAlpha(next_char) && !IsASCIIDigit(next_char) &&
+      if (!IsASCIIAlpha(next_char) && !IsAsciiDigit(next_char) &&
           next_char != '-' && next_char != '.' && next_char != ':' &&
           next_char != '_' && next_char < 0x80) {
         return next_char;
@@ -1282,7 +1284,7 @@ bool Document::IsInOutermostMainFrame() const {
 }
 
 AtomicString Document::ConvertLocalName(const AtomicString& name) {
-  return IsA<HTMLDocument>(this) ? name.LowerASCII() : name;
+  return IsA<HTMLDocument>(this) ? name.ToAsciiLower() : name;
 }
 
 // Just creates an element with specified qualified name without any
@@ -2123,7 +2125,7 @@ void Document::UpdateTitle(const String& title) {
 
 void Document::DispatchDidReceiveTitle() {
   if (IsInMainFrame()) {
-    String shortened_title = title_.Substring(0, mojom::blink::kMaxTitleChars);
+    String shortened_title = title_.substr(0, mojom::blink::kMaxTitleChars);
     GetFrame()->GetLocalFrameHostRemote().UpdateTitle(shortened_title);
     GetFrame()->GetPage()->GetPageScheduler()->OnTitleOrFaviconUpdated();
   }
@@ -6577,6 +6579,22 @@ void Document::EnqueueScrollSnapChangingEvent(Node* target,
       scrollsnapchanging_event);
 }
 
+void Document::EnqueueOverscrollEvent(const AtomicString& type,
+                                      Node* target,
+                                      Element* overscroll_target,
+                                      bool overscrolling) {
+  OverscrollEventInit* init = OverscrollEventInit::Create();
+  init->setOverscrollTarget(overscroll_target);
+  // We bubble if we're on the document.
+  init->setBubbles(target->IsDocumentNode());
+  if (type == event_type_names::kOverscrollchanging) {
+    init->setOverscrolling(overscrolling);
+  }
+  Event* overscroll_event = OverscrollEvent::Create(type, init);
+  overscroll_event->SetTarget(target);
+  scripted_animation_controller_->EnqueuePerFrameEvent(overscroll_event);
+}
+
 void Document::EnqueueMoveEvent() {
   CHECK(
       RuntimeEnabledFeatures::DesktopPWAsAdditionalWindowingControlsEnabled());
@@ -8361,7 +8379,7 @@ void Document::SupportsReducedMotionMetaChanged() {
     if (EqualIgnoringAsciiCase(meta_element.GetName(),
                                "supports-reduced-motion")) {
       SpaceSplitString split_content(
-          AtomicString(meta_element.Content().GetString().LowerASCII()));
+          AtomicString(meta_element.Content().GetString().ToAsciiLower()));
       if (split_content.Contains(AtomicString("reduce"))) {
         supports_reduced_motion = true;
       }

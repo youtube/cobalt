@@ -11,9 +11,8 @@
 #define RTC_BASE_TEXT2PCAP_H_
 
 #include <cstdint>
+#include <span>
 #include <string>
-
-#include "api/array_view.h"
 
 namespace webrtc {
 
@@ -29,7 +28,7 @@ class Text2Pcap {
   // newline and has a grep-able suffix (e.g. ` # SCTP_PACKET` or ` # RTP_DUMP`)
   // for easy extraction from logs.
   static std::string DumpPacket(bool outbound,
-                                ArrayView<const uint8_t> payload,
+                                std::span<const uint8_t> payload,
                                 int64_t timestamp_ms);
 };
 

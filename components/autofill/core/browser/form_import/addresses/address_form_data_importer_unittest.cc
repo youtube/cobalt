@@ -73,10 +73,72 @@ constexpr char kSecondPhoneAreaCode[] = "651";
 constexpr char kSecondPhonePrefix[] = "666";
 constexpr char kSecondPhoneSuffix[] = "1111";
 
+constexpr char kThirdFirstName[] = "Homer";
+constexpr char kThirdLastName[] = "Simpson";
+constexpr char kThirdMail[] = "donut@whatever.net";
+constexpr char kThirdAddressLine1[] = "742 Evergreen Terrace";
+constexpr char kThirdZip[] = "65619";
+constexpr char kThirdCity[] = "Springfield";
+constexpr char kThirdState[] = "Oregon";
+constexpr char kThirdPhone[] = "+1 850-777-2222";
+
+constexpr char kDefaultPhoneGermany[] = "+49 89 123456";
+constexpr char kDefaultPhoneMexico[] = "+52 55 1234 5678";
+constexpr char kDefaultPhoneArmenia[] = "+374 10 123456";
+
 constexpr char kDefaultCreditCardNumber[] = "4111 1111 1111 1111";
 
 constexpr char kDefaultGuid[] = "a21f010a-eac1-41fc-aee9-c06bbedfb292";
 constexpr char kSecondGuid[] = "a21f010a-eac1-41fc-aee9-c06bbedfb293";
+
+// Same as `GetDefaultProfileTypeValuePairs()` but with the third profile
+// information.
+TypeValuePairs GetThirdProfileTypeValuePairs() {
+  return {
+      {NAME_FIRST, kThirdFirstName},
+      {NAME_LAST, kThirdLastName},
+      {EMAIL_ADDRESS, kThirdMail},
+      {PHONE_HOME_WHOLE_NUMBER, kThirdPhone},
+      {ADDRESS_HOME_LINE1, kThirdAddressLine1},
+      {ADDRESS_HOME_CITY, kThirdCity},
+      {ADDRESS_HOME_STATE, kThirdState},
+      {ADDRESS_HOME_ZIP, kThirdZip},
+      {ADDRESS_HOME_COUNTRY, kDefaultCountry},
+  };
+}
+
+// Wraps `GetDefaultProfileTypeValuePairs()` but replaces `kDefaultCountry` with
+// `country`. If `country` is empty, ADDRESS_HOME_COUNTRY is removed entirely.
+TypeValuePairs GetDefaultProfileTypeValuePairsWithOverriddenCountry(
+    const std::string& country) {
+  auto pairs = GetDefaultProfileTypeValuePairs();
+  SetValueForType(pairs, ADDRESS_HOME_COUNTRY, country);
+  if (country == "DE" || country == "Germany") {
+    SetValueForType(pairs, PHONE_HOME_WHOLE_NUMBER, kDefaultPhoneGermany);
+  } else if (country == "MX" || country == "Mexico") {
+    SetValueForType(pairs, PHONE_HOME_WHOLE_NUMBER, kDefaultPhoneMexico);
+  } else if (country == "AM" || country == "Armenien") {
+    SetValueForType(pairs, PHONE_HOME_WHOLE_NUMBER, kDefaultPhoneArmenia);
+  }
+  return pairs;
+}
+
+// Returns the third AutofillProfile used in this test file.
+AutofillProfile ConstructThirdProfile() {
+  return ConstructProfileFromTypeValuePairs(GetThirdProfileTypeValuePairs());
+}
+
+// Same as `ConstructDefaultFormStructure()` but for the second profile.
+std::unique_ptr<FormStructure> ConstructSecondProfileFormStructure() {
+  return ConstructFormStructureFromTypeValuePairs(
+      GetSecondProfileTypeValuePairs());
+}
+
+// Same as `ConstructDefaultFormStructure()` but for the third profile.
+std::unique_ptr<FormStructure> ConstructThirdProfileFormStructure() {
+  return ConstructFormStructureFromTypeValuePairs(
+      GetThirdProfileTypeValuePairs());
+}
 
 // Wraps `ConstructDefaultProfile()`, but overrides ADDRESS_HOME_COUNTRY with
 // `country`.
@@ -84,6 +146,27 @@ AutofillProfile ConstructDefaultProfileWithOverriddenCountry(
     const std::string& country) {
   return ConstructProfileFromTypeValuePairs(
       GetDefaultProfileTypeValuePairsWithOverriddenCountry(country));
+}
+
+// Constructs a form structure containing only an email field, set to
+// `kDefaultMail`. This is useful for testing multi-step complements.
+std::unique_ptr<FormStructure> ConstructDefaultEmailFormStructure() {
+  // The autocomplete attribute is set manually, because for small forms (number
+  // of fields < kMinRequiredFieldsForHeuristics), no heuristics are used.
+  FormData form =
+      ConstructFormDataFromTypeValuePairs({{EMAIL_ADDRESS, kDefaultMail}});
+  const char* autocomplete = "email";
+  test_api(form).field(0).set_autocomplete_attribute(autocomplete);
+  test_api(form).field(0).set_parsed_autocomplete(
+      ParseAutocompleteAttribute(autocomplete));
+  return ConstructFormStructureFromFormData(form);
+}
+
+// Same as `ConstructDefaultFormData()` but split into two parts to test multi-
+// step imports (see `GetSplitDefaultProfileTypeValuePairs()`).
+FormData ConstructSplitDefaultFormData(int part) {
+  return ConstructFormDataFromTypeValuePairs(
+      GetSplitDefaultProfileTypeValuePairs(part));
 }
 
 // Matches an AddressProfile pointer according to Compare(). Takes `expected`
@@ -947,7 +1030,7 @@ TEST_F(AddressFormDataImporterTest,
   enable_import_when_multiple_phones_feature.InitAndEnableFeature(
       features::kAutofillEnableImportWhenMultiplePhoneNumbers);
 
-  FormData form_data = ConstructFormDateFromTypeValuePairs(
+  FormData form_data = ConstructFormDataFromTypeValuePairs(
       {{NAME_FIRST, kDefaultFirstName},
        {NAME_LAST, kDefaultLastName},
        {EMAIL_ADDRESS, kDefaultMail},
@@ -1055,7 +1138,7 @@ TEST_F(AddressFormDataImporterTest, ImportAddressProfiles_MinimumAddressGI) {
 
 TEST_F(AddressFormDataImporterTest,
        ImportAddressProfiles_PhoneNumberSplitAcrossMultipleFields) {
-  FormData form_data = ConstructFormDateFromTypeValuePairs(
+  FormData form_data = ConstructFormDataFromTypeValuePairs(
       {{NAME_FIRST, kDefaultFirstName},
        {NAME_LAST, kDefaultLastName},
        {EMAIL_ADDRESS, kDefaultMail},
@@ -1566,7 +1649,7 @@ TEST_F(AddressFormDataImporterTest,
       features::kAutofillEnableImportOfUnchangedValuesForCountryAndState};
 
   // Create a form with a prefilled state and country.
-  FormData form = ConstructFormDateFromTypeValuePairs({
+  FormData form = ConstructFormDataFromTypeValuePairs({
       {NAME_FULL, "Pablo Diego Ruiz y Picasso"},
       {EMAIL_ADDRESS, "theprez@gmail.com"},
       {ADDRESS_HOME_LINE1, "21 Laussat St"},
@@ -1640,6 +1723,7 @@ TEST_F(AddressFormDataImporterTest,
   AutofillField field2(
       test::CreateTestSelectField("Country", "country", "US", "country",
                                   {"DE", "US"}, {"Germany", "United States"}));
+  field2.set_selected_option_text(u"United States");
   field2.SetTypeTo(AutofillType(ADDRESS_HOME_COUNTRY),
                    AutofillPredictionSource::kHeuristics);
   const std::array<const autofill::AutofillField*, 2> section_fields =
@@ -1662,6 +1746,7 @@ TEST_F(AddressFormDataImporterTest,
   AutofillField field(
       test::CreateTestSelectField("Country", "country", "US", "country",
                                   {"DE", "US"}, {"Germany", "United States"}));
+  field.set_selected_option_text(u"United States");
   field.SetTypeTo(AutofillType(ADDRESS_HOME_COUNTRY),
                   AutofillPredictionSource::kHeuristics);
   AutofillField field2;

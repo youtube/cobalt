@@ -66,7 +66,7 @@ String StringBuilder::Substring(unsigned start, unsigned length) const {
   if (start >= length_)
     return g_empty_string;
   if (!string_.IsNull())
-    return string_.Substring(start, length);
+    return string_.substr(start, length);
   length = std::min(length, length_ - start);
   if (is_8bit_)
     return String(Span8().subspan(start, length));
@@ -301,9 +301,8 @@ void StringBuilder::AppendFormat(const char* format, ...) {
   Vector<char, kDefaultSize> buffer(kDefaultSize);
 
   va_start(args, format);
-  // SAFETY: The safety of this code depends on the content of `format`. Since
-  // unsafe usage is marked with UNSAFE_TODO or UNSAFE_BUFFERS at the call
-  // site, no action is required here.
+  // SAFETY: The safety of this code depends on the content of `format`.
+  // Required from caller, Enforced by UNSAFE_BUFFER_USAGE in header.
   int length = UNSAFE_BUFFERS(base::VSpanPrintf(buffer, format, args));
   va_end(args);
   DCHECK_GE(length, 0);

@@ -13,10 +13,11 @@
 //     validate_all_variables_are_declared_in_scope()
 //   - Every accessed register must be declared in an accessible block:
 //     validate_all_registers_are_declared_in_scope()
+//   - Branches must have the appropriate targets set (merge, trueblock for if, etc); every block
+//     ends in branch: validate_all_branch_instructions_have_valid_target()
+//   - No branches inside a block (i.e. no dead code) validate_no_dead_code()
 
 // TODO(http://anglebug.com/349994211): to validate:
-//   - Branches must have the appropriate targets set (merge, trueblock for if, etc).
-//   - No branches inside a block, every block ends in branch. (i.e. no dead code)
 //   - For merge blocks that have an input, the branch instruction of blocks that jump to it have an
 //     output.
 //   - No identical types with different IDs.
@@ -57,11 +58,15 @@
 //     and they both end in a Merge with an ID.  (Technically, we should be able to also support one
 //     block being merge and the other discard/return/break/continue, but no such code can be
 //     generated right now).
+//   - Images with the Rect dimension can only have a Float base type and be 2D samplers (not
+//     storage image, array, msaa, etc).
+//   - Between the Smooth, Flat, NoPerspective, Centroid and Sample decorations, they are all
+//     mutually exclusive, except NoPerspective can be combined with Centroid or Sample.  See
+//     ffi::Interpolation in reflection.rs for reference.
+//   - ReadOnly and WriteOnly decorations are mutually exclusive.
 
-use crate::debug;
 use crate::ir::*;
-use crate::traverser;
-use std::collections::HashSet;
+use crate::*;
 use std::fmt;
 
 pub fn validate(ir: &IR) {
@@ -171,9 +176,14 @@ impl DeclaredRegisterTracker {
         self.declared_registers_in_current_scope.pop().unwrap();
     }
 
-    fn declare_register(&mut self, register_id: RegisterId) {
+    fn declare_register<'a>(&mut self, register_id: RegisterId, validator: &Validator<'a>) {
         // first check we have not declared this register yet
-        debug_assert!(!self.is_declared(register_id));
+        if self.is_declared(register_id) {
+            validator.on_error(format_args!(
+                "register {} is already declared, can't declare the same register twice",
+                register_id.id
+            ));
+        }
         // add the register to the declaration map
         self.declared_registers_in_current_scope.last_mut().unwrap().insert(register_id);
     }
@@ -185,6 +195,31 @@ impl DeclaredRegisterTracker {
             }
         }
         false
+    }
+}
+
+#[derive(Clone)]
+struct BlockMetaData {
+    can_break: bool,
+    can_continue: bool,
+    can_passthrough: bool,
+    is_loop: bool,
+    has_merge_block: bool,
+    switch_case_count: i32,
+    case_block_index: i32,
+}
+
+impl BlockMetaData {
+    fn new() -> BlockMetaData {
+        BlockMetaData {
+            can_break: false,
+            can_continue: false,
+            can_passthrough: false,
+            is_loop: false,
+            has_merge_block: false,
+            switch_case_count: 0,
+            case_block_index: -1,
+        }
     }
 }
 
@@ -215,6 +250,8 @@ impl<'a> Validator<'a> {
         self.validate_all_ids_are_present();
         self.validate_all_variables_are_declared_in_scope();
         self.validate_all_registers_are_declared_in_scope();
+        self.validate_no_dead_code();
+        self.validate_all_branch_instructions_have_valid_target();
     }
 
     fn validate_all_ids_are_present(&self) {
@@ -224,35 +261,41 @@ impl<'a> Validator<'a> {
 
     fn validate_all_ids_are_present_in_ir_meta(&self) {
         // validate IRMeta.constants
-        for (constant_index, constant) in self.ir.meta.all_constants().iter().enumerate() {
+        for (constant_id, constant) in self.ir.meta.all_constants().iter().enumerate() {
             self.validate_all_ids_in_a_constant_are_present(
-                constant_index.try_into().unwrap(),
+                constant_id.try_into().unwrap(),
                 constant,
             );
         }
         // validate IRMeta.variables
-        for (variable_index, variable) in self.ir.meta.all_variables().iter().enumerate() {
-            self.validate_all_ids_in_a_variable_are_present(
-                variable_index.try_into().unwrap(),
-                variable,
-            );
+        for (variable_id, variable) in self.ir.meta.all_variables().iter().enumerate() {
+            if !variable.is_dead_code_eliminated {
+                self.validate_all_ids_in_a_variable_are_present(
+                    variable_id.try_into().unwrap(),
+                    variable,
+                );
+            }
         }
         // validate IRMeta.functions
-        for (function_index, function) in self.ir.meta.all_functions().iter().enumerate() {
-            self.validate_all_ids_in_a_function_are_present(
-                function_index.try_into().unwrap(),
-                function,
-            );
-        }
+        traverser::visitor::for_each_function(
+            &mut (),
+            &self.ir.function_entries,
+            |_, function_id| {
+                let function = self.ir.meta.get_function(function_id);
+                self.validate_all_ids_in_a_function_are_present(function_id.id, function);
+            },
+            |_, _, _, _| traverser::visitor::STOP,
+            |_, _| {},
+        );
 
         // Validate IRMeta.global_variables
-        for (global_variable_index, global_variable) in
+        for (global_variable_id, global_variable) in
             self.ir.meta.all_global_variables().iter().enumerate()
         {
             if global_variable.id >= self.max_variable_count {
                 self.on_error(format_args!(
-                    "invalid IRMeta: global_variable {global_variable_index} uses invalid \
-                     variable id {}",
+                    "invalid IRMeta: global_variable {global_variable_id} uses invalid variable \
+                     id {}",
                     global_variable.id
                 ));
             }
@@ -773,20 +816,28 @@ impl<'a> Validator<'a> {
         let mut vars_declared_map = DeclaredVarTracker::new();
         vars_declared_map.set_global_declared_vars(self.ir.meta.all_global_variables());
 
-        for (function_entry_index, entry) in self.ir.function_entries.iter().enumerate() {
-            if entry.is_none() {
-                // Skip over functions that have been dead-code eliminated.
-                continue;
-            }
-            let function_signature = &self.ir.meta.all_functions()[function_entry_index];
-            vars_declared_map
-                .add_function_param_vars_upon_enter_function(&function_signature.params);
-            self.validate_all_variables_in_a_block_are_declared_in_scope(
-                &mut vars_declared_map,
-                entry.as_ref().unwrap(),
-            );
-            vars_declared_map.remove_function_param_vars_upon_exit_function();
-        }
+        let current_function = FunctionId { id: 0 };
+        let mut state = (current_function, vars_declared_map);
+        traverser::visitor::for_each_function(
+            &mut state,
+            &self.ir.function_entries,
+            |(current_function, _), function_id| {
+                *current_function = function_id;
+            },
+            |(current_function, vars_declared_map), entry, _, _| {
+                let function = &self.ir.meta.get_function(*current_function);
+
+                vars_declared_map.add_function_param_vars_upon_enter_function(&function.params);
+                self.validate_all_variables_in_a_block_are_declared_in_scope(
+                    vars_declared_map,
+                    entry,
+                );
+                vars_declared_map.remove_function_param_vars_upon_exit_function();
+
+                traverser::visitor::STOP
+            },
+            |_, _| {},
+        );
     }
 
     fn validate_all_variables_in_a_block_are_declared_in_scope(
@@ -847,7 +898,7 @@ impl<'a> Validator<'a> {
         registers_declared_map.add_scope();
 
         block.input.inspect(|input| {
-            registers_declared_map.declare_register(input.id);
+            registers_declared_map.declare_register(input.id, self);
         });
 
         for instruction in &block.instructions {
@@ -859,7 +910,7 @@ impl<'a> Validator<'a> {
                 Some(registers_declared_map),
             );
             result.inspect(|result| {
-                registers_declared_map.declare_register(result.id);
+                registers_declared_map.declare_register(result.id, self);
             });
         }
 
@@ -872,5 +923,301 @@ impl<'a> Validator<'a> {
         });
 
         registers_declared_map.remove_scope();
+    }
+
+    fn validate_all_branch_instructions_have_valid_target(&self) {
+        let mut block_meta_data_tracker = Vec::new();
+        for entry in &self.ir.function_entries {
+            if entry.is_none() {
+                // Skip over functions that have been dead-code eliminated.
+                continue;
+            }
+            // Add a default BlockMetaData as the root block's parent BlockMetaData
+            block_meta_data_tracker.clear();
+            block_meta_data_tracker.push(BlockMetaData::new());
+            // call validate_block_branch_instruction_have_valid_target()on root block, it will
+            // recursively validate all the child blocks
+            self.validate_block_branch_instruction_have_valid_target(
+                &mut block_meta_data_tracker,
+                entry.as_ref().unwrap(),
+            );
+        }
+    }
+
+    fn validate_block_branch_instruction_have_valid_target(
+        &self,
+        block_meta_data_tracker: &mut Vec<BlockMetaData>,
+        current_block: &Block,
+    ) {
+        // validate current block's branch instruction
+        let block_branch_op_code = current_block.get_terminating_op();
+        if !block_branch_op_code.is_branch() {
+            self.on_error(format_args!(
+                "block does not end with a branch OpCode {:?}",
+                block_branch_op_code
+            ));
+        }
+
+        // if the block branch_op_code requires current block to not contain certain children
+        // blocks, validate the children blocks are none
+        match block_branch_op_code {
+            OpCode::Discard
+            | OpCode::Return(_)
+            | OpCode::LoopIf(_)
+            | OpCode::Merge(_)
+            | OpCode::Continue
+                if current_block.merge_block.is_some() =>
+            {
+                self.on_error(format_args!(
+                    "block ends with OpCode::Discard, OpCode::Return, OpCode::LoopIf, \
+                     OpCode::Merge, OpCode::Continue should not have merge_block"
+                ));
+            }
+
+            _ => {
+                // Other OpCode does have enforce current block to not contain certain children
+                // blocks
+            }
+        }
+
+        // If the block_branch_op_code requires current block to contain certain children blocks,
+        // validate the children blocks are present
+        match block_branch_op_code {
+            OpCode::NextBlock if current_block.merge_block.is_none() => {
+                self.on_error(format_args!(
+                    "OpCode::NextBlock is missing a valid target. Current block should contain a \
+                     merge_block"
+                ));
+            }
+            OpCode::If(_) => {
+                if !current_block.has_if_true_block() {
+                    self.on_error(format_args!(
+                        "OpCode::If is a missing a valid target. Current block should contain a \
+                         true block (block1)"
+                    ));
+                }
+                if current_block.merge_block.is_none() {
+                    self.on_error(format_args!(
+                        "OpCode::If is missing a valid target. Current block should contain a \
+                         merge_block"
+                    ));
+                }
+            }
+            OpCode::Loop => {
+                if current_block.loop_condition.is_none() {
+                    self.on_error(format_args!(
+                        "OpCode::Loop is a missing a valid target. Current block should contain a \
+                         loop_condition block"
+                    ));
+                }
+                if !current_block.has_loop_body_block() {
+                    self.on_error(format_args!(
+                        "OpCode::Loop is missing a valid target. Current block should contain a \
+                         loop body block (block1)"
+                    ));
+                }
+                if current_block.merge_block.is_none() {
+                    self.on_error(format_args!(
+                        "OpCode::Loop is missing a valid target. Current block should contain a \
+                         merge_block"
+                    ));
+                }
+            }
+            OpCode::DoLoop => {
+                if !current_block.has_loop_body_block() {
+                    self.on_error(format_args!(
+                        "OpCode::DoLoop is missing a valid target. Current block should contain a \
+                         loop body block (block1)"
+                    ));
+                }
+                if current_block.merge_block.is_none() {
+                    self.on_error(format_args!(
+                        "OpCode::DoLoop is missing a valid target. Current block should contain a \
+                         merge_block"
+                    ));
+                }
+            }
+            OpCode::Switch(_, case_ids) => {
+                if current_block.case_blocks.len() != case_ids.len() {
+                    self.on_error(format_args!(
+                        "OpCode::Switch case_blocks length mismatches with case_ids length"
+                    ));
+                }
+                if current_block.case_blocks.is_empty() {
+                    self.on_error(format_args!(
+                        "OpCode::Switch is missing a valid target. Current block should contain \
+                         at lease 1 case_block"
+                    ));
+                }
+                if current_block.merge_block.is_none() {
+                    self.on_error(format_args!(
+                        "OpCode::Switch is missing a valid target. Current block should contain a \
+                         merge_block"
+                    ));
+                }
+            }
+            _ => {
+                // Other OpCode does not enforce the current_block to contain certain children
+                // blocks
+            }
+        }
+
+        // If the block branch_op_code requires its parent block to satisfy certain requirements,
+        // validate the requirements.
+        let parent_block_meta_data = block_meta_data_tracker.last().unwrap();
+        match block_branch_op_code {
+            OpCode::Break if !parent_block_meta_data.can_break => {
+                self.on_error(format_args!(
+                    "OpCode::Break is not within a Loop, DoLoop, or Switch"
+                ));
+            }
+            OpCode::Continue if !parent_block_meta_data.can_continue => {
+                self.on_error(format_args!("OpCode::Continue is not within a Loop, DoLoop"));
+            }
+            OpCode::Passthrough => {
+                // First check the Passthrough OpCode is inside a switch case block
+                if !parent_block_meta_data.can_passthrough {
+                    self.on_error(format_args!(
+                        "OpCode::Passthrough not within a Switch Case Block"
+                    ));
+                }
+                // Then check the Passthrough OpCode is not in the last case block
+                if parent_block_meta_data.case_block_index + 1
+                    >= parent_block_meta_data.switch_case_count
+                {
+                    self.on_error(format_args!(
+                        "OpCode::Passthrough is not allowed on the last Switch Case Block"
+                    ));
+                }
+            }
+            OpCode::Merge(_) if !parent_block_meta_data.has_merge_block => {
+                self.on_error(format_args!(
+                    "OpCode::Merge is missing a valid target. The parent block should contain a \
+                     merge block"
+                ));
+            }
+            OpCode::LoopIf(_) if !parent_block_meta_data.is_loop => {
+                self.on_error(format_args!(
+                    "The block ends with OpCode::LoopIf must be immediate child of the loop that \
+                     ends with OpCode::Loop"
+                ));
+            }
+            _ => {
+                // Other OpCode does not have enforcement on parent blocks to satitisfy certain
+                // conditions
+            }
+        }
+
+        // Set the BlockMetaData for current_block
+        // By default, we inherite the BlockMetaData from the parent
+        let mut current_block_meta_data = parent_block_meta_data.clone();
+
+        // Set the BlockMetaData fields that needs to be overwritten by current block
+        current_block_meta_data.is_loop =
+            matches!(block_branch_op_code, OpCode::Loop | OpCode::DoLoop);
+        current_block_meta_data.has_merge_block = current_block.merge_block.is_some();
+
+        // Call validate_block_branch_instruction_have_valid_target() on child blocks.
+        // Based on the child block type, the current_block_meta_data field will need different
+        // values. We will adjust the current_block_meta_data field values, push
+        // current_block_meta_data to the block_meta_data_tracker, and then pop it when we are done
+        // with the child block.
+        current_block.loop_condition.as_ref().inspect(|loop_condition| {
+            let mut current_block_meta_data_for_loop_condition = current_block_meta_data.clone();
+
+            current_block_meta_data_for_loop_condition.can_break = false;
+            current_block_meta_data_for_loop_condition.can_continue = false;
+            current_block_meta_data_for_loop_condition.can_passthrough = false;
+            block_meta_data_tracker.push(current_block_meta_data_for_loop_condition);
+            self.validate_block_branch_instruction_have_valid_target(
+                block_meta_data_tracker,
+                loop_condition,
+            );
+            block_meta_data_tracker.pop().unwrap();
+        });
+
+        current_block.block1.as_ref().inspect(|block1| {
+            let mut current_block_meta_data_for_block1 = current_block_meta_data.clone();
+
+            if current_block_meta_data.is_loop {
+                current_block_meta_data_for_block1.can_break = true;
+                current_block_meta_data_for_block1.can_continue = true;
+            }
+            block_meta_data_tracker.push(current_block_meta_data_for_block1);
+            self.validate_block_branch_instruction_have_valid_target(
+                block_meta_data_tracker,
+                block1,
+            );
+            block_meta_data_tracker.pop().unwrap();
+        });
+
+        current_block.block2.as_ref().inspect(|block2| {
+            let mut current_block_meta_data_for_block2 = current_block_meta_data.clone();
+
+            if current_block_meta_data.is_loop {
+                current_block_meta_data_for_block2.can_break = false;
+                current_block_meta_data_for_block2.can_continue = true;
+            }
+            block_meta_data_tracker.push(current_block_meta_data_for_block2);
+            self.validate_block_branch_instruction_have_valid_target(
+                block_meta_data_tracker,
+                block2,
+            );
+            block_meta_data_tracker.pop().unwrap();
+        });
+
+        if let OpCode::Switch(_, _) = block_branch_op_code {
+            let mut current_block_meta_data_for_case_block = current_block_meta_data.clone();
+            current_block_meta_data_for_case_block.can_break = true;
+            current_block_meta_data_for_case_block.can_continue = true;
+            current_block_meta_data_for_case_block.can_passthrough = true;
+            current_block_meta_data_for_case_block.switch_case_count =
+                current_block.case_blocks.len().try_into().unwrap();
+            current_block.case_blocks.iter().enumerate().for_each(
+                |(case_block_index, case_block)| {
+                    current_block_meta_data_for_case_block.case_block_index =
+                        case_block_index.try_into().unwrap();
+                    block_meta_data_tracker.push(current_block_meta_data_for_case_block.clone());
+                    self.validate_block_branch_instruction_have_valid_target(
+                        block_meta_data_tracker,
+                        case_block,
+                    );
+                    block_meta_data_tracker.pop().unwrap();
+                },
+            );
+        }
+
+        // For merge_block, it logically is continuation of current_block, we will use
+        // current_block's parent BlockMetaData. No need to push current_block_meta_data to
+        // the block_meta_data_tracker.
+        current_block.merge_block.as_ref().inspect(|merge_block| {
+            self.validate_block_branch_instruction_have_valid_target(
+                block_meta_data_tracker,
+                merge_block,
+            );
+        });
+    }
+
+    fn validate_no_dead_code(&self) {
+        traverser::visitor::for_each_function(
+            &mut (), // no state to track while traversing all functions
+            &self.ir.function_entries,
+            |_, _| {}, // do nothing in pre_visit
+            |_, block, _, _| {
+                self.validate_no_branch_in_the_middle_of_block_instructions(block);
+                traverser::visitor::VISIT_SUB_BLOCKS
+            }, // validate no branch instruction in the middle of a block during visit
+            |_, _| {}, // do nothing in post_visit
+        );
+    }
+
+    fn validate_no_branch_in_the_middle_of_block_instructions(&self, block: &Block) {
+        for instruction in &block.instructions[0..block.instructions.len() - 1] {
+            if instruction.is_branch() {
+                self.on_error(format_args!(
+                    "branch instruction is only allowed in the last instruction in the block"
+                ));
+            }
+        }
     }
 }

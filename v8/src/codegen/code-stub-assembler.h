@@ -2897,6 +2897,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSAsyncGeneratorObject(TNode<HeapObject> object);
   TNode<BoolT> IsFunctionInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSFunctionInstanceType(TNode<Int32T> instance_type);
+#if V8_ENABLE_WEBASSEMBLY
+  TNode<BoolT> IsWasmObjectInstanceType(TNode<Int32T> instance_type);
+#endif
   TNode<BoolT> IsJSFunctionMap(TNode<Map> map);
   TNode<BoolT> IsJSFunction(TNode<HeapObject> object);
   TNode<BoolT> IsJSBoundFunction(TNode<HeapObject> object);
@@ -4277,20 +4280,24 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreJSArrayBufferViewByteOffset(
       TNode<JSArrayBufferView> array_buffer_view, TNode<UintPtrT> value);
 
-  // JSTypedArray helpers
-  TNode<UintPtrT> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
+  TNode<UintPtrT> LoadJSTypedArrayLength(
+      TNode<JSTypedArray> typed_array,
+      std::optional<TNode<Int32T>> elements_kind = std::nullopt);
   TNode<UintPtrT> LoadJSTypedArrayLengthAndValidate(
-      TNode<JSTypedArray> typed_array, TypedArrayAccessMode mode, Label* fail);
+      TNode<JSTypedArray> typed_array, TypedArrayAccessMode mode, Label* fail,
+      std::optional<TNode<Int32T>> elements_kind = std::nullopt);
   TNode<UintPtrT> LoadJSTypedArrayLengthAndValidate(
       TNode<JSTypedArray> typed_array, TNode<JSArrayBuffer> buffer,
-      TypedArrayAccessMode mode, bool is_resizable, Label* fail);
+      TypedArrayAccessMode mode, bool is_resizable, Label* fail,
+      std::optional<TNode<Int32T>> elements_kind = std::nullopt);
 
   // Helper for length tracking JSTypedArrays and JSTypedArrays backed by
   // ResizableArrayBuffer.
 
   TNode<UintPtrT> LoadVariableLengthJSTypedArrayLength(
       TNode<JSTypedArray> array, TNode<JSArrayBuffer> buffer,
-      TypedArrayAccessMode mode, Label* fail);
+      TypedArrayAccessMode mode, Label* fail,
+      std::optional<TNode<Int32T>> elements_kind = std::nullopt);
 
   TNode<UintPtrT> LoadVariableLengthJSTypedArrayByteLength(
       TNode<Context> context, TNode<JSTypedArray> array,

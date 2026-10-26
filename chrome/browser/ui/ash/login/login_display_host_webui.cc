@@ -80,7 +80,6 @@
 #include "chrome/browser/ui/webui/ash/login/welcome_screen_handler.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/audio/public/cpp/sounds/sounds_manager.h"
 #include "chromeos/ash/components/audio/sounds.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
@@ -653,7 +652,9 @@ void LoginDisplayHostWebUI::StartWizard(OobeScreenId first_screen) {
     // TODO(crbug.com/404133029): Avoid using g_browser_process.
     wizard_controller_ = std::make_unique<WizardController>(
         &local_state_.get(), &application_locale_storage_.get(),
-        g_browser_process->shared_url_loader_factory(), GetWizardContext());
+        g_browser_process->shared_url_loader_factory(),
+        g_browser_process->platform_part()->component_manager_ash(),
+        GetWizardContext());
     NotifyWizardCreated();
     wizard_controller_->Init(first_screen);
   }
@@ -723,7 +724,9 @@ void LoginDisplayHostWebUI::OnStartAppLaunch() {
     // TODO(crbug.com/404133029): Avoid using g_browser_process.
     wizard_controller_ = std::make_unique<WizardController>(
         &local_state_.get(), &application_locale_storage_.get(),
-        g_browser_process->shared_url_loader_factory(), GetWizardContext());
+        g_browser_process->shared_url_loader_factory(),
+        g_browser_process->platform_part()->component_manager_ash(),
+        GetWizardContext());
     NotifyWizardCreated();
   }
 }

@@ -74,10 +74,16 @@ struct ScreamV2Parameters {
   // Exponentially Weighted Moving Average (EWMA) factor for updating queue
   // delay.
   FieldTrialParameter<double> queue_delay_avg_g;
-  FieldTrialParameter<double> queue_delay_dev_avg_g;
+  // Exponentially Weighted Moving Average (EWMA) factor for updating average
+  // min queue delay and average latency difference.
+  FieldTrialParameter<double> delay_min_and_latency_diff_avg_g;
 
-  // Normalization factor for queue delay variation.
-  FieldTrialParameter<TimeDelta> queue_delay_dev_normalization;
+  // Thresholds for average min queue delay. Used for limiting ref_window
+  // increase.
+  FieldTrialParameter<TimeDelta> queue_delay_min_threshold;
+  // Thresholds for average latency difference. Used for limiting ref_window
+  // increase.
+  FieldTrialParameter<TimeDelta> latency_diff_threshold;
 
   // Determines the length of the base delay history when estimating one way
   // delay (owd)

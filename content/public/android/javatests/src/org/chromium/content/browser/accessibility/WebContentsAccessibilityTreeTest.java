@@ -17,7 +17,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import org.chromium.base.AconfigFlaggedApiDelegate;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
@@ -72,12 +71,6 @@ public class WebContentsAccessibilityTreeTest {
         CommandLine.getInstance()
                 .appendSwitchWithValue(
                         ContentSwitches.ENABLE_BLINK_FEATURES, "HTMLInterestForAttribute");
-
-        if (AconfigFlaggedApiDelegate.getInstance() == null
-                || !AconfigFlaggedApiDelegate.getInstance()
-                        .isActionSetExtendedSelectionSupported()) {
-            AconfigFlaggedApiDelegate.setInstanceForTesting(new FakeAconfigFlaggedApiDelegate());
-        }
     }
 
     /**
@@ -333,6 +326,18 @@ public class WebContentsAccessibilityTreeTest {
     @SmallTest
     public void test_ariaButton() {
         performAriaTest("aria-button.html");
+    }
+
+    @Test
+    @SmallTest
+    public void test_ariaCarouselButtons() {
+        performAriaTest("aria-carousel-buttons.html");
+    }
+
+    @Test
+    @SmallTest
+    public void test_ariaCarouselTabs() {
+        performAriaTest("aria-carousel-tabs.html");
     }
 
     @Test

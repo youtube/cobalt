@@ -5,6 +5,7 @@
 #include "components/accessibility_annotator/content/content_annotator/content_annotator_service.h"
 
 #include "base/files/file_path.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/strcat.h"
@@ -15,7 +16,11 @@
 #include "components/accessibility_annotator/content/content_annotator/content_classifier.h"
 #include "components/accessibility_annotator/content/content_annotator/content_classifier_types.h"
 #include "components/accessibility_annotator/core/accessibility_annotator_features.h"
+#include "components/accessibility_annotator/core/storage/accessibility_annotator_backend.h"
+#include "components/history/core/browser/history_database_params.h"
 #include "components/history/core/browser/history_service.h"
+#include "components/history/core/test/history_service_test_util.h"
+#include "components/history/core/test/test_history_database.h"
 #include "components/optimization_guide/core/delivery/test_optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/model_execution/test/mock_remote_model_executor.h"
 #include "components/optimization_guide/proto/common_types.pb.h"
@@ -27,7 +32,11 @@
 #include "components/page_content_annotations/core/page_content_annotations_common.h"
 #include "components/page_content_annotations/core/page_content_annotations_service.h"
 #include "components/page_content_annotations/core/test_page_content_annotations_service.h"
+#include "components/passage_embeddings/core/passage_embeddings_test_util.h"
+#include "components/passage_embeddings/core/passage_embeddings_types.h"
+#include "components/sync/test/data_type_store_test_util.h"
 #include "components/translate/core/common/language_detection_details.h"
+#include "components/version_info/channel.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/navigation_simulator.h"
@@ -95,11 +104,18 @@ class ContentAnnotatorServiceTest : public content::RenderViewHostTestHarness {
             optimization_guide_remote_model_executor,
         page_content_annotations::PageEmbeddingsService&
             page_embeddings_service,
+        AccessibilityAnnotatorBackend& accessibility_annotator_backend,
+        passage_embeddings::Embedder* embedder,
+        passage_embeddings::EmbedderMetadataProvider*
+            embedder_metadata_provider,
         std::unique_ptr<ContentClassifier> content_classifier)
         : ContentAnnotatorService(page_content_annotations_service,
                                   page_content_extraction_service,
                                   optimization_guide_remote_model_executor,
                                   page_embeddings_service,
+                                  accessibility_annotator_backend,
+                                  embedder,
+                                  embedder_metadata_provider,
                                   std::move(content_classifier)) {}
   };
 
@@ -109,21 +125,39 @@ class ContentAnnotatorServiceTest : public content::RenderViewHostTestHarness {
   void SetUp() override {
     content::RenderViewHostTestHarness::SetUp();
 
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+
     // Initialize services here to ensure BrowserContext and TaskEnvironment are
     // ready.
     page_content_extraction_service_.emplace(
         /*os_crypt_async=*/nullptr, base::FilePath(),
         /*tracker=*/nullptr);
 
+    history_service_ = std::make_unique<history::HistoryService>();
+    history_service_->Init(
+        history::TestHistoryDatabaseParamsForPath(temp_dir_.GetPath()));
+
     page_content_annotations_service_ =
         page_content_annotations::TestPageContentAnnotationsService::Create(
-            &optimization_guide_model_provider_, &history_service_);
+            &optimization_guide_model_provider_, history_service_.get());
 
     mock_remote_model_executor_ =
         std::make_unique<optimization_guide::MockRemoteModelExecutor>();
 
     mock_page_embeddings_service_ = std::make_unique<MockPageEmbeddingsService>(
         &page_content_extraction_service_.value());
+
+    accessibility_annotator_backend_ =
+        std::make_unique<AccessibilityAnnotatorBackend>(
+            version_info::Channel::UNKNOWN,
+            syncer::DataTypeStoreTestUtil::FactoryForInMemoryStoreForTest(),
+            temp_dir_.GetPath().Append(
+                FILE_PATH_LITERAL("AccessibilityAnnotatorDatabase")));
+
+    mock_embedder_ = std::make_unique<passage_embeddings::TestEmbedder>();
+
+    mock_embedder_metadata_provider_ =
+        std::make_unique<passage_embeddings::TestEmbedderMetadataProvider>();
 
     auto mock_classifier =
         std::make_unique<testing::StrictMock<MockContentClassifier>>();
@@ -132,7 +166,8 @@ class ContentAnnotatorServiceTest : public content::RenderViewHostTestHarness {
     service_ = std::make_unique<TestContentAnnotatorService>(
         *page_content_annotations_service_, *page_content_extraction_service_,
         *mock_remote_model_executor_, *mock_page_embeddings_service_,
-        std::move(mock_classifier));
+        *accessibility_annotator_backend_, mock_embedder_.get(),
+        mock_embedder_metadata_provider_.get(), std::move(mock_classifier));
   }
 
   void TearDown() override {
@@ -140,10 +175,17 @@ class ContentAnnotatorServiceTest : public content::RenderViewHostTestHarness {
     // environment.
     mock_classifier_ = nullptr;
     service_.reset();
+    mock_embedder_.reset();
+    mock_embedder_metadata_provider_.reset();
     mock_page_embeddings_service_.reset();
     page_content_annotations_service_.reset();
     page_content_extraction_service_.reset();
     mock_remote_model_executor_.reset();
+    accessibility_annotator_backend_.reset();
+
+    // Ensure HistoryService tasks are complete before destroying it.
+    history::BlockUntilHistoryProcessesPendingRequests(history_service_.get());
+    history_service_.reset();
 
     content::RenderViewHostTestHarness::TearDown();
   }
@@ -187,8 +229,9 @@ class ContentAnnotatorServiceTest : public content::RenderViewHostTestHarness {
     service_->OnPageEmbeddingsAvailable(web_contents->GetPrimaryPage());
   }
 
+  base::ScopedTempDir temp_dir_;
   ContentAnnotatorFeatureList feature_list_;
-  history::HistoryService history_service_;
+  std::unique_ptr<history::HistoryService> history_service_;
   optimization_guide::TestOptimizationGuideModelProvider
       optimization_guide_model_provider_;
 
@@ -200,7 +243,12 @@ class ContentAnnotatorServiceTest : public content::RenderViewHostTestHarness {
   std::unique_ptr<optimization_guide::MockRemoteModelExecutor>
       mock_remote_model_executor_;
   std::unique_ptr<MockPageEmbeddingsService> mock_page_embeddings_service_;
-  std::unique_ptr<ContentAnnotatorService> service_;
+  std::unique_ptr<AccessibilityAnnotatorBackend>
+      accessibility_annotator_backend_;
+  std::unique_ptr<passage_embeddings::TestEmbedder> mock_embedder_;
+  std::unique_ptr<passage_embeddings::TestEmbedderMetadataProvider>
+      mock_embedder_metadata_provider_;
+  std::unique_ptr<TestContentAnnotatorService> service_;
   raw_ptr<testing::StrictMock<MockContentClassifier>> mock_classifier_;
 };
 
@@ -356,6 +404,19 @@ TEST_F(ContentAnnotatorServiceTest,
     scoped_tester.ExpectUniqueSample(
         "AccessibilityAnnotator.FullAnnotationReached", false, 1);
   }
+  {
+    // Case 5: is_in_target_language is nullopt -> true
+    base::HistogramTester scoped_tester;
+    ContentClassificationResult result_null_lang;
+    result_null_lang.title_keyword_result =
+        ContentClassificationResult::Result();
+    result_null_lang.title_keyword_result->category = "test_category";
+    result_null_lang.is_sensitive = false;
+    result_null_lang.is_in_target_language = std::nullopt;
+    trigger_classification_fn(result_null_lang);
+    scoped_tester.ExpectUniqueSample(
+        "AccessibilityAnnotator.FullAnnotationReached", true, 1);
+  }
 }
 
 TEST_F(ContentAnnotatorServiceTest,
@@ -425,6 +486,7 @@ TEST_F(ContentAnnotatorServiceTest, TestMaybeAnnotate_FullAnnotationTriggered) {
 
   GURL url("https://example.com/full");
   base::Time base_time = base::Time::Now();
+  std::string data = "some extracted data";
 
   // 2. Mock Classify to return a result that satisfies the `reached_annotation`
   // condition.
@@ -476,7 +538,7 @@ TEST_F(ContentAnnotatorServiceTest, TestMaybeAnnotate_FullAnnotationTriggered) {
   // 4. Simulate the model execution by running the captured callback.
   ASSERT_TRUE(captured_callback);
   optimization_guide::proto::ContentAnnotationResponse mock_response_proto;
-  mock_response_proto.set_extracted_data("some extracted data");
+  mock_response_proto.set_extracted_data(data);
 
   optimization_guide::proto::Any any_proto;
   any_proto.set_type_url(base::StrCat(
@@ -489,6 +551,11 @@ TEST_F(ContentAnnotatorServiceTest, TestMaybeAnnotate_FullAnnotationTriggered) {
   ASSERT_NO_FATAL_FAILURE(std::move(captured_callback)
                               .Run(std::move(mock_result),
                                    /*log_entry=*/nullptr));
+
+  // 5. Verify that the data is cached in the backend.
+  std::optional<std::string> cached_data =
+      accessibility_annotator_backend_->GetContentAnnotationsCacheData(url);
+  EXPECT_THAT(cached_data, testing::Optional(data));
 }
 
 TEST_F(ContentAnnotatorServiceTest,
@@ -556,6 +623,46 @@ TEST_F(ContentAnnotatorServiceTest,
       .Times(0);
 
   TriggerClassification(url, base_time);
+}
+
+// Tests that a metadata update enables semantic classification and subsequent
+// full annotations.
+TEST_F(ContentAnnotatorServiceTest,
+       TestMaybeAnnotate_FullAnnotationTriggeredAfterEmbedderMetadataUpdate) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      kContentAnnotator,
+      {{"content_annotator_enable_full_annotation", "true"}});
+
+  GURL url("https://example.com/");
+  base::Time base_time = base::Time::Now();
+  base::HistogramTester histogram_tester;
+
+  // 1. Classification fails before metadata update.
+  EXPECT_CALL(*mock_classifier_, Classify(_))
+      .WillOnce(Return(ContentClassificationResult()));
+  EXPECT_CALL(*mock_remote_model_executor_, ExecuteModel(_, _, _, _)).Times(0);
+
+  TriggerClassification(url, base_time);
+  histogram_tester.ExpectUniqueSample(
+      "AccessibilityAnnotator.FullAnnotationReached", false, 1);
+
+  // 2. Metadata update enables semantic classification.
+  service_->EmbedderMetadataUpdated(passage_embeddings::EmbedderMetadata(1, 2));
+
+  // 3. Classification succeeds after metadata update.
+  ContentClassificationResult result;
+  result.semantic_match_result = ContentClassificationResult::Result();
+  result.semantic_match_result->category = "semantic_cat";
+  result.is_sensitive = false;
+  result.is_in_target_language = true;
+
+  EXPECT_CALL(*mock_classifier_, Classify(_)).WillOnce(Return(result));
+  EXPECT_CALL(*mock_remote_model_executor_, ExecuteModel(_, _, _, _)).Times(1);
+
+  TriggerClassification(url, base_time);
+  histogram_tester.ExpectBucketCount(
+      "AccessibilityAnnotator.FullAnnotationReached", true, 1);
 }
 
 }  // namespace accessibility_annotator

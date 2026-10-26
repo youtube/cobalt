@@ -10,10 +10,11 @@ import logging
 import math
 import os
 import posixpath
+import shlex
 import shutil
 import sys
+import threading
 import time
-
 from devil import base_error
 from devil.android import crash_handler
 from devil.android import device_errors
@@ -228,6 +229,7 @@ class _ApkDelegate:
     self._env = env
     self._coverage_dir = test_instance.coverage_dir
     self._coverage_index = 0
+    self._coverage_lock = threading.Lock()
     self._use_existing_test_data = test_instance.use_existing_test_data
 
   def GetTestDataRoot(self, device):
@@ -257,15 +259,20 @@ class _ApkDelegate:
 
   def Run(self, test, device, flags=None, **kwargs):
     extras = dict(self._extras)
+    if isinstance(flags, list):
+      flags = shlex.join(flags)
     device_api = device.build_version_sdk
 
+    coverage_index = None
     if self._coverage_dir and device_api >= version_codes.LOLLIPOP:
       # TODO(b/293175593): Use device.ResolveSpecialPath for multi-user
       device_coverage_dir = (
           code_coverage_utils.GetDeviceClangCoverageDir(device))
+      with self._coverage_lock:
+        coverage_index = self._coverage_index
+        self._coverage_index += 1
       extras[_EXTRA_COVERAGE_DEVICE_FILE] = _GetLLVMProfilePath(
-          device_coverage_dir, self._suite, self._coverage_index)
-      self._coverage_index += 1
+          device_coverage_dir, self._suite, coverage_index)
 
     if ('timeout' in kwargs
         and gtest_test_instance.EXTRA_SHARD_NANO_TIMEOUT not in extras):
@@ -336,12 +343,12 @@ class _ApkDelegate:
         device.ForceStop(self._package)
         raise
       finally:
-        if self._coverage_dir and device_api >= version_codes.LOLLIPOP:
+        if coverage_index is not None:
           if not os.path.isdir(self._coverage_dir):
             os.makedirs(self._coverage_dir)
           code_coverage_utils.PullAndMaybeMergeClangCoverageFiles(
               device, device_coverage_dir, self._coverage_dir,
-              str(self._coverage_index))
+              str(coverage_index))
 
       stdout_file_path = stdout_file.name
       if self._env.force_main_user:
@@ -385,6 +392,7 @@ class _ExeDelegate:
     self._suite = test_instance.suite
     self._coverage_dir = test_instance.coverage_dir
     self._coverage_index = 0
+    self._coverage_lock = threading.Lock()
 
   def GetTestDataRoot(self, device):
     # pylint: disable=no-self-use
@@ -409,8 +417,10 @@ class _ExeDelegate:
     if test:
       cmd.append('--gtest_filter=%s' % ':'.join(test))
     if flags:
-      # TODO(agrieve): This won't work if multiple flags are passed.
-      cmd.append(flags)
+      if isinstance(flags, list):
+        cmd.extend(flags)
+      else:
+        cmd.append(flags)
     cwd = constants.TEST_EXECUTABLE_DIR
 
     env = {
@@ -418,12 +428,16 @@ class _ExeDelegate:
         'UBSAN_OPTIONS': constants.UBSAN_OPTIONS,
     }
 
+    coverage_index = None
     if self._coverage_dir:
       device_coverage_dir = (
           code_coverage_utils.GetDeviceClangCoverageDir(device))
-      env['LLVM_PROFILE_FILE'] = _GetLLVMProfilePath(
-          device_coverage_dir, self._suite, self._coverage_index)
-      self._coverage_index += 1
+      with self._coverage_lock:
+        coverage_index = self._coverage_index
+        self._coverage_index += 1
+      env['LLVM_PROFILE_FILE'] = _GetLLVMProfilePath(device_coverage_dir,
+                                                     self._suite,
+                                                     coverage_index)
 
 
     try:
@@ -439,11 +453,10 @@ class _ExeDelegate:
     output = device.RunShellCommand(
         cmd, cwd=cwd, env=env, check_return=False, large_output=True, **kwargs)
 
-    if self._coverage_dir:
+    if coverage_index is not None:
       # TODO(b/293175593): Use device.ResolveSpecialPath for multi-user
       code_coverage_utils.PullAndMaybeMergeClangCoverageFiles(
-          device, device_coverage_dir, self._coverage_dir,
-          str(self._coverage_index))
+          device, device_coverage_dir, self._coverage_dir, str(coverage_index))
 
     return output
 
@@ -479,6 +492,7 @@ class LocalDeviceGtestRun(local_device_test_run.LocalDeviceTestRun):
     else:
       self._test_perf_output_filenames = itertools.repeat(None)
     self._crashes = set()
+    self._test_locations = {}
 
   #override
   def TestPackage(self):
@@ -681,6 +695,9 @@ class LocalDeviceGtestRun(local_device_test_run.LocalDeviceTestRun):
           ]
       ]
       flags.append('--gtest_list_tests')
+      device_json_path = posixpath.join(dev.GetExternalStoragePath(),
+                                        'gtest_list_tests.json')
+      flags.append(f'--gtest_output=json:{device_json_path}')
 
       # TODO(crbug.com/40522854): Remove retries when no longer necessary.
       for i in range(0, retries + 1):
@@ -691,7 +708,7 @@ class LocalDeviceGtestRun(local_device_test_run.LocalDeviceTestRun):
         with self._ArchiveLogcat(dev, 'list_tests'):
           raw_test_list = crash_handler.RetryOnSystemCrash(
               lambda d: self._delegate.Run(
-                  None, d, flags=' '.join(flags), timeout=timeout),
+                  None, d, flags=flags, timeout=timeout),
               device=dev)
 
         tests = gtest_test_instance.ParseGTestListTests(raw_test_list)
@@ -702,6 +719,18 @@ class LocalDeviceGtestRun(local_device_test_run.LocalDeviceTestRun):
           if i < retries:
             logging.info('Retrying...')
         else:
+          with tempfile_ext.NamedTemporaryDirectory() as temp_dir:
+            host_json_path = os.path.join(temp_dir, 'gtest_list_tests.json')
+            try:
+              dev.PullFile(device_json_path, host_json_path)
+              dev.RemovePath(device_json_path)
+              with open(host_json_path, 'r') as f:
+                self._test_locations.update(
+                    gtest_test_instance.ParseGTestListTestsJSON(f.read()))
+            except (device_errors.CommandFailedError,
+                    device_errors.CommandTimeoutError):
+              logging.exception(
+                  'Failed to pull gtest list tests JSON from device.')
           break
       return tests
 
@@ -965,6 +994,7 @@ class LocalDeviceGtestRun(local_device_test_run.LocalDeviceTestRun):
 
     tombstones_url = None
     for r in results:
+      r.SetTestFile(self._test_locations.get(r.GetName()))
       if logcat_file:
         r.SetLink('logcat', logcat_file.Link())
 

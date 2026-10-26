@@ -752,7 +752,8 @@ Browser* OpenEmptyWindow(Profile* profile,
   params.should_trigger_session_restore = should_trigger_session_restore;
 
   if (tabs::IsVerticalTabsFeatureEnabled()) {
-    Browser* last_active_browser = chrome::FindLastActiveWithProfile(profile);
+    BrowserWindowInterface* const last_active_browser =
+        chrome::FindLastActiveWithProfile(profile);
     if (last_active_browser) {
       if (auto* controller = tabs::VerticalTabStripStateController::From(
               last_active_browser)) {
@@ -2068,7 +2069,7 @@ void SavePage(Browser* browser) {
   current_tab->OnSavePage();
 }
 
-bool CanSavePage(const Browser* browser) {
+bool CanSavePage(const BrowserWindowInterface* bwi) {
   // LocalState can be NULL in tests.
   if (g_browser_process->local_state() &&
       !g_browser_process->local_state()->GetBoolean(
@@ -2076,13 +2077,13 @@ bool CanSavePage(const Browser* browser) {
     return false;
   }
   if (static_cast<policy::DownloadRestriction>(
-          browser->profile()->GetPrefs()->GetInteger(
+          bwi->GetProfile()->GetPrefs()->GetInteger(
               policy::policy_prefs::kDownloadRestrictions)) ==
       policy::DownloadRestriction::ALL_FILES) {
     return false;
   }
-  return !browser->is_type_devtools() &&
-         !(GetContentRestrictions(browser) & CONTENT_RESTRICTION_SAVE);
+  return (bwi->GetType() != BrowserWindowInterface::Type::TYPE_DEVTOOLS) &&
+         !(GetContentRestrictions(bwi) & CONTENT_RESTRICTION_SAVE);
 }
 
 void Print(BrowserWindowInterface* bwi) {
@@ -2191,8 +2192,7 @@ void FindInPage(Browser* browser, bool find_next, bool forward_direction) {
 }
 
 void ShowTabSearch(BrowserWindowInterface* bwi) {
-  bwi->GetBrowserForMigrationOnly()->window()->CreateTabSearchBubble(
-      tab_search::mojom::TabSearchSection::kSearch);
+  bwi->GetBrowserForMigrationOnly()->window()->CreateTabSearchBubble();
 }
 
 void CloseTabSearch(Browser* browser) {
@@ -2505,7 +2505,7 @@ bool IsWebAppOrCustomTab(const BrowserWindowInterface* bwi) {
 
 Browser* OpenInChrome(Browser* hosted_app_browser) {
   // Find a non-incognito browser.
-  Browser* target_browser =
+  BrowserWindowInterface* target_browser =
       chrome::FindTabbedBrowser(hosted_app_browser->profile(), false);
 
   if (!target_browser) {
@@ -2517,7 +2517,7 @@ Browser* OpenInChrome(Browser* hosted_app_browser) {
       hosted_app_browser,
       hosted_app_browser->tab_strip_model()->GetActiveWebContents(),
       target_browser);
-  return target_browser;
+  return target_browser->GetBrowserForMigrationOnly();
 }
 
 bool CanViewSource(const Browser* browser) {

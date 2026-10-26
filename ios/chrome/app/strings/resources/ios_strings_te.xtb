@@ -298,7 +298,6 @@
 <translation id="2012723204723845092">తిరిగి స్వాగతం!</translation>
 <translation id="2015722694326466240">పాస్‌వర్డ్‌లను చూడటానికి, మీరు ముందుగా తప్పక మీ పరికరంలో పాస్‌కోడ్‌ను సెట్ చేయాలి.</translation>
 <translation id="201759455285471444">ట్యాబ్ గ్రూప్‌ను విస్తరించండి.</translation>
-<translation id="202070562065520783">దీన్ని నాకు వివరించు</translation>
 <translation id="2044394949148788042">ట్యాబ్ గ్రిడ్‌ను తెరవండి</translation>
 <translation id="2044681667265133332"><ph name="USER_EMAIL" /> ఖాతా <ph name="HOSTED_DOMAIN" /> ద్వారా మేనేజ్ చేయబడుతుంది, ఇది కొంత సమాచారాన్ని చూడగలదు. <ph name="BEGIN_LINK" />మరింత తెలుసుకోండి<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">కొత్త ఐటెమ్</translation>
@@ -395,6 +394,7 @@
 <translation id="2360196772093551345">మొబైల్ సైట్‌ని రిక్వెస్ట్ చేయండి</translation>
 <translation id="2362083820973145409"><ph name="USER_NAME" />గా సైన్ ఇన్ చేశారు. <ph name="USER_EMAIL" />. సెట్టింగ్‌లను తెరుస్తుంది.</translation>
 <translation id="2371084566192454134">ట్యాబ్‌లు, ట్యాబ్ గ్రూప్‌లు</translation>
+<translation id="2371303771137626249">కొత్తది</translation>
 <translation id="2381405137052800939">ప్రాథమికాలు</translation>
 <translation id="2384692388811649784">అజ్ఞాత ట్యాబ్‌లను దాచండి</translation>
 <translation id="2386793615875593361">1 ఎంచుకోబడింది</translation>
@@ -637,6 +637,7 @@
 <translation id="3324193307694657476">అడ్రస్‌ 2</translation>
 <translation id="3328801116991980348">సైట్ సమాచారం</translation>
 <translation id="333229797575847124">ఈ ఫీచర్‌ను ఎలా ఎనేబుల్ చేయాలి</translation>
+<translation id="334004756946755423">దీన్ని నాకు వివరించు:</translation>
 <translation id="3344233834747405775">కార్డుదారుని పేరు చెల్లదు</translation>
 <translation id="3344485292736684439">{count,plural, =1{బుక్‌మార్క్ మీ {email} ఖాతాలోని "{title}"‌లో సేవ్ అయ్యింది}other{బుక్‌మార్క్‌లు మీ {email} ఖాతాలోని "{title}"‌లో సేవ్ అయ్యాయి}}</translation>
 <translation id="334690320928261823">ఇటీవలి ట్యాబ్‌లు</translation>
@@ -690,6 +691,7 @@
 <translation id="3530206579861815432">మీ సింక్ చేసిన పరికరాలలో తెరిచిన, ఇటీవల మూసివేసిన ట్యాబ్‌లను క్విక్‌గా కనుగొనండి.</translation>
 <translation id="3530767473765895035">ఈ పరికరంలోని ఖాతాలను మేనేజ్ చేయండి…</translation>
 <translation id="3533436815740441613">కొత్త ట్యాబ్</translation>
+<translation id="3534738261102690620">Geminiని అడుగు</translation>
 <translation id="3540141921715814660">బుక్‌మార్క్‌లకు జోడించండి</translation>
 <translation id="3546122170015471515">Google.com సైట్‌లో Maps ప్రివ్యూలు</translation>
 <translation id="3547356470684043247">రివ్యూలతో మీ నిర్ణయాలను తెలియజేయడంలో సహాయపడేందుకు ప్రోడక్ట్‌లు, సర్వీస్‌లు లేదా ఎక్స్‌పీరియన్స్‌లకు సంబంధించిన కస్టమర్ పరిశీలనలను చదవండి</translation>
@@ -960,6 +962,7 @@
 <translation id="454217142158335225">మీరు ఇటీవలి ట్యాబ్‌లు లేదా ట్యాబ్ గ్రూప్‌ల విభాగాల నుండి మూసివేసిన ఐటెమ్‌లను మళ్లీ తెరవవచ్చు. మీ పిన్ చేసిన ట్యాబ్‌లు మూసివేయబడవు.</translation>
 <translation id="4547181496285029457">ఇటీవలి ట్యాబ్‌కు తిరిగి వెళ్ళండి</translation>
 <translation id="4552042254369397518">కాపీ చేస్తోంది…</translation>
+<translation id="4553044860350038560">మరిన్ని పాస్-కీలు</translation>
 <translation id="4564893319561643483">"<ph name="TITLE" />"ను దాచండి</translation>
 <translation id="4565377596337484307">పాస్‌వర్డ్‌ను దాచిపెట్టు</translation>
 <translation id="4568230126482344545">ఇటీవలి ట్యాబ్‌లను దాచండి</translation>
@@ -1088,6 +1091,7 @@
 <translation id="4944543191714094452">పేజీలో కనుగొనండి…</translation>
 <translation id="4945756290001680296">పాస్‌వర్డ్ సెట్టింగ్‌లను యాక్సెస్ చేయండి</translation>
 <translation id="4949302115427722371">సెట్టింగ్‌లను మేనేజ్ చేయండి…</translation>
+<translation id="4952050521954075618">ఫోటోలు కెమెరా రోల్ నుండి, మీ డివైజ్‌లలోకి సింక్ అవ్వవు</translation>
 <translation id="4958444002117714549">లిస్ట్‌ను విస్తరించు</translation>
 <translation id="496392417432935267">మరొక విండోలో తెరవబడి ఉంది</translation>
 <translation id="4970724460420203313">మీ మేనేజ్ చేయబడే ఖాతాతో Chromeను ఉపయోగించడం వలన మీ సంస్థకు సంబంధించిన బ్రౌజింగ్‌ను (ట్యాబ్‌లు, హిస్టరీ, ఇంకా పాస్‌వర్డ్‌లతో సహా) మీ ఇతర బ్రౌజింగ్ నుండి వేరుగా ఉంచడంలో మీకు సహాయపడుతుంది</translation>
@@ -1287,6 +1291,7 @@
 <translation id="5647702255748985085">గ్రూప్ నుండి నిష్క్రమించాలా?</translation>
 <translation id="5648166631817621825">గత 7 రోజులు</translation>
 <translation id="5652623411397330904">మీరు ట్రాక్ చేసే ప్రోడక్ట్‌లు ఇక్కడ కనిపిస్తాయి.</translation>
+<translation id="5653100054596780862">అన్ని ట్యాబ్స్</translation>
 <translation id="5656431592348714536">మెరుగుపరచబడిన క్యాలెండర్</translation>
 <translation id="5659593005791499971">ఈమెయిల్‌</translation>
 <translation id="5665739277590037307"><ph name="GOOGLE_TERMS" />, <ph name="GEMINI_APPS_PRIVACY" /> వర్తిస్తాయి. Gemini పొరపాట్లు చేయవచ్చు, కాబట్టి అది అందించే సమాధానాలను డబుల్-చెక్ చేయండి.</translation>
@@ -1614,6 +1619,7 @@
 <translation id="672735642903863329">మీ బుక్‌మార్క్‌లు, పాస్‌వర్డ్‌లు, అలాగే మరిన్నింటిని మీ పరికరాలన్నింటిలో పొందండి.</translation>
 <translation id="6729493062119577923">షేర్ చేసిన ట్యాబ్ గ్రూప్ యాక్టివిటీ</translation>
 <translation id="6732087373923685049">కెమెరా</translation>
+<translation id="6736243959894955139">అడ్రస్‌</translation>
 <translation id="6746338529702829275">మీ ఖాతా డేటాను రివ్యూ చేయండి</translation>
 <translation id="6750456911389438250">{count,plural, =1{{count} హిస్టరీ ఐటెమ్ దిగుమతి అయ్యింది}other{{count} హిస్టరీ ఐటెమ్‌లు దిగుమతి అయ్యాయి}}</translation>
 <translation id="6755200887046212842">ఖాతాలను మేనేజ్ చేయండి</translation>
@@ -1718,6 +1724,7 @@
 <translation id="7149893636342594995">గత 24 గంటలు</translation>
 <translation id="7154417656353909837">అడ్రస్‌ను తీసివేయండి</translation>
 <translation id="7161230316646448869">పరికరాలన్నింటిలో మీ బుక్‌మార్క్‌లను, హిస్టరీని, ఇంకా మరిన్నింటిని సింక్ చేయండి</translation>
+<translation id="7165323152084385463">VIN</translation>
 <translation id="7173114856073700355">సెట్టింగ్‌లను తెరువు</translation>
 <translation id="7173721738069475737">{count,plural, =1{బుక్‌మార్క్ సేవ్ అయింది}other{{count} బుక్‌మార్క్‌లు సేవ్ అయ్యాయి}}</translation>
 <translation id="7176183551031110427">జూమ్ - అవుట్</translation>
@@ -1751,6 +1758,7 @@
 <translation id="7300448350764260141">ఆన్‌లైన్ అపాయాల నుండి సురక్షితంగా ఉండేలా అదనపు భద్రతను జోడించండి.</translation>
 <translation id="7311244614769792472">ఫలితాలు ఏవీ కనుగొనబడలేదు</translation>
 <translation id="7313347584264171202">మీ అజ్ఞాత ట్యాబ్‌లను ఇక్కడ చూడగలరు</translation>
+<translation id="7322186060879266048">{count,plural, =1{మీ కీబోర్డ్ పైన {count} ఆటోఫిల్ ఆప్షన్ అందుబాటులో ఉంది.}other{మీ కీబోర్డ్ పైన {count} ఆటోఫిల్ ఆప్షన్‌లు అందుబాటులో ఉన్నాయి.}}</translation>
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" /> శాతం డౌన్‌లోడ్ అయ్యింది</translation>
 <translation id="7345061034321640811">దిగుమతి చేయడం అనుమతించబడదు</translation>
@@ -1820,7 +1828,6 @@
 <translation id="7537586195939242955">క్షమించండి, ఈ సమయంలో పాస్‌బుక్‌కు మీ పాస్‌ను ఇన్‌స్టాల్ చేయడం సాధ్యపడదు.</translation>
 <translation id="754655535278952384">చెక్ - ఇన్ <ph name="TIME" /></translation>
 <translation id="7554645225856321710">అన్నింటినీ మూసివేయండి</translation>
-<translation id="7554791636758816595">కొత్త ట్యాబ్</translation>
 <translation id="7557508262441527045">సైన్ అవుట్ చేశారు</translation>
 <translation id="7561196759112975576">ఎల్లప్పుడూ</translation>
 <translation id="7561982940498449837">మెనూను మూసివేయండి</translation>
@@ -2250,7 +2257,6 @@
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, పిన్ చేసిన సైట్</translation>
 <translation id="8990960056509724223">మీ సంస్థ పాలసీల కారణంగా ఫైల్‌ను సేవ్ చేయడం సాధ్యపడలేదు</translation>
 <translation id="8998289560386111590">ఈ మోడ్ మీ పరికరంలో అందుబాటులో లేదు</translation>
-<translation id="9000532564152265066">అన్ని ట్యాబ్‌లు</translation>
 <translation id="9003677638446136377">మళ్లీ చెక్ చేయండి</translation>
 <translation id="9006453925669499173">మెనూ → కొత్త అజ్ఞాత ట్యాబ్</translation>
 <translation id="9008201768610948239">విస్మరించు</translation>

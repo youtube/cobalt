@@ -10,6 +10,7 @@
 
 #include "base/functional/bind.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/heavy_ad_intervention/heavy_ad_service_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
@@ -64,6 +65,7 @@
 #include "content/public/common/url_utils.h"
 #include "extensions/buildflags/buildflags.h"
 #include "third_party/blink/public/common/loader/lcp_critical_path_predictor_util.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
@@ -79,8 +81,12 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/page_load_metrics/observers/initial_webui_page_load_metrics_observer.h"
 #include "chrome/browser/page_load_metrics/observers/non_tab_webui_page_load_metrics_observer.h"
+#include "chrome/browser/page_load_metrics/observers/top_chrome_webui_metrics_observer.h"
+#include "chrome/browser/ui/read_anything/read_anything_soft_navigation_observer.h"
 #include "chrome/browser/ui/waap/waap_utils.h"
+#include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
+#include "chrome/common/webui_url_constants.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -181,6 +187,11 @@ void PageLoadMetricsEmbedder::RegisterObservers(
       if (ukm_observer) {
         tracker->AddObserver(std::move(ukm_observer));
       }
+    }
+    if (navigation_handle->GetURL().host() ==
+        chrome::kChromeUIOmniboxPopupHost) {
+      tracker->AddObserver(std::make_unique<TopChromeWebUIMetricsObserver>(
+          std::string(OmniboxPopupUI::GetWebUIName())));
     }
     return;
   }
@@ -292,6 +303,13 @@ void PageLoadMetricsEmbedder::RegisterObservers(
     tracker->AddObserver(std::move(translate_observer));
   }
   tracker->AddObserver(std::make_unique<ZstdPageLoadMetricsObserver>());
+
+#if !BUILDFLAG(IS_ANDROID)
+  if (features::IsImmersiveReadAnythingEnabled()) {
+    tracker->AddObserver(
+        std::make_unique<ReadAnythingSoftNavigationObserver>());
+  }
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   if (AshSessionRestorePageLoadMetricsObserver::ShouldBeInstantiated(

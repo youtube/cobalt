@@ -34,6 +34,8 @@ class AccountChooserView : public views::FlexLayoutView {
   void UpdateView(const std::vector<AccountInfo>& accounts,
                   std::optional<CoreAccountId> primary_account_id);
 
+  views::View* GetInitiallyFocusedView();
+
  private:
   // Creates the view containing the account rows based on the number of
   // accounts.
@@ -73,6 +75,8 @@ class AccountChooserView : public views::FlexLayoutView {
                       std::optional<CoreAccountId> primary_account_id);
   // Updates the header view with the new accounts.
   void UpdateHeaderView(const std::vector<AccountInfo>& accounts);
+
+  bool is_single_account_ = true;
 
   raw_ptr<AccountChooserViewDelegate> parent_dialog_ = nullptr;
 

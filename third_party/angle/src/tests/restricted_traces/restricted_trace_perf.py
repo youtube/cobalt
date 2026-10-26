@@ -7,11 +7,12 @@
 '''
 Pixel 6 (ARM based) specific script that measures the following for each restricted_trace:
 - Wall time per frame
-- GPU time per frame (if run with --track-gpu-time)
+- GPU time per frame (if run with --gpu-time)
 - CPU time per frame
 - GPU power per frame
 - CPU power per frame
 - GPU memory per frame
+- CPU instructions per frame (if run with --cpu-inst)
 
 Setup:
 
@@ -278,7 +279,8 @@ def run_trace(trace, args, screenshot_device_dir):
         flags += ['--fps-limit', args.fps_limit]
     if args.fps_limit_uses_busy_wait:
         flags.append('--fps-limit-uses-busy-wait')
-    if args.track_gpu_time:
+    if args.gpu_time:
+        # Keep internal argument name the same for compatibility with the C++ executable
         flags.append('--track-gpu-time')
     if args.add_swap_into_gpu_time:
         flags.append('--add-swap-into-gpu-time')
@@ -958,56 +960,69 @@ def run_traces(args):
         'libc_cpuinst': 20,
     }
 
+    headers_map = {
+        'trace': 'trace',
+        'wall_time': 'wall_time(ms)',
+        'gpu_time': 'gpu_time(ms)',
+        'frame_wall_time': 'frame_wall_time(ms)',
+        'cpu_time': 'cpu_time(ms)',
+        'gpu_power': 'gpu_power(W)',
+        'cpu_power': 'cpu_power(W)',
+        'infra_power': 'infra_power(W)',
+        'gpu_mem_sustained': 'gpu_mem_sustained',
+        'gpu_mem_peak': 'gpu_mem_peak',
+        'proc_mem_median': 'proc_mem_median',
+        'proc_mem_peak': 'proc_mem_peak',
+        'process_cpuinst': 'process_cpuinst',
+        'gfxlib_cpuinst': 'gfxlib_cpuinst',
+        'angle_cpuinst': 'angle_cpuinst',
+        'vulkan_cpuinst': 'vulkan_cpuinst',
+        'gles_cpuinst': 'gles_cpuinst',
+        'libc_cpuinst': 'libc_cpuinst'
+    }
+
+    # Dynamically build the list of columns to output based on command line flags
+    output_columns = ['trace']
     if args.walltimeonly:
-        print('%-*s' % (trace_width, 'wall_time_per_frame'))
-    else:
-        print(
-            '%-*s %-*s %-*s %-*s %-*s %-*s %-*s %-*s %-*s %-*s %-*s %-*s %-*s %-*s %-*s %-*s %-*s %-*s'
-            % (
-                column_width['trace'],
-                'trace',
-                column_width['wall_time'],
-                'wall_time',
-                column_width['gpu_time'],
-                'gpu_time',
-                column_width['frame_wall_time'],
-                'frame_wall_time',
-                column_width['cpu_time'],
-                'cpu_time',
-                column_width['gpu_power'],
-                'gpu_power',
-                column_width['cpu_power'],
-                'cpu_power',
-                column_width['infra_power'],
-                'infra_power',
-                column_width['gpu_mem_sustained'],
-                'gpu_mem_sustained',
-                column_width['gpu_mem_peak'],
-                'gpu_mem_peak',
-                column_width['proc_mem_median'],
-                'proc_mem_median',
-                column_width['proc_mem_peak'],
-                'proc_mem_peak',
-                column_width['process_cpuinst'],
-                'process_cpuinst',
-                column_width['gfxlib_cpuinst'],
-                'gfxlib_cpuinst',
-                column_width['angle_cpuinst'],
-                'angle_cpuinst',
-                column_width['vulkan_cpuinst'],
-                'vulkan_cpuinst',
-                column_width['gles_cpuinst'],
-                'gles_cpuinst',
-                column_width['libc_cpuinst'],
-                'libc_cpuinst',
-            ))
-        if output_writer:
-            output_writer.writerow([
-                'trace', 'wall_time(ms)', 'gpu_time(ms)', 'frame_wall_time(ms)', 'cpu_time(ms)',
-                'gpu_power(W)', 'cpu_power(W)', 'infra_power(W)', 'gpu_mem_sustained',
-                'gpu_mem_peak', 'proc_mem_median', 'proc_mem_peak', 'process_cpuinst',
-                'gfxlib_cpuinst', 'angle_cpuinst', 'vulkan_cpuinst', 'gles_cpuinst', 'libc_cpuinst'
+        output_columns.append('wall_time')
+    elif args.minimal_output:
+        output_columns.append('wall_time')
+        if args.gpu_time:
+            output_columns.append('gpu_time')
+
+        output_columns.extend(['frame_wall_time', 'cpu_time'])
+
+        if args.power:
+            output_columns.extend(['gpu_power', 'cpu_power', 'infra_power'])
+        if args.memory:
+            output_columns.extend(
+                ['gpu_mem_sustained', 'gpu_mem_peak', 'proc_mem_median', 'proc_mem_peak'])
+        if args.cpu_inst:
+            output_columns.extend([
+                'process_cpuinst', 'gfxlib_cpuinst', 'angle_cpuinst', 'vulkan_cpuinst',
+                'gles_cpuinst', 'libc_cpuinst'
             ])
+    else:
+        # Output all columns when minimal-output is not requested
+        output_columns.extend([
+            'wall_time', 'gpu_time', 'frame_wall_time', 'cpu_time', 'gpu_power', 'cpu_power',
+            'infra_power', 'gpu_mem_sustained', 'gpu_mem_peak', 'proc_mem_median', 'proc_mem_peak',
+            'process_cpuinst', 'gfxlib_cpuinst', 'angle_cpuinst', 'vulkan_cpuinst', 'gles_cpuinst',
+            'libc_cpuinst'
+        ])
+
+    # Format string that easily sizes itself to the dynamically loaded variables
+    format_str = ' '.join(['%-*s'] * len(output_columns))
+
+    print_header_args = []
+    for col in output_columns:
+        print_header_args.extend([column_width[col], col])
+
+    print(format_str % tuple(print_header_args))
+
+    if output_writer:
+        csv_headers = [headers_map[col] for col in output_columns]
+        output_writer.writerow(csv_headers)
 
     if args.power:
         starting_power = GPUPowerStats()
@@ -1208,7 +1223,7 @@ def run_traces(args):
 
                 wall_time = get_test_time()
 
-                gpu_time = get_gpu_time() if args.track_gpu_time else '0'
+                gpu_time = get_gpu_time() if args.gpu_time else '0'
 
                 frame_wall_time = get_frame_wall_time()
 
@@ -1294,58 +1309,60 @@ def run_traces(args):
                     libc_cpuinsts[test] = defaultdict(list)
                 libc_cpuinsts[test][renderer].append(safe_cast_float(libc_cpuinst))
 
-                if args.walltimeonly:
-                    print('%-*s' % (trace_width, wall_time))
-                else:
-                    print(
-                        '%-*s %-*s %-*s %-*s %-*s %-*s %-*s %-*s %-*i %-*i %-*i %-*i %-*s %-*s %-*s %-*s %-*s %-*s'
-                        % (
-                            column_width['trace'],
-                            trace_name,
-                            column_width['wall_time'],
-                            wall_time,
-                            column_width['gpu_time'],
-                            gpu_time,
-                            column_width['frame_wall_time'],
-                            frame_wall_time,
-                            column_width['cpu_time'],
-                            cpu_time,
-                            column_width['gpu_power'],
-                            '%.3f' % gpu_power,
-                            column_width['cpu_power'],
-                            '%.3f' % cpu_power,
-                            column_width['infra_power'],
-                            '%.3f' % infra_power,
-                            column_width['gpu_mem_sustained'],
-                            gpu_mem_sustained,
-                            column_width['gpu_mem_peak'],
-                            gpu_mem_peak,
-                            column_width['proc_mem_median'],
-                            proc_mem_median,
-                            column_width['proc_mem_peak'],
-                            proc_mem_peak,
-                            column_width['process_cpuinst'],
-                            process_cpuinst,
-                            column_width['gfxlib_cpuinst'],
-                            gfxlib_cpuinst,
-                            column_width['angle_cpuinst'],
-                            angle_cpuinst,
-                            column_width['vulkan_cpuinst'],
-                            vulkan_cpuinst,
-                            column_width['gles_cpuinst'],
-                            gles_cpuinst,
-                            column_width['libc_cpuinst'],
-                            libc_cpuinst,
-                        ))
-                    if output_writer:
-                        output_writer.writerow([
-                            mode + renderer + '_' + test, wall_time, gpu_time, frame_wall_time,
-                            cpu_time, gpu_power, cpu_power, infra_power, gpu_mem_sustained,
-                            gpu_mem_peak, proc_mem_median, proc_mem_peak, process_cpuinst,
-                            gfxlib_cpuinst, angle_cpuinst, vulkan_cpuinst, gles_cpuinst,
-                            libc_cpuinst
-                        ])
+                # Maps column names to formatting for output
+                val_map = {
+                    'trace': trace_name,
+                    'wall_time': wall_time,
+                    'gpu_time': gpu_time,
+                    'frame_wall_time': frame_wall_time,
+                    'cpu_time': cpu_time,
+                    'gpu_power': '%.3f' % gpu_power,
+                    'cpu_power': '%.3f' % cpu_power,
+                    'infra_power': '%.3f' % infra_power,
+                    'gpu_mem_sustained': gpu_mem_sustained,
+                    'gpu_mem_peak': gpu_mem_peak,
+                    'proc_mem_median': proc_mem_median,
+                    'proc_mem_peak': proc_mem_peak,
+                    'process_cpuinst': process_cpuinst,
+                    'gfxlib_cpuinst': gfxlib_cpuinst,
+                    'angle_cpuinst': angle_cpuinst,
+                    'vulkan_cpuinst': vulkan_cpuinst,
+                    'gles_cpuinst': gles_cpuinst,
+                    'libc_cpuinst': libc_cpuinst
+                }
 
+                # Maps column names to raw values for CSV
+                csv_val_map = {
+                    'trace': trace_name,
+                    'wall_time': wall_time,
+                    'gpu_time': gpu_time,
+                    'frame_wall_time': frame_wall_time,
+                    'cpu_time': cpu_time,
+                    'gpu_power': gpu_power,
+                    'cpu_power': cpu_power,
+                    'infra_power': infra_power,
+                    'gpu_mem_sustained': gpu_mem_sustained,
+                    'gpu_mem_peak': gpu_mem_peak,
+                    'proc_mem_median': proc_mem_median,
+                    'proc_mem_peak': proc_mem_peak,
+                    'process_cpuinst': process_cpuinst,
+                    'gfxlib_cpuinst': gfxlib_cpuinst,
+                    'angle_cpuinst': angle_cpuinst,
+                    'vulkan_cpuinst': vulkan_cpuinst,
+                    'gles_cpuinst': gles_cpuinst,
+                    'libc_cpuinst': libc_cpuinst
+                }
+
+                print_val_args = []
+                for col in output_columns:
+                    print_val_args.extend([column_width[col], val_map[col]])
+
+                # Execute Print based on the dynamically set formatting and variable list
+                print(format_str % tuple(print_val_args))
+
+                if output_writer:
+                    csv_row = [csv_val_map[col] for col in output_columns]
+                    output_writer.writerow(csv_row)
 
                 # Early exit for testing
                 #exit()
@@ -1391,6 +1408,10 @@ def generate_summary(raw_data_filename, summary_filename):
     libc_cpuinsts = defaultdict(lambda: defaultdict(list))
 
     renderers = set()
+    has_gpu_time = False
+    has_power = False
+    has_memory = False
+    has_cpuinst = False
 
     try:
         with open(raw_data_filename, 'r') as f:
@@ -1402,6 +1423,16 @@ def generate_summary(raw_data_filename, summary_filename):
             args_used = f.readline().strip()
 
             reader = csv.DictReader(f, delimiter=',', skipinitialspace=True)
+            fieldnames = reader.fieldnames or []
+
+            if 'gpu_time(ms)' in fieldnames:
+                has_gpu_time = True
+            if 'gpu_power(W)' in fieldnames:
+                has_power = True
+            if 'gpu_mem_sustained' in fieldnames:
+                has_memory = True
+            if 'process_cpuinst' in fieldnames:
+                has_cpuinst = True
 
             for row in reader:
                 test = row['trace']
@@ -1409,24 +1440,31 @@ def generate_summary(raw_data_filename, summary_filename):
                 renderer = test.split('_')[0]  # potential issue if mode is present
                 renderers.add(renderer)
 
-                wall_times[trace][renderer].append(safe_cast_float(row['wall_time(ms)']))
-                gpu_times[trace][renderer].append(safe_cast_float(row['gpu_time(ms)']))
+                wall_times[trace][renderer].append(safe_cast_float(row.get('wall_time(ms)', '')))
+                gpu_times[trace][renderer].append(safe_cast_float(row.get('gpu_time(ms)', '')))
                 frame_wall_times[trace][renderer].append(
-                    safe_cast_float(row['frame_wall_time(ms)']))
-                cpu_times[trace][renderer].append(safe_cast_float(row['cpu_time(ms)']))
-                gpu_powers[trace][renderer].append(safe_cast_float(row['gpu_power(W)']))
-                cpu_powers[trace][renderer].append(safe_cast_float(row['cpu_power(W)']))
-                infra_powers[trace][renderer].append(safe_cast_float(row['infra_power(W)']))
-                gpu_mem_sustaineds[trace][renderer].append(safe_cast_int(row['gpu_mem_sustained']))
-                gpu_mem_peaks[trace][renderer].append(safe_cast_int(row['gpu_mem_peak']))
-                proc_mem_medians[trace][renderer].append(safe_cast_int(row['proc_mem_median']))
-                proc_mem_peaks[trace][renderer].append(safe_cast_int(row['proc_mem_peak']))
-                process_cpuinsts[trace][renderer].append(safe_cast_float(row['process_cpuinst']))
-                gfxlib_cpuinsts[trace][renderer].append(safe_cast_float(row['gfxlib_cpuinst']))
-                angle_cpuinsts[trace][renderer].append(safe_cast_float(row['angle_cpuinst']))
-                vulkan_cpuinsts[trace][renderer].append(safe_cast_float(row['vulkan_cpuinst']))
-                gles_cpuinsts[trace][renderer].append(safe_cast_float(row['gles_cpuinst']))
-                libc_cpuinsts[trace][renderer].append(safe_cast_float(row['libc_cpuinst']))
+                    safe_cast_float(row.get('frame_wall_time(ms)', '')))
+                cpu_times[trace][renderer].append(safe_cast_float(row.get('cpu_time(ms)', '')))
+                gpu_powers[trace][renderer].append(safe_cast_float(row.get('gpu_power(W)', '')))
+                cpu_powers[trace][renderer].append(safe_cast_float(row.get('cpu_power(W)', '')))
+                infra_powers[trace][renderer].append(
+                    safe_cast_float(row.get('infra_power(W)', '')))
+                gpu_mem_sustaineds[trace][renderer].append(
+                    safe_cast_int(row.get('gpu_mem_sustained', '')))
+                gpu_mem_peaks[trace][renderer].append(safe_cast_int(row.get('gpu_mem_peak', '')))
+                proc_mem_medians[trace][renderer].append(
+                    safe_cast_int(row.get('proc_mem_median', '')))
+                proc_mem_peaks[trace][renderer].append(safe_cast_int(row.get('proc_mem_peak', '')))
+                process_cpuinsts[trace][renderer].append(
+                    safe_cast_float(row.get('process_cpuinst', '')))
+                gfxlib_cpuinsts[trace][renderer].append(
+                    safe_cast_float(row.get('gfxlib_cpuinst', '')))
+                angle_cpuinsts[trace][renderer].append(
+                    safe_cast_float(row.get('angle_cpuinst', '')))
+                vulkan_cpuinsts[trace][renderer].append(
+                    safe_cast_float(row.get('vulkan_cpuinst', '')))
+                gles_cpuinsts[trace][renderer].append(safe_cast_float(row.get('gles_cpuinst', '')))
+                libc_cpuinsts[trace][renderer].append(safe_cast_float(row.get('libc_cpuinst', '')))
 
     except FileNotFoundError:
         logging.error(f"Error: Raw data file '{raw_data_filename}' not found.")
@@ -1456,129 +1494,122 @@ def generate_summary(raw_data_filename, summary_filename):
 
     if (len(renderers) == 1) and "both" not in renderers:
         renderer_name = list(renderers)[0]
-        summary_writer.writerow([
+        header_row = [
             "#", "\"Trace\"", f"\"{renderer_name}\nwall\ntime\nper\nframe\n(ms)\"",
-            f"\"{renderer_name}\nwall\ntime\nvariance\"",
-            f"\"{renderer_name}\nGPU\ntime\nper\nframe\n(ms)\"",
-            f"\"{renderer_name}\nGPU\ntime\nvariance\"",
+            f"\"{renderer_name}\nwall\ntime\nvariance\""
+        ]
+        if has_gpu_time:
+            header_row.extend([
+                f"\"{renderer_name}\nGPU\ntime\nper\nframe\n(ms)\"",
+                f"\"{renderer_name}\nGPU\ntime\nvariance\""
+            ])
+        header_row.extend([
             f"\"{renderer_name}\nFrame\nwall\ntime\nper\nframe\n(ms)\"",
             f"\"{renderer_name}\nFrame\nwall\ntime\nvariance\"",
             f"\"{renderer_name}\nCPU\ntime\nper\nframe\n(ms)\"",
-            f"\"{renderer_name}\nCPU\ntime\nvariance\"", f"\"{renderer_name}\nGPU\npower\n(W)\"",
-            f"\"{renderer_name}\nGPU\npower\nvariance\"", f"\"{renderer_name}\nCPU\npower\n(W)\"",
-            f"\"{renderer_name}\nCPU\npower\nvariance\"",
-            f"\"{renderer_name}\nInfra\npower\n(W)\"",
-            f"\"{renderer_name}\nInfra\npower\nvariance\"", f"\"{renderer_name}\nGPU\nmem\n(B)\"",
-            f"\"{renderer_name}\nGPU\nmem\nvariance\"",
-            f"\"{renderer_name}\npeak\nGPU\nmem\n(B)\"",
-            f"\"{renderer_name}\npeak\nGPU\nmem\nvariance\"",
-            f"\"{renderer_name}\nprocess\nmem\n(B)\"",
-            f"\"{renderer_name}\nprocess\nmem\nvariance\"",
-            f"\"{renderer_name}\npeak\nprocess\nmem\n(B)\"",
-            f"\"{renderer_name}\npeak\nprocess\nmem\nvariance\"",
-            f"\"{renderer_name}\nprocess\ncpu\ninst\n\"",
-            f"\"{renderer_name}\nprocess\ncpu\ninst\nvariance\"",
-            f"\"{renderer_name}\ngfxlib\ncpu\ninst\n\"",
-            f"\"{renderer_name}\ngfxlib\ncpu\ninst\nvariance\"",
-            f"\"{renderer_name}\nangle\ncpu\ninst\n\"",
-            f"\"{renderer_name}\nangle\ncpu\ninst\nvariance\"",
-            f"\"{renderer_name}\nvulkan\ncpu\ninst\n\"",
-            f"\"{renderer_name}\nvulkan\ncpu\ninst\nvariance\"",
-            f"\"{renderer_name}\ngles\ncpu\ninst\n\"",
-            f"\"{renderer_name}\ngles\ncpu\ninst\nvariance\"",
-            f"\"{renderer_name}\nlibc\ncpu\ninst\n\"",
-            f"\"{renderer_name}\nlibc\ncpu\ninst\nvariance\""
+            f"\"{renderer_name}\nCPU\ntime\nvariance\""
         ])
+
+        if has_power:
+            header_row.extend([
+                f"\"{renderer_name}\nGPU\npower\n(W)\"",
+                f"\"{renderer_name}\nGPU\npower\nvariance\"",
+                f"\"{renderer_name}\nCPU\npower\n(W)\"",
+                f"\"{renderer_name}\nCPU\npower\nvariance\"",
+                f"\"{renderer_name}\nInfra\npower\n(W)\"",
+                f"\"{renderer_name}\nInfra\npower\nvariance\""
+            ])
+        if has_memory:
+            header_row.extend([
+                f"\"{renderer_name}\nGPU\nmem\n(B)\"", f"\"{renderer_name}\nGPU\nmem\nvariance\"",
+                f"\"{renderer_name}\npeak\nGPU\nmem\n(B)\"",
+                f"\"{renderer_name}\npeak\nGPU\nmem\nvariance\"",
+                f"\"{renderer_name}\nprocess\nmem\n(B)\"",
+                f"\"{renderer_name}\nprocess\nmem\nvariance\"",
+                f"\"{renderer_name}\npeak\nprocess\nmem\n(B)\"",
+                f"\"{renderer_name}\npeak\nprocess\nmem\nvariance\""
+            ])
+        if has_cpuinst:
+            header_row.extend([
+                f"\"{renderer_name}\nprocess\ncpu\ninst\n\"",
+                f"\"{renderer_name}\nprocess\ncpu\ninst\nvariance\"",
+                f"\"{renderer_name}\ngfxlib\ncpu\ninst\n\"",
+                f"\"{renderer_name}\ngfxlib\ncpu\ninst\nvariance\"",
+                f"\"{renderer_name}\nangle\ncpu\ninst\n\"",
+                f"\"{renderer_name}\nangle\ncpu\ninst\nvariance\"",
+                f"\"{renderer_name}\nvulkan\ncpu\ninst\n\"",
+                f"\"{renderer_name}\nvulkan\ncpu\ninst\nvariance\"",
+                f"\"{renderer_name}\ngles\ncpu\ninst\n\"",
+                f"\"{renderer_name}\ngles\ncpu\ninst\nvariance\"",
+                f"\"{renderer_name}\nlibc\ncpu\ninst\n\"",
+                f"\"{renderer_name}\nlibc\ncpu\ninst\nvariance\""
+            ])
+        summary_writer.writerow(header_row)
     else:
-        summary_writer.writerow([
-            "#",
-            "\"Trace\"",
-            "\"Native\nwall\ntime\nper\nframe\n(ms)\"",
-            "\"Native\nwall\ntime\nvariance\"",
-            "\"ANGLE\nwall\ntime\nper\nframe\n(ms)\"",
-            "\"ANGLE\nwall\ntime\nvariance\"",
-            "\"wall\ntime\ncompare\"",
-            "\"Native\nGPU\ntime\nper\nframe\n(ms)\"",
-            "\"Native\nGPU\ntime\nvariance\"",
-            "\"ANGLE\nGPU\ntime\nper\nframe\n(ms)\"",
-            "\"ANGLE\nGPU\ntime\nvariance\"",
-            "\"GPU\ntime\ncompare\"",
+        header_row = [
+            "#", "\"Trace\"", "\"Native\nwall\ntime\nper\nframe\n(ms)\"",
+            "\"Native\nwall\ntime\nvariance\"", "\"ANGLE\nwall\ntime\nper\nframe\n(ms)\"",
+            "\"ANGLE\nwall\ntime\nvariance\"", "\"wall\ntime\ncompare\""
+        ]
+        if has_gpu_time:
+            header_row.extend([
+                "\"Native\nGPU\ntime\nper\nframe\n(ms)\"", "\"Native\nGPU\ntime\nvariance\"",
+                "\"ANGLE\nGPU\ntime\nper\nframe\n(ms)\"", "\"ANGLE\nGPU\ntime\nvariance\"",
+                "\"GPU\ntime\ncompare\""
+            ])
+        header_row.extend([
             "\"Native\nFrame\nwall\ntime\nper\nframe\n(ms)\"",
             "\"Native\nFrame\nwall\ntime\nvariance\"",
             "\"ANGLE\nFrame\nwall\ntime\nper\nframe\n(ms)\"",
-            "\"ANGLE\nFrame\nwall\ntime\nvariance\"",
-            "\"Frame\nwall\ntime\ncompare\"",
-            "\"Native\nCPU\ntime\nper\nframe\n(ms)\"",
-            "\"Native\nCPU\ntime\nvariance\"",
-            "\"ANGLE\nCPU\ntime\nper\nframe\n(ms)\"",
-            "\"ANGLE\nCPU\ntime\nvariance\"",
-            "\"CPU\ntime\ncompare\"",
-            "\"Native\nGPU\npower\n(W)\"",
-            "\"Native\nGPU\npower\nvariance\"",
-            "\"ANGLE\nGPU\npower\n(W)\"",
-            "\"ANGLE\nGPU\npower\nvariance\"",
-            "\"GPU\npower\ncompare\"",
-            "\"Native\nCPU\npower\n(W)\"",
-            "\"Native\nCPU\npower\nvariance\"",
-            "\"ANGLE\nCPU\npower\n(W)\"",
-            "\"ANGLE\nCPU\npower\nvariance\"",
-            "\"CPU\npower\ncompare\"",
-            "\"Native\nInfra\npower\n(W)\"",
-            "\"Native\nInfra\npower\nvariance\"",
-            "\"ANGLE\nInfra\npower\n(W)\"",
-            "\"ANGLE\nInfra\npower\nvariance\"",
-            "\"Infra\npower\ncompare\"",
-            "\"Native\nGPU\nmem\n(B)\"",
-            "\"Native\nGPU\nmem\nvariance\"",
-            "\"ANGLE\nGPU\nmem\n(B)\"",
-            "\"ANGLE\nGPU\nmem\nvariance\"",
-            "\"GPU\nmem\ncompare\"",
-            "\"Native\npeak\nGPU\nmem\n(B)\"",
-            "\"Native\npeak\nGPU\nmem\nvariance\"",
-            "\"ANGLE\npeak\nGPU\nmem\n(B)\"",
-            "\"ANGLE\npeak\nGPU\nmem\nvariance\"",
-            "\"GPU\npeak\nmem\ncompare\"",
-            "\"Native\nprocess\nmem\n(B)\"",
-            "\"Native\nprocess\nmem\nvariance\"",
-            "\"ANGLE\nprocess\nmem\n(B)\"",
-            "\"ANGLE\nprocess\nmem\nvariance\"",
-            "\"process\nmem\ncompare\"",
-            "\"Native\npeak\nprocess\nmem\n(B)\"",
-            "\"Native\npeak\nprocess\nmem\nvariance\"",
-            "\"ANGLE\npeak\nprocess\nmem\n(B)\"",
-            "\"ANGLE\npeak\nprocess\nmem\nvariance\"",
-            "\"process\npeak\nmem\ncompare\"",
-            "\"Native\nprocess\ncpu\ninst\"",
-            "\"Native\nprocess\ncpu\ninst\nvariance\"",
-            "\"ANGLE\nprocess\ncpu\ninst\"",
-            "\"ANGLE\nprocess\ncpu\ninst\nvariance\"",
-            "\"process\ncpu\ninst\ncompare\"",
-            "\"Native\ngfxlib\ncpu\ninst\"",
-            "\"Native\ngfxlib\ncpu\ninst\nvariance\"",
-            "\"ANGLE\ngfxlib\ncpu\ninst\"",
-            "\"ANGLE\ngfxlib\ncpu\ninst\nvariance\"",
-            "\"gfxlib\ncpu\ninst\ncompare\"",
-            "\"Native\nangle\ncpu\ninst\"",
-            "\"Native\nangle\ncpu\ninst\nvariance\"",
-            "\"ANGLE\nangle\ncpu\ninst\"",
-            "\"ANGLE\nangle\ncpu\ninst\nvariance\"",
-            "\"angle\ncpu\ninst\ncompare\"",
-            "\"Native\nvulkan\ncpu\ninst\"",
-            "\"Native\nvulkan\ncpu\ninst\nvariance\"",
-            "\"ANGLE\nvulkan\ncpu\ninst\"",
-            "\"ANGLE\nvulkan\ncpu\ninst\nvariance\"",
-            "\"vulkan\ncpu\ninst\ncompare\"",
-            "\"Native\ngles\ncpu\ninst\"",
-            "\"Native\ngles\ncpu\ninst\nvariance\"",
-            "\"ANGLE\ngles\ncpu\ninst\"",
-            "\"ANGLE\ngles\ncpu\ninst\nvariance\"",
-            "\"gles\ncpu\ninst\ncompare\"",
-            "\"Native\nlibc\ncpu\ninst\"",
-            "\"Native\nlibc\ncpu\ninst\nvariance\"",
-            "\"ANGLE\nlibc\ncpu\ninst\"",
-            "\"ANGLE\nlibc\ncpu\ninst\nvariance\"",
-            "\"libc\ncpu\ninst\ncompare\"",
+            "\"ANGLE\nFrame\nwall\ntime\nvariance\"", "\"Frame\nwall\ntime\ncompare\"",
+            "\"Native\nCPU\ntime\nper\nframe\n(ms)\"", "\"Native\nCPU\ntime\nvariance\"",
+            "\"ANGLE\nCPU\ntime\nper\nframe\n(ms)\"", "\"ANGLE\nCPU\ntime\nvariance\"",
+            "\"CPU\ntime\ncompare\""
         ])
+
+        if has_power:
+            header_row.extend([
+                "\"Native\nGPU\npower\n(W)\"", "\"Native\nGPU\npower\nvariance\"",
+                "\"ANGLE\nGPU\npower\n(W)\"", "\"ANGLE\nGPU\npower\nvariance\"",
+                "\"GPU\npower\ncompare\"", "\"Native\nCPU\npower\n(W)\"",
+                "\"Native\nCPU\npower\nvariance\"", "\"ANGLE\nCPU\npower\n(W)\"",
+                "\"ANGLE\nCPU\npower\nvariance\"", "\"CPU\npower\ncompare\"",
+                "\"Native\nInfra\npower\n(W)\"", "\"Native\nInfra\npower\nvariance\"",
+                "\"ANGLE\nInfra\npower\n(W)\"", "\"ANGLE\nInfra\npower\nvariance\"",
+                "\"Infra\npower\ncompare\""
+            ])
+        if has_memory:
+            header_row.extend([
+                "\"Native\nGPU\nmem\n(B)\"", "\"Native\nGPU\nmem\nvariance\"",
+                "\"ANGLE\nGPU\nmem\n(B)\"", "\"ANGLE\nGPU\nmem\nvariance\"",
+                "\"GPU\nmem\ncompare\"", "\"Native\npeak\nGPU\nmem\n(B)\"",
+                "\"Native\npeak\nGPU\nmem\nvariance\"", "\"ANGLE\npeak\nGPU\nmem\n(B)\"",
+                "\"ANGLE\npeak\nGPU\nmem\nvariance\"", "\"GPU\npeak\nmem\ncompare\"",
+                "\"Native\nprocess\nmem\n(B)\"", "\"Native\nprocess\nmem\nvariance\"",
+                "\"ANGLE\nprocess\nmem\n(B)\"", "\"ANGLE\nprocess\nmem\nvariance\"",
+                "\"process\nmem\ncompare\"", "\"Native\npeak\nprocess\nmem\n(B)\"",
+                "\"Native\npeak\nprocess\nmem\nvariance\"", "\"ANGLE\npeak\nprocess\nmem\n(B)\"",
+                "\"ANGLE\npeak\nprocess\nmem\nvariance\"", "\"process\npeak\nmem\ncompare\""
+            ])
+        if has_cpuinst:
+            header_row.extend([
+                "\"Native\nprocess\ncpu\ninst\"", "\"Native\nprocess\ncpu\ninst\nvariance\"",
+                "\"ANGLE\nprocess\ncpu\ninst\"", "\"ANGLE\nprocess\ncpu\ninst\nvariance\"",
+                "\"process\ncpu\ninst\ncompare\"", "\"Native\ngfxlib\ncpu\ninst\"",
+                "\"Native\ngfxlib\ncpu\ninst\nvariance\"", "\"ANGLE\ngfxlib\ncpu\ninst\"",
+                "\"ANGLE\ngfxlib\ncpu\ninst\nvariance\"", "\"gfxlib\ncpu\ninst\ncompare\"",
+                "\"Native\nangle\ncpu\ninst\"", "\"Native\nangle\ncpu\ninst\nvariance\"",
+                "\"ANGLE\nangle\ncpu\ninst\"", "\"ANGLE\nangle\ncpu\ninst\nvariance\"",
+                "\"angle\ncpu\ninst\ncompare\"", "\"Native\nvulkan\ncpu\ninst\"",
+                "\"Native\nvulkan\ncpu\ninst\nvariance\"", "\"ANGLE\nvulkan\ncpu\ninst\"",
+                "\"ANGLE\nvulkan\ncpu\ninst\nvariance\"", "\"vulkan\ncpu\ninst\ncompare\"",
+                "\"Native\ngles\ncpu\ninst\"", "\"Native\ngles\ncpu\ninst\nvariance\"",
+                "\"ANGLE\ngles\ncpu\ninst\"", "\"ANGLE\ngles\ncpu\ninst\nvariance\"",
+                "\"gles\ncpu\ninst\ncompare\"", "\"Native\nlibc\ncpu\ninst\"",
+                "\"Native\nlibc\ncpu\ninst\nvariance\"", "\"ANGLE\nlibc\ncpu\ninst\"",
+                "\"ANGLE\nlibc\ncpu\ninst\nvariance\"", "\"libc\ncpu\ninst\ncompare\""
+            ])
+        summary_writer.writerow(header_row)
 
     for name, results in wall_times.items():
         populate_summary_row(rows, name, results)
@@ -1635,65 +1666,78 @@ def generate_summary(raw_data_filename, summary_filename):
         renderer_name = list(renderers)[0]
         for name, data in rows.items():
             trace_number += 1
-            summary_writer.writerow([
+            data_row = [
                 trace_number,
                 name,
                 # wall_time
                 "%.3f" % data[renderer_name][0],
-                percent(data[renderer_name][1]),
+                percent(data[renderer_name][1])
+            ]
+            if has_gpu_time:
                 # GPU time
-                "%.3f" % data[renderer_name][2],
-                percent(data[renderer_name][3]),
+                data_row.extend(["%.3f" % data[renderer_name][2], percent(data[renderer_name][3])])
+            data_row.extend([
                 # Frame wall time
                 "%.3f" % data[renderer_name][4],
                 percent(data[renderer_name][5]),
                 # CPU time
                 "%.3f" % data[renderer_name][6],
-                percent(data[renderer_name][7]),
-                # GPU power
-                "%.3f" % data[renderer_name][8],
-                percent(data[renderer_name][9]),
-                # CPU power
-                "%.3f" % data[renderer_name][10],
-                percent(data[renderer_name][11]),
-                # Infra power
-                "%.3f" % data[renderer_name][12],
-                percent(data[renderer_name][13]),
-                # GPU mem
-                int(data[renderer_name][14]),
-                percent(data[renderer_name][15]),
-                # GPU peak mem
-                int(data[renderer_name][16]),
-                percent(data[renderer_name][17]),
-                # process mem
-                int(data[renderer_name][18]),
-                percent(data[renderer_name][19]),
-                # process peak mem
-                int(data[renderer_name][20]),
-                percent(data[renderer_name][21]),
-                # process cpuinst
-                "%.3f" % data[renderer_name][22],
-                percent(data[renderer_name][23]),
-                # gfxlib cpuinst
-                "%.3f" % data[renderer_name][24],
-                percent(data[renderer_name][25]),
-                # angle cpuinst
-                "%.3f" % data[renderer_name][26],
-                percent(data[renderer_name][27]),
-                # vulkan cpuinst
-                "%.3f" % data[renderer_name][28],
-                percent(data[renderer_name][29]),
-                # gles cpuinst
-                "%.3f" % data[renderer_name][30],
-                percent(data[renderer_name][31]),
-                # libc cpuinst
-                "%.3f" % data[renderer_name][32],
-                percent(data[renderer_name][33]),
+                percent(data[renderer_name][7])
             ])
+
+            if has_power:
+                data_row.extend([
+                    # GPU power
+                    "%.3f" % data[renderer_name][8],
+                    percent(data[renderer_name][9]),
+                    # CPU power
+                    "%.3f" % data[renderer_name][10],
+                    percent(data[renderer_name][11]),
+                    # Infra power
+                    "%.3f" % data[renderer_name][12],
+                    percent(data[renderer_name][13])
+                ])
+            if has_memory:
+                data_row.extend([
+                    # GPU mem
+                    int(data[renderer_name][14]),
+                    percent(data[renderer_name][15]),
+                    # GPU peak mem
+                    int(data[renderer_name][16]),
+                    percent(data[renderer_name][17]),
+                    # process mem
+                    int(data[renderer_name][18]),
+                    percent(data[renderer_name][19]),
+                    # process peak mem
+                    int(data[renderer_name][20]),
+                    percent(data[renderer_name][21])
+                ])
+            if has_cpuinst:
+                data_row.extend([
+                    # process cpuinst
+                    "%.3f" % data[renderer_name][22],
+                    percent(data[renderer_name][23]),
+                    # gfxlib cpuinst
+                    "%.3f" % data[renderer_name][24],
+                    percent(data[renderer_name][25]),
+                    # angle cpuinst
+                    "%.3f" % data[renderer_name][26],
+                    percent(data[renderer_name][27]),
+                    # vulkan cpuinst
+                    "%.3f" % data[renderer_name][28],
+                    percent(data[renderer_name][29]),
+                    # gles cpuinst
+                    "%.3f" % data[renderer_name][30],
+                    percent(data[renderer_name][31]),
+                    # libc cpuinst
+                    "%.3f" % data[renderer_name][32],
+                    percent(data[renderer_name][33])
+                ])
+            summary_writer.writerow(data_row)
     else:
         for name, data in rows.items():
             trace_number += 1
-            summary_writer.writerow([
+            data_row = [
                 trace_number,
                 name,
                 # wall_time
@@ -1701,14 +1745,19 @@ def generate_summary(raw_data_filename, summary_filename):
                 percent(data["native"][1]),
                 "%.3f" % data["vulkan"][0],
                 percent(data["vulkan"][1]),
-                percent(safe_divide(data["native"][0], data["vulkan"][0])),
-                # GPU time
-                "%.3f" % data["native"][2],
-                percent(data["native"][3]),
-                "%.3f" % data["vulkan"][2],
-                percent(data["vulkan"][3]),
-                percent(safe_divide(data["native"][2], data["vulkan"][2])),
-                # Frame wall time
+                percent(safe_divide(data["native"][0], data["vulkan"][0]))
+            ]
+            if has_gpu_time:
+                data_row.extend([
+                    # GPU time
+                    "%.3f" % data["native"][2],
+                    percent(data["native"][3]),
+                    "%.3f" % data["vulkan"][2],
+                    percent(data["vulkan"][3]),
+                    percent(safe_divide(data["native"][2], data["vulkan"][2]))
+                ])
+            data_row.extend([
+                # Frame wall_time
                 "%.3f" % data["native"][4],
                 percent(data["native"][5]),
                 "%.3f" % data["vulkan"][4],
@@ -1719,86 +1768,97 @@ def generate_summary(raw_data_filename, summary_filename):
                 percent(data["native"][7]),
                 "%.3f" % data["vulkan"][6],
                 percent(data["vulkan"][7]),
-                percent(safe_divide(data["native"][6], data["vulkan"][6])),
-                # GPU power
-                "%.3f" % data["native"][8],
-                percent(data["native"][9]),
-                "%.3f" % data["vulkan"][8],
-                percent(data["vulkan"][9]),
-                percent(safe_divide(data["native"][8], data["vulkan"][8])),
-                # CPU power
-                "%.3f" % data["native"][10],
-                percent(data["native"][11]),
-                "%.3f" % data["vulkan"][10],
-                percent(data["vulkan"][11]),
-                percent(safe_divide(data["native"][10], data["vulkan"][10])),
-                # Infra power
-                "%.3f" % data["native"][12],
-                percent(data["native"][13]),
-                "%.3f" % data["vulkan"][12],
-                percent(data["vulkan"][13]),
-                percent(safe_divide(data["native"][12], data["vulkan"][12])),
-                # GPU mem
-                int(data["native"][14]),
-                percent(data["native"][15]),
-                int(data["vulkan"][14]),
-                percent(data["vulkan"][15]),
-                percent(safe_divide(data["native"][14], data["vulkan"][14])),
-                # GPU peak mem
-                int(data["native"][16]),
-                percent(data["native"][17]),
-                int(data["vulkan"][16]),
-                percent(data["vulkan"][17]),
-                percent(safe_divide(data["native"][16], data["vulkan"][16])),
-                # process mem
-                int(data["native"][18]),
-                percent(data["native"][19]),
-                int(data["vulkan"][18]),
-                percent(data["vulkan"][19]),
-                percent(safe_divide(data["native"][18], data["vulkan"][18])),
-                # process peak mem
-                int(data["native"][20]),
-                percent(data["native"][21]),
-                int(data["vulkan"][20]),
-                percent(data["vulkan"][21]),
-                percent(safe_divide(data["native"][20], data["vulkan"][20])),
-                # process cpuinst
-                "%.3f" % data["native"][22],
-                percent(data["native"][23]),
-                "%.3f" % data["vulkan"][22],
-                percent(data["vulkan"][23]),
-                percent(safe_divide(data["native"][22], data["vulkan"][22])),
-                # gfxlib cpuinst
-                "%.3f" % data["native"][24],
-                percent(data["native"][25]),
-                "%.3f" % data["vulkan"][24],
-                percent(data["vulkan"][25]),
-                percent(safe_divide(data["native"][24], data["vulkan"][24])),
-                # angle cpuinst
-                "%.3f" % data["native"][26],
-                percent(data["native"][27]),
-                "%.3f" % data["vulkan"][26],
-                percent(data["vulkan"][27]),
-                percent(safe_divide(data["native"][26], data["vulkan"][26])),
-                # vulkan cpuinst
-                "%.3f" % data["native"][28],
-                percent(data["native"][29]),
-                "%.3f" % data["vulkan"][28],
-                percent(data["vulkan"][29]),
-                percent(safe_divide(data["native"][28], data["vulkan"][28])),
-                # gles cpuinst
-                "%.3f" % data["native"][30],
-                percent(data["native"][31]),
-                "%.3f" % data["vulkan"][30],
-                percent(data["vulkan"][31]),
-                percent(safe_divide(data["native"][30], data["vulkan"][30])),
-                # libc cpuinst
-                "%.3f" % data["native"][32],
-                percent(data["native"][33]),
-                "%.3f" % data["vulkan"][32],
-                percent(data["vulkan"][33]),
-                percent(safe_divide(data["native"][32], data["vulkan"][32])),
+                percent(safe_divide(data["native"][6], data["vulkan"][6]))
             ])
+
+            if has_power:
+                data_row.extend([
+                    # GPU power
+                    "%.3f" % data["native"][8],
+                    percent(data["native"][9]),
+                    "%.3f" % data["vulkan"][8],
+                    percent(data["vulkan"][9]),
+                    percent(safe_divide(data["native"][8], data["vulkan"][8])),
+                    # CPU power
+                    "%.3f" % data["native"][10],
+                    percent(data["native"][11]),
+                    "%.3f" % data["vulkan"][10],
+                    percent(data["vulkan"][11]),
+                    percent(safe_divide(data["native"][10], data["vulkan"][10])),
+                    # Infra power
+                    "%.3f" % data["native"][12],
+                    percent(data["native"][13]),
+                    "%.3f" % data["vulkan"][12],
+                    percent(data["vulkan"][13]),
+                    percent(safe_divide(data["native"][12], data["vulkan"][12]))
+                ])
+            if has_memory:
+                data_row.extend([
+                    # GPU mem
+                    int(data["native"][14]),
+                    percent(data["native"][15]),
+                    int(data["vulkan"][14]),
+                    percent(data["vulkan"][15]),
+                    percent(safe_divide(data["native"][14], data["vulkan"][14])),
+                    # GPU peak mem
+                    int(data["native"][16]),
+                    percent(data["native"][17]),
+                    int(data["vulkan"][16]),
+                    percent(data["vulkan"][17]),
+                    percent(safe_divide(data["native"][16], data["vulkan"][16])),
+                    # process mem
+                    int(data["native"][18]),
+                    percent(data["native"][19]),
+                    int(data["vulkan"][18]),
+                    percent(data["vulkan"][19]),
+                    percent(safe_divide(data["native"][18], data["vulkan"][18])),
+                    # process peak mem
+                    int(data["native"][20]),
+                    percent(data["native"][21]),
+                    int(data["vulkan"][20]),
+                    percent(data["vulkan"][21]),
+                    percent(safe_divide(data["native"][20], data["vulkan"][20]))
+                ])
+            if has_cpuinst:
+                data_row.extend([
+                    # process cpuinst
+                    "%.3f" % data["native"][22],
+                    percent(data["native"][23]),
+                    "%.3f" % data["vulkan"][22],
+                    percent(data["vulkan"][23]),
+                    percent(safe_divide(data["native"][22], data["vulkan"][22])),
+                    # gfxlib cpuinst
+                    "%.3f" % data["native"][24],
+                    percent(data["native"][25]),
+                    "%.3f" % data["vulkan"][24],
+                    percent(data["vulkan"][25]),
+                    percent(safe_divide(data["native"][24], data["vulkan"][24])),
+                    # angle cpuinst
+                    "%.3f" % data["native"][26],
+                    percent(data["native"][27]),
+                    "%.3f" % data["vulkan"][26],
+                    percent(data["vulkan"][27]),
+                    percent(safe_divide(data["native"][26], data["vulkan"][26])),
+                    # vulkan cpuinst
+                    "%.3f" % data["native"][28],
+                    percent(data["native"][29]),
+                    "%.3f" % data["vulkan"][28],
+                    percent(data["vulkan"][29]),
+                    percent(safe_divide(data["native"][28], data["vulkan"][28])),
+                    # gles cpuinst
+                    "%.3f" % data["native"][30],
+                    percent(data["native"][31]),
+                    "%.3f" % data["vulkan"][30],
+                    percent(data["vulkan"][31]),
+                    percent(safe_divide(data["native"][30], data["vulkan"][30])),
+                    # libc cpuinst
+                    "%.3f" % data["native"][32],
+                    percent(data["native"][33]),
+                    "%.3f" % data["vulkan"][32],
+                    percent(data["vulkan"][33]),
+                    percent(safe_divide(data["native"][32], data["vulkan"][32]))
+                ])
+            summary_writer.writerow(data_row)
 
 
 def main():
@@ -1813,6 +1873,11 @@ def main():
     parser.add_argument(
         '--walltimeonly',
         help='Limit output to just wall time',
+        action='store_true',
+        default=False)
+    parser.add_argument(
+        '--minimal-output',
+        help='Only output the explicitly requested columns. Otherwise, all columns will be output.',
         action='store_true',
         default=False)
     parser.add_argument(
@@ -1897,7 +1962,7 @@ def main():
         action='store_true',
         default=False)
     parser.add_argument(
-        '--track-gpu-time', help='Enables GPU time tracking', action='store_true', default=False)
+        '--gpu-time', help='Enables GPU time tracking', action='store_true', default=False)
     parser.add_argument(
         '--add-swap-into-gpu-time',
         help='Adds swap/offscreen blit into the gpu_time tracking',

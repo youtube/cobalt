@@ -85,6 +85,8 @@ BASE_DECLARE_FEATURE(kNtpTabGroupsModuleZeroState);
 BASE_DECLARE_FEATURE(kNtpFeatureOptimizationModuleRemoval);
 BASE_DECLARE_FEATURE(kNtpFeatureOptimizationShortcutsRemoval);
 BASE_DECLARE_FEATURE(kNtpFeatureOptimizationDismissModulesRemoval);
+BASE_DECLARE_FEATURE(kNtpAnimatedDoodles);
+BASE_DECLARE_FEATURE(kNtpDoodleMurals);
 
 // Parameter for controlling the luminosity difference for NTP elements on light
 // backgrounds.
@@ -263,6 +265,9 @@ extern const base::FeatureParam<bool> kNtpNextClientSensitivityCheckParam;
 // and static data is used for steady state chips.
 extern const base::FeatureParam<bool>
     kNtpNextSuggestionsFromNewSearchSuggestionsEndpointParam;
+
+// Parameter determining if the Canvas action chip should be enabled.
+extern const base::FeatureParam<bool> kNtpNextEnableCanvasChipParam;
 
 // Parameter determining if a recent tab chip/row should be generated in the
 // steady state in NTP. If false, one is NOT generated in the steady state,

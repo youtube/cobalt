@@ -2706,7 +2706,7 @@ TNode<Uint32T> CodeStubAssembler::LoadJSReceiverIdentityHash(
 #ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
 // Mirror C++ StringHasher::SeedArrayIndexValue.
 TNode<Uint32T> CodeStubAssembler::SeedArrayIndexValue(TNode<Uint32T> value) {
-  // Load m1 and m2 from the hash seed byte array. In the compiled code
+  // Load m1, m2 and m3 from the hash seed byte array. In the compiled code
   // these will always come from the read-only roots.
   TNode<ByteArray> hash_seed = CAST(LoadRoot(RootIndex::kHashSeed));
   intptr_t base_offset = OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag;
@@ -2714,14 +2714,19 @@ TNode<Uint32T> CodeStubAssembler::SeedArrayIndexValue(TNode<Uint32T> value) {
       hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM1Offset));
   TNode<Uint32T> m2 = Load<Uint32T>(
       hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM2Offset));
+  TNode<Uint32T> m3 = Load<Uint32T>(
+      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM3Offset));
 
   TNode<Word32T> x = value;
-  // 2-round xorshift-multiply.
+  // 3-round xorshift-multiply.
   x = Word32Xor(x, Word32Shr(x, Uint32Constant(Name::kArrayIndexHashShift)));
   x = Word32And(Uint32Mul(Unsigned(x), m1),
                 Uint32Constant(Name::kArrayIndexValueMask));
   x = Word32Xor(x, Word32Shr(x, Uint32Constant(Name::kArrayIndexHashShift)));
   x = Word32And(Uint32Mul(Unsigned(x), m2),
+                Uint32Constant(Name::kArrayIndexValueMask));
+  x = Word32Xor(x, Word32Shr(x, Uint32Constant(Name::kArrayIndexHashShift)));
+  x = Word32And(Uint32Mul(Unsigned(x), m3),
                 Uint32Constant(Name::kArrayIndexValueMask));
   x = Word32Xor(x, Word32Shr(x, Uint32Constant(Name::kArrayIndexHashShift)));
 
@@ -2730,18 +2735,23 @@ TNode<Uint32T> CodeStubAssembler::SeedArrayIndexValue(TNode<Uint32T> value) {
 
 // Mirror C++ StringHasher::UnseedArrayIndexValue.
 TNode<Uint32T> CodeStubAssembler::UnseedArrayIndexValue(TNode<Uint32T> value) {
-  // Load m1_inv and m2_inv from the hash seed byte array. In the compiled code
-  // these will always come from the read-only roots.
+  // Load m1_inv, m2_inv and m3_inv from the hash seed byte array. In the
+  // compiled code these will always come from the read-only roots.
   TNode<ByteArray> hash_seed = CAST(LoadRoot(RootIndex::kHashSeed));
   intptr_t base_offset = OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag;
   TNode<Uint32T> m1_inv = Load<Uint32T>(
       hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM1InvOffset));
   TNode<Uint32T> m2_inv = Load<Uint32T>(
       hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM2InvOffset));
+  TNode<Uint32T> m3_inv = Load<Uint32T>(
+      hash_seed, IntPtrConstant(base_offset + HashSeed::kDerivedM3InvOffset));
 
   TNode<Word32T> x = value;
-  // 2-round xorshift-multiply (inverse).
+  // 3-round xorshift-multiply (inverse).
   // Xorshift is an involution when kShift is at least half of the value width.
+  x = Word32Xor(x, Word32Shr(x, Uint32Constant(Name::kArrayIndexHashShift)));
+  x = Word32And(Uint32Mul(Unsigned(x), m3_inv),
+                Uint32Constant(Name::kArrayIndexValueMask));
   x = Word32Xor(x, Word32Shr(x, Uint32Constant(Name::kArrayIndexHashShift)));
   x = Word32And(Uint32Mul(Unsigned(x), m2_inv),
                 Uint32Constant(Name::kArrayIndexValueMask));
@@ -4098,11 +4108,8 @@ void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
 void CodeStubAssembler::StoreSharedObjectField(TNode<HeapObject> object,
                                                TNode<IntPtrT> offset,
                                                TNode<Object> value) {
-  CSA_DCHECK(this,
-             WordNotEqual(
-                 WordAnd(LoadMemoryChunkFlags(object),
-                         IntPtrConstant(MemoryChunk::IN_WRITABLE_SHARED_SPACE)),
-                 IntPtrConstant(0)));
+  CSA_DCHECK(this, IsPageFlagSet(BitcastTaggedToWord(object),
+                                 MemoryChunk::IN_WRITABLE_SHARED_SPACE));
   int const_offset;
   if (TryToInt32Constant(offset, &const_offset)) {
     StoreObjectField(object, const_offset, value);
@@ -8931,6 +8938,14 @@ TNode<BoolT> CodeStubAssembler::IsJSFunctionInstanceType(
                    LAST_JS_FUNCTION_TYPE);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+TNode<BoolT> CodeStubAssembler::IsWasmObjectInstanceType(
+    TNode<Int32T> instance_type) {
+  return IsInRange(instance_type, FIRST_WASM_OBJECT_TYPE,
+                   LAST_WASM_OBJECT_TYPE);
+}
+#endif
+
 TNode<BoolT> CodeStubAssembler::IsJSFunction(TNode<HeapObject> object) {
   return IsJSFunctionMap(LoadMap(object));
 }
@@ -12712,6 +12727,7 @@ TNode<BoolT> CodeStubAssembler::IsInterestingProperty(TNode<Name> name) {
   // these strings and interesting symbols.
   GotoIf(IsToJSONString(name), &return_true);
   GotoIf(IsGetString(name), &return_true);
+  GotoIf(IsThenString(name), &return_true);
   GotoIfNot(InstanceTypeEqual(LoadMapInstanceType(LoadMap(name)), SYMBOL_TYPE),
             &return_false);
   Branch(IsSetWord32<Symbol::IsInterestingSymbolBit>(
@@ -17940,16 +17956,19 @@ void CodeStubAssembler::StoreJSArrayBufferViewByteOffset(
 }
 
 TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLength(
-    TNode<JSTypedArray> typed_array) {
+    TNode<JSTypedArray> typed_array,
+    std::optional<TNode<Int32T>> elements_kind) {
   TNode<UintPtrT> byte_length = LoadBoundedSizeFromObject(
       typed_array, JSTypedArray::kRawByteLengthOffset);
-  TNode<Uint8T> element_shift =
-      ElementsKindToElementByteShift(LoadElementsKind(typed_array));
+  TNode<Int32T> kind =
+      elements_kind ? *elements_kind : LoadElementsKind(typed_array);
+  TNode<Uint8T> element_shift = ElementsKindToElementByteShift(kind);
   return WordShr(byte_length, element_shift);
 }
 
 TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndValidate(
-    TNode<JSTypedArray> typed_array, TypedArrayAccessMode mode, Label* fail) {
+    TNode<JSTypedArray> typed_array, TypedArrayAccessMode mode, Label* fail,
+    std::optional<TNode<Int32T>> elements_kind) {
   TVARIABLE(UintPtrT, result);
   TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(typed_array);
 
@@ -17959,14 +17978,14 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndValidate(
   BIND(&variable_length);
   {
     result = LoadJSTypedArrayLengthAndValidate(typed_array, buffer, mode, true,
-                                               fail);
+                                               fail, elements_kind);
     Goto(&end);
   }
 
   BIND(&fixed_length);
   {
     result = LoadJSTypedArrayLengthAndValidate(typed_array, buffer, mode, false,
-                                               fail);
+                                               fail, elements_kind);
     Goto(&end);
   }
   BIND(&end);
@@ -17975,13 +17994,14 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndValidate(
 
 TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndValidate(
     TNode<JSTypedArray> typed_array, TNode<JSArrayBuffer> buffer,
-    TypedArrayAccessMode mode, bool is_resizable, Label* fail) {
+    TypedArrayAccessMode mode, bool is_resizable, Label* fail,
+    std::optional<TNode<Int32T>> elements_kind) {
   CSA_DCHECK(this,
              TaggedEqual(LoadJSArrayBufferViewBuffer(typed_array), buffer));
   if (is_resizable) {
     CSA_DCHECK(this, IsVariableLengthJSArrayBufferView(typed_array));
-    return LoadVariableLengthJSTypedArrayLength(typed_array, buffer, mode,
-                                                fail);
+    return LoadVariableLengthJSTypedArrayLength(typed_array, buffer, mode, fail,
+                                                elements_kind);
   } else {
     CSA_DCHECK(this,
                Word32BinaryNot(IsVariableLengthJSArrayBufferView(typed_array)));
@@ -17989,19 +18009,20 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSTypedArrayLengthAndValidate(
     if (mode == TypedArrayAccessMode::kWrite) {
       GotoIf(IsImmutableArrayBuffer(buffer), fail);
     }
-    return LoadJSTypedArrayLength(typed_array);
+    return LoadJSTypedArrayLength(typed_array, elements_kind);
   }
 }
 
 // https://tc39.es/ecma262/#sec-integerindexedobjectlength
 TNode<UintPtrT> CodeStubAssembler::LoadVariableLengthJSTypedArrayLength(
     TNode<JSTypedArray> array, TNode<JSArrayBuffer> buffer,
-    TypedArrayAccessMode mode, Label* fail) {
+    TypedArrayAccessMode mode, Label* fail,
+    std::optional<TNode<Int32T>> elements_kind) {
   // byte_length already takes array's offset into account.
   TNode<UintPtrT> byte_length =
       LoadVariableLengthJSArrayBufferViewByteLength(array, buffer, mode, fail);
-  TNode<Uint8T> element_shift =
-      ElementsKindToElementByteShift(LoadElementsKind(array));
+  TNode<Int32T> kind = elements_kind ? *elements_kind : LoadElementsKind(array);
+  TNode<Uint8T> element_shift = ElementsKindToElementByteShift(kind);
   return WordShr(byte_length, element_shift);
 }
 
@@ -20195,6 +20216,9 @@ void CodeStubAssembler::SharedValueBarrier(
   GotoIf(IsAlwaysSharedSpaceJSObjectInstanceType(value_instance_type),
          &skip_barrier);
   GotoIf(IsHeapNumberInstanceType(value_instance_type), &check_in_shared_heap);
+#if V8_ENABLE_WEBASSEMBLY
+  GotoIf(IsWasmObjectInstanceType(value_instance_type), &check_in_shared_heap);
+#endif  // V8_ENABLE_WEBASSEMBLY
   Goto(&slow);
 
   BIND(&check_in_shared_heap);
@@ -20219,12 +20243,9 @@ void CodeStubAssembler::SharedValueBarrier(
   {
     // We skip the check for types that signal that they are shared. We do
     // ensure that they are allocated in shared space though.
-    CSA_DCHECK(
-        this,
-        WordNotEqual(
-            WordAnd(LoadMemoryChunkFlags(CAST(var_shared_value->value())),
-                    IntPtrConstant(MemoryChunk::IN_WRITABLE_SHARED_SPACE)),
-            IntPtrConstant(0)));
+    CSA_DCHECK(this,
+               IsPageFlagSet(BitcastTaggedToWord(var_shared_value->value()),
+                             MemoryChunk::IN_WRITABLE_SHARED_SPACE));
     Goto(&done);
   }
 

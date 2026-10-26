@@ -11,17 +11,33 @@
 #include "content/browser/surface_embed/dummy_surface_provider.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "third_party/blink/public/common/frame/frame_visual_properties.h"
+#include "third_party/blink/public/mojom/frame/intrinsic_sizing_info.mojom.h"
+#include "third_party/blink/public/mojom/input/pointer_lock_result.mojom.h"
+#include "ui/base/cursor/cursor.h"
 #include "ui/compositor/compositor.h"
 
 namespace content {
+
+WEB_CONTENTS_USER_DATA_KEY_IMPL(SurfaceEmbedConnectorImpl);
+
+// static
+void SurfaceEmbedConnector::Attach(WebContents* child_web_contents,
+                                   WebContents* parent_web_contents,
+                                   SurfaceEmbedConnector::Delegate* delegate) {
+  CHECK(child_web_contents);
+  CHECK(parent_web_contents);
+  auto* parent_impl = static_cast<WebContentsImpl*>(parent_web_contents);
+  WebContentsUserData<SurfaceEmbedConnectorImpl>::CreateForWebContents(
+      child_web_contents, parent_impl, delegate);
+}
 
 SurfaceEmbedConnectorImpl::SurfaceEmbedConnectorImpl(
     WebContents* child_web_contents,
     WebContentsImpl* parent_web_contents,
     SurfaceEmbedConnector::Delegate* delegate)
-    : delegate_(delegate),
+    : WebContentsUserData<SurfaceEmbedConnectorImpl>(*child_web_contents),
+      delegate_(delegate),
       parent_web_contents_(parent_web_contents->GetWeakPtr()),
-      child_web_contents_(static_cast<WebContentsImpl*>(child_web_contents)),
       dummy_surface_provider_(std::make_unique<DummySurfaceProvider>()) {}
 
 SurfaceEmbedConnectorImpl::~SurfaceEmbedConnectorImpl() = default;
@@ -65,6 +81,164 @@ void SurfaceEmbedConnectorImpl::OnSynchronizeVisualProperties(
 
 WebContentsImpl* SurfaceEmbedConnectorImpl::parent_web_contents() const {
   return static_cast<WebContentsImpl*>(parent_web_contents_.get());
+}
+
+WebContentsImpl* SurfaceEmbedConnectorImpl::child_web_contents() const {
+  return static_cast<WebContentsImpl*>(
+      const_cast<WebContents*>(&GetWebContents()));
+}
+
+void SurfaceEmbedConnectorImpl::SetView(RenderWidgetHostViewChildFrame* view,
+                                        bool allow_paint_holding) {
+  view_ = view;
+}
+
+RenderWidgetHostViewBase*
+SurfaceEmbedConnectorImpl::GetParentRenderWidgetHostView() {
+  return nullptr;
+}
+
+RenderWidgetHostViewBase*
+SurfaceEmbedConnectorImpl::GetRootRenderWidgetHostView() {
+  return nullptr;
+}
+
+void SurfaceEmbedConnectorImpl::RenderProcessGone() {}
+
+void SurfaceEmbedConnectorImpl::FirstSurfaceActivation(
+    const viz::SurfaceInfo& surface_info) {}
+
+void SurfaceEmbedConnectorImpl::SendIntrinsicSizingInfoToParent(
+    blink::mojom::IntrinsicSizingInfoPtr) {}
+
+void SurfaceEmbedConnectorImpl::SynchronizeVisualProperties(
+    const blink::FrameVisualProperties& visual_properties,
+    bool propagate) {}
+
+void SurfaceEmbedConnectorImpl::UpdateCursor(const ui::Cursor& cursor) {}
+
+FrameConnector::RootViewFocusState SurfaceEmbedConnectorImpl::HasFocus() {
+  return RootViewFocusState::kNullView;
+}
+
+void SurfaceEmbedConnectorImpl::FocusRootView() {}
+
+blink::mojom::PointerLockResult SurfaceEmbedConnectorImpl::LockPointer(
+    bool request_unadjusted_movement) {
+  return blink::mojom::PointerLockResult::kUnknownError;
+}
+
+blink::mojom::PointerLockResult SurfaceEmbedConnectorImpl::ChangePointerLock(
+    bool request_unadjusted_movement) {
+  return blink::mojom::PointerLockResult::kUnknownError;
+}
+
+void SurfaceEmbedConnectorImpl::UnlockPointer() {}
+
+bool SurfaceEmbedConnectorImpl::HasSize() {
+  return false;
+}
+
+const display::ScreenInfos& SurfaceEmbedConnectorImpl::GetScreenInfos() {
+  return screen_infos_;
+}
+
+const viz::LocalSurfaceId& SurfaceEmbedConnectorImpl::GetLocalSurfaceId() {
+  return local_surface_id_;
+}
+
+const blink::mojom::ViewportIntersectionState&
+SurfaceEmbedConnectorImpl::GetIntersectionState() {
+  return intersection_state_;
+}
+
+uint32_t SurfaceEmbedConnectorImpl::GetCaptureSequenceNumber() {
+  return capture_sequence_number_;
+}
+
+const gfx::Rect& SurfaceEmbedConnectorImpl::GetRectInParentViewInDip() {
+  return rect_in_parent_view_in_dip_;
+}
+
+const gfx::Size& SurfaceEmbedConnectorImpl::GetLocalFrameSizeInDip() {
+  return local_frame_size_in_dip_;
+}
+
+const gfx::Size& SurfaceEmbedConnectorImpl::GetLocalFrameSizeInPixels() {
+  return local_frame_size_in_pixels_;
+}
+
+double SurfaceEmbedConnectorImpl::GetCssZoomFactor() {
+  return last_received_css_zoom_factor_;
+}
+
+void SurfaceEmbedConnectorImpl::EnableAutoResize(const gfx::Size& min_size,
+                                                 const gfx::Size& max_size) {}
+
+void SurfaceEmbedConnectorImpl::DisableAutoResize() {}
+
+bool SurfaceEmbedConnectorImpl::IsInert() {
+  return false;
+}
+
+cc::TouchAction SurfaceEmbedConnectorImpl::InheritedEffectiveTouchAction() {
+  return cc::TouchAction::kAuto;
+}
+
+bool SurfaceEmbedConnectorImpl::IsHidden() {
+  return false;
+}
+
+bool SurfaceEmbedConnectorImpl::IsThrottled() {
+  return false;
+}
+
+bool SurfaceEmbedConnectorImpl::IsSubtreeThrottled() {
+  return false;
+}
+
+bool SurfaceEmbedConnectorImpl::IsDisplayLocked() {
+  return false;
+}
+
+void SurfaceEmbedConnectorImpl::DidUpdateVisualProperties(
+    const cc::RenderFrameMetadata& metadata) {}
+
+void SurfaceEmbedConnectorImpl::SetVisibilityForChildViews(bool visible) {}
+
+void SurfaceEmbedConnectorImpl::SetLocalFrameSize(
+    const gfx::Size& local_frame_size) {}
+
+void SurfaceEmbedConnectorImpl::SetRectInParentView(
+    const gfx::Rect& rect_in_parent_view) {}
+
+void SurfaceEmbedConnectorImpl::OnVisibilityChanged(
+    blink::mojom::FrameVisibility visibility) {
+  visibility_ = visibility;
+
+  // TODO(surface-embed): If there is a view, propagate the change in
+  // visibility to the current child render frame host and the child web
+  // contents.
+}
+
+bool SurfaceEmbedConnectorImpl::IsVisible() {
+  return true;
+}
+
+void SurfaceEmbedConnectorImpl::DelegateWasShown() {}
+
+Visibility SurfaceEmbedConnectorImpl::EmbedderVisibility() {
+  return Visibility::VISIBLE;
+}
+
+input::RenderWidgetHostViewInput*
+SurfaceEmbedConnectorImpl::GetParentViewInput() {
+  return nullptr;
+}
+
+input::RenderWidgetHostViewInput*
+SurfaceEmbedConnectorImpl::GetRootViewInput() {
+  return nullptr;
 }
 
 }  // namespace content

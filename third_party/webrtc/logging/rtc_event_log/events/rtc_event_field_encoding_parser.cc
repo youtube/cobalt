@@ -14,10 +14,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <tuple>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "logging/rtc_event_log/encoder/var_int.h"
 #include "logging/rtc_event_log/events/fixed_length_encoding_parameters_v3.h"
 #include "logging/rtc_event_log/events/rtc_event_field_encoding.h"
@@ -355,15 +355,15 @@ RtcEventLogParseStatus EventParser::ParseField(const FieldParameters& params) {
   return RtcEventLogParseStatus::Success();
 }
 
-RtcEventLogParseStatusOr<ArrayView<absl::string_view>>
+RtcEventLogParseStatusOr<std::span<absl::string_view>>
 EventParser::ParseStringField(const FieldParameters& params,
                               bool required_field) {
-  using StatusOr = RtcEventLogParseStatusOr<ArrayView<absl::string_view>>;
+  using StatusOr = RtcEventLogParseStatusOr<std::span<absl::string_view>>;
   RTC_DCHECK_EQ(params.field_type, FieldType::kString);
   auto status = ParseField(params);
   if (!status.ok())
     return StatusOr(status);
-  ArrayView<absl::string_view> strings = GetStrings();
+  std::span<absl::string_view> strings = GetStrings();
   if (required_field && strings.size() != NumEventsInBatch()) {
     return StatusOr::Error("Required string field not found", __FILE__,
                            __LINE__);
@@ -371,15 +371,15 @@ EventParser::ParseStringField(const FieldParameters& params,
   return StatusOr(strings);
 }
 
-RtcEventLogParseStatusOr<ArrayView<uint64_t>> EventParser::ParseNumericField(
+RtcEventLogParseStatusOr<std::span<uint64_t>> EventParser::ParseNumericField(
     const FieldParameters& params,
     bool required_field) {
-  using StatusOr = RtcEventLogParseStatusOr<ArrayView<uint64_t>>;
+  using StatusOr = RtcEventLogParseStatusOr<std::span<uint64_t>>;
   RTC_DCHECK_NE(params.field_type, FieldType::kString);
   auto status = ParseField(params);
   if (!status.ok())
     return StatusOr(status);
-  ArrayView<uint64_t> values = GetValues();
+  std::span<uint64_t> values = GetValues();
   if (required_field && values.size() != NumEventsInBatch()) {
     return StatusOr::Error("Required numerical field not found", __FILE__,
                            __LINE__);

@@ -113,8 +113,7 @@ class ActorAttemptLoginToolTest : public ActorToolsTest {
              kActorLoginPermissionsUseStrongAffiliations,
          password_manager::features::kActorLoginQualityLogs,
          password_manager::features::kActorLoginGetCredentialsNoLoginForm,
-         actor::kGlicEnableAutoLoginDialogs,
-         actor::kGlicEnableAutoLoginPersistedPermissions, features::kGlicActor},
+         features::kGlicActor},
         /*disabled_features=*/{kGlicCrossOriginNavigationGating});
   }
 
@@ -213,7 +212,7 @@ IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, Basic) {
   ActResultFuture result;
   actor_task().Act(ToRequestList(action), result.GetCallback());
   ExpectOkResult(result);
-  EXPECT_TRUE(RequiresPageStabilization(*result.Get<2>().back().result));
+  EXPECT_TRUE(RequiresPageStabilization(*result.Get().back().result));
 
   const auto& last_credential_used =
       mock_login_service().last_credential_used();
@@ -356,7 +355,7 @@ IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, OnlyUsernameFilled) {
   ActResultFuture result;
   actor_task().Act(ToRequestList(action), result.GetCallback());
   ExpectOkResult(result);
-  EXPECT_TRUE(RequiresPageStabilization(*result.Get<2>().back().result));
+  EXPECT_TRUE(RequiresPageStabilization(*result.Get().back().result));
 }
 
 IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, OnlyPasswordFilled) {
@@ -374,7 +373,7 @@ IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, OnlyPasswordFilled) {
   ActResultFuture result;
   actor_task().Act(ToRequestList(action), result.GetCallback());
   ExpectOkResult(result);
-  EXPECT_TRUE(RequiresPageStabilization(*result.Get<2>().back().result));
+  EXPECT_TRUE(RequiresPageStabilization(*result.Get().back().result));
 }
 
 IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest,

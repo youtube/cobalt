@@ -407,6 +407,7 @@ rtc_library("codec_vendor") {
     ":typed_codec_vendor",
     ":used_ids",
     "../api:field_trials_view",
+    "../api:payload_type",
     "../api:rtc_error",
     "../api:rtp_parameters",
     "../api:rtp_transceiver_direction",
@@ -1064,6 +1065,7 @@ rtc_library("rtc_stats_traversal") {
     "../api:rtc_stats_api",
     "../api:scoped_refptr",
     "../rtc_base:checks",
+    "../stats:rtc_stats",
   ]
 }
 
@@ -2903,12 +2905,14 @@ if (rtc_include_tests && !build_with_chromium) {
     sources = [
       "test/fake_audio_capture_module.cc",
       "test/fake_audio_capture_module.h",
+      "test/fake_audio_track.h",
       "test/fake_data_channel_controller.h",
       "test/fake_peer_connection_base.h",
       "test/fake_peer_connection_for_stats.h",
       "test/fake_periodic_video_source.h",
       "test/fake_periodic_video_track_source.h",
       "test/fake_rtc_certificate_generator.h",
+      "test/fake_video_track.h",
       "test/fake_video_track_renderer.h",
       "test/fake_video_track_source.h",
       "test/frame_generator_capturer_video_track_source.h",

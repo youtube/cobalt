@@ -692,7 +692,31 @@ void ThrowInvalidEncodedStringBytes(Isolate* isolate, MessageTemplate message) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
-template <typename Decoder, typename PeekBytes>
+struct NonSharedStringPolicy {
+  static constexpr bool kAllowLookupSingleCharacterString = true;
+  static MaybeHandle<SeqOneByteString> AllocateOneByteString(
+      Isolate* isolate, uint32_t length, AllocationType allocation) {
+    return isolate->factory()->NewRawOneByteString(length, allocation);
+  }
+  static MaybeHandle<SeqTwoByteString> AllocateTwoByteString(
+      Isolate* isolate, uint32_t length, AllocationType allocation) {
+    return isolate->factory()->NewRawTwoByteString(length, allocation);
+  }
+};
+
+struct SharedStringPolicy {
+  static constexpr bool kAllowLookupSingleCharacterString = false;
+  static MaybeHandle<SeqOneByteString> AllocateOneByteString(
+      Isolate* isolate, uint32_t length, AllocationType allocation) {
+    return isolate->factory()->NewRawSharedOneByteString(length);
+  }
+  static MaybeHandle<SeqTwoByteString> AllocateTwoByteString(
+      Isolate* isolate, uint32_t length, AllocationType allocation) {
+    return isolate->factory()->NewRawSharedTwoByteString(length);
+  }
+};
+
+template <typename Decoder, typename PeekBytes, typename StringPolicy>
 MaybeHandle<String> NewStringFromBytes(Isolate* isolate, PeekBytes peek_bytes,
                                        AllocationType allocation,
                                        MessageTemplate message) {
@@ -707,16 +731,20 @@ MaybeHandle<String> NewStringFromBytes(Isolate* isolate, PeekBytes peek_bytes,
   if (decoder.utf16_length() == 0) return isolate->factory()->empty_string();
 
   if (decoder.is_one_byte()) {
-    if (decoder.utf16_length() == 1) {
-      uint8_t codepoint;
-      decoder.Decode(&codepoint, peek_bytes());
-      return isolate->factory()->LookupSingleCharacterStringFromCode(codepoint);
+    if constexpr (StringPolicy::kAllowLookupSingleCharacterString) {
+      if (decoder.utf16_length() == 1) {
+        uint8_t codepoint;
+        decoder.Decode(&codepoint, peek_bytes());
+        return isolate->factory()->LookupSingleCharacterStringFromCode(
+            codepoint);
+      }
     }
     // Allocate string.
     Handle<SeqOneByteString> result;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                               isolate->factory()->NewRawOneByteString(
-                                   decoder.utf16_length(), allocation));
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result,
+        StringPolicy::AllocateOneByteString(isolate, decoder.utf16_length(),
+                                            allocation));
 
     DisallowGarbageCollection no_gc;
     decoder.Decode(result->GetChars(no_gc), peek_bytes());
@@ -726,33 +754,54 @@ MaybeHandle<String> NewStringFromBytes(Isolate* isolate, PeekBytes peek_bytes,
   // Allocate string.
   Handle<SeqTwoByteString> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                             isolate->factory()->NewRawTwoByteString(
-                                 decoder.utf16_length(), allocation));
+                             StringPolicy::AllocateTwoByteString(
+                                 isolate, decoder.utf16_length(), allocation));
 
   DisallowGarbageCollection no_gc;
   decoder.Decode(result->GetChars(no_gc), peek_bytes());
   return result;
 }
 
-template <typename PeekBytes>
+struct StringBuilder {
+  template <typename Decoder, typename PeekBytes>
+  MaybeHandle<String> Build(Isolate* isolate, PeekBytes peek_bytes,
+                            AllocationType allocation,
+                            MessageTemplate message) {
+    return NewStringFromBytes<Decoder, PeekBytes, NonSharedStringPolicy>(
+        isolate, peek_bytes, allocation, message);
+  }
+};
+
+struct SharedStringBuilder {
+  template <typename Decoder, typename PeekBytes>
+  MaybeHandle<String> Build(Isolate* isolate, PeekBytes peek_bytes,
+                            AllocationType allocation,
+                            MessageTemplate message) {
+    return NewStringFromBytes<Decoder, PeekBytes, SharedStringPolicy>(
+        isolate, peek_bytes, allocation, message);
+  }
+};
+
+template <typename PeekBytes, typename StringBuilder>
 MaybeHandle<String> NewStringFromUtf8Variant(Isolate* isolate,
                                              PeekBytes peek_bytes,
                                              unibrow::Utf8Variant utf8_variant,
+                                             StringBuilder string_builder,
                                              AllocationType allocation) {
   switch (utf8_variant) {
     case unibrow::Utf8Variant::kLossyUtf8:
-      return NewStringFromBytes<Utf8Decoder>(isolate, peek_bytes, allocation,
-                                             MessageTemplate::kNone);
+      return string_builder.template Build<Utf8Decoder>(
+          isolate, peek_bytes, allocation, MessageTemplate::kNone);
 #if V8_ENABLE_WEBASSEMBLY
     case unibrow::Utf8Variant::kUtf8:
-      return NewStringFromBytes<StrictUtf8Decoder>(
+      return string_builder.template Build<StrictUtf8Decoder>(
           isolate, peek_bytes, allocation,
           MessageTemplate::kWasmTrapStringInvalidUtf8);
     case unibrow::Utf8Variant::kUtf8NoTrap:
-      return NewStringFromBytes<StrictUtf8Decoder>(
+      return string_builder.template Build<StrictUtf8Decoder>(
           isolate, peek_bytes, allocation, MessageTemplate::kNone);
     case unibrow::Utf8Variant::kWtf8:
-      return NewStringFromBytes<Wtf8Decoder>(
+      return string_builder.template Build<Wtf8Decoder>(
           isolate, peek_bytes, allocation,
           MessageTemplate::kWasmTrapStringInvalidWtf8);
 #endif
@@ -771,13 +820,32 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
   }
   auto peek_bytes = [&]() -> base::Vector<const uint8_t> { return string; };
   return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
-                                  allocation);
+                                  StringBuilder{}, allocation);
 }
 
 MaybeHandle<String> Factory::NewStringFromUtf8(base::Vector<const char> string,
                                                AllocationType allocation) {
   return NewStringFromUtf8(base::Vector<const uint8_t>::cast(string),
                            unibrow::Utf8Variant::kLossyUtf8, allocation);
+}
+
+MaybeHandle<String> Factory::NewSharedStringFromUtf8(
+    base::Vector<const uint8_t> string, unibrow::Utf8Variant utf8_variant) {
+  if (string.size() > kMaxInt) {
+    // The Utf8Decode can't handle longer inputs, and we couldn't create
+    // strings from them anyway.
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError());
+  }
+  auto peek_bytes = [&]() -> base::Vector<const uint8_t> { return string; };
+  return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
+                                  SharedStringBuilder{},
+                                  AllocationType::kSharedOld);
+}
+
+MaybeHandle<String> Factory::NewSharedStringFromUtf8(
+    base::Vector<const char> string) {
+  return NewSharedStringFromUtf8(base::Vector<const uint8_t>::cast(string),
+                                 unibrow::Utf8Variant::kLossyUtf8);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -795,7 +863,7 @@ MaybeDirectHandle<String> Factory::NewStringFromUtf8(
     return {contents + start, end - start};
   };
   return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
-                                  allocation);
+                                  StringBuilder{}, allocation);
 }
 
 MaybeHandle<String> Factory::NewStringFromUtf8(
@@ -810,7 +878,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
     return {contents + start, end - start};
   };
   return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
-                                  allocation);
+                                  StringBuilder{}, allocation);
 }
 
 namespace {
@@ -844,8 +912,9 @@ MaybeDirectHandle<String> Factory::NewStringFromUtf16(
         reinterpret_cast<const uint16_t*>(array->ElementAddress(0));
     return {contents + start, end - start};
   };
-  return NewStringFromBytes<Wtf16Decoder>(isolate(), peek_bytes, allocation,
-                                          MessageTemplate::kNone);
+  return NewStringFromBytes<Wtf16Decoder, decltype(peek_bytes),
+                            NonSharedStringPolicy>(
+      isolate(), peek_bytes, allocation, MessageTemplate::kNone);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2683,7 +2752,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   // Update properties if necessary.
   if (source->HasFastProperties()) {
     Tagged<PropertyArray> properties = source->property_array();
-    if (properties->length() > 0) {
+    if (properties->length().value() > 0) {
       // TODO(gsathya): Do not copy hash code.
       DirectHandle<PropertyArray> prop =
           CopyArrayWithMap(direct_handle(properties, isolate()),
@@ -2729,7 +2798,7 @@ inline void InitEmbedderFields(Tagged<JSObject> obj,
 template <typename T>
 Handle<T> Factory::CopyArrayWithMap(DirectHandle<T> src, DirectHandle<Map> map,
                                     AllocationType allocation) {
-  const uint32_t len = src->ulength().value();
+  const uint32_t len = src->length().value();
   Tagged<HeapObject> new_object = AllocateRawFixedArray(len, allocation);
   DisallowGarbageCollection no_gc;
   new_object->set_map_after_allocation(isolate(), *map, SKIP_WRITE_BARRIER);
@@ -2745,7 +2814,7 @@ template <typename T>
 Handle<T> Factory::CopyArrayAndGrow(DirectHandle<T> src, uint32_t grow_by,
                                     AllocationType allocation) {
   DCHECK_LT(0, grow_by);
-  const uint32_t old_len = src->ulength().value();
+  const uint32_t old_len = src->length().value();
   DCHECK_LE(grow_by + old_len, static_cast<uint32_t>(kMaxInt));
   const uint32_t new_len = old_len + grow_by;
   // TODO(jgruber,v8:14345): Use T::Allocate instead.
@@ -3972,6 +4041,9 @@ Handle<JSProxy> Factory::NewJSProxy(DirectHandle<JSReceiver> target,
   result->set_target(*target, SKIP_WRITE_BARRIER);
   result->set_handler(*handler, SKIP_WRITE_BARRIER);
   result->set_flags(JSProxy::IsRevocableBit::encode(revocable));
+#if TAGGED_SIZE_8_BYTES
+  result->set_padding(0);
+#endif
   return handle(result, isolate());
 }
 
@@ -4336,36 +4408,40 @@ Handle<StoreHandler> Factory::NewStoreHandler(int data_count) {
 }
 
 void Factory::SetRegExpAtomData(DirectHandle<JSRegExp> regexp,
-                                DirectHandle<String> source,
+                                DirectHandle<String> original_source,
+                                DirectHandle<String> escaped_source,
                                 JSRegExp::Flags flags,
                                 DirectHandle<String> pattern) {
   DirectHandle<RegExpData> regexp_data =
-      NewAtomRegExpData(source, flags, pattern);
+      NewAtomRegExpData(original_source, escaped_source, flags, pattern);
   regexp->set_data(*regexp_data);
 }
 
 void Factory::SetRegExpIrregexpData(DirectHandle<JSRegExp> regexp,
-                                    DirectHandle<String> source,
+                                    DirectHandle<String> original_source,
+                                    DirectHandle<String> escaped_source,
                                     JSRegExp::Flags flags, int capture_count,
                                     uint32_t backtrack_limit,
                                     uint32_t bit_field) {
   DirectHandle<RegExpData> regexp_data =
-      NewIrRegExpData(source, flags, capture_count, backtrack_limit, bit_field);
+      NewIrRegExpData(original_source, escaped_source, flags, capture_count,
+                      backtrack_limit, bit_field);
   regexp->set_data(*regexp_data);
 }
 
 void Factory::SetRegExpExperimentalData(DirectHandle<JSRegExp> regexp,
-                                        DirectHandle<String> source,
+                                        DirectHandle<String> original_source,
+                                        DirectHandle<String> escaped_source,
                                         JSRegExp::Flags flags,
                                         int capture_count) {
-  DirectHandle<RegExpData> regexp_data =
-      NewExperimentalRegExpData(source, flags, capture_count);
+  DirectHandle<RegExpData> regexp_data = NewExperimentalRegExpData(
+      original_source, escaped_source, flags, capture_count);
   regexp->set_data(*regexp_data);
 }
 
 DirectHandle<RegExpData> Factory::NewAtomRegExpData(
-    DirectHandle<String> source, JSRegExp::Flags flags,
-    DirectHandle<String> pattern) {
+    DirectHandle<String> original_source, DirectHandle<String> escaped_source,
+    JSRegExp::Flags flags, DirectHandle<String> pattern) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
   int size = AtomRegExpData::kSize;
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
@@ -4374,7 +4450,8 @@ DirectHandle<RegExpData> Factory::NewAtomRegExpData(
   Tagged<AtomRegExpData> instance = TrustedCast<AtomRegExpData>(result);
   instance->InitAndPublish(isolate());
   instance->set_type_tag(RegExpData::Type::ATOM);
-  instance->set_source(*source);
+  instance->set_original_source(*original_source);
+  instance->set_escaped_source(*escaped_source);
   instance->set_flags(flags);
   instance->set_pattern(*pattern);
   Tagged<RegExpDataWrapper> raw_wrapper = *wrapper;
@@ -4383,11 +4460,10 @@ DirectHandle<RegExpData> Factory::NewAtomRegExpData(
   return direct_handle(instance, isolate());
 }
 
-DirectHandle<RegExpData> Factory::NewIrRegExpData(DirectHandle<String> source,
-                                                  JSRegExp::Flags flags,
-                                                  int capture_count,
-                                                  uint32_t backtrack_limit,
-                                                  uint32_t bit_field) {
+DirectHandle<RegExpData> Factory::NewIrRegExpData(
+    DirectHandle<String> original_source, DirectHandle<String> escaped_source,
+    JSRegExp::Flags flags, int capture_count, uint32_t backtrack_limit,
+    uint32_t bit_field) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
   int size = IrRegExpData::kSize;
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
@@ -4396,7 +4472,8 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(DirectHandle<String> source,
   Tagged<IrRegExpData> instance = TrustedCast<IrRegExpData>(result);
   instance->InitAndPublish(isolate());
   instance->set_type_tag(RegExpData::Type::IRREGEXP);
-  instance->set_source(*source);
+  instance->set_original_source(*original_source);
+  instance->set_escaped_source(*escaped_source);
   instance->set_flags(flags);
   instance->clear_latin1_code();
   instance->clear_uc16_code();
@@ -4418,7 +4495,8 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(DirectHandle<String> source,
 }
 
 DirectHandle<RegExpData> Factory::NewExperimentalRegExpData(
-    DirectHandle<String> source, JSRegExp::Flags flags, int capture_count) {
+    DirectHandle<String> original_source, DirectHandle<String> escaped_source,
+    JSRegExp::Flags flags, int capture_count) {
   DirectHandle<RegExpDataWrapper> wrapper = NewRegExpDataWrapper();
   int size = IrRegExpData::kSize;
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
@@ -4434,7 +4512,8 @@ DirectHandle<RegExpData> Factory::NewExperimentalRegExpData(
   // fields.
   instance->InitAndPublish(isolate());
   instance->set_type_tag(RegExpData::Type::EXPERIMENTAL);
-  instance->set_source(*source);
+  instance->set_original_source(*original_source);
+  instance->set_escaped_source(*escaped_source);
   instance->set_flags(flags);
   instance->clear_latin1_code();
   instance->clear_uc16_code();

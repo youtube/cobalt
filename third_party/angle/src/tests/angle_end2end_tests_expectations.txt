@@ -279,6 +279,8 @@
 435228814 NVIDIA GLES : RobustBufferAccessBehaviorTest.DynamicBufferCrash/* = SKIP
 435228814 NVIDIA OPENGL : RobustBufferAccessBehaviorTest.DynamicBufferCrash/* = SKIP
 464010023 NVIDIA GLES : BlitFramebufferANGLETest.* = SKIP
+// Demote-to-helper for discard incorrect derivatives
+491363839 NVIDIA VULKAN : GLSLTest_ES31.HelperInvocationsAfterDiscard/* = SKIP
 
 // Nvidia Vulkan
 42265709 NVIDIA VULKAN : GLSLTest_ES31.TessellationControlShaderMatrixCopyBug/* = SKIP
@@ -553,6 +555,19 @@
 
 // Test is not suitable for GLES.
 444335354 ANDROID GLES : ImageTestES3.RGBXAHBUploadDataRGBA/* = SKIP
+
+// CopyTexImageLumaWorkaroundTestES3 known failures across platforms
+488042710 QUALCOMM VULKAN : CopyTexImageLumaWorkaroundTestES3.SameTextureDifferentLevelLuminanceAlpha/* = SKIP
+488042710 QUALCOMM VULKAN : CopyTexImageLumaWorkaroundTestES3.DifferentCubeFacesLuminanceAlpha/* = SKIP
+488042710 QUALCOMM VULKAN : CopyTexImageLumaWorkaroundTestES3.DifferentTexturesBothLuminanceAlpha/* = SKIP
+492439208 QUALCOMM GLES : CopyTexImageLumaWorkaroundTestES3.DifferentCubeFacesLuminanceAlpha/* = SKIP
+
+// Cubemap incompleteness on Desktop GL per spec
+492439210 OPENGL : CopyTexImageLumaWorkaroundTestES3.DifferentCubeFacesLuminanceAlpha/* = SKIP
+// Windows NVIDIA driver crash and FBO incompleteness
+492439210 WIN NVIDIA GLES : CopyTexImageLumaWorkaroundTestES3.DifferentCubeFacesLuminanceAlpha/* = SKIP
+// Incorrect pixel values on Windows GL for same-texture copies
+492462323 WIN OPENGL : CopyTexImageLumaWorkaroundTestES3.SameTextureDifferentLevelLuminanceAlpha/* = SKIP
 
 // Nexus 5X expectations.
 42264673 NEXUS5X GLES : GLSLTest_ES31.StructAndArrayEqualOperator/* = SKIP
@@ -887,6 +902,7 @@
 
 465140993 PIXEL6 VULKAN : GLSLTest_ES3_PackUnpackEmulation.PackHalf2x16/* = SKIP
 465140993 PIXEL6 VULKAN : GLSLTest_ES3_PackUnpackEmulation.PackSnorm2x16/* = SKIP
+491488984 PIXEL6 VULKAN : GLSLTest_ES31.HelperInvocationsAfterDiscard/* = SKIP
 
 // Pixel 10 expectations.
 480069042 PIXEL10 GLES : AtomicCounterBufferTest31.DependentAtomicCounterBufferChange/* = SKIP
@@ -1281,6 +1297,7 @@
 480069042 PIXEL10 VULKAN : VulkanPerformanceCounterTest_DepthStencilLoadStoreOps.MultisampleDepthStencilResolveSeparately/* = SKIP
 480069042 PIXEL10 VULKAN : VulkanPerformanceCounterTest_DepthStencilLoadStoreOps.RenderToTextureDepthStencilRenderbufferShouldNotLoad/* = SKIP
 480069042 PIXEL10 VULKAN : VulkanPerformanceCounterTest_DepthStencilLoadStoreOps.RenderToTextureUninitializedAndUnusedDepthStencil/* = SKIP
+491488985 PIXEL10 VULKAN : GLSLTest_ES31.HelperInvocationsAfterDiscard/* = SKIP
 
 // Some Metal tests fail on iOS Intel simulator
 40096874 IOS METAL : CubeMapTextureTest.SampleCoordinateTransformGrad/* = SKIP
@@ -1442,9 +1459,6 @@
 
 // Metal internal compiler error
 42265076 MAC AMD METAL : ProgramBinaryES3Test.SaveAndLoadDetachedShaders/* = SKIP
-
-// Issue with the ANGLE workaround for a driver bug.
-402810076 MAC AMD METAL : PixelLocalStorageTest.ColorAttachment0Workaround/* = SKIP
 
 // GLES1 failures introduced during ubershader optimization
 42265148 MAC INTEL OPENGL : BootAnimationTest.DefaultBootAnimation/* = SKIP
@@ -2275,19 +2289,31 @@
 42266907 WGPU : AttributeLayoutNonIndexed.Test/* = SKIP
 42266907 WGPU : BindUniformLocationTest.Compositor/* = SKIP
 42266907 WGPU : BlendPackedTest.RGB565/* = SKIP
-42266907 WGPU : BlitFramebufferANGLETest.BlitColorToDefault/* = SKIP
-42266907 WGPU : BlitFramebufferANGLETest.BlitColorWithFlip/* = SKIP
-42266907 WGPU : BlitFramebufferANGLETest.ReverseColorBlit/* = SKIP
-42266907 WGPU : BlitFramebufferANGLETest.ScissoredBlit/* = SKIP
-42266907 WGPU : BlitFramebufferANGLETest.ReverseScissoredBlit/* = SKIP
-42266907 WGPU : BlitFramebufferANGLETest.OversizedBlit/* = SKIP
-42266907 WGPU : BlitFramebufferANGLETest.ReverseOversizedBlit/* = SKIP
+42266907 WGPU : BlitFramebufferANGLETest.BlitWithMissingAttachments/* = SKIP
 42266907 WGPU : BlitFramebufferANGLETest.BlitWithDepthUserToDefault/* = SKIP
 42266907 WGPU : BlitFramebufferANGLETest.BlitWithDepthDefaultToUser/* = SKIP
-42266907 WGPU : BlitFramebufferANGLETest.BlitPartialColor/* = SKIP
-42266907 WGPU : BlitFramebufferANGLETest.BlitDifferentSizes/* = SKIP
 42266907 WGPU : BlitFramebufferANGLETest.BlitStencil/* = SKIP
-42266907 WGPU : BlitFramebufferANGLETest.BlitWithMissingAttachments/* = SKIP
+42266907 WGPU : BlitFramebufferTest.*Multisample* = SKIP
+42266907 WGPU : BlitFramebufferTest.*Multisampled* = SKIP
+42266907 WGPU : BlitFramebufferTest.BlitStencilToDefault/* = SKIP
+42266907 WGPU : BlitFramebufferTest.NonZeroBaseDestination* = SKIP
+42266907 WGPU : BlitFramebufferTest.NonZeroBaseSourceStencil/* = SKIP
+42266907 WGPU : BlitFramebufferTest.NonZeroBaseSource/* = SKIP
+42266907 WGPU : BlitFramebufferTest.BlitSRGBToRGBOversizedSourceArea/* = SKIP
+42266907 WGPU : BlitFramebufferTest.drawBlitAndDrawAgain/* = SKIP
+42266907 WGPU : BlitFramebufferTest.scissorDrawBlitAndDrawAgain/* = SKIP
+42266907 WGPU : BlitFramebufferTest.FlippedBlits/* = SKIP
+42266907 WGPU : BlitFramebufferTest.BlitDepthStencilPixelByPixel/* = SKIP
+42266907 WGPU : BlitFramebufferTest.*Resolve* = SKIP
+42266907 WGPU : BlitFramebufferTest.Blit3D/* = SKIP
+42266907 WGPU : BlitFramebufferTest.BlitLargeColorSmallDepthAttachments/* = SKIP
+42266907 WGPU : BlitFramebufferTest.BlitSmallColorLargeDepthAttachments/* = SKIP
+42266907 WGPU : BlitFramebufferTest.BlitStencilScissoredScaled/* = SKIP
+42266907 WGPU : BlitFramebufferTest.Blit2DArray* = SKIP
+42266907 WGPU : BlitFramebufferTest.Blit3DTo2DArray/* = SKIP
+42266907 WGPU : BlitFramebufferTest.Blit2ArrayTo3D/* = SKIP
+42266907 WGPU : BlitFramebufferTest.BlitFramebufferStencilClipNoIntersection/* = SKIP
+42266907 WGPU : BlitFramebufferTest.OOBWrite/* = SKIP
 42266907 WGPU : SimpleStateChangeTest.TexSubImageOnTextureBoundToFrambuffer/* = SKIP
 42266907 WGPU : SRGBFramebufferDefaultLinearTest.Blit*LinearFbo/* = SKIP
 42266907 WGPU : DebugMarkerTest.Rendering/* = SKIP
@@ -2468,6 +2494,8 @@
 42266907 WGPU : WebGLReadOutsideFramebufferTest.CopyTexSubImage2D/* = SKIP
 42266907 WGPU : WebGLReadOutsideFramebufferTest.CopyTexImage2D/* = SKIP
 
+
+
 // 42267100 failures are due to the shader (which uses textures) failing to compile
 42267100 WGPU : Texture2DTest.NegativeAPISubImage* = SKIP
 42267100 WGPU : Texture2DTest.ZeroSizedUploads* = SKIP
@@ -2530,6 +2558,7 @@
 362486580 LINUX NVIDIA OPENGL : LineLoopIndirectTest.UseAsUBOThenUpdateThenUByteIndexIndirectBuffer/* = SKIP
 362486580 LINUX NVIDIA OPENGL : MultiDrawIndirectTest.MultiDrawArraysIndirect/* = SKIP
 362486580 LINUX NVIDIA OPENGL : MultiDrawIndirectTest.MultiDrawElementsIndirect/* = SKIP
+362486580 LINUX NVIDIA OPENGL : SampleMultisampleInterpolationTest31.SampleShadingThenSimpleDraw/* = SKIP
 362486580 LINUX NVIDIA OPENGL : UniformBufferTest31.UniformBufferBindings/* = SKIP
 
 362486580 LINUX NVIDIA VULKAN : ClearTextureEXTTestES31Renderable.Clear/*__GL_RGB5_A1_GL_RGBA_GL_UNSIGNED_INT_2_10_10_10_REV_* = SKIP

@@ -960,6 +960,10 @@ struct VideoReceiverParameters : MediaChannelParameters {};
 
 class VideoMediaSendChannelInterface : public MediaSendChannelInterface {
  public:
+  using EncoderSwitchRequestAction = absl::AnyInvocable<void() &&>;
+  using EncoderSwitchRequestCallback =
+      absl::AnyInvocable<void(EncoderSwitchRequestAction)>;
+
   virtual bool SetSenderParameters(const VideoSenderParameters& params) = 0;
   // Starts or stops transmission (and potentially capture) of local video.
   virtual bool SetSend(bool send) = 0;
@@ -982,10 +986,6 @@ class VideoMediaSendChannelInterface : public MediaSendChannelInterface {
   // so that it's getting the send stream stats separately by calling
   // GetStats(), and merges with BandwidthEstimationInfo by itself.
   virtual void FillBitrateInfo(BandwidthEstimationInfo* bwe_info) = 0;
-  // Information queries to support SetReceiverFeedbackParameters
-  virtual RtcpMode SendCodecRtcpMode() const = 0;
-  virtual bool SendCodecHasLntf() const = 0;
-  virtual std::optional<int> SendCodecRtxTime() const = 0;
 };
 
 class VideoMediaReceiveChannelInterface : public MediaReceiveChannelInterface {

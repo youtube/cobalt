@@ -26,6 +26,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/task/thread_pool.h"
 #include "base/types/expected.h"
+#include "base/version.h"
 #include "remoting/base/logging.h"
 #include "remoting/host/base/loggable.h"
 #include "remoting/host/base/switches.h"
@@ -166,9 +167,7 @@ void RemoteDisplaySessionManager::TerminateRemoteDisplaySession(
 
   if (!session.session_info.has_value()) {
     std::move(callback).Run(base::unexpected(
-        Loggable(FROM_HERE, "Remote display session " +
-                                std::string(session.session_info->session_id) +
-                                " has no session info.")));
+        Loggable(FROM_HERE, "Remote display session has no session info.")));
     return;
   }
 
@@ -276,6 +275,7 @@ void RemoteDisplaySessionManager::OnGdmRemoteDisplayManagerStarted(
   }
 
   login_session_reporter_server_.StartServer();
+  login_session_server_.StartServer();
   for (const auto& [display_path, remote_display] :
        remote_display_manager_.remote_displays()) {
     std::string display_name = GetRemoteDisplayName(remote_display.remote_id);
@@ -410,6 +410,21 @@ void RemoteDisplaySessionManager::OnLoginSessionCreated(
                              std::move(session_info));
 }
 
+bool RemoteDisplaySessionManager::IsRunningInCrdSession(
+    const std::string& session_id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  for (auto& [_, d_info] : remote_displays_) {
+    for (auto& [_, s] : d_info.sessions) {
+      if (s.session_info.has_value() &&
+          s.session_info->session_id == session_id) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void RemoteDisplaySessionManager::OnSessionInfoReady(
     const std::string& display_name,
     const gvariant::ObjectPath& display_path,
@@ -419,6 +434,8 @@ void RemoteDisplaySessionManager::OnSessionInfoReady(
   if (!result.has_value()) {
     LOG(ERROR) << "Failed to get session info for " << display_name << ": "
                << result.error();
+    session_info_queries_blocking_startup_.erase(display_path);
+    HandleSessionInfoQueriesBlockingStartup();
     return;
   }
   DCHECK(result->is_remote);
@@ -434,12 +451,15 @@ void RemoteDisplaySessionManager::OnSessionInfoReady(
   } else {
     LOG(ERROR) << user_info_expected.error();
   }
-  if (session.session_info->session_class == "user") {
+
+  base::Version gdm_version(remote_display_manager_.version());
+  if (session.session_info->session_class == "user" ||
+      (gdm_version.IsValid() && gdm_version >= base::Version("49"))) {
     FetchSystemdEnvironmentVariables(display_name, display_path,
                                      session.session_info->username);
   } else {
-    // TODO: crbug.com/488713023 - poll systemd user environment variables for
-    // GNOME 49.
+    // TODO: crbug.com/488713023 - remove this branch once we no longer need
+    // this for development (everyone is on GDM 49+).
     auto pending_session_reporter_info_it =
         pending_session_reporter_info_.find(session.session_info->session_id);
     if (pending_session_reporter_info_it !=
@@ -450,9 +470,10 @@ void RemoteDisplaySessionManager::OnSessionInfoReady(
       PopulateSessionEnvironment(display_name, remote_display_info, session,
                                  std::move(session_reporter_info));
     }
+
+    session_info_queries_blocking_startup_.erase(display_path);
+    HandleSessionInfoQueriesBlockingStartup();
   }
-  session_info_queries_blocking_startup_.erase(display_path);
-  HandleSessionInfoQueriesBlockingStartup();
 }
 
 void RemoteDisplaySessionManager::FetchSystemdEnvironmentVariables(
@@ -464,6 +485,8 @@ void RemoteDisplaySessionManager::FetchSystemdEnvironmentVariables(
   base::FilePath exe_path;
   if (!base::PathService::Get(base::FILE_EXE, &exe_path)) {
     LOG(ERROR) << "Failed to get the current executable path.";
+    session_info_queries_blocking_startup_.erase(display_path);
+    HandleSessionInfoQueriesBlockingStartup();
     return;
   }
   base::CommandLine command_line(exe_path);
@@ -504,35 +527,39 @@ void RemoteDisplaySessionManager::OnGetUserSystemdEnvironmentResult(
 
   if (output.empty()) {
     // Failed to get environment variables. Logged above.
-    return;
-  }
+  } else {
+    auto remote_display_it = remote_displays_.find(display_name);
+    if (remote_display_it == remote_displays_.end()) {
+      LOG(WARNING) << "Remote display " << display_name << " not found.";
+    } else {
+      auto& remote_display_info = remote_display_it->second;
+      auto& session = remote_display_info.sessions[display_path];
+      auto result =
+          base::JSONReader::Read(output, base::JSON_ALLOW_TRAILING_COMMAS);
+      if (!result.has_value() || !result->is_dict()) {
+        LOG(ERROR)
+            << "Failed to parse user systemd environment JSON for display "
+            << display_name << ": " << display_path.value();
+      } else {
+        for (auto [key, value] : result->GetDict()) {
+          if (!value.is_string()) {
+            LOG(WARNING) << "Non-string value in systemd environment for key: "
+                         << key;
+            continue;
+          }
+          session.environment_variables[std::move(key)] =
+              std::move(value).TakeString();
+        }
 
-  auto remote_display_it = remote_displays_.find(display_name);
-  if (remote_display_it == remote_displays_.end()) {
-    LOG(WARNING) << "Remote display " << display_name << " not found.";
-    return;
-  }
-  auto& remote_display_info = remote_display_it->second;
-  auto& session = remote_display_info.sessions[display_path];
-  auto result =
-      base::JSONReader::Read(output, base::JSON_ALLOW_TRAILING_COMMAS);
-  if (!result.has_value() || !result->is_dict()) {
-    LOG(ERROR) << "Failed to parse user systemd environment JSON for display "
-               << display_name << ": " << display_path.value();
-    return;
-  }
-
-  for (auto [key, value] : result->GetDict()) {
-    if (!value.is_string()) {
-      LOG(WARNING) << "Non-string value in systemd environment for key: "
-                   << key;
-      continue;
+        if (start_state_ == StartState::STARTED) {
+          delegate_->OnRemoteDisplayChanged(display_name, remote_display_info);
+        }
+      }
     }
-    session.environment_variables[std::move(key)] =
-        std::move(value).TakeString();
   }
 
-  delegate_->OnRemoteDisplayChanged(display_name, remote_display_info);
+  session_info_queries_blocking_startup_.erase(display_path);
+  HandleSessionInfoQueriesBlockingStartup();
 }
 
 }  // namespace remoting

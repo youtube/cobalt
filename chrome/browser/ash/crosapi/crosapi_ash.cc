@@ -7,7 +7,6 @@
 #include <memory>
 #include <utility>
 
-#include "ash/public/ash_interfaces.h"
 #include "base/dcheck_is_on.h"
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
@@ -19,7 +18,6 @@
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_factory.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
@@ -98,10 +96,8 @@ void CrosapiAsh::BindAccountManager(
   // `AccountManagerMojoService` that can/should be contacted - the one attached
   // to the regular `Profile` in ash-chrome for the active `User`.
   crosapi::AccountManagerMojoService* const account_manager_mojo_service =
-      g_browser_process->platform_part()
-          ->GetAccountManagerFactory()
-          ->GetAccountManagerMojoService(
-              /*profile_path=*/GetAshProfile()->GetPath().value());
+      ash::AccountManagerFactory::Get()->GetAccountManagerMojoService(
+          /*profile_path=*/GetAshProfile()->GetPath().value());
   account_manager_mojo_service->BindReceiver(std::move(receiver));
 }
 
@@ -115,11 +111,6 @@ void CrosapiAsh::BindCfmServiceContext(
     mojo::PendingReceiver<chromeos::cfm::mojom::CfmServiceContext> receiver) {
   chromeos::cfm::ServiceConnection::GetInstance()->BindServiceContext(
       std::move(receiver));
-}
-
-void CrosapiAsh::BindCrosDisplayConfigController(
-    mojo::PendingReceiver<mojom::CrosDisplayConfigController> receiver) {
-  ash::BindCrosDisplayConfigController(std::move(receiver));
 }
 
 void CrosapiAsh::BindDocumentScan(

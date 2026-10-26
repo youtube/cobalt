@@ -14,9 +14,9 @@
 #include <array>
 #include <cstddef>
 #include <memory>
+#include <span>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
@@ -48,7 +48,7 @@ bool UseCoarseFilterResetHangover(const FieldTrialsView& field_trials) {
 
 void PredictionError(const Aec3Fft& fft,
                      const FftData& S,
-                     ArrayView<const float> y,
+                     std::span<const float> y,
                      std::array<float, kBlockSize>* e,
                      std::array<float, kBlockSize>* s) {
   std::array<float, kFftLength> tmp;
@@ -64,10 +64,10 @@ void PredictionError(const Aec3Fft& fft,
   }
 }
 
-void ScaleFilterOutput(ArrayView<const float> y,
+void ScaleFilterOutput(std::span<const float> y,
                        float factor,
-                       ArrayView<float> e,
-                       ArrayView<float> s) {
+                       std::span<float> e,
+                       std::span<float> s) {
   RTC_DCHECK_EQ(y.size(), e.size());
   RTC_DCHECK_EQ(y.size(), s.size());
   for (size_t k = 0; k < y.size(); ++k) {
@@ -197,7 +197,7 @@ void Subtractor::Process(const RenderBuffer& render_buffer,
                          const Block& capture,
                          const RenderSignalAnalyzer& render_signal_analyzer,
                          const AecState& aec_state,
-                         ArrayView<SubtractorOutput> outputs) {
+                         std::span<SubtractorOutput> outputs) {
   RTC_DCHECK_EQ(num_capture_channels_, capture.NumChannels());
 
   // Compute the render powers.
@@ -223,7 +223,7 @@ void Subtractor::Process(const RenderBuffer& render_buffer,
   // Process all capture channels
   for (size_t ch = 0; ch < num_capture_channels_; ++ch) {
     SubtractorOutput& output = outputs[ch];
-    ArrayView<const float> y = capture.View(/*band=*/0, ch);
+    std::span<const float> y = capture.View(/*band=*/0, ch);
     FftData& E_refined = output.E_refined;
     FftData E_coarse;
     std::array<float, kBlockSize>& e_refined = output.e_refined;

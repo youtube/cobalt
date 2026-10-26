@@ -72,7 +72,6 @@ rtc_library("rtc_media_base") {
     ":video_broadcaster",
     ":video_common",
     ":video_source_base",
-    "../api:array_view",
     "../api:audio_options_api",
     "../api:call_api",
     "../api:field_trials_view",
@@ -221,7 +220,6 @@ rtc_library("video_common") {
     "base/video_common.h",
   ]
   deps = [
-    "../api:array_view",
     "../rtc_base:stringutils",
     "../rtc_base:timeutils",
     "../rtc_base/system:rtc_export",
@@ -241,7 +239,6 @@ rtc_library("media_engine") {
     ":rtc_media_config",
     ":stream_params",
     ":video_common",
-    "../api:array_view",
     "../api:audio_options_api",
     "../api:field_trials_view",
     "../api:rtc_error",
@@ -276,7 +273,6 @@ rtc_library("media_channel_impl") {
     ":media_channel",
     ":rtp_utils",
     ":stream_params",
-    "../api:array_view",
     "../api:audio_options_api",
     "../api:call_api",
     "../api:frame_transformer_interface",
@@ -419,7 +415,6 @@ rtc_library("rtp_utils") {
   ]
   deps = [
     ":turn_utils",
-    "../api:array_view",
     "../modules/rtp_rtcp:rtp_rtcp_format",
     "../rtc_base:async_packet_socket",
     "../rtc_base:byte_order",
@@ -437,7 +432,6 @@ rtc_library("stream_params") {
   ]
   deps = [
     ":rid_description",
-    "../api:array_view",
     "../rtc_base:checks",
     "../rtc_base:stringutils",
     "../rtc_base:unique_id_generator",
@@ -460,7 +454,6 @@ rtc_library("turn_utils") {
     "base/turn_utils.h",
   ]
   deps = [
-    "../api:array_view",
     "../api/transport:stun_types",
     "../rtc_base:byte_order",
     "../rtc_base/system:rtc_export",
@@ -489,7 +482,6 @@ rtc_library("rtc_simulcast_encoder_adapter") {
   deps = [
     ":rtc_sdp_video_format_utils",
     ":video_common",
-    "../api:array_view",
     "../api:fec_controller_api",
     "../api:field_trials_view",
     "../api:scoped_refptr",
@@ -611,7 +603,6 @@ rtc_library("rtc_audio_video") {
     ":rtc_media_config",
     ":rtp_utils",
     ":stream_params",
-    "../api:array_view",
     "../api:audio_options_api",
     "../api:call_api",
     "../api:field_trials_view",
@@ -748,7 +739,6 @@ if (rtc_build_dcsctp) {
     deps = [
       ":media_channel",
       ":rtc_data_sctp_transport_internal",
-      "../api:array_view",
       "../api:data_channel_interface",
       "../api:dtls_transport_interface",
       "../api:field_trials_view",
@@ -839,7 +829,6 @@ if (rtc_include_tests) {
       ":rtp_utils",
       ":stream_params",
       ":video_common",
-      "../api:array_view",
       "../api:audio_options_api",
       "../api:call_api",
       "../api:fec_controller_api",
@@ -874,6 +863,7 @@ if (rtc_include_tests) {
       "../api/video:video_frame",
       "../api/video:video_frame_type",
       "../api/video:video_rtp_headers",
+      "../api/video:video_stream_encoder",
       "../api/video_codecs:scalability_mode",
       "../api/video_codecs:video_codecs_api",
       "../call:call_interfaces",
@@ -982,7 +972,6 @@ if (rtc_include_tests) {
         ":stream_params",
         ":turn_utils",
         ":video_common",
-        "../api:array_view",
         "../api:audio_options_api",
         "../api:call_api",
         "../api:create_simulcast_test_fixture_api",

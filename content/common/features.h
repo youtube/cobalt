@@ -54,7 +54,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kBackForwardCacheTimeToLiveControl);
 BASE_DECLARE_FEATURE(kBeforeUnloadBrowserResponseQueue);
 #if BUILDFLAG(IS_MAC)
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kBlockThirdPartyInProcessPlugins);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCancelCompositionWhenWindowLosesFocus);
 #endif  // BUILDFLAG(IS_MAC)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kCDPScreenshotNewSurface);
@@ -157,6 +156,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kLocalNetworkAccessForFencedFrameNavigations);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kLocalNetworkAccessForFencedFrameNavigationsWarningOnly);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kLocalNetworkAccessPromptDirectSockets);
 
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kMainFrameProcessReuseAllowDevToolsAttached);

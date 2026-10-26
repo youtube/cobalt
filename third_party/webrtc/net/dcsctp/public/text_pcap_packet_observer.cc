@@ -10,17 +10,16 @@
 #include "net/dcsctp/public/text_pcap_packet_observer.h"
 
 #include <cstdint>
+#include <span>
 
-#include "api/array_view.h"
 #include "net/dcsctp/public/types.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/text2pcap.h"
 
 namespace dcsctp {
 
-void TextPcapPacketObserver::OnSentPacket(
-    dcsctp::TimeMs now,
-    webrtc::ArrayView<const uint8_t> payload) {
+void TextPcapPacketObserver::OnSentPacket(dcsctp::TimeMs now,
+                                          std::span<const uint8_t> payload) {
   RTC_LOG(LS_VERBOSE) << "\n"
                       << webrtc::Text2Pcap::DumpPacket(/*outbound=*/true,
                                                        payload, *now)
@@ -29,7 +28,7 @@ void TextPcapPacketObserver::OnSentPacket(
 
 void TextPcapPacketObserver::OnReceivedPacket(
     dcsctp::TimeMs now,
-    webrtc::ArrayView<const uint8_t> payload) {
+    std::span<const uint8_t> payload) {
   RTC_LOG(LS_VERBOSE) << "\n"
                       << webrtc::Text2Pcap::DumpPacket(/*outbound=*/false,
                                                        payload, *now)

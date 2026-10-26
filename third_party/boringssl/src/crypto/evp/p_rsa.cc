@@ -43,6 +43,8 @@ struct EVP_PKEY_ALG_RSA_PSS : public EVP_PKEY_ALG {
 
 extern const EVP_PKEY_ASN1_METHOD rsa_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD rsa_pss_asn1_meth;
+extern const EVP_PKEY_CTX_METHOD rsa_pkey_meth;
+extern const EVP_PKEY_CTX_METHOD rsa_pss_pkey_meth;
 
 static int rsa_pub_encode(CBB *out, const EvpPkey *key) {
   // See RFC 3279, section 2.3.1.
@@ -366,7 +368,7 @@ static bool is_pss_only(const EvpPkeyCtx *ctx) {
   return ctx->pmeth->pkey_id == EVP_PKEY_RSA_PSS;
 }
 
-static int pkey_rsa_init(EvpPkeyCtx *ctx) {
+static int pkey_rsa_init(EvpPkeyCtx *ctx, const EVP_PKEY_ALG *alg) {
   RSA_PKEY_CTX *rctx = New<RSA_PKEY_CTX>();
   if (!rctx) {
     return 0;
@@ -374,16 +376,21 @@ static int pkey_rsa_init(EvpPkeyCtx *ctx) {
 
   if (is_pss_only(ctx)) {
     rctx->pad_mode = RSA_PKCS1_PSS_PADDING;
-    // Pick up PSS parameters from the key.
-    if (ctx->pkey != nullptr && ctx->pkey->pkey != nullptr) {
-      RSAImpl *rsa = static_cast<RSAImpl *>(ctx->pkey->pkey);
-      const EVP_MD *md = rsa_pss_params_get_md(rsa->pss_params);
-      if (md != nullptr) {
-        rctx->md = rctx->mgf1md = md;
-        // All our supported modes use the digest length as the salt length.
-        rctx->saltlen = EVP_MD_size(rctx->md);
-        rctx->restrict_pss_params = true;
-      }
+    // Pick up PSS parameters from the key or algorithm. We don't currently
+    // support keygen from PSS, so the algorithm does not currently do anything.
+    rsa_pss_params_t pss_params = rsa_pss_none;
+    const auto *alg_pss = static_cast<const EVP_PKEY_ALG_RSA_PSS *>(alg);
+    if (alg_pss != nullptr) {
+      pss_params = alg_pss->pss_params;
+    } else if (ctx->pkey != nullptr && ctx->pkey->pkey != nullptr) {
+      pss_params = static_cast<const RSAImpl *>(ctx->pkey->pkey)->pss_params;
+    }
+    const EVP_MD *md = rsa_pss_params_get_md(pss_params);
+    if (md != nullptr) {
+      rctx->md = rctx->mgf1md = md;
+      // All our supported modes use the digest length as the salt length.
+      rctx->saltlen = EVP_MD_size(rctx->md);
+      rctx->restrict_pss_params = true;
     }
   }
 
@@ -393,7 +400,7 @@ static int pkey_rsa_init(EvpPkeyCtx *ctx) {
 
 static int pkey_rsa_copy(EvpPkeyCtx *dst, EvpPkeyCtx *src) {
   RSA_PKEY_CTX *dctx, *sctx;
-  if (!pkey_rsa_init(dst)) {
+  if (!pkey_rsa_init(dst, nullptr)) {
     return 0;
   }
   sctx = reinterpret_cast<RSA_PKEY_CTX *>(src->data);
@@ -821,29 +828,86 @@ static int pkey_rsa_keygen(EvpPkeyCtx *ctx, EvpPkey *pkey) {
   return 1;
 }
 
+const EVP_PKEY_CTX_METHOD rsa_pkey_meth = {
+    EVP_PKEY_RSA,
+    pkey_rsa_init,
+    pkey_rsa_copy,
+    pkey_rsa_cleanup,
+    pkey_rsa_keygen,
+    pkey_rsa_sign,
+    /*sign_message=*/nullptr,
+    pkey_rsa_verify,
+    /*verify_message=*/nullptr,
+    pkey_rsa_verify_recover,
+    pkey_rsa_encrypt,
+    pkey_rsa_decrypt,
+    /*derive=*/nullptr,
+    /*paramgen=*/nullptr,
+    pkey_rsa_ctrl,
+};
+
+const EVP_PKEY_CTX_METHOD rsa_pss_pkey_meth = {
+    EVP_PKEY_RSA_PSS,
+    pkey_rsa_init,
+    pkey_rsa_copy,
+    pkey_rsa_cleanup,
+    // In OpenSSL, |EVP_PKEY_RSA_PSS| supports key generation and fills in PSS
+    // parameters based on a separate set of keygen-targetted setters:
+    // |EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen|,
+    // |EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md|, and
+    // |EVP_PKEY_CTX_rsa_pss_key_digest|. We do not currently implement this
+    // because we only support one parameter set.
+    /*keygen=*/nullptr,
+    pkey_rsa_sign,
+    /*sign_message=*/nullptr,
+    pkey_rsa_verify,
+    /*verify_message=*/nullptr,
+    /*verify_recover=*/nullptr,
+    /*encrypt=*/nullptr,
+    /*decrypt=*/nullptr,
+    /*derive=*/nullptr,
+    /*paramgen=*/nullptr,
+    pkey_rsa_ctrl,
+};
+
 }  // namespace
 
 const EVP_PKEY_ALG *EVP_pkey_rsa() {
-  static const EVP_PKEY_ALG kAlg = {&rsa_asn1_meth};
+  static const EVP_PKEY_ALG kAlg = {&rsa_asn1_meth, &rsa_pkey_meth};
   return &kAlg;
 }
 
 const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha256() {
-  static const EVP_PKEY_ALG_RSA_PSS kAlg = {{&rsa_pss_asn1_meth},
-                                            rsa_pss_sha256};
+  static const EVP_PKEY_ALG_RSA_PSS kAlg = {
+      {&rsa_pss_asn1_meth, &rsa_pss_pkey_meth}, rsa_pss_sha256};
   return &kAlg;
 }
 
 const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha384() {
-  static const EVP_PKEY_ALG_RSA_PSS kAlg = {{&rsa_pss_asn1_meth},
-                                            rsa_pss_sha384};
+  static const EVP_PKEY_ALG_RSA_PSS kAlg = {
+      {&rsa_pss_asn1_meth, &rsa_pss_pkey_meth}, rsa_pss_sha384};
   return &kAlg;
 }
 
 const EVP_PKEY_ALG *EVP_pkey_rsa_pss_sha512() {
-  static const EVP_PKEY_ALG_RSA_PSS kAlg = {{&rsa_pss_asn1_meth},
-                                            rsa_pss_sha512};
+  static const EVP_PKEY_ALG_RSA_PSS kAlg = {
+      {&rsa_pss_asn1_meth, &rsa_pss_pkey_meth}, rsa_pss_sha512};
   return &kAlg;
+}
+
+EVP_PKEY *EVP_RSA_gen(unsigned bits) {
+  // TODO(crbug.com/487376811): After EVP_PKEY_CTX is switched to C++
+  // subclassing, it should be possible to stack-allocate enough the
+  // RSA-specific subclass.
+  UniquePtr<EvpPkeyCtx> ctx = evp_pkey_ctx_new_alg(EVP_pkey_rsa());
+  EVP_PKEY *pkey = nullptr;
+  if (ctx == nullptr ||  //
+      !EVP_PKEY_keygen_init(ctx.get()) ||
+      !EVP_PKEY_CTX_set_rsa_keygen_bits(ctx.get(), bits) ||
+      !EVP_PKEY_keygen(ctx.get(), &pkey)) {
+    return nullptr;
+  }
+  return pkey;
 }
 
 int EVP_PKEY_set1_RSA(EVP_PKEY *pkey, RSA *key) {
@@ -878,48 +942,6 @@ RSA *EVP_PKEY_get1_RSA(const EVP_PKEY *pkey) {
   }
   return rsa;
 }
-
-const EVP_PKEY_CTX_METHOD bssl::rsa_pkey_meth = {
-    EVP_PKEY_RSA,
-    pkey_rsa_init,
-    pkey_rsa_copy,
-    pkey_rsa_cleanup,
-    pkey_rsa_keygen,
-    pkey_rsa_sign,
-    /*sign_message=*/nullptr,
-    pkey_rsa_verify,
-    /*verify_message=*/nullptr,
-    pkey_rsa_verify_recover,
-    pkey_rsa_encrypt,
-    pkey_rsa_decrypt,
-    /*derive=*/nullptr,
-    /*paramgen=*/nullptr,
-    pkey_rsa_ctrl,
-};
-
-const EVP_PKEY_CTX_METHOD bssl::rsa_pss_pkey_meth = {
-    EVP_PKEY_RSA_PSS,
-    pkey_rsa_init,
-    pkey_rsa_copy,
-    pkey_rsa_cleanup,
-    // In OpenSSL, |EVP_PKEY_RSA_PSS| supports key generation and fills in PSS
-    // parameters based on a separate set of keygen-targetted setters:
-    // |EVP_PKEY_CTX_set_rsa_pss_keygen_saltlen|,
-    // |EVP_PKEY_CTX_set_rsa_pss_keygen_mgf1_md|, and
-    // |EVP_PKEY_CTX_rsa_pss_key_digest|. We do not currently implement this
-    // because we only support one parameter set.
-    /*keygen=*/nullptr,
-    pkey_rsa_sign,
-    /*sign_message=*/nullptr,
-    pkey_rsa_verify,
-    /*verify_message=*/nullptr,
-    /*verify_recover=*/nullptr,
-    /*encrypt=*/nullptr,
-    /*decrypt=*/nullptr,
-    /*derive=*/nullptr,
-    /*paramgen=*/nullptr,
-    pkey_rsa_ctrl,
-};
 
 static int rsa_or_rsa_pss_ctrl(EvpPkeyCtx *ctx, int optype, int cmd, int p1,
                                void *p2) {

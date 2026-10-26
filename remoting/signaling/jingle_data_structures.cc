@@ -15,6 +15,7 @@
 #include "remoting/base/constants.h"
 #include "remoting/base/name_value_map.h"
 #include "remoting/signaling/content_description.h"
+#include "remoting/signaling/jingle_message_proto_converter.h"
 #include "remoting/signaling/jingle_message_xml_converter.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/libjingle_xmpp/xmllite/xmlelement.h"
@@ -127,8 +128,12 @@ void JingleMessage::SetPayload(Payload payload) {
   action_ = ActionFromPayload(payload_);
 }
 
-std::string JingleMessage::ToSerializedXml() {
+std::string JingleMessage::ToSerializedXml() const {
   return JingleMessageToXml(*this)->Str();
+}
+
+ftl::IqStanza JingleMessage::ToFtlIqStanza() const {
+  return JingleMessageToProto(*this);
 }
 
 JingleMessageReply::JingleMessageReply() = default;
@@ -152,8 +157,12 @@ JingleMessageReply& JingleMessageReply::operator=(JingleMessageReply&&) =
 
 JingleMessageReply::~JingleMessageReply() = default;
 
-std::string JingleMessageReply::ToSerializedXml() {
+std::string JingleMessageReply::ToSerializedXml() const {
   return JingleMessageReplyToXml(*this)->Str();
+}
+
+ftl::IqStanza JingleMessageReply::ToFtlIqStanza() const {
+  return JingleMessageReplyToProto(*this);
 }
 
 IceTransportInfo::IceTransportInfo() = default;

@@ -13,10 +13,10 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 
-#include "api/array_view.h"
 #include "api/audio/echo_canceller3_config.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
@@ -118,7 +118,7 @@ std::string ProduceDebugText(int sample_rate_hz) {
   return ss.Release();
 }
 
-void FillSampleVector(int call_counter, int delay, ArrayView<float> samples) {
+void FillSampleVector(int call_counter, int delay, std::span<float> samples) {
   for (size_t i = 0; i < samples.size(); ++i) {
     samples[i] = (call_counter - delay) * 10000.0f + i;
   }

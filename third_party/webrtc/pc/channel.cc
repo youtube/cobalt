@@ -31,6 +31,7 @@
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
+#include "call/rtp_demuxer.h"
 #include "media/base/codec.h"
 #include "media/base/media_channel.h"
 #include "media/base/rid_description.h"
@@ -192,7 +193,7 @@ BaseChannel::BaseChannel(
           crypto_options.srtp.enable_encrypted_rtp_header_extensions
               ? RtpExtension::kPreferEncryptedExtension
               : RtpExtension::kDiscardEncryptedExtension),
-      demuxer_criteria_(mid),
+      mid_(std::string(mid)),
       ssrc_generator_(ssrc_generator) {
   RTC_DCHECK_RUN_ON(worker_thread_);
   RTC_DCHECK(media_send_channel_);
@@ -225,7 +226,8 @@ bool BaseChannel::ConnectToRtpTransport_n(RtpTransportInternal* rtp_transport) {
 
   // We don't need to call OnDemuxerCriteriaUpdatePending/Complete because
   // there's no previous criteria to worry about.
-  if (!rtp_transport->RegisterRtpDemuxerSink(demuxer_criteria_, this)) {
+  RtpDemuxerCriteria criteria = demuxer_criteria();
+  if (!rtp_transport->RegisterRtpDemuxerSink(criteria, this)) {
     return false;
   }
   rtp_transport_ = rtp_transport;
@@ -359,11 +361,36 @@ bool BaseChannel::SetPayloadTypeDemuxingEnabled(bool enabled) {
   // network thread. At the moment there's a workaround for inconsistent state
   // between the worker and network thread because of this (see
   // OnDemuxerCriteriaUpdatePending elsewhere in this file) and
-  // SetPayloadTypeDemuxingEnabled_w has a BlockingCall over to the network
+  // UpdateRemoteStreams_w has a BlockingCall over to the network
   // thread to apply state updates.
-  RTC_DCHECK_RUN_ON(worker_thread());
+  RTC_DCHECK_RUN_ON(network_thread());
   TRACE_EVENT0("webrtc", "BaseChannel::SetPayloadTypeDemuxingEnabled");
-  return SetPayloadTypeDemuxingEnabled_w(enabled);
+
+  if (enabled == payload_type_demuxing_enabled_) {
+    return true;
+  }
+
+  payload_type_demuxing_enabled_ = enabled;
+
+  if (!enabled) {
+    worker_thread_->PostTask(SafeTask(alive_, [this] {
+      // TODO(crbug.com/11477): This will remove *all* unsignaled streams (those
+      // without an explicitly signaled SSRC), which may include streams that
+      // were matched to this channel by MID or RID. Ideally we'd remove only
+      // the streams that were matched based on payload type alone, but
+      // currently there is no straightforward way to identify those streams.
+      media_receive_channel()->ResetUnsignaledRecvStream();
+    }));
+  }
+
+  if (!payload_types_.empty()) {
+    if (!rtp_transport_) {
+      return false;
+    }
+    return rtp_transport_->RegisterRtpDemuxerSink(demuxer_criteria(), this);
+  }
+
+  return true;
 }
 
 bool BaseChannel::IsReadyToSendMedia_w() const {
@@ -550,7 +577,9 @@ void BaseChannel::OnRtpPacket(const RtpPacketReceived& parsed_packet) {
 
 bool BaseChannel::MaybeUpdateDemuxerAndRtpExtensions_w(
     bool update_demuxer,
+    std::optional<flat_set<uint8_t>> payload_types,
     const RtpHeaderExtensions& extensions,
+    std::optional<flat_set<uint32_t>> ssrcs,
     std::string& error_desc) {
   bool update_extensions = true;
   if (rtp_header_extensions_ == extensions) {
@@ -573,15 +602,18 @@ bool BaseChannel::MaybeUpdateDemuxerAndRtpExtensions_w(
     }
   }
 
-  if (!update_demuxer && !update_extensions)
+  if (!update_demuxer && !update_extensions && !payload_types.has_value() &&
+      !ssrcs.has_value()) {
     return true;  // No update needed.
+  }
 
   // TODO(bugs.webrtc.org/13536): See if we can do this asynchronously.
 
-  if (update_demuxer)
+  if (update_demuxer || payload_types.has_value() || ssrcs.has_value()) {
     media_receive_channel()->OnDemuxerCriteriaUpdatePending();
+  }
 
-  bool success = network_thread()->BlockingCall([&]() mutable {
+  bool success = network_thread()->BlockingCall([&] {
     RTC_DCHECK_RUN_ON(network_thread());
     if (!rtp_transport_) {
       // To repro this situation, run the
@@ -594,46 +626,90 @@ bool BaseChannel::MaybeUpdateDemuxerAndRtpExtensions_w(
       rtp_transport_->RegisterRtpHeaderExtensionMap(mid(), extensions);
     }
 
+    if (payload_types) {
+      if (payload_types_ != *payload_types) {
+        payload_types_ = std::move(*payload_types);
+        update_demuxer = true;
+      }
+    }
+
+    if (ssrcs) {
+      if (ssrcs_ != *ssrcs) {
+        ssrcs_ = std::move(*ssrcs);
+        update_demuxer = true;
+      }
+    }
+
     if (!update_demuxer)
       return true;
 
-    if (!rtp_transport_->RegisterRtpDemuxerSink(demuxer_criteria_, this)) {
+    RtpDemuxerCriteria criteria = demuxer_criteria();
+    if (!rtp_transport_->RegisterRtpDemuxerSink(criteria, this)) {
       error_desc =
           StringFormat("Failed to apply demuxer criteria for '%s': '%s'.",
-                       mid().c_str(), demuxer_criteria_.ToString().c_str());
+                       mid().c_str(), criteria.ToString().c_str());
       return false;
     }
     return true;
   });
 
-  if (update_demuxer)
+  if (update_demuxer || payload_types.has_value() || ssrcs.has_value())
     media_receive_channel()->OnDemuxerCriteriaUpdateComplete();
 
   return success;
 }
 
-bool BaseChannel::RegisterRtpDemuxerSink_w() {
+bool BaseChannel::RegisterRtpDemuxerSink_w(
+    bool clear_payload_types,
+    std::optional<flat_set<uint32_t>> ssrcs) {
   media_receive_channel()->OnDemuxerCriteriaUpdatePending();
-  // Copy demuxer criteria, since they're a worker-thread variable
-  // and we want to pass them to the network thread
-  bool ret = network_thread_->BlockingCall(
-      [this, demuxer_criteria = demuxer_criteria_] {
-        RTC_DCHECK_RUN_ON(network_thread());
-        if (!rtp_transport_) {
-          // Transport was disconnected before attempting to update the
-          // criteria. This can happen while setting the remote description.
-          // See chromium:1295469 for an example.
-          return false;
-        }
-        // Note that RegisterRtpDemuxerSink first unregisters the sink if
-        // already registered. So this will change the state of the class
-        // whether the call succeeds or not.
-        return rtp_transport_->RegisterRtpDemuxerSink(demuxer_criteria, this);
-      });
+  bool ret = network_thread_->BlockingCall([&] {
+    RTC_DCHECK_RUN_ON(network_thread());
+    if (!rtp_transport_) {
+      // Transport was disconnected before attempting to update the
+      // criteria. This can happen while setting the remote description.
+      // See chromium:1295469 for an example.
+      return false;
+    }
+
+    bool needs_re_registration = false;
+
+    if (clear_payload_types && !payload_types_.empty()) {
+      payload_types_.clear();
+      needs_re_registration = true;
+    }
+
+    if (ssrcs) {
+      if (ssrcs_ != *ssrcs) {
+        ssrcs_ = std::move(*ssrcs);
+        needs_re_registration = true;
+      }
+    }
+
+    if (!needs_re_registration) {
+      return true;
+    }
+
+    // Note that RegisterRtpDemuxerSink first unregisters the sink if
+    // already registered. So this will change the state of the class
+    // whether the call succeeds or not.
+    RtpDemuxerCriteria criteria = demuxer_criteria();
+    return rtp_transport_->RegisterRtpDemuxerSink(criteria, this);
+  });
 
   media_receive_channel()->OnDemuxerCriteriaUpdateComplete();
 
   return ret;
+}
+
+RtpDemuxerCriteria BaseChannel::demuxer_criteria() const {
+  RTC_DCHECK_RUN_ON(network_thread());
+  RtpDemuxerCriteria criteria(mid_);
+  if (payload_type_demuxing_enabled_) {
+    criteria.payload_types() = payload_types_;
+  }
+  criteria.ssrcs() = ssrcs_;
+  return criteria;
 }
 
 void BaseChannel::EnableMedia_w() {
@@ -693,46 +769,6 @@ void BaseChannel::ChannelNotWritable_n() {
   RTC_LOG(LS_INFO) << "Channel not writable (" << ToString() << ")";
 }
 
-bool BaseChannel::SetPayloadTypeDemuxingEnabled_w(bool enabled) {
-  RTC_LOG_THREAD_BLOCK_COUNT();
-
-  if (enabled == payload_type_demuxing_enabled_) {
-    return true;
-  }
-
-  payload_type_demuxing_enabled_ = enabled;
-
-  bool config_changed = false;
-
-  if (!enabled) {
-    // TODO(crbug.com/11477): This will remove *all* unsignaled streams (those
-    // without an explicitly signaled SSRC), which may include streams that
-    // were matched to this channel by MID or RID. Ideally we'd remove only the
-    // streams that were matched based on payload type alone, but currently
-    // there is no straightforward way to identify those streams.
-    media_receive_channel()->ResetUnsignaledRecvStream();
-    if (!demuxer_criteria_.payload_types().empty()) {
-      config_changed = true;
-      demuxer_criteria_.payload_types().clear();
-    }
-  } else if (!payload_types_.empty()) {
-    for (const auto& type : payload_types_) {
-      if (demuxer_criteria_.payload_types().insert(type).second) {
-        config_changed = true;
-      }
-    }
-  } else {
-    RTC_DCHECK(demuxer_criteria_.payload_types().empty());
-  }
-
-  RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(0);
-
-  if (!config_changed)
-    return true;
-
-  // Note: This synchronously hops to the network thread.
-  return RegisterRtpDemuxerSink_w();
-}
 
 bool BaseChannel::UpdateLocalStreams_w(const std::vector<StreamParams>& streams,
                                        SdpType type,
@@ -816,14 +852,12 @@ bool BaseChannel::UpdateRemoteStreams_w(const MediaContentDescription* content,
                                         SdpType type,
                                         std::string& error_desc) {
   RTC_LOG_THREAD_BLOCK_COUNT();
-  bool needs_re_registration = false;
+  bool clear_payload_types = false;
   if (!RtpTransceiverDirectionHasSend(content->direction())) {
     RTC_DLOG(LS_VERBOSE) << "UpdateRemoteStreams_w: remote side will not send "
                             "- disable payload type demuxing for "
                          << ToString();
-    if (ClearHandledPayloadTypes()) {
-      needs_re_registration = payload_type_demuxing_enabled_;
-    }
+    clear_payload_types = true;
   }
 
   const std::vector<StreamParams>& streams = content->streams();
@@ -881,15 +915,10 @@ bool BaseChannel::UpdateRemoteStreams_w(const MediaContentDescription* content,
     ssrcs.insert(new_stream.ssrcs.begin(), new_stream.ssrcs.end());
   }
 
-  if (demuxer_criteria_.ssrcs() != ssrcs) {
-    demuxer_criteria_.ssrcs() = std::move(ssrcs);
-    needs_re_registration = true;
-  }
-
   RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(0);
 
   // Re-register the sink to update after changing the demuxer criteria.
-  if (needs_re_registration && !RegisterRtpDemuxerSink_w()) {
+  if (!RegisterRtpDemuxerSink_w(clear_payload_types, std::move(ssrcs))) {
     error_desc = StringFormat("Failed to set up audio demuxing for mid='%s'.",
                               mid().c_str());
     return false;
@@ -909,26 +938,6 @@ RtpHeaderExtensions BaseChannel::GetDeduplicatedRtpHeaderExtensions(
     const RtpHeaderExtensions& extensions) {
   return RtpExtension::DeduplicateHeaderExtensions(extensions,
                                                    extensions_filter_);
-}
-
-bool BaseChannel::MaybeAddHandledPayloadType(int payload_type) {
-  bool demuxer_criteria_modified = false;
-  if (payload_type_demuxing_enabled_) {
-    demuxer_criteria_modified = demuxer_criteria_.payload_types()
-                                    .insert(static_cast<uint8_t>(payload_type))
-                                    .second;
-  }
-  // Even if payload type demuxing is currently disabled, we need to remember
-  // the payload types in case it's re-enabled later.
-  payload_types_.insert(static_cast<uint8_t>(payload_type));
-  return demuxer_criteria_modified;
-}
-
-bool BaseChannel::ClearHandledPayloadTypes() {
-  const bool was_empty = demuxer_criteria_.payload_types().empty();
-  demuxer_criteria_.payload_types().clear();
-  payload_types_.clear();
-  return !was_empty;
 }
 
 bool BaseChannel::CheckRtpExtensionValidity(
@@ -1053,12 +1062,11 @@ bool VoiceChannel::SetLocalContent_w(const MediaContentDescription* content,
     return false;
   }
 
-  bool criteria_modified = false;
+  std::optional<flat_set<uint8_t>> payload_types;
   if (RtpTransceiverDirectionHasRecv(content->direction())) {
+    payload_types.emplace();
     for (const Codec& codec : content->codecs()) {
-      if (MaybeAddHandledPayloadType(codec.id)) {
-        criteria_modified = true;
-      }
+      payload_types->insert(codec.id);
     }
   }
 
@@ -1066,6 +1074,7 @@ bool VoiceChannel::SetLocalContent_w(const MediaContentDescription* content,
 
   if (type == SdpType::kAnswer || type == SdpType::kPrAnswer) {
     AudioSenderParameter send_params = last_send_params_;
+    RTC_DCHECK(!send_params.mid.empty());
     send_params.extensions = header_extensions;
     send_params.extmap_allow_mixed = content->extmap_allow_mixed();
     if (!media_send_channel()->SetSenderParameters(send_params)) {
@@ -1090,7 +1099,9 @@ bool VoiceChannel::SetLocalContent_w(const MediaContentDescription* content,
   // RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(0);
 
   bool success = MaybeUpdateDemuxerAndRtpExtensions_w(
-      criteria_modified, recv_params.extensions, error_desc);
+      /*update_demuxer=*/false, std::move(payload_types),
+      recv_params.extensions,
+      /*ssrcs=*/std::nullopt, error_desc);
 
   // RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(1);
 
@@ -1154,7 +1165,8 @@ bool VoiceChannel::SetRemoteContent_w(const MediaContentDescription* content,
   bool success = true;
   if (type == SdpType::kAnswer || type == SdpType::kPrAnswer) {
     success = MaybeUpdateDemuxerAndRtpExtensions_w(
-        /*update_demuxer=*/false, last_recv_params_.extensions, error_desc);
+        /*update_demuxer=*/false, /*payload_types=*/std::nullopt,
+        last_recv_params_.extensions, /*ssrcs=*/std::nullopt, error_desc);
   }
 
   return success;
@@ -1247,11 +1259,11 @@ bool VideoChannel::SetLocalContent_w(const MediaContentDescription* content,
     return false;
   }
 
-  bool criteria_modified = false;
+  std::optional<flat_set<uint8_t>> payload_types;
   if (RtpTransceiverDirectionHasRecv(content->direction())) {
+    payload_types.emplace();
     for (const Codec& codec : content->codecs()) {
-      if (MaybeAddHandledPayloadType(codec.id))
-        criteria_modified = true;
+      payload_types->insert(codec.id);
     }
   }
 
@@ -1278,7 +1290,8 @@ bool VideoChannel::SetLocalContent_w(const MediaContentDescription* content,
   RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(0);
 
   bool success = MaybeUpdateDemuxerAndRtpExtensions_w(
-      criteria_modified, recv_params.extensions, error_desc);
+      /*update_demuxer=*/false, std::move(payload_types),
+      recv_params.extensions, /*ssrcs=*/std::nullopt, error_desc);
 
   RTC_DCHECK_BLOCK_COUNT_NO_MORE_THAN(1);
 
@@ -1342,7 +1355,8 @@ bool VideoChannel::SetRemoteContent_w(const MediaContentDescription* content,
 
   if (type == SdpType::kAnswer || type == SdpType::kPrAnswer) {
     bool success = MaybeUpdateDemuxerAndRtpExtensions_w(
-        /*update_demuxer=*/false, last_recv_params_.extensions, error_desc);
+        /*update_demuxer=*/false, /*payload_types=*/std::nullopt,
+        last_recv_params_.extensions, /*ssrcs=*/std::nullopt, error_desc);
     if (!success) {
       return false;
     }

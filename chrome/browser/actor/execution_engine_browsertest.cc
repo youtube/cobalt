@@ -162,7 +162,8 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
     }
     ASSERT_TRUE(embedded_https_test_server().Start());
 
-    task_id_ = actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
+    task_id_ = actor_keyed_service()->CreateTask(actor::TestTaskSourceInfo(),
+                                                 NoEnterprisePolicyChecker());
 
     // Optimization guide uses this histogram to signal initialization in tests.
     optimization_guide::RetryForHistogramUntilCountReached(
@@ -327,7 +328,7 @@ IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest, TwoClicksInBackgroundTab) {
   actor_task().Act(ToRequestList(click1, click2), result.GetCallback());
 
   // Check that the action succeeded.
-  ExpectOkResult(*result.Get<0>());
+  ExpectOkResult(result);
 
   // Check background color changed to green in the background tab.
   EXPECT_EQ("green", EvalJs(tab->GetContents(), "document.body.bgColor"));

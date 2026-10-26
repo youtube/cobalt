@@ -26,6 +26,7 @@
 #include "extensions/browser/process_manager.h"
 #include "extensions/browser/process_map.h"
 #include "extensions/browser/script_injection_tracker.h"
+#include "extensions/browser/shared_module_service.h"
 #include "extensions/browser/ui_util.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_id.h"
@@ -147,7 +148,10 @@ bool IsExtensionIdle(const std::string& extension_id,
     // We have to check all the extensions that use this shared module for idle
     // to tell whether it is really 'idle'.
     std::unique_ptr<ExtensionSet> dependents =
-        ExtensionSystem::Get(context)->GetDependentExtensions(extension);
+        ExtensionsBrowserClient::Get()
+            ->GetSharedModuleService(context)
+            ->GetDependentExtensions(extension);
+
     for (const auto& dependent : *dependents) {
       ids_to_check.push_back(dependent->id());
     }
@@ -369,7 +373,9 @@ const gfx::ImageSkia& GetDefaultExtensionIcon() {
 ExtensionId GetExtensionIdForSiteInstance(
     content::SiteInstance& site_instance) {
   // <webview> guests always store the ExtensionId in the partition domain.
-  if (site_instance.GetSecurityPrincipal().IsGuest()) {
+  const content::SecurityPrincipal& security_principal =
+      site_instance.GetSecurityPrincipal();
+  if (security_principal.IsGuest()) {
     return site_instance.GetSecurityPrincipal()
         .GetStoragePartitionConfig()
         .partition_domain();
@@ -377,14 +383,13 @@ ExtensionId GetExtensionIdForSiteInstance(
 
   // This works for both apps and extensions because the site has been
   // normalized to the extension URL for hosted apps.
-  const GURL& site_url = site_instance.GetSiteURL();
-  if (!site_url.SchemeIs(kExtensionScheme)) {
+  if (!security_principal.SchemeIs(kExtensionScheme)) {
     return ExtensionId();
   }
 
   // Navigating to a disabled (or uninstalled or not-yet-installed) extension
   // will set the site URL to chrome-extension://invalid.
-  ExtensionId maybe_extension_id = site_url.GetHost();
+  ExtensionId maybe_extension_id = site_instance.GetSiteURL().GetHost();
   if (maybe_extension_id == "invalid") {
     return ExtensionId();
   }
@@ -400,12 +405,13 @@ ExtensionId GetExtensionIdForSiteInstance(
 
 std::string GetExtensionIdFromFrame(
     content::RenderFrameHost* render_frame_host) {
-  const GURL& site = render_frame_host->GetSiteInstance()->GetSiteURL();
-  if (!site.SchemeIs(kExtensionScheme)) {
+  const content::SiteInstance* site_instance =
+      render_frame_host->GetSiteInstance();
+  if (!site_instance->GetSecurityPrincipal().SchemeIs(kExtensionScheme)) {
     return std::string();
   }
 
-  return site.GetHost();
+  return site_instance->GetSiteURL().GetHost();
 }
 
 bool CanRendererHostExtensionOrigin(int render_process_id,

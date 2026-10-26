@@ -65,13 +65,11 @@ import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.feed.componentinterfaces.SurfaceCoordinator;
-import org.chromium.chrome.browser.feed.sections.SectionHeaderListProperties;
 import org.chromium.chrome.browser.feed.webfeed.WebFeedBridge;
 import org.chromium.chrome.browser.feed.webfeed.WebFeedBridgeJni;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.magic_stack.ModuleRegistry;
 import org.chromium.chrome.browser.ntp.NewTabPageLaunchOrigin;
-import org.chromium.chrome.browser.ntp.cards.SignInPromo;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.ntp_customization.policy.NtpCustomizationPolicyManager;
 import org.chromium.chrome.browser.ntp_customization.theme.NtpBackgroundImageCoordinator;
@@ -120,10 +118,9 @@ import java.util.function.Supplier;
 @DisableFeatures({
     ChromeFeatureList.WEB_FEED_SORT,
     ChromeFeatureList.WEB_FEED_ONBOARDING,
-    ChromeFeatureList.FEED_CONTAINMENT,
-    ChromeFeatureList.FEED_HEADER_REMOVAL
+    ChromeFeatureList.FEED_CONTAINMENT
 })
-@EnableFeatures({SigninFeatures.ENABLE_SEAMLESS_SIGNIN})
+@EnableFeatures({SigninFeatures.ENABLE_SEAMLESS_SIGNIN, ChromeFeatureList.FEED_HEADER_REMOVAL})
 public class FeedSurfaceCoordinatorTest {
     private static final @SurfaceType int SURFACE_TYPE = SurfaceType.NEW_TAB_PAGE;
     private static final long SURFACE_CREATION_TIME_NS = 1234L;
@@ -253,7 +250,6 @@ public class FeedSurfaceCoordinatorTest {
         when(mIdentityService.getSigninManager(any(Profile.class))).thenReturn(mSigninManager);
         when(mIdentityService.getIdentityManager(any(Profile.class))).thenReturn(mIdentityManager);
         when(mSigninManager.getIdentityManager()).thenReturn(mIdentityManager);
-        SignInPromo.setDisablePromoForTesting(true);
 
         // Preferences to enable feed.
         FeedSurfaceMediator.setPrefForTest(mPrefChangeRegistrar, mPrefService);
@@ -341,32 +337,6 @@ public class FeedSurfaceCoordinatorTest {
         // Coordinator should be inactive because we closed the surface. Feed is unbound.
         assertEquals(false, mCoordinator.isActive());
         assertEquals(false, hasStreamBound());
-    }
-
-    @Test
-    public void testActivate_feedHidden() {
-        mCoordinator
-                .getSectionHeaderModelForTest()
-                .set(SectionHeaderListProperties.IS_SECTION_ENABLED_KEY, false);
-        FeedSurfaceTracker.getInstance().startup();
-
-        // After startup, coordinator should be active, but feed should not be bound.
-        assertEquals(true, mCoordinator.isActive());
-        assertEquals(false, hasStreamBound());
-    }
-
-    @Test
-    public void testGetTabIdFromLaunchOrigin_webFeed() {
-        assertEquals(
-                FeedSurfaceCoordinator.StreamTabId.FOLLOWING,
-                mCoordinator.getTabIdFromLaunchOrigin(NewTabPageLaunchOrigin.WEB_FEED));
-    }
-
-    @Test
-    public void testGetTabIdFromLaunchOrigin_unknown() {
-        assertEquals(
-                FeedSurfaceCoordinator.StreamTabId.DEFAULT,
-                mCoordinator.getTabIdFromLaunchOrigin(NewTabPageLaunchOrigin.UNKNOWN));
     }
 
     @Test
@@ -499,20 +469,6 @@ public class FeedSurfaceCoordinatorTest {
                 mCoordinator.getRecyclerView().getClipToPadding());
         assertEquals(
                 "Padding should be reset.", 0, mCoordinator.getRecyclerView().getPaddingBottom());
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.FEED_HEADER_REMOVAL + ":treatment/label")
-    public void testFeedHeaderShownWithLabelOnly() {
-        assertEquals(View.VISIBLE, mCoordinator.getHeaderViewForTesting().getVisibility());
-        assertEquals(0, mCoordinator.getHeaderPosition());
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.FEED_HEADER_REMOVAL + ":treatment/none")
-    public void testFeedHeaderHidden() {
-        assertEquals(View.GONE, mCoordinator.getHeaderViewForTesting().getVisibility());
-        assertEquals(1, mCoordinator.getHeaderPosition());
     }
 
     @Test

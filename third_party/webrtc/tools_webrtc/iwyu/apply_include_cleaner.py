@@ -43,7 +43,7 @@ import pathlib
 import os
 import subprocess
 import sys
-from typing import Tuple
+from typing import List, Tuple
 
 _CLEANER_BINARY_PATH = pathlib.Path(
     "third_party/llvm-build/Release+Asserts/bin/clang-include-cleaner")
@@ -111,7 +111,7 @@ def _parse_args() -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("files",
-                        nargs="+",
+                        nargs="*",
                         type=_valid_file,
                         help="List of files to process")
     parser.add_argument(
@@ -227,6 +227,20 @@ def _modified_content(content: str) -> str:
     return modified_content
 
 
+def _fetch_modified_files(revision: str) -> List[pathlib.Path]:
+    print(f"Trying to find modified files relative to {revision}")
+    result = subprocess.run(
+        ["git", "diff", "--name-only", "--diff-filter=d", revision],
+        capture_output=True,
+        check=False)
+    if result.returncode != 0:
+        print(f"Failed to run git diff on {revision}, ",
+              f"{result.stderr.decode().strip()}")
+        return []
+    files = result.stdout.decode().split()
+    print("Found files:", '\n'.join(files))
+    return [_valid_file(file.strip()) for file in files]
+
 # Transitioning the cmd type to tuple to prevent modification of
 # the original command from the callsite in main...
 def apply_include_cleaner_to_file(file_path: pathlib.Path, should_modify: bool,
@@ -293,12 +307,17 @@ def main() -> None:
         should_modify = True
 
     changes_generated = False
+    files = args.files
+    if not files:
+        files = _fetch_modified_files("@{upstream}")
+    if not files:
+        files = _fetch_modified_files("main")
     # TODO(dorhen@meta): Ideally don't iterate on the files
     # and execute cleaner on each, but instead execute the
     # cleaner binary once - passing in all files.
     # e.g instead of `cleaner foo.cc && cleaner bar.cc`
     # do `cleaner foo.cc bar.cc`
-    for file in args.files:
+    for file in files:
         if not file.suffix in _SUFFICES:
             continue
         if not _is_built(file, args.work_dir):

@@ -92,7 +92,7 @@ bool IsValidMimeType(const String& mime_type) {
 bool VerifyFiles(const Vector<mojom::blink::ManifestFileFilterPtr>& files) {
   for (const auto& file : files) {
     for (const auto& accept_type : file->accept) {
-      if (!IsValidMimeType(accept_type.LowerASCII())) {
+      if (!IsValidMimeType(accept_type.ToAsciiLower())) {
         return false;
       }
     }
@@ -758,6 +758,14 @@ KURL ManifestParser::ParseURL(const JSONObject* object,
       if (!SecurityOrigin::AreSameOrigin(resolved, document_url_)) {
         AddErrorInfo(StrCat({"property '", key,
                              "' ignored, should be same origin as document."}));
+        return KURL();
+      }
+      return resolved;
+    case ParseURLRestrictions::kSameSiteOnly:
+      if (!SecurityOrigin::Create(resolved)->IsSameSiteWith(
+              SecurityOrigin::Create(document_url_).get())) {
+        AddErrorInfo(StrCat({"property '", key,
+                             "' ignored, should be same site as document."}));
         return KURL();
       }
       return resolved;
@@ -1516,7 +1524,7 @@ ManifestParser::ParseShareTargetMethod(const JSONObject* share_target_object) {
     return std::nullopt;
   }
 
-  String method = value.UpperASCII();
+  String method = value.ToAsciiUpper();
   if (method == "GET") {
     return mojom::blink::ManifestShareTarget::Method::kGet;
   }
@@ -1542,7 +1550,7 @@ ManifestParser::ParseShareTargetEnctype(const JSONObject* share_target_object) {
     return std::nullopt;
   }
 
-  String enctype = value.LowerASCII();
+  String enctype = value.ToAsciiLower();
   if (enctype == "application/x-www-form-urlencoded") {
     return mojom::blink::ManifestShareTarget::Enctype::kFormUrlEncoded;
   }
@@ -1893,7 +1901,10 @@ ManifestParser::ParseProtocolHandler(const JSONObject* object) {
     const char kToken[] = "%s";
     String user_url = protocol_handler->url.GetString();
     String tokenless_url = protocol_handler->url.GetString();
-    tokenless_url.Remove(user_url.find(kToken), std::size(kToken) - 1);
+    string_size_t token_position = user_url.find(kToken);
+    if (token_position != String::npos) {
+      tokenless_url.erase(token_position, std::size(kToken) - 1);
+    }
     KURL full_url(manifest_url_, tokenless_url);
 
     if (!VerifyCustomHandlerURLSyntax(full_url, manifest_url_, user_url,
@@ -2030,7 +2041,7 @@ ManifestParser::ParseScopeExtensionOrigin(const String& origin_string) {
     scope_extension->has_origin_wildcard = true;
     // Trim the wildcard prefix to get the effective host. Minus one to exclude
     // the length of the null terminator.
-    host = host.Substring(sizeof(kOriginWildcardPrefix) - 1);
+    host = host.substr(sizeof(kOriginWildcardPrefix) - 1);
   } else {
     scope_extension->has_origin_wildcard = false;
   }
@@ -2228,6 +2239,13 @@ Vector<mojom::blink::ManifestMigrateFromPtr> ManifestParser::ParseMigrateFrom(
         AddErrorInfo("migrate_from entry ignored, string is not a valid URL.");
         continue;
       }
+      // Check same site for string type entry.
+      if (!SecurityOrigin::Create(manifest_id)->IsSameSiteWith(
+              SecurityOrigin::Create(document_url_).get())) {
+        AddErrorInfo(
+            "migrate_from entry ignored, id should be same site as document.");
+        continue;
+      }
       auto migrate_from_entry = mojom::blink::ManifestMigrateFrom::New();
       migrate_from_entry->id = manifest_id;
       migrate_from_list.push_back(std::move(migrate_from_entry));
@@ -2241,15 +2259,16 @@ Vector<mojom::blink::ManifestMigrateFromPtr> ManifestParser::ParseMigrateFrom(
       continue;
     }
 
-    // Use kNoRestrictions when parsing migration related URLs, as these
-    // generally are expected to be cross-origin (and thus out of scope) URLs.
+    // Use kSameSiteOnly when parsing migration related URLs, as these
+    // must be from the same site as the document.
     auto migrate_from_entry = mojom::blink::ManifestMigrateFrom::New();
     KURL id = ParseURL(entry_object, "id", manifest_url_,
-                       ParseURLRestrictions::kNoRestrictions,
+                       ParseURLRestrictions::kSameSiteOnly,
                        /*ignore_empty_string=*/true);
     if (!id.IsValid()) {
       AddErrorInfo(
-          "migrate_from entry ignored, 'id' is missing or not a valid URL.");
+          "migrate_from entry ignored, 'id' is missing, not a valid URL, or "
+          "should be same site as document.");
       continue;
     }
     migrate_from_entry->id = id;
@@ -2294,14 +2313,15 @@ mojom::blink::ManifestMigrateToPtr ManifestParser::ParseMigrateTo(
     return nullptr;
   }
 
-  // Use kNoRestrictions when parsing migration related URLs, as these
-  // generally are expected to be cross-origin (and thus out of scope) URLs.
+  // Use kSameSiteOnly when parsing migration related URLs, as these
+  // must be same-site with the document.
   KURL id = ParseURL(migrate_to_object, "id", manifest_url_,
-                     ParseURLRestrictions::kNoRestrictions,
+                     ParseURLRestrictions::kSameSiteOnly,
                      /*ignore_empty_string=*/true);
   if (!id.IsValid()) {
     AddErrorInfo(
-        "property 'migrate_to' ignored, 'id' is missing or not a valid URL.");
+        "property 'migrate_to' ignored, 'id' is missing, not a valid URL, or "
+        "should be same site as document.");
     return nullptr;
   }
 

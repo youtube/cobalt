@@ -110,44 +110,11 @@ Tagged<Object> ThrowWasmError(
 }
 }  // namespace
 
-RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
-  SealHandleScope seal_handle_scope(isolate);
+RUNTIME_FUNCTION(Runtime_WasmWasmToJSObject) {
+  HandleScope handle_scope(isolate);
   DCHECK_EQ(1, args.length());
-  Tagged<Object> value = args[0];
-  if (IsWasmFuncRef(value)) {
-    Tagged<WasmInternalFunction> internal =
-        Cast<WasmFuncRef>(value)->internal(isolate);
-    Tagged<JSFunction> external;
-    if (internal->try_get_external(&external)) return external;
-    // Slow path:
-    HandleScope handle_scope(isolate);
-    return *WasmInternalFunction::GetOrCreateExternal(
-        direct_handle(internal, isolate));
-  }
-  if (IsWasmNull(value)) return ReadOnlyRoots(isolate).null_value();
-  return value;
-}
-
-// Takes a JS object and a wasm type as Smi. Type checks the object against the
-// type; if the check succeeds, returns the object in its wasm representation;
-// otherwise throws a type error.
-RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
   DirectHandle<Object> value(args[0], isolate);
-  // Make sure CanonicalValueType fits properly in a Smi.
-  static_assert(wasm::CanonicalValueType::kLastUsedBit + 1 <= kSmiValueSize);
-  int raw_type = args.smi_value_at(1);
-
-  wasm::CanonicalValueType type =
-      wasm::CanonicalValueType::FromRawBitField(raw_type);
-  const char* error_message;
-  DirectHandle<Object> result;
-  if (!JSToWasmObject(isolate, value, type, &error_message).ToHandle(&result)) {
-    return isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kWasmTrapJSTypeError));
-  }
-  return *result;
+  return *wasm::WasmToJSObject(isolate, value);
 }
 
 // Parameters:
@@ -706,7 +673,9 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
     int func_index = frame_finder.frame()->function_index();
     DCHECK_EQ(trusted_data, frame_finder.frame()->trusted_instance_data());
 
-    if (V8_UNLIKELY(v8_flags.wasm_sync_tier_up)) {
+    if (V8_UNLIKELY(v8_flags.wasm_sync_tier_up &&
+                    !v8_flags.wasm_generate_compilation_hints &&
+                    !v8_flags.trace_wasm_generate_compilation_hints)) {
       if (!trusted_data->native_module()->HasCodeWithTier(
               func_index, wasm::ExecutionTier::kTurbofan)) {
         wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
@@ -931,11 +900,17 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
 
   DCHECK(!isolate->context().is_null());
 
-  // TODO(14616): Pass the correct instance data.
+  DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data;
+  if (trusted_instance_data->module()->has_shared_part) {
+    // For now, we never pass the shared WTID to this runtime function.
+    DCHECK_NE(*trusted_instance_data, trusted_instance_data->shared_part());
+    shared_trusted_instance_data =
+        direct_handle(trusted_instance_data->shared_part(), isolate);
+  }
   std::optional<MessageTemplate> opt_error =
       WasmTrustedInstanceData::InitTableEntries(
-          isolate, trusted_instance_data, trusted_instance_data, table_index,
-          elem_segment_index, dst, src, count);
+          isolate, trusted_instance_data, shared_trusted_instance_data,
+          table_index, elem_segment_index, dst, src, count);
   if (opt_error.has_value()) {
     return ThrowWasmError(isolate, opt_error.value());
   }
@@ -1344,18 +1319,21 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   target_stack->jmpbuf()->fp = kNullAddress;
   target_stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
   target_stack->jmpbuf()->is_on_central_stack = false;
-  // For now JSPI does not use the WasmStackObject, and it is only set here
-  // because it is expected by WasmFX.
-  // TODO(thibaudm): We could consider using this object for JSPI too as an
-  // indirection between the WasmSuspenderObjects and the StackMemory. This
-  // would have roughly the same benefits as for WasmFX:
-  // - We would only need to allocate and manage a single EPT entry per
-  // StackMemory,
-  // - It would be easier to track ownership of the StackMemory and ensure that
-  // there is no UAF. In particular the StackMemory could track its (unique) EPT
-  // entry via {EPT::ManagedResource} and zap it when the resource is freed.
-  target_stack->set_stack_obj(
-      *isolate->factory()->NewWasmStackObject(target_stack.get()));
+  if (v8_flags.experimental_wasm_wasmfx) {
+    // For now JSPI does not use the WasmStackObject, and it is only set here
+    // because it is expected by WasmFX.
+    // TODO(thibaudm): We could consider using this object for JSPI too as an
+    // indirection between the WasmSuspenderObjects and the StackMemory. This
+    // would have roughly the same benefits as for WasmFX:
+    // - We would only need to allocate and manage a single EPT entry per
+    // StackMemory,
+    // - It would be easier to track ownership of the StackMemory and ensure
+    // that there is no UAF. In particular the StackMemory could track its
+    // (unique) EPT entry via {EPT::ManagedResource} and zap it when the
+    // resource is freed.
+    target_stack->set_stack_obj(
+        *isolate->factory()->NewWasmStackObject(target_stack.get()));
+  }
 
   // Update the suspender state.
   suspender->set_parent(isolate->isolate_data()->active_suspender());

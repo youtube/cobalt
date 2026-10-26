@@ -386,6 +386,7 @@ class CONTENT_EXPORT NavigationRequest
   bool IsInOutermostMainFrame() const override;
   bool IsInPrerenderedMainFrame() const override;
   bool IsPrerenderedPageActivation() const override;
+  PrerenderHostId GetPrerenderHostId() const override;
   bool IsInFencedFrameTree() const override;
   bool IsGuestViewMainFrame() const override;
   FrameType GetNavigatingFrameType() const override;
@@ -1717,11 +1718,6 @@ class CONTENT_EXPORT NavigationRequest
   void OnNavigationEventProcessed(
       NavigationThrottleEvent event,
       NavigationThrottle::ThrottleCheckResult result);
-
-  // Returns the PrerenderHostId driving the navigation. If the navigation
-  // is not derived from a prerendered page, the default-consturcted null
-  // value will be returned.
-  PrerenderHostId GetPrerenderHostId() const;
 
   const std::optional<base::UnguessableToken>& network_restrictions_id() const {
     return network_restrictions_id_;

@@ -9,9 +9,13 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_tracker.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
+#include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
+#include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
+#include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "chrome/browser/ui/views/chrome_widget_sublevel.h"
 #include "chrome/browser/ui/views/device_chooser_content_view.h"
@@ -21,6 +25,7 @@
 #include "extensions/buildflags/buildflags.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/display/types/display_constants.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/bubble/bubble_frame_view.h"
 #include "ui/views/controls/button/label_button.h"
@@ -95,6 +100,10 @@ class ChooserBubbleUiViewDelegate : public LocationBarBubbleDelegateView,
  private:
   raw_ptr<DeviceChooserContentView> device_chooser_content_view_ = nullptr;
 
+  // Prevent the tab from entering content fullscreen mode while the chooser
+  // bubble is visible.
+  base::ScopedClosureRunner fullscreen_blocker_;
+
   base::WeakPtrFactory<ChooserBubbleUiViewDelegate> weak_ptr_factory_{this};
 };
 
@@ -141,6 +150,16 @@ ChooserBubbleUiViewDelegate::ChooserBubbleUiViewDelegate(
   SetCloseCallback(
       base::BindOnce(&DeviceChooserContentView::Close,
                      base::Unretained(device_chooser_content_view_)));
+  FullscreenController* fullscreen_controller = browser->GetFeatures()
+                                                    .exclusive_access_manager()
+                                                    ->fullscreen_controller();
+  CHECK(fullscreen_controller);
+  // Drop fullscreen mode for the current webcontent so that the user sees the
+  // URL.
+  if (fullscreen_controller->IsTabFullscreen()) {
+    fullscreen_blocker_ =
+        contents->ForSecurityDropFullscreen(display::kInvalidDisplayId);
+  }
 }
 
 ChooserBubbleUiViewDelegate::~ChooserBubbleUiViewDelegate() = default;
@@ -169,6 +188,19 @@ void ChooserBubbleUiViewDelegate::OnSelectionChanged() {
 void ChooserBubbleUiViewDelegate::UpdateAnchor(Browser* browser) {
   AnchorConfiguration configuration = GetChooserAnchorConfiguration(browser);
   SetAnchor(configuration.anchor);
+  // In fullscreen, `anchor` may be nullptr therefore anchor to the browser
+  // window instead.
+  if (std::holds_alternative<View*>(configuration.anchor)) {
+    set_parent_window(
+        std::get<View*>(configuration.anchor)->GetWidget()->GetNativeView());
+  } else if (std::holds_alternative<ui::TrackedElement*>(
+                 configuration.anchor)) {
+    set_parent_window(
+        std::get<ui::TrackedElement*>(configuration.anchor)->GetNativeView());
+  } else {
+    set_parent_window(
+        platform_util::GetViewForWindow(browser->window()->GetNativeWindow()));
+  }
   if (configuration.highlighted_element) {
     SetHighlightedElement(*configuration.highlighted_element);
   }
@@ -276,12 +308,6 @@ base::OnceClosure ShowDeviceChooserDialog(
   auto bubble = std::make_unique<ChooserBubbleUiViewDelegate>(
       browser, contents, std::move(controller));
 
-  // Set |parent_window_| because some valid anchors can become hidden.
-  views::Widget* parent_widget = views::Widget::GetWidgetForNativeWindow(
-      browser->window()->GetNativeWindow());
-  gfx::NativeView parent = parent_widget->GetNativeView();
-  DCHECK(parent);
-  bubble->set_parent_window(parent);
   bubble->UpdateAnchor(browser);
 
   base::OnceClosure close_closure = bubble->MakeCloseClosure();

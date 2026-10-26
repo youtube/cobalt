@@ -17,13 +17,13 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/audio/audio_processing.h"
 #include "api/audio/builtin_audio_processing_builder.h"
 #include "api/audio_codecs/audio_format.h"
@@ -336,7 +336,7 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
     EXPECT_FALSE(call_.GetAudioSendStream(kSsrcX));
   }
 
-  void DeliverPacket(ArrayView<const uint8_t> data) {
+  void DeliverPacket(std::span<const uint8_t> data) {
     RtpPacketReceived packet;
     packet.Parse(data);
     receive_channel_->OnPacketReceived(packet);
@@ -2779,7 +2779,7 @@ TEST_P(WebRtcVoiceEngineTestFake, RecvWithMultipleStreams) {
   uint8_t packets[4][sizeof(kPcmuFrame)];
   for (size_t i = 0; i < std::size(packets); ++i) {
     memcpy(packets[i], kPcmuFrame, sizeof(kPcmuFrame));
-    SetBE32(ArrayView<uint8_t>(packets[i] + 8, 4), static_cast<uint32_t>(i));
+    SetBE32(std::span<uint8_t>(packets[i] + 8, 4), static_cast<uint32_t>(i));
   }
 
   const FakeAudioReceiveStream& s1 = GetRecvStream(ssrc1);
@@ -2868,9 +2868,9 @@ TEST_P(WebRtcVoiceEngineTestFake,
   // Deliver a couple packets with unsignaled SSRCs.
   uint8_t packet[sizeof(kPcmuFrame)];
   memcpy(packet, kPcmuFrame, sizeof(kPcmuFrame));
-  SetBE32(ArrayView<uint8_t>(&packet[8], 4), 0x1234);
+  SetBE32(std::span<uint8_t>(&packet[8], 4), 0x1234);
   DeliverPacket(packet);
-  SetBE32(ArrayView<uint8_t>(&packet[8], 4), 0x5678);
+  SetBE32(std::span<uint8_t>(&packet[8], 4), 0x5678);
   DeliverPacket(packet);
 
   // Verify that the receive streams were created.
@@ -2892,7 +2892,7 @@ TEST_P(WebRtcVoiceEngineTestFake, RecvMultipleUnsignaled) {
 
   // Note that SSRC = 0 is not supported.
   for (uint32_t ssrc = 1; ssrc < (1 + kMaxUnsignaledRecvStreams); ++ssrc) {
-    SetBE32(ArrayView<uint8_t>(&packet[8], 4), ssrc);
+    SetBE32(std::span<uint8_t>(&packet[8], 4), ssrc);
     DeliverPacket(packet);
 
     // Verify we have one new stream for each loop iteration.
@@ -2903,7 +2903,7 @@ TEST_P(WebRtcVoiceEngineTestFake, RecvMultipleUnsignaled) {
 
   // Sending on the same SSRCs again should not create new streams.
   for (uint32_t ssrc = 1; ssrc < (1 + kMaxUnsignaledRecvStreams); ++ssrc) {
-    SetBE32(ArrayView<uint8_t>(&packet[8], 4), ssrc);
+    SetBE32(std::span<uint8_t>(&packet[8], 4), ssrc);
     DeliverPacket(packet);
 
     EXPECT_EQ(kMaxUnsignaledRecvStreams, call_.GetAudioReceiveStreams().size());
@@ -2913,7 +2913,7 @@ TEST_P(WebRtcVoiceEngineTestFake, RecvMultipleUnsignaled) {
 
   // Send on another SSRC, the oldest unsignaled stream (SSRC=1) is replaced.
   constexpr uint32_t kAnotherSsrc = 667;
-  SetBE32(ArrayView<uint8_t>(&packet[8], 4), kAnotherSsrc);
+  SetBE32(std::span<uint8_t>(&packet[8], 4), kAnotherSsrc);
   DeliverPacket(packet);
 
   const auto& streams = call_.GetAudioReceiveStreams();
@@ -2938,7 +2938,7 @@ TEST_P(WebRtcVoiceEngineTestFake, RecvUnsignaledAfterSignaled) {
 
   // Add a known stream, send packet and verify we got it.
   const uint32_t signaled_ssrc = 1;
-  SetBE32(ArrayView<uint8_t>(&packet[8], 4), signaled_ssrc);
+  SetBE32(std::span<uint8_t>(&packet[8], 4), signaled_ssrc);
   EXPECT_TRUE(AddRecvStream(signaled_ssrc));
   DeliverPacket(packet);
   EXPECT_TRUE(GetRecvStream(signaled_ssrc).VerifyLastPacket(packet));
@@ -2947,7 +2947,7 @@ TEST_P(WebRtcVoiceEngineTestFake, RecvUnsignaledAfterSignaled) {
   // Note that the first unknown SSRC cannot be 0, because we only support
   // creating receive streams for SSRC!=0.
   const uint32_t unsignaled_ssrc = 7011;
-  SetBE32(ArrayView<uint8_t>(&packet[8], 4), unsignaled_ssrc);
+  SetBE32(std::span<uint8_t>(&packet[8], 4), unsignaled_ssrc);
   DeliverPacket(packet);
   EXPECT_TRUE(GetRecvStream(unsignaled_ssrc).VerifyLastPacket(packet));
   EXPECT_EQ(2u, call_.GetAudioReceiveStreams().size());
@@ -2955,7 +2955,7 @@ TEST_P(WebRtcVoiceEngineTestFake, RecvUnsignaledAfterSignaled) {
   DeliverPacket(packet);
   EXPECT_EQ(2, GetRecvStream(unsignaled_ssrc).received_packets());
 
-  SetBE32(ArrayView<uint8_t>(&packet[8], 4), signaled_ssrc);
+  SetBE32(std::span<uint8_t>(&packet[8], 4), signaled_ssrc);
   DeliverPacket(packet);
   EXPECT_EQ(2, GetRecvStream(signaled_ssrc).received_packets());
   EXPECT_EQ(2u, call_.GetAudioReceiveStreams().size());
@@ -3420,7 +3420,7 @@ TEST_P(WebRtcVoiceEngineTestFake, SetOutputVolumeUnsignaledRecvStream) {
   // Spawn an unsignaled stream by sending a packet - gain should be 2.
   uint8_t pcmuFrame2[sizeof(kPcmuFrame)];
   memcpy(pcmuFrame2, kPcmuFrame, sizeof(kPcmuFrame));
-  SetBE32(ArrayView<uint8_t>(&pcmuFrame2[8], 4), kSsrcX);
+  SetBE32(std::span<uint8_t>(&pcmuFrame2[8], 4), kSsrcX);
   DeliverPacket(pcmuFrame2);
   EXPECT_DOUBLE_EQ(2, GetRecvStream(kSsrcX).gain());
 
@@ -3482,7 +3482,7 @@ TEST_P(WebRtcVoiceEngineTestFake,
   // Spawn an unsignaled stream by sending a packet - delay should be 100.
   uint8_t pcmuFrame2[sizeof(kPcmuFrame)];
   memcpy(pcmuFrame2, kPcmuFrame, sizeof(kPcmuFrame));
-  SetBE32(ArrayView<uint8_t>(&pcmuFrame2[8], 4), kSsrcX);
+  SetBE32(std::span<uint8_t>(&pcmuFrame2[8], 4), kSsrcX);
   DeliverPacket(pcmuFrame2);
   EXPECT_EQ(
       100, receive_channel_->GetBaseMinimumPlayoutDelayMs(kSsrcX).value_or(-1));
@@ -3659,7 +3659,7 @@ TEST_P(WebRtcVoiceEngineTestFake, SetRawAudioSinkUnsignaledRecvStream) {
   // and the previous unsignaled stream should lose it.
   uint8_t pcmuFrame2[sizeof(kPcmuFrame)];
   memcpy(pcmuFrame2, kPcmuFrame, sizeof(kPcmuFrame));
-  SetBE32(ArrayView<uint8_t>(&pcmuFrame2[8], 4), kSsrcX);
+  SetBE32(std::span<uint8_t>(&pcmuFrame2[8], 4), kSsrcX);
   DeliverPacket(pcmuFrame2);
   if (kMaxUnsignaledRecvStreams > 1) {
     EXPECT_EQ(nullptr, GetRecvStream(kSsrc1).sink());

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import {$$} from 'chrome://new-tab-page/new_tab_page.js';
-import {ToolMode as ComposeboxToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
+import {ModelMode, ToolMode as ComposeboxToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import type {SelectedFileInfo} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
@@ -49,6 +49,31 @@ suite('NewTabPageComposeboxTest', () => {
         await microtasksFinished();
         assertEquals(testProxy.searchboxHandler.getCallCount('submitQuery'), 0);
       });
+
+  test('updates state from state property', async () => {
+    createComposeboxElement(testProxy);
+    testProxy.searchboxHandler.setPromiseResolveFor(
+        ADD_FILE_CONTEXT_FN, {low: BigInt(1), high: BigInt(2)});
+    const composebox = testProxy.element;
+
+    composebox.state = {
+      text: 'hello world',
+      files:
+          [{file: new File(['test'], 'test.pdf', {type: 'application/pdf'})}],
+      mode: ComposeboxToolMode.kDeepSearch,
+      model: ModelMode.kGeminiRegular,
+    };
+    await testProxy.searchboxHandler.whenCalled(ADD_FILE_CONTEXT_FN);
+    await composebox.updateComplete;
+    await microtasksFinished();
+
+    assertEquals('hello world', composebox.getText());
+    assertEquals(ComposeboxToolMode.kDeepSearch, composebox.activeToolMode);
+    assertEquals(1, composebox.getNumOfFilesForTesting());
+    const activeModel =
+        await testProxy.searchboxHandler.whenCalled('setActiveModelMode');
+    assertEquals(ModelMode.kGeminiRegular, activeModel);
+  });
 
   test('clear functionality', async () => {
     loadTimeData.overrideValues({composeboxShowSubmit: true});
@@ -794,5 +819,83 @@ suite('NewTabPageComposeboxTest', () => {
     testProxy.searchboxCallbackRouterRemote.onInputStateChanged(inputState);
     await microtasksFinished();
     assertDeepEquals((testProxy.element as any).inputState_, inputState);
+  });
+
+  test('setDefaultModel uses activeModel from backend', async () => {
+    createComposeboxElement(testProxy);
+
+    const inputState = Object.assign({}, mockInputState, {
+      allowedModels: [ModelMode.kGeminiRegular, ModelMode.kGeminiPro],
+      activeModel: ModelMode.kGeminiPro,
+      modelConfigs: [
+        {
+          model: ModelMode.kGeminiRegular,
+          aimUrlParams: [],
+          menuLabel: 'Regular',
+          hintText: 'Hint Regular',
+        },
+        {
+          model: ModelMode.kGeminiPro,
+          aimUrlParams: [{paramKey: 'xyz', paramValue: '1'}],
+          menuLabel: 'Pro',
+          hintText: 'Hint Pro',
+        },
+      ],
+      modelSectionConfig: null,
+    });
+
+    testProxy.searchboxCallbackRouterRemote.onInputStateChanged(inputState);
+    await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
+    await microtasksFinished();
+
+    testProxy.element.setDefaultModel();
+
+    assertEquals(
+        testProxy.searchboxHandler.getCallCount('setActiveModelMode'), 1);
+    const arg = testProxy.searchboxHandler.getArgs('setActiveModelMode')[0];
+    assertEquals(arg, ModelMode.kGeminiPro);
+  });
+
+  test('delete tool chip', async () => {
+    loadTimeData.overrideValues({composeboxSource: 'NewTabPage'});
+    createComposeboxElement(testProxy);
+    await microtasksFinished();
+
+    // Set active tool mode to DeepSearch.
+    testProxy.element['activeToolMode_'] = ComposeboxToolMode.kDeepSearch;
+    await testProxy.element.updateComplete;
+
+    // Click on the same tool mode to deselect/delete it.
+    testProxy.element['handleToolClick_'](ComposeboxToolMode.kDeepSearch);
+    await microtasksFinished();
+
+    // Assert tool mode is reset.
+    assertEquals(
+        testProxy.element['activeToolMode_'], ComposeboxToolMode.kUnspecified);
+
+    const metricName =
+        'ContextualSearch.UserAction.InputStateDeletion.Tool.NewTabPage';
+    assertEquals(1, testProxy.metrics.count(metricName, 0));
+    assertEquals(1, testProxy.metrics.count(metricName, true));
+  });
+
+  test('recent tab chip click records user action', async () => {
+    loadTimeData.overrideValues({composeboxSource: 'NewTabPage'});
+    const recentTabChip =
+        document.createElement('composebox-recent-tab-chip') as any;
+    recentTabChip.recentTab = {
+      tabId: 1,
+      title: 'Sample Tab',
+      url: 'https://example.com',
+    };
+    document.body.appendChild(recentTabChip);
+    await microtasksFinished();
+
+    const button = recentTabChip.shadowRoot!.querySelector('#recentTabButton');
+    assertTrue(!!button);
+    (button as HTMLElement).click();
+
+    const metricName = 'ContextualSearch.RecentTabChipClick.NewTabPage';
+    assertEquals(1, testProxy.metrics.count(metricName, 0));
   });
 });

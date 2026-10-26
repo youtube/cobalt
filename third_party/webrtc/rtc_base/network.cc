@@ -16,6 +16,7 @@
 #include <cstring>
 #include <map>
 #include <memory>
+#include <span>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -26,7 +27,6 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/sequence_checker.h"
@@ -567,7 +567,7 @@ Network* NetworkManagerBase::GetNetworkFromAddress(const IPAddress& ip) const {
   return nullptr;
 }
 
-bool NetworkManagerBase::IsVpnMacAddress(ArrayView<const uint8_t> address) {
+bool NetworkManagerBase::IsVpnMacAddress(std::span<const uint8_t> address) {
   if (address.data() == nullptr && address.empty()) {
     return false;
   }
@@ -910,7 +910,7 @@ bool BasicNetworkManager::CreateNetworks(
             adapter_type = ADAPTER_TYPE_VPN;
           }
           if (adapter_type != ADAPTER_TYPE_VPN &&
-              IsVpnMacAddress(ArrayView<const uint8_t>(
+              IsVpnMacAddress(std::span<const uint8_t>(
                   reinterpret_cast<const uint8_t*>(
                       adapter_addrs->PhysicalAddress),
                   adapter_addrs->PhysicalAddressLength))) {

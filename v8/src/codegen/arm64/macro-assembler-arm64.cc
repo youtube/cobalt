@@ -3529,6 +3529,11 @@ void MacroAssembler::SmiUntagField(Register dst, const MemOperand& src) {
   SmiUntag(dst, src);
 }
 
+void MacroAssembler::SmiUntagFieldUnsigned(Register dst,
+                                           const MemOperand& src) {
+  SmiUntagUnsigned(dst, src);
+}
+
 void MacroAssembler::StoreTwoTaggedFields(const Register& value,
                                           const MemOperand& dst_field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
@@ -5049,7 +5054,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
   }
 
 #ifndef V8_ENABLE_MEMORY_CORRUPTION_API
-  // This check doesn't make sense in for sandbox testing since
+  // This check doesn't make sense for sandbox testing since
   // Sandbox.getObjectAt(..) might legitimately return non-JSAny values
   // and this check just hinders debugging.
   if (v8_flags.debug_code) {

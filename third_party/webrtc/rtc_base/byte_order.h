@@ -14,8 +14,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <span>
 
-#include "api/array_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/system/arch.h"  // IWYU pragma: keep
 
@@ -94,86 +94,86 @@ namespace webrtc {
 
 // Reading and writing of little and big-endian numbers from memory
 
-inline void Set8(ArrayView<uint8_t> data, size_t offset, uint8_t v) {
+inline void Set8(std::span<uint8_t> data, size_t offset, uint8_t v) {
   data[offset] = v;
 }
 
-inline uint8_t Get8(ArrayView<const uint8_t> data, size_t offset) {
+inline uint8_t Get8(std::span<const uint8_t> data, size_t offset) {
   return data[offset];
 }
 
-inline void SetBE16(ArrayView<uint8_t> data, uint16_t v) {
+inline void SetBE16(std::span<uint8_t> data, uint16_t v) {
   RTC_DCHECK_GE(data.size(), sizeof(v));
   uint16_t val = htobe16(v);
   memcpy(data.data(), &val, sizeof(val));
 }
 
-inline void SetBE32(ArrayView<uint8_t> data, uint32_t v) {
+inline void SetBE32(std::span<uint8_t> data, uint32_t v) {
   RTC_DCHECK_GE(data.size(), sizeof(v));
   uint32_t val = htobe32(v);
   memcpy(data.data(), &val, sizeof(val));
 }
 
-inline void SetBE64(ArrayView<uint8_t> data, uint64_t v) {
+inline void SetBE64(std::span<uint8_t> data, uint64_t v) {
   RTC_DCHECK_GE(data.size(), sizeof(v));
   uint64_t val = htobe64(v);
   memcpy(data.data(), &val, sizeof(val));
 }
 
-inline uint16_t GetBE16(ArrayView<const uint8_t> data) {
+inline uint16_t GetBE16(std::span<const uint8_t> data) {
   uint16_t val;
   RTC_DCHECK_GE(data.size(), sizeof(val));
   memcpy(&val, data.data(), sizeof(val));
   return be16toh(val);
 }
 
-inline uint32_t GetBE32(ArrayView<const uint8_t> data) {
+inline uint32_t GetBE32(std::span<const uint8_t> data) {
   uint32_t val;
   RTC_DCHECK_GE(data.size(), sizeof(val));
   memcpy(&val, data.data(), sizeof(val));
   return be32toh(val);
 }
 
-inline uint64_t GetBE64(ArrayView<const uint8_t> data) {
+inline uint64_t GetBE64(std::span<const uint8_t> data) {
   uint64_t val;
   RTC_DCHECK_GE(data.size(), sizeof(val));
   memcpy(&val, data.data(), sizeof(val));
   return be64toh(val);
 }
 
-inline void SetLE16(ArrayView<uint8_t> data, uint16_t v) {
+inline void SetLE16(std::span<uint8_t> data, uint16_t v) {
   RTC_DCHECK_GE(data.size(), sizeof(v));
   uint16_t val = htole16(v);
   memcpy(data.data(), &val, sizeof(val));
 }
 
-inline void SetLE32(ArrayView<uint8_t> data, uint32_t v) {
+inline void SetLE32(std::span<uint8_t> data, uint32_t v) {
   RTC_DCHECK_GE(data.size(), sizeof(v));
   uint32_t val = htole32(v);
   memcpy(data.data(), &val, sizeof(val));
 }
 
-inline void SetLE64(ArrayView<uint8_t> data, uint64_t v) {
+inline void SetLE64(std::span<uint8_t> data, uint64_t v) {
   RTC_DCHECK_GE(data.size(), sizeof(v));
   uint64_t val = htole64(v);
   memcpy(data.data(), &val, sizeof(val));
 }
 
-inline uint16_t GetLE16(ArrayView<const uint8_t> data) {
+inline uint16_t GetLE16(std::span<const uint8_t> data) {
   uint16_t val;
   RTC_DCHECK_GE(data.size(), sizeof(val));
   memcpy(&val, data.data(), sizeof(val));
   return le16toh(val);
 }
 
-inline uint32_t GetLE32(ArrayView<const uint8_t> data) {
+inline uint32_t GetLE32(std::span<const uint8_t> data) {
   uint32_t val;
   RTC_DCHECK_GE(data.size(), sizeof(val));
   memcpy(&val, data.data(), sizeof(val));
   return le32toh(val);
 }
 
-inline uint64_t GetLE64(ArrayView<const uint8_t> data) {
+inline uint64_t GetLE64(std::span<const uint8_t> data) {
   uint64_t val;
   RTC_DCHECK_GE(data.size(), sizeof(val));
   memcpy(&val, data.data(), sizeof(val));

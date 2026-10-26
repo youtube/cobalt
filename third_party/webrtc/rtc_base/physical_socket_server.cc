@@ -17,9 +17,9 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <span>
 #include <utility>
 
-#include "api/array_view.h"
 #include "api/async_dns_resolver.h"
 #include "api/transport/ecn_marking.h"
 #include "api/units/time_delta.h"
@@ -518,7 +518,7 @@ int PhysicalSocket::RecvFrom(ReceiveBuffer& buffer) {
   static constexpr int BUF_SIZE = 64 * 1024;
   buffer.payload.EnsureCapacity(BUF_SIZE);
   int received;
-  buffer.payload.SetData(BUF_SIZE, [&](ArrayView<uint8_t> payload) {
+  buffer.payload.SetData(BUF_SIZE, [&](std::span<uint8_t> payload) {
     received =
         DoReadFromSocket(payload.data(), payload.size(), &buffer.source_address,
                          &timestamp, ecn_ ? &buffer.ecn : nullptr);

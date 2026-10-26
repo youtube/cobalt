@@ -12,8 +12,8 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <span>
 
-#include "api/array_view.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/buffer.h"
 
@@ -24,7 +24,7 @@ int Socket::RecvFrom(ReceiveBuffer& buffer) {
   int64_t timestamp = -1;
   int len;
   buffer.payload.EnsureCapacity(BUF_SIZE);
-  buffer.payload.SetData(BUF_SIZE, [&](ArrayView<uint8_t> payload) {
+  buffer.payload.SetData(BUF_SIZE, [&](std::span<uint8_t> payload) {
     len = RecvFrom(payload.data(), payload.size(), &buffer.source_address,
                    &timestamp);
     return std::max(len, 0);

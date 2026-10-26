@@ -1226,27 +1226,28 @@ void ComputePipelineCacheVkChunkKey(const VkPhysicalDeviceProperties &physicalDe
                                     const size_t chunkIndex,
                                     angle::BlobCacheKey *hashOut)
 {
-    std::ostringstream hashStream("ANGLE Pipeline Cache: ", std::ios_base::ate);
+    angle::BlobCacheHasher hasher;
+    hasher.Init();
+
+    // Start with the name
+    const char *pipelineCacheName = "ANGLE Pipeline Cache: ";
+    hasher.Update(pipelineCacheName, strlen(pipelineCacheName));
+
     // Add the pipeline cache UUID to make sure the blob cache always gives a compatible pipeline
-    // cache.  It's not particularly necessary to write it as a hex number as done here, so long as
-    // there is no '\0' in the result.
-    for (const uint32_t c : physicalDeviceProperties.pipelineCacheUUID)
-    {
-        hashStream << std::hex << c;
-    }
+    // cache. pipelineCacheUUID is a uint8_t[VK_UUID_SIZE]
+    hasher.Update(&physicalDeviceProperties.pipelineCacheUUID, VK_UUID_SIZE);
+
     // Add the vendor and device id too for good measure.
-    hashStream << std::hex << physicalDeviceProperties.vendorID;
-    hashStream << std::hex << physicalDeviceProperties.deviceID;
+    angle::UpdateHashWithValue(hasher, physicalDeviceProperties.vendorID);
+    angle::UpdateHashWithValue(hasher, physicalDeviceProperties.deviceID);
 
-    // Add slotIndex to generate unique keys for each slot.
-    hashStream << std::hex << static_cast<uint32_t>(slotIndex);
+    // Add slotIndex and chunkIndex to generate unique keys.
+    angle::UpdateHashWithValue(hasher, slotIndex);
+    angle::UpdateHashWithValue(hasher, chunkIndex);
 
-    // Add chunkIndex to generate unique key for chunks.
-    hashStream << std::hex << static_cast<uint32_t>(chunkIndex);
-
-    const std::string &hashString = hashStream.str();
-    angle::base::SHA1HashBytes(reinterpret_cast<const unsigned char *>(hashString.c_str()),
-                               hashString.length(), hashOut->data());
+    ASSERT(hashOut);
+    hasher.Final();
+    memcpy(hashOut->data(), hasher.Digest(), angle::kBlobCacheKeyLength);
 }
 
 struct PipelineCacheVkChunkInfo
@@ -3314,14 +3315,15 @@ void Renderer::appendDeviceExtensionFeaturesPromotedTo12(
 
 // The following features and properties used by ANGLE have been promoted to Vulkan 1.3:
 //
-// - VK_EXT_extended_dynamic_state:          extendedDynamicState (feature)
-// - VK_EXT_extended_dynamic_state2:         extendedDynamicState2 (feature),
-//                                           extendedDynamicState2LogicOp (feature)
-// - VK_KHR_synchronization2:                synchronization2 (feature)
-// - VK_KHR_dynamic_rendering:               dynamicRendering (feature)
-// - VK_KHR_maintenance5:                    maintenance5 (feature)
-// - VK_EXT_texture_compression_astc_hdr:    textureCompressionASTC_HDR(feature)
-// - VK_KHR_shader_integer_dot_product:      shaderIntegerDotProduct (feature)
+// - VK_EXT_extended_dynamic_state:             extendedDynamicState (feature)
+// - VK_EXT_extended_dynamic_state2:            extendedDynamicState2 (feature),
+//                                              extendedDynamicState2LogicOp (feature)
+// - VK_KHR_synchronization2:                   synchronization2 (feature)
+// - VK_KHR_dynamic_rendering:                  dynamicRendering (feature)
+// - VK_KHR_maintenance5:                       maintenance5 (feature)
+// - VK_EXT_texture_compression_astc_hdr:       textureCompressionASTC_HDR(feature)
+// - VK_KHR_shader_integer_dot_product:         shaderIntegerDotProduct (feature)
+// - VK_EXT_shader_demote_to_helper_invocation: shaderDemoteToHelperInvocation (feature)
 //
 // Note that VK_EXT_extended_dynamic_state2 is partially promoted to Vulkan 1.3.  If ANGLE creates a
 // Vulkan 1.3 device, it would still need to enable this extension separately for
@@ -3366,6 +3368,12 @@ void Renderer::appendDeviceExtensionFeaturesPromotedTo13(
     {
         vk::AddToPNextChain(deviceFeatures, &mShaderIntegerDotProductFeatures);
         vk::AddToPNextChain(deviceProperties, &mShaderIntegerDotProductProperties);
+    }
+
+    if (ExtensionFound(VK_EXT_SHADER_DEMOTE_TO_HELPER_INVOCATION_EXTENSION_NAME,
+                       deviceExtensionNames))
+    {
+        vk::AddToPNextChain(deviceFeatures, &mShaderDemoteToHelperInvocationFeatures);
     }
 }
 
@@ -3604,6 +3612,10 @@ void Renderer::queryDeviceExtensionFeatures(const vk::ExtensionNameList &deviceE
     mShaderIntegerDotProductProperties.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_PROPERTIES;
 
+    mShaderDemoteToHelperInvocationFeatures = {};
+    mShaderDemoteToHelperInvocationFeatures.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DEMOTE_TO_HELPER_INVOCATION_FEATURES;
+
     mPhysicalDeviceGlobalPriorityQueryFeatures = {};
     mPhysicalDeviceGlobalPriorityQueryFeatures.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GLOBAL_PRIORITY_QUERY_FEATURES_EXT;
@@ -3722,6 +3734,7 @@ void Renderer::queryDeviceExtensionFeatures(const vk::ExtensionNameList &deviceE
     mUnifiedImageLayoutsFeatures.pNext                = nullptr;
     mShaderIntegerDotProductFeatures.pNext            = nullptr;
     mShaderIntegerDotProductProperties.pNext          = nullptr;
+    mShaderDemoteToHelperInvocationFeatures.pNext     = nullptr;
     mPhysicalDeviceGlobalPriorityQueryFeatures.pNext  = nullptr;
     mExternalMemoryHostProperties.pNext               = nullptr;
     mBufferDeviceAddressFeatures.pNext                = nullptr;
@@ -4303,6 +4316,13 @@ void Renderer::enableDeviceExtensionsPromotedTo13(const vk::ExtensionNameList &d
     {
         mEnabledDeviceExtensions.push_back(VK_KHR_SHADER_INTEGER_DOT_PRODUCT_EXTENSION_NAME);
         vk::AddToPNextChain(&mEnabledFeatures, &mShaderIntegerDotProductFeatures);
+    }
+
+    if (mFeatures.supportsShaderDemoteToHelperInvocation.enabled)
+    {
+        mEnabledDeviceExtensions.push_back(
+            VK_EXT_SHADER_DEMOTE_TO_HELPER_INVOCATION_EXTENSION_NAME);
+        vk::AddToPNextChain(&mEnabledFeatures, &mShaderDemoteToHelperInvocationFeatures);
     }
 }
 
@@ -5574,12 +5594,20 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
         vkGetPhysicalDeviceExternalSemaphoreProperties(mPhysicalDevice, &externalSemaphoreInfo,
                                                        &externalSemaphoreProperties);
 
+        // There's a spec gap in eglDupNativeFenceFDANDROID and Vulkan SYNC_FD
+        // fence/semaphore export, where the former treats -1 as an error while
+        // the latter considers -1 as a valid return for signaled payload. ANGLE
+        // relies on the implementation defined behavior that most hw Vulkan
+        // drivers would return a valid sync file there, which isn't possible
+        // for Lavapipe sw implementation especially since sw sync has been an
+        // obsolete option both on Android and upstream Linux. So workaround to
+        // disable EGL_ANDROID_native_fence_sync for Lavapipe.
         ANGLE_FEATURE_CONDITION(
             &mFeatures, supportsAndroidNativeFenceSync,
             (mFeatures.supportsExternalFenceFd.enabled &&
              FencePropertiesCompatibleWithAndroid(externalFenceProperties) &&
              mFeatures.supportsExternalSemaphoreFd.enabled &&
-             SemaphorePropertiesCompatibleWithAndroid(externalSemaphoreProperties)));
+             SemaphorePropertiesCompatibleWithAndroid(externalSemaphoreProperties) && !isLavapipe));
     }
     else
     {
@@ -5660,12 +5688,15 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     //
     // Qualcomm driver 512.821 is known to have rendering bugs with this extension.
     // http://crbug.com/413427770
+    //
+    // Lavapipe currently crashes in SysUI on Android 16 when ANGLE uses MSRTSS.
     ANGLE_FEATURE_CONDITION(
         &mFeatures, supportsMultisampledRenderToSingleSampled,
         mMultisampledRenderToSingleSampledFeatures.multisampledRenderToSingleSampled == VK_TRUE &&
             mFeatures.supportsRenderpass2.enabled &&
             mFeatures.supportsDepthStencilResolve.enabled && CanSupportMSRTSSForRGBA8(this) &&
-            !(isQualcommProprietary && driverVersion < angle::VersionTriple(512, 822, 0)));
+            !(isQualcommProprietary && driverVersion < angle::VersionTriple(512, 822, 0)) &&
+            !isLavapipe);
 
     // Preferring the MSRTSS flag is for texture initialization. If the MSRTSS is not used at first,
     // it will be used (if available) when recreating the image if it is bound to an MSRTT
@@ -6740,6 +6771,10 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
 
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsShaderFloat16,
                             mShaderFloat16Int8Features.shaderFloat16 == VK_TRUE && !isSamsung);
+
+    ANGLE_FEATURE_CONDITION(
+        &mFeatures, supportsShaderDemoteToHelperInvocation,
+        mShaderDemoteToHelperInvocationFeatures.shaderDemoteToHelperInvocation == VK_TRUE);
 
     // http://anglebug.com/440941211:
     // Disable the feature on Windows Intel because some shaders using 16-bit floats crash

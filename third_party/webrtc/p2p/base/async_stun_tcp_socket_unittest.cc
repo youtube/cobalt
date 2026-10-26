@@ -18,7 +18,6 @@
 #include <utility>
 
 #include "absl/memory/memory.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/async_tcp_socket.h"

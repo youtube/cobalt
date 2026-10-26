@@ -12,12 +12,13 @@
 
 #include <cstdint>
 #include <cstring>
+#include <span>
 #include <vector>
 
 // PacketTimeUpdateParams is defined in asyncpacketsocket.h.
 // TODO(sergeyu): Find more appropriate place for PacketTimeUpdateParams.
+
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "media/base/turn_utils.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"
 #include "rtc_base/async_packet_socket.h"
@@ -73,7 +74,7 @@ void UpdateAbsSendTimeExtensionValue(uint8_t* extension_data,
 
 // Assumes `length` is actual packet length + tag length. Updates HMAC at end of
 // the RTP packet.
-void UpdateRtpAuthTag(ArrayView<uint8_t> rtp,
+void UpdateRtpAuthTag(std::span<uint8_t> rtp,
                       const PacketTimeUpdateParams& packet_time_params) {
   // If there is no key, return.
   if (packet_time_params.srtp_auth_key.empty()) {
@@ -148,7 +149,7 @@ bool GetRtcpSsrc(const void* data, size_t len, uint32_t* value) {
   if (pl_type == kRtcpTypeSDES)
     return false;
   *value = GetBE32(
-      ArrayView<const uint8_t>(static_cast<const uint8_t*>(data) + 4, 4));
+      std::span<const uint8_t>(static_cast<const uint8_t*>(data) + 4, 4));
   return true;
 }
 
@@ -176,7 +177,7 @@ absl::string_view RtpPacketTypeToString(RtpPacketType packet_type) {
   RTC_CHECK_NOTREACHED();
 }
 
-RtpPacketType InferRtpPacketType(ArrayView<const uint8_t> packet) {
+RtpPacketType InferRtpPacketType(std::span<const uint8_t> packet) {
   if (IsRtcpPacket(packet)) {
     return RtpPacketType::kRtcp;
   }
@@ -186,7 +187,7 @@ RtpPacketType InferRtpPacketType(ArrayView<const uint8_t> packet) {
   return RtpPacketType::kUnknown;
 }
 
-bool ValidateRtpHeader(ArrayView<const uint8_t> rtp, size_t* header_length) {
+bool ValidateRtpHeader(std::span<const uint8_t> rtp, size_t* header_length) {
   size_t length = rtp.size();
   if (header_length) {
     *header_length = 0;
@@ -238,7 +239,7 @@ bool ValidateRtpHeader(ArrayView<const uint8_t> rtp, size_t* header_length) {
 
 // ValidateRtpHeader() must be called before this method to make sure, we have
 // a sane rtp packet.
-bool UpdateRtpAbsSendTimeExtension(ArrayView<uint8_t> packet,
+bool UpdateRtpAbsSendTimeExtension(std::span<uint8_t> packet,
                                    int extension_id,
                                    uint64_t time_us) {
   //  0                   1                   2                   3
@@ -265,7 +266,7 @@ bool UpdateRtpAbsSendTimeExtension(ArrayView<uint8_t> packet,
   uint8_t* rtp = packet.data();
   rtp += header_length_without_extension;
 
-  ArrayView<const uint8_t> extension_header =
+  std::span<const uint8_t> extension_header =
       packet.subspan(header_length_without_extension, kRtpExtensionHeaderLen);
 
   // Getting extension profile ID and length.
@@ -356,7 +357,7 @@ bool UpdateRtpAbsSendTimeExtension(ArrayView<uint8_t> packet,
   return found;
 }
 
-bool ApplyPacketOptions(ArrayView<uint8_t> data,
+bool ApplyPacketOptions(std::span<uint8_t> data,
                         const PacketTimeUpdateParams& packet_time_params,
                         uint64_t time_us) {
   RTC_DCHECK(!data.empty());

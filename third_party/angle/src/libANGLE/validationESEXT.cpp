@@ -840,12 +840,6 @@ bool ValidateGetnUniformivKHR(const Context *context,
         return false;
     }
 
-    // TODO(anglebug.com/484215148): Remove this check once CTS is fixed.
-    if (ANGLE_UNLIKELY(bufSize < 0))
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kNegativeBufSize);
-        return false;
-    }
     return ValidateSizedGetUniform(context, entryPoint, programPacked, locationPacked, bufSize);
 }
 
@@ -864,12 +858,6 @@ bool ValidateGetnUniformuivKHR(const Context *context,
         return false;
     }
 
-    // TODO(anglebug.com/484215148): Remove this check once CTS is fixed.
-    if (ANGLE_UNLIKELY(bufSize < 0))
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kNegativeBufSize);
-        return false;
-    }
     return ValidateSizedGetUniform(context, entryPoint, programPacked, locationPacked, bufSize);
 }
 
@@ -2435,6 +2423,15 @@ bool ValidateBeginPixelLocalStorageANGLE(const Context *context,
             ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kPLSNoAttachmentsNoTextureBacked);
             return false;
         }
+    }
+
+    // INVALID_OPERATION is generated if color attachment zero is present, but draw buffer zero is
+    // disabled.
+    if (framebuffer->getColorAttachment(0) != nullptr && !framebuffer->getDrawBufferMask().test(0))
+    {
+        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION,
+                               kPLSColorAttachment0PresentButDrawBufferDisabled);
+        return false;
     }
 
     return true;

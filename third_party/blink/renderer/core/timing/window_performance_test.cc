@@ -160,7 +160,7 @@ class WindowPerformanceTest : public testing::Test,
     performance_->GetResponsivenessMetrics()
         .SetCurrentInteractionEventQueuedTimestamp(start_time);
     PerformanceEventTiming* entry = performance_->EventTimingProcessingStart(
-        *keyboard_event, processing_start, target);
+        *keyboard_event, processing_start);
     keyboard_event->SetTarget(target);
     performance_->EventTimingProcessingEnd(entry, *keyboard_event,
                                            processing_end);
@@ -180,7 +180,7 @@ class WindowPerformanceTest : public testing::Test,
     performance_->GetResponsivenessMetrics()
         .SetCurrentInteractionEventQueuedTimestamp(start_time);
     PerformanceEventTiming* entry = performance_->EventTimingProcessingStart(
-        *pointer_event, processing_start, target);
+        *pointer_event, processing_start);
     pointer_event->SetTarget(target);
     performance_->EventTimingProcessingEnd(entry, *pointer_event,
                                            processing_end);
@@ -202,8 +202,8 @@ class WindowPerformanceTest : public testing::Test,
         .pointer_id = pointer_id};
 
     auto* entry = PerformanceEventTiming::Create(
-        name, reporting_info, false, nullptr,
-        LocalDOMWindow::From(GetScriptState()), performance_->NavigationId());
+        name, reporting_info, false, LocalDOMWindow::From(GetScriptState()),
+        performance_->NavigationId());
     performance_->event_timing_entries_.push_back(entry);
     performance_->GetResponsivenessMetrics().TryAssignInteractionId(entry);
     performance_->TryFlushEventTimingQueue();
@@ -660,7 +660,7 @@ TEST_P(WindowPerformanceTest, NestedEventInProcessingTime) {
       event_type_names::kKeypress, init, GetTimeOrigin());
   PerformanceEventTiming* keyboard_entry =
       performance_->EventTimingProcessingStart(
-          *keyboard_event, GetTimeOrigin() + base::Milliseconds(1), nullptr);
+          *keyboard_event, GetTimeOrigin() + base::Milliseconds(1));
 
   UIEventInit* event_init = UIEventInit::Create();
   event_init->setBubbles(true);
@@ -670,7 +670,7 @@ TEST_P(WindowPerformanceTest, NestedEventInProcessingTime) {
                                                  event_init, GetTimeOrigin());
   PerformanceEventTiming* event_entry =
       performance_->EventTimingProcessingStart(
-          *event, GetTimeOrigin() + base::Milliseconds(2), nullptr);
+          *event, GetTimeOrigin() + base::Milliseconds(2));
 
   performance_->EventTimingProcessingEnd(
       event_entry, *event, GetTimeOrigin() + base::Milliseconds(4));

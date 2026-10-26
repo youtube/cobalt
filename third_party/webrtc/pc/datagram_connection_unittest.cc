@@ -517,5 +517,31 @@ TEST_F(DatagramConnectionTest, DirectDtlsPacketsAreReceived) {
   EXPECT_TRUE(callbacks.send_outcome);
 }
 
+TEST_F(DatagramConnectionTest, SingleBytePacketsAreSent) {
+  CreateConnections(WireProtocol::kDtls);
+  Connect();
+  ASSERT_TRUE(
+      WaitUntil([&]() { return conn1_->Writable() && conn2_->Writable(); }));
+
+  std::vector<uint8_t> data = {1};
+  bool callback_called = false;
+  EXPECT_CALL(*observer1_ptr_, OnSendOutcome(_))
+      .WillOnce([&](const SendOutcome& outcome) {
+        EXPECT_EQ(outcome.id, 1u);
+        EXPECT_EQ(outcome.status, SendOutcome::Status::kSuccess);
+        EXPECT_NE(outcome.send_time, Timestamp::MinusInfinity());
+        callback_called = true;
+        loop_.Quit();
+      });
+  std::vector<PacketSendParameters> packets = {
+      PacketSendParameters{.id = 1, .payload = data}};
+  conn1_->SendPackets(packets);
+  // For direct DTLS, the sent packet should be larger than the data due to
+  // DTLS overhead.
+  EXPECT_GT(ice1_->last_sent_packet().size(), data.size());
+  loop_.Run();
+  EXPECT_TRUE(callback_called);
+}
+
 }  // namespace
 }  // namespace webrtc

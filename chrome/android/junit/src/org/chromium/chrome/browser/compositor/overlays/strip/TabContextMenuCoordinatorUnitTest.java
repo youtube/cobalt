@@ -21,6 +21,8 @@ import static org.mockito.Mockito.when;
 
 import static org.chromium.chrome.browser.multiwindow.InstanceInfo.Type.CURRENT;
 import static org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType.ACTIVE;
+import static org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType.OFF_THE_RECORD;
+import static org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType.REGULAR;
 import static org.chromium.chrome.browser.share.ShareDelegate.ShareOrigin.TAB_STRIP_CONTEXT_MENU;
 import static org.chromium.ui.listmenu.ListItemType.DIVIDER;
 import static org.chromium.ui.listmenu.ListItemType.MENU_ITEM;
@@ -65,6 +67,7 @@ import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabContextMenuCoordinator.AnchorInfo;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.multiwindow.InstanceInfo;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
@@ -137,9 +140,11 @@ public class TabContextMenuCoordinatorUnitTest {
     private static final GURL CHROME_NATIVE_URL = new GURL("chrome-native://newtab");
     private static final int INSTANCE_ID_1 = 5;
     private static final int INSTANCE_ID_2 = 6;
+    private static final int INSTANCE_ID_3 = 7;
     private static final String WINDOW_TITLE_1 = "Window Title 1";
     private static final String WINDOW_TITLE_2 = "Window Title 2";
-    private static final int TASK_ID = 7;
+    private static final String INCOGNITO_WINDOW_TITLE = "Incognito Window";
+    private static final int TASK_ID = 8;
     private static final int NUM_TABS = 1;
     private static final int NUM_INCOGNITO_TABS = 0;
     private static final long LAST_ACCESSED_TIME = 100L;
@@ -169,6 +174,20 @@ public class TabContextMenuCoordinatorUnitTest {
                     NUM_TABS,
                     NUM_INCOGNITO_TABS,
                     /* isIncognitoSelected= */ false,
+                    LAST_ACCESSED_TIME,
+                    /* closureTime= */ 0);
+
+    private static final InstanceInfo INSTANCE_INFO_INCOGNITO =
+            new InstanceInfo(
+                    INSTANCE_ID_3,
+                    TASK_ID,
+                    CURRENT,
+                    EXAMPLE_URL.toString(),
+                    INCOGNITO_WINDOW_TITLE,
+                    /* customTitle= */ null,
+                    NUM_TABS,
+                    NUM_INCOGNITO_TABS,
+                    /* isIncognitoSelected= */ true,
                     LAST_ACCESSED_TIME,
                     /* closureTime= */ 0);
 
@@ -662,7 +681,7 @@ public class TabContextMenuCoordinatorUnitTest {
         initializeCoordinator();
         MultiWindowUtils.setInstanceCountForTesting(3);
         when(mMultiInstanceManager.getInstanceInfo(ACTIVE))
-                .thenReturn(List.of(INSTANCE_INFO_1, INSTANCE_INFO_2));
+                .thenReturn(List.of(INSTANCE_INFO_1, INSTANCE_INFO_INCOGNITO));
 
         var modelList = new ModelList();
         mTabContextMenuCoordinator.configureMenuItemsForTesting(
@@ -678,9 +697,137 @@ public class TabContextMenuCoordinatorUnitTest {
                 modelList,
                 1,
                 R.plurals.move_tab_to_another_window,
-                Collections.singletonList(WINDOW_TITLE_2),
+                Collections.singletonList(INCOGNITO_WINDOW_TITLE),
                 mActivity,
                 /* isIncognito= */ true);
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
+    public void
+            testListMenuItems_incognito_multipleWindows_filtersNonIncognito_incognitoOnlyWindows() {
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
+        setupWithIncognito(/* incognito= */ true);
+        initializeCoordinator();
+        MultiWindowUtils.setInstanceCountForTesting(3);
+        when(mMultiInstanceManager.getInstanceInfo(ACTIVE | OFF_THE_RECORD))
+                .thenReturn(List.of(INSTANCE_INFO_1, INSTANCE_INFO_INCOGNITO));
+
+        var modelList = new ModelList();
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList,
+                new AnchorInfo(
+                        TAB_OUTSIDE_OF_GROUP_ID,
+                        Collections.singletonList(TAB_OUTSIDE_OF_GROUP_ID)));
+
+        assertEquals("Number of items in the list menu is incorrect", 7, modelList.size());
+
+        // Current window (INSTANCE_INFO_1) is filtered because it is the current window.
+        // INSTANCE_INFO_INCOGNITO should be shown.
+        StripLayoutContextMenuCoordinatorTestUtils.verifyAddToWindowSubmenu(
+                modelList,
+                1,
+                R.plurals.move_tab_to_another_window,
+                Collections.singletonList(INCOGNITO_WINDOW_TITLE),
+                mActivity,
+                /* isIncognito= */ true);
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
+    public void testListMenuItems_regular_multipleWindows_filtersIncognito_incognitoOnlyWindows() {
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(true);
+        setupWithIncognito(/* incognito= */ false);
+        initializeCoordinator();
+        MultiWindowUtils.setInstanceCountForTesting(3);
+        when(mMultiInstanceManager.getInstanceInfo(ACTIVE | REGULAR))
+                .thenReturn(List.of(INSTANCE_INFO_1, INSTANCE_INFO_2));
+
+        var modelList = new ModelList();
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList,
+                new AnchorInfo(
+                        TAB_OUTSIDE_OF_GROUP_ID,
+                        Collections.singletonList(TAB_OUTSIDE_OF_GROUP_ID)));
+
+        assertEquals("Number of items in the list menu is incorrect", 7, modelList.size());
+
+        // Current window (INSTANCE_INFO_1) is filtered because it is the current window.
+        // INSTANCE_INFO_2 should be shown.
+        StripLayoutContextMenuCoordinatorTestUtils.verifyAddToWindowSubmenu(
+                modelList,
+                1,
+                R.plurals.move_tab_to_another_window,
+                Collections.singletonList(WINDOW_TITLE_2),
+                mActivity,
+                /* isIncognito= */ false);
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
+    public void
+            testListMenuItems_incognito_multipleWindows_filtersNonIncognito_mixedIncognitoWindows() {
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(false);
+        setupWithIncognito(/* incognito= */ true);
+        initializeCoordinator();
+        MultiWindowUtils.setInstanceCountForTesting(3);
+        when(mMultiInstanceManager.getInstanceInfo(ACTIVE))
+                .thenReturn(List.of(INSTANCE_INFO_1, INSTANCE_INFO_2, INSTANCE_INFO_INCOGNITO));
+
+        var modelList = new ModelList();
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList,
+                new AnchorInfo(
+                        TAB_OUTSIDE_OF_GROUP_ID,
+                        Collections.singletonList(TAB_OUTSIDE_OF_GROUP_ID)));
+
+        assertEquals("Number of items in the list menu is incorrect", 7, modelList.size());
+
+        // Current window (INSTANCE_INFO_1) is filtered because it is the current window.
+        // Other windows should not be filtered out since they can accommodate both incognito and
+        // regular tabs.
+        StripLayoutContextMenuCoordinatorTestUtils.verifyAddToWindowSubmenu(
+                modelList,
+                1,
+                R.plurals.move_tab_to_another_window,
+                List.of(WINDOW_TITLE_2, INCOGNITO_WINDOW_TITLE),
+                mActivity,
+                /* isIncognito= */ true);
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
+    public void testListMenuItems_regular_multipleWindows_filtersIncognito_mixedIncognitoWindows() {
+        IncognitoUtils.setShouldOpenIncognitoAsWindowForTesting(false);
+        setupWithIncognito(/* incognito= */ false);
+        initializeCoordinator();
+        MultiWindowUtils.setInstanceCountForTesting(3);
+        when(mMultiInstanceManager.getInstanceInfo(ACTIVE))
+                .thenReturn(List.of(INSTANCE_INFO_1, INSTANCE_INFO_2, INSTANCE_INFO_INCOGNITO));
+
+        var modelList = new ModelList();
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList,
+                new AnchorInfo(
+                        TAB_OUTSIDE_OF_GROUP_ID,
+                        Collections.singletonList(TAB_OUTSIDE_OF_GROUP_ID)));
+
+        assertEquals("Number of items in the list menu is incorrect", 7, modelList.size());
+
+        // Current window (INSTANCE_INFO_1) is filtered because it is the current window.
+        // Other windows should not be filtered out since they can accommodate both incognito and
+        // regular tabs.
+        StripLayoutContextMenuCoordinatorTestUtils.verifyAddToWindowSubmenu(
+                modelList,
+                1,
+                R.plurals.move_tab_to_another_window,
+                List.of(WINDOW_TITLE_2, INCOGNITO_WINDOW_TITLE),
+                mActivity,
+                /* isIncognito= */ false);
     }
 
     @Test
@@ -959,10 +1106,7 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({
-        ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP,
-        ChromeFeatureList.ANDROID_PINNED_TABS_TABLET_TAB_STRIP
-    })
+    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_tabOutsideOfGroup_pinnedTabs_showPinTabOption() {
         MultiWindowUtils.setInstanceCountForTesting(1);
@@ -1009,7 +1153,6 @@ public class TabContextMenuCoordinatorUnitTest {
     @Feature("Tab Strip Context Menu")
     @EnableFeatures({
         ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP,
-        ChromeFeatureList.ANDROID_PINNED_TABS_TABLET_TAB_STRIP,
     })
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_tabOutsideOfGroup_pinnedTabs_showPinTabOption_multipleTabs() {
@@ -1050,10 +1193,7 @@ public class TabContextMenuCoordinatorUnitTest {
 
     @Test
     @Feature("Tab Strip Context Menu")
-    @EnableFeatures({
-        ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP,
-        ChromeFeatureList.ANDROID_PINNED_TABS_TABLET_TAB_STRIP
-    })
+    @EnableFeatures({ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP})
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_tabOutsideOfGroup_pinnedTabs_showUnpinTabOption() {
         MultiWindowUtils.setInstanceCountForTesting(1);
@@ -1103,7 +1243,6 @@ public class TabContextMenuCoordinatorUnitTest {
     @Feature("Tab Strip Context Menu")
     @EnableFeatures({
         ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP,
-        ChromeFeatureList.ANDROID_PINNED_TABS_TABLET_TAB_STRIP,
     })
     @SuppressWarnings("DirectInvocationOnMock")
     public void testListMenuItems_tabOutsideOfGroup_pinnedTabs_showUnpinTabOption_multipleTabs() {
@@ -1253,6 +1392,7 @@ public class TabContextMenuCoordinatorUnitTest {
         verify(mMultiInstanceManager)
                 .moveTabsToOtherWindow(
                         Collections.singletonList(mTabOutsideOfGroup), NewWindowAppSource.MENU);
+        verify(mMultiInstanceManager).closeChromeWindowIfEmpty(INSTANCE_ID_1);
     }
 
     @Test
@@ -1283,6 +1423,7 @@ public class TabContextMenuCoordinatorUnitTest {
                         Collections.singletonList(mTabOutsideOfGroup),
                         /* destTabIndex= */ TabList.INVALID_TAB_INDEX,
                         /* destGroupTabId= */ TabList.INVALID_TAB_INDEX);
+        verify(mMultiInstanceManager).closeChromeWindowIfEmpty(INSTANCE_ID_1);
     }
 
     @Test
@@ -1984,6 +2125,53 @@ public class TabContextMenuCoordinatorUnitTest {
                     mActivity.getResources().getQuantityString(R.plurals.move_tabs_right, 1),
                     listItem.model.get(TITLE));
         }
+    }
+
+    @Test
+    @Feature("Tab Strip Context Menu")
+    @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
+    public void testListMenuItems_moveTabItems_incognito() {
+        setupWithIncognito(/* incognito= */ true);
+        initializeCoordinator();
+        mTabContextMenuCoordinator.setIsGesturesEnabledForTesting(true);
+
+        var modelList = new ModelList();
+        when(mTabModel.indexOf(mTab1)).thenReturn(1);
+        when(mTabModel.getCount()).thenReturn(3);
+        mTabContextMenuCoordinator.configureMenuItemsForTesting(
+                modelList, new AnchorInfo(TAB_ID, Collections.singletonList(TAB_ID)));
+
+        // Move items are at index 2 and 3.
+        // Item 0: Add to new group
+        // Item 1: Divider
+        // Item 2: Move left
+        // Item 3: Move right
+
+        ListItem moveStartItem = modelList.get(2);
+        assertEquals(
+                "Expected text appearance ID to be set to"
+                        + " R.style.TextAppearance_DensityAdaptive_TextLarge_Primary_Baseline_Light"
+                        + " in incognito",
+                R.style.TextAppearance_DensityAdaptive_TextLarge_Primary_Baseline_Light,
+                moveStartItem.model.get(ListMenuItemProperties.TEXT_APPEARANCE_ID));
+        assertEquals(
+                "Expected icon tint to be set to R.color.default_icon_color_light_tint_list in"
+                        + " incognito",
+                R.color.default_icon_color_light_tint_list,
+                moveStartItem.model.get(ListMenuItemProperties.ICON_TINT_COLOR_STATE_LIST_ID));
+
+        ListItem moveEndItem = modelList.get(3);
+        assertEquals(
+                "Expected text appearance ID to be set to"
+                        + " R.style.TextAppearance_DensityAdaptive_TextLarge_Primary_Baseline_Light"
+                        + " in incognito",
+                R.style.TextAppearance_DensityAdaptive_TextLarge_Primary_Baseline_Light,
+                moveEndItem.model.get(ListMenuItemProperties.TEXT_APPEARANCE_ID));
+        assertEquals(
+                "Expected icon tint to be set to R.color.default_icon_color_light_tint_list in"
+                        + " incognito",
+                R.color.default_icon_color_light_tint_list,
+                moveEndItem.model.get(ListMenuItemProperties.ICON_TINT_COLOR_STATE_LIST_ID));
     }
 
     @Test

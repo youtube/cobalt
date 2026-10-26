@@ -25,6 +25,7 @@
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/buildflags.h"
+#include "components/actor/task_source_info.h"
 #include "components/download/content/public/all_download_item_notifier.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/page_content_annotations/content/page_context_fetcher.h"
@@ -82,23 +83,22 @@ class ActorKeyedService : public KeyedService,
   // `options`, when provided, contains information used to initialize the task.
   // The provided `policy_checker` must be non-null and it must outlive the
   // ActorTask.
-  TaskId CreateTask(const EnterprisePolicyUrlChecker* policy_checker);
-  TaskId CreateTaskWithOptions(const EnterprisePolicyUrlChecker* policy_checker,
+  TaskId CreateTask(const TaskSourceInfo& source_info,
+                    const EnterprisePolicyUrlChecker* policy_checker);
+  TaskId CreateTaskWithOptions(const TaskSourceInfo& source_info,
+                               const EnterprisePolicyUrlChecker* policy_checker,
                                webui::mojom::TaskOptionsPtr options,
                                base::WeakPtr<ActorTaskDelegate> delegate);
   TaskId CreateTaskForTesting(
       std::unique_ptr<actor::ui::UiEventDispatcher> ui_event_dispatcher,
+      const TaskSourceInfo& source_info,
       const EnterprisePolicyUrlChecker* policy_checker,
       webui::mojom::TaskOptionsPtr options,
       base::WeakPtr<ActorTaskDelegate> delegate);
 
   // Executes the given ToolRequest actions using the execution engine for the
   // given task id.
-  // TODO(crbug.com/490381613): `result_code` and `index_of_failed_action` can
-  // be obtained from `action_results`.
   using PerformActionsCallback = base::OnceCallback<void(
-      mojom::ActionResultCode /*result_code*/,
-      std::optional<size_t> /*index_of_failed_action*/,
       std::vector<ActionResultWithLatencyInfo> /* action_results */)>;
   void PerformActions(TaskId task_id,
                       std::vector<std::unique_ptr<ToolRequest>>&& actions,
@@ -179,6 +179,7 @@ class ActorKeyedService : public KeyedService,
  private:
   TaskId CreateTaskImpl(
       std::unique_ptr<actor::ui::UiEventDispatcher> ui_event_dispatcher,
+      const TaskSourceInfo& source_info,
       const EnterprisePolicyUrlChecker* policy_checker,
       webui::mojom::TaskOptionsPtr options,
       base::WeakPtr<ActorTaskDelegate> delegate);
@@ -186,8 +187,6 @@ class ActorKeyedService : public KeyedService,
   // The callback used for ExecutorEngine::Act.
   void OnActionsFinished(
       PerformActionsCallback callback,
-      actor::mojom::ActionResultPtr action_result,
-      std::optional<size_t> index_of_failed_action,
       std::vector<ActionResultWithLatencyInfo> action_results);
 
   // The jounrnal should be last in destruction order since other things like

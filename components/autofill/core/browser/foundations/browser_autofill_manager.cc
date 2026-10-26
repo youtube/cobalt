@@ -31,7 +31,6 @@
 #include "base/command_line.h"
 #include "base/containers/adapters.h"
 #include "base/containers/extend.h"
-#include "base/containers/flat_map.h"
 #include "base/containers/map_util.h"
 #include "base/containers/span.h"
 #include "base/containers/to_vector.h"
@@ -448,6 +447,7 @@ bool IsTriggerSourceOnlyRelevantForCompose(
     case AutofillSuggestionTriggerSource::kProactivePasswordRecovery:
     case AutofillSuggestionTriggerSource::kGlic:
     case AutofillSuggestionTriggerSource::kAtMemory:
+    case AutofillSuggestionTriggerSource::kAtMemoryContextMenu:
       return false;
   }
 }
@@ -552,6 +552,7 @@ DenseSet<FillingProduct> GetFillingProductsToSuggest(
       return {FillingProduct::kAddress, FillingProduct::kCreditCard,
               FillingProduct::kPassword};
     case kAtMemory:
+    case kAtMemoryContextMenu:
       return {FillingProduct::kAtMemory};
   }
 }
@@ -632,13 +633,11 @@ bool WasEmailOverrideAppliedOnSuggestions(
 // Triggers the possible import of submitted data at submission time.
 void MaybeImportFromSubmittedForm(AutofillClient& client,
                                   ukm::SourceId ukm_source_id,
-                                  const FormStructure& form_structure,
-                                  const FormData& form_data) {
+                                  const FormStructure& form_structure) {
   // This intentionally happens prior to `ImportAndProcessFormData()`. See
   // crbug.com/381205586.
   ProfileTokenQuality::SaveObservationsForFilledFormForAllSubmittedProfiles(
-      form_structure, form_data,
-      client.GetPersonalDataManager().address_data_manager());
+      form_structure, client.GetPersonalDataManager().address_data_manager());
 
   AutofillAiManager* const ai_manager = client.GetAutofillAiManager();
   const bool autofill_ai_shows_bubble =
@@ -1031,7 +1030,7 @@ void BrowserAutofillManager::OnFormSubmittedImpl(const FormData& form,
   LogSubmissionMetrics(submitted_form.get(), form_submitted_timestamp);
 
   MaybeImportFromSubmittedForm(client(), driver().GetPageUkmSourceId(),
-                               *submitted_form, form);
+                               *submitted_form);
   MaybeAddAddressSuggestionStrikes(client(), *submitted_form);
   client().GetVotesUploader().MaybeStartVoteUploadProcess(
       std::move(submitted_form),
@@ -1266,7 +1265,7 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
   external_delegate_->OnQuery(form, field, caret_bounds, trigger_source,
                               /*update_datalist=*/true);
 
-  if (trigger_source == AutofillSuggestionTriggerSource::kAtMemory) {
+  if (IsAtMemoryTriggerSource(trigger_source)) {
     // Show empty suggestions with a search bar to start the flow.
     external_delegate_->OnSuggestionsReturned(field_id, {});
     return;
@@ -1337,12 +1336,14 @@ void BrowserAutofillManager::OnSuggestionDataFetched(
 
   // Clear some of the suggestions based on the ablation study.
   if (autofill_field &&
+      all_suggestion_data.contains(SuggestionDataSource::kAddress) &&
       !all_suggestion_data[SuggestionDataSource::kAddress].empty() &&
       EvaluateAblationStudy(*autofill_field, FillingProduct::kAddress,
                             /*has_suggestions=*/true)) {
     all_suggestion_data[SuggestionDataSource::kAddress].clear();
   }
   if (autofill_field &&
+      all_suggestion_data.contains(SuggestionDataSource::kCreditCard) &&
       !all_suggestion_data[SuggestionDataSource::kCreditCard].empty() &&
       EvaluateAblationStudy(*autofill_field, FillingProduct::kCreditCard,
                             /*has_suggestions=*/true)) {
@@ -1356,7 +1357,8 @@ void BrowserAutofillManager::OnSuggestionDataFetched(
   const DenseSet<SuggestionDataSource>* supported_mergeable_sources;
   for (SuggestionDataSource source :
        SuggestionGenerator::kOrderedPrioritizedSources) {
-    if (all_suggestion_data[source].empty()) {
+    if (!all_suggestion_data.contains(source) ||
+        all_suggestion_data[source].empty()) {
       continue;
     }
     if (!highest_priority_source.has_value()) {
@@ -1368,7 +1370,7 @@ void BrowserAutofillManager::OnSuggestionDataFetched(
     }
     if (!supported_mergeable_sources ||
         !supported_mergeable_sources->contains(source)) {
-      all_suggestion_data[source].clear();
+      all_suggestion_data.erase(source);
     }
   }
 
@@ -1388,19 +1390,139 @@ void BrowserAutofillManager::OnIndividualSuggestionsGenerated(
     base::TimeTicks suggestion_generation_start_time,
     std::vector<SuggestionGenerator::ReturnedSuggestions>
         returned_suggestions) {
-  // TODO(crbug.com/409962888): Add logic to discard/merge
-  // `returned_suggestions` into a single list.
-  std::vector<Suggestion> suggestions;
-  for (auto& [filling_product, filling_suggestions] : returned_suggestions) {
-    base::Extend(suggestions, std::move(filling_suggestions));
-  }
-
-  OnGenerateSuggestionsComplete(form_id, field_id, trigger_source, context,
-                                suggestion_generation_start_time,
-                                /*show_suggestions=*/true, suggestions);
   // Suggestion generators lifespan should be limited to only when they are
   // needed.
   suggestion_generators_.clear();
+
+  std::map<FillingProduct, std::vector<Suggestion>> suggestions_map;
+  for (auto& [filling_product, suggestions] : returned_suggestions) {
+    if (suggestions.empty()) {
+      continue;
+    }
+    suggestions_map[filling_product] = std::move(suggestions);
+  }
+
+  auto passkey_suggestions = suggestions_map.extract(FillingProduct::kPasskey);
+
+  auto on_generate_suggestions_complete =
+      [&](std::vector<Suggestion> suggestions) {
+        // Handle passkeys separately, since they can merge with every
+        // suggestion.
+        if (!passkey_suggestions.empty()) {
+          CHECK(passkey_suggestions.mapped().size() == 1);
+          MergePasskeysAndExistingSuggestions(
+              suggestions, std::move(passkey_suggestions.mapped()[0]));
+        }
+        OnGenerateSuggestionsComplete(form_id, field_id, trigger_source,
+                                      context, suggestion_generation_start_time,
+                                      /*show_suggestions=*/true, suggestions);
+      };
+
+  if (suggestions_map.empty()) {
+    on_generate_suggestions_complete({});
+    return;
+  }
+
+  if (suggestions_map.contains(FillingProduct::kAddress)) {
+    on_generate_suggestions_complete(MergeWithAddressSuggestions(
+        suggestions_map, form_id, field_id, trigger_source));
+    return;
+  }
+
+  if (suggestions_map.contains(FillingProduct::kPlusAddresses)) {
+    on_generate_suggestions_complete(
+        MergeWithPlusAddressSuggestions(suggestions_map));
+    return;
+  }
+
+  // This ensures we cover all merge cases above, and avoid any other wrong
+  // combination during prioritization.
+  CHECK_EQ(suggestions_map.size(), 1u);
+  on_generate_suggestions_complete(suggestions_map.begin()->second);
+}
+
+std::vector<Suggestion> BrowserAutofillManager::MergeWithAddressSuggestions(
+    std::map<FillingProduct, std::vector<Suggestion>>& suggestions_map,
+    const FormGlobalId& form_id,
+    const FieldGlobalId& field_id,
+    AutofillSuggestionTriggerSource trigger_source) {
+  auto extract_vector = [&suggestions_map](FillingProduct product) {
+    auto node = suggestions_map.extract(product);
+    return node.empty() ? std::vector<Suggestion>() : std::move(node.mapped());
+  };
+
+  std::vector<Suggestion> address_suggestions =
+      extract_vector(FillingProduct::kAddress);
+  std::vector<Suggestion> plus_address_suggestions =
+      extract_vector(FillingProduct::kPlusAddresses);
+  std::vector<Suggestion> identity_credentials_suggestions =
+      extract_vector(FillingProduct::kIdentityCredential);
+  std::vector<Suggestion> loyalty_card_suggestions =
+      extract_vector(FillingProduct::kLoyaltyCard);
+
+  CHECK(suggestions_map.empty())
+      << "Some suggestions not currently supported with addresses were "
+         "generated. "
+      << FillingProductToString(suggestions_map.begin()->first);
+
+  if (!loyalty_card_suggestions.empty()) {
+    MergeLoyaltyCardsAndAddressSuggestions(address_suggestions,
+                                           std::move(loyalty_card_suggestions));
+  }
+
+  if (!identity_credentials_suggestions.empty()) {
+    MergeIdentityCredentialsAndAddressSuggestions(
+        address_suggestions, std::move(identity_credentials_suggestions));
+  }
+
+  // TODO(crbug.com/409962888): Move the call to
+  // WasEmailOverrideAppliedOnSuggestions into
+  // MergeAddressAndPlusAddressSuggestions after the old suggestion generation
+  // flow is removed.
+  // TODO(crbug.com/409962888): Make MergeAddressAndPlusAddressSuggestions merge
+  // into address suggestions, not plus address suggestions, after the old flow
+  // is removed.
+  if (plus_address_suggestions.empty() &&
+      !WasEmailOverrideAppliedOnSuggestions(address_suggestions)) {
+    MergeAddressAndPlusAddressSuggestions(plus_address_suggestions,
+                                          std::move(address_suggestions),
+                                          trigger_source, form_id, field_id);
+    return plus_address_suggestions;
+  }
+  return address_suggestions;
+}
+
+std::vector<Suggestion> BrowserAutofillManager::MergeWithPlusAddressSuggestions(
+    std::map<FillingProduct, std::vector<Suggestion>>& suggestions_map) {
+  auto extract_vector = [&suggestions_map](FillingProduct product) {
+    auto node = suggestions_map.extract(product);
+    return node.empty() ? std::vector<Suggestion>() : std::move(node.mapped());
+  };
+
+  std::vector<Suggestion> plus_address_suggestions =
+      extract_vector(FillingProduct::kPlusAddresses);
+  std::vector<Suggestion> identity_credential_suggestions =
+      extract_vector(FillingProduct::kIdentityCredential);
+  std::vector<Suggestion> autocomplete_suggestions =
+      extract_vector(FillingProduct::kAutocomplete);
+
+  CHECK(suggestions_map.empty())
+      << "Some suggestions not currently supported with plus addresses were "
+         "generated. "
+      << FillingProductToString(suggestions_map.begin()->first);
+
+  // 'else' is intentional: autocomplete doesn't merge with identity
+  // credentials.
+  if (!identity_credential_suggestions.empty()) {
+    MergeIdentityCredentialsAndAddressSuggestions(
+        plus_address_suggestions, identity_credential_suggestions);
+  } else if (!autocomplete_suggestions.empty()) {
+    MergeAutocompleteAndPlusAddressSuggestions(
+        plus_address_suggestions, std::move(autocomplete_suggestions),
+        AutofillPlusAddressDelegate::SuggestionContext::kAutocomplete);
+  }
+
+  return plus_address_suggestions;
 }
 
 void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase1(
@@ -1839,10 +1961,30 @@ void BrowserAutofillManager::OnGenerateSuggestionsComplete(
          eligible_features) {
       switch (eligible_feature) {
         case AmountExtractionManager::EligibleFeature::kBnpl:
-          if (!base::FeatureList::IsEnabled(
-                  features::kAutofillEnableAiBasedAmountExtraction)) {
+          const bool ai_amount_extraction_disabled =
+              !base::FeatureList::IsEnabled(
+                  features::kAutofillEnableAiBasedAmountExtraction);
+          const bool pay_later_tabs_enabled = base::FeatureList::IsEnabled(
+              features::kAutofillEnablePayNowPayLaterTabs);
+
+          // Notifying BNPL manager of suggestion generation is only necessary
+          // for flows that do an update of the suggestions dropdown. In the
+          // regex-based amount extraction approach, the dropdown is updated to
+          // add the BNPL chip so suggestion generation notification is
+          // necessary. In the AI-based amount extraction case, no suggestion
+          // dropdown updates happen so it's not necessary. For pay later tabs,
+          // once again suggestions are updated (switching out progress
+          // suggestion with regular BNPL suggestions), so suggestion generation
+          // notification is necessary again.
+          if (ai_amount_extraction_disabled || pay_later_tabs_enabled) {
             GetPaymentsBnplManager()->NotifyOfSuggestionGeneration(
                 trigger_source);
+          }
+
+          // This is the entry point for regex-based amount extraction. If
+          // AI-based amount extraction is enabled, this should not be
+          // triggered.
+          if (ai_amount_extraction_disabled) {
             GetAmountExtractionManager().TriggerCheckoutAmountExtraction();
           }
       }
@@ -3355,10 +3497,8 @@ std::vector<Suggestion> BrowserAutofillManager::GetAvailableSuggestions(
             form, *form_structure, field, *autofill_field,
             std::move(plus_address_email_override), trigger_source);
       }
-      if (base::FeatureList::IsEnabled(
-              features::kAutofillEnableEmailOrLoyaltyCardsFilling) &&
-          autofill_field->Type().GetLoyaltyCardType() ==
-              EMAIL_OR_LOYALTY_MEMBERSHIP_ID) {
+      if (autofill_field->Type().GetLoyaltyCardType() ==
+          EMAIL_OR_LOYALTY_MEMBERSHIP_ID) {
         if (ValuablesDataManager* valuables_manager =
                 client().GetValuablesDataManager()) {
           if (suggestions.empty()) {
@@ -3394,14 +3534,11 @@ std::vector<Suggestion> BrowserAutofillManager::GetAvailableSuggestions(
       }
       break;
     case FillingProduct::kLoyaltyCard:
-      if (base::FeatureList::IsEnabled(
-              features::kAutofillEnableLoyaltyCardsFilling)) {
-        // Only loyalty card numbers filling is supported.
-        if (autofill_field->Type().GetLoyaltyCardType() ==
-            LOYALTY_MEMBERSHIP_ID) {
-          suggestions = GetLoyaltyCardSuggestions(form, form_structure, field,
-                                                  autofill_field);
-        }
+      // Only loyalty card numbers filling is supported.
+      if (autofill_field->Type().GetLoyaltyCardType() ==
+          LOYALTY_MEMBERSHIP_ID) {
+        suggestions = GetLoyaltyCardSuggestions(form, form_structure, field,
+                                                autofill_field);
       }
       break;
     case FillingProduct::kOneTimePassword:

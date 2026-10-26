@@ -15,10 +15,10 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <span>
 
 #include "absl/numeric/bits.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {
@@ -54,7 +54,7 @@ uint8_t WritePartialByte(uint8_t source,
 
 }  // namespace
 
-BitBufferWriter::BitBufferWriter(ArrayView<uint8_t> bytes)
+BitBufferWriter::BitBufferWriter(std::span<uint8_t> bytes)
     : BitBufferWriter(bytes.data(), bytes.size()) {}
 
 BitBufferWriter::BitBufferWriter(uint8_t* bytes, size_t byte_count)

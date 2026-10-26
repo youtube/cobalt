@@ -326,7 +326,7 @@ class MaglevGraphBuilder {
   }
   NodeType GetType(ValueNode* node,
                    AllowWideningSmiToInt32 allow_widening_smi_to_int32 =
-                       AllowWideningSmiToInt32::kDontAllow) {
+                       AllowWideningSmiToInt32::kAllow) {
     return reducer_.GetType(node, allow_widening_smi_to_int32);
   }
   NodeInfo* GetOrCreateInfoFor(ValueNode* node) {
@@ -421,6 +421,7 @@ class MaglevGraphBuilder {
 
   bool ContextMayAlias(ValueNode* context,
                        compiler::OptionalScopeInfoRef scope_info);
+
   MaybeReduceResult TrySpecializeLoadContextSlotToFunctionContext(
       ValueNode* context, int index, VariableMode mode,
       MaybeAssignedFlag assigned);
@@ -968,6 +969,11 @@ class MaglevGraphBuilder {
 
   MaybeReduceResult TryReduceGetIterator(ValueNode* receiver, int load_slot,
                                          int call_slot);
+
+  MaybeReduceResult TryReduceForOfNext(
+      ValueNode* iterator, ValueNode* next_method,
+      std::pair<interpreter::Register, interpreter::Register> result_pair,
+      int call_slot);
 
   MaybeReduceResult BuildCallSelf(ValueNode* context, ValueNode* function,
                                   ValueNode* new_target,

@@ -236,13 +236,15 @@ class ServiceWorkerTaskQueue
   void OnWorkerStartFail(const SequencedContextId& context_id,
                          base::Time start_time,
                          content::StatusCodeResponse status) override;
-  void OnWorkerStop(int64_t version_id, const GURL& scope) override;
+  void OnWorkerStop(int64_t version_id,
+                    const blink::ServiceWorkerToken& service_worker_token,
+                    const GURL& scope) override;
 
   // content::ServiceWorkerContextObserverSynchronous:
   void OnRegistrationStoredSync(int64_t registration_id,
                                 const GURL& scope) override;
   void OnReportConsoleMessageSync(
-      int render_process_id,
+      content::ChildProcessId render_process_id,
       int64_t version_id,
       const GURL& scope,
       const content::ConsoleMessage& message) override;

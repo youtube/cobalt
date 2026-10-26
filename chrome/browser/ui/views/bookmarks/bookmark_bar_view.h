@@ -242,6 +242,11 @@ class BookmarkBarView : public views::AccessiblePaneView,
       const gfx::Point& point,
       ui::mojom::MenuSourceType source_type) override;
 
+  void RunContextMenuAt(std::vector<int64_t> node_ids,
+                        const gfx::Point& point,
+                        ui::mojom::MenuSourceType source_type,
+                        bool can_paste);
+
   // BookmarkContextMenuObserver:
   void WillRemoveBookmarks(
       const std::vector<raw_ptr<const bookmarks::BookmarkNode,

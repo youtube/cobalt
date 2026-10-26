@@ -115,9 +115,10 @@ std::u16string GetFillValueForEntity(
     }
   }
 
-  return GetFillValueForEntity(entity, fields_and_types, *fields[0],
-                               action_persistence, app_locale,
-                               address_normalizer);
+  return GetFillingValueAndTypeForEntity(entity, fields_and_types, *fields[0],
+                                         action_persistence, app_locale,
+                                         address_normalizer)
+      .value;
 }
 
 // Wrapper for GetFillValueForEntity() that calls DetermineAttributeTypes() for
@@ -141,7 +142,7 @@ class FieldFillingEntityUtilTest : public testing::Test {
         client().GetSyncService(), helper_.autofill_webdata_service(),
         /*history_service=*/nullptr,
         /*strike_database=*/nullptr,
-        /*accessibility_annotator_data_adapter=*/nullptr,
+        /*accessibility_annotator_service=*/nullptr,
         /*variation_country_code=*/GeoIpCountryCode("US")));
     client().SetUpPrefsAndIdentityForAutofillAi();
 

@@ -20,12 +20,12 @@ bool IsCharacterAllowedInBase(UChar);
 
 template <>
 bool IsCharacterAllowedInBase<10>(UChar c) {
-  return IsASCIIDigit(c);
+  return IsAsciiDigit(c);
 }
 
 template <>
 bool IsCharacterAllowedInBase<16>(UChar c) {
-  return IsASCIIHexDigit(c);
+  return IsAsciiHexDigit(c);
 }
 
 template <typename IntegralType, typename CharType, int base>
@@ -79,12 +79,13 @@ static inline IntegralType ToIntegralType(base::span<const CharType> chars,
     --length;
     IntegralType digit_value;
     CharType c = data[index];
-    if (IsASCIIDigit(c))
+    if (IsAsciiDigit(c)) {
       digit_value = c - '0';
-    else if (c >= 'a')
+    } else if (c >= 'a') {
       digit_value = c - 'a' + 10;
-    else
+    } else {
       digit_value = c - 'A' + 10;
+    }
 
     if (is_negative) {
       if (!kIsSigned && options.AcceptMinusZeroForUnsigned()) {

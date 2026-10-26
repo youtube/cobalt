@@ -34,12 +34,14 @@ class VerticalTabDragHandler {
  public:
   virtual ~VerticalTabDragHandler() = default;
   // Initializes a drag using `node` as the tab node that received `event`.
-  virtual void InitializeDrag(TabCollectionNode& node,
-                              const ui::MouseEvent& event) = 0;
+  virtual void InitializeDrag(
+      TabCollectionNode& node,
+      const ui::ListSelectionModel& original_selection_model,
+      const ui::LocatedEvent& event) = 0;
   // Triggers updates to tab dragging state based on the latest mouse event.
   // Returns a bool indicating whether the drag was successfully handled.
   virtual bool ContinueDrag(views::View& event_source_view,
-                            const ui::MouseEvent& event) = 0;
+                            const ui::LocatedEvent& event) = 0;
   // Ends the drag, if started.
   virtual void EndDrag(EndDragReason reason) = 0;
 
@@ -97,6 +99,14 @@ class VerticalTabDragHandler {
   virtual std::optional<BrowserRootView::DropIndex> GetLinkDropIndexForNode(
       const TabCollectionNode& node,
       std::optional<DragPositionHint> position_hint) const = 0;
+
+  // Called before a tab is added to the tabstrip. Cancels the current drag if
+  // there is one.
+  virtual void OnTabWillBeAdded() = 0;
+
+  // Called before a tab is removed from the tabstrip. Cancels the current drag
+  // if the tab is one of the dragged tabs.
+  virtual void OnTabWillBeRemoved(content::WebContents* contents) = 0;
 };
 
 // Implements a minimal drag context to interact with the central
@@ -114,9 +124,10 @@ class VerticalTabDragHandlerImpl : public VerticalTabDragHandler,
 
   // VerticalTabDragHandler
   void InitializeDrag(TabCollectionNode& node,
-                      const ui::MouseEvent& event) override;
+                      const ui::ListSelectionModel& original_selection_model,
+                      const ui::LocatedEvent& event) override;
   bool ContinueDrag(views::View& event_source_view,
-                    const ui::MouseEvent& event) override;
+                    const ui::LocatedEvent& event) override;
   void EndDrag(EndDragReason reason) override;
   void HandleDraggedTabsOverNode(
       const TabCollectionNode& node,
@@ -137,9 +148,12 @@ class VerticalTabDragHandlerImpl : public VerticalTabDragHandler,
   std::optional<BrowserRootView::DropIndex> GetLinkDropIndexForNode(
       const TabCollectionNode& node,
       std::optional<DragPositionHint> position_hint) const override;
+  void OnTabWillBeAdded() override;
+  void OnTabWillBeRemoved(content::WebContents* contents) override;
 
   // TabDragContext
   bool CanAcceptEvent(const ui::Event& event) override;
+  void OnGestureEvent(ui::GestureEvent* event) override;
   void OnMouseReleased(const ui::MouseEvent& event) override;
   bool OnMouseDragged(const ui::MouseEvent& event) override;
   void OnMouseCaptureLost() override;

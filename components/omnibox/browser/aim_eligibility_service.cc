@@ -521,17 +521,17 @@ bool AimEligibilityService::IsCanvasEligible() const {
 bool AimEligibilityService::IsCobrowseEligible() const {
   if (!base::FeatureList::IsEnabled(
           omnibox::kAimCoBrowseEligibilityCheckEnabled)) {
-    return true;
+    return IsEligibleByServer(true);
   }
-  return GetMostRecentResponse().is_cobrowse_eligible();
+  return IsEligibleByServer(GetMostRecentResponse().is_cobrowse_eligible());
 }
 
 bool AimEligibilityService::IsFuseboxEligible() const {
   if (!base::FeatureList::IsEnabled(
           omnibox::kAimFuseboxEligibilityCheckEnabled)) {
-    return true;
+    return IsEligibleByServer(true);
   }
-  return GetMostRecentResponse().is_fusebox_eligible();
+  return IsEligibleByServer(GetMostRecentResponse().is_fusebox_eligible());
 }
 
 bool AimEligibilityService::HasAimUrlParams(const GURL& url) const {
@@ -949,6 +949,8 @@ GURL AimEligibilityService::GetRequestUrl(
   replacements.SetPathStr(kRequestPath);
   replacements.SetQueryStr(kRequestQuery);
   GURL url = base_gurl.ReplaceComponents(replacements);
+
+  url = net::AppendQueryParameter(url, "udm", "50");
 
   if (base::FeatureList::IsEnabled(omnibox::kAimUrlInterceptPassthrough) &&
       !omnibox::kAimUrlInterceptionParams.Get().empty()) {

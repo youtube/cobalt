@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -22,7 +23,6 @@
 #include "absl/algorithm/container.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/rtc_error.h"
@@ -653,7 +653,7 @@ void Connection::MaybeHandleDtlsPiggybackingAttributes(
       msg->GetByteString(STUN_ATTR_META_DTLS_IN_STUN);
   const StunByteStringAttribute* dtls_piggyback_ack =
       msg->GetByteString(STUN_ATTR_META_DTLS_IN_STUN_ACK);
-  std::optional<ArrayView<uint8_t>> piggyback_data;
+  std::optional<std::span<uint8_t>> piggyback_data;
   if (dtls_piggyback_attr != nullptr) {
     piggyback_data = dtls_piggyback_attr->array_view();
   }

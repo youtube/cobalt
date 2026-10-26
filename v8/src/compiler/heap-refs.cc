@@ -355,7 +355,8 @@ std::optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
       Tagged<PropertyArray> properties =
           Cast<PropertyArray>(raw_properties_or_hash);
       const int array_index = field_index.outobject_array_index();
-      if (array_index < properties->length(kAcquireLoad)) {
+      if (static_cast<uint32_t>(array_index) <
+          properties->length(kAcquireLoad).value()) {
         constant = properties->get(array_index);
       } else {
         TRACE_BROKER_MISSING(
@@ -1711,11 +1712,6 @@ HeapObjectRef RegExpBoilerplateDescriptionRef::data(
       broker, Cast<HeapObject>(object()->data(broker->isolate())));
 }
 
-StringRef RegExpBoilerplateDescriptionRef::source(JSHeapBroker* broker) const {
-  // Immutable after initialization.
-  return MakeRefAssumeMemoryFence(broker, object()->source());
-}
-
 int RegExpBoilerplateDescriptionRef::flags() const { return object()->flags(); }
 
 Address FunctionTemplateInfoRef::callback(JSHeapBroker* broker) const {
@@ -1910,7 +1906,9 @@ bool JSTypedArrayRef::is_on_heap() const {
 }
 
 size_t JSTypedArrayRef::length(JSHeapBroker* broker) const {
-  DCHECK_NE(map(broker).instance_type(), JS_DETACHED_TYPED_ARRAY_TYPE);
+  if (map(broker).instance_type() == JS_DETACHED_TYPED_ARRAY_TYPE) {
+    return 0;
+  }
   return object()->byte_length() /
          ElementsKindToByteSize(elements_kind(broker));
 }

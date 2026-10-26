@@ -41,6 +41,7 @@
 #include "api/video/video_frame.h"
 #include "api/video/video_layers_allocation.h"
 #include "api/video/video_source_interface.h"
+#include "api/video/video_stream_encoder_settings.h"
 #include "api/video_codecs/video_encoder.h"
 #include "call/bitrate_allocator.h"
 #include "call/rtp_config.h"
@@ -88,20 +89,22 @@ class VideoSendStreamImpl : public webrtc::VideoSendStream,
   using RtpStateMap = std::map<uint32_t, RtpState>;
   using RtpPayloadStateMap = std::map<uint32_t, RtpPayloadState>;
 
-  VideoSendStreamImpl(const Environment& env,
-                      int num_cpu_cores,
-                      RtcpRttStats* call_stats,
-                      RtpTransportControllerSendInterface* transport,
-                      Metronome* metronome,
-                      BitrateAllocatorInterface* bitrate_allocator,
-                      SendDelayStats* send_delay_stats,
-                      VideoSendStream::Config config,
-                      VideoEncoderConfig encoder_config,
-                      const RtpStateMap& suspended_ssrcs,
-                      const RtpPayloadStateMap& suspended_payload_states,
-                      std::unique_ptr<FecController> fec_controller,
-                      std::unique_ptr<VideoStreamEncoderInterface>
-                          video_stream_encoder_for_test = nullptr);
+  VideoSendStreamImpl(
+      const Environment& env,
+      int num_cpu_cores,
+      RtcpRttStats* call_stats,
+      RtpTransportControllerSendInterface* transport,
+      Metronome* metronome,
+      BitrateAllocatorInterface* bitrate_allocator,
+      SendDelayStats* send_delay_stats,
+      VideoSendStream::Config config,
+      VideoEncoderConfig encoder_config,
+      const RtpStateMap& suspended_ssrcs,
+      const RtpPayloadStateMap& suspended_payload_states,
+      std::unique_ptr<FecController> fec_controller,
+      EncoderSwitchRequestCallback encoder_switch_request_callback = nullptr,
+      std::unique_ptr<VideoStreamEncoderInterface>
+          video_stream_encoder_for_test = nullptr);
   ~VideoSendStreamImpl() override;
 
   void DeliverRtcp(std::span<const uint8_t> packet);

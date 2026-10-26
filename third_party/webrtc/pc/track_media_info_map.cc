@@ -41,13 +41,24 @@ const V* FindAddressOrNull(const flat_map<K, V>& map, const K& key) {
 
 flat_map<uint32_t, int> GetSenderAttachmentIds(
     std::span<const TrackMediaInfoMap::RtpSenderSignalInfo> senders,
+    std::span<const RtpParameters> sender_parameters,
     MediaType media_type) {
+  RTC_DCHECK_EQ(senders.size(), sender_parameters.size());
   flat_map<uint32_t, int> result;
-  for (const auto& sender : senders) {
-    if (sender.media_type != media_type || sender.ssrc == 0) {
+  for (size_t i = 0; i < senders.size(); ++i) {
+    const auto& sender = senders[i];
+    if (sender.media_type != media_type) {
       continue;
     }
-    result[sender.ssrc] = sender.attachment_id;
+    const auto& parameters = sender_parameters[i];
+    if (sender.ssrc != 0) {
+      result[sender.ssrc] = sender.attachment_id;
+    }
+    for (const auto& encoding : parameters.encodings) {
+      if (encoding.ssrc) {
+        result[*encoding.ssrc] = sender.attachment_id;
+      }
+    }
   }
   return result;
 }
@@ -132,14 +143,15 @@ TrackMediaInfoMap::TrackMediaInfoMap(
     std::optional<VoiceMediaInfo> voice_media_info,
     std::optional<VideoMediaInfo> video_media_info,
     std::span<const RtpSenderSignalInfo> senders,
+    std::span<const RtpParameters> sender_parameters,
     std::span<const RtpReceiverSignalInfo> receivers,
     std::span<const RtpParameters> receiver_parameters)
     : voice_media_info_(std::move(voice_media_info)),
       video_media_info_(std::move(video_media_info)),
       audio_sender_attachment_id_by_ssrc_(
-          GetSenderAttachmentIds(senders, MediaType::AUDIO)),
+          GetSenderAttachmentIds(senders, sender_parameters, MediaType::AUDIO)),
       video_sender_attachment_id_by_ssrc_(
-          GetSenderAttachmentIds(senders, MediaType::VIDEO)),
+          GetSenderAttachmentIds(senders, sender_parameters, MediaType::VIDEO)),
       audio_receiver_attachment_id_by_ssrc_(
           GetReceiverAttachmentIds(receivers,
                                    receiver_parameters,

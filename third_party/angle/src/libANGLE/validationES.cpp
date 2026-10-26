@@ -776,6 +776,19 @@ ANGLE_INLINE const char *ValidateProgramDrawStates(const Context *context,
                 return gl::err::kPLSDrawProgramNoncoherentMismatch;
             }
         }
+
+        if (activePLSCount > 0 && executable.getActiveOutputVariablesMask().test(0))
+        {
+            // INVALID_OPERATION is generated if a draw is issued with a fragment shader that
+            // declares index zero output, but color attachment zero is not present or has an
+            // incompatible numeric type.
+            if (ANGLE_UNLIKELY(!ValidateComponentTypeMasks(
+                    executable.getFragmentOutputsTypeMask().bits(),
+                    framebuffer->getDrawBufferTypeMask().bits(), 0x1, 0x1)))
+            {
+                return kPLSDrawProgramColorAttachment0WorkaroundViolation;
+            }
+        }
     }
 
     // Enabled blend equation validation
@@ -4638,7 +4651,7 @@ bool ValidateSizedGetUniform(const Context *context,
     // sized queries -- ensure the provided buffer is large enough
     const LinkedUniform &uniform =
         programObject->getExecutable().getUniformByLocation(locationPacked);
-    size_t requiredBytes         = VariableExternalSize(uniform.getType());
+    size_t requiredBytes = VariableExternalSize(uniform.getType());
     if (ANGLE_UNLIKELY(static_cast<size_t>(bufSize) < requiredBytes))
     {
         ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kInsufficientBufferSize);
@@ -4665,12 +4678,6 @@ bool ValidateGetnUniformivEXT(const Context *context,
                               GLsizei bufSize,
                               const GLint *params)
 {
-    // TODO(anglebug.com/484215148): Remove this check once CTS is fixed.
-    if (ANGLE_UNLIKELY(bufSize < 0))
-    {
-        ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, kNegativeBufSize);
-        return false;
-    }
     return ValidateSizedGetUniform(context, entryPoint, programPacked, locationPacked, bufSize);
 }
 
@@ -7366,6 +7373,8 @@ bool ValidateTexParameterBase(const Context *context,
             case GL_TEXTURE_COMPARE_MODE:
             case GL_TEXTURE_COMPARE_FUNC:
             case GL_TEXTURE_BORDER_COLOR:
+            case GL_TEXTURE_MAX_ANISOTROPY_EXT:
+            case GL_TEXTURE_SRGB_DECODE_EXT:
                 ANGLE_VALIDATION_ERROR(GL_INVALID_ENUM, kInvalidPname);
                 return false;
         }

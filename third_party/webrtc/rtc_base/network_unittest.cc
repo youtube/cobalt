@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -22,7 +23,6 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
@@ -1745,7 +1745,7 @@ TEST_F(NetworkTest, HardcodedVpn) {
   EXPECT_TRUE(NetworkManagerBase::IsVpnMacAddress(global));
 
   EXPECT_FALSE(
-      NetworkManagerBase::IsVpnMacAddress(ArrayView<const uint8_t>(cisco, 5)));
+      NetworkManagerBase::IsVpnMacAddress(std::span<const uint8_t>(cisco, 5)));
   EXPECT_FALSE(NetworkManagerBase::IsVpnMacAddress(five_bytes));
   EXPECT_FALSE(NetworkManagerBase::IsVpnMacAddress(unknown));
   EXPECT_FALSE(NetworkManagerBase::IsVpnMacAddress({}));

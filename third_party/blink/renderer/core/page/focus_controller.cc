@@ -148,8 +148,14 @@ bool IsScrollMarkerFromScrollerInTabsMode(const Element& maybe_scroll_marker) {
   if (!scroll_marker) {
     return false;
   }
-  Element* scroller = scroll_marker->ScrollMarkerGroup()->parentElement();
-  DCHECK(scroller);
+  ScrollMarkerGroupPseudoElement* group = scroll_marker->ScrollMarkerGroup();
+  if (!group) {
+    return false;
+  }
+  Element* scroller = group->parentElement();
+  if (!scroller) {
+    return false;
+  }
   return IsScrollerInMode(*scroller,
                           ScrollMarkerGroup::ScrollMarkerMode::kTabs);
 }
@@ -231,8 +237,13 @@ Element* GetNextForCarouselPseudoInFocusOrder(
     PseudoId pseudo_id = current.GetPseudoId();
     // Adjust for ::scroll-marker.
     if (auto* scroll_marker = DynamicTo<ScrollMarkerPseudoElement>(current)) {
-      scroller = scroll_marker->ScrollMarkerGroup()->parentElement();
-      pseudo_id = scroll_marker->ScrollMarkerGroup()->GetPseudoId();
+      ScrollMarkerGroupPseudoElement* group =
+          scroll_marker->ScrollMarkerGroup();
+      if (!group) {
+        return nullptr;
+      }
+      scroller = group->parentElement();
+      pseudo_id = group->GetPseudoId();
       // If the scroll-marker-group mode of the scroller is `links`, every
       // scroll marker is a tab stop.
       if (IsScrollerInLinksMode(*scroller)) {
@@ -277,8 +288,13 @@ Element* GetPreviousForCarouselPseudoInFocusOrder(
     PseudoId pseudo_id = current.GetPseudoId();
     // Adjust for ::scroll-marker.
     if (auto* scroll_marker = DynamicTo<ScrollMarkerPseudoElement>(current)) {
-      scroller = scroll_marker->ScrollMarkerGroup()->parentElement();
-      pseudo_id = scroll_marker->ScrollMarkerGroup()->GetPseudoId();
+      ScrollMarkerGroupPseudoElement* group =
+          scroll_marker->ScrollMarkerGroup();
+      if (!group) {
+        return nullptr;
+      }
+      scroller = group->parentElement();
+      pseudo_id = group->GetPseudoId();
       // If the scroll-marker-group mode of the scroller is `links`, every
       // scroll marker is a tab stop.
       if (IsScrollerInLinksMode(*scroller)) {
@@ -320,7 +336,11 @@ Element* PreAdjustPreviousForCarouselFocusOrder(
   Element* scroller = current.parentElement();
   // Adjust for ::scroll-marker.
   if (auto* scroll_marker = DynamicTo<ScrollMarkerPseudoElement>(current)) {
-    scroller = scroll_marker->ScrollMarkerGroup()->parentElement();
+    ScrollMarkerGroupPseudoElement* group = scroll_marker->ScrollMarkerGroup();
+    if (!group) {
+      return nullptr;
+    }
+    scroller = group->parentElement();
   }
   return ElementTraversal::Previous(*scroller, stay_within);
 }
@@ -581,6 +601,8 @@ class FocusNavigation final {
     return FindOwner(*root_);
   }
 
+  ContainerNode* Root() const { return root_; }
+
   bool HasReadingFlowContainer() const { return reading_flow_container_; }
 
  private:
@@ -715,6 +737,7 @@ class ScopedFocusNavigation {
 
   Element* CurrentElement() const { return const_cast<Element*>(current_); }
   Element* Owner();
+  ContainerNode* Root() const { return navigation_.Root(); }
 
   static ScopedFocusNavigation CreateFor(const Element&,
                                          FocusController::OwnerMap&);
@@ -910,8 +933,13 @@ ScopedFocusNavigation ScopedFocusNavigation::OwnedByNonFocusableFocusScopeOwner(
   if (IsReadingFlowScopeOwner(&element)) {
     return ScopedFocusNavigation::OwnedByReadingFlow(element, owner_map);
   }
-  return ScopedFocusNavigation::OwnedByHTMLSlotElement(
-      To<HTMLSlotElement>(element), owner_map);
+  if (auto* slot = DynamicTo<HTMLSlotElement>(element)) {
+    return ScopedFocusNavigation::OwnedByHTMLSlotElement(*slot, owner_map);
+  }
+  if (element.GetOpenPopoverTarget()) {
+    return ScopedFocusNavigation::OwnedByPopoverInvoker(element, owner_map);
+  }
+  NOTREACHED();
 }
 
 ScopedFocusNavigation ScopedFocusNavigation::OwnedByShadowHost(
@@ -1103,6 +1131,10 @@ inline bool IsNonKeyboardFocusableScrollMarkerOwner(const Element& element) {
          !element.IsKeyboardFocusableSlow();
 }
 
+inline bool IsNonKeyboardFocusablePopoverInvoker(const Element& element) {
+  return element.GetOpenPopoverTarget() && !element.IsKeyboardFocusableSlow();
+}
+
 inline bool IsKeyboardFocusableReadingFlowOwner(const Element& element) {
   return IsReadingFlowScopeOwner(&element) && element.IsKeyboardFocusableSlow();
 }
@@ -1118,17 +1150,28 @@ inline bool IsKeyboardFocusableShadowHost(const Element& element) {
           element.IsShadowHostWithDelegatesFocus());
 }
 
+inline bool IsKeyboardFocusablePopoverInvoker(const Element& element) {
+  return element.GetOpenPopoverTarget() && element.IsKeyboardFocusableSlow();
+}
+
 inline bool IsNonFocusableFocusScopeOwner(Element& element) {
   return IsNonKeyboardFocusableShadowHost(element) ||
          IsA<HTMLSlotElement>(element) ||
          IsNonKeyboardFocusableReadingFlowOwner(element) ||
-         IsNonKeyboardFocusableScrollMarkerOwner(element);
+         IsNonKeyboardFocusableScrollMarkerOwner(element) ||
+         IsNonKeyboardFocusablePopoverInvoker(element);
 }
 
 inline bool ShouldVisit(Element& element) {
   DCHECK(!element.IsKeyboardFocusableSlow() ||
          FocusController::AdjustedTabIndex(element) >= 0)
       << "Keyboard focusable element with negative tabindex" << element;
+  if (InvokerForOpenPopover(&element) && !element.IsKeyboardFocusableSlow()) {
+    // Skip open popovers with invokers so they aren't visited at their physical
+    // DOM position, as they are already handled as a nested scope of their
+    // invoker.
+    return false;
+  }
   return element.IsKeyboardFocusableSlow() ||
          element.IsShadowHostWithDelegatesFocus() ||
          IsNonFocusableFocusScopeOwner(element) ||
@@ -1505,10 +1548,20 @@ Element* FindFocusableElementAcrossFocusScopesForward(
   ScopedFocusNavigation current_scope = scope;
   while (!found) {
     Element* owner = current_scope.Owner();
-    if (!owner)
+    if (!owner) {
       break;
-    current_scope = GetScopeFor(owner, owner_map);
-    found = FindFocusableElementRecursivelyForward(current_scope, owner_map);
+    }
+    if (HTMLElement* popover = owner->GetOpenPopoverTarget()) {
+      if (popover != current_scope.Root()) {
+        ScopedFocusNavigation inner_scope =
+            ScopedFocusNavigation::OwnedByPopoverInvoker(*owner, owner_map);
+        found = FindFocusableElementRecursivelyForward(inner_scope, owner_map);
+      }
+    }
+    if (!found) {
+      current_scope = GetScopeFor(owner, owner_map);
+      found = FindFocusableElementRecursivelyForward(current_scope, owner_map);
+    }
   }
   return FindFocusableElementDescendingDownIntoFrameDocument(
       mojom::blink::FocusType::kForward, found, owner_map);
@@ -1541,7 +1594,7 @@ Element* FindFocusableElementAcrossFocusScopesBackward(
       break;
     if ((IsKeyboardFocusableShadowHost(*owner) &&
          !owner->IsShadowHostWithDelegatesFocus()) ||
-        owner->GetOpenPopoverTarget() ||
+        IsKeyboardFocusablePopoverInvoker(*owner) ||
         IsKeyboardFocusableReadingFlowOwner(*owner)) {
       found = owner;
       break;
@@ -2253,7 +2306,8 @@ void FocusController::NotifyFocusChangedObservers() const {
 
 // static
 int FocusController::AdjustedTabIndex(const Element& element) {
-  if (IsNonKeyboardFocusableShadowHost(element)) {
+  if (IsNonKeyboardFocusableShadowHost(element) ||
+      IsNonKeyboardFocusablePopoverInvoker(element)) {
     return 0;
   }
   if (element.IsShadowHostWithDelegatesFocus() ||

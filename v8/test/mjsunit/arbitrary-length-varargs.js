@@ -5,35 +5,39 @@
 // Flags: --superspreading
 
 function runNearStackLimit(f) {
-  let count = 0;
+  let count = -1;
   function t() {
     try {
       t();
       if (count > 0) {
-        if (count == 1) {
-          try {
-            f();
-          } catch (e) {
-            if (e instanceof RangeError) {
-              // TODO(olivf): Remove once all platforms support it
-              console.log("Warning: Vararg optimization seems missing");
-            } else {
-              throw e;
-            }
+        count--;
+      }
+      if (count == 1) {
+        try {
+          f();
+        } catch (e) {
+          if (e instanceof RangeError) {
+            // TODO(olivf): Remove once all platforms support it
+            console.log("Warning: Vararg optimization seems missing");
+          } else {
+            throw e;
           }
         }
-        count--;
       }
       return;
     } catch (e) {
-      // Back off
-      count = 600;
+      if (count == -1) {
+        // Back off
+        count = 1200;
+      } else {
+        throw e;
+      }
     }
   }
   t();
 }
 
-const kSize = 10000;
+const kSize = 32768;
 const spread = new Array(kSize);
 spread[0] = 42;
 spread[1] = 42;
@@ -65,6 +69,7 @@ runNearStackLimit(function TestPushWithSpreadOnly() {
   arr.push(...spread);
   assertEquals(kSize, arr.length);
   assertEquals(42, arr[0]);
+  assertEquals(undefined, arr[3]);
 });
 
 runNearStackLimit(function TestPushWithSpreadAndFollowingArg() {
@@ -77,7 +82,7 @@ runNearStackLimit(function TestPushWithSpreadAndFollowingArg() {
   assertEquals(2, arr[kSize+1]);
 });
 
-runNearStackLimit(function TestPushWithSpreadAndFollowingArg() {
+runNearStackLimit(function TestPushWithPrecedingArgsAndSpreadAndFollowingArg() {
   const arr = [];
   arr.push(1, 2, ...spread, 11, 12);
   assertEquals(kSize + 4, arr.length);
@@ -89,7 +94,7 @@ runNearStackLimit(function TestPushWithSpreadAndFollowingArg() {
   assertEquals(12, arr[kSize+3]);
 });
 
-runNearStackLimit(function TestPushWithSpreadAndFollowingArg() {
+runNearStackLimit(function TestPushWithDoubleSpreadAndArgs() {
   const arr = [];
   arr.push(1, 2, ...spread, 11, 12, ...spread, 333);
   assertEquals(2*kSize + 5, arr.length);
@@ -102,4 +107,20 @@ runNearStackLimit(function TestPushWithSpreadAndFollowingArg() {
   assertEquals(42, arr[kSize+4]);
   assertEquals(42, arr[2*kSize + 3]);
   assertEquals(333, arr[2*kSize + 4]);
+});
+
+runNearStackLimit(function TestPushWithSpreadAndHoles() {
+  const arr = [];
+  const arr2 = [,,23];
+  spread.__proto__ = arr2;
+  arr.push(...spread);
+  assertEquals(42, arr[0]);
+  assertEquals(23, arr[2]);
+});
+
+runNearStackLimit(function TestPushWithLargePrecedingArgs() {
+  const arr = [];
+  const preceding = new Array(100).fill(1);
+  arr.push(...preceding, ...spread);
+  assertEquals(100 + kSize, arr.length);
 });

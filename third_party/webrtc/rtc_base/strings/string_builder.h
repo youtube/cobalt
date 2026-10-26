@@ -12,13 +12,13 @@
 #define RTC_BASE_STRINGS_STRING_BUILDER_H_
 
 #include <cstdio>
+#include <span>
 #include <string>
 #include <utility>
 
 #include "absl/strings/has_absl_stringify.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 
 namespace webrtc {
 
@@ -29,7 +29,7 @@ namespace webrtc {
 // read via `str()`.
 class SimpleStringBuilder {
  public:
-  explicit SimpleStringBuilder(ArrayView<char> buffer);
+  explicit SimpleStringBuilder(std::span<char> buffer);
   SimpleStringBuilder(const SimpleStringBuilder&) = delete;
   SimpleStringBuilder& operator=(const SimpleStringBuilder&) = delete;
 
@@ -76,7 +76,7 @@ class SimpleStringBuilder {
   // size allows the buffer to be stack allocated, which helps performance.
   // Having a fixed size is furthermore useful to avoid unnecessary resizing
   // while building it.
-  const ArrayView<char> buffer_;
+  const std::span<char> buffer_;
 
   // Represents the number of characters written to the buffer.
   // This does not include the terminating '\0'.

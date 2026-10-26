@@ -7,6 +7,7 @@
 
 #include "base/containers/flat_set.h"
 #include "base/containers/span.h"
+#include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/autofill/core/common/unique_ids.h"
 
 namespace autofill {
@@ -70,6 +71,21 @@ enum class SectionSplitPart {
   kAddress
 };
 
+// Metrics enum for tracking the outcome of ShouldSplitOutContactInfo.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(ShouldSplitOutContactInfoResult)
+enum class ShouldSplitOutContactInfoResult {
+  kShouldSplit = 0,
+  kShouldNotSplitFeatureDisabled = 1,
+  kShouldNotSplitNoTriggerFields = 2,
+  kShouldNotSplitFormNotFound = 3,
+  kShouldNotSplitAddressBeforeContactInfo = 4,
+  kShouldNotSplitNoAddressField = 5,
+  kMaxValue = kShouldNotSplitNoAddressField,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/enums.xml:ShouldSplitOutContactInfoResult)
+
 // Returns whether a form fill request should be split into two separate virtual
 // requests: one for contact information and one for address information.
 //
@@ -80,6 +96,21 @@ bool ShouldSplitOutContactInfo(
     base::span<const FieldGlobalId> trigger_fields,
     const AutofillManager& autofill_manager,
     LogManager* log_manager);
+
+// Metrics enum for tracking the outcome of
+// RetargetTriggerFieldForSplittingIfNeeded. These values are persisted to logs.
+// Entries should not be renumbered and numeric values should never be reused.
+// LINT.IfChange(RetargetTriggerFieldResult)
+enum class RetargetTriggerFieldResult {
+  kNotAttemptedNoSplit = 0,
+  kRetargetedToNewField = 1,
+  kRetargetedToSameField = 2,
+  kErrorContactInfoAddressFirst = 3,
+  kErrorContactInfoNotFound = 4,
+  kErrorAddressNotFound = 5,
+  kMaxValue = kErrorAddressNotFound,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/enums.xml:RetargetTriggerFieldResult)
 
 // Given an `original_trigger_field` and `form_structure` identifying a fill
 // into a particular form section and an associated `split_part` indicating
@@ -96,7 +127,8 @@ const AutofillField* RetargetTriggerFieldForSplittingIfNeeded(
 base::flat_set<FieldGlobalId> GetBlockedFieldsForSplit(
     const FormStructure& form_structure,
     const FieldGlobalId& trigger_field_id,
-    SectionSplitPart split_part);
+    SectionSplitPart split_part,
+    mojom::ActionPersistence action_persistence);
 
 }  // namespace actor
 

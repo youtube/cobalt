@@ -25,8 +25,6 @@
 
 #include "third_party/blink/renderer/core/page/stub_context_menu_controller.h"
 
-#include "third_party/blink/public/common/input/web_menu_source_type.h"
-
 #if !BUILDFLAG(IS_COBALT)
 #error "StubContextMenuController should only be used for Cobalt builds."
 #endif
@@ -38,7 +36,7 @@ StubContextMenuController::StubContextMenuController(Page* page)
 bool StubContextMenuController::ShowContextMenu(
     LocalFrame* frame,
     const PhysicalOffset& point,
-    WebMenuSourceType source_type,
+    ui::mojom::blink::MenuSourceType source_type,
     const MouseEvent* mouse_event) {
   return false;
 }

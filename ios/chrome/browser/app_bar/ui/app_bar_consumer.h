@@ -14,6 +14,13 @@ typedef NS_ENUM(NSUInteger, AppBarButtonType) {
   AppBarButtonTypeTabGrid,
 };
 
+// The states for the assistant button.
+enum class AppBarAssistantButtonState {
+  kSignedOut,
+  kAccount,
+  kAsk,
+};
+
 // Consumer of the app bar.
 @protocol AppBarConsumer <NSObject>
 
@@ -29,11 +36,18 @@ typedef NS_ENUM(NSUInteger, AppBarButtonType) {
 // Sets whether a tab group is being shown in the tab grid.
 - (void)setTabGroupVisible:(BOOL)tabGroupVisible;
 
+// Sets whether the active webstate is in a tab group.
+- (void)setInTabGroup:(BOOL)inTabGroup;
+
 // Sets the context menu for the App Bar button with `buttonType`.
 - (void)setMenu:(UIMenu*)menu forButtonType:(AppBarButtonType)buttonType;
 
 // Enables or disables the buttons.
 - (void)setButtonsEnabled:(BOOL)enabled;
+
+// Sets the assistant button state and avatar.
+- (void)setAssistantButtonState:(AppBarAssistantButtonState)state
+                         avatar:(UIImage*)avatar;
 
 @end
 

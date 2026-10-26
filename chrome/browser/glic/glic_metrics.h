@@ -217,7 +217,15 @@ enum class ResponseSegmentation {
   kCaptureRegionHotkeyAttachedAudio = 82,
   kCaptureRegionHotkeyDetachedText = 83,
   kCaptureRegionHotkeyDetachedAudio = 84,
-  kMaxValue = kCaptureRegionHotkeyDetachedAudio,
+  kIphAttachedText = 85,
+  kIphAttachedAudio = 86,
+  kIphDetachedText = 87,
+  kIphDetachedAudio = 88,
+  kAnchoredContextualCueAttachedText = 89,
+  kAnchoredContextualCueAttachedAudio = 90,
+  kAnchoredContextualCueDetachedText = 91,
+  kAnchoredContextualCueDetachedAudio = 92,
+  kMaxValue = kAnchoredContextualCueDetachedAudio,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicResponseSegmentation)
 
@@ -428,6 +436,9 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // Called when kGlicTabContextEnabled changes.
   void OnTabContextEnabledPrefChanged();
 
+  // Records the time from startup until Glic was enabled for the profile.
+  void RecordStartupEnablement();
+
   // Returns the area in the display a given center point is.
   DisplayPosition GetDisplayPositionOfPoint(
       std::optional<display::Display> display,
@@ -497,6 +508,10 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // Whether Glic is enabled and FRE has been completed. Tracked to trigger
   // metric(s) on change.
   bool is_enabled_ = false;
+
+  // Whether we have already recorded the metric that tracks how long it took
+  // for Glic to be enabled since startup.
+  bool recorded_startup_enablement_ = false;
 
   std::vector<base::CallbackListSubscription> subscriptions_;
 

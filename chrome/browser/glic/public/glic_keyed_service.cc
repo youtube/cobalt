@@ -30,6 +30,7 @@
 #include "chrome/browser/glic/actor/glic_actor_task_manager.h"
 #include "chrome/browser/glic/common/application_hotkey_delegate.h"
 #include "chrome/browser/glic/common/future_browser_features.h"
+#include "chrome/browser/glic/common/glic_navigation.h"
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_pref_names.h"
@@ -56,8 +57,11 @@
 #include "chrome/browser/profiles/profile_attributes_storage.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/chrome_features.h"
@@ -307,7 +311,7 @@ void GlicKeyedService::Shutdown() {
   } else {
     CloseAndShutdown();
   }
-  web_contents_warming_pool_->Shutdown();
+  web_contents_warming_pool_->Clear();
 
   GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
   if (glic_profile_manager) {
@@ -329,19 +333,6 @@ void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
   ToggleUI(bwi, prevent_close, source, std::nullopt);
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-void GlicKeyedService::ShowUiWithConversationID(BrowserWindowInterface* bwi,
-                                                mojom::InvocationSource source,
-                                                std::string conversation_id) {
-  CHECK(source == mojom::InvocationSource::kNavigationCapture);
-
-  ToggleUIInternal(
-      bwi, /*prevent_close=*/true, source, /*prompt_suggestion=*/std::nullopt,
-      /*auto_send=*/false, std::make_optional(std::move(conversation_id)));
-}
-#pragma clang diagnostic pop
-
 void GlicKeyedService::ToggleUIInternal(
     BrowserWindowInterface* bwi,
     bool prevent_close,
@@ -360,9 +351,7 @@ void GlicKeyedService::ToggleUIInternal(
   }
 
   // Show the FRE if not yet completed, and if we have a browser to use.
-  // Ignore ShouldBypassFreUi if auto_send is true.
-  if ((!GlicEnabling::ShouldBypassFreUi(profile_, source) || auto_send) &&
-      fre_controller_->ShouldShowFreDialog()) {
+  if (fre_controller_->ShouldShowFreDialog()) {
     fre_controller_->MarkFreStartAttempt();
 #if !BUILDFLAG(IS_ANDROID)  // Single instance only
     if (!GlicEnabling::IsUnifiedFreEnabled(profile_)) {
@@ -632,12 +621,43 @@ tabs::TabInterface* GlicKeyedService::CreateTab(
     std::move(callback).Run(nullptr);
     return nullptr;
   }
-  NavigateParams params(profile_, url, ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-  params.disposition = open_in_background
-                           ? WindowOpenDisposition::NEW_BACKGROUND_TAB
-                           : WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  std::unique_ptr<NavigateParams> params;
+  BrowserWindowInterface* last_active_bwi = nullptr;
+
+  if (base::FeatureList::IsEnabled(features::kGlicCreateTabAdjacent)) {
+    // Find the most recently active browser window for this profile.
+    ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+        [&](BrowserWindowInterface* browser) {
+          if (browser->GetProfile() == profile_) {
+            last_active_bwi = browser;
+            return false;
+          }
+          return true;
+        });
+
+    if (last_active_bwi) {
+      // By setting the `source_contents` and using `PAGE_TRANSITION_LINK`, the
+      // new tab will be opened adjacent to the currently active tab and inherit
+      // its tab group.
+      params = std::make_unique<NavigateParams>(last_active_bwi, url,
+                                                ui::PAGE_TRANSITION_LINK);
+      params->source_contents = TabListInterface::From(last_active_bwi)
+                                    ->GetActiveTab()
+                                    ->GetContents();
+    } else {
+      params = std::make_unique<NavigateParams>(profile_, url,
+                                                ui::PAGE_TRANSITION_LINK);
+    }
+  } else {
+    params = std::make_unique<NavigateParams>(
+        profile_, url, ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+  }
+
+  params->disposition = open_in_background
+                            ? WindowOpenDisposition::NEW_BACKGROUND_TAB
+                            : WindowOpenDisposition::NEW_FOREGROUND_TAB;
   base::WeakPtr<content::NavigationHandle> navigation_handle =
-      DoNavigate(&params);
+      glic::Navigate(std::move(params));
   if (!navigation_handle.get()) {
     std::move(callback).Run(nullptr);
     return nullptr;
@@ -673,8 +693,10 @@ void GlicKeyedService::CreateTask(
     actor::webui::mojom::TaskOptionsPtr options,
     mojom::WebClientHandler::CreateTaskCallback callback) {
   if (actor_task_manager_) {
+    // No conversation id but this code path is going away so it's ok.
     actor_task_manager_->CreateTask(weak_ptr_factory_.GetWeakPtr(),
-                                    std::move(options), std::move(callback));
+                                    /*conversation_id=*/"", std::move(options),
+                                    std::move(callback));
   } else {
     std::move(callback).Run(
         base::unexpected(mojom::CreateTaskErrorReason::kTaskSystemUnavailable));
@@ -829,7 +851,6 @@ void GlicKeyedService::TryPreloadAfterDelay() {
   }
 }
 
-
 void GlicKeyedService::Reload(content::RenderFrameHost* render_frame_host) {
   if (fre_controller_->IsShowingDialog()) {
     if (auto* fre_contents = fre_controller_->GetWebContents()) {
@@ -884,7 +905,6 @@ void GlicKeyedService::FinishPreload(GlicPrewarmingChecksResult result) {
     window_controller().Preload();
   }
 }
-
 
 bool GlicKeyedService::IsProcessHostForGlic(
     content::RenderProcessHost* process_host) {

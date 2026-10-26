@@ -15,13 +15,13 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/field_trials_view.h"
 #include "rtc_base/openssl_stream_adapter.h"
 #include "rtc_base/ssl_identity.h"
@@ -181,7 +181,7 @@ bool SSLStreamAdapter::SetPeerCertificateDigest(
     SSLPeerCertificateDigestError* error) {
   unsigned char* nonconst_val = const_cast<unsigned char*>(digest_val);
   SSLPeerCertificateDigestError ret = SetPeerCertificateDigest(
-      digest_alg, ArrayView<uint8_t>(nonconst_val, digest_len));
+      digest_alg, std::span<uint8_t>(nonconst_val, digest_len));
   if (error)
     *error = ret;
   return ret == SSLPeerCertificateDigestError::NONE;

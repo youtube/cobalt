@@ -14,10 +14,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <utility>
 
 #include "absl/base/nullability.h"
-#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/transport/stun.h"
 #include "rtc_base/async_packet_socket.h"
@@ -89,7 +89,7 @@ int AsyncStunTCPSocket::Send(const void* pv,
   return static_cast<int>(cb);
 }
 
-size_t AsyncStunTCPSocket::ProcessInput(ArrayView<const uint8_t> data) {
+size_t AsyncStunTCPSocket::ProcessInput(std::span<const uint8_t> data) {
   SocketAddress remote_addr(GetRemoteAddress());
   // STUN packet - First 4 bytes. Total header size is 20 bytes.
   // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -129,7 +129,7 @@ size_t AsyncStunTCPSocket::GetExpectedLength(const void* data,
                                              size_t len,
                                              int* pad_bytes) {
   *pad_bytes = 0;
-  ArrayView<const uint8_t> view(static_cast<const uint8_t*>(data), len);
+  std::span<const uint8_t> view(static_cast<const uint8_t*>(data), len);
   PacketLength pkt_len = GetBE16(view.subspan(kPacketLenOffset, 2));
   size_t expected_pkt_len;
   uint16_t msg_type = GetBE16(view);

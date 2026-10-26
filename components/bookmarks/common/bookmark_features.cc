@@ -37,18 +37,26 @@ BASE_FEATURE(kEncryptBookmarks, base::FEATURE_DISABLED_BY_DEFAULT);
 // - write_both_read_only_clear: Bookmarks are written in both clear and
 // encrypted files. Only the unencrypted file is read. This is used to evaluate
 // the encryption process.
-// Do not use this feature directly, instead use helper functions defined above.
-// TODO(crbug.com/435317726): Support other stages as we implement them:
-// -write both, read encrypted,
-// -write & read encrypted only; fallback to unencrypted file if needed,
-// -write & read encrypted only; unencrypted file is deleted.
+// - write_both_read_prefer_encrypted: Bookmarks are written in both clear and
+// encrypted files. The encrypted file is used as the source of truth when
+// loading bookmarks. We'll fall back to the unencrypted file if the encrypted
+// file is missing.
+// - write_only_encrypted_read_prefer_encrypted: Bookmarks are written in the
+// encrypted file only. The encrypted file is used as the source of truth when
+// loading bookmarks. We'll fall back to the unencrypted file if the encrypted
+// file is missing. After a successful load from the encrypted file, the
+// clear text file is deleted.
 const base::FeatureParam<std::string> kBookmarkEncryptionStageParam{
     &kEncryptBookmarks, "stage", "write_both_read_only_clear"};
 
 constexpr auto kBookmarkEncryptionStageMap =
     base::MakeFixedFlatMap<std::string_view, BookmarkEncryptionStage>(
         {{"write_both_read_only_clear",
-          BookmarkEncryptionStage::kWriteBothReadOnlyClear}});
+          BookmarkEncryptionStage::kWriteBothReadOnlyClear},
+         {"write_both_read_prefer_encrypted",
+          BookmarkEncryptionStage::kWriteBothReadPreferEncrypted},
+         {"write_only_encrypted_read_prefer_encrypted",
+          BookmarkEncryptionStage::kWriteOnlyEncryptedReadPreferEncrypted}});
 
 BookmarkEncryptionStage GetBookmarkEncryptionStage() {
   if (!base::FeatureList::IsEnabled(kEncryptBookmarks)) {
@@ -57,20 +65,36 @@ BookmarkEncryptionStage GetBookmarkEncryptionStage() {
   return kBookmarkEncryptionStageMap.at(kBookmarkEncryptionStageParam.Get());
 }
 
-bool ShouldWriteEncryptedBookmarksToDisk() {
+bool ShouldWriteBookmarksToSecondaryFileOnDisk() {
   switch (GetBookmarkEncryptionStage()) {
     case BookmarkEncryptionStage::kWriteBothReadOnlyClear:
+    case BookmarkEncryptionStage::kWriteBothReadPreferEncrypted:
       return true;
     case BookmarkEncryptionStage::kDisabled:
+    case BookmarkEncryptionStage::kWriteOnlyEncryptedReadPreferEncrypted:
       return false;
   }
   NOTREACHED();
 }
 
-bool ShouldVerifyEncryptedBookmarksDataOnLoad() {
+bool ShouldVerifyBookmarksDataInSecondaryFileOnLoad() {
   switch (GetBookmarkEncryptionStage()) {
     case BookmarkEncryptionStage::kWriteBothReadOnlyClear:
+    case BookmarkEncryptionStage::kWriteBothReadPreferEncrypted:
       return true;
+    case BookmarkEncryptionStage::kDisabled:
+    case BookmarkEncryptionStage::kWriteOnlyEncryptedReadPreferEncrypted:
+      return false;
+  }
+  NOTREACHED();
+}
+
+bool ShouldUseEncryptedBookmarksAsPrimarySource() {
+  switch (GetBookmarkEncryptionStage()) {
+    case BookmarkEncryptionStage::kWriteBothReadPreferEncrypted:
+    case BookmarkEncryptionStage::kWriteOnlyEncryptedReadPreferEncrypted:
+      return true;
+    case BookmarkEncryptionStage::kWriteBothReadOnlyClear:
     case BookmarkEncryptionStage::kDisabled:
       return false;
   }

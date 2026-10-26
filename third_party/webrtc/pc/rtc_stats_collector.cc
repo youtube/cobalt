@@ -2266,6 +2266,7 @@ RTCStatsCollector::PrepareTransportCertificateStats_n(
 absl::AnyInvocable<RTCStatsCollector::WorkerThreadResult()>
 RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
   RTC_DCHECK_RUN_ON(signaling_thread_);
+  RTC_DCHECK_DISALLOW_THREAD_BLOCKING_CALLS();
 
   std::vector<RtpTransceiverStatsInfo> transceiver_stats_infos;
   std::vector<TransceiverReferences> transceiver_references;
@@ -2387,6 +2388,27 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
         continue;
       }
 
+      std::vector<RtpParameters> sender_parameters;
+      for (const auto& sender : stats.sender_infos) {
+        RtpParameters params;
+        if (sender.ssrc != 0 && stats.has_channel) {
+          auto& transceiver = refs.transceiver;
+          MediaSendChannelInterface* media_channel =
+              (stats.media_type == MediaType::AUDIO)
+                  ? static_cast<MediaSendChannelInterface*>(
+                        transceiver->voice_media_send_channel())
+                  : static_cast<MediaSendChannelInterface*>(
+                        transceiver->video_media_send_channel());
+          if (media_channel) {
+            params = media_channel->GetRtpSendParameters(sender.ssrc);
+          }
+        }
+        // `sender_parameters` must be the same size as `stats.sender_infos` to
+        // allow 1:1 mapping when TrackMediaInfoMap is constructed. Empty params
+        // are safely ignored since they have no encodings/SSRCs.
+        sender_parameters.push_back(std::move(params));
+      }
+
       std::vector<RtpParameters> receiver_parameters;
       for (const auto& receiver : refs.receivers) {
         receiver_parameters.push_back(receiver->GetParameters());
@@ -2415,8 +2437,8 @@ RTCStatsCollector::PrepareTransceiverStatsInfosAndCallStats_s_w() {
 
       stats.track_media_info_map = std::make_unique<TrackMediaInfoMap>(
           std::move(voice_media_info), std::move(video_media_info),
-          std::move(stats.sender_infos), std::move(stats.receiver_infos),
-          std::move(receiver_parameters));
+          std::move(stats.sender_infos), std::move(sender_parameters),
+          std::move(stats.receiver_infos), std::move(receiver_parameters));
       if (stats.media_type == MediaType::AUDIO) {
         has_audio_receiver |= stats.has_receivers;
       }

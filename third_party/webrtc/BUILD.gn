@@ -694,7 +694,7 @@ if (rtc_include_tests && !build_with_chromium) {
     rtc_executable("benchmarks") {
       testonly = true
       deps = [
-        "rtc_base:base64_benchmark_temp",
+        "rtc_base:base64_benchmark",
         "rtc_base/synchronization:mutex_benchmark",
         "test:benchmark_main",
       ]

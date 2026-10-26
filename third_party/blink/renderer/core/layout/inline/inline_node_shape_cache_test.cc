@@ -1,0 +1,161 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_node.h"
+#include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
+#include "third_party/blink/renderer/platform/fonts/shaping/shape_result_spacing.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
+
+namespace blink {
+
+class InlineNodeForTest : public InlineNode {
+ public:
+  using InlineNode::InlineNode;
+
+  const InlineItems& Items() { return Data().items; }
+  bool IsNGShapeCacheAllowed() const {
+    const String& text_content = Data().text_content;
+    ShapeResultSpacing spacing(text_content, false);
+    return InlineNode::IsNGShapeCacheAllowed(text_content, nullptr,
+                                             Data().items, spacing);
+  }
+  void CollectInlines() { InlineNode::CollectInlines(MutableData()); }
+};
+
+class InlineNodeShapeCacheTest : public RenderingTest,
+                                 private ScopedExtendedShapeCacheForTest {
+ public:
+  InlineNodeShapeCacheTest() : ScopedExtendedShapeCacheForTest(true) {}
+
+ protected:
+  static InlineNodeForTest CreateInlineNode(
+      LayoutBlockFlow* layout_block_flow) {
+    InlineNodeForTest node(layout_block_flow);
+    node.InvalidatePrepareLayoutForTest();
+    node.CollectInlines();
+    return node;
+  }
+
+  static const ShapeResult* FirstShapeResult(
+      const LayoutObject* layout_object) {
+    return To<LayoutText>(layout_object->SlowFirstChild())
+        ->InlineItems()
+        .front()
+        .TextShapeResult();
+  }
+  static const ShapeResult* LastShapeResult(const LayoutObject* layout_object) {
+    return To<LayoutText>(layout_object->SlowLastChild())
+        ->InlineItems()
+        .back()
+        .TextShapeResult();
+  }
+};
+
+TEST_F(InlineNodeShapeCacheTest, ShapeCacheMultipleItems) {
+  SetBodyInnerHTML("<div id=t>abc<span>def</span>ghi</div>");
+  InlineNodeForTest node = CreateInlineNode(GetLayoutBlockFlowByElementId("t"));
+  EXPECT_EQ(5u, node.Items().size());
+  EXPECT_FALSE(node.IsNGShapeCacheAllowed());
+}
+
+TEST_F(InlineNodeShapeCacheTest, ShapeCacheOpenAndCloseTags) {
+  SetBodyInnerHTML("<div id=t><span>abc</span></div>");
+  InlineNodeForTest node = CreateInlineNode(GetLayoutBlockFlowByElementId("t"));
+  EXPECT_EQ(3u, node.Items().size());
+  EXPECT_TRUE(node.IsNGShapeCacheAllowed());
+}
+
+TEST_F(InlineNodeShapeCacheTest, ShapeCacheSpacingRequired) {
+  SetBodyInnerHTML(
+      "<style>div { letter-spacing: 5px; }</style>"
+      "<div id=t>abc</div>");
+  InlineNodeForTest node = CreateInlineNode(GetLayoutBlockFlowByElementId("t"));
+  EXPECT_FALSE(node.IsNGShapeCacheAllowed());
+}
+
+TEST_F(InlineNodeShapeCacheTest, ShapeCacheNewLine) {
+  SetBodyInnerHTML("<div id=t style='white-space: pre'>abc\ndef</div>");
+  InlineNodeForTest node = CreateInlineNode(GetLayoutBlockFlowByElementId("t"));
+  EXPECT_TRUE(node.IsNGShapeCacheAllowed());
+}
+
+TEST_F(InlineNodeShapeCacheTest, ShapeCacheBreakLine) {
+  SetBodyInnerHTML("<div id=t style='white-space: pre'>abc<br>def</div>");
+  InlineNodeForTest node = CreateInlineNode(GetLayoutBlockFlowByElementId("t"));
+  EXPECT_TRUE(node.IsNGShapeCacheAllowed());
+}
+
+TEST_F(InlineNodeShapeCacheTest, ShapeCacheBreakWord) {
+  SetBodyInnerHTML("<div id=t style='white-space: pre'>abc<wbr>def</div>");
+  InlineNodeForTest node = CreateInlineNode(GetLayoutBlockFlowByElementId("t"));
+  EXPECT_TRUE(node.IsNGShapeCacheAllowed());
+}
+
+TEST_F(InlineNodeShapeCacheTest, ShapeResultPointerEqualNewLine) {
+  SetBodyInnerHTML(
+      "<div id=target1 style='white-space: pre'>abc\ndefg</div>"
+      "<div id=target2 style='white-space: pre'>abc<br>defg</div>");
+
+  const LayoutBlockFlow* target1 = GetLayoutBlockFlowByElementId("target1");
+  const LayoutBlockFlow* target2 = GetLayoutBlockFlowByElementId("target2");
+
+  EXPECT_EQ(FirstShapeResult(target1)->NumCharacters(), 3u);
+  EXPECT_EQ(LastShapeResult(target1)->NumCharacters(), 4u);
+  EXPECT_EQ(FirstShapeResult(target1), FirstShapeResult(target2));
+  EXPECT_EQ(LastShapeResult(target1), LastShapeResult(target2));
+}
+
+TEST_F(InlineNodeShapeCacheTest, ShapeCacheFloating) {
+  SetBodyInnerHTML("<div id=t>abc<div style='float: left'></div>def</div>");
+  InlineNodeForTest node = CreateInlineNode(GetLayoutBlockFlowByElementId("t"));
+  EXPECT_TRUE(node.IsNGShapeCacheAllowed());
+}
+
+TEST_F(InlineNodeShapeCacheTest, ShapeCacheOutOfFlowPositioned) {
+  SetBodyInnerHTML(
+      "<div id=t>abc<div style='position: absolute'></div>def</div>");
+  InlineNodeForTest node = CreateInlineNode(GetLayoutBlockFlowByElementId("t"));
+  EXPECT_TRUE(node.IsNGShapeCacheAllowed());
+}
+
+TEST_F(InlineNodeShapeCacheTest, ShapeCacheFontFeatures) {
+  SetBodyInnerHTML(
+      "<style> div { font-feature-settings: 'liga' off; }</style>"
+      "<div id=t style=>abc</div>");
+  InlineNodeForTest node = CreateInlineNode(GetLayoutBlockFlowByElementId("t"));
+  EXPECT_TRUE(node.IsNGShapeCacheAllowed());
+}
+
+TEST_F(InlineNodeShapeCacheTest, ShapeResultPointerEqualFloatsAndOutOfFlow) {
+  // We can have a mismatch in the number and type of float/OOF-positioned
+  // items as they are transparent to shaping.
+  SetBodyInnerHTML(
+      "<style>float { float: left; } abspos { position: absolute; }</style>"
+      "<div id=target1>abc<float></float>defg</div>"
+      "<div id=target2>abc<abspos></abspos><float></float>defg</div>");
+
+  const LayoutBlockFlow* target1 = GetLayoutBlockFlowByElementId("target1");
+  const LayoutBlockFlow* target2 = GetLayoutBlockFlowByElementId("target2");
+
+  EXPECT_EQ(FirstShapeResult(target1)->NumCharacters(), 3u);
+  EXPECT_EQ(LastShapeResult(target1)->NumCharacters(), 4u);
+  EXPECT_EQ(FirstShapeResult(target1), FirstShapeResult(target2));
+  EXPECT_EQ(LastShapeResult(target1), LastShapeResult(target2));
+}
+
+TEST_F(InlineNodeShapeCacheTest, ShapeResultPointerEqualInline) {
+  // As long a the font matches for the first item we can hit the cache.
+  SetBodyInnerHTML(
+      "<div id=target1 style='font-family: monospace'>abc</div>"
+      "<div><span id=target2 style='font-family: monospace'>abc</span></div>");
+
+  const LayoutObject* target1 = GetLayoutObjectByElementId("target1");
+  const LayoutObject* target2 = GetLayoutObjectByElementId("target2");
+
+  EXPECT_EQ(FirstShapeResult(target1)->NumCharacters(), 3u);
+  EXPECT_EQ(FirstShapeResult(target1), FirstShapeResult(target2));
+}
+
+}  // namespace blink

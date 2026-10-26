@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 import {html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {type ActionChip, IconType} from '../action_chips.mojom-webui.js';
+import {IconType} from '../action_chips.mojom-webui.js';
+import type {ActionChip} from '../action_chips.mojom-webui.js';
 
 import {type ActionChipsElement} from './action_chips.js';
 
@@ -15,30 +16,32 @@ export function getHtml(this: ActionChipsElement) {
     ${
       this.actionChips_.length ?
       html`
-      <div class="action-chips-container">
+      <div class="action-chips-container"
+        @contextmenu="${this.showBackground && this.showSimplifiedUI_
+          ? this.onContextmenu_ : nothing}">
       ${
           this.actionChips_.map(
               (chip: ActionChip, index: number) => html`
         <div class="chip-button-wrapper">
-          <button id="${this.getId_(chip, index) || nothing}"
-            class="action-chip ${
-                    this.isDeepDiveChip_(chip) ? 'deep-dive-chip' : ''}"
+          <button
+            class="action-chip"
             data-index="${index}"
             title="${this.getChipTitle_(chip)}"
-            @click="${this.onClick_}">
+            @click="${this.onClick_}"
+            @contextmenu="${this.onContextmenu_}">
             <div class="action-chip-icon-container ${
                     this.getAdditionalIconClasses_(chip)}">
               ${
-                    chip.suggestTemplateInfo?.typeIcon === IconType.kFavicon ?
+                    chip.suggestTemplateInfo.typeIcon === IconType.kFavicon ?
                         html`<img class='action-chip-recent-tab-favicon'
                     src="${this.getMostRecentTabFaviconUrl_(chip)}">` :
                         ''}
             </div>
             <div class="action-chip-text-container">
-              ${!this.isDeepDiveChip_(chip) ?
+              ${chip.suggestTemplateInfo.primaryText ?
                   html`
                   <span class="chip-title">
-                    ${chip.suggestTemplateInfo?.primaryText?.text ?? ''}
+                    ${chip.suggestTemplateInfo.primaryText.text}
                   </span>` :
                   ''}
               <span
@@ -58,6 +61,11 @@ export function getHtml(this: ActionChipsElement) {
       </div>
       ` : nothing}
   </div>
+  <cr-action-menu id="actionMenu">
+    <button class="dropdown-item" @click="${this.onDisableSuggestionClick_}">
+      $i18n{disableSuggestion}
+    </button>
+  </cr-action-menu>
   <!--_html_template_end_-->`;
   // clang-format on
 }

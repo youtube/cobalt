@@ -10,16 +10,16 @@
 #include "rtc_base/text2pcap.h"
 
 #include <cstdint>
+#include <span>
 #include <string>
 
-#include "api/array_view.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/time_utils.h"
 
 namespace webrtc {
 
 std::string Text2Pcap::DumpPacket(bool outbound,
-                                  ArrayView<const uint8_t> payload,
+                                  std::span<const uint8_t> payload,
                                   int64_t timestamp_ms) {
   webrtc::StringBuilder s;
   s << "\n" << (outbound ? "O " : "I ");

@@ -19,7 +19,8 @@ import type {FilePath} from '//resources/mojo/mojo/public/mojom/base/file_path.m
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 
 import {BrowserProxy} from './browser_proxy.js';
-import {type AudioData, type Capabilities, type InputPiece, InputSource, LoadModelResult, OnDeviceModelRemote, PerformanceClass, type ResponseChunk, type ResponseSummary, SessionRemote, StreamingResponderCallbackRouter, Token} from './on_device_model.mojom-webui.js';
+import {InputSource, LoadModelResult, OnDeviceModelRemote, PerformanceClass, SessionRemote, StreamingResponderCallbackRouter, Token} from './on_device_model.mojom-webui.js';
+import type {AudioData, Capabilities, InputPiece, ResponseChunk, ResponseSummary} from './on_device_model.mojom-webui.js';
 import {ModelPerformanceHint} from './on_device_model_service.mojom-webui.js';
 import {getCss} from './tools.css.js';
 import {getHtml} from './tools.html.js';
@@ -163,6 +164,8 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
   private proxy_: BrowserProxy = BrowserProxy.getInstance();
   private responseRouter_: StreamingResponderCallbackRouter =
       new StreamingResponderCallbackRouter();
+  private sessionTemperature_: number = 0;
+  private sessionTopK_: number = 1;
 
   override firstUpdated() {
     this.getPerformanceClass_();
@@ -354,6 +357,8 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
         audioInput: this.audioEnabled_(),
       },
     });
+    this.sessionTopK_ = this.topK_;
+    this.sessionTemperature_ = this.temperature_;
   }
 
   protected onCancelClick_() {
@@ -422,6 +427,10 @@ class OnDeviceInternalsToolsElement extends CrLitElement {
     }
     if (!this.$.temperatureInput.validate()) {
       return;
+    }
+    if (this.topK_ !== this.sessionTopK_ ||
+        this.temperature_ !== this.sessionTemperature_) {
+      this.startNewSession_();
     }
     const pieces = textToInputPieces(this.text_);
     if (this.imageFile_ !== null) {

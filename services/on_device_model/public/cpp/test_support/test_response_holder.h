@@ -28,7 +28,7 @@ class BaseTestResponseHolder : public Responder {
   // Returns a remote which can be used to stream a response to this object.
   virtual mojo::PendingRemote<Responder> BindRemote() {
     auto remote = receiver_.BindNewPipeAndPassRemote();
-    receiver_.set_disconnect_handler(
+    receiver_.set_disconnect_with_reason_handler(
         base::BindOnce(&BaseTestResponseHolder<Responder>::OnDisconnect,
                        base::Unretained(this)));
     disconnected_ = false;
@@ -37,16 +37,18 @@ class BaseTestResponseHolder : public Responder {
 
   void Disconnect() {
     receiver_.reset();
-    OnDisconnect();
+    OnCompleted();
   }
 
   bool disconnected() const { return disconnected_; }
+  std::optional<mojom::GenerateError> error() const { return error_; }
 
   // Spins a RunLoop until this object observes completion of its response.
   void WaitForCompletion() { run_loop_.Run(); }
 
-  void OnDisconnect() {
+  void OnDisconnect(uint32_t custom_reason, const std::string& description) {
     disconnected_ = true;
+    error_ = static_cast<mojom::GenerateError>(custom_reason);
     run_loop_.Quit();
   }
 
@@ -57,6 +59,7 @@ class BaseTestResponseHolder : public Responder {
  private:
   base::RunLoop run_loop_;
   mojo::Receiver<Responder> receiver_{this};
+  std::optional<mojom::GenerateError> error_;
 };
 
 // Helper to accumulate a streamed response from model execution. This is only
@@ -78,11 +81,19 @@ class TestResponseHolder
   // mojom::StreamingResponder:
   void OnResponse(mojom::ResponseChunkPtr chunk) override;
   void OnComplete(mojom::ResponseSummaryPtr summary) override;
+  void OnToolCalls(std::vector<mojom::ToolCallPtr> tool_calls) override;
 
   void DisconnectOnMessage();
 
+  // Returns true if tool calls have been received.
+  bool has_tool_calls() const { return !tool_calls_.empty(); }
+  const std::vector<mojom::ToolCallPtr>& tool_calls() const {
+    return tool_calls_;
+  }
+
  private:
   std::vector<std::string> responses_;
+  std::vector<mojom::ToolCallPtr> tool_calls_;
   uint32_t output_token_count_ = 0;
   bool complete_ = false;
   bool disconnect_on_message_ = false;

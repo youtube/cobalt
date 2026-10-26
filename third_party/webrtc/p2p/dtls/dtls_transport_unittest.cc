@@ -17,6 +17,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -25,7 +26,6 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/crypto/crypto_options.h"
 #include "api/dtls_transport_interface.h"
 #include "api/field_trials.h"
@@ -278,7 +278,7 @@ class DtlsTestClient {
       memset(packet.get(), sent & 0xff, size);
       packet[0] = (srtp) ? kRtpLeadByte : 0x00;
       SetBE32(
-          ArrayView<uint8_t>(
+          std::span<uint8_t>(
               reinterpret_cast<uint8_t*>(packet.get() + kPacketNumOffset), 4),
           static_cast<uint32_t>(sent));
 
@@ -312,7 +312,7 @@ class DtlsTestClient {
   size_t NumPacketsReceived() { return received_.size(); }
 
   // Inverse of SendPackets.
-  bool VerifyPacket(ArrayView<const uint8_t> payload, uint32_t* out_num) {
+  bool VerifyPacket(std::span<const uint8_t> payload, uint32_t* out_num) {
     const uint8_t* data = payload.data();
     size_t size = payload.size();
 
@@ -320,7 +320,7 @@ class DtlsTestClient {
       return false;
     }
     uint32_t packet_num =
-        GetBE32(ArrayView<const uint8_t>(data + kPacketNumOffset, 4));
+        GetBE32(std::span<const uint8_t>(data + kPacketNumOffset, 4));
     for (size_t i = kPacketHeaderLen; i < size; ++i) {
       if (data[i] != (packet_num & 0xff)) {
         return false;
@@ -338,7 +338,7 @@ class DtlsTestClient {
       return false;
     }
     uint32_t packet_num =
-        GetBE32(ArrayView<const uint8_t>(data + kPacketNumOffset, 4));
+        GetBE32(std::span<const uint8_t>(data + kPacketNumOffset, 4));
     int num_matches = 0;
     for (size_t i = kPacketNumOffset; i < size; ++i) {
       if (data[i] == (packet_num & 0xff)) {
@@ -385,7 +385,7 @@ class DtlsTestClient {
 
   SentPacketInfo sent_packet() const { return sent_packet_; }
 
-  bool IsDtlsCiphertextPacket(ArrayView<const uint8_t> payload) {
+  bool IsDtlsCiphertextPacket(std::span<const uint8_t> payload) {
     return IsDtlsPacket(payload) &&
            (payload.data()[0] > 31 && payload.data()[0] < 64);
   }
@@ -477,7 +477,7 @@ class FakeSSLStreamAdapter : public SSLStreamAdapter {
   int StartSSL() override { return impl_->StartSSL(); }
   SSLPeerCertificateDigestError SetPeerCertificateDigest(
       absl::string_view digest_alg,
-      ArrayView<const uint8_t> digest_val) override {
+      std::span<const uint8_t> digest_val) override {
     return impl_->SetPeerCertificateDigest(digest_alg, digest_val);
   }
   std::unique_ptr<SSLCertChain> GetPeerSSLCertChain() const override {
@@ -521,12 +521,12 @@ class FakeSSLStreamAdapter : public SSLStreamAdapter {
   // StreamInterface overrides.
   StreamState GetState() const override { return impl_->GetState(); }
   void Close() override { impl_->Close(); }
-  StreamResult Read(ArrayView<uint8_t> buffer,
+  StreamResult Read(std::span<uint8_t> buffer,
                     size_t& read,
                     int& error) override {
     return impl_->Read(buffer, read, error);
   }
-  StreamResult Write(ArrayView<const uint8_t> data,
+  StreamResult Write(std::span<const uint8_t> data,
                      size_t& written,
                      int& error) override {
     if (write_error_) {
@@ -768,7 +768,7 @@ TEST_F(DtlsTransportInternalImplTest, TestSendPacketWithOptions) {
   std::unique_ptr<char[]> packet(new char[size]);
   memset(packet.get(), 0, size);
   packet[0] = 0x00;
-  SetBE32(ArrayView<uint8_t>(
+  SetBE32(std::span<uint8_t>(
               reinterpret_cast<uint8_t*>(packet.get() + kPacketNumOffset), 4),
           0);
 
@@ -800,7 +800,7 @@ TEST_F(DtlsTransportInternalImplTest, TestSendSrtpBypassPacketWithOptions) {
   std::unique_ptr<char[]> packet(new char[size]);
   memset(packet.get(), 0, size);
   packet[0] = kRtpLeadByte;  // Make it look like an SRTP packet.
-  SetBE32(ArrayView<uint8_t>(
+  SetBE32(std::span<uint8_t>(
               reinterpret_cast<uint8_t*>(packet.get() + kPacketNumOffset), 4),
           0);
 

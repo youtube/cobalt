@@ -13,6 +13,7 @@
 #import "base/functional/callback_helpers.h"
 #import "base/ios/block_types.h"
 #import "base/metrics/histogram_functions.h"
+#import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/task/bind_post_task.h"
@@ -32,7 +33,6 @@
 #import "ios/chrome/browser/intents/model/intents_constants.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_availability.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
-#import "ios/chrome/browser/metrics/model/first_user_action_recorder.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/search_engines/model/search_engines_util.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
@@ -65,45 +65,12 @@ using base::UserMetricsAction;
 
 namespace {
 
-// Constants for compatible mode for user activities.
-NSString* const kRegularMode = @"RegularMode";
-NSString* const kIncognitoMode = @"IncognitoMode";
-
 std::vector<GURL> CreateGURLVectorFromIntentURLs(NSArray<NSURL*>* intent_urls) {
   std::vector<GURL> urls;
   for (NSURL* url in intent_urls) {
     urls.push_back(net::GURLWithNSURL(url));
   }
   return urls;
-}
-
-// Returns the compatible mode array for an user activity.
-NSArray* CompatibleModeForActivityType(NSString* activity_type) {
-  if ([activity_type isEqualToString:CSSearchableItemActionType] ||
-      [activity_type isEqualToString:kShortcutNewSearch] ||
-      [activity_type isEqualToString:kShortcutVoiceSearch] ||
-      [activity_type isEqualToString:kShortcutQRScanner] ||
-      [activity_type isEqualToString:kShortcutLensFromAppIconLongPress] ||
-      [activity_type isEqualToString:kSiriShortcutAddBookmarkToChrome] ||
-      [activity_type isEqualToString:kSiriShortcutAddReadingListItemToChrome] ||
-      [activity_type isEqualToString:kSiriShortcutSearchInChrome] ||
-      [activity_type isEqualToString:NSUserActivityTypeBrowsingWeb]) {
-    return @[ kRegularMode, kIncognitoMode ];
-  } else if ([activity_type isEqualToString:kSiriShortcutOpenInChrome]) {
-    return @[ kRegularMode ];
-  } else if ([activity_type isEqualToString:kShortcutNewIncognitoSearch] ||
-             [activity_type isEqualToString:kSiriShortcutOpenInIncognito]) {
-    return @[ kIncognitoMode ];
-  } else {
-    // Use 32 as the maximum length of the reported value for this key (31
-    // characters + '\0'). See NSUserActivityTypes in Info.plist for the list of
-    // expected values.
-    static crash_reporter::CrashKeyString<32> key("activity");
-    crash_reporter::ScopedCrashKeyString crash_key(
-        &key, base::SysNSStringToUTF8(activity_type));
-    base::debug::DumpWithoutCrashing();
-  }
-  return nil;
 }
 
 // Returns the ProfileState associated to `browser` is ready.
@@ -374,6 +341,7 @@ BOOL UserActivityBrowserAgent::ContinueUserActivity(
     RecordMetricsForSiriShortcut(IntentType::kPlayDinoGame);
     webpage_url =
         [NSURL URLWithString:base::SysUTF8ToNSString(kChromeDinoGameURL)];
+    return ContinueUserActivityURL(webpage_url, application_is_active, NO, YES);
   } else if ([user_activity.activityType
                  isEqualToString:kSiriSetChromeDefaultBrowser]) {
     RecordMetricsForSiriShortcut(IntentType::kSetDefaultBrowser);
@@ -449,7 +417,7 @@ BOOL UserActivityBrowserAgent::ContinueUserActivity(
     // Do nothing for unknown activity type.
     return NO;
   }
-  return ContinueUserActivityURL(webpage_url, application_is_active, NO);
+  return ContinueUserActivityURL(webpage_url, application_is_active, NO, NO);
 }
 
 // LINT.IfChange
@@ -505,21 +473,6 @@ void UserActivityBrowserAgent::RouteToCorrectTab() {
   [connection_information_.startupParameters
       requestApplicationModeWithBlock:base::CallbackToBlock(
                                           std::move(completion))];
-}
-
-BOOL UserActivityBrowserAgent::ProceedWithUserActivity(
-    NSUserActivity* user_activity) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  NSArray* array = CompatibleModeForActivityType(user_activity.activityType);
-  PrefService* pref_service = profile_->GetPrefs();
-  if (IsIncognitoModeDisabled(pref_service)) {
-    return [array containsObject:kRegularMode];
-  }
-  if (IsIncognitoModeForced(pref_service)) {
-    return [array containsObject:kIncognitoMode];
-  }
-  // Return YES if the compatible mode array is not nil.
-  return array != nil;
 }
 
 void UserActivityBrowserAgent::
@@ -680,7 +633,8 @@ void UserActivityBrowserAgent::OpenRequestedURLs(
 BOOL UserActivityBrowserAgent::ContinueUserActivityURL(
     NSURL* webpage_url,
     BOOL application_is_active,
-    BOOL open_existing_tab) {
+    BOOL open_existing_tab,
+    BOOL opened_via_siri_shortcut) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!webpage_url) {
     return NO;
@@ -714,6 +668,7 @@ BOOL UserActivityBrowserAgent::ContinueUserActivityURL(
              applicationMode:ApplicationModeForTabOpening::NORMAL
         forceApplicationMode:NO];
     startup_params.openExistingTab = open_existing_tab;
+    startup_params.openedViaSiriShortcut = opened_via_siri_shortcut;
     [connection_information_ setStartupParameters:startup_params];
   }
   return YES;
@@ -766,7 +721,7 @@ void UserActivityBrowserAgent::OverloadContinueUserActivityURL(
         forceApplicationMode:NO];
     connection_information_.startupParameters = startup_params;
   }
-  ContinueUserActivityURL(webpage_url, is_active, open_existing_tab);
+  ContinueUserActivityURL(webpage_url, is_active, open_existing_tab, NO);
 }
 
 void UserActivityBrowserAgent::ClearStartupParameters() {
@@ -808,10 +763,11 @@ void UserActivityBrowserAgent::HandleRouteToCorrectTab(
 
   // App scheme URLs are not generally allowed to be opened in new tabs.
   // However, allow `chrome://dino` to be opened if the request originated
-  // from a widget in order to support the Dino Game widget. Setting the
-  // `transition_type` to `PAGE_TRANSITION_AUTO_BOOKMARK` instead of
+  // from a widget or a siri shortcut in order to support the Dino Game.
+  // Setting the `transition_type` to `PAGE_TRANSITION_AUTO_BOOKMARK` instead of
   // `PAGE_TRANSITION_LINK` allows this load to complete successfully.
-  if (connection_information_.startupParameters.openedViaWidgetScheme &&
+  if ((connection_information_.startupParameters.openedViaWidgetScheme ||
+       connection_information_.startupParameters.openedViaSiriShortcut) &&
       url.GetScheme() == kChromeUIScheme &&
       url.GetHost() == kChromeUIDinoHost) {
     params.web_params.transition_type = ui::PAGE_TRANSITION_AUTO_BOOKMARK;

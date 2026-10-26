@@ -16,7 +16,6 @@ import android.view.ViewGroup;
 import androidx.annotation.StyleRes;
 
 import org.chromium.base.MathUtils;
-import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.composeplate.ComposeplateUtils;
@@ -28,6 +27,7 @@ import org.chromium.chrome.browser.lens.LensQueryParams;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.DestroyObserver;
 import org.chromium.chrome.browser.omnibox.R;
+import org.chromium.chrome.browser.omnibox.status.StatusProperties;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
@@ -44,7 +44,6 @@ class SearchBoxMediator implements DestroyObserver {
     private final List<OnClickListener> mVoiceSearchClickListeners = new ArrayList<>();
     private final List<OnClickListener> mLensClickListeners = new ArrayList<>();
     private final float mTransitionEndOffset;
-    private @MonotonicNonNull OnClickListener mComposeplateButtonClickListener;
     private @Nullable ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
 
     /** Constructor. */
@@ -84,11 +83,11 @@ class SearchBoxMediator implements DestroyObserver {
 
         mModel.set(SearchBoxProperties.LENS_CLICK_CALLBACK, null);
         mModel.set(SearchBoxProperties.VOICE_SEARCH_CLICK_CALLBACK, null);
-        mModel.set(SearchBoxProperties.COMPOSEPLATE_BUTTON_CLICK_CALLBACK, null);
         mModel.set(SearchBoxProperties.VOICE_SEARCH_DRAWABLE, null);
         mModel.set(SearchBoxProperties.SEARCH_BOX_CLICK_CALLBACK, null);
         mModel.set(SearchBoxProperties.SEARCH_BOX_DRAG_CALLBACK, null);
         mModel.set(SearchBoxProperties.SEARCH_BOX_TEXT_WATCHER, null);
+        mModel.set(SearchBoxProperties.DSE_ICON_DRAWABLE, null);
 
         mLensClickListeners.clear();
         mVoiceSearchClickListeners.clear();
@@ -97,6 +96,27 @@ class SearchBoxMediator implements DestroyObserver {
     /** Called to set a click listener for the search box. */
     void setSearchBoxClickListener(OnClickListener listener) {
         mModel.set(SearchBoxProperties.SEARCH_BOX_CLICK_CALLBACK, v -> listener.onClick(v));
+    }
+
+    void setSearchEngineIcon(StatusProperties.@Nullable StatusIconResource newIcon) {
+        if (newIcon == null) {
+            mModel.set(
+                    SearchBoxProperties.DSE_ICON_RESOURCE_ID,
+                    org.chromium.chrome.R.drawable.ic_search_24dp);
+            return;
+        }
+
+        // When DSE is Google, setSearchEngineIcon() is called before
+        // NewTabPageLayout#setSearchProviderInfo(). Thus, we check the icon's resource id to change
+        // the icon to be R.drawable.ic_logo_googleg_24dp which doesn't have a padding.
+        if (newIcon.getIconRes() == R.drawable.ic_logo_googleg_20dp) {
+            mModel.set(SearchBoxProperties.DSE_ICON_RESOURCE_ID, R.drawable.ic_logo_googleg_24dp);
+            return;
+        }
+
+        mModel.set(
+                SearchBoxProperties.DSE_ICON_DRAWABLE,
+                newIcon.getDrawable(mContext, mContext.getResources()));
     }
 
     /** Called to set a drag listener for the search box. */
@@ -130,22 +150,6 @@ class SearchBoxMediator implements DestroyObserver {
                         clickListener.onClick(v);
                     }
                 });
-    }
-
-    /** Called to set a click listener for the composeplate button. */
-    void setComposeplateButtonClickListener(OnClickListener listener) {
-        assert mComposeplateButtonClickListener == null;
-
-        mComposeplateButtonClickListener = listener;
-        mModel.set(
-                SearchBoxProperties.COMPOSEPLATE_BUTTON_CLICK_CALLBACK,
-                v -> {
-                    mComposeplateButtonClickListener.onClick(v);
-                });
-    }
-
-    void setComposeplateButtonIconRawResId(int iconRawResId) {
-        mModel.set(SearchBoxProperties.COMPOSEPLATE_BUTTON_ICON_RAW_RES_ID, iconRawResId);
     }
 
     /**

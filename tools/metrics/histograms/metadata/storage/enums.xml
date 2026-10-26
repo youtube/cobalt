@@ -160,6 +160,38 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="Filenames"/>
 </enum>
 
+<!-- LINT.IfChange(DatabaseConnectionOpenResult) -->
+
+<enum name="DatabaseConnectionOpenResult">
+  <int value="0" label="Received request"/>
+  <int value="1" label="Success: direct open"/>
+  <int value="2" label="Success: upgrade needed"/>
+  <int value="3" label="Success: upgrade needed with data loss"/>
+  <int value="4" label="Error: backing store init failed"/>
+  <int value="5" label="Error: database open failed"/>
+  <int value="6" label="Error: version too low"/>
+</enum>
+
+<!-- LINT.ThenChange(//content/browser/indexed_db/indexed_db_reporting.h:DatabaseConnectionOpenResult) -->
+
+<!-- LINT.IfChange(DomStorageDatabaseRecoveryOutcome) -->
+
+<enum name="DomStorageDatabaseRecoveryOutcome">
+  <int value="0" label="Recovered to disk (destroy succeeded)"/>
+  <int value="1" label="Recovered to disk (destroy failed)"/>
+  <int value="2" label="Recovered to in-memory (both destroys succeeded)"/>
+  <int value="3" label="Recovered to in-memory (first destroy failed)"/>
+  <int value="4" label="Recovered to in-memory (second destroy failed)"/>
+  <int value="5" label="Recovered to in-memory (both destroys failed)"/>
+  <int value="6" label="Gave up (both destroys succeeded)"/>
+  <int value="7" label="Gave up (first destroy failed)"/>
+  <int value="8" label="Gave up (second destroy failed)"/>
+  <int value="9" label="Gave up (both destroys failed)"/>
+  <int value="10" label="Ongoing errors after attempted recovery"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/services/storage/dom_storage/dom_storage_histogram_helper.h:DomStorageDatabaseRecoveryOutcome) -->
+
 <!-- LINT.IfChange(DomStorageDbStatusType) -->
 
 <enum name="DomStorageDbStatusType">

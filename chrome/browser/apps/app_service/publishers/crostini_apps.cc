@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "ash/public/cpp/app_menu_constants.h"
+#include "ash/strings/grit/ash_strings.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/menu_util.h"
 #include "chrome/browser/ash/crostini/crostini_features.h"
@@ -84,15 +85,10 @@ void CrostiniApps::LaunchAppWithIntent(const std::string& app_id,
       profile(), app_id,
       window_info ? window_info->display_id : display::kInvalidDisplayId,
       std::move(intent), std::move(args),
-      base::BindOnce(
-          [](LaunchCallback callback, bool success,
-             const std::string& failure_reason) {
-            if (!success) {
-              LOG(ERROR) << "Crostini launch error: " << failure_reason;
-            }
-            std::move(callback).Run(ConvertBoolToLaunchResult(success));
-          },
-          std::move(callback)));
+      base::BindOnce([](bool success, const std::string& failure_reason) {
+        LOG_IF(ERROR, !success) << "Crostini launch error: " << failure_reason;
+        return success ? LaunchResult::kSuccess : LaunchResult::kFailed;
+      }).Then(std::move(callback)));
 }
 
 void CrostiniApps::GetMenuModel(const std::string& app_id,

@@ -13,15 +13,15 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <span>
 
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_minmax.h"
 
 namespace webrtc {
 
-SimpleStringBuilder::SimpleStringBuilder(ArrayView<char> buffer)
+SimpleStringBuilder::SimpleStringBuilder(std::span<char> buffer)
     : buffer_(buffer) {
   buffer_[0] = '\0';
   RTC_DCHECK(IsConsistent());

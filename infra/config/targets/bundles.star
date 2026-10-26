@@ -336,6 +336,18 @@ targets.bundle(
 )
 
 targets.bundle(
+    name = "android_16_webview_64_cts_tests",
+    targets = [
+        targets.bundle(
+            targets = "webview_64_cts_tests_suite",
+            variants = [
+                "WEBVIEW_FULL_CTS_TESTS",
+            ],
+        ),
+    ],
+)
+
+targets.bundle(
     name = "android_ar_gtests",
     targets = [
         "chrome_public_test_ar_apk",
@@ -4173,6 +4185,25 @@ targets.bundle(
             targets.mixin(
                 swarming = targets.swarming(
                     shards = 8,
+                ),
+            ),
+            "gpu_integration_test_common_args",
+            "webgpu_telemetry_cts",
+            "linux_vulkan",
+        ],
+    },
+)
+
+targets.bundle(
+    name = "gpu_dawn_webgpu_cts_default_features",
+    targets = [
+        "webgpu_cts_default_features_tests",
+    ],
+    per_test_modifications = {
+        "webgpu_cts_default_features_tests": [
+            targets.mixin(
+                swarming = targets.swarming(
+                    shards = 14,
                 ),
             ),
             "gpu_integration_test_common_args",

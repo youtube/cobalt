@@ -148,15 +148,18 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
       scoped_refptr<SetLocalDescriptionObserverInterface> observer);
   void SetLocalDescription(
       scoped_refptr<SetLocalDescriptionObserverInterface> observer);
-  void SetLocalDescription(SetSessionDescriptionObserver* observer,
-                           SessionDescriptionInterface* desc);
-  void SetLocalDescription(SetSessionDescriptionObserver* observer);
+  void SetLocalDescription(
+      scoped_refptr<SetSessionDescriptionObserver> observer,
+      std::unique_ptr<SessionDescriptionInterface> desc);
+  void SetLocalDescription(
+      scoped_refptr<SetSessionDescriptionObserver> observer);
 
   void SetRemoteDescription(
       std::unique_ptr<SessionDescriptionInterface> desc,
       scoped_refptr<SetRemoteDescriptionObserverInterface> observer);
-  void SetRemoteDescription(SetSessionDescriptionObserver* observer,
-                            SessionDescriptionInterface* desc);
+  void SetRemoteDescription(
+      scoped_refptr<SetSessionDescriptionObserver> observer,
+      std::unique_ptr<SessionDescriptionInterface> desc);
 
   PeerConnectionInterface::RTCConfiguration GetConfiguration();
   RTCError SetConfiguration(

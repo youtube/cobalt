@@ -63,7 +63,7 @@ static NSString *const shaderSource = MTL_STRINGIFY(
       return half4(out);
     });
 
-@implementation RTCMTLNV12Renderer {
+@implementation RTC_OBJC_TYPE (RTCMTLNV12Renderer) {
   // Textures.
   CVMetalTextureCacheRef _textureCache;
   id<MTLTexture> _yTexture;

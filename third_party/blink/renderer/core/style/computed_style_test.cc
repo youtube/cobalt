@@ -55,7 +55,7 @@ class ComputedStyleTest : public testing::Test {
   void SetUp() override {
     dummy_page_holder_ =
         std::make_unique<DummyPageHolder>(gfx::Size(0, 0), nullptr);
-    initial_style_ = ComputedStyle::GetInitialStyleSingleton();
+    initial_style_ = GetDocument().GetStyleResolver().InitialStyleForElement();
   }
 
   Document& GetDocument() { return dummy_page_holder_->GetDocument(); }
@@ -86,11 +86,12 @@ class ComputedStyleTest : public testing::Test {
     set_flag(&builder);
     const ComputedStyle* style = builder.TakeStyle();
     EXPECT_TRUE(get_flag(style));
-    const ComputedStyle* other = InitialComputedStyle();
-    EXPECT_FALSE(get_flag(other));
+    const ComputedStyle* initial = InitialComputedStyle();
+    EXPECT_FALSE(get_flag(initial));
     EXPECT_EQ(expected_difference,
-              ComputedStyle::ComputeDifference(style, other));
-    StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
+              ComputedStyle::ComputeDifference(initial, style));
+    StyleDifference diff =
+        style->VisualInvalidationDiff(GetDocument(), *initial);
     bool expect_compositing_reasons_changed =
         expected_changes == kCompositingReasonsChanged;
     EXPECT_EQ(expect_compositing_reasons_changed, diff.HasDifference());
@@ -371,7 +372,12 @@ TEST_F(ComputedStyleTest,
   const ComputedStyle* style = InitialComputedStyle();
   ComputedStyleBuilder builder(*style);
   builder.SetBackfaceVisibility(EBackfaceVisibility::kHidden);
-  builder.SetWillChangeProperties({CSSPropertyID::kOpacity});
+
+  Vector<AtomicString> values({AtomicString("opacity")});
+  CSSBitset bitset({CSSPropertyID::kOpacity});
+  builder.SetWillChange(MakeGarbageCollected<StyleWillChangeData>(
+      std::move(values), std::move(bitset), false, false, false));
+
   const ComputedStyle* other = builder.TakeStyle();
 
   StyleDifference diff = style->VisualInvalidationDiff(GetDocument(), *other);
@@ -2459,6 +2465,40 @@ TEST_F(ComputedStyleTest, SingleAxisScrollContainers) {
 
   EXPECT_TRUE(vertical->IsOverflowValueScrollableInline());
   EXPECT_FALSE(vertical->IsOverflowValueScrollableBlock());
+}
+
+TEST_F(ComputedStyleTest, SingleAxisIsOverflowVisibleOrClip) {
+  ScopedSingleAxisScrollContainersForTest enabled_scoped(true);
+
+  ComputedStyleBuilder builder = CreateComputedStyleBuilder();
+  builder.SetOverflowX(EOverflow::kVisible);
+  builder.SetOverflowY(EOverflow::kVisible);
+  EXPECT_TRUE(builder.TakeStyle()->IsOverflowVisibleOrClip());
+
+  builder = CreateComputedStyleBuilder();
+  builder.SetOverflowX(EOverflow::kClip);
+  builder.SetOverflowY(EOverflow::kClip);
+  EXPECT_TRUE(builder.TakeStyle()->IsOverflowVisibleOrClip());
+
+  builder = CreateComputedStyleBuilder();
+  builder.SetOverflowX(EOverflow::kVisible);
+  builder.SetOverflowY(EOverflow::kClip);
+  EXPECT_TRUE(builder.TakeStyle()->IsOverflowVisibleOrClip());
+
+  builder = CreateComputedStyleBuilder();
+  builder.SetOverflowX(EOverflow::kVisible);
+  builder.SetOverflowY(EOverflow::kScroll);
+  EXPECT_FALSE(builder.TakeStyle()->IsOverflowVisibleOrClip());
+
+  builder = CreateComputedStyleBuilder();
+  builder.SetOverflowX(EOverflow::kScroll);
+  builder.SetOverflowY(EOverflow::kVisible);
+  EXPECT_FALSE(builder.TakeStyle()->IsOverflowVisibleOrClip());
+
+  builder = CreateComputedStyleBuilder();
+  builder.SetOverflowX(EOverflow::kScroll);
+  builder.SetOverflowY(EOverflow::kScroll);
+  EXPECT_FALSE(builder.TakeStyle()->IsOverflowVisibleOrClip());
 }
 
 TEST_F(ComputedStyleTest, ApplyTextTransformUpdateOffsetMap) {

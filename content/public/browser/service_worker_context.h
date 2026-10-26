@@ -22,6 +22,7 @@
 #include "content/public/browser/service_worker_external_request_timeout_type.h"
 #include "content/public/browser/service_worker_registration_information.h"
 #include "content/public/browser/service_worker_running_info.h"
+#include "content/public/common/child_process_id.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "third_party/blink/public/common/messaging/transferable_message.h"
 #include "third_party/blink/public/common/service_worker/extended_service_worker_status_code.h"
@@ -109,15 +110,21 @@ class ServiceWorkerContextObserverSynchronous : public base::CheckedObserver {
 
   // Called when a console message is reported for the service worker with id
   // |version_id|.
-  virtual void OnReportConsoleMessageSync(int render_process_id,
+  virtual void OnReportConsoleMessageSync(ChildProcessId render_process_id,
                                           int64_t version_id,
                                           const GURL& scope,
                                           const ConsoleMessage& message) {}
 
   // Called when the service worker with id `version_id` will be stopped.
-  virtual void OnStoppingSync(int64_t version_id, const GURL& scope) {}
+  virtual void OnStoppingSync(
+      int64_t version_id,
+      const GURL& scope,
+      const blink::ServiceWorkerToken& service_worker_token) {}
   // Called when the service worker with id `version_id` has stopped running.
-  virtual void OnStoppedSync(int64_t version_id, const GURL& scope) {}
+  virtual void OnStoppedSync(
+      int64_t version_id,
+      const GURL& scope,
+      const blink::ServiceWorkerToken& service_worker_token) {}
 
   // Called when `context` is destroyed. Observers must no longer use |context|.
   virtual void OnDestructSync(ServiceWorkerContext* context) {}
@@ -164,7 +171,7 @@ class CONTENT_EXPORT ServiceWorkerContext {
 
   using StartWorkerCallback =
       base::OnceCallback<void(int64_t version_id,
-                              int process_id,
+                              ChildProcessId process_id,
                               int thread_id,
                               const blink::ServiceWorkerToken& token)>;
 
@@ -345,9 +352,10 @@ class CONTENT_EXPORT ServiceWorkerContext {
       int64_t service_worker_version_id) = 0;
 
   // Returns true if the ServiceWorkerVersion for `service_worker_version_id` is
-  // live (starting or running) and its associated worker instance matches the
-  // `token`. This can be used to ensure that IPC messages are not from a stale
-  // worker instance that has already been stopped.
+  // live (starting or running, but NOT stopping) and its associated worker
+  // instance matches the `token`. This can be used to ensure that IPC messages
+  // are not from a stale worker instance that has already been stopped, or is
+  // already stopping.
   virtual bool IsLiveServiceWorkerWithToken(
       int64_t service_worker_version_id,
       const blink::ServiceWorkerToken& token) = 0;

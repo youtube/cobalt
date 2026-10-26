@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google Inc.
+ * Copyright 2021 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -102,8 +102,11 @@ private:
         }
 
         bool canAdd(const SkPath& path) const {
-            // Return true so long as we won't overflow the total verb count
-            return std::numeric_limits<int>::max() - fTotalCombinedPathVerbCnt >= path.countVerbs();
+            // Return true so long as we won't overflow the total verb count, with a bit of head
+            // room so that later-on allocations are unlikely to overflow (they still need to guard
+            // themselves, but we'd rather just make new Ops).
+            static constexpr int kMaxVerbLimit = std::numeric_limits<int>::max() >> 4;
+            return kMaxVerbLimit - fTotalCombinedPathVerbCnt >= path.countVerbs();
         }
 
         const PathDrawList* pathDrawList() const { return fPathDrawList; }

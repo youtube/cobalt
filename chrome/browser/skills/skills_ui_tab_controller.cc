@@ -8,6 +8,7 @@
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/skills/skills_glic_mojom_util.h"
 #include "chrome/browser/skills/skills_ui_window_controller.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/webui/skills/skills_dialog_delegate.h"
@@ -15,6 +16,7 @@
 #include "chrome/browser/ui/webui/skills/skills_ui.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/skills/public/skill.h"
+#include "components/skills/public/skill.mojom.h"
 #include "components/skills/public/skills_metrics.h"
 #include "components/skills/public/skills_service.h"
 #include "components/sync/protocol/skill_specifics.pb.h"
@@ -31,25 +33,6 @@ constexpr base::TimeDelta kGlicPanelPollIntervalMilliseconds =
     base::Milliseconds(60);
 
 using glic::mojom::SkillSource;
-
-glic::mojom::SkillPreviewPtr GetPreviewFromSkill(const skills::Skill& skill) {
-  auto skill_preview = glic::mojom::SkillPreview::New();
-  skill_preview->id = skill.id;
-  skill_preview->name = skill.name;
-  skill_preview->icon = skill.icon;
-
-  switch (skill.source) {
-    case sync_pb::SkillSource::SKILL_SOURCE_FIRST_PARTY:
-      skill_preview->source = SkillSource::kFirstParty;
-      break;
-    case sync_pb::SkillSource::SKILL_SOURCE_USER_CREATED:
-      skill_preview->source = SkillSource::kUserCreated;
-      break;
-    default:
-      skill_preview->source = SkillSource::kUnknown;
-  }
-  return skill_preview;
-}
 
 }  // namespace
 
@@ -82,7 +65,8 @@ void SkillsUiTabController::OnTabWillDetach(
 }
 
 void SkillsUiTabController::ShowDialog(Skill skill,
-                                       SkillsDialogEntryPoint entrypoint) {
+                                       SkillsDialogEntryPoint entrypoint,
+                                       mojom::SkillsDialogType dialog_type) {
   if (dialog_widget_) {
     // Dialog is already open.
     return;
@@ -112,7 +96,7 @@ void SkillsUiTabController::ShowDialog(Skill skill,
                               ->GetController()
                               ->GetAs<skills::SkillsUI>()) {
       skills_ui->InitializeDialog(weak_ptr_factory_.GetWeakPtr(),
-                                  std::move(skill), entrypoint);
+                                  std::move(skill), entrypoint, dialog_type);
     }
   }
   dialog_delegate_->SetInitiallyFocusedView(dialog_view->web_view());
@@ -162,12 +146,12 @@ void SkillsUiTabController::OnSkillSaved(const std::string& skill_id) {
   }
 }
 
-void SkillsUiTabController::OnSkillDeleted() {
+void SkillsUiTabController::OnSkillDeleted(const std::string& skill_id) {
   if (auto* window_interface = tab_->GetBrowserWindowInterface()) {
     // Delegate the global toast action to the Window Controller.
     auto* window_controller = SkillsUiWindowController::From(window_interface);
     if (window_controller) {
-      window_controller->OnSkillDeleted();
+      window_controller->OnSkillDeleted(skill_id);
     }
   }
 }
@@ -268,7 +252,7 @@ void SkillsUiTabController::NotifySkillToInvokeChanged() {
 
   auto mojo_skill = glic::mojom::Skill::New();
   mojo_skill->prompt = skill->prompt;
-  mojo_skill->preview = GetPreviewFromSkill(*skill);
+  mojo_skill->preview = SkillToGlicMojomSkillPreview(skill);
 
   if (auto* service = GetGlicService()) {
     if (auto* instance = service->GetInstanceForTab(&tab_.get())) {

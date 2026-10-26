@@ -34,7 +34,6 @@
 #include "test/gtest.h"
 
 namespace webrtc {
-namespace aec3 {
 
 #if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 
@@ -160,5 +159,4 @@ TEST(SuppressionGain, BasicGainComputation) {
                 [](float a) { EXPECT_NEAR(0.0f, a, 0.001f); });
 }
 
-}  // namespace aec3
 }  // namespace webrtc

@@ -12,10 +12,10 @@
 #define P2P_BASE_ICE_CONTROLLER_INTERFACE_H_
 
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
-#include "api/array_view.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "p2p/base/connection.h"
@@ -111,7 +111,7 @@ class IceControllerInterface {
   virtual void OnConnectionDestroyed(const Connection* connection) = 0;
 
   // These are all connections that has been added and not destroyed.
-  virtual ArrayView<const Connection* const> GetConnections() const = 0;
+  virtual std::span<const Connection* const> GetConnections() const = 0;
 
   // Is there a pingable connection ?
   // This function is used to boot-strap pinging, after this returns true

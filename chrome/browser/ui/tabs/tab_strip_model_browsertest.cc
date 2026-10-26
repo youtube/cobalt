@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 
 #include "ash/constants/web_app_id_constants.h"
+#include "base/callback_list.h"
 #include "base/json/json_reader.h"
 #include "base/scoped_observation.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -18,10 +19,9 @@
 #include "chrome/browser/policy/policy_test_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_service.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_service_factory.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_session.h"
@@ -84,21 +84,12 @@ constexpr bool kShouldPreventClose = false;
 }  // namespace
 
 class TabStripModelPreventCloseTest : public PreventCloseTestBase,
-                                      public BrowserListObserver,
                                       public TabStripModelObserver {
  public:
-  TabStripModelPreventCloseTest() { BrowserList::AddObserver(this); }
-
+  TabStripModelPreventCloseTest() = default;
   explicit TabStripModelPreventCloseTest(const PreventCloseTestBase&) = delete;
   TabStripModelPreventCloseTest& operator=(
       const TabStripModelPreventCloseTest&) = delete;
-
-  ~TabStripModelPreventCloseTest() override {
-    BrowserList::RemoveObserver(this);
-  }
-
-  // BrowserListObserver:
-  void OnBrowserRemoved(Browser* browser) override { observer_.Reset(); }
 
   // TabStripModelObserver:
   MOCK_METHOD(void,
@@ -107,9 +98,20 @@ class TabStripModelPreventCloseTest : public PreventCloseTestBase,
               (override));
 
  protected:
+  void ObserveBrowser(Browser* browser) {
+    browser_did_close_subscription_ =
+        browser->RegisterBrowserDidClose(base::BindRepeating(
+            [](TabStripModelPreventCloseTest* self, BrowserWindowInterface*) {
+              self->observer_.Reset();
+            },
+            base::Unretained(this)));
+    observer_.Observe(browser->tab_strip_model());
+  }
+
   web_app::OsIntegrationTestOverrideBlockingRegistration faked_os_integration_;
   base::ScopedObservation<TabStripModel, TabStripModelPreventCloseTest>
       observer_{this};
+  base::CallbackListSubscription browser_did_close_subscription_;
 };
 
 IN_PROC_BROWSER_TEST_F(TabStripModelPreventCloseTest,
@@ -122,7 +124,7 @@ IN_PROC_BROWSER_TEST_F(TabStripModelPreventCloseTest,
       LaunchPWA(ash::kCalculatorAppId, /*launch_in_window=*/true);
   ASSERT_TRUE(browser);
 
-  observer_.Observe(browser->tab_strip_model());
+  ObserveBrowser(browser);
 
   TabStripModel* const tab_strip_model = browser->tab_strip_model();
   EXPECT_EQ(1, tab_strip_model->count());
@@ -163,7 +165,7 @@ IN_PROC_BROWSER_TEST_F(
       LaunchPWA(ash::kCalculatorAppId, /*launch_in_window=*/false);
   ASSERT_TRUE(browser);
 
-  observer_.Observe(browser->tab_strip_model());
+  ObserveBrowser(browser);
 
   TabStripModel* const tab_strip_model = browser->tab_strip_model();
   EXPECT_NE(0, tab_strip_model->count());
@@ -503,123 +505,6 @@ IN_PROC_BROWSER_TEST_F(TabStripModelBrowserTest, CommandDuplicateSelected) {
   // Should have duplicated tabs 1, 4, 5, 7, 10, and 11.
   EXPECT_EQ("0p 1p -1p 2ps 3ps 4ps 5ps -1ps -1ps 6 7 -1 8s 9s 10s 11s -1s -1s",
             GetTabStripStateString(tab_strip_model));
-}
-
-class TabStripModelGlicMultiTabBrowserTest : public TabStripModelBrowserTest {
- public:
-  TabStripModelGlicMultiTabBrowserTest() {
-    scoped_feature_list_.InitWithFeatureStates(
-        {{glic::mojom::features::kGlicMultiTab, true},
-         {features::kGlicMultiInstance, false}});
-  }
-
- protected:
-  TabStripModel* tab_strip() { return browser()->tab_strip_model(); }
-
-  glic::GlicKeyedService* service() {
-    return glic::GlicKeyedServiceFactory::GetGlicKeyedService(
-        browser()->profile());
-  }
-
-  glic::GlicSharingManager& sharing_manager() {
-    return service()->sharing_manager();
-  }
-
-  tabs::TabHandle TabHandleAtIndex(int index) {
-    return tab_strip()->GetTabAtIndex(index)->GetHandle();
-  }
-
-  glic::GlicTestEnvironment glic_test_environment_;
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_F(TabStripModelGlicMultiTabBrowserTest, StartSharing) {
-  AddTabs(3);
-  tab_strip()->ActivateTabAt(0);
-  tab_strip()->SelectTabAt(1);
-  tab_strip()->SelectTabAt(2);
-  EXPECT_TRUE(tab_strip()->IsContextMenuCommandEnabled(
-      1, TabStripModel::CommandGlicStartShare));
-  tab_strip()->ExecuteContextMenuCommand(1,
-                                         TabStripModel::CommandGlicStartShare);
-  for (int i = 0; i < 3; ++i) {
-    EXPECT_TRUE(sharing_manager().IsTabPinned(TabHandleAtIndex(i)));
-  }
-}
-
-IN_PROC_BROWSER_TEST_F(TabStripModelGlicMultiTabBrowserTest,
-                       StartSharingSubset) {
-  AddTabs(3);
-  tab_strip()->ActivateTabAt(0);
-  tab_strip()->SelectTabAt(1);
-  tab_strip()->SelectTabAt(2);
-  sharing_manager().PinTabs({TabHandleAtIndex(1)});
-  EXPECT_TRUE(tab_strip()->IsContextMenuCommandEnabled(
-      1, TabStripModel::CommandGlicStartShare));
-  tab_strip()->ExecuteContextMenuCommand(1,
-                                         TabStripModel::CommandGlicStartShare);
-  for (int i = 0; i < 3; ++i) {
-    EXPECT_TRUE(sharing_manager().IsTabPinned(TabHandleAtIndex(i)))
-        << "with tab index: " << i;
-  }
-}
-
-IN_PROC_BROWSER_TEST_F(TabStripModelGlicMultiTabBrowserTest, StopSharing) {
-  AddTabs(2);
-  tab_strip()->ActivateTabAt(0);
-  tab_strip()->SelectTabAt(1);
-  sharing_manager().PinTabs({TabHandleAtIndex(0), TabHandleAtIndex(1)});
-  EXPECT_TRUE(tab_strip()->IsContextMenuCommandEnabled(
-      1, TabStripModel::CommandGlicStopShare));
-  tab_strip()->ExecuteContextMenuCommand(1,
-                                         TabStripModel::CommandGlicStopShare);
-  for (int i = 0; i < 2; ++i) {
-    EXPECT_FALSE(sharing_manager().IsTabPinned(TabHandleAtIndex(i)))
-        << "with tab index: " << i;
-  }
-}
-
-IN_PROC_BROWSER_TEST_F(TabStripModelGlicMultiTabBrowserTest, ShareLimit) {
-  const int limit = sharing_manager().GetMaxPinnedTabs();
-  AddTabs(limit);
-  for (int i = 0; i < limit; ++i) {
-    sharing_manager().PinTabs({TabHandleAtIndex(i)});
-  }
-  EXPECT_FALSE(tab_strip()->IsContextMenuCommandEnabled(
-      1, TabStripModel::CommandGlicShareLimit));
-
-  tab_strip()->SelectTabAt(0);
-  tab_strip()->CloseSelectedTabs();
-  EXPECT_EQ(limit - 1, sharing_manager().GetNumPinnedTabs());
-
-  sharing_manager().UnpinAllTabs();
-  EXPECT_EQ(0, sharing_manager().GetNumPinnedTabs());
-}
-
-IN_PROC_BROWSER_TEST_F(TabStripModelGlicMultiTabBrowserTest,
-                       StartSharingShouldOpenGlicWindow) {
-  AddTabs(1);
-  tab_strip()->ActivateTabAt(0);
-  EXPECT_FALSE(service()->IsWindowOrFreShowing());
-
-  tab_strip()->ExecuteContextMenuCommand(1,
-                                         TabStripModel::CommandGlicStartShare);
-
-  EXPECT_TRUE(service()->IsWindowOrFreShowing());
-}
-
-IN_PROC_BROWSER_TEST_F(TabStripModelGlicMultiTabBrowserTest,
-                       StartSharingShouldNotCloseGlicWindow) {
-  AddTabs(1);
-  tab_strip()->ActivateTabAt(0);
-  service()->ToggleUI(/*bwi=*/nullptr, /*prevent_close=*/true,
-                      glic::mojom::InvocationSource::kOsButton);
-  EXPECT_TRUE(service()->IsWindowOrFreShowing());
-
-  tab_strip()->ExecuteContextMenuCommand(1,
-                                         TabStripModel::CommandGlicStartShare);
-
-  EXPECT_TRUE(service()->IsWindowOrFreShowing());
 }
 
 class TabStripModelTestTabGroupEntryPointsEnabled

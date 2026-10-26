@@ -41,13 +41,13 @@ if (rtc_include_tests) {
       "../../../modules/video_coding:webrtc_vp8",
       "../../../rtc_base:checks",
       "../../../rtc_base:rtc_base_tests_utils",
+      "../../../test:create_test_environment",
       "../../../test:create_test_field_trials",
       "../../../test:fake_video_codecs",
       "../../../test:test_support",
       "../../../test:video_test_common",
       "../../environment",
       "../../environment:environment_factory",
-      "../../units:timestamp",
       "../../video:encoded_image",
       "../../video:resolution",
       "../../video:video_bitrate_allocation",
@@ -56,6 +56,7 @@ if (rtc_include_tests) {
       "../../video:video_frame_type",
       "../../video:video_rtp_headers",
       "//testing/gtest",
+      "//third_party/abseil-cpp/absl/strings:string_view",
     ]
   }
 

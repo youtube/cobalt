@@ -117,6 +117,23 @@ void InitialWebUIWindowMetricsManager::OnReloadButtonFirstContentfulPaint(
   }
 }
 
+void InitialWebUIWindowMetricsManager::
+    OnReloadButtonRendererProcessCreatedAndLaunched(
+        base::TimeTicks created_timestamp,
+        base::TimeTicks launched_timestamp) {
+  // Ensures only one startup process launch is recorded per browser process.
+  static bool is_startup_process_recorded = false;
+  if (!waap_service_) {
+    return;
+  }
+
+  if (!is_startup_process_recorded && !skip_startup_metrics_for_testing_) {
+    is_startup_process_recorded = true;
+    waap_service_->OnReloadButtonRendererProcessCreatedAndLaunched(
+        created_timestamp, launched_timestamp);
+  }
+}
+
 void InitialWebUIWindowMetricsManager::SkipStartupForTesting() {
   skip_startup_metrics_for_testing_ = true;
 }

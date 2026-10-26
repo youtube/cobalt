@@ -15,11 +15,11 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <span>
 #include <utility>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
 #include "rtc_base/checks.h"
@@ -110,7 +110,7 @@ void CopyOnWriteBuffer::Clear() {
   RTC_DCHECK(IsConsistent());
 }
 
-void CopyOnWriteBuffer::Set(ArrayView<const uint8_t> data) {
+void CopyOnWriteBuffer::Set(std::span<const uint8_t> data) {
   RTC_DCHECK(IsConsistent());
   if (data.empty()) {
     offset_ = 0;
@@ -129,7 +129,7 @@ void CopyOnWriteBuffer::Set(ArrayView<const uint8_t> data) {
   RTC_DCHECK(IsConsistent());
 }
 
-void CopyOnWriteBuffer::Append(ArrayView<const uint8_t> data) {
+void CopyOnWriteBuffer::Append(std::span<const uint8_t> data) {
   RTC_DCHECK(IsConsistent());
   if (data.empty()) {
     return;

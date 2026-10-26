@@ -16,13 +16,13 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/candidate.h"
 #include "api/field_trials.h"
 #include "api/ice_transport_interface.h"
@@ -574,7 +574,7 @@ class FakeIceTransportInternal : public IceTransportInternal {
                         << " attr: " << (dtls_piggyback_attr != nullptr)
                         << " ack: " << (dtls_piggyback_ack != nullptr);
       if (!dtls_stun_piggyback_callbacks_.empty()) {
-        std::optional<ArrayView<uint8_t>> piggyback_attr;
+        std::optional<std::span<uint8_t>> piggyback_attr;
         if (dtls_piggyback_attr) {
           piggyback_attr = dtls_piggyback_attr->array_view();
         }
@@ -614,7 +614,7 @@ class FakeIceTransportInternal : public IceTransportInternal {
     }
 
     std::unique_ptr<IceMessage> stun_msg(new IceMessage());
-    ByteBufferReader buf(MakeArrayView(packet.data(), packet.size()));
+    ByteBufferReader buf(std::span(packet.data(), packet.size()));
     RTC_CHECK(stun_msg->Read(&buf));
     return stun_msg;
   }

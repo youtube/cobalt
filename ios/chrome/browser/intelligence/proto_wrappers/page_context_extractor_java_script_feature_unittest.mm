@@ -112,7 +112,9 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/true,
       /*use_rich_extraction=*/false,
-      /*use_rich_extraction_with_actionable=*/false, "nonce",
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce",
       base::Milliseconds(100),
       base::BindOnce(
           [](base::RunLoop* r, base::Value* result_value,
@@ -148,7 +150,9 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest, ExtractPageContext) {
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/false,
-      /*use_rich_extraction_with_actionable=*/false, "nonce",
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce",
       base::Milliseconds(100),
       base::BindOnce(
           [](base::RunLoop* r, base::Value* result_value,
@@ -196,7 +200,9 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/false,
-      /*use_rich_extraction_with_actionable=*/false, "nonce",
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce",
       base::Milliseconds(100),
       base::BindOnce(
           [](base::RunLoop* r, base::Value* result_value,
@@ -241,7 +247,9 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/false,
-      /*use_rich_extraction_with_actionable=*/false, "nonce",
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce",
       base::Milliseconds(100),
       base::BindOnce(
           [](base::RunLoop* r, base::Value* result_value,
@@ -274,7 +282,9 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/true,
-      /*use_rich_extraction_with_actionable=*/false, "nonce", base::Seconds(1),
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
       base::BindOnce(
           [](base::RunLoop* r, base::Value* result_value,
              const base::Value* value) {
@@ -336,7 +346,9 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/true,
-      /*use_rich_extraction_with_actionable=*/true, "nonce", base::Seconds(1),
+      /*use_rich_extraction_with_actionable=*/true,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
       base::BindOnce(
           [](base::RunLoop* r, base::Value* result_value,
              const base::Value* value) {
@@ -379,8 +391,10 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
   feature()->ExtractPageContext(
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
-      /*use_apc_v2=*/true, /*use_rich_extraction_with_actionable=*/false,
-      "nonce", base::Seconds(1),
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
       base::BindOnce(
           [](base::RunLoop* r, base::Value* result_value,
              const base::Value* value) {
@@ -434,7 +448,9 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
       web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
       /*include_cross_origin_frame_content=*/false,
       /*use_rich_extraction=*/true,
-      /*use_rich_extraction_with_actionable=*/false, "nonce", base::Seconds(1),
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
       base::BindOnce(
           [](base::OnceCallback<void(base::Value)> callback,
              const base::Value* value) {
@@ -472,4 +488,234 @@ TEST_F(PageContextExtractorJavaScriptFeatureTest,
       "contentAttributes.textInfo.textStyle.color");
   ASSERT_TRUE(color.has_value());
   EXPECT_EQ(static_cast<uint32_t>(*color), 16711935u);
+}
+
+// Test the extraction of the table caption.
+TEST_F(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContext_RichExtraction_Table_Caption) {
+  const std::string html =
+      "<html><body>"
+      "<table>"
+      "  <caption style=\"text-transform: uppercase;\">My Table Name</caption>"
+      "  <thead><tr><th>Header</th></tr></thead>"
+      "  <tbody><tr><td>Body</td></tr></tbody>"
+      "</table>"
+      "</body></html>";
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  base::test::TestFuture<base::Value> future;
+  feature()->ExtractPageContext(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
+      base::BindOnce(
+          [](base::OnceCallback<void(base::Value)> callback,
+             const base::Value* value) {
+            std::move(callback).Run(value ? value->Clone() : base::Value());
+          },
+          future.GetCallback()));
+
+  base::Value result_value = future.Take();
+  const base::DictValue& dict = result_value.GetDict();
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+  const base::ListValue* children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(children);
+  ASSERT_EQ(children->size(), 1u);
+
+  const base::DictValue& table_node = (*children)[0].GetDict();
+  std::optional<double> attribute_type =
+      table_node.FindDoubleByDottedPath("contentAttributes.attributeType");
+  ASSERT_TRUE(attribute_type.has_value());
+  EXPECT_EQ(
+      static_cast<int>(attribute_type.value()),
+      static_cast<int>(optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE));
+
+  const std::string* table_name = table_node.FindStringByDottedPath(
+      "contentAttributes.tableData.tableName");
+  ASSERT_TRUE(table_name);
+  EXPECT_EQ(*table_name, "MY TABLE NAME");
+}
+
+// Test the extraction of the table caption when the text is nested inside
+// other tags.
+TEST_F(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContext_RichExtraction_Table_Caption_Nested) {
+  const std::string html =
+      "<html><body>"
+      "<table>"
+      "  <caption style=\"text-transform: uppercase;\">"
+      "    <span>My <strong>Nested Table</strong> Name</span>"
+      "  </caption>"
+      "  <thead><tr><th>Header</th></tr></thead>"
+      "  <tbody><tr><td>Body</td></tr></tbody>"
+      "</table>"
+      "</body></html>";
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  base::test::TestFuture<base::Value> future;
+  feature()->ExtractPageContext(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
+      base::BindOnce(
+          [](base::OnceCallback<void(base::Value)> callback,
+             const base::Value* value) {
+            std::move(callback).Run(value ? value->Clone() : base::Value());
+          },
+          future.GetCallback()));
+
+  base::Value result_value = future.Take();
+  const base::DictValue& dict = result_value.GetDict();
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+  const base::ListValue* children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(children);
+  ASSERT_EQ(children->size(), 1u);
+
+  const base::DictValue& table_node = (*children)[0].GetDict();
+  std::optional<double> attribute_type =
+      table_node.FindDoubleByDottedPath("contentAttributes.attributeType");
+  ASSERT_TRUE(attribute_type.has_value());
+  EXPECT_EQ(
+      static_cast<int>(attribute_type.value()),
+      static_cast<int>(optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE));
+
+  const std::string* table_name = table_node.FindStringByDottedPath(
+      "contentAttributes.tableData.tableName");
+  ASSERT_TRUE(table_name);
+
+  // Verifies that text from nested spans and strong tags is correctly extracted
+  // and that the uppercase transformation still applies to the nested text.
+  EXPECT_EQ(*table_name, "MY NESTED TABLE NAME");
+}
+
+// Verifies that internal SVG structural and metadata elements (like <title>,
+// <defs>, and <script>) are strictly excluded from extraction to prevent
+// non-visible technical strings from polluting the output.
+TEST_F(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContext_RichExtraction_Svg) {
+  const std::string html = "<html><body><svg width=\"100\" height=\"100\">"
+                           "<title>SVG Title</title>"
+                           "<desc>SVG Desc</desc>"
+                           "<text>SVG Text</text>"
+                           "<g><text><tspan>Nested Text</tspan></text></g>"
+                           "</svg></body></html>";
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  base::test::TestFuture<base::Value> future;
+  feature()->ExtractPageContext(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
+      base::BindOnce(
+          [](base::OnceCallback<void(base::Value)> callback,
+             const base::Value* value) {
+            std::move(callback).Run(value ? value->Clone() : base::Value());
+          },
+          future.GetCallback()));
+
+  base::Value result_value = future.Take();
+  ASSERT_TRUE(result_value.is_dict());
+
+  const base::DictValue& dict = result_value.GetDict();
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+
+  const base::ListValue* children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(children);
+  ASSERT_EQ(children->size(), 1u);
+
+  // Check SVG
+  const base::DictValue& svg_node = (*children)[0].GetDict();
+  std::optional<double> attribute_type =
+      svg_node.FindDoubleByDottedPath("contentAttributes.attributeType");
+  ASSERT_TRUE(attribute_type.has_value());
+  EXPECT_EQ(
+      static_cast<int>(attribute_type.value()),
+      static_cast<int>(optimization_guide::proto::CONTENT_ATTRIBUTE_SVG_ROOT));
+
+  // Verify that the SVG is NOT treated as a leaf component.
+  const base::ListValue* svg_children = svg_node.FindList("childrenNodes");
+  ASSERT_TRUE(svg_children);
+
+  // We expect "SVG Text" and the group containing "Nested Text".
+  // <title> and <desc> are excluded.
+  ASSERT_EQ(svg_children->size(), 2u);
+
+  // Check for the "SVG Text" node.
+  const base::DictValue& text_node = (*svg_children)[0].GetDict();
+  EXPECT_EQ(*(text_node.FindStringByDottedPath(
+                "contentAttributes.textInfo.textContent")),
+            "SVG Text");
+
+  // Check for nested text node.
+  const base::DictValue& nested_text_node = (*svg_children)[1].GetDict();
+  EXPECT_EQ(*(nested_text_node.FindStringByDottedPath(
+                "contentAttributes.textInfo.textContent")),
+            "Nested Text");
+}
+
+// Verifies that SVG elements rendered invisible via CSS (display/visibility)
+// are excluded.
+TEST_F(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContext_RichExtraction_Svg_Visibility) {
+  const std::string html =
+      "<html><body><svg width=\"200\" height=\"200\">"
+      "<text>Visible Text</text>"
+      "<text style=\"display: none\">Hidden Display Text</text>"
+      "<text style=\"visibility: hidden\">Hidden Visibility Text</text>"
+      "<g style=\"display: none\"><text>Hidden Group Text</text></g>"
+      "</svg></body></html>";
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  base::test::TestFuture<base::Value> future;
+  feature()->ExtractPageContext(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1),
+      base::BindOnce(
+          [](base::OnceCallback<void(base::Value)> callback,
+             const base::Value* value) {
+            std::move(callback).Run(value ? value->Clone() : base::Value());
+          },
+          future.GetCallback()));
+
+  base::Value result_value = future.Take();
+  ASSERT_TRUE(result_value.is_dict());
+
+  const base::DictValue& dict = result_value.GetDict();
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+
+  const base::ListValue* children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(children);
+  ASSERT_EQ(children->size(), 1u);
+
+  // Check SVG
+  const base::DictValue& svg_node = (*children)[0].GetDict();
+  const base::ListValue* svg_children = svg_node.FindList("childrenNodes");
+  ASSERT_TRUE(svg_children);
+
+  ASSERT_EQ(svg_children->size(), 1u);
+  const base::DictValue& text_node = (*svg_children)[0].GetDict();
+  EXPECT_EQ(*((text_node.FindStringByDottedPath(
+                "contentAttributes.textInfo.textContent"))),
+            "Visible Text");
 }

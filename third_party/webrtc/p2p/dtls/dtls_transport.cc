@@ -15,13 +15,13 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/crypto/crypto_options.h"
 #include "api/dtls_transport_interface.h"
 #include "api/environment/environment.h"
@@ -128,7 +128,7 @@ constexpr int kDisabledHandshakeTimeoutMs = 3600 * 1000 * 24;
 
 constexpr uint32_t kMaxCachedClientHello = 4;
 
-static bool IsRtpPacket(ArrayView<const uint8_t> payload) {
+static bool IsRtpPacket(std::span<const uint8_t> payload) {
   const uint8_t* u = payload.data();
   return (payload.size() >= kMinRtpPacketLen && (u[0] & 0xC0) == 0x80);
 }
@@ -149,7 +149,7 @@ void StreamInterfaceChannel::SetDtlsStunPiggybackController(
   dtls_stun_piggyback_controller_ = dtls_stun_piggyback_controller;
 }
 
-StreamResult StreamInterfaceChannel::Read(ArrayView<uint8_t> buffer,
+StreamResult StreamInterfaceChannel::Read(std::span<uint8_t> buffer,
                                           size_t& read,
                                           int& /* error */) {
   RTC_DCHECK_RUN_ON(&callback_sequence_);
@@ -177,7 +177,7 @@ void StreamInterfaceChannel::ClearNextPacketOptions() {
   next_packet_options_.reset();
 }
 
-StreamResult StreamInterfaceChannel::Write(ArrayView<const uint8_t> data,
+StreamResult StreamInterfaceChannel::Write(std::span<const uint8_t> data,
                                            size_t& written,
                                            int& /* error */) {
   RTC_DCHECK_RUN_ON(&callback_sequence_);
@@ -209,7 +209,7 @@ bool StreamInterfaceChannel::Flush() {
   return false;
 }
 
-bool StreamInterfaceChannel::OnPacketReceived(ArrayView<const uint8_t> data) {
+bool StreamInterfaceChannel::OnPacketReceived(std::span<const uint8_t> data) {
   RTC_DCHECK_RUN_ON(&callback_sequence_);
   if (packets_.size() > 0) {
     RTC_LOG(LS_WARNING) << "Packet already in queue.";
@@ -260,7 +260,7 @@ DtlsTransportInternalImpl::DtlsTransportInternalImpl(
           crypto_options.ephemeral_key_exchange_cipher_groups.GetEnabled()),
       ssl_max_version_(max_version),
       dtls_stun_piggyback_controller_(
-          [this](ArrayView<const uint8_t> piggybacked_dtls_packet) {
+          [this](std::span<const uint8_t> piggybacked_dtls_packet) {
             if (piggybacked_dtls_callback_ == nullptr) {
               return;
             }
@@ -655,7 +655,7 @@ int DtlsTransportInternalImpl::SendPacket(
       if (flags & PF_SRTP_BYPASS) {
         RTC_DCHECK(!srtp_ciphers_.empty());
         if (!IsRtpPacket(
-                MakeArrayView(reinterpret_cast<const uint8_t*>(data), size))) {
+                std::span(reinterpret_cast<const uint8_t*>(data), size))) {
           return -1;
         }
 
@@ -669,8 +669,8 @@ int DtlsTransportInternalImpl::SendPacket(
         // StreamInterfaceChannel::Write function. Such change would remove the
         // need of the next_packet_options_.
         StreamResult result = dtls_->Write(
-            MakeArrayView(reinterpret_cast<const uint8_t*>(data), size),
-            written, error);
+            std::span(reinterpret_cast<const uint8_t*>(data), size), written,
+            error);
         if (result != SR_SUCCESS) {
           // Explicitly clear the next packet options, in case no packet was
           // sent.
@@ -775,7 +775,7 @@ void DtlsTransportInternalImpl::ConnectToIceTransport() {
         }
         return std::make_pair(data, ack);
       },
-      [&](std::optional<ArrayView<uint8_t>> data,
+      [&](std::optional<std::span<uint8_t>> data,
           std::optional<std::vector<uint32_t>> acks) {
         if (!dtls_in_stun_) {
           return;
@@ -1016,10 +1016,9 @@ void DtlsTransportInternalImpl::OnDtlsEvent(int sig, int err) {
         // TODO(bugs.webrtc.org/15368): It should be possible to use information
         // from the original packet here to populate socket address and
         // timestamp.
-        NotifyPacketReceived(
-            ReceivedIpPacket(MakeArrayView(buf, read), SocketAddress(),
-                             env_.clock().CurrentTime(), EcnMarking::kNotEct,
-                             ReceivedIpPacket::kDtlsDecrypted));
+        NotifyPacketReceived(ReceivedIpPacket(
+            std::span(buf, read), SocketAddress(), env_.clock().CurrentTime(),
+            EcnMarking::kNotEct, ReceivedIpPacket::kDtlsDecrypted));
       } else if (ret == SR_EOS) {
         // Remote peer shut down the association with no error.
         RTC_LOG(LS_INFO) << ToString() << ": DTLS transport closed by remote";
@@ -1109,7 +1108,7 @@ void DtlsTransportInternalImpl::MaybeStartDtls() {
 
 // Called from OnReadPacket when a DTLS packet is received.
 bool DtlsTransportInternalImpl::HandleDtlsPacket(
-    ArrayView<const uint8_t> payload) {
+    std::span<const uint8_t> payload) {
   // Pass to the StreamInterfaceChannel which ends up being passed to the DTLS
   // stack.
   return downward_->OnPacketReceived(payload);

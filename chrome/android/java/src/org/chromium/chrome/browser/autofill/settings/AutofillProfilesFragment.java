@@ -46,6 +46,7 @@ import org.chromium.chrome.browser.autofill.editors.common.EditorObserverForTest
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment.AutofillOptionsReferrer;
 import org.chromium.chrome.browser.customtabs.CustomTabActivity;
+import org.chromium.chrome.browser.device_reauth.BiometricStatus;
 import org.chromium.chrome.browser.device_reauth.DeviceAuthSource;
 import org.chromium.chrome.browser.device_reauth.ReauthenticatorBridge;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -297,6 +298,12 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
 
     /** Adds the "Save and fill addresses" toggle. */
     private void addAutofillSwitch(PreferenceScreen screen) {
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)) {
+            PreferenceCategory category = new PreferenceCategory(getStyledContext());
+            category.setTitle(R.string.autofill_addresses_section_title);
+            category.setKey("autofill_section_title");
+            screen.addPreference(category);
+        }
         // LINT.IfChange(AddAutofillSwitch)
         PersonalDataManager personalDataManager =
                 PersonalDataManagerFactory.getForProfile(getProfile());
@@ -388,16 +395,20 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
     }
 
     /** Add button to create an entity of a certain type. */
-    private void addAddEntityButton(PreferenceCategory screen, EntityType entityType) {
+    private void addAddEntityButton(
+            PreferenceCategory screen, EntityType entityType, boolean disabled) {
         Preference pref = new Preference(getStyledContext());
         Drawable plusIcon = ApiCompatibilityUtils.getDrawable(getResources(), R.drawable.plus);
         plusIcon.mutate();
         plusIcon.setColorFilter(
-                SemanticColorUtils.getDefaultControlColorActive(getContext()),
+                disabled
+                        ? SemanticColorUtils.getDefaultIconColorSecondary(getContext())
+                        : SemanticColorUtils.getDefaultControlColorActive(getContext()),
                 PorterDuff.Mode.SRC_IN);
         pref.setIcon(plusIcon);
         pref.setTitle(entityType.getAddEntityTypeString());
         pref.setKey(entityType.getTypeNameAsString() + " Add"); // For testing.
+        pref.setEnabled(!disabled);
         pref.setOnPreferenceClickListener(
                 preference -> {
                     Instant nowInstant = Instant.ofEpochMilli(TimeUtils.currentTimeMillis());
@@ -435,6 +446,12 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
         Map<EntityType, List<EntityInstanceWithLabels>> instancesToList =
                 entityDataManager.getInstancesToList();
 
+        boolean addButtonEnabled =
+                ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_AI_AVAILABLE_BY_DEFAULT)
+                        ? entityDataManager.canEnableOrDisableAutofillAi()
+                        : entityDataManager.isEligibleToAutofillAi()
+                                && entityDataManager.getAutofillAiOptInStatus();
+
         for (Map.Entry<EntityType, List<EntityInstanceWithLabels>> entry :
                 instancesToList.entrySet()) {
             EntityType type = entry.getKey();
@@ -442,8 +459,8 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
 
             boolean isEnabled = type.isEnabled();
             boolean isReadOnly = type.isReadOnly();
-
-            if (entities.isEmpty() && (!isEnabled || (isReadOnly && isEnabled))) {
+            boolean shouldHaveAddButton = isEnabled && !isReadOnly;
+            if (entities.isEmpty() && !shouldHaveAddButton) {
                 continue;
             }
 
@@ -457,6 +474,9 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
                 pref.setTitle(entity.getEntityInstanceLabel());
                 pref.setSummary(entity.getEntityInstanceSubLabel());
                 pref.setKey(entity.getGuid());
+                if (entity.isStoredInWallet()) {
+                    pref.setIcon(R.drawable.google_wallet_24dp);
+                }
                 pref.setOnPreferenceClickListener(
                         preference -> {
                             if (entity.isStoredInWallet()) {
@@ -477,12 +497,17 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
                                                     getProfile(),
                                                     DeviceAuthSource.AUTOFILL);
                                 }
-                                mReauthenticatorBridge.reauthenticate(
-                                        success -> {
-                                            if (success) {
-                                                showEntityEditor(entityInstance);
-                                            }
-                                        });
+                                if (mReauthenticatorBridge.getBiometricAvailabilityStatus()
+                                        != BiometricStatus.UNAVAILABLE) {
+                                    mReauthenticatorBridge.reauthenticate(
+                                            success -> {
+                                                if (success) {
+                                                    showEntityEditor(entityInstance);
+                                                }
+                                            });
+                                } else {
+                                    showEntityEditor(entityInstance);
+                                }
                             } else {
                                 showEntityEditor(entityInstance);
                             }
@@ -491,8 +516,8 @@ public class AutofillProfilesFragment extends ChromeBaseSettingsFragment
                 category.addPreference(pref);
             }
 
-            if (isEnabled && !isReadOnly) {
-                addAddEntityButton(category, type);
+            if (shouldHaveAddButton) {
+                addAddEntityButton(category, type, !addButtonEnabled);
             }
         }
     }

@@ -103,9 +103,9 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // enable these optimizations in WebView though they are not fundamentally
   // impossible.
   aw_feature_overrides.DisableFeature(
-      blink::features::kLowLatencyCanvas2dImageChromium);
+      blink::features::kLowLatencyUsageSupportedForCanvas2D);
   aw_feature_overrides.DisableFeature(
-      blink::features::kLowLatencyWebGLImageChromium);
+      blink::features::kLowLatencyUsageSupportedForWebGL);
 
   // Disable Shared Storage on WebView.
   aw_feature_overrides.DisableFeature(network::features::kSharedStorageAPI);
@@ -327,10 +327,6 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // As WebSettings.setAllowContentAccess() allows this to be controlled by
   // the WebView's host, we keep the old behavior for content:// URLs.
   aw_feature_overrides.DisableFeature(blink::features::kContentSchemeIsLocal);
-
-  // Disable No-Vary-Search in disk cache on WebView.
-  // See https://crbug.com/382394774.
-  aw_feature_overrides.DisableFeature(net::features::kHttpCacheNoVarySearch);
 
   // TODO(crbug.com/489450060): Disable DirectReceiver on Viz for WebView until
   // its Viz thread is updated to handle IO.

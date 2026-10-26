@@ -115,21 +115,17 @@ PermissionPromptAndroid::ReasonForUsingQuietUi() const {
   return delegate_->ReasonForUsingQuietUi();
 }
 
-base::android::ScopedJavaLocalRef<jstring>
-PermissionPromptAndroid::GetPositiveButtonText(JNIEnv* env,
-                                               bool is_one_time) const {
-  return ConvertUTF16ToJavaString(env, std::u16string_view());
-}
-base::android::ScopedJavaLocalRef<jstring>
-PermissionPromptAndroid::GetNegativeButtonText(JNIEnv* env,
-                                               bool is_one_time) const {
-  return ConvertUTF16ToJavaString(env, std::u16string_view());
-}
-base::android::ScopedJavaLocalRef<jstring>
-PermissionPromptAndroid::GetPositiveEphemeralButtonText(
-    JNIEnv* env,
+std::u16string PermissionPromptAndroid::GetPositiveButtonText(
     bool is_one_time) const {
-  return ConvertUTF16ToJavaString(env, std::u16string_view());
+  return std::u16string();
+}
+std::u16string PermissionPromptAndroid::GetNegativeButtonText(
+    bool is_one_time) const {
+  return std::u16string();
+}
+std::u16string PermissionPromptAndroid::GetPositiveEphemeralButtonText(
+    bool is_one_time) const {
+  return std::u16string();
 }
 
 size_t PermissionPromptAndroid::PermissionCount() const {
@@ -234,6 +230,10 @@ PermissionPromptAndroid::GetBoldRanges(JNIEnv* env) const {
 GeolocationAccuracy
 PermissionPromptAndroid::GetInitialGeolocationAccuracySelection() const {
   return delegate_->GetInitialGeolocationAccuracySelection();
+}
+
+bool PermissionPromptAndroid::ShouldShowLocationPrecisionSelector() const {
+  return delegate_->ShouldShowLocationPrecisionSelector();
 }
 
 }  // namespace permissions

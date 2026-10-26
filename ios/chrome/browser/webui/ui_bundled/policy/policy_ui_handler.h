@@ -16,10 +16,16 @@
 #include "components/policy/core/browser/webui/policy_status_provider.h"
 #include "components/policy/core/common/policy_service.h"
 #include "components/policy/core/common/schema_registry.h"
+#include "components/policy/resources/webui/mojom/policy.mojom.h"
 #include "ios/chrome/browser/policy/model/status_provider/user_cloud_policy_status_provider.h"
+#include "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #include "ios/web/public/webui/web_ui_ios.h"
 #include "ios/web/public/webui/web_ui_ios_data_source.h"
 #include "ios/web/public/webui/web_ui_ios_message_handler.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
 
 namespace policy {
 class PolicyMap;
@@ -28,12 +34,21 @@ struct PolicyNamespace;
 
 // The JavaScript message handler for the chrome://policy page.
 class PolicyUIHandler : public web::WebUIIOSMessageHandler,
+                        public policy::mojom::PolicyPageHandler,
                         public UserCloudPolicyStatusProvider::Delegate,
                         public policy::PolicyService::Observer,
                         public policy::PolicyStatusProvider::Observer,
                         public policy::SchemaRegistry::Observer {
  public:
-  PolicyUIHandler();
+  // Constructs legacy web::WebUIIOSMessageHandler.
+  explicit PolicyUIHandler(ProfileIOS* profile);
+
+  // Constructs in-migration policy::mojom::PolicyPageHandler.
+  PolicyUIHandler(
+      mojo::PendingReceiver<policy::mojom::PolicyPageHandler> receiver,
+      mojo::PendingRemote<policy::mojom::PolicyPageClient> client,
+      ProfileIOS* profile);
+
   ~PolicyUIHandler() override;
   PolicyUIHandler(const PolicyUIHandler&) = delete;
   PolicyUIHandler& operator=(const PolicyUIHandler&) = delete;
@@ -57,6 +72,18 @@ class PolicyUIHandler : public web::WebUIIOSMessageHandler,
 
   // policy::SchemaRegistry::Observer.
   void OnSchemaRegistryUpdated(bool has_new_schemas) override;
+
+  // policy::mojom::PolicyPageHandler implementation.
+  void GetDebugString(GetDebugStringCallback callback) override;
+  void RestartBrowser(const std::string& policies) override;
+  void SetUserAffiliated(bool affiliated,
+                         SetUserAffiliatedCallback callback) override;
+  void GetAppliedTestPolicies(GetAppliedTestPoliciesCallback callback) override;
+  void RevertLocalTestPolicies() override;
+  void SetLocalTestPolicies(
+      const std::string& policies,
+      const std::string& profile_separation_policy_response,
+      SetLocalTestPoliciesCallback callback) override;
 
  private:
   // UserCloudPolicyStatusProvider::Delegate.
@@ -113,6 +140,20 @@ class PolicyUIHandler : public web::WebUIIOSMessageHandler,
   // the page.
   void HandleGetAppliedTestPolicies(const base::ListValue& args);
 
+  // Core logic for setting the user affiliation status for test policies.
+  // This is used to simulate user affiliation for testing purposes.
+  void SetUserAffiliatedImpl(bool affiliated);
+
+  // Core logic for retrieving the currently applied local test policies as a
+  // JSON string. Returns the current set of policies loaded in the
+  // LocalTestPolicyProvider.
+  const std::string& GetAppliedTestPoliciesImpl();
+
+  // Core logic for setting local test policies from a JSON string.
+  // This function is the core implementation for applying test policies
+  // to the LocalTestPolicyProvider.
+  void SetLocalTestPoliciesImpl(const std::string& policies);
+
   // Send information about the current policy values to the UI. For each policy
   // whose value has been set, dictionaries containing the value and additional
   // metadata are sent.
@@ -150,6 +191,11 @@ class PolicyUIHandler : public web::WebUIIOSMessageHandler,
   uint32_t reload_policies_count_ = 0;
   uint32_t copy_to_json_count_ = 0;
   uint32_t upload_report_count_ = 0;
+
+  mojo::Receiver<policy::mojom::PolicyPageHandler> receiver_{this};
+  mojo::Remote<policy::mojom::PolicyPageClient> client_{mojo::NullRemote()};
+
+  raw_ref<ProfileIOS> profile_;
 
   // Vends WeakPtrs for this object.
   base::WeakPtrFactory<PolicyUIHandler> weak_factory_{this};

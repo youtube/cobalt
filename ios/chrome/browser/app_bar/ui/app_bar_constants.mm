@@ -5,3 +5,7 @@
 #import "ios/chrome/browser/app_bar/ui/app_bar_constants.h"
 
 const CGFloat kAppBarHeight = 77;
+
+const CGFloat kAppBarHeightFullscreen = 62;
+
+NSString* const kAppBarAssistantButtonId = @"kAppBarAssistantButtonId";

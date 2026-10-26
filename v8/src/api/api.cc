@@ -154,6 +154,7 @@
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-js.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
@@ -6374,6 +6375,26 @@ bool TryHandleWebAssemblyTrapWindows(EXCEPTION_POINTERS* exception) {
 }
 #endif
 
+size_t V8::GetWasmMemoryReservationSizeInBytes(WasmMemoryType type,
+                                               size_t byte_capacity) {
+#if V8_ENABLE_WEBASSEMBLY
+  bool is_memory64 = type == WasmMemoryType::kMemory64;
+  uint64_t max_byte_capacity =
+      is_memory64 ? i::wasm::max_mem64_bytes() : i::wasm::max_mem32_bytes();
+  if (byte_capacity > max_byte_capacity) {
+    byte_capacity = static_cast<size_t>(max_byte_capacity);
+  }
+#if V8_TRAP_HANDLER_SUPPORTED
+  if (!is_memory64 || i::v8_flags.wasm_memory64_trap_handling) {
+    return i::BackingStore::GetWasmReservationSize(
+        /* has_guard_regions */ true, byte_capacity,
+        /* is_wasm_memory64 */ is_memory64);
+  }
+#endif  // V8_TRAP_HANDLER_SUPPORTED
+#endif  // V8_ENABLE_WEBASSEMBLY
+  return byte_capacity;
+}
+
 bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
 #if V8_ENABLE_WEBASSEMBLY
   return i::trap_handler::EnableTrapHandler(use_v8_signal_handler);
@@ -7365,12 +7386,12 @@ bool FunctionTemplate::HasInstance(v8::Local<v8::Value> value) {
     return true;
   }
   if (i::IsJSGlobalProxy(*obj)) {
+    auto jsobj = Cast<i::JSGlobalProxy>(*obj);
+    if (jsobj->IsDetached()) return false;
     // If it's a global proxy, then test with the global object. Note that the
     // inner global object may not necessarily be a JSGlobalObject.
-    auto jsobj = i::Cast<i::JSObject>(*obj);
     i::PrototypeIterator iter(i::Isolate::Current(), jsobj->map());
-    // The global proxy should always have a prototype, as it is a bug to call
-    // this on a detached JSGlobalProxy.
+    // Non-detached global proxy should always have a prototype.
     DCHECK(!iter.IsAtEnd());
     return self->IsTemplateFor(iter.GetCurrent<i::JSObject>());
   }
@@ -8013,7 +8034,7 @@ MaybeLocal<v8::RegExp> v8::RegExp::NewWithBacktrackLimit(
 Local<v8::String> v8::RegExp::GetSource() const {
   auto obj = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::Isolate::Current();
-  return Utils::ToLocal(i::direct_handle(obj->EscapedPattern(), i_isolate));
+  return Utils::ToLocal(i::direct_handle(obj->source(i_isolate), i_isolate));
 }
 
 // Assert that the static flags cast in GetFlags is valid.
@@ -9066,7 +9087,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(
   if (obj->backing_store() &&
       static_cast<i::BackingStore*>(obj->GetBackingStore().get())
           ->is_immutable()) {
-    obj->set_is_immutable(true);
+    obj->MakeImmutable(i_isolate);
   }
   return Utils::ToLocal(obj);
 }

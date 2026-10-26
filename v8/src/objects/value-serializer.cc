@@ -910,7 +910,7 @@ Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
 
 void ValueSerializer::WriteJSRegExp(DirectHandle<JSRegExp> regexp) {
   WriteTag(SerializationTag::kRegExp);
-  WriteString(direct_handle(regexp->source(), isolate_));
+  WriteString(direct_handle(regexp->source(isolate_), isolate_));
   WriteVarint(static_cast<uint32_t>(regexp->flags()));
 }
 
@@ -2205,7 +2205,7 @@ MaybeDirectHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
   if (!result.ToHandle(&array_buffer)) return result;
 
   if (is_immutable) {
-    array_buffer->set_is_immutable(true);
+    array_buffer->MakeImmutable(isolate_);
   }
 
   if (byte_length > 0) {
@@ -2464,11 +2464,22 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
 
   int32_t maximum_pages;
   if (!ReadZigZag<int32_t>().To(&maximum_pages)) return {};
+
   uint8_t memory64_byte;
   if (!ReadByte(&memory64_byte)) return {};
   if (memory64_byte > 1) return {};
   wasm::AddressType address_type =
       memory64_byte ? wasm::AddressType::kI64 : wasm::AddressType::kI32;
+
+  // Validate maximum_pages.
+  size_t max_supported_pages = address_type == wasm::AddressType::kI64
+                                   ? wasm::kSpecMaxMemory64Pages
+                                   : wasm::kSpecMaxMemory32Pages;
+  if (maximum_pages != WasmMemoryObject::kNoMaximum &&
+      (maximum_pages < 0 ||
+       static_cast<size_t>(maximum_pages) > max_supported_pages)) {
+    return {};
+  }
 
   // To break a cycle on deserialization, we first allocate the
   // `WasmMemoryObject`, then read the `JSArrayBuffer`, then link the two.
@@ -2488,7 +2499,8 @@ MaybeDirectHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
 
   // Link the two.
   WasmMemoryObject::SetNewBuffer(isolate_, result, buffer);
-  result->managed_backing_store()->SetManagedObject(buffer->GetBackingStore());
+  result->managed_backing_store()->SetManagedObject(
+      buffer->GetBackingStore(), isolate_, buffer->GetByteLength());
 
   return result;
 }

@@ -80,6 +80,15 @@ const char kContextualSearchTabContextAddedFromPlusButton[] =
 const char kContextualSearchTabWithDuplicateTitleClicked[] =
     "ContextualSearch.TabWithDuplicateTitleClicked.V2.Unknown";
 
+const char kContextualSearchSubmitQueryV2WithoutContext[] =
+    "ContextualSearch.UserAction.SubmitQueryV2.WithoutContext.Unknown";
+const char kContextualSearchSubmitQueryV2WithTabContext[] =
+    "ContextualSearch.UserAction.SubmitQueryV2.WithTabContext.Unknown";
+const char kContextualSearchSubmitQueryV2WithNonTabContext[] =
+    "ContextualSearch.UserAction.SubmitQueryV2.WithNonTabContext.Unknown";
+const char kContextualSearchSubmitQueryV2WithContextNoText[] =
+    "ContextualSearch.UserAction.SubmitQueryV2.WithContextNoText.Unknown";
+
 std::string UploadStatusToString(ContextUploadStatus status) {
   switch (status) {
     case ContextUploadStatus::kNotUploaded:
@@ -130,61 +139,60 @@ class ContextualSearchMetricsRecorderTest : public testing::Test {
 TEST_F(ContextualSearchMetricsRecorderTest, SubmitQueryWithoutContext) {
   metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
   metrics().NotifyQuerySubmitted(/*has_tab_context=*/false,
-                                 /*has_non_tab_context=*/false);
+                                 /*has_non_tab_context=*/false,
+                                 /*query_text_length=*/0,
+                                 /*file_count=*/0);
 
-  EXPECT_EQ(
-      user_action_tester().GetActionCount(
-          "ContextualSearch.UserAction.SubmitQuery.WithoutContext.Unknown"),
-      1);
+  EXPECT_EQ(user_action_tester().GetActionCount(
+                kContextualSearchSubmitQueryV2WithoutContext),
+            1);
   histogram_tester().ExpectUniqueSample(
-      "ContextualSearch.UserAction.SubmitQuery.WithoutContext.Unknown", true,
-      1);
+      kContextualSearchSubmitQueryV2WithoutContext, true, 1);
 }
 
 TEST_F(ContextualSearchMetricsRecorderTest, SubmitQueryWithTabContext) {
   metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
   metrics().NotifyQuerySubmitted(/*has_tab_context=*/true,
-                                 /*has_non_tab_context=*/false);
+                                 /*has_non_tab_context=*/false,
+                                 /*query_text_length=*/0,
+                                 /*file_count=*/1);
 
-  EXPECT_EQ(
-      user_action_tester().GetActionCount(
-          "ContextualSearch.UserAction.SubmitQuery.WithTabContext.Unknown"),
-      1);
+  EXPECT_EQ(user_action_tester().GetActionCount(
+                kContextualSearchSubmitQueryV2WithTabContext),
+            1);
   histogram_tester().ExpectUniqueSample(
-      "ContextualSearch.UserAction.SubmitQuery.WithTabContext.Unknown", true,
-      1);
+      kContextualSearchSubmitQueryV2WithTabContext, true, 1);
 }
 
 TEST_F(ContextualSearchMetricsRecorderTest, SubmitQueryWithNonTabContext) {
   metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
   metrics().NotifyQuerySubmitted(/*has_tab_context=*/false,
-                                 /*has_non_tab_context=*/true);
+                                 /*has_non_tab_context=*/true,
+                                 /*query_text_length=*/0,
+                                 /*file_count=*/1);
 
   EXPECT_EQ(user_action_tester().GetActionCount(
-                "ContextualSearch.UserAction.SubmitQuery.WithNonTabContext."
-                "Unknown"),
+                kContextualSearchSubmitQueryV2WithNonTabContext),
             1);
   histogram_tester().ExpectUniqueSample(
-      "ContextualSearch.UserAction.SubmitQuery.WithNonTabContext.Unknown", true,
-      1);
+      kContextualSearchSubmitQueryV2WithNonTabContext, true, 1);
 }
 
 TEST_F(ContextualSearchMetricsRecorderTest, SubmitQueryWithBothContext) {
   metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
   metrics().NotifyQuerySubmitted(/*has_tab_context=*/true,
-                                 /*has_non_tab_context=*/true);
+                                 /*has_non_tab_context=*/true,
+                                 /*query_text_length=*/0,
+                                 /*file_count=*/2);
 
   // Tab context should take precedence.
-  EXPECT_EQ(
-      user_action_tester().GetActionCount(
-          "ContextualSearch.UserAction.SubmitQuery.WithTabContext.Unknown"),
-      1);
-  histogram_tester().ExpectUniqueSample(
-      "ContextualSearch.UserAction.SubmitQuery.WithTabContext.Unknown", true,
-      1);
   EXPECT_EQ(user_action_tester().GetActionCount(
-                "ContextualSearch.UserAction.SubmitQuery.WithNonTabContext."
-                "Unknown"),
+                kContextualSearchSubmitQueryV2WithTabContext),
+            1);
+  histogram_tester().ExpectUniqueSample(
+      kContextualSearchSubmitQueryV2WithTabContext, true, 1);
+  EXPECT_EQ(user_action_tester().GetActionCount(
+                kContextualSearchSubmitQueryV2WithNonTabContext),
             0);
 }
 
@@ -209,7 +217,9 @@ TEST_F(ContextualSearchMetricsRecorderTest, SessionCompleted) {
   metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
   task_environment().FastForwardBy(base::Seconds(10));
   metrics().NotifyQuerySubmitted(/*has_tab_context=*/false,
-                                 /*has_non_tab_context=*/false);
+                                 /*has_non_tab_context=*/false,
+                                 /*query_text_length=*/0,
+                                 /*file_count=*/0);
   metrics().NotifySessionStateChanged(SessionState::kNavigationOccurred);
 
   DestructMetricsRecorder();
@@ -232,15 +242,18 @@ TEST_F(ContextualSearchMetricsRecorderTest, MultiQuerySubmissionSession) {
   metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
   task_environment().FastForwardBy(base::Seconds(30));
   metrics().NotifyQuerySubmitted(/*has_tab_context=*/false,
-                                 /*has_non_tab_context=*/false);
-  metrics().RecordQueryMetrics(/*text_length=*/100, /*file_count=*/1);
+                                 /*has_non_tab_context=*/true,
+                                 /*query_text_length=*/100,
+                                 /*file_count=*/1);
   metrics().NotifySessionStateChanged(SessionState::kNavigationOccurred);
 
   // Mimic the session remaining open when the AIM page is opened in another
   // tab/window. In this case more queries can be submitted.
   task_environment().FastForwardBy(base::Seconds(60));
   metrics().NotifyQuerySubmitted(/*has_tab_context=*/false,
-                                 /*has_non_tab_context=*/false);
+                                 /*has_non_tab_context=*/false,
+                                 /*query_text_length=*/0,
+                                 /*file_count=*/0);
   metrics().NotifySessionStateChanged(SessionState::kNavigationOccurred);
 
   metrics().NotifySessionStateChanged(SessionState::kSessionAbandoned);
@@ -267,7 +280,10 @@ TEST_F(ContextualSearchMetricsRecorderTest, TextOnlyQuerySubmissionSession) {
   metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
   int text_length = 1000;
   int file_count = 0;
-  metrics().RecordQueryMetrics(text_length, file_count);
+  metrics().NotifyQuerySubmitted(/*has_tab_context=*/false,
+                                 /*has_non_tab_context=*/false,
+                                 /*query_text_length=*/text_length,
+                                 /*file_count=*/file_count);
 
   histogram_tester().ExpectBucketCount(kContextualSearchQueryTextLength,
                                        text_length, 1);
@@ -283,7 +299,10 @@ TEST_F(ContextualSearchMetricsRecorderTest, FileOnlyQuerySubmissionSession) {
   metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
   int text_length = 0;
   int file_count = 2;
-  metrics().RecordQueryMetrics(text_length, file_count);
+  metrics().NotifyQuerySubmitted(/*has_tab_context=*/true,
+                                 /*has_non_tab_context=*/true,
+                                 /*query_text_length=*/text_length,
+                                 /*file_count=*/file_count);
 
   histogram_tester().ExpectBucketCount(kContextualSearchQueryTextLength,
                                        text_length, 1);
@@ -292,6 +311,18 @@ TEST_F(ContextualSearchMetricsRecorderTest, FileOnlyQuerySubmissionSession) {
       ContextualSearchMultimodalState::kFileOnly, 1);
   histogram_tester().ExpectBucketCount(kContextualSearchQueryFileCount,
                                        file_count, 1);
+
+  EXPECT_EQ(user_action_tester().GetActionCount(
+                kContextualSearchSubmitQueryV2WithTabContext),
+            1);
+  EXPECT_EQ(user_action_tester().GetActionCount(
+                kContextualSearchSubmitQueryV2WithContextNoText),
+            1);
+
+  histogram_tester().ExpectUniqueSample(
+      kContextualSearchSubmitQueryV2WithTabContext, true, 1);
+  histogram_tester().ExpectUniqueSample(
+      kContextualSearchSubmitQueryV2WithContextNoText, true, 1);
 }
 
 TEST_F(ContextualSearchMetricsRecorderTest, MultimodalQuerySubmissionSession) {
@@ -299,7 +330,10 @@ TEST_F(ContextualSearchMetricsRecorderTest, MultimodalQuerySubmissionSession) {
   metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
   int text_length = 1000;
   int file_count = 1;
-  metrics().RecordQueryMetrics(text_length, file_count);
+  metrics().NotifyQuerySubmitted(/*has_tab_context=*/true,
+                                 /*has_non_tab_context=*/false,
+                                 /*query_text_length=*/text_length,
+                                 /*file_count=*/file_count);
 
   histogram_tester().ExpectBucketCount(kContextualSearchQueryTextLength,
                                        text_length, 1);
@@ -377,12 +411,12 @@ TEST_F(ContextualSearchMetricsRecorderTest, FileUploadSuccess) {
   // Simulate file upload.
   lens::MimeType file_mime_type = lens::MimeType::kPdf;
   ContextUploadStatus upload_status = ContextUploadStatus::kProcessing;
-  metrics().OnFileUploadStatusChanged(file_mime_type, upload_status,
-                                      std::nullopt);
+  metrics().OnContextUploadStatusChanged(file_mime_type, upload_status,
+                                         std::nullopt);
   // Finally simulate upload success.
   upload_status = ContextUploadStatus::kUploadSuccessful;
-  metrics().OnFileUploadStatusChanged(file_mime_type, upload_status,
-                                      std::nullopt);
+  metrics().OnContextUploadStatusChanged(file_mime_type, upload_status,
+                                         std::nullopt);
 
   DestructMetricsRecorder();
   histogram_tester().ExpectTotalCount(kContextualSearchFileUploadAttemptPdf, 1);
@@ -396,12 +430,12 @@ TEST_F(ContextualSearchMetricsRecorderTest, FileUploadError) {
   // Simulate file upload.
   lens::MimeType file_mime_type = lens::MimeType::kPdf;
   ContextUploadStatus upload_status = ContextUploadStatus::kProcessing;
-  metrics().OnFileUploadStatusChanged(file_mime_type, upload_status,
-                                      std::nullopt);
+  metrics().OnContextUploadStatusChanged(file_mime_type, upload_status,
+                                         std::nullopt);
   // Next simulate file upload failure.
   upload_status = ContextUploadStatus::kUploadFailed;
-  metrics().OnFileUploadStatusChanged(file_mime_type, upload_status,
-                                      ContextUploadErrorType::kServerError);
+  metrics().OnContextUploadStatusChanged(file_mime_type, upload_status,
+                                         ContextUploadErrorType::kServerError);
 
   DestructMetricsRecorder();
   histogram_tester().ExpectTotalCount(kContextualSearchFileUploadAttemptPdf, 1);
@@ -413,17 +447,17 @@ TEST_F(ContextualSearchMetricsRecorderTest, AggregatedUploadMetrics) {
   metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
   task_environment().FastForwardBy(base::Seconds(30));
 
-  metrics().OnFileUploadStatusChanged(
+  metrics().OnContextUploadStatusChanged(
       lens::MimeType::kPdf, ContextUploadStatus::kProcessing, std::nullopt);
-  metrics().OnFileUploadStatusChanged(lens::MimeType::kPdf,
-                                      ContextUploadStatus::kUploadSuccessful,
-                                      std::nullopt);
+  metrics().OnContextUploadStatusChanged(lens::MimeType::kPdf,
+                                         ContextUploadStatus::kUploadSuccessful,
+                                         std::nullopt);
 
-  metrics().OnFileUploadStatusChanged(
+  metrics().OnContextUploadStatusChanged(
       lens::MimeType::kImage, ContextUploadStatus::kProcessing, std::nullopt);
-  metrics().OnFileUploadStatusChanged(lens::MimeType::kImage,
-                                      ContextUploadStatus::kUploadFailed,
-                                      ContextUploadErrorType::kServerError);
+  metrics().OnContextUploadStatusChanged(lens::MimeType::kImage,
+                                         ContextUploadStatus::kUploadFailed,
+                                         ContextUploadErrorType::kServerError);
 
   DestructMetricsRecorder();
 
@@ -448,18 +482,18 @@ TEST_F(ContextualSearchMetricsRecorderTest, FileValidationError) {
   uint64_t file_size = 1000000;
   metrics().RecordFileSizeMetric(file_mime_type, file_size);
   ContextUploadStatus upload_status = ContextUploadStatus::kProcessing;
-  metrics().OnFileUploadStatusChanged(file_mime_type, upload_status,
-                                      std::nullopt);
+  metrics().OnContextUploadStatusChanged(file_mime_type, upload_status,
+                                         std::nullopt);
   // Next simulate file validation error.
   upload_status = ContextUploadStatus::kValidationFailed;
-  metrics().OnFileUploadStatusChanged(file_mime_type, upload_status, error);
+  metrics().OnContextUploadStatusChanged(file_mime_type, upload_status, error);
 
   // Simulate another file validation error.
   upload_status = ContextUploadStatus::kProcessing;
-  metrics().OnFileUploadStatusChanged(file_mime_type, upload_status,
-                                      std::nullopt);
+  metrics().OnContextUploadStatusChanged(file_mime_type, upload_status,
+                                         std::nullopt);
   upload_status = ContextUploadStatus::kValidationFailed;
-  metrics().OnFileUploadStatusChanged(file_mime_type, upload_status, error);
+  metrics().OnContextUploadStatusChanged(file_mime_type, upload_status, error);
 
   DestructMetricsRecorder();
   histogram_tester().ExpectBucketCount(kContextualSearchFileUploadAttemptPdf, 2,
@@ -476,14 +510,14 @@ TEST_F(ContextualSearchMetricsRecorderTest, AggregatedFileValidationError) {
   metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
   task_environment().FastForwardBy(base::Seconds(30));
 
-  metrics().OnFileUploadStatusChanged(
+  metrics().OnContextUploadStatusChanged(
       lens::MimeType::kPdf, ContextUploadStatus::kProcessing, std::nullopt);
-  metrics().OnFileUploadStatusChanged(
+  metrics().OnContextUploadStatusChanged(
       lens::MimeType::kPdf, ContextUploadStatus::kValidationFailed, error);
 
-  metrics().OnFileUploadStatusChanged(
+  metrics().OnContextUploadStatusChanged(
       lens::MimeType::kImage, ContextUploadStatus::kProcessing, std::nullopt);
-  metrics().OnFileUploadStatusChanged(
+  metrics().OnContextUploadStatusChanged(
       lens::MimeType::kImage, ContextUploadStatus::kValidationFailed, error);
   std::string error_string = metrics().FileErrorToString(error);
   DestructMetricsRecorder();
@@ -516,19 +550,19 @@ TEST_F(ContextualSearchMetricsRecorderTest, MultiFileUpload) {
   // Simulate unsuccessful file upload.
   lens::MimeType file_mime_type = lens::MimeType::kPdf;
   ContextUploadStatus upload_status = ContextUploadStatus::kProcessing;
-  metrics().OnFileUploadStatusChanged(file_mime_type, upload_status,
-                                      std::nullopt);
+  metrics().OnContextUploadStatusChanged(file_mime_type, upload_status,
+                                         std::nullopt);
   upload_status = ContextUploadStatus::kUploadFailed;
-  metrics().OnFileUploadStatusChanged(file_mime_type, upload_status,
-                                      ContextUploadErrorType::kServerError);
+  metrics().OnContextUploadStatusChanged(file_mime_type, upload_status,
+                                         ContextUploadErrorType::kServerError);
 
   // Simulate successful file upload.
   upload_status = ContextUploadStatus::kProcessing;
-  metrics().OnFileUploadStatusChanged(file_mime_type, upload_status,
-                                      std::nullopt);
+  metrics().OnContextUploadStatusChanged(file_mime_type, upload_status,
+                                         std::nullopt);
   upload_status = ContextUploadStatus::kUploadSuccessful;
-  metrics().OnFileUploadStatusChanged(file_mime_type, upload_status,
-                                      std::nullopt);
+  metrics().OnContextUploadStatusChanged(file_mime_type, upload_status,
+                                         std::nullopt);
 
   DestructMetricsRecorder();
   histogram_tester().ExpectBucketCount(kContextualSearchFileUploadAttemptPdf, 2,
@@ -546,7 +580,7 @@ class MetricsRecorderFileTest
   void SetUp() override {
     ContextualSearchMetricsRecorderTest::SetUp();
     metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
-    metrics().OnFileUploadStatusChanged(
+    metrics().OnContextUploadStatusChanged(
         mime_type_param(), ContextUploadStatus::kProcessing, std::nullopt);
     mime_type_string_ = metrics().MimeTypeToString(mime_type_param());
   }
@@ -579,9 +613,9 @@ class MetricsRecorderFileTest
   std::string mime_type_string_;
 };
 
-TEST_P(MetricsRecorderFileTest, FileUploadStatusChanged) {
-  metrics().OnFileUploadStatusChanged(mime_type_param(), status_param(),
-                                      std::nullopt);
+TEST_P(MetricsRecorderFileTest, ContextUploadStatusChanged) {
+  metrics().OnContextUploadStatusChanged(mime_type_param(), status_param(),
+                                         std::nullopt);
   DestructMetricsRecorder();
   switch (status_param()) {
     case ContextUploadStatus::kUploadSuccessful:
@@ -613,7 +647,7 @@ class MetricsRecorderFileValidationTest
   void SetUp() override {
     ContextualSearchMetricsRecorderTest::SetUp();
     metrics().NotifySessionStateChanged(SessionState::kSessionStarted);
-    metrics().OnFileUploadStatusChanged(
+    metrics().OnContextUploadStatusChanged(
         mime_type_param(), ContextUploadStatus::kProcessing, std::nullopt);
     mime_type_string_ = metrics().MimeTypeToString(mime_type_param());
     error_type_string_ = metrics().FileErrorToString(error_param());
@@ -639,7 +673,7 @@ class MetricsRecorderFileValidationTest
 };
 
 TEST_P(MetricsRecorderFileValidationTest, ValidationError) {
-  metrics().OnFileUploadStatusChanged(
+  metrics().OnContextUploadStatusChanged(
       mime_type_param(), ContextUploadStatus::kValidationFailed, error_param());
   DestructMetricsRecorder();
   TestValidationFailedMetrics();
@@ -718,21 +752,22 @@ TEST_F(ContextualSearchMetricsRecorderTest, FunnelMetrics) {
   metrics().ActivateMetricsFunnel("DeepSearch");
 
   // Simulate file uploads.
-  metrics().OnFileUploadStatusChanged(
+  metrics().OnContextUploadStatusChanged(
       lens::MimeType::kPdf, ContextUploadStatus::kProcessing, std::nullopt);
-  metrics().OnFileUploadStatusChanged(lens::MimeType::kPdf,
-                                      ContextUploadStatus::kUploadSuccessful,
-                                      std::nullopt);
-  metrics().OnFileUploadStatusChanged(
+  metrics().OnContextUploadStatusChanged(lens::MimeType::kPdf,
+                                         ContextUploadStatus::kUploadSuccessful,
+                                         std::nullopt);
+  metrics().OnContextUploadStatusChanged(
       lens::MimeType::kImage, ContextUploadStatus::kProcessing, std::nullopt);
-  metrics().OnFileUploadStatusChanged(lens::MimeType::kImage,
-                                      ContextUploadStatus::kUploadFailed,
-                                      ContextUploadErrorType::kServerError);
+  metrics().OnContextUploadStatusChanged(lens::MimeType::kImage,
+                                         ContextUploadStatus::kUploadFailed,
+                                         ContextUploadErrorType::kServerError);
 
   // Simulate query submission.
-  metrics().NotifyQuerySubmitted(/*has_tab_context=*/false,
-                                 /*has_non_tab_context=*/false);
-  metrics().RecordQueryMetrics(/*text_length=*/100, /*file_count=*/2);
+  metrics().NotifyQuerySubmitted(/*has_tab_context=*/true,
+                                 /*has_non_tab_context=*/true,
+                                 /*query_text_length=*/100,
+                                 /*file_count=*/2);
   metrics().NotifySessionStateChanged(SessionState::kNavigationOccurred);
 
   DestructMetricsRecorder();

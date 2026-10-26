@@ -6324,9 +6324,10 @@ TEST_F(RequestServiceTest, SuccessfulAuthZRequestWithPopUpWindow) {
   auto impl = federated_auth_request_impl_;
   EXPECT_CALL(*weak_dialog_controller, ShowModalDialog)
       .WillOnce(::testing::WithArg<0>([&modal, &impl](const GURL& url) {
+        auto params = blink::mojom::ResolveTokenParams::NewToken(
+            base::Value("an-access-token"));
         impl->OnResolve(GURL(kProviderUrlFull), std::nullopt,
-                        blink::mojom::FedCmRedirectMethod::kGet, std::nullopt,
-                        std::string(), base::Value("an-access-token"));
+                        std::move(params));
         return modal.get();
       }));
 
@@ -7758,6 +7759,69 @@ TEST_F(RequestServiceTest, ActiveFlowNotAffectEmbargo) {
   EXPECT_TRUE(did_show_accounts_dialog());
   EXPECT_FALSE(DidFetch(FetchedEndpoint::TOKEN));
   EXPECT_FALSE(test_api_permission_delegate_->embargoed_origins_.count(
+      main_test_rfh()->GetLastCommittedOrigin()));
+}
+
+// Test ambient UI is NOT exempt from the cooldown embargo.
+// Because the ambient UI is still not entirely complete (e.g. it can't handle
+// multiple accounts, mismatch UIs, etc), we respect the cooldown embargo.
+TEST_F(RequestServiceTest, AmbientFlowDismissedByEmbargo) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kFedCmAmbientUI);
+
+  test_api_permission_delegate_->RecordDismissAndEmbargo(
+      OriginFromString(kRpUrl));
+
+  RequestExpectations expectations = {
+      RequestTokenStatus::kError,
+      FederatedAuthRequestResult::kDisabledInSettings,
+      /*standalone_console_message=*/std::nullopt,
+      /*selected_idp_config_url=*/std::nullopt};
+
+  RunAuthTest(kDefaultRequestParameters, expectations, kConfigurationValid);
+  ExpectStatusMetrics(TokenStatus::kDisabledEmbargo);
+}
+
+// Test dismissing UI in ambient UI does not trigger embargo.
+// While the ambient UI respects the embargo, it does not trigger / set it,
+// e.g. when the use dismisses it.
+TEST_F(RequestServiceTest, AmbientFlowDoesNotCauseAnEmbargo) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kFedCmAmbientUI);
+
+  RequestExpectations expectations = {
+      RequestTokenStatus::kError,
+      FederatedAuthRequestResult::kUiDismissedNoEmbargo,
+      /*standalone_console_message=*/std::nullopt,
+      /*selected_idp_config_url=*/std::nullopt};
+
+  MockConfiguration configuration = kConfigurationValid;
+  configuration.accounts_dialog_action = AccountsDialogAction::kClose;
+
+  RunAuthTest(kDefaultRequestParameters, expectations, configuration);
+
+  EXPECT_FALSE(test_api_permission_delegate_->embargoed_origins_.count(
+      main_test_rfh()->GetLastCommittedOrigin()));
+}
+
+// Test that non-ambient passive flow still triggers embargo.
+TEST_F(RequestServiceTest, NonAmbientPassiveFlowStillAffectsEmbargo) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kFedCmAmbientUI);
+
+  RequestExpectations expectations = {
+      RequestTokenStatus::kError, FederatedAuthRequestResult::kShouldEmbargo,
+      /*standalone_console_message=*/std::nullopt,
+      /*selected_idp_config_url=*/std::nullopt};
+
+  MockConfiguration configuration = kConfigurationValid;
+  configuration.accounts_dialog_action = AccountsDialogAction::kClose;
+  // Multiple accounts means it's not ambient capable.
+  configuration.idp_info[kProviderUrlFull].accounts = kTwoAccounts;
+
+  RunAuthTest(kDefaultRequestParameters, expectations, configuration);
+
+  EXPECT_TRUE(test_api_permission_delegate_->embargoed_origins_.count(
       main_test_rfh()->GetLastCommittedOrigin()));
 }
 

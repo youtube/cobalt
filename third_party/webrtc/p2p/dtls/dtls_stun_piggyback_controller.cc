@@ -13,13 +13,13 @@
 #include <algorithm>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "api/array_view.h"
 #include "api/sequence_checker.h"
 #include "api/transport/stun.h"
 #include "p2p/dtls/dtls_utils.h"
@@ -31,7 +31,7 @@
 namespace webrtc {
 
 DtlsStunPiggybackController::DtlsStunPiggybackController(
-    absl::AnyInvocable<void(ArrayView<const uint8_t>)> dtls_data_callback,
+    absl::AnyInvocable<void(std::span<const uint8_t>)> dtls_data_callback,
     // NOLINTNEXTLINE(readability/casting) - not a cast; false positive!
     absl::AnyInvocable<void(bool) &&> piggyback_complete_callback)
     : dtls_data_callback_(std::move(dtls_data_callback)),
@@ -92,7 +92,7 @@ void DtlsStunPiggybackController::SetDtlsFailed() {
   CallCompleteCallback(/*success=*/false);
 }
 
-void DtlsStunPiggybackController::CapturePacket(ArrayView<const uint8_t> data) {
+void DtlsStunPiggybackController::CapturePacket(std::span<const uint8_t> data) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   if (!IsDtlsPacket(data)) {
     return;
@@ -159,14 +159,14 @@ DtlsStunPiggybackController::GetAckToPiggyback(
   return handshake_messages_received_;
 }
 
-std::vector<ArrayView<const uint8_t>>
+std::vector<std::span<const uint8_t>>
 DtlsStunPiggybackController::GetPending() {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
   return pending_packets_.GetAll();
 }
 
 void DtlsStunPiggybackController::ReportDataPiggybacked(
-    std::optional<ArrayView<uint8_t>> data,
+    std::optional<std::span<uint8_t>> data,
     std::optional<std::vector<uint32_t>> acks) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
 
@@ -234,7 +234,7 @@ void DtlsStunPiggybackController::ReportDataPiggybacked(
 }
 
 void DtlsStunPiggybackController::ReportDtlsPacket(
-    ArrayView<const uint8_t> data) {
+    std::span<const uint8_t> data) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
 
   if (state_ == State::OFF || state_ == State::COMPLETE) {

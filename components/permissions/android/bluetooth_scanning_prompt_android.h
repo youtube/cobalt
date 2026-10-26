@@ -28,7 +28,7 @@ class BluetoothScanningPromptAndroid : public content::BluetoothScanningPrompt {
       base::android::ScopedJavaLocalRef<JBluetoothScanningPermissionDialog>(
           JNIEnv*,
           const base::android::JavaRef<jobject>&,
-          const base::android::JavaRef<jstring>&,
+          const std::u16string&,
           JniIntWrapper,
           const base::android::JavaRef<jobject>&,
           int64_t)>;
@@ -51,7 +51,8 @@ class BluetoothScanningPromptAndroid : public content::BluetoothScanningPrompt {
                          const std::u16string& device_name) override;
 
   // Report the dialog's result.
-  void OnDialogFinished(JNIEnv* env, int32_t event_type);
+  void OnDialogFinished(JNIEnv* env,
+                        content::BluetoothScanningPrompt::Event event);
 
   static std::unique_ptr<BluetoothScanningPromptAndroid> CreateForTesting(
       content::RenderFrameHost* frame,

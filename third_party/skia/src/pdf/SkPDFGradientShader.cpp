@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Google Inc.
+ * Copyright 2017 Google LLC
  *
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
@@ -989,6 +989,7 @@ static SkPDFIndirectReference create_smask_graphic_state(SkPDFDocument* doc,
     SkPDFIndirectReference alphaMask =
             SkPDFMakeFormXObject(doc,
                                  create_pattern_fill_content(-1, luminosityShader.fValue, bbox),
+                                 SkPDFParentTreeKey(),
                                  SkPDFUtils::RectToArray(bbox),
                                  std::move(resources),
                                  SkMatrix::I(),
