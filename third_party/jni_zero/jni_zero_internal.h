@@ -165,7 +165,7 @@ constexpr bool IsInvocable(Func&& func, Args&&... args) {
 #endif
 }
 
->>>>>>> parent of f3ee0fc5788 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 5aa3190560c85 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace jni_zero::internal
 
 #endif  // JNI_ZERO_JNI_ZERO_INTERNAL_H

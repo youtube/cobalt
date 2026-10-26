@@ -820,7 +820,7 @@ bool EnablePurgeGpuImageDecodeCache() {
   return !base::FeatureList::IsEnabled(kPruneOldTransferCacheEntries);
 #endif
 }
->>>>>>> parent of f3ee0fc5788 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 5aa3190560c85 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 bool EnablePruneOldTransferCacheEntries() {
   return base::FeatureList::IsEnabled(kPruneOldTransferCacheEntries);
 }

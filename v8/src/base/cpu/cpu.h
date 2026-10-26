@@ -292,7 +292,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_zbs_;
   bool has_lsx_;
   bool has_lasx_;
->>>>>>> parent of f3ee0fc5788 (CONFLICTED Chromium Cherry pick: Revert Cobalt.):v8/src/base/cpu.h
+>>>>>>> parent of 5aa3190560c85 (CONFLICTED Chromium Cherry pick: Revert Cobalt.):v8/src/base/cpu.h
 };
 
 }  // namespace base

@@ -132,7 +132,7 @@ CreateContentBrowserURLLoaderThrottles(
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (auto throttle = MaybeCreateIdentityUrlLoaderThrottle(base::BindRepeating(
           webid::SetIdpSigninStatus, browser_context, frame_tree_node_id))) {
->>>>>>> parent of f3ee0fc5788 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 5aa3190560c85 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     throttles.push_back(std::move(throttle));
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
@@ -168,7 +168,7 @@ CreateContentBrowserURLLoaderThrottlesForKeepAlive(
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
->>>>>>> parent of f3ee0fc5788 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 5aa3190560c85 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return throttles;
 }
 }  // namespace content
