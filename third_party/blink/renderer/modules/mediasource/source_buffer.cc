@@ -651,11 +651,44 @@ void SourceBuffer::appendBuffer(DOMArrayBuffer* data,
   // Section 3.2 appendBuffer()
   // https://dvcs.w3.org/hg/html-media/raw-file/default/media-source/media-source.html#widl-SourceBuffer-appendBuffer-void-ArrayBufferView-data
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (base::FeatureList::IsEnabled(media::kCobaltInPlaceMediaSourceParser) &&
+      media::kCobaltInPlaceMediaSourceParserBorrowMode.Get()) {
+    appendTransferredBuffer(data, exception_state);
+    return;
+  }
+  AppendBufferInternal(data->ByteSpan(), base::ScopedClosureRunner(),
+                       exception_state);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+  AppendBufferInternal(data->ByteSpan(), exception_state);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+}
+
+void SourceBuffer::appendBuffer(NotShared<DOMArrayBufferView> data,
+                                ExceptionState& exception_state) {
+  DVLOG(3) << __func__ << " this=" << this << " size=" << data->byteLength();
+  // Section 3.2 appendBuffer()
+  // https://dvcs.w3.org/hg/html-media/raw-file/default/media-source/media-source.html#widl-SourceBuffer-appendBuffer-void-ArrayBufferView-data
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (base::FeatureList::IsEnabled(media::kCobaltInPlaceMediaSourceParser) &&
+      media::kCobaltInPlaceMediaSourceParserBorrowMode.Get()) {
+    appendTransferredBuffer(data, exception_state);
+    return;
+  }
+  AppendBufferInternal(data->ByteSpan(), base::ScopedClosureRunner(),
+                       exception_state);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+  AppendBufferInternal(data->ByteSpan(), exception_state);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+}
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void SourceBuffer::appendTransferredBuffer(DOMArrayBuffer* data,
+                                           ExceptionState& exception_state) {
+  DVLOG(2) << __func__ << " this=" << this << " size=" << data->ByteLength();
   base::ScopedClosureRunner release_runner;
   // An empty append retains nothing, but must still run the append algorithm
   // below so that `updateend` fires.
-  if (!data->ByteSpan().empty() &&
-      base::FeatureList::IsEnabled(media::kCobaltInPlaceMediaSourceParser)) {
+  if (!data->ByteSpan().empty()) {
     release_runner = RetainAppendedArrayBuffer(data);
     if (!release_runner) {
       // RetainAppendedArrayBuffer() only fails when the underlying
@@ -670,24 +703,17 @@ void SourceBuffer::appendBuffer(DOMArrayBuffer* data,
   }
   AppendBufferInternal(data->ByteSpan(), std::move(release_runner),
                        exception_state);
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-  AppendBufferInternal(data->ByteSpan(), exception_state);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
-void SourceBuffer::appendBuffer(NotShared<DOMArrayBufferView> data,
-                                ExceptionState& exception_state) {
+void SourceBuffer::appendTransferredBuffer(NotShared<DOMArrayBufferView> data,
+                                           ExceptionState& exception_state) {
   DVLOG(3) << __func__ << " this=" << this << " size=" << data->byteLength();
-  // Section 3.2 appendBuffer()
-  // https://dvcs.w3.org/hg/html-media/raw-file/default/media-source/media-source.html#widl-SourceBuffer-appendBuffer-void-ArrayBufferView-data
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Retain the whole backing ArrayBuffer; the view's bytes are a subrange of
   // it, so this keeps the appended span alive.
   base::ScopedClosureRunner release_runner;
   // An empty append retains nothing, but must still run the append algorithm
   // below so that `updateend` fires.
-  if (!data->ByteSpan().empty() &&
-      base::FeatureList::IsEnabled(media::kCobaltInPlaceMediaSourceParser)) {
+  if (!data->ByteSpan().empty()) {
     release_runner = RetainAppendedArrayBuffer(data->buffer());
     if (!release_runner) {
       // RetainAppendedArrayBuffer() only fails when the underlying
@@ -702,10 +728,8 @@ void SourceBuffer::appendBuffer(NotShared<DOMArrayBufferView> data,
   }
   AppendBufferInternal(data->ByteSpan(), std::move(release_runner),
                        exception_state);
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-  AppendBufferInternal(data->ByteSpan(), exception_state);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // Note that |chunks| may be a sequence of mixed audio and video encoded chunks
 // (which should cause underlying buffering validation to emit error akin to
@@ -2031,7 +2055,6 @@ bool SourceBuffer::EvictCodedFrames(double media_time, size_t new_data_size) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 base::ScopedClosureRunner SourceBuffer::RetainAppendedArrayBuffer(
     DOMArrayBuffer* buffer) {
-  DCHECK(base::FeatureList::IsEnabled(media::kCobaltInPlaceMediaSourceParser));
   DCHECK(buffer);
 
   ArrayBufferContents contents;

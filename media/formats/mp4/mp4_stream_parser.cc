@@ -229,11 +229,6 @@ bool MP4StreamParser::GetGenerateTimestampsFlag() const {
 
 bool MP4StreamParser::AppendToParseBuffer(base::span<const uint8_t> buf) {
   DCHECK_NE(state_, kWaitingForInit);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Once data has arrived through the overload below, the stream is parsed
-  // from `segmented_queue_`, so the two overloads must not be mixed.
-  CHECK(!segmented_queue_);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (state_ == kError) {
     // To preserve previous app-visible behavior in this hopefully
@@ -248,6 +243,35 @@ bool MP4StreamParser::AppendToParseBuffer(base::span<const uint8_t> buf) {
     // changed to just DCHECK_NE(state_, kError).
     return true;
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (base::FeatureList::IsEnabled(kCobaltInPlaceMediaSourceParser)) {
+    if (!segmented_queue_) {
+      CHECK_EQ(queue_.head(), queue_.tail());
+      LOG(INFO) << "MP4StreamParser: in-place parsing, copy mode";
+      segmented_queue_ =
+          OffsetSegmentedByteQueue::Create(/*borrow_mode=*/false);
+    } else {
+      CHECK(!segmented_queue_->borrow_mode());
+    }
+
+    // Ensure that we are not still in the middle of iterating Parse calls for
+    // previously appended data.
+    CHECK_EQ(segmented_queue_->tail(), max_parse_offset_);
+
+    if (!segmented_queue_->Push(buf, base::ScopedClosureRunner())) {
+      DVLOG(2) << "AppendToParseBuffer(): Failed to push buf of size "
+               << buf.size();
+      return false;
+    }
+
+    return true;
+  }
+
+  // Once data has arrived through the overload below, the stream is parsed
+  // from `segmented_queue_`, so the two overloads must not be mixed.
+  CHECK(!segmented_queue_);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Ensure that we are not still in the middle of iterating Parse calls for
   // previously appendded data. May consider changing this to a DCHECK once
@@ -268,11 +292,6 @@ bool MP4StreamParser::AppendToParseBuffer(base::span<const uint8_t> buf) {
 bool MP4StreamParser::AppendToParseBuffer(
     base::span<const uint8_t> buf,
     base::ScopedClosureRunner release_runner) {
-  // Blink only routes appends through this overload when the feature is on;
-  // otherwise it calls the copying overload directly. If that ever changes,
-  // the buffer would be retained without the guarantees the feature implies.
-  DCHECK(base::FeatureList::IsEnabled(kCobaltInPlaceMediaSourceParser));
-
   DCHECK_NE(state_, kWaitingForInit);
   CHECK(release_runner);
 
@@ -287,10 +306,10 @@ bool MP4StreamParser::AppendToParseBuffer(
     // From now on the stream is parsed from `segmented_queue_`, so nothing
     // appended through the overload above may be left in `queue_`.
     CHECK_EQ(queue_.head(), queue_.tail());
-    const bool borrow_mode = kCobaltInPlaceMediaSourceParserBorrowMode.Get();
-    LOG(INFO) << "MP4StreamParser: in-place parsing, "
-              << (borrow_mode ? "borrow" : "copy") << " mode";
-    segmented_queue_ = OffsetSegmentedByteQueue::Create(borrow_mode);
+    LOG(INFO) << "MP4StreamParser: in-place parsing, borrow mode";
+    segmented_queue_ = OffsetSegmentedByteQueue::Create(/*borrow_mode=*/true);
+  } else {
+    CHECK(segmented_queue_->borrow_mode());
   }
 
   // Ensure that we are not still in the middle of iterating Parse calls for
