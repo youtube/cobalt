@@ -399,6 +399,12 @@ base::EnumSet<CodeFlushMode> GetCodeFlushMode(Isolate* isolate) {
        v8_flags.flush_code_based_on_tab_visibility)) {
     code_flush_mode.Add(CodeFlushMode::kForceFlush);
   }
+  // Also flush baseline (Sparkplug) code during the critical memory pressure
+  // GC, without enabling --flush-baseline-code for regular GCs.
+  if (isolate->heap()->IsLastResortGC() &&
+      v8_flags.flush_code_on_critical_memory_pressure) {
+    code_flush_mode.Add(CodeFlushMode::kFlushBaselineCode);
+  }
 #else
   if (isolate->heap()->IsLastResortGC() &&
       (v8_flags.flush_code_based_on_time ||
@@ -3410,14 +3416,27 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 }
 
 void MarkCompactCollector::ProcessOldCodeCandidates() {
+#if BUILDFLAG(IS_COBALT)
+  DCHECK(v8_flags.flush_bytecode ||
+         IsBaselineCodeFlushingEnabled(code_flush_mode_) ||
+         weak_objects_.code_flushing_candidates.IsEmpty());
+#else
   DCHECK(v8_flags.flush_bytecode || v8_flags.flush_baseline_code ||
          weak_objects_.code_flushing_candidates.IsEmpty());
+#endif
   Tagged<SharedFunctionInfo> flushing_candidate;
   int number_of_flushed_sfis = 0;
   while (local_weak_objects()->code_flushing_candidates_local.Pop(
       &flushing_candidate)) {
     bool is_bytecode_live;
+#if BUILDFLAG(IS_COBALT)
+    // Baseline flushing may be enabled for this GC only (critical memory
+    // pressure), so consult the per-GC mode rather than the global flag.
+    if (IsBaselineCodeFlushingEnabled(code_flush_mode_) &&
+        flushing_candidate->HasBaselineCode()) {
+#else
     if (v8_flags.flush_baseline_code && flushing_candidate->HasBaselineCode()) {
+#endif
       is_bytecode_live = ProcessOldBaselineSFI(flushing_candidate);
     } else {
       is_bytecode_live = ProcessOldBytecodeSFI(flushing_candidate);
@@ -3528,7 +3547,12 @@ void MarkCompactCollector::FlushSFI(Tagged<SharedFunctionInfo> sfi,
                                     bool bytecode_already_decompiled) {
   // If baseline code flushing is disabled we should only flush bytecode
   // from functions that don't have baseline data.
+#if BUILDFLAG(IS_COBALT)
+  DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_) ||
+         !sfi->HasBaselineCode());
+#else
   DCHECK(v8_flags.flush_baseline_code || !sfi->HasBaselineCode());
+#endif
 
   if (bytecode_already_decompiled) {
     sfi->DiscardCompiledMetadata(
@@ -3560,8 +3584,13 @@ void MarkCompactCollector::ClearFlushedJsFunctions() {
 #ifndef V8_ENABLE_LEAPTIERING
 
 void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
+#if BUILDFLAG(IS_COBALT)
+  DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_) ||
+         weak_objects_.baseline_flushing_candidates.IsEmpty());
+#else
   DCHECK(v8_flags.flush_baseline_code ||
          weak_objects_.baseline_flushing_candidates.IsEmpty());
+#endif
   Tagged<JSFunction> flushed_js_function;
   while (local_weak_objects()->baseline_flushing_candidates_local.Pop(
       &flushed_js_function)) {
