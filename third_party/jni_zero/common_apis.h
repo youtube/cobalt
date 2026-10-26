@@ -51,17 +51,12 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalRef<jobject> ListSet(
     int32_t idx,
     const JavaRef<jobject>& value);
 // Helper that calls ToJniType on the value before calling ListSet.
-template <typename V
-#if BUILDFLAG(IS_COBALT) && \
-    (!defined(__cpp_concepts) || __cpp_concepts < 201907L)
-          ,
-          std::enable_if_t<!IsJavaRef<V>, int> = 0
-#endif  // BUILDFLAG(IS_COBALT) && (!defined(__cpp_concepts) || __cpp_concepts <
-        // 201907L)
-          >
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+template <typename V>
   requires(!IsJavaRef<V>)
+#else
+template <typename V, std::enable_if_t<!IsJavaRef<V>, int> = 0>
 #endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
         // >= 201907L)
 inline ScopedJavaLocalRef<jobject> ListSet(JNIEnv* env,
@@ -79,17 +74,12 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT bool CollectionAdd(
     const JavaRef<jobject>& collection,
     const JavaRef<jobject>& value);
 // Helper that calls ToJniType on the value before calling CollectionAdd.
-template <typename V
-#if BUILDFLAG(IS_COBALT) && \
-    (!defined(__cpp_concepts) || __cpp_concepts < 201907L)
-          ,
-          std::enable_if_t<!IsJavaRef<V>, int> = 0
-#endif  // BUILDFLAG(IS_COBALT) && (!defined(__cpp_concepts) || __cpp_concepts <
-        // 201907L)
-          >
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+template <typename V>
   requires(!IsJavaRef<V>)
+#else
+template <typename V, std::enable_if_t<!IsJavaRef<V>, int> = 0>
 #endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
         // >= 201907L)
 inline ScopedJavaLocalRef<jobject>
@@ -128,18 +118,14 @@ JNI_ZERO_COMPONENT_BUILD_EXPORT ScopedJavaLocalRef<jobject> MapPut(
     const JavaRef<jobject>& value);
 
 // Helper that calls ToJniType on the key and value before calling MapPut.
-template <typename K,
-          typename V
-#if BUILDFLAG(IS_COBALT) && \
-    (!defined(__cpp_concepts) || __cpp_concepts < 201907L)
-          ,
-          std::enable_if_t<!IsJavaRef<K> || !IsJavaRef<V>, int> = 0
-#endif  // BUILDFLAG(IS_COBALT) && (!defined(__cpp_concepts) || __cpp_concepts <
-        // 201907L)
-          >
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+template <typename K, typename V>
   requires(!IsJavaRef<K> || !IsJavaRef<V>)
+#else
+template <typename K,
+          typename V,
+          std::enable_if_t<!IsJavaRef<K> || !IsJavaRef<V>, int> = 0>
 #endif  // !BUILDFLAG(IS_COBALT) || (defined(__cpp_concepts) && __cpp_concepts
         // >= 201907L)
 inline ScopedJavaLocalRef<jobject> MapPut(JNIEnv* env,
