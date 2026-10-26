@@ -52,11 +52,11 @@ int64_t GetCoreServicesVersion() {
 
 // clang-format off
 const CobaltExtensionPlatformInfoApi kPlatformInfoApi = {
-    kCobaltExtensionPlatformInfoName,
-    2,
-    &GetFirmwareVersionDetails,
-    &GetOsExperience,
-    &GetCoreServicesVersion,
+    .name = kCobaltExtensionPlatformInfoName,
+    .version = 2,
+    .GetFirmwareVersionDetails = &GetFirmwareVersionDetails,
+    .GetOsExperience = &GetOsExperience,
+    .GetCoreServicesVersion = &GetCoreServicesVersion,
 };
 // clang-format on
 

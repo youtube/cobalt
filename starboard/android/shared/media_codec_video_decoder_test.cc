@@ -68,11 +68,15 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
     fake_factory_ = factory.get();  // Save raw pointer before moving!
 
     MediaCodecVideoDecoder::StreamConfig stream_config{
-        initial_stream_info ? *initial_stream_info : kDefaultVideoStreamInfo,
-        /*drm_system=*/kSbDrmSystemInvalid, kSbPlayerOutputModePunchOut,
+        .video_stream_info = initial_stream_info ? *initial_stream_info
+                                                 : kDefaultVideoStreamInfo,
+        .drm_system = kSbDrmSystemInvalid,
+        .output_mode = kSbPlayerOutputModePunchOut,
         /*decode_target_graphics_context_provider=*/
-        &fake_graphics_context_provider_,
-        /*surface_view=*/dummy_surface_.obj(), max_video_capabilities};
+        .decode_target_graphics_context_provider =
+            &fake_graphics_context_provider_,
+        .surface_view = dummy_surface_.obj(),
+        .max_video_capabilities = max_video_capabilities};
 
     MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
     MediaCodecVideoDecoder::PipelineConfig pipeline_config;

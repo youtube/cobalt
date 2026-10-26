@@ -31,12 +31,12 @@ INSTANTIATE_TEST_SUITE_P(
     ,
     MinLogLevelTranslationTest,
     testing::ValuesIn(std::vector<struct TextAndSbPriority>{
-        {"", SB_LOG_INFO},
-        {"blabla", SB_LOG_INFO},
-        {"info", SB_LOG_INFO},
-        {"warning", SB_LOG_WARNING},
-        {"error", SB_LOG_ERROR},
-        {"fatal", SB_LOG_FATAL},
+        {.text = "", .sb_log_priority = SB_LOG_INFO},
+        {.text = "blabla", .sb_log_priority = SB_LOG_INFO},
+        {.text = "info", .sb_log_priority = SB_LOG_INFO},
+        {.text = "warning", .sb_log_priority = SB_LOG_WARNING},
+        {.text = "error", .sb_log_priority = SB_LOG_ERROR},
+        {.text = "fatal", .sb_log_priority = SB_LOG_FATAL},
     }),
     [](const testing::TestParamInfo<MinLogLevelTranslationTest::ParamType>&
            info) {
@@ -56,13 +56,13 @@ INSTANTIATE_TEST_SUITE_P(
     ,
     ChromiumLogLevelTranslationTest,
     testing::ValuesIn(std::vector<struct TextAndSbPriority>{
-        {"0", SB_LOG_INFO},
-        {"1", SB_LOG_INFO},
-        {"2", SB_LOG_WARNING},
-        {"3", SB_LOG_ERROR},
-        {"4", SB_LOG_FATAL},
-        {"5", SB_LOG_INFO},
-        {"100", SB_LOG_INFO},
+        {.text = "0", .sb_log_priority = SB_LOG_INFO},
+        {.text = "1", .sb_log_priority = SB_LOG_INFO},
+        {.text = "2", .sb_log_priority = SB_LOG_WARNING},
+        {.text = "3", .sb_log_priority = SB_LOG_ERROR},
+        {.text = "4", .sb_log_priority = SB_LOG_FATAL},
+        {.text = "5", .sb_log_priority = SB_LOG_INFO},
+        {.text = "100", .sb_log_priority = SB_LOG_INFO},
     }),
     [](const testing::TestParamInfo<ChromiumLogLevelTranslationTest::ParamType>&
            info) {

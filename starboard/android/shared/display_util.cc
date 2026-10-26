@@ -29,8 +29,8 @@ DisplayUtil::Dpi DisplayUtil::GetDisplayDpi() {
   ScopedJavaLocalRef<jobject> display_dpi_obj =
       Java_DisplayUtil_getDisplayDpi(env);
 
-  return {Java_DisplayDpi_getX(env, display_dpi_obj),
-          Java_DisplayDpi_getY(env, display_dpi_obj)};
+  return {.x = Java_DisplayDpi_getX(env, display_dpi_obj),
+          .y = Java_DisplayDpi_getY(env, display_dpi_obj)};
 }
 
 // static

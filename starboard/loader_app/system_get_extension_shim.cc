@@ -24,17 +24,17 @@
 
 namespace {
 const CobaltExtensionInstallationManagerApi kInstallationManagerApi = {
-    kCobaltExtensionInstallationManagerName,
-    1,  // API version that's implemented.
-    &ImGetCurrentInstallationIndex,
-    &ImMarkInstallationSuccessful,
-    &ImRequestRollForwardToInstallation,
-    &ImGetInstallationPath,
-    &ImSelectNewInstallationIndex,
-    &ImGetAppKey,
-    &ImGetMaxNumberInstallations,
-    &ImResetInstallation,
-    &ImReset,
+    .name = kCobaltExtensionInstallationManagerName,
+    .version = 1,  // API version that's implemented.
+    .GetCurrentInstallationIndex = &ImGetCurrentInstallationIndex,
+    .MarkInstallationSuccessful = &ImMarkInstallationSuccessful,
+    .RequestRollForwardToInstallation = &ImRequestRollForwardToInstallation,
+    .GetInstallationPath = &ImGetInstallationPath,
+    .SelectNewInstallationIndex = &ImSelectNewInstallationIndex,
+    .GetAppKey = &ImGetAppKey,
+    .GetMaxNumberInstallations = &ImGetMaxNumberInstallations,
+    .ResetInstallation = &ImResetInstallation,
+    .Reset = &ImReset,
 };
 }  // namespace
 namespace loader_app {

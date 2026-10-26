@@ -24,11 +24,13 @@ namespace starboard {
 namespace {
 
 const StarboardExtensionPlayerSettingsApi kPlayerSettingsApi = {
-    kStarboardExtensionPlayerSettingsName,
-    1,
-    &SetMaxVideoInputSizeForCurrentThread,
-    &SetMaxVideoResolutionForCurrentThread,
-    &SetVideoSurfaceViewForCurrentThread,
+    .name = kStarboardExtensionPlayerSettingsName,
+    .version = 1,
+    .SetMaxVideoInputSizeForCurrentThread =
+        &SetMaxVideoInputSizeForCurrentThread,
+    .SetMaxVideoResolutionForCurrentThread =
+        &SetMaxVideoResolutionForCurrentThread,
+    .SetVideoSurfaceViewForCurrentThread = &SetVideoSurfaceViewForCurrentThread,
 };
 
 }  // namespace

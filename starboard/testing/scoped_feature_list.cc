@@ -48,7 +48,8 @@ void ScopedFeatureList::SaveOverride(const std::string& feature_name) {
   }
 
   overridden_features_.push_back(
-      {feature_name, FeatureList::GetOverrideForTesting(feature_name)});
+      {.feature_name = feature_name,
+       .value = FeatureList::GetOverrideForTesting(feature_name)});
 }
 
 void ScopedFeatureList::Reset() {

@@ -86,8 +86,8 @@ void TimeZoneMonitor::Run() {
 
   while (!stop_requested_) {
     struct pollfd fds[] = {
-        {inotify_fd_, POLLIN, 0},
-        {stop_event_fd_, POLLIN, 0},
+        {.fd = inotify_fd_, .events = POLLIN, .revents = 0},
+        {.fd = stop_event_fd_, .events = POLLIN, .revents = 0},
     };
     int poll_result = poll(fds, 2, -1 /* infinite */);
 

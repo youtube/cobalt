@@ -196,12 +196,12 @@ void* Send(PlatformServiceImpl* service,
 }
 
 const CobaltPlatformServiceApi kGetPreappRecommendationServiceApi = {
-    kPreappRecommendationServiceName,
-    1,  // API version that's implemented.
-    &Has,
-    &Open,
-    &Close,
-    &Send};
+    .name = kPreappRecommendationServiceName,
+    .version = 1,  // API version that's implemented.
+    .Has = &Has,
+    .Open = &Open,
+    .Close = &Close,
+    .Send = &Send};
 
 }  // namespace
 

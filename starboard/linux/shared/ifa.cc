@@ -48,10 +48,10 @@ bool GetLimitAdTracking(char* out_value, int value_length) {
 }
 
 const StarboardExtensionIfaApi kIfaApi = {
-    kStarboardExtensionIfaName,
-    1,  // API version that's implemented.
-    &GetAdvertisingId,
-    &GetLimitAdTracking,
+    .name = kStarboardExtensionIfaName,
+    .version = 1,  // API version that's implemented.
+    .GetAdvertisingId = &GetAdvertisingId,
+    .GetLimitAdTracking = &GetLimitAdTracking,
 };
 
 }  // namespace

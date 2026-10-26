@@ -188,12 +188,13 @@ DecodeTargetGeometry GetDecodeTargetGeometryFromMatrix(
     std::swap(top, bottom);
   }
 
-  SbDecodeTargetInfoContentRegion content_region;
-  content_region.left = left;
-  content_region.right = right;
-  content_region.top = top;
-  content_region.bottom = bottom;
-  return {content_region, coded_size};
+  return {
+      .content_region = {.left = left,
+                         .top = top,
+                         .right = right,
+                         .bottom = bottom},
+      .coded_size = coded_size,
+  };
 }
 
 std::optional<Size> GetLowestResolution(const std::optional<Size>& a,

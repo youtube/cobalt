@@ -105,7 +105,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
             << "Decommit size does not exactly match the allocated size.";
       }
 
-      decommits.push_back({memory, size, mode});
+      decommits.push_back({.memory = memory, .size = size, .mode = mode});
       decommit_count++;
     }
 

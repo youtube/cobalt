@@ -227,9 +227,14 @@ TEST_F(MediaCapabilitiesCacheTest, IsPassthroughSupported_ClearCache) {
 
 TEST_F(MediaCapabilitiesCacheTest, GetAudioConfiguration_EnabledCache) {
   std::vector<SbMediaAudioConfiguration> configs = {
-      {kSbMediaAudioConnectorHdmi, 0, kSbMediaAudioCodingTypeAc3, 2},
-      {kSbMediaAudioConnectorHdmi, 0, kSbMediaAudioCodingTypeDolbyDigitalPlus,
-       6},
+      {.connector = kSbMediaAudioConnectorHdmi,
+       .latency = 0,
+       .coding_type = kSbMediaAudioCodingTypeAc3,
+       .number_of_channels = 2},
+      {.connector = kSbMediaAudioConnectorHdmi,
+       .latency = 0,
+       .coding_type = kSbMediaAudioCodingTypeDolbyDigitalPlus,
+       .number_of_channels = 6},
   };
   EXPECT_CALL(*mock_media_capabilities_provider_,
               GetAudioConfiguration(0, testing::_))
@@ -258,9 +263,14 @@ TEST_F(MediaCapabilitiesCacheTest, GetAudioConfiguration_EnabledCache) {
 TEST_F(MediaCapabilitiesCacheTest, GetAudioConfiguration_DisabledCache) {
   cache_->SetCacheEnabled(false);
   std::vector<SbMediaAudioConfiguration> configs = {
-      {kSbMediaAudioConnectorHdmi, 0, kSbMediaAudioCodingTypeAc3, 2},
-      {kSbMediaAudioConnectorHdmi, 0, kSbMediaAudioCodingTypeDolbyDigitalPlus,
-       6},
+      {.connector = kSbMediaAudioConnectorHdmi,
+       .latency = 0,
+       .coding_type = kSbMediaAudioCodingTypeAc3,
+       .number_of_channels = 2},
+      {.connector = kSbMediaAudioConnectorHdmi,
+       .latency = 0,
+       .coding_type = kSbMediaAudioCodingTypeDolbyDigitalPlus,
+       .number_of_channels = 6},
   };
 
   EXPECT_CALL(*mock_media_capabilities_provider_,

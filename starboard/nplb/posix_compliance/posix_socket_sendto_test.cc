@@ -99,7 +99,9 @@ TEST(PosixSocketSendtoTest, RainyDaySendToClosedSocket) {
   listen_socket_fd = -1;
 
   struct trio_socket_fd trio_as_void_ptr = {
-      &listen_socket_fd, &client_socket_fd, &server_socket_fd};
+      .listen_socket_fd_ptr = &listen_socket_fd,
+      .client_socket_fd_ptr = &client_socket_fd,
+      .server_socket_fd_ptr = &server_socket_fd};
 
   // Start a thread to write to the client socket.
   pthread_t send_thread = 0;

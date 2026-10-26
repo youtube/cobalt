@@ -115,9 +115,11 @@ std::vector<const char*> GetSupportedAudioTestFiles(
       SB_DCHECK_GT(dmp_reader.number_of_audio_buffers(), 0U);
 
       audio_file_info_cache.push_back(
-          {filename, dmp_reader.audio_codec(),
-           dmp_reader.audio_stream_info().number_of_channels,
-           dmp_reader.audio_bitrate(), strstr(filename, "heaac") != nullptr});
+          {.filename = filename,
+           .audio_codec = dmp_reader.audio_codec(),
+           .num_channels = dmp_reader.audio_stream_info().number_of_channels,
+           .bitrate = dmp_reader.audio_bitrate(),
+           .is_heaac = strstr(filename, "heaac") != nullptr});
     }
   }
 

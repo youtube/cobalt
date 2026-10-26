@@ -163,7 +163,8 @@ MimeSupportabilityCache::GetMimeSupportability(const char* mime) {
   if (bitrate < 0) {
     // The mime string contains an invalid bitrate attribute. In that case, we
     // return an empty mime_info with kSupportabilityNotSupported.
-    return {kSupportabilityNotSupported, std::nullopt};
+    return {.supportability = kSupportabilityNotSupported,
+            .mime_info = std::nullopt};
   }
 
   std::lock_guard scoped_lock(mutex_);
@@ -171,7 +172,8 @@ MimeSupportabilityCache::GetMimeSupportability(const char* mime) {
 
   if (!entry) {
     // Failed to parse mime string.
-    return {kSupportabilityNotSupported, std::nullopt};
+    return {.supportability = kSupportabilityNotSupported,
+            .mime_info = std::nullopt};
   }
 
   // Return cached ParsedMimeInfo with real bitrate.
@@ -181,7 +183,7 @@ MimeSupportabilityCache::GetMimeSupportability(const char* mime) {
       is_enabled_ ? IsBitrateSupported_Locked(*entry, bitrate)
                   : kSupportabilityUnknown;
 
-  return {supportability, std::move(mime_info)};
+  return {.supportability = supportability, .mime_info = std::move(mime_info)};
 }
 
 void MimeSupportabilityCache::CacheMimeSupportability(

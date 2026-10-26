@@ -109,7 +109,7 @@ void SbPlayerPrivateImpl::WriteEndOfStream(SbMediaType stream_type) {
 }
 
 void SbPlayerPrivateImpl::SetBounds(int z_index, const Rect& rect) {
-  PlayerWorker::Bounds bounds = {z_index, rect};
+  PlayerWorker::Bounds bounds = {.z_index = z_index, .rect = rect};
   worker_->SetBounds(bounds);
   // TODO: Wait until a frame is rendered with the updated bounds.
 }

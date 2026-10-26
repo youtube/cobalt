@@ -609,7 +609,9 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     void* context) {
   return Create(channels, sampling_frequency_hz, audio_sample_type,
                 frame_buffers, frames_per_channel,
-                {update_source_status_func, consume_frames_func, error_func},
+                {.update_source_status = update_source_status_func,
+                 .consume_frames = consume_frames_func,
+                 .error = error_func},
                 /*start_media_time=*/0,
                 /*tunnel_mode_audio_session_id=*/std::nullopt,
                 /*is_web_audio=*/true,

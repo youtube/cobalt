@@ -241,7 +241,8 @@ Result<IamfMimeUtil::IamfProfileInfo> IamfMimeUtil::ParseIamfSequenceHeaderObu(
     return Failure("Truncated OBU payload: missing profile info.");
   }
 
-  return Success(IamfProfileInfo{*primary_profile, *additional_profile});
+  return Success(IamfProfileInfo{.primary_profile = *primary_profile,
+                                 .additional_profile = *additional_profile});
 }
 
 }  // namespace starboard

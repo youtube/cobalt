@@ -131,7 +131,9 @@ void AudioSinkMinRequiredFramesTester::TesterThreadFunc() {
         frame_buffers, max_required_frames_,
         min_required_frames_ * task.number_of_channels *
             GetSampleSize(task.sample_type),
-        {UpdateSourceStatusFunc, ConsumeFramesFunc, ErrorFunc},
+        {.update_source_status = UpdateSourceStatusFunc,
+         .consume_frames = ConsumeFramesFunc,
+         .error = ErrorFunc},
         /*start_media_time=*/0,
         /*tunnel_mode_audio_session_id=*/std::nullopt,
         /*is_web_audio=*/false,

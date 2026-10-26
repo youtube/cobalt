@@ -39,32 +39,41 @@ bool CobaltEnableQuicAndroid() {
 }
 
 const CobaltExtensionConfigurationApi kConfigurationApi = {
-    kCobaltExtensionConfigurationName,
-    3,
-    &CobaltUserOnExitStrategyAndroid,
-    &CobaltRenderDirtyRegionOnlyDefault,
-    &CobaltEglSwapIntervalAndroid,
-    &CobaltFallbackSplashScreenUrlDefault,
-    &CobaltEnableQuicAndroid,
-    &CobaltSkiaCacheSizeInBytesDefault,
-    &CobaltOffscreenTargetCacheSizeInBytesDefault,
-    &CobaltEncodedImageCacheSizeInBytesDefault,
-    &CobaltImageCacheSizeInBytesDefault,
-    &CobaltLocalTypefaceCacheSizeInBytesDefault,
-    &CobaltRemoteTypefaceCacheSizeInBytesDefault,
-    &CobaltMeshCacheSizeInBytesDefault,
-    &CobaltSoftwareSurfaceCacheSizeInBytesDefault,
-    &CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault,
-    &CobaltSkiaGlyphAtlasWidthDefault,
-    &CobaltSkiaGlyphAtlasHeightDefault,
-    &CobaltJsGarbageCollectionThresholdInBytesDefault,
-    &CobaltReduceCpuMemoryByDefault,
-    &CobaltReduceGpuMemoryByDefault,
-    &CobaltGcZealDefault,
-    &CobaltRasterizerTypeDefault,
-    &CobaltEnableJitDefault,
-    &CobaltFallbackSplashScreenTopicsDefault,
-    &CobaltCanStoreCompiledJavascriptDefault,
+    .name = kCobaltExtensionConfigurationName,
+    .version = 3,
+    .CobaltUserOnExitStrategy = &CobaltUserOnExitStrategyAndroid,
+    .CobaltRenderDirtyRegionOnly = &CobaltRenderDirtyRegionOnlyDefault,
+    .CobaltEglSwapInterval = &CobaltEglSwapIntervalAndroid,
+    .CobaltFallbackSplashScreenUrl = &CobaltFallbackSplashScreenUrlDefault,
+    .CobaltEnableQuic = &CobaltEnableQuicAndroid,
+    .CobaltSkiaCacheSizeInBytes = &CobaltSkiaCacheSizeInBytesDefault,
+    .CobaltOffscreenTargetCacheSizeInBytes =
+        &CobaltOffscreenTargetCacheSizeInBytesDefault,
+    .CobaltEncodedImageCacheSizeInBytes =
+        &CobaltEncodedImageCacheSizeInBytesDefault,
+    .CobaltImageCacheSizeInBytes = &CobaltImageCacheSizeInBytesDefault,
+    .CobaltLocalTypefaceCacheSizeInBytes =
+        &CobaltLocalTypefaceCacheSizeInBytesDefault,
+    .CobaltRemoteTypefaceCacheSizeInBytes =
+        &CobaltRemoteTypefaceCacheSizeInBytesDefault,
+    .CobaltMeshCacheSizeInBytes = &CobaltMeshCacheSizeInBytesDefault,
+    .CobaltSoftwareSurfaceCacheSizeInBytes =
+        &CobaltSoftwareSurfaceCacheSizeInBytesDefault,
+    .CobaltImageCacheCapacityMultiplierWhenPlayingVideo =
+        &CobaltImageCacheCapacityMultiplierWhenPlayingVideoDefault,
+    .CobaltSkiaGlyphAtlasWidth = &CobaltSkiaGlyphAtlasWidthDefault,
+    .CobaltSkiaGlyphAtlasHeight = &CobaltSkiaGlyphAtlasHeightDefault,
+    .CobaltJsGarbageCollectionThresholdInBytes =
+        &CobaltJsGarbageCollectionThresholdInBytesDefault,
+    .CobaltReduceCpuMemoryBy = &CobaltReduceCpuMemoryByDefault,
+    .CobaltReduceGpuMemoryBy = &CobaltReduceGpuMemoryByDefault,
+    .CobaltGcZeal = &CobaltGcZealDefault,
+    .CobaltRasterizerType = &CobaltRasterizerTypeDefault,
+    .CobaltEnableJit = &CobaltEnableJitDefault,
+    .CobaltFallbackSplashScreenTopics =
+        &CobaltFallbackSplashScreenTopicsDefault,
+    .CobaltCanStoreCompiledJavascript =
+        &CobaltCanStoreCompiledJavascriptDefault,
 };
 
 }  // namespace

@@ -79,7 +79,9 @@ CobaltExtensionPlatformService Open(void* context,
             platform_service_registry.at(name)());
 
     service = new CobaltExtensionPlatformServicePrivate(
-        {context, receive_callback, (std::string)name});
+        {.context = context,
+         .receive_callback = receive_callback,
+         .name = (std::string)name});
 
     service->platform_service_impl = std::unique_ptr<PlatformServiceImpl>(
         api->Open(context, receive_callback));
@@ -115,12 +117,12 @@ void* Send(CobaltExtensionPlatformService service,
 }
 
 const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
-    kCobaltExtensionPlatformServiceName,
-    1,  // API version that's implemented.
-    &Has,
-    &Open,
-    &Close,
-    &Send};
+    .name = kCobaltExtensionPlatformServiceName,
+    .version = 1,  // API version that's implemented.
+    .Has = &Has,
+    .Open = &Open,
+    .Close = &Close,
+    .Send = &Send};
 
 }  // namespace
 

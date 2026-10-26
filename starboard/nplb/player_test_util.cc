@@ -260,7 +260,8 @@ SbPlayer CallSbPlayerCreate(
           kStarboardExtensionExperimentalFeaturesConfigurationName));
   if (experimental_features_extension &&
       experimental_features_extension->version >= 1) {
-    StarboardExtensionExperimentalFeatures features = {nullptr, 0};
+    StarboardExtensionExperimentalFeatures features = {.entries = nullptr,
+                                                       .entry_count = 0};
     experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
         &features);
   }

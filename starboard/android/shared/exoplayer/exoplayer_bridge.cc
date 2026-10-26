@@ -278,7 +278,9 @@ ExoPlayerBridge::MediaInfo ExoPlayerBridge::GetMediaInfo() const {
   int64_t media_time_usec = Java_ExoPlayerBridge_getCurrentPositionUsec(
       AttachCurrentThread(), j_exoplayer_bridge_);
 
-  return MediaInfo{media_time_usec, dropped_frames_.load(), is_playing_.load()};
+  return MediaInfo{.media_time_usec = media_time_usec,
+                   .dropped_frames = dropped_frames_.load(),
+                   .is_playing = is_playing_.load()};
 }
 
 int ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,

@@ -125,7 +125,8 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
   }
 
   JobToken job_token = JobToken::Generate();
-  JobRecord job_record = {job_token, std::move(job), owner};
+  JobRecord job_record = {
+      .job_token = job_token, .job = std::move(job), .owner = owner};
 #if ENABLE_JOB_QUEUE_PROFILING
   if (kProfileStackDepth > 0) {
     job_record.stack_size =

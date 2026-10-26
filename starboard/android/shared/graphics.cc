@@ -74,15 +74,17 @@ void ReportFullyDrawn() {
 }
 
 const CobaltExtensionGraphicsApi kGraphicsApi = {
-    kCobaltExtensionGraphicsName,
-    6,
-    &GetMaximumFrameIntervalInMilliseconds,
-    &GetMinimumFrameIntervalInMilliseconds,
-    &IsMapToMeshEnabled,
-    &DefaultShouldClearFrameOnShutdown,
-    &DefaultGetMapToMeshColorAdjustments,
-    &DefaultGetRenderRootTransform,
-    &ReportFullyDrawn,
+    .name = kCobaltExtensionGraphicsName,
+    .version = 6,
+    .GetMaximumFrameIntervalInMilliseconds =
+        &GetMaximumFrameIntervalInMilliseconds,
+    .GetMinimumFrameIntervalInMilliseconds =
+        &GetMinimumFrameIntervalInMilliseconds,
+    .IsMapToMeshEnabled = &IsMapToMeshEnabled,
+    .ShouldClearFrameOnShutdown = &DefaultShouldClearFrameOnShutdown,
+    .GetMapToMeshColorAdjustments = &DefaultGetMapToMeshColorAdjustments,
+    .GetRenderRootTransform = &DefaultGetRenderRootTransform,
+    .ReportFullyDrawn = &ReportFullyDrawn,
 };
 
 }  // namespace

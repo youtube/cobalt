@@ -127,7 +127,8 @@ class EnvironmentTestBase : public ::testing::Test {
 
       EXPECT_EQ(start_environ_, end_environ)
           << "The environment was modified during the test."
-          << EnvironmentDifference{start_environ_, end_environ};
+          << EnvironmentDifference{.start_environ = start_environ_,
+                                   .end_environ = end_environ};
     }
   }
 

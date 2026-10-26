@@ -167,10 +167,10 @@ std::unique_ptr<NdkMediaCodec> NdkMediaCodec::Create(
                                                 handler, codec, fps);
 
   AMediaCodecOnAsyncNotifyCallback callbacks = {
-      OnInputBufferAvailableCallback,
-      OnOutputBufferAvailableCallback,
-      OnFormatChangedCallback,
-      OnErrorCallback,
+      .onAsyncInputAvailable = OnInputBufferAvailableCallback,
+      .onAsyncOutputAvailable = OnOutputBufferAvailableCallback,
+      .onAsyncFormatChanged = OnFormatChangedCallback,
+      .onAsyncError = OnErrorCallback,
   };
   status = AMediaCodec_setAsyncNotifyCallback(codec, callbacks, bridge.get());
   if (status != AMEDIA_OK) {

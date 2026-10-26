@@ -96,9 +96,9 @@ TEST_F(AudioTrackAudioSinkTest, CreateAndDestroy) {
   FakeAudioTrack* track_ptr = fake_track.get();
 
   AudioTrackAudioSinkType::Callbacks callbacks{
-      UpdateSourceStatusCB,
-      ConsumeFramesCB,
-      /*error=*/nullptr,
+      .update_source_status = UpdateSourceStatusCB,
+      .consume_frames = ConsumeFramesCB,
+      .error = nullptr,
   };
 
   auto sink = AudioTrackAudioSink::CreateForTesting(
@@ -127,9 +127,9 @@ TEST_F(AudioTrackAudioSinkTest, PauseAndResumePlayback) {
   FakeAudioTrack* track_ptr = fake_track.get();
 
   AudioTrackAudioSinkType::Callbacks callbacks{
-      UpdateSourceStatusCB,
-      ConsumeFramesCB,
-      /*error=*/nullptr,
+      .update_source_status = UpdateSourceStatusCB,
+      .consume_frames = ConsumeFramesCB,
+      .error = nullptr,
   };
 
   auto sink = AudioTrackAudioSink::CreateForTesting(
@@ -173,9 +173,9 @@ TEST_F(AudioTrackAudioSinkTest, FlushAndResumePlayback) {
   FakeAudioTrack* track_ptr = fake_track.get();
 
   AudioTrackAudioSinkType::Callbacks callbacks{
-      UpdateSourceStatusCB,
-      ConsumeFramesCB,
-      /*error=*/nullptr,
+      .update_source_status = UpdateSourceStatusCB,
+      .consume_frames = ConsumeFramesCB,
+      .error = nullptr,
   };
 
   auto sink = AudioTrackAudioSink::CreateForTesting(
@@ -227,9 +227,9 @@ TEST_F(AudioTrackAudioSinkTest, FlushWhilePlayingResumesPlayback) {
   FakeAudioTrack* track_ptr = fake_track.get();
 
   AudioTrackAudioSinkType::Callbacks callbacks{
-      UpdateSourceStatusCB,
-      ConsumeFramesCB,
-      /*error=*/nullptr,
+      .update_source_status = UpdateSourceStatusCB,
+      .consume_frames = ConsumeFramesCB,
+      .error = nullptr,
   };
 
   auto sink = AudioTrackAudioSink::CreateForTesting(
@@ -279,9 +279,9 @@ TEST_F(AudioTrackAudioSinkTest,
   FakeAudioTrack* track_ptr = fake_track.get();
 
   AudioTrackAudioSinkType::Callbacks callbacks{
-      UpdateSourceStatusCB,
-      ConsumeFramesCB,
-      ErrorCB,
+      .update_source_status = UpdateSourceStatusCB,
+      .consume_frames = ConsumeFramesCB,
+      .error = ErrorCB,
   };
 
   // Start with 512 frames in buffer.
@@ -331,9 +331,9 @@ TEST_F(AudioTrackAudioSinkTest,
   FakeAudioTrack* track_ptr = fake_track.get();
 
   AudioTrackAudioSinkType::Callbacks callbacks{
-      UpdateSourceStatusCB,
-      ConsumeFramesCB,
-      ErrorCB,
+      .update_source_status = UpdateSourceStatusCB,
+      .consume_frames = ConsumeFramesCB,
+      .error = ErrorCB,
   };
 
   // Start with 512 frames in buffer.
@@ -390,9 +390,9 @@ TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeResetAndContinue) {
   FakeAudioTrack* track_ptr = fake_track.get();
 
   AudioTrackAudioSinkType::Callbacks callbacks{
-      UpdateSourceStatusCB,
-      ConsumeFramesCB,
-      ErrorCB,
+      .update_source_status = UpdateSourceStatusCB,
+      .consume_frames = ConsumeFramesCB,
+      .error = ErrorCB,
   };
 
   frames_in_buffer_ = 512;
@@ -449,9 +449,9 @@ TEST_F(AudioTrackAudioSinkTest, AudioDeviceChangeRestartPlayer) {
   FakeAudioTrack* track_ptr = fake_track.get();
 
   AudioTrackAudioSinkType::Callbacks callbacks{
-      UpdateSourceStatusCB,
-      ConsumeFramesCB,
-      ErrorCB,
+      .update_source_status = UpdateSourceStatusCB,
+      .consume_frames = ConsumeFramesCB,
+      .error = ErrorCB,
   };
 
   frames_in_buffer_ = 512;

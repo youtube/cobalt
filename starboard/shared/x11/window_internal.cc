@@ -175,7 +175,8 @@ void SbWindowPrivate::BeginComposite() {
   }
   SB_CHECK_NE(composition_picture, None);
 
-  XRenderColor black = {0x0000, 0x0000, 0x0000, 0xFFFF};
+  XRenderColor black = {
+      .red = 0x0000, .green = 0x0000, .blue = 0x0000, .alpha = 0xFFFF};
   XRenderFillRectangle(display, PictOpSrc, composition_picture, &black, 0, 0,
                        width, height);
 }

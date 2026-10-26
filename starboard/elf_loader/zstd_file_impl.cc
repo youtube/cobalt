@@ -136,9 +136,11 @@ bool ZstdFileImpl::ScanFrames() {
       return false;
     }
 
-    metadata_.push_back({frame_compressed_offset, frame_compressed_size,
-                         frame_decompressed_offset,
-                         static_cast<size_t>(frame_decompressed_size)});
+    metadata_.push_back(
+        {.compressed_offset = frame_compressed_offset,
+         .compressed_size = frame_compressed_size,
+         .decompressed_offset = frame_decompressed_offset,
+         .decompressed_size = static_cast<size_t>(frame_decompressed_size)});
     frame_decompressed_offset += static_cast<size_t>(frame_decompressed_size);
     frame_compressed_offset += frame_compressed_size;
   }

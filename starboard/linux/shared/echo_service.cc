@@ -192,12 +192,12 @@ void* Send(PlatformServiceImpl* service,
 }
 
 const CobaltPlatformServiceApi kGetEchoServiceApi = {
-    kEchoServiceName,
-    1,  // API version that's implemented.
-    &Has,
-    &Open,
-    &Close,
-    &Send};
+    .name = kEchoServiceName,
+    .version = 1,  // API version that's implemented.
+    .Has = &Has,
+    .Open = &Open,
+    .Close = &Close,
+    .Send = &Send};
 
 }  // namespace
 

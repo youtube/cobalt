@@ -77,23 +77,23 @@ TEST_F(PosixStrftimeTest, StandardSpecifiers) {
     const char* format;
     const char* expected;
   } kTestCases[] = {
-      {"%Y-%y", "2023-23"},
-      {"%B-%b-%m", "October-Oct-10"},
-      {"%A-%a-%d-%j", "Thursday-Thu-26-299"},
-      {"%H-%I-%M-%S", "10-10-30-00"},
-      {"%p", "AM"},
-      {"%F", "2023-10-26"},
-      {"%T", "10:30:00"},
+      {.format = "%Y-%y", .expected = "2023-23"},
+      {.format = "%B-%b-%m", .expected = "October-Oct-10"},
+      {.format = "%A-%a-%d-%j", .expected = "Thursday-Thu-26-299"},
+      {.format = "%H-%I-%M-%S", .expected = "10-10-30-00"},
+      {.format = "%p", .expected = "AM"},
+      {.format = "%F", .expected = "2023-10-26"},
+      {.format = "%T", .expected = "10:30:00"},
       {"%D", "10/26/23"},
-      {"%r", "10:30:00 AM"},
+      {.format = "%r", .expected = "10:30:00 AM"},
       {"%R", "10:30"},
-      {"%x", "10/26/23"},
-      {"%X", "10:30:00"},
+      {.format = "%x", .expected = "10/26/23"},
+      {.format = "%X", .expected = "10:30:00"},
       {"%c", "Thu Oct 26 10:30:00 2023"},
       {"%C", "20"},
-      {"%U", "43"},
-      {"%W", "43"},
-      {"%h", "Oct"},
+      {.format = "%U", .expected = "43"},
+      {.format = "%W", .expected = "43"},
+      {.format = "%h", .expected = "Oct"},
   };
 
   for (const auto& test_case : kTestCases) {
@@ -108,14 +108,14 @@ TEST_F(PosixStrftimeTest, StandardSpecifiersL) {
     const char* format;
     const char* expected;
   } kTestCases[] = {
-      {"%Y-%y", "2023-23"},
-      {"%B-%b-%m", "October-Oct-10"},
-      {"%A-%a-%d-%j", "Thursday-Thu-26-299"},
-      {"%H-%I-%M-%S", "10-10-30-00"},
-      {"%p", "AM"},
-      {"%F %T", "2023-10-26 10:30:00"},
+      {.format = "%Y-%y", .expected = "2023-23"},
+      {.format = "%B-%b-%m", .expected = "October-Oct-10"},
+      {.format = "%A-%a-%d-%j", .expected = "Thursday-Thu-26-299"},
+      {.format = "%H-%I-%M-%S", .expected = "10-10-30-00"},
+      {.format = "%p", .expected = "AM"},
+      {.format = "%F %T", .expected = "2023-10-26 10:30:00"},
       {"%x", "10/26/23"},
-      {"%X", "10:30:00"},
+      {.format = "%X", .expected = "10:30:00"},
       {"%c", "Thu Oct 26 10:30:00 2023"},
       {"%W", "43"},
   };
@@ -143,9 +143,9 @@ TEST_F(PosixStrftimeTest, SpecialCharacterSpecifiers) {
     const char* expected;
     size_t expected_len;
   } kTestCases[] = {
-      {"A\nB\tC", "A\nB\tC", 5},
-      {"%%", "%", 1},
-      {"%n%t", "\n\t", 2},
+      {.format = "A\nB\tC", .expected = "A\nB\tC", .expected_len = 5},
+      {.format = "%%", .expected = "%", .expected_len = 1},
+      {.format = "%n%t", .expected = "\n\t", .expected_len = 2},
   };
 
   for (const auto& test_case : kTestCases) {

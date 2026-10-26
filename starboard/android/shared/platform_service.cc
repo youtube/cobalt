@@ -121,7 +121,9 @@ CobaltExtensionPlatformService Open(void* context,
 
   CobaltExtensionPlatformService service =
       new CobaltExtensionPlatformServicePrivate(
-          {context, receive_callback, name});
+          {.context = context,
+           .receive_callback = receive_callback,
+           .name = name});
   auto cobalt_service =
       starboard::StarboardBridge::GetInstance()->OpenCobaltService(
           env, reinterpret_cast<jlong>(service), name);
@@ -184,12 +186,12 @@ void* Send(CobaltExtensionPlatformService service,
 }
 
 const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
-    kCobaltExtensionPlatformServiceName,
-    1,  // API version that's implemented.
-    &Has,
-    &Open,
-    &Close,
-    &Send};
+    .name = kCobaltExtensionPlatformServiceName,
+    .version = 1,  // API version that's implemented.
+    .Has = &Has,
+    .Open = &Open,
+    .Close = &Close,
+    .Send = &Send};
 
 }  // namespace
 
