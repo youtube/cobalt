@@ -143,6 +143,14 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 // enabling tunnel mode on all playbacks.
 STARBOARD_FEATURE(kForceTunnelMode, "ForceTunnelMode", false)
 
+// By default, when no max video size is provided, H264 MediaCodec is
+// configured with the decoder's maximum supported size as
+// KEY_MAX_WIDTH/KEY_MAX_HEIGHT. Set the following variable to true to cap it at
+// 1080p.
+STARBOARD_FEATURE(kLimitH264MaxVideoSizeTo1080p,
+                  "LimitH264MaxVideoSizeTo1080p",
+                  false)
+
 // Cobalt VideoRenderAlgorithm used to release video frames immediately after
 // playback starts. Set the following variable to true to make it release video
 // frames until the underlying audio sink actually starts.
