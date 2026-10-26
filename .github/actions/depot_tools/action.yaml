@@ -178,7 +178,7 @@ runs:
         inputs.run_sync == 'true' &&
         steps.check-deps.outputs.deps_match != 'true' &&
         matrix.config == 'devel' &&
-        (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+        github.event_name == 'push' &&
         (github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
       shell: bash
       working-directory: cobalt
