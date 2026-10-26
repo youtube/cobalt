@@ -34,9 +34,10 @@ namespace media {
 // The z-index sent to each VideoGeometryChangeClient comes from the order of
 // the video holes reported by SetVideoGeometries(): the front-most hole gets
 // the largest z-index. The z-indices only change when that order changes, and
-// each new order gets values larger than any handed out before. A video whose
-// hole is missing from the latest frame keeps its older, smaller z-index, so it
-// stays below every video that is present.
+// each new order gets values larger than any handed out before (they restart
+// from 0 once no video holds one). A video whose hole is missing from the
+// latest frame keeps its older, smaller z-index, so it stays below every video
+// that is present.
 class VideoGeometrySetterService final
     : public mojom::VideoGeometryChangeSubscriber,
       public mojom::VideoGeometrySetter {
@@ -81,6 +82,9 @@ class VideoGeometrySetterService final
   // client is not subscribed yet, there is no geometry for it, or the client
   // already has it.
   void MaybeNotifyClient(const base::UnguessableToken& overlay_plane_id);
+
+  // Restarts the z-indices from 0 once no video holds one anymore.
+  void MaybeResetZIndices();
 
   void OnVideoGeometryChangeClientGone(
       const base::UnguessableToken overlay_plane_id);
