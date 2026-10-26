@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/features_extension.h"
+#include "starboard/shared/starboard/features_extension.h"
 
 #include "starboard/extension/features.h"
 #include "starboard/shared/starboard/feature_list.h"
