@@ -17,7 +17,8 @@ import warnings
 
 from base_resolver import consult_expert
 from change_record import NO_RATIONALE, AgentChangeRecord, guidance_summary
-from fix_commits import commit_files, conflict_commit_message
+from fix_commits import (commit_files, conflict_commit_message,
+                         conflict_rationales, diff_for, request_message)
 from patching import (NEEDS_HUMAN_PREFIX, exec_script_calls, exec_script_spans)
 from repo_guards import is_unmodified_third_party
 from tools import (
@@ -649,7 +650,18 @@ class ConflictResolver:
     records = (
         self.session_changes[first_record:]
         if self.session_changes is not None else [])
-    subject, body = conflict_commit_message(rel_path, records)
+    blocks = [r for r in records if r.applied_cleanly]
+    message = request_message(
+        self.reasoning_engine,
+        phase="Phase 1 (conflict resolution)",
+        trigger=(f"Merge conflict in {rel_path}: {len(blocks)} block(s) "
+                 "between the new Chromium code and Cobalt's changes"),
+        outcome="all conflict markers in the file resolved",
+        diff=diff_for(self.repo_path, [rel_path]),
+        rationales=conflict_rationales(records))
+    subject, body = conflict_commit_message(rel_path, records,
+                                            message.get("subject", ""),
+                                            message.get("body", ""))
     sha = commit_files(self.repo_path, [rel_path], subject, body)
     if sha:
       for rec in records:

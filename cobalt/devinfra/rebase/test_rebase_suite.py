@@ -3712,6 +3712,7 @@ class CommitPerFixTest(unittest.TestCase):
         '{"decision": "HOLD", "reason": "same problem, new message"}',
         ('{"decision": "COMMIT", "subject": "media: follow upstream rename",'
          ' "body": "Upstream renamed Foo to Bar.", "reason": "done"}'),
+        '{"subject": "cobalt/a.cc: bump b", "body": "b follows upstream."}',
     ])
     engine = mock.MagicMock()
     engine.flash_model = "flash-test"
@@ -3741,19 +3742,23 @@ class CommitPerFixTest(unittest.TestCase):
 
       log_entries = _git_log(tmpdir)
       self.assertEqual([s for s, _ in log_entries],
-                       ["media: follow upstream rename", "cobalt/a.cc: bad b"])
+                       ["media: follow upstream rename", "cobalt/a.cc: bump b"])
       body = log_entries[0][1]
       self.assertTrue(body.startswith("Upstream renamed Foo to Bar."))
-      self.assertIn("Why (P4 iteration 1)", body)
-      self.assertIn("Why (P4 iteration 2)", body)
+      self.assertIn("Trigger: cobalt/a.cc:1: error: bad a", body)
+      self.assertIn("Outcome: cobalt/a.cc:1: error: bad b", body)
+      self.assertNotIn("Why", body)
+      self.assertIn("Outcome: build passed", log_entries[1][1])
       # The two held patches went into one commit.
       self.assertEqual(changes[0].commit, changes[1].commit)
       self.assertNotEqual(changes[1].commit, changes[2].commit)
-      # Build success commits without asking.
-      self.assertEqual(engine.judge_commit.call_count, 2)
-      kw = engine.judge_commit.call_args_list[0].kwargs
-      self.assertIn("int a = 2;", kw["diff"])
-      self.assertIn("bad a again", kw["outcome"])
+      # Asked once per commit: decide for the error change, message only
+      # when the build passed.
+      calls = engine.judge_commit.call_args_list
+      self.assertEqual([c.kwargs["decide"] for c in calls], [True, True, False])
+      self.assertIn("int a = 2;", calls[0].kwargs["diff"])
+      self.assertIn("bad a again", calls[0].kwargs["outcome"])
+      self.assertEqual(calls[2].kwargs["outcome"], "build passed")
 
   def test_off_by_default_leaves_working_tree_uncommitted(self):
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -3789,13 +3794,20 @@ class CommitPerFixTest(unittest.TestCase):
         self.assertTrue(resolver.run_resolution_loop())
 
       log_entries = _git_log(tmpdir)
+      # The mock engine's judge_commit answer is unreadable, so the
+      # record-built message is used.
       self.assertEqual([s for s, _ in log_entries], [
-          "cobalt/one.cc: resolve 1 merge conflict block",
-          "cobalt/two.cc: resolve 1 merge conflict block",
+          "cobalt/one.cc: resolve merge conflict",
+          "cobalt/two.cc: resolve merge conflict",
       ])
       self.assertIn("Block #1 (lines 4-10): Keep the Starboard pipeline",
                     log_entries[0][1])
+      self.assertIn("Conflict block: #1 (lines 4-10)", log_entries[0][1])
       self.assertIn("Model: expert-test", log_entries[0][1])
+      kw = engine.judge_commit.call_args_list[0].kwargs
+      self.assertFalse(kw["decide"])
+      self.assertIn("Keep the Starboard pipeline", kw["rationales"])
+      self.assertIn("InitStarboardMediaPipeline", kw["diff"])
       self.assertEqual(len(changes), 2)
       self.assertNotEqual(changes[0].commit, changes[1].commit)
       shown = subprocess.run(["git", "show", "--stat", "--format=", "HEAD"],
@@ -3840,6 +3852,10 @@ class CommitPerFixTest(unittest.TestCase):
                                        "Because.")
     self.assertEqual(subject, "media: rename Bar")
     self.assertTrue(body.startswith("Because.\n\nTrigger:"))
+    # The model's prose is re-wrapped at 72 columns.
+    _, body = fix_commit_message([rec], "P4", "s", "word " * 30)
+    self.assertTrue(all(len(l) <= 72 for l in body.splitlines()[:3]))
+    self.assertEqual(body.count("\n", 0, body.index("Trigger")), 4)
     # Proposed subjects over 72 chars or multiline are capped.
     long_subject = "media: " + "very long description " * 10 + "\nsecond line"
     subject, _ = fix_commit_message([rec], "P4", long_subject)
@@ -3927,6 +3943,32 @@ class CommitPerFixTest(unittest.TestCase):
       self.assertEqual([r.target_file for r in resolver.committer.pending],
                        ["cobalt/a.cc", "cobalt/b.cc"])
       self.assertEqual(resolver.committer.trigger, "bad a")
+
+  def test_fallback_message_names_changed_file_and_skips_markdown(self):
+    """Seen in the M148.7752 run: wrong file in the subject, '###' as Why."""
+    rec = AgentChangeRecord(
+        "P3",
+        1,
+        "components/optimization_guide/core/inference/BUILD.gn",
+        file_changes={"media/webrtc/BUILD.gn": "x"},
+        applied_cleanly=True,
+        trigger=("/repo/components/optimization_guide/core/inference/BUILD.gn"
+                 ":8: ERROR at //components/optimization_guide/core/inference/"
+                 "BUILD.gn:8:1: Assertion failed. | assert(x)"),
+        rationale=("### Root Cause Analysis\n1. **HEAD**: upstream added a "
+                   "dep on `tflite_support`.\n```gn\ndeps += [ \"x\" ]\n```\n"
+                   "- Cobalt drops it. So the assert must be relaxed."),
+        model="m")
+    subject, body = fix_commit_message([rec], "P3", repo_path="/repo")
+    self.assertEqual(subject,
+                     "media/webrtc/BUILD.gn: Assertion failed. | assert(x)")
+    self.assertIn(
+        "Why: HEAD: upstream added a dep on `tflite_support`. "
+        "Cobalt drops it. So the assert must be relaxed.", body)
+    self.assertNotIn("###", body)
+    self.assertNotIn("deps +=", body)
+    self.assertIn("Trigger: components/optimization_guide", body)
+    self.assertNotIn("/repo/", body)
 
   def test_pipeline_flag_defaults_off(self):
     import run_rebase_pipeline  # pylint: disable=import-outside-toplevel

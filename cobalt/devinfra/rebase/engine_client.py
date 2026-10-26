@@ -319,11 +319,12 @@ class ReasoningEngineClient:
       outcome: str,
       diff: str,
       rationales: str = "",
+      decide: bool = True,
   ) -> Dict[str, Any]:
-    """Asks whether pending build fixes form one commit-worthy fix.
+    """Asks for the commit message of one fix, and whether it is one.
 
-    Returns the engine's dict with a "judgement" JSON string; see
-    fix_commits.parse_judgement.
+    With decide=False only the message is asked for. Returns the engine's
+    dict with a "judgement" JSON string; see fix_commits.parse_judgement.
     """
     return self.query(
         action="judge_commit",
@@ -332,4 +333,5 @@ class ReasoningEngineClient:
         outcome=outcome,
         diff=diff,
         rationales=rationales,
+        decide=decide,
     )

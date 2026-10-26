@@ -333,7 +333,8 @@ class BaseResolver(abc.ABC):
       return self._run_resolution_loop(_LoopState())
     finally:
       if self.committer:
-        self.committer.flush(unverified=True)
+        self.committer.flush(
+            outcome="loop ended before the error went away", unverified=True)
 
   def _run_resolution_loop(self, state: _LoopState) -> bool:
     for iteration in range(1, self.max_iterations + 1):
@@ -347,7 +348,7 @@ class BaseResolver(abc.ABC):
         if state.pending_record is not None:
           state.pending_record.error = None
         if self.committer:
-          self.committer.flush(note="Outcome: build passed")
+          self.committer.flush(outcome="build passed")
         return True
 
       diagnostics = self._collect_diagnostics(output, siso_out)
