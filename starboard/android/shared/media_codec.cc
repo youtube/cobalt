@@ -16,6 +16,7 @@
 
 #include <android/api-level.h>
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <string>
@@ -28,6 +29,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
+#include "starboard/shared/starboard/media/resolutions.h"
 
 namespace starboard {
 namespace {
@@ -61,7 +63,105 @@ bool CanUseNdkMediaCodec(
 
   return true;
 }
+
+Size FindSupportedMaxFrameSizeWithFps(
+    const VideoCodecCapability& video_capability,
+    Size candidate,
+    int fps) {
+  if (video_capability.AreResolutionAndRateSupported(candidate, fps)) {
+    SB_LOG(INFO) << "Set max_frame_size to " << candidate << "@" << fps
+                 << " per `areSizeAndRateSupported()`";
+    return candidate;
+  }
+
+  SB_LOG(WARNING) << "max_frame_size " << candidate << "@" << fps
+                  << " not supported per `areSizeAndRateSupported()`,"
+                  << " continue searching";
+  for (Size fallback : {Resolution::k8k, Resolution::k4k, Resolution::k1080p}) {
+    if (candidate.height >= fallback.height &&
+        video_capability.AreResolutionAndRateSupported(fallback, fps)) {
+      SB_LOG(INFO) << "Set max_frame_size to " << fallback << "@" << fps
+                   << " per `areSizeAndRateSupported()`";
+      return fallback;
+    }
+  }
+
+  SB_LOG(ERROR) << "Failed to find a compatible resolution";
+  return Resolution::k1080p;
+}
+
+Size FindSupportedMaxFrameSizeWithoutFps(
+    const VideoCodecCapability& video_capability,
+    Size candidate) {
+  // Technically we can do this check for all resolutions, but only check for
+  // resolution with height more than 480p to minimize production impact. To
+  // use a lower resolution is more to reduce memory footprint, and optimize
+  // for lower resolution isn't as helpful anyway.
+  if (candidate.height >= Resolution::k480p.height &&
+      video_capability.AreResolutionAndRateSupported(candidate, /*fps=*/0)) {
+    SB_LOG(INFO) << "Set max_frame_size to " << candidate
+                 << " per `isSizeSupported()`";
+    return candidate;
+  }
+
+  for (Size fallback : {Resolution::k4k, Resolution::k1080p}) {
+    if (candidate.height >= fallback.height &&
+        video_capability.AreResolutionAndRateSupported(fallback, /*fps=*/0)) {
+      SB_LOG(INFO) << "Set max_frame_size to " << fallback
+                   << " per `isSizeSupported()`";
+      return fallback;
+    }
+  }
+
+  SB_LOG(ERROR) << "Failed to find a compatible resolution";
+  return Resolution::k1080p;
+}
+
+Size FindSupportedMaxFrameSize(const VideoCodecCapability& video_capability,
+                               const std::optional<Size>& max_frame_size,
+                               int fps) {
+  Size candidate;
+  if (max_frame_size && max_frame_size->width > 0 &&
+      max_frame_size->height > 0) {
+    candidate = *max_frame_size;
+    SB_LOG(INFO) << "Evaluate max_frame_size " << candidate << " passed in";
+  } else {
+    candidate = video_capability.max_size();
+    SB_LOG(INFO) << "max_frame_size not passed in, using supported upper bound "
+                 << candidate;
+  }
+
+  return fps > 0
+             ? FindSupportedMaxFrameSizeWithFps(video_capability, candidate,
+                                                fps)
+             : FindSupportedMaxFrameSizeWithoutFps(video_capability, candidate);
+}
+
+Size ClampMaxFrameSize(Size size, int sdk_int) {
+  // Since we haven't passed the properties of the stream we're playing down to
+  // this level, from our perspective, we could potentially adapt up to 8k at
+  // any point. We thus request 8k buffers up front, unless the decoder claims
+  // to not be able to do 8k, in which case we're ok, since we would've
+  // rejected a 8k stream when canPlayType was called, and then use those
+  // decoder values instead. We only support 8k for API level 29 and above.
+  const Size upper_limit = sdk_int > 28 ? Resolution::k8k : Resolution::k4k;
+  return Size{std::min(size.width, upper_limit.width),
+              std::min(size.height, upper_limit.height)};
+}
+
 }  // namespace
+
+Size GetSupportedMaxFrameSize(const VideoCodecCapability* video_capability,
+                              const std::optional<Size>& max_frame_size,
+                              int fps,
+                              int sdk_int) {
+  if (!video_capability) {
+    SB_LOG(WARNING) << "VideoCodecCapability is null, falling back to 1080p";
+    return ClampMaxFrameSize(Resolution::k1080p, sdk_int);
+  }
+  Size size = FindSupportedMaxFrameSize(*video_capability, max_frame_size, fps);
+  return ClampMaxFrameSize(size, sdk_int);
+}
 
 std::unique_ptr<MediaCodec> DefaultMediaCodecFactory::CreateAudioMediaCodec(
     const AudioStreamInfo& audio_stream_info,
@@ -119,11 +219,17 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
                      mime, ToString(!!j_media_crypto).data()));
   }
 
+  const VideoCodecCapability* video_capability =
+      MediaCapabilitiesCache::GetInstance()->FindVideoCodecCapability(
+          mime, decoder_name);
+  const Size supported_max_frame_size = GetSupportedMaxFrameSize(
+      video_capability, max_frame_size, fps, android_get_device_api_level());
+
   if (CanUseNdkMediaCodec(platform_options, j_media_crypto, color_metadata)) {
     auto ndk_bridge = NdkMediaCodec::Create(
-        video_codec, decoder_name, frame_size_hint, fps, max_frame_size,
-        handler, j_surface, j_media_crypto, color_metadata,
-        platform_options.enable_frame_renderer_listener,
+        video_codec, decoder_name, frame_size_hint, fps,
+        supported_max_frame_size, handler, j_surface, j_media_crypto,
+        color_metadata, platform_options.enable_frame_renderer_listener,
         platform_options.require_secured_decoder,
         platform_options.require_software_codec,
         platform_options.max_input_size);
@@ -135,8 +241,9 @@ DefaultMediaCodecFactory::CreateVideoMediaCodec(
   }
 
   auto jni_result = MediaCodecBridge::CreateVideoMediaCodec(
-      video_codec, decoder_name, mime, frame_size_hint, fps, max_frame_size,
-      handler, j_surface, j_media_crypto, color_metadata, platform_options);
+      video_codec, decoder_name, mime, frame_size_hint, fps,
+      supported_max_frame_size, handler, j_surface, j_media_crypto,
+      color_metadata, platform_options);
   if (jni_result) {
     return std::move(jni_result.value());
   }
