@@ -174,6 +174,11 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
 #endif  // BUILDFLAG(IS_ANDROID)
 
   if (found_underlay) {
+    // Reports all the video holes of this frame together, front-most first,
+    // when it goes out of scope. The VideoGeometrySetter service derives the
+    // z-index of each video from that order, so the order in which the videos
+    // receive their geometry doesn't matter.
+    ScopedVideoHoleGeometryBatch video_hole_batch;
     for (auto it = quad_list.begin(); it != quad_list.end(); ++it) {
       OverlayCandidate candidate;
       if (it->material != DrawQuad::Material::kVideoHole ||
@@ -197,12 +202,11 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
 void OverlayStrategyUnderlayStarboard::CommitCandidate(
     const OverlayProposedCandidate& proposed_candidate,
     AggregatedRenderPass* render_pass) {
-  DCHECK(GetVideoGeometrySetter());
-  GetVideoGeometrySetter()->SetVideoGeometry(
-      proposed_candidate.candidate.display_rect,
-      std::get<gfx::OverlayTransform>(proposed_candidate.candidate.transform),
+  ScopedVideoHoleGeometryBatch::Add(
       VideoHoleDrawQuad::MaterialCast(*proposed_candidate.quad_iter)
-          ->overlay_plane_id);
+          ->overlay_plane_id,
+      proposed_candidate.candidate.display_rect,
+      std::get<gfx::OverlayTransform>(proposed_candidate.candidate.transform));
   if (proposed_candidate.candidate.has_mask_filter) {
     render_pass->ReplaceExistingQuadWithSolidColor(
         proposed_candidate.quad_iter, SkColors::kBlack, SkBlendMode::kDstOut);

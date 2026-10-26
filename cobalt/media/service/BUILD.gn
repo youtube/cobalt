@@ -33,3 +33,21 @@ source_set("service") {
     "//ui/gfx/geometry",
   ]
 }
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "video_geometry_setter_service_unittest.cc" ]
+
+  deps = [
+    ":service",
+    "//base",
+    "//base/test:test_support",
+    "//cobalt/media/service/mojom",
+    "//mojo/public/cpp/bindings",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/gfx",
+    "//ui/gfx/geometry",
+  ]
+}

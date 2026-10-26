@@ -14,7 +14,7 @@ import "ui/gfx/mojom/overlay_transform.mojom";
 // - VideoGeometrySetter that can be used by a source of geometry changes (for
 //   a given |overlay_plane_id|) to inform a remote observer.
 // A broker (e.g., VideoGeometrySetterService) is implemented to connect the
-// geometry update events (i.e., from VideoGeometrySetter::SetVideoGeometry()
+// geometry update events (i.e., from VideoGeometrySetter::SetVideoGeometries()
 // all the way to a VideoGeometryChangeClient::OnVideoGeometryChange()).
 // A third mojo interface, VideoGeometryChangeSubscriber, is also defined to
 // allow VideoGeometryChangeClients to connect to the broker.
@@ -27,9 +27,12 @@ import "ui/gfx/mojom/overlay_transform.mojom";
 // presented geometry of its video feed.
 interface VideoGeometryChangeClient {
 // Implementation of VideoGeometryChangeClient sets the video geometry on
-// itself.
-  OnVideoGeometryChange(gfx.mojom.RectF rect_f, gfx.mojom.OverlayTransform
-    transform);
+// itself. When videos overlap, the one with the larger |z_index| is drawn on
+// top (see SbPlayerSetBounds()). The values are only meaningful relative to
+// each other; they may be sparse and grow over time.
+  OnVideoGeometryChange(gfx.mojom.RectF rect_f,
+    gfx.mojom.OverlayTransform transform,
+    int32 z_index);
 };
 
 // A single instance of VideoGeometrySetterService provides both the interface
@@ -47,14 +50,21 @@ interface VideoGeometryChangeSubscriber {
     pending_remote<VideoGeometryChangeClient> client_pending_remote) => ();
 };
 
+// The geometry of one video hole in a presented frame.
+struct VideoHoleGeometry {
+  // Identifies the target VideoGeometryChangeClient (e.g., StarboardRenderer).
+  mojo_base.mojom.UnguessableToken overlay_plane_id;
+  gfx.mojom.RectF rect_f;
+  gfx.mojom.OverlayTransform transform;
+};
+
 // VideoGeometrySetter is the interface used by some entity inside the Viz/GPU
 // process compositor (e.g., OverlayStrategyUnderlayStarboard) to report changes
 // in the geometry of the overlay.
 interface VideoGeometrySetter {
-// Informs VideoGeometrySetterService the video geometry information and the
-// target StarboardRenderer, identified by |overlay_plane_id|, that the geometry is
-// set to.
-  SetVideoGeometry(gfx.mojom.RectF rect_f,
-    gfx.mojom.OverlayTransform transform,
-    mojo_base.mojom.UnguessableToken overlay_plane_id);
+// Informs VideoGeometrySetterService of all the video holes presented in a
+// frame, front-most first (i.e., in QuadList order). The service derives the
+// z-index of each video from this order, and only notifies the clients whose
+// geometry or z-index changed.
+  SetVideoGeometries(array<VideoHoleGeometry> front_to_back);
 };
