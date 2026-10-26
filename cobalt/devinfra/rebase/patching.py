@@ -253,6 +253,45 @@ def parse_patch(patch_text: str,
   return ParsedPatch(text, blocks)
 
 
+_UNIFIED_DIFF_RE = re.compile(r"^(?:---|\+\+\+|@@|diff --git) .*$",
+                              re.MULTILINE)
+_LONE_FENCE_RE = re.compile(r"^\s*```[a-zA-Z0-9_-]*\s*$", re.MULTILINE)
+
+
+def patch_explanation(patch_text: str, limit: int = 1500) -> str:
+  """The model's explanation around its patch, without the patch itself.
+
+  Models usually write a few sentences before (sometimes after) the FILE /
+  SEARCH / REPLACE blocks saying what the error is and why the change fixes
+  it. This drops the DELETE and SEARCH/REPLACE blocks, unified-diff lines and
+  stray code fences and returns what is left, capped at `limit` characters,
+  so the reasoning can be kept in the change record for reviewers.
+  """
+  if not patch_text:
+    return ""
+  text = _SEARCH_REPLACE_BLOCK_RE.sub("", patch_text)
+  text = _DELETE_BLOCK_RE.sub("", text)
+  if not _SEARCH_REPLACE_BLOCK_RE.search(patch_text) and not (
+      _DELETE_BLOCK_RE.search(patch_text)):
+    # A unified diff: keep only lines that are not part of the diff body.
+    lines = []
+    in_hunk = False
+    for line in text.splitlines():
+      if _UNIFIED_DIFF_RE.match(line):
+        in_hunk = True
+        continue
+      if in_hunk and line[:1] in ("+", "-", " ", "\\"):
+        continue
+      in_hunk = False
+      lines.append(line)
+    text = "\n".join(lines)
+  text = _LONE_FENCE_RE.sub("", text)
+  text = re.sub(r"\n{3,}", "\n\n", text).strip()
+  if len(text) > limit:
+    text = text[:limit].rstrip() + " [...]"
+  return text
+
+
 _EXEC_SCRIPT_RE = re.compile(r"\bexec_script\s*\(")
 
 # Prefix of a change-record error that stops the pipeline for a human.

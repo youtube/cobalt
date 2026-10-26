@@ -19,7 +19,7 @@ import warnings
 from diagnostics import Diagnostic
 from patching import (NEEDS_HUMAN_PREFIX, apply_parsed_patch,
                       exec_script_changes, parse_patch, patch_file_changes,
-                      patch_rejections)
+                      patch_explanation, patch_rejections)
 from tools import execute_local_tool, extract_tool_commands
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
@@ -40,6 +40,27 @@ class AgentChangeRecord:
   command_output: Optional[str] = None
   applied_cleanly: bool = True
   timestamp: float = dataclasses.field(default_factory=time.time)
+
+  # The fields below are review context for the humans who take over the
+  # PR. They are written to change_history.json and the summary report,
+  # never to prompts. `error` above keeps its meaning: the command outcome
+  # after the change.
+
+  # What prompted the change: the compiler/gn diagnostic, or
+  # "Conflict block #N in <file> (lines a-b)".
+  trigger: str = ""
+  # The model's own reasoning: the explanation text it wrote outside the
+  # SEARCH/REPLACE blocks, or the expert pre-flight plan when the patch came
+  # without one.
+  rationale: str = ""
+  # The model that produced the change ("fast-path" / "mock" when no model
+  # was consulted).
+  model: str = ""
+  # For a conflict, the upstream side of the block as it was, so a reviewer
+  # can judge the resolution without replaying the merge. Empty otherwise.
+  upstream_side: str = ""
+  # For a conflict, the Cobalt side of the block as it was. Empty otherwise.
+  cobalt_side: str = ""
 
   @property
   def modified_files(self) -> List[str]:
@@ -66,6 +87,11 @@ class AgentChangeRecord:
         "modified_files": self.modified_files,
         "applied_cleanly": self.applied_cleanly,
         "timestamp": self.timestamp,
+        "trigger": self.trigger,
+        "rationale": self.rationale,
+        "model": self.model,
+        "upstream_side": self.upstream_side,
+        "cobalt_side": self.cobalt_side,
     }
 
   def to_prompt_str(self) -> str:
@@ -113,6 +139,32 @@ def extract_meaningful_error_summary(raw_msg: str) -> str:
       continue
     return re.sub(r"^FAILED:\s+[0-9a-fA-F-]{36}\s+", "FAILED: ", l_strip)
   return raw_msg.strip().splitlines()[0]
+
+
+# Pre-flight guidance has tool transcripts appended after the model's text.
+_TOOL_RESULT_RE = re.compile(r"\n*Tool Call: `.*", re.DOTALL)
+_TOOL_LINE_RE = re.compile(r"^\s*TOOL_[A-Z_]+:.*$", re.MULTILINE)
+
+# Lengths of the review-context strings kept in a change record. They go to
+# change_history.json and the summary report, not to prompts.
+MAX_RATIONALE_CHARS = 1500
+MAX_TRIGGER_CHARS = 2000
+
+
+def guidance_summary(guidance: str, limit: int = MAX_RATIONALE_CHARS) -> str:
+  """The expert's plan without the tool transcripts appended to it.
+
+  Pre-flight guidance has "Tool Call: `...`\\nResult:\\n```...```" sections
+  appended after the model's text, and may contain bare TOOL_ request
+  lines. Both are dropped; what is left is the reasoning a reviewer wants.
+  """
+  if not guidance:
+    return ""
+  text = _TOOL_RESULT_RE.sub("", guidance)
+  text = _TOOL_LINE_RE.sub("", text).strip()
+  if len(text) > limit:
+    text = text[:limit].rstrip() + " [...]"
+  return text
 
 
 def format_change_history(records: List[AgentChangeRecord],
@@ -413,7 +465,8 @@ class BaseResolver(abc.ABC):
       if not patch:
         log.warning("[%s] [FAIL] Model returned empty patch.", self.name)
         continue
-      self._apply_and_record(patch, model_used, rel_target, state)
+      context = self._review_context(diag, patch, expert_guidance)
+      self._apply_and_record(patch, model_used, rel_target, state, **context)
       if self.needs_human():
         log.warning(
             "[%s] [STOP] A fix needs a human decision; see the "
@@ -463,6 +516,21 @@ class BaseResolver(abc.ABC):
     if state.pending_record is not None:
       state.pending_record.error = error_summary
       state.pending_record.command_output = command_output[-4000:]
+
+  def _review_context(self, diag: Diagnostic, patch: str,
+                      expert_guidance: str) -> Dict[str, Any]:
+    """Review fields for the change record of this iteration's patch.
+
+    trigger is the diagnostic the patch answers; rationale is the model's
+    own explanation around the patch, or the expert's pre-flight plan when
+    the patch came without one.
+    """
+    return {
+        "trigger":
+            diag.trace()[:MAX_TRIGGER_CHARS],
+        "rationale":
+            patch_explanation(patch) or guidance_summary(expert_guidance),
+    }
 
   def _print_failure(self, diagnostics: List[Diagnostic], error_summary: str,
                      rel_file: str) -> None:
@@ -521,6 +589,11 @@ class BaseResolver(abc.ABC):
                 f"reverted to HEAD after repeated failure ({error_summary}); "
                 "try a different approach"),
             applied_cleanly=True,
+            trigger=error_summary,
+            rationale=(
+                f"Anti-loop: the same error repeated {state.stuck_count} "
+                "times, so the file was reset to HEAD for a fresh "
+                "attempt."),
         ))
 
   def _session_trajectory(self) -> str:
@@ -649,10 +722,25 @@ class BaseResolver(abc.ABC):
       results.append(f"Tool Call: `{t_cmd}`\nResult:\n```\n{t_out}\n```")
     return "\n\n".join(results)
 
-  def _apply_and_record(self, patch: str, model_used: str, rel_target: str,
-                        state: _LoopState) -> None:
-    """Applies the model's patch and records the attempt either way."""
+  def _apply_and_record(self,
+                        patch: str,
+                        model_used: str,
+                        rel_target: str,
+                        state: _LoopState,
+                        *,
+                        trigger: str = "",
+                        rationale: str = "") -> None:
+    """Applies the model's patch and records the attempt either way.
+
+    trigger and rationale are the review context kept in the record (see
+    AgentChangeRecord); they do not affect what is applied.
+    """
     iteration = state.iteration
+    review = {
+        "trigger": trigger,
+        "rationale": rationale,
+        "model": model_used or "",
+    }
     log.info("[%s] Applying AI patch using %s to %s...", self.name, model_used,
              rel_target)
     parsed = parse_patch(patch, self.repo_path, default_file=rel_target)
@@ -687,6 +775,7 @@ class BaseResolver(abc.ABC):
               error=error,
               command_output=None,
               applied_cleanly=False,
+              **review,
           ))
       state.pending_record = None
       state.last_patch_not_applied = True
@@ -704,6 +793,7 @@ class BaseResolver(abc.ABC):
         error=None,
         command_output=None,
         applied_cleanly=True,
+        **review,
     )
     self.session_changes.append(state.pending_record)
     # Last: this may re-run gclient sync or gn gen, which can raise.

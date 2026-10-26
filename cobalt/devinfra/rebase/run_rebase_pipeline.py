@@ -62,6 +62,57 @@ _PHASES = (
 )
 
 
+def _one_line(text: str, limit: int) -> str:
+  """First line of `text`, cut to `limit` characters."""
+  first = (text or "").strip().splitlines()
+  line = first[0].strip() if first else ""
+  return line if len(line) <= limit else line[:limit].rstrip() + " [...]"
+
+
+def _squash(text: str, limit: int) -> str:
+  """`text` with whitespace runs collapsed, cut to `limit` characters."""
+  flat = " ".join((text or "").split())
+  return flat if len(flat) <= limit else flat[:limit].rstrip() + " [...]"
+
+
+def format_change_log(records: List[AgentChangeRecord]) -> str:
+  """Markdown "what changed and why" for the applied changes, per file.
+
+  This is the section a reviewer taking over the PR reads first: for each
+  file, the conflict or build error that prompted the change, the model's
+  reasoning, and the upstream commits/CLs it consulted. Attempts that were
+  not applied are left out; they are in change_history.json.
+  """
+  applied = [r for r in records if r.applied_cleanly and r.modified_files]
+  if not applied:
+    return ""
+  by_file: Dict[str, List[AgentChangeRecord]] = collections.OrderedDict()
+  for rec in applied:
+    for path in rec.modified_files:
+      by_file.setdefault(path, []).append(rec)
+
+  lines = [
+      "", "## 5. Change Log (what changed and why)",
+      "Per file, oldest first. `trigger` is the conflict or error the change "
+      "answers; `why` is the model's reasoning. Full diffs, and both sides of "
+      "each conflict, are in change_history.json.", ""
+  ]
+  for path, recs in by_file.items():
+    lines.append(f"### `{path}`")
+    for rec in recs:
+      outcome = ("ok"
+                 if rec.error is None else f"then: {_one_line(rec.error, 160)}")
+      model = f", {rec.model}" if rec.model else ""
+      lines.append(f"- **{rec.phase}** iteration {rec.iteration}{model} "
+                   f"({outcome})")
+      if rec.trigger:
+        lines.append(f"  - trigger: {_one_line(rec.trigger, 220)}")
+      if rec.rationale:
+        lines.append(f"  - why: {_squash(rec.rationale, 400)}")
+    lines.append("")
+  return "\n".join(lines)
+
+
 def write_rebase_report(
     results_dir: str,
     platform: str,
@@ -125,6 +176,8 @@ def write_rebase_report(
     usage_section = ("\n## 4. Token Usage\n" +
                      token_usage.format_summary_table() + "\n")
 
+  change_log_section = format_change_log(session_changes or [])
+
   content = f"""# Cobalt {milestone} Rebase Resolution & Verification Report
 
 ## 1. Executive Summary
@@ -141,7 +194,7 @@ def write_rebase_report(
 | Phase | Stage | Description | Status |
 | :--- | :--- | :--- | :--- |
 {phase_rows}
-{changes_section}{usage_section}"""
+{changes_section}{usage_section}{change_log_section}"""
   try:
     with open(report_path, "w", encoding="utf-8") as f:
       f.write(content)

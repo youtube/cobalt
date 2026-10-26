@@ -15,7 +15,7 @@ import subprocess
 from typing import Any, List, Optional, Tuple
 import warnings
 
-from base_resolver import AgentChangeRecord
+from base_resolver import AgentChangeRecord, guidance_summary
 from patching import (NEEDS_HUMAN_PREFIX, exec_script_calls, exec_script_spans)
 from repo_guards import is_unmodified_third_party
 from tools import (
@@ -77,6 +77,11 @@ class ConflictBlock:
   def upstream_content(self) -> str:
     """The side of the conflict holding the new upstream Chromium code."""
     return self.ours_content if self.upstream_is_ours else self.theirs_content
+
+  @property
+  def cobalt_content(self) -> str:
+    """The side of the conflict holding Cobalt's pre-roll code."""
+    return self.theirs_content if self.upstream_is_ours else self.ours_content
 
 
 @dataclasses.dataclass
@@ -344,6 +349,21 @@ def _exec_script_resolution_problem(content: str, block: ConflictBlock,
           "by hand")
 
 
+def _block_review(rel_path: str, block: ConflictBlock) -> dict:
+  """Review fields naming a conflict block and keeping both of its sides.
+
+  Everything here comes from the local repository: the file, the block's
+  line numbers, and the upstream and Cobalt sides as they were before the
+  resolution, so a reviewer can judge the result without replaying the merge.
+  """
+  return {
+      "trigger": (f"Conflict block #{block.index} in {rel_path} "
+                  f"(lines {block.start_line}-{block.end_line})"),
+      "upstream_side": block.upstream_content,
+      "cobalt_side": block.cobalt_content,
+  }
+
+
 def resolve_file_conflicts(
     file_path: str,
     repo_path: str,
@@ -391,6 +411,11 @@ def resolve_file_conflicts(
                 },
                 error=None,
                 applied_cleanly=True,
+                rationale=("Cobalt never modified this third_party file, so "
+                           "the upstream side of the conflict was taken "
+                           "without consulting the model."),
+                model="fast-path",
+                **_block_review(rel_path, block),
             ))
     with open(file_path, "w", encoding="utf-8") as f:
       f.write(content)
@@ -446,6 +471,7 @@ def resolve_file_conflicts(
 
     resolved_code: Optional[str] = None
     investigation_history = ""
+    model_used = ""
     for attempt in range(2):
       use_expert = attempt > 0
       if use_expert:
@@ -454,6 +480,7 @@ def resolve_file_conflicts(
       for _ in range(max_tool_rounds):
         if mock_mode:
           resolved_code = block.theirs_content
+          model_used = "mock"
           break
 
         if engine is None:
@@ -479,6 +506,7 @@ def resolve_file_conflicts(
         raw_replacement = ""
         if isinstance(res, dict):
           raw_replacement = res.get("replacement", "")
+          model_used = res.get("model_used") or model_used
         elif isinstance(res, str):
           raw_replacement = res
 
@@ -501,6 +529,14 @@ def resolve_file_conflicts(
       if resolved_code is not None and "<<<<<<<" not in resolved_code:
         break
 
+    # Review context for this block: which block and its two sides, why it
+    # was resolved this way (the expert's plan; the resolver itself returns
+    # only code), and by which model.
+    review = dict(
+        _block_review(rel_path, block),
+        rationale=guidance_summary(expert_guidance),
+        model=model_used)
+
     if resolved_code is None or "<<<<<<<" in resolved_code:
       log.info("    [ESCALATE] Block #%s could not be cleanly resolved.",
                block.index)
@@ -513,6 +549,7 @@ def resolve_file_conflicts(
                 file_changes={rel_path: block.raw_block},
                 error=f"Unresolved conflict markers in block #{block.index}",
                 applied_cleanly=False,
+                **review,
             ))
       if escalations is not None:
         escalations.append(
@@ -540,6 +577,7 @@ def resolve_file_conflicts(
                 },
                 error=reason,
                 applied_cleanly=False,
+                **review,
             ))
       if escalations is not None:
         escalations.append(EscalationItem(rel_path, block.index, reason))
@@ -556,6 +594,7 @@ def resolve_file_conflicts(
             },
             error=None,
             applied_cleanly=True,
+            **review,
         ))
     log.info("    [OK] Resolved Block #%s", block.index)
 
