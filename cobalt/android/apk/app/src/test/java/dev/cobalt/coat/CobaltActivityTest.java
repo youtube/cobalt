@@ -33,12 +33,15 @@ import android.view.KeyEvent;
 import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.browser.CobaltContentBrowserClientJni;
 import dev.cobalt.shell.StartupGuard;
+import dev.cobalt.util.AndroidTvFlags;
 import dev.cobalt.util.JavaSwitches;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.chromium.base.ActivityState;
+import org.chromium.base.ApplicationStatus;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.content.browser.input.ImeAdapterImpl;
@@ -388,6 +391,7 @@ public class CobaltActivityTest {
   @Before
   public void setUp() {
     ContextUtils.initApplicationContextForTests(RuntimeEnvironment.getApplication());
+    ApplicationStatus.initialize(RuntimeEnvironment.getApplication());
     AppEventBridgeJni.setInstanceForTesting(mock(AppEventBridge.Natives.class));
     StartupGuard.getInstance().disarm();
     NetworkChangeNotifier.resetInstanceForTests();
@@ -399,6 +403,9 @@ public class CobaltActivityTest {
     NetworkChangeNotifier.resetInstanceForTests();
     CobaltContentBrowserClientJni.setInstanceForTesting(null);
     JavaSwitches.setOverrideForTesting(null);
+    // RobolectricTestRunner doesn't run ResettersForTesting, so reset CommandLine explicitly.
+    CommandLine.resetForTesting(false);
+    ApplicationStatus.destroyForJUnitTests();
   }
 
   public CobaltActivity createActivityWithSwitches(final Map<String, String> switches) {
@@ -524,6 +531,41 @@ public class CobaltActivityTest {
         "StartupGuard should not be armed", StartupGuard.getInstance().isArmed());
   }
 
+  // --- useStarboardLifeCycle() ---
+
+  private static Map<String, String> createStarboardLifecycleSwitches() {
+    Map<String, String> switches = new HashMap<>();
+    switches.put(AndroidTvFlags.USE_STARBOARD_LIFECYCLE, "1");
+    return switches;
+  }
+
+  @Test
+  public void testUseStarboardLifeCycle_SwitchOnCommandLine_ReturnsTrue() {
+    CommandLine.resetForTesting(true);
+    CommandLine.getInstance().appendSwitch(JavaSwitches.USE_STARBOARD_LIFECYCLE_SWITCH);
+    CobaltActivity activity = createActivityWithSwitches(createStarboardLifecycleSwitches());
+
+    assertTrue(activity.useStarboardLifeCycle());
+  }
+
+  @Test
+  public void testUseStarboardLifeCycle_KeyWithoutSwitch_ReturnsFalse() {
+    // Crash-streak safe mode: the Java switch key is still set, but no experiment switches are
+    // applied, so the command-line switch is absent and native uses the default lifecycle.
+    CommandLine.resetForTesting(true);
+    CobaltActivity activity = createActivityWithSwitches(createStarboardLifecycleSwitches());
+
+    assertFalse(activity.useStarboardLifeCycle());
+  }
+
+  @Test
+  public void testUseStarboardLifeCycle_CommandLineNotInitialized_ReturnsFalse() {
+    CommandLine.resetForTesting(false);
+    CobaltActivity activity = createActivityWithSwitches(createStarboardLifecycleSwitches());
+
+    assertFalse(activity.useStarboardLifeCycle());
+  }
+
   // --- checkAndRetryOnNetworkOnline(), b/572816285 ---
 
   /**
@@ -535,6 +577,10 @@ public class CobaltActivityTest {
     when(bridge.getPlatformError()).thenReturn(platformError);
     CobaltActivity activity = mock(CobaltActivity.class);
     when(activity.getStarboardBridge()).thenReturn(bridge);
+    // ApplicationStatus only knows activities that went through the lifecycle callbacks; the
+    // retry gate reads it, so register the mock as resumed.
+    ApplicationStatus.onStateChangeForTesting(activity, ActivityState.CREATED);
+    ApplicationStatus.onStateChangeForTesting(activity, ActivityState.RESUMED);
     doCallRealMethod().when(activity).checkAndRetryOnNetworkOnline();
     // The retry throttle compares against elapsedRealtime(), which starts near 0 in Robolectric.
     ShadowSystemClock.advanceBy(Duration.ofSeconds(2));

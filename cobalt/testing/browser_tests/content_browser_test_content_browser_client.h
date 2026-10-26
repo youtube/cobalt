@@ -30,7 +30,7 @@ namespace content {
 // class and it will take care of the registration for you (you don't need
 // to call SetBrowserClientForTesting().
 class ContentBrowserTestContentBrowserClient
-    : public ShellContentBrowserClient {
+    : public ShellContentBrowserTestClient {
  public:
   ContentBrowserTestContentBrowserClient();
   ~ContentBrowserTestContentBrowserClient() override;

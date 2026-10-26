@@ -112,11 +112,13 @@ source_set("browser") {
     "//components/prefs",
     "//components/variations",
     "//components/variations/field_trial_config",
+    "//components/services/storage/public/cpp",
     "//components/variations/service",
     "//components/variations/service:buildflags",
     "//components/viz/common",
     "//gpu/config",
     "//services/resource_coordinator/public/cpp/memory_instrumentation",
+    "//sql",
     "//starboard:starboard_group",
   ]
 

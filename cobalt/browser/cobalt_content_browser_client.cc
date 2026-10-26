@@ -136,12 +136,8 @@ constexpr base::FilePath::CharType kNetworkDataDirname[] =
     FILE_PATH_LITERAL("Network");
 constexpr base::FilePath::CharType kNetworkPersistentStateFilename[] =
     FILE_PATH_LITERAL("Network Persistent State");
-constexpr base::FilePath::CharType kSCTAuditingPendingReportsFileName[] =
-    FILE_PATH_LITERAL("SCT Auditing Pending Reports");
 constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
-constexpr base::FilePath::CharType kTrustTokenFilename[] =
-    FILE_PATH_LITERAL("Trust Tokens");
 
 #if !BUILDFLAG(IS_ANDROIDTV)
 // This value is expected by offline data processing and should not be changed.
@@ -475,8 +471,6 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
         base::FilePath(kNetworkPersistentStateFilename);
     network_context_params->file_paths->cookie_database_name =
         base::FilePath(kCookieFilename);
-    network_context_params->file_paths->trust_token_database_name =
-        base::FilePath(kTrustTokenFilename);
 
     // Always try to restore old session cookies.
     network_context_params->restore_old_session_cookies = true;
@@ -484,8 +478,14 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 
     network_context_params->file_paths->transport_security_persister_file_name =
         base::FilePath(kTransportSecurityPersisterFilename);
-    network_context_params->file_paths->sct_auditing_pending_reports_file_name =
-        base::FilePath(kSCTAuditingPendingReportsFileName);
+
+    if (!base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)) {
+      network_context_params->file_paths->trust_token_database_name =
+          base::FilePath(kTrustTokenFilename);
+      network_context_params->file_paths
+          ->sct_auditing_pending_reports_file_name =
+          base::FilePath(kSCTAuditingPendingReportsFileName);
+    }
 
     network_context_params->http_cache_max_size = base::checked_cast<int>(
         ComputeDefaultHttpCacheSize(kSbMaxSystemPathCacheDirectorySize));
@@ -526,6 +526,15 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->require_network_anonymization_key = true;
 
   PopulateCobaltExtraRequestHeaders(network_context_params);
+}
+
+bool CobaltContentBrowserClient::AllowCompressionDictionaryTransport(
+    content::BrowserContext* context) {
+  if (base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup)) {
+    return false;
+  }
+  return content::ShellContentBrowserClient::
+      AllowCompressionDictionaryTransport(context);
 }
 
 // static

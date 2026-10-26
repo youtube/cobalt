@@ -43,6 +43,7 @@
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/shell/common/shell_paths.h"
+#include "components/services/storage/public/cpp/constants.h"
 #include "content/public/browser/overlay_window.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -50,6 +51,7 @@
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/cpp/url_loader_factory_builder.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "sql/database.h"
 #include "starboard/configuration_constants.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -224,6 +226,98 @@ TEST_F(CobaltContentBrowserClientTest, DeleteOrphanedUserDataCacheDirectories) {
         user_data.AppendASCII(std::string("old_") + name + "_000")));
   }
   EXPECT_TRUE(base::PathExists(user_data.AppendASCII("Local Storage")));
+}
+
+TEST_F(CobaltContentBrowserClientTest,
+       AllowCompressionDictionaryTransportIsDisabled) {
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  EXPECT_TRUE(client.AllowCompressionDictionaryTransport(/*context=*/nullptr));
+
+  base::test::ScopedFeatureList feature_list(
+      base::features::kCobaltStorageCleanup);
+  EXPECT_FALSE(client.AllowCompressionDictionaryTransport(/*context=*/nullptr));
+}
+
+TEST_F(CobaltContentBrowserClientTest, DeleteUnusedChromiumStoragePaths) {
+  // Safe no-op on empty or non-existent directories.
+  DeleteUnusedChromiumStoragePaths(base::FilePath());
+
+  base::ScopedTempDir temp_user_data_dir;
+  ASSERT_TRUE(temp_user_data_dir.CreateUniqueTempDir());
+  const base::FilePath& user_data = temp_user_data_dir.GetPath();
+  DeleteUnusedChromiumStoragePaths(user_data.AppendASCII("non_existent"));
+
+  const base::FilePath trust_tokens_db = user_data.Append(kTrustTokenFilename);
+  const base::FilePath shared_storage_db =
+      user_data.Append(::storage::kSharedStoragePath);
+  const base::FilePath unused_files[] = {
+      user_data.Append(kSCTAuditingPendingReportsFileName),
+      trust_tokens_db,
+      sql::Database::JournalPath(trust_tokens_db),
+      sql::Database::SharedMemoryFilePath(trust_tokens_db),
+      sql::Database::WriteAheadLogPath(trust_tokens_db),
+      shared_storage_db,
+      sql::Database::JournalPath(shared_storage_db),
+      sql::Database::SharedMemoryFilePath(shared_storage_db),
+      sql::Database::WriteAheadLogPath(shared_storage_db),
+  };
+
+  // Populate legacy unused files and directories alongside active persistent
+  // storage files and directories.
+  for (const base::FilePath& file_path : unused_files) {
+    ASSERT_TRUE(base::WriteFile(file_path, "legacy"));
+  }
+  for (const char* dir_name : {
+           "Shared Dictionary",
+           ::storage::kSessionStorageDirectory,
+           "VideoDecodeStats",
+           "shared_proto_db",
+       }) {
+    base::FilePath dir_path = user_data.AppendASCII(dir_name);
+    ASSERT_TRUE(base::CreateDirectory(dir_path));
+    ASSERT_TRUE(base::WriteFile(dir_path.AppendASCII("LOCK"), "legacy"));
+  }
+
+  ASSERT_TRUE(base::WriteFile(user_data.AppendASCII("Cookies"), "active"));
+  ASSERT_TRUE(
+      base::WriteFile(user_data.AppendASCII("TransportSecurity"), "active"));
+  ASSERT_TRUE(
+      base::CreateDirectory(user_data.Append(::storage::kLocalStoragePath)));
+  ASSERT_TRUE(base::WriteFile(
+      user_data.Append(::storage::kLocalStoragePath).AppendASCII("CURRENT"),
+      "active"));
+  ASSERT_TRUE(
+      base::CreateDirectory(user_data.Append(::storage::kWebStorageDirectory)));
+
+  DeleteUnusedChromiumStoragePaths(user_data);
+
+  for (const base::FilePath& file_path : unused_files) {
+    EXPECT_FALSE(base::PathExists(file_path))
+        << "Expected unused file to be deleted: " << file_path;
+  }
+  for (const char* dir_name : {
+           "Shared Dictionary",
+           ::storage::kSessionStorageDirectory,
+           "VideoDecodeStats",
+           "shared_proto_db",
+       }) {
+    EXPECT_FALSE(base::PathExists(user_data.AppendASCII(dir_name)))
+        << "Expected unused directory to be deleted: " << dir_name;
+  }
+
+  // Active persistent files and directories must remain untouched.
+  EXPECT_TRUE(base::PathExists(user_data.AppendASCII("Cookies")));
+  EXPECT_TRUE(base::PathExists(user_data.AppendASCII("TransportSecurity")));
+  EXPECT_TRUE(base::PathExists(
+      user_data.Append(::storage::kLocalStoragePath).AppendASCII("CURRENT")));
+  EXPECT_TRUE(
+      base::DirectoryExists(user_data.Append(::storage::kWebStorageDirectory)));
+
+  // Subsequent runs when unused paths are already absent must be a safe no-op.
+  DeleteUnusedChromiumStoragePaths(user_data);
+  EXPECT_TRUE(base::PathExists(user_data.AppendASCII("Cookies")));
 }
 
 class CobaltContentBrowserClientHeaderTest
