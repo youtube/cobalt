@@ -110,18 +110,6 @@ void VideoGeometrySetterService::SetVideoGeometries(
     return !video_geometry_change_clients_.contains(entry.first) &&
            !base::Contains(last_front_to_back_, entry.first);
   });
-  MaybeResetZIndices();
-}
-
-void VideoGeometrySetterService::MaybeResetZIndices() {
-  // Once no video holds a z-index anymore, no new value can collide with an
-  // old one, so the z-indices can restart from 0 instead of growing forever.
-  if (!latest_geometries_.empty()) {
-    return;
-  }
-  last_front_to_back_.clear();
-  z_index_base_ = 0;
-  next_z_index_ = 0;
 }
 
 void VideoGeometrySetterService::MaybeNotifyClient(
@@ -152,7 +140,6 @@ void VideoGeometrySetterService::OnVideoGeometryChangeClientGone(
   video_geometry_change_clients_.erase(overlay_plane_id);
   sent_geometries_.erase(overlay_plane_id);
   latest_geometries_.erase(overlay_plane_id);
-  MaybeResetZIndices();
 }
 
 }  // namespace media

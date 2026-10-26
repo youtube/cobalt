@@ -34,10 +34,10 @@ namespace media {
 // The z-index sent to each VideoGeometryChangeClient comes from the order of
 // the video holes reported by SetVideoGeometries(): the front-most hole gets
 // the largest z-index. The z-indices only change when that order changes, and
-// each new order gets values larger than any handed out before (they restart
-// from 0 once no video holds one). A video whose hole is missing from the
-// latest frame keeps its older, smaller z-index, so it stays below every video
-// that is present.
+// each new order gets values larger than any handed out before, like the
+// per-call counter Cobalt used to have. A video whose hole is missing from the
+// latest frame, or whose player is still being torn down, keeps its older,
+// smaller z-index, so it stays below every video that is present.
 class VideoGeometrySetterService final
     : public mojom::VideoGeometryChangeSubscriber,
       public mojom::VideoGeometrySetter {
@@ -83,9 +83,6 @@ class VideoGeometrySetterService final
   // already has it.
   void MaybeNotifyClient(const base::UnguessableToken& overlay_plane_id);
 
-  // Restarts the z-indices from 0 once no video holds one anymore.
-  void MaybeResetZIndices();
-
   void OnVideoGeometryChangeClientGone(
       const base::UnguessableToken overlay_plane_id);
 
@@ -108,7 +105,9 @@ class VideoGeometrySetterService final
   std::vector<base::UnguessableToken> last_front_to_back_;
   // The z-index of the back-most video hole in |last_front_to_back_|.
   int32_t z_index_base_ = 0;
-  // The smallest z-index that has not been handed out yet.
+  // The smallest z-index that has not been handed out yet. It only grows when
+  // the order of the video holes changes, which is far slower than the
+  // per-SetBounds() counter it replaces, so it won't overflow in practice.
   int32_t next_z_index_ = 0;
 
   mojo::ReceiverSet<mojom::VideoGeometryChangeSubscriber>
