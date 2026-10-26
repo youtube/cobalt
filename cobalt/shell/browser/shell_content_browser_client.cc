@@ -705,13 +705,8 @@ void ShellContentBrowserClient::RegisterH5vccScheme(
   CHECK(context) << "H5vcc scheme factory requires a valid BrowserContext to "
                     "access local storage cache.";
 
-  if (!h5vcc_scheme_url_loader_factory_) {
-    h5vcc_scheme_url_loader_factory_ =
-        std::make_unique<H5vccSchemeURLLoaderFactory>(context);
-  }
-
   mojo::PendingRemote<network::mojom::URLLoaderFactory> remote;
-  h5vcc_scheme_url_loader_factory_->Clone(
+  context->GetH5vccSchemeURLLoaderFactory()->Clone(
       remote.InitWithNewPipeAndPassReceiver());
 
   auto result = factories->try_emplace(kH5vccEmbeddedScheme, std::move(remote));
@@ -727,13 +722,14 @@ ShellContentBrowserClient::CreateNonNetworkNavigationURLLoaderFactory(
   // Registers factories for kH5vccEmbeddedScheme used in main frame
   // navigations.
   if (scheme == kH5vccEmbeddedScheme) {
-    if (!h5vcc_scheme_url_loader_factory_) {
-      LOG(WARNING) << "h5vcc_scheme_url_loader_factory_ is not initialized!";
+    auto* context = browser_context();
+    if (!context) {
+      LOG(WARNING) << "BrowserContext is not initialized!";
       return {};
     }
 
     mojo::PendingRemote<network::mojom::URLLoaderFactory> remote;
-    h5vcc_scheme_url_loader_factory_->Clone(
+    context->GetH5vccSchemeURLLoaderFactory()->Clone(
         remote.InitWithNewPipeAndPassReceiver());
     return remote;
   }

@@ -458,7 +458,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
   mojo::Remote<network::mojom::URLLoaderClient> client_;
   GURL url_;
-  BrowserContext* browser_context_;
+  raw_ptr<BrowserContext> browser_context_;
   std::string splash_domain_;
   uint64_t splash_content_size_limit_;
   std::string mime_type_;
@@ -500,18 +500,25 @@ void H5vccSchemeURLLoaderFactory::CreateLoaderAndStart(
     const network::ResourceRequest& url_request,
     mojo::PendingRemote<network::mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
-  mojo::MakeSelfOwnedReceiver(
-      std::make_unique<H5vccSchemeURLLoader>(
-          url_request, std::move(client), browser_context_, resource_map_,
-          splash_domain_, splash_content_size_limit_),
-      std::move(receiver));
+  const GeneratedResourceMap& resource_map =
+      resource_map_test_ ? *resource_map_test_ : resource_map_;
+  const std::string splash_domain =
+      global_splash_domain_test_.has_value()
+          ? url::Origin::Create(GURL(*global_splash_domain_test_))
+                .GetURL()
+                .spec()
+          : splash_domain_;
+  const uint64_t splash_content_size_limit =
+      global_splash_content_size_test_.value_or(splash_content_size_limit_);
+  loaders_.Add(std::make_unique<H5vccSchemeURLLoader>(
+                   url_request, std::move(client), browser_context_,
+                   resource_map, splash_domain, splash_content_size_limit),
+               std::move(receiver));
 }
 
 void H5vccSchemeURLLoaderFactory::Clone(
     mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver) {
-  mojo::MakeSelfOwnedReceiver(
-      std::make_unique<H5vccSchemeURLLoaderFactory>(browser_context_),
-      std::move(receiver));
+  receivers_.Add(this, std::move(receiver));
 }
 
 void H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
