@@ -5,6 +5,7 @@
   ],
   "test_package": true,
   "test_on_host": true,
+  "test_linux_e2e": true,
   "num_gtest_shards": 10,
   "targets": [
     "cobalt:gn_all",
