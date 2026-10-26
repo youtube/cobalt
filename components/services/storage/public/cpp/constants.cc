@@ -19,6 +19,10 @@ const base::FilePath::CharType kLocalStoragePath[] =
 // The name of the Leveldb database to use for databases persisted on disk.
 const char kLocalStorageLeveldbName[] = "leveldb";
 
+// The directory name where Session Storage data is persisted on disk, relative
+// to a storage partition's root directory.
+const char kSessionStorageDirectory[] = "Session Storage";
+
 // The path where service worker and cache storage data are persisted on disk,
 // relative to a storage partition's root directory.
 const base::FilePath::CharType kServiceWorkerDirectory[] =

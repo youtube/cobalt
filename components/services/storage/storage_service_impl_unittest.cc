@@ -4,12 +4,18 @@
 
 #include "components/services/storage/storage_service_impl.h"
 
+#include "base/features.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/run_loop.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "build/build_config.h"
 #include "components/services/storage/partition_impl.h"
+#include "components/services/storage/public/cpp/constants.h"
 #include "components/services/storage/public/mojom/partition.mojom.h"
+#include "components/services/storage/public/mojom/session_storage_control.mojom.h"
 #include "components/services/storage/public/mojom/storage_service.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -27,6 +33,7 @@ class StorageServiceImplTest : public testing::Test {
  protected:
   mojom::StorageService* remote_service() { return remote_service_.get(); }
   StorageServiceImpl& service_impl() { return service_; }
+  void RunUntilIdle() { task_environment_.RunUntilIdle(); }
 
  private:
   base::test::TaskEnvironment task_environment_;
@@ -129,5 +136,29 @@ TEST_F(StorageServiceImplTest, PersistentPartitionRequiresAbsolutePath) {
 
   EXPECT_FALSE(client.is_connected());
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(StorageServiceImplTest, SessionStorageUsesInMemoryOnCobalt) {
+  base::test::ScopedFeatureList feature_list(
+      base::features::kCobaltStorageCleanup);
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  mojo::Remote<mojom::Partition> partition;
+  remote_service()->BindPartition(temp_dir.GetPath(),
+                                  partition.BindNewPipeAndPassReceiver());
+  partition.FlushForTesting();
+
+  mojo::Remote<mojom::SessionStorageControl> session_storage;
+  partition->BindSessionStorageControl(
+      session_storage.BindNewPipeAndPassReceiver());
+  session_storage.FlushForTesting();
+  RunUntilIdle();
+
+  EXPECT_TRUE(session_storage.is_connected());
+  EXPECT_FALSE(base::PathExists(
+      temp_dir.GetPath().AppendASCII(kSessionStorageDirectory)));
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace storage
