@@ -501,9 +501,11 @@ test("cobalt_unittests") {
   }
 
   if (is_android) {
+    sources += [ "//cobalt/browser/metrics/cobalt_process_state_summary_manager_unittest.cc" ]
     deps += [
       "//base:base_java_test_support",
       "//cobalt/android:androidtv_flags",
+      "//cobalt/android:cobalt_main_java",
       "//components/network_session_configurator/common",
       "//content/public/android:content_java",
       "//ui/android:ui_java",
