@@ -79,6 +79,19 @@ runs:
           out_dir: out/${{ matrix.platform }}_${{ matrix.config }}
           changed_files: changed_files.txt
           targets: ${{ inputs.targets }}
+      - name: Copy test targets JSON
+        if: matrix.config == 'devel'
+        working-directory: cobalt/src
+        shell: bash
+        env:
+          PLATFORM_DIR: cobalt/build/testing/targets/${{ matrix.platform }}
+          OUT_JSON: ${{ inputs.test_targets_json_file }}
+        run: |
+          target_file="${PLATFORM_DIR}/test_targets.json"
+          if [[ -f "${target_file}" ]]; then
+            mkdir -p "$(dirname "${OUT_JSON}")"
+            cp -av "${target_file}" "${OUT_JSON}"
+          fi
       - name: Ninja build
         if: >-
           matrix.config != 'devel' ||
