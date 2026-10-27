@@ -227,10 +227,29 @@ TEST_F(InstallationManagerTest, InitializeWithMismatchedMaxNumInstallations) {
   if (!storage_path_implemented_) {
     return;
   }
-  // Simulate a 3-slot InstallationStore on disk where slot 2 is active
-  // (priority 0) and a roll-forward to slot 2 was requested, followed by an
-  // upgrade to a 2-slot configuration.
+  // Simulate a 3-slot InstallationStore on disk where slots 1 and 2 have
+  // installed files, slot 2 is active (priority 0), and a roll-forward to
+  // slot 2 was requested, followed by an upgrade to a 2-slot configuration.
   ASSERT_EQ(IM_SUCCESS, ImInitialize(3, kAppKey));
+  std::vector<char> slot1_dir_buf(kSbFileMaxPath);
+  std::vector<char> slot2_dir_buf(kSbFileMaxPath);
+  ASSERT_EQ(IM_SUCCESS,
+            ImGetInstallationPath(1, slot1_dir_buf.data(), kSbFileMaxPath));
+  ASSERT_EQ(IM_SUCCESS,
+            ImGetInstallationPath(2, slot2_dir_buf.data(), kSbFileMaxPath));
+  std::string slot1_dir = slot1_dir_buf.data();
+  std::string slot2_dir = slot2_dir_buf.data();
+  std::string slot1_file = slot1_dir + kSbFileSepString + "test_file";
+  std::string slot2_file = slot2_dir + kSbFileSepString + "test_file";
+  {
+    starboard::ScopedFile f1(slot1_file.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
+    ASSERT_TRUE(f1.IsValid());
+    starboard::ScopedFile f2(slot2_file.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
+    ASSERT_TRUE(f2.IsValid());
+  }
+  ASSERT_TRUE(FileExists(slot1_file.c_str()));
+  ASSERT_TRUE(FileExists(slot2_file.c_str()));
+
   ASSERT_EQ(IM_SUCCESS, ImRollForward(2));
   ASSERT_EQ(IM_SUCCESS, ImMarkInstallationSuccessful(2));
   ASSERT_EQ(2, ImGetCurrentInstallationIndex());
@@ -238,7 +257,8 @@ TEST_F(InstallationManagerTest, InitializeWithMismatchedMaxNumInstallations) {
   ImUninitialize();
 
   // Re-initializing with 2 slots should reset the store to a clean 2-slot
-  // configuration with the system image (slot 0) active.
+  // configuration with the system image (slot 0) active, clean slot 1's
+  // contents, and remove the obsolete slot 2 directory.
   ASSERT_EQ(IM_SUCCESS, ImInitialize(2, kAppKey));
   ASSERT_EQ(2, ImGetMaxNumberInstallations());
   ASSERT_EQ(0, ImGetCurrentInstallationIndex());
@@ -247,6 +267,9 @@ TEST_F(InstallationManagerTest, InitializeWithMismatchedMaxNumInstallations) {
   ASSERT_EQ(IM_INSTALLATION_STATUS_ERROR, ImGetInstallationStatus(2));
   ASSERT_EQ(IM_SUCCESS, ImRollForwardIfNeeded());
   ASSERT_EQ(0, ImGetCurrentInstallationIndex());
+  ASSERT_TRUE(FileExists(slot1_dir.c_str()));
+  ASSERT_FALSE(FileExists(slot1_file.c_str()));
+  ASSERT_FALSE(FileExists(slot2_dir.c_str()));
   ImUninitialize();
 
   // Verify the reset 2-slot state was persisted to disk.
