@@ -450,7 +450,7 @@ if (is_android && enable_java_templates) {
   }
 }
 
-if (is_cobalt) {
+if (is_cobalt && current_toolchain != host_toolchain) {
   data_dir = "cobalt"
 } else if (is_android) {
   data_dir = "android"

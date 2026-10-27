@@ -141,6 +141,21 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT JniJavaCallContext {
   jmethodID method_id_;
 };
 
+// Returns whether |Func| can be called with |Args|. The generated _jni.h files
+// use it to choose between the JNI function overloads with and without the
+// leading JNIEnv* parameter.
+template <typename Func, typename... Args>
+constexpr bool IsInvocable(Func&& func, Args&&... args) {
+#if BUILDFLAG(IS_COBALT) && \
+    !(defined(__cpp_concepts) && __cpp_concepts >= 201907L)
+  // The C++17 AOSP partner toolchains can't parse a requires expression.
+  // This trait tests the same call.
+  return std::is_invocable_v<Func, Args...>;
+#else
+  return requires { func(std::forward<Args>(args)...); };
+#endif
+}
+
 }  // namespace jni_zero::internal
 
 #endif  // JNI_ZERO_JNI_ZERO_INTERNAL_H

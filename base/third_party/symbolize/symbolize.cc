@@ -645,8 +645,8 @@ static int OpenObjectFileContainingPcAndGetStartAddressNoHook(
       return -1;  // Malformed line.
     }
 
-    char buf[kSmallFileCacheSize];
-    CachingFile mem_file(wrapped_mem_fd.get(), buf, sizeof(buf));
+    char mem_buf[kSmallFileCacheSize];
+    CachingFile mem_file(wrapped_mem_fd.get(), mem_buf, sizeof(mem_buf));
 
     // Determine the base address by reading ELF headers in process memory.
     ElfW(Ehdr) ehdr;
