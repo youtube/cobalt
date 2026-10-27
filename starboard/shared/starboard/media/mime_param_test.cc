@@ -21,15 +21,6 @@
 namespace starboard {
 namespace {
 
-TEST(MimeParamTest, EqualityAndInequality) {
-  constexpr MimeParam param1("test");
-  constexpr MimeParam param2("test");
-  constexpr MimeParam param3("other");
-
-  EXPECT_EQ(param1, param2);
-  EXPECT_NE(param1, param3);
-}
-
 TEST(MimeParamTest, ParamStreamOperator) {
   std::ostringstream ss;
   ss << kMimeParamWidth;

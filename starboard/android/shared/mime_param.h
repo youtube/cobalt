@@ -32,13 +32,6 @@ inline constexpr MimeParam kMimeParamEnableResetAudioDecoder{
     "enableresetaudiodecoder"};
 // keep-sorted end
 
-// Cobalt-specific MIME parameters that are not used by the web player.
-
-// Decode-To-Texture (used by WebGL video shaders) may use this param.
-// TODO: b/490474392 - Move this param accordingly, when it is actually used.
-// Main tracking bug: b/490474392, DRM exploration: b/494037632
-inline constexpr MimeParam kMimeParamSoftwareDecoder{"softwaredecoder"};
-
 }  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_MIME_PARAM_H_

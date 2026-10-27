@@ -29,13 +29,6 @@ class MimeParam {
 
   friend std::ostream& operator<<(std::ostream& os, const MimeParam& param);
 
-  constexpr bool operator==(const MimeParam& other) const {
-    return name_ == other.name_;
-  }
-  constexpr bool operator!=(const MimeParam& other) const {
-    return name_ != other.name_;
-  }
-
   bool EqualsCaseInsensitive(std::string_view other) const;
 
  private:
@@ -57,7 +50,7 @@ inline constexpr MimeParam kMimeParamCodecs{"codecs"};
 // keep-sorted start
 inline constexpr MimeParam kMimeParamBitrate{"bitrate"};
 inline constexpr MimeParam kMimeParamChannels{"channels"};
-inline constexpr MimeParam kMimeParamCryptoblockformat{"cryptoblockformat"};
+inline constexpr MimeParam kMimeParamCryptoBlockFormat{"cryptoblockformat"};
 inline constexpr MimeParam kMimeParamDecodeToTexture{"decode-to-texture"};
 inline constexpr MimeParam kMimeParamEotf{"eotf"};
 inline constexpr MimeParam kMimeParamFramerate{"framerate"};

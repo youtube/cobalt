@@ -281,12 +281,9 @@ bool DrmSystemWidevine::IsKeySystemSupported(const char* key_system) {
 
   for (auto wv_key_system : kWidevineKeySystems) {
     if (mime_type->subtype() == wv_key_system) {
-      int index = mime_type->GetParamIndexByName(kMimeParamEncryptionScheme);
-      if (index != starboard::MimeType::kInvalidParamIndex) {
-        auto value = mime_type->GetParamStringValue(index);
-        if (value != "cenc" && value != "cbcs" && value != "cbcs-1-9") {
-          return false;
-        }
+      if (!mime_type->ValidateStringParameter(kMimeParamEncryptionScheme,
+                                              "cenc|cbcs|cbcs-1-9")) {
+        return false;
       }
       return true;
     }

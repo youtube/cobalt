@@ -51,8 +51,7 @@ bool IsSoftwareDecoderRequired(const ExperimentalFeatures& features,
           432 &&
       mime_type->GetParamIntValue(kMimeParamHeight,
                                   Resolution::k1080p.height) <= 240;
-  bool is_low_fps =
-      mime_type->GetParamFloatValue(kMimeParamFramerate, 30.0f) <= 15.0f;
+  bool is_low_fps = mime_type->GetParamIntValue(kMimeParamFramerate, 30) <= 15;
 
   if (!is_low_resolution || !is_low_fps) {
     SB_LOG(INFO)

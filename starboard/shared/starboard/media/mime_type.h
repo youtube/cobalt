@@ -18,7 +18,6 @@
 #include <iosfwd>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <vector>
 
 #include "starboard/shared/internal_only.h"
