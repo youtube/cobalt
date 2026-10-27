@@ -63,6 +63,11 @@ class CobaltWebContentsObserver;
 void ParseAndApplyH5vccSettingsForTesting(std::string_view settings_value,
                                           GlobalFeatures* global_features);
 
+inline constexpr base::FilePath::CharType kSCTAuditingPendingReportsFileName[] =
+    FILE_PATH_LITERAL("SCT Auditing Pending Reports");
+inline constexpr base::FilePath::CharType kTrustTokenFilename[] =
+    FILE_PATH_LITERAL("Trust Tokens");
+
 // This class allows Cobalt to inject specific logic in the business of the
 // browser (i.e. of Content), for example for startup or to override the UA.
 // TODO(b/390021478): In time CobaltContentBrowserClient should derive and
@@ -118,6 +123,8 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       network::mojom::NetworkContextParams* network_context_params,
       cert_verifier::mojom::CertVerifierCreationParams*
           cert_verifier_creation_params) override;
+  bool AllowCompressionDictionaryTransport(
+      content::BrowserContext* context) override;
   void OverrideWebPreferences(content::WebContents* web_contents,
                               content::SiteInstance& main_frame_site,
                               blink::web_pref::WebPreferences* prefs) override;

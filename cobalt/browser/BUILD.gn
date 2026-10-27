@@ -110,11 +110,13 @@ source_set("browser") {
     "//components/os_crypt/async/browser",
     "//components/os_crypt/sync",
     "//components/prefs",
+    "//components/services/storage/public/cpp",
     "//components/variations/service",
     "//components/viz/common",
     "//gpu/config",
     "//services/network/public/cpp",
     "//services/resource_coordinator/public/cpp/memory_instrumentation",
+    "//sql",
     "//starboard:starboard_group",
   ]
 

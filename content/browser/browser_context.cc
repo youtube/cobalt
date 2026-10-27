@@ -18,6 +18,8 @@
 #include "base/base64.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
@@ -421,7 +423,17 @@ BrowserContext::CreateVideoDecodePerfHistory() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   const char kUseInMemoryDBParamName[] = "db_in_memory";
+#if BUILDFLAG(IS_COBALT)
+  // StarboardRenderer does not populate video_frame_duration_average, so
+  // VideoDecodeStatsDB never records persistent entries on Cobalt. When
+  // kCobaltStorageCleanup is enabled, default to in-memory storage to avoid
+  // opening VideoDecodeStats and shared_proto_db LevelDB instances on disk
+  // during startup.
+  const bool kUseInMemoryDBDefault =
+      base::FeatureList::IsEnabled(base::features::kCobaltStorageCleanup);
+#else
   const bool kUseInMemoryDBDefault = false;
+#endif
   bool use_in_memory_db = base::GetFieldTrialParamByFeatureAsBool(
       media::kMediaCapabilitiesWithParameters, kUseInMemoryDBParamName,
       kUseInMemoryDBDefault);

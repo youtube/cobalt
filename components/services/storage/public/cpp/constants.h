@@ -14,6 +14,9 @@ COMPONENT_EXPORT(STORAGE_SERVICE_PUBLIC)
 extern const base::FilePath::CharType kWebStorageDirectory[];
 
 COMPONENT_EXPORT(STORAGE_SERVICE_PUBLIC)
+extern const char kSessionStorageDirectory[];
+
+COMPONENT_EXPORT(STORAGE_SERVICE_PUBLIC)
 extern const base::FilePath::CharType kServiceWorkerDirectory[];
 
 COMPONENT_EXPORT(STORAGE_SERVICE_PUBLIC)
