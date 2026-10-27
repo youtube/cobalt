@@ -707,9 +707,14 @@ struct MaxVideoCapabilities {
   }
 
   bool HasLowResolution() const {
-    return
-      width.has_value() && *width < 1920 &&
-      height.has_value() && *height < 1080;
+    if (!width.has_value() || !height.has_value()) {
+      return false;
+    }
+    // Compare orientation-agnostically so portrait streams are treated the
+    // same as their landscape equivalents.
+    const uint32_t long_edge = std::max(*width, *height);
+    const uint32_t short_edge = std::min(*width, *height);
+    return long_edge < 1920 && short_edge < 1080;
   }
 };
 
