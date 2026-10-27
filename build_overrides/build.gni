@@ -57,7 +57,7 @@ declare_args() {
 }
 
 # Needed by Evergreen, which builds copied_base and Starboard with some
-# toolchains that only support C++17.
+# toolchains that may not fully support C++23.
 if (is_cobalt) {
   declare_args() {
     # Whether to build in C++17 mode and override Chromium's default.
