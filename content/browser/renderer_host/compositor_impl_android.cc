@@ -87,10 +87,6 @@
 #include "ui/gfx/ca_layer_params.h"
 #include "ui/gfx/swap_result.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "ui/gl/android/scoped_java_surface_control.h"
-#endif  // BUILDFLAG(IS_COBALT)
-
 namespace content {
 
 namespace {
@@ -307,35 +303,12 @@ std::optional<gpu::SurfaceHandle> CompositorImpl::SetSurface(
 
   window_ = std::move(window);
   // Register first, SetVisible() might create a LayerTreeFrameSink.
-#if BUILDFLAG(IS_COBALT)
-  // Android 14+: attach display compositor layers to the window SurfaceControl
-  // created in Java (see SetWindowSurfaceControl()). Otherwise, the regular
-  // path below is used.
-  // TODO: b/561683073 - Handle the case where the browser and GPU processes
-  // don't agree on using SurfaceControl (e.g. the GPU process disables it due
-  // to missing native fence sync), which results in no output surface (black
-  // screen).
-  if (window_surface_control_) {
-    surface_handle_ = tracker->AddSurfaceForNativeWidget(
-        gpu::SurfaceRecord(gl::ScopedJavaSurfaceControl(
-            window_surface_control_, /*release_on_destroy=*/false)));
-    SetVisible(true);
-    return surface_handle_;
-  }
-#endif  // BUILDFLAG(IS_COBALT)
   surface_handle_ = tracker->AddSurfaceForNativeWidget(
       gpu::SurfaceRecord(std::move(scoped_surface),
                          can_be_used_with_surface_control, host_input_token));
   SetVisible(true);
   return surface_handle_;
 }
-
-#if BUILDFLAG(IS_COBALT)
-void CompositorImpl::SetWindowSurfaceControl(
-    const base::android::JavaRef<jobject>& surface_control) {
-  window_surface_control_.Reset(surface_control);
-}
-#endif  // BUILDFLAG(IS_COBALT)
 
 void CompositorImpl::SetBackgroundColor(int color) {
   DCHECK(host_);

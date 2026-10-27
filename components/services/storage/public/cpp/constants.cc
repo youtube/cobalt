@@ -13,10 +13,6 @@ namespace storage {
 const base::FilePath::CharType kWebStorageDirectory[] =
     FILE_PATH_LITERAL("WebStorage");
 
-// The directory name where Session Storage data is persisted on disk, relative
-// to a storage partition's root directory.
-const char kSessionStorageDirectory[] = "Session Storage";
-
 // The path where service worker and cache storage data are persisted on disk,
 // relative to a storage partition's root directory.
 const base::FilePath::CharType kServiceWorkerDirectory[] =

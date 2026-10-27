@@ -88,10 +88,6 @@ class MojoCdm final : public ContentDecryptionModule,
   bool RequiresMediaFoundationRenderer() final;
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void GetMetrics(std::unique_ptr<GetMetricsCdmPromise> promise);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
  private:
   ~MojoCdm() final;
 
@@ -171,11 +167,6 @@ class MojoCdm final : public ContentDecryptionModule,
   CdmPromiseAdapter cdm_promise_adapter_;
 
   CallbackRegistry<EventCB::RunType> event_callbacks_;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void OnMetricsReceived(uint32_t promise_id,
-                         const std::optional<std::string>& metrics_string);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // This must be the last member.
   base::WeakPtrFactory<MojoCdm> weak_factory_{this};

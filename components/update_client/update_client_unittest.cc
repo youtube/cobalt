@@ -56,13 +56,7 @@
 #include "components/update_client/test_installer.h"
 #include "components/update_client/test_utils.h"
 #include "components/update_client/unpacker.h"
-#if BUILDFLAG(IS_STARBOARD)
-#include "components/update_client/pipeline.h"
-#endif
-#include "components/update_client/unzip/unzip_impl.h"  // nogncheck
-#if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
-#include "components/update_client/unzip/unzip_impl_cobalt.h"
-#endif
+#include "components/update_client/unzip/unzip_impl.h"
 #include "components/update_client/unzipper.h"
 #include "components/update_client/update_checker.h"
 #include "components/update_client/update_client_errors.h"
@@ -190,14 +184,9 @@ class MockCrxDownloaderFactory : public CrxDownloaderFactory {
   ~MockCrxDownloaderFactory() override = default;
 
   // Overrides for CrxDownloaderFactory.
-#if BUILDFLAG(IS_STARBOARD)
-  scoped_refptr<CrxDownloader> MakeCrxDownloader(
-      scoped_refptr<Configurator> config) const override {
-#else
   scoped_refptr<CrxDownloader> MakeCrxDownloader(
       const std::string& /*prod_id*/,
       bool /*background_download_enabled*/) const override {
-#endif
     return crx_downloader_;
   }
 
@@ -445,9 +434,9 @@ struct UpdateCheckerOptionsTwoCrxUpdateNoUpdate {
 };
 
 struct UpdateCheckerOptionsActionRunNoUpdate {
-  [[maybe_unused]] static constexpr int64_t kAvailableSpace = 0;
-  [[maybe_unused]] static constexpr size_t kComponentCount = 1;
-  [[maybe_unused]] static constexpr std::string_view kJson = R"()]}'
+  static constexpr int64_t kAvailableSpace = 0;
+  static constexpr size_t kComponentCount = 1;
+  static constexpr std::string_view kJson = R"()]}'
 {
   "response": {
     "protocol": "4.0",
@@ -475,12 +464,10 @@ struct UpdateCheckerOptionsActionRunNoUpdate {
 })";
 };
 
-#if !BUILDFLAG(IS_STARBOARD)
 struct UpdateCheckerOptionsOneCrxInstallDiskFull
     : UpdateCheckerOptionsOneCrxInstall {
   static constexpr int64_t kAvailableSpace = 0;
 };
-#endif  // !BUILDFLAG(IS_STARBOARD)
 
 struct UpdateCheckerOptionsUnsupportedOperationType
     : UpdateCheckerOptionsOneCrxUpdate {
@@ -530,11 +517,6 @@ template <typename Options>
   requires IsUpdateCheckerOptions<Options>
 class MockUpdateCheckerImpl : public UpdateChecker {
  public:
-#if BUILDFLAG(IS_STARBOARD)
-  void Cancel() override {}
-  bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-  PersistedData* GetPersistedData() override { return nullptr; }
-#endif
   void CheckForUpdates(
       scoped_refptr<UpdateContext> context,
       const base::flat_map<std::string, std::string>& additional_attributes,
@@ -557,11 +539,6 @@ class MockUpdateCheckerAlwaysFails : public UpdateChecker {
  public:
   MockUpdateCheckerAlwaysFails() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-  void Cancel() override {}
-  bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-  PersistedData* GetPersistedData() override { return nullptr; }
-#endif
   void CheckForUpdates(
       scoped_refptr<UpdateContext> context,
       const base::flat_map<std::string, std::string>& additional_attributes,
@@ -697,10 +674,6 @@ class UpdateClientTest : public testing::Test {
     config_ = base::MakeRefCounted<TestConfigurator>(pref_.get());
   }
 
-#if BUILDFLAG(IS_STARBOARD)
-  ScopedStarboardInstallationMock starboard_mock_;
-#endif
-
   scoped_refptr<update_client::TestConfigurator> config() { return config_; }
 
   // Injects the CrxDownloaderFactory in the test fixture.
@@ -744,11 +717,6 @@ TEST_F(UpdateClientTest, OneCrxNoUpdate) {
    public:
     MockUpdateChecker() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -784,14 +752,7 @@ TEST_F(UpdateClientTest, OneCrxNoUpdate) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -883,14 +844,7 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoUpdate) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       download_metrics.url = url;
       download_metrics.downloader = DownloadMetrics::kNone;
@@ -900,26 +854,12 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoUpdate) {
       download_metrics.download_time_ms = 1000;
 
       base::FilePath path;
-#if defined(IN_MEMORY_UPDATES)
-      EXPECT_TRUE(
-          MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
-          base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
-#else
       EXPECT_TRUE(MakeTestFile(
           GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
-#endif
 
       Result result;
       result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
       result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-      result.installation_index = 0;
-#endif
-
 
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadProgress,
@@ -1089,14 +1029,7 @@ TEST_F(UpdateClientTest, TwoCrxUpdateFirstServerIgnoresSecond) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       download_metrics.url = url;
       download_metrics.downloader = DownloadMetrics::kNone;
@@ -1106,25 +1039,12 @@ TEST_F(UpdateClientTest, TwoCrxUpdateFirstServerIgnoresSecond) {
       download_metrics.download_time_ms = 1000;
 
       base::FilePath path;
-#if defined(IN_MEMORY_UPDATES)
-      EXPECT_TRUE(
-          MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
-          base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
-#else
       EXPECT_TRUE(MakeTestFile(
           GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
-#endif
 
       Result result;
       result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
       result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-      result.installation_index = 0;
-#endif
 
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadProgress,
@@ -1148,11 +1068,7 @@ TEST_F(UpdateClientTest, TwoCrxUpdateFirstServerIgnoresSecond) {
    protected:
     ~MockPingManager() override {
       const auto ping_data = MockPingManagerImpl::terminal_ping_data();
-#if BUILDFLAG(IS_STARBOARD)
-      EXPECT_EQ(2u, ping_data.size());
-#else
       EXPECT_EQ(1u, ping_data.size());
-#endif
       EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", ping_data[0].id);
       EXPECT_EQ(base::Version("0.9"), ping_data[0].previous_version);
       EXPECT_EQ(base::Version("1.0"), ping_data[0].next_version);
@@ -1280,14 +1196,7 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoCrxComponentData) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -1299,24 +1208,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoCrxComponentData) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-#if defined(IN_MEMORY_UPDATES)
-        EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
-            base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
-#else
         EXPECT_TRUE(MakeTestFile(
             GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
-#endif
 
         result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
-      result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        result.installation_index = 0;
-#endif
+        result.response = path;
       } else {
         ADD_FAILURE();
       }
@@ -1446,14 +1342,7 @@ TEST_F(UpdateClientTest, TwoCrxUpdateNoCrxComponentDataAtAll) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -1551,14 +1440,7 @@ TEST_F(UpdateClientTest, TwoCrxUpdateDownloadTimeout) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -1581,24 +1463,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateDownloadTimeout) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-#if defined(IN_MEMORY_UPDATES)
-        EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path) &&
-            base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst));
-#else
         EXPECT_TRUE(MakeTestFile(
             GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
-#endif
 
         result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
-      result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        result.installation_index = 0;
-#endif
+        result.response = path;
       } else {
         ADD_FAILURE();
       }
@@ -1738,7 +1607,6 @@ TEST_F(UpdateClientTest, TwoCrxUpdateDownloadTimeout) {
 
 // Tests the differential update scenario for one CRX. Tests install progress
 // for differential and full updates.
-#if !defined(IN_MEMORY_UPDATES)
 TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
   class DataCallbackMock : public base::RefCountedThreadSafe<DataCallbackMock> {
    public:
@@ -1783,11 +1651,6 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
    public:
     explicit MockUpdateChecker(int num_calls) : num_calls_(num_calls) {}
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -1914,14 +1777,7 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -1933,24 +1789,11 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-#if defined(IN_MEMORY_UPDATES)
-        EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path) &&
-            base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst));
-#else
         EXPECT_TRUE(MakeTestFile(
             GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
-#endif
 
         result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
-      result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        result.installation_index = 0;
-#endif
+        result.response = path;
       } else if (url.GetPath() ==
                  "/download/ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff") {
         download_metrics.url = url;
@@ -1960,24 +1803,12 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
         download_metrics.total_bytes = 1680;
         download_metrics.download_time_ms = 1000;
 
-#if defined(IN_MEMORY_UPDATES)
-        EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff"), &path) &&
-            base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff"), dst));
-#else
         EXPECT_TRUE(MakeTestFile(
-            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff"), &path));
-#endif
+            GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff"),
+            &path));
 
         result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
-      result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        result.installation_index = 0;
-#endif
+        result.response = path;
       } else {
         ADD_FAILURE() << url.GetPath();
       }
@@ -2049,13 +1880,11 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
                   return item.id == "ihfokbkgjpifnbbojhneepfflplebdkc" &&
                          item.state == ComponentState::kUpdating;
                 })));
-#if !BUILDFLAG(IS_STARBOARD)
     EXPECT_CALL(observer, OnEvent(Truly([](const CrxUpdateItem& item) {
                   return item.id == "ihfokbkgjpifnbbojhneepfflplebdkc" &&
                          item.state == ComponentState::kUpdating;
                 })))
         .Times(3);
-#endif
     EXPECT_CALL(observer, OnEvent(Truly([](const CrxUpdateItem& item) {
                   return item.id == "ihfokbkgjpifnbbojhneepfflplebdkc" &&
                          item.state == ComponentState::kUpdated;
@@ -2077,13 +1906,11 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
                   return item.id == "ihfokbkgjpifnbbojhneepfflplebdkc" &&
                          item.state == ComponentState::kUpdating;
                 })));
-#if !BUILDFLAG(IS_STARBOARD)
     EXPECT_CALL(observer, OnEvent(Truly([](const CrxUpdateItem& item) {
                   return item.id == "ihfokbkgjpifnbbojhneepfflplebdkc" &&
                          item.state == ComponentState::kUpdating;
                 })))
         .Times(3);
-#endif
     EXPECT_CALL(observer, OnEvent(Truly([](const CrxUpdateItem& item) {
                   return item.id == "ihfokbkgjpifnbbojhneepfflplebdkc" &&
                          item.state == ComponentState::kUpdated;
@@ -2104,29 +1931,6 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
         base::BindRepeating(&MockCrxStateChangeReceiver::Receive, receiver),
         false, ExpectErrorThenQuit(runloop, Error::NONE));
     runloop.Run();
-#if BUILDFLAG(IS_STARBOARD)
-    EXPECT_EQ(7u, items.size());
-    EXPECT_EQ(ComponentState::kChecking, items[0].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[0].id);
-    EXPECT_EQ(ComponentState::kCanUpdate, items[1].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[1].id);
-    EXPECT_EQ(ComponentState::kDownloading, items[2].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[2].id);
-    EXPECT_EQ(ComponentState::kDownloading, items[3].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[3].id);
-    EXPECT_EQ(ComponentState::kDownloading, items[4].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[4].id);
-    EXPECT_EQ(ComponentState::kUpdating, items[5].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[5].id);
-    EXPECT_EQ(ComponentState::kUpdated, items[6].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[6].id);
-
-    std::vector samples = {-1, -1, -1, -1, -1, -1, -1};
-    EXPECT_EQ(items.size(), samples.size());
-    for (size_t i = 0; i != items.size(); ++i) {
-      EXPECT_EQ(items[i].install_progress, samples[i]);
-    }
-#else
     EXPECT_EQ(10u, items.size());
     EXPECT_EQ(ComponentState::kChecking, items[0].state);
     EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[0].id);
@@ -2154,29 +1958,7 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
     for (size_t i = 0; i != items.size(); ++i) {
       EXPECT_EQ(items[i].install_progress, samples[i]);
     }
-#endif
   }
-
-#if BUILDFLAG(IS_STARBOARD)
-  {
-    // On Starboard, standard install doesn't populate cache, so we do it manually
-    // to enable testing of differential updates.
-    base::FilePath v1_file;
-    EXPECT_TRUE(MakeTestFile(
-        GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &v1_file));
-
-    base::RunLoop cache_runloop;
-    config()->GetCrxCache()->Put(
-        v1_file, "ihfokbkgjpifnbbojhneepfflplebdkc",
-        "8f5aa190311237cae00675af87ff457f278cd1a05895470ac5d46647d4a3c2ea",
-        "prev_fp",
-        base::BindLambdaForTesting([&](base::expected<base::FilePath, UnpackerError> result) {
-          ASSERT_TRUE(result.has_value());
-          cache_runloop.Quit();
-        }));
-    cache_runloop.Run();
-  }
-#endif
 
   {
     std::vector<CrxUpdateItem> items;
@@ -2192,29 +1974,6 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
         false, ExpectErrorThenQuit(runloop, Error::NONE));
     runloop.Run();
 
-#if BUILDFLAG(IS_STARBOARD)
-    EXPECT_EQ(7u, items.size());
-    EXPECT_EQ(ComponentState::kChecking, items[0].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[0].id);
-    EXPECT_EQ(ComponentState::kCanUpdate, items[1].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[1].id);
-    EXPECT_EQ(ComponentState::kDownloading, items[2].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[2].id);
-    EXPECT_EQ(ComponentState::kDownloading, items[3].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[3].id);
-    EXPECT_EQ(ComponentState::kDownloading, items[4].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[4].id);
-    EXPECT_EQ(ComponentState::kUpdating, items[5].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[5].id);
-    EXPECT_EQ(ComponentState::kUpdated, items[6].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[6].id);
-
-    std::vector samples = {-1, -1, -1, -1, -1, -1, -1};
-    EXPECT_EQ(items.size(), samples.size());
-    for (size_t i = 0; i != items.size(); ++i) {
-      EXPECT_EQ(items[i].install_progress, samples[i]);
-    }
-#else
     EXPECT_EQ(10u, items.size());
     EXPECT_EQ(ComponentState::kChecking, items[0].state);
     EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[0].id);
@@ -2242,19 +2001,14 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdate) {
     for (size_t i = 0; i != items.size(); ++i) {
       EXPECT_EQ(items[i].install_progress, samples[i]);
     }
-#endif
   }
 }
-#endif  // !defined(IN_MEMORY_UPDATES)
 
 // Tests the update scenario for one CRX where the CRX installer returns
 // an error. Tests that the |unpack_path| argument refers to a valid path
 // then |Install| is called, then tests that the |unpack| path is deleted
 // by the |update_client| code before the test ends.
 TEST_F(UpdateClientTest, OneCrxInstallError) {
-#if BUILDFLAG(IS_STARBOARD)
-  starboard_mock_.SetRequestRollForwardSuccess(false);
-#endif
   class MockInstaller : public CrxInstaller {
    public:
     MOCK_METHOD1(DoInstall, void(const base::FilePath& unpack_path));
@@ -2304,11 +2058,9 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
       scoped_refptr<MockInstaller> installer =
           base::MakeRefCounted<MockInstaller>();
 
-#if !BUILDFLAG(IS_STARBOARD)
       EXPECT_CALL(*installer, DoInstall(_));
       EXPECT_CALL(*installer, GetInstalledFile(_)).Times(0);
       EXPECT_CALL(*installer, Uninstall()).Times(0);
-#endif
 
       CrxComponent crx;
       crx.app_id = "jebgalgnebhfojomionfpkfelancnnkf";
@@ -2333,14 +2085,7 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       download_metrics.url = url;
       download_metrics.downloader = DownloadMetrics::kNone;
@@ -2350,25 +2095,12 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
       download_metrics.download_time_ms = 1000;
 
       base::FilePath path;
-#if defined(IN_MEMORY_UPDATES)
-      EXPECT_TRUE(
-          MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
-          base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
-#else
       EXPECT_TRUE(MakeTestFile(
           GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
-#endif
 
       Result result;
       result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
       result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-      result.installation_index = 0;
-#endif
 
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadProgress,
@@ -2400,22 +2132,14 @@ TEST_F(UpdateClientTest, OneCrxInstallError) {
                 CrxDownloaderError::NONE);
 
       EXPECT_EQ(ping_data[1].pipeline_id, "pipe1");  // crx3
-#if BUILDFLAG(IS_STARBOARD)
-      EXPECT_EQ(ping_data[1].error_category, ErrorCategory::kInstall);
-#else
       EXPECT_EQ(ping_data[1].error_category, ErrorCategory::kInstaller);
-#endif
       EXPECT_EQ(static_cast<InstallError>(ping_data[1].error_code),
                 InstallError::GENERIC_ERROR);
 
       EXPECT_EQ(ping_data[2].id, "jebgalgnebhfojomionfpkfelancnnkf");
       EXPECT_EQ(ping_data[2].previous_version, base::Version("0.9"));
       EXPECT_EQ(ping_data[2].next_version, base::Version("1.0"));
-#if BUILDFLAG(IS_STARBOARD)
-      EXPECT_EQ(ping_data[2].error_category, ErrorCategory::kInstall);
-#else
       EXPECT_EQ(ping_data[2].error_category, ErrorCategory::kInstaller);
-#endif
       EXPECT_EQ(static_cast<InstallError>(ping_data[2].error_code),
                 InstallError::GENERIC_ERROR);
     }
@@ -2522,11 +2246,6 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
    public:
     explicit MockUpdateChecker(int num_calls) : num_calls_(num_calls) {}
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -2672,14 +2391,7 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -2691,24 +2403,11 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-#if defined(IN_MEMORY_UPDATES)
-        EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path) &&
-            base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst));
-#else
         EXPECT_TRUE(MakeTestFile(
             GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
-#endif
 
         result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
-      result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        result.installation_index = 0;
-#endif
+        result.response = path;
       } else if (url.GetPath() ==
                  "/download/ihfokbkgjpifnbbojhneepfflplebdkc_1to2.puff") {
         // A download error is injected on this execution path.
@@ -2730,24 +2429,11 @@ TEST_F(UpdateClientTest, OneCrxDiffUpdateFailsFullUpdateSucceeds) {
         download_metrics.total_bytes = 54409;
         download_metrics.download_time_ms = 1000;
 
-#if defined(IN_MEMORY_UPDATES)
-        EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_2.crx"), &path) &&
-            base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_2.crx"), dst));
-#else
         EXPECT_TRUE(MakeTestFile(
             GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_2.crx"), &path));
-#endif
 
         result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
-      result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        result.installation_index = 0;
-#endif
+        result.response = path;
       }
 
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -2935,11 +2621,6 @@ TEST_F(UpdateClientTest, OneCrxNoUpdateQueuedCall) {
    public:
     MockUpdateChecker() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -2974,14 +2655,7 @@ TEST_F(UpdateClientTest, OneCrxNoUpdateQueuedCall) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -3091,14 +2765,7 @@ TEST_F(UpdateClientTest, OneCrxInstall) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -3110,24 +2777,11 @@ TEST_F(UpdateClientTest, OneCrxInstall) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-#if defined(IN_MEMORY_UPDATES)
-        EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
-            base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
-#else
         EXPECT_TRUE(MakeTestFile(
             GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
-#endif
 
         result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
-      result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        result.installation_index = 0;
-#endif
+        result.response = path;
       } else {
         ADD_FAILURE();
       }
@@ -3195,16 +2849,11 @@ TEST_F(UpdateClientTest, OneCrxInstall) {
                   return item.id == "jebgalgnebhfojomionfpkfelancnnkf" &&
                          item.state == ComponentState::kUpdating;
                 })));
-#if BUILDFLAG(IS_STARBOARD)
-    EXPECT_CALL(observer, OnEvent(Truly([](const CrxUpdateItem& item) {
-                  return item.id == "jebgalgnebhfojomionfpkfelancnnkf" &&
-                         item.state == ComponentState::kUpdated;
-                })));
-#else
     EXPECT_CALL(observer, OnEvent(Truly([](const CrxUpdateItem& item) {
                   return item.id == "jebgalgnebhfojomionfpkfelancnnkf" &&
                          item.state == ComponentState::kUpdated;
                 })))
+
         .WillOnce([](const CrxUpdateItem& item) {
           ASSERT_TRUE(item.component);
           const auto* test_installer =
@@ -3213,7 +2862,6 @@ TEST_F(UpdateClientTest, OneCrxInstall) {
           EXPECT_EQ("--arg1 --arg2",
                     test_installer->install_params()->arguments);
         });
-#endif
   }
 
   std::vector<CrxUpdateItem> items;
@@ -3272,14 +2920,7 @@ TEST_F(UpdateClientTest, OneCrxInstallNoCrxComponentData) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -3364,11 +3005,6 @@ TEST_F(UpdateClientTest, ConcurrentInstallSameCRX) {
    public:
     MockUpdateChecker() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -3403,14 +3039,7 @@ TEST_F(UpdateClientTest, ConcurrentInstallSameCRX) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -3498,14 +3127,7 @@ TEST_F(UpdateClientTest, EmptyIdList) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -3535,12 +3157,6 @@ TEST_F(UpdateClientTest, EmptyIdList) {
   runloop_.Run();
 }
 
-#if !BUILDFLAG(IS_STARBOARD)
-// On Starboard the download-stage free-space check is compiled out by design:
-// Cobalt handles insufficient space at update-check time instead
-// (UpdateChecker::SkipUpdate -> UpdateCheckError::OUT_OF_SPACE); see
-// HandleAvailableSpace() in op_download.cc. Cobalt's out-of-space path is
-// covered by the slot-management/loader_app test suites, not by this test.
 TEST_F(UpdateClientTest, DiskFull) {
   class DataCallbackMock {
    public:
@@ -3571,14 +3187,7 @@ TEST_F(UpdateClientTest, DiskFull) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -3652,14 +3261,7 @@ TEST_F(UpdateClientTest, DiskFull) {
   EXPECT_EQ(ComponentState::kUpdateError, items[3].state);
   EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[3].id);
 }
-#endif  // !BUILDFLAG(IS_STARBOARD)
 
-#if !BUILDFLAG(IS_STARBOARD)
-// On Starboard the download-stage free-space check is compiled out by design:
-// Cobalt handles insufficient space at update-check time instead
-// (UpdateChecker::SkipUpdate -> UpdateCheckError::OUT_OF_SPACE); see
-// HandleAvailableSpace() in op_download.cc. Cobalt's out-of-space path is
-// covered by the slot-management/loader_app test suites, not by this test.
 TEST_F(UpdateClientTest, DiskFullDiff) {
   class DataCallbackMock : public base::RefCountedThreadSafe<DataCallbackMock> {
    public:
@@ -3704,11 +3306,6 @@ TEST_F(UpdateClientTest, DiskFullDiff) {
    public:
     explicit MockUpdateChecker(int num_calls) : num_calls_(num_calls) {}
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -3854,14 +3451,7 @@ TEST_F(UpdateClientTest, DiskFullDiff) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -3873,24 +3463,11 @@ TEST_F(UpdateClientTest, DiskFullDiff) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-#if defined(IN_MEMORY_UPDATES)
-        EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path) &&
-            base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst));
-#else
         EXPECT_TRUE(MakeTestFile(
             GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
-#endif
 
         result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
-      result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        result.installation_index = 0;
-#endif
+        result.response = path;
       } else {
         ADD_FAILURE();
       }
@@ -4008,29 +3585,6 @@ TEST_F(UpdateClientTest, DiskFullDiff) {
         false, ExpectErrorThenQuit(runloop, Error::NONE));
     runloop.Run();
 
-#if BUILDFLAG(IS_STARBOARD)
-    EXPECT_EQ(7u, items.size());
-    EXPECT_EQ(ComponentState::kChecking, items[0].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[0].id);
-    EXPECT_EQ(ComponentState::kCanUpdate, items[1].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[1].id);
-    EXPECT_EQ(ComponentState::kDownloading, items[2].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[2].id);
-    EXPECT_EQ(ComponentState::kDownloading, items[3].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[3].id);
-    EXPECT_EQ(ComponentState::kDownloading, items[4].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[4].id);
-    EXPECT_EQ(ComponentState::kUpdating, items[5].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[5].id);
-    EXPECT_EQ(ComponentState::kUpdated, items[6].state);
-    EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[6].id);
-
-    std::vector samples = {-1, -1, -1, -1, -1, -1, -1};
-    EXPECT_EQ(items.size(), samples.size());
-    for (size_t i = 0; i != items.size(); ++i) {
-      EXPECT_EQ(items[i].install_progress, samples[i]);
-    }
-#else
     EXPECT_EQ(10u, items.size());
     EXPECT_EQ(ComponentState::kChecking, items[0].state);
     EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[0].id);
@@ -4058,7 +3612,6 @@ TEST_F(UpdateClientTest, DiskFullDiff) {
     for (size_t i = 0; i != items.size(); ++i) {
       EXPECT_EQ(items[i].install_progress, samples[i]);
     }
-#endif
   }
 
   {
@@ -4088,7 +3641,6 @@ TEST_F(UpdateClientTest, DiskFullDiff) {
     EXPECT_EQ("ihfokbkgjpifnbbojhneepfflplebdkc", items[4].id);
   }
 }
-#endif  // !BUILDFLAG(IS_STARBOARD)
 
 struct SendPingTestCase {
   const int event_type;
@@ -4133,14 +3685,7 @@ TEST_P(SendPingTest, SendPingTestCases) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       return base::DoNothing();
     }
   };
@@ -4212,11 +3757,6 @@ TEST_F(UpdateClientTest, RetryAfter) {
     explicit MockUpdateChecker(int num_calls) : num_calls_(num_calls) {}
 
    private:
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -4259,14 +3799,7 @@ TEST_F(UpdateClientTest, RetryAfter) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -4397,14 +3930,7 @@ TEST_F(UpdateClientTest, TwoCrxUpdateOneUpdateDisabled) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -4416,24 +3942,11 @@ TEST_F(UpdateClientTest, TwoCrxUpdateOneUpdateDisabled) {
         download_metrics.total_bytes = 54014;
         download_metrics.download_time_ms = 2000;
 
-#if defined(IN_MEMORY_UPDATES)
-        EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path) &&
-            base::ReadFileToString(GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), dst));
-#else
         EXPECT_TRUE(MakeTestFile(
             GetTestFilePath("ihfokbkgjpifnbbojhneepfflplebdkc_1.crx"), &path));
-#endif
 
         result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
-      result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        result.installation_index = 0;
-#endif
+        result.response = path;
       } else {
         ADD_FAILURE();
       }
@@ -4589,14 +4102,7 @@ TEST_F(UpdateClientTest, OneCrxUpdateDownloadTimeout) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       download_metrics.url = url;
       download_metrics.downloader = DownloadMetrics::kNone;
@@ -4607,14 +4113,8 @@ TEST_F(UpdateClientTest, OneCrxUpdateDownloadTimeout) {
       download_metrics.download_time_ms = 1000;
 
       base::FilePath path;
-#if defined(IN_MEMORY_UPDATES)
-      EXPECT_TRUE(
-          MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
-          base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
-#else
       EXPECT_TRUE(MakeTestFile(
           GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
-#endif
 
       Result result;
       result.error = 200;
@@ -4748,11 +4248,6 @@ TEST_F(UpdateClientTest, OneCrxUpdateCheckFails) {
    public:
     MockUpdateChecker() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -4777,14 +4272,7 @@ TEST_F(UpdateClientTest, OneCrxUpdateCheckFails) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -4796,11 +4284,7 @@ TEST_F(UpdateClientTest, OneCrxUpdateCheckFails) {
         : MockPingManagerImpl(config) {}
 
    protected:
-#if BUILDFLAG(IS_STARBOARD)
-    ~MockPingManager() override { EXPECT_EQ(1u, ping_data().size()); }
-#else
     ~MockPingManager() override { EXPECT_TRUE(ping_data().empty()); }
-#endif
   };
 
   SetMockCrxDownloader<MockCrxDownloader>();
@@ -4906,11 +4390,6 @@ TEST_F(UpdateClientTest, OneCrxErrorUnknownApp) {
    public:
     MockUpdateChecker() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -4961,14 +4440,7 @@ TEST_F(UpdateClientTest, OneCrxErrorUnknownApp) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -4980,11 +4452,7 @@ TEST_F(UpdateClientTest, OneCrxErrorUnknownApp) {
         : MockPingManagerImpl(config) {}
 
    protected:
-#if BUILDFLAG(IS_STARBOARD)
-    ~MockPingManager() override { EXPECT_EQ(4u, ping_data().size()); }
-#else
     ~MockPingManager() override { EXPECT_TRUE(ping_data().empty()); }
-#endif
   };
 
   SetMockCrxDownloader<MockCrxDownloader>();
@@ -5077,11 +4545,6 @@ TEST_F(UpdateClientTest, ActionRun_Install) {
    public:
     MockUpdateChecker() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -5151,14 +4614,7 @@ TEST_F(UpdateClientTest, ActionRun_Install) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -5170,24 +4626,11 @@ TEST_F(UpdateClientTest, ActionRun_Install) {
         download_metrics.total_bytes = 48141;
         download_metrics.download_time_ms = 1000;
 
-#if defined(IN_MEMORY_UPDATES)
-        EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("runaction_test_win.crx3"), &path) &&
-            base::ReadFileToString(GetTestFilePath("runaction_test_win.crx3"), dst));
-#else
         EXPECT_TRUE(
             MakeTestFile(GetTestFilePath("runaction_test_win.crx3"), &path));
-#endif
 
         result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
-      result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        result.installation_index = 0;
-#endif
+        result.response = path;
       } else {
         ADD_FAILURE();
       }
@@ -5290,11 +4733,6 @@ TEST_F(UpdateClientTest, ActionRun_Install) {
 
 // Tests that a run action is invoked in an update scenario when there was
 // no update.
-#if !BUILDFLAG(IS_STARBOARD)
-// Cobalt explicitly enforces a rigorous signature verification on all update
-// operations, inherently rejecting "run"-only pipelines that bypass `crx3` unpacking.
-// As this test simulates successful execution of an unsupported `crx3`-less pipeline,
-// it contradicts Cobalt's pipeline invariants and is disabled on Starboard.
 TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
   MockUpdateCheckerFactory<
       MockUpdateCheckerImpl<UpdateCheckerOptionsActionRunNoUpdate>>
@@ -5307,14 +4745,7 @@ TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -5350,34 +4781,12 @@ TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
     base::RunLoop runloop;
     base::OnceClosure quit_closure = runloop.QuitClosure();
 
-#if BUILDFLAG(IS_STARBOARD)
-    OperationResult op_result;
-    base::FilePath temp_crx_path;
-    EXPECT_TRUE(MakeTestFile(GetTestFilePath("runaction_test_win.crx3"), &temp_crx_path));
-#if defined(IN_MEMORY_UPDATES)
-    op_result.installation_dir = temp_crx_path.DirName();
-    std::string crx_str;
-    EXPECT_TRUE(base::ReadFileToString(GetTestFilePath("runaction_test_win.crx3"), &crx_str));
-    op_result.crx_str = &crx_str;
-#else
-    op_result.response = temp_crx_path;
-#endif
-    Unpacker::Unpack(
-        "gjpmebpgbhcamgdgjcmnjfhggjpgcimm",
-        std::vector<uint8_t>(std::begin(gjpm_hash), std::end(gjpm_hash)),
-        op_result,
-#else
     Unpacker::Unpack(
         "gjpmebpgbhcamgdgjcmnjfhggjpgcimm", "UpdateClientTest",
         std::vector<uint8_t>(std::begin(gjpm_hash), std::end(gjpm_hash)),
         GetTestFilePath("runaction_test_win.crx3"),
-#endif
-#if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
-        base::MakeRefCounted<UnzipCobaltFactory>()
-#else
         base::MakeRefCounted<UnzipChromiumFactory>(
             base::BindRepeating(&unzip::LaunchInProcessUnzipper))
-#endif
             ->Create(),
         crx_file::VerifierFormat::CRX3,
         base::BindOnce(
@@ -5444,7 +4853,6 @@ TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
 
   runloop_.Run();
 }
-#endif  // !BUILDFLAG(IS_STARBOARD)
 
 // Tests that custom response attributes are visible to observers.
 TEST_F(UpdateClientTest, CustomAttributeNoUpdate) {
@@ -5470,11 +4878,6 @@ TEST_F(UpdateClientTest, CustomAttributeNoUpdate) {
    public:
     MockUpdateChecker() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -5511,14 +4914,7 @@ TEST_F(UpdateClientTest, CustomAttributeNoUpdate) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -5634,14 +5030,7 @@ TEST_F(UpdateClientTest, CancelInstallBeforeTaskStart) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -5653,24 +5042,11 @@ TEST_F(UpdateClientTest, CancelInstallBeforeTaskStart) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-#if defined(IN_MEMORY_UPDATES)
-        EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
-            base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
-#else
         EXPECT_TRUE(MakeTestFile(
             GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
-#endif
 
         result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
-      result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        result.installation_index = 0;
-#endif
+        result.response = path;
       } else {
         ADD_FAILURE();
       }
@@ -5754,14 +5130,7 @@ TEST_F(UpdateClientTest, CancelInstallBeforeInstall) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -5773,24 +5142,11 @@ TEST_F(UpdateClientTest, CancelInstallBeforeInstall) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-#if defined(IN_MEMORY_UPDATES)
-        EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
-            base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
-#else
         EXPECT_TRUE(MakeTestFile(
             GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
-#endif
 
         result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
-      result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        result.installation_index = 0;
-#endif
+        result.response = path;
       } else {
         ADD_FAILURE();
       }
@@ -5821,14 +5177,9 @@ TEST_F(UpdateClientTest, CancelInstallBeforeInstall) {
       EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", ping_data[0].id);
       EXPECT_EQ(base::Version("0.0"), ping_data[0].previous_version);
       EXPECT_EQ(base::Version("1.0"), ping_data[0].next_version);
-#if BUILDFLAG(IS_STARBOARD)
-      EXPECT_EQ(ErrorCategory::kNone, ping_data[0].error_category);
-      EXPECT_EQ(0, ping_data[0].error_code);
-#else
       EXPECT_EQ(ErrorCategory::kService, ping_data[0].error_category);
       EXPECT_EQ(static_cast<int>(ServiceError::CANCELLED),
                 ping_data[0].error_code);
-#endif
     }
   };
 
@@ -5857,12 +5208,10 @@ TEST_F(UpdateClientTest, CancelInstallBeforeInstall) {
                 })))
         .Times(AtLeast(1))
         .WillRepeatedly([&cancel] { cancel.Run(); });
-#if !BUILDFLAG(IS_STARBOARD)
     EXPECT_CALL(observer, OnEvent(Truly([](const CrxUpdateItem& item) {
                   return item.id == "jebgalgnebhfojomionfpkfelancnnkf" &&
                          item.state == ComponentState::kUpdateError;
                 })));
-#endif
   }
 
   std::vector<CrxUpdateItem> items;
@@ -5878,23 +5227,17 @@ TEST_F(UpdateClientTest, CancelInstallBeforeInstall) {
       ExpectErrorThenQuit(runloop_, Error::NONE));
   runloop_.Run();
 
-#if BUILDFLAG(IS_STARBOARD)
-  ASSERT_EQ(3u, items.size());
-#else
-  ASSERT_EQ(5u, items.size());
-#endif
+  EXPECT_EQ(5u, items.size());
   EXPECT_EQ(ComponentState::kChecking, items[0].state);
   EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[0].id);
   EXPECT_EQ(ComponentState::kCanUpdate, items[1].state);
   EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[1].id);
   EXPECT_EQ(ComponentState::kDownloading, items[2].state);
   EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[2].id);
-#if !BUILDFLAG(IS_STARBOARD)
   EXPECT_EQ(ComponentState::kDownloading, items[3].state);
   EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[3].id);
   EXPECT_EQ(ComponentState::kUpdateError, items[4].state);
   EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[4].id);
-#endif
 }
 
 // Tests cancellation of an install before the download.
@@ -5927,14 +5270,7 @@ TEST_F(UpdateClientTest, CancelInstallBeforeDownload) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -5946,24 +5282,11 @@ TEST_F(UpdateClientTest, CancelInstallBeforeDownload) {
         download_metrics.total_bytes = 1015;
         download_metrics.download_time_ms = 1000;
 
-#if defined(IN_MEMORY_UPDATES)
-        EXPECT_TRUE(
-            MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
-            base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
-#else
         EXPECT_TRUE(MakeTestFile(
             GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
-#endif
 
         result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
-      result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        result.installation_index = 0;
-#endif
+        result.response = path;
       } else {
         ADD_FAILURE();
       }
@@ -6020,12 +5343,10 @@ TEST_F(UpdateClientTest, CancelInstallBeforeDownload) {
                          item.state == ComponentState::kCanUpdate;
                 })))
         .WillOnce([&cancel] { cancel.Run(); });
-#if !BUILDFLAG(IS_STARBOARD)
     EXPECT_CALL(observer, OnEvent(Truly([](const CrxUpdateItem& item) {
                   return item.id == "jebgalgnebhfojomionfpkfelancnnkf" &&
                          item.state == ComponentState::kUpdateError;
                 })));
-#endif
   }
 
   std::vector<CrxUpdateItem> items;
@@ -6041,19 +5362,13 @@ TEST_F(UpdateClientTest, CancelInstallBeforeDownload) {
       ExpectErrorThenQuit(runloop_, Error::NONE));
   runloop_.Run();
 
-#if BUILDFLAG(IS_STARBOARD)
-  ASSERT_EQ(2u, items.size());
-#else
-  ASSERT_EQ(3u, items.size());
-#endif
+  EXPECT_EQ(3u, items.size());
   EXPECT_EQ(ComponentState::kChecking, items[0].state);
   EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[0].id);
   EXPECT_EQ(ComponentState::kCanUpdate, items[1].state);
   EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[1].id);
-#if !BUILDFLAG(IS_STARBOARD)
   EXPECT_EQ(ComponentState::kUpdateError, items[2].state);
   EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[2].id);
-#endif
 }
 
 TEST_F(UpdateClientTest, CheckForUpdate_NoUpdate) {
@@ -6078,11 +5393,6 @@ TEST_F(UpdateClientTest, CheckForUpdate_NoUpdate) {
    public:
     MockUpdateChecker() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -6118,14 +5428,7 @@ TEST_F(UpdateClientTest, CheckForUpdate_NoUpdate) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -6206,14 +5509,7 @@ TEST_F(UpdateClientTest, CheckForUpdate_UpdateAvailable) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -6298,11 +5594,6 @@ TEST_F(UpdateClientTest, CheckForUpdate_QueueChecks) {
    public:
     MockUpdateChecker() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -6338,14 +5629,7 @@ TEST_F(UpdateClientTest, CheckForUpdate_QueueChecks) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -6441,11 +5725,6 @@ TEST_F(UpdateClientTest, CheckForUpdate_Stop) {
    public:
     MockUpdateChecker() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -6481,14 +5760,7 @@ TEST_F(UpdateClientTest, CheckForUpdate_Stop) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -6544,11 +5816,6 @@ TEST_F(UpdateClientTest, CheckForUpdate_Errors) {
    public:
     MockUpdateChecker() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -6563,14 +5830,7 @@ TEST_F(UpdateClientTest, CheckForUpdate_Errors) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -6675,14 +5935,7 @@ TEST_F(UpdateClientTest, UpdateCheck_UpdateDisabled) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -6802,14 +6055,7 @@ TEST_F(UpdateClientTest, OneCrxCachedUpdate) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       download_metrics.url = url;
       download_metrics.downloader = DownloadMetrics::kNone;
@@ -6819,25 +6065,12 @@ TEST_F(UpdateClientTest, OneCrxCachedUpdate) {
       download_metrics.download_time_ms = 2000;
 
       base::FilePath path;
-#if defined(IN_MEMORY_UPDATES)
-      EXPECT_TRUE(
-          MakeTestFile(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path) &&
-          base::ReadFileToString(GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
-#else
       EXPECT_TRUE(MakeTestFile(
           GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
-#endif
 
       Result result;
       result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-      result.installation_dir = path.DirName();
-#else
       result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-      result.installation_index = 0;
-#endif
 
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, base::BindOnce(&MockCrxDownloader::OnDownloadProgress,
@@ -6901,13 +6134,11 @@ TEST_F(UpdateClientTest, OneCrxCachedUpdate) {
                   return item.id == "jebgalgnebhfojomionfpkfelancnnkf" &&
                          item.state == ComponentState::kUpdating;
                 })));
-#if !BUILDFLAG(IS_STARBOARD)
     EXPECT_CALL(observer, OnEvent(Truly([](const CrxUpdateItem& item) {
                   return item.id == "jebgalgnebhfojomionfpkfelancnnkf" &&
                          item.state == ComponentState::kUpdating;
                 })))
         .Times(2);
-#endif
     EXPECT_CALL(observer, OnEvent(Truly([](const CrxUpdateItem& item) {
                   return item.id == "jebgalgnebhfojomionfpkfelancnnkf" &&
                          item.state == ComponentState::kUpdateError;
@@ -6921,24 +6152,15 @@ TEST_F(UpdateClientTest, OneCrxCachedUpdate) {
                   return item.id == "jebgalgnebhfojomionfpkfelancnnkf" &&
                          item.state == ComponentState::kCanUpdate;
                 })));
-#if BUILDFLAG(IS_STARBOARD)
-    EXPECT_CALL(observer, OnEvent(Truly([](const CrxUpdateItem& item) {
-                  return item.id == "jebgalgnebhfojomionfpkfelancnnkf" &&
-                         item.state == ComponentState::kDownloading;
-                })))
-        .Times(2);
-#endif
     EXPECT_CALL(observer, OnEvent(Truly([](const CrxUpdateItem& item) {
                   return item.id == "jebgalgnebhfojomionfpkfelancnnkf" &&
                          item.state == ComponentState::kUpdating;
                 })));
-#if !BUILDFLAG(IS_STARBOARD)
     EXPECT_CALL(observer, OnEvent(Truly([](const CrxUpdateItem& item) {
                   return item.id == "jebgalgnebhfojomionfpkfelancnnkf" &&
                          item.state == ComponentState::kUpdating;
                 })))
         .Times(3);
-#endif
     EXPECT_CALL(observer, OnEvent(Truly([](const CrxUpdateItem& item) {
                   return item.id == "jebgalgnebhfojomionfpkfelancnnkf" &&
                          item.state == ComponentState::kUpdated;
@@ -6946,9 +6168,6 @@ TEST_F(UpdateClientTest, OneCrxCachedUpdate) {
   }
 
   const std::vector<std::string> ids = {"jebgalgnebhfojomionfpkfelancnnkf"};
-#if BUILDFLAG(IS_STARBOARD)
-  starboard_mock_.SetRequestRollForwardSuccess(false);
-#endif
   {
     std::vector<CrxUpdateItem> items;
     auto receiver = base::MakeRefCounted<MockCrxStateChangeReceiver>();
@@ -6963,27 +6182,6 @@ TEST_F(UpdateClientTest, OneCrxCachedUpdate) {
         false, ExpectErrorThenQuit(runloop, Error::NONE));
     runloop.Run();
 
-#if BUILDFLAG(IS_STARBOARD)
-    EXPECT_EQ(6u, items.size());
-    EXPECT_EQ(ComponentState::kChecking, items[0].state);
-    EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[0].id);
-    EXPECT_EQ(ComponentState::kCanUpdate, items[1].state);
-    EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[1].id);
-    EXPECT_EQ(ComponentState::kDownloading, items[2].state);
-    EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[2].id);
-    EXPECT_EQ(ComponentState::kDownloading, items[3].state);
-    EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[3].id);
-    EXPECT_EQ(ComponentState::kUpdating, items[4].state);
-    EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[4].id);
-    EXPECT_EQ(ComponentState::kUpdateError, items[5].state);
-    EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[5].id);
-
-    std::vector samples = {-1, -1, -1, -1, -1, -1};
-    EXPECT_EQ(items.size(), samples.size());
-    for (size_t i = 0; i != items.size(); ++i) {
-      EXPECT_EQ(items[i].install_progress, samples[i]);
-    }
-#else
     EXPECT_EQ(8u, items.size());
     EXPECT_EQ(ComponentState::kChecking, items[0].state);
     EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[0].id);
@@ -7007,12 +6205,7 @@ TEST_F(UpdateClientTest, OneCrxCachedUpdate) {
     for (size_t i = 0; i != items.size(); ++i) {
       EXPECT_EQ(items[i].install_progress, samples[i]);
     }
-#endif
   }
-
-#if BUILDFLAG(IS_STARBOARD)
-  starboard_mock_.SetRequestRollForwardSuccess(true);
-#endif
 
   {
     std::vector<CrxUpdateItem> items;
@@ -7028,27 +6221,6 @@ TEST_F(UpdateClientTest, OneCrxCachedUpdate) {
         false, ExpectErrorThenQuit(runloop, Error::NONE));
     runloop.Run();
 
-#if BUILDFLAG(IS_STARBOARD)
-    EXPECT_EQ(6u, items.size());
-    EXPECT_EQ(ComponentState::kChecking, items[0].state);
-    EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[0].id);
-    EXPECT_EQ(ComponentState::kCanUpdate, items[1].state);
-    EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[1].id);
-    EXPECT_EQ(ComponentState::kDownloading, items[2].state);
-    EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[2].id);
-    EXPECT_EQ(ComponentState::kDownloading, items[3].state);
-    EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[3].id);
-    EXPECT_EQ(ComponentState::kUpdating, items[4].state);
-    EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[4].id);
-    EXPECT_EQ(ComponentState::kUpdated, items[5].state);
-    EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[5].id);
-
-    std::vector samples = {-1, -1, -1, -1, -1, -1};
-    EXPECT_EQ(items.size(), samples.size());
-    for (size_t i = 0; i != items.size(); ++i) {
-      EXPECT_EQ(items[i].install_progress, samples[i]);
-    }
-#else
     EXPECT_EQ(7u, items.size());
     EXPECT_EQ(ComponentState::kChecking, items[0].state);
     EXPECT_EQ("jebgalgnebhfojomionfpkfelancnnkf", items[0].id);
@@ -7070,7 +6242,6 @@ TEST_F(UpdateClientTest, OneCrxCachedUpdate) {
     for (size_t i = 0; i != items.size(); ++i) {
       EXPECT_EQ(items[i].install_progress, samples[i]);
     }
-#endif
   }
 }
 
@@ -7104,14 +6275,7 @@ TEST_F(UpdateClientTest, UnsupportedOperationType) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE() << "Intentionally forcing download to fail here.";
       return base::DoNothing();
     }
@@ -7304,11 +6468,6 @@ TEST_F(UpdateClientTest,
    public:
     MockUpdateChecker() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void Cancel() override {}
-    bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) override { return false; }
-    PersistedData* GetPersistedData() override { return nullptr; }
-#endif
     void CheckForUpdates(
         scoped_refptr<UpdateContext> context,
         const base::flat_map<std::string, std::string>& additional_attributes,
@@ -7422,14 +6581,7 @@ TEST_F(UpdateClientTest,
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       ADD_FAILURE();
       return base::DoNothing();
     }
@@ -7580,15 +6732,7 @@ TEST_F(UpdateClientTest, Install_StopCancelsActiveDownload) {
    private:
     ~MockCrxDownloader() override = default;
 
-#if BUILDFLAG(IS_STARBOARD)
-    void DoCancelDownload() override {}
-#endif
-#if defined(IN_MEMORY_UPDATES)
-    base::OnceClosure DoStartDownload(const GURL& url,
-                                      std::string* dst) override {
-#else
     base::OnceClosure DoStartDownload(const GURL& url) override {
-#endif
       DownloadMetrics download_metrics;
       base::FilePath path;
       Result result;
@@ -7602,20 +6746,9 @@ TEST_F(UpdateClientTest, Install_StopCancelsActiveDownload) {
 
         EXPECT_TRUE(MakeTestFile(
             GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), &path));
-#if defined(IN_MEMORY_UPDATES)
-        EXPECT_TRUE(base::ReadFileToString(
-            GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), dst));
-#endif
 
         result.error = 0;
-#if defined(IN_MEMORY_UPDATES)
-        result.installation_dir = path.DirName();
-#else
         result.response = path;
-#endif
-#if BUILDFLAG(IS_STARBOARD)
-        result.installation_index = 0;
-#endif
       } else {
         ADD_FAILURE();
       }
