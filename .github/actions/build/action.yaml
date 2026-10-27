@@ -92,6 +92,13 @@ runs:
             mkdir -p "$(dirname "${OUT_JSON}")"
             cp -av "${target_file}" "${OUT_JSON}"
           fi
+      - name: Archive test target JSON
+        if: matrix.config == 'devel'
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: ${{ matrix.platform }}_test_targets_json
+          path: cobalt/src/${{ inputs.test_targets_json_file }}
+          if-no-files-found: ignore
       - name: Ninja build
         if: >-
           matrix.config != 'devel' ||
