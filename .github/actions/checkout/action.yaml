@@ -62,29 +62,39 @@ runs:
       env:
         REF: ${{ inputs.ref }}
         DEST_PATH: ${{ inputs.path }}
+        FETCH_DEPTH: ${{ inputs.fetch_depth }}
         GITHUB_BASE_REF: ${{ github.base_ref }}
         SQUASH_MERGE: ${{ inputs.squash_merge }}
       shell: bash
       run: |
         set -ex
 
-        if [ "${SQUASH_MERGE}" = "true" ] && [ -n "${GITHUB_BASE_REF}" ]; then
-          retry() {
-            for delay in 0 5 15 30; do
-              sleep "${delay}"
-              "$@" && return
-            done
-            return 1
-          }
+        retry() {
+          for delay in 0 5 15 30; do
+            sleep "${delay}"
+            "$@" && return
+          done
+          return 1
+        }
 
-          retry git -C "${DEST_PATH}" fetch --depth=500 origin "${GITHUB_BASE_REF}" "${REF}"
+        if [ "${SQUASH_MERGE}" = "true" ] && [ -n "${GITHUB_BASE_REF}" ]; then
+          if [[ "${GITHUB_BASE_REF}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            base_ref="${GITHUB_BASE_REF}"
+            fetch_spec="${GITHUB_BASE_REF}"
+          else
+            base_branch="${GITHUB_BASE_REF#refs/heads/}"
+            base_ref="origin/${base_branch}"
+            fetch_spec="+refs/heads/${base_branch}:refs/remotes/origin/${base_branch}"
+          fi
+
+          retry git -C "${DEST_PATH}" fetch --depth=500 origin "${fetch_spec}" "${REF}"
           commit_date=$(git -C "${DEST_PATH}" log -1 --format="%cI" "${REF}")
           author_name=$(git -C "${DEST_PATH}" log -1 --format="%an" "${REF}")
           author_email=$(git -C "${DEST_PATH}" log -1 --format="%ae" "${REF}")
           author_name="${author_name:-${COMMIT_AUTHOR_NAME:-github-actions[bot]}}"
           author_email="${author_email:-${COMMIT_AUTHOR_EMAIL:-41898282+github-actions[bot]@users.noreply.github.com}}"
 
-          git -C "${DEST_PATH}" checkout "origin/${GITHUB_BASE_REF}"
+          git -C "${DEST_PATH}" checkout "${base_ref}"
           git -C "${DEST_PATH}" \
             -c "user.name=${author_name}" \
             -c "user.email=${author_email}" \
@@ -96,5 +106,18 @@ runs:
             --date="${commit_date}" \
             --message "Squash merge ${REF} onto ${GITHUB_BASE_REF}"
         else
-          git -C "${DEST_PATH}" checkout "${REF}"
+          depth_arg=()
+          [ "${FETCH_DEPTH}" -eq 0 ] || depth_arg=(--depth "${FETCH_DEPTH}")
+
+          if [[ "${REF}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            fetch_spec="${REF}"
+            target="${REF}"
+          else
+            ref_branch="${REF#refs/heads/}"
+            fetch_spec="+refs/heads/${ref_branch}:refs/remotes/origin/${ref_branch}"
+            target="origin/${ref_branch}"
+          fi
+
+          retry git -C "${DEST_PATH}" fetch "${depth_arg[@]}" origin "${fetch_spec}"
+          git -C "${DEST_PATH}" checkout "${target}"
         fi
