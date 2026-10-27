@@ -46,7 +46,7 @@ ScopedVideoHoleGeometryBatch::ScopedVideoHoleGeometryBatch() {
 }
 
 ScopedVideoHoleGeometryBatch::~ScopedVideoHoleGeometryBatch() {
-  DCHECK_EQ(current_batch, this);
+  CHECK_EQ(current_batch, this);
   current_batch = nullptr;
   if (!front_to_back_.empty()) {
     SendVideoGeometries(std::move(front_to_back_));

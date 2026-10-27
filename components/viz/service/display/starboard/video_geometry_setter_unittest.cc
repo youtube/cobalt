@@ -51,6 +51,9 @@ class FakeVideoGeometrySetter
   std::vector<std::vector<cobalt::media::mojom::VideoHoleGeometryPtr>> calls_;
 };
 
+// Points the process-wide VideoGeometrySetter remote (GetVideoGeometrySetter())
+// at |fake_setter_| during each test. VizTestSuite's TaskEnvironment delivers
+// the reported calls (see Flush()).
 class ScopedVideoHoleGeometryBatchTest : public testing::Test {
  protected:
   ScopedVideoHoleGeometryBatchTest() {
@@ -62,8 +65,7 @@ class ScopedVideoHoleGeometryBatchTest : public testing::Test {
     GetVideoGeometrySetter().reset();
   }
 
-  // Delivers the calls made so far to |fake_setter_|. VizTestSuite provides
-  // the task environment.
+  // Delivers the calls made so far to |fake_setter_|.
   void Flush() { GetVideoGeometrySetter().FlushForTesting(); }
 
   FakeVideoGeometrySetter fake_setter_;
@@ -94,6 +96,30 @@ TEST_F(ScopedVideoHoleGeometryBatchTest, ReportsVideoHolesInOneCallInAddOrder) {
   EXPECT_EQ(video_holes[0]->rect_f, kFrontRect);
   EXPECT_EQ(video_holes[1]->overlay_plane_id, back_id);
   EXPECT_EQ(video_holes[1]->rect_f, kBackRect);
+}
+
+// A batch is opened and closed for every frame, so each one is reported in its
+// own call, and closing it lets the next frame open a new one.
+TEST_F(ScopedVideoHoleGeometryBatchTest, ReportsEachBatchInItsOwnCall) {
+  const auto first_id = base::UnguessableToken::Create();
+  const auto second_id = base::UnguessableToken::Create();
+  {
+    ScopedVideoHoleGeometryBatch first_frame;
+    ScopedVideoHoleGeometryBatch::Add(first_id, kFrontRect,
+                                      gfx::OVERLAY_TRANSFORM_NONE);
+  }
+  {
+    ScopedVideoHoleGeometryBatch second_frame;
+    ScopedVideoHoleGeometryBatch::Add(second_id, kBackRect,
+                                      gfx::OVERLAY_TRANSFORM_NONE);
+  }
+  Flush();
+
+  ASSERT_EQ(fake_setter_.calls().size(), 2u);
+  ASSERT_EQ(fake_setter_.calls()[0].size(), 1u);
+  EXPECT_EQ(fake_setter_.calls()[0][0]->overlay_plane_id, first_id);
+  ASSERT_EQ(fake_setter_.calls()[1].size(), 1u);
+  EXPECT_EQ(fake_setter_.calls()[1][0]->overlay_plane_id, second_id);
 }
 
 // A frame without video holes must not be reported, since the service would
