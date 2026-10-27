@@ -14688,4 +14688,199 @@ TEST_P(HttpCacheNoVarySearchMockFileOperationsTest,
   EXPECT_EQ(info.headers->response_code(), 200);
 }
 
+#if BUILDFLAG(IS_COBALT)
+TEST_F(HttpCacheTest, CobaltFontMimeTypesCachedWhenFeatureEnabled) {
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(
+        features::kCobaltHttpCacheFontAndPassThrough);
+
+    MockHttpCache cache;
+    base::HistogramTester histograms;
+    ScopedMockTransaction transaction(kSimpleGET_Transaction,
+                                      "http://www.google.com/roboto.woff2");
+    transaction.response_headers =
+        "Cache-Control: max-age=10000\n"
+        "Content-Type: font/woff2\n";
+
+    HttpResponseInfo response;
+    RunTransactionTestWithResponseInfo(cache.http_cache(), transaction,
+                                       &response);
+    EXPECT_FALSE(response.was_cached);
+
+    RunTransactionTestWithResponseInfo(cache.http_cache(), transaction,
+                                       &response);
+    EXPECT_FALSE(response.was_cached);
+    EXPECT_EQ(2, cache.disk_cache()->create_count());
+    EXPECT_EQ(0, cache.disk_cache()->open_count());
+    histograms.ExpectBucketCount("HttpCache.Pattern.Font",
+                                 HttpResponseInfo::ENTRY_NOT_IN_CACHE, 2);
+    histograms.ExpectBucketCount("HttpCache.Pattern.Font",
+                                 HttpResponseInfo::ENTRY_USED, 0);
+  }
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kCobaltHttpCacheFontAndPassThrough);
+
+  for (std::string_view mime :
+       {"font/woff2", "font/ttf", "application/font-woff2"}) {
+    MockHttpCache cache;
+    base::HistogramTester histograms;
+    ScopedMockTransaction transaction(kSimpleGET_Transaction,
+                                      "http://www.google.com/font_asset");
+    std::string headers = base::StrCat(
+        {"Cache-Control: max-age=10000\nContent-Type: ", mime, "\n"});
+    transaction.response_headers = headers.c_str();
+
+    HttpResponseInfo response;
+    RunTransactionTestWithResponseInfo(cache.http_cache(), transaction,
+                                       &response);
+    EXPECT_FALSE(response.was_cached);
+
+    RunTransactionTestWithResponseInfo(cache.http_cache(), transaction,
+                                       &response);
+    EXPECT_TRUE(response.was_cached);
+    EXPECT_EQ(1, cache.disk_cache()->create_count());
+    EXPECT_EQ(1, cache.disk_cache()->open_count());
+    histograms.ExpectBucketCount("HttpCache.Pattern.Font",
+                                 HttpResponseInfo::ENTRY_NOT_IN_CACHE, 1);
+    histograms.ExpectBucketCount("HttpCache.Pattern.Font",
+                                 HttpResponseInfo::ENTRY_USED, 1);
+  }
+}
+
+TEST_F(HttpCacheTest, CobaltShouldPassThroughExcludedUrls) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kCobaltHttpCacheFontAndPassThrough);
+
+  MockHttpCache cache;
+  for (const char* url : {"http://www.google.com/api/stats/qoe?docid=123",
+                          "http://www.google.com/ptracking?v=1",
+                          "http://www.google.com/videoplayback?id=abc",
+                          "http://www.google.com/generate_204"}) {
+    ScopedMockTransaction transaction(kSimpleGET_Transaction, url);
+    transaction.response_headers =
+        "Cache-Control: max-age=10000\n"
+        "Content-Type: text/html\n";
+
+    HttpResponseInfo response;
+    RunTransactionTestWithResponseInfo(cache.http_cache(), transaction,
+                                       &response);
+    EXPECT_FALSE(response.was_cached);
+  }
+
+  EXPECT_EQ(0, cache.disk_cache()->create_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+}
+
+TEST_F(HttpCacheTest, CobaltShouldPassThroughSecFetchDestMediaButNotEmpty) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kCobaltHttpCacheFontAndPassThrough);
+
+  {
+    MockHttpCache cache;
+    for (const char* dest : {"image", "audio", "video"}) {
+      ScopedMockTransaction transaction(kSimpleGET_Transaction,
+                                        "http://www.google.com/media");
+      transaction.response_headers =
+          "Cache-Control: max-age=10000\n"
+          "Content-Type: text/html\n";
+      MockHttpRequest request(transaction);
+      request.extra_headers.SetHeader("Sec-Fetch-Dest", dest);
+
+      HttpResponseInfo response;
+      RunTransactionTestWithRequest(cache.http_cache(), transaction, request,
+                                    &response);
+      EXPECT_FALSE(response.was_cached);
+    }
+    EXPECT_EQ(0, cache.disk_cache()->create_count());
+    EXPECT_EQ(0, cache.disk_cache()->open_count());
+  }
+
+  {
+    MockHttpCache cache;
+    ScopedMockTransaction transaction(kSimpleGET_Transaction,
+                                      "http://www.google.com/module.wasm");
+    transaction.response_headers =
+        "Cache-Control: max-age=10000\n"
+        "Content-Type: application/wasm\n";
+    MockHttpRequest request(transaction);
+    request.extra_headers.SetHeader("Sec-Fetch-Dest", "empty");
+
+    HttpResponseInfo response;
+    RunTransactionTestWithRequest(cache.http_cache(), transaction, request,
+                                  &response);
+    EXPECT_FALSE(response.was_cached);
+
+    RunTransactionTestWithRequest(cache.http_cache(), transaction, request,
+                                  &response);
+    EXPECT_TRUE(response.was_cached);
+    EXPECT_EQ(1, cache.disk_cache()->create_count());
+    EXPECT_EQ(1, cache.disk_cache()->open_count());
+  }
+}
+
+TEST_F(HttpCacheTest, CobaltMarkKeyNoStoreOnRejectedMimeButNotOnServerError) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kCobaltHttpCacheFontAndPassThrough);
+
+  {
+    MockHttpCache cache;
+    ScopedMockTransaction json_trans(kSimpleGET_Transaction,
+                                     "http://www.google.com/api/player");
+    json_trans.response_headers =
+        "Cache-Control: max-age=10000\n"
+        "Content-Type: application/json\n";
+
+    HttpResponseInfo response;
+    RunTransactionTestWithResponseInfo(cache.http_cache(), json_trans,
+                                       &response);
+    EXPECT_FALSE(response.was_cached);
+    EXPECT_EQ(1, cache.disk_cache()->create_count());
+    EXPECT_EQ(0, cache.disk_cache()->open_count());
+
+    RunTransactionTestWithResponseInfo(cache.http_cache(), json_trans,
+                                       &response);
+    EXPECT_FALSE(response.was_cached);
+    EXPECT_EQ(1, cache.disk_cache()->create_count());
+    EXPECT_EQ(0, cache.disk_cache()->open_count());
+  }
+
+  {
+    MockHttpCache cache;
+    ScopedMockTransaction font_trans(kSimpleGET_Transaction,
+                                     "http://www.google.com/font.woff2");
+    font_trans.status = "HTTP/1.1 503 Service Unavailable";
+    font_trans.response_headers =
+        "Cache-Control: max-age=10000\n"
+        "Content-Type: text/plain\n";
+
+    HttpResponseInfo response;
+    RunTransactionTestWithResponseInfo(cache.http_cache(), font_trans,
+                                       &response);
+    EXPECT_FALSE(response.was_cached);
+    EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+    font_trans.status = "HTTP/1.1 200 OK";
+    font_trans.response_headers =
+        "Cache-Control: max-age=10000\n"
+        "Content-Type: font/woff2\n";
+    RunTransactionTestWithResponseInfo(cache.http_cache(), font_trans,
+                                       &response);
+    EXPECT_FALSE(response.was_cached);
+    EXPECT_EQ(2, cache.disk_cache()->create_count());
+
+    RunTransactionTestWithResponseInfo(cache.http_cache(), font_trans,
+                                       &response);
+    EXPECT_TRUE(response.was_cached);
+    EXPECT_EQ(2, cache.disk_cache()->create_count());
+    EXPECT_EQ(1, cache.disk_cache()->open_count());
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace net
