@@ -40,7 +40,7 @@ runs:
               )
           ]' "${JSON_FILE}")"
 
-        test_targets_json="$(jq -ncr --argjson data "${filtered_json}" '[$data[] | select(.target != null) | if has("required") then {target: .target, required: .required} else .target end]')"
+        test_targets_json="$(jq -ncr --argjson data "${filtered_json}" '[$data[] | select(.target != null) | .target]')"
         printf "test_targets_json=%s\n" "${test_targets_json}" >> "$GITHUB_OUTPUT"
         printf "test_targets_count=%s\n" "$(jq -ncr --argjson data "${test_targets_json}" '$data | length')" >> "$GITHUB_OUTPUT"
 

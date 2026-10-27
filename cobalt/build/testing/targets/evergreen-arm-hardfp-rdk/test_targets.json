@@ -136,12 +136,14 @@
     "target": "testing/maneki/cobalt/evergreen_tests:yts_rdk_custom_cobalt_dom_document_tests",
     "runs_on": "device",
     "test_type": "yts_test",
-    "build": false
+    "build": false,
+    "process_results": false
   },
   {
     "target": "testing/maneki/cobalt/evergreen_tests:yts_rdk_custom_cobalt_html_dom_element_tests",
     "runs_on": "device",
     "test_type": "yts_test",
-    "build": false
+    "build": false,
+    "process_results": false
   }
 ]

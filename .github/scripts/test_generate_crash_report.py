@@ -15,8 +15,6 @@
 """Tests for generate_crash_report."""
 
 import pathlib
-import subprocess
-import sys
 import tempfile
 import unittest
 
@@ -103,37 +101,6 @@ class GenerateCrashReportTest(unittest.TestCase):
       self.assertIn('<testsuite name="MySuite"', content)
       self.assertIn('<testcase name="MyTest" classname="MySuite"', content)
       self.assertIn('<![CDATA[ Some error log ]]>', content)
-
-  def test_main_with_fallback_suite_when_no_gtest_crash_detected(self):
-    with tempfile.TemporaryDirectory() as temp_dir:
-      log_path = pathlib.Path(temp_dir) / 'log.txt'
-      xml_path = pathlib.Path(temp_dir) / 'out.xml'
-      log_path.write_text(
-          'Some arbitrary runner crash log without gtest markers\n')
-      script_path = pathlib.Path(__file__).parent / 'generate_crash_report.py'
-      res = subprocess.run(
-          [
-              sys.executable,
-              str(script_path),
-              str(log_path),
-              str(xml_path), '--fallback-suite', 'my_target_suite'
-          ],
-          capture_output=True,
-          text=True,
-          check=False,
-      )
-      self.assertEqual(res.returncode, 0)
-      self.assertTrue(xml_path.is_file())
-      content = xml_path.read_text(encoding='utf-8')
-      self.assertIn('<testsuite name="my_target_suite"', content)
-      self.assertIn(
-          '<testcase name="my_target_suite" classname="my_target_suite"',
-          content)
-      crash_marker = xml_path.with_suffix('.crash')
-      self.assertTrue(crash_marker.is_file())
-      self.assertEqual(
-          crash_marker.read_text(encoding='utf-8'),
-          'my_target_suite.my_target_suite\n')
 
 
 if __name__ == '__main__':

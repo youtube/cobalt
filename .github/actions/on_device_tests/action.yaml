@@ -7,6 +7,10 @@ inputs:
   test_targets_json:
     description: "The test targets in a JSON array."
     required: true
+  test_targets_json_file:
+    description: "Path to the test targets JSON file."
+    required: false
+    default: "test_targets.json"
   gcs_results_path:
     description: "GCS path for the test results."
     required: true
@@ -28,18 +32,10 @@ inputs:
     description: "Name of the artifact on GCS (e.g. Cobalt.apk)."
     required: false
     default: ""
-  cobalt_path:
-    description: "GCS path to Cobalt artifact/directory."
-    required: false
-    default: ""
   retry_all:
     description: "Whether to retry all tests instead of analyzing previous results."
     required: false
     default: "false"
-  required:
-    description: "Whether missing results or failures should fail the job."
-    required: false
-    default: "true"
 
 runs:
   using: "composite"
@@ -71,6 +67,7 @@ runs:
       env:
         TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
         GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
+        COBALT_PATH: ${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}/${{ matrix.platform }}_qa
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
@@ -89,7 +86,6 @@ runs:
         GITHUB_WORKFLOW: ${{ github.workflow }}
         TEST_TYPE: ${{ inputs.test_type }}
         ARTIFACT_NAME: ${{ inputs.artifact_name }}
-        COBALT_PATH: ${{ inputs.cobalt_path }}
         PLATFORM: ${{ matrix.platform }}
         TEST_DEVICE_FAMILY: ${{ inputs.test_device_family }}
         TEST_DIMENSIONS: ${{ inputs.test_dimensions }}
@@ -98,8 +94,6 @@ runs:
         PYTHONPATH: "${GITHUB_WORKSPACE}:${PYTHONPATH:-}"
       run: |
         set -euxo pipefail
-
-        cobalt_path="${COBALT_PATH:-${PROJECT_NAME}-test-artifacts/${GITHUB_WORKFLOW}/${GITHUB_RUN_NUMBER}/${PLATFORM}/${PLATFORM}_qa}"
 
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token "${GITHUB_TOKEN}" \
@@ -126,24 +120,25 @@ runs:
           --label "branch:${GITHUB_REF_NAME}" \
           --label "target_branch:${GITHUB_BASE_REF}" \
           --dimensions "${TEST_DIMENSIONS}" \
-          --cobalt_path "${cobalt_path}" \
+          --cobalt_path "${COBALT_PATH}" \
           ${ARTIFACT_NAME:+--artifact_name "${ARTIFACT_NAME}"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
           --gcs_result_path "${GCS_RESULTS_PATH}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
+            # Fail the job so it's easy to retrigger.
             exit 1
           }
         echo "Finished running tests..."
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results from GCS
-      if: always() && inputs.test_type == 'unit_test'
+      if: always()
       env:
         TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
+        TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
         PLATFORM: ${{ matrix.platform }}
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
-        REQUIRED: ${{ inputs.required }}
       run: |
         set -uxe
         shopt -s globstar nullglob
@@ -156,15 +151,23 @@ runs:
         mkdir -p "${test_output}/${PLATFORM}/1"
         gsutil -m cp -r "${GCS_RESULTS_PATH%/}/*" "${test_output}/${PLATFORM}/" || true
 
-        # Check for missing result xml files.
+        # Check for missing test results.
         target_failed=0
-        readarray -t test_targets < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -r '.[] | if type == "object" then .target else . end')
+        readarray -t test_targets < <(echo "${TEST_TARGETS_JSON}" | jq -r '.[]')
         for test_target_with_path in "${test_targets[@]}"; do
           test_target=${test_target_with_path#*:}
           test_filter=$(python3 cobalt/devinfra/github/test_filter.py \
               --filter-dir "${FILTER_DIR}" \
               --target "${test_target}")
           if [ "${test_filter}" == "-*" ]; then
+            # Target was skipped.
+            continue
+          fi
+
+          target_config=$(jq -c --arg t "${test_target_with_path}" '.[] | select(.target == $t)' "${TEST_TARGETS_JSON_FILE}")
+          process_results=$(echo "${target_config}" | jq -r '.process_results // true')
+          if [[ "${process_results}" == "false" ]]; then
+            echo "Test result processing skipped for ${test_target}."
             continue
           fi
 
@@ -186,41 +189,29 @@ runs:
             xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
           fi
 
-          # If XML is still missing, attempt to generate crash report from logs.
+          # If test results are still missing, attempt to generate crash report from logs.
           if [[ "${#xml_files[@]}" -eq 0 ]]; then
-            echo "Test result xml is missing for ${test_target}."
+            echo "Test results are missing for ${test_target}."
             log_files=(
               "${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt
               "${test_output}/${PLATFORM}"/**/"${test_target}"*cobalt.log
             )
-            has_logs=0
             for log_file in "${log_files[@]}"; do
               if [ -f "${log_file}" ]; then
-                has_logs=1
                 python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
-                  "${log_file}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml" \
-                  --fallback-suite "${test_target}"
+                  "${log_file}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
                 break
               fi
             done
             xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
-
-            # If there are log files but still no xml, mark the whole suite as crashed.
-            if [[ "${#xml_files[@]}" -eq 0 && "${has_logs}" -eq 1 ]]; then
-              echo "Logs exist for ${test_target} but no XML produced. Marking whole suite as crashed."
-              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
-                "${log_file}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml" \
-                --fallback-suite "${test_target}"
-              xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
-            fi
           fi
 
-          target_required=$(echo "${TEST_TARGETS_JSON:-[]}" | jq -r --arg t "${test_target_with_path}" '.[] | select((if type == "object" then .target else . end) == $t) | if type == "object" and has("required") then .required else true end')
+          target_required=$(echo "${target_config}" | jq -r '.required // true')
           if [[ "${#xml_files[@]}" -eq 0 ]] || grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
-            if [[ "${target_required}" == "false" || "${REQUIRED:-true}" == "false" ]]; then
-              echo "Test result xml is missing or contains failures for non-required target ${test_target}; ignoring."
+            if [[ "${target_required}" == "false" ]]; then
+              echo "Test results are missing or contain failures for non-required target ${test_target}; ignoring."
             else
-              echo "::error::Test result xml is missing or contains failures for ${test_target}."
+              echo "::error::Test results are missing or contain failures for ${test_target}."
               target_failed=1
             fi
           fi
@@ -229,7 +220,7 @@ runs:
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
-      if: always() && inputs.test_type == 'unit_test'
+      if: always()
       with:
         name: ${{ inputs.test_results_key }}_${{ github.run_attempt }}
         path: ${{ env.test_output }}/*

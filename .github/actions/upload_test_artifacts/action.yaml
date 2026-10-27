@@ -163,15 +163,15 @@ runs:
         if [[ "${UPLOAD_E2E_TEST_ARTIFACTS}" == "true" || "${UPLOAD_CHROMEDRIVER_TEST_ARTIFACTS}" == "true" ]]; then
           mv ${GITHUB_WORKSPACE}/cobalt/src/out/test-package/* \
              ${GITHUB_WORKSPACE}/artifacts/
+        fi
 
-          # Upload cobalt.apk for smoke tests.
-          if [[ "${PLATFORM}" == *android* ]]; then
-            cp "${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/apks/Cobalt.apk" \
-               "${GITHUB_WORKSPACE}/artifacts/"
-          elif [[ "${PLATFORM}" == *aosp* ]]; then
-            cp "${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/apks/cobalt.apk" \
-               "${GITHUB_WORKSPACE}/artifacts/"
-          fi
+        # Upload cobalt.apk for smoke tests.
+        if [[ "${PLATFORM}" == *android* ]]; then
+          cp "${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/apks/Cobalt.apk" \
+             "${GITHUB_WORKSPACE}/artifacts/"
+        elif [[ "${PLATFORM}" == *aosp* ]]; then
+          cp "${GITHUB_WORKSPACE}/cobalt/src/out/${PLATFORM}_${CONFIG}/apks/cobalt.apk" \
+             "${GITHUB_WORKSPACE}/artifacts/"
         fi
 
         gcloud storage cp -r "${GITHUB_WORKSPACE}/artifacts/*" \

@@ -155,6 +155,10 @@ jobs:
           set -x
           test_package=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_package')
           echo "test_package=${test_package}" >> "${GITHUB_OUTPUT}"
+      # Consolidate internal test enablement flags (e2e, yts, yts_playback, yts_wpt, yts_finch)
+      # into a single step instead of multiple individual steps (Set YTS tests, etc.)
+      # to streamline workflow initialization and reduce startup latency. Test target lists
+      # are managed in each platform's test_targets.json rather than workflow configuration.
       - name: Set internal tests configuration
         id: set-internal-tests
         shell: bash
@@ -299,6 +303,9 @@ jobs:
             [[ "${TEST_ON_DEVICE}" == "true" && "${is_odt_enabled}" == "true" ]] && run_on_device_test="true"
 
             # Filter expected test targets for results processing and reporting.
+            # active_test_types is explicitly scoped to unit tests (gtest/junit on host and device)
+            # which produce JUnit XML parsed by the downstream test-results job. Internal tests
+            # (e2e, yts, etc.) are executed in their own dedicated workflow jobs.
             active_test_types=()
             [[ "${TEST_ON_HOST}" == "true" ]] && active_test_types+=(gtest:host junit:host)
             [[ "${run_on_device_test}" == "true" ]] && active_test_types+=(gtest:device junit:device)
