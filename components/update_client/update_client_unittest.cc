@@ -4985,7 +4985,7 @@ TEST_F(UpdateClientTest, OneCrxErrorUnknownApp) {
 
    protected:
 #if BUILDFLAG(IS_STARBOARD)
-    ~MockPingManager() override { EXPECT_EQ(4u, ping_data().size()); }
+    ~MockPingManager() override { EXPECT_EQ(1u, ping_data().size()); }
 #else
     ~MockPingManager() override { EXPECT_TRUE(ping_data().empty()); }
 #endif
