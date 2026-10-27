@@ -103,6 +103,7 @@ class PlatformWindowStarboard : public PlatformWindow,
     kInactive,
   };
 
+  void CreateSbWindow(bool notify_bounds_changed);
   void EnsureAcceleratedWidgetAvailable();
 
   SbWindow sb_window_ = kSbWindowInvalid;

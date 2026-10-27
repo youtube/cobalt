@@ -17,6 +17,8 @@
 // clang-format on
 
 #include "base/containers/contains.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_data_aura.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -69,11 +71,24 @@ void ShellPlatformDelegate::CreatePlatformWindow(
 void ShellPlatformDelegate::CreatePlatformWindowInternal(
     Shell* shell,
     const gfx::Size& initial_size) {
+#if BUILDFLAG(IS_STARBOARD)
+  if (!platform_->aura) {
+    // Use initial_size when provided, falling back to default_window_size.
+    platform_->aura = std::make_unique<ShellPlatformDataAura>(
+        !initial_size.IsEmpty() ? initial_size
+                                : platform_->default_window_size);
+  }
+  // Resize the Aura window to the actual native Starboard window bounds
+  // queried via SbWindowGetSize() rather than overwriting it with initial_size.
+  platform_->aura->ResizeWindow(
+      platform_->aura->host()->GetBoundsInPixels().size());
+#else
   if (!platform_->aura) {
     platform_->aura =
         std::make_unique<ShellPlatformDataAura>(platform_->default_window_size);
   }
   platform_->aura->ResizeWindow(initial_size);
+#endif
 
   ShellData& shell_data = shell_data_map_.at(shell);
   shell_data.window = platform_->aura->host()->window();
