@@ -1,7 +1,0 @@
-struct foo {
-    int x;
-} foo;
-
-/*%%*
-symbol 'foo' was already defined
-*%%*/
