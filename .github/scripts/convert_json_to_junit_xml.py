@@ -32,8 +32,8 @@ def _iter_test_cases(data):
   for iteration in data.get('per_iteration_data', []):
     for test_key, results in iteration.items():
       classname, method = (
-          test_key.split('#', 1)
-          if '#' in test_key else ('UnknownClass', test_key))
+          test_key.split('#', 1) if '#' in test_key else
+          ('UnknownClass', test_key))
       method = method.split('[')[0]
       for res in results:
         yield (
@@ -85,8 +85,8 @@ def convert(json_path, xml_path):
   total_errors = 0
   total_time = 0.0
 
-  for classname, method, status, elapsed_sec, output_snippet in _iter_test_cases(
-      data):
+  for (classname, method, status, elapsed_sec,
+       output_snippet) in _iter_test_cases(data):
     suites.setdefault(classname, []).append({
         'name': method,
         'status': status,
