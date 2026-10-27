@@ -25,6 +25,25 @@ namespace starboard {
 
 class VideoSurfaceHolder {
  public:
+  // Used by unit tests to verify how the video surface is handled. While an
+  // observer is set, CleanUpVideoSurface(), SetVideoSurfaceVisible(),
+  // ShowVideoSurfaceWithNextFrame() and ResetVideoSurface() are reported to it
+  // instead of being forwarded to the platform.
+  class TestObserver {
+   public:
+    virtual ~TestObserver() = default;
+    virtual void OnCleanUpVideoSurface() {}
+    virtual void OnSetVideoSurfaceVisible(bool visible) {}
+    virtual void OnShowVideoSurfaceWithNextFrame() {}
+    virtual void OnResetVideoSurface() {}
+  };
+
+  static void SetTestObserverForTesting(TestObserver* observer);
+
+  // Makes |holder| the current holder of the video surface, as if it had
+  // acquired the surface. Pass nullptr to clear it.
+  static void SetVideoSurfaceHolderForTesting(VideoSurfaceHolder* holder);
+
   // Return true only if the video surface is available.
   static bool IsVideoSurfaceAvailable();
 
@@ -44,8 +63,19 @@ class VideoSurfaceHolder {
   // Release the surface to make the surface available for other holder.
   void ReleaseVideoSurface();
 
+  // Returns true if the surface is held by a holder other than this one.
+  bool IsVideoSurfaceHeldByAnotherHolder() const;
+
   // Cleans up the video surface, and posts the task to |gpu_provider|.
   void CleanUpVideoSurface(SbDecodeTargetGraphicsContextProvider* gpu_provider);
+
+  // Sets the visibility of the video surface immediately via SurfaceControl.
+  void SetVideoSurfaceVisible(bool visible);
+
+  // Shows the video surface together with the next frame rendered to it via
+  // SurfaceView.applyTransactionToFrame(), falling back to showing it
+  // immediately if attaching to the next frame fails.
+  void ShowVideoSurfaceWithNextFrame();
 
   // Reset the video surface by re-creating video surface.
   void ResetVideoSurface();

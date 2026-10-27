@@ -26,6 +26,7 @@
 #include <list>
 
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_video_decoder_helpers.h"
 #include "starboard/android/shared/media_common.h"
@@ -58,10 +59,12 @@ using std::placeholders::_2;
 
 class VideoFrameImpl final : public VideoFrame {
  public:
+  typedef std::function<void()> VideoFrameDrawCallback;
   typedef std::function<void()> VideoFrameReleaseCallback;
 
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
                  MediaCodec* media_codec_bridge,
+                 const VideoFrameDrawCallback& draw_callback,
                  const VideoFrameReleaseCallback& release_callback)
       : VideoFrame(dequeue_output_result.flags &
                            MediaCodec::kBufferFlagEndOfStream
@@ -70,8 +73,10 @@ class VideoFrameImpl final : public VideoFrame {
         dequeue_output_result_(dequeue_output_result),
         media_codec_bridge_(media_codec_bridge),
         released_(false),
+        draw_callback_(draw_callback),
         release_callback_(release_callback) {
     SB_DCHECK(media_codec_bridge_);
+    SB_DCHECK(draw_callback_);
     SB_DCHECK(release_callback_);
   }
 
@@ -89,6 +94,7 @@ class VideoFrameImpl final : public VideoFrame {
     SB_DCHECK(!released_);
     SB_DCHECK(!is_end_of_stream());
     released_ = true;
+    draw_callback_();
     media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
         dequeue_output_result_.index, release_time_in_nanoseconds);
     release_callback_();
@@ -98,6 +104,7 @@ class VideoFrameImpl final : public VideoFrame {
   DequeueOutputResult dequeue_output_result_;
   MediaCodec* media_codec_bridge_;
   volatile bool released_;
+  const VideoFrameDrawCallback draw_callback_;
   const VideoFrameReleaseCallback release_callback_;
 };
 
@@ -161,6 +168,16 @@ bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
                                       const Size& max_video_size) {
   return frame_size.width > max_video_size.width ||
          frame_size.height > max_video_size.height;
+}
+
+bool ShouldApplyTransactionToFrameOnSurfaceCleanup() {
+#if !BUILDFLAG(IS_STARBOARD)
+  return android_get_device_api_level() >= 34 &&
+         features::FeatureList::IsEnabled(
+             features::kApplyTransactionToFrameOnSurfaceCleanup);
+#else
+  return false;
+#endif
 }
 
 }  // namespace
@@ -348,6 +365,17 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               kMediaEnableCodecThreadImprovements)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
+      // Reusing a codec relies on hiding the video surface on teardown and
+      // showing it together with the first frame of the next playback, see
+      // |apply_transaction_to_frame_on_surface_cleanup_|.
+      enable_reuse_video_codec_(
+          output_mode_ == kSbPlayerOutputModePunchOut &&
+          android_get_device_api_level() >= 34 &&
+          pipeline_config.experimental_features.GetBool(kMediaReuseVideoCodec)),
+      apply_transaction_to_frame_on_surface_cleanup_(
+          output_mode_ == kSbPlayerOutputModePunchOut &&
+          (enable_reuse_video_codec_ ||
+           ShouldApplyTransactionToFrameOnSurfaceCleanup())),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -413,16 +441,22 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << ", is_video_frame_tracker_enabled="
                << ToString(is_video_frame_tracker_enabled_)
                << ", ignore_stale_rendered_frames_after_seek="
-               << ToString(ignore_stale_rendered_frames_after_seek_);
+               << ToString(ignore_stale_rendered_frames_after_seek_)
+               << ", apply_transaction_to_frame_on_surface_cleanup="
+               << ToString(apply_transaction_to_frame_on_surface_cleanup_)
+               << ", enable_reuse_video_codec="
+               << ToString(enable_reuse_video_codec_);
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
+  MaybeHideVideoSurfaceOnTeardown();
   TeardownCodec();
   // The video surface must be reset after tunnel mode playbacks. This prevents
   // video distortion on some platforms. For details, see http://b/182610842.
   if (tunnel_mode_audio_session_id_.has_value()) {
     ResetVideoSurface();
-  } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
+  } else if (output_mode_ == kSbPlayerOutputModePunchOut &&
+             !apply_transaction_to_frame_on_surface_cleanup_) {
     CleanUpVideoSurface(decode_target_graphics_context_provider_);
   }
 }
@@ -647,6 +681,7 @@ void MediaCodecVideoDecoder::Reset() {
 }
 
 void MediaCodecVideoDecoder::ResetForTeardown() {
+  MaybeHideVideoSurfaceOnTeardown();
   ResetInternal(skip_flush_on_decoder_teardown_);
 }
 
@@ -893,8 +928,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
           .skip_video_frames_over_60_fps = skip_video_frames_over_60_fps_,
           .enable_ndk_video = enable_ndk_video_,
           .enable_trivial_optimizations = enable_trivial_optimizations_,
-          .enable_codec_thread_improvements =
-              enable_codec_thread_improvements_});
+          .enable_codec_thread_improvements = enable_codec_thread_improvements_,
+          .enable_reuse_video_codec = enable_reuse_video_codec_});
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {
@@ -1038,6 +1073,7 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
       need_more_input ? kNeedMoreInput : kBufferFull,
       make_scoped_refptr<VideoFrameImpl>(
           dequeue_output_result, media_codec_bridge,
+          std::bind(&MediaCodecVideoDecoder::OnVideoFrameDraw, this),
           std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
 }
 
@@ -1150,6 +1186,11 @@ void MediaCodecVideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
 
 void MediaCodecVideoDecoder::OnFirstTunnelFrameReady() {
   SB_DCHECK(tunnel_mode_audio_session_id_);
+  if (apply_transaction_to_frame_on_surface_cleanup_) {
+    // A previous non-tunnel playback may have hidden the surface. The codec
+    // renders tunnel mode frames itself, so show the surface right away.
+    SetVideoSurfaceVisible(true);
+  }
 
   tunnel_mode_first_frame_rendered_.store(true);
   TryToSignalPrerollForTunnelMode();
@@ -1179,11 +1220,57 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
            kNeedMoreInputCheckIntervalInTunnelMode);
 }
 
+void MediaCodecVideoDecoder::OnVideoFrameDraw() {
+  // Check the const flag first to avoid an atomic exchange on every frame when
+  // the feature is disabled.
+  if (!apply_transaction_to_frame_on_surface_cleanup_ ||
+      has_drawn_first_frame_.exchange(true)) {
+    return;
+  }
+  ShowVideoSurfaceWithNextFrame();
+}
+
 void MediaCodecVideoDecoder::OnVideoFrameRelease() {
   if (output_format_) {
     --buffered_output_frames_;
     SB_DCHECK_GE(buffered_output_frames_, 0);
   }
+}
+
+void MediaCodecVideoDecoder::MaybeHideVideoSurfaceOnTeardown() {
+  SB_CHECK(BelongsToCurrentThread());
+  if (!apply_transaction_to_frame_on_surface_cleanup_ ||
+      tunnel_mode_audio_session_id_.has_value() ||
+      has_hidden_video_surface_on_teardown_) {
+    return;
+  }
+
+  // |owns_video_surface_| is cleared in OnSurfaceDestroyed(), so the surface is
+  // alive while it is set, even if it was acquired after a previous surface was
+  // destroyed.
+  bool should_hide_surface = owns_video_surface_;
+  if (!should_hide_surface && has_drawn_first_frame_.load()) {
+    // The decoder released the surface after rendering to it, e.g. on a seek
+    // with |enable_flush_during_seek_| disabled, so its last frame may still be
+    // displayed. Hide it, unless the surface has been destroyed since, or has
+    // been acquired by another decoder that may be rendering to it already.
+    // Note that |surface_destroy_mutex_| must not be held while acquiring the
+    // video surface mutex, see JNI_VideoSurfaceView_OnVideoSurfaceChanged().
+    {
+      std::lock_guard lock(surface_destroy_mutex_);
+      should_hide_surface = !surface_destroyed_;
+    }
+    should_hide_surface =
+        should_hide_surface && !IsVideoSurfaceHeldByAnotherHolder();
+  }
+  if (!should_hide_surface) {
+    return;
+  }
+
+  has_hidden_video_surface_on_teardown_ = true;
+  // Don't show the surface again if a frame is drawn after this.
+  has_drawn_first_frame_.store(true);
+  SetVideoSurfaceVisible(false);
 }
 
 void MediaCodecVideoDecoder::OnSurfaceDestroyed() {

@@ -88,6 +88,7 @@ class FakeMediaCodec : public MediaCodec {
                                int offset,
                                int64_t pts,
                                int size);
+  void SimulateFirstTunnelFrameReady();
   bool WaitForInputQueue(size_t num_packets, int timeout_ms);
   bool WaitForOutputReleased(size_t num_packets, int timeout_ms);
 
@@ -141,6 +142,11 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
     std::lock_guard lock(mutex_);
     return last_video_color_metadata_;
   }
+  std::optional<MediaCodec::VideoPlatformOptions> last_video_platform_options()
+      const {
+    std::lock_guard lock(mutex_);
+    return last_video_platform_options_;
+  }
 
  private:
   std::atomic<FakeMediaCodec*> last_created_audio_codec_{nullptr};
@@ -149,6 +155,8 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
   mutable std::mutex mutex_;
   std::optional<SbMediaColorMetadata>
       last_video_color_metadata_;  // Guarded by |mutex_|.
+  std::optional<MediaCodec::VideoPlatformOptions>
+      last_video_platform_options_;  // Guarded by |mutex_|.
 };
 
 }  // namespace starboard

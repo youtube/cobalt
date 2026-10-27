@@ -255,7 +255,8 @@ MediaCodecDecoder::MediaCodecDecoder(
       {max_video_input_size, experimental_options.skip_video_frames_over_60_fps,
        enable_frame_renderer_listener, require_secured_decoder,
        require_software_codec, tunnel_mode_audio_session_id,
-       experimental_options.enable_ndk_video});
+       experimental_options.enable_ndk_video,
+       experimental_options.enable_reuse_video_codec});
 
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());

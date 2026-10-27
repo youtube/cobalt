@@ -120,6 +120,10 @@ class MediaCodecBridge {
   private final MediaCodec.OnFrameRenderedListener mFrameRendererListener;
   private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
 
+  private final MediaCodecCache.CodecConfig mConfig;
+  private final boolean mEnableReuseVideoCodec;
+  private volatile boolean mHasEncounteredError = false;
+
   private boolean shouldSkipVideoFrame(long presentationTimeUs, boolean isDecodeOnly) {
     final double kMaxAcceptedOperatingRate = 60.0;
     if (isDecodeOnly) {
@@ -269,24 +273,24 @@ class MediaCodecBridge {
     }
   }
 
-  private static class CreateMediaCodecBridgeResult {
-    private MediaCodecBridge mMediaCodecBridge;
+  static class CreateMediaCodecBridgeResult {
+    MediaCodecBridge mMediaCodecBridge;
     // Contains the error message when mMediaCodecBridge is null.
-    private String mErrorMessage;
+    String mErrorMessage;
 
     @CalledByNative("CreateMediaCodecBridgeResult")
-    private CreateMediaCodecBridgeResult() {
+    CreateMediaCodecBridgeResult() {
       mMediaCodecBridge = null;
       mErrorMessage = "";
     }
 
     @CalledByNative("CreateMediaCodecBridgeResult")
-    private MediaCodecBridge mediaCodecBridge() {
+    MediaCodecBridge mediaCodecBridge() {
       return mMediaCodecBridge;
     }
 
     @CalledByNative("CreateMediaCodecBridgeResult")
-    private String errorMessage() {
+    String errorMessage() {
       return mErrorMessage;
     }
   }
@@ -297,6 +301,24 @@ class MediaCodecBridge {
       String codecName,
       int tunnelModeAudioSessionId,
       boolean enableFrameRendererListener) {
+    this(
+        nativeMediaCodecBridge,
+        mediaCodec,
+        codecName,
+        tunnelModeAudioSessionId,
+        enableFrameRendererListener,
+        /* config= */ null,
+        /* enableReuseVideoCodec= */ false);
+  }
+
+  public MediaCodecBridge(
+      long nativeMediaCodecBridge,
+      MediaCodec mediaCodec,
+      String codecName,
+      int tunnelModeAudioSessionId,
+      boolean enableFrameRendererListener,
+      MediaCodecCache.CodecConfig config,
+      boolean enableReuseVideoCodec) {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
     }
@@ -305,10 +327,13 @@ class MediaCodecBridge {
     mCodecName = codecName != null ? codecName : "unknown";
     mIsTunnelingPlayback = tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE;
     mEnableFrameRendererListener = enableFrameRendererListener;
+    mConfig = config;
+    mEnableReuseVideoCodec = enableReuseVideoCodec;
     mCallback =
         new MediaCodec.Callback() {
           @Override
           public void onError(MediaCodec codec, MediaCodec.CodecException e) {
+            mHasEncounteredError = true;
             synchronized (mNativeBridgeLock) {
               if (mNativeMediaCodecBridge == 0) {
                 return;
@@ -429,9 +454,34 @@ class MediaCodecBridge {
       int maxVideoInputSize,
       boolean enableFrameRendererListener,
       boolean skipVideoFramesOver60Fps,
+      boolean enableReuseVideoCodec,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
+
+    if (enableReuseVideoCodec) {
+      MediaCodecBridge reusedBridge =
+          MediaCodecCache.acquire(
+              nativeMediaCodecBridge,
+              mime,
+              decoderName,
+              widthHint,
+              heightHint,
+              fps,
+              maxWidth,
+              maxHeight,
+              surface,
+              crypto,
+              colorInfo != null,
+              tunnelModeAudioSessionId,
+              skipVideoFramesOver60Fps);
+      if (reusedBridge != null) {
+        outCreateMediaCodecBridgeResult.mMediaCodecBridge = reusedBridge;
+        return;
+      }
+    } else {
+      MediaCodecCache.discard();
+    }
 
     if (decoderName.equals("")) {
       String message = "Invalid decoder name.";
@@ -477,15 +527,6 @@ class MediaCodecBridge {
       return;
     }
 
-    MediaCodecBridge bridge =
-        new MediaCodecBridge(
-            nativeMediaCodecBridge,
-            mediaCodec,
-            decoderName,
-            tunnelModeAudioSessionId,
-            enableFrameRendererListener);
-    bridge.mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
-    MediaCodecOutputTracker.get().register(bridge);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
 
@@ -623,16 +664,42 @@ class MediaCodecBridge {
         Log.e(TAG, "MediaFormat.getInteger(KEY_MAX_INPUT_SIZE) failed with exception: ", e);
       }
     }
+
+    MediaCodecCache.CodecConfig config =
+        new MediaCodecCache.CodecConfig(
+            mime,
+            decoderName,
+            surface,
+            widthHint,
+            heightHint,
+            maxWidth,
+            maxHeight,
+            tunnelModeAudioSessionId != TunnelModeAudioSessionId.NONE,
+            crypto != null,
+            (colorInfo != null) || shouldConfigureHdr);
+
+    MediaCodecBridge bridge =
+        new MediaCodecBridge(
+            nativeMediaCodecBridge,
+            mediaCodec,
+            decoderName,
+            tunnelModeAudioSessionId,
+            enableFrameRendererListener,
+            config,
+            enableReuseVideoCodec);
+    bridge.mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
+    MediaCodecOutputTracker.get().register(bridge);
+
     if (!bridge.configureVideo(
         mediaFormat, surface, crypto, 0, maxWidth, maxHeight, outCreateMediaCodecBridgeResult)) {
       Log.e(TAG, "Failed to configure video codec.");
-      bridge.release();
+      bridge.doRelease();
       // outCreateMediaCodecBridgeResult.mErrorMessage is set inside configureVideo() on error.
       return;
     }
     if (!bridge.start(outCreateMediaCodecBridgeResult)) {
       Log.e(TAG, "Failed to start video codec.");
-      bridge.release();
+      bridge.doRelease();
       // outCreateMediaCodecBridgeResult.mErrorMessage is set inside start() on error.
       return;
     }
@@ -719,7 +786,7 @@ class MediaCodecBridge {
   }
 
   @CalledByNative
-  private int flush() {
+  int flush() {
     // When a flush is initiated on the player thread, there could still be pending
     // callbacks (e.g. onOutputBufferAvailable) already posted to the main thread's
     // looper queue from before the flush.
@@ -753,8 +820,66 @@ class MediaCodecBridge {
     return MediaCodecStatus.OK;
   }
 
+  void prepareForReuse(long nativeMediaCodecBridge, boolean skipVideoFramesOver60Fps, int fps) {
+    synchronized (mNativeBridgeLock) {
+      mNativeMediaCodecBridge = nativeMediaCodecBridge;
+    }
+    mSkipVideoFramesOver60Fps = skipVideoFramesOver60Fps;
+    mPlaybackRate = 1.0;
+    mFps = fps > 0 ? fps : 30;
+    mOperatingRate = -1.0;
+    updateOperatingRate();
+    mHasEncounteredError = false;
+    mFrameRateEstimator = MediaCodecFrameRateEstimator.create(mIsTunnelingPlayback);
+
+    if (mEnableFrameRendererListener && mFrameRendererListener != null) {
+      mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, mMainHandler);
+    }
+  }
+
+  void startMediaCodec() {
+    // For a fresh MediaCodec, onOutputFormatChanged is always called before the first frame is
+    // decoded. When reusing a flushed MediaCodec, manually notify onMediaCodecOutputFormatChanged
+    // to ensure the format is refreshed before the first output buffer arrives.
+    synchronized (mNativeBridgeLock) {
+      if (mNativeMediaCodecBridge != 0) {
+        MediaCodecBridgeJni.get().onMediaCodecOutputFormatChanged(mNativeMediaCodecBridge);
+      }
+    }
+    mMediaCodec.get().start();
+  }
+
+  void detachNativeBridge() {
+    synchronized (mNativeBridgeLock) {
+      mNativeMediaCodecBridge = 0;
+    }
+  }
+
+  boolean isReuseEnabled() {
+    return mEnableReuseVideoCodec;
+  }
+
+  MediaCodecCache.CodecConfig getConfig() {
+    return mConfig;
+  }
+
+  String getCodecName() {
+    return mCodecName;
+  }
+
+  boolean hasEncounteredError() {
+    return mHasEncounteredError;
+  }
+
   @CalledByNative
   public void release() {
+    if (MediaCodecCache.maybeCacheOnRelease(this)) {
+      return;
+    }
+    doRelease();
+  }
+
+  public void doRelease() {
     try {
       MediaCodecOutputTracker.get().unregister(this);
       synchronized (mNativeBridgeLock) {
@@ -789,7 +914,7 @@ class MediaCodecBridge {
       // Catch Throwable (both Exception and Error) to prevent JNI crashes if the JVM
       // throws linkage errors (e.g., NoClassDefFoundError) during ClassLoader unloading
       // in teardown. See b/455621481.
-      Log.e(TAG, "Exception or Error during MediaCodecBridge release(): codec=" + mCodecName, t);
+      Log.e(TAG, "Exception or Error during MediaCodecBridge doRelease(): codec=" + mCodecName, t);
     }
   }
 
