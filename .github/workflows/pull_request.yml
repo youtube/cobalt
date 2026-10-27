@@ -75,135 +75,226 @@ jobs:
             gh api -X POST "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="${body}" --silent
           fi
 
-  generate_commit_message:
-    name: Generate Commit Message
+  pull_request_review:
+    name: 'Pull Request Review & Commit Message'
     needs: [ci-shepherd-anchor]
-    # Run condition: PR open/reopen OR comment '/generate-commit-message' on a PR
     if: >
       always() && !cancelled() && (
         (github.event_name == 'pull_request_target' && (github.event.action == 'opened' || github.event.action == 'reopened')) ||
-        (github.event_name == 'issue_comment' && github.event.issue.pull_request && startsWith(github.event.comment.body, '/generate-commit-message'))
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request && (
+          startsWith(github.event.comment.body, '/generate-commit-message') ||
+          startsWith(github.event.comment.body, '/owner-review')
+        ))
       )
-
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
-      issues: write
-      pull-requests: write
+    outputs:
+      has_comment: ${{ steps.format_comment.outputs.has_comment }}
+      pr_number: ${{ steps.format_comment.outputs.pr_number }}
+      comment_body: ${{ steps.format_comment.outputs.comment_body }}
 
     steps:
-      - name: 'Checkout prompt'
+      - name: 'Check Trigger'
+        id: trigger
+        env:
+          EVENT: ${{ github.event_name }}
+          COMMENT: ${{ github.event.comment.body }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}${{ github.event.issue.user.login }}
+        run: |
+          [[ "${AUTHOR}" =~ -bot$ ]] && exit 0
+          [[ "${EVENT}" == "pull_request_target" || "${COMMENT}" == "/generate-commit-message"* ]] && echo "commit_msg=true" >> "${GITHUB_OUTPUT}"
+          [[ "${EVENT}" == "pull_request_target" || "${COMMENT}" == "/owner-review"* ]] && echo "owner_rev=true" >> "${GITHUB_OUTPUT}"
+
+      - name: 'Checkout prompts'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          fetch-depth: 1
-          filter: blob:none
           sparse-checkout: |
-            .agent/commit_message_prompt.md
+            .agent
+            .github
           sparse-checkout-cone-mode: false
 
-      # --- Step 1: Get PR Diff ---
       - name: 'Get PR Diff'
-        id: diff
         env:
-          PR_URL_1: ${{ github.event.pull_request.url }}
-          PR_URL_2: ${{ github.event.issue.pull_request.url }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          URL: ${{ github.event.pull_request.url }}${{ github.event.issue.pull_request.url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
-          # Logic: Concatenate both URLs. Since events are exclusive, one will be empty.
-          # PR Event URL + Issue Comment URL
-          PR_API_URL="${PR_URL_1}${PR_URL_2}"
-          DIFF_FILE="${RUNNER_TEMP}/pr_diff.txt"
-          echo "DIFF_FILE=${DIFF_FILE}" >> "${GITHUB_ENV}"
+          mkdir -p "${RUNNER_TEMP}"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github.v3.diff" "${URL}" > "${RUNNER_TEMP}/pr.diff"
 
-          curl -fsSL -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3.diff" "${PR_API_URL}" > "${DIFF_FILE}"
-
-          # If the diff exceeds 64 KB, omit it.
-          if [ $(wc -c < "${DIFF_FILE}") -gt 65536 ]; then
-            echo "[Diff omitted: exceeds size limit]" > "${DIFF_FILE}"
-          fi
-
-      # --- Step 2: Call Gemini API ---
-      - name: 'Generate Commit Message with Gemini'
-        id: gemini
-        # Security: Load untrusted data into ENV variables safely.
-        # We use concatenation ${{ A }}${{ B }} instead of || to avoid parser errors.
+      - name: 'Prepare Commit Prompt'
+        id: commit_prompt
+        if: steps.trigger.outputs.commit_msg == 'true'
         env:
-          PR_URL: ${{ github.event.pull_request.html_url }}${{ github.event.issue.html_url }}
-          PR_TITLE: ${{ github.event.pull_request.title }}${{ github.event.issue.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}${{ github.event.issue.body }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
-          GEMINI_SECRET: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
+          TITLE: ${{ github.event.pull_request.title }}${{ github.event.issue.title }}
+          BODY: ${{ github.event.pull_request.body }}${{ github.event.issue.body }}
         run: |
-          set -euo pipefail
-          # Extract additional instructions from the comment body if present.
-          COMMENT="${COMMENT_BODY:-}"
-          COMMENT="${COMMENT#* }"
-          if [ "${COMMENT}" = "/generate-commit-message" ]; then
-            COMMENT=""
-          fi
-
-          # Use jq to safely combine the instructions with the variables.
-          json_payload=$(jq -n \
-            --rawfile instr .agent/commit_message_prompt.md \
-            --arg comment "<user_instructions>${COMMENT}</user_instructions>" \
-            --arg url "<pull_request_url>${PR_URL}</pull_request_url>" \
-            --arg title "<pull_request_title>${PR_TITLE}</pull_request_title>" \
-            --arg body "<pull_request_description>${PR_BODY}</pull_request_description>" \
-            --rawfile diff "${DIFF_FILE}" \
-            '($instr + "\n\n**Additional instructions:**\n" + $comment + "\n\n**Pull Request URL:**\n" + $url + "\n\n**Pull Request Title:**\n" + $title + "\n\n**Original PR Description:**\n" + $body + "\n\n**Code Diff to Analyze:**\n<code_diff>\n" + $diff + "</code_diff>") as $full_text |
-            {
-              contents: [{
-                parts: [{
-                  text: $full_text
-                }]
-              }]
-            }')
-
-          api_response=$(curl -s -X POST \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent" \
-            -H "Content-Type: application/json" \
-            -H "x-goog-api-key: ${GEMINI_SECRET}" \
-            -d "${json_payload}")
-
-          gemini_text_response=$(echo "${api_response}" | jq -r '.candidates[0].content.parts[0].text // "Error: Could not parse a valid response from the Gemini API. Please check the API response logs in the workflow run."')
-
-          DELIMITER=$(openssl rand -hex 16)
+          prompt_file="${RUNNER_TEMP}/commit_prompt.txt"
           {
-            echo "response<<${DELIMITER}"
-            echo "${gemini_text_response}"
-            echo "${DELIMITER}"
+            cat .agent/commit_message_prompt.md
+            echo ""
+            echo "**PR Title:** ${TITLE}"
+            echo "**PR Description:** ${BODY}"
+            echo ""
+            echo "<code_diff>"
+            cat "${RUNNER_TEMP}/pr.diff"
+            echo "</code_diff>"
+          } > "${prompt_file}"
+          {
+            echo "prompt<<EOF"
+            cat "${prompt_file}"
+            echo "EOF"
           } >> "${GITHUB_OUTPUT}"
 
-      # --- Step 3: Post Comment ---
-      - name: 'Post Commit Message as Comment'
+      - name: 'Generate Commit Message'
+        id: gemini_commit
+        if: steps.trigger.outputs.commit_msg == 'true'
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
+          gemini_model: 'gemini-3.8-flash'
+          instruction: ${{ steps.commit_prompt.outputs.prompt }}
+
+      - name: 'Resolve Reviewers & Prompt'
+        id: resolve_review
+        if: steps.trigger.outputs.owner_rev == 'true'
+        run: |
+          prompt_file="${RUNNER_TEMP}/review_prompt.txt"
+          reviewer_paths=$(python3 .github/scripts/resolve_codeowners.py "${RUNNER_TEMP}/pr.diff")
+          if [ -n "${reviewer_paths}" ]; then
+            echo "has_reviewers=true" >> "${GITHUB_OUTPUT}"
+            echo "reviewer_paths=${reviewer_paths}" >> "${GITHUB_OUTPUT}"
+            {
+              echo "Review the PR diff below as the lead reviewer."
+              echo "Run each matching reviewer persona as a subagent using its prompt file:"
+              for rpath in ${reviewer_paths}; do
+                echo "---"
+                echo "Reviewer prompt (${rpath}):"
+                cat "${rpath}"
+                echo ""
+              done
+              echo "---"
+              echo "Produce comments on lines with change suggestions integrated in \`\`\`suggestion blocks."
+              echo "Return output in JSON format with fields:"
+              echo '{"summary": "overall review summary", "comments": [{"path": "file/path", "line": 12, "body": "comment with ```suggestion\nreplacement\n```"}]}'
+              echo ""
+              echo "<code_diff>"
+              cat "${RUNNER_TEMP}/pr.diff"
+              echo "</code_diff>"
+            } > "${prompt_file}"
+            {
+              echo "prompt<<EOF"
+              cat "${prompt_file}"
+              echo "EOF"
+            } >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: 'Review with Gemini CLI'
+        id: gemini_review
+        if: steps.trigger.outputs.owner_rev == 'true' && steps.resolve_review.outputs.has_reviewers == 'true'
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
+          gemini_model: 'gemini-3.8-flash'
+          instruction: ${{ steps.resolve_review.outputs.prompt }}
+
+      - name: 'Format Comment'
+        id: format_comment
+        env:
+          COMMIT_MSG: ${{ steps.gemini_commit.outputs.summary || '' }}
+          OWNER_REV: ${{ steps.gemini_review.outputs.summary || '' }}
+          PR_NUM: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          out_file="${RUNNER_TEMP}/comment.md"
+          json_file="${RUNNER_TEMP}/comments.json"
+          echo "[]" > "${json_file}"
+          rm -f "${out_file}"
+          touch "${out_file}"
+
+          if [ -n "${COMMIT_MSG}" ]; then
+            echo "### 🤖 Gemini Suggested Commit Message" >> "${out_file}"
+            echo "" >> "${out_file}"
+            echo '```' >> "${out_file}"
+            echo "${COMMIT_MSG}" >> "${out_file}"
+            echo '```' >> "${out_file}"
+            echo "" >> "${out_file}"
+          fi
+
+          if [ -n "${OWNER_REV}" ]; then
+            [ -s "${out_file}" ] && echo "---" >> "${out_file}" && echo "" >> "${out_file}"
+            echo "### 🛡️ CODEOWNERS Critic Review" >> "${out_file}"
+            echo "" >> "${out_file}"
+
+            if printf '%s\n' "${OWNER_REV}" | jq -e 'type == "object" and (.summary | type == "string") and (.comments | type == "array")' >/dev/null 2>&1; then
+              printf '%s\n\n' "$(printf '%s\n' "${OWNER_REV}" | jq -r .summary)" >> "${out_file}"
+              printf '%s\n' "${OWNER_REV}" | jq -c .comments > "${json_file}"
+            else
+              echo "[]" > "${json_file}"
+              echo "Automated code review could not be generated for this change." >> "${out_file}"
+              echo "" >> "${out_file}"
+            fi
+          fi
+
+          if [ -s "${out_file}" ]; then
+            echo "> **💡 Triggering reviews & commit messages:**" >> "${out_file}"
+            echo "> - Comment \`/generate-commit-message\` to regenerate commit message." >> "${out_file}"
+            echo "> - Comment \`/owner-review\` to trigger CODEOWNERS review." >> "${out_file}"
+            echo "has_comment=true" >> "${GITHUB_OUTPUT}"
+            echo "pr_number=${PR_NUM}" >> "${GITHUB_OUTPUT}"
+            {
+              echo "comment_body<<EOF"
+              cat "${out_file}"
+              echo "EOF"
+            } >> "${GITHUB_OUTPUT}"
+            {
+              echo "review_comments<<EOF"
+              cat "${json_file}"
+              echo "EOF"
+            } >> "${GITHUB_OUTPUT}"
+          fi
+
+  post_review_comment:
+    name: 'Post Review Comment'
+    needs: [pull_request_review]
+    if: needs.pull_request_review.outputs.has_comment == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: 'Post Comment'
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
-          COMMENT_BODY: |
-            ### 🤖 Gemini Suggested Commit Message
-
-            ---
-
-            ```
-            ${{ steps.gemini.outputs.response }}
-            ```
-
-            ---
-
-            **💡 Pro Tips for a Better Commit Message:**
-
-            1.  **Influence the Result:** Want to change the output? You can write **custom prompts or instructions** directly in the **Pull Request description**. The model uses that text to generate the message.
-            2.  **Re-run the Generator:** Post a comment with: `/generate-commit-message`
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PR_NUMBER: ${{ needs.pull_request_review.outputs.pr_number }}
+          COMMENT_BODY: ${{ needs.pull_request_review.outputs.comment_body }}
+          REVIEW_COMMENTS: ${{ needs.pull_request_review.outputs.review_comments }}
         with:
           script: |
+            const prNumber = Number(process.env.PR_NUMBER);
             const body = process.env.COMMENT_BODY;
-            const issueNumber = Number(process.env.PR_NUMBER || process.env.ISSUE_NUMBER || context.issue.number);
-            github.rest.issues.createComment({
+            let comments = [];
+            try {
+              comments = JSON.parse(process.env.REVIEW_COMMENTS || '[]');
+            } catch (_) {}
+
+            if (comments.length > 0) {
+              try {
+                await github.rest.pulls.createReview({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber,
+                  body: body,
+                  event: 'COMMENT',
+                  comments: comments
+                });
+                return;
+              } catch (err) {
+                console.log('Failed to post inline review, falling back to top-level comment:', err.message);
+              }
+            }
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: issueNumber,
+              issue_number: prNumber,
               body: body
             });
