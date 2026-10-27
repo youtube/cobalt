@@ -25,7 +25,6 @@
 #include "base/notimplemented.h"
 #include "base/path_service.h"
 #include "base/process/process_handle.h"
-#include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/sequence_bound.h"
@@ -160,42 +159,54 @@ void CobaltMetricsServiceClient::Initialize() {
   metrics_service_ = CreateMetricsServiceInternal(metrics_state_manager_.get(),
                                                   this, local_state_.get());
 
-  // Register FileMetricsProvider for persistent stability metrics (.pma files)
-  base::FilePath base_dir;
-  bool path_ok = false;
+  // When kCobaltStabilityMetricsDeduplication is enabled, prior-session
+  // BrowserStabilityMetrics .pma files are merged into StatisticsRecorder and
+  // deleted at startup by ClearOtherStabilityMetricsPmaFiles() in
+  // CobaltBrowserMainParts, so FileMetricsProvider is skipped to avoid
+  // duplicate reads. Only register FileMetricsProvider when the feature is
+  // disabled (default / A/B control).
+  if (!base::FeatureList::IsEnabled(
+          features::kCobaltStabilityMetricsDeduplication)) {
+    base::FilePath base_dir;
+    bool path_ok = false;
 #if BUILDFLAG(IS_ANDROID)
-  path_ok = base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir);
+    path_ok = base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir);
 #else
-  path_ok = base::PathService::Get(content::SHELL_DIR_USER_DATA, &base_dir);
-  if (!path_ok) {
-    const auto* command_line = base::CommandLine::ForCurrentProcess();
-    if (command_line->HasSwitch("user-data-dir")) {
-      base_dir = command_line->GetSwitchValuePath("user-data-dir");
-      path_ok = !base_dir.empty();
+    path_ok = base::PathService::Get(content::SHELL_DIR_USER_DATA, &base_dir);
+    if (!path_ok) {
+      const auto* command_line = base::CommandLine::ForCurrentProcess();
+      if (command_line->HasSwitch("user-data-dir")) {
+        base_dir = command_line->GetSwitchValuePath("user-data-dir");
+        path_ok = !base_dir.empty();
+      }
     }
-  }
-  if (!path_ok) {
-    path_ok = base::PathService::Get(base::DIR_TEMP, &base_dir);
-  }
+    if (!path_ok) {
+      path_ok = base::PathService::Get(base::DIR_TEMP, &base_dir);
+    }
 #endif
-  if (path_ok) {
-    base::FilePath metrics_dir =
-        base_dir.AppendASCII("BrowserStabilityMetrics");
+    if (path_ok) {
+      base::FilePath metrics_dir =
+          base_dir.AppendASCII("BrowserStabilityMetrics");
 
-    auto file_metrics_provider = std::make_unique<metrics::FileMetricsProvider>(
-        local_state_.get(), false);
-    metrics::FileMetricsProvider::Params params(
-        metrics_dir, metrics::FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
-        metrics::FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE,
-        "BrowserStabilityMetrics");
-    params.filter = base::BindRepeating(&FilterBrowserMetricsFiles);
-    params.max_dir_kib = 10 * 1024;
-    file_metrics_provider->RegisterSource(params,
-                                          /*metrics_reporting_enabled=*/true);
-    metrics_service_->RegisterMetricsProvider(std::move(file_metrics_provider));
-  } else {
-    LOG(WARNING) << "Failed to get base directory for BrowserStabilityMetrics, "
-                 << "skipping FileMetricsProvider registration.";
+      auto file_metrics_provider =
+          std::make_unique<metrics::FileMetricsProvider>(local_state_.get(),
+                                                         false);
+      metrics::FileMetricsProvider::Params params(
+          metrics_dir,
+          metrics::FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
+          metrics::FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE,
+          "BrowserStabilityMetrics");
+      params.filter = base::BindRepeating(&FilterBrowserMetricsFiles);
+      params.max_dir_kib = 10 * 1024;
+      file_metrics_provider->RegisterSource(params,
+                                            /*metrics_reporting_enabled=*/true);
+      metrics_service_->RegisterMetricsProvider(
+          std::move(file_metrics_provider));
+    } else {
+      LOG(WARNING)
+          << "Failed to get base directory for BrowserStabilityMetrics, "
+          << "skipping FileMetricsProvider registration.";
+    }
   }
 
   log_uploader_ = CreateLogUploaderInternal();

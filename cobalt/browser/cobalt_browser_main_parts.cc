@@ -34,6 +34,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "cobalt/browser/constants/cobalt_pref_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
@@ -51,6 +52,7 @@
 #include "components/metrics/persistent_histograms.h"
 #include "components/metrics/persistent_system_profile.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/resource_coordinator_service.h"
 #include "content/public/common/result_codes.h"
@@ -264,13 +266,17 @@ void LogStabilityMetricsCapacity(const char* stage_label) {
 }
 
 #if BUILDFLAG(IS_ANDROID)
-void RecordPriorSessionExitReasons() {
+int64_t RecordPriorSessionExitReasons(bool deduplication_enabled,
+                                      int64_t last_logged_timestamp_ms) {
   if (base::android::android_info::sdk_int() <
       base::android::android_info::SDK_VERSION_R) {
-    return;
+    return -1;
   }
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(env);
+  Java_ProcessExitReasonHelper_setDeduplicationEnabled(env,
+                                                       deduplication_enabled);
+  return Java_ProcessExitReasonHelper_recordHistoricalProcessExitReason(
+      env, last_logged_timestamp_ms);
 }
 #endif
 
@@ -466,11 +472,31 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 #if BUILDFLAG(IS_ANDROID)
   if (base::android::android_info::sdk_int() >=
       base::android::android_info::SDK_VERSION_R) {
-    base::ThreadPool::PostTask(
+    const bool deduplication_enabled = base::FeatureList::IsEnabled(
+        features::kCobaltStabilityMetricsDeduplication);
+    int64_t last_logged_timestamp_ms = -1;
+    if (deduplication_enabled) {
+      if (PrefService* local_state =
+              GlobalFeatures::GetInstance()->metrics_local_state()) {
+        last_logged_timestamp_ms =
+            local_state->GetInt64(kLastLoggedProcessExitTimestampMs);
+      }
+    }
+    base::ThreadPool::PostTaskAndReplyWithResult(
         FROM_HERE,
         {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
          base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},
-        base::BindOnce(&RecordPriorSessionExitReasons));
+        base::BindOnce(&RecordPriorSessionExitReasons, deduplication_enabled,
+                       last_logged_timestamp_ms),
+        base::BindOnce([](int64_t recorded_timestamp_ms) {
+          if (recorded_timestamp_ms > 0) {
+            if (PrefService* local_state =
+                    GlobalFeatures::GetInstance()->metrics_local_state()) {
+              local_state->SetInt64(kLastLoggedProcessExitTimestampMs,
+                                    recorded_timestamp_ms);
+            }
+          }
+        }));
   }
 #endif
 
