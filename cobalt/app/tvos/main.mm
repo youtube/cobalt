@@ -26,6 +26,7 @@
 #include "base/command_line.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/task/thread_pool.h"
+#include "base/threading/hang_watcher.h"
 #include "base/time/time.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
@@ -107,6 +108,7 @@ static const char** g_argv = nullptr;
   // A visible page is automatically unfrozen and it should not call
   // `SetPageFrozen`.
   if (web_contents->GetVisibility() != content::Visibility::VISIBLE) {
+    base::HangWatcher::Resume();
     // Unfreeze the page when entering foreground, triggering
     // `document.onresume` event in JavaScript.
     web_contents->SetPageFrozen(false);
@@ -143,6 +145,7 @@ static const char** g_argv = nullptr;
 - (void)sceneDidEnterBackground:(UIScene*)scene {
   content::WebContents* web_contents = [self getWebContents];
   web_contents->UpdateWebContentsVisibility(content::Visibility::HIDDEN);
+  base::HangWatcher::Suspend();
   // Freeze the page when entering background, triggering `document.onfreeze`
   // event in JavaScript.
   web_contents->SetPageFrozen(true);
