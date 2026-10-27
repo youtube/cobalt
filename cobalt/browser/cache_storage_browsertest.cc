@@ -22,11 +22,8 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/storage_partition.h"
-<<<<<<< HEAD
 #include "content/public/browser/web_contents.h"
-=======
 #include "content/public/common/content_client.h"
->>>>>>> a49334a342 (Set service worker/cachestorage quota to 6 MiB (#12441))
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
