@@ -17,6 +17,15 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/metrics/histogram_macros.h"
+#include "base/numerics/safe_conversions.h"
+#include "base/task/sequenced_task_runner.h"
+#include "gpu/config/gpu_finch_features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace gpu {
 namespace {
 
@@ -83,6 +92,11 @@ class GpuDiskCacheReadHelper {
   void LoadCache();
   void OnOpComplete(int rv);
   void OnEntryOpenComplete(disk_cache::EntryResult result);
+#if BUILDFLAG(IS_COBALT)
+  base::WeakPtr<GpuDiskCacheReadHelper> GetWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
  private:
   enum OpType {
@@ -106,6 +120,12 @@ class GpuDiskCacheReadHelper {
   std::unique_ptr<disk_cache::Backend::Iterator> iter_;
   scoped_refptr<net::IOBufferWithSize> buf_;
   raw_ptr<disk_cache::Entry, AcrossTasksDanglingUntriaged> entry_;
+#if BUILDFLAG(IS_COBALT)
+  base::TimeTicks load_start_time_;
+  int max_preload_entries_ = 0;
+  int loaded_entries_count_ = 0;
+  size_t loaded_bytes_ = 0;
+#endif  // BUILDFLAG(IS_COBALT)
   base::WeakPtrFactory<GpuDiskCacheReadHelper> weak_ptr_factory_{this};
 };
 
@@ -297,6 +317,13 @@ GpuDiskCacheReadHelper::~GpuDiskCacheReadHelper() {
 
 void GpuDiskCacheReadHelper::LoadCache() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_COBALT)
+  load_start_time_ = base::TimeTicks::Now();
+  if (base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache)) {
+    max_preload_entries_ =
+        ::features::kCobaltGpuShaderDiskCacheMaxPreloadEntries.Get();
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   OnOpComplete(net::OK);
 }
 
@@ -333,6 +360,13 @@ void GpuDiskCacheReadHelper::OnEntryOpenComplete(
 
 int GpuDiskCacheReadHelper::OpenNextEntry() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_COBALT)
+  if (max_preload_entries_ > 0 &&
+      loaded_entries_count_ >= max_preload_entries_) {
+    op_type_ = ITERATION_FINISHED;
+    return net::OK;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   op_type_ = OPEN_NEXT_COMPLETE;
   if (!iter_)
     iter_ = cache_->backend()->CreateIterator();
@@ -368,9 +402,15 @@ int GpuDiskCacheReadHelper::OpenNextEntryComplete(int rv) {
 
 int GpuDiskCacheReadHelper::ReadComplete(int rv) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (rv && rv == buf_->size() && !blob_loaded_callback_.is_null()) {
-    blob_loaded_callback_.Run(entry_->GetKey(),
-                              std::string(buf_->data(), buf_->size()));
+  if (rv && rv == buf_->size()) {
+#if BUILDFLAG(IS_COBALT)
+    ++loaded_entries_count_;
+    loaded_bytes_ += static_cast<size_t>(buf_->size());
+#endif  // BUILDFLAG(IS_COBALT)
+    if (!blob_loaded_callback_.is_null()) {
+      blob_loaded_callback_.Run(entry_->GetKey(),
+                                std::string(buf_->data(), buf_->size()));
+    }
   }
 
   buf_ = nullptr;
@@ -384,6 +424,18 @@ int GpuDiskCacheReadHelper::ReadComplete(int rv) {
 int GpuDiskCacheReadHelper::IterationComplete(int rv) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   iter_.reset();
+#if BUILDFLAG(IS_COBALT)
+  if (!load_start_time_.is_null()) {
+    UMA_HISTOGRAM_TIMES("Cobalt.Storage.GpuShaderCache.LoadDuration",
+                        base::TimeTicks::Now() - load_start_time_);
+  }
+  base::UmaHistogramCounts1000(
+      "Cobalt.Storage.GpuShaderCache.LoadedEntriesCount",
+      loaded_entries_count_);
+  base::UmaHistogramCounts10000(
+      "Cobalt.Storage.GpuShaderCache.LoadedBytesKB",
+      base::saturated_cast<int>(loaded_bytes_ / 1024));
+#endif  // BUILDFLAG(IS_COBALT)
   op_type_ = TERMINATE;
   return net::OK;
 }
@@ -409,6 +461,9 @@ GpuDiskCacheClearHelper::~GpuDiskCacheClearHelper() {
 
 void GpuDiskCacheClearHelper::Clear() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_COBALT)
+  cache_->pending_entries_.clear();
+#endif  // BUILDFLAG(IS_COBALT)
   DoClearGpuCache(net::OK);
 }
 
@@ -683,8 +738,14 @@ void GpuDiskCache::Init() {
 }
 
 void GpuDiskCache::Cache(const std::string& key, const std::string& blob) {
-  if (!cache_available_)
+  if (!cache_available_) {
+#if BUILDFLAG(IS_COBALT)
+    if (base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache)) {
+      pending_entries_[key] = blob;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
     return;
+  }
 
   auto shim = std::make_unique<GpuDiskCacheEntry>(this, key, blob);
   shim->Cache();
@@ -695,6 +756,9 @@ void GpuDiskCache::Cache(const std::string& key, const std::string& blob) {
 int GpuDiskCache::Clear(base::Time begin_time,
                         base::Time end_time,
                         net::CompletionOnceCallback completion_callback) {
+#if BUILDFLAG(IS_COBALT)
+  pending_entries_.clear();
+#endif  // BUILDFLAG(IS_COBALT)
   int rv;
   if (begin_time.is_null()) {
     rv = backend_->DoomAllEntries(std::move(completion_callback));
@@ -721,10 +785,27 @@ int GpuDiskCache::SetAvailableCallback(net::CompletionOnceCallback callback) {
 void GpuDiskCache::CacheCreatedCallback(disk_cache::BackendResult result) {
   if (result.net_error != net::OK) {
     LOG(ERROR) << "Gpu Cache Creation failed: " << result.net_error;
+#if BUILDFLAG(IS_COBALT)
+    pending_entries_.clear();
+#endif  // BUILDFLAG(IS_COBALT)
     return;
   }
   backend_ = std::move(result.backend);
   helper_ = std::make_unique<GpuDiskCacheReadHelper>(this, blob_loaded_cb_);
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache)) {
+    const int load_delay_ms =
+        ::features::kCobaltGpuShaderDiskCacheLoadDelayMs.Get();
+    if (load_delay_ms > 0) {
+      base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&GpuDiskCacheReadHelper::LoadCache,
+                         helper_->GetWeakPtr()),
+          base::Milliseconds(load_delay_ms));
+      return;
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   helper_->LoadCache();
 }
 
@@ -741,15 +822,31 @@ void GpuDiskCache::ReadComplete() {
   // of the old cache values off disk. This prevents a potential race where we
   // are reading from disk and execute a cache clear at the same time.
   cache_available_ = true;
+#if BUILDFLAG(IS_COBALT)
+  auto pending = std::move(pending_entries_);
+  pending_entries_.clear();
+  for (const auto& [key, blob] : pending) {
+    Cache(key, blob);
+  }
+  if (entries_.empty() && cache_complete_callback_) {
+    std::move(cache_complete_callback_).Run(net::OK);
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   if (available_callback_)
     std::move(available_callback_).Run(net::OK);
 }
 
 int GpuDiskCache::SetCacheCompleteCallback(
     net::CompletionOnceCallback callback) {
+#if BUILDFLAG(IS_COBALT)
+  if (entries_.empty() && pending_entries_.empty()) {
+    return net::OK;
+  }
+#else
   if (entries_.empty()) {
     return net::OK;
   }
+#endif  // BUILDFLAG(IS_COBALT)
   cache_complete_callback_ = std::move(callback);
   return net::ERR_IO_PENDING;
 }

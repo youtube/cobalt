@@ -17,6 +17,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread_checker.h"
+#include "build/build_config.h"
 #include "gpu/ipc/common/gpu_disk_cache_type.h"
 #include "net/base/completion_once_callback.h"
 #include "net/disk_cache/disk_cache.h"
@@ -69,6 +70,7 @@ class GpuDiskCache : public base::RefCounted<GpuDiskCache> {
   friend class base::RefCounted<GpuDiskCache>;
   friend class GpuDiskCacheEntry;
   friend class GpuDiskCacheReadHelper;
+  friend class GpuDiskCacheClearHelper;
   friend class GpuDiskCacheFactory;
 
   GpuDiskCache(GpuDiskCacheFactory* factory,
@@ -99,6 +101,11 @@ class GpuDiskCache : public base::RefCounted<GpuDiskCache> {
   std::unique_ptr<GpuDiskCacheReadHelper> helper_;
   std::unordered_map<GpuDiskCacheEntry*, std::unique_ptr<GpuDiskCacheEntry>>
       entries_;
+#if BUILDFLAG(IS_COBALT)
+  // Shader blobs passed to Cache() before |cache_available_| is true (while
+  // LoadCache() is deferred or in progress), replayed in ReadComplete().
+  base::flat_map<std::string, std::string> pending_entries_;
+#endif  // BUILDFLAG(IS_COBALT)
 };
 
 // GpuDiskCacheFactory maintains a cache of GpuDiskCache objects so we only

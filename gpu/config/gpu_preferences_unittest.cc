@@ -17,11 +17,12 @@
 #include "gpu/ipc/common/gpu_preferences.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "gpu/config/gpu_preferences.h"
-#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace gpu {
 
@@ -191,25 +192,62 @@ TEST(GpuPreferencesTest, EncodeDecode) {
   }
 }
 
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_COBALT)
 TEST(GpuPreferencesTest, CobaltGpuShaderDiskCacheSize) {
   {
+    base::HistogramTester histogram_tester;
     base::test::ScopedFeatureList feature_list;
     feature_list.InitWithFeaturesAndParameters(
         {{::features::kCobaltGpuShaderDiskCache,
           {{::features::kCobaltGpuShaderDiskCacheSizeKb.name, "1024"}}}},
         {::features::kAggressiveShaderCacheLimits});
     EXPECT_EQ(GetDefaultGpuDiskCacheSize(), 1024u * 1024u);
+    histogram_tester.ExpectUniqueSample(
+        "Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB", 1024, 1);
   }
   {
+    base::HistogramTester histogram_tester;
     base::test::ScopedFeatureList feature_list;
     feature_list.InitWithFeaturesAndParameters(
         {{::features::kCobaltGpuShaderDiskCache, {}}},
         {::features::kAggressiveShaderCacheLimits});
     EXPECT_EQ(GetDefaultGpuDiskCacheSize(), 2048u * 1024u);
+    histogram_tester.ExpectUniqueSample(
+        "Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB", 2048, 1);
+  }
+  {
+    base::HistogramTester histogram_tester;
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures({},
+                                  {::features::kCobaltGpuShaderDiskCache,
+                                   ::features::kAggressiveShaderCacheLimits});
+    EXPECT_GT(GetDefaultGpuDiskCacheSize(), 0u);
+    histogram_tester.ExpectUniqueSample(
+        "Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB", 0, 1);
   }
 }
-#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+
+TEST(GpuPreferencesTest, CobaltGpuShaderDiskCacheFeatureParams) {
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(::features::kCobaltGpuShaderDiskCache);
+    EXPECT_EQ(::features::kCobaltGpuShaderDiskCacheSizeKb.Get(), 2048);
+    EXPECT_EQ(::features::kCobaltGpuShaderDiskCacheLoadDelayMs.Get(), 0);
+    EXPECT_EQ(::features::kCobaltGpuShaderDiskCacheMaxPreloadEntries.Get(), 0);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeaturesAndParameters(
+        {{::features::kCobaltGpuShaderDiskCache,
+          {{::features::kCobaltGpuShaderDiskCacheLoadDelayMs.name, "3000"},
+           {::features::kCobaltGpuShaderDiskCacheMaxPreloadEntries.name,
+            "64"}}}},
+        {});
+    EXPECT_EQ(::features::kCobaltGpuShaderDiskCacheLoadDelayMs.Get(), 3000);
+    EXPECT_EQ(::features::kCobaltGpuShaderDiskCacheMaxPreloadEntries.Get(), 64);
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Helper test for decoding GPU preferences from a crash dump string.
 TEST(GpuPreferencesTest, DISABLED_DecodePreferences) {
