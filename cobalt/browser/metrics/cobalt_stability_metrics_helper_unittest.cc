@@ -380,7 +380,8 @@ TEST_F(
   base::PersistentHistogramAllocator inspect_allocator(std::move(inspect_mem));
   base::PersistentHistogramAllocator::Iterator iter(&inspect_allocator);
   while (auto h = iter.GetNext()) {
-    inspect_allocator.MergeHistogramFinalDeltaToStatisticsRecorder(h.get());
+    inspect_allocator.MergeHistogramFinalDeltaToStatisticsRecorder(
+        h.get(), /*name_override=*/"");
   }
   EXPECT_EQ(merged->SnapshotSamples()->GetCount(77), 1);
 #endif
