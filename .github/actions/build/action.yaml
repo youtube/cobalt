@@ -5,9 +5,8 @@ inputs:
     description: "JSON list of ninja targets for Cobalt build."
     required: true
   test_root_target:
-    description: "Deprecated: Root target for tests (unused in gn analyze)."
-    required: false
-    default: ''
+    description: "The root target from which to deduce what tests to run."
+    required: true
   test_targets_json_file:
     description: "The path to the file the test targets are written to."
     required: true
@@ -16,10 +15,6 @@ inputs:
     default: 'false'
   sccache_gcs_key:
     description: GCS SA key to read/write to bucket
-outputs:
-  skip:
-    description: "Set to true when the platform build was skipped."
-    value: ${{ steps.test-targets.outputs.skip }}
 runs:
   using: "composite"
   steps:
@@ -62,81 +57,32 @@ runs:
           gn args --list --short --overrides-only out/"${PLATFORM}_${CONFIG}"
         shell: bash
       - name: Get list of changed files
-        if: github.event_name == 'pull_request'
-        id: changed-files
-        env:
-          CHANGED_FILES_LIST: changed_files.txt
         working-directory: cobalt/src
-        run: |
-          set -ex
-          git -c core.quotepath=off diff --name-only --no-renames \
-            HEAD~1 HEAD > "${CHANGED_FILES_LIST}"
-          cat "${CHANGED_FILES_LIST}"
-        shell: bash
-      - name: Filter platform and prune test targets
-        id: test-targets
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          PLATFORM: ${{ matrix.platform }}
-          CONFIG: ${{ matrix.config }}
-          TARGETS: ${{ inputs.targets }}
-          TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
-          STATIC_DIR: cobalt/build/testing/targets/${{ matrix.platform }}
-        working-directory: cobalt/src
-        shell: bash
+          EVENT: ${{ github.event_name }}
         run: |
-          set -ex
-          STATIC_JSON="${STATIC_DIR}/test_targets.json"
-          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
-            python3 cobalt/build/test_targets.py \
-              --out-dir "out/${PLATFORM}_${CONFIG}" \
-              --changed-files changed_files.txt \
-              --targets "${TARGETS}" \
-              --test-targets-json "${STATIC_JSON}" \
-              --output "${TEST_TARGETS_JSON_FILE}" \
-              --github-output "${GITHUB_OUTPUT}"
-          else
-            # Non-PR (push, schedule, manual dispatch): run all tests
-            if [[ -f "${STATIC_JSON}" ]]; then
-              cp -av "${STATIC_JSON}" \
-                "${TEST_TARGETS_JSON_FILE}"
-              test_targets_json=$(jq -cr \
-                '[.[] | select(.target != null) | .target]' \
-                "${TEST_TARGETS_JSON_FILE}")
+          > changed_files.txt
+          if [[ "${EVENT}" == "pull_request" ]]; then
+            if git rev-parse -q --verify HEAD^1 >/dev/null 2>&1; then
+              git diff --name-only --no-renames HEAD^1 HEAD > changed_files.txt
             else
-              header='[{"disabled": false, "description": "Header"}]'
-              echo "${header}" > "${TEST_TARGETS_JSON_FILE}"
-              test_targets_json="[]"
+              echo "HEAD^1 not found; forcing full build."
             fi
-            echo "skip=false" >> "${GITHUB_OUTPUT}"
-            echo "test_targets_json=${test_targets_json}" >> "${GITHUB_OUTPUT}"
-            targets_count=$(echo "${test_targets_json}" | jq -cr 'length')
-            echo "test_targets_count=${targets_count}" >> "${GITHUB_OUTPUT}"
           fi
-      - name: Archive test target JSON
-        if: matrix.config == 'devel'
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
-        with:
-          name: ${{ matrix.platform }}_test_targets_json
-          path: cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-      - name: Ninja build test targets
-        if: |
-          steps.test-targets.outputs.skip != 'true' &&
-          matrix.config == 'devel' &&
-          fromJSON(steps.test-targets.outputs.test_targets_count || 0) > 0
-        id: build-test-targets
-        working-directory: cobalt/src
-        env:
-          TEST_TARGETS_JSON: ${{ steps.test-targets.outputs.test_targets_json }}
-          PLATFORM: ${{ matrix.platform }}
-          CONFIG: ${{ matrix.config }}
-        run: |
-          set -ex
-          readarray -t test_targets < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -r '.[]')
-          time autoninja -C out/"${PLATFORM}_${CONFIG}" "${test_targets[@]}"
         shell: bash
+      - name: Analyze changed files
+        if: matrix.config == 'devel'
+        id: calculate-test-targets
+        uses: ./.github/actions/gn_analyze
+        with:
+          working_directory: cobalt/src
+          out_dir: out/${{ matrix.platform }}_${{ matrix.config }}
+          changed_files: changed_files.txt
+          targets: ${{ inputs.targets }}
       - name: Ninja build
-        if: steps.test-targets.outputs.skip != 'true'
+        if: >-
+          matrix.config != 'devel' ||
+          steps.calculate-test-targets.outputs.affected == 'true'
         working-directory: cobalt/src
         env:
           TARGETS_JSON: ${{ inputs.targets }}
@@ -152,11 +98,7 @@ runs:
           fi
         shell: bash
       - name: Archive Android APKs
-        if: |
-          steps.test-targets.outputs.skip != 'true' &&
-          (startsWith(matrix.platform, 'android') ||
-           contains(matrix.platform, 'aosp')) &&
-          matrix.config == 'qa'
+        if: (startsWith(matrix.platform, 'android') || contains(matrix.platform, 'aosp')) && matrix.config == 'qa'
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: ${{ matrix.platform }} APKs
