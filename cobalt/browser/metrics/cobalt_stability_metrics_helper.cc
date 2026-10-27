@@ -184,18 +184,13 @@ void ClearOtherStabilityMetricsPmaFiles(
           base::PersistentHistogramAllocator::Iterator histogram_iter(
               &allocator);
           while (auto histogram = histogram_iter.GetNext()) {
-<<<<<<< HEAD
-            allocator.MergeHistogramFinalDeltaToStatisticsRecorder(
-                histogram.get(), /*name_override=*/"");
-=======
             if (deduplicate) {
               allocator.MergeHistogramDeltaToStatisticsRecorder(
-                  histogram.get());
+                  histogram.get(), /*name_override=*/"");
             } else {
               allocator.MergeHistogramFinalDeltaToStatisticsRecorder(
-                  histogram.get());
+                  histogram.get(), /*name_override=*/"");
             }
->>>>>>> a4fca6b1d9 (cobalt/metrics: Fix stability PMA double-logging and exit reason deduplication (#13477))
           }
           ++merged_files_count;
           RecordPriorPmaFileAction(StabilityPmaFileAction::kMergedAndDeleted);

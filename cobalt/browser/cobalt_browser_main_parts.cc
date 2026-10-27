@@ -266,18 +266,11 @@ void LogStabilityMetricsCapacity(const char* stage_label) {
 }
 
 #if BUILDFLAG(IS_ANDROID)
-<<<<<<< HEAD
-void RecordPriorSessionExitReasons() {
-  if (base::android::android_info::sdk_int() <
-      base::android::android_info::SDK_VERSION_R) {
-    return;
-=======
 int64_t RecordPriorSessionExitReasons(bool deduplication_enabled,
                                       int64_t last_logged_timestamp_ms) {
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_R) {
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_R) {
     return -1;
->>>>>>> a4fca6b1d9 (cobalt/metrics: Fix stability PMA double-logging and exit reason deduplication (#13477))
   }
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_ProcessExitReasonHelper_setDeduplicationEnabled(env,
@@ -477,13 +470,8 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   }
 
 #if BUILDFLAG(IS_ANDROID)
-<<<<<<< HEAD
   if (base::android::android_info::sdk_int() >=
       base::android::android_info::SDK_VERSION_R) {
-    base::ThreadPool::PostTask(
-=======
-  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
-      base::android::SDK_VERSION_R) {
     const bool deduplication_enabled = base::FeatureList::IsEnabled(
         features::kCobaltStabilityMetricsDeduplication);
     int64_t last_logged_timestamp_ms = -1;
@@ -495,7 +483,6 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
       }
     }
     base::ThreadPool::PostTaskAndReplyWithResult(
->>>>>>> a4fca6b1d9 (cobalt/metrics: Fix stability PMA double-logging and exit reason deduplication (#13477))
         FROM_HERE,
         {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
          base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN},

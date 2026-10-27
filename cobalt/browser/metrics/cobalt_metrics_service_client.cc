@@ -188,24 +188,9 @@ void CobaltMetricsServiceClient::Initialize() {
       base::FilePath metrics_dir =
           base_dir.AppendASCII("BrowserStabilityMetrics");
 
-<<<<<<< HEAD
-    auto file_metrics_provider = std::make_unique<metrics::FileMetricsProvider>(
-        local_state_.get(), false);
-    metrics::FileMetricsProvider::Params params(
-        metrics_dir, metrics::FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
-        metrics::FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE,
-        "BrowserStabilityMetrics");
-    params.filter = base::BindRepeating(&FilterBrowserMetricsFiles);
-    params.max_dir_kib = 10 * 1024;
-    file_metrics_provider->RegisterSource(params,
-                                          /*metrics_reporting_enabled=*/true);
-    metrics_service_->RegisterMetricsProvider(std::move(file_metrics_provider));
-  } else {
-    LOG(WARNING) << "Failed to get base directory for BrowserStabilityMetrics, "
-                 << "skipping FileMetricsProvider registration.";
-=======
       auto file_metrics_provider =
-          std::make_unique<metrics::FileMetricsProvider>(local_state_.get());
+          std::make_unique<metrics::FileMetricsProvider>(local_state_.get(),
+                                                         false);
       metrics::FileMetricsProvider::Params params(
           metrics_dir,
           metrics::FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
@@ -222,7 +207,6 @@ void CobaltMetricsServiceClient::Initialize() {
           << "Failed to get base directory for BrowserStabilityMetrics, "
           << "skipping FileMetricsProvider registration.";
     }
->>>>>>> a4fca6b1d9 (cobalt/metrics: Fix stability PMA double-logging and exit reason deduplication (#13477))
   }
 
   log_uploader_ = CreateLogUploaderInternal();
