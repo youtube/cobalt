@@ -10,13 +10,6 @@
 
 namespace quic {
 
-#if BUILDFLAG(IS_COBALT)
-namespace {
-QuicTime s_approximate_now{QuicTime::Zero()};
-int s_approximate_now_scopes = 0;
-}  // namespace
-#endif
-
 QuicChromiumClock* QuicChromiumClock::GetInstance() {
   static base::NoDestructor<QuicChromiumClock> instance;
   return instance.get();
@@ -26,42 +19,16 @@ QuicChromiumClock::QuicChromiumClock() = default;
 
 QuicChromiumClock::~QuicChromiumClock() = default;
 
-#if BUILDFLAG(IS_COBALT)
-QuicChromiumClock::ScopedApproximateNow::ScopedApproximateNow() {
-  ++s_approximate_now_scopes;
-}
-
-QuicChromiumClock::ScopedApproximateNow::~ScopedApproximateNow() {
-  DCHECK_GT(s_approximate_now_scopes, 0);
-  if (--s_approximate_now_scopes == 0) {
-    s_approximate_now = QuicTime::Zero();
-  }
-}
-#endif
-
 QuicTime QuicChromiumClock::ApproximateNow() const {
   // At the moment, Chrome does not have a distinct notion of ApproximateNow().
   // We should consider implementing this using MessageLoop::recent_time_.
-#if BUILDFLAG(IS_COBALT)
-  if (s_approximate_now.IsInitialized()) {
-    return s_approximate_now;
-  }
-#endif
   return Now();
 }
 
 QuicTime QuicChromiumClock::Now() const {
   int64_t ticks = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
   DCHECK_GE(ticks, 0);
-#if BUILDFLAG(IS_COBALT)
-  QuicTime now = CreateTimeFromMicroseconds(ticks);
-  if (s_approximate_now_scopes > 0) {
-    s_approximate_now = now;
-  }
-  return now;
-#else
   return CreateTimeFromMicroseconds(ticks);
-#endif
 }
 
 QuicWallTime QuicChromiumClock::WallNow() const {
