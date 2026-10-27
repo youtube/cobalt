@@ -22,10 +22,12 @@
 #include "base/test/task_environment.h"
 #include "base/unguessable_token.h"
 #include "cc/layers/layer.h"
+#include "cobalt/starboard_wasm/surface_video_size.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/platform/web_media_player_source.h"
 #include "third_party/blink/public/platform/web_url.h"
+#include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 
 // media_player_client.h uses KURL without including it.
@@ -111,8 +113,9 @@ class WasmHoleWebMediaPlayerTest : public testing::Test {
 
   base::test::TaskEnvironment task_environment_;
   testing::NiceMock<MockMediaPlayerClient> client_;
-  const std::string url_ = "blob:https://example.com/id#sb-surface=" +
-                           base::UnguessableToken::Create().ToString();
+  const base::UnguessableToken token_ = base::UnguessableToken::Create();
+  const std::string url_ =
+      "blob:https://example.com/id#sb-surface=" + token_.ToString();
 };
 
 TEST_F(WasmHoleWebMediaPlayerTest, ParsesSurfaceFromBlobUrl) {
@@ -176,6 +179,29 @@ TEST_F(WasmHoleWebMediaPlayerTest, ReportsFixedMediaState) {
   EXPECT_FALSE(player->Paused());
   EXPECT_EQ(player->CurrentTime(), 0);
   EXPECT_EQ(player->NaturalSize(), gfx::Size(1920, 1080));
+}
+
+TEST_F(WasmHoleWebMediaPlayerTest, ReportsSurfaceVideoSize) {
+  std::unique_ptr<blink::WebMediaPlayer> player = CreateLoadedPlayer();
+  EXPECT_CALL(client_, SizeChanged());
+  cobalt::starboard_wasm::SurfaceVideoSize::Set(token_, gfx::Size(1080, 1920));
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(player->NaturalSize(), gfx::Size(1080, 1920));
+  testing::Mock::VerifyAndClearExpectations(&client_);
+
+  EXPECT_CALL(client_, SizeChanged()).Times(0);
+  cobalt::starboard_wasm::SurfaceVideoSize::Set(token_, gfx::Size());
+  player.reset();
+  cobalt::starboard_wasm::SurfaceVideoSize::Set(token_, gfx::Size(640, 480));
+  task_environment_.RunUntilIdle();
+  cobalt::starboard_wasm::SurfaceVideoSize::Set(token_, gfx::Size());
+}
+
+TEST_F(WasmHoleWebMediaPlayerTest, StartsWithKnownSurfaceVideoSize) {
+  cobalt::starboard_wasm::SurfaceVideoSize::Set(token_, gfx::Size(1080, 1920));
+  std::unique_ptr<blink::WebMediaPlayer> player = CreateLoadedPlayer();
+  EXPECT_EQ(player->NaturalSize(), gfx::Size(1080, 1920));
+  cobalt::starboard_wasm::SurfaceVideoSize::Set(token_, gfx::Size());
 }
 
 TEST_F(WasmHoleWebMediaPlayerTest, DestructionDetachesLayer) {
