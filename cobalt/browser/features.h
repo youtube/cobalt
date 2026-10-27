@@ -217,6 +217,12 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
 // across sessions.
 BASE_DECLARE_FEATURE(kCobaltStabilityMetricsDeduplication);
 
+// Preconnects to the initial launch URL origin during PreMainMessageLoopRun()
+// while WebContents creation is deferred to ShellManager.launchShell(), so DNS
+// resolution and TCP/TLS handshakes overlap with browser/UI startup before the
+// first navigation starts.
+BASE_DECLARE_FEATURE(kCobaltStartupPreconnect);
+
 }  // namespace features
 }  // namespace cobalt
 
