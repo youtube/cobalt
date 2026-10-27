@@ -186,13 +186,13 @@ def resolve_conflicts(unmerged_files):
 
   if deleted_by_us:
     log(f'Resolving \'deleted by us\' conflicts: {deleted_by_us}')
-    run(['git', 'rm', '--ignore-unmatch', '--'] + deleted_by_us)
+    run(['git', 'rm', '--sparse', '--ignore-unmatch', '--'] + deleted_by_us)
     for path in deleted_by_us:
       unmerged_files.pop(path, None)
 
   if deleted_by_them:
     log(f'Resolving \'deleted by them\' conflicts: {deleted_by_them}')
-    run(['git', 'rm', '--ignore-unmatch', '--'] + deleted_by_them)
+    run(['git', 'rm', '--sparse', '--ignore-unmatch', '--'] + deleted_by_them)
     for path in deleted_by_them:
       unmerged_files.pop(path, None)
 
