@@ -14,6 +14,9 @@
 
 #include "starboard/elf_loader/relocations.h"
 
+#include <sys/mman.h>
+#include <unistd.h>
+
 #include <memory>
 
 #include "starboard/elf_loader/elf.h"
@@ -376,6 +379,78 @@ TEST_F(RelocationsTest, R_X86_64_PC32) {
   VerifySymAddressPlusAddendDelta(&rel, sym_addr);
 }
 #endif  // SB_IS(ARCH_X64) && defined(USE_RELA)
+
+TEST_F(RelocationsTest, ApplyAllRelocationsReclaimsInteriorPages) {
+  long sys_page_size = sysconf(_SC_PAGESIZE);  // NOLINT(runtime/int)
+  const size_t page_size = (sys_page_size > static_cast<long>(PAGE_SIZE) &&
+                            (sys_page_size & (sys_page_size - 1)) == 0)
+                               ? static_cast<size_t>(sys_page_size)
+                               : PAGE_SIZE;
+  const size_t kMappingSize = 4 * page_size;
+  void* mapped = mmap(nullptr, kMappingSize, PROT_READ | PROT_WRITE,
+                      MAP_PRIVATE | MAP_ANON, -1, 0);
+  ASSERT_NE(mapped, MAP_FAILED);
+  memset(mapped, 0x5A, kMappingSize);
+
+  Addr mapped_base = reinterpret_cast<Addr>(mapped);
+  // Start the relocation table 64 bytes into page 1 and span 2 pages into
+  // page 3 so that page 2 is a full interior page reclaimed by MADV_DONTNEED,
+  // while the shared boundary pages (page 1 and page 3) remain untouched.
+  Addr reloc_table_offset = page_size + 64;
+  size_t reloc_table_size = 2 * page_size;
+  // Populate every relocation entry with r_info = 0 (R_*_NONE, a no-op
+  // relocation) and non-zero r_offset (plus r_addend on RELA) so the interior
+  // page bytes tested below are non-zero before ApplyAllRelocations() across
+  // 4 KiB, 16 KiB, and 64 KiB page sizes, and zeroed by MADV_DONTNEED after.
+  rel_t* reloc_entries =
+      reinterpret_cast<rel_t*>(mapped_base + reloc_table_offset);
+  size_t reloc_count = reloc_table_size / sizeof(rel_t);
+  for (size_t i = 0; i < reloc_count; ++i) {
+    memset(&reloc_entries[i], 0, sizeof(rel_t));
+    reloc_entries[i].r_offset = 0x7F7F7F7Fu;
+#if defined(USE_RELA)
+    reloc_entries[i].r_addend = 0x7F7F7F7F;
+#endif
+  }
+
+  Dyn dyn_entries[3];
+  memset(dyn_entries, 0, sizeof(dyn_entries));
+#if defined(USE_RELA)
+  dyn_entries[0].d_tag = DT_RELA;
+  dyn_entries[1].d_tag = DT_RELASZ;
+#else
+  dyn_entries[0].d_tag = DT_REL;
+  dyn_entries[1].d_tag = DT_RELSZ;
+#endif
+  dyn_entries[0].d_un.d_ptr = reloc_table_offset;
+  dyn_entries[1].d_un.d_val = reloc_table_size;
+  dyn_entries[2].d_tag = DT_NULL;
+
+  DynamicSection dyn_section(mapped_base, dyn_entries, 3, 0);
+  ASSERT_TRUE(dyn_section.InitDynamicSection());
+
+  ExportedSymbols symbols;
+  Relocations relocs(mapped_base, &dyn_section, &symbols);
+  ASSERT_TRUE(relocs.InitRelocations());
+  ASSERT_TRUE(relocs.ApplyAllRelocations());
+
+  // Interior page 2 of the relocation table should be zeroed by MADV_DONTNEED.
+  const uint8_t* interior_page =
+      reinterpret_cast<const uint8_t*>(mapped_base + 2 * page_size);
+  EXPECT_EQ(interior_page[0], 0u);
+  EXPECT_EQ(interior_page[page_size / 2], 0u);
+
+  // Shared boundary bytes in page 1 (before relocation table) and page 3
+  // (after relocation table) must not be discarded.
+  const uint8_t* page_1 =
+      reinterpret_cast<const uint8_t*>(mapped_base + page_size);
+  const uint8_t* page_3 =
+      reinterpret_cast<const uint8_t*>(mapped_base + 3 * page_size);
+  EXPECT_EQ(page_1[0], 0x5Au);
+  EXPECT_EQ(page_3[128], 0x5Au);
+
+  munmap(mapped, kMappingSize);
+}
 
 }  // namespace
 }  // namespace elf_loader

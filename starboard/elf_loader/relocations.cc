@@ -14,10 +14,45 @@
 
 #include "starboard/elf_loader/relocations.h"
 
+#include <errno.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/log.h"
 
 namespace elf_loader {
+
+namespace {
+
+size_t GetRuntimePageSize() {
+  long sys_page_size = sysconf(_SC_PAGESIZE);  // NOLINT(runtime/int)
+  if (sys_page_size > static_cast<long>(PAGE_SIZE) &&
+      (sys_page_size & (sys_page_size - 1)) == 0) {
+    return static_cast<size_t>(sys_page_size);
+  }
+  return PAGE_SIZE;
+}
+
+void DiscardRelocationPages(Addr start, size_t size) {
+  const size_t page_size = GetRuntimePageSize();
+  if (!start || size < page_size) {
+    return;
+  }
+  const Addr page_mask = ~(static_cast<Addr>(page_size) - 1);
+  const Addr page_start = (start + page_size - 1) & page_mask;
+  const Addr page_end = (start + size) & page_mask;
+  if (page_end > page_start) {
+    if (madvise(reinterpret_cast<void*>(page_start), page_end - page_start,
+                MADV_DONTNEED) != 0) {
+      SB_LOG(WARNING) << "madvise(MADV_DONTNEED) on relocation pages failed: "
+                      << strerror(errno);
+    }
+  }
+}
+
+}  // namespace
 
 Relocations::Relocations(Addr base_memory_address,
                          DynamicSection* dynamic_section,
@@ -155,6 +190,15 @@ bool Relocations::ApplyAllRelocations() {
                         plt_relocations_size_ / sizeof(rel_t))) {
     SB_LOG(ERROR) << "PLT relocations failed";
     return false;
+  }
+
+  if (relocations_ && plt_relocations_ &&
+      relocations_ + relocations_size_ == plt_relocations_) {
+    DiscardRelocationPages(relocations_,
+                           relocations_size_ + plt_relocations_size_);
+  } else {
+    DiscardRelocationPages(relocations_, relocations_size_);
+    DiscardRelocationPages(plt_relocations_, plt_relocations_size_);
   }
   return true;
 }
