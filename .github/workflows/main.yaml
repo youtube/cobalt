@@ -312,13 +312,22 @@ jobs:
             [[ "${run_on_device_test}" == "true" ]] && active_test_types+=(gtest:device junit:device)
 
             active_types_json=$(printf '%s\n' "${active_test_types[@]}" | jq -R . | jq -cs .)
-            expected_tests=$(jq -c --argjson active "${active_types_json}" '[
-              .[] | select(
-                (.target != null) and (
-                  (.test_type as $tt | (.runs_on // "host") as $ro | $active | any(. == $tt or . == ($tt + ":" + $ro)))
-                )
-              )
-            ]' "${test_targets_json_file}")
+            expected_tests=$(jq -c --argjson active "${active_types_json}" '
+              [
+                .[]
+                # Filter out entries without a target definition.
+                | select(has("target"))
+                # Annotate each test with candidate match keys (type and type:platform).
+                | {
+                    test: .,
+                    keys: [.test_type, "\(.test_type):\(.runs_on // "host")"]
+                  }
+                # Filter targets matching any active test type.
+                | select(any(.keys[]; IN(.; $active[])))
+                # Extract original test target object.
+                | .test
+              ]
+            ' "${test_targets_json_file}")
           fi
 
           {
