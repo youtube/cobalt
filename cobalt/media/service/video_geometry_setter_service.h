@@ -34,10 +34,10 @@ namespace media {
 // The z-index sent to each VideoGeometryChangeClient comes from the order of
 // the video holes reported by SetVideoGeometries(): the front-most hole gets
 // the largest z-index. The z-indices only change when that order changes, and
-// each new order gets values larger than any handed out before, like the
-// per-call counter Cobalt used to have. A video whose hole is missing from the
-// latest frame, or whose player is still being torn down, keeps its older,
-// smaller z-index, so it stays below every video that is present.
+// each new order gets values larger than any handed out before (values are
+// never reused). A video whose hole is missing from the latest frame, or whose
+// player is still being torn down, keeps its older, smaller z-index, so it
+// stays below every video that is present.
 class VideoGeometrySetterService final
     : public mojom::VideoGeometryChangeSubscriber,
       public mojom::VideoGeometrySetter {
@@ -60,6 +60,8 @@ class VideoGeometrySetterService final
   GetBindSubscriberCallback();
 
  private:
+  // What a VideoGeometryChangeClient is told about its video hole: its geometry
+  // and its z-index (stacking order).
   struct Geometry {
     gfx::RectF rect_f;
     gfx::OverlayTransform transform = gfx::OVERLAY_TRANSFORM_NONE;
@@ -103,11 +105,9 @@ class VideoGeometrySetterService final
   // The overlay_plane_ids of the latest SetVideoGeometries() call, front-most
   // first. The z-indices are reassigned whenever this changes.
   std::vector<base::UnguessableToken> last_front_to_back_;
-  // The z-index of the back-most video hole in |last_front_to_back_|.
-  int32_t z_index_base_ = 0;
-  // The smallest z-index that has not been handed out yet. It only grows when
-  // the order of the video holes changes, which is far slower than the
-  // per-SetBounds() counter it replaces, so it won't overflow in practice.
+  // The smallest z-index that has not been handed out yet. The video holes in
+  // |last_front_to_back_| have the z-indices right below it. It only grows when
+  // the order of the video holes changes.
   int32_t next_z_index_ = 0;
 
   mojo::ReceiverSet<mojom::VideoGeometryChangeSubscriber>

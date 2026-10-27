@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/containers/contains.h"
+#include "base/numerics/checked_math.h"
 #include "base/task/sequenced_task_runner.h"
 
 #define MAKE_SURE_ON_SEQUENCE(callback, ...)                                   \
@@ -91,14 +92,15 @@ void VideoGeometrySetterService::SetVideoGeometries(
   if (overlay_plane_ids != last_front_to_back_) {
     // Start above every z-index handed out so far, so that videos whose hole is
     // missing from this frame stay below the ones that are present.
-    z_index_base_ = next_z_index_;
-    next_z_index_ += static_cast<int32_t>(overlay_plane_ids.size());
+    base::CheckedNumeric<int32_t> next_z_index = next_z_index_;
+    next_z_index += overlay_plane_ids.size();
+    next_z_index_ = next_z_index.ValueOrDie();
     last_front_to_back_ = std::move(overlay_plane_ids);
   }
 
-  // The front-most video hole gets the largest z-index.
-  int32_t z_index =
-      z_index_base_ + static_cast<int32_t>(front_to_back.size()) - 1;
+  // The front-most video hole gets the largest z-index, i.e., the last one
+  // handed out for the current order.
+  int32_t z_index = next_z_index_ - 1;
   for (const auto& video_hole : front_to_back) {
     latest_geometries_[video_hole->overlay_plane_id] = {
         video_hole->rect_f, video_hole->transform, z_index--};

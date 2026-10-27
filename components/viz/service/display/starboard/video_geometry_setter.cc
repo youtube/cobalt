@@ -38,12 +38,16 @@ void ConnectVideoGeometrySetter(
   GetVideoGeometrySetter().Bind(std::move(video_geometry_setter));
 }
 
-ScopedVideoHoleGeometryBatch::ScopedVideoHoleGeometryBatch()
-    : previous_batch_(std::exchange(current_batch, this)) {}
+ScopedVideoHoleGeometryBatch::ScopedVideoHoleGeometryBatch() {
+  // The VideoGeometrySetter service takes each SetVideoGeometries() call as
+  // all the video holes of a frame, so a frame can't be split across batches.
+  CHECK(!current_batch);
+  current_batch = this;
+}
 
 ScopedVideoHoleGeometryBatch::~ScopedVideoHoleGeometryBatch() {
   DCHECK_EQ(current_batch, this);
-  current_batch = previous_batch_;
+  current_batch = nullptr;
   if (!front_to_back_.empty()) {
     SendVideoGeometries(std::move(front_to_back_));
   }
@@ -54,15 +58,12 @@ void ScopedVideoHoleGeometryBatch::Add(
     const base::UnguessableToken& overlay_plane_id,
     const gfx::RectF& rect_f,
     gfx::OverlayTransform transform) {
-  auto video_hole = cobalt::media::mojom::VideoHoleGeometry::New(
-      overlay_plane_id, rect_f, transform);
-  if (current_batch) {
-    current_batch->front_to_back_.push_back(std::move(video_hole));
-    return;
-  }
-  std::vector<cobalt::media::mojom::VideoHoleGeometryPtr> front_to_back;
-  front_to_back.push_back(std::move(video_hole));
-  SendVideoGeometries(std::move(front_to_back));
+  // A video hole reported on its own would look like a frame with only that
+  // video hole to the VideoGeometrySetter service.
+  CHECK(current_batch);
+  current_batch->front_to_back_.push_back(
+      cobalt::media::mojom::VideoHoleGeometry::New(overlay_plane_id, rect_f,
+                                                   transform));
 }
 
 }  // namespace viz

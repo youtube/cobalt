@@ -61,7 +61,13 @@ class FakeVideoGeometryChangeClient : public mojom::VideoGeometryChangeClient {
   }
 
   const std::vector<Change>& changes() const { return changes_; }
-  int32_t last_z_index() const { return changes_.back().z_index; }
+  int32_t last_z_index() const {
+    if (changes_.empty()) {
+      ADD_FAILURE() << "No geometry change was received.";
+      return -1;
+    }
+    return changes_.back().z_index;
+  }
 
  private:
   std::vector<Change> changes_;
@@ -210,11 +216,12 @@ TEST_F(VideoGeometrySetterServiceTest,
 
 TEST_F(VideoGeometrySetterServiceTest, LateSubscriberGetsLatestGeometry) {
   SetVideoGeometries({{inset_id_, kInsetRect}});
+  SetVideoGeometries({{inset_id_, kMovedInsetRect}});
 
   Subscribe(inset_id_, inset_);
 
   ASSERT_EQ(inset_.changes().size(), 1u);
-  EXPECT_EQ(inset_.changes()[0].rect_f, kInsetRect);
+  EXPECT_EQ(inset_.changes()[0].rect_f, kMovedInsetRect);
 }
 
 TEST_F(VideoGeometrySetterServiceTest, ForgetsGoneHoleWithoutSubscriber) {
