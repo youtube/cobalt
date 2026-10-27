@@ -27,6 +27,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
@@ -43,6 +44,8 @@
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "sql/database.h"
 #include "starboard/configuration_constants.h"
+#include "storage/browser/quota/quota_device_info_helper.h"
+#include "storage/browser/quota/quota_settings.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -308,6 +311,131 @@ TEST_F(CobaltContentBrowserClientTest, DeleteUnusedChromiumStoragePaths) {
   // Subsequent runs when unused paths are already absent must be a safe no-op.
   DeleteUnusedChromiumStoragePaths(user_data);
   EXPECT_TRUE(base::PathExists(user_data.AppendASCII("Cookies")));
+}
+
+class MockQuotaDeviceInfoHelper : public storage::QuotaDeviceInfoHelper {
+ public:
+  MockQuotaDeviceInfoHelper() = default;
+  MOCK_METHOD(int64_t,
+              AmountOfTotalDiskSpace,
+              (const base::FilePath&),
+              (const, override));
+  MOCK_METHOD(uint64_t, AmountOfPhysicalMemory, (), (const, override));
+};
+
+// Per-origin CacheStorage quota is capped at 6 MiB (matching the reserve
+// deducted from the HTTP cache budget in ComputeDefaultHttpCacheSize), and
+// pool_size is 2x the per-origin quota (12 MiB) so single-origin usage never
+// exceeds QuotaTemporaryStorageEvictor's kUsageRatioToStartEviction (0.7).
+constexpr int64_t kExpectedCacheStorageQuota =
+    CobaltContentBrowserClient::kCacheStorageQuotaBytes;
+constexpr int64_t kExpectedCacheStoragePoolSize =
+    CobaltContentBrowserClient::kCacheStoragePoolSizeBytes;
+constexpr double kUsageRatioToStartEviction = 0.7;
+
+TEST_F(CobaltContentBrowserClientTest, GetCacheQuotaSettings_LargeDiskSpace) {
+  MockQuotaDeviceInfoHelper device_info_helper;
+  const int64_t kTotalDiskSpace = 500LL * 1024 * 1024 * 1024;  // 500 GB
+  EXPECT_CALL(device_info_helper, AmountOfTotalDiskSpace(testing::_))
+      .WillRepeatedly(testing::Return(kTotalDiskSpace));
+
+  auto settings =
+      CobaltContentBrowserClient::CalculateCacheQuotaSettingsForTesting(
+          base::FilePath(FILE_PATH_LITERAL("/dummy/cache")),
+          &device_info_helper);
+
+  ASSERT_TRUE(settings.has_value());
+  EXPECT_EQ(settings->pool_size, kExpectedCacheStoragePoolSize);
+  EXPECT_EQ(settings->per_storage_key_quota, kExpectedCacheStorageQuota);
+  EXPECT_EQ(settings->session_only_per_storage_key_quota,
+            kExpectedCacheStorageQuota);
+  EXPECT_LE(
+      settings->per_storage_key_quota,
+      static_cast<int64_t>(settings->pool_size * kUsageRatioToStartEviction));
+  // Must remain available should be min(1GB, 500GB * 0.01 = 5GB) = 1GB.
+  EXPECT_EQ(settings->must_remain_available, 1024LL * 1024 * 1024);
+  // Disk-pressure eviction is disabled.
+  EXPECT_EQ(settings->should_remain_available, 0);
+}
+
+TEST_F(CobaltContentBrowserClientTest, GetCacheQuotaSettings_SmallDiskSpace) {
+  MockQuotaDeviceInfoHelper device_info_helper;
+  const int64_t kTotalDiskSpace = 10LL * 1024 * 1024;  // 10 MB (< 24 MiB)
+  EXPECT_CALL(device_info_helper, AmountOfTotalDiskSpace(testing::_))
+      .WillRepeatedly(testing::Return(kTotalDiskSpace));
+
+  auto settings =
+      CobaltContentBrowserClient::CalculateCacheQuotaSettingsForTesting(
+          base::FilePath(FILE_PATH_LITERAL("/dummy/cache")),
+          &device_info_helper);
+
+  ASSERT_TRUE(settings.has_value());
+  EXPECT_EQ(settings->pool_size, kExpectedCacheStoragePoolSize);
+  EXPECT_EQ(settings->per_storage_key_quota, kExpectedCacheStorageQuota);
+  EXPECT_EQ(settings->session_only_per_storage_key_quota,
+            kExpectedCacheStorageQuota);
+  EXPECT_LE(
+      settings->per_storage_key_quota,
+      static_cast<int64_t>(settings->pool_size * kUsageRatioToStartEviction));
+  // Must remain available should be min(1GB, 10MB * 0.01) = 104857 bytes
+  // (~100 KB).
+  EXPECT_EQ(settings->must_remain_available,
+            static_cast<int64_t>(kTotalDiskSpace * 0.01));
+  // Disk-pressure eviction is disabled.
+  EXPECT_EQ(settings->should_remain_available, 0);
+}
+
+TEST_F(CobaltContentBrowserClientTest, GetCacheQuotaSettings_TinyDiskSpace) {
+  MockQuotaDeviceInfoHelper device_info_helper;
+  const int64_t kTotalDiskSpace = 4LL * 1024 * 1024;  // 4 MiB (< 6 MiB)
+  EXPECT_CALL(device_info_helper, AmountOfTotalDiskSpace(testing::_))
+      .WillRepeatedly(testing::Return(kTotalDiskSpace));
+
+  auto settings =
+      CobaltContentBrowserClient::CalculateCacheQuotaSettingsForTesting(
+          base::FilePath(FILE_PATH_LITERAL("/dummy/cache")),
+          &device_info_helper);
+
+  ASSERT_TRUE(settings.has_value());
+  EXPECT_EQ(settings->pool_size, kTotalDiskSpace * 2);
+  EXPECT_EQ(settings->per_storage_key_quota, kTotalDiskSpace);
+  EXPECT_EQ(settings->session_only_per_storage_key_quota, kTotalDiskSpace);
+  EXPECT_LE(
+      settings->per_storage_key_quota,
+      static_cast<int64_t>(settings->pool_size * kUsageRatioToStartEviction));
+}
+
+TEST_F(CobaltContentBrowserClientTest, GetCacheQuotaSettings_DiskSpaceError) {
+  MockQuotaDeviceInfoHelper device_info_helper;
+  EXPECT_CALL(device_info_helper, AmountOfTotalDiskSpace(testing::_))
+      .WillRepeatedly(testing::Return(-1));
+
+  auto settings =
+      CobaltContentBrowserClient::CalculateCacheQuotaSettingsForTesting(
+          base::FilePath(FILE_PATH_LITERAL("/dummy/cache")),
+          &device_info_helper);
+
+  EXPECT_FALSE(settings.has_value());
+}
+
+TEST_F(CobaltContentBrowserClientTest, GetCacheQuotaSettings_AsyncDispatch) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  base::test::TestFuture<std::optional<storage::QuotaSettings>> future;
+  client.GetCacheQuotaSettings(/*browser_context=*/nullptr, temp_dir.GetPath(),
+                               future.GetCallback());
+  task_environment_.RunUntilIdle();
+  auto settings = future.Take();
+  ASSERT_TRUE(settings.has_value());
+  EXPECT_EQ(settings->pool_size, kExpectedCacheStoragePoolSize);
+  EXPECT_EQ(settings->per_storage_key_quota, kExpectedCacheStorageQuota);
+  EXPECT_LE(
+      settings->per_storage_key_quota,
+      static_cast<int64_t>(settings->pool_size * kUsageRatioToStartEviction));
 }
 
 class CobaltContentBrowserClientHeaderTest
