@@ -381,6 +381,9 @@ GURL GetStartupUrlForPreconnect(const base::CommandLine& command_line) {
 // Preconnects one socket to the startup URL origin so DNS resolution and the
 // TCP/TLS handshake overlap with the rest of browser startup.
 void PreconnectToStartupOrigin(content::BrowserContext* browser_context) {
+  if (!browser_context) {
+    return;
+  }
   const GURL startup_url =
       GetStartupUrlForPreconnect(*base::CommandLine::ForCurrentProcess());
   if (!startup_url.is_valid() || !startup_url.SchemeIsHTTPOrHTTPS()) {
@@ -398,11 +401,11 @@ void PreconnectToStartupOrigin(content::BrowserContext* browser_context) {
           "cobalt_startup_preconnect",
           "Preconnects to the initial launch URL origin during Cobalt browser "
           "startup.");
-  const GURL origin_url = startup_url.DeprecatedGetOriginAsURL();
+  // PreconnectSockets() only uses the scheme, host and port of `startup_url`.
   network_context->PreconnectSockets(
-      /*num_streams=*/1, origin_url, network::mojom::CredentialsMode::kInclude,
+      /*num_streams=*/1, startup_url, network::mojom::CredentialsMode::kInclude,
       net::NetworkAnonymizationKey::CreateSameSite(
-          net::SchemefulSite(origin_url)),
+          net::SchemefulSite(startup_url)),
       net::MutableNetworkTrafficAnnotationTag(kTrafficAnnotation),
       /*keepalive_config=*/std::nullopt,
       /*observer_client=*/mojo::NullRemote());
