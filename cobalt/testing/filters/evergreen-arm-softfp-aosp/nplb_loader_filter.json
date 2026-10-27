@@ -4,8 +4,22 @@
     "*MaximumPlayerConfigurationExplorer*",
     "*MultiplePlayer*",
     "*SbMediaSetAudioWriteDuration*",
-    "*SbPlayer*",
+    "*SbPlayerGetAudioConfigurationTest.MultipleSeeks/*",
+    "*SbPlayerGetAudioConfigurationTest.SunnyDay/*",
+    "*SbPlayerGetMediaTimeTest.*",
+    "*SbPlayerWriteSampleTest.AudioCodecSwitching/*",
+    "*SbPlayerWriteSampleTest.DiscardAllAudio/*",
+    "*SbPlayerWriteSampleTest.LimitedAudioInput/*",
+    "*SbPlayerWriteSampleTest.PartialAudio/*",
+    "*SbPlayerWriteSampleTest.SecondaryPlayerTest/*",
+    "*SbPlayerWriteSampleTest.SeekAndDestroy/*",
+    "*SbPlayerWriteSampleTest.VideoCodecSwitching/*",
+    "*SbPlayerWriteSampleTest.WriteMultipleBatches/*",
+    "*SbPlayerWriteSampleTest.WriteSingleBatch/*",
     "*VerticalVideoTest*",
-    "SbDrmSessionTest.InvalidSessionUpdateRequestParams"
+    "SbDrmSessionTest.InvalidSessionUpdateRequestParams",
+    "SbPlayerGetPreferredOutputModeTest.*",
+    "SbPlayerTest.*",
+    "SbPlayerUrlTest.*"
   ]
 }
