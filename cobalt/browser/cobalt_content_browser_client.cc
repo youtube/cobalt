@@ -138,14 +138,15 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
 
 // Budgets for non-HTTP-cache consumers of kSbSystemPathCacheDirectory. The
 // HTTP cache is sized to the remainder (see ComputeDefaultHttpCacheSize).
-// V8 JS code cache (see GetGeneratedCodeCacheSettings).
+// V8 JS and Wasm code caches (see GetGeneratedCodeCacheSettings).
 constexpr uint32_t kGeneratedCodeCacheBytes = 5 * 1024 * 1024;
+constexpr uint32_t kGeneratedWasmCodeCacheBytes = 1 * 1024 * 1024;
 // Directory headroom for index files, persistent metrics, and metadata
 // (matching Cobalt 25's 1 << 20 reserve).
 constexpr uint32_t kCacheDirectoryHeadroomBytes = 1 * 1024 * 1024;
-// Total of 12 MB for non-HTTP caches sharing kSbSystemPathCacheDirectory:
+// Total of 13 MB for non-HTTP caches sharing kSbSystemPathCacheDirectory:
 constexpr uint32_t kNonHttpReserveBytes =
-    kGeneratedCodeCacheBytes +
+    kGeneratedCodeCacheBytes + kGeneratedWasmCodeCacheBytes +
     CobaltContentBrowserClient::kCacheStorageQuotaBytes +
     kCacheDirectoryHeadroomBytes;
 constexpr uint32_t kMinHttpCacheBytes = 1 * 1024 * 1024;
@@ -421,12 +422,12 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
     content::BrowserContext* context) {
   // Default compiled javascript quota in Cobalt 25 was 3 MB:
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
-  // Increased to 5 MB for Cobalt 27+.
-  size_t size = kGeneratedCodeCacheBytes;
+  // Increased to 5 MB for Cobalt 27+, with a 1 MB cap for the Wasm code cache.
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
-  return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
-                                             cache_path);
+  return content::GeneratedCodeCacheSettings(
+      /*enabled=*/true, kGeneratedCodeCacheBytes, kGeneratedWasmCodeCacheBytes,
+      cache_path);
 }
 
 // static

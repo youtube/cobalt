@@ -1578,8 +1578,15 @@ void StoragePartitionImpl::Initialize(
                             .AppendASCII("Code Cache");
     }
     DCHECK_GE(settings.size_in_bytes(), 0);
+#if BUILDFLAG(IS_COBALT)
+    DCHECK_GE(settings.wasm_size_in_bytes(), 0);
+    GetGeneratedCodeCacheContext()->Initialize(code_cache_path,
+                                               settings.size_in_bytes(),
+                                               settings.wasm_size_in_bytes());
+#else
     GetGeneratedCodeCacheContext()->Initialize(code_cache_path,
                                                settings.size_in_bytes());
+#endif
   }
 
   font_access_manager_ = FontAccessManager::Create();

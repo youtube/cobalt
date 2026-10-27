@@ -10,6 +10,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "build/build_config.h"
 #include "content/browser/code_cache/generated_code_cache.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -48,14 +49,35 @@ GeneratedCodeCacheContext::GeneratedCodeCacheContext() {
 
 void GeneratedCodeCacheContext::Initialize(const base::FilePath& path,
                                            int max_bytes) {
+#if BUILDFLAG(IS_COBALT)
+  Initialize(path, max_bytes, max_bytes);
+#else
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   RunOrPostTask(this, FROM_HERE,
                 base::BindOnce(&GeneratedCodeCacheContext::InitializeOnThread,
                                this, path, max_bytes));
+#endif
 }
 
+#if BUILDFLAG(IS_COBALT)
+void GeneratedCodeCacheContext::Initialize(const base::FilePath& path,
+                                           int max_bytes,
+                                           int max_wasm_bytes) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  RunOrPostTask(this, FROM_HERE,
+                base::BindOnce(&GeneratedCodeCacheContext::InitializeOnThread,
+                               this, path, max_bytes, max_wasm_bytes));
+}
+#endif
+
+#if BUILDFLAG(IS_COBALT)
+void GeneratedCodeCacheContext::InitializeOnThread(const base::FilePath& path,
+                                                   int max_bytes,
+                                                   int max_wasm_bytes) {
+#else
 void GeneratedCodeCacheContext::InitializeOnThread(const base::FilePath& path,
                                                    int max_bytes) {
+#endif
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   int max_bytes_js = max_bytes;
@@ -98,7 +120,12 @@ void GeneratedCodeCacheContext::InitializeOnThread(const base::FilePath& path,
       base::OnTaskRunnerDeleter(task_runner_)};
 
   generated_wasm_code_cache_ = {
-      new GeneratedCodeCache(path.AppendASCII("wasm"), max_bytes,
+      new GeneratedCodeCache(path.AppendASCII("wasm"),
+#if BUILDFLAG(IS_COBALT)
+                             max_wasm_bytes,
+#else
+                             max_bytes,
+#endif
                              GeneratedCodeCache::CodeCacheType::kWebAssembly),
       base::OnTaskRunnerDeleter(task_runner_)};
 }
