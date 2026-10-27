@@ -293,6 +293,8 @@ constexpr base::FeatureState HangWatcherFeatureDefault() {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS) || \
     BUILDFLAG(IS_LINUX)
   return FEATURE_ENABLED_BY_DEFAULT;
+#elif BUILDFLAG(IS_COBALT)
+  return FEATURE_ENABLED_BY_DEFAULT;
 #else
   return FEATURE_DISABLED_BY_DEFAULT;
 #endif
@@ -310,20 +312,7 @@ void HangWatcher::SetDelegate(Delegate* delegate) {
 // Enables the HangWatcher. When disabled, the HangWatcher thread should not be
 // started. Enabled by default only on platforms where the generated data is
 // used, to avoid unnecessary overhead.
-<<<<<<< HEAD
 BASE_FEATURE(kEnableHangWatcher, HangWatcherFeatureDefault());
-=======
-BASE_FEATURE(kEnableHangWatcher,
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_LINUX)
-             FEATURE_ENABLED_BY_DEFAULT
-#elif BUILDFLAG(IS_COBALT)
-             FEATURE_ENABLED_BY_DEFAULT
-#else
-             FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
->>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 // Enable HangWatcher on the GPU process.
 BASE_FEATURE(kEnableHangWatcherOnGpuProcess, HangWatcherFeatureDefault());
