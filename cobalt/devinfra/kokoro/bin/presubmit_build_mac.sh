@@ -112,8 +112,7 @@ EOF
     rbe_flag=""
   fi
 
-  cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
-    --script-executable=/usr/bin/python3 ${rbe_flag}
+  cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" ${rbe_flag}
   for gn_arg in ${EXTRA_GN_ARGUMENTS:-}; do
     echo "${gn_arg}" >> "out/${TARGET_PLATFORM}_${CONFIG}/args.gn"
   done

@@ -53,8 +53,7 @@ pipeline () {
   # Run GN and Ninja.
   ##############################################################################
   cd "${gclient_root}/src"
-  cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
-    --script-executable=/usr/bin/python3 --no-rbe
+  cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" --no-rbe
   for gn_arg in ${EXTRA_GN_ARGUMENTS:-}; do
     echo "${gn_arg}" >> "out/${TARGET_PLATFORM}_${CONFIG}/args.gn"
   done
