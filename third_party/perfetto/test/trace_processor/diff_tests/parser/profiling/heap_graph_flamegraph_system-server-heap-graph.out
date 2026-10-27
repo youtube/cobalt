@@ -1,0 +1,11 @@
+"id","depth","name","map_name","count","cumulative_count","size","cumulative_size","parent_id"
+0,0,"android.app.LoadedApk$ServiceDispatcher$DeathMonitor [ROOT_JNI_GLOBAL]","JAVA",32,789,640,54860,"[NULL]"
+1,1,"android.app.LoadedApk$ServiceDispatcher","JAVA",31,683,1395,51674,0
+2,2,"android.app.ActivityThread$H","JAVA",1,1,32,32,1
+3,2,"android.app.LoadedApk$ServiceDispatcher$InnerConnection","JAVA",31,62,868,1612,1
+4,3,"java.lang.ref.WeakReference","JAVA",31,31,744,744,3
+5,2,"android.util.ArrayMap","JAVA",31,125,775,3519,1
+6,3,"java.lang.Object[]","JAVA",31,63,1364,1876,5
+7,4,"android.app.LoadedApk$ServiceDispatcher$ConnectionInfo","JAVA",32,32,512,512,6
+8,3,"int[]","JAVA",31,31,868,868,5
+9,2,"android.app.ServiceConnectionLeaked","JAVA",31,145,868,22009,1
