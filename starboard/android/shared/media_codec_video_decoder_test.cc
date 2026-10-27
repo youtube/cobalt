@@ -58,6 +58,30 @@ const VideoStreamInfo kHdrVideoStreamInfo = [] {
   return info;
 }();
 
+const VideoStreamInfo kVp9VideoStreamInfo = [] {
+  VideoStreamInfo info = kDefaultVideoStreamInfo;
+  info.codec = kSbMediaVideoCodecVp9;
+  return info;
+}();
+
+const VideoStreamInfo kVp9HdrVideoStreamInfo = [] {
+  VideoStreamInfo info = kHdrVideoStreamInfo;
+  info.codec = kSbMediaVideoCodecVp9;
+  return info;
+}();
+
+const VideoStreamInfo kAv1VideoStreamInfo = [] {
+  VideoStreamInfo info = kDefaultVideoStreamInfo;
+  info.codec = kSbMediaVideoCodecAv1;
+  return info;
+}();
+
+// Depending on the device, an AV1 codec is only created once the decoder has
+// enough inputs to estimate the frame rate. Writing this many inputs always
+// creates it.
+constexpr int kInputsToCreateAv1Codec = 3;
+constexpr int64_t kFrameDurationUsec = 33'333;
+
 class MediaCodecVideoDecoderTest : public ::testing::Test {
  protected:
   void CreateDecoder(const std::string& max_video_capabilities = "",
@@ -132,6 +156,25 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
                          [this](SbPlayerError error, const std::string& msg) {
                            error_called_ = true;
                          });
+  }
+
+  // Writes |count| inputs of |stream_info|, one at a time, starting with a key
+  // frame at |start_timestamp|.
+  void WriteInputs(const VideoStreamInfo& stream_info,
+                   int64_t start_timestamp,
+                   int count) {
+    for (int i = 0; i < count; ++i) {
+      decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+          start_timestamp + i * kFrameDurationUsec, 1024, &stream_info,
+          /*is_key_frame=*/i == 0)});
+    }
+  }
+
+  // Returns true if the last video codec was created to render to the output
+  // surface the decoder was created with.
+  bool LastCodecUsesDecoderSurface() {
+    return AttachCurrentThread()->IsSameObject(
+        fake_factory_->last_video_surface().obj(), dummy_surface_.obj());
   }
 
   std::atomic<bool> error_called_{false};
@@ -402,6 +445,129 @@ TEST_F(MediaCodecVideoDecoderTest, FlushSeekSameColorKeepsCodec) {
       100'000'000, 1024, &larger_sdr_info, /*is_key_frame=*/true)});
 
   EXPECT_EQ(fake_factory_->video_codec_create_count(), created);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       FlushSeekAv1ToVp9RebuildsCodecOnSameSurface) {
+  CreateDecoder(/*max_video_capabilities=*/"", &kAv1VideoStreamInfo,
+                /*experimental_features=*/{},
+                /*enable_flush_during_seek=*/true);
+  InitializeDecoder();
+  WriteInputs(kAv1VideoStreamInfo, 0, kInputsToCreateAv1Codec);
+  const int created = fake_factory_->video_codec_create_count();
+  ASSERT_GE(created, 1);
+  ASSERT_EQ(fake_factory_->last_video_codec(), kSbMediaVideoCodecAv1);
+
+  decoder_->Reset();
+  // Reset() should flush the codec, not recreate it.
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), created);
+
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(
+      0, 1024, &kVp9VideoStreamInfo, /*is_key_frame=*/true)});
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), created + 1);
+  EXPECT_EQ(fake_factory_->last_video_codec(), kSbMediaVideoCodecVp9);
+  EXPECT_TRUE(LastCodecUsesDecoderSurface());
+
+  // The first input of the new stream is queued to the new codec.
+  FakeMediaCodec* vp9_codec = GetFakeVideoCodec();
+  ASSERT_NE(vp9_codec, nullptr);
+  vp9_codec->SimulateInputBufferAvailable(0);
+  ASSERT_TRUE(vp9_codec->WaitForInputQueue(1, 1000));
+  auto queued_inputs = vp9_codec->ConsumeQueuedInputs();
+  ASSERT_EQ(queued_inputs.size(), 1U);
+  EXPECT_EQ(queued_inputs[0].pts, 0);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       FlushSeekVp9ToAv1RebuildsCodecOnSameSurface) {
+  CreateDecoder(/*max_video_capabilities=*/"", &kVp9VideoStreamInfo,
+                /*experimental_features=*/{},
+                /*enable_flush_during_seek=*/true);
+  InitializeDecoder();
+  WriteInputs(kVp9VideoStreamInfo, 0, 1);
+  const int created = fake_factory_->video_codec_create_count();
+  ASSERT_EQ(fake_factory_->last_video_codec(), kSbMediaVideoCodecVp9);
+
+  decoder_->Reset();
+  WriteInputs(kAv1VideoStreamInfo, 0, kInputsToCreateAv1Codec);
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), created + 1);
+  EXPECT_EQ(fake_factory_->last_video_codec(), kSbMediaVideoCodecAv1);
+  EXPECT_TRUE(LastCodecUsesDecoderSurface());
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest, FlushSeekRebuildsCodecOnlyWhenCodecChanges) {
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                /*experimental_features=*/{},
+                /*enable_flush_during_seek=*/true);
+  InitializeDecoder();
+  WriteInputs(kDefaultVideoStreamInfo, 0, 1);
+  const int created = fake_factory_->video_codec_create_count();
+
+  // H.264 -> VP9 rebuilds the codec.
+  decoder_->Reset();
+  WriteInputs(kVp9VideoStreamInfo, 0, 1);
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), created + 1);
+  EXPECT_EQ(fake_factory_->last_video_codec(), kSbMediaVideoCodecVp9);
+
+  // VP9 -> VP9 keeps the rebuilt codec.
+  decoder_->Reset();
+  WriteInputs(kVp9VideoStreamInfo, 0, 1);
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), created + 1);
+
+  // VP9 -> H.264 rebuilds it again.
+  decoder_->Reset();
+  WriteInputs(kDefaultVideoStreamInfo, 0, 1);
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), created + 2);
+  EXPECT_EQ(fake_factory_->last_video_codec(), kSbMediaVideoCodecH264);
+  EXPECT_TRUE(LastCodecUsesDecoderSurface());
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest, FlushSeekToHdrOfAnotherCodecRebuildsOnce) {
+  CreateDecoder(/*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+                /*experimental_features=*/{},
+                /*enable_flush_during_seek=*/true);
+  InitializeDecoder();
+  WriteInputs(kDefaultVideoStreamInfo, 0, 1);
+  const int created = fake_factory_->video_codec_create_count();
+
+  decoder_->Reset();
+  WriteInputs(kVp9HdrVideoStreamInfo, 0, 1);
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), created + 1);
+  EXPECT_EQ(fake_factory_->last_video_codec(), kSbMediaVideoCodecVp9);
+  auto color_metadata = fake_factory_->last_video_color_metadata();
+  ASSERT_TRUE(color_metadata.has_value());
+  EXPECT_EQ(color_metadata->transfer, kSbMediaTransferIdSmpteSt2084);
+  EXPECT_TRUE(LastCodecUsesDecoderSurface());
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       FlushSeekToLargerStreamOfAnotherCodecSizesNewCodecForIt) {
+  VideoStreamInfo initial_info = kDefaultVideoStreamInfo;
+  initial_info.frame_size = {1280, 720};
+  CreateDecoder("width=1280; height=720", &initial_info,
+                /*experimental_features=*/{},
+                /*enable_flush_during_seek=*/true);
+  InitializeDecoder();
+  WriteInputs(initial_info, 0, 1);
+  const int created = fake_factory_->video_codec_create_count();
+
+  // The new codec is created for the new stream, as at startup, instead of
+  // reporting that the stream exceeds the previous codec's capabilities.
+  VideoStreamInfo larger_vp9_info = kVp9VideoStreamInfo;
+  larger_vp9_info.frame_size = {1920, 1080};
+  decoder_->Reset();
+  WriteInputs(larger_vp9_info, 0, 1);
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), created + 1);
+  EXPECT_EQ(fake_factory_->last_video_codec(), kSbMediaVideoCodecVp9);
   EXPECT_FALSE(error_called_);
 }
 
