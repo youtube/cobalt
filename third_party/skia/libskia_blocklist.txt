@@ -1,3 +1,0 @@
-# VmaAllocate casts from void*
-[cfi-unrelated-cast]
-fun:*VmaAllocate*

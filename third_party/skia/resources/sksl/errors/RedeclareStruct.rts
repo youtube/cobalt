@@ -1,7 +1,0 @@
-struct void {
-    int x;
-};
-
-/*%%*
-expected an identifier, but found type 'void'
-*%%*/
