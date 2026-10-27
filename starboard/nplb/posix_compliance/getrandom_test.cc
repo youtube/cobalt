@@ -42,8 +42,7 @@ TEST(GetRandomTest, FillsBuffer) {
   // 1 in 2^2048 respectively). If they do, rerunning the test should fix it.
   EXPECT_NE(buf1, buf2) << "Two random buffers should not be identical.";
 
-  bool all_zero =
-      std::all_of(buf1.begin(), buf1.end(), [](char c) { return c == 0; });
+  bool all_zero = std::ranges::all_of(buf1, [](char c) { return c == 0; });
   EXPECT_FALSE(all_zero) << "Random buffer should not be all zeros.";
 }
 

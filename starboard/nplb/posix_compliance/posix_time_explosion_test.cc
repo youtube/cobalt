@@ -149,225 +149,225 @@ struct tm* localtime_wrapper(const time_t* timep, struct tm* result) {
 
 // Data for gmtime and gmtime_r
 constexpr TimeTestData kGmtimeCases[] = {
-    {"EpochTime",
-     "UTC",
-     {/*tm_sec=*/0,
-      /*tm_min=*/0,
-      /*tm_hour=*/0,
-      /*tm_mday=*/1,    // 1st day of the month.
-      /*tm_mon=*/0,     // January (0-11).
-      /*tm_year=*/70,   // 1970 - 1900.
-      /*tm_wday=*/4,    // Thursday.
-      /*tm_yday=*/0,    // Day of the year (0-365).
-      /*tm_isdst=*/0},  // Daylight Saving Time is not in effect.
-     /*time_val=*/0,    // January 1, 1970, 00:00:00 UTC.
-     /*expected_gmtoff=*/0,
-     kUtcOrGmt},
-    {"SpecificKnownPositiveTime",
-     "UTC",
+    {.case_name = "EpochTime",
+     .timezone = "UTC",
+     .expected_tm = {.tm_sec = 0,
+                     .tm_min = 0,
+                     .tm_hour = 0,
+                     .tm_mday = 1,    // 1st day of the month.
+                     .tm_mon = 0,     // January (0-11).
+                     .tm_year = 70,   // 1970 - 1900.
+                     .tm_wday = 4,    // Thursday.
+                     .tm_yday = 0,    // Day of the year (0-365).
+                     .tm_isdst = 0},  // Daylight Saving Time is not in effect.
+     .time_val = 0,                   // January 1, 1970, 00:00:00 UTC.
+     .expected_gmtoff = 0,
+     .expected_zone = kUtcOrGmt},
+    {.case_name = "SpecificKnownPositiveTime",
+     .timezone = "UTC",
      // Generated using: date -u -d "2023-10-26 10:30:00 UTC" +%s
-     {/*tm_sec=*/0,
-      /*tm_min=*/30,
-      /*tm_hour=*/10,
-      /*tm_mday=*/26,   // 26th day of the month.
-      /*tm_mon=*/9,     // October (0-11).
-      /*tm_year=*/123,  // 2023 - 1900.
-      /*tm_wday=*/4,    // Thursday.
-                        // tm_yday calculation for Oct 26, 2023 (non-leap year):
-                        // 31(Jan)+28(Feb)+31(Mar)+30(Apr)+31(May)+30(Jun)+
-                        // 31(Jul)+31(Aug)+30(Sep) = 273.
-                        // tm_yday = 273 + 26 - 1 = 298.
-      /*tm_yday=*/298,
-      /*tm_isdst=*/0},
-     /*time_val=*/1698316200,
-     /*expected_gmtoff=*/0,
-     kUtcOrGmt},
-    {"NegativeStdTimeBeforeEpoch",
-     "UTC",
-     {/*tm_sec=*/0,
-      /*tm_min=*/0,
-      /*tm_hour=*/0,
-      /*tm_mday=*/31,   // 31st day of the month.
-      /*tm_mon=*/11,    // December (0-11).
-      /*tm_year=*/69,   // 1969 - 1900.
-      /*tm_wday=*/3,    // Wednesday.
-      /*tm_yday=*/364,  // Day of the year (0-365).
-      /*tm_isdst=*/0},
+     .expected_tm = {.tm_sec = 0,
+                     .tm_min = 30,
+                     .tm_hour = 10,
+                     .tm_mday = 26,   // 26th day of the month.
+                     .tm_mon = 9,     // October (0-11).
+                     .tm_year = 123,  // 2023 - 1900.
+                     .tm_wday = 4,    // Thursday.
+                     // tm_yday calculation for Oct 26, 2023 (non-leap year):
+                     // 31(Jan)+28(Feb)+31(Mar)+30(Apr)+31(May)+30(Jun)+
+                     // 31(Jul)+31(Aug)+30(Sep) = 273.
+                     // tm_yday = 273 + 26 - 1 = 298.
+                     .tm_yday = 298,
+                     .tm_isdst = 0},
+     .time_val = 1698316200,
+     .expected_gmtoff = 0,
+     .expected_zone = kUtcOrGmt},
+    {.case_name = "NegativeStdTimeBeforeEpoch",
+     .timezone = "UTC",
+     .expected_tm = {.tm_sec = 0,
+                     .tm_min = 0,
+                     .tm_hour = 0,
+                     .tm_mday = 31,   // 31st day of the month.
+                     .tm_mon = 11,    // December (0-11).
+                     .tm_year = 69,   // 1969 - 1900.
+                     .tm_wday = 3,    // Wednesday.
+                     .tm_yday = 364,  // Day of the year (0-365).
+                     .tm_isdst = 0},
      // Timestamp for 1969-12-31 00:00:00 UTC
-     /*time_val=*/-kSecondsInDay,
-     /*expected_gmtoff=*/0,
-     kUtcOrGmt},
-    {"NegativeDstTimeBeforeEpoch",
-     "UTC",
-     {/*tm_sec=*/0,
-      /*tm_min=*/0,
-      /*tm_hour=*/0,
-      /*tm_mday=*/30,   // 30th day of the month.
-      /*tm_mon=*/5,     // June (0-11).
-      /*tm_year=*/69,   // 1969 - 1900.
-      /*tm_wday=*/1,    // Monday.
-      /*tm_yday=*/180,  // Day of the year (0-365).
-      /*tm_isdst=*/0},
+     .time_val = -kSecondsInDay,
+     .expected_gmtoff = 0,
+     .expected_zone = kUtcOrGmt},
+    {.case_name = "NegativeDstTimeBeforeEpoch",
+     .timezone = "UTC",
+     .expected_tm = {.tm_sec = 0,
+                     .tm_min = 0,
+                     .tm_hour = 0,
+                     .tm_mday = 30,   // 30th day of the month.
+                     .tm_mon = 5,     // June (0-11).
+                     .tm_year = 69,   // 1969 - 1900.
+                     .tm_wday = 1,    // Monday.
+                     .tm_yday = 180,  // Day of the year (0-365).
+                     .tm_isdst = 0},
      // Timestamp for 1969-06-30 00:00:00 UTC
      // Six months and one day before December, 4 of which have 31 days.
-     /*time_val=*/-(30 * 6 + 5) * kSecondsInDay,
-     /*expected_gmtoff=*/0,
-     kUtcOrGmt},
-    {"July2024",
-     "UTC",
+     .time_val = -(30 * 6 + 5) * kSecondsInDay,
+     .expected_gmtoff = 0,
+     .expected_zone = kUtcOrGmt},
+    {.case_name = "July2024",
+     .timezone = "UTC",
      // Generated with: date -u -d "2024-07-31 23:32:59 UTC" +%s.
-     {/*tm_sec=*/59,
-      /*tm_min=*/32,
-      /*tm_hour=*/23,
-      /*tm_mday=*/31,   // 31st day of the month.
-      /*tm_mon=*/6,     // July (0-11).
-      /*tm_year=*/124,  // 2024 - 1900.
-      /*tm_wday=*/3,    // Wednesday.
-      /*tm_yday=*/212,  // 2024 is a leap year.
-      /*tm_isdst=*/0},
-     /*time_val=*/1722468779,
-     /*expected_gmtoff=*/0,
-     kUtcOrGmt},
-    {"MaxTimeValForStructTm",
-     "UTC",
-     {/*tm_sec=*/59,
-      /*tm_min=*/59,
-      /*tm_hour=*/23,
-      /*tm_mday=*/31,       // 31st day of the month.
-      /*tm_mon=*/11,        // December (0-11).
-      /*tm_year=*/INT_MAX,  // 2147485547 - 1900.
-      /*tm_wday=*/3,        // Wednesday.
-      /*tm_yday=*/364,      // Day of the year (0-365).
-      /*tm_isdst=*/0},
+     .expected_tm = {.tm_sec = 59,
+                     .tm_min = 32,
+                     .tm_hour = 23,
+                     .tm_mday = 31,   // 31st day of the month.
+                     .tm_mon = 6,     // July (0-11).
+                     .tm_year = 124,  // 2024 - 1900.
+                     .tm_wday = 3,    // Wednesday.
+                     .tm_yday = 212,  // 2024 is a leap year.
+                     .tm_isdst = 0},
+     .time_val = 1722468779,
+     .expected_gmtoff = 0,
+     .expected_zone = kUtcOrGmt},
+    {.case_name = "MaxTimeValForStructTm",
+     .timezone = "UTC",
+     .expected_tm = {.tm_sec = 59,
+                     .tm_min = 59,
+                     .tm_hour = 23,
+                     .tm_mday = 31,       // 31st day of the month.
+                     .tm_mon = 11,        // December (0-11).
+                     .tm_year = INT_MAX,  // 2147485547 - 1900.
+                     .tm_wday = 3,        // Wednesday.
+                     .tm_yday = 364,      // Day of the year (0-365).
+                     .tm_isdst = 0},
      // The last second that still fits in tm_year, one before the value
      // TimeTHighValueOverflow checks.
-     /*time_val=*/67768036191676799,
-     /*expected_gmtoff=*/0,
-     kUtcOrGmt},
-    {"MinTimeValForStructTm",
-     "UTC",
-     {/*tm_sec=*/0,
-      /*tm_min=*/0,
-      /*tm_hour=*/0,
-      /*tm_mday=*/1,        // 1st day of the month.
-      /*tm_mon=*/0,         // January (0-11).
-      /*tm_year=*/INT_MIN,  // -2147481748 - 1900.
-      /*tm_wday=*/4,        // Thursday.
-      /*tm_yday=*/0,        // Day of the year (0-365).
-      /*tm_isdst=*/0},
+     .time_val = 67768036191676799,
+     .expected_gmtoff = 0,
+     .expected_zone = kUtcOrGmt},
+    {.case_name = "MinTimeValForStructTm",
+     .timezone = "UTC",
+     .expected_tm = {.tm_sec = 0,
+                     .tm_min = 0,
+                     .tm_hour = 0,
+                     .tm_mday = 1,        // 1st day of the month.
+                     .tm_mon = 0,         // January (0-11).
+                     .tm_year = INT_MIN,  // -2147481748 - 1900.
+                     .tm_wday = 4,        // Thursday.
+                     .tm_yday = 0,        // Day of the year (0-365).
+                     .tm_isdst = 0},
      // The first second that still fits in tm_year, one after the value
      // TimeTLowValueOverflow checks.
-     /*time_val=*/-67768040609740800,
-     /*expected_gmtoff=*/0,
-     kUtcOrGmt}};
+     .time_val = -67768040609740800,
+     .expected_gmtoff = 0,
+     .expected_zone = kUtcOrGmt}};
 
 // Data for localtime and localtime_r
 constexpr TimeTestData kLocaltimeCases[] = {
-    {"EpochTime",
-     "America/New_York",
-     {/*tm_sec=*/0,
-      /*tm_min=*/0,
-      /*tm_hour=*/19,
-      /*tm_mday=*/31,   // 31st day of the month.
-      /*tm_mon=*/11,    // December (0-11).
-      /*tm_year=*/69,   // 1969 - 1900.
-      /*tm_wday=*/3,    // Wednesday.
-      /*tm_yday=*/364,  // Day of the year (0-365).
-      /*tm_isdst=*/0},  // Daylight Saving Time is not in effect.
-     /*time_val=*/0,    // January 1, 1970, 00:00:00 UTC.
-     /*expected_gmtoff=*/-18000,
-     "EST"},
-    {"SpecificKnownPositiveTimeInDST",
-     "America/New_York",
+    {.case_name = "EpochTime",
+     .timezone = "America/New_York",
+     .expected_tm = {.tm_sec = 0,
+                     .tm_min = 0,
+                     .tm_hour = 19,
+                     .tm_mday = 31,   // 31st day of the month.
+                     .tm_mon = 11,    // December (0-11).
+                     .tm_year = 69,   // 1969 - 1900.
+                     .tm_wday = 3,    // Wednesday.
+                     .tm_yday = 364,  // Day of the year (0-365).
+                     .tm_isdst = 0},  // Daylight Saving Time is not in effect.
+     .time_val = 0,                   // January 1, 1970, 00:00:00 UTC.
+     .expected_gmtoff = -18000,
+     .expected_zone = "EST"},
+    {.case_name = "SpecificKnownPositiveTimeInDST",
+     .timezone = "America/New_York",
      // Generated using: date -u -d "2023-10-26 10:30:00 UTC" +%s
-     {/*tm_sec=*/0,
-      /*tm_min=*/30,
-      /*tm_hour=*/6,
-      /*tm_mday=*/26,   // 26th day of the month.
-      /*tm_mon=*/9,     // October (0-11).
-      /*tm_year=*/123,  // 2023 - 1900.
-      /*tm_wday=*/4,    // Thursday.
-      /*tm_yday=*/298,  // Day of the year (0-365).
-      /*tm_isdst=*/1},  // Daylight Saving Time is in effect.
-     /*time_val=*/1698316200,
-     /*expected_gmtoff=*/-14400,
-     "EDT"},
-    {"SpecificKnownPositiveTimeNotInDST",
-     "America/New_York",
+     .expected_tm = {.tm_sec = 0,
+                     .tm_min = 30,
+                     .tm_hour = 6,
+                     .tm_mday = 26,   // 26th day of the month.
+                     .tm_mon = 9,     // October (0-11).
+                     .tm_year = 123,  // 2023 - 1900.
+                     .tm_wday = 4,    // Thursday.
+                     .tm_yday = 298,  // Day of the year (0-365).
+                     .tm_isdst = 1},  // Daylight Saving Time is in effect.
+     .time_val = 1698316200,
+     .expected_gmtoff = -14400,
+     .expected_zone = "EDT"},
+    {.case_name = "SpecificKnownPositiveTimeNotInDST",
+     .timezone = "America/New_York",
      // Generated using: date -u -d "2023-12-25 10:30:00 UTC" +%s
-     {/*tm_sec=*/0,
-      /*tm_min=*/30,
-      /*tm_hour=*/5,
-      /*tm_mday=*/25,   // 25th day of the month.
-      /*tm_mon=*/11,    // December (0-11).
-      /*tm_year=*/123,  // 2023 - 1900.
-      /*tm_wday=*/1,    // Monday.
-      /*tm_yday=*/358,  // Day of the year (0-365).
-      /*tm_isdst=*/0},  // Daylight Saving Time is not in effect.
-     /*time_val=*/1703500200,
-     /*expected_gmtoff=*/-18000,
-     "EST"},
-    {"NegativeStdTimeBeforeEpoch",
-     "America/New_York",
-     {/*tm_sec=*/0,
-      /*tm_min=*/0,
-      /*tm_hour=*/19,
-      /*tm_mday=*/30,   // 30th day of the month.
-      /*tm_mon=*/11,    // December (0-11).
-      /*tm_year=*/69,   // 1969 - 1900.
-      /*tm_wday=*/2,    // Tuesday.
-      /*tm_yday=*/363,  // Day of the year (0-365).
-      /*tm_isdst=*/0},  // Daylight Saving Time is not in effect.
-                        // Timestamp for 1969-12-31 00:00:00 UTC
-     /*time_val=*/-kSecondsInDay,
-     /*expected_gmtoff=*/-18000,
-     "EST"},
-    {"NegativeDstTimeBeforeEpoch",
-     "America/New_York",
-     {/*tm_sec=*/0,
-      /*tm_min=*/0,
-      /*tm_hour=*/20,
-      /*tm_mday=*/30,   // 30th day of the month.
-      /*tm_mon=*/5,     // June (0-11).
-      /*tm_year=*/69,   // 1969 - 1900.
-      /*tm_wday=*/1,    // Monday.
-      /*tm_yday=*/180,  // Day of the year (0-365).
-      /*tm_isdst=*/1},  // Daylight Saving Time is in effect.
-                        // Timestamp for 1969-06-30 00:00:00 UTC
-                        // Six months before December, 4 of which have 31 days.
-     /*time_val=*/-(30 * 6 + 4) * kSecondsInDay,
-     /*expected_gmtoff=*/-14400,
-     "EDT"},
-    {"SpecificKnownPositiveTimeInDifferentTimezone",
-     "Europe/London",
+     .expected_tm = {.tm_sec = 0,
+                     .tm_min = 30,
+                     .tm_hour = 5,
+                     .tm_mday = 25,   // 25th day of the month.
+                     .tm_mon = 11,    // December (0-11).
+                     .tm_year = 123,  // 2023 - 1900.
+                     .tm_wday = 1,    // Monday.
+                     .tm_yday = 358,  // Day of the year (0-365).
+                     .tm_isdst = 0},  // Daylight Saving Time is not in effect.
+     .time_val = 1703500200,
+     .expected_gmtoff = -18000,
+     .expected_zone = "EST"},
+    {.case_name = "NegativeStdTimeBeforeEpoch",
+     .timezone = "America/New_York",
+     .expected_tm = {.tm_sec = 0,
+                     .tm_min = 0,
+                     .tm_hour = 19,
+                     .tm_mday = 30,   // 30th day of the month.
+                     .tm_mon = 11,    // December (0-11).
+                     .tm_year = 69,   // 1969 - 1900.
+                     .tm_wday = 2,    // Tuesday.
+                     .tm_yday = 363,  // Day of the year (0-365).
+                     .tm_isdst = 0},  // Daylight Saving Time is not in effect.
+     // Timestamp for 1969-12-31 00:00:00 UTC
+     .time_val = -kSecondsInDay,
+     .expected_gmtoff = -18000,
+     .expected_zone = "EST"},
+    {.case_name = "NegativeDstTimeBeforeEpoch",
+     .timezone = "America/New_York",
+     .expected_tm = {.tm_sec = 0,
+                     .tm_min = 0,
+                     .tm_hour = 20,
+                     .tm_mday = 30,   // 30th day of the month.
+                     .tm_mon = 5,     // June (0-11).
+                     .tm_year = 69,   // 1969 - 1900.
+                     .tm_wday = 1,    // Monday.
+                     .tm_yday = 180,  // Day of the year (0-365).
+                     .tm_isdst = 1},  // Daylight Saving Time is in effect.
+     // Timestamp for 1969-06-30 00:00:00 UTC
+     // Six months before December, 4 of which have 31 days.
+     .time_val = -(30 * 6 + 4) * kSecondsInDay,
+     .expected_gmtoff = -14400,
+     .expected_zone = "EDT"},
+    {.case_name = "SpecificKnownPositiveTimeInDifferentTimezone",
+     .timezone = "Europe/London",
      // Generated using: date -u -d "2023-10-26 10:30:00 UTC" +%s
-     {/*tm_sec=*/0,
-      /*tm_min=*/30,
-      /*tm_hour=*/11,
-      /*tm_mday=*/26,   // 26st day of the month.
-      /*tm_mon=*/9,     // October (0-11).
-      /*tm_year=*/123,  // 2023 - 1900.
-      /*tm_wday=*/4,    // Thursday.
-      /*tm_yday=*/298,  // Day of the year (0-365).
-      /*tm_isdst=*/1},
-     /*time_val=*/1698316200,
-     /*expected_gmtoff=*/3600,
-     "BST"},
-    {"SpecificKnownPositiveTimeInUTC",
-     "UTC",
+     .expected_tm = {.tm_sec = 0,
+                     .tm_min = 30,
+                     .tm_hour = 11,
+                     .tm_mday = 26,   // 26st day of the month.
+                     .tm_mon = 9,     // October (0-11).
+                     .tm_year = 123,  // 2023 - 1900.
+                     .tm_wday = 4,    // Thursday.
+                     .tm_yday = 298,  // Day of the year (0-365).
+                     .tm_isdst = 1},
+     .time_val = 1698316200,
+     .expected_gmtoff = 3600,
+     .expected_zone = "BST"},
+    {.case_name = "SpecificKnownPositiveTimeInUTC",
+     .timezone = "UTC",
      // Generated using: date -u -d "2023-10-26 10:30:00 UTC" +%s
-     {/*tm_sec=*/0,
-      /*tm_min=*/30,
-      /*tm_hour=*/10,
-      /*tm_mday=*/26,   // 26st day of the month.
-      /*tm_mon=*/9,     // October (0-11).
-      /*tm_year=*/123,  // 2023 - 1900.
-      /*tm_wday=*/4,    // Thursday.
-      /*tm_yday=*/298,  // Day of the year (0-365).
-      /*tm_isdst=*/0},
-     /*time_val=*/1698316200,
-     /*expected_gmtoff=*/0,
-     kUtcOrGmt}};
+     .expected_tm = {.tm_sec = 0,
+                     .tm_min = 30,
+                     .tm_hour = 10,
+                     .tm_mday = 26,   // 26st day of the month.
+                     .tm_mon = 9,     // October (0-11).
+                     .tm_year = 123,  // 2023 - 1900.
+                     .tm_wday = 4,    // Thursday.
+                     .tm_yday = 298,  // Day of the year (0-365).
+                     .tm_isdst = 0},
+     .time_val = 1698316200,
+     .expected_gmtoff = 0,
+     .expected_zone = kUtcOrGmt}};
 
 INSTANTIATE_TEST_SUITE_P(
     Gmtime,
@@ -394,66 +394,66 @@ INSTANTIATE_TEST_SUITE_P(
     });
 
 constexpr TimeTestData kGmtimeOverflowCases[] = {
-    {"TimeTMaxValueOverflow",
-     "UTC",
-     {},
-     std::numeric_limits<time_t>::max(),
-     0,
-     "UTC"},
-    {"TimeTHighValueOverflow",
-     "UTC",
-     {},
+    {.case_name = "TimeTMaxValueOverflow",
+     .timezone = "UTC",
+     .expected_tm = {},
+     .time_val = std::numeric_limits<time_t>::max(),
+     .expected_gmtoff = 0,
+     .expected_zone = "UTC"},
+    {.case_name = "TimeTHighValueOverflow",
+     .timezone = "UTC",
+     .expected_tm = {},
      // One second past Wed Dec 31 23:59:59 2147485547, the last time whose
      // year still fits in tm_year (INT_MAX).
-     67768036191676799 + 1,
-     0,
-     "UTC"},
-    {"TimeTMinValueOverflow",
-     "UTC",
-     {},
-     std::numeric_limits<time_t>::min(),
-     0,
-     "UTC"},
-    {"TimeTLowValueOverflow",
-     "UTC",
-     {},
+     .time_val = 67768036191676799 + 1,
+     .expected_gmtoff = 0,
+     .expected_zone = "UTC"},
+    {.case_name = "TimeTMinValueOverflow",
+     .timezone = "UTC",
+     .expected_tm = {},
+     .time_val = std::numeric_limits<time_t>::min(),
+     .expected_gmtoff = 0,
+     .expected_zone = "UTC"},
+    {.case_name = "TimeTLowValueOverflow",
+     .timezone = "UTC",
+     .expected_tm = {},
      // One second before Thu Jan  1 00:00:00 -2147481748, the first time whose
      // year still fits in tm_year (INT_MIN).
-     -67768040609740800 - 1,
-     0,
-     "UTC"}};
+     .time_val = -67768040609740800 - 1,
+     .expected_gmtoff = 0,
+     .expected_zone = "UTC"}};
 
 constexpr TimeTestData kLocaltimeOverflowCases[] = {
-    {"TimeTMaxValueOverflow",
-     "America/New_York",
-     {},
-     std::numeric_limits<time_t>::max(),
-     0,
-     "EST"},
-    {"TimeTHighValueOverflow",
-     "America/New_York",
-     {},
+    {.case_name = "TimeTMaxValueOverflow",
+     .timezone = "America/New_York",
+     .expected_tm = {},
+     .time_val = std::numeric_limits<time_t>::max(),
+     .expected_gmtoff = 0,
+     .expected_zone = "EST"},
+    {.case_name = "TimeTHighValueOverflow",
+     .timezone = "America/New_York",
+     .expected_tm = {},
      // Tue Dec 31 23:59:59  2147483647
      // Ensure that time_val will overflow the tm_year member variable.
-     67767976233521999 + 1,
-     0,
-     "EST",
-     /*hermetic_only=*/true},
-    {"TimeTMinValueOverflow",
-     "America/New_York",
-     {},
-     std::numeric_limits<time_t>::min(),
-     0,
-     "EST"},
-    {"TimeTLowValueOverflow",
-     "America/New_York",
-     {},
+     .time_val = 67767976233521999 + 1,
+     .expected_gmtoff = 0,
+     .expected_zone = "EST",
+     .hermetic_only = true},
+    {.case_name = "TimeTMinValueOverflow",
+     .timezone = "America/New_York",
+     .expected_tm = {},
+     .time_val = std::numeric_limits<time_t>::min(),
+     .expected_gmtoff = 0,
+     .expected_zone = "EST"},
+    {.case_name = "TimeTLowValueOverflow",
+     .timezone = "America/New_York",
+     .expected_tm = {},
      // Thu Jan  1 00:00:00 -2147481748
      // Ensure that time_val will overflow the tm_year member variable.
-     -67768040609712422 - 1,
-     0,
-     "EST",
-     /*hermetic_only=*/true}};
+     .time_val = -67768040609712422 - 1,
+     .expected_gmtoff = 0,
+     .expected_zone = "EST",
+     .hermetic_only = true}};
 
 INSTANTIATE_TEST_SUITE_P(
     Gmtime,

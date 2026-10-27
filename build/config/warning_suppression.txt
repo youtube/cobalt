@@ -57,3 +57,6 @@ src:*
 src:*/starboard/*=emit
 src:*/third_party/*
 src:*gen/*
+# nplb is a Starboard client (like Cobalt) and is always built with the C++20
+# Cobalt toolchain, never with a partner C++17 toolchain.
+src:*/starboard/nplb/*
