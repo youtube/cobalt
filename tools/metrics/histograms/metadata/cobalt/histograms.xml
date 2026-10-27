@@ -1149,6 +1149,16 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.Experimental.Browser2.Small.Skia.SkGlyphCache"
+    units="KB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-eng@google.com</owner>
+  <summary>
+    The size of the Skia glyph cache in the browser process. Recorded at regular
+    intervals when memory metrics are emitted.
+  </summary>
+</histogram>
+
 <histogram name="Memory.Experimental.Browser2.Stacks" units="MiB"
     expires_after="never">
   <owner>avvall@google.com</owner>
@@ -1309,6 +1319,24 @@ Always run the pretty print utility on this file after editing:
   <summary>
     Records total estimated memory allocation used for media output buffer by
     Android MediaCodec.
+  </summary>
+</histogram>
+
+<histogram name="Memory.SmapsCategorizer.CoalescedRequestsCount"
+    units="request" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the number of concurrent /proc/self/smaps scan requests coalesced
+    into a single background scan pass in SmapsCategorizer::OnScanComplete().
+  </summary>
+</histogram>
+
+<histogram name="Memory.SmapsCategorizer.Reliability" enum="SmapsReliability"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the outcome of scanning and parsing /proc/self/smaps in
+    SmapsCategorizer::ScanSmapsFile().
   </summary>
 </histogram>
 

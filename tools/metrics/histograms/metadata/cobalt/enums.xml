@@ -169,6 +169,13 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
       label="Load system image: Failed to initialize installation manager"/>
 </enum>
 
+<enum name="SmapsReliability">
+  <int value="0" label="Success"/>
+  <int value="1" label="Rollup missing"/>
+  <int value="2" label="Access denied"/>
+  <int value="3" label="Unreliable"/>
+</enum>
+
 <enum name="SplashScreenFetchedState">
   <int value="0" label="Success: Content from builtin"/>
   <int value="1" label="Success: Content from cache"/>
