@@ -117,22 +117,12 @@ int InstallationManager::Initialize() {
 
   // If there is no existing store, or if the on-disk store has a different
   // slot count than |max_num_installations_| (e.g., upgrading from a 3-slot
-  // Cobalt <= 25 configuration to a 2-slot Cobalt >= 26 configuration), create
-  // a fresh store with the system image (slot 0) active.
+  // Cobalt <= 25 configuration to a 2-slot Cobalt >= 26 configuration), reset
+  // the store and installation directories with the system image (slot 0)
+  // active.
   if (!LoadInstallationStore() ||
       installation_store_.installations_size() != max_num_installations_) {
-    CreateInstallationStore();
-    current_installation_ = FindCurrentInstallationIndex();
-    if (!IsValidIndex(current_installation_)) {
-      SB_LOG(ERROR) << "Initialize: Unable to find current installation"
-                    << current_installation_;
-      return IM_ERROR;
-    }
-    if (!CreateInstallationDirs()) {
-      SB_LOG(ERROR) << "Initialize: Unable to create installations dirs";
-      return IM_ERROR;
-    }
-    initialized_ = SaveInstallationStore();
+    initialized_ = (Reset() == IM_SUCCESS);
   } else {
     current_installation_ = FindCurrentInstallationIndex();
     if (!IsValidIndex(current_installation_)) {
@@ -168,6 +158,13 @@ int InstallationManager::GetMaxNumberInstallations() {
 }
 
 int InstallationManager::Reset() {
+  // Clean existing slot directories before CreateInstallationStore() overwrites
+  // |installation_store_| so any obsolete slot directories from a previous
+  // configuration are also removed.
+  if (!CleanInstallationDirs()) {
+    SB_LOG(ERROR) << "Reset: Unable to clean installations dirs";
+    return IM_ERROR;
+  }
   CreateInstallationStore();
   current_installation_ = FindCurrentInstallationIndex();
   if (!IsValidIndex(current_installation_)) {
@@ -175,8 +172,10 @@ int InstallationManager::Reset() {
                   << current_installation_;
     return IM_ERROR;
   }
-  if (!CleanInstallationDirs()) {
-    SB_LOG(ERROR) << "Reset: Unable to clean installations dirs";
+  // Recreate the active slot directories (1..max_num_installations_ - 1) after
+  // CleanInstallationDirs() removed them (or on initial store creation).
+  if (!CreateInstallationDirs()) {
+    SB_LOG(ERROR) << "Reset: Unable to create installations dirs";
     return IM_ERROR;
   }
   if (!SaveInstallationStore()) {
@@ -453,6 +452,10 @@ int InstallationManager::GetInstallationPath(int installation_index,
     SB_LOG(ERROR) << "GetInstallationPath: not initialized";
     return IM_ERROR;
   }
+  if (!IsValidIndex(installation_index)) {
+    SB_LOG(ERROR) << "GetInstallationPath: invalid index" << installation_index;
+    return IM_ERROR;
+  }
   return GetInstallationPathInternal(installation_index, path, path_length)
              ? IM_SUCCESS
              : IM_ERROR;
@@ -682,7 +685,12 @@ bool InstallationManager::LoadInstallationStore() {
 bool InstallationManager::GetInstallationPathInternal(int installation_index,
                                                       char* path,
                                                       int path_length) {
-  if (!IsValidIndex(installation_index)) {
+  // Only check for negative indices here rather than IsValidIndex()
+  // (installation_index < max_num_installations_) so CleanInstallationDirs()
+  // can resolve paths for obsolete slot directories >= max_num_installations_
+  // when transitioning from a 3-slot to a 2-slot configuration. Public callers
+  // go through GetInstallationPath(), which enforces IsValidIndex().
+  if (installation_index < 0) {
     SB_LOG(ERROR) << "GetInstallationPath: invalid index" << installation_index;
     return false;
   }
@@ -726,12 +734,22 @@ bool InstallationManager::CreateInstallationDirs() {
 
 bool InstallationManager::CleanInstallationDirs() {
   std::vector<char> path(kSbFileMaxPath);
+  // Use |installation_store_.installations_size()| when populated so that
+  // obsolete slot directories (e.g., installation_2 when transitioning from a
+  // 3-slot to a 2-slot configuration) are also deleted. If
+  // |installation_store_| is empty (e.g., no existing store on disk), fall back
+  // to |max_num_installations_|.
+  const int num_installations = installation_store_.installations_size() > 0
+                                    ? installation_store_.installations_size()
+                                    : max_num_installations_;
   // The index 0 slot is under the content directory.
-  for (int i = 1; i < max_num_installations_; i++) {
+  for (int i = 1; i < num_installations; i++) {
     if (!GetInstallationPathInternal(i, path.data(), kSbFileMaxPath)) {
       return false;
     }
-    if (!starboard::SbFileDeleteRecursive(path.data(), true)) {
+    struct stat info;
+    if (stat(path.data(), &info) == 0 &&
+        !starboard::SbFileDeleteRecursive(path.data(), false)) {
       return false;
     }
   }
