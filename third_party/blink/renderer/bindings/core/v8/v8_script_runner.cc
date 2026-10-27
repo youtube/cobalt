@@ -26,9 +26,9 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_script_runner.h"
 
 #include "base/feature_list.h"
+#include "base/features.h"
 #include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
-#include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/page/v8_compile_hints_histograms.h"
 #include "third_party/blink/public/mojom/v8_cache_options.mojom-blink.h"
@@ -68,6 +68,7 @@
 #include "third_party/blink/renderer/platform/loader/fetch/cached_metadata.h"
 #include "third_party/blink/renderer/platform/loader/fetch/url_loader/cached_metadata_handler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
+#include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
 
 namespace blink {
@@ -657,7 +658,11 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
         // so that serializing bytecode to disk does not compete with more
         // critical work (e.g. rendering) on the main thread during startup.
         // The task only runs when the frame has leftover budget before the
-        // next vsync.
+        // next vsync. When kCobaltCodeCacheAndHttpCacheOptimization is enabled,
+        // defer the idle write past the cold-start critical path (default 5000
+        // ms instead of 1 ms) so 2.2 MB Kabuki bytecode serialization and
+        // SimpleCache disk writes do not collide with initial script/network
+        // loading.
         auto code_cache_task = WTF::BindOnce(
             &DelayedProduceCodeCacheTask, WrapPersistent(script_state),
             v8::Global<v8::Script>(isolate, script),
@@ -665,16 +670,28 @@ ScriptEvaluationResult V8ScriptRunner::CompileAndRunScript(
             classic_script->SourceText().length(), classic_script->SourceUrl(),
             classic_script->StartPosition());
 
-        if (auto* scheduler = ThreadScheduler::Current()) {
+        int idle_delay_ms = 1;
+        if (base::FeatureList::IsEnabled(
+                base::features::kCobaltCodeCacheAndHttpCacheOptimization)) {
+          idle_delay_ms = base::features::kCobaltV8CodeCacheIdleDelayMs.Get();
+        }
+        auto* scheduler = ThreadScheduler::Current();
+        if (scheduler && idle_delay_ms >= 0) {
+          const base::TimeDelta delay = base::Milliseconds(idle_delay_ms);
+          base::UmaHistogramTimes("Cobalt.V8CodeCache.DeferredWriteDelayMs",
+                                  delay);
           scheduler->PostDelayedIdleTask(
-              FROM_HERE, base::Milliseconds(1),
+              FROM_HERE, delay,
               WTF::BindOnce(
                   [](base::OnceClosure task, base::TimeTicks /* deadline */) {
                     std::move(task).Run();
                   },
                   std::move(code_cache_task)));
         } else {
-          // No scheduler available on this thread; write the cache now.
+          // No scheduler available on this thread or negative delay configured;
+          // write the cache synchronously now.
+          base::UmaHistogramTimes("Cobalt.V8CodeCache.DeferredWriteDelayMs",
+                                  base::TimeDelta());
           std::move(code_cache_task).Run();
         }
       } else

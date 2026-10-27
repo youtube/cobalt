@@ -187,6 +187,34 @@ BASE_FEATURE(kCobaltStorageCleanup,
              "CobaltStorageCleanup",
              FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltCodeCacheAndHttpCacheOptimization,
+             "CobaltCodeCacheAndHttpCacheOptimization",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltGeneratedCodeCacheSizeMb,
+                   &kCobaltCodeCacheAndHttpCacheOptimization,
+                   "code_cache_size_mb",
+                   10);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltNonHttpCacheReserveMb,
+                   &kCobaltCodeCacheAndHttpCacheOptimization,
+                   "non_http_reserve_mb",
+                   12);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltMaxHttpCacheSizeMb,
+                   &kCobaltCodeCacheAndHttpCacheOptimization,
+                   "http_cache_size_mb",
+                   12);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltV8CodeCacheIdleDelayMs,
+                   &kCobaltCodeCacheAndHttpCacheOptimization,
+                   "v8_code_cache_idle_delay_ms",
+                   5000);
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kCobaltAndroidDisplayCriticalInProcessRenderer,
              "CobaltAndroidDisplayCriticalInProcessRenderer",

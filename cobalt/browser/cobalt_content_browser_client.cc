@@ -345,8 +345,19 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
     content::BrowserContext* context) {
   // Default compiled javascript quota in Cobalt 25 was 3 MB:
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
-  // Increased to 5 MB for Cobalt 27+.
+  // Increased to 5 MB for Cobalt 27+, and to 10 MB when
+  // kCobaltCodeCacheAndHttpCacheOptimization is enabled so cold-start bytecode
+  // writes do not cross SimpleCache's 90% eviction watermark.
   size_t size = 5 * 1024 * 1024;
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltCodeCacheAndHttpCacheOptimization) &&
+      base::features::kCobaltGeneratedCodeCacheSizeMb.Get() > 0) {
+    size = static_cast<size_t>(
+               base::features::kCobaltGeneratedCodeCacheSizeMb.Get()) *
+           1024 * 1024;
+  }
+  base::UmaHistogramCounts100000("Cobalt.Storage.CodeCache.ConfiguredMaxSizeKB",
+                                 base::saturated_cast<int>(size / 1024));
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
@@ -361,15 +372,23 @@ uint32_t CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
   // - 6 MB for Service Worker CacheStorage
   // - 1 MB non-HTTP-cache directory headroom (matching Cobalt 25's 1 << 20
   //   reserve for index files, persistent metrics, and metadata)
-  constexpr uint32_t kNonHttpReserveBytes = 12 * 1024 * 1024;
+  uint32_t non_http_reserve_bytes = 12 * 1024 * 1024;
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltCodeCacheAndHttpCacheOptimization) &&
+      base::features::kCobaltNonHttpCacheReserveMb.Get() >= 0) {
+    non_http_reserve_bytes =
+        static_cast<uint32_t>(
+            base::features::kCobaltNonHttpCacheReserveMb.Get()) *
+        1024 * 1024;
+  }
   constexpr uint32_t kMinHttpCacheBytes = 1 * 1024 * 1024;
 
-  if (total_dir_budget_bytes <= kNonHttpReserveBytes + kMinHttpCacheBytes) {
+  if (total_dir_budget_bytes <= non_http_reserve_bytes + kMinHttpCacheBytes) {
     // For small platform budgets, ensure we do not return 0 or negative.
     return std::min(total_dir_budget_bytes, kMinHttpCacheBytes);
   }
 
-  return total_dir_budget_bytes - kNonHttpReserveBytes;
+  return total_dir_budget_bytes - non_http_reserve_bytes;
 }
 
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
@@ -450,8 +469,14 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     network_context_params->file_paths->http_cache_directory =
         cache_path.Append(kCacheDirname);
 
+    base::FilePath base_user_data_dir;
+    if (context) {
+      base_user_data_dir = context->GetPath();
+    } else {
+      base::PathService::Get(content::SHELL_DIR_USER_DATA, &base_user_data_dir);
+    }
     base::FilePath user_data_dir =
-        context->GetPath().Append(relative_partition_path);
+        base_user_data_dir.Append(relative_partition_path);
     network_context_params->file_paths->data_directory =
         user_data_dir.Append(kNetworkDataDirname);
     network_context_params->file_paths->unsandboxed_data_path = user_data_dir;
@@ -480,9 +505,14 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 
     network_context_params->http_cache_max_size = base::checked_cast<int>(
         ComputeDefaultHttpCacheSize(kSbMaxSystemPathCacheDirectorySize));
+    if (base::FeatureList::IsEnabled(
+            base::features::kCobaltCodeCacheAndHttpCacheOptimization) &&
+        base::features::kCobaltMaxHttpCacheSizeMb.Get() > 0) {
+      network_context_params->http_cache_max_size =
+          base::features::kCobaltMaxHttpCacheSizeMb.Get() * 1024 * 1024;
+    }
   }
 
-#if BUILDFLAG(IS_ANDROID)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kMaxHttpCacheSize)) {
     std::string size_str =
@@ -490,10 +520,31 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
             switches::kMaxHttpCacheSize);
     int parsed_size = 0;
     if (base::StringToInt(size_str, &parsed_size)) {
-      network_context_params->http_cache_max_size = parsed_size;
+      // On Android, cobalt_switch_defaults_android.cc injects
+      // --max-http-cache-size=26214400 (25 MiB) before FeatureList is
+      // initialized. When kCobaltCodeCacheAndHttpCacheOptimization is enabled,
+      // replace that legacy 25 MiB switch default with the configured Finch
+      // quota (12 MiB default, respecting the 24 MiB DIR_CACHE partner budget)
+      // while still honoring any explicit non-default --max-http-cache-size
+      // override.
+      if (base::FeatureList::IsEnabled(
+              base::features::kCobaltCodeCacheAndHttpCacheOptimization) &&
+          size_str == "26214400") {
+        if (base::features::kCobaltMaxHttpCacheSizeMb.Get() > 0) {
+          network_context_params->http_cache_max_size =
+              base::features::kCobaltMaxHttpCacheSizeMb.Get() * 1024 * 1024;
+        }
+      } else {
+        network_context_params->http_cache_max_size = parsed_size;
+      }
     }
   }
-#endif  // BUILDFLAG(IS_ANDROID)
+
+  if (!in_memory) {
+    base::UmaHistogramCounts100000(
+        "Cobalt.Storage.HttpCache.ConfiguredMaxSizeKB",
+        std::max(0, network_context_params->http_cache_max_size / 1024));
+  }
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   cobalt::browser::ConfigureProxyFromCommandLineIfNeeded(
