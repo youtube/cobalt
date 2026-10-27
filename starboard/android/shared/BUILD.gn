@@ -173,8 +173,6 @@ static_library("starboard_platform") {
     "exoplayer/exoplayer_player_worker_handler.h",
     "exoplayer/exoplayer_util.cc",
     "exoplayer/exoplayer_util.h",
-    "features_extension.cc",
-    "features_extension.h",
     "file_internal.cc",
     "file_internal.h",
     "get_home_directory.cc",

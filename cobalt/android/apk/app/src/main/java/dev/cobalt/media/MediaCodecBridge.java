@@ -32,12 +32,15 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Size;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+import dev.cobalt.features.StarboardFeatureList;
+import dev.cobalt.features.StarboardFeatures;
 import dev.cobalt.media.MediaCodecFrameRateEstimator.FrameRateEstimator;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
@@ -520,6 +523,21 @@ class MediaCodecBridge {
               + " (%d, %d)",
           maxWidth,
           maxHeight);
+
+      // TODO(b/568493652): Remove the feature once the experiment is complete.
+      if (MimeTypes.VIDEO_H264.equals(mime)
+          && StarboardFeatureList.isEnabled(StarboardFeatures.LIMIT_H264_MAX_VIDEO_SIZE_TO1080P)) {
+        Size limitedSize = limitMaxVideoSizeTo1080p(maxWidth, maxHeight, widthHint, heightHint);
+        maxWidth = limitedSize.getWidth();
+        maxHeight = limitedSize.getHeight();
+        Log.i(
+            TAG,
+            "Limited H264 maxWidth and maxHeight to (%d, %d) for size hint (%d, %d)",
+            maxWidth,
+            maxHeight,
+            widthHint,
+            heightHint);
+      }
     }
 
     if (fps > 0) {
@@ -990,6 +1008,26 @@ class MediaCodecBridge {
   private static int alignDimension(int size, int alignment) {
     int ceilDivide = (size + alignment - 1) / alignment;
     return ceilDivide * alignment;
+  }
+
+  /**
+   * Returns the minimum of the decoder's max size and 1080p in the stream's orientation (1920x1080
+   * for landscape, 1080x1920 for portrait), but never smaller than the initial stream size.
+   *
+   * @param maxWidth The decoder's max supported width.
+   * @param maxHeight The decoder's max supported height.
+   * @param widthHint The initial stream width.
+   * @param heightHint The initial stream height.
+   * @return The limited max video size.
+   */
+  private static Size limitMaxVideoSizeTo1080p(
+      int maxWidth, int maxHeight, int widthHint, int heightHint) {
+    boolean isPortrait = heightHint > widthHint;
+    int targetWidth = Math.max(widthHint, isPortrait ? 1080 : 1920);
+    int targetHeight = Math.max(heightHint, isPortrait ? 1920 : 1080);
+    int limitedWidth = Math.min(maxWidth, targetWidth);
+    int limitedHeight = Math.min(maxHeight, targetHeight);
+    return new Size(limitedWidth, limitedHeight);
   }
 
   // Use some heuristics to set KEY_MAX_INPUT_SIZE (the size of the input buffers).

@@ -70,10 +70,14 @@ base::FilePath GetCacheDirectory() {
   return base::FilePath(cache_dir.data());
 }
 
-// Deletes everything inside `dir` (files, symlinks and subdirectories) while
-// leaving `dir` itself in place. Unlike base::DeletePathRecursively(), which
-// also deletes `dir`. A non-existent `dir` is treated as already empty. Returns
-// false if `dir` could not be enumerated or if any entry could not be deleted.
+// Deletes everything inside `dir` (files, symlinks and subdirectories) on a
+// best-effort basis while leaving `dir` itself in place. Unlike
+// base::DeletePathRecursively(), which also deletes `dir` and stops upon the
+// first error, this continues deleting remaining entries when an error occurs.
+// This is necessary because some filesystems prevent the deletion of open
+// files, and tests cannot realistically force them all to be closed. A
+// non-existent `dir` is treated as already empty. Returns false if `dir` could
+// not be enumerated or if any entry could not be deleted.
 bool DeleteDirectoryContents(const base::FilePath& dir) {
   if (!base::DirectoryExists(dir)) {
     return true;
@@ -89,16 +93,27 @@ bool DeleteDirectoryContents(const base::FilePath& dir) {
       base::FileEnumerator::ErrorPolicy::STOP_ENUMERATION);
   for (base::FilePath path = enumerator.Next(); !path.empty();
        path = enumerator.Next()) {
-    // base::DeletePathRecursively() does not follow symlinks, so a symlink to
-    // a directory is unlinked rather than having its target emptied.
-    if (!base::DeletePathRecursively(path)) {
-      DLOG(ERROR) << "Failed to delete " << path.value();
+    // Recursively empty subdirectories with DeleteDirectoryContents() followed
+    // by base::DeleteFile() instead of base::DeletePathRecursively(), which
+    // stops upon the first deletion error it encounters and leaves remaining
+    // entries behind. Because SHOW_SYM_LINKS uses lstat(), IsDirectory() is
+    // false for symlinks to directories, so they are unlinked rather than
+    // traversed.
+    if (enumerator.GetInfo().IsDirectory() && !DeleteDirectoryContents(path)) {
+      LOG(WARNING) << "Failed to delete contents of " << path.value();
+      success = false;
+      // Skipped `DeleteFile` below if emptying failed, since removing a
+      // non-empty directory would fail anyway
+      continue;
+    }
+    if (!base::DeleteFile(path)) {
+      LOG(WARNING) << "Failed to delete " << path.value();
       success = false;
     }
   }
   if (enumerator.GetError() != base::File::FILE_OK) {
-    DLOG(ERROR) << "Failed to enumerate " << dir.value() << ": "
-                << base::File::ErrorToString(enumerator.GetError());
+    LOG(WARNING) << "Failed to enumerate " << dir.value() << ": "
+                 << base::File::ErrorToString(enumerator.GetError());
     return false;
   }
   return success;
@@ -180,20 +195,22 @@ void H5vccStorageImpl::WriteTest(uint32_t test_size,
     return;
   }
 
-  // Make sure the cache directory exists, then empty it in place so that the
-  // directory itself (and its mode/ownership) is left untouched.
+  // Make sure the cache directory exists, then (best-effort) empty it in place
+  // so that the directory itself (and its mode/ownership) is left untouched.
   if (!base::CreateDirectory(cache_path)) {
     std::move(callback).Run(0U, kCreateDirectoryError);
     return;
   }
   if (!DeleteDirectoryContents(cache_path)) {
-    std::move(callback).Run(0U, kClearCacheDirectoryError);
-    return;
+    LOG(WARNING) << kClearCacheDirectoryError;
   }
 
   const base::FilePath test_file_path = cache_path.Append(kTestFileName);
+  // Use FLAG_CREATE_ALWAYS to truncate any existing file in case
+  // DeleteDirectoryContents() failed to delete a larger prior test file,
+  // preventing stale trailing bytes from remaining on disk.
   base::File test_file(test_file_path,
-                       base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_WRITE);
+                       base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
 
   if (!test_file.IsValid()) {
     std::move(callback).Run(

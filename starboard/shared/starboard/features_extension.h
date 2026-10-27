@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_FEATURES_EXTENSION_H_
-#define STARBOARD_ANDROID_SHARED_FEATURES_EXTENSION_H_
+#ifndef STARBOARD_SHARED_STARBOARD_FEATURES_EXTENSION_H_
+#define STARBOARD_SHARED_STARBOARD_FEATURES_EXTENSION_H_
 
 namespace starboard {
 
@@ -23,4 +23,4 @@ const void* GetFeaturesApi();
 
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_FEATURES_EXTENSION_H_
+#endif  // STARBOARD_SHARED_STARBOARD_FEATURES_EXTENSION_H_
