@@ -74,6 +74,10 @@ class FakeVideoGeometryChangeClient : public mojom::VideoGeometryChangeClient {
   mojo::Receiver<mojom::VideoGeometryChangeClient> receiver_{this};
 };
 
+// Drives a real VideoGeometrySetterService through its mojo interfaces:
+// |setter_| plays the Viz compositor, and |subscriber_| subscribes the fake
+// clients. The helpers run the TaskEnvironment until idle, so every call has
+// been delivered before a test checks the results.
 class VideoGeometrySetterServiceTest : public testing::Test {
  protected:
   using VideoHole = std::pair<base::UnguessableToken, gfx::RectF>;

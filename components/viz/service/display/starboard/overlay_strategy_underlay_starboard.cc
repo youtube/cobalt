@@ -199,6 +199,11 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
   return found_underlay;
 }
 
+// Must only be called from Attempt(), while its ScopedVideoHoleGeometryBatch is
+// live (ScopedVideoHoleGeometryBatch::Add() CHECKs it). Video holes never take
+// OverlayProcessorUsingStrategy's multiple-overlays path, which would commit
+// them back to front without a batch, because they require an overlay (see
+// ShouldAttemptMultipleOverlays()).
 void OverlayStrategyUnderlayStarboard::CommitCandidate(
     const OverlayProposedCandidate& proposed_candidate,
     AggregatedRenderPass* render_pass) {
