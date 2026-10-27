@@ -149,15 +149,15 @@ TEST_F(CobaltContentBrowserClientTest,
 #endif  // BUILDFLAG(IS_STARBOARD)
 
 TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
-  // 1. Nominal Starboard budget (24 MiB -> 12 MiB HTTP cache):
+  // 1. Nominal Starboard budget (24 MiB -> 11 MiB HTTP cache):
   EXPECT_EQ(
       CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(24 * 1024 * 1024),
-      12u * 1024 * 1024);
+      11u * 1024 * 1024);
 
-  // 2. Current platform constant equals budget minus the 12 MiB reserve:
+  // 2. Current platform constant equals budget minus the 13 MiB reserve:
   EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
                 kSbMaxSystemPathCacheDirectorySize),
-            kSbMaxSystemPathCacheDirectorySize - 12u * 1024 * 1024);
+            kSbMaxSystemPathCacheDirectorySize - 13u * 1024 * 1024);
 
   // 3. Zero / unconfigured budget:
   EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0u);

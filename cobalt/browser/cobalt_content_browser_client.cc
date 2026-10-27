@@ -79,6 +79,7 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/content_constants.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -138,14 +139,15 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
 
 // Budgets for non-HTTP-cache consumers of kSbSystemPathCacheDirectory. The
 // HTTP cache is sized to the remainder (see ComputeDefaultHttpCacheSize).
-// V8 JS code cache (see GetGeneratedCodeCacheSettings).
+// V8 JS code cache (see GetGeneratedCodeCacheSettings) and Wasm code cache
+// (see GeneratedCodeCacheContext::InitializeOnThread).
 constexpr uint32_t kGeneratedCodeCacheBytes = 5 * 1024 * 1024;
 // Directory headroom for index files, persistent metrics, and metadata
 // (matching Cobalt 25's 1 << 20 reserve).
 constexpr uint32_t kCacheDirectoryHeadroomBytes = 1 * 1024 * 1024;
-// Total of 12 MB for non-HTTP caches sharing kSbSystemPathCacheDirectory:
+// Total of 13 MB for non-HTTP caches sharing kSbSystemPathCacheDirectory:
 constexpr uint32_t kNonHttpReserveBytes =
-    kGeneratedCodeCacheBytes +
+    kGeneratedCodeCacheBytes + content::kGeneratedWasmCodeCacheBytes +
     CobaltContentBrowserClient::kCacheStorageQuotaBytes +
     kCacheDirectoryHeadroomBytes;
 constexpr uint32_t kMinHttpCacheBytes = 1 * 1024 * 1024;
