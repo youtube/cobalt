@@ -67,8 +67,6 @@ bool StructTraits<media::mojom::VideoDecoderConfigDataView,
   output->set_aspect_ratio(aspect_ratio);
   output->set_hdr_metadata(hdr_metadata);
 
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::string mime_type;
   if (!input.ReadMimeType(&mime_type))
@@ -79,8 +77,6 @@ bool StructTraits<media::mojom::VideoDecoderConfigDataView,
 
   if (!output->IsValidConfig())
     return false;
-
->>>>>>> parent of 5c266e6bb98 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return true;
 }
 
