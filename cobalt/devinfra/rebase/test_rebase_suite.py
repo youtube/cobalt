@@ -2337,9 +2337,14 @@ class ChangeRecordReviewContextTest(unittest.TestCase):
     self.assertNotIn("FILE: a.cc", text)
 
   def test_patch_explanation_strips_unified_diff_body(self):
+    # The blank line inside the hunk is a context line whose leading space
+    # the model dropped; it must not end the hunk.
     patch = ("Drop the stray marker.\n--- a/a.cc\n+++ b/a.cc\n"
-             "@@ -1,1 +1,0 @@\n-=======\n")
-    self.assertEqual(patch_explanation(patch), "Drop the stray marker.")
+             "@@ -1,3 +1,2 @@\n-=======\n\n keep_this;\n\nThis matches "
+             "upstream.\n")
+    self.assertEqual(
+        patch_explanation(patch),
+        "Drop the stray marker.\nThis matches upstream.")
     self.assertEqual(patch_explanation(""), "")
 
   def test_phase4_record_carries_trigger_rationale_and_model(self):

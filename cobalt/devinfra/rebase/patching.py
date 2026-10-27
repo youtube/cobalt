@@ -280,7 +280,9 @@ def patch_explanation(patch_text: str, limit: int = 1500) -> str:
       if _UNIFIED_DIFF_RE.match(line):
         in_hunk = True
         continue
-      if in_hunk and line[:1] in ("+", "-", " ", "\\"):
+      # Models often drop the leading space of a blank context line, so an
+      # empty line inside a hunk is still part of it.
+      if in_hunk and (not line or line[:1] in ("+", "-", " ", "\\")):
         continue
       in_hunk = False
       lines.append(line)
