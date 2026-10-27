@@ -212,8 +212,7 @@ Span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
   if (!byte_buffer) {
     return {};
   }
-  auto span = JavaByteBufferToMutableSpan(env, byte_buffer);
-  return {span.data(), span.size()};
+  return JavaByteBufferToMutableSpan(env, byte_buffer);
 }
 
 jint MediaCodecBridge::QueueInputBuffer(jint index,
@@ -282,8 +281,7 @@ Span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
   if (!byte_buffer) {
     return {};
   }
-  auto span = JavaByteBufferToMutableSpan(env, byte_buffer);
-  return {span.data(), span.size()};
+  return JavaByteBufferToMutableSpan(env, byte_buffer);
 }
 
 void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {
