@@ -34,9 +34,10 @@ void ConnectVideoGeometrySetter(
 
 // Collects the video holes punched while a frame is processed, and reports them
 // to the VideoGeometrySetter service in one SetVideoGeometries() call when it
-// goes out of scope. The service derives the stacking order (z-index) of the
-// videos from the order of the holes, so they must be added front-most first,
-// i.e., in QuadList order. Must be used on the compositor thread.
+// goes out of scope. Nothing is reported if no video hole was added. The
+// service derives the stacking order (z-index) of the videos from the order of
+// the holes, so they must be added front-most first, i.e., in QuadList order.
+// Batches can't be nested. Must be used on the compositor thread.
 class VIZ_SERVICE_EXPORT ScopedVideoHoleGeometryBatch {
   STACK_ALLOCATED();
 
@@ -49,15 +50,15 @@ class VIZ_SERVICE_EXPORT ScopedVideoHoleGeometryBatch {
 
   ~ScopedVideoHoleGeometryBatch();
 
-  // Adds a video hole to the innermost live batch. Without a live batch, the
-  // video hole is reported on its own right away.
+  // Adds a video hole to the live batch. Must only be called while a batch is
+  // live, since the service takes each SetVideoGeometries() call as all the
+  // video holes of a frame.
   static void Add(const base::UnguessableToken& overlay_plane_id,
                   const gfx::RectF& rect_f,
                   gfx::OverlayTransform transform);
 
  private:
   std::vector<cobalt::media::mojom::VideoHoleGeometryPtr> front_to_back_;
-  ScopedVideoHoleGeometryBatch* const previous_batch_;
 };
 
 }  // namespace viz

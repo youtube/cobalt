@@ -86,7 +86,7 @@
 #endif
 
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) && !BUILDFLAG(IS_IOS)
-#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
+#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"  // nogncheck
 #include "components/viz/service/display/starboard/overlay_strategy_underlay_starboard.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -6943,16 +6943,20 @@ class FakeVideoGeometrySetter
     gfx::RectF rect_f;
   };
 
+  // cobalt::media::mojom::VideoGeometrySetter implementation.
   void SetVideoGeometries(
       std::vector<cobalt::media::mojom::VideoHoleGeometryPtr> front_to_back)
       override {
-    std::vector<VideoHole>& frame = frames.emplace_back();
+    std::vector<VideoHole>& frame = frames_.emplace_back();
     for (const auto& video_hole : front_to_back) {
       frame.push_back({video_hole->overlay_plane_id, video_hole->rect_f});
     }
   }
 
-  std::vector<std::vector<VideoHole>> frames;
+  const std::vector<std::vector<VideoHole>>& frames() const { return frames_; }
+
+ private:
+  std::vector<std::vector<VideoHole>> frames_;
 };
 
 TEST_F(UnderlayStarboardTest, ReportsAllVideoHolesOfAFrameFrontToBack) {
@@ -6995,8 +6999,8 @@ TEST_F(UnderlayStarboardTest, ReportsAllVideoHolesOfAFrameFrontToBack) {
 
   // Both holes are reported in a single call, front-most first, so that the
   // VideoGeometrySetter service can derive their stacking order.
-  ASSERT_EQ(fake_setter.frames.size(), 1u);
-  const auto& frame = fake_setter.frames[0];
+  ASSERT_EQ(fake_setter.frames().size(), 1u);
+  const auto& frame = fake_setter.frames()[0];
   ASSERT_EQ(frame.size(), 2u);
   EXPECT_EQ(frame[0].overlay_plane_id, kSecondaryToken);
   EXPECT_EQ(frame[0].rect_f, gfx::RectF(kOverlayBottomRightRect));

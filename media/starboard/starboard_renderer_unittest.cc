@@ -553,37 +553,35 @@ TEST_F(StarboardRendererTest,
                         renderer_init_cb_.Get());
   task_environment_.RunUntilIdle();
 
-  // While only the secondary video hole quad is in the compositor, it is
-  // committed with z_index = 0.
+  // While only the secondary video hole is in the compositor, the
+  // VideoGeometrySetter service gives it z_index = 0.
   EXPECT_CALL(mock_sbplayer_interface_,
               SetBounds(secondary_player, 0, 1280, 660, 427, 240));
   secondary_renderer->OnVideoGeometryChange(gfx::Rect(1280, 660, 427, 240),
                                             /*z_index=*/0);
 
   // Now attach CDM to primary renderer so its SbPlayer is created and its
-  // video hole quad is added behind the secondary quad in the compositor.
+  // video hole is added behind the secondary one in the compositor.
   EXPECT_CALL(set_cdm_cb_, Run(true));
   renderer_->SetCdm(&cdm_context_, set_cdm_cb_.Get());
   task_environment_.RunUntilIdle();
 
-  // Compositor now commits both quads in back-to-front order: primary (back)
-  // with z_index = 0, and secondary (front) with z_index = 1 (even though
-  // secondary's output_rect did not change).
-  {
-    testing::InSequence seq;
-    EXPECT_CALL(mock_sbplayer_interface_,
-                SetBounds(primary_player, 0, 0, 0, 1920, 1080));
-    EXPECT_CALL(mock_sbplayer_interface_,
-                SetBounds(secondary_player, 1, 1280, 660, 427, 240));
-  }
-  renderer_->OnVideoGeometryChange(gfx::Rect(0, 0, 1920, 1080), /*z_index=*/0);
+  // The service then gives the primary z_index = 1 and raises the secondary to
+  // z_index = 2. The secondary's rect is unchanged, but its new z-index must
+  // still reach SbPlayerSetBounds(). The order in which the two renderers are
+  // notified does not matter.
+  EXPECT_CALL(mock_sbplayer_interface_,
+              SetBounds(primary_player, 1, 0, 0, 1920, 1080));
+  EXPECT_CALL(mock_sbplayer_interface_,
+              SetBounds(secondary_player, 2, 1280, 660, 427, 240));
   secondary_renderer->OnVideoGeometryChange(gfx::Rect(1280, 660, 427, 240),
-                                            /*z_index=*/1);
+                                            /*z_index=*/2);
+  renderer_->OnVideoGeometryChange(gfx::Rect(0, 0, 1920, 1080), /*z_index=*/1);
 
-  // Subsequent frames with identical rect and z_index are deduplicated.
-  renderer_->OnVideoGeometryChange(gfx::Rect(0, 0, 1920, 1080), /*z_index=*/0);
+  // An identical rect and z-index doesn't reach SbPlayerSetBounds() again.
+  renderer_->OnVideoGeometryChange(gfx::Rect(0, 0, 1920, 1080), /*z_index=*/1);
   secondary_renderer->OnVideoGeometryChange(gfx::Rect(1280, 660, 427, 240),
-                                            /*z_index=*/1);
+                                            /*z_index=*/2);
 }
 
 }  // namespace

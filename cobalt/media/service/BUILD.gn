@@ -45,7 +45,6 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//cobalt/media/service/mojom",
     "//mojo/public/cpp/bindings",
-    "//testing/gmock",
     "//testing/gtest",
     "//ui/gfx",
     "//ui/gfx/geometry",

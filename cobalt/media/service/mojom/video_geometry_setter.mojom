@@ -11,17 +11,18 @@ import "ui/gfx/mojom/overlay_transform.mojom";
 // This file defines two mojo interfaces:
 // - VideoGeometryChangeClient to be informed of changes in the presented video
 //   geometry (for a given |overlay_plane_id|).
-// - VideoGeometrySetter that can be used by a source of geometry changes (for
-//   a given |overlay_plane_id|) to inform a remote observer.
+// - VideoGeometrySetter that the compositor uses to report the geometry of all
+//   the video holes of each presented frame.
 // A broker (e.g., VideoGeometrySetterService) is implemented to connect the
 // geometry update events (i.e., from VideoGeometrySetter::SetVideoGeometries()
 // all the way to a VideoGeometryChangeClient::OnVideoGeometryChange()).
 // A third mojo interface, VideoGeometryChangeSubscriber, is also defined to
 // allow VideoGeometryChangeClients to connect to the broker.
 // Note that there can be multiple VideoGeometryChangeClients (usually
-// StarboardRenderers in a single Renderer process) and VideoGeometrySetters
-// (usually OverlayStrategyUnderlayStarboard in the GPU/Viz process, compositor
-// thread). The broker is expected to live in the only Cobalt Renderer process.
+// StarboardRenderers), but a single VideoGeometrySetter reporter (the Viz
+// compositor, e.g., OverlayStrategyUnderlayStarboard, once per frame): the
+// broker derives the z-indices by comparing consecutive SetVideoGeometries()
+// calls. The broker lives in the GPU process.
 
 // Interface to inform clients (e.g., StarboardRenderer) of changes of the
 // presented geometry of its video feed.
@@ -54,17 +55,22 @@ interface VideoGeometryChangeSubscriber {
 struct VideoHoleGeometry {
   // Identifies the target VideoGeometryChangeClient (e.g., StarboardRenderer).
   mojo_base.mojom.UnguessableToken overlay_plane_id;
+  // The rect of the video hole on the display, i.e., the display_rect of its
+  // overlay candidate.
   gfx.mojom.RectF rect_f;
+  // The transform (e.g., rotation) of the video hole's overlay candidate.
   gfx.mojom.OverlayTransform transform;
 };
 
-// VideoGeometrySetter is the interface used by some entity inside the Viz/GPU
-// process compositor (e.g., OverlayStrategyUnderlayStarboard) to report changes
-// in the geometry of the overlay.
+// VideoGeometrySetter is the interface used by the Viz compositor in the GPU
+// process (e.g., OverlayStrategyUnderlayStarboard) to report the video holes of
+// each presented frame.
 interface VideoGeometrySetter {
 // Informs VideoGeometrySetterService of all the video holes presented in a
-// frame, front-most first (i.e., in QuadList order). The service derives the
-// z-index of each video from this order, and only notifies the clients whose
-// geometry or z-index changed.
+// frame, front-most first (i.e., in QuadList order). Each call covers a whole
+// frame and lists each |overlay_plane_id| at most once. Frames without any
+// video hole are not reported. The service derives the z-index of each video
+// from this order, and only notifies the clients whose geometry or z-index
+// changed.
   SetVideoGeometries(array<VideoHoleGeometry> front_to_back);
 };
