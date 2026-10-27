@@ -21,6 +21,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -30,6 +31,7 @@
 #include "base/unguessable_token.h"
 #include "cc/layers/video_frame_provider.h"
 #include "cc/layers/video_layer.h"
+#include "cobalt/starboard_wasm/surface_video_size.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_transformation.h"
@@ -50,14 +52,15 @@ namespace content {
 namespace {
 
 constexpr std::string_view kSurfaceFragmentPrefix = "sb-surface=";
-// Only the aspect ratio matters: it places the hole within the element.
-constexpr gfx::Size kNaturalSize(1920, 1080);
+// Until a player on the surface reports its video size. Only the aspect ratio
+// matters: it places the hole within the element.
+constexpr gfx::Size kDefaultNaturalSize(1920, 1080);
 
 class HoleFrameProvider : public cc::VideoFrameProvider {
  public:
   explicit HoleFrameProvider(const base::UnguessableToken& overlay_plane_id)
       : frame_(media::VideoFrame::CreateVideoHoleFrame(overlay_plane_id,
-                                                       kNaturalSize,
+                                                       kDefaultNaturalSize,
                                                        base::TimeDelta())) {}
   HoleFrameProvider(const HoleFrameProvider&) = delete;
   HoleFrameProvider& operator=(const HoleFrameProvider&) = delete;
@@ -108,7 +111,12 @@ class WasmHoleWebMediaPlayer final : public blink::WebMediaPlayer {
         main_task_runner_(std::move(main_task_runner)),
         provider_(
             new HoleFrameProvider(overlay_plane_id),
-            base::OnTaskRunnerDeleter(std::move(compositor_task_runner))) {}
+            base::OnTaskRunnerDeleter(std::move(compositor_task_runner))) {
+    size_watch_ = cobalt::starboard_wasm::SurfaceVideoSize::Watch(
+        overlay_plane_id,
+        base::BindRepeating(&WasmHoleWebMediaPlayer::OnVideoSizeChanged,
+                            weak_factory_.GetWeakPtr()));
+  }
   WasmHoleWebMediaPlayer(const WasmHoleWebMediaPlayer&) = delete;
   WasmHoleWebMediaPlayer& operator=(const WasmHoleWebMediaPlayer&) = delete;
 
@@ -150,8 +158,8 @@ class WasmHoleWebMediaPlayer final : public blink::WebMediaPlayer {
   }
   bool HasVideo() const override { return true; }
   bool HasAudio() const override { return false; }
-  gfx::Size NaturalSize() const override { return kNaturalSize; }
-  gfx::Size VisibleSize() const override { return kNaturalSize; }
+  gfx::Size NaturalSize() const override { return natural_size_; }
+  gfx::Size VisibleSize() const override { return natural_size_; }
   bool Paused() const override { return paused_; }
   bool Seeking() const override { return false; }
   double Duration() const override {
@@ -209,13 +217,23 @@ class WasmHoleWebMediaPlayer final : public blink::WebMediaPlayer {
     client_->NetworkStateChanged();
   }
 
+  void OnVideoSizeChanged(const gfx::Size& size) {
+    if (size == natural_size_) {
+      return;
+    }
+    natural_size_ = size;
+    client_->SizeChanged();
+  }
+
   const raw_ptr<blink::MediaPlayerClient> client_;
   const scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
   const std::unique_ptr<HoleFrameProvider, base::OnTaskRunnerDeleter> provider_;
   scoped_refptr<cc::VideoLayer> video_layer_;
+  gfx::Size natural_size_ = kDefaultNaturalSize;
   NetworkState network_state_ = kNetworkStateEmpty;
   ReadyState ready_state_ = kReadyStateHaveNothing;
   bool paused_ = true;
+  base::ScopedClosureRunner size_watch_;
   base::WeakPtrFactory<WasmHoleWebMediaPlayer> weak_factory_{this};
 };
 

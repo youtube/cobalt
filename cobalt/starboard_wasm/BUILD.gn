@@ -32,7 +32,22 @@ static_library("starboard_wasm") {
     "//ui/gfx/geometry",
     "//v8",
   ]
-  deps = [ "//media" ]
+  deps = [
+    ":surface_video_size",
+    "//media",
+  ]
+}
+
+# Shared with the surface's <video> element in content/renderer.
+static_library("surface_video_size") {
+  sources = [
+    "surface_video_size.cc",
+    "surface_video_size.h",
+  ]
+  public_deps = [
+    "//base",
+    "//ui/gfx/geometry",
+  ]
 }
 
 source_set("unit_tests") {
@@ -40,10 +55,12 @@ source_set("unit_tests") {
   sources = [
     "event_queue_unittest.cc",
     "guest_memory_unittest.cc",
+    "surface_video_size_unittest.cc",
     "wasm_player_host_unittest.cc",
   ]
   deps = [
     ":starboard_wasm",
+    ":surface_video_size",
     "//base/test:test_support",
     "//gin:gin_test",
     "//media",

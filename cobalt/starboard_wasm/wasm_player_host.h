@@ -175,6 +175,8 @@ class WasmPlayerHost : public cobalt::media::mojom::VideoGeometryChangeClient {
   static bool NeedsData(Player& player, SbMediaType type);
   static void ClearNeedsData(Player& player, SbMediaType type);
   void ApplyBounds(Player& player);
+  void SetSurfaceVideoSize(const Player& player,
+                           const SbMediaVideoStreamInfo& info) const;
 
   void OnDeallocateSample(uint32_t player, const void* sample_buffer);
 
