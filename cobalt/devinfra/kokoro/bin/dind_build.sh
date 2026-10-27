@@ -56,10 +56,14 @@ get_build_revision () {
     echo "${KOKORO_GIT_COMMIT_src}"
     return
   fi
+  if [[ ! -d "${src_dir}" ]]; then
+    echo "WARNING: ${src_dir} does not exist; building ${KOKORO_GIT_COMMIT_src}." >&2
+    echo "${KOKORO_GIT_COMMIT_src}"
+    return
+  fi
   local days_ago tag
   for days_ago in 0 1; do
-    tag="${branch}.nightly.$(TZ=America/Los_Angeles \
-      date -d "-$(( 6 + 24 * days_ago )) hours" +%F)"
+    tag="${branch}.nightly.$(TZ=America/Los_Angeles date -d "-$(( 6 + 24 * days_ago )) hours" +%F)"
     if git -C "${src_dir}" fetch --depth=1 origin \
         "+refs/tags/${tag}:refs/tags/${tag}" >&2; then
       echo "Building nightly tag ${tag}." >&2
@@ -102,6 +106,7 @@ pipeline () {
   fi
   local build_revision
   build_revision="$(get_build_revision "${gclient_root}/src")"
+  build_revision="${build_revision:-${KOKORO_GIT_COMMIT_src}}"
   # -D, --delete_unversioned_trees
   # -f, --force force update even for unchanged modules
   # -R, --reset resets any local changes before updating (git only)
