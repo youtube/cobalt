@@ -24,11 +24,12 @@ from typing import Dict, List, Optional
 import warnings
 
 from autoninja import AutoninjaResolver
-from base_resolver import AgentChangeRecord
+from change_record import AgentChangeRecord
 from conflicts import ConflictResolver
 from gclient_sync import GClientSyncResolver
 from gn_gen import GNGenResolver
 from engine_client import ReasoningEngineClient
+from fix_commits import commit_files, head_sha
 from patching import NEEDS_HUMAN_PREFIX
 from token_usage import TokenUsage
 
@@ -60,6 +61,59 @@ _PHASES = (
     ("Phase 3", "GN Config Check", "`cobalt/build/gn.py --check` validation"),
     ("Phase 4", "autoninja Loop", "autoninja compiler healing"),
 )
+
+
+def _one_line(text: str, limit: int) -> str:
+  """First line of `text`, cut to `limit` characters."""
+  first = (text or "").strip().splitlines()
+  line = first[0].strip() if first else ""
+  return line if len(line) <= limit else line[:limit].rstrip() + " [...]"
+
+
+def _squash(text: str, limit: int) -> str:
+  """`text` with whitespace runs collapsed, cut to `limit` characters."""
+  flat = " ".join((text or "").split())
+  return flat if len(flat) <= limit else flat[:limit].rstrip() + " [...]"
+
+
+def format_change_log(records: List[AgentChangeRecord]) -> str:
+  """Markdown "what changed and why" for the applied changes, per file.
+
+  This is the section a reviewer taking over the PR reads first: for each
+  file, the conflict or build error that prompted the change, the model's
+  reasoning, and the upstream commits/CLs it consulted. Attempts that were
+  not applied are left out; they are in change_history.json.
+  """
+  applied = [r for r in records if r.applied_cleanly and r.modified_files]
+  if not applied:
+    return ""
+  by_file: Dict[str, List[AgentChangeRecord]] = collections.OrderedDict()
+  for rec in applied:
+    for path in rec.modified_files:
+      by_file.setdefault(path, []).append(rec)
+
+  lines = [
+      "", "## 5. Change Log (what changed and why)",
+      "Per file, oldest first. `trigger` is the conflict or error the change "
+      "answers; `why` is the model's reasoning. Full diffs, and both sides of "
+      "each conflict, are in change_history.json.", ""
+  ]
+  for path, recs in by_file.items():
+    lines.append(f"### `{path}`")
+    for rec in recs:
+      outcome = ("ok"
+                 if rec.error is None else f"then: {_one_line(rec.error, 160)}")
+      model = f", {rec.model}" if rec.model else ""
+      commit = f", `{rec.commit}`" if rec.commit else ""
+      lines.append(
+          f"- **{rec.phase}** iteration {rec.iteration}{model}{commit} "
+          f"({outcome})")
+      if rec.trigger:
+        lines.append(f"  - trigger: {_one_line(rec.trigger, 220)}")
+      if rec.rationale:
+        lines.append(f"  - why: {_squash(rec.rationale, 400)}")
+    lines.append("")
+  return "\n".join(lines)
 
 
 def write_rebase_report(
@@ -125,6 +179,8 @@ def write_rebase_report(
     usage_section = ("\n## 4. Token Usage\n" +
                      token_usage.format_summary_table() + "\n")
 
+  change_log_section = format_change_log(session_changes or [])
+
   content = f"""# Cobalt {milestone} Rebase Resolution & Verification Report
 
 ## 1. Executive Summary
@@ -141,7 +197,7 @@ def write_rebase_report(
 | Phase | Stage | Description | Status |
 | :--- | :--- | :--- | :--- |
 {phase_rows}
-{changes_section}{usage_section}"""
+{changes_section}{usage_section}{change_log_section}"""
   try:
     with open(report_path, "w", encoding="utf-8") as f:
       f.write(content)
@@ -265,6 +321,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
       default=os.environ.get("REBASE_LOCAL", "").lower() in ("1", "true"),
       help="Run Reasoning Engine in-process locally without hosted deployment.",
   )
+  parser.add_argument(
+      "--commit-per-fix",
+      action="store_true",
+      default=False,
+      help=("Commit every resolved conflict file and every fixed build "
+            "error on its own, with the reason in the commit message, the "
+            "way roll fixes are landed by hand. Off by default so local "
+            "runs leave the working tree uncommitted."),
+  )
   return parser
 
 
@@ -272,17 +337,21 @@ class DependentPhaseError(RuntimeError):
   """gclient sync or gn gen, re-run after a patch, failed."""
 
 
-def restore_files_outside_build(repo_path: str, start_sha: str, out_dir: str,
+def restore_files_outside_build(repo_path: str, base_sha: str, out_dir: str,
                                 target: str) -> List[str]:
-  """Puts changed files that `target` does not build back to start_sha.
+  """Puts changed files that `target` does not build back to base_sha.
 
   The agent may change files the built target never compiles, such as web
   test expectations. One `gn gen --ide=json` lists the files of every
   target; a changed file outside the dependency closure of `target` is
-  checked out from start_sha. The agent only edits existing files, so
+  checked out from base_sha. The agent only edits existing files, so
   `git diff` lists every change. GN files are kept (gn reads them, but they
   are no target's source), and so is DEPS (gclient sync reads it). Returns
   the restored paths.
+
+  base_sha must be the commit at the end of Phase 1, not the start of the
+  run: Phase 1 resolves conflicts in files the target does not build, and
+  restoring those to the start would bring the conflict markers back.
   """
 
   def run(cmd: List[str]) -> subprocess.CompletedProcess:
@@ -291,7 +360,7 @@ def restore_files_outside_build(repo_path: str, start_sha: str, out_dir: str,
 
   changed = [
       rel for rel in run([
-          "git", "diff", "--name-only", "--ignore-submodules", start_sha
+          "git", "diff", "--name-only", "--ignore-submodules", base_sha
       ]).stdout.splitlines()
       if rel != "DEPS" and not rel.endswith((".gn", ".gni"))
   ]
@@ -329,7 +398,7 @@ def restore_files_outside_build(repo_path: str, start_sha: str, out_dir: str,
 
   restored = [rel for rel in changed if "//" + rel not in built]
   if restored:
-    run(["git", "checkout", start_sha, "--", *restored])
+    run(["git", "checkout", base_sha, "--", *restored])
   return restored
 
 
@@ -354,12 +423,9 @@ def run_pipeline(args: argparse.Namespace) -> int:
 
   start_time = time.time()
   # Files the agent changed but the target does not build are put back to
-  # this commit after Phase 4.
-  start_sha = subprocess.run(["git", "rev-parse", "HEAD"],
-                             cwd=args.repo_path,
-                             capture_output=True,
-                             text=True,
-                             check=True).stdout.strip()
+  # this commit after Phase 4. It is moved to the end of Phase 1 below, so
+  # that conflicts resolved there stay resolved.
+  restore_sha = head_sha(args.repo_path)
   log.info("=" * 80)
   log.info("[START] STARTING AUTOMATED COBALT CHROMIUM REBASE PIPELINE")
   if args.reasoning_engine_id:
@@ -371,6 +437,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
   log.info("  - Config:     %s", args.build_type)
   log.info("  - Out Dir:    out/%s", out_dir)
   log.info("  - Target:     %s", effective_target)
+  log.info("  - Commit per fix: %s", args.commit_per_fix)
   log.info("=" * 80)
 
   # -------------------------------------------------------------------------
@@ -394,6 +461,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
       repo_path=args.repo_path,
       engine=reasoning_engine,
       session_changes=shared_session_changes,
+      commit_per_fix=args.commit_per_fix,
   )
 
   # Phase 2: Shared Sync Resolver
@@ -402,15 +470,28 @@ def run_pipeline(args: argparse.Namespace) -> int:
       engine=reasoning_engine,
       session_changes=shared_session_changes,
       max_iterations=10,
+      commit_per_fix=args.commit_per_fix,
   )
+
+  def rerun(resolver, failure: str) -> None:
+    """Re-runs an earlier phase after a patch to a file it depends on.
+
+    Its patches are part of the fix that caused the re-run, so it does not
+    commit on its own: the outer loop collects them into that fix's commit.
+    """
+    prev, resolver.commit_per_fix = resolver.commit_per_fix, False
+    try:
+      if not resolver.run_resolution_loop():
+        raise DependentPhaseError(failure)
+    finally:
+      resolver.commit_per_fix = prev
 
   def on_gn_patch_applied(modified_files: List[str]) -> None:
     """Triggered if GN healing touches DEPS or other dependency files."""
     if any(os.path.basename(f) == "DEPS" for f in modified_files):
       log.info("[Phase 3] DEPS was modified by GN fix. Re-running gclient "
                "sync...")
-      if not sync_resolver.run_resolution_loop():
-        raise DependentPhaseError("gclient sync failed after a GN fix")
+      rerun(sync_resolver, "gclient sync failed after a GN fix")
 
   # Phase 3: Shared GN Resolver
   gn_resolver = GNGenResolver(
@@ -422,6 +503,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
       engine=reasoning_engine,
       session_changes=shared_session_changes,
       on_patch_applied_fn=on_gn_patch_applied,
+      commit_per_fix=args.commit_per_fix,
   )
 
   def on_build_patch_applied(modified_files: List[str]) -> None:
@@ -429,14 +511,12 @@ def run_pipeline(args: argparse.Namespace) -> int:
     if any(os.path.basename(f) == "DEPS" for f in modified_files):
       log.info("[Phase 4] DEPS modified by compiler fix. Re-running "
                "gclient sync...")
-      if not sync_resolver.run_resolution_loop():
-        raise DependentPhaseError("gclient sync failed after a build fix")
+      rerun(sync_resolver, "gclient sync failed after a build fix")
 
     if any(f.endswith((".gn", ".gni", ".star")) for f in modified_files):
       log.info("[Phase 4] Build files modified. Re-running GN "
                "generation...")
-      if not gn_resolver.run_resolution_loop():
-        raise DependentPhaseError("gn gen failed after a build fix")
+      rerun(gn_resolver, "gn gen failed after a build fix")
 
   # Phase 4: autoninja Compiler Resolver
   autoninja_resolver = AutoninjaResolver(
@@ -447,6 +527,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
       engine=reasoning_engine,
       session_changes=shared_session_changes,
       on_patch_applied_fn=on_build_patch_applied,
+      commit_per_fix=args.commit_per_fix,
   )
 
   def dump_change_history() -> None:
@@ -526,34 +607,13 @@ def run_pipeline(args: argparse.Namespace) -> int:
     log.info("=" * 80)
     if not run_phase("Phase 1", "Conflict Resolution", conflict_resolver):
       return 1
-    # Checkpoint Phase 1 resolutions into a clean commit so HEAD is valid
-    try:
-      subprocess.run(["git", "add", "-u"], cwd=args.repo_path, check=False)
-      diff_proc = subprocess.run(
-          ["git", "diff", "--cached", "--quiet"],
-          cwd=args.repo_path,
-          check=False,
-      )
-      if diff_proc.returncode != 0:
-        subprocess.run(
-            [
-                "git",
-                "-c",
-                "user.name=Cobalt Rebase Agent",
-                "-c",
-                "user.email=cobalt-rebase-agent@google.com",
-                "commit",
-                "-m",
-                "[AI] Checkpoint: Resolved Phase 1 merge conflicts",
-            ],
-            cwd=args.repo_path,
-            check=False,
-        )
-        log.info("  [OK] Created clean baseline checkpoint commit for Phase "
-                 "1.")
-    except Exception as cp_err:  # pylint: disable=broad-exception-caught
-      log.warning("  [WARNING] Failed to create Phase 1 checkpoint commit: %s",
-                  cp_err)
+    # Checkpoint Phase 1 resolutions into a clean commit so HEAD is valid.
+    # With --commit-per-fix each file was already committed and this only
+    # catches anything left over.
+    if commit_files(args.repo_path, None,
+                    "[AI] Checkpoint: Resolved Phase 1 merge conflicts"):
+      log.info("  [OK] Created clean baseline checkpoint commit for Phase 1.")
+    restore_sha = head_sha(args.repo_path)
 
   # -------------------------------------------------------------------------
   # PHASE 2: Toolchain & Dependency Sync: gclient sync -D
@@ -586,12 +646,22 @@ def run_pipeline(args: argparse.Namespace) -> int:
     log.info("=" * 80)
     if not run_phase("Phase 4", "Compiler Loop", autoninja_resolver):
       return 1
-    restored = restore_files_outside_build(args.repo_path, start_sha, out_dir,
+    restored = restore_files_outside_build(args.repo_path, restore_sha, out_dir,
                                            effective_target)
     log.info("[pipeline] Restored %d changed file(s) that %s does not build:",
              len(restored), effective_target)
     for rel in restored:
       log.info("  - %s", rel)
+    if restored and args.commit_per_fix:
+      # The edits being undone are already in fix commits, so the undo
+      # needs a commit of its own.
+      commit_files(
+          args.repo_path, restored,
+          f"Revert agent edits to files {effective_target} does not build",
+          "These files were changed by a build fix but are not in the "
+          f"dependency closure of {effective_target}, so the change was "
+          "never compiled. They are put back to the end of Phase 1.\n\n"
+          "Files: " + ", ".join(restored))
 
   elapsed = time.time() - start_time
   summary_path = write_report("SUCCESS (All Phases Complete)")

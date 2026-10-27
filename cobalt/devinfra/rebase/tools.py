@@ -9,12 +9,10 @@ import dataclasses
 import os
 import re
 import subprocess
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
+from change_record import AgentChangeRecord
 from repo_guards import resolve_repo_file_path
-
-if TYPE_CHECKING:
-  from base_resolver import AgentChangeRecord
 
 # Precompiled pattern matching investigation tool directives (e.g.,
 # TOOL_READ_FILE: ...).
@@ -228,7 +226,7 @@ class ToolContext:
   """Ambient state a tool handler may need beyond its own argument string."""
 
   repo_path: str
-  session_changes: Optional[List["AgentChangeRecord"]] = None
+  session_changes: Optional[List[AgentChangeRecord]] = None
 
 
 def split_clean_tokens(raw: str) -> List[str]:
@@ -583,7 +581,7 @@ _TOOL_HANDLERS: Dict[str, Callable[[str, ToolContext], Optional[str]]] = {
 def execute_local_tool(
     cmd: str,
     repo_path: str,
-    session_changes: Optional[List["AgentChangeRecord"]] = None,
+    session_changes: Optional[List[AgentChangeRecord]] = None,
 ) -> str:
   """Executes safe read-only multi-turn inspection tools for LLM.
 

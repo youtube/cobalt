@@ -15,10 +15,8 @@ import subprocess
 from typing import Any, Callable, List, Optional, Tuple
 import warnings
 
-from base_resolver import (
-    AgentChangeRecord,
-    BaseResolver,
-)
+from base_resolver import BaseResolver
+from change_record import AgentChangeRecord
 from diagnostics import Diagnostic, CompilerDiagnostic
 from repo_guards import (
     get_clean_build_env,
@@ -404,6 +402,7 @@ class AutoninjaResolver(BaseResolver):
       max_iterations: int = 60,
       session_changes: Optional[List[AgentChangeRecord]] = None,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
+      commit_per_fix: bool = False,
   ):
     super().__init__(
         repo_path=repo_path,
@@ -411,6 +410,7 @@ class AutoninjaResolver(BaseResolver):
         max_iterations=max_iterations,
         session_changes=session_changes,
         on_patch_applied_fn=on_patch_applied_fn,
+        commit_per_fix=commit_per_fix,
     )
     self.out_dir = out_dir
     self.target = target

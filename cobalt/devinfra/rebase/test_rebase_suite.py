@@ -15,10 +15,15 @@ from autoninja import (
     parse_compiler_errors,
 )
 from base_resolver import (
-    AgentChangeRecord,
+    EXPERT_MAX_ROUNDS,
     BaseResolver,
     extract_meaningful_error_summary,
+)
+from change_record import (
+    NO_RATIONALE,
+    AgentChangeRecord,
     format_change_history,
+    guidance_summary,
 )
 from diagnostics import Diagnostic
 from patching import (
@@ -28,6 +33,7 @@ from patching import (
     exec_script_changes,
     parse_patch,
     patch_file_changes,
+    patch_explanation,
 )
 from repo_guards import (
     _COBALT_GIT_HISTORY_CACHE,
@@ -38,7 +44,7 @@ from repo_guards import (
     patch_target_rejection,
     resolve_repo_file_path,
 )
-from run_rebase_pipeline import (get_chromium_milestone,
+from run_rebase_pipeline import (format_change_log, get_chromium_milestone,
                                  restore_files_outside_build,
                                  write_rebase_report)
 from tools import (
@@ -47,12 +53,14 @@ from tools import (
     extract_tool_commands,
 )
 from conflicts import (
+    ConflictResolver,
     detect_language,
     extract_conflict_blocks,
     resolve_file_conflicts,
     sort_conflict_priority,
 )
 from engine_client import ReasoningEngineClient
+from fix_commits import FixCommitter, fix_commit_message, parse_judgement
 from gclient_sync import GClientSyncDiagnostic
 from gn_gen import GNDiagnostic, GNGenResolver, extract_gn_target_files
 from reasoning_engine import CobaltReasoningEngine
@@ -2275,6 +2283,363 @@ class ToolDirectiveExtractionTest(unittest.TestCase):
     self.assertEqual(len(extract_line_anchored_tool_commands(text)), 3)
 
 
+class ChangeRecordReviewContextTest(unittest.TestCase):
+  """trigger / rationale / model / conflict sides on AgentChangeRecord.
+
+  These fields exist so the humans who take over an AI PR can see, per
+  change, what prompted it, why the model did it that way, and for a
+  conflict what the two sides were, without replaying the run.
+  """
+
+  def test_record_defaults_and_to_dict(self):
+    rec = AgentChangeRecord("p", 1, "a.cc")
+    self.assertEqual(rec.trigger, "")
+    self.assertEqual(rec.rationale, "")
+    self.assertEqual(rec.model, "")
+    self.assertEqual(rec.upstream_side, "")
+    self.assertEqual(rec.cobalt_side, "")
+    d = AgentChangeRecord(
+        "p",
+        1,
+        "a.cc",
+        trigger="a.cc:1: error",
+        rationale="because",
+        model="m",
+        upstream_side="int x = 2;",
+        cobalt_side="int x = 1;").to_dict()
+    self.assertEqual(d["trigger"], "a.cc:1: error")
+    self.assertEqual(d["rationale"], "because")
+    self.assertEqual(d["model"], "m")
+    self.assertEqual(d["upstream_side"], "int x = 2;")
+    self.assertEqual(d["cobalt_side"], "int x = 1;")
+
+  def test_guidance_summary_drops_tool_transcripts(self):
+    guidance = ("Upstream renamed settings to settings_. Keep the Cobalt "
+                "block and rename it.\nTOOL_READ_FILE: a.h 1-20\n\n"
+                "Tool Call: `TOOL_UPSTREAM_DIFF: a.h`\nResult:\n```\n"
+                "- settings\n+ settings_\n```")
+    self.assertEqual(
+        guidance_summary(guidance),
+        "Upstream renamed settings to settings_. Keep the Cobalt block and "
+        "rename it.")
+    self.assertEqual(guidance_summary(""), "")
+    self.assertTrue(guidance_summary("x" * 2000).endswith(" [...]"))
+
+  def test_patch_explanation_keeps_text_not_blocks(self):
+    patch = ("The getter now returns std::optional, so unwrap it.\n\n"
+             "FILE: a.cc\n<<<<<<< SEARCH\nfoo(x);\n=======\n"
+             "if (x) foo(*x);\n>>>>>>> REPLACE\n\nThis matches upstream.")
+    text = patch_explanation(patch)
+    self.assertIn("returns std::optional", text)
+    self.assertIn("This matches upstream.", text)
+    self.assertNotIn("SEARCH", text)
+    self.assertNotIn("foo(*x)", text)
+    self.assertNotIn("FILE: a.cc", text)
+
+  def test_patch_explanation_strips_unified_diff_body(self):
+    # The blank line inside the hunk is a context line whose leading space
+    # the model dropped; it must not end the hunk.
+    patch = ("Drop the stray marker.\n--- a/a.cc\n+++ b/a.cc\n"
+             "@@ -1,3 +1,2 @@\n-=======\n\n keep_this;\n\nThis matches "
+             "upstream.\n")
+    self.assertEqual(
+        patch_explanation(patch),
+        "Drop the stray marker.\nThis matches upstream.")
+    self.assertEqual(patch_explanation(""), "")
+
+  def test_phase4_record_carries_trigger_rationale_and_model(self):
+    """run_resolution_loop fills the review fields from the iteration."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      path = os.path.join(tmpdir, "cobalt", "sample.cc")
+      os.makedirs(os.path.dirname(path))
+      with open(path, "w", encoding="utf-8") as f:
+        f.write("int value = 1;\n")
+      engine = mock.MagicMock()
+      engine.flash_model = "flash-test"
+      engine.expert_model = "expert-test"
+      engine.generate_expert_guidance.return_value = {
+          "guidance": "Upstream bumped the value; follow it."
+      }
+      changes = []
+
+      class Resolver(BaseResolver):
+        """One failing iteration, then success."""
+
+        @property
+        def name(self):
+          return "P4"
+
+        def run_command(self, iteration):
+          if iteration == 1:
+            return False, "cobalt/sample.cc:1: error: mismatch", ""
+          return True, "", ""
+
+        def extract_diagnostics(self, build_output, siso_output):
+          del build_output, siso_output
+          return [
+              Diagnostic(
+                  file_path=os.path.join(tmpdir, "cobalt", "sample.cc"),
+                  line_number=1,
+                  error_message="error: mismatch")
+          ]
+
+        def resolve_diagnostic(self, diagnostic, **kwargs):
+          del diagnostic, kwargs
+          return (("Upstream changed the initial value to 2.\n"
+                   "FILE: cobalt/sample.cc\n<<<<<<< SEARCH\nint value = 1;\n"
+                   "=======\nint value = 2;\n>>>>>>> REPLACE\n"), "flash-test",
+                  "cobalt/sample.cc")
+
+      resolver = Resolver(
+          repo_path=tmpdir,
+          engine=engine,
+          max_iterations=3,
+          session_changes=changes)
+      self.assertTrue(resolver.run_resolution_loop())
+
+      rec = changes[0]
+      self.assertTrue(rec.applied_cleanly)
+      self.assertTrue(
+          rec.trigger.startswith(
+              os.path.join(tmpdir, "cobalt", "sample.cc") +
+              ":1: error: mismatch"))
+      self.assertEqual(rec.rationale,
+                       "Upstream changed the initial value to 2.")
+      self.assertEqual(rec.model, "flash-test")
+      self.assertEqual(rec.upstream_side, "")  # not a conflict
+      self.assertIsNone(rec.error)
+
+  def test_phase4_rationale_falls_back_to_expert_plan(self):
+    """A patch with no explanation keeps the pre-flight plan as rationale."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      path = os.path.join(tmpdir, "a.cc")
+      with open(path, "w", encoding="utf-8") as f:
+        f.write("int value = 1;\n")
+      engine = mock.MagicMock()
+      engine.flash_model = "flash-test"
+      engine.expert_model = "expert-test"
+      engine.generate_expert_guidance.return_value = {
+          "guidance": ("Bump the value.\n\nTool Call: `TOOL_READ_FILE: a.cc`"
+                       "\nResult:\n```\nint value = 1;\n```")
+      }
+      changes = []
+
+      class Resolver(BaseResolver):
+        """Patch without any explanation text."""
+
+        @property
+        def name(self):
+          return "P4"
+
+        def run_command(self, iteration):
+          return (iteration > 1), "a.cc:1: error: mismatch", ""
+
+        def extract_diagnostics(self, build_output, siso_output):
+          del build_output, siso_output
+          return [
+              Diagnostic(
+                  file_path=path,
+                  line_number=1,
+                  error_message="error: mismatch")
+          ]
+
+        def resolve_diagnostic(self, diagnostic, **kwargs):
+          del diagnostic, kwargs
+          return ("<<<<<<< SEARCH\nint value = 1;\n=======\nint value = 2;\n"
+                  ">>>>>>> REPLACE\n"), "flash-test", "a.cc"
+
+      Resolver(
+          repo_path=tmpdir,
+          engine=engine,
+          max_iterations=3,
+          session_changes=changes).run_resolution_loop()
+      self.assertEqual(changes[0].rationale, "Bump the value.")
+
+  def test_phase1_record_carries_block_sides_and_expert_plan(self):
+    """resolve_file_conflicts fills the review fields per conflict block."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      path = os.path.join(tmpdir, "sample_conflict.cc")
+      with open(path, "w", encoding="utf-8") as f:
+        f.write(SAMPLE_CPP_CONFLICT)
+      engine = mock.MagicMock()
+      engine.generate_expert_guidance.return_value = {
+          "guidance": ("Keep the Starboard pipeline; upstream only renamed "
+                       "the default init.\n\nTool Call: `TOOL_UPSTREAM_DIFF: "
+                       "sample_conflict.cc`\nResult:\n```\n-old\n+new\n```")
+      }
+      engine.resolve_conflict.return_value = {
+          "replacement": ("#if BUILDFLAG(USE_STARBOARD_MEDIA)\n"
+                          "  InitStarboardMediaPipeline();\n#else\n"
+                          "  InitChromiumDefaultMediaPipeline();\n#endif"),
+          "model_used": "expert-test",
+      }
+      changes = []
+      self.assertTrue(
+          resolve_file_conflicts(
+              file_path=path,
+              repo_path=tmpdir,
+              git_context="",
+              engine=engine,
+              session_changes=changes))
+      rec = changes[-1]
+      self.assertEqual(rec.phase, "resolve_conflicts")
+      self.assertEqual(rec.trigger,
+                       "Conflict block #1 in sample_conflict.cc (lines 4-10)")
+      self.assertEqual(rec.rationale, ("Keep the Starboard pipeline; upstream "
+                                       "only renamed the default init."))
+      self.assertEqual(rec.model, "expert-test")
+      # SAMPLE_CPP_CONFLICT is a plain merge ('>>>>>>> origin/main'), so
+      # upstream is the theirs side and Cobalt is HEAD.
+      self.assertEqual(rec.upstream_side,
+                       "  InitChromiumDefaultMediaPipeline();\n")
+      self.assertEqual(rec.cobalt_side,
+                       ("#if BUILDFLAG(USE_STARBOARD_MEDIA)\n"
+                        "  InitStarboardMediaPipeline();\n#endif\n"))
+
+  def test_phase1_expert_tool_results_are_fed_back_for_a_final_plan(self):
+    """A tool-first expert gets its results back and its conclusion is kept.
+
+    Before, Phase 1 called the expert once: a reply that started with a
+    TOOL_ request left the worker with that line plus raw tool output, and
+    the record with an empty rationale. Now the loop continues until the
+    expert writes a plan.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+      path = os.path.join(tmpdir, "sample_conflict.cc")
+      with open(path, "w", encoding="utf-8") as f:
+        f.write(SAMPLE_CPP_CONFLICT)
+      histories = []
+
+      def guidance(**kwargs):
+        histories.append(kwargs.get("investigation_history", ""))
+        if len(histories) == 1:
+          return {"guidance": "TOOL_READ_FILE: sample_conflict.cc 1-5"}
+        return {
+            "guidance": "Upstream only renamed the default init; keep "
+                        "the Starboard branch."
+        }
+
+      engine = mock.MagicMock()
+      engine.generate_expert_guidance.side_effect = guidance
+      seen_worker_guidance = []
+
+      def resolve(**kwargs):
+        seen_worker_guidance.append(kwargs.get("expert_guidance", ""))
+        return {
+            "replacement": "  InitStarboardMediaPipeline();",
+            "model_used": "flash-test"
+        }
+
+      engine.resolve_conflict.side_effect = resolve
+      changes = []
+      with mock.patch(
+          "base_resolver.execute_local_tool", return_value="1: #include ..."):
+        self.assertTrue(
+            resolve_file_conflicts(
+                file_path=path,
+                repo_path=tmpdir,
+                git_context="",
+                engine=engine,
+                session_changes=changes))
+      # Two expert rounds: the tool result was fed back.
+      self.assertEqual(len(histories), 2)
+      self.assertIn("TOOL_READ_FILE: sample_conflict.cc 1-5", histories[1])
+      self.assertIn("1: #include ...", histories[1])
+      # The worker saw the final plan and the tool transcript.
+      self.assertTrue(seen_worker_guidance[0].startswith(
+          "Upstream only renamed the default init"))
+      self.assertIn("Tool Call: `TOOL_READ_FILE", seen_worker_guidance[0])
+      # The record keeps the plan, not the tool request.
+      self.assertEqual(
+          changes[-1].rationale,
+          "Upstream only renamed the default init; keep the "
+          "Starboard branch.")
+
+  def test_rationale_placeholder_when_expert_never_writes_a_plan(self):
+    """Tool requests through the whole budget leave NO_RATIONALE, not ""."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      path = os.path.join(tmpdir, "sample_conflict.cc")
+      with open(path, "w", encoding="utf-8") as f:
+        f.write(SAMPLE_CPP_CONFLICT)
+      engine = mock.MagicMock()
+      engine.generate_expert_guidance.return_value = {
+          "guidance": "TOOL_READ_FILE: sample_conflict.cc 1-5"
+      }
+      engine.resolve_conflict.return_value = {
+          "replacement": "  InitStarboardMediaPipeline();",
+          "model_used": "flash-test",
+      }
+      changes = []
+      with mock.patch("base_resolver.execute_local_tool", return_value="x"):
+        resolve_file_conflicts(
+            file_path=path,
+            repo_path=tmpdir,
+            git_context="",
+            engine=engine,
+            session_changes=changes)
+      self.assertEqual(engine.generate_expert_guidance.call_count,
+                       EXPERT_MAX_ROUNDS)
+      self.assertEqual(changes[-1].rationale, NO_RATIONALE)
+
+  def test_phase1_mock_mode_records_mock_model(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      path = os.path.join(tmpdir, "sample_conflict.cc")
+      with open(path, "w", encoding="utf-8") as f:
+        f.write(SAMPLE_CPP_CONFLICT)
+      changes = []
+      resolve_file_conflicts(
+          file_path=path,
+          repo_path=tmpdir,
+          git_context="",
+          session_changes=changes,
+          mock_mode=True)
+      self.assertEqual(changes[0].model, "mock")
+      self.assertIn("Conflict block #1", changes[0].trigger)
+      self.assertIn("InitStarboardMediaPipeline", changes[0].cobalt_side)
+
+  def test_format_change_log_groups_by_file(self):
+    recs = [
+        AgentChangeRecord(
+            "resolve_conflicts",
+            1,
+            "a.cc",
+            file_changes={"a.cc": "x"},
+            trigger="Conflict block "
+            "#1 in a.cc (lines 3-9)",
+            rationale="Keep Cobalt\n"
+            "side.",
+            model="m1",
+            commit="deadbeef1234"),
+        AgentChangeRecord(
+            "P4",
+            2,
+            "a.cc",
+            file_changes={"a.cc": "y"},
+            trigger="a.cc:4: error: no member",
+            error="a.cc:9: "
+            "error: other",
+            model="m2"),
+        AgentChangeRecord(
+            "P4",
+            3,
+            "b.cc",
+            file_changes={"b.cc": "z"},
+            applied_cleanly=False,
+            error="rejected"),
+    ]
+    log_md = format_change_log(recs)
+    self.assertIn("## 5. Change Log", log_md)
+    self.assertIn("### `a.cc`", log_md)
+    self.assertNotIn("### `b.cc`", log_md)  # not applied: left out
+    self.assertIn(
+        "- **resolve_conflicts** iteration 1, m1, `deadbeef1234` (ok)", log_md)
+    self.assertIn("  - why: Keep Cobalt side.", log_md)
+    self.assertIn("- **P4** iteration 2, m2 (then: a.cc:9: error: other)",
+                  log_md)
+    self.assertIn("  - trigger: a.cc:4: error: no member", log_md)
+    self.assertEqual(format_change_log([]), "")
+
+
 class FormatChangeHistoryTest(unittest.TestCase):
   """Prior-attempt lines built from AgentChangeRecords."""
 
@@ -3217,6 +3582,406 @@ class UniqueTrackedFileFallbackTest(unittest.TestCase):
 
   def test_glob_characters_rejected(self):
     self.assertEqual(_find_unique_tracked_file("uniq*.cc", self.repo), "")
+
+
+def _git_repo_with(tmpdir, files):
+  """Creates a git repo in tmpdir with `files` ({rel: content}) committed."""
+  for rel, content in files.items():
+    path = os.path.join(tmpdir, rel)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+      f.write(content)
+  for cmd in (["git", "init", "-q"], ["git", "add", "-A"], [
+      "git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m",
+      "base"
+  ]):
+    subprocess.run(cmd, cwd=tmpdir, check=True, capture_output=True)
+
+
+def _git_log(tmpdir):
+  """[(subject, body)] of the commits after the base commit, oldest first."""
+  out = subprocess.run(
+      ["git", "log", "--reverse", "--format=%s%x00%b%x01", "HEAD"],
+      cwd=tmpdir,
+      capture_output=True,
+      text=True,
+      check=True).stdout
+  entries = [e for e in out.split("\x01") if e.strip()]
+  return [tuple(e.strip("\n").split("\x00", 1)) for e in entries][1:]
+
+
+class CommitPerFixTest(unittest.TestCase):
+  """One commit per fixed error / resolved file, with the reason in it."""
+
+  @staticmethod
+  def _patch(old, new, rel="cobalt/a.cc", why=""):
+    text = f"{why}\n" if why else ""
+    return (f"{text}FILE: {rel}\n<<<<<<< SEARCH\n{old}\n=======\n{new}\n"
+            ">>>>>>> REPLACE\n")
+
+  def _resolver_class(self, errors, patches):
+    """A BaseResolver whose iteration i fails with errors[i-1] (None = ok)."""
+
+    class _Resolver(BaseResolver):
+      """Scripted build outcomes and patches."""
+
+      @property
+      def name(self):
+        return "P4"
+
+      def run_command(self, iteration):
+        err = errors[iteration - 1]
+        if err is None:
+          return True, "", ""
+        return False, err, ""
+
+      def extract_diagnostics(self, build_output, siso_output):
+        del siso_output
+        path, _, msg = build_output.partition(": ")
+        return [
+            Diagnostic(
+                file_path=os.path.join(self.repo_path, path),
+                line_number=1,
+                error_message=msg)
+        ]
+
+      def resolve_diagnostic(self, diagnostic, **kwargs):
+        del diagnostic, kwargs
+        return patches.pop(0), "flash-test", "cobalt/a.cc"
+
+    return _Resolver
+
+  def test_commit_when_error_changes_without_engine(self):
+    """No engine: the error changing after a patch is the whole rule."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      _git_repo_with(tmpdir, {"cobalt/a.cc": "int a = 1;\nint b = 1;\n"})
+      cls = self._resolver_class(
+          ["cobalt/a.cc: error: bad a", "cobalt/a.cc: error: bad b", None], [
+              self._patch("int a = 1;", "int a = 2;", why="a must be 2."),
+              self._patch("int b = 1;", "int b = 2;", why="b must be 2."),
+          ])
+      changes = []
+      resolver = cls(
+          tmpdir,
+          max_iterations=3,
+          session_changes=changes,
+          commit_per_fix=True)
+      self.assertTrue(resolver.run_resolution_loop())
+
+      log_entries = _git_log(tmpdir)
+      self.assertEqual(len(log_entries), 2)
+      self.assertEqual(log_entries[0][0], "cobalt/a.cc: bad a")
+      self.assertIn("Trigger:", log_entries[0][1])
+      self.assertIn("Why: a must be 2.", log_entries[0][1])
+      self.assertIn("Model: flash-test", log_entries[0][1])
+      self.assertEqual(log_entries[1][0], "cobalt/a.cc: bad b")
+      self.assertIn("Outcome: build passed", log_entries[1][1])
+      self.assertTrue(all(c.commit for c in changes))
+      self.assertNotEqual(changes[0].commit, changes[1].commit)
+      # Nothing left uncommitted.
+      status = subprocess.run(["git", "status", "--porcelain"],
+                              cwd=tmpdir,
+                              capture_output=True,
+                              text=True,
+                              check=True).stdout
+      self.assertEqual(status, "")
+
+  def test_same_error_holds_and_loop_end_flushes_as_wip(self):
+    """Patches that did not change the error are held, then flushed as WIP."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      _git_repo_with(tmpdir, {"cobalt/a.cc": "int a = 1;\n"})
+      cls = self._resolver_class(["cobalt/a.cc: error: bad a"] * 2, [
+          self._patch("int a = 1;", "int a = 2;"),
+          self._patch("int a = 2;", "int a = 3;"),
+      ])
+      changes = []
+      resolver = cls(
+          tmpdir,
+          max_iterations=2,
+          session_changes=changes,
+          commit_per_fix=True)
+      self.assertFalse(resolver.run_resolution_loop())
+
+      log_entries = _git_log(tmpdir)
+      self.assertEqual(len(log_entries), 1)
+      subject, body = log_entries[0]
+      self.assertTrue(subject.startswith("WIP cobalt/a.cc: bad a"))
+      self.assertIn("Unverified", body)
+      self.assertIn("Why (P4 iteration 1)", body)
+      self.assertIn("Why (P4 iteration 2)", body)
+      self.assertEqual(changes[0].commit, changes[1].commit)
+
+  def test_engine_judgement_decides_and_names_the_commit(self):
+    """With an engine, HOLD keeps the patches pending; COMMIT uses its text."""
+    judgements = iter([
+        '{"decision": "HOLD", "reason": "same problem, new message"}',
+        ('{"decision": "COMMIT", "subject": "media: follow upstream rename",'
+         ' "body": "Upstream renamed Foo to Bar.", "reason": "done"}'),
+        '{"subject": "cobalt/a.cc: bump b", "body": "b follows upstream."}',
+    ])
+    engine = mock.MagicMock()
+    engine.flash_model = "flash-test"
+    engine.expert_model = "expert-test"
+    engine.generate_expert_guidance.return_value = {"guidance": "Fix it."}
+    engine.judge_commit.side_effect = lambda **kw: {
+        "judgement": next(judgements)
+    }
+    with tempfile.TemporaryDirectory() as tmpdir:
+      _git_repo_with(tmpdir, {"cobalt/a.cc": "int a = 1;\nint b = 1;\n"})
+      cls = self._resolver_class([
+          "cobalt/a.cc: error: bad a", "cobalt/a.cc: error: bad a again",
+          "cobalt/a.cc: error: bad b", None
+      ], [
+          self._patch("int a = 1;", "int a = 2;"),
+          self._patch("int a = 2;", "int a = 3;"),
+          self._patch("int b = 1;", "int b = 2;"),
+      ])
+      changes = []
+      resolver = cls(
+          tmpdir,
+          engine=engine,
+          max_iterations=4,
+          session_changes=changes,
+          commit_per_fix=True)
+      self.assertTrue(resolver.run_resolution_loop())
+
+      log_entries = _git_log(tmpdir)
+      self.assertEqual([s for s, _ in log_entries],
+                       ["media: follow upstream rename", "cobalt/a.cc: bump b"])
+      body = log_entries[0][1]
+      self.assertTrue(body.startswith("Upstream renamed Foo to Bar."))
+      self.assertIn("Trigger: cobalt/a.cc:1: error: bad a", body)
+      self.assertIn("Outcome: cobalt/a.cc:1: error: bad b", body)
+      self.assertNotIn("Why", body)
+      self.assertIn("Outcome: build passed", log_entries[1][1])
+      # The two held patches went into one commit.
+      self.assertEqual(changes[0].commit, changes[1].commit)
+      self.assertNotEqual(changes[1].commit, changes[2].commit)
+      # Asked once per commit: decide for the error change, message only
+      # when the build passed.
+      calls = engine.judge_commit.call_args_list
+      self.assertEqual([c.kwargs["decide"] for c in calls], [True, True, False])
+      self.assertIn("int a = 2;", calls[0].kwargs["diff"])
+      self.assertIn("bad a again", calls[0].kwargs["outcome"])
+      self.assertEqual(calls[2].kwargs["outcome"], "build passed")
+
+  def test_off_by_default_leaves_working_tree_uncommitted(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      _git_repo_with(tmpdir, {"cobalt/a.cc": "int a = 1;\n"})
+      cls = self._resolver_class(["cobalt/a.cc: error: bad a", None],
+                                 [self._patch("int a = 1;", "int a = 2;")])
+      self.assertTrue(cls(tmpdir, max_iterations=2).run_resolution_loop())
+      self.assertEqual(_git_log(tmpdir), [])
+
+  def test_phase1_commits_each_resolved_file(self):
+    engine = mock.MagicMock()
+    engine.generate_expert_guidance.return_value = {
+        "guidance": "Keep the Starboard pipeline; upstream renamed the init."
+    }
+    engine.resolve_conflict.return_value = {
+        "replacement": ("#if BUILDFLAG(USE_STARBOARD_MEDIA)\n"
+                        "  InitStarboardMediaPipeline();\n#else\n"
+                        "  InitChromiumDefaultMediaPipeline();\n#endif"),
+        "model_used": "expert-test",
+    }
+    with tempfile.TemporaryDirectory() as tmpdir:
+      _git_repo_with(
+          tmpdir, {
+              "cobalt/one.cc": SAMPLE_CPP_CONFLICT,
+              "cobalt/two.cc": SAMPLE_CPP_CONFLICT,
+          })
+      changes = []
+      resolver = ConflictResolver(
+          tmpdir, engine=engine, session_changes=changes, commit_per_fix=True)
+      with mock.patch(
+          "conflicts.find_all_conflicted_files",
+          return_value=["cobalt/one.cc", "cobalt/two.cc"]):
+        self.assertTrue(resolver.run_resolution_loop())
+
+      log_entries = _git_log(tmpdir)
+      # The mock engine's judge_commit answer is unreadable, so the
+      # record-built message is used.
+      self.assertEqual([s for s, _ in log_entries], [
+          "cobalt/one.cc: resolve merge conflict",
+          "cobalt/two.cc: resolve merge conflict",
+      ])
+      self.assertIn("Block #1 (lines 4-10): Keep the Starboard pipeline",
+                    log_entries[0][1])
+      self.assertIn("Conflict block: #1 (lines 4-10)", log_entries[0][1])
+      self.assertIn("Model: expert-test", log_entries[0][1])
+      kw = engine.judge_commit.call_args_list[0].kwargs
+      self.assertFalse(kw["decide"])
+      self.assertIn("Keep the Starboard pipeline", kw["rationales"])
+      self.assertIn("InitStarboardMediaPipeline", kw["diff"])
+      self.assertEqual(len(changes), 2)
+      self.assertNotEqual(changes[0].commit, changes[1].commit)
+      shown = subprocess.run(["git", "show", "--stat", "--format=", "HEAD"],
+                             cwd=tmpdir,
+                             capture_output=True,
+                             text=True,
+                             check=True).stdout
+      self.assertIn("cobalt/two.cc", shown)
+      self.assertNotIn("cobalt/one.cc", shown)
+
+  def test_parse_judgement(self):
+    self.assertEqual(parse_judgement(""), {})
+    self.assertEqual(parse_judgement("not json"), {})
+    self.assertEqual(parse_judgement('{"decision": "MAYBE"}'), {})
+    got = parse_judgement('```json\n{"decision": "commit", "subject": "s",'
+                          ' "body": "b", "reason": "r"}\n```')
+    self.assertEqual(got, {
+        "decision": "COMMIT",
+        "subject": "s",
+        "body": "b",
+        "reason": "r"
+    })
+
+  def test_fix_commit_message_subject_from_trigger(self):
+    rec = AgentChangeRecord(
+        "P4",
+        3,
+        "cobalt/media/foo.cc",
+        file_changes={"cobalt/media/foo.cc": "x"},
+        applied_cleanly=True,
+        trigger=("../../cobalt/media/foo.cc:12:5: error: no member named "
+                 "'Bar' in 'Foo'; did you mean 'Baz'? " + "x" * 100),
+        rationale="Upstream renamed Bar to Baz.",
+        model="flash-test")
+    subject, body = fix_commit_message([rec], "P4")
+    self.assertTrue(subject.startswith("cobalt/media/foo.cc: no member named"))
+    self.assertLessEqual(len(subject), 72)
+    self.assertIn("Why: Upstream renamed Bar to Baz.", body)
+    self.assertNotIn("Files:", body)
+    # A model-proposed subject wins; the trailer stays.
+    subject, body = fix_commit_message([rec], "P4", "media: rename Bar",
+                                       "Because.")
+    self.assertEqual(subject, "media: rename Bar")
+    self.assertTrue(body.startswith("Because.\n\nTrigger:"))
+    # The model's prose is re-wrapped at 72 columns.
+    _, body = fix_commit_message([rec], "P4", "s", "word " * 30)
+    self.assertTrue(all(len(l) <= 72 for l in body.splitlines()[:3]))
+    self.assertEqual(body.count("\n", 0, body.index("Trigger")), 4)
+    # Proposed subjects over 72 chars or multiline are capped.
+    long_subject = "media: " + "very long description " * 10 + "\nsecond line"
+    subject, _ = fix_commit_message([rec], "P4", long_subject)
+    self.assertLessEqual(len(subject), 72)
+    self.assertNotIn("\n", subject)
+    self.assertTrue(subject.endswith("..."))
+
+  def test_revert_to_baseline_drops_held_patches_of_that_file(self):
+    from base_resolver import _LoopState  # pylint: disable=import-outside-toplevel
+    with tempfile.TemporaryDirectory() as tmpdir:
+      _git_repo_with(tmpdir, {
+          "cobalt/a.cc": "int a = 1;\n",
+          "cobalt/b.cc": "int b = 1;\n"
+      })
+      resolver = self._resolver_class([], [])(tmpdir, commit_per_fix=True)
+      resolver.committer = FixCommitter(tmpdir, "P4")
+      for i, rel in enumerate(("cobalt/a.cc", "cobalt/b.cc"), 1):
+        resolver.committer.add(
+            AgentChangeRecord("P4", i, rel, file_changes={rel: "x"}), "bad a")
+      with open(
+          os.path.join(tmpdir, "cobalt/a.cc"), "w", encoding="utf-8") as f:
+        f.write("int a = 2;\n")
+      state = _LoopState(last_error="bad a", stuck_count=3)
+      resolver._revert_to_baseline(  # pylint: disable=protected-access
+          os.path.join(tmpdir, "cobalt/a.cc"), state)
+      self.assertEqual([r.target_file for r in resolver.committer.pending],
+                       ["cobalt/b.cc"])
+      self.assertEqual(resolver.committer.trigger, "bad a")
+      resolver._revert_to_baseline(  # pylint: disable=protected-access
+          os.path.join(tmpdir, "cobalt/b.cc"), state)
+      self.assertEqual(resolver.committer.pending, [])
+      self.assertEqual(resolver.committer.trigger, "")
+
+  def test_get_working_diff_preserves_diff_across_commits(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      _git_repo_with(tmpdir, {"cobalt/a.cc": "int a = 1;\n"})
+      cls = self._resolver_class(
+          ["cobalt/a.cc: error: bad a", "cobalt/a.cc: error: bad b", None], [
+              self._patch("int a = 1;", "int a = 2;"),
+              self._patch("int a = 2;", "int a = 3;"),
+          ])
+      resolver = cls(tmpdir, max_iterations=3, commit_per_fix=True)
+      self.assertTrue(resolver.run_resolution_loop())
+      diff = resolver.get_working_diff()
+      self.assertIn("-int a = 1;", diff)
+      self.assertIn("+int a = 3;", diff)
+
+  def test_nested_on_patch_applied_changes_collected_into_pending_fix(self):
+    from base_resolver import _LoopState  # pylint: disable=import-outside-toplevel
+    with tempfile.TemporaryDirectory() as tmpdir:
+      _git_repo_with(tmpdir, {
+          "cobalt/a.cc": "int a = 1;\n",
+          "cobalt/b.cc": "int b = 1;\n"
+      })
+      changes = []
+
+      def nested_hook(modified):
+        if "cobalt/a.cc" in modified[0]:
+          with open(
+              os.path.join(tmpdir, "cobalt/b.cc"), "w", encoding="utf-8") as f:
+            f.write("int b = 2;\n")
+          nested_rec = AgentChangeRecord(
+              phase="P3",
+              iteration=1,
+              target_file="cobalt/b.cc",
+              file_changes={"cobalt/b.cc": "int b = 2;"},
+              applied_cleanly=True,
+              rationale="Nested fix for b",
+          )
+          changes.append(nested_rec)
+
+      cls = self._resolver_class([], [])
+      resolver = cls(
+          tmpdir,
+          session_changes=changes,
+          on_patch_applied_fn=nested_hook,
+          commit_per_fix=True)
+      resolver.committer = FixCommitter(tmpdir, "P4")
+      state = _LoopState(iteration=1, last_error="bad a")
+      patch = self._patch(
+          "int a = 1;", "int a = 2;", rel="cobalt/a.cc", why="Fix a")
+      resolver._apply_and_record(  # pylint: disable=protected-access
+          patch, "model", "cobalt/a.cc", state)
+
+      self.assertEqual([r.target_file for r in resolver.committer.pending],
+                       ["cobalt/a.cc", "cobalt/b.cc"])
+      self.assertEqual(resolver.committer.trigger, "bad a")
+
+  def test_fallback_message_names_changed_file_and_skips_markdown(self):
+    """Seen in the M148.7752 run: wrong file in the subject, '###' as Why."""
+    rec = AgentChangeRecord(
+        "P3",
+        1,
+        "components/optimization_guide/core/inference/BUILD.gn",
+        file_changes={"media/webrtc/BUILD.gn": "x"},
+        applied_cleanly=True,
+        trigger=("/repo/components/optimization_guide/core/inference/BUILD.gn"
+                 ":8: ERROR at //components/optimization_guide/core/inference/"
+                 "BUILD.gn:8:1: Assertion failed. | assert(x)"),
+        rationale=("### Root Cause Analysis\n1. **HEAD**: upstream added a "
+                   "dep on `tflite_support`.\n```gn\ndeps += [ \"x\" ]\n```\n"
+                   "- Cobalt drops it. So the assert must be relaxed."),
+        model="m")
+    subject, body = fix_commit_message([rec], "P3", repo_path="/repo")
+    self.assertEqual(subject,
+                     "media/webrtc/BUILD.gn: Assertion failed. | assert(x)")
+    self.assertIn(
+        "Why: HEAD: upstream added a dep on `tflite_support`. "
+        "Cobalt drops it. So the assert must be relaxed.", body)
+    self.assertNotIn("###", body)
+    self.assertNotIn("deps +=", body)
+    self.assertIn("Trigger: components/optimization_guide", body)
+    self.assertNotIn("/repo/", body)
+
+  def test_pipeline_flag_defaults_off(self):
+    import run_rebase_pipeline  # pylint: disable=import-outside-toplevel
+    parser = run_rebase_pipeline.build_arg_parser()
+    base = ["--model", "m", "--expert-model", "e"]
+    self.assertFalse(parser.parse_args(base).commit_per_fix)
+    self.assertTrue(
+        parser.parse_args(base + ["--commit-per-fix"]).commit_per_fix)
 
 
 if __name__ == "__main__":

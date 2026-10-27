@@ -422,7 +422,86 @@ class CobaltReasoningEngine:
     if action in ("heal_compiler", "heal_compiler_break",
                   "heal_compiler_error"):
       return self.heal_compiler_error(**kwargs)
+    if action == "judge_commit":
+      return self.judge_commit(**kwargs)
     raise ValueError(f"Unknown Reasoning Engine action: {action}")
+
+  def judge_commit(
+      self,
+      *,
+      phase: str = "",
+      trigger: str = "",
+      outcome: str = "",
+      diff: str = "",
+      rationales: str = "",
+      decide: bool = True,
+      flash_model: Optional[str] = None,
+      **kwargs,
+  ) -> Dict[str, Any]:
+    """Writes the commit message for one fix; optionally decides if it is one.
+
+    Called once per fix the pipeline commits: a resolved conflict file, a
+    build error whose diagnostic went away, or the patches pending when the
+    build passed. The workhorse model sees the triggering diagnostic, the
+    outcome, the diff and the recorded rationales, and answers with JSON:
+      {"decision": "COMMIT" | "HOLD", "subject": ..., "body": ...,
+       "reason": ...}
+    With decide=False the decision is not asked for (the fix is being
+    committed regardless) and only subject/body matter. The pipeline
+    appends its own Trigger / Files / Model trailer to the body.
+    """
+    del kwargs
+    chosen_model = flash_model or self.flash_model
+    decision_rules = (
+        "First decide whether the pending changes should become one git "
+        "commit now. COMMIT when they are a complete, coherent fix for the "
+        "triggering error: the error is gone and the new outcome is a "
+        "different problem or a passing build. HOLD when the new error is "
+        "the same underlying problem with a different message, when the "
+        "change only moved or silenced the error, or when the fix is clearly "
+        "half done (e.g. a header changed but its .cc not yet).\n")
+    sys_inst = (
+        "You write the git commit message for one change made by an "
+        "automated Chromium-to-Cobalt rebase agent, for the Cobalt engineers "
+        "who review the pull request.\n" + (decision_rules if decide else "") +
+        "Commit message rules:\n"
+        "- subject: '<area or file>: <what changed>', imperative mood, at "
+        "most 72 characters, no trailing period, no 'fix:'/'AI' prefixes. "
+        "Name the file or component that was CHANGED, not the one that "
+        "reported the error. Use a short path (e.g. 'media/webrtc/BUILD.gn' "
+        "or 'update_client'), not an absolute path.\n"
+        "- body: 1-4 plain sentences, lines at most 72 characters: what "
+        "upstream Chromium changed, what broke on the Cobalt side, and why "
+        "this change is the right Cobalt-side fix (which side of a conflict "
+        "was kept and why). State facts the diff does not show; do not "
+        "restate the diff or list files.\n"
+        "- plain text only: no markdown headings, bullets, bold or code "
+        "fences; backticks around identifiers are fine.\n"
+        "Respond with ONLY a JSON object: "
+        "{\"decision\": \"COMMIT\" or \"HOLD\", "
+        "\"subject\": \"...\", \"body\": \"...\", "
+        "\"reason\": \"one sentence for the log\"}. "
+        "No markdown fences, no extra text.")
+    rationales = rationales or "(none)"
+    diff = diff or "(empty)"
+    prompt = (f"Phase: {phase}\n\n"
+              f"--- Trigger (what prompted the change) ---\n"
+              f"{trigger}\n\n"
+              f"--- Outcome after the change ---\n"
+              f"{outcome}\n\n"
+              f"--- Rationale recorded for each change ---\n"
+              f"{rationales}\n\n"
+              f"--- Diff ---\n{diff}\n")
+    resp = self._generate_content_with_retry(
+        model=chosen_model,
+        contents=prompt,
+        config=self._create_generation_config(chosen_model, sys_inst),
+    )
+    return {
+        "status": "SUCCESS" if resp and resp.text else "ERROR",
+        "judgement": resp.text.strip() if resp and resp.text else "",
+        "model_used": chosen_model,
+    }
 
   def generate_expert_guidance(
       self,

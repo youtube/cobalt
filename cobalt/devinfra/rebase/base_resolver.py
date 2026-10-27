@@ -12,87 +12,22 @@ import logging
 import os
 import re
 import subprocess
-import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import warnings
 
+from change_record import (MAX_TRIGGER_CHARS, NO_RATIONALE, AgentChangeRecord,
+                           format_change_history, guidance_summary)
 from diagnostics import Diagnostic
+from fix_commits import FixCommitter
 from patching import (NEEDS_HUMAN_PREFIX, apply_parsed_patch,
                       exec_script_changes, parse_patch, patch_file_changes,
-                      patch_rejections)
+                      patch_explanation, patch_rejections)
 from tools import execute_local_tool, extract_tool_commands
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
 log = logging.getLogger(__name__)
-
-
-@dataclasses.dataclass
-class AgentChangeRecord:
-  """Tracks an agent modification and resulting build/command status."""
-
-  phase: str
-  iteration: int
-  target_file: str
-  file_changes: Dict[str, str] = dataclasses.field(default_factory=dict)
-  error: Optional[str] = None
-  command_output: Optional[str] = None
-  applied_cleanly: bool = True
-  timestamp: float = dataclasses.field(default_factory=time.time)
-
-  @property
-  def modified_files(self) -> List[str]:
-    """List of files touched by this modification."""
-    return list(self.file_changes.keys())
-
-  @property
-  def changes(self) -> str:
-    """Formatted representation of all modifications in this record."""
-    if not self.file_changes:
-      return ""
-    if len(self.file_changes) == 1:
-      return next(iter(self.file_changes.values()))
-    return "\n\n".join(f"FILE: {f}\n{c}" for f, c in self.file_changes.items())
-
-  def to_dict(self) -> Dict[str, Any]:
-    return {
-        "phase": self.phase,
-        "iteration": self.iteration,
-        "target_file": self.target_file,
-        "file_changes": self.file_changes,
-        "error": self.error,
-        "command_output": self.command_output,
-        "modified_files": self.modified_files,
-        "applied_cleanly": self.applied_cleanly,
-        "timestamp": self.timestamp,
-    }
-
-  def to_prompt_str(self) -> str:
-    """Formats this record for LLM trajectory consumption."""
-    status_label = ("CLEAN (Build Passed)"
-                    if self.error is None else f"FAILED: {self.error}")
-    lines = [
-        (f"#### [{self.phase}] Iteration {self.iteration} -> "
-         f"Target: `{self.target_file}`"),
-        f"- Patch Applied Cleanly: {self.applied_cleanly}",
-        f"- Outcome Status: {status_label}",
-    ]
-    if self.modified_files:
-      lines.append(f"- Modified Files ({len(self.modified_files)}): " +
-                   ", ".join(f"`{f}`" for f in self.modified_files))
-      lines.append("Patch Attempted:")
-      lines.append("```diff")
-      lines.append(self.changes.strip())
-      lines.append("```")
-    if self.error:
-      lines.append(f"- Resulting Command Error: `{self.error}`")
-    if self.command_output:
-      lines.append("Command Output Snippet:")
-      lines.append("```")
-      lines.append(self.command_output[-2500:].strip())
-      lines.append("```")
-    return "\n".join(lines)
 
 
 def extract_meaningful_error_summary(raw_msg: str) -> str:
@@ -115,21 +50,57 @@ def extract_meaningful_error_summary(raw_msg: str) -> str:
   return raw_msg.strip().splitlines()[0]
 
 
-def format_change_history(records: List[AgentChangeRecord],
-                          window: int = 6) -> str:
-  """Formats the last `window` change records, one line each, oldest first."""
-  lines = []
-  for rec in records[-window:]:
-    if not rec.applied_cleanly:
-      lines.append(f"- Iteration {rec.iteration}: patch for {rec.target_file} "
-                   f"was not applied: {rec.error}")
-    elif rec.error is None:
-      lines.append(
-          f"- Iteration {rec.iteration}: changed {rec.target_file} -> passed")
-    else:
-      lines.append(f"- Iteration {rec.iteration}: changed {rec.target_file} "
-                   f"-> {rec.error}")
-  return "\n".join(lines)
+# How many rounds the expert may spend asking for tools before it must
+# answer. The notice goes into its history one round before the limit.
+EXPERT_MAX_ROUNDS = 3
+
+
+def consult_expert(engine: Any,
+                   repo_path: str,
+                   session_changes: Optional[List[AgentChangeRecord]],
+                   *,
+                   log_label: str,
+                   max_rounds: int = EXPERT_MAX_ROUNDS,
+                   **guidance_kwargs: Any) -> Tuple[str, str]:
+  """Asks the expert for a plan, running its tool requests until it answers.
+
+  Each round calls engine.generate_expert_guidance(**guidance_kwargs) with
+  the tool results so far as investigation_history. When the reply asks for
+  TOOL_* commands they are run and fed back; one round before the limit the
+  expert is told the budget is exhausted so its last reply is a plan, not
+  another request. Used by the Phase 2-4 pre-flight and by Phase 1 conflict
+  resolution, so both get a finished plan rather than the half sentence an
+  expert writes before its first tool call.
+
+  Returns (guidance, investigation): the expert's final text and the
+  transcript of tool calls and results, both "" when the engine fails.
+  """
+  guidance = ""
+  investigation = ""
+  for expert_round in range(1, max_rounds + 1):
+    try:
+      res = engine.generate_expert_guidance(
+          investigation_history=investigation, **guidance_kwargs)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      log.info("  [%s] Notice: expert guidance query: %s", log_label, e)
+      break
+    guidance = res.get("guidance", "") if isinstance(res, dict) else ""
+    tool_cmds = extract_tool_commands(guidance)
+    if not tool_cmds or expert_round == max_rounds:
+      break
+    results = []
+    for t_cmd in tool_cmds:
+      log.info("  [%s] [TIER-2 ARCHITECT] Tool requested: %s", log_label, t_cmd)
+      t_out = execute_local_tool(
+          t_cmd, repo_path, session_changes=session_changes)
+      results.append(f"Tool Call: `{t_cmd}`\nResult:\n```\n{t_out}\n```")
+    investigation += "\n\n" + "\n\n".join(results)
+    if expert_round == max_rounds - 1:
+      investigation += (
+          "\n\n=== TOOL BUDGET EXHAUSTED: Do NOT output any TOOL_* "
+          "commands. Synthesize the findings above and provide your "
+          "final architectural diagnosis and repair plan now. ===")
+  return guidance, investigation
 
 
 @dataclasses.dataclass
@@ -156,6 +127,7 @@ class BaseResolver(abc.ABC):
       max_iterations: int = 50,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
       session_changes: Optional[List[AgentChangeRecord]] = None,
+      commit_per_fix: bool = False,
   ):
     self.repo_path = repo_path
     self.max_iterations = max_iterations
@@ -164,6 +136,12 @@ class BaseResolver(abc.ABC):
     self.file_error_counts: Dict[str, int] = collections.defaultdict(int)
     self.session_changes: List[AgentChangeRecord] = (
         session_changes if session_changes is not None else [])
+    # When set, each fixed error becomes its own git commit, with the
+    # trigger and rationale in the message (see fix_commits.FixCommitter).
+    # Off by default so local runs leave the working tree to the developer.
+    self.commit_per_fix = commit_per_fix
+    # The committer of the current (or last) loop; None when not committing.
+    self.committer: Optional[FixCommitter] = None
 
   @property
   def model(self) -> str:
@@ -214,8 +192,11 @@ class BaseResolver(abc.ABC):
   def get_working_diff(self, max_chars: int = 200000) -> str:
     """Returns git diff of uncommitted modifications in repository."""
     try:
+      # Against the loop's starting commit, so that fixes this loop already
+      # committed stay in the diff the model sees.
+      base_ref = (self.committer and self.committer.base_sha) or "HEAD"
       proc = subprocess.run(
-          ["git", "diff", "--no-color", "HEAD"],
+          ["git", "diff", "--no-color", base_ref],
           cwd=self.repo_path,
           stdout=subprocess.PIPE,
           stderr=subprocess.PIPE,
@@ -339,8 +320,23 @@ class BaseResolver(abc.ABC):
     return current_patch, model_used
 
   def run_resolution_loop(self) -> bool:
-    """Executes the standard self-healing loop until clean or exhausted."""
-    state = _LoopState()
+    """Executes the standard self-healing loop until clean or exhausted.
+
+    With commit_per_fix, applied patches are committed once the error they
+    answered is gone (see FixCommitter); whatever is still held when the
+    loop ends is committed as unverified, so no fix is left uncommitted.
+    """
+    self.committer = (
+        FixCommitter(self.repo_path, self.name, self.reasoning_engine)
+        if self.commit_per_fix else None)
+    try:
+      return self._run_resolution_loop(_LoopState())
+    finally:
+      if self.committer:
+        self.committer.flush(
+            outcome="loop ended before the error went away", unverified=True)
+
+  def _run_resolution_loop(self, state: _LoopState) -> bool:
     for iteration in range(1, self.max_iterations + 1):
       state.iteration = iteration
       log.info("\n[%s] >>> Iteration %s/%s...", self.name, iteration,
@@ -351,6 +347,8 @@ class BaseResolver(abc.ABC):
                  self.name, iteration, self.max_iterations)
         if state.pending_record is not None:
           state.pending_record.error = None
+        if self.committer:
+          self.committer.flush(outcome="build passed")
         return True
 
       diagnostics = self._collect_diagnostics(output, siso_out)
@@ -360,6 +358,8 @@ class BaseResolver(abc.ABC):
       self._record_build_outcome(state, error_summary,
                                  output + "\n" + (siso_out or ""))
       self._print_failure(diagnostics, error_summary, rel_file)
+      if self.committer:
+        self.committer.after_build(error_summary, diag.trace())
 
       if diag.file_path:
         self.file_error_counts[diag.file_path] += 1
@@ -413,7 +413,8 @@ class BaseResolver(abc.ABC):
       if not patch:
         log.warning("[%s] [FAIL] Model returned empty patch.", self.name)
         continue
-      self._apply_and_record(patch, model_used, rel_target, state)
+      context = self._review_context(diag, patch, expert_guidance)
+      self._apply_and_record(patch, model_used, rel_target, state, **context)
       if self.needs_human():
         log.warning(
             "[%s] [STOP] A fix needs a human decision; see the "
@@ -464,6 +465,22 @@ class BaseResolver(abc.ABC):
       state.pending_record.error = error_summary
       state.pending_record.command_output = command_output[-4000:]
 
+  def _review_context(self, diag: Diagnostic, patch: str,
+                      expert_guidance: str) -> Dict[str, Any]:
+    """Review fields for the change record of this iteration's patch.
+
+    trigger is the diagnostic the patch answers; rationale is the model's
+    own explanation around the patch, or the expert's pre-flight plan when
+    the patch came without one, or NO_RATIONALE when there is neither.
+    """
+    rationale = (
+        patch_explanation(patch) or guidance_summary(expert_guidance) or
+        NO_RATIONALE)
+    return {
+        "trigger": diag.trace()[:MAX_TRIGGER_CHARS],
+        "rationale": rationale,
+    }
+
   def _print_failure(self, diagnostics: List[Diagnostic], error_summary: str,
                      rel_file: str) -> None:
     diag = diagnostics[0]
@@ -505,6 +522,8 @@ class BaseResolver(abc.ABC):
           check=False,
       )
       self.on_patch_applied([abs_path])
+      if self.committer:
+        self.committer.drop_file(rel_file)
     except (OSError, subprocess.SubprocessError) as rev_err:
       log.info("  [%s] Notice: Revert failed for %s: %s", self.name, rel_file,
                rev_err)
@@ -521,6 +540,11 @@ class BaseResolver(abc.ABC):
                 f"reverted to HEAD after repeated failure ({error_summary}); "
                 "try a different approach"),
             applied_cleanly=True,
+            trigger=error_summary,
+            rationale=(
+                f"Anti-loop: the same error repeated {state.stuck_count} "
+                "times, so the file was reset to HEAD for a fresh "
+                "attempt."),
         ))
 
   def _session_trajectory(self) -> str:
@@ -602,36 +626,21 @@ class BaseResolver(abc.ABC):
     name = self.name.lower()
     mode = "gn" if "gn" in name else ("sync" if "sync" in name else "compiler")
 
-    expert_guidance = ""
-    investigation_history = ""
-    for expert_round in range(1, 4):
-      try:
-        guidance_res = self.reasoning_engine.generate_expert_guidance(
-            target=diag.file_path or self.name,
-            diagnostics=diag.trace(),
-            source_contexts=source_context,
-            trajectory_history=trajectory,
-            working_diff=working_diff,
-            raw_log=command_output[-30000:],
-            all_diagnostics=all_diags_str,
-            investigation_history=investigation_history,
-            mode=mode,
-            expert_model=self.reasoning_engine.expert_model,
-        )
-        expert_guidance = guidance_res.get("guidance", "")
-        tool_cmds = extract_tool_commands(expert_guidance)
-        if not tool_cmds or expert_round == 3:
-          break
-        investigation_history += "\n\n" + self._run_expert_tools(tool_cmds)
-        if expert_round == 2:
-          investigation_history += (
-              "\n\n=== TOOL BUDGET EXHAUSTED: Do NOT output any TOOL_* "
-              "commands. Synthesize the findings above and provide your "
-              "final architectural diagnosis and repair plan now. ===")
-      except Exception as e:  # pylint: disable=broad-exception-caught
-        log.info("  [%s] Notice: Pre-flight expert guidance query: %s",
-                 self.name, e)
-        break
+    expert_guidance, _ = consult_expert(
+        self.reasoning_engine,
+        self.repo_path,
+        self.session_changes,
+        log_label=self.name,
+        target=diag.file_path or self.name,
+        diagnostics=diag.trace(),
+        source_contexts=source_context,
+        trajectory_history=trajectory,
+        working_diff=working_diff,
+        raw_log=command_output[-30000:],
+        all_diagnostics=all_diags_str,
+        mode=mode,
+        expert_model=self.reasoning_engine.expert_model,
+    )
 
     if expert_guidance:
       log.info("  [%s] [TIER-2 ARCHITECT] Pre-Flight Plan:\n  >>> %s...",
@@ -639,20 +648,25 @@ class BaseResolver(abc.ABC):
                expert_guidance.splitlines()[0][:100])
     return expert_guidance
 
-  def _run_expert_tools(self, tool_cmds: List[str]) -> str:
-    """Runs tools requested by the expert; returns their formatted results."""
-    results = []
-    for t_cmd in tool_cmds:
-      log.info("  [%s] [TIER-2 ARCHITECT] Tool requested: %s", self.name, t_cmd)
-      t_out = execute_local_tool(
-          t_cmd, self.repo_path, session_changes=self.session_changes)
-      results.append(f"Tool Call: `{t_cmd}`\nResult:\n```\n{t_out}\n```")
-    return "\n\n".join(results)
+  def _apply_and_record(self,
+                        patch: str,
+                        model_used: str,
+                        rel_target: str,
+                        state: _LoopState,
+                        *,
+                        trigger: str = "",
+                        rationale: str = "") -> None:
+    """Applies the model's patch and records the attempt either way.
 
-  def _apply_and_record(self, patch: str, model_used: str, rel_target: str,
-                        state: _LoopState) -> None:
-    """Applies the model's patch and records the attempt either way."""
+    trigger and rationale are the review context kept in the record (see
+    AgentChangeRecord); they do not affect what is applied.
+    """
     iteration = state.iteration
+    review = {
+        "trigger": trigger,
+        "rationale": rationale,
+        "model": model_used or "",
+    }
     log.info("[%s] Applying AI patch using %s to %s...", self.name, model_used,
              rel_target)
     parsed = parse_patch(patch, self.repo_path, default_file=rel_target)
@@ -687,6 +701,7 @@ class BaseResolver(abc.ABC):
               error=error,
               command_output=None,
               applied_cleanly=False,
+              **review,
           ))
       state.pending_record = None
       state.last_patch_not_applied = True
@@ -704,7 +719,17 @@ class BaseResolver(abc.ABC):
         error=None,
         command_output=None,
         applied_cleanly=True,
+        **review,
     )
     self.session_changes.append(state.pending_record)
-    # Last: this may re-run gclient sync or gn gen, which can raise.
-    self.on_patch_applied(modified_files)
+    if self.committer:
+      self.committer.add(state.pending_record, state.last_error)
+    # Last: this may re-run gclient sync or gn gen, which can raise. Their
+    # patches belong to this fix, so they join the held records.
+    before_hook = len(self.session_changes)
+    try:
+      self.on_patch_applied(modified_files)
+    finally:
+      if self.committer:
+        for rec in self.session_changes[before_hook:]:
+          self.committer.add(rec, state.last_error)

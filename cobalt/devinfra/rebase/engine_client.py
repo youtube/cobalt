@@ -310,3 +310,28 @@ class ReasoningEngineClient:
         expert_guidance=expert_guidance,
         use_expert=use_expert,
     )
+
+  def judge_commit(
+      self,
+      *,
+      phase: str,
+      trigger: str,
+      outcome: str,
+      diff: str,
+      rationales: str = "",
+      decide: bool = True,
+  ) -> Dict[str, Any]:
+    """Asks for the commit message of one fix, and whether it is one.
+
+    With decide=False only the message is asked for. Returns the engine's
+    dict with a "judgement" JSON string; see fix_commits.parse_judgement.
+    """
+    return self.query(
+        action="judge_commit",
+        phase=phase,
+        trigger=trigger,
+        outcome=outcome,
+        diff=diff,
+        rationales=rationales,
+        decide=decide,
+    )
