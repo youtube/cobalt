@@ -10,6 +10,7 @@
 #import "base/check.h"
 #import "base/lazy_instance.h"
 #import "base/strings/sys_string_conversions.h"
+#import "build/build_config.h"
 #import "ui/base/l10n/l10n_util.h"
 
 namespace {
@@ -42,6 +43,11 @@ void OverrideLocaleWithCocoaLocale() {
   // NSBundle really should only be called on the main thread.
   DCHECK(NSThread.isMainThread);
 
+#if BUILDFLAG(IS_COBALT)
+  // Use NSLocale.preferredLanguages, which reflects the device's
+  // ranked language preferences.
+  NSArray<NSString*>* language_list = NSLocale.preferredLanguages;
+#else
   // Chrome really only has one concept of locale, but macOS has locale and
   // language that can be set independently.  After talking with Chrome UX folks
   // (Cole), the best path from an experience point of view is to map the macOS
@@ -50,6 +56,7 @@ void OverrideLocaleWithCocoaLocale() {
   // strings resources vs ICU generated strings).  This also makes the Mac act
   // like other Chrome platforms.
   NSArray* language_list = base::apple::OuterBundle().preferredLocalizations;
+#endif
   NSString* first_locale = language_list[0];
   // macOS uses "_" instead of "-", so swap to get a real locale value.
   std::string locale_value = base::SysNSStringToUTF8(

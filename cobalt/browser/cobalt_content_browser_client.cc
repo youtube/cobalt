@@ -376,6 +376,8 @@ std::string CobaltContentBrowserClient::GetApplicationLocale() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_ANDROID)
   return base::android::GetDefaultLocaleString();
+#elif BUILDFLAG(IS_IOS_TVOS)
+  return content::ShellContentBrowserClient::GetApplicationLocale();
 #else
   return base::i18n::GetConfiguredLocale();
 #endif
