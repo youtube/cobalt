@@ -26,6 +26,7 @@
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "starboard/window.h"
+#include "storage/browser/quota/quota_settings.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
@@ -43,6 +44,10 @@ class WebContents;
 namespace metrics_services_manager {
 class MetricsServicesManager;
 }  // namespace metrics_services_manager
+
+namespace storage {
+class QuotaDeviceInfoHelper;
+}  // namespace storage
 
 namespace mojo {
 template <typename>
@@ -120,6 +125,23 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
           cert_verifier_creation_params) override;
   bool AllowCompressionDictionaryTransport(
       content::BrowserContext* context) override;
+  void GetCacheQuotaSettings(
+      content::BrowserContext* browser_context,
+      const base::FilePath& cache_path,
+      ::storage::OptionalQuotaSettingsCallback callback) override;
+
+  // Service Worker and CacheStorage per-origin quota (6 MiB) and pool size
+  // (12 MiB, sized to 2x per-origin quota so single-origin usage stays below
+  // QuotaTemporaryStorageEvictor's 70% pool eviction threshold).
+  static constexpr uint32_t kCacheStorageQuotaBytes = 6 * 1024 * 1024;
+  static constexpr uint32_t kCacheStoragePoolToQuotaRatio = 2;
+  static constexpr uint32_t kCacheStoragePoolSizeBytes =
+      kCacheStorageQuotaBytes * kCacheStoragePoolToQuotaRatio;
+
+  static std::optional<::storage::QuotaSettings>
+  CalculateCacheQuotaSettingsForTesting(
+      const base::FilePath& cache_path,
+      ::storage::QuotaDeviceInfoHelper* device_info_helper);
   void OverrideWebPreferences(content::WebContents* web_contents,
                               content::SiteInstance& main_frame_site,
                               blink::web_pref::WebPreferences* prefs) override;
