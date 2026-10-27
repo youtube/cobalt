@@ -95,6 +95,13 @@ void WindowTreeHostPlatform::CreateAndSetPlatformWindow(
   // through OnBoundsChanged, which may lead to unneeded re-layouts, etc.
   size_in_pixels_ = properties.bounds.size();
   platform_window_ = CreatePlatformWindow(std::move(properties));
+#if BUILDFLAG(IS_STARBOARD)
+  // PlatformWindowStarboard queries SbWindowGetSize() during construction, so
+  // update size_in_pixels_ to match the actual native window dimensions.
+  if (platform_window_) {
+    size_in_pixels_ = platform_window_->GetBoundsInPixels().size();
+  }
+#endif
 }
 
 void WindowTreeHostPlatform::SetPlatformWindow(
