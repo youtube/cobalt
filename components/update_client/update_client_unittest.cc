@@ -5382,7 +5382,7 @@ TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
 #if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
         base::MakeRefCounted<UnzipCobaltFactory>()
 #else
->>>>>>> parent of 5c266e6bb98 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 5aa3190560c85 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         base::MakeRefCounted<UnzipChromiumFactory>(
             base::BindRepeating(&unzip::LaunchInProcessUnzipper))
 #endif

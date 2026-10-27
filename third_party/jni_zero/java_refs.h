@@ -112,7 +112,7 @@ concept HasCalledByNatives =
 =======
 concept HasCalledByNatives = requires { sizeof(_CalledByNatives<T>); };
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
->>>>>>> parent of 5c266e6bb98 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 5aa3190560c85 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace internal
 
 // Template specialization of JavaRef, which acts as the base class for all
@@ -239,7 +239,7 @@ class JavaRef : public JavaRef<jobject> {
   const internal::_CalledByNatives<T>* operator->() const
 #if !BUILDFLAG(IS_COBALT) || \
     (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
->>>>>>> parent of 5c266e6bb98 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 5aa3190560c85 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     requires internal::HasCalledByNatives<T>
 #endif  // !BUILDFLAG(IS_COBALT) || (concepts)
   {

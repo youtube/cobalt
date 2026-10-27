@@ -80,7 +80,7 @@ bool StructTraits<media::mojom::VideoDecoderConfigDataView,
   if (!output->IsValidConfig())
     return false;
 
->>>>>>> parent of 5c266e6bb98 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 5aa3190560c85 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return true;
 }
 
