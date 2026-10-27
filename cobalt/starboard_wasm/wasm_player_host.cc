@@ -35,6 +35,7 @@
 #include "build/build_config.h"
 #include "cobalt/starboard_wasm/event_queue.h"
 #include "cobalt/starboard_wasm/guest_memory.h"
+#include "cobalt/starboard_wasm/surface_video_size.h"
 #include "cobalt/starboard_wasm/wasm_starboard_abi.h"
 #include "media/base/starboard/sbmedia_interface.h"
 #include "media/starboard/sbplayer_interface.h"
@@ -346,6 +347,9 @@ WasmPlayerHost::~WasmPlayerHost() {
   while (!players_.empty()) {
     Destroy(players_.begin()->first);
   }
+  for (const auto& [id, surface] : surfaces_) {
+    SurfaceVideoSize::Set(surface.token, gfx::Size());
+  }
 }
 
 // static
@@ -480,6 +484,7 @@ void WasmPlayerHost::DestroySurface(uint32_t surface) {
     return;
   }
   geometry_receivers_.Remove(it->second.receiver);
+  SurfaceVideoSize::Set(it->second.token, gfx::Size());
   surfaces_.erase(it);
   for (auto& [id, player] : players_) {
     if (player->surface == surface) {
@@ -531,6 +536,7 @@ uint32_t WasmPlayerHost::Create(GuestMemory& memory,
   }
   player->surface = surface;
   ApplyBounds(*player);
+  SetSurfaceVideoSize(*player, param.param.video_stream_info);
   players_[id] = std::move(player);
   return id;
 }
@@ -618,6 +624,9 @@ bool WasmPlayerHost::WriteSamples(GuestMemory& memory,
   }
   sbplayer_->WriteSamples(p->sb_player, type, samples.data(),
                           static_cast<int>(count));
+  if (type == kSbMediaTypeVideo) {
+    SetSurfaceVideoSize(*p, samples.back().video_sample_info.stream_info);
+  }
   return true;
 }
 
@@ -857,6 +866,16 @@ void WasmPlayerHost::ApplyBounds(Player& player) {
     sbplayer_->SetBounds(player.sb_player, player.bounds->z_index,
                          player.bounds->x, player.bounds->y,
                          player.bounds->width, player.bounds->height);
+  }
+}
+
+void WasmPlayerHost::SetSurfaceVideoSize(
+    const Player& player,
+    const SbMediaVideoStreamInfo& info) const {
+  auto surface = surfaces_.find(player.surface);
+  if (surface != surfaces_.end() && info.codec != kSbMediaVideoCodecNone) {
+    SurfaceVideoSize::Set(surface->second.token,
+                          gfx::Size(info.frame_width, info.frame_height));
   }
 }
 

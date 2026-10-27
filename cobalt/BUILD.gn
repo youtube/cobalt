@@ -455,6 +455,7 @@ test("cobalt_unittests") {
     "//cobalt/common/libc:libc_test",
     "//cobalt/memory:unit_tests",
     "//cobalt/shell/browser/migrate_storage_record:unittest",
+    "//cobalt/starboard_wasm:surface_video_size",
     "//cobalt/starboard_wasm:unit_tests",
     "//components/metrics",
     "//components/metrics:test_support",

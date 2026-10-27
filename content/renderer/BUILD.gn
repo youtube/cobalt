@@ -347,6 +347,7 @@ target(link_target_type, "renderer") {
       "media/cobalt/wasm_hole_web_media_player.cc",
       "media/cobalt/wasm_hole_web_media_player.h",
     ]
+    deps += [ "//cobalt/starboard_wasm:surface_video_size" ]
   }
 
   if (is_android) {

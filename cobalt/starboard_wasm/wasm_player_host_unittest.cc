@@ -34,6 +34,7 @@
 #include "base/test/task_environment.h"
 #include "cobalt/starboard_wasm/event_queue.h"
 #include "cobalt/starboard_wasm/guest_memory.h"
+#include "cobalt/starboard_wasm/surface_video_size.h"
 #include "cobalt/starboard_wasm/wasm_starboard_abi.h"
 #include "media/base/starboard/sbmedia_interface.h"
 #include "media/starboard/mock_sbplayer_interface.h"
@@ -739,6 +740,45 @@ TEST_F(WasmPlayerHostTest, HolePositionsPlayerUntilSurfaceDestroyed) {
   EXPECT_FALSE(geometry_.clients.begin()->second.is_connected());
 }
 
+TEST_F(WasmPlayerHostTest, PublishesSurfaceVideoSize) {
+  const uint32_t surface = host_->CreateSurface();
+  const base::UnguessableToken token =
+      *base::UnguessableToken::DeserializeFromString(
+          host_->SurfaceToken(surface));
+  std::vector<gfx::Size> sizes;
+  base::ScopedClosureRunner watch = SurfaceVideoSize::Watch(
+      token, base::BindLambdaForTesting(
+                 [&](const gfx::Size& size) { sizes.push_back(size); }));
+
+  WasmSbPlayerCreationParam param = AudioCreationParam();
+  param.video_stream_info.codec = kSbMediaVideoCodecVp9;
+  param.video_stream_info.frame_width = 1080;
+  param.video_stream_info.frame_height = 1920;
+  param.video_stream_info.color_metadata.bits_per_channel = 8;
+  const uint32_t player = Create(param, surface);
+  ASSERT_NE(player, 0u);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(sizes, std::vector<gfx::Size>({{1080, 1920}}));
+
+  WasmSbPlayerSampleInfo info = AudioSample(0);
+  info.type = kSbMediaTypeVideo;
+  info.video_sample_info = {};
+  info.video_sample_info.stream_info = param.video_stream_info;
+  info.video_sample_info.stream_info.frame_width = 1920;
+  info.video_sample_info.stream_info.frame_height = 1080;
+  Write(kInfos, info);
+  NeedData(kSbMediaTypeVideo);
+  ASSERT_TRUE(WriteSamples(player, kSbMediaTypeVideo, 1));
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(sizes, std::vector<gfx::Size>({{1080, 1920}, {1920, 1080}}));
+
+  // An audio-only player on the surface leaves the size alone.
+  ASSERT_NE(Create(AudioCreationParam(), surface), 0u);
+  host_->DestroySurface(surface);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(sizes.size(), 2u);
+}
+
 TEST_F(WasmPlayerHostTest, NewPlayerStartsAtSurfacesHole) {
   const uint32_t surface = host_->CreateSurface();
   ASSERT_NE(Create(AudioCreationParam(), surface), 0u);
@@ -756,12 +796,23 @@ TEST_F(WasmPlayerHostTest, PlayerWithoutSurfaceIgnoresHoles) {
 }
 
 TEST_F(WasmPlayerHostTest, DestroyingHostUnsubscribes) {
-  host_->CreateSurface();
+  const uint32_t surface = host_->CreateSurface();
+  const base::UnguessableToken token =
+      *base::UnguessableToken::DeserializeFromString(
+          host_->SurfaceToken(surface));
   task_environment_.RunUntilIdle();
   ASSERT_EQ(geometry_.clients.size(), 1u);
+  SurfaceVideoSize::Set(token, gfx::Size(1080, 1920));
   host_.reset();
   task_environment_.RunUntilIdle();
   EXPECT_FALSE(geometry_.clients.begin()->second.is_connected());
+  // The host forgot the surface's size: a new watcher gets nothing.
+  bool notified = false;
+  base::ScopedClosureRunner watch = SurfaceVideoSize::Watch(
+      token,
+      base::BindLambdaForTesting([&](const gfx::Size&) { notified = true; }));
+  task_environment_.RunUntilIdle();
+  EXPECT_FALSE(notified);
 }
 
 TEST_F(WasmPlayerHostTest, WritesPlayerInfo) {
