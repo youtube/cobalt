@@ -99,12 +99,19 @@ runs:
         working-directory: cobalt/src
         env:
           TARGETS_JSON: ${{ inputs.targets }}
+          TEST_TARGETS_JSON: ${{ inputs.test_targets_json_file }}
           USE_SCCACHE: ${{ inputs.enable_sccache }}
           PLATFORM: ${{ matrix.platform }}
           CONFIG: ${{ matrix.config }}
         run: |
           set -ex
           readarray -t targets < <(echo "${TARGETS_JSON:-[]}" | jq -r '.[]')
+          if [[ -f "${TEST_TARGETS_JSON}" ]]; then
+            mapfile -t -O "${#targets[@]}" targets < <(
+              jq -r '.[] | select(.target != null) | .target' \
+                "${TEST_TARGETS_JSON}"
+            )
+          fi
           time autoninja -C out/"${PLATFORM}_${CONFIG}" "${targets[@]}"
           if [[ "${USE_SCCACHE}" == "true" ]]; then
             sccache --show-stats
