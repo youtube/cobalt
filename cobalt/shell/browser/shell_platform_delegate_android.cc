@@ -221,7 +221,12 @@ void JNI_Shell_CloseShell(JNIEnv* env, jlong shellPtr) {
 }
 
 void ShellPlatformDelegate::SetNativeSplashActive(Shell* shell, bool active) {
-  // Not implemented on this platform (proof of concept).
+  JNIEnv* env = AttachCurrentThread();
+  auto it = shell_data_map_.find(shell);
+  if (it == shell_data_map_.end() || it->second.java_object.is_null()) {
+    return;
+  }
+  Java_Shell_setNativeSplashActive(env, it->second.java_object, active);
 }
 
 }  // namespace content

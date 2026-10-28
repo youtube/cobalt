@@ -25,6 +25,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "starboard/decode_target.h"
 #include "starboard/player.h"
 #include "starboard/window.h"
 #include "ui/gfx/geometry/rect.h"
@@ -86,7 +87,11 @@ class SplashVideoPlayer {
     bool is_key_frame;
   };
 
+  static constexpr int kMaxCreateAttempts = 40;
+  static constexpr base::TimeDelta kCreateRetryDelay = base::Milliseconds(50);
+
   bool Demux(const std::vector<uint8_t>& webm);
+  void CreatePlayer();
   void Finish(Result result);
   void WriteSamples();
 
@@ -114,7 +119,15 @@ class SplashVideoPlayer {
   void OnPlayerError(SbPlayerError error, std::string message);
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  // Punch-out players on Android use it to clear the video surface when they
+  // are destroyed. That code sets up its own EGL context, so the runner just
+  // runs it on the calling thread.
+  SbDecodeTargetGraphicsContextProvider context_provider_ = {};
   SbPlayer player_ = kSbPlayerInvalid;
+  SbWindow window_ = kSbWindowInvalid;
+  gfx::Rect bounds_;
+  base::TimeDelta max_duration_;
+  int create_attempts_ = 0;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
 
   // The video track.

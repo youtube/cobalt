@@ -26,7 +26,9 @@
 #include "media/base/video_decoder_config.h"
 #include "media/formats/webm/webm_stream_parser.h"
 #include "media/starboard/starboard_utils.h"
+#include "starboard/extension/experimental/experimental_features.h"
 #include "starboard/media.h"
+#include "starboard/system.h"
 
 namespace content {
 
@@ -43,6 +45,12 @@ const char* VideoMime(SbMediaVideoCodec codec) {
     default:
       return "video/webm";
   }
+}
+
+void RunOnCurrentThread(SbDecodeTargetGraphicsContextProvider* provider,
+                        SbDecodeTargetGlesContextRunnerTarget target_function,
+                        void* target_function_context) {
+  target_function(target_function_context);
 }
 
 }  // namespace
@@ -74,6 +82,7 @@ const char* SplashVideoPlayer::ResultToString(Result result) {
 
 SplashVideoPlayer::SplashVideoPlayer()
     : task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()) {
+  context_provider_.gles_context_runner = &RunOnCurrentThread;
   weak_this_ = weak_factory_.GetWeakPtr();
 }
 
@@ -184,6 +193,14 @@ void SplashVideoPlayer::Play(const std::vector<uint8_t>& webm,
     return Finish(Result::kUnsupported);
   }
 
+  window_ = window;
+  bounds_ = bounds;
+  max_duration_ = max_duration;
+  create_attempts_ = 0;
+  CreatePlayer();
+}
+
+void SplashVideoPlayer::CreatePlayer() {
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = kSbDrmSystemInvalid;
   creation_param.audio_stream_info.codec = kSbMediaAudioCodecNone;
@@ -196,16 +213,42 @@ void SplashVideoPlayer::Play(const std::vector<uint8_t>& webm,
     return Finish(Result::kUnsupported);
   }
 
-  player_ = SbPlayerCreate(window, &creation_param, &DeallocateSampleCB,
+  // Some platforms (e.g. Android) expect the experimental media features to be
+  // set on the thread that creates the player; use none.
+  auto* experimental_features_extension = static_cast<
+      const StarboardExtensionExperimentalFeaturesConfigurationApi*>(
+      SbSystemGetExtension(
+          kStarboardExtensionExperimentalFeaturesConfigurationName));
+  if (experimental_features_extension &&
+      experimental_features_extension->version >= 1) {
+    StarboardExtensionExperimentalFeatures features = {nullptr, 0};
+    experimental_features_extension->SetExperimentalFeaturesForCurrentThread(
+        &features);
+  }
+
+  player_ = SbPlayerCreate(window_, &creation_param, &DeallocateSampleCB,
                            &DecoderStatusCB, &PlayerStatusCB, &PlayerErrorCB,
-                           this, /*context_provider=*/nullptr);
+                           this, &context_provider_);
   if (!SbPlayerIsValid(player_)) {
+    // E.g. Android creates its video surface asynchronously at startup.
+    if (++create_attempts_ < kMaxCreateAttempts) {
+      LOG(INFO) << "SplashVideoPlayer: SbPlayerCreate() failed, retrying.";
+      task_runner_->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&SplashVideoPlayer::CreatePlayer, weak_this_),
+          kCreateRetryDelay);
+      return;
+    }
     return Finish(Result::kPlayerError);
   }
-  SbPlayerSetBounds(player_, /*z_index=*/0, bounds.x(), bounds.y(),
-                    bounds.width(), bounds.height());
+  if (create_attempts_ > 0) {
+    LOG(INFO) << "SplashVideoPlayer: created after " << create_attempts_
+              << " retries.";
+  }
+  SbPlayerSetBounds(player_, /*z_index=*/0, bounds_.x(), bounds_.y(),
+                    bounds_.width(), bounds_.height());
   SbPlayerSetPlaybackRate(player_, 1.0);
-  timeout_.Start(FROM_HERE, max_duration,
+  timeout_.Start(FROM_HERE, max_duration_,
                  base::BindOnce(&SplashVideoPlayer::Finish,
                                 base::Unretained(this), Result::kTimedOut));
 }
@@ -300,6 +343,10 @@ void SplashVideoPlayer::OnPlayerStatus(SbPlayerState state, int ticket) {
 
 void SplashVideoPlayer::OnPlayerError(SbPlayerError error,
                                       std::string message) {
+  if (!SbPlayerIsValid(player_)) {
+    // Reported by a failed SbPlayerCreate(), which is retried.
+    return;
+  }
   LOG(ERROR) << "SplashVideoPlayer: player error " << error << ": " << message;
   Finish(Result::kPlayerError);
 }
