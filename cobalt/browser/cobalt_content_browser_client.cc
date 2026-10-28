@@ -742,9 +742,13 @@ void CobaltContentBrowserClient::FlushNetworkPersistentState(
     std::move(callback).Run();
     return;
   }
-  context->GetDefaultStoragePartition()
-      ->GetNetworkContext()
-      ->FlushPersistentState(std::move(callback));
+  network::mojom::NetworkContext* network_context =
+      context->GetDefaultStoragePartition()->GetNetworkContext();
+  if (!network_context) {
+    std::move(callback).Run();
+    return;
+  }
+  network_context->FlushPersistentState(std::move(callback));
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
