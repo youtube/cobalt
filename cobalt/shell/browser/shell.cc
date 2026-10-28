@@ -296,8 +296,10 @@ uint64_t GetSbWindowHandle() {
 
 // DO NOT SUBMIT: benchmark only (cobalt::features::kSplashWasmPolicy).
 // How long Shell waits for the choice of splash.html's WebAssembly policy
-// before it reads the default cache entry.
-constexpr base::TimeDelta kSplashWasmPolicyTimeout = base::Seconds(1);
+// before it reads the default cache entry. Generous, so that slow devices
+// still measure the policy: the choice comes once the page has loaded, which
+// takes most of a second on some devices.
+constexpr base::TimeDelta kSplashWasmPolicyTimeout = base::Seconds(3);
 // The title through which splash.html reports the asset that the policy chose
 // from the splash asset list, followed by "cache:<cache name>/<entry name>",
 // e.g., "cache:default/splash.webm", or "builtin:<name>", e.g.,
@@ -937,8 +939,9 @@ void Shell::OnSplashScreenTitleSet(const std::u16string& title) {
   std::string_view choice =
       std::string_view(value).substr(kSplashWasmPolicyTitlePrefix.size());
   if (base::StartsWith(choice, kSplashWasmPolicyBuiltInChoice)) {
-    // A built-in video: nothing to read. The native player picks the built-in
-    // video as the policy does, from what the platform plays.
+    // A built-in video: nothing to read. The native player picks its
+    // resolution from what the platform plays, as without the policy, which
+    // leaves that to it.
     const std::string_view name =
         choice.substr(kSplashWasmPolicyBuiltInChoice.size());
     if (IsPlainSplashCacheToken(name) && base::EndsWith(name, ".webm")) {
