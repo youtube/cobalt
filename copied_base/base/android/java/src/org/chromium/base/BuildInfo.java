@@ -68,7 +68,9 @@ public class BuildInfo {
     /** Whether we're running on an Android Automotive OS device or not. */
     public final boolean isAutomotive;
 
-    private static class Holder { private static BuildInfo sInstance = new BuildInfo(); }
+    private static class Holder {
+        private static BuildInfo sInstance = new BuildInfo();
+    }
 
     @CalledByNative
     private static String[] getAll() {
