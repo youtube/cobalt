@@ -1,4 +1,5 @@
 {
+  "comment": "TODO(b/579456597): Re-enable the LimitedAudioInput test once the uncaught Java exception in MediaCodecBridge.createVideoMediaCodecBridge is fixed.",
   "failing_tests": [
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
     "SearchPosetMaximalElementsTests.*",
@@ -13,6 +14,7 @@
     "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.TimeAfterSeek/audio_beneath_the_canopy_aac_5_1*",
     "SbPlayerGetMediaTimeTests/*widevine*",
     "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.AudioCodecSwitching/*",
+    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.LimitedAudioInput/*",
     "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/*_avc_dmp_output_punch_out_*",
     "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/*_vp9_dmp_output_punch_out_*",
     "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/*_av1_dmp_output_punch_out_*",
