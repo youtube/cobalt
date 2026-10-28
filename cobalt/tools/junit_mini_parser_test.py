@@ -232,6 +232,31 @@ class TestMain(unittest.TestCase):
     self.assertEqual(exit_code, 0)
     self.assertEqual(mock_stdout.getvalue().strip(), '-*')
 
+  @patch('cobalt.tools.junit_mini_parser.find_failing_tests')
+  @patch('sys.stdout', new_callable=io.StringIO)
+  def test_main_default_args(self, mock_stdout: io.StringIO,
+                             mock_find: MagicMock) -> None:
+    mock_find.return_value = {}
+    with patch.object(sys, 'argv', ['junit_mini_parser.py']):
+      exit_code = main()
+    self.assertEqual(exit_code, 0)
+    expected_output = {'failing_tests': {}}
+    self.assertEqual(json.loads(mock_stdout.getvalue()), expected_output)
+
+  @patch('sys.stderr', new_callable=io.StringIO)
+  def test_main_invalid_format(self, mock_stderr: io.StringIO) -> None:
+    del mock_stderr
+    with self.assertRaises(SystemExit) as cm:
+      main(['--format=unknown', 'results.xml'])
+    self.assertEqual(cm.exception.code, 2)
+
+  @patch('sys.stdout', new_callable=io.StringIO)
+  def test_main_help(self, mock_stdout: io.StringIO) -> None:
+    del mock_stdout
+    with self.assertRaises(SystemExit) as cm:
+      main(['--help'])
+    self.assertEqual(cm.exception.code, 0)
+
 
 if __name__ == '__main__':
   unittest.main()

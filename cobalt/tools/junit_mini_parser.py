@@ -16,11 +16,12 @@
 """A simple util that prints failing tests from JUnit xml using only the Python
 standard library."""
 
+import argparse
 import collections
 import json
-import logging
 import os
 import sys
+from typing import Optional, Sequence
 import xml.etree.ElementTree
 
 
@@ -57,7 +58,7 @@ def find_failing_tests(
   return failing_tests
 
 
-def main(argv: list[str]) -> int:
+def main(argv: Optional[Sequence[str]] = None) -> int:
   """Main entry point.
 
   Args:
@@ -66,23 +67,19 @@ def main(argv: list[str]) -> int:
   Returns:
     1 if failing tests are found, 0 otherwise.
   """
-  output_format = 'json'
-  xml_files = []
-  i = 0
-  while i < len(argv):
-    arg = argv[i]
-    if arg == '--format' and i + 1 < len(argv):
-      output_format = argv[i + 1]
-      i += 2
-    elif arg.startswith('--format='):
-      output_format = arg.split('=', 1)[1]
-      i += 1
-    else:
-      xml_files.append(arg)
-      i += 1
+  parser = argparse.ArgumentParser(
+      description='Print failing tests from JUnit XML files.')
+  parser.add_argument(
+      '--format',
+      choices=['json', 'filter'],
+      default='json',
+      help='Output format: "json" (default) or "filter".')
+  parser.add_argument('files', nargs='*', help='Paths to JUnit XML files.')
 
-  failing_tests = find_failing_tests(xml_files)
-  if output_format == 'filter':
+  args = parser.parse_args(argv)
+
+  failing_tests = find_failing_tests(args.files)
+  if args.format == 'filter':
     unique_failures = sorted({
         test['name']
         for tests in failing_tests.values()
@@ -102,11 +99,4 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO, format='%(message)s')
-  if len(sys.argv) == 1:
-    logging.error('Usage: python junit_mini_parser.py '
-                  '<junit_xml_file1> <junit_xml_file2> ...')
-    logging.error('Please provide a list of JUnit XML files as command line '
-                  'arguments.')
-    sys.exit(2)
-  sys.exit(main(sys.argv[1:]))
+  sys.exit(main())
