@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/player/job_queue.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -39,10 +40,11 @@ std::atomic<bool> g_enable_optimizations{kAreOptimizationsDefaultEnabled};
 const JobQueue::JobToken JobQueue::JobToken::kUnscheduled =
     JobQueue::JobToken();
 
-JobQueue::JobToken JobQueue::JobToken::Generate(int64_t scheduled_time) {
+JobQueue::JobToken JobQueue::JobToken::Generate(int64_t scheduled_time,
+                                                bool is_delayed) {
   static std::atomic<int64_t> s_current_token{0};
   return JobToken(s_current_token.fetch_add(1, std::memory_order_relaxed) + 1,
-                  scheduled_time);
+                  scheduled_time, is_delayed);
 }
 
 JobQueue::JobQueue()
@@ -130,14 +132,27 @@ void JobQueue::RemoveJobByToken(JobToken* job_token) {
     std::optional<JobRecord> removed_job_record;
     {
       std::lock_guard lock(mutex_);
-      // All jobs with the same scheduled time are adjacent in the map.
-      auto range =
-          time_to_job_record_map_.equal_range(job_token->scheduled_time_);
-      for (auto iter = range.first; iter != range.second; ++iter) {
-        if (iter->second.job_token == *job_token) {
-          removed_job_record.emplace(std::move(iter->second));
-          time_to_job_record_map_.erase(iter);
-          break;
+      if (!job_token->is_delayed_) {
+        // |immediate_jobs_| is sorted by token.
+        auto iter = std::lower_bound(
+            immediate_jobs_.begin(), immediate_jobs_.end(), *job_token->token_,
+            [](const JobRecord& job_record, int64_t token) {
+              return *job_record.job_token.token_ < token;
+            });
+        if (iter != immediate_jobs_.end() && iter->job_token == *job_token) {
+          removed_job_record.emplace(std::move(*iter));
+          immediate_jobs_.erase(iter);
+        }
+      } else {
+        // All jobs with the same scheduled time are adjacent in the map.
+        auto range =
+            time_to_job_record_map_.equal_range(job_token->scheduled_time_);
+        for (auto iter = range.first; iter != range.second; ++iter) {
+          if (iter->second.job_token == *job_token) {
+            removed_job_record.emplace(std::move(iter->second));
+            time_to_job_record_map_.erase(iter);
+            break;
+          }
         }
       }
     }
@@ -163,11 +178,13 @@ void JobQueue::StopSoon() {
   // after the lock is released, as their destructors may release arbitrary
   // resources (e.g. media buffers).
   TimeToJobRecordMap pending_jobs;
+  std::deque<JobRecord> pending_immediate_jobs;
   {
     std::lock_guard lock(mutex_);
     stopped_ = true;
     if (optimizations_enabled_) {
       pending_jobs.swap(time_to_job_record_map_);
+      pending_immediate_jobs.swap(immediate_jobs_);
     } else {
       time_to_job_record_map_.clear();
     }
@@ -224,7 +241,8 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
   }
 
   int64_t time_to_run_job = CurrentMonotonicTime() + delay_usec;
-  JobToken job_token = JobToken::Generate(time_to_run_job);
+  const bool is_delayed = delay_usec > 0;
+  JobToken job_token = JobToken::Generate(time_to_run_job, is_delayed);
   JobRecord job_record = {job_token, std::move(job), owner};
 #if ENABLE_JOB_QUEUE_PROFILING
   if (kProfileStackDepth > 0) {
@@ -233,11 +251,12 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
   }
 #endif  // ENABLE_JOB_QUEUE_PROFILING
 
-  bool is_first_job = time_to_job_record_map_.empty() ||
-                      time_to_run_job < time_to_job_record_map_.begin()->first;
-
-  time_to_job_record_map_.insert({time_to_run_job, std::move(job_record)});
   if (!optimizations_enabled_) {
+    bool is_first_job =
+        time_to_job_record_map_.empty() ||
+        time_to_run_job < time_to_job_record_map_.begin()->first;
+
+    time_to_job_record_map_.insert({time_to_run_job, std::move(job_record)});
     if (is_first_job) {
       condition_.notify_all();
     }
@@ -251,7 +270,25 @@ JobQueue::JobToken JobQueue::Schedule(Job job,
   // this thread.  The worker is the only waiter of |condition_|, as
   // ScheduleAndWait() waits on |sync_condition_| when optimizations are
   // enabled.
-  const bool wake_worker = is_first_job && worker_waiting_;
+  bool wake_worker;
+  if (is_delayed) {
+    // The worker waits at most until the head of |time_to_job_record_map_|
+    // is due, so it only has to be woken up when the new job becomes the
+    // head.
+    const bool is_first_job =
+        time_to_job_record_map_.empty() ||
+        time_to_run_job < time_to_job_record_map_.begin()->first;
+    time_to_job_record_map_.insert({time_to_run_job, std::move(job_record)});
+    wake_worker = is_first_job && worker_waiting_;
+  } else {
+    // Jobs without a delay are kept in |immediate_jobs_|.  Scheduling them
+    // under the lock keeps the FIFO ordered by (scheduled time, token), which
+    // TakeNextJobOptimized() relies on to order them against the delayed
+    // jobs.  The worker never waits while such a job is pending, so it has to
+    // be woken up whenever it is waiting.
+    immediate_jobs_.push_back(std::move(job_record));
+    wake_worker = worker_waiting_;
+  }
   lock.unlock();
   if (wake_worker) {
     condition_.notify_one();
@@ -269,6 +306,17 @@ void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
   std::vector<JobRecord> removed_job_records;
   {
     std::lock_guard lock(mutex_);
+    if (optimizations_enabled_) {
+      for (auto iter = immediate_jobs_.begin();
+           iter != immediate_jobs_.end();) {
+        if (iter->owner == owner) {
+          removed_job_records.push_back(std::move(*iter));
+          iter = immediate_jobs_.erase(iter);
+        } else {
+          ++iter;
+        }
+      }
+    }
     for (TimeToJobRecordMap::iterator iter = time_to_job_record_map_.begin();
          iter != time_to_job_record_map_.end();) {
       if (iter->second.owner == owner) {
@@ -283,6 +331,89 @@ void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
   }
 }
 
+void JobQueue::WaitForJobs(std::unique_lock<std::mutex>& lock,
+                           std::optional<int64_t> delay_usec) {
+  SB_DCHECK(lock.owns_lock());
+  SB_DCHECK(!worker_waiting_);
+
+  // No predicate: the caller re-examines the queue after every return, so
+  // spurious wake ups are harmless.
+  worker_waiting_ = true;
+  if (delay_usec) {
+    condition_.wait_for(lock, std::chrono::microseconds(*delay_usec));
+  } else {
+    condition_.wait(lock);
+  }
+  worker_waiting_ = false;
+
+#if ENABLE_JOB_QUEUE_PROFILING
+  ++wait_times_;
+#endif  // ENABLE_JOB_QUEUE_PROFILING
+}
+
+bool JobQueue::TakeNextJobOptimized(std::unique_lock<std::mutex>& lock,
+                                    bool wait_for_next_job,
+                                    JobRecord* job_record) {
+  SB_DCHECK(optimizations_enabled_);
+  SB_DCHECK(lock.owns_lock());
+
+  for (;;) {
+    if (stopped_) {
+      return false;
+    }
+
+    JobRecord* immediate_job =
+        immediate_jobs_.empty() ? nullptr : &immediate_jobs_.front();
+    auto delayed_job = time_to_job_record_map_.begin();
+    const bool has_delayed_job = delayed_job != time_to_job_record_map_.end();
+
+    if (!immediate_job && !has_delayed_job) {
+      if (!wait_for_next_job) {
+        return false;
+      }
+      WaitForJobs(lock, std::nullopt);
+      continue;
+    }
+
+    // Run the job with the earliest (scheduled time, token).  Jobs without a
+    // delay are scheduled at the time Schedule() is called, so they are always
+    // ready to run, and when a delayed job is picked over one of them it is
+    // also ready to run.  Only when there is no job without a delay the picked
+    // delayed job may have to wait, which is the only case that needs the
+    // current time.
+    bool run_delayed_job = false;
+    if (has_delayed_job) {
+      if (!immediate_job) {
+        run_delayed_job = true;
+        const int64_t delay_usec = delayed_job->first - CurrentMonotonicTime();
+        if (delay_usec > 0) {
+          if (!wait_for_next_job) {
+            return false;
+          }
+          WaitForJobs(lock, delay_usec);
+          continue;
+        }
+      } else {
+        const int64_t immediate_job_time =
+            immediate_job->job_token.scheduled_time_;
+        run_delayed_job = delayed_job->first < immediate_job_time ||
+                          (delayed_job->first == immediate_job_time &&
+                           *delayed_job->second.job_token.token_ <
+                               *immediate_job->job_token.token_);
+      }
+    }
+
+    if (run_delayed_job) {
+      *job_record = std::move(delayed_job->second);
+      time_to_job_record_map_.erase(delayed_job);
+    } else {
+      *job_record = std::move(*immediate_job);
+      immediate_jobs_.pop_front();
+    }
+    return true;
+  }
+}
+
 bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   SB_CHECK(BelongsToCurrentThread());
 
@@ -290,55 +421,57 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
 
   {
     std::unique_lock lock(mutex_);
-    if (stopped_) {
-      return false;
-    }
-    if (time_to_job_record_map_.empty() && wait_for_next_job) {
-      worker_waiting_ = true;
-      condition_.wait(lock, [this] {
-        return stopped_ || !time_to_job_record_map_.empty();
-      });
-      worker_waiting_ = false;
-#if ENABLE_JOB_QUEUE_PROFILING
-      ++wait_times_;
-#endif  // ENABLE_JOB_QUEUE_PROFILING
-    }
-    if (time_to_job_record_map_.empty()) {
-      return false;
-    }
-    TimeToJobRecordMap::iterator first_delayed_job =
-        time_to_job_record_map_.begin();
-    int64_t delay_usec = first_delayed_job->first - CurrentMonotonicTime();
-    if (delay_usec > 0) {
-      if (wait_for_next_job) {
-        int64_t scheduled_time = first_delayed_job->first;
-        worker_waiting_ = true;
-        condition_.wait_for(
-            lock, std::chrono::microseconds(delay_usec),
-            [this, scheduled_time] {
-              return stopped_ || time_to_job_record_map_.empty() ||
-                     time_to_job_record_map_.begin()->first != scheduled_time;
-            });
-        worker_waiting_ = false;
+    if (optimizations_enabled_) {
+      if (!TakeNextJobOptimized(lock, wait_for_next_job, &job_record)) {
+        return false;
+      }
+    } else {
+      if (stopped_) {
+        return false;
+      }
+      if (time_to_job_record_map_.empty() && wait_for_next_job) {
+        condition_.wait(lock, [this] {
+          return stopped_ || !time_to_job_record_map_.empty();
+        });
 #if ENABLE_JOB_QUEUE_PROFILING
         ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
-        if (time_to_job_record_map_.empty()) {
-          return false;
-        }
-      } else {
+      }
+      if (time_to_job_record_map_.empty()) {
         return false;
       }
+      TimeToJobRecordMap::iterator first_delayed_job =
+          time_to_job_record_map_.begin();
+      int64_t delay_usec = first_delayed_job->first - CurrentMonotonicTime();
+      if (delay_usec > 0) {
+        if (wait_for_next_job) {
+          int64_t scheduled_time = first_delayed_job->first;
+          condition_.wait_for(
+              lock, std::chrono::microseconds(delay_usec),
+              [this, scheduled_time] {
+                return stopped_ || time_to_job_record_map_.empty() ||
+                       time_to_job_record_map_.begin()->first != scheduled_time;
+              });
+#if ENABLE_JOB_QUEUE_PROFILING
+          ++wait_times_;
+#endif  // ENABLE_JOB_QUEUE_PROFILING
+          if (time_to_job_record_map_.empty()) {
+            return false;
+          }
+        } else {
+          return false;
+        }
+      }
+      // Try to retrieve the job again as the job map can be altered during the
+      // wait.
+      first_delayed_job = time_to_job_record_map_.begin();
+      delay_usec = first_delayed_job->first - CurrentMonotonicTime();
+      if (delay_usec > 0) {
+        return false;
+      }
+      job_record = std::move(first_delayed_job->second);
+      time_to_job_record_map_.erase(first_delayed_job);
     }
-    // Try to retrieve the job again as the job map can be altered during the
-    // wait.
-    first_delayed_job = time_to_job_record_map_.begin();
-    delay_usec = first_delayed_job->first - CurrentMonotonicTime();
-    if (delay_usec > 0) {
-      return false;
-    }
-    job_record = std::move(first_delayed_job->second);
-    time_to_job_record_map_.erase(first_delayed_job);
   }
 
   SB_DCHECK(job_record.job);

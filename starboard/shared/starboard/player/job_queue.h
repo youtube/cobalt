@@ -18,6 +18,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstddef>
+#include <deque>
 #include <functional>
 #include <map>
 #include <memory>
@@ -222,11 +223,13 @@ class JobQueue {
    private:
     friend class JobQueue;
 
-    static JobToken Generate(int64_t scheduled_time);
+    static JobToken Generate(int64_t scheduled_time, bool is_delayed);
 
     JobToken() = default;
-    JobToken(int64_t token, int64_t scheduled_time)
-        : token_(token), scheduled_time_(scheduled_time) {}
+    JobToken(int64_t token, int64_t scheduled_time, bool is_delayed)
+        : token_(token),
+          scheduled_time_(scheduled_time),
+          is_delayed_(is_delayed) {}
 
     void Reset() { token_ = std::nullopt; }
 
@@ -236,9 +239,12 @@ class JobQueue {
 
     std::optional<int64_t> token_;
 
-    // Only used when optimizations are enabled: the time the job is scheduled
-    // to run at, to locate the job in the JobQueue quickly when it is removed.
+    // The members below are only used when optimizations are enabled, to
+    // locate the job in the JobQueue quickly when it is removed: the time the
+    // job is scheduled to run at, and whether it was scheduled with a delay,
+    // i.e. in which of the two containers it is kept.
     int64_t scheduled_time_ = 0;
+    bool is_delayed_ = false;
   };
 
   class JobOwner {
@@ -358,6 +364,17 @@ class JobQueue {
   // set |wait_for_next_job| to true doesn't guarantee that one job will always
   // be run.
   bool TryToRunOneJob(bool wait_for_next_job);
+  // Used by TryToRunOneJob() when optimizations are enabled: picks the next
+  // job to run from |immediate_jobs_| and |time_to_job_record_map_|, waiting
+  // for it when |wait_for_next_job| is set.  Returns false when there is no job
+  // to run.  |mutex_| has to be held by |lock|.
+  bool TakeNextJobOptimized(std::unique_lock<std::mutex>& lock,
+                            bool wait_for_next_job,
+                            JobRecord* job_record);
+  // Waits on |condition_| for at most |delay_usec| when it is set, or until
+  // the worker is signaled.  |mutex_| has to be held by |lock|.
+  void WaitForJobs(std::unique_lock<std::mutex>& lock,
+                   std::optional<int64_t> delay_usec);
 
   ThreadChecker thread_checker_;
   std::mutex mutex_;
@@ -373,6 +390,12 @@ class JobQueue {
   // the queue is stopped, so that the thread running the jobs is the only
   // waiter of |condition_|.
   std::condition_variable sync_condition_;
+  // The jobs scheduled without a delay, in the order they were scheduled,
+  // which is also the order of their scheduled times and tokens.  Keeping them
+  // separated from the delayed jobs in |time_to_job_record_map_| makes
+  // scheduling and dispatching them O(1) and avoids a heap allocation per job.
+  // Guarded by |mutex_|.
+  std::deque<JobRecord> immediate_jobs_;
   // True while the thread running the jobs is waiting on |condition_|, so that
   // Schedule() only signals it (a syscall) when it is actually waiting.
   // Guarded by |mutex_|.
