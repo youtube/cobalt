@@ -1,0 +1,67 @@
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Proof of concept: selecting the splash video with a Wasm module from the
+# web app, without a renderer. See README.md.
+
+source_set("splash") {
+  sources = [
+    "splash_cache_reader.cc",
+    "splash_cache_reader.h",
+    "splash_wasm_runner.cc",
+    "splash_wasm_runner.h",
+    "splash_wasm_selector.cc",
+    "splash_wasm_selector.h",
+  ]
+  deps = [
+    "//cobalt/shell:cobalt_shell_switches",
+    "//components/services/storage/public/cpp",
+    "//components/services/storage/public/mojom",
+    "//gin",
+    "//mojo/public/cpp/system",
+    "//services/network/public/cpp",
+    "//third_party/blink/public/common",
+    "//url",
+    "//v8",
+  ]
+  public_deps = [
+    "//base",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+    "//third_party/blink/public/mojom:mojom_platform",
+  ]
+  configs += [ "//v8:external_startup_data" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "splash_wasm_runner_unittest.cc" ]
+  deps = [
+    ":splash",
+    ":test_selector",
+    "//base",
+    "//base/test:test_support",
+    "//gin",
+    "//gin:gin_test",
+    "//testing/gtest",
+    "//v8",
+  ]
+  configs += [ "//v8:external_startup_data" ]
+}
+
+# The test selector module, embedded as bytes. See testdata/.
+source_set("test_selector") {
+  testonly = true
+  sources = [ "testdata/test_selector_wasm.h" ]
+}

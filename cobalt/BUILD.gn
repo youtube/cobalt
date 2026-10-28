@@ -454,6 +454,7 @@ test("cobalt_unittests") {
     "//cobalt/common/libc:libc_test",
     "//cobalt/memory:unit_tests",
     "//cobalt/shell/browser/migrate_storage_record:unittest",
+    "//cobalt/shell/browser/splash:unit_tests",
     "//components/metrics",
     "//components/metrics:test_support",
     "//components/prefs",
