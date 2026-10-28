@@ -44,7 +44,7 @@ Knobs Parse() {
   const CommandLine& cmd = *CommandLine::ForCurrentProcess();
   const std::string low_end_for = cmd.GetSwitchValueASCII(kLowEndForSwitch);
   for (const std::string& point :
-       SplitString(low_end_for, ",", TRIM_WHITESPACE, SPLIT_WANT_NONEMPTY)) {
+       SplitString(low_end_for, ",+", TRIM_WHITESPACE, SPLIT_WANT_NONEMPTY)) {
     if (point == "all") {
       knobs.all = true;
     }
@@ -52,7 +52,7 @@ Knobs Parse() {
   }
   const std::string sizes = cmd.GetSwitchValueASCII(kSizeSwitch);
   for (const std::string& entry :
-       SplitString(sizes, ",", TRIM_WHITESPACE, SPLIT_WANT_NONEMPTY)) {
+       SplitString(sizes, ",+", TRIM_WHITESPACE, SPLIT_WANT_NONEMPTY)) {
     std::vector<std::string> kv =
         SplitString(entry, ":", TRIM_WHITESPACE, SPLIT_WANT_NONEMPTY);
     int64_t value = 0;
