@@ -25,7 +25,11 @@ config("symbolize_config") {
 }
 
 static_library("symbolize") {
-  visibility = [ "//copied_base/base/*" ]
+  visibility = [
+    "//copied_base/base/*",
+    "//starboard/android/shared:starboard_base_symbolize",
+    "//starboard/linux/shared:starboard_base_symbolize",
+  ]
   sources = [
     "config.h",
     "demangle.cc",

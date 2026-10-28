@@ -270,14 +270,14 @@ TEST_F(CobaltContentBrowserClientTest, DeleteUnusedChromiumStoragePaths) {
     ASSERT_TRUE(base::WriteFile(dir_path.AppendASCII("LOCK"), "legacy"));
   }
 
+  constexpr auto kLocalStoragePath = FILE_PATH_LITERAL("Local Storage");
+
   ASSERT_TRUE(base::WriteFile(user_data.AppendASCII("Cookies"), "active"));
   ASSERT_TRUE(
       base::WriteFile(user_data.AppendASCII("TransportSecurity"), "active"));
-  ASSERT_TRUE(
-      base::CreateDirectory(user_data.Append(::storage::kLocalStoragePath)));
+  ASSERT_TRUE(base::CreateDirectory(user_data.Append(kLocalStoragePath)));
   ASSERT_TRUE(base::WriteFile(
-      user_data.Append(::storage::kLocalStoragePath).AppendASCII("CURRENT"),
-      "active"));
+      user_data.Append(kLocalStoragePath).AppendASCII("CURRENT"), "active"));
   ASSERT_TRUE(
       base::CreateDirectory(user_data.Append(::storage::kWebStorageDirectory)));
 
@@ -301,7 +301,7 @@ TEST_F(CobaltContentBrowserClientTest, DeleteUnusedChromiumStoragePaths) {
   EXPECT_TRUE(base::PathExists(user_data.AppendASCII("Cookies")));
   EXPECT_TRUE(base::PathExists(user_data.AppendASCII("TransportSecurity")));
   EXPECT_TRUE(base::PathExists(
-      user_data.Append(::storage::kLocalStoragePath).AppendASCII("CURRENT")));
+      user_data.Append(kLocalStoragePath).AppendASCII("CURRENT")));
   EXPECT_TRUE(
       base::DirectoryExists(user_data.Append(::storage::kWebStorageDirectory)));
 

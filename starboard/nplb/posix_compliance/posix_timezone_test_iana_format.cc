@@ -1111,18 +1111,27 @@ const std::set<std::string>& GetDisabledTestNames() {
       "America/Bogota",                  // tzname[0] ("-05")
       "America/Caracas",                 // tzname[0] ("-04")
       "America/Cayenne",                 // tzname[0] ("-03")
+      "America/Edmonton",                // tzname[0] ("CST"), timezone (21600)
       "America/Guyana",                  // tzname[0] ("-04")
+      "America/Inuvik",                  // tzname[0] ("CST"), timezone (21600)
       "America/La_Paz",                  // tzname[0] ("-04")
       "America/Lima",                    // tzname[0] ("-05")
       "America/Montevideo",              // tzname[0] ("-03")
       "America/Paramaribo",              // tzname[0] ("-03")
+      "America/Rainy_River",             // tzname[0] ("EST"), timezone (18000)
       "America/Santiago",                // tzname[0] ("-04"), tzname[1] ("-03")
       "America/Sao_Paulo",               // tzname[0] ("-03")
+      "America/Vancouver",               // tzname[0] ("MST"), timezone (25200)
+      "America/Winnipeg",                // tzname[0] ("EST"), timezone (18000)
+      "America/Yellowknife",             // tzname[0] ("CST"), timezone (21600)
       "Asia/Dhaka",                      // tzname[0] ("+06").
       "Asia/Manila",                     // tzname[0] ("PST").
       "Asia/Istanbul",                   // tzname[0] ("+03").
       "Asia/Singapore",                  // tzname[0] ("+08").
+      "Canada/Central",                  // tzname[0] ("EST"), timezone (18000)
       "Canada/East-Saskatchewan",        // tzname[0] ("Canada"), timezone (0)
+      "Canada/Mountain",                 // tzname[0] ("CST"), timezone (21600)
+      "Canada/Pacific",                  // tzname[0] ("MST"), timezone (25200)
       "Europe/Istanbul",                 // tzname[0] ("+03").
       "Turkey",                          // tzname[0] ("+03").
       "Europe/Dublin",                   // tzname[0] ("IST"),
@@ -1132,7 +1141,12 @@ const std::set<std::string>& GetDisabledTestNames() {
   };
 #else   // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   // On hermetic builds, all of the tested timezones have correct data.
-  static const std::set<std::string> disabled_tests = {};
+  // TODO: b/578780190 - ICU 78.2 broke these timezones in hermetic builds.
+  static const std::set<std::string> disabled_tests = {
+      "Pacific/Honolulu",                // tzname[0] ("GMT-10")
+      "Pacific/Johnston",                // tzname[0] ("GMT-10")
+      "US/Hawaii",                       // tzname[0] ("GMT-10")
+  };
 #endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   return disabled_tests;
 }

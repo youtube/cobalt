@@ -872,18 +872,15 @@ static ATTRIBUTE_NOINLINE bool SymbolizeAndDemangle(void* pc,
     object_fd = OpenFile(file_name);
   } else {
     object_fd = OpenObjectFileContainingPcAndGetStartAddress(
-      pc0, start_address, base_address, out + 1, out_size - 1);
+      pc0, start_address, ignored_end_address, base_address, out + 1,
+      out_size - 1);
 
   }
 #else
   int object_fd = OpenObjectFileContainingPcAndGetStartAddress(
-<<<<<<< HEAD
       pc0, start_address, ignored_end_address, base_address, out + 1,
       out_size - 1);
-=======
-      pc0, start_address, base_address, out + 1, out_size - 1);
 #endif
->>>>>>> parent of 5c266e6bb98 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   FileDescriptor wrapped_object_fd(object_fd);
 

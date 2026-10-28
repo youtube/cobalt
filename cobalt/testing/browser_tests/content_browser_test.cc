@@ -36,7 +36,7 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/test/test_browser_context.h"
-#include "content/test/test_content_client.h"
+#include "content/public/test/test_content_client.h"
 #include "ui/events/platform/platform_event_source.h"
 
 #if BUILDFLAG(IS_MAC)

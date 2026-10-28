@@ -540,7 +540,9 @@ jobs:
         with:
           path: cobalt/src
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          squash_merge: ${{ github.event_name == 'pull_request' }}
+          # TODO: b/578119162 - this is currently broken in the staging branch.
+          # squash_merge: ${{ github.event_name == 'pull_request' }}
+          squash_merge: false
           # Set fetch-depth to 2 to make checkout faster for pull requests and cobalt_sandbox repo.
           # Set fetch-dept to 0 for non pull request workflows in production repo which is needed
           # to properly calculate build id.
@@ -986,7 +988,9 @@ jobs:
         with:
           path: cobalt/src
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          squash_merge: ${{ github.event_name == 'pull_request' }}
+          # TODO: b/578119162 - this is currently broken in the staging branch.
+          # squash_merge: ${{ github.event_name == 'pull_request' }}
+          squash_merge: false
           fetch_depth: ${{ ( github.event_name == 'pull_request' || github.repository == 'youtube/cobalt_sandbox' ) && 2 || 0 }}
           use_cache: false
 
