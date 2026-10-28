@@ -29,8 +29,7 @@
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/overlay_transform.h"
 
-namespace cobalt {
-namespace media {
+namespace cobalt::media {
 namespace {
 
 constexpr gfx::RectF kFullscreenRect(0, 0, 1920, 1080);
@@ -260,5 +259,4 @@ TEST_F(VideoGeometrySetterServiceTest, NewVideoGetsLargerZIndexThanOldOnes) {
 }
 
 }  // namespace
-}  // namespace media
-}  // namespace cobalt
+}  // namespace cobalt::media
