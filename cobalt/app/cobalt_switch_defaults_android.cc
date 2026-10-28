@@ -102,6 +102,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // task that made them so recent writes survive process
                // termination.
                storage::kDomStorageSmartFlushing.name,
+               // ATOM_PERF (PoC C1): Skip per-request TrustedHeaderClient Mojo
+               // round-trips to the UI thread.
+               "CobaltSkipTrustedHeaderClient",
            },
            ",")},
       {::switches::kDisableFeatures,
