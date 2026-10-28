@@ -50,8 +50,16 @@
         const listedMs = performance.now();
         const instance = await WebAssembly.instantiate(module);
         const {memory, items_buffer, max_items, choose} = instance.exports;
-        const vp9 = MediaSource.isTypeSupported('video/webm; codecs="vp9";');
-        const vp9_4k = MediaSource.isTypeSupported(
+        // The native video's player checks what the platform plays itself, on
+        // its own thread, as without the policy, so the page doesn't ask: the
+        // first query enumerates the platform's codecs, which can block the
+        // page for most of a second, before Shell gets the choice. The HTML
+        // video asks anyway, before the policy runs.
+        const native =
+            document.documentElement.classList.contains('native-video');
+        const vp9 =
+            native || MediaSource.isTypeSupported('video/webm; codecs="vp9";');
+        const vp9_4k = native || MediaSource.isTypeSupported(
             'video/webm; codecs="vp9"; width=3840; height=2160;');
         const items = assets.slice(0, max_items());
         const view =
