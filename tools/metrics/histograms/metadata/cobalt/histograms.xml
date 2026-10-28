@@ -776,7 +776,7 @@ Always run the pretty print utility on this file after editing:
   <owner>charleykim@google.com</owner>
   <summary>
     Records the total on-disk size in kilobytes of Cobalt's evictable cache
-    directory (base::DIR_CACHE), 30 seconds after browser startup, on a
+    directory (base::DIR_CACHE), 10 seconds after browser startup, on a
     BEST_EFFORT background thread. Recorded once per browser process launch; it
     is not recorded again when Cobalt resumes from the background or is revealed
     after a preload, so each sample represents one process launch. Because the
@@ -793,7 +793,9 @@ Always run the pretty print utility on this file after editing:
     Records the time it takes to flush cookies during a graceful application
     exit (e.g., via window.h5vcc.system.exit()). This helps to understand the
     performance of the operation and can serve as a health signal for the
-    storage backend.
+    storage backend. Note: during exit, storage flush is called 3 times
+    (`exit()` -&gt; `onPause`/`blur` -&gt; `onStop`/`visibilitychange`); this
+    metric times the 1st flush before `blur`/`visibilitychange` handlers run.
   </summary>
 </histogram>
 
@@ -809,25 +811,76 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the configured maximum on-disk size in kilobytes of the GPU shader
+    disk cache (`GetDefaultGpuDiskCacheSize() / 1024`) when a
+    `gpu::GpuDiskCache` instance is initialized in `gpu::GpuDiskCache::Init()`,
+    or 0 KB when the GPU shader disk cache is disabled.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.GpuShaderCache.LoadDuration" units="ms"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total wall-clock time spent iterating and preloading cached
+    shader blobs from the on-disk SimpleCache backend into memory in
+    gpu::GpuDiskCacheReadHelper::LoadCache().
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.GpuShaderCache.LoadedBytesKB" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total volume in kilobytes of shader blobs read from disk during
+    gpu::GpuDiskCacheReadHelper::LoadCache().
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.GpuShaderCache.LoadedEntriesCount"
+    units="entries" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total number of shader cache entries read from disk during
+    gpu::GpuDiskCacheReadHelper::LoadCache().
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Storage.LocalStorage.CommitDuration" units="ms"
     expires_after="never">
   <owner>haozheng@google.com</owner>
   <owner>charleykim@google.com</owner>
   <summary>
-    Records the total wall-clock time spent committing a LevelDB WriteBatch
-    (including synchronous disk flush when options.sync is enabled) in
-    DomStorageDatabase::Commit().
+    Records the total wall-clock time spent committing a persistent LocalStorage
+    LevelDB WriteBatch (including synchronous disk flush when options.sync is
+    enabled) in DomStorageDatabase::Commit(). Excludes in-memory and
+    SessionStorage databases.
   </summary>
 </histogram>
 
 <histogram name="Cobalt.Storage.OnPause.FlushDuration" units="ms"
     expires_after="never">
+  <owner>haozheng@google.com</owner>
   <owner>charleykim@google.com</owner>
   <summary>
-    Records the time it takes to flush both cookies and local storage during the
-    onPause event on Android. This helps to understand if the operation
-    completes within the short window granted by the OS before the app is
-    killed.
+    Records the time it takes for the cookie store flush to complete when the
+    application pauses/blurs (`DispatchBlur()` on Android and `DoBlur()` on
+    Starboard; `storage_partition-&gt;Flush()` schedules LocalStorage commits
+    asynchronously). Note: during a graceful exit, storage flush is called 3
+    times (`exit()` -&gt; `onPause`/`blur` -&gt; `onStop`/`visibilitychange`)
+    and timed twice (`Cobalt.Storage.Exit.CookieFlushDuration` on `exit()` and
+    this metric on `onPause`/`blur`); the 3rd flush in `onStop()` is untimed
+    here, with its disk writes captured by
+    `Cobalt.Storage.Cookie.CommitDuration` and
+    `Cobalt.Storage.LocalStorage.CommitDuration`.
   </summary>
 </histogram>
 
@@ -846,7 +899,7 @@ Always run the pretty print utility on this file after editing:
   <owner>charleykim@google.com</owner>
   <summary>
     Records the cumulative block-layer kilobytes read from storage
-    (/proc/self/io read_bytes) by the browser process during the first 30
+    (/proc/self/io read_bytes) by the browser process during the first 10
     seconds after browser startup. Recorded once per browser process launch; it
     is not recorded again when Cobalt resumes from the background. On platforms
     that preload Cobalt, this window may fall entirely within the preload,
@@ -861,7 +914,7 @@ Always run the pretty print utility on this file after editing:
   <owner>charleykim@google.com</owner>
   <summary>
     Records the cumulative block-layer kilobytes written to storage
-    (/proc/self/io write_bytes) by the browser process during the first 30
+    (/proc/self/io write_bytes) by the browser process during the first 10
     seconds after browser startup. Recorded once per browser process launch; it
     is not recorded again when Cobalt resumes from the background. On platforms
     that preload Cobalt, this window may fall entirely within the preload,
@@ -876,7 +929,7 @@ Always run the pretty print utility on this file after editing:
   <summary>
     Records the steady-state block-layer write rate in kilobytes per minute,
     sampled every 5 minutes on a BEST_EFFORT background sequence from
-    /proc/self/io write_bytes deltas after the 30-second post-startup baseline.
+    /proc/self/io write_bytes deltas after the 10-second post-startup baseline.
     Sampling continues for the life of the browser process, including while
     Cobalt is in the background; if the OS freezes the process, the next sample
     covers the longer interval.
@@ -889,7 +942,7 @@ Always run the pretty print utility on this file after editing:
   <owner>charleykim@google.com</owner>
   <summary>
     Records the total on-disk size in kilobytes of Cobalt's persistent user data
-    directory (content::SHELL_DIR_USER_DATA), 30 seconds after browser startup,
+    directory (content::SHELL_DIR_USER_DATA), 10 seconds after browser startup,
     on a BEST_EFFORT background thread. Recorded once per browser process
     launch; it is not recorded again when Cobalt resumes from the background or
     is revealed after a preload, so each sample represents one process launch.
@@ -1158,6 +1211,16 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Memory.Experimental.Browser2.Small.Skia.SkGlyphCache"
+    units="KB" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <owner>cobalt-eng@google.com</owner>
+  <summary>
+    The size of the Skia glyph cache in the browser process. Recorded at regular
+    intervals when memory metrics are emitted.
+  </summary>
+</histogram>
+
 <histogram name="Memory.Experimental.Browser2.Stacks" units="MiB"
     expires_after="never">
   <owner>avvall@google.com</owner>
@@ -1318,6 +1381,24 @@ Always run the pretty print utility on this file after editing:
   <summary>
     Records total estimated memory allocation used for media output buffer by
     Android MediaCodec.
+  </summary>
+</histogram>
+
+<histogram name="Memory.SmapsCategorizer.CoalescedRequestsCount"
+    units="request" expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the number of concurrent /proc/self/smaps scan requests coalesced
+    into a single background scan pass in SmapsCategorizer::OnScanComplete().
+  </summary>
+</histogram>
+
+<histogram name="Memory.SmapsCategorizer.Reliability" enum="SmapsReliability"
+    expires_after="never">
+  <owner>avvall@google.com</owner>
+  <summary>
+    Records the outcome of scanning and parsing /proc/self/smaps in
+    SmapsCategorizer::ScanSmapsFile().
   </summary>
 </histogram>
 

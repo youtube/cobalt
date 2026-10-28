@@ -51,6 +51,7 @@
 #include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "partition_alloc/buildflags.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -195,23 +196,25 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
       "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.ArrayBuffer"));
   EXPECT_TRUE(
       check_non_zero_histogram("Memory.Experimental.Browser2.PartitionAlloc."
-                               "AllocatedObjects.ArrayBuffer"));
+                               "Partitions.ArrayBuffer"));
   EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.Buffer"));
   EXPECT_TRUE(check_histogram(
-      "Memory.Experimental.Browser2.PartitionAlloc.AllocatedObjects.Buffer"));
+      "Memory.Experimental.Browser2.PartitionAlloc.Partitions.Buffer"));
   EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.MaxCommittedSize.Buffer"));
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   EXPECT_TRUE(check_non_zero_histogram(
-      "Memory.Experimental.Browser2.Malloc.CommittedSize.Allocator"));
+      "Memory.Experimental.Browser2.Malloc.CommittedSize"));
   EXPECT_TRUE(check_non_zero_histogram(
-      "Memory.Experimental.Browser2.Malloc.AllocatedObjects.Allocator"));
+      "Memory.Experimental.Browser2.Malloc.MaxCommittedSize"));
+#endif
   EXPECT_TRUE(check_non_zero_histogram(
-      "Memory.Experimental.Browser2.Malloc.MaxCommittedSize.Allocator"));
+      "Memory.Experimental.Browser2.Malloc.AllocatedObjects"));
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.V8.AllocatedObjects");
   check_histogram("Memory.Experimental.Browser2.Skia");
-  check_histogram("Memory.Experimental.Browser2.Skia.Small.SkGlyphCache");
+  check_histogram("Memory.Experimental.Browser2.Small.Skia.SkGlyphCache");
   check_histogram("Memory.Experimental.Browser2.Small.FontCaches");
   check_histogram("Memory.Experimental.Browser2.Small.LevelDatabase");
   check_histogram("Memory.Experimental.Browser2.Small.UI");
@@ -328,19 +331,21 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
       "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.ArrayBuffer"));
   EXPECT_TRUE(
       check_non_zero_histogram("Memory.Experimental.Browser2.PartitionAlloc."
-                               "AllocatedObjects.ArrayBuffer"));
+                               "Partitions.ArrayBuffer"));
   EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.Buffer"));
   EXPECT_TRUE(check_histogram(
-      "Memory.Experimental.Browser2.PartitionAlloc.AllocatedObjects.Buffer"));
+      "Memory.Experimental.Browser2.PartitionAlloc.Partitions.Buffer"));
   EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.MaxCommittedSize.Buffer"));
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   EXPECT_TRUE(check_non_zero_histogram(
-      "Memory.Experimental.Browser2.Malloc.CommittedSize.Allocator"));
+      "Memory.Experimental.Browser2.Malloc.CommittedSize"));
   EXPECT_TRUE(check_non_zero_histogram(
-      "Memory.Experimental.Browser2.Malloc.AllocatedObjects.Allocator"));
+      "Memory.Experimental.Browser2.Malloc.MaxCommittedSize"));
+#endif
   EXPECT_TRUE(check_non_zero_histogram(
-      "Memory.Experimental.Browser2.Malloc.MaxCommittedSize.Allocator"));
+      "Memory.Experimental.Browser2.Malloc.AllocatedObjects"));
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.Skia");
 

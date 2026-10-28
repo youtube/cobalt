@@ -36,6 +36,8 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/thread_pool.h"
+#include "base/threading/scoped_blocking_call.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
@@ -83,6 +85,10 @@
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
+#include "starboard/configuration_constants.h"
+#include "storage/browser/quota/quota_device_info_helper.h"
+#include "storage/browser/quota/quota_features.h"
+#include "storage/browser/quota/quota_settings.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
@@ -131,6 +137,20 @@ constexpr base::FilePath::CharType kNetworkPersistentStateFilename[] =
     FILE_PATH_LITERAL("Network Persistent State");
 constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
+
+// Budgets for non-HTTP-cache consumers of kSbSystemPathCacheDirectory. The
+// HTTP cache is sized to the remainder (see ComputeDefaultHttpCacheSize).
+// V8 JS code cache (see GetGeneratedCodeCacheSettings).
+constexpr uint32_t kGeneratedCodeCacheBytes = 5 * 1024 * 1024;
+// Directory headroom for index files, persistent metrics, and metadata
+// (matching Cobalt 25's 1 << 20 reserve).
+constexpr uint32_t kCacheDirectoryHeadroomBytes = 1 * 1024 * 1024;
+// Total of 12 MB for non-HTTP caches sharing kSbSystemPathCacheDirectory:
+constexpr uint32_t kNonHttpReserveBytes =
+    kGeneratedCodeCacheBytes +
+    CobaltContentBrowserClient::kCacheStorageQuotaBytes +
+    kCacheDirectoryHeadroomBytes;
+constexpr uint32_t kMinHttpCacheBytes = 1 * 1024 * 1024;
 
 #if !BUILDFLAG(IS_ANDROIDTV)
 // This value is expected by offline data processing and should not be changed.
@@ -238,6 +258,62 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   metadata.wow64 = embedder_support::IsWoW64();
 
   return metadata;
+}
+
+std::optional<storage::QuotaSettings> CalculateCobaltCacheQuotaSettings(
+    const base::FilePath& cache_path,
+    storage::QuotaDeviceInfoHelper* device_info_helper) {
+  base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                base::BlockingType::MAY_BLOCK);
+
+  int64_t total = device_info_helper->AmountOfTotalDiskSpace(cache_path);
+  if (total <= 0) {
+    LOG(ERROR) << "Unable to compute QuotaSettings for cache path: "
+               << cache_path;
+    return std::nullopt;
+  }
+
+  // CacheStorage gets a fixed slice of the Starboard cache directory budget.
+  // The HTTP cache is sized around this reservation (see
+  // ComputeDefaultHttpCacheSize).
+  // Cobalt only needs to cache data from a single origin (youtube.com), so
+  // allocate the full 6 MiB CacheStorage budget to the per-origin quota.
+  // However, QuotaTemporaryStorageEvictor triggers whole-bucket eviction when
+  // global usage exceeds `pool_size * kUsageRatioToStartEviction` (0.7), which
+  // would wipe CacheStorage and unregister the Service Worker above ~4.2 MiB if
+  // `pool_size == per_storage_key_quota`. Sizing `pool_size` to 2x the per-key
+  // quota ensures `per_storage_key_quota` is the binding write limit and
+  // single-origin usage never crosses the 70% pool eviction threshold.
+  int64_t storage_key_quota =
+      std::min(total, static_cast<int64_t>(
+                          CobaltContentBrowserClient::kCacheStorageQuotaBytes));
+  int64_t pool_size = storage_key_quota *
+                      CobaltContentBrowserClient::kCacheStoragePoolToQuotaRatio;
+
+  const int64_t kMustRemainAvailableFixed =
+      static_cast<int64_t>(storage::features::kMustRemainAvailableBytes.Get());
+  const double kMustRemainAvailableRatio =
+      storage::features::kMustRemainAvailableRatio.Get();
+
+  storage::QuotaSettings settings;
+  settings.pool_size = pool_size;
+  settings.per_storage_key_quota = storage_key_quota;
+  settings.session_only_per_storage_key_quota = storage_key_quota;
+  // Disable disk-pressure eviction. QuotaTemporaryStorageEvictor evicts whole
+  // buckets when free space on the cache volume drops below
+  // `should_remain_available`. Chromium's default (10% of the volume, capped
+  // at 2 GiB) is 2.4 MiB on a 24 MiB cache partition, more than the
+  // kCacheDirectoryHeadroomBytes left free by the cache directory budget (see
+  // kNonHttpReserveBytes). With the default, a full but within-budget cache
+  // directory would evict YouTube's only bucket, deleting CacheStorage and
+  // unregistering the Service Worker.
+  settings.should_remain_available = 0;
+  settings.must_remain_available =
+      std::min(kMustRemainAvailableFixed,
+               static_cast<int64_t>(total * kMustRemainAvailableRatio));
+  settings.refresh_interval = base::Seconds(60);
+
+  return settings;
 }
 
 CobaltContentBrowserClient::CobaltContentBrowserClient(
@@ -348,7 +424,7 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
   // Default compiled javascript quota in Cobalt 25 was 3 MB:
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
   // Increased to 5 MB for Cobalt 27+.
-  size_t size = 5 * 1024 * 1024;
+  size_t size = kGeneratedCodeCacheBytes;
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
@@ -358,14 +434,6 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
 // static
 uint32_t CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
     uint32_t total_dir_budget_bytes) {
-  // Reserve 12 MB for non-HTTP caches sharing kSbSystemPathCacheDirectory:
-  // - 5 MB for V8 JS code cache (Code Cache)
-  // - 6 MB for Service Worker CacheStorage
-  // - 1 MB non-HTTP-cache directory headroom (matching Cobalt 25's 1 << 20
-  //   reserve for index files, persistent metrics, and metadata)
-  constexpr uint32_t kNonHttpReserveBytes = 12 * 1024 * 1024;
-  constexpr uint32_t kMinHttpCacheBytes = 1 * 1024 * 1024;
-
   if (total_dir_budget_bytes <= kNonHttpReserveBytes + kMinHttpCacheBytes) {
     // For small platform budgets, ensure we do not return 0 or negative.
     return std::min(total_dir_budget_bytes, kMinHttpCacheBytes);
@@ -550,6 +618,34 @@ void CobaltContentBrowserClient::PopulateCobaltExtraRequestHeaders(
   }
 }
 
+void CobaltContentBrowserClient::GetCacheQuotaSettings(
+    content::BrowserContext* browser_context,
+    const base::FilePath& cache_path,
+    storage::OptionalQuotaSettingsCallback callback) {
+  if (browser_context && browser_context->IsOffTheRecord()) {
+    storage::GetNominalDynamicSettings(cache_path, /*is_incognito=*/true,
+                                       storage::GetDefaultDeviceInfoHelper(),
+                                       std::move(callback));
+    return;
+  }
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE,
+      {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+      base::BindOnce(&CalculateCobaltCacheQuotaSettings, cache_path,
+                     storage::GetDefaultDeviceInfoHelper()),
+      std::move(callback));
+}
+
+// static
+std::optional<storage::QuotaSettings>
+CobaltContentBrowserClient::CalculateCacheQuotaSettingsForTesting(
+    const base::FilePath& cache_path,
+    storage::QuotaDeviceInfoHelper* device_info_helper) {
+  return CalculateCobaltCacheQuotaSettings(cache_path, device_info_helper);
+}
+
 void CobaltContentBrowserClient::OnWebContentsCreated(
     content::WebContents* web_contents) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -632,6 +728,22 @@ void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
   }
 }
 
+void CobaltContentBrowserClient::FlushCookiesAndLocalStorageOnPause() {
+  auto start_time = std::make_unique<base::ElapsedTimer>();
+  FlushCookiesAndLocalStorage(base::BindOnce(
+      [](std::unique_ptr<base::ElapsedTimer> timer) {
+        // Note: Cobalt.Storage.OnPause.FlushDuration measures the cookie store
+        // flush completion duration. storage_partition->Flush() initiates
+        // localStorage commit asynchronously on the background database thread
+        // without a completion callback; LocalStorage commit latency and syncs
+        // are monitored separately via
+        // Cobalt.Storage.LocalStorage.CommitDuration.
+        UMA_HISTOGRAM_TIMES("Cobalt.Storage.OnPause.FlushDuration",
+                            timer->Elapsed());
+      },
+      std::move(start_time)));
+}
+
 void CobaltContentBrowserClient::DispatchBlur() {
   if (web_contents_observer_) {
     auto* web_contents = web_contents_observer_->web_contents();
@@ -639,13 +751,7 @@ void CobaltContentBrowserClient::DispatchBlur() {
       web_contents->GetRenderViewHost()->GetWidget()->Blur();
     }
   }
-  auto start_time = std::make_unique<base::ElapsedTimer>();
-  FlushCookiesAndLocalStorage(base::BindOnce(
-      [](std::unique_ptr<base::ElapsedTimer> timer) {
-        UMA_HISTOGRAM_TIMES("Cobalt.Storage.OnPause.FlushDuration",
-                            timer->Elapsed());
-      },
-      std::move(start_time)));
+  FlushCookiesAndLocalStorageOnPause();
 #if BUILDFLAG(IS_ANDROID)
   // Experiment (b/576795220): also persist HttpServerProperties (Alt-Svc,
   // broken-QUIC marks), which is otherwise written on a 60 s timer that a
@@ -724,13 +830,14 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
     std::move(callback).Run();
     return;
   }
-  // Flushes localStorage.
+  // Flushes localStorage asynchronously on the background database thread.
   storage_partition->Flush();
   auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
   if (!cookie_manager) {
     std::move(callback).Run();
     return;
   }
+  // Flushes cookies; invokes callback upon SQLite commit completion.
   cookie_manager->FlushCookieStore(std::move(callback));
 }
 

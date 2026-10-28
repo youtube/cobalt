@@ -540,9 +540,14 @@ BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
 //
 // NOTE: This deviates from the MSE specification, which allows the web app to
 // modify or reuse the appended buffer as soon as appendBuffer() returns.
+// Disabled by default on Android, enabled by default on other platforms.
 BASE_FEATURE(kCobaltInPlaceMediaSourceParser,
              "CobaltInPlaceMediaSourceParser",
+#if BUILDFLAG(IS_ANDROID)
              base::FEATURE_DISABLED_BY_DEFAULT);
+#else   // BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
 // Whether kCobaltInPlaceMediaSourceParser borrows or copies appended data.
 // When false, the stream parser is instead meant to copy each append into
 // memory that it owns, and then parse it in place.
@@ -550,7 +555,11 @@ BASE_FEATURE_PARAM(bool,
                    kCobaltInPlaceMediaSourceParserBorrowMode,
                    &kCobaltInPlaceMediaSourceParser,
                    "borrow_mode",
+#if BUILDFLAG(IS_ANDROID)
                    false);
+#else   // BUILDFLAG(IS_ANDROID)
+                   true);
+#endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)
