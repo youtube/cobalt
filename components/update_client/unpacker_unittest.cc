@@ -104,12 +104,8 @@ TEST_P(UnpackerTest, UnpackFullCrx) {
   loop.Run();
 }
 
-<<<<<<< HEAD
-TEST_P(UnpackerTest, UnpackFileNotFound) {
-=======
 #if !defined(IN_MEMORY_UPDATES)
-TEST_F(UnpackerTest, UnpackFileNotFound) {
->>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+TEST_P(UnpackerTest, UnpackFileNotFound) {
   SEQUENCE_CHECKER(sequence_checker);
   base::RunLoop loop;
 #if BUILDFLAG(IS_STARBOARD)
@@ -123,12 +119,8 @@ TEST_F(UnpackerTest, UnpackFileNotFound) {
   Unpacker::Unpack(
       "jebgalgnebhfojomionfpkfelancnnkf", "UnpackerTest",
       base::ToVector(jebg_hash), GetTestFilePath("file_not_found.crx"), nullptr,
-<<<<<<< HEAD
-      crx_file::VerifierFormat::CRX3, IsForeground(),
-=======
 #endif
-      crx_file::VerifierFormat::CRX3,
->>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+      crx_file::VerifierFormat::CRX3, IsForeground(),
       base::BindLambdaForTesting([&](const Unpacker::Result& result) {
         DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker);
         EXPECT_EQ(result.error, UnpackerError::kInvalidFile);
@@ -165,12 +157,8 @@ TEST_P(UnpackerTest, UnpackFileHashMismatch) {
       "jebgalgnebhfojomionfpkfelancnnkf", "UnpackerTest",
       base::ToVector(abag_hash),
       GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), nullptr,
-<<<<<<< HEAD
-      crx_file::VerifierFormat::CRX3, IsForeground(),
-=======
 #endif
-      crx_file::VerifierFormat::CRX3,
->>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+      crx_file::VerifierFormat::CRX3, IsForeground(),
       base::BindLambdaForTesting([&](const Unpacker::Result& result) {
         DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker);
         EXPECT_EQ(result.error, UnpackerError::kInvalidFile);

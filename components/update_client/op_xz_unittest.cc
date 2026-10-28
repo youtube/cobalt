@@ -28,12 +28,6 @@
 
 namespace update_client {
 
-<<<<<<< HEAD
-class XzOperationTest : public ::testing::TestWithParam<bool> {
- public:
-  bool IsForeground() const { return GetParam(); }
-
-=======
 #if BUILDFLAG(IS_STARBOARD)
 // Starboard's XzOperation takes an OperationResult and completes with one.
 // This overload adapts the upstream call sites in this file (which pass a
@@ -41,12 +35,15 @@ class XzOperationTest : public ::testing::TestWithParam<bool> {
 base::OnceClosure XzOperation(
     std::unique_ptr<Unzipper> unzipper,
     base::RepeatingCallback<void(base::DictValue)> event_adder,
+    base::RepeatingCallback<void(ComponentState)> state_tracker,
+    bool is_foreground,
     const base::FilePath& in_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)> callback) {
   OperationResult op_result;
   op_result.response = in_file;
   return XzOperation(
-      std::move(unzipper), event_adder, op_result,
+      std::move(unzipper), event_adder, state_tracker, is_foreground,
+      op_result,
       base::BindLambdaForTesting(
           [callback = std::move(callback)](base::expected<OperationResult, CategorizedError> result) mutable {
             if (result.has_value()) {
@@ -59,8 +56,10 @@ base::OnceClosure XzOperation(
 #endif
 
 
-class XzOperationTest : public testing::Test {
->>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+class XzOperationTest : public ::testing::TestWithParam<bool> {
+ public:
+  bool IsForeground() const { return GetParam(); }
+
  private:
   // `env_` must be constructed before sequence_checker_.
   base::test::TaskEnvironment env_;
