@@ -93,6 +93,7 @@ jobs:
       has_comment: ${{ steps.format_comment.outputs.has_comment }}
       pr_number: ${{ steps.format_comment.outputs.pr_number }}
       comment_body: ${{ steps.format_comment.outputs.comment_body }}
+      review_comments: ${{ steps.format_comment.outputs.review_comments }}
 
     steps:
       - name: 'Check Trigger'

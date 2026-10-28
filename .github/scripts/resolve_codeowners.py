@@ -34,8 +34,7 @@ def main() -> int:
     if any(
         fnmatch.fnmatch(f.removeprefix('./'), p)
         for f in files
-        for p in patterns
-    ):
+        for p in patterns):
       print(str(md))
   return 0
 
