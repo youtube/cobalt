@@ -9,6 +9,6 @@
     "target": "cobalt/testing/browser_tests:cobalt_browsertests_loader",
     "executable": "out/evergreen-arm64-aosp_devel/cobalt_browsertests_loader_apk/cobalt_browsertests_loader-debug.apk",
     "runs_on": "device",
-    "test_type": "browsertest"
+    "test_type": "gtest"
   }
 ]
