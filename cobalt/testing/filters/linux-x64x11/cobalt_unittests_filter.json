@@ -1,0 +1,6 @@
+{
+  "comment": "See b/578645550",
+  "failing_tests": [
+    "HistogramFetcherTest.FetchHistograms_CalculatesDeltaCorrectly"
+  ]
+}

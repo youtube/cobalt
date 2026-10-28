@@ -203,27 +203,25 @@ class MediaCodecDecoderVideoDualThreadsTest
 
   void SetUp() override {
     ON_CALL(host_, ProcessOutputBuffer(_, _, _))
-        .WillByDefault(
-            Invoke([](MediaCodec* codec, const DequeueOutputResult& output,
-                      int number_of_pending_inputs) {
-              codec->ReleaseOutputBuffer(output.index, false);
-            }));
-    ON_CALL(host_, RefreshOutputFormat(_))
-        .WillByDefault(Invoke([this](MediaCodec*) {
-          {
-            std::lock_guard lock(tick_mutex_);
-            ++refresh_output_format_count_;
-          }
-          tick_condition_variable_.notify_all();
-        }));
-    ON_CALL(host_, Tick(_)).WillByDefault(Invoke([this](MediaCodec*) {
+        .WillByDefault([](MediaCodec* codec, const DequeueOutputResult& output,
+                          int number_of_pending_inputs) {
+          codec->ReleaseOutputBuffer(output.index, false);
+        });
+    ON_CALL(host_, RefreshOutputFormat(_)).WillByDefault([this](MediaCodec*) {
+      {
+        std::lock_guard lock(tick_mutex_);
+        ++refresh_output_format_count_;
+      }
+      tick_condition_variable_.notify_all();
+    });
+    ON_CALL(host_, Tick(_)).WillByDefault([this](MediaCodec*) {
       {
         std::lock_guard lock(tick_mutex_);
         ++tick_count_;
       }
       tick_condition_variable_.notify_all();
       return false;
-    }));
+    });
 
     auto result = MediaCodecDecoder::CreateForVideo(
         factory_, &job_queue_, &host_, kSbMediaVideoCodecH264, Size(1920, 1080),
@@ -468,15 +466,15 @@ TEST_P(MediaCodecDecoderVideoDualThreadsTest,
   }};
 
   ON_CALL(host_, ProcessOutputBuffer(_, _, _))
-      .WillByDefault(Invoke(
+      .WillByDefault(
           [&](MediaCodec* codec, const DequeueOutputResult& output, int) {
             {
               std::lock_guard lock(state_mutex);
               events.push_back(CallEvent::kProcessOutput);
             }
             codec->ReleaseOutputBuffer(output.index, false);
-          }));
-  ON_CALL(host_, Tick(_)).WillByDefault(Invoke([&](MediaCodec*) {
+          });
+  ON_CALL(host_, Tick(_)).WillByDefault([&](MediaCodec*) {
     std::unique_lock lock(state_mutex);
     if (hold_inside_tick) {
       blocked_in_tick = true;
@@ -487,7 +485,7 @@ TEST_P(MediaCodecDecoderVideoDualThreadsTest,
     events.push_back(CallEvent::kTick);
     state_cv.notify_all();
     return false;
-  }));
+  });
 
   codec_->SimulateInputBufferAvailable(0);
   ASSERT_EQ(WriteAndWaitForQueuedInput(/*timestamp=*/0).size(), 1U);
