@@ -139,11 +139,7 @@ BASE_FEATURE_PARAM(int,
 // clamping the young generation semi-space to 1 MB and stalling UI navigation.
 BASE_FEATURE(kCobaltV8OptimizeForSize,
              "CobaltV8OptimizeForSize",
-#if BUILDFLAG(IS_ANDROID)
-             FEATURE_ENABLED_BY_DEFAULT);
-#else
              FEATURE_DISABLED_BY_DEFAULT);
-#endif
 
 // Enabled by default, except on Android where the upstream Chromium defaults
 // are kept until a dedicated experiment has been run there. The memory and
@@ -190,7 +186,7 @@ BASE_FEATURE(kCobaltStorageCleanup,
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kCobaltAndroidDisplayCriticalInProcessRenderer,
              "CobaltAndroidDisplayCriticalInProcessRenderer",
-             FEATURE_DISABLED_BY_DEFAULT);
+             FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_COBALT)
 

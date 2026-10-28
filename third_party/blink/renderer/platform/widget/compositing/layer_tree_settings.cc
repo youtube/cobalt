@@ -161,11 +161,9 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
   cc::ManagedMemoryPolicy actual = default_policy;
   actual.bytes_limit_when_visible = 0;
   actual.priority_cutoff_when_visible =
-#if BUILDFLAG(IS_COBALT)
-      gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY;
-#else
+      // ATOM_PERF (PoC C3): Allow prepainting tiles outside the visible
+      // viewport so newly scrolled-in rows are rastered ahead of time.
       gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE;
-#endif
 
   // If the value was overridden on the command line, use the specified value.
   static bool client_hard_limit_bytes_overridden =
@@ -546,22 +544,9 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_COBALT)
-  // Gates the compositor prepaint memory budget on every Cobalt platform (both
-  // Android TV and 3P/Starboard), overriding the platform defaults assigned
-  // above. This is the percentage of the tile memory budget available to
-  // prepaint tiles: it sets the tile manager's soft memory limit (see
-  // LayerTreeHostImpl::UpdateTileManagerMemoryPolicy), while tiles required for
-  // the current draw (TilePriority::NOW) always use the hard limit. The default
-  // of 0 disables prepaint raster entirely to minimize GPU/tile memory.
-  // Disabling the feature restores the upstream per-platform defaults.
-  if (base::FeatureList::IsEnabled(
-          base::features::kCobaltMaxMemoryForPrepaint)) {
-    // Clamp because the setting is a size_t; a negative Finch parameter would
-    // otherwise wrap around and remove the soft memory limit entirely.
-    settings.max_memory_for_prepaint_percentage = static_cast<size_t>(
-        std::clamp(base::features::kCobaltMaxMemoryForPrepaintPercentage.Get(),
-                   0, 100));
-  }
+  // ATOM_PERF (PoC C3): Allow 50% of tile memory budget for prepainting.
+  // HYDROGEN-LITE: Reduced to 25% to limit tile memory.
+  settings.max_memory_for_prepaint_percentage = 25;
 #endif  // BUILDFLAG(IS_COBALT)
 
   if (!base::FeatureList::IsEnabled(::features::kScrollbarAnimations)) {

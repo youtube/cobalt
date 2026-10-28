@@ -13,6 +13,7 @@
 #include "base/system/sys_info.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "components/viz/client/frame_eviction_manager.h"
 #include "content/browser/browser_main_loop.h"
 #include "content/browser/gpu/browser_gpu_channel_host_factory.h"
@@ -141,6 +142,12 @@ void CompositorDependenciesAndroid::ConnectVizFrameSinkManagerOnMainThread(
 }
 
 void CompositorDependenciesAndroid::EnqueueLowEndBackgroundCleanup() {
+#if BUILDFLAG(IS_COBALT)
+  // HYDROGEN-LITE (PoC): Keep GPU contexts and the last frame while
+  // backgrounded, even in low-end device mode, so warm launch can present
+  // immediately. Low-end mode stays on for everything else (memory budgets).
+  return;
+#else
   if (base::SysInfo::IsLowEndDevice()) {
     low_end_background_cleanup_task_.Reset(base::BindOnce(
         &CompositorDependenciesAndroid::DoLowEndBackgroundCleanup,
@@ -149,6 +156,7 @@ void CompositorDependenciesAndroid::EnqueueLowEndBackgroundCleanup() {
         FROM_HERE, low_end_background_cleanup_task_.callback(),
         base::Seconds(5));
   }
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void CompositorDependenciesAndroid::DoLowEndBackgroundCleanup() {
