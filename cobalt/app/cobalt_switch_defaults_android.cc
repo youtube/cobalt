@@ -89,7 +89,7 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {switches::kMaxHttpCacheSize, "26214400"},
       // ATOM_PERF (PoC A4): Raise GPU discardable/transfer cache from 1 MB to
       // 32 MB so decoded thumbnail textures stay cached across transitions.
-      {"force-gpu-mem-discardable-limit-mb", "32"},
+      {"force-gpu-mem-discardable-limit-mb", "16"},  // HYDROGEN-LITE: 16 MB
       {blink::switches::kJavaScriptFlags,
        // Disable decommitting pooled pages to prevent virtual memory
        // fragmentation.

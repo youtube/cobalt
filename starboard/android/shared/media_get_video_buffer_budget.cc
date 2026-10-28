@@ -47,11 +47,14 @@ constexpr int kVideoBufferBudget1080p = 30 * 1024 * 1024;
 // Specifies the maximum amount of memory used by video buffers of media
 // source before triggering a garbage collection when the video resolution
 // is up to 4k (3840x2160) and bit per pixel is up to 8.
-constexpr int kVideoBufferBudget4KSdr = 100 * 1024 * 1024;
+// HYDROGEN (PoC): Lowered from 100 MB to 80 MB to reduce peak memory during 4K
+// playback on low-RAM devices.
+constexpr int kVideoBufferBudget4KSdr = 80 * 1024 * 1024;
 // Specifies the maximum amount of memory used by video buffers of media
 // source before triggering a garbage collection when video resolution is
 // up to 4k (3840x2160) and bit per pixel is greater than 8.
-constexpr int kVideoBufferBudget4KHdr = 160 * 1024 * 1024;
+// HYDROGEN (PoC): Lowered from 160 MB to 120 MB (see b/416105795).
+constexpr int kVideoBufferBudget4KHdr = 120 * 1024 * 1024;
 
 }  // namespace
 

@@ -103,9 +103,11 @@ FEATURE_LIST_START
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 // keep-sorted start newline_separated=yes
 // Set to true to enable area-based video buffer budget calculation.
+// HYDROGEN (PoC): Enabled by default so portrait Shorts (1080x1920) get the
+// 1080p budget instead of the 4K one.
 STARBOARD_FEATURE(kAreaBasedVideoBufferBudget,
                   "AreaBasedVideoBufferBudget",
-                  false)
+                  true)
 
 // Set the following variable to true to enable av1 startup optimization.
 STARBOARD_FEATURE(kEnableAv1StartupOptimization,

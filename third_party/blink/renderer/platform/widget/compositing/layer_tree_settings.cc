@@ -545,7 +545,8 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
 
 #if BUILDFLAG(IS_COBALT)
   // ATOM_PERF (PoC C3): Allow 50% of tile memory budget for prepainting.
-  settings.max_memory_for_prepaint_percentage = 50;
+  // HYDROGEN-LITE: Reduced to 25% to limit tile memory.
+  settings.max_memory_for_prepaint_percentage = 25;
 #endif  // BUILDFLAG(IS_COBALT)
 
   if (!base::FeatureList::IsEnabled(::features::kScrollbarAnimations)) {
