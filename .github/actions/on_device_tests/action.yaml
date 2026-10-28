@@ -179,14 +179,11 @@ runs:
               "${test_output}/${PLATFORM}"/**/"${test_target}"*.json
               "${test_output}/${PLATFORM}"/**/results.json
             )
-            for json_report in "${json_reports[@]}"; do
-              if [ -f "${json_report}" ]; then
-                python3 "${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py" \
-                  "${json_report}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
-                break
-              fi
-            done
-            xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+            if [ -f "${json_reports[0]:-}" ]; then
+              python3 "${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py" \
+                "${json_reports[0]}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
+              xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+            fi
           fi
 
           # If test results are still missing, attempt to generate crash report from logs.
@@ -196,14 +193,11 @@ runs:
               "${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt
               "${test_output}/${PLATFORM}"/**/"${test_target}"*cobalt.log
             )
-            for log_file in "${log_files[@]}"; do
-              if [ -f "${log_file}" ]; then
-                python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
-                  "${log_file}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
-                break
-              fi
-            done
-            xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+            if [ -f "${log_files[0]:-}" ]; then
+              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
+                "${log_files[0]}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"
+              xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+            fi
           fi
 
           target_required=$(echo "${target_config}" | jq -r '.required // true')

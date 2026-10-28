@@ -304,30 +304,19 @@ jobs:
             [[ "${TEST_ON_DEVICE}" == "true" && "${is_odt_enabled}" == "true" ]] && run_on_device_test="true"
 
             # Filter expected test targets for results processing and reporting.
-            # active_test_types is explicitly scoped to unit tests (gtest/junit on host and device)
-            # which produce JUnit XML parsed by the downstream test-results job. Internal tests
-            # (e2e, yts, etc.) are executed in their own dedicated workflow jobs.
-            active_test_types=()
-            [[ "${TEST_ON_HOST}" == "true" ]] && active_test_types+=(gtest:host junit:host)
-            [[ "${run_on_device_test}" == "true" ]] && active_test_types+=(gtest:device junit:device)
-
-            active_types_json=$(printf '%s\n' "${active_test_types[@]}" | jq -R . | jq -cs .)
-            expected_tests=$(jq -c --argjson active "${active_types_json}" '
-              [
-                .[]
-                # Filter out entries without a target definition.
-                | select(has("target"))
-                # Annotate each test with candidate match keys (type and type:platform).
-                | {
-                    test: .,
-                    keys: [.test_type, "\(.test_type):\(.runs_on // "host")"]
-                  }
-                # Filter targets matching any active test type.
-                | select(any(.keys[]; IN(.; $active[])))
-                # Extract original test target object.
-                | .test
-              ]
-            ' "${test_targets_json_file}")
+            expected_tests=$(jq -c \
+              --arg run_on_device_test "${run_on_device_test}" \
+              --arg run_on_host_test "${TEST_ON_HOST}" \
+              '[
+                .[] | select(
+                  (.target != null) and
+                  (.process_results // true) and
+                  (
+                    (.runs_on == "device" and $run_on_device_test == "true") or
+                    ((.runs_on == "host" or .runs_on == null) and $run_on_host_test == "true")
+                  )
+                )
+              ]' "${test_targets_json_file}")
           fi
 
           {
