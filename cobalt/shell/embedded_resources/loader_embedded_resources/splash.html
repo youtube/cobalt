@@ -53,13 +53,15 @@
         // The native video's player checks what the platform plays itself, on
         // its own thread, as without the policy, so the page doesn't ask: the
         // first query enumerates the platform's codecs, which can block the
-        // page for most of a second, before Shell gets the choice. The HTML
-        // video asks anyway, before the policy runs.
-        const native =
+        // page for most of a second, before Shell gets the choice. Nor does
+        // the image, as splash.html shows it without asking. The HTML video
+        // asks anyway, before the policy runs.
+        const forceImage = params.get('force_image') === 'true';
+        const skipCodecQueries = forceImage ||
             document.documentElement.classList.contains('native-video');
-        const vp9 =
-            native || MediaSource.isTypeSupported('video/webm; codecs="vp9";');
-        const vp9_4k = native || MediaSource.isTypeSupported(
+        const vp9 = skipCodecQueries ||
+            MediaSource.isTypeSupported('video/webm; codecs="vp9";');
+        const vp9_4k = skipCodecQueries || MediaSource.isTypeSupported(
             'video/webm; codecs="vp9"; width=3840; height=2160;');
         const items = assets.slice(0, max_items());
         const view =
@@ -80,8 +82,7 @@
           view.setUint32(i * 12 + 8, asset.bytes, true);
         });
         const index = choose(
-            items.length,
-            (vp9 ? 1 : 0) | (params.get('force_image') === 'true' ? 4 : 0),
+            items.length, (vp9 ? 1 : 0) | (forceImage ? 4 : 0),
             params.get('cache') === 'music' ? 1 : 0);
         const asset = index >= 0 ? items[index] : null;
         console.log(`SplashWasmPolicy: chose ` +
@@ -207,7 +208,11 @@
           return;
         }
         urlParams.append('fallback', `${splashTopic}splash.png`);
-        fetch('h5vcc-embedded://splash.png?' + urlParams.toString())
+        // DO NOT SUBMIT: benchmark only (SplashWasmPolicy).
+        const imageResponse = wasmPolicy ?
+            splashImageUrlFromWasmPolicy(urlParams).then(url => fetch(url)) :
+            fetch('h5vcc-embedded://splash.png?' + urlParams.toString());
+        imageResponse
         .then(response => {
           if (!response.ok) {
             throw new Error('Network response was not ok');
@@ -237,6 +242,35 @@
           console.error('Failed to fetch splash image:', error);
         });
         return;
+      }
+
+      /**
+       * DO NOT SUBMIT: benchmark only (SplashWasmPolicy). Returns the URL of
+       * the image that the WebAssembly policy chose from the splash asset
+       * list, or of splash.html's own choice if the policy fails.
+       * @param urlParams URL parameters, with the built-in image to fall back
+       *     to
+       */
+      async function splashImageUrlFromWasmPolicy(urlParams) {
+        try {
+          const asset = await chooseSplashAsset(urlParams);
+          if (asset?.source === 'builtin' && asset.kind === 'image') {
+            // Already known not to be cached: served without reading the
+            // cache.
+            return `h5vcc-embedded://${asset.name}?source=builtin`;
+          }
+          // The loader reads the cache entry named by the request's host,
+          // falling back to the built-in image as without the policy.
+          if (asset?.source === 'cache' && asset.name === 'splash.png') {
+            urlParams.set('cache', asset.cache);
+            return 'h5vcc-embedded://splash.png?' + urlParams.toString();
+          }
+          console.error('SplashWasmPolicy: unexpected choice ' +
+                        JSON.stringify(asset));
+        } catch (error) {
+          console.error('SplashWasmPolicy failed:', error);
+        }
+        return 'h5vcc-embedded://splash.png?' + urlParams.toString();
       }
 
       /**
