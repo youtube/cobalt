@@ -60,6 +60,11 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       // Use hermetic custom fonts.xml for Skia to avoid scanning OS fonts on
       // startup.
       ::switches::kUseCustomAndroidFontsXml,
+      // ATOM_PERF (PoC C2): Use eglSwapInterval(0) to avoid BufferQueue
+      // stuffing latency.
+      ::switches::kDisableGpuVsync,
+      // [Atom C14] Disable BackForwardCache for single-page TV web app.
+      ::switches::kDisableBackForwardCache,
   };
   return kCobaltToggleSwitches;
 }
@@ -74,12 +79,15 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {::switches::kNumRasterThreads, "2"},
       // Limit the HTTP disk cache to 25 MiB (25 * 1024 * 1024 bytes).
       {switches::kMaxHttpCacheSize, "26214400"},
+      // ATOM_PERF (PoC A4): Raise GPU discardable/transfer cache from 1 MB to
+      // 32 MB so decoded thumbnail textures stay cached across transitions.
+      {"force-gpu-mem-discardable-limit-mb", "32"},
       {blink::switches::kJavaScriptFlags,
        // Disable decommitting pooled pages to prevent virtual memory
        // fragmentation.
        "--no-decommit-pooled-pages,"
-       // Disable v8 concurrent marking by default.
-       "--no-concurrent-marking"},
+       // ATOM_PERF (PoC A5): Re-enable V8 and Oilpan concurrent marking.
+       "--concurrent-marking"},
       // Enable precise memory info so we can make accurate client-side
       // measurements.
       {::switches::kEnableBlinkFeatures, "PreciseMemoryInfo"},
@@ -102,6 +110,32 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // task that made them so recent writes survive process
                // termination.
                storage::kDomStorageSmartFlushing.name,
+               // ATOM_PERF (PoC B2): Disable the splash screen to remove its
+               // 1500 ms floor and second WebContents overhead on cold start.
+               "DisableSplashScreen",
+               // ATOM_PERF (PoC C1): Skip per-request TrustedHeaderClient Mojo
+               // round-trips to the UI thread.
+               "CobaltSkipTrustedHeaderClient",
+               // ATOM_PERF (PoC C2): Enable SurfaceControl / remove UI plane
+               // during fullscreen video.
+               "CobaltRemoveUiPlaneDuringFullscreenVideo",
+               // ATOM_PERF (PoC C3 + A1): Keep shelf containers composited so
+               // prepainted tiles are used across transitions.
+               "CobaltPreserveTrivial3DTransform",
+               // ATOM_PERF (PoC C4): Skip PaintOp serialization/deserialization
+               // and image transfer cache copies in single-process mode.
+               "CobaltInProcessDirectRaster",
+               "CobaltInProcessImageTransferCache",
+               // [PoC][C5] Enable main-frame-before-activation.
+               "CobaltMainFrameBeforeActivation",
+               // [PoC][C7] Suppress per-subresource SubresourceResponseStarted
+               // IPC.
+               "ReduceSubresourceResponseStartedIPC",
+               // [PoC][C8] Disable Android TextAutosizer for 1080p TV UI.
+               "ForceOffTextAutosizing",
+               // [PoC][C9] Shrink foreground ThreadPool min workers from 6 to 3
+               // on 4-core TV SoC.
+               "BrowserThreadPoolAdjustment:min/3",
            },
            ",")},
       {::switches::kDisableFeatures,
@@ -122,6 +156,12 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // never reported as audible, meaning deferred audio focus is
                // never executed.
                media::kDeferAudioFocusUntilAudible.name,
+               // [PoC][C7] Disable DIPS bounce-tracking SQLite DB & keepalive
+               // UI-thread proxy.
+               "DIPS",
+               "KeepAliveInBrowserMigration",
+               // [Atom C14] Disable BackForwardCache.
+               features::kBackForwardCache.name,
            },
            ",")},
   };
