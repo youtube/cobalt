@@ -102,6 +102,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // task that made them so recent writes survive process
                // termination.
                storage::kDomStorageSmartFlushing.name,
+               // ATOM_PERF (PoC C3 + A1): Keep shelf containers composited so
+               // prepainted tiles are used across transitions.
+               "CobaltPreserveTrivial3DTransform",
            },
            ",")},
       {::switches::kDisableFeatures,
