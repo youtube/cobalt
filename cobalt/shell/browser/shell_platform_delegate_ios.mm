@@ -878,4 +878,8 @@ ShellPlatformDelegate::GetOrCreatePlatformOnScreenKeyboard(Shell* shell) {
   return shell_data.on_screen_keyboard->GetWeakPtr();
 }
 
+void ShellPlatformDelegate::SetNativeSplashActive(Shell* shell, bool active) {
+  // Not implemented on this platform (proof of concept).
+}
+
 }  // namespace content

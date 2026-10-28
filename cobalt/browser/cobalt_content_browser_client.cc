@@ -57,6 +57,7 @@
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/media/service/platform_window_provider_service.h"
 #include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/splash/native_splash.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -661,6 +662,7 @@ void CobaltContentBrowserClient::OnSbWindowCreated(SbWindow window) {
   // assumes only single PlatformWindowStarboard() in Cobalt.
   CHECK(!cached_sb_window_);
   cached_sb_window_ = reinterpret_cast<uint64_t>(window);
+  content::NativeSplash::SetSbWindow(window);
 #if BUILDFLAG(IS_STARBOARD)
   h5vcc_system::H5vccSystemImpl::SetPrimarySbWindow(window);
 #endif
@@ -673,6 +675,7 @@ void CobaltContentBrowserClient::OnSbWindowCreated(SbWindow window) {
 void CobaltContentBrowserClient::OnSbWindowDestroyed(SbWindow window) {
   DCHECK_EQ(cached_sb_window_, reinterpret_cast<uint64_t>(window));
   cached_sb_window_ = 0;
+  content::NativeSplash::SetSbWindow(kSbWindowInvalid);
 #if BUILDFLAG(IS_STARBOARD)
   h5vcc_system::H5vccSystemImpl::SetPrimarySbWindow(kSbWindowInvalid);
 #endif

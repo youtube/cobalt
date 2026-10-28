@@ -30,6 +30,7 @@
 #include "build/build_config.h"
 #include "cobalt/build/configs/buildflags.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
+#include "cobalt/shell/browser/splash/native_splash.h"
 #include "cobalt/shell/browser/splash_screen_metrics.h"
 #include "cobalt/shell/browser/splash_screen_web_contents_delegate.h"
 #include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
@@ -313,11 +314,16 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void OnSplashScreenVideoStarted();
   // Called with whether splash.html plays its video rather than its image.
   void OnSplashScreenVideoSupportChecked(bool can_play_video);
+  // Proof of concept: shows the splash screen with NativeSplash, instead of a
+  // splash screen WebContents. The main WebContents stays hidden until then.
+  void StartNativeSplash(BrowserContext* browser_context);
+  void OnNativeSplashFinished();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
   std::unique_ptr<WebContents> web_contents_;
   std::unique_ptr<WebContents> splash_screen_web_contents_;
+  std::unique_ptr<NativeSplash> native_splash_;
   State splash_state_;
   const std::string splash_topic_;
   bool skip_for_testing_;

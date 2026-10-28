@@ -108,6 +108,10 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
   // Update WebContents into the newly created window.
   virtual void UpdateContents(Shell* shell);
 
+  // Proof of concept: while a native splash video plays behind the UI, makes
+  // the shell's window transparent and keeps its WebContents out of view.
+  virtual void SetNativeSplashActive(Shell* shell, bool active);
+
   // Resize the web contents in the shell window to the given size.
   virtual void ResizeWebContent(Shell* shell, const gfx::Size& content_size);
 

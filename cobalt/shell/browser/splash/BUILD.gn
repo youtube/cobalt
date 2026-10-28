@@ -17,8 +17,12 @@
 
 source_set("splash") {
   sources = [
+    "native_splash.cc",
+    "native_splash.h",
     "splash_cache_reader.cc",
     "splash_cache_reader.h",
+    "splash_video_player.cc",
+    "splash_video_player.h",
     "splash_wasm_runner.cc",
     "splash_wasm_runner.h",
     "splash_wasm_selector.cc",
@@ -29,9 +33,11 @@ source_set("splash") {
     "//components/services/storage/public/cpp",
     "//components/services/storage/public/mojom",
     "//gin",
+    "//media",
     "//mojo/public/cpp/system",
     "//services/network/public/cpp",
     "//third_party/blink/public/common",
+    "//ui/display",
     "//url",
     "//v8",
   ]
@@ -39,7 +45,9 @@ source_set("splash") {
     "//base",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
+    "//starboard:starboard_headers_only",
     "//third_party/blink/public/mojom:mojom_platform",
+    "//ui/gfx/geometry",
   ]
   configs += [ "//v8:external_startup_data" ]
 }

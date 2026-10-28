@@ -220,4 +220,8 @@ void JNI_Shell_CloseShell(JNIEnv* env, jlong shellPtr) {
   shell->Close();
 }
 
+void ShellPlatformDelegate::SetNativeSplashActive(Shell* shell, bool active) {
+  // Not implemented on this platform (proof of concept).
+}
+
 }  // namespace content

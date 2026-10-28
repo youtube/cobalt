@@ -162,4 +162,8 @@ bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
   return false;  // Shell destroys itself.
 }
 
+void ShellPlatformDelegate::SetNativeSplashActive(Shell* shell, bool active) {
+  // Not implemented on this platform (proof of concept).
+}
+
 }  // namespace content
