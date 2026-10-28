@@ -14,8 +14,6 @@
 
 #include "starboard/shared/starboard/media/mime_type.h"
 
-#include <sstream>
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
