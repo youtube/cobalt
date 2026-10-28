@@ -308,12 +308,8 @@ void Unpack(base::OnceCallback<void(const Unpacker::Result&)> callback,
               crx_operation_result,
 #else
               cache_result.has_value() ? cache_result.value() : crx_file,
-<<<<<<< HEAD
-              std::move(unzipper), crx_format, is_foreground,
-=======
 #endif
-              std::move(unzipper), crx_format,
->>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+              std::move(unzipper), crx_format, is_foreground,
               base::BindPostTaskToCurrentDefault(std::move(callback))));
 }
 
@@ -329,13 +325,10 @@ base::OnceClosure InstallOperation(
     const std::vector<uint8_t>& pk_hash,
     scoped_refptr<CrxInstaller> installer,
     std::unique_ptr<CrxInstaller::InstallParams> install_params,
-<<<<<<< HEAD
     bool is_foreground,
-=======
 #if BUILDFLAG(IS_STARBOARD)
     PersistedData* metadata,
 #endif
->>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     base::RepeatingCallback<void(base::DictValue)> event_adder,
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     CrxInstaller::ProgressCallback progress_callback,
@@ -359,7 +352,7 @@ base::OnceClosure InstallOperation(
                         std::move(install_params), installer, progress_callback,
                         metadata, id, crx_operation_result),
          id, prod_id, crx_operation_result, std::move(unzipper), pk_hash, crx_format,
-         base::unexpected(UnpackerError::kCrxCacheNotProvided));
+         is_foreground, base::unexpected(UnpackerError::kCrxCacheNotProvided));
 #else
   crx_cache->Put(
       crx_file, id, file_hash,
@@ -371,13 +364,9 @@ base::OnceClosure InstallOperation(
                              std::move(installer_result_callback),
                              std::move(callback), event_adder, crx_file),
               std::move(install_params), installer, progress_callback),
-<<<<<<< HEAD
           id, prod_id, crx_file, std::move(unzipper), pk_hash, crx_format,
           is_foreground));
-=======
-          id, prod_id, crx_file, std::move(unzipper), pk_hash, crx_format));
 #endif
->>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return base::DoNothing();
 }
 

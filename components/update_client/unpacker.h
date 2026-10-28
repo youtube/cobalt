@@ -85,6 +85,7 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
                      const OperationResult& crx_operation_result,
                      std::unique_ptr<Unzipper> unzipper,
                      crx_file::VerifierFormat crx_format,
+                     bool is_foreground,
                      base::OnceCallback<void(const Result& result)> callback);
 #else
   static void Unpack(const std::string& app_id,
@@ -109,6 +110,7 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
            const std::string& prod_id,
            const OperationResult& crx_operation_result,
            std::unique_ptr<Unzipper> unzipper,
+           bool is_foreground,
            base::OnceCallback<void(const Result& result)> callback);
 #else
   Unpacker(const std::string& app_id,
