@@ -102,6 +102,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // task that made them so recent writes survive process
                // termination.
                storage::kDomStorageSmartFlushing.name,
+               // [PoC][C5] Enable main-frame-before-activation.
+               "CobaltMainFrameBeforeActivation",
            },
            ",")},
       {::switches::kDisableFeatures,
