@@ -726,6 +726,22 @@ void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
   }
 }
 
+void CobaltContentBrowserClient::FlushCookiesAndLocalStorageOnPause() {
+  auto start_time = std::make_unique<base::ElapsedTimer>();
+  FlushCookiesAndLocalStorage(base::BindOnce(
+      [](std::unique_ptr<base::ElapsedTimer> timer) {
+        // Note: Cobalt.Storage.OnPause.FlushDuration measures the cookie store
+        // flush completion duration. storage_partition->Flush() initiates
+        // localStorage commit asynchronously on the background database thread
+        // without a completion callback; LocalStorage commit latency and syncs
+        // are monitored separately via
+        // Cobalt.Storage.LocalStorage.CommitDuration.
+        UMA_HISTOGRAM_TIMES("Cobalt.Storage.OnPause.FlushDuration",
+                            timer->Elapsed());
+      },
+      std::move(start_time)));
+}
+
 void CobaltContentBrowserClient::DispatchBlur() {
   if (web_contents_observer_) {
     auto* web_contents = web_contents_observer_->web_contents();
@@ -733,13 +749,7 @@ void CobaltContentBrowserClient::DispatchBlur() {
       web_contents->GetRenderViewHost()->GetWidget()->Blur();
     }
   }
-  auto start_time = std::make_unique<base::ElapsedTimer>();
-  FlushCookiesAndLocalStorage(base::BindOnce(
-      [](std::unique_ptr<base::ElapsedTimer> timer) {
-        UMA_HISTOGRAM_TIMES("Cobalt.Storage.OnPause.FlushDuration",
-                            timer->Elapsed());
-      },
-      std::move(start_time)));
+  FlushCookiesAndLocalStorageOnPause();
 }
 
 void CobaltContentBrowserClient::DispatchFocus() {
@@ -804,13 +814,14 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
     std::move(callback).Run();
     return;
   }
-  // Flushes localStorage.
+  // Flushes localStorage asynchronously on the background database thread.
   storage_partition->Flush();
   auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
   if (!cookie_manager) {
     std::move(callback).Run();
     return;
   }
+  // Flushes cookies; invokes callback upon SQLite commit completion.
   cookie_manager->FlushCookieStore(std::move(callback));
 }
 
