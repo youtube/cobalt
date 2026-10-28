@@ -561,6 +561,25 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   delegate_id_ = delegate_->AddObserver(this);
   delegate_->SetIdle(delegate_id_, true);
 
+#if BUILDFLAG(IS_COBALT)
+  // The compositor's VideoFrameSubmitter assumes the page is visible until told
+  // otherwise, and page visibility is otherwise only pushed to it on
+  // OnPageHidden()/OnPageShown() transitions. If this player is created while
+  // the page is already hidden (e.g. the web app recreates its player in a
+  // visibilitychange handler on conceal), the submitter would never learn that
+  // the page is hidden. Its Cobalt guards that defer ContextProvider requests
+  // while concealed would then be bypassed: when the GPU is torn down on
+  // conceal, OnContextLost() requests a new ContextProvider and blocks the
+  // renderer main thread in EstablishGpuChannelSync() until reveal. Push the
+  // initial page visibility so those guards apply to such players too.
+  if (delegate_->IsPageHidden()) {
+    PostCrossThreadTask(
+        *vfc_task_runner_, FROM_HERE,
+        CrossThreadBindOnce(&VideoFrameCompositor::SetIsPageVisible,
+                            CrossThreadUnretained(compositor_.get()), false));
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   media_log_->AddEvent<MediaLogEvent::kWebMediaPlayerCreated>(
       url::Origin(frame_->GetSecurityOrigin()).GetURL().spec());
 

@@ -205,6 +205,62 @@ void PostContextProviderToCallback(
                      unwanted_context_provider));
 }
 
+#if BUILDFLAG(IS_COBALT)
+// Cobalt variant of PostContextProviderToCallback() that never blocks the
+// renderer main thread waiting for a GPU channel.
+//
+// When Cobalt is concealed, all GPU resources are released: client contexts are
+// marked lost, GPU channels are torn down, and GpuServiceImpl queues any new
+// EstablishGpuChannel requests until the app is revealed again. The video frame
+// submitter reacts to the lost context by requesting a new context provider,
+// and PostContextProviderToCallback() obtains it on the renderer main thread
+// via RenderThreadImpl::EstablishGpuChannelSync(). While concealed, that sync
+// call blocks the renderer main thread for the entire concealed period. All
+// renderer main-thread work is then deferred until reveal, including the memory
+// pressure notification that AppEventRunner sends on conceal: Blink's memory
+// purge and a ~210-330ms V8 compaction GC end up running right when playback is
+// trying to resume.
+//
+// To avoid that, first establish the GPU channel asynchronously on the main
+// thread (this completes immediately when a channel already exists, and
+// otherwise leaves the main thread free until the GPU service is restored on
+// reveal). Only then run the regular PostContextProviderToCallback(), whose
+// EstablishGpuChannelSync() call will find the established channel.
+//
+// VideoFrameSubmitter also defers ContextProvider requests while it knows the
+// page is hidden, but it depends on page visibility being delivered to it
+// before the GPU teardown (and it can't help for a submitter initialized after
+// the teardown). This keeps the main thread from blocking on any path.
+void EstablishGpuChannelAndPostContextProviderToCallback(
+    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
+    scoped_refptr<viz::RasterContextProvider> unwanted_context_provider,
+    blink::WebSubmitterConfigurationCallback set_context_provider_callback) {
+  // Bind the continuation to the current (video frame compositor) thread.
+  // BindPostTaskToCurrentDefault() guarantees that the bound state, including
+  // |unwanted_context_provider|, is run or destroyed on this thread, even if
+  // the channel callback is dropped on the main thread.
+  base::OnceClosure continuation = base::BindPostTaskToCurrentDefault(
+      base::BindOnce(&PostContextProviderToCallback, main_task_runner,
+                     std::move(unwanted_context_provider),
+                     std::move(set_context_provider_callback)));
+  main_task_runner->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](base::OnceClosure continuation) {
+            content::RenderThreadImpl::current()->EstablishGpuChannel(
+                base::BindOnce(
+                    [](base::OnceClosure continuation,
+                       scoped_refptr<gpu::GpuChannelHost> /*host*/) {
+                      // Continue regardless of success; on failure the regular
+                      // path handles a null channel / context provider.
+                      std::move(continuation).Run();
+                    },
+                    std::move(continuation)));
+          },
+          std::move(continuation)));
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void LogRoughness(
     media::MediaLog* media_log,
     const cc::VideoPlaybackRoughnessReporter::Measurement& measurement) {
@@ -282,8 +338,14 @@ std::unique_ptr<blink::WebVideoFrameSubmitter> CreateSubmitter(
 
   auto log_roughness_cb =
       base::BindRepeating(LogRoughness, base::Owned(media_log->Clone()));
+#if BUILDFLAG(IS_COBALT)
+  auto post_to_context_provider_cb =
+      base::BindRepeating(&EstablishGpuChannelAndPostContextProviderToCallback,
+                          main_thread_compositor_task_runner);
+#else
   auto post_to_context_provider_cb = base::BindRepeating(
       &PostContextProviderToCallback, main_thread_compositor_task_runner);
+#endif  // BUILDFLAG(IS_COBALT)
   return blink::WebVideoFrameSubmitter::Create(
       std::move(post_to_context_provider_cb), std::move(log_roughness_cb),
       settings, /*use_sync_primitives=*/true);
