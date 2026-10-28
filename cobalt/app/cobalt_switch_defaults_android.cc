@@ -60,6 +60,9 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
       // Use hermetic custom fonts.xml for Skia to avoid scanning OS fonts on
       // startup.
       ::switches::kUseCustomAndroidFontsXml,
+      // ATOM_PERF (PoC C2): Use eglSwapInterval(0) to avoid BufferQueue
+      // stuffing latency.
+      ::switches::kDisableGpuVsync,
   };
   return kCobaltToggleSwitches;
 }
@@ -102,6 +105,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // task that made them so recent writes survive process
                // termination.
                storage::kDomStorageSmartFlushing.name,
+               // ATOM_PERF (PoC C2): Enable SurfaceControl / remove UI plane
+               // during fullscreen video.
+               "CobaltRemoveUiPlaneDuringFullscreenVideo",
            },
            ",")},
       {::switches::kDisableFeatures,
