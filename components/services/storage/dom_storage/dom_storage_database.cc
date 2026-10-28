@@ -29,6 +29,7 @@
 #include "base/feature_list.h"
 #include "base/features.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/string_util.h"
 #include "base/timer/elapsed_timer.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -98,6 +99,65 @@ leveldb::WriteOptions CreateSyncWriteOptions() {
   options.sync = true;
   return options;
 }
+
+// Returns true if the Local Storage LevelDB directory contains surviving table
+// (.ldb/.sst), log (.log), or manifest (MANIFEST-*) files, but lacks a valid
+// CURRENT pointer file (and is not an in-flight migration). Upstream DB::Open()
+// treats a missing CURRENT as an empty DB, calls NewDB(), and deletes all
+// existing SST files in RemoveObsoleteFiles(), wiping user data.
+bool HasExistingLevelDBFilesWhenCurrentMissing(
+    const leveldb_env::Options& options,
+    const std::string& name) {
+  if (name.empty() || !options.env || leveldb_chrome::IsMemEnv(options.env)) {
+    return false;
+  }
+  base::FilePath db_path = base::FilePath::FromUTF8Unsafe(name);
+  if (db_path.BaseName() != base::FilePath(FILE_PATH_LITERAL("leveldb")) ||
+      options.env->FileExists(db_path.AppendASCII("CURRENT").AsUTF8Unsafe()) ||
+      !options.env->FileExists(db_path.AsUTF8Unsafe()) ||
+      options.env->FileExists(
+          db_path.AddExtension(FILE_PATH_LITERAL("migrate")).AsUTF8Unsafe())) {
+    return false;
+  }
+  std::vector<std::string> children;
+  if (!options.env->GetChildren(db_path.AsUTF8Unsafe(), &children).ok()) {
+    return false;
+  }
+  for (const std::string& child : children) {
+    if (base::EndsWith(child, ".ldb") || base::EndsWith(child, ".sst") ||
+        base::EndsWith(child, ".log") || base::StartsWith(child, "MANIFEST-")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Removes the <dbname>/lost archive directory created by leveldb::RepairDB()
+// so converted .log and old MANIFEST files do not permanently leak USER_DATA
+// disk space.
+void RemoveRepairLostDirectory(const leveldb_env::Options& options,
+                               const std::string& name) {
+  if (name.empty() || !options.env) {
+    return;
+  }
+  const std::string lost_dir =
+      base::FilePath::FromUTF8Unsafe(name).AppendASCII("lost").AsUTF8Unsafe();
+  if (!options.env->FileExists(lost_dir)) {
+    return;
+  }
+  std::vector<std::string> children;
+  if (options.env->GetChildren(lost_dir, &children).ok()) {
+    for (const std::string& child : children) {
+      if (child != "." && child != "..") {
+        options.env->RemoveFile(
+            base::FilePath::FromUTF8Unsafe(lost_dir)
+                .Append(base::FilePath::FromUTF8Unsafe(child))
+                .AsUTF8Unsafe());
+      }
+    }
+  }
+  options.env->RemoveDir(lost_dir);
+}
 #endif
 
 std::unique_ptr<leveldb::DB> TryOpenDB(
@@ -106,7 +166,48 @@ std::unique_ptr<leveldb::DB> TryOpenDB(
     scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
     DomStorageDatabase::StatusCallback callback) {
   std::unique_ptr<leveldb::DB> db;
+#if BUILDFLAG(IS_COBALT)
+  const bool is_local_storage_disk_db =
+      !name.empty() && options.env && !leveldb_chrome::IsMemEnv(options.env) &&
+      base::FilePath::FromUTF8Unsafe(name).BaseName() ==
+          base::FilePath(FILE_PATH_LITERAL("leveldb"));
+  const bool should_attempt_error_recovery =
+      is_local_storage_disk_db &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageErrorRecovery);
+  bool attempted_repair = false;
+  if (is_local_storage_disk_db &&
+      HasExistingLevelDBFilesWhenCurrentMissing(options, name)) {
+    if (should_attempt_error_recovery) {
+      // Reconstruct MANIFEST and CURRENT from existing .ldb/.log metadata in
+      // place (without rewriting valid .ldb SST files) before OpenDB's
+      // create_if_missing=true calls NewDB() and RemoveObsoleteFiles() deletes
+      // all existing table files.
+      leveldb::RepairDB(name, options);
+      RemoveRepairLostDirectory(options, name);
+      attempted_repair = true;
+    } else {
+      // Without error recovery, OpenDB(create_if_missing=true) calls NewDB()
+      // and RemoveObsoleteFiles() deletes all existing .ldb tables while
+      // returning Status::OK(). Record DatabaseOpenError so this silent data
+      // wipe is observable in UMA.
+      base::UmaHistogramEnumeration(
+          "Cobalt.LocalStorage.DatabaseOpenError",
+          leveldb_env::LEVELDB_STATUS_CORRUPTION,
+          leveldb_env::LEVELDB_STATUS_MAX);
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   leveldb::Status status = leveldb_env::OpenDB(options, name, &db);
+#if BUILDFLAG(IS_COBALT)
+  if (!status.ok() && should_attempt_error_recovery && !attempted_repair) {
+    leveldb::Status repair_status = leveldb::RepairDB(name, options);
+    RemoveRepairLostDirectory(options, name);
+    if (repair_status.ok()) {
+      status = leveldb_env::OpenDB(options, name, &db);
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   callback_task_runner->PostTask(FROM_HERE,
                                  base::BindOnce(std::move(callback), status));
   return db;
@@ -394,6 +495,11 @@ DomStorageDatabase::Status DomStorageDatabase::Commit(
     leveldb::WriteBatch* batch) const {
   if (!db_)
     return Status::IOError(kInvalidDatabaseMessage);
+#if BUILDFLAG(IS_COBALT)
+  if (fail_commits_with_corruption_for_testing_) {
+    return Status::Corruption("Simulated Corruption");
+  }
+#endif
   if (fail_commits_for_testing_)
     return Status::IOError("Simulated I/O Error");
 #if BUILDFLAG(IS_COBALT)
