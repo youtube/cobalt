@@ -36,6 +36,10 @@ def _lint_composite_action(path: str) -> int:
     data = yaml.safe_load(f)
   if (not isinstance(data, dict) or "runs" not in data or
       not isinstance(data["runs"], dict) or "steps" not in data["runs"]):
+    print(
+        f"ERROR: {path} is not a valid composite action (missing 'runs.steps').",
+        file=sys.stderr,
+    )
     return 1
   job = {
       "runs-on": "ubuntu-latest",
@@ -75,7 +79,10 @@ def main(argv: List[str]) -> int:
   rc = subprocess.call(["actionlint"] + workflows) if workflows else 0
   for path in actions:
     rc |= _lint_composite_action(path)
-  return 1 if rc else 0
+  if rc:
+    print("ERROR: actionlint validation failed.", file=sys.stderr)
+    return 1
+  return 0
 
 
 if __name__ == "__main__":
