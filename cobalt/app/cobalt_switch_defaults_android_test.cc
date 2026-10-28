@@ -61,7 +61,13 @@ TEST(CobaltSwitchDefaultsAndroidTest, DefaultSwitchesApplied) {
       "SmallerInterestArea,"
       "ReclaimPrepaintTilesWhenIdle,"
       "ReclaimOldPrepaintTiles,"
+<<<<<<< HEAD
       "WebAudioRemoveAudioDestinationResampler",
+=======
+      "WebAudioRemoveAudioDestinationResampler,"
+      "DomStorageSmartFlushing,"
+      "CobaltEnableModerateMemoryPressure",
+>>>>>>> d98c6280ab9 (Android: Enable kCobaltEnableModerateMemoryPressure by default  (#13619))
       cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
   EXPECT_EQ(
       "UseAAudioInput,"
@@ -95,7 +101,13 @@ TEST(CobaltSwitchDefaultsAndroidTest, MergeFeaturesAndFlagsWithUserOverrides) {
       "SmallerInterestArea,"
       "ReclaimPrepaintTilesWhenIdle,"
       "ReclaimOldPrepaintTiles,"
+<<<<<<< HEAD
       "WebAudioRemoveAudioDestinationResampler",
+=======
+      "WebAudioRemoveAudioDestinationResampler,"
+      "DomStorageSmartFlushing,"
+      "CobaltEnableModerateMemoryPressure",
+>>>>>>> d98c6280ab9 (Android: Enable kCobaltEnableModerateMemoryPressure by default  (#13619))
       cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
   EXPECT_EQ(
       "TestFeature3,"
