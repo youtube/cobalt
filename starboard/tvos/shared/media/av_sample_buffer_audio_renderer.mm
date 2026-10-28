@@ -27,6 +27,11 @@ const int64_t kCheckPlaybackStatusIntervalUsec = 20000;  // 20ms
 const int kPrerollFrameCount = 1024 * 8;
 const int64_t kMinBufferedAudioBeforeEOSUsec = 10 * 1000000;  // 10s
 
+// Encryption details are the same for every sample of a stream, so log them in
+// full for the first few samples and then only once in a while.
+const size_t kDetailedDrmLogCount = 5;
+const size_t kDrmLogInterval = 500;
+
 bool HasRemoteAudioOutput() {
   // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations. The
   // limit here is to avoid infinite loop and also match
@@ -185,17 +190,36 @@ void AVSBAudioRenderer::WriteSamples(const InputBuffers& input_buffers) {
     // Attach content key and cryptor data to sample buffer.
     AVContentKey* content_key = drm_system_->GetContentKey(
         drm_info->identifier, drm_info->identifier_size);
+    total_encrypted_buffers_++;
+    const std::string sample_description =
+        avutil::DescribeDrmSampleInfo(drm_info, input_buffer->size());
+
+    if (!content_key) {
+      SB_LOG(ERROR) << "[AVSBDL] Audio sample at pts "
+                    << input_buffer->timestamp() << " has no content key. "
+                    << sample_description;
+    }
     SB_DCHECK(content_key);
 
     NSError* error;
     BOOL result =
         AVSampleBufferAttachContentKey(sample_buffer, content_key, &error);
     if (!result) {
+      SB_LOG(ERROR)
+          << "[AVSBDL] Attaching the content key to an audio sample failed: "
+          << avutil::DescribeError(error) << ". " << sample_description;
       std::stringstream ss;
       ss << "Failed to attach content key.";
       avutil::AppendAVErrorDetails(error, &ss);
       ReportError(ss.str());
       return;
+    }
+
+    if (total_encrypted_buffers_ <= kDetailedDrmLogCount ||
+        total_encrypted_buffers_ % kDrmLogInterval == 0) {
+      SB_LOG(ERROR) << "[AVSBDL] Audio sample " << total_encrypted_buffers_
+                    << " at pts " << input_buffer->timestamp()
+                    << " has a content key attached. " << sample_description;
     }
 
     CFDataRef cryptor_info = CFDataCreate(

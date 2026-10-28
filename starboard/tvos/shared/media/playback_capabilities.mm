@@ -245,7 +245,9 @@ void PlaybackCapabilities::InitializeInBackground() {
 
 // static
 bool PlaybackCapabilities::IsHwVp9Supported() {
-  return GetInstance()->IsHwVp9Supported();
+  bool result = GetInstance()->IsHwVp9Supported();
+  SB_LOG(ERROR) << "[AVSBDL] Hardware VP9 decoding supported: " << result;
+  return result;
 }
 
 // static
