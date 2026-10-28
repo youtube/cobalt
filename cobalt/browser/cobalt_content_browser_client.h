@@ -181,7 +181,14 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner)
       override;
 
+  // Flushes dirty cookies and localStorage when backgrounding/exiting.
+  // Note: the completion callback is invoked when the cookie store flush
+  // completes; localStorage flush runs asynchronously on the background DB
+  // thread.
   void FlushCookiesAndLocalStorage(base::OnceClosure = base::DoNothing());
+  // Triggers FlushCookiesAndLocalStorage and records
+  // Cobalt.Storage.OnPause.FlushDuration.
+  void FlushCookiesAndLocalStorageOnPause();
   void DispatchBlur();
   void DispatchFocus();
 
