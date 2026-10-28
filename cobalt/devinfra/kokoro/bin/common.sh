@@ -139,6 +139,53 @@ is_release_build () {
 }
 
 
+# Prints the LTS branch being built, like 27.lts, or nothing for other branches.
+get_lts_branch () {
+  local branch="${KOKORO_GOB_BRANCH_src:-}"
+  branch="${branch#refs/heads/}"
+  if [[ "${branch}" =~ ^[0-9]+\.lts$ ]]; then
+    echo "${branch}"
+  fi
+}
+
+
+# Prints today's and yesterday's nightly tag names for LTS branch $1, like
+# 27.lts.nightly.2026-10-27. A Kokoro job creates the tag at the branch tip each
+# afternoon. A nightly day runs 06:00-06:00 Pacific, so retries after midnight
+# still find the evening's tag.
+get_nightly_tags () {
+  local hours_ago
+  for hours_ago in 6 30; do
+    echo "$1.nightly.$(TZ=America/Los_Angeles date -d "-${hours_ago} hours" +%F)"
+  done
+}
+
+
+# Fetches tag $2 into the git checkout $1 and prints its commit. Fails if the
+# tag does not exist.
+fetch_tag_commit () {
+  git -C "$1" fetch --depth=1 origin "+refs/tags/$2:refs/tags/$2" >&2 || return
+  echo "Building nightly tag $2." >&2
+  git -C "$1" rev-parse "refs/tags/$2^{commit}"
+}
+
+
+# Prints the revision to build from the git checkout $1. Release (nightly)
+# builds of an LTS branch build the newest nightly tag, so every platform builds
+# the same commit. Everything else builds the commit Kokoro checked out.
+get_build_revision () {
+  local branch tag
+  branch="$(get_lts_branch)"
+  if is_release_build && [[ -n "${branch}" ]]; then
+    for tag in $(get_nightly_tags "${branch}"); do
+      fetch_tag_commit "$1" "${tag}" && return
+    done
+    echo "WARNING: No nightly tag for ${branch}; building the checkout." >&2
+  fi
+  echo "${KOKORO_GIT_COMMIT_src}"
+}
+
+
 is_release_config () {
   [[ "${RELEASE_CONFIGS}" =~ "${CONFIG}" ]]
 }

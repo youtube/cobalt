@@ -40,42 +40,6 @@ fi
 # Load common routines (we only need run_gn and ninja_build).
 . $(dirname "$0")/common.sh
 
-# Prints the revision to build.
-#
-# Release (nightly) builds of an LTS branch <N>.lts build the daily tag
-# <N>.lts.nightly.<YYYY-MM-DD>, which a scheduled Kokoro job creates at the
-# branch tip, so that every platform builds the same commit. The "nightly day"
-# runs from 06:00 to 06:00 Pacific, so retries after midnight use the same tag.
-# Falls back to the previous day's tag, then to the commit Kokoro checked out.
-# All other builds use the commit Kokoro checked out.
-get_build_revision () {
-  local src_dir="$1"
-  local branch="${KOKORO_GOB_BRANCH_src:-}"
-  branch="${branch#refs/heads/}"
-  if ! is_release_build || [[ ! "${branch}" =~ ^[0-9]+\.lts$ ]]; then
-    echo "${KOKORO_GIT_COMMIT_src}"
-    return
-  fi
-  if [[ ! -d "${src_dir}" ]]; then
-    echo "WARNING: ${src_dir} does not exist; building ${KOKORO_GIT_COMMIT_src}." >&2
-    echo "${KOKORO_GIT_COMMIT_src}"
-    return
-  fi
-  local days_ago tag
-  for days_ago in 0 1; do
-    tag="${branch}.nightly.$(TZ=America/Los_Angeles date -d "-$(( 6 + 24 * days_ago )) hours" +%F)"
-    if git -C "${src_dir}" fetch --depth=1 origin \
-        "+refs/tags/${tag}:refs/tags/${tag}" >&2; then
-      echo "Building nightly tag ${tag}." >&2
-      git -C "${src_dir}" rev-parse "refs/tags/${tag}^{commit}"
-      return
-    fi
-    echo "WARNING: Nightly tag ${tag} not found." >&2
-  done
-  echo "WARNING: No nightly tag found; building ${KOKORO_GIT_COMMIT_src}." >&2
-  echo "${KOKORO_GIT_COMMIT_src}"
-}
-
 pipeline () {
   local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
   local gclient_root="${KOKORO_ARTIFACTS_DIR}/git"
