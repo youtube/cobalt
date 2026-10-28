@@ -170,6 +170,16 @@ class StorageAreaImpl : public blink::mojom::StorageArea,
   // until the load has finished. If provided, |callback| is run only once the
   // commit is fully completed.
   void ScheduleImmediateCommit();
+#if BUILDFLAG(IS_COBALT)
+  // Re-queues all loaded in-memory key-value pairs for atomic persistence after
+  // transient I/O commit failures or an in-place LevelDB reopen, keeping live
+  // Blink StorageArea pipes synchronized with disk. When `immediate` is true,
+  // dispatches the commit right away via ScheduleImmediateCommit(); when false,
+  // arms the 1s commit timer so a single failed write retries automatically.
+  void ScheduleResyncCommitAfterDatabaseReopen(bool immediate = true);
+
+  bool has_unsynced_commit_error() const { return has_unsynced_commit_error_; }
+#endif
 
   // Clears the in-memory cache if currently no changes are pending. If there
   // are uncommitted changes this method does nothing.
@@ -357,6 +367,9 @@ class StorageAreaImpl : public blink::mojom::StorageArea,
   RateLimiter commit_rate_limiter_;
   int commit_batches_in_flight_ = 0;
   bool has_committed_data_ = false;
+#if BUILDFLAG(IS_COBALT)
+  bool has_unsynced_commit_error_ = false;
+#endif
   std::unique_ptr<CommitBatch> commit_batch_;
 
   base::OnceClosure on_load_callback_for_testing_;

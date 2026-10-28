@@ -23,6 +23,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/features.h"
+#include "base/files/file_util.h"
 #include "base/system/sys_info.h"
 #endif
 #include "testing/gmock/include/gmock/gmock.h"
@@ -568,6 +569,111 @@ TEST_F(StorageServiceDomStorageDatabaseTest,
     EXPECT_STATUS_OK(db.Commit(&empty_batch));
     EXPECT_EQ(1, db.total_commit_count_for_testing());
   });
+  local_db.SynchronouslyResetForTest();
+}
+
+#if BUILDFLAG(IS_POSIX)
+TEST_F(StorageServiceDomStorageDatabaseTest,
+       CobaltFailedLevelDBWriteDoesNotRecordCommitDuration) {
+  base::ScopedTempDir temp_dir;
+  CHECK(temp_dir.CreateUniqueTempDir());
+
+  base::HistogramTester histogram_tester;
+  base::SequenceBound<DomStorageDatabase> local_db =
+      OpenDirectorySync(temp_dir.GetPath(), "leveldb");
+  ASSERT_TRUE(local_db);
+
+  DoSync(local_db, [&](const DomStorageDatabase& db) {
+    leveldb::WriteBatch ok_batch;
+    ok_batch.Put("ok_key", "ok_val");
+    EXPECT_STATUS_OK(db.Commit(&ok_batch));
+  });
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Storage.LocalStorage.CommitDuration", 1);
+
+  // Make the LevelDB directory read-only and write past the 64 KiB write buffer
+  // so LevelDB's background compaction fails NewWritableFile with EACCES and
+  // latches `bg_error_` inside `db_->Write()`. Failed `db_->Write()` calls must
+  // NOT inject bogus 0ms samples into
+  // `Cobalt.Storage.LocalStorage.CommitDuration`.
+  const base::FilePath db_dir = temp_dir.GetPath().AppendASCII("leveldb");
+  ASSERT_TRUE(base::SetPosixFilePermissions(db_dir, 0500));
+
+  const std::string large_payload(40 * 1024, 'x');
+  bool saw_leveldb_write_failure = false;
+  for (int i = 0; i < 8 && !saw_leveldb_write_failure; ++i) {
+    DoSync(local_db, [&](const DomStorageDatabase& db) {
+      leveldb::WriteBatch batch;
+      batch.Put(base::StrCat({"k", std::to_string(i)}), large_payload);
+      leveldb::Status status = db.Commit(&batch);
+      if (!status.ok()) {
+        saw_leveldb_write_failure = true;
+      }
+    });
+  }
+  EXPECT_TRUE(saw_leveldb_write_failure);
+
+  base::HistogramTester failed_commits_tester;
+  DoSync(local_db, [&](const DomStorageDatabase& db) {
+    // Repeat several commits against the latched `bg_error_` DB handle.
+    for (int j = 0; j < 5; ++j) {
+      leveldb::WriteBatch batch;
+      batch.Put("after_err", "val");
+      EXPECT_FALSE(db.Commit(&batch).ok());
+    }
+  });
+  failed_commits_tester.ExpectTotalCount(
+      "Cobalt.Storage.LocalStorage.CommitDuration", 0);
+
+  ASSERT_TRUE(base::SetPosixFilePermissions(db_dir, 0700));
+  local_db.SynchronouslyResetForTest();
+}
+#endif  // BUILDFLAG(IS_POSIX)
+
+TEST_F(StorageServiceDomStorageDatabaseTest,
+       CobaltReopenRepairsMissingCurrentFileAndRecordsRecoveryEvent) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      {base::features::kCobaltLocalStorageReuseLogsAndSkipEmptyCommits,
+       base::features::kCobaltLocalStorageErrorRecovery},
+      {});
+
+  base::ScopedTempDir temp_dir;
+  CHECK(temp_dir.CreateUniqueTempDir());
+
+  base::SequenceBound<DomStorageDatabase> local_db =
+      OpenDirectorySync(temp_dir.GetPath(), "leveldb");
+  ASSERT_TRUE(local_db);
+
+  DoSync(local_db, [&](const DomStorageDatabase& db) {
+    EXPECT_STATUS_OK(
+        db.Put(base::as_byte_span(std::string_view("reopen_key")),
+               base::as_byte_span(std::string_view("reopen_val"))));
+  });
+
+  const base::FilePath db_dir = temp_dir.GetPath().AppendASCII("leveldb");
+  ASSERT_TRUE(base::DeleteFile(db_dir.AppendASCII("CURRENT")));
+  ASSERT_FALSE(base::PathExists(db_dir.AppendASCII("CURRENT")));
+
+  base::HistogramTester histogram_tester;
+  base::RunLoop reopen_loop;
+  local_db.PostTaskWithThisObject(
+      base::BindLambdaForTesting([&](DomStorageDatabase* db) {
+        EXPECT_STATUS_OK(db->Reopen());
+        DomStorageDatabase::Value value;
+        EXPECT_STATUS_OK(db->Get(
+            base::as_byte_span(std::string_view("reopen_key")), &value));
+        EXPECT_VALUE_EQ("reopen_val", value);
+        reopen_loop.Quit();
+      }));
+  reopen_loop.Run();
+
+  EXPECT_TRUE(base::PathExists(db_dir.AppendASCII("CURRENT")));
+  EXPECT_FALSE(base::PathExists(db_dir.AppendASCII("lost")));
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.LocalStorage.RecoveryEvent",
+      LocalStorageRecoveryEvent::kRepairMissingCurrentSucceeded, 1);
+  histogram_tester.ExpectTotalCount("Cobalt.LocalStorage.DatabaseOpenError", 0);
   local_db.SynchronouslyResetForTest();
 }
 #endif  // BUILDFLAG(IS_COBALT)

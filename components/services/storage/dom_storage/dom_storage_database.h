@@ -30,6 +30,33 @@
 
 namespace storage {
 
+#if BUILDFLAG(IS_COBALT)
+// Outcomes of non-destructive Local Storage LevelDB error recovery and
+// volatile-memory fallback when `kCobaltLocalStorageErrorRecovery` is enabled.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(LocalStorageRecoveryEvent)
+enum class LocalStorageRecoveryEvent {
+  kRepairMissingCurrentSucceeded = 0,
+  kRepairMissingCurrentFailed = 1,
+  kRepairOpenCorruptionSucceeded = 2,
+  kRepairOpenCorruptionFailed = 3,
+  kOpenFallbackToVolatileMemoryDiskFull = 4,
+  kOpenFallbackToVolatileMemoryLockOrIOError = 5,
+  kVersionReadFallbackToVolatileMemory = 6,
+  kCommitErrorReopenSucceeded = 7,
+  kCommitErrorReopenFailed = 8,
+  kMaxValue = kCommitErrorReopenFailed,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/cobalt/enums.xml:LocalStorageRecoveryEvent)
+
+// Returns true when opening Local Storage failed due to a transient or
+// environmental I/O condition (e.g. ENOSPC, LOCK contention, EACCES, EIO,
+// EMFILE) rather than unrecoverable database corruption, so calling DestroyDB()
+// would needlessly wipe intact data on disk.
+bool IsNonDestructiveLocalStorageOpenFailure(const leveldb::Status& status);
+#endif  // BUILDFLAG(IS_COBALT)
+
 // Wraps its own leveldb::DB instance on behalf of the DOM Storage backend
 // implementation. This object is not sequence-safe and must be instantiated on
 // a sequence which allows use of blocking file operations.
@@ -148,6 +175,13 @@ class DomStorageDatabase : private base::trace_event::MemoryDumpProvider {
   // usable; in such cases, all future operations will return an IOError status.
   Status RewriteDB();
 
+#if BUILDFLAG(IS_COBALT)
+  // Closes and reopens the underlying persistent LevelDB handle in place
+  // (clearing any latched background sync error) without destroying on-disk
+  // SST files or invalidating owning StorageAreaImpl instances.
+  Status Reopen();
+#endif
+
   void SetDestructionCallbackForTesting(base::OnceClosure callback) {
     destruction_callback_ = std::move(callback);
   }
@@ -159,7 +193,21 @@ class DomStorageDatabase : private base::trace_event::MemoryDumpProvider {
     return total_commit_count_for_testing_;
   }
 
+  int reopen_count_for_testing() const { return reopen_count_for_testing_; }
+
   const leveldb_env::Options& options_for_testing() const { return options_; }
+
+  void MakeNextNCommitsFailForTesting(int count) {
+    remaining_commit_io_errors_for_testing_ = count;
+  }
+
+  void MakeAllCommitsFailWithCorruptionForTesting() {
+    fail_commits_with_corruption_for_testing_ = true;
+  }
+
+  void MakeNextGetFailWithIOErrorForTesting() const {
+    fail_next_get_with_io_error_for_testing_ = true;
+  }
 #endif
 
   // Use the static factory functions above to construct this class. These
@@ -211,11 +259,18 @@ class DomStorageDatabase : private base::trace_event::MemoryDumpProvider {
   // persistent SessionStorage databases ("Session Storage") or in-memory DBs.
   const bool is_local_storage_ = false;
   mutable int total_commit_count_for_testing_ = 0;
+  int reopen_count_for_testing_ = 0;
 #endif  // BUILDFLAG(IS_COBALT)
 
   // Causes all calls to |Commit()| to fail with an IOError for simulated
   // disk failures in testing.
   bool fail_commits_for_testing_ = false;
+
+#if BUILDFLAG(IS_COBALT)
+  mutable int remaining_commit_io_errors_for_testing_ = 0;
+  bool fail_commits_with_corruption_for_testing_ = false;
+  mutable bool fail_next_get_with_io_error_for_testing_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Callback to run on destruction in tests.
   base::OnceClosure destruction_callback_;
