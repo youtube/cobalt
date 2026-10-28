@@ -14,7 +14,7 @@
 // Copied from media/formats/mp4/box_definitions.h, reduced to the 'pssh' boxes
 // and ported to C++17 without //base and //media.
 
-namespace starboard::mp4 {
+namespace starboard {
 
 #define DECLARE_BOX_METHODS(T)            \
   T();                                    \
@@ -42,6 +42,6 @@ struct FullProtectionSystemSpecificHeader : Box {
 
 #undef DECLARE_BOX_METHODS
 
-}  // namespace starboard::mp4
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MP4_BOX_DEFINITIONS_H_

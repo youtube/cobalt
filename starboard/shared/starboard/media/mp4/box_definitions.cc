@@ -9,7 +9,7 @@
 // Copied from media/formats/mp4/box_definitions.cc, reduced to the 'pssh'
 // boxes and ported to C++17 without //base and //media.
 
-namespace starboard::mp4 {
+namespace starboard {
 
 ProtectionSystemSpecificHeader::ProtectionSystemSpecificHeader() = default;
 ProtectionSystemSpecificHeader::ProtectionSystemSpecificHeader(
@@ -84,4 +84,4 @@ bool FullProtectionSystemSpecificHeader::Parse(BoxReader* reader) {
   return true;
 }
 
-}  // namespace starboard::mp4
+}  // namespace starboard

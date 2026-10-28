@@ -13,7 +13,7 @@
 // Copied from media/formats/mp4/box_reader.cc, reduced to what
 // ValidatePsshInput() needs and ported to C++17 without //base and //media.
 
-namespace starboard::mp4 {
+namespace starboard {
 
 namespace {
 
@@ -170,4 +170,4 @@ ParseResult BoxReader::ReadHeader() {
   return ParseResult::kOk;
 }
 
-}  // namespace starboard::mp4
+}  // namespace starboard

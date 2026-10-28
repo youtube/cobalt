@@ -20,7 +20,7 @@
 // what ValidatePsshInput() needs and ported to C++17 without //base and
 // //media.
 
-namespace starboard::mp4 {
+namespace starboard {
 
 enum FourCC {
   FOURCC_NULL = 0,
@@ -188,6 +188,6 @@ bool BoxReader::ReadAllChildrenInternal(std::vector<T>* children,
   return true;
 }
 
-}  // namespace starboard::mp4
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MP4_BOX_READER_H_
