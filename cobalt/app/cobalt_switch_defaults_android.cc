@@ -102,6 +102,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // task that made them so recent writes survive process
                // termination.
                storage::kDomStorageSmartFlushing.name,
+               // [PoC][C9] Shrink foreground ThreadPool min workers from 6 to 3
+               // on 4-core TV SoC.
+               "BrowserThreadPoolAdjustment:min/3",
            },
            ",")},
       {::switches::kDisableFeatures,
