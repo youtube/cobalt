@@ -87,7 +87,8 @@ runs:
             fetch_spec="+refs/heads/${base_branch}:refs/remotes/origin/${base_branch}"
           fi
 
-          retry git -C "${DEST_PATH}" fetch --depth=500 origin "${fetch_spec}" "${REF}"
+          retry git -C "${DEST_PATH}" fetch --depth=500 origin "${fetch_spec}"
+          retry git -C "${DEST_PATH}" fetch --depth=500 origin "${REF}"
           commit_date=$(git -C "${DEST_PATH}" log -1 --format="%cI" "${REF}")
           author_name=$(git -C "${DEST_PATH}" log -1 --format="%an" "${REF}")
           author_email=$(git -C "${DEST_PATH}" log -1 --format="%ae" "${REF}")
