@@ -255,8 +255,9 @@ class NET_EXPORT HttpServerProperties
 
   // Writes the current properties to disk immediately instead of waiting for
   // the write-coalescing timer, and runs |callback| once the write has been
-  // committed. Only runs |callback| if there is no backing store or if the
-  // stored properties have not finished loading yet.
+  // committed. If there is no backing store, or the stored properties have not
+  // finished loading yet (writing then would clobber them), nothing is written
+  // and |callback| is posted asynchronously instead.
   void FlushWriteProperties(base::OnceClosure callback);
 
   // Returns true if `server`, in the context of `network_anonymization_key`,
