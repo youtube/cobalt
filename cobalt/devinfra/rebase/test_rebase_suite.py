@@ -62,6 +62,7 @@ from conflicts import (
 from engine_client import ReasoningEngineClient
 from fix_commits import (
     FixCommitter,
+    commit_files,
     conflict_commit_message,
     conflict_rationales,
     fix_commit_message,
@@ -3901,6 +3902,30 @@ class CommitPerFixTest(unittest.TestCase):
           os.path.join(tmpdir, "cobalt/b.cc"), state)
       self.assertEqual(resolver.committer.pending, [])
       self.assertEqual(resolver.committer.trigger, "")
+
+  def test_commit_skips_local_pre_commit_hooks(self):
+    """A hook that rewrites or rejects files must not drop the fix commit."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      _git_repo_with(tmpdir, {"BUILD.gn": "a\n"})
+      for key, val in (("user.name", "t"), ("user.email", "t@t")):
+        subprocess.run(["git", "config", key, val], cwd=tmpdir, check=True)
+      hook = os.path.join(tmpdir, ".git", "hooks", "pre-commit")
+      with open(hook, "w", encoding="utf-8") as f:
+        f.write("#!/bin/sh\necho formatted > BUILD.gn\nexit 1\n")
+      os.chmod(hook, 0o755)
+      with open(os.path.join(tmpdir, "BUILD.gn"), "w", encoding="utf-8") as f:
+        f.write("b\n")
+
+      sha = commit_files(tmpdir, ["BUILD.gn"], "Fix BUILD.gn")
+
+      self.assertTrue(sha)
+      self.assertEqual(_git_log(tmpdir)[-1][0], "Fix BUILD.gn")
+      status = subprocess.run(["git", "status", "--porcelain"],
+                              cwd=tmpdir,
+                              capture_output=True,
+                              text=True,
+                              check=True).stdout
+      self.assertEqual(status, "")
 
   def test_get_working_diff_preserves_diff_across_commits(self):
     with tempfile.TemporaryDirectory() as tmpdir:

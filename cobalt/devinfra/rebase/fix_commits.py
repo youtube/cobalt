@@ -115,7 +115,11 @@ def commit_files(repo_path: str,
   if body.strip():
     message += "\n\n" + body.strip() + "\n"
   only = ["--only"] if paths else []
-  commit = _git(repo_path, "commit", "-q", *only, "-m", message, *pathspec)
+  # --no-verify: a checkout with pre-commit hooks installed would reformat
+  # the agent's files (gn-format, clang-format) and fail the commit, leaving
+  # the fix staged but uncommitted.
+  commit = _git(repo_path, "commit", "-q", "--no-verify", *only, "-m", message,
+                *pathspec)
   if commit.returncode != 0:
     log.warning("[commit] git commit failed: %s", commit.stderr.strip())
     return None
