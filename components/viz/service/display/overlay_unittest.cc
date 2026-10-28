@@ -90,7 +90,8 @@
 #include "components/viz/service/display/starboard/overlay_strategy_underlay_starboard.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "mojo/public/cpp/bindings/receiver.h"
-#endif
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) &&
+        // !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_APPLE)
 #include "components/viz/service/display/ca_layer_overlay.h"
@@ -583,7 +584,8 @@ class UnderlayStarboardOverlayProcessor : public DefaultOverlayProcessor {
         std::make_unique<OverlayStrategyUnderlayStarboard>(this));
   }
 };
-#endif
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) &&
+        // !BUILDFLAG(IS_IOS)
 
 class ChangeThresholdOnTopOverlayProcessor : public DefaultOverlayProcessor {
  public:
@@ -959,7 +961,8 @@ using UnderlayCastTest = OverlayTest<UnderlayCastOverlayProcessor>;
 #endif
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) && !BUILDFLAG(IS_IOS)
 using UnderlayStarboardTest = OverlayTest<UnderlayStarboardOverlayProcessor>;
-#endif
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) &&
+        // !BUILDFLAG(IS_IOS)
 using MultiOverlayTest = UseMultipleOverlaysTest<MultiOverlayProcessor>;
 using MultiUnderlayTest = UseMultipleOverlaysTest<MultiUnderlayProcessor>;
 using MultiSingleOnTopOverlayTest =
