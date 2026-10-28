@@ -131,6 +131,23 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="4" label="Unknown"/>
 </enum>
 
+<!-- LINT.IfChange(LocalStorageRecoveryEvent) -->
+
+<enum name="LocalStorageRecoveryEvent">
+  <int value="0" label="Repaired missing CURRENT file"/>
+  <int value="1" label="Failed to repair missing CURRENT file"/>
+  <int value="2" label="Repaired open corruption"/>
+  <int value="3" label="Failed to repair open corruption"/>
+  <int value="4" label="Open fell back to volatile memory (disk full)"/>
+  <int value="5" label="Open fell back to volatile memory (lock or I/O error)"/>
+  <int value="6" label="Version read I/O error fell back to volatile memory"/>
+  <int value="7" label="Reopened database in place after commit I/O errors"/>
+  <int value="8"
+      label="Failed to reopen database in place after commit I/O errors"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/services/storage/dom_storage/dom_storage_database.h:LocalStorageRecoveryEvent) -->
+
 <enum name="MigrationOutcome">
   <int value="0" label="FastPath"/>
   <int value="1" label="Skipped"/>
