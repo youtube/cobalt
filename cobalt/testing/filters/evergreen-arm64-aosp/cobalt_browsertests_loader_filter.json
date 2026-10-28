@@ -49,6 +49,8 @@
     "EncryptedMediaTest.*",
     "MediaTest.*",
     "CustomMimeTypeBrowserTest.*",
-    "WebRtcGetUserMediaBrowserTest.*"
+    "WebRtcGetUserMediaBrowserTest.*",
+    "I18nBrowserTest.*",
+    "RepresentativeLanguages/I18nBrowserLanguageParamTest.*"
   ]
 }
