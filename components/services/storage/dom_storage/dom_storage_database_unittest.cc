@@ -20,14 +20,18 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
-
-#if BUILDFLAG(IS_COBALT)
-#include "base/features.h"
-#include "base/system/sys_info.h"
-#endif
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include <atomic>
+
+#include "base/features.h"
+#include "base/files/file_util.h"
+#include "base/memory/raw_ptr.h"
+#include "base/system/sys_info.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 using ::testing::UnorderedElementsAreArray;
 
@@ -537,7 +541,8 @@ TEST_F(StorageServiceDomStorageDatabaseTest,
         OpenDirectorySync(temp_dir.GetPath(), "Session Storage");
     ASSERT_TRUE(session_db);
     DoSync(session_db, [&](const DomStorageDatabase& db) {
-      EXPECT_EQ(expected_default_reuse_logs, db.options_for_testing().reuse_logs);
+      EXPECT_EQ(expected_default_reuse_logs,
+                db.options_for_testing().reuse_logs);
       EXPECT_EQ(64u * 1024, db.options_for_testing().write_buffer_size);
     });
     session_db.SynchronouslyResetForTest();
@@ -568,6 +573,149 @@ TEST_F(StorageServiceDomStorageDatabaseTest,
     EXPECT_STATUS_OK(db.Commit(&empty_batch));
     EXPECT_EQ(1, db.total_commit_count_for_testing());
   });
+  local_db.SynchronouslyResetForTest();
+}
+
+// Covers the user journey where a mid-session flash sync error latches LevelDB
+// bg_error_: subsequent rejected commits in RAM must not pollute
+// Cobalt.Storage.LocalStorage.CommitDuration with sub-millisecond samples.
+TEST_F(StorageServiceDomStorageDatabaseTest,
+       CobaltFailedLevelDBWriteDoesNotRecordCommitDuration) {
+  class FailSyncEnv : public leveldb::EnvWrapper {
+   public:
+    explicit FailSyncEnv(leveldb::Env* t) : leveldb::EnvWrapper(t) {}
+    void set_fail_sync(bool fail) {
+      fail_sync_.store(fail, std::memory_order_release);
+    }
+
+    leveldb::Status NewWritableFile(const std::string& f,
+                                    leveldb::WritableFile** r) override {
+      leveldb::WritableFile* raw = nullptr;
+      leveldb::Status s = target()->NewWritableFile(f, &raw);
+      if (!s.ok()) {
+        return s;
+      }
+      *r = new SyncFailWritableFile(raw, &fail_sync_);
+      return leveldb::Status::OK();
+    }
+
+    leveldb::Status NewAppendableFile(const std::string& f,
+                                      leveldb::WritableFile** r) override {
+      leveldb::WritableFile* raw = nullptr;
+      leveldb::Status s = target()->NewAppendableFile(f, &raw);
+      if (!s.ok()) {
+        return s;
+      }
+      *r = new SyncFailWritableFile(raw, &fail_sync_);
+      return leveldb::Status::OK();
+    }
+
+   private:
+    class SyncFailWritableFile : public leveldb::WritableFile {
+     public:
+      SyncFailWritableFile(leveldb::WritableFile* w, std::atomic<bool>* fail)
+          : w_(w), fail_(fail) {}
+      leveldb::Status Append(const leveldb::Slice& d) override {
+        return w_->Append(d);
+      }
+      leveldb::Status Close() override { return w_->Close(); }
+      leveldb::Status Flush() override { return w_->Flush(); }
+      leveldb::Status Sync() override {
+        return fail_->load(std::memory_order_acquire)
+                   ? leveldb::Status::IOError("Injected Sync IOError")
+                   : w_->Sync();
+      }
+
+     private:
+      std::unique_ptr<leveldb::WritableFile> w_;
+      raw_ptr<std::atomic<bool>> fail_;
+    };
+
+    std::atomic<bool> fail_sync_{false};
+  };
+
+  FailSyncEnv fail_sync_env(leveldb::Env::Default());
+  struct ScopedEnvReset {
+    ~ScopedEnvReset() { DomStorageDatabase::SetEnvForTesting(nullptr); }
+  } reset_env;
+  DomStorageDatabase::SetEnvForTesting(&fail_sync_env);
+
+  base::ScopedTempDir temp_dir;
+  CHECK(temp_dir.CreateUniqueTempDir());
+
+  base::HistogramTester histogram_tester;
+  base::SequenceBound<DomStorageDatabase> local_db =
+      OpenDirectorySync(temp_dir.GetPath(), "leveldb");
+  ASSERT_TRUE(local_db);
+
+  DoSync(local_db, [&](const DomStorageDatabase& db) {
+    leveldb::WriteBatch ok_batch;
+    ok_batch.Put("ok_key", "ok_val");
+    EXPECT_STATUS_OK(db.Commit(&ok_batch));
+  });
+  histogram_tester.ExpectTotalCount(
+      "Cobalt.Storage.LocalStorage.CommitDuration", 1);
+
+  fail_sync_env.set_fail_sync(true);
+  base::HistogramTester failed_commits_tester;
+  DoSync(local_db, [&](const DomStorageDatabase& db) {
+    // First write fails Sync() and latches bg_error_; the next 5 fail in RAM.
+    for (int j = 0; j < 6; ++j) {
+      leveldb::WriteBatch batch;
+      batch.Put("after_err", "val");
+      EXPECT_FALSE(db.Commit(&batch).ok());
+    }
+  });
+  failed_commits_tester.ExpectTotalCount(
+      "Cobalt.Storage.LocalStorage.CommitDuration", 0);
+
+  local_db.SynchronouslyResetForTest();
+}
+
+TEST_F(StorageServiceDomStorageDatabaseTest,
+       CobaltReopenRepairsMissingCurrentFileAndRecordsRecoveryEvent) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      {base::features::kCobaltLocalStorageReuseLogsAndSkipEmptyCommits,
+       base::features::kCobaltLocalStorageErrorRecovery},
+      {});
+
+  base::ScopedTempDir temp_dir;
+  CHECK(temp_dir.CreateUniqueTempDir());
+
+  base::SequenceBound<DomStorageDatabase> local_db =
+      OpenDirectorySync(temp_dir.GetPath(), "leveldb");
+  ASSERT_TRUE(local_db);
+
+  DoSync(local_db, [&](const DomStorageDatabase& db) {
+    EXPECT_STATUS_OK(
+        db.Put(base::as_byte_span(std::string_view("reopen_key")),
+               base::as_byte_span(std::string_view("reopen_val"))));
+  });
+
+  const base::FilePath db_dir = temp_dir.GetPath().AppendASCII("leveldb");
+  ASSERT_TRUE(base::DeleteFile(db_dir.AppendASCII("CURRENT")));
+  ASSERT_FALSE(base::PathExists(db_dir.AppendASCII("CURRENT")));
+
+  base::HistogramTester histogram_tester;
+  base::RunLoop reopen_loop;
+  local_db.PostTaskWithThisObject(
+      base::BindLambdaForTesting([&](DomStorageDatabase* db) {
+        EXPECT_STATUS_OK(db->Reopen());
+        DomStorageDatabase::Value value;
+        EXPECT_STATUS_OK(db->Get(
+            base::as_byte_span(std::string_view("reopen_key")), &value));
+        EXPECT_VALUE_EQ("reopen_val", value);
+        reopen_loop.Quit();
+      }));
+  reopen_loop.Run();
+
+  EXPECT_TRUE(base::PathExists(db_dir.AppendASCII("CURRENT")));
+  EXPECT_FALSE(base::PathExists(db_dir.AppendASCII("lost")));
+  histogram_tester.ExpectUniqueSample(
+      "Cobalt.LocalStorage.RecoveryEvent",
+      LocalStorageRecoveryEvent::kRepairMissingCurrentSucceeded, 1);
+  histogram_tester.ExpectTotalCount("Cobalt.LocalStorage.DatabaseOpenError", 0);
   local_db.SynchronouslyResetForTest();
 }
 #endif  // BUILDFLAG(IS_COBALT)

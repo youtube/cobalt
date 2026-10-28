@@ -64,6 +64,9 @@ class StorageAreaImpl : public blink::mojom::StorageArea,
         std::vector<DomStorageDatabase::Key>* extra_keys_to_delete);
     virtual void DidCommit(leveldb::Status error) = 0;
     virtual void OnMapLoaded(leveldb::Status status);
+#if BUILDFLAG(IS_COBALT)
+    virtual bool ShouldKeepDatabaseOnMapLoadError(leveldb::Status status);
+#endif
   };
 
   enum class CacheMode {
@@ -163,6 +166,9 @@ class StorageAreaImpl : public blink::mojom::StorageArea,
   // rescheduled and will be flushed at the scheduled time after which
   // aggressive flushing will commence.
   static void EnableAggressiveCommitDelay();
+#if BUILDFLAG(IS_COBALT)
+  static void DisableAggressiveCommitDelayForTesting();
+#endif
 
   // Commits any uncommitted data to the database as soon as possible. This
   // usually means data will be committed immediately, but if we're currently
@@ -170,6 +176,23 @@ class StorageAreaImpl : public blink::mojom::StorageArea,
   // until the load has finished. If provided, |callback| is run only once the
   // commit is fully completed.
   void ScheduleImmediateCommit();
+#if BUILDFLAG(IS_COBALT)
+  // Re-queues all loaded in-memory key-value pairs for atomic persistence after
+  // transient I/O commit failures or an in-place LevelDB reopen, keeping live
+  // Blink StorageArea pipes synchronized with disk. When `immediate` is true,
+  // dispatches the commit right away via ScheduleImmediateCommit(); when false,
+  // arms the 1s commit timer so a single failed write retries automatically.
+  void ScheduleResyncCommitAfterDatabaseReopen(bool immediate = true);
+
+  bool has_unsynced_commit_error() const { return has_unsynced_commit_error_; }
+  bool has_unmerged_load_io_error() const {
+    return loaded_empty_due_to_io_error_ && !cleared_all_after_load_io_error_;
+  }
+  bool has_pending_or_unsynced_commits() const {
+    return commit_batch_ != nullptr || commit_batches_in_flight_ > 0 ||
+           has_unsynced_commit_error_ || has_pending_load_tasks();
+  }
+#endif
 
   // Clears the in-memory cache if currently no changes are pending. If there
   // are uncommitted changes this method does nothing.
@@ -328,6 +351,14 @@ class StorageAreaImpl : public blink::mojom::StorageArea,
             keys_values_map_.empty());
   }
 
+#if BUILDFLAG(IS_COBALT)
+  bool HasMutationsAfterLoadIOError() const {
+    return loaded_empty_due_to_io_error_ &&
+           (!keys_values_map_.empty() || cleared_all_after_load_io_error_ ||
+            !keys_deleted_after_load_io_error_.empty());
+  }
+#endif
+
   void DoForkOperation(const base::WeakPtr<StorageAreaImpl>& forked_area);
   void OnForkStateLoaded(bool database_enabled,
                          const ValueMap& map,
@@ -357,6 +388,12 @@ class StorageAreaImpl : public blink::mojom::StorageArea,
   RateLimiter commit_rate_limiter_;
   int commit_batches_in_flight_ = 0;
   bool has_committed_data_ = false;
+#if BUILDFLAG(IS_COBALT)
+  bool has_unsynced_commit_error_ = false;
+  bool loaded_empty_due_to_io_error_ = false;
+  bool cleared_all_after_load_io_error_ = false;
+  std::set<std::vector<uint8_t>> keys_deleted_after_load_io_error_;
+#endif
   std::unique_ptr<CommitBatch> commit_batch_;
 
   base::OnceClosure on_load_callback_for_testing_;
