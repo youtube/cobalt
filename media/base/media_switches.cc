@@ -25,7 +25,7 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "starboard/player.h"  // nogncheck
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif                         // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace switches {
 
@@ -514,9 +514,11 @@ const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal{
     &kCobaltAudioWriteDuration, "AudioWriteDurationLocal",
     base::Microseconds(kSbPlayerWriteDurationLocal)};
 const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
-    &kCobaltAudioWriteDuration, "AudioWriteDurationRemote", base::Microseconds(kSbPlayerWriteDurationRemote)};
+    &kCobaltAudioWriteDuration, "AudioWriteDurationRemote",
+    base::Microseconds(kSbPlayerWriteDurationRemote)};
 #if BUILDFLAG(IS_ANDROID)
-// When enabled, Cobalt uses AndroidOverlay for SbPlayer, otherwise it uses VideoSurfaceView.
+// When enabled, Cobalt uses AndroidOverlay for SbPlayer, otherwise it uses
+// VideoSurfaceView.
 BASE_FEATURE(kCobaltUsingAndroidOverlay,
              "CobaltUsingAndroidOverlay",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -530,6 +532,12 @@ BASE_FEATURE(kCobaltBypassMojoForMedia,
 // Experiment bug: b/563478845
 BASE_FEATURE(kCobaltDisableDecoderBufferAllocator,
              "CobaltDisableDecoderBufferAllocator",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, CobaltAudioRendererSink runs SbAudioSinkCreate() and
+// SbAudioSinkDestroy() on a background ThreadPool sequence instead of
+// blocking the renderer main thread.
+BASE_FEATURE(kCobaltAsyncAudioSinkCreate,
+             "CobaltAsyncAudioSinkCreate",
              base::FEATURE_DISABLED_BY_DEFAULT);
 // When enabled, the MediaSource stream parsers parse appended data in place
 // rather than copying it into an internal byte queue. Cobalt retains the

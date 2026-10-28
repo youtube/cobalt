@@ -226,13 +226,19 @@ MEDIA_EXPORT extern const base::FeatureParam<bool>
 #endif
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltAudioWriteDuration);
-MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal;
-MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote;
+MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta>
+    kAudioWriteDurationLocal;
+MEDIA_EXPORT extern const base::FeatureParam<base::TimeDelta>
+    kAudioWriteDurationRemote;
 #if BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltUsingAndroidOverlay);
 #endif  // BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassMojoForMedia);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltDisableDecoderBufferAllocator);
+// When enabled, CobaltAudioRendererSink creates and destroys the Starboard
+// audio sink on a background ThreadPool sequence instead of the renderer main
+// thread.
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltAsyncAudioSinkCreate);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltInPlaceMediaSourceParser);
 MEDIA_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
