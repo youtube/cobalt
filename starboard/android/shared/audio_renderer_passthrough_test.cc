@@ -403,6 +403,7 @@ TEST_F(AudioRendererPassthroughTest, EndOfStreamWithoutSamples) {
 
   EXPECT_TRUE(renderer_->IsEndOfStreamWritten());
   EXPECT_TRUE(renderer_->IsEndOfStreamPlayed());
+  EXPECT_EQ(prerolled_count_, 1);
   EXPECT_EQ(ended_count_, 1);
 }
 
@@ -424,6 +425,7 @@ TEST_F(AudioRendererPassthroughTest, DuplicateEndOfStream) {
   renderer_->WriteEndOfStream();
   renderer_->WriteEndOfStream();
 
+  EXPECT_EQ(prerolled_count_, 1);
   EXPECT_EQ(ended_count_, 1);
 }
 
