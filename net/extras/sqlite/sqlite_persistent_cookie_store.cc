@@ -1574,17 +1574,22 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
     num_pending_ = 0;
   }
 
+  // Maybe an old timer fired or we are already Close()'ed.
+  // Under Cobalt, record pending operations only when there are actual
+  // mutations to commit. Placing this after the ops.empty() check prevents
+  // empty timer flushes or redundant exit flushes from recording 0-op commits
+  // into Cobalt.Storage.Cookie.PendingOperationsAtCommit and skewing production
+  // batch size percentiles.
+  if (!db() || ops.empty())
+    return;
+
 #if BUILDFLAG(IS_COBALT)
   for (const auto& op : ops) {
     op_count += op.second.size();
   }
   UMA_HISTOGRAM_COUNTS_1000("Cobalt.Storage.Cookie.PendingOperationsAtCommit",
-                           op_count);
+                            op_count);
 #endif  // BUILDFLAG(IS_COBALT)
-
-  // Maybe an old timer fired or we are already Close()'ed.
-  if (!db() || ops.empty())
-    return;
 
   sql::Statement add_statement(db()->GetCachedStatement(
       SQL_FROM_HERE,

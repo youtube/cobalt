@@ -17,6 +17,11 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/metrics/histogram_functions.h"
+#include "base/numerics/safe_conversions.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace gpu {
 namespace {
 
@@ -106,6 +111,11 @@ class GpuDiskCacheReadHelper {
   std::unique_ptr<disk_cache::Backend::Iterator> iter_;
   scoped_refptr<net::IOBufferWithSize> buf_;
   raw_ptr<disk_cache::Entry, AcrossTasksDanglingUntriaged> entry_;
+#if BUILDFLAG(IS_COBALT)
+  base::TimeTicks load_start_time_;
+  int loaded_entries_count_ = 0;
+  size_t loaded_bytes_ = 0;
+#endif  // BUILDFLAG(IS_COBALT)
   base::WeakPtrFactory<GpuDiskCacheReadHelper> weak_ptr_factory_{this};
 };
 
@@ -297,6 +307,11 @@ GpuDiskCacheReadHelper::~GpuDiskCacheReadHelper() {
 
 void GpuDiskCacheReadHelper::LoadCache() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_COBALT)
+  load_start_time_ = base::TimeTicks::Now();
+  loaded_entries_count_ = 0;
+  loaded_bytes_ = 0;
+#endif  // BUILDFLAG(IS_COBALT)
   OnOpComplete(net::OK);
 }
 
@@ -368,9 +383,15 @@ int GpuDiskCacheReadHelper::OpenNextEntryComplete(int rv) {
 
 int GpuDiskCacheReadHelper::ReadComplete(int rv) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (rv && rv == buf_->size() && !blob_loaded_callback_.is_null()) {
-    blob_loaded_callback_.Run(entry_->GetKey(),
-                              std::string(buf_->data(), buf_->size()));
+  if (rv && rv == buf_->size()) {
+#if BUILDFLAG(IS_COBALT)
+    ++loaded_entries_count_;
+    loaded_bytes_ += static_cast<size_t>(buf_->size());
+#endif  // BUILDFLAG(IS_COBALT)
+    if (!blob_loaded_callback_.is_null()) {
+      blob_loaded_callback_.Run(entry_->GetKey(),
+                                std::string(buf_->data(), buf_->size()));
+    }
   }
 
   buf_ = nullptr;
@@ -384,6 +405,25 @@ int GpuDiskCacheReadHelper::ReadComplete(int rv) {
 int GpuDiskCacheReadHelper::IterationComplete(int rv) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   iter_.reset();
+#if BUILDFLAG(IS_COBALT)
+  // GpuDiskCacheReadHelper is a one-shot helper created in
+  // GpuDiskCache::CacheCreatedCallback() on initialization and destroyed in
+  // GpuDiskCache::ReadComplete() when op_type_ transitions to TERMINATE below.
+  // Reset the counters after recording in case LoadCache() is ever re-entered.
+  if (!load_start_time_.is_null()) {
+    base::UmaHistogramTimes("Cobalt.Storage.GpuShaderCache.LoadDuration",
+                            base::TimeTicks::Now() - load_start_time_);
+    load_start_time_ = base::TimeTicks();
+  }
+  base::UmaHistogramCounts1000(
+      "Cobalt.Storage.GpuShaderCache.LoadedEntriesCount",
+      loaded_entries_count_);
+  base::UmaHistogramCounts10000(
+      "Cobalt.Storage.GpuShaderCache.LoadedBytesKB",
+      base::saturated_cast<int>(loaded_bytes_ / 1024));
+  loaded_entries_count_ = 0;
+  loaded_bytes_ = 0;
+#endif  // BUILDFLAG(IS_COBALT)
   op_type_ = TERMINATE;
   return net::OK;
 }
@@ -670,9 +710,15 @@ void GpuDiskCache::Init() {
   }
   is_initialized_ = true;
 
+  const size_t cache_size = GetDefaultGpuDiskCacheSize();
+#if BUILDFLAG(IS_COBALT)
+  base::UmaHistogramCounts100000(
+      "Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB",
+      base::saturated_cast<int>(cache_size / 1024));
+#endif  // BUILDFLAG(IS_COBALT)
   disk_cache::BackendResult rv = disk_cache::CreateCacheBackend(
       net::SHADER_CACHE, net::CACHE_BACKEND_DEFAULT,
-      /*file_operations=*/nullptr, cache_path_, GetDefaultGpuDiskCacheSize(),
+      /*file_operations=*/nullptr, cache_path_, cache_size,
       disk_cache::ResetHandling::kResetOnError,
       /*net_log=*/nullptr,
       base::BindOnce(&GpuDiskCache::CacheCreatedCallback, this));

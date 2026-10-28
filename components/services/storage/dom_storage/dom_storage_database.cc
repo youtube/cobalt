@@ -160,7 +160,12 @@ DomStorageDatabase::DomStorageDatabase(
     StatusCallback callback)
     : name_(MakeFullPersistentDBName(directory, name)),
       options_(MakeOptions()),
-      memory_dump_id_(memory_dump_id) {
+      memory_dump_id_(memory_dump_id)
+#if BUILDFLAG(IS_COBALT)
+      ,
+      is_local_storage_(name == "leveldb")
+#endif  // BUILDFLAG(IS_COBALT)
+{
   Init(std::move(callback_task_runner), std::move(callback));
 }
 
@@ -366,8 +371,12 @@ DomStorageDatabase::Status DomStorageDatabase::Commit(
 #if BUILDFLAG(IS_COBALT)
   base::ElapsedTimer commit_timer;
   Status status = db_->Write(CreateSyncWriteOptions(), batch);
-  base::UmaHistogramTimes("Cobalt.Storage.LocalStorage.CommitDuration",
-                          commit_timer.Elapsed());
+  // Only record commit latency for persistent on-disk LocalStorage LevelDB
+  // databases (excluding both in-memory DBs and on-disk SessionStorage DBs).
+  if (!env_ && is_local_storage_) {
+    base::UmaHistogramTimes("Cobalt.Storage.LocalStorage.CommitDuration",
+                            commit_timer.Elapsed());
+  }
   return status;
 #else
   return db_->Write(leveldb::WriteOptions(), batch);
