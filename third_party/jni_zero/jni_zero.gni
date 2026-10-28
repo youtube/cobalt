@@ -622,16 +622,9 @@ template("native_with_jni") {
   _needs_native_dep = _enable_underlying_native && _needs_cpp_codegen
   _force_current_toolchain = defined(invoker.force_current_toolchain) &&
                              invoker.force_current_toolchain
-<<<<<<< HEAD
   _use_current_toolchain =
-      _force_current_toolchain || current_toolchain == default_toolchain
+      _force_current_toolchain || current_toolchain == android_toolchain
   if ((_needs_cpp_codegen && _use_current_toolchain) || _needs_native_dep) {
-=======
-  _use_current_toolchain = _force_current_toolchain ||
-                           current_toolchain == android_toolchain
-  if ((_needs_cpp_codegen && _use_current_toolchain) ||
-      _needs_native_dep) {
->>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     _subdir = rebase_path(target_gen_dir, root_gen_dir)
     _registration_cpp_codegen_output =
         "$jni_headers_dir/$_subdir/${target_name}__jni_registration_generated"
