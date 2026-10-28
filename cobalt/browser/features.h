@@ -132,12 +132,14 @@ BASE_DECLARE_FEATURE(kEnableCachedSplashFile);
 BASE_DECLARE_FEATURE(kNativeVideoSplashScreen);
 
 // DO NOT SUBMIT: benchmark only. Has splash.html choose the splash screen's
-// cache entry with a WebAssembly policy (splash_policy.wasm). With
-// ForceVideoSplashScreen, the HTML video fetches the entry that the policy
+// asset with a WebAssembly policy (splash_policy.wasm), from the list of the
+// built-in assets and the ones that the WebApp cached, which Shell starts
+// listing when the splash screen starts (SplashAssetList). With
+// ForceVideoSplashScreen, the HTML video fetches the asset that the policy
 // chose; with NativeVideoSplashScreen, Shell waits for the policy's choice,
-// which splash.html reports through its title, before it reads the cache. The
-// policy chooses the same entry as without it, so that only how the choice is
-// made differs.
+// which splash.html reports through its title, and plays it. The policy
+// chooses the same asset as without it, so that only how the choice is made
+// differs.
 // Locally: --enable-features=SplashWasmPolicy
 BASE_DECLARE_FEATURE(kSplashWasmPolicy);
 

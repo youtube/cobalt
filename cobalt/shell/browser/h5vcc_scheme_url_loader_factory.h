@@ -83,8 +83,11 @@ class H5vccSchemeURLLoaderFactory final
       const std::optional<std::string>& domain);
   static void SetSplashContentSizeForTesting(const std::optional<int>& size);
 
- private:
+  // The origin whose Cache API holds the splash screen assets that the WebApp
+  // cached, e.g., "https://www.youtube.com/".
   static std::string GetSplashDomain();
+
+ private:
   static uint64_t GetSplashContentSizeLimit();
 
   GeneratedResourceMap resource_map_;

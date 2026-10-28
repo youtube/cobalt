@@ -251,6 +251,8 @@ static_library("cobalt_shell_lib") {
     "browser/shell_speech_recognition_manager_delegate.h",
     "browser/shell_web_contents_view_delegate.h",
     "browser/shell_web_contents_view_delegate_creator.h",
+    "browser/splash_asset_list.cc",
+    "browser/splash_asset_list.h",
     "browser/splash_cache_reader.cc",
     "browser/splash_cache_reader.h",
     "browser/splash_screen_metrics.cc",
@@ -538,8 +540,8 @@ action("embed_loader_resources_as_header_files") {
     "embedded_resources/loader_embedded_resources/music_splash.png",
 
     # DO NOT SUBMIT: benchmark only (SplashWasmPolicy). The WebAssembly policy
-    # that chooses the splash screen's cache entry, built from
-    # embedded_resources/splash_policy/splash_policy.c.
+    # that chooses the splash screen asset from the splash asset list, built
+    # from embedded_resources/splash_policy/splash_policy.c.
     "embedded_resources/loader_embedded_resources/splash_policy.wasm",
   ]
 

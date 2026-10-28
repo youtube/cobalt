@@ -45,6 +45,7 @@
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
+#include "cobalt/shell/browser/splash_asset_list.h"
 #include "third_party/blink/public/common/buildflags.h"
 #if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
@@ -297,11 +298,13 @@ uint64_t GetSbWindowHandle() {
 // How long Shell waits for the choice of splash.html's WebAssembly policy
 // before it reads the default cache entry.
 constexpr base::TimeDelta kSplashWasmPolicyTimeout = base::Seconds(1);
-// The title through which splash.html reports the policy's choice, followed by
-// "<cache name>/<entry name>", e.g., "default/splash.webm", or by nothing if
-// the policy failed.
-constexpr std::string_view kSplashWasmPolicyTitlePrefix =
-    "cobalt-splash-src:cache:";
+// The title through which splash.html reports the asset that the policy chose
+// from the splash asset list, followed by "cache:<cache name>/<entry name>",
+// e.g., "cache:default/splash.webm", or "builtin:<name>", e.g.,
+// "builtin:splash_480.webm", or by nothing if the policy failed.
+constexpr std::string_view kSplashWasmPolicyTitlePrefix = "cobalt-splash-src:";
+constexpr std::string_view kSplashWasmPolicyCacheChoice = "cache:";
+constexpr std::string_view kSplashWasmPolicyBuiltInChoice = "builtin:";
 
 // Whether `token`, a cache name or entry name that the policy chose, is a
 // plain name.
@@ -802,6 +805,12 @@ void Shell::LoadSplashScreenWebContents() {
     MarkStartupEvent(SplashScreenMetrics::Event::kSplashStart);
     GetPlatform()->LoadSplashScreenContents(this);
 
+    if (base::FeatureList::IsEnabled(cobalt::features::kSplashWasmPolicy)) {
+      // DO NOT SUBMIT: benchmark only. Lists the splash assets that the page's
+      // WebAssembly policy chooses from while the page loads.
+      SplashAssetList::Start(web_contents_->GetBrowserContext());
+    }
+
     if (is_native_video_splash_screen_) {
       // The page shows the video through a video hole. The video starts once
       // the one that the WebApp cached, if any, is read, as splash.html would
@@ -810,7 +819,7 @@ void Shell::LoadSplashScreenWebContents() {
       LoadSplashScreenURL(SplashScreenPage::kNativeVideoHole);
       if (base::FeatureList::IsEnabled(cobalt::features::kSplashWasmPolicy)) {
         // DO NOT SUBMIT: benchmark only. The page's WebAssembly policy chooses
-        // the cache entry.
+        // the asset.
         WaitForSplashWasmPolicy();
       } else {
         ReadCachedSplashVideo();
@@ -861,8 +870,8 @@ void Shell::LoadSplashScreenURL(SplashScreenPage page) {
   }
   if (page != SplashScreenPage::kImage &&
       base::FeatureList::IsEnabled(cobalt::features::kSplashWasmPolicy)) {
-    // DO NOT SUBMIT: benchmark only. splash.html chooses the video's cache
-    // entry with its WebAssembly policy.
+    // DO NOT SUBMIT: benchmark only. splash.html chooses the video from the
+    // splash asset list with its WebAssembly policy.
     splash_screen_url =
         net::AppendQueryParameter(splash_screen_url, "wasm_policy", "true");
   }
@@ -925,24 +934,39 @@ void Shell::OnSplashScreenTitleSet(const std::u16string& title) {
   const int64_t elapsed_ms =
       (base::TimeTicks::Now() - splash_wasm_policy_start_time_)
           .InMilliseconds();
-  // "<cache name>/<entry name>", e.g., "default/splash.webm".
-  const std::string_view choice =
+  std::string_view choice =
       std::string_view(value).substr(kSplashWasmPolicyTitlePrefix.size());
-  const size_t slash = choice.find('/');
-  const std::string_view cache_name =
-      slash == std::string_view::npos ? choice : choice.substr(0, slash);
-  const std::string_view name = slash == std::string_view::npos
-                                    ? std::string_view()
-                                    : choice.substr(slash + 1);
-  if (!IsPlainSplashCacheToken(cache_name) || !IsPlainSplashCacheToken(name) ||
-      !base::EndsWith(name, ".webm")) {
-    LOG(INFO) << "NativeSplash: Wasm policy failed in " << elapsed_ms << "ms.";
-    ReadCachedSplashVideo();
-    return;
+  if (base::StartsWith(choice, kSplashWasmPolicyBuiltInChoice)) {
+    // A built-in video: nothing to read. The native player picks the built-in
+    // video as the policy does, from what the platform plays.
+    const std::string_view name =
+        choice.substr(kSplashWasmPolicyBuiltInChoice.size());
+    if (IsPlainSplashCacheToken(name) && base::EndsWith(name, ".webm")) {
+      LOG(INFO) << "NativeSplash: Wasm policy chose builtin:" << name << " in "
+                << elapsed_ms << "ms.";
+      OnCachedSplashVideoRead(SplashScreenFetchedState::kSkippedCachedAssets,
+                              std::string());
+      return;
+    }
+  } else if (base::StartsWith(choice, kSplashWasmPolicyCacheChoice)) {
+    // "<cache name>/<entry name>", e.g., "default/splash.webm".
+    choice = choice.substr(kSplashWasmPolicyCacheChoice.size());
+    const size_t slash = choice.find('/');
+    if (slash != std::string_view::npos) {
+      const std::string_view cache_name = choice.substr(0, slash);
+      const std::string_view name = choice.substr(slash + 1);
+      if (IsPlainSplashCacheToken(cache_name) &&
+          IsPlainSplashCacheToken(name) && base::EndsWith(name, ".webm")) {
+        LOG(INFO) << "NativeSplash: Wasm policy chose cache:" << cache_name
+                  << "/" << name << " in " << elapsed_ms << "ms.";
+        ReadCachedSplashVideoEntry(std::string(name),
+                                   base::UTF8ToUTF16(cache_name));
+        return;
+      }
+    }
   }
-  LOG(INFO) << "NativeSplash: Wasm policy chose " << cache_name << "/" << name
-            << " in " << elapsed_ms << "ms.";
-  ReadCachedSplashVideoEntry(std::string(name), base::UTF8ToUTF16(cache_name));
+  LOG(INFO) << "NativeSplash: Wasm policy failed in " << elapsed_ms << "ms.";
+  ReadCachedSplashVideo();
 }
 
 void Shell::OnSplashWasmPolicyTimeout() {

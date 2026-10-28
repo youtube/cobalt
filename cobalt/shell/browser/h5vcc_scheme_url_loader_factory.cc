@@ -22,11 +22,15 @@
 #include "base/containers/contains.h"
 #include "base/containers/map_util.h"
 #include "base/containers/span.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
+#include "cobalt/browser/features.h"
+#include "cobalt/shell/browser/splash_asset_list.h"
 #include "cobalt/shell/browser/splash_cache_reader.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
@@ -52,10 +56,14 @@ using switches::kMaxSplashContentSize;
 
 namespace {
 const char kMimeTypeApplicationOctetStream[] = "application/octet-stream";
+const char kMimeTypeApplicationJson[] = "application/json";
 const char kMimeTypeImagePng[] = "image/png";
 const char kMimeTypeTextHtml[] = "text/html";
 const char kMimeTypeTextPlain[] = "text/plain";
 const char kMimeTypeVideoWebM[] = "video/webm";
+// DO NOT SUBMIT: benchmark only (cobalt::features::kSplashWasmPolicy). The
+// list of splash screen assets, from SplashAssetList.
+const char kSplashAssetListName[] = "splash_assets.json";
 
 // TODO - b/456482732: remove unsafe-inline.
 const char kH5vccContentSecurityPolicy[] =
@@ -91,6 +99,19 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     // resources, so that callers can specify a different file for fallback.
     std::string resource_key = key;
 
+    if (key == kSplashAssetListName &&
+        base::FeatureList::IsEnabled(cobalt::features::kSplashWasmPolicy)) {
+      // DO NOT SUBMIT: benchmark only. The splash screen assets that
+      // splash.html's WebAssembly policy chooses from.
+      mime_type_ = kMimeTypeApplicationJson;
+      request_time_ = base::TimeTicks::Now();
+      SplashAssetList::Get(
+          browser_context_,
+          base::BindOnce(&H5vccSchemeURLLoader::OnSplashAssetList,
+                         weak_factory_.GetWeakPtr()));
+      return;
+    }
+
     // For html file, return from embedded resources.
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
       mime_type_ = kMimeTypeTextHtml;
@@ -105,9 +126,16 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     const bool is_splash_asset =
         (mime_type_ == kMimeTypeImagePng || mime_type_ == kMimeTypeVideoWebM) &&
         base::Contains(resource_map, key);
+    // DO NOT SUBMIT: benchmark only. The built-in asset that splash.html's
+    // WebAssembly policy chose, which is served without reading the cache.
+    std::string source;
+    const bool builtin_only =
+        is_splash_asset &&
+        net::GetValueForKeyInQuery(url_, "source", &source) &&
+        source == "builtin";
     // Whether to read the splash asset that the WebApp cached.
     const bool supports_splash_caching =
-        is_splash_asset && IsCachedSplashFileEnabled();
+        is_splash_asset && !builtin_only && IsCachedSplashFileEnabled();
 
     // For splash assets, override resource_key with "fallback" query param.
     // If requested key is not found in cache, or the cache isn't read, loader
@@ -147,6 +175,13 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       return;
     }
 
+    if (builtin_only) {
+      LOG(INFO) << "Serving the built-in " << resource_key
+                << " that the splash policy chose.";
+      SendResponse(SplashScreenFetchedState::kSkippedCachedAssets);
+      return;
+    }
+
     if (is_splash_asset && !supports_splash_caching) {
       // As on a cache miss: the built-in resource, which the "fallback"
       // query param may have chosen, e.g., the 480p video.
@@ -176,6 +211,14 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     // Otherwise, `content_` is the built-in resource, which the "fallback"
     // query param may have chosen, e.g., the 480p video.
     SendResponse(state);
+  }
+
+  void OnSplashAssetList(const std::string& json) {
+    LOG(INFO) << "NativeSplash: Sent the splash asset list after waiting "
+              << (base::TimeTicks::Now() - request_time_).InMilliseconds()
+              << "ms.";
+    content_ = json;
+    SendResponse();
   }
 
  private:
@@ -266,6 +309,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   std::string mime_type_;
   std::unique_ptr<SplashCacheReader> cache_reader_;
   std::string content_;
+  // When splash.html asked for the splash asset list.
+  base::TimeTicks request_time_;
   base::WeakPtrFactory<H5vccSchemeURLLoader> weak_factory_{this};
 };
 
