@@ -95,8 +95,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {::switches::kUseGL, "angle"},
       {::switches::kUseANGLE, "gles-egl"},
 #endif
-      // Set the default size for the content shell/starboard window.
-      {::switches::kContentShellHostWindowSize, "1920x1080"},
+  // Do not set a default kContentShellHostWindowSize here so that
+  // SbWindowCreate() can use the Starboard platform's native window size
+  // unless explicitly overridden via --window-size.
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
       // Enable remote Devtools access.
       {::switches::kRemoteDebuggingPort, "9222"},
