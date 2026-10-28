@@ -322,6 +322,8 @@ def launch_on_device(
                 script_args = []
                 if devtools:
                     script_args.append("--remote-debugging-port=9222")
+                    script_args.append("--remote-allow-origins=*")
+                    script_args.append("--remote-debugging-address=0.0.0.0")
 
                 user_override_args = param if param else []
 
@@ -342,8 +344,8 @@ def launch_on_device(
             print(f"[WARNING] Failed to update DevTools configuration: {e}")
 
         rpc_activate = (
-            r'{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"Controller.1.activate\",'
-            r'\"params\":{\"callsign\":\"YouTube\"}}')
+            r'{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"org.rdk.RDKShell.1.launch\",'
+            r'\"params\":{\"callsign\":\"YouTube\", \"type\":\"Cobalt\", \"clientidentifier\":\"wst-Cobalt-0\"}}')
         remote_cmds += [
             "rdkDisplay remove || true",
             "sleep 2",
