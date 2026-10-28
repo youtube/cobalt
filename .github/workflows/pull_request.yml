@@ -121,6 +121,7 @@ jobs:
         run: |
           mkdir -p "${RUNNER_TEMP}"
           curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github.v3.diff" "${URL}" > "${RUNNER_TEMP}/pr.diff"
+          gh api "${URL}/files" --paginate --jq '.[].filename' > "${RUNNER_TEMP}/changed_files.txt"
 
       - name: 'Prepare Commit Prompt'
         id: commit_prompt
@@ -160,7 +161,8 @@ jobs:
         if: steps.trigger.outputs.owner_rev == 'true'
         run: |
           prompt_file="${RUNNER_TEMP}/review_prompt.txt"
-          reviewer_paths=$(python3 .github/scripts/resolve_codeowners.py "${RUNNER_TEMP}/pr.diff")
+          mapfile -t changed_files < "${RUNNER_TEMP}/changed_files.txt"
+          reviewer_paths=$(python3 .github/scripts/resolve_codeowners.py "${changed_files[@]}")
           if [ -n "${reviewer_paths}" ]; then
             echo "has_reviewers=true" >> "${GITHUB_OUTPUT}"
             echo "reviewer_paths=${reviewer_paths}" >> "${GITHUB_OUTPUT}"

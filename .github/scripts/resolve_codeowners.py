@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Match PR diff against reviewer persona path globs."""
+"""Match changed files against reviewer persona path globs."""
 
 import fnmatch
 from pathlib import Path
@@ -21,15 +21,9 @@ import yaml
 
 
 def main() -> int:
-  if len(sys.argv) < 2 or not Path(sys.argv[1]).exists():
+  files = sys.argv[1:]
+  if not files:
     return 0
-
-  diff = Path(sys.argv[1]).read_text(encoding='utf-8', errors='replace')
-  files = [
-      line.split()[2][2:]
-      for line in diff.splitlines()
-      if line.startswith('diff --git a/')
-  ]
 
   for md in sorted(Path('.agent/reviewers').glob('*.md')):
     parts = md.read_text(encoding='utf-8').split('---', 2)
@@ -40,7 +34,8 @@ def main() -> int:
     if any(
         fnmatch.fnmatch(f.removeprefix('./'), p)
         for f in files
-        for p in patterns):
+        for p in patterns
+    ):
       print(str(md))
   return 0
 
