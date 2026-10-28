@@ -3514,7 +3514,7 @@ void NetworkContext::GetDeviceBoundSessionManager(
   }
 }
 
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_COBALT)
 void NetworkContext::FlushPersistentState(
     FlushPersistentStateCallback callback) {
   net::HttpServerProperties* http_server_properties =
@@ -3525,7 +3525,7 @@ void NetworkContext::FlushPersistentState(
   }
   http_server_properties->FlushWriteProperties(std::move(callback));
 }
-#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(IS_COBALT)
 
 bool NetworkContext::IsNetworkForNonceAndUrlAllowed(
     const base::UnguessableToken& nonce,
