@@ -101,10 +101,6 @@ bool WebMStreamParser::GetGenerateTimestampsFlag() const {
 
 bool WebMStreamParser::AppendToParseBuffer(base::span<const uint8_t> buf) {
   DCHECK_NE(state_, kWaitingForInit);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // The two overloads must not be mixed, so |segmented_queue_| must be null.
-  CHECK(!segmented_queue_);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (state_ == kError) {
     // To preserve previous app-visible behavior in this hopefully
@@ -126,6 +122,30 @@ bool WebMStreamParser::AppendToParseBuffer(base::span<const uint8_t> buf) {
   // could lead to memory corruption, preferring CHECK.
   CHECK_EQ(uninspected_pending_bytes_, 0);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (base::FeatureList::IsEnabled(kCobaltInPlaceMediaSourceParser)) {
+    if (!segmented_queue_) {
+      CHECK(byte_queue_.Data().empty());
+      LOG(INFO) << "WebMStreamParser: in-place parsing, copy mode";
+      segmented_queue_ = SegmentedByteQueue::Create(/*borrow_mode=*/false);
+    } else {
+      CHECK(!segmented_queue_->borrow_mode());
+    }
+
+    if (!segmented_queue_->Push(buf, base::ScopedClosureRunner())) {
+      DVLOG(2) << "AppendToParseBuffer(): Failed to push buf of size "
+               << buf.size();
+      return false;
+    }
+
+    uninspected_pending_bytes_ = base::checked_cast<int>(buf.size());
+    return true;
+  }
+
+  // The two overloads must not be mixed, so |segmented_queue_| must be null.
+  CHECK(!segmented_queue_);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   if (!byte_queue_.Push(buf)) {
     DVLOG(2) << "AppendToParseBuffer(): Failed to push buf of size "
              << buf.size();
@@ -140,7 +160,6 @@ bool WebMStreamParser::AppendToParseBuffer(base::span<const uint8_t> buf) {
 bool WebMStreamParser::AppendToParseBuffer(
     base::span<const uint8_t> buf,
     base::ScopedClosureRunner release_runner) {
-  DCHECK(base::FeatureList::IsEnabled(kCobaltInPlaceMediaSourceParser));
   DCHECK_NE(state_, kWaitingForInit);
   CHECK(release_runner);
 
@@ -154,10 +173,10 @@ bool WebMStreamParser::AppendToParseBuffer(
     // The two overloads must not be mixed, so from now on the overload above
     // must not be called.
     CHECK(byte_queue_.Data().empty());
-    const bool borrow_mode = kCobaltInPlaceMediaSourceParserBorrowMode.Get();
-    LOG(INFO) << "WebMStreamParser: in-place parsing, "
-              << (borrow_mode ? "borrow" : "copy") << " mode";
-    segmented_queue_ = SegmentedByteQueue::Create(borrow_mode);
+    LOG(INFO) << "WebMStreamParser: in-place parsing, borrow mode";
+    segmented_queue_ = SegmentedByteQueue::Create(/*borrow_mode=*/true);
+  } else {
+    CHECK(segmented_queue_->borrow_mode());
   }
 
   if (!segmented_queue_->Push(buf, std::move(release_runner))) {

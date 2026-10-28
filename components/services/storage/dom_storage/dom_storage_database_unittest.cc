@@ -16,7 +16,9 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
+#include "build/build_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
@@ -428,5 +430,63 @@ TEST_F(StorageServiceDomStorageDatabaseTest, CopyPrefixed) {
                      MakeKeyValuePair(kTestPrefix1Key2, kTestValue3)}));
   });
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(StorageServiceDomStorageDatabaseTest,
+       CobaltCommitDurationExcludesInMemoryAndSessionStorage) {
+  base::ScopedTempDir temp_dir;
+  CHECK(temp_dir.CreateUniqueTempDir());
+
+  // 1. In-memory database commits must not record LocalStorage.CommitDuration.
+  {
+    base::HistogramTester histogram_tester;
+    base::SequenceBound<DomStorageDatabase> mem_db =
+        OpenInMemorySync("SessionStorageDatabase");
+    ASSERT_TRUE(mem_db);
+    DoSync(mem_db, [&](const DomStorageDatabase& db) {
+      leveldb::WriteBatch batch;
+      batch.Put("k", "v");
+      EXPECT_STATUS_OK(db.Commit(&batch));
+    });
+    histogram_tester.ExpectTotalCount(
+        "Cobalt.Storage.LocalStorage.CommitDuration", 0);
+    mem_db.SynchronouslyResetForTest();
+  }
+
+  // 2. On-disk Session Storage commits ("Session Storage") must not record
+  // LocalStorage.CommitDuration even when kCobaltStorageCleanup is disabled.
+  {
+    base::HistogramTester histogram_tester;
+    base::SequenceBound<DomStorageDatabase> session_db =
+        OpenDirectorySync(temp_dir.GetPath(), "Session Storage");
+    ASSERT_TRUE(session_db);
+    DoSync(session_db, [&](const DomStorageDatabase& db) {
+      leveldb::WriteBatch batch;
+      batch.Put("k", "v");
+      EXPECT_STATUS_OK(db.Commit(&batch));
+    });
+    histogram_tester.ExpectTotalCount(
+        "Cobalt.Storage.LocalStorage.CommitDuration", 0);
+    session_db.SynchronouslyResetForTest();
+  }
+
+  // 3. Persistent Local Storage commits ("leveldb") must record
+  // LocalStorage.CommitDuration.
+  {
+    base::HistogramTester histogram_tester;
+    base::SequenceBound<DomStorageDatabase> local_db =
+        OpenDirectorySync(temp_dir.GetPath(), "leveldb");
+    ASSERT_TRUE(local_db);
+    DoSync(local_db, [&](const DomStorageDatabase& db) {
+      leveldb::WriteBatch batch;
+      batch.Put("k", "v");
+      EXPECT_STATUS_OK(db.Commit(&batch));
+    });
+    histogram_tester.ExpectTotalCount(
+        "Cobalt.Storage.LocalStorage.CommitDuration", 1);
+    local_db.SynchronouslyResetForTest();
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace storage
