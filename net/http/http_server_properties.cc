@@ -1254,6 +1254,25 @@ void HttpServerProperties::FlushWritePropertiesForTesting(
   WriteProperties(std::move(callback));
 }
 
+void HttpServerProperties::FlushWriteProperties(base::OnceClosure callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!properties_manager_ || !is_initialized_) {
+    // Either there is no backing store, or the stored properties have not been
+    // loaded yet and writing now would clobber them. Any update made in the
+    // meantime is written once loading completes.
+    if (callback) {
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, std::move(callback));
+    }
+    return;
+  }
+
+  // Stop the timer if it's running, since this writes to the properties file
+  // immediately.
+  prefs_update_timer_.Stop();
+  WriteProperties(std::move(callback));
+}
+
 void HttpServerProperties::WriteProperties(base::OnceClosure callback) const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(properties_manager_);

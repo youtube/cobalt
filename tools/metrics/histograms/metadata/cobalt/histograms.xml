@@ -831,6 +831,15 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Storage.OnPause.NetworkStateFlushDuration" units="ms"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the time it takes to write HttpServerProperties to disk during the
+    onPause event on Android when CobaltFlushNetworkStateOnPause is enabled.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Storage.ProcessIo.StartupReadKB" units="KB"
     expires_after="never">
   <owner>haozheng@google.com</owner>

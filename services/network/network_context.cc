@@ -3514,6 +3514,19 @@ void NetworkContext::GetDeviceBoundSessionManager(
   }
 }
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+void NetworkContext::FlushPersistentState(
+    FlushPersistentStateCallback callback) {
+  net::HttpServerProperties* http_server_properties =
+      url_request_context_->http_server_properties();
+  if (!http_server_properties) {
+    std::move(callback).Run();
+    return;
+  }
+  http_server_properties->FlushWriteProperties(std::move(callback));
+}
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_COBALT)
+
 bool NetworkContext::IsNetworkForNonceAndUrlAllowed(
     const base::UnguessableToken& nonce,
     const GURL& url) const {

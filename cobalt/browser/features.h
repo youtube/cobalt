@@ -217,6 +217,11 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
 // across sessions.
 BASE_DECLARE_FEATURE(kCobaltStabilityMetricsDeduplication);
 
+// Also writes HttpServerProperties to disk when the app is paused on Android,
+// instead of leaving it to its 60 s write-coalescing timer, which a background
+// kill does not honor.
+BASE_DECLARE_FEATURE(kCobaltFlushNetworkStateOnPause);
+
 }  // namespace features
 }  // namespace cobalt
 

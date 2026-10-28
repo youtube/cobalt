@@ -592,6 +592,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   void GetDeviceBoundSessionManager(
       mojo::PendingReceiver<network::mojom::DeviceBoundSessionManager>
           device_bound_session_manager) override;
+#if BUILDFLAG(IS_COBALT)
+  void FlushPersistentState(FlushPersistentStateCallback callback) override;
+#endif  // BUILDFLAG(IS_COBALT)
 
   void SetTLS13EarlyDataEnabled(bool enabled);
 

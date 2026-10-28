@@ -160,6 +160,11 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       override;
 
   void FlushCookiesAndLocalStorage(base::OnceClosure = base::DoNothing());
+#if BUILDFLAG(IS_ANDROID)
+  // Writes HttpServerProperties to disk now and runs |callback| once it has
+  // been committed.
+  void FlushNetworkPersistentState(base::OnceClosure callback);
+#endif  // BUILDFLAG(IS_ANDROID)
   void DispatchBlur();
   void DispatchFocus();
 

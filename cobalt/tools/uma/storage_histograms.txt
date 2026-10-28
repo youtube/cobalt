@@ -21,6 +21,9 @@ Cobalt.Storage.Cookie.CommitDuration
 Cobalt.Storage.LocalStorage.CommitDuration
 # Flush on onPause (waits for cookies only) and on h5vcc.system.exit().
 Cobalt.Storage.OnPause.FlushDuration
+# HttpServerProperties flush on onPause when CobaltFlushNetworkStateOnPause is
+# enabled.
+Cobalt.Storage.OnPause.NetworkStateFlushDuration
 Cobalt.Storage.Exit.CookieFlushDuration
 # HTTP cache: hits served from disk, lookup before a network request, and
 # backend file open/write time.

@@ -253,6 +253,12 @@ class NET_EXPORT HttpServerProperties
   // disk.
   void Clear(base::OnceClosure callback);
 
+  // Writes the current properties to disk immediately instead of waiting for
+  // the write-coalescing timer, and runs |callback| once the write has been
+  // committed. Only runs |callback| if there is no backing store or if the
+  // stored properties have not finished loading yet.
+  void FlushWriteProperties(base::OnceClosure callback);
+
   // Returns true if `server`, in the context of `network_anonymization_key`,
   // has previously supported a network protocol which honors request
   // prioritization. `server` must have either http:// or https:// schemes.

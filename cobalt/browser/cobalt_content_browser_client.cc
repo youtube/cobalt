@@ -99,6 +99,8 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
 #include "cobalt/android/browser_jni_headers/CobaltContentBrowserClient_jni.h"
+#include "cobalt/shell/browser/shell_browser_context.h"
+#include "content/public/browser/browser_context.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROIDTV)
@@ -644,6 +646,20 @@ void CobaltContentBrowserClient::DispatchBlur() {
                             timer->Elapsed());
       },
       std::move(start_time)));
+#if BUILDFLAG(IS_ANDROID)
+  // Experiment (b/576795220): also persist HttpServerProperties (Alt-Svc,
+  // broken-QUIC marks), which is otherwise written on a 60 s timer that a
+  // background kill does not honor.
+  if (base::FeatureList::IsEnabled(features::kCobaltFlushNetworkStateOnPause)) {
+    FlushNetworkPersistentState(base::BindOnce(
+        [](std::unique_ptr<base::ElapsedTimer> timer) {
+          UMA_HISTOGRAM_TIMES(
+              "Cobalt.Storage.OnPause.NetworkStateFlushDuration",
+              timer->Elapsed());
+        },
+        std::make_unique<base::ElapsedTimer>()));
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void CobaltContentBrowserClient::DispatchFocus() {
@@ -717,6 +733,20 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
   }
   cookie_manager->FlushCookieStore(std::move(callback));
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void CobaltContentBrowserClient::FlushNetworkPersistentState(
+    base::OnceClosure callback) {
+  content::BrowserContext* context = browser_context();
+  if (!context) {
+    std::move(callback).Run();
+    return;
+  }
+  context->GetDefaultStoragePartition()
+      ->GetNetworkContext()
+      ->FlushPersistentState(std::move(callback));
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
     base::FeatureList* feature_list) {

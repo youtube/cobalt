@@ -224,5 +224,9 @@ BASE_FEATURE(kCobaltStabilityMetricsDeduplication,
              "CobaltStabilityMetricsDeduplication",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltFlushNetworkStateOnPause,
+             "CobaltFlushNetworkStateOnPause",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace cobalt
