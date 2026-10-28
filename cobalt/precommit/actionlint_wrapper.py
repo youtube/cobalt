@@ -37,7 +37,8 @@ def _lint_composite_action(path: str) -> int:
   if (not isinstance(data, dict) or "runs" not in data or
       not isinstance(data["runs"], dict) or "steps" not in data["runs"]):
     print(
-        f"ERROR: {path} is not a valid composite action (missing 'runs.steps').",
+        f"ERROR: {path} is not a valid composite action "
+        "(missing 'runs.steps').",
         file=sys.stderr,
     )
     return 1
