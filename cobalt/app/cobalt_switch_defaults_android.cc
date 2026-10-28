@@ -102,6 +102,8 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // task that made them so recent writes survive process
                // termination.
                storage::kDomStorageSmartFlushing.name,
+               // [PoC][C8] Disable Android TextAutosizer for 1080p TV UI.
+               "ForceOffTextAutosizing",
            },
            ",")},
       {::switches::kDisableFeatures,
