@@ -208,10 +208,27 @@ def _block_label(rec: AgentChangeRecord) -> str:
   return re.sub(r"^Conflict block (#\d+) in \S+ ", r"\1 ", where)
 
 
+def _upstream_refs(records: Sequence[AgentChangeRecord]) -> List[str]:
+  """Deduplicated upstream CL references across `records`."""
+  refs: List[str] = []
+  seen = set()
+  for rec in records:
+    for ref in rec.upstream_refs:
+      if ref and ref not in seen:
+        seen.add(ref)
+        refs.append(ref)
+  return refs
+
+
 def conflict_rationales(records: Sequence[AgentChangeRecord]) -> str:
   """One line per resolved block with the expert's reason, for the model."""
-  return "\n".join(f"- {_block_label(r)}: {_why(r, 1500)}" for r in records
-                   if r.applied_cleanly)
+  lines = [
+      f"- {_block_label(r)}: {_why(r, 1500)}" for r in records
+      if r.applied_cleanly
+  ]
+  for ref in _upstream_refs(records):
+    lines.append(f"- Upstream CL: {ref}")
+  return "\n".join(lines)
 
 
 def conflict_commit_message(rel_path: str,
@@ -222,8 +239,8 @@ def conflict_commit_message(rel_path: str,
 
   The model's subject/body are used when present. Otherwise the subject
   is "<file>: resolve merge conflict" and the body gives each block's
-  reason. The trailer lists the blocks with their line numbers and the
-  model either way.
+  reason. The trailer lists the blocks with their line numbers, upstream
+  CLs and the model either way.
   """
   blocks = [r for r in records if r.applied_cleanly]
   n = len(blocks)
@@ -239,6 +256,8 @@ def conflict_commit_message(rel_path: str,
   plural = "s" if n != 1 else ""
   parts.append(f"Conflict block{plural}: " +
                ", ".join(_block_label(r) for r in blocks))
+  for ref in _upstream_refs(blocks):
+    parts.append(f"Upstream: {ref}")
   models = sorted(set(r.model for r in blocks if r.model))
   if models:
     parts.append("Model: " + ", ".join(models))
@@ -247,8 +266,13 @@ def conflict_commit_message(rel_path: str,
 
 def fix_rationales(records: Sequence[AgentChangeRecord]) -> str:
   """One line per pending patch with its rationale, for the model."""
-  return "\n".join(f"- iteration {r.iteration} ({_files(r)}): "
-                   f"{r.rationale or NO_RATIONALE}" for r in records)
+  lines = [
+      f"- iteration {r.iteration} ({_files(r)}): {r.rationale or NO_RATIONALE}"
+      for r in records
+  ]
+  for ref in _upstream_refs(records):
+    lines.append(f"- Upstream CL: {ref}")
+  return "\n".join(lines)
 
 
 def fix_commit_message(records: Sequence[AgentChangeRecord],
@@ -261,7 +285,8 @@ def fix_commit_message(records: Sequence[AgentChangeRecord],
   The model's subject/body (from judge_commit) are used when present;
   otherwise the subject is "<changed file>: <error>" and the body is an
   excerpt of each patch's rationale. The trailer with the trigger, the
-  changed files (when more than one) and the model is always appended.
+  changed files (when more than one), upstream CLs and the model is always
+  appended.
   """
   applied = [r for r in records if r.applied_cleanly] or list(records)
   first = applied[0]
@@ -293,6 +318,8 @@ def fix_commit_message(records: Sequence[AgentChangeRecord],
   parts.append(f"Trigger: {trigger_line}")
   if len(files) > 1:
     parts.append("Files: " + ", ".join(files))
+  for ref in _upstream_refs(applied):
+    parts.append(f"Upstream: {ref}")
   models = sorted(set(r.model for r in applied if r.model))
   if models:
     parts.append("Model: " + ", ".join(models))

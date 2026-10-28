@@ -112,6 +112,8 @@ def format_change_log(records: List[AgentChangeRecord]) -> str:
         lines.append(f"  - trigger: {_one_line(rec.trigger, 220)}")
       if rec.rationale:
         lines.append(f"  - why: {_squash(rec.rationale, 400)}")
+      if rec.upstream_refs:
+        lines.append("  - upstream: " + ", ".join(rec.upstream_refs[:5]))
     lines.append("")
   return "\n".join(lines)
 

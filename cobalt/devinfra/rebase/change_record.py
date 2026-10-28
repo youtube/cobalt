@@ -49,6 +49,9 @@ class AgentChangeRecord:
   # Short sha of the commit this change went into when the pipeline commits
   # per fix (see fix_commits); empty when not committed by the pipeline.
   commit: str = ""
+  # Merged upstream Chromium/subrepo CLs that touched the file in this roll
+  # (e.g. "https://crrev.com/c/7695593 (16777dd52227 Remove ...)").
+  upstream_refs: List[str] = dataclasses.field(default_factory=list)
 
   @property
   def modified_files(self) -> List[str]:
@@ -81,6 +84,7 @@ class AgentChangeRecord:
         "upstream_side": self.upstream_side,
         "cobalt_side": self.cobalt_side,
         "commit": self.commit,
+        "upstream_refs": list(self.upstream_refs),
     }
 
   def to_prompt_str(self) -> str:
