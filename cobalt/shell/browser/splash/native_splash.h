@@ -62,7 +62,9 @@ class NativeSplash {
   ~NativeSplash();
 
   // |on_presenting| runs when the video shows its first frame, and
-  // |on_finished| when the splash is over, whether it showed anything or not.
+  // |on_finished| when the video is over, whether it showed anything or not.
+  // The last frame stays on screen until this is destroyed, so that the
+  // caller can keep it up until its UI is ready to replace it.
   void Start(base::OnceClosure on_presenting, base::OnceClosure on_finished);
 
  private:

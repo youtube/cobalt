@@ -333,7 +333,12 @@ void SplashVideoPlayer::OnPlayerStatus(SbPlayerState state, int ticket) {
       break;
     case kSbPlayerStateEndOfStream:
       if (ticket == ticket_) {
-        Finish(Result::kEnded);
+        // Keeps the player, and so its last frame on screen, until Stop().
+        LOG(INFO) << "SplashVideoPlayer: ended, holding the last frame.";
+        timeout_.Stop();
+        if (callbacks_.on_finished) {
+          std::move(callbacks_.on_finished).Run(Result::kEnded);
+        }
       }
       break;
     case kSbPlayerStateDestroyed:

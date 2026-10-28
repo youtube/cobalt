@@ -650,6 +650,13 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 
 void Shell::DidFirstVisuallyNonEmptyPaint() {
   MarkStartupEvent(SplashScreenMetrics::Event::kMainFirstPaint);
+  main_has_painted_ = true;
+  if (native_splash_) {
+    LOG(INFO) << "NativeSplash: main WebContents painted.";
+    MaybeDestroyNativeSplash();
+    // The system splash is taken down by the native splash instead.
+    return;
+  }
   MaybeHideSystemSplashScreen();
 }
 
@@ -704,6 +711,7 @@ void Shell::DidStopLoading() {
   // Marked regardless of the splash screen state, so that it's also recorded
   // when there is no splash screen.
   MarkStartupEvent(SplashScreenMetrics::Event::kMainLoaded);
+  OnNativeSplashMainLoaded();
   if (!is_main_frame_loaded_ &&
       splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
     VLOG(1) << "NativeSplash: Main frame WebContents DidStopLoading.";
@@ -1293,6 +1301,7 @@ void Shell::LoadProgressChanged(double progress) {
     // Marked regardless of the splash screen state, so that it's also recorded
     // when there is no splash screen.
     MarkStartupEvent(SplashScreenMetrics::Event::kMainLoaded);
+    OnNativeSplashMainLoaded();
   }
   if (progress >= 1.0 && !is_main_frame_loaded_ &&
       splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
@@ -1423,13 +1432,68 @@ void Shell::StartNativeSplash(BrowserContext* browser_context) {
                                        weak_factory_.GetWeakPtr()));
 }
 
+// How long the splash's last frame may wait for the main WebContents to load.
+constexpr base::TimeDelta kNativeSplashMaxHold = base::Seconds(5);
+// How long the splash may wait for the main WebContents to paint, once shown.
+constexpr base::TimeDelta kNativeSplashMaxPaintWait = base::Seconds(3);
+// Lets the main WebContents' frame reach the screen before the splash's last
+// frame is removed from under it.
+constexpr base::TimeDelta kNativeSplashTeardownDelay = base::Milliseconds(300);
+
 void Shell::OnNativeSplashFinished() {
-  native_splash_.reset();
+  native_splash_video_ended_ = true;
+  native_splash_timer_.Start(FROM_HERE, kNativeSplashMaxHold,
+                             base::BindOnce(&Shell::SwitchFromNativeSplash,
+                                            weak_factory_.GetWeakPtr()));
+  MaybeSwitchFromNativeSplash();
+}
+
+void Shell::OnNativeSplashMainLoaded() {
+  if (!native_splash_ || native_splash_main_loaded_) {
+    return;
+  }
+  LOG(INFO) << "NativeSplash: main WebContents loaded.";
+  native_splash_main_loaded_ = true;
+  MaybeSwitchFromNativeSplash();
+}
+
+void Shell::MaybeSwitchFromNativeSplash() {
+  if (native_splash_video_ended_ && native_splash_main_loaded_) {
+    SwitchFromNativeSplash();
+  }
+}
+
+void Shell::SwitchFromNativeSplash() {
+  if (native_splash_switched_ || !native_splash_) {
+    return;
+  }
+  LOG(INFO) << "NativeSplash: showing the main WebContents"
+            << (native_splash_main_loaded_ ? "." : " before it loaded.");
+  native_splash_switched_ = true;
+  native_splash_timer_.Stop();
   GetPlatform()->SetNativeSplashActive(this, false);
   web_contents_->WasShown();
   if (web_contents()->GetRenderWidgetHostView()) {
     web_contents()->GetRenderWidgetHostView()->Focus();
   }
+  native_splash_timer_.Start(
+      FROM_HERE, kNativeSplashMaxPaintWait,
+      base::BindOnce([](Shell* shell) { shell->native_splash_.reset(); },
+                     base::Unretained(this)));
+  MaybeDestroyNativeSplash();
+}
+
+void Shell::MaybeDestroyNativeSplash() {
+  if (!native_splash_switched_ || !main_has_painted_ || !native_splash_) {
+    return;
+  }
+  native_splash_timer_.Start(FROM_HERE, kNativeSplashTeardownDelay,
+                             base::BindOnce(
+                                 [](Shell* shell) {
+                                   LOG(INFO) << "NativeSplash: torn down.";
+                                   shell->native_splash_.reset();
+                                 },
+                                 base::Unretained(this)));
 }
 
 void Shell::OnSplashScreenLoadComplete() {
@@ -1495,6 +1559,7 @@ void Shell::ClosingSplashScreenWebContents() {
 
 void Shell::OnMainReady() {
   MarkStartupEvent(SplashScreenMetrics::Event::kMainReady);
+  OnNativeSplashMainLoaded();
 }
 
 void Shell::MarkStartupEvent(SplashScreenMetrics::Event event) {

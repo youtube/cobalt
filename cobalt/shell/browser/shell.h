@@ -44,6 +44,7 @@
 
 #if BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
 #include "base/memory/weak_ptr.h"
+#include "base/timer/timer.h"
 
 namespace on_screen_keyboard {
 class PlatformOnScreenKeyboard;
@@ -317,13 +318,26 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Proof of concept: shows the splash screen with NativeSplash, instead of a
   // splash screen WebContents. The main WebContents stays hidden until then.
   void StartNativeSplash(BrowserContext* browser_context);
+  // Called when the splash video is over. Its last frame stays up until the
+  // main WebContents has loaded, to avoid showing a blank screen.
   void OnNativeSplashFinished();
+  void OnNativeSplashMainLoaded();
+  void MaybeSwitchFromNativeSplash();
+  // Shows the main WebContents above the last frame, then tears down the
+  // splash once the main WebContents has painted.
+  void SwitchFromNativeSplash();
+  void MaybeDestroyNativeSplash();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
   std::unique_ptr<WebContents> web_contents_;
   std::unique_ptr<WebContents> splash_screen_web_contents_;
   std::unique_ptr<NativeSplash> native_splash_;
+  bool native_splash_video_ended_ = false;
+  bool native_splash_main_loaded_ = false;
+  bool native_splash_switched_ = false;
+  bool main_has_painted_ = false;
+  base::OneShotTimer native_splash_timer_;
   State splash_state_;
   const std::string splash_topic_;
   bool skip_for_testing_;

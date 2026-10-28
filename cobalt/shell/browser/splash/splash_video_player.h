@@ -60,7 +60,9 @@ class SplashVideoPlayer {
 
     // The first frame is being presented.
     base::OnceClosure on_presenting;
-    // Playback is over, successfully or not. The player has been destroyed.
+    // Playback is over, successfully or not. On kEnded, the player keeps
+    // showing the last frame until Stop() or destruction; otherwise it has
+    // been destroyed.
     base::OnceCallback<void(Result)> on_finished;
   };
 
