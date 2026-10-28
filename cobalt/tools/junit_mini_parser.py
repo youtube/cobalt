@@ -16,11 +16,12 @@
 """A simple util that prints failing tests from JUnit xml using only the Python
 standard library."""
 
+import argparse
 import collections
 import json
-import logging
 import os
 import sys
+from typing import Optional, Sequence
 import xml.etree.ElementTree
 
 
@@ -29,7 +30,7 @@ def find_failing_tests(
   """Parses a list of JUnit XML files to find failing test cases.
 
   Args:
-    junit_xml_files (list): A list of paths to JUnit XML files.
+    junit_xml_files: A list of paths to JUnit XML files.
 
   Returns:
     A map of test target -> list of dicts containing failing test name
@@ -57,27 +58,45 @@ def find_failing_tests(
   return failing_tests
 
 
-def main(xml_files: list[str]) -> int:
+def main(argv: Optional[Sequence[str]] = None) -> int:
   """Main entry point.
 
   Args:
-    xml_files (list): A list of paths to JUnit XML files.
+    argv: A list of command-line arguments (flags and XML files).
 
   Returns:
     1 if failing tests are found, 0 otherwise.
   """
-  failing_tests = find_failing_tests(xml_files)
-  output = {'failing_tests': failing_tests}
-  print(json.dumps(output, indent=2))
+  parser = argparse.ArgumentParser(
+      description='Print failing tests from JUnit XML files.')
+  parser.add_argument(
+      '--format',
+      choices=['json', 'filter'],
+      default='json',
+      help='Output format: "json" (default) or "filter".')
+  parser.add_argument('files', nargs='*', help='Paths to JUnit XML files.')
+
+  args = parser.parse_args(argv)
+
+  failing_tests = find_failing_tests(args.files)
+  if args.format == 'filter':
+    unique_failures = sorted({
+        test['name']
+        for tests in failing_tests.values()
+        for test in tests
+        if test.get('name')
+    })
+    if unique_failures:
+      for test in unique_failures:
+        print(test)
+    else:
+      print('-*')
+  else:
+    output = {'failing_tests': failing_tests}
+    print(json.dumps(output, indent=2))
+
   return 1 if failing_tests else 0
 
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO, format='%(message)s')
-  if len(sys.argv) == 1:
-    logging.error('Usage: python junit_mini_parser.py '
-                  '<junit_xml_file1> <junit_xml_file2> ...')
-    logging.error('Please provide a list of JUnit XML files as command line '
-                  'arguments.')
-    sys.exit(2)
-  sys.exit(main(sys.argv[1:]))
+  sys.exit(main())

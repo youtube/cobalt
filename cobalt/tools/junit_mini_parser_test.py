@@ -202,6 +202,61 @@ class TestMain(unittest.TestCase):
     expected_output = {'failing_tests': {}}
     self.assertEqual(json.loads(mock_stdout.getvalue()), expected_output)
 
+  @patch('cobalt.tools.junit_mini_parser.find_failing_tests')
+  @patch('sys.stdout', new_callable=io.StringIO)
+  def test_main_filter_format_with_failures(self, mock_stdout: io.StringIO,
+                                            mock_find: MagicMock) -> None:
+    mock_find.return_value = {
+        'results_0.xml': [{
+            'name': 'Test.fail2',
+            'message': 'msg'
+        }],
+        'results_1.xml': [{
+            'name': 'Test.fail1',
+            'message': 'msg'
+        }, {
+            'name': 'Test.fail2',
+            'message': 'duplicate msg'
+        }],
+    }
+    exit_code = main(['--format=filter', 'results_0.xml', 'results_1.xml'])
+    self.assertEqual(exit_code, 1)
+    self.assertEqual(mock_stdout.getvalue(), 'Test.fail1\nTest.fail2\n')
+
+  @patch('cobalt.tools.junit_mini_parser.find_failing_tests')
+  @patch('sys.stdout', new_callable=io.StringIO)
+  def test_main_filter_format_no_failures(self, mock_stdout: io.StringIO,
+                                          mock_find: MagicMock) -> None:
+    mock_find.return_value = {}
+    exit_code = main(['--format', 'filter', 'results.xml'])
+    self.assertEqual(exit_code, 0)
+    self.assertEqual(mock_stdout.getvalue().strip(), '-*')
+
+  @patch('cobalt.tools.junit_mini_parser.find_failing_tests')
+  @patch('sys.stdout', new_callable=io.StringIO)
+  def test_main_default_args(self, mock_stdout: io.StringIO,
+                             mock_find: MagicMock) -> None:
+    mock_find.return_value = {}
+    with patch.object(sys, 'argv', ['junit_mini_parser.py']):
+      exit_code = main()
+    self.assertEqual(exit_code, 0)
+    expected_output = {'failing_tests': {}}
+    self.assertEqual(json.loads(mock_stdout.getvalue()), expected_output)
+
+  @patch('sys.stderr', new_callable=io.StringIO)
+  def test_main_invalid_format(self, mock_stderr: io.StringIO) -> None:
+    del mock_stderr
+    with self.assertRaises(SystemExit) as cm:
+      main(['--format=unknown', 'results.xml'])
+    self.assertEqual(cm.exception.code, 2)
+
+  @patch('sys.stdout', new_callable=io.StringIO)
+  def test_main_help(self, mock_stdout: io.StringIO) -> None:
+    del mock_stdout
+    with self.assertRaises(SystemExit) as cm:
+      main(['--help'])
+    self.assertEqual(cm.exception.code, 0)
+
 
 if __name__ == '__main__':
   unittest.main()
