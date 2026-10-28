@@ -139,19 +139,21 @@ is_release_build () {
 }
 
 
-# Prints the LTS branch being built, like 27.lts, or nothing for other branches.
-get_lts_branch () {
+# Prints the nightly tag prefix of the branch being built: 27 for 27.lts, main
+# for main, or nothing for other branches.
+get_nightly_tag_prefix () {
   local branch="${KOKORO_GOB_BRANCH_src:-}"
   branch="${branch#refs/heads/}"
-  if [[ "${branch}" =~ ^[0-9]+\.lts$ ]]; then
-    echo "${branch}"
+  if [[ "${branch}" =~ ^([0-9]+\.lts|main)$ ]]; then
+    echo "${branch%.lts}"
   fi
 }
 
 
-# Prints today's and yesterday's nightly tag names for LTS branch $1, like
-# 27.lts.nightly.2026-10-27. A Kokoro job creates the tag at the branch tip each
-# afternoon. A nightly day runs 06:00-06:00 Pacific, so retries after midnight
+# Prints today's and yesterday's nightly tag names for tag prefix $1, like
+# 27.nightly.2026-10-27 or main.nightly.2026-10-27. The Kokoro job
+# cobalt/gerrit_tagger/nightly moves the tag to the branch tip until 16:30
+# Pacific. A nightly day runs 06:00-06:00 Pacific, so builds after midnight
 # still find the evening's tag.
 get_nightly_tags () {
   local hours_ago
@@ -171,16 +173,17 @@ fetch_tag_commit () {
 
 
 # Prints the revision to build from the git checkout $1. Release (nightly)
-# builds of an LTS branch build the newest nightly tag, so every platform builds
-# the same commit. Everything else builds the commit Kokoro checked out.
+# builds of main and the LTS branches build the newest nightly tag, so every
+# platform builds the same commit. Everything else builds the commit Kokoro
+# checked out.
 get_build_revision () {
-  local branch tag
-  branch="$(get_lts_branch)"
-  if is_release_build && [[ -n "${branch}" ]]; then
-    for tag in $(get_nightly_tags "${branch}"); do
+  local prefix tag
+  prefix="$(get_nightly_tag_prefix)"
+  if is_release_build && [[ -n "${prefix}" ]]; then
+    for tag in $(get_nightly_tags "${prefix}"); do
       fetch_tag_commit "$1" "${tag}" && return
     done
-    echo "WARNING: No nightly tag for ${branch}; building the checkout." >&2
+    echo "WARNING: No ${prefix}.nightly tag; building the checkout." >&2
   fi
   echo "${KOKORO_GIT_COMMIT_src}"
 }
