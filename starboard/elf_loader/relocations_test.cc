@@ -17,6 +17,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <algorithm>
+#include <cstring>
 #include <memory>
 
 #include "starboard/elf_loader/elf.h"
@@ -388,9 +390,9 @@ TEST_F(RelocationsTest, ApplyAllRelocationsReclaimsInteriorPages) {
                                : PAGE_SIZE;
   const size_t kMappingSize = 4 * page_size;
   void* mapped = mmap(nullptr, kMappingSize, PROT_READ | PROT_WRITE,
-                      MAP_PRIVATE | MAP_ANON, -1, 0);
+                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   ASSERT_NE(mapped, MAP_FAILED);
-  memset(mapped, 0x5A, kMappingSize);
+  std::memset(mapped, 0x5A, kMappingSize);
 
   Addr mapped_base = reinterpret_cast<Addr>(mapped);
   // Start the relocation table 64 bytes into page 1 and span 2 pages into
@@ -399,22 +401,31 @@ TEST_F(RelocationsTest, ApplyAllRelocationsReclaimsInteriorPages) {
   Addr reloc_table_offset = page_size + 64;
   size_t reloc_table_size = 2 * page_size;
   // Populate every relocation entry with r_info = 0 (R_*_NONE, a no-op
-  // relocation) and non-zero r_offset (plus r_addend on RELA) so the interior
-  // page bytes tested below are non-zero before ApplyAllRelocations() across
-  // 4 KiB, 16 KiB, and 64 KiB page sizes, and zeroed by MADV_DONTNEED after.
+  // relocation) and non-zero r_offset (plus r_addend on RELA) so that every
+  // sizeof(rel_t) slice on the interior page contains non-zero bytes before
+  // ApplyAllRelocations() across 4 KiB, 16 KiB, and 64 KiB page sizes, and is
+  // zeroed by MADV_DONTNEED after.
   rel_t* reloc_entries =
       reinterpret_cast<rel_t*>(mapped_base + reloc_table_offset);
   size_t reloc_count = reloc_table_size / sizeof(rel_t);
   for (size_t i = 0; i < reloc_count; ++i) {
-    memset(&reloc_entries[i], 0, sizeof(rel_t));
+    std::memset(&reloc_entries[i], 0, sizeof(rel_t));
     reloc_entries[i].r_offset = 0x7F7F7F7Fu;
 #if defined(USE_RELA)
     reloc_entries[i].r_addend = 0x7F7F7F7F;
 #endif
   }
 
+  const uint8_t* interior_page =
+      reinterpret_cast<const uint8_t*>(mapped_base + 2 * page_size);
+  ASSERT_TRUE(std::any_of(interior_page, interior_page + sizeof(rel_t),
+                          [](uint8_t b) { return b != 0u; }));
+  ASSERT_TRUE(std::any_of(interior_page + page_size / 2,
+                          interior_page + page_size / 2 + sizeof(rel_t),
+                          [](uint8_t b) { return b != 0u; }));
+
   Dyn dyn_entries[3];
-  memset(dyn_entries, 0, sizeof(dyn_entries));
+  std::memset(dyn_entries, 0, sizeof(dyn_entries));
 #if defined(USE_RELA)
   dyn_entries[0].d_tag = DT_RELA;
   dyn_entries[1].d_tag = DT_RELASZ;
@@ -434,11 +445,10 @@ TEST_F(RelocationsTest, ApplyAllRelocationsReclaimsInteriorPages) {
   ASSERT_TRUE(relocs.InitRelocations());
   ASSERT_TRUE(relocs.ApplyAllRelocations());
 
-  // Interior page 2 of the relocation table should be zeroed by MADV_DONTNEED.
-  const uint8_t* interior_page =
-      reinterpret_cast<const uint8_t*>(mapped_base + 2 * page_size);
-  EXPECT_EQ(interior_page[0], 0u);
-  EXPECT_EQ(interior_page[page_size / 2], 0u);
+  // Every byte of interior page 2 of the relocation table should be zeroed by
+  // MADV_DONTNEED.
+  EXPECT_TRUE(std::all_of(interior_page, interior_page + page_size,
+                          [](uint8_t b) { return b == 0u; }));
 
   // Shared boundary bytes in page 1 (before relocation table) and page 3
   // (after relocation table) must not be discarded.

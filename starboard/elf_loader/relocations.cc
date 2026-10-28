@@ -14,10 +14,11 @@
 
 #include "starboard/elf_loader/relocations.h"
 
-#include <errno.h>
-#include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
+
+#include <cerrno>
+#include <cstring>
 
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/log.h"
@@ -47,7 +48,7 @@ void DiscardRelocationPages(Addr start, size_t size) {
     if (madvise(reinterpret_cast<void*>(page_start), page_end - page_start,
                 MADV_DONTNEED) != 0) {
       SB_LOG(WARNING) << "madvise(MADV_DONTNEED) on relocation pages failed: "
-                      << strerror(errno);
+                      << std::strerror(errno);
     }
   }
 }
