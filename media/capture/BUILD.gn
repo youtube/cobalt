@@ -97,20 +97,28 @@ source_set("capture_device_specific") {
     "video/video_frame_receiver_types.h",
   ]
 
-<<<<<<< HEAD
   if (!is_android) {
     sources += [
-=======
-  if (is_cobalt) {
-    sources -= [
-      "video/blob_utils.cc",
-      "video/blob_utils.h",
->>>>>>> parent of c27cd0dfdf1 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       "video/file_video_capture_device.cc",
       "video/file_video_capture_device.h",
       "video/file_video_capture_device_factory.cc",
       "video/file_video_capture_device_factory.h",
     ]
+  }
+  if (is_cobalt) {
+    sources -= [
+      "video/blob_utils.cc",
+      "video/blob_utils.h",
+    ]
+
+    if (!is_android) {
+      sources -= [
+        "video/file_video_capture_device.cc",
+        "video/file_video_capture_device.h",
+        "video/file_video_capture_device_factory.cc",
+        "video/file_video_capture_device_factory.h",
+      ]
+    }
   }
 
   public_deps = [ ":capture_base" ]
@@ -303,15 +311,15 @@ test("capture_unittests") {
     sources -= [ "run_all_unittests.cc" ]
   }
 
-  if (is_cobalt) {
-    sources -= [
-      "video/file_video_capture_device_unittest.cc",
-      "video/video_capture_device_unittest.cc",
-    ]
-  }
-
   if (!is_android) {
     sources += [ "video/file_video_capture_device_unittest.cc" ]
+  }
+
+  if (is_cobalt) {
+    sources -= [ "video/video_capture_device_unittest.cc", ]
+    if (!is_android) {
+      sources -= [ "video/file_video_capture_device_unittest.cc" ]
+    }
   }
 
   data = [ "//media/test/data/bear.mjpeg" ]
