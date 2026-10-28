@@ -343,9 +343,10 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void OnCachedSplashVideoRead(SplashScreenFetchedState state,
                                std::string cached_webm);
   // DO NOT SUBMIT: benchmark only (cobalt::features::kSplashWasmPolicy).
-  // Waits for splash.html to report the choice of its WebAssembly policy
-  // through its title, then reads the cache entry that the policy chose, or
-  // the default one if the policy fails or times out.
+  // Waits for splash.html to report, through its title, the asset that its
+  // WebAssembly policy chose from the splash asset list (SplashAssetList),
+  // then reads that cache entry, or plays the built-in video without reading
+  // the cache. Reads the default entry if the policy fails or times out.
   void WaitForSplashWasmPolicy();
   void OnSplashScreenTitleSet(const std::u16string& title);
   void OnSplashWasmPolicyTimeout();
