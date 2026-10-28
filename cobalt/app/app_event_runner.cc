@@ -186,7 +186,7 @@ class AppEventRunnerImpl : public AppEventRunner,
     content::Shell::OnBlur();
     auto* client = cobalt::CobaltContentBrowserClient::Get();
     if (client) {
-      client->FlushCookiesAndLocalStorage(base::DoNothing());
+      client->FlushCookiesAndLocalStorageOnPause();
     }
 #if BUILDFLAG(IS_STARBOARD)
     if (platform_event_source_) {
