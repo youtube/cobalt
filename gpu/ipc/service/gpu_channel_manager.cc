@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "gpu/ipc/service/gpu_channel_manager.h"
+#include "base/system/helium_knobs.h"
 
 #include <algorithm>
 #include <memory>
@@ -443,7 +444,7 @@ gles2::ProgramCache* GpuChannelManager::program_cache() {
     // sets gpu_program_cache_size) is meant to size only the GrShaderCache.
     if (base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache)) {
       disable_disk_cache = true;
-      program_cache_size = base::SysInfo::IsLowEndDevice()
+      program_cache_size = base::helium::IsLowEndDeviceOr("shader_cache")
                                ? kLowEndMaxProgramCacheMemoryBytes
                                : kDefaultMaxProgramCacheMemoryBytes;
     }

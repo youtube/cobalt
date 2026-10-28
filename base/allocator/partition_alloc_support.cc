@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/allocator/partition_alloc_support.h"
+#include "base/system/helium_knobs.h"
 
 #include <algorithm>
 #include <array>
@@ -1318,7 +1319,8 @@ void PartitionAllocSupport::ReconfigureAfterTaskRunnerInit(
     // thread cache limits on Android low end device to avoid stranding too much
     // memory in the caches.
     if (SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled(
-            features::kPartialLowEndModeExcludePartitionAllocSupport)) {
+            features::kPartialLowEndModeExcludePartitionAllocSupport) ||
+        helium::IsLowEndFor("storage")) {
       ::partition_alloc::ThreadCacheRegistry::Instance()
           .SetThreadCacheMultiplier(
               ::partition_alloc::ThreadCache::kDefaultMultiplier / 2.);

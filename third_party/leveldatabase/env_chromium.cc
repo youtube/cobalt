@@ -3,6 +3,7 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #include "third_party/leveldatabase/env_chromium.h"
+#include "base/system/helium_knobs.h"
 
 #include <atomic>
 #include <iterator>
@@ -488,7 +489,7 @@ Options::Options() {
   // memory buffer which won't be written until it hits the maximum size
   // (leveldb::Options::write_buffer_size - 4MB by default). The downside here
   // is that databases opens take longer as the open is blocked on compaction.
-  reuse_logs = !base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled();
+  reuse_logs = !(base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled() || base::helium::IsLowEndFor("storage"));
 #endif
   // By default use a single shared block cache to conserve memory. The owner of
   // this object can create their own, or set to NULL to have leveldb create a

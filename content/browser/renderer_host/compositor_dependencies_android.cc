@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "content/browser/renderer_host/compositor_dependencies_android.h"
+#include "base/system/helium_knobs.h"
 
 #include <utility>
 
@@ -141,7 +142,7 @@ void CompositorDependenciesAndroid::ConnectVizFrameSinkManagerOnMainThread(
 }
 
 void CompositorDependenciesAndroid::EnqueueLowEndBackgroundCleanup() {
-  if (base::SysInfo::IsLowEndDevice()) {
+  if (base::helium::IsLowEndDeviceOr("bg_cleanup")) {
     low_end_background_cleanup_task_.Reset(base::BindOnce(
         &CompositorDependenciesAndroid::DoLowEndBackgroundCleanup,
         base::Unretained(this)));

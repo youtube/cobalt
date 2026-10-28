@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "third_party/leveldatabase/leveldb_chrome.h"
+#include "base/system/helium_knobs.h"
 
 #include <memory>
 #include <set>
@@ -40,7 +41,7 @@ namespace leveldb_chrome {
 namespace {
 
 size_t DefaultBlockCacheSize() {
-  if (base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled()) {
+  if (base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled() || base::helium::IsLowEndFor("storage")) {
     return 1 << 20;  // 1MB
   } else {
     return 8 << 20;  // 8MB
@@ -62,7 +63,7 @@ class Globals {
 
   Globals()
       : web_block_cache_(
-            base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled()
+            (base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled() || base::helium::IsLowEndFor("storage"))
                 ? nullptr
                 : NewLRUCache(DefaultBlockCacheSize())),
         browser_block_cache_(NewLRUCache(DefaultBlockCacheSize())),

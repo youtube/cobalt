@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "content/renderer/media/renderer_web_media_player_delegate.h"
+#include "base/system/helium_knobs.h"
 
 #include <stdint.h>
 
@@ -49,7 +50,7 @@ RendererWebMediaPlayerDelegate::RendererWebMediaPlayerDelegate(
 
   // This imposes drastic limits on the number of media players and is only
   // appropriate for true low end devices.
-  is_low_end_ = base::SysInfo::IsLowEndDevice();
+  is_low_end_ = base::helium::IsLowEndDeviceOr("media_idle");
 
   idle_cleanup_timer_.SetTaskRunner(
       render_frame->GetTaskRunner(blink::TaskType::kInternalMedia));

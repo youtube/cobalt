@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "components/services/storage/dom_storage/session_storage_impl.h"
+#include "base/system/helium_knobs.h"
 
 #include <inttypes.h>
 
@@ -108,7 +109,7 @@ SessionStorageImpl::SessionStorageImpl(
                                          reinterpret_cast<uintptr_t>(this))),
       receiver_(this, std::move(receiver)),
       is_low_end_mode_(
-          base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled()) {
+          (base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled() || base::helium::IsLowEndFor("storage"))) {
   base::trace_event::MemoryDumpManager::GetInstance()
       ->RegisterDumpProviderWithSequencedTaskRunner(
           this, "SessionStorage", std::move(memory_dump_task_runner),
