@@ -131,6 +131,16 @@ BASE_DECLARE_FEATURE(kEnableCachedSplashFile);
 // Locally: --enable-features=NativeVideoSplashScreen
 BASE_DECLARE_FEATURE(kNativeVideoSplashScreen);
 
+// DO NOT SUBMIT: benchmark only. Has splash.html choose the splash screen's
+// cache entry with a WebAssembly policy (splash_policy.wasm). With
+// ForceVideoSplashScreen, the HTML video fetches the entry that the policy
+// chose; with NativeVideoSplashScreen, Shell waits for the policy's choice,
+// which splash.html reports through its title, before it reads the cache. The
+// policy chooses the same entry as without it, so that only how the choice is
+// made differs.
+// Locally: --enable-features=SplashWasmPolicy
+BASE_DECLARE_FEATURE(kSplashWasmPolicy);
+
 // Enables overriding the splash screen configuration with the params below.
 BASE_DECLARE_FEATURE(kSplashScreenConfig);
 

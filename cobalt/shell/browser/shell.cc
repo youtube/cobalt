@@ -16,6 +16,7 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <map>
 #include <memory>
@@ -290,6 +291,27 @@ void RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome outcome) {
 uint64_t GetSbWindowHandle() {
   ShellContentBrowserClient* browser_client = ShellContentBrowserClient::Get();
   return browser_client ? browser_client->GetSbWindowHandle() : 0;
+}
+
+// DO NOT SUBMIT: benchmark only (cobalt::features::kSplashWasmPolicy).
+// How long Shell waits for the choice of splash.html's WebAssembly policy
+// before it reads the default cache entry.
+constexpr base::TimeDelta kSplashWasmPolicyTimeout = base::Seconds(1);
+// The title through which splash.html reports the policy's choice, followed by
+// "<cache name>/<entry name>", e.g., "default/splash.webm", or by nothing if
+// the policy failed.
+constexpr std::string_view kSplashWasmPolicyTitlePrefix =
+    "cobalt-splash-src:cache:";
+
+// Whether `token`, a cache name or entry name that the policy chose, is a
+// plain name.
+bool IsPlainSplashCacheToken(std::string_view token) {
+  return !token.empty() && token.size() <= 64 &&
+         token.find("..") == std::string_view::npos &&
+         std::all_of(token.begin(), token.end(), [](char c) {
+           return base::IsAsciiLower(c) || base::IsAsciiDigit(c) || c == '_' ||
+                  c == '-' || c == '.';
+         });
 }
 
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
@@ -786,7 +808,13 @@ void Shell::LoadSplashScreenWebContents() {
       // play it.
       awaiting_splash_video_first_frame_ = true;
       LoadSplashScreenURL(SplashScreenPage::kNativeVideoHole);
-      ReadCachedSplashVideo();
+      if (base::FeatureList::IsEnabled(cobalt::features::kSplashWasmPolicy)) {
+        // DO NOT SUBMIT: benchmark only. The page's WebAssembly policy chooses
+        // the cache entry.
+        WaitForSplashWasmPolicy();
+      } else {
+        ReadCachedSplashVideo();
+      }
     } else {
       LoadSplashScreenURL(SplashScreenPage::kDefault);
     }
@@ -831,6 +859,13 @@ void Shell::LoadSplashScreenURL(SplashScreenPage page) {
     splash_screen_url =
         net::AppendQueryParameter(splash_screen_url, "cache", splash_topic_);
   }
+  if (page != SplashScreenPage::kImage &&
+      base::FeatureList::IsEnabled(cobalt::features::kSplashWasmPolicy)) {
+    // DO NOT SUBMIT: benchmark only. splash.html chooses the video's cache
+    // entry with its WebAssembly policy.
+    splash_screen_url =
+        net::AppendQueryParameter(splash_screen_url, "wasm_policy", "true");
+  }
   if (base::FeatureList::IsEnabled(cobalt::features::kSplashScreenConfig)) {
     // Lets the splash screen stay up until the timeout, instead of closing
     // when its animation ends.
@@ -848,14 +883,72 @@ void Shell::LoadSplashScreenURL(SplashScreenPage page) {
 
 void Shell::ReadCachedSplashVideo() {
   // The same entry as splash.html's: splash.webm in the topic's cache.
+  ReadCachedSplashVideoEntry(
+      "splash.webm", splash_topic_.empty()
+                         ? std::u16string(switches::kDefaultSplashCacheName)
+                         : base::UTF8ToUTF16(splash_topic_));
+}
+
+void Shell::ReadCachedSplashVideoEntry(const std::string& name,
+                                       const std::u16string& cache_name) {
   splash_cache_reader_ = H5vccSchemeURLLoaderFactory::CreateSplashCacheReader(
       web_contents_->GetBrowserContext());
-  splash_cache_reader_->Read(
-      "splash.webm",
-      splash_topic_.empty() ? std::u16string(switches::kDefaultSplashCacheName)
-                            : base::UTF8ToUTF16(splash_topic_),
-      base::BindOnce(&Shell::OnCachedSplashVideoRead,
+  splash_cache_reader_->Read(name, cache_name,
+                             base::BindOnce(&Shell::OnCachedSplashVideoRead,
+                                            weak_factory_.GetWeakPtr()));
+}
+
+void Shell::WaitForSplashWasmPolicy() {
+  if (!splash_screen_web_contents_observer_) {
+    ReadCachedSplashVideo();
+    return;
+  }
+  splash_wasm_policy_start_time_ = base::TimeTicks::Now();
+  splash_screen_web_contents_observer_->set_on_title_set(base::BindRepeating(
+      &Shell::OnSplashScreenTitleSet, weak_factory_.GetWeakPtr()));
+  splash_wasm_policy_timer_.Start(
+      FROM_HERE, kSplashWasmPolicyTimeout,
+      base::BindOnce(&Shell::OnSplashWasmPolicyTimeout,
                      weak_factory_.GetWeakPtr()));
+}
+
+void Shell::OnSplashScreenTitleSet(const std::u16string& title) {
+  // Ignores the titles after the choice, or after the timeout.
+  if (!splash_wasm_policy_timer_.IsRunning()) {
+    return;
+  }
+  const std::string value = base::UTF16ToUTF8(title);
+  if (!base::StartsWith(value, kSplashWasmPolicyTitlePrefix)) {
+    return;
+  }
+  splash_wasm_policy_timer_.Stop();
+  const int64_t elapsed_ms =
+      (base::TimeTicks::Now() - splash_wasm_policy_start_time_)
+          .InMilliseconds();
+  // "<cache name>/<entry name>", e.g., "default/splash.webm".
+  const std::string_view choice =
+      std::string_view(value).substr(kSplashWasmPolicyTitlePrefix.size());
+  const size_t slash = choice.find('/');
+  const std::string_view cache_name =
+      slash == std::string_view::npos ? choice : choice.substr(0, slash);
+  const std::string_view name = slash == std::string_view::npos
+                                    ? std::string_view()
+                                    : choice.substr(slash + 1);
+  if (!IsPlainSplashCacheToken(cache_name) || !IsPlainSplashCacheToken(name) ||
+      !base::EndsWith(name, ".webm")) {
+    LOG(INFO) << "NativeSplash: Wasm policy failed in " << elapsed_ms << "ms.";
+    ReadCachedSplashVideo();
+    return;
+  }
+  LOG(INFO) << "NativeSplash: Wasm policy chose " << cache_name << "/" << name
+            << " in " << elapsed_ms << "ms.";
+  ReadCachedSplashVideoEntry(std::string(name), base::UTF8ToUTF16(cache_name));
+}
+
+void Shell::OnSplashWasmPolicyTimeout() {
+  LOG(INFO) << "NativeSplash: Wasm policy timed out in "
+            << kSplashWasmPolicyTimeout.InMilliseconds() << "ms.";
+  ReadCachedSplashVideo();
 }
 
 void Shell::OnCachedSplashVideoRead(SplashScreenFetchedState state,
@@ -1003,7 +1096,8 @@ void Shell::StopNativeSplashVideo() {
   if (!shows_native_splash_video_hole_) {
     return;
   }
-  if (splash_cache_reader_ || native_splash_video_player_) {
+  if (splash_cache_reader_ || native_splash_video_player_ ||
+      splash_wasm_policy_timer_.IsRunning()) {
     RecordNativeSplashVideoOutcome(NativeSplashVideoOutcome::kStoppedOnConceal);
   }
   // Without its video, the page's video hole would show the cleared video
@@ -1028,6 +1122,7 @@ void Shell::ShowImageSplashScreen() {
 }
 
 void Shell::SwitchFromNativeSplashVideo() {
+  splash_wasm_policy_timer_.Stop();
   splash_cache_reader_.reset();
   native_splash_video_player_.reset();
   awaiting_splash_video_first_frame_ = false;
@@ -1639,6 +1734,7 @@ void Shell::SwitchToMainWebContents(
         web_contents()->GetRenderWidgetHostView()->Focus();
       }
     }
+    splash_wasm_policy_timer_.Stop();
     splash_cache_reader_.reset();
     native_splash_video_player_.reset();
     shows_native_splash_video_hole_ = false;

@@ -60,7 +60,7 @@ const char kMimeTypeVideoWebM[] = "video/webm";
 // TODO - b/456482732: remove unsafe-inline.
 const char kH5vccContentSecurityPolicy[] =
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline'; "
+    "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; "
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: blob:; "
     "media-src 'self' data: blob: %s:; "

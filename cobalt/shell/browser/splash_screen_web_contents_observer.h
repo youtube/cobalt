@@ -15,6 +15,7 @@
 #ifndef COBALT_SHELL_BROWSER_SPLASH_SCREEN_WEB_CONTENTS_OBSERVER_H_
 #define COBALT_SHELL_BROWSER_SPLASH_SCREEN_WEB_CONTENTS_OBSERVER_H_
 
+#include <string>
 #include <utility>
 
 #include "base/functional/callback.h"
@@ -67,6 +68,16 @@ class SplashScreenWebContentsObserver : public WebContentsObserver {
     on_video_started_ = std::move(on_video_started);
   }
 
+  // DO NOT SUBMIT: benchmark only. Runs `on_title_set` with the title of the
+  // splash screen's page whenever it's set, e.g., when splash.html reports the
+  // choice of its WebAssembly policy (see cobalt::features::kSplashWasmPolicy).
+  void set_on_title_set(
+      base::RepeatingCallback<void(const std::u16string&)> on_title_set) {
+    on_title_set_ = std::move(on_title_set);
+  }
+
+  void TitleWasSet(NavigationEntry* entry) override;
+
   void MediaStartedPlaying(const MediaPlayerInfo& video_type,
                            const MediaPlayerId& id) override;
   void MediaStoppedPlaying(
@@ -83,6 +94,7 @@ class SplashScreenWebContentsObserver : public WebContentsObserver {
   StartupEventCallback on_startup_event_;
   base::RepeatingClosure on_resized_;
   base::RepeatingClosure on_video_started_;
+  base::RepeatingCallback<void(const std::u16string&)> on_title_set_;
 };
 
 }  // namespace content
