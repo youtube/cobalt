@@ -21,22 +21,18 @@
 #include "base/time/time.h"
 #include "cobalt/shell/browser/splash/splash_wasm_selector.h"
 #include "cobalt/shell/browser/splash/testdata/test_selector_wasm.h"
-#include "gin/test/v8_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace content {
 namespace {
 
-constexpr base::TimeDelta kTimeout = base::Seconds(5);
-
-// gin::V8Test initializes V8 the way the other V8 tests in this binary
-// expect. RunSplashSelectorWasm() creates its own isolate on top.
-class SplashWasmRunnerTest : public gin::V8Test {
+class SplashWasmRunnerTest : public testing::Test {
  protected:
   base::expected<std::string, std::string> Run(
       const std::string& input_json,
-      base::TimeDelta timeout = kTimeout) {
-    return RunSplashSelectorWasm(kTestSelectorWasm, input_json, timeout);
+      int instruction_limit = kDefaultSplashSelectorInstructionLimit) {
+    return RunSplashSelectorWasm(kTestSelectorWasm, input_json,
+                                 instruction_limit);
   }
 
   // Returns the selected key, or the error.
@@ -71,7 +67,7 @@ TEST_F(SplashWasmRunnerTest, SelectsFromHostInput) {
 
 TEST_F(SplashWasmRunnerTest, RejectsInvalidModule) {
   const uint8_t kGarbage[] = {'n', 'o', 't', 'w', 'a', 's', 'm'};
-  auto result = RunSplashSelectorWasm(kGarbage, "{}", kTimeout);
+  auto result = RunSplashSelectorWasm(kGarbage, "{}");
   ASSERT_FALSE(result.has_value());
   EXPECT_NE(std::string::npos, result.error().find("compile"))
       << result.error();
@@ -81,7 +77,7 @@ TEST_F(SplashWasmRunnerTest, RejectsModuleWithoutAbi) {
   // An empty but valid module.
   const uint8_t kEmptyModule[] = {0x00, 0x61, 0x73, 0x6d,
                                   0x01, 0x00, 0x00, 0x00};
-  auto result = RunSplashSelectorWasm(kEmptyModule, "{}", kTimeout);
+  auto result = RunSplashSelectorWasm(kEmptyModule, "{}");
   ASSERT_FALSE(result.has_value());
   EXPECT_NE(std::string::npos, result.error().find("doesn't export"))
       << result.error();
@@ -101,14 +97,18 @@ TEST_F(SplashWasmRunnerTest, RejectsOutOfBoundsOutput) {
       << result.error();
 }
 
-TEST_F(SplashWasmRunnerTest, TerminatesOnTimeout) {
+TEST_F(SplashWasmRunnerTest, StopsAtInstructionLimit) {
   const base::TimeTicks start = base::TimeTicks::Now();
-  auto result = Run(R"({"test_mode":"loop"})", base::Milliseconds(50));
+  auto result = Run(R"({"test_mode":"loop"})", /*instruction_limit=*/1'000'000);
   const base::TimeDelta elapsed = base::TimeTicks::Now() - start;
   ASSERT_FALSE(result.has_value());
-  EXPECT_NE(std::string::npos, result.error().find("terminated"))
+  EXPECT_NE(std::string::npos, result.error().find("instruction limit"))
       << result.error();
   EXPECT_LT(elapsed, base::Seconds(5));
+}
+
+TEST_F(SplashWasmRunnerTest, DefaultLimitAllowsSelection) {
+  EXPECT_EQ("splash_1080.webm", Select(R"({"screen_height":1080})"));
 }
 
 TEST_F(SplashWasmRunnerTest, RejectsOversizedInput) {
@@ -117,8 +117,8 @@ TEST_F(SplashWasmRunnerTest, RejectsOversizedInput) {
 }
 
 TEST_F(SplashWasmRunnerTest, ReportsCost) {
-  // Not a benchmark: logs the cost of a run (isolate creation, compilation,
-  // instantiation, selection and teardown) on this machine.
+  // Not a benchmark: logs the cost of a run (loading, instantiation,
+  // selection and teardown) on this machine.
   constexpr int kRuns = 20;
   const base::TimeTicks start = base::TimeTicks::Now();
   for (int i = 0; i < kRuns; ++i) {

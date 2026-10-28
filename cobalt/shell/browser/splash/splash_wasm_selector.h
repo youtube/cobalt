@@ -23,6 +23,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "cobalt/shell/browser/splash/splash_cache_reader.h"
+#include "cobalt/shell/browser/splash/splash_wasm_runner.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -63,8 +64,8 @@ struct SplashSelection {
 // web app, without a renderer or WebContents.
 //
 //   1. Reads the selector module (kSelectorKey) from the splash Cache Storage.
-//   2. Runs it in a fresh V8 isolate, see RunSplashSelectorWasm(), passing it
-//      a SplashSelectorInput as JSON. It returns a cache key.
+//   2. Runs it with WAMR, see RunSplashSelectorWasm(), passing it a
+//      SplashSelectorInput as JSON. It returns a cache key.
 //   3. Reads the video with that key from the same cache.
 //
 // Falls back to kFallbackKey if there is no selector, or it fails, or the
@@ -75,7 +76,6 @@ class SplashWasmSelector {
   static constexpr char kSelectorKey[] = "splash_selector.wasm";
   static constexpr char kFallbackKey[] = "splash.webm";
   static constexpr uint64_t kMaxSelectorSize = 1024 * 1024;
-  static constexpr base::TimeDelta kDefaultTimeout = base::Milliseconds(100);
 
   using Callback = base::OnceCallback<void(SplashSelection)>;
 
@@ -93,7 +93,9 @@ class SplashWasmSelector {
   static std::string BuildInputJson(const SplashSelectorInput& input,
                                     base::Time now);
 
-  void set_timeout_for_testing(base::TimeDelta timeout) { timeout_ = timeout; }
+  void set_instruction_limit_for_testing(int limit) {
+    instruction_limit_ = limit;
+  }
 
  private:
   void OnSelectorRead(
@@ -107,7 +109,7 @@ class SplashWasmSelector {
   void Finish();
 
   SplashCacheReader reader_;
-  base::TimeDelta timeout_ = kDefaultTimeout;
+  int instruction_limit_ = kDefaultSplashSelectorInstructionLimit;
   std::string input_json_;
   SplashSelection selection_;
   Callback callback_;

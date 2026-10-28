@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Proof of concept: selecting the splash video with a Wasm module from the
-# web app, without a renderer. See README.md.
+# Proof of concept: a splash screen without a WebContents. The video is picked
+# by a Wasm module from the web app, run with WAMR, and played with a
+# Starboard player. See README.md.
 
 source_set("splash") {
   sources = [
@@ -32,14 +33,13 @@ source_set("splash") {
     "//cobalt/shell:cobalt_shell_switches",
     "//components/services/storage/public/cpp",
     "//components/services/storage/public/mojom",
-    "//gin",
     "//media",
     "//mojo/public/cpp/system",
     "//services/network/public/cpp",
     "//third_party/blink/public/common",
+    "//third_party/wasm_micro_runtime:wamr",
     "//ui/display",
     "//url",
-    "//v8",
   ]
   public_deps = [
     "//base",
@@ -49,7 +49,6 @@ source_set("splash") {
     "//third_party/blink/public/mojom:mojom_platform",
     "//ui/gfx/geometry",
   ]
-  configs += [ "//v8:external_startup_data" ]
 }
 
 source_set("unit_tests") {
@@ -60,12 +59,8 @@ source_set("unit_tests") {
     ":test_selector",
     "//base",
     "//base/test:test_support",
-    "//gin",
-    "//gin:gin_test",
     "//testing/gtest",
-    "//v8",
   ]
-  configs += [ "//v8:external_startup_data" ]
 }
 
 # The test selector module, embedded as bytes. See testdata/.

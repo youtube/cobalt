@@ -74,14 +74,9 @@ void SplashWasmSelector::OnSelectorRead(
         SplashCacheReader::ErrorToString(result.error());
     return ReadVideo(kFallbackKey);
   }
-  if (!IsV8ReadyForSplashSelector()) {
-    selection_.selector_error = "V8 is not initialized yet";
-    return ReadVideo(kFallbackKey);
-  }
-
   const base::TimeTicks run_start = base::TimeTicks::Now();
   base::expected<std::string, std::string> key =
-      RunSplashSelectorWasm(result.value(), input_json_, timeout_);
+      RunSplashSelectorWasm(result.value(), input_json_, instruction_limit_);
   selection_.run_selector_time = base::TimeTicks::Now() - run_start;
   if (!key.has_value()) {
     selection_.selector_error = key.error();

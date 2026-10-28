@@ -1,8 +1,10 @@
-# Splash selector (proof of concept)
+# Native splash screen (proof of concept)
 
-The web app chooses which splash video Cobalt plays at launch, with a
-WebAssembly module it puts into the splash cache. Cobalt runs the module
-natively in the browser process, without a WebContents or a renderer.
+A splash screen without a WebContents. The web app chooses which splash video
+Cobalt plays at launch, with a WebAssembly module it puts into the splash
+cache. Cobalt runs the module natively with WAMR (WebAssembly Micro Runtime,
+`//third_party/wasm_micro_runtime`, interpreter only), then plays the video
+directly with a Starboard player. Enabled with `--native-splash-player`.
 
 ## Flow
 
@@ -23,15 +25,17 @@ natively in the browser process, without a WebContents or a renderer.
 2.  **This launch**: `SplashWasmSelector`
 
     1.  reads `splash_selector.wasm` from the cache (`SplashCacheReader`);
-    2.  runs it in a fresh V8 isolate (`RunSplashSelectorWasm()`), passing
-        it a JSON description of the launch. It returns a cache key;
+    2.  runs it with WAMR (`RunSplashSelectorWasm()`), passing it a JSON
+        description of the launch. It returns a cache key;
     3.  reads the video with that key from the cache.
 
-    If there is no selector, it fails, times out (100 ms by default) or picks
-    a missing video, it reads `splash.webm` instead. If that is missing too,
-    the caller shows its built-in splash.
+    If there is no selector, it fails, exceeds its instruction limit (10M
+    instructions by default) or picks a missing video, it reads `splash.webm`
+    instead. If that is missing too, `NativeSplash` plays the built-in one.
 
-3.  Playing the video is up to the caller.
+3.  `SplashVideoPlayer` demuxes the WebM and plays its video track with an
+    `SbPlayer` in punch-out mode. The shell keeps its WebContents out of view
+    until the video ends.
 
 ## ABI v1
 
@@ -81,20 +85,17 @@ module can be tested in a browser or Node.js with `WebAssembly.instantiate()`.
 
 ## Known limitations
 
-*   **V8 initialization order.** Production Cobalt runs in single-process
-    mode, where the in-process renderer initializes V8 and sets its flags when
-    Blink starts. V8 freezes its flags once initialized, so the browser can't
-    initialize it first. Until the renderer has initialized V8,
-    `IsV8ReadyForSplashSelector()` returns false and the fallback
-    video is used. Running the selector before the renderer starts needs V8's
-    initialization, including the renderer's flags, moved earlier.
-*   The selector runs on the calling (UI) thread.
-*   Not wired into startup yet; only the tests use it.
+*   The selector runs on the UI thread.
+*   On Android, `SbPlayerCreate()` fails until the video surface exists, so
+    `SplashVideoPlayer` retries every 50 ms. A real implementation should start
+    on the surface's creation instead.
+*   Video only (no audio), punch-out only. The main WebContents is shown when
+    the video ends, whether or not it has loaded.
 
 ## Tests
 
 *   `splash_wasm_runner_unittest.cc` (`cobalt_unittests`): the ABI, errors,
-    the timeout.
+    the instruction limit.
 *   `splash_wasm_selector_browsertest.cc` (`cobalt_browsertests`): the whole
     flow, with the cache populated from JavaScript.
 *   `testdata/test_selector.c` is the test selector. Regenerate its embedded
