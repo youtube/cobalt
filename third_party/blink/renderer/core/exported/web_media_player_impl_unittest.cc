@@ -453,6 +453,11 @@ class WebMediaPlayerImplTest
     auto compositor = std::make_unique<NiceMock<MockVideoFrameCompositor>>(
         media_thread_.task_runner());
     compositor_ = compositor.get();
+#if BUILDFLAG(IS_COBALT)
+    if (on_compositor_created_for_testing_) {
+      std::move(on_compositor_created_for_testing_).Run(compositor_);
+    }
+#endif  // BUILDFLAG(IS_COBALT)
 
     wmpi_ = std::make_unique<WebMediaPlayerImpl>(
         GetWebLocalFrame(), &client_, &encrypted_client_, &delegate_,
@@ -953,6 +958,13 @@ class WebMediaPlayerImplTest
 
   scoped_refptr<viz::TestContextProvider> context_provider_;
   NiceMock<MockVideoFrameCompositor>* compositor_;
+#if BUILDFLAG(IS_COBALT)
+  // If set, run on the compositor right before |wmpi_| is constructed, so tests
+  // can set expectations for calls posted from the WebMediaPlayerImpl
+  // constructor.
+  base::OnceCallback<void(NiceMock<MockVideoFrameCompositor>*)>
+      on_compositor_created_for_testing_;
+#endif  // BUILDFLAG(IS_COBALT)
 
   scoped_refptr<NiceMock<media::MockAudioRendererSink>> audio_sink_;
   MockResourceFetchContext mock_resource_fetch_context_;
@@ -1013,6 +1025,36 @@ TEST_F(WebMediaPlayerImplTest, ConstructAndDestroy) {
   InitializeWebMediaPlayerImpl();
   EXPECT_FALSE(IsSuspended());
 }
+
+#if BUILDFLAG(IS_COBALT)
+// A player created while the page is already hidden must push the hidden page
+// state to its compositor. Otherwise the VideoFrameSubmitter assumes the page
+// is visible and requests a new ContextProvider (blocking the renderer main
+// thread in EstablishGpuChannelSync()) when the GPU is torn down on conceal.
+TEST_F(WebMediaPlayerImplTest, CobaltCreatedWhilePageHiddenNotifiesCompositor) {
+  delegate_.SetPageHiddenForTesting(true);
+  base::RunLoop loop;
+  on_compositor_created_for_testing_ = base::BindLambdaForTesting(
+      [&](NiceMock<MockVideoFrameCompositor>* compositor) {
+        EXPECT_CALL(*compositor, SetIsPageVisible(false))
+            .WillOnce(RunClosure(loop.QuitClosure()));
+      });
+  InitializeWebMediaPlayerImpl();
+  loop.Run();
+  testing::Mock::VerifyAndClearExpectations(compositor_);
+}
+
+TEST_F(WebMediaPlayerImplTest,
+       CobaltCreatedWhilePageVisibleDoesNotNotifyCompositor) {
+  on_compositor_created_for_testing_ = base::BindLambdaForTesting(
+      [](NiceMock<MockVideoFrameCompositor>* compositor) {
+        EXPECT_CALL(*compositor, SetIsPageVisible(_)).Times(0);
+      });
+  InitializeWebMediaPlayerImpl();
+  media_thread_.FlushForTesting();
+  testing::Mock::VerifyAndClearExpectations(compositor_);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Verify LoadAndWaitForCurrentData() functions without issue.
 TEST_F(WebMediaPlayerImplTest, LoadAndDestroy) {
