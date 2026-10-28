@@ -43,8 +43,7 @@ inline void ReadBigEndian(const uint8_t buf[], T* out) {
 
 Box::~Box() = default;
 
-BufferReader::BufferReader(const uint8_t* buf, const size_t buf_size)
-    : buf_(buf, buf_size) {}
+BufferReader::BufferReader(span<const uint8_t> buf) : buf_(buf) {}
 
 BufferReader::~BufferReader() = default;
 
@@ -86,8 +85,8 @@ bool BufferReader::Read4Into8(uint64_t* v) {
   return true;
 }
 
-BoxReader::BoxReader(const uint8_t* buf, const size_t buf_size, bool is_EOS)
-    : BufferReader(buf, buf_size),
+BoxReader::BoxReader(span<const uint8_t> buf, bool is_EOS)
+    : BufferReader(buf),
       box_size_(0),
       box_size_known_(false),
       type_(FOURCC_NULL),
@@ -101,14 +100,13 @@ BoxReader::BoxReader(const BoxReader& other) = default;
 BoxReader::~BoxReader() = default;
 
 // static
-BoxReader* BoxReader::ReadConcatentatedBoxes(const uint8_t* buf,
-                                             const size_t buf_size) {
-  BoxReader* reader = new BoxReader(buf, buf_size, true);
+BoxReader* BoxReader::ReadConcatentatedBoxes(span<const uint8_t> buf) {
+  BoxReader* reader = new BoxReader(buf, true);
 
   // Concatenated boxes are passed in without a wrapping parent box. Set
   // |box_size_| to the concatenated buffer length to mimic having already
   // parsed the parent box.
-  reader->box_size_ = buf_size;
+  reader->box_size_ = buf.size();
   reader->box_size_known_ = true;
 
   return reader;

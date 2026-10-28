@@ -19,7 +19,7 @@ namespace starboard {
 // The initialization data for encrypted media files using the ISO Common
 // Encryption ('cenc') protection scheme may contain one or more protection
 // system specific header ('pssh') boxes.
-// ref: https://w3c.github.io/encrypted-media/cenc-format.html
+// ref: https://www.w3.org/TR/eme-initdata-cenc/
 
 // Returns true if |input| contains only 1 or more valid 'pssh' boxes, false
 // otherwise. |pssh_boxes| is updated as the set of parsed 'pssh' boxes.
@@ -38,7 +38,7 @@ static bool ReadAllPsshBoxes(
   // so this simply verifies that |input| only contains 'pssh' boxes and
   // nothing else.
   std::unique_ptr<BoxReader> input_reader(
-      BoxReader::ReadConcatentatedBoxes(input.data(), input.size()));
+      BoxReader::ReadConcatentatedBoxes(input));
   std::vector<ProtectionSystemSpecificHeader> raw_pssh_boxes;
   if (!input_reader->ReadAllChildrenAndCheckFourCC(&raw_pssh_boxes)) {
     return false;
@@ -51,8 +51,7 @@ static bool ReadAllPsshBoxes(
   // ignoring any boxes that can't be parsed.
   for (const auto& raw_pssh_box : raw_pssh_boxes) {
     std::unique_ptr<BoxReader> raw_pssh_reader(
-        BoxReader::ReadConcatentatedBoxes(raw_pssh_box.raw_box.data(),
-                                          raw_pssh_box.raw_box.size()));
+        BoxReader::ReadConcatentatedBoxes(raw_pssh_box.raw_box));
     // ReadAllChildren() appends any successfully parsed box onto it's
     // parameter, so |pssh_boxes| will contain the collection of successfully
     // parsed 'pssh' boxes. If an error occurs, try the next box.

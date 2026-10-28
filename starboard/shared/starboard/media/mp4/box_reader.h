@@ -55,7 +55,7 @@ struct Box {
 
 class BufferReader {
  public:
-  BufferReader(const uint8_t* buf, const size_t buf_size);
+  explicit BufferReader(span<const uint8_t> buf);
   BufferReader(const BufferReader& other);
   virtual ~BufferReader();
   bool HasBytes(size_t count) {
@@ -107,8 +107,7 @@ class BoxReader : public BufferReader {
   // with any type of box.
   //
   // |buf| is retained but not owned, and must outlive the BoxReader instance.
-  static BoxReader* ReadConcatentatedBoxes(const uint8_t* buf,
-                                           const size_t buf_size);
+  static BoxReader* ReadConcatentatedBoxes(span<const uint8_t> buf);
 
   // Read all children and verify that the FourCC matches what is expected.
   // Returns true if all children are successfully parsed and have the correct
@@ -133,7 +132,7 @@ class BoxReader : public BufferReader {
  private:
   // Create a BoxReader from |buf|. |is_EOS| should be true if |buf| is
   // complete stream (i.e. no additional data is expected to be appended).
-  BoxReader(const uint8_t* buf, const size_t buf_size, bool is_EOS);
+  BoxReader(span<const uint8_t> buf, bool is_EOS);
 
   // Must be called immediately after init.
   [[nodiscard]] ParseResult ReadHeader();
@@ -172,7 +171,7 @@ bool BoxReader::ReadAllChildrenInternal(std::vector<T>* children,
 
   SB_DCHECK_LE(pos_, box_size_);
   while (pos_ < box_size_) {
-    BoxReader child_reader(&buf_[pos_], box_size_ - pos_, is_EOS_);
+    BoxReader child_reader(buf_.subspan(pos_), is_EOS_);
 
     if (child_reader.ReadHeader() != ParseResult::kOk) {
       return false;

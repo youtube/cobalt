@@ -53,11 +53,11 @@ constexpr uint8_t kCommonSystemSystemId[] = {
 void InitializePSSHBox(std::vector<uint8_t>* box,
                        uint8_t size,
                        uint8_t version) {
-  SB_DCHECK(box->size() == 0);
+  SB_CHECK(box->size() == 0);
 
   box->reserve(size);
   // Add size.
-  SB_DCHECK(size < std::numeric_limits<uint8_t>::max());
+  SB_CHECK(size < std::numeric_limits<uint8_t>::max());
   box->push_back(0);
   box->push_back(0);
   box->push_back(0);
@@ -98,8 +98,8 @@ std::vector<uint8_t> MakePSSHBox(uint8_t version) {
 }
 
 std::vector<uint8_t> MakePSSHBox(uint8_t version, span<const uint8_t> key1) {
-  SB_DCHECK(version > 0);
-  SB_DCHECK(key1.size() == 16);
+  SB_CHECK(version > 0);
+  SB_CHECK(key1.size() == 16);
 
   std::vector<uint8_t> box;
   uint8_t size = 52;
@@ -127,9 +127,9 @@ std::vector<uint8_t> MakePSSHBox(uint8_t version, span<const uint8_t> key1) {
 std::vector<uint8_t> MakePSSHBox(uint8_t version,
                                  span<const uint8_t> key1,
                                  span<const uint8_t> key2) {
-  SB_DCHECK(version > 0);
-  SB_DCHECK(key1.size() == 16);
-  SB_DCHECK(key2.size() == 16);
+  SB_CHECK(version > 0);
+  SB_CHECK(key1.size() == 16);
+  SB_CHECK(key2.size() == 16);
 
   std::vector<uint8_t> box;
   uint8_t size = 68;
