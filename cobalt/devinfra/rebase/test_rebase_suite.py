@@ -60,8 +60,17 @@ from conflicts import (
     sort_conflict_priority,
 )
 from engine_client import ReasoningEngineClient
-from fix_commits import FixCommitter, fix_commit_message, parse_judgement
+from fix_commits import (
+    FixCommitter,
+    commit_files,
+    conflict_commit_message,
+    conflict_rationales,
+    fix_commit_message,
+    fix_rationales,
+    parse_judgement,
+)
 from gclient_sync import GClientSyncDiagnostic
+import upstream_cl
 from gn_gen import GNDiagnostic, GNGenResolver, extract_gn_target_files
 from reasoning_engine import CobaltReasoningEngine
 from token_usage import TokenUsage
@@ -3894,6 +3903,30 @@ class CommitPerFixTest(unittest.TestCase):
       self.assertEqual(resolver.committer.pending, [])
       self.assertEqual(resolver.committer.trigger, "")
 
+  def test_commit_skips_local_pre_commit_hooks(self):
+    """A hook that rewrites or rejects files must not drop the fix commit."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+      _git_repo_with(tmpdir, {"BUILD.gn": "a\n"})
+      for key, val in (("user.name", "t"), ("user.email", "t@t")):
+        subprocess.run(["git", "config", key, val], cwd=tmpdir, check=True)
+      hook = os.path.join(tmpdir, ".git", "hooks", "pre-commit")
+      with open(hook, "w", encoding="utf-8") as f:
+        f.write("#!/bin/sh\necho formatted > BUILD.gn\nexit 1\n")
+      os.chmod(hook, 0o755)
+      with open(os.path.join(tmpdir, "BUILD.gn"), "w", encoding="utf-8") as f:
+        f.write("b\n")
+
+      sha = commit_files(tmpdir, ["BUILD.gn"], "Fix BUILD.gn")
+
+      self.assertTrue(sha)
+      self.assertEqual(_git_log(tmpdir)[-1][0], "Fix BUILD.gn")
+      status = subprocess.run(["git", "status", "--porcelain"],
+                              cwd=tmpdir,
+                              capture_output=True,
+                              text=True,
+                              check=True).stdout
+      self.assertEqual(status, "")
+
   def test_get_working_diff_preserves_diff_across_commits(self):
     with tempfile.TemporaryDirectory() as tmpdir:
       _git_repo_with(tmpdir, {"cobalt/a.cc": "int a = 1;\n"})
@@ -3982,6 +4015,213 @@ class CommitPerFixTest(unittest.TestCase):
     self.assertFalse(parser.parse_args(base).commit_per_fix)
     self.assertTrue(
         parser.parse_args(base + ["--commit-per-fix"]).commit_per_fix)
+
+
+class UpstreamCLLookupTest(unittest.TestCase):
+  """Tests for upstream_cl (Gerrit/Gitiles lookup, DEPS subrepos, trailers)."""
+
+  _SAMPLE_DEPS = """
+vars = {
+  'chromium_git': 'https://chromium.googlesource.com',
+  'webrtc_git': 'https://webrtc.googlesource.com',
+  'v8_revision': 'f3cde89bb08c0000000000000000000000000002',
+}
+deps = {
+  'src/third_party/icu':
+    Var('chromium_git') + '/chromium/deps/icu.git' + '@' + 'b4aae6832c06df9d538d41b249403cf0678f16b4',
+  'src/v8':
+    Var('chromium_git') + '/v8/v8.git' + '@' + Var('v8_revision'),
+  'src/third_party/webrtc':
+    Var('webrtc_git') + '/src.git' + '@' + 'e68d24dcebce0000000000000000000000000002',
+}
+"""
+
+  def setUp(self):
+    super().setUp()
+    upstream_cl.clear_caches()
+
+  def tearDown(self):
+    upstream_cl.clear_caches()
+    super().tearDown()
+
+  def test_parse_deps_subrepos_maps_vars_and_literals(self):
+    subrepos = upstream_cl.parse_deps_subrepos(self._SAMPLE_DEPS)
+    self.assertEqual(
+        subrepos["third_party/icu"],
+        ("chromium", "chromium/deps/icu",
+         "b4aae6832c06df9d538d41b249403cf0678f16b4"),
+    )
+    self.assertEqual(
+        subrepos["v8"],
+        ("chromium", "v8/v8", "f3cde89bb08c0000000000000000000000000002"),
+    )
+    self.assertEqual(
+        subrepos["third_party/webrtc"],
+        ("webrtc", "src", "e68d24dcebce0000000000000000000000000002"),
+    )
+
+  def _make_roll_repo(self, tmpdir: str) -> None:
+    """Creates a minimal git repo with a parent commit and 'Update to 148.'."""
+    old_deps = self._SAMPLE_DEPS.replace(
+        "f3cde89bb08c0000000000000000000000000002",
+        "8941ded106430000000000000000000000000001",
+    )
+    _git_repo_with(
+        tmpdir,
+        {
+            "chrome/VERSION": "MAJOR=148\nMINOR=0\nBUILD=7739\nPATCH=0\n",
+            "DEPS": old_deps,
+        },
+    )
+    with open(
+        os.path.join(tmpdir, "chrome/VERSION"), "w", encoding="utf-8") as f:
+      f.write("MAJOR=148\nMINOR=0\nBUILD=7752\nPATCH=0\n")
+    with open(os.path.join(tmpdir, "DEPS"), "w", encoding="utf-8") as f:
+      f.write(self._SAMPLE_DEPS)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit",
+            "-qam",
+            "Update to 148.7752.",
+        ],
+        cwd=tmpdir,
+        check=True,
+    )
+
+  def test_lookup_and_tool_upstream_log_for_chromium_and_subrepo(self):
+
+    requests = []
+
+    def fake_gerrit_json(host, path):
+      requests.append((host, path))
+      self.assertEqual(host, "chromium.googlesource.com")
+      if path.startswith("chromium/src/+log/148.0.7739.0..148.0.7752.0/"
+                         "media/webrtc/BUILD.gn?"):
+        return {
+            "log": [{
+                "commit":
+                    "16777dd522270000000000000000000000000000",
+                "message":
+                    ("Remove build_with_tflite_lib\n\n"
+                     "Unused since M146.\n\n"
+                     "Bug: 400000\n"
+                     "Change-Id: I123\n"
+                     "Reviewed-on: https://chromium-review.googlesource.com"
+                     "/c/chromium/src/+/7695593\n"),
+            }]
+        }
+      if path.startswith("v8/v8/+log/8941ded106430000000000000000000000000001"
+                         "..f3cde89bb08c0000000000000000000000000002/"
+                         "src/base/cpu/cpu.h?"):
+        return {
+            "log": [{
+                "commit":
+                    "89ad1535c3430000000000000000000000000000",
+                "message": ("[base] Refactor CPU detection\n\n"
+                            "Reviewed-on: https://chromium-review"
+                            ".googlesource.com/c/v8/v8/+/7683553\n"),
+            }]
+        }
+      return {"log": []}
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+      self._make_roll_repo(tmpdir)
+      with mock.patch.object(
+          upstream_cl, "_gerrit_json", side_effect=fake_gerrit_json):
+        # ICU's pin is the same on both sides of the roll: no request at all.
+        self.assertEqual(
+            upstream_cl.lookup_upstream_cls(tmpdir, "third_party/icu/BUILD.gn"),
+            [])
+        self.assertEqual(requests, [])
+
+        out = execute_local_tool("TOOL_UPSTREAM_LOG: media/webrtc/BUILD.gn",
+                                 tmpdir)
+        self.assertIn(
+            "- 16777dd52227 | https://crrev.com/c/7695593 | "
+            "Remove build_with_tflite_lib", out)
+        self.assertIn("Unused since M146.", out)
+        self.assertNotIn("Change-Id:", out)
+
+        v8_out = execute_local_tool("TOOL_UPSTREAM_LOG: v8/src/base/cpu/cpu.h",
+                                    tmpdir)
+        self.assertIn("v8/v8:src/base/cpu/cpu.h", v8_out)
+        self.assertIn(
+            "- 89ad1535c343 | https://crrev.com/c/7683553 | "
+            "[base] Refactor CPU detection", v8_out)
+
+        # Transcript CLs from TOOL_UPSTREAM_LOG on a related file are picked up,
+        # while DEPS and Cobalt-only paths are skipped.
+        refs = upstream_cl.upstream_ref_lines(
+            tmpdir,
+            ["DEPS", "cobalt/foo.cc", "media/webrtc/BUILD.gn"],
+            tool_transcript=v8_out,
+        )
+        self.assertEqual(refs, [
+            "https://crrev.com/c/7695593 "
+            "(16777dd52227 Remove build_with_tflite_lib)",
+            "https://crrev.com/c/7683553 "
+            "(89ad1535c343 [base] Refactor CPU detection)",
+        ])
+
+  def test_gerrit_json_uses_gerrit_util_default_auth(self):
+    gu = upstream_cl.gerrit_util
+    with mock.patch.object(gu, "CreateHttpConn") as create, mock.patch.object(
+        gu, "ReadHttpJsonResponse", return_value={"ok": 1}) as read:
+      res = upstream_cl._gerrit_json(  # pylint: disable=protected-access
+          "chromium.googlesource.com", "chromium/src/+/HEAD?format=JSON")
+    self.assertEqual(res, {"ok": 1})
+    # No authenticator passed: gerrit_util chooses it like `git cl` does.
+    create.assert_called_once_with(
+        "chromium.googlesource.com",
+        "chromium/src/+/HEAD?format=JSON",
+        timeout=30)
+    read.assert_called_once_with(create.return_value)
+
+    with mock.patch.object(
+        gu, "CreateHttpConn",
+        side_effect=gu.GerritError(429, "quota")), self.assertLogs(
+            upstream_cl.log, "WARNING"):
+      self.assertIsNone(
+          upstream_cl._gerrit_json(  # pylint: disable=protected-access
+              "chromium.googlesource.com", "x"))
+
+  def test_commit_messages_and_report_include_upstream_refs(self):
+    ref = "https://crrev.com/c/7695593 (16777dd52227 Remove tflite option)"
+    c_rec = AgentChangeRecord(
+        "resolve_conflicts",
+        1,
+        "media/webrtc/BUILD.gn",
+        file_changes={"media/webrtc/BUILD.gn": "x"},
+        applied_cleanly=True,
+        trigger="Conflict block #1 in media/webrtc/BUILD.gn (lines 1-5)",
+        rationale="Keep Cobalt guard.",
+        model="m",
+        upstream_refs=[ref],
+    )
+    _, c_body = conflict_commit_message("media/webrtc/BUILD.gn", [c_rec])
+    self.assertIn(f"Upstream: {ref}", c_body)
+    self.assertIn(f"Upstream CL: {ref}", conflict_rationales([c_rec]))
+
+    f_rec = AgentChangeRecord(
+        "P3",
+        1,
+        "media/webrtc/BUILD.gn",
+        file_changes={"media/webrtc/BUILD.gn": "x"},
+        applied_cleanly=True,
+        trigger="media/webrtc/BUILD.gn:1: Assertion failed",
+        rationale="Drop removed option.",
+        model="m",
+        upstream_refs=[ref],
+    )
+    _, f_body = fix_commit_message([f_rec], "P3")
+    self.assertIn(f"Upstream: {ref}", f_body)
+    self.assertIn(f"Upstream CL: {ref}", fix_rationales([f_rec]))
+    self.assertIn(f"  - upstream: {ref}", format_change_log([f_rec]))
 
 
 if __name__ == "__main__":

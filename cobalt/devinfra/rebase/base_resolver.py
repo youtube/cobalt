@@ -23,6 +23,8 @@ from patching import (NEEDS_HUMAN_PREFIX, apply_parsed_patch,
                       exec_script_changes, parse_patch, patch_file_changes,
                       patch_explanation, patch_rejections)
 from tools import execute_local_tool, extract_tool_commands
+from upstream_cl import (format_upstream_log, lookup_upstream_cls,
+                         upstream_ref_lines)
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
@@ -142,6 +144,7 @@ class BaseResolver(abc.ABC):
     self.commit_per_fix = commit_per_fix
     # The committer of the current (or last) loop; None when not committing.
     self.committer: Optional[FixCommitter] = None
+    self._last_tool_transcript: str = ""
 
   @property
   def model(self) -> str:
@@ -317,6 +320,8 @@ class BaseResolver(abc.ABC):
           investigation_log="\n\n".join(investigation[-6:]),
       )
 
+    if investigation:
+      self._last_tool_transcript += "\n\n" + "\n\n".join(investigation)
     return current_patch, model_used
 
   def run_resolution_loop(self) -> bool:
@@ -393,6 +398,7 @@ class BaseResolver(abc.ABC):
       call_expert_resolve_stuck = (
           state.stuck_count >= 2 or
           self.file_error_counts.get(diag.file_path, 0) >= 3)
+      self._last_tool_transcript = ""
       expert_guidance = ""
       if self.reasoning_engine is not None:
         expert_guidance = self._expert_preflight(
@@ -585,7 +591,9 @@ class BaseResolver(abc.ABC):
             "- `TOOL_UPSTREAM_DIFF: <filepath>` to inspect upstream "
             "Chromium diff.\n"
             "- `TOOL_COBALT_DIFF: <filepath>` to inspect what Cobalt"
-            "adds on top of upstream in this roll.\n")
+            "adds on top of upstream in this roll.\n"
+            "- `TOOL_UPSTREAM_LOG: <filepath>` to list the upstream "
+            "Chromium CLs that touched a file in this roll.\n")
 
   @staticmethod
   def _source_context(diag: Diagnostic, radius: int = 30) -> str:
@@ -623,10 +631,16 @@ class BaseResolver(abc.ABC):
     all_diags_str = "\n".join(f"- {d.file_path}:{d.line_number} "
                               f"{d.error_message}" for d in diagnostics[:20])
     source_context = self._source_context(diag)
+    rel_diag = self._rel_path(diag.file_path)
+    if (rel_diag and rel_diag != "DEPS" and
+        lookup_upstream_cls(self.repo_path, rel_diag)):
+      upstream_log = format_upstream_log(self.repo_path, rel_diag)
+      source_context = (f"{source_context}\n\n{upstream_log}"
+                        if source_context else upstream_log)
     name = self.name.lower()
     mode = "gn" if "gn" in name else ("sync" if "sync" in name else "compiler")
 
-    expert_guidance, _ = consult_expert(
+    expert_guidance, expert_tools = consult_expert(
         self.reasoning_engine,
         self.repo_path,
         self.session_changes,
@@ -641,6 +655,7 @@ class BaseResolver(abc.ABC):
         mode=mode,
         expert_model=self.reasoning_engine.expert_model,
     )
+    self._last_tool_transcript = expert_tools
 
     if expert_guidance:
       log.info("  [%s] [TIER-2 ARCHITECT] Pre-Flight Plan:\n  >>> %s...",
@@ -701,14 +716,16 @@ class BaseResolver(abc.ABC):
               error=error,
               command_output=None,
               applied_cleanly=False,
+              upstream_refs=upstream_ref_lines(self.repo_path, [rel_target],
+                                               self._last_tool_transcript),
               **review,
           ))
       state.pending_record = None
       state.last_patch_not_applied = True
       return
 
-    mod_summary = ", ".join(
-        os.path.relpath(f, self.repo_path) for f in modified_files)
+    rel_mods = [os.path.relpath(f, self.repo_path) for f in modified_files]
+    mod_summary = ", ".join(rel_mods)
     log.info("[%s] [OK] Patch applied cleanly to: %s", self.name, mod_summary)
     state.pending_record = AgentChangeRecord(
         phase=self.name,
@@ -719,6 +736,9 @@ class BaseResolver(abc.ABC):
         error=None,
         command_output=None,
         applied_cleanly=True,
+        upstream_refs=upstream_ref_lines(self.repo_path,
+                                         [rel_target, *rel_mods],
+                                         self._last_tool_transcript),
         **review,
     )
     self.session_changes.append(state.pending_record)

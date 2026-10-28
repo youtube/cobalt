@@ -25,6 +25,11 @@ from tools import (
     execute_local_tool,
     extract_line_anchored_tool_commands,
 )
+from upstream_cl import (
+    format_upstream_log,
+    lookup_upstream_cls,
+    upstream_ref_lines,
+)
 
 log = logging.getLogger(__name__)
 
@@ -390,6 +395,8 @@ def resolve_file_conflicts(
 
   lang = detect_language(file_path)
   rel_path = os.path.relpath(file_path, repo_path)
+  file_refs = ([] if mock_mode or rel_path == "DEPS" else upstream_ref_lines(
+      repo_path, [rel_path]))
 
   # 1. Fast-path: Check if this is an unmodified third_party file
   if is_unmodified_third_party(file_path, repo_path):
@@ -417,6 +424,7 @@ def resolve_file_conflicts(
                            "the upstream side of the conflict was taken "
                            "without consulting the model."),
                 model="fast-path",
+                upstream_refs=list(file_refs),
                 **_block_review(rel_path, block),
             ))
     with open(file_path, "w", encoding="utf-8") as f:
@@ -427,6 +435,13 @@ def resolve_file_conflicts(
 
   log.info("\n[resolve_conflicts] Resolving %s conflict(s) in %s "
            "(%s)...", len(blocks), rel_path, lang)
+
+  file_git_context = git_context
+  if not mock_mode and rel_path != "DEPS" and lookup_upstream_cls(
+      repo_path, rel_path):
+    upstream_log = format_upstream_log(repo_path, rel_path)
+    file_git_context = (f"{git_context}\n\n{upstream_log}"
+                        if git_context else upstream_log)
 
   # Records of resolved blocks are kept until the file is written, so a
   # later block or the DEPS check failing leaves no applied_cleanly records
@@ -441,9 +456,10 @@ def resolve_file_conflicts(
     # ask for tools; consult_expert feeds the results back until it answers
     # with a plan, so the worker (and the change record) get its conclusion
     # rather than the sentence it wrote before its first tool request.
-    trajectory_str = git_context
+    trajectory_str = file_git_context
 
     expert_plan = ""
+    expert_tools = ""
     expert_guidance = ""
     if engine is not None and not mock_mode:
       expert_plan, expert_tools = consult_expert(
@@ -492,7 +508,7 @@ def resolve_file_conflicts(
               raw_conflict=block.raw_block,
               context_before=block.context_before,
               context_after=block.context_after,
-              git_context=git_context,
+              git_context=file_git_context,
               investigation_history=investigation_history,
               expert_guidance=expert_guidance,
               use_expert=use_expert,
@@ -530,10 +546,13 @@ def resolve_file_conflicts(
     # Review context for this block: which block and its two sides, why it
     # was resolved this way (the expert's plan; the resolver itself returns
     # only code), and by which model.
+    block_refs = ([] if mock_mode else upstream_ref_lines(
+        repo_path, [rel_path], f"{expert_tools}\n{investigation_history}"))
     review = dict(
         _block_review(rel_path, block),
         rationale=guidance_summary(expert_plan) or NO_RATIONALE,
-        model=model_used)
+        model=model_used,
+        upstream_refs=block_refs)
 
     if resolved_code is None or "<<<<<<<" in resolved_code:
       log.info("    [ESCALATE] Block #%s could not be cleanly resolved.",
