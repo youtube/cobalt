@@ -102,6 +102,10 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                // task that made them so recent writes survive process
                // termination.
                storage::kDomStorageSmartFlushing.name,
+               // ATOM_PERF (PoC C4): Skip PaintOp serialization/deserialization
+               // and image transfer cache copies in single-process mode.
+               "CobaltInProcessDirectRaster",
+               "CobaltInProcessImageTransferCache",
            },
            ",")},
       {::switches::kDisableFeatures,
