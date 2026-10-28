@@ -27,6 +27,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "cobalt/build/configs/buildflags.h"
 #include "cobalt/shell/browser/native_splash_video_player.h"
@@ -334,8 +336,19 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Reads the splash screen video that the WebApp cached, if any, to play it
   // natively.
   void ReadCachedSplashVideo();
+  // Reads the cache entry `name`, e.g., "splash.webm", from the cache
+  // `cache_name`, to play it natively.
+  void ReadCachedSplashVideoEntry(const std::string& name,
+                                  const std::u16string& cache_name);
   void OnCachedSplashVideoRead(SplashScreenFetchedState state,
                                std::string cached_webm);
+  // DO NOT SUBMIT: benchmark only (cobalt::features::kSplashWasmPolicy).
+  // Waits for splash.html to report the choice of its WebAssembly policy
+  // through its title, then reads the cache entry that the policy chose, or
+  // the default one if the policy fails or times out.
+  void WaitForSplashWasmPolicy();
+  void OnSplashScreenTitleSet(const std::u16string& title);
+  void OnSplashWasmPolicyTimeout();
   // Starts playing the splash screen video natively: `cached_webm` if it's
   // valid, the built-in video otherwise. Returns false if it can't be played
   // this way.
@@ -392,6 +405,10 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Plays the splash screen video of the native video splash screen.
   std::unique_ptr<NativeSplashVideoPlayer> native_splash_video_player_;
   base::TimeTicks native_splash_video_start_time_;
+  // DO NOT SUBMIT: benchmark only (cobalt::features::kSplashWasmPolicy). Runs
+  // while Shell waits for the choice of splash.html's WebAssembly policy.
+  base::OneShotTimer splash_wasm_policy_timer_;
+  base::TimeTicks splash_wasm_policy_start_time_;
 
   base::WeakPtr<ShellDevToolsFrontend> devtools_frontend_;
 
