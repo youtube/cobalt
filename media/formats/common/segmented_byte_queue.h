@@ -103,6 +103,9 @@ class MEDIA_EXPORT SegmentedByteQueue {
   // Total number of unread bytes.
   virtual size_t size() const = 0;
 
+  // Whether the queue borrows appended memory in place rather than copying it.
+  virtual bool borrow_mode() const = 0;
+
   // Returns the run of bytes that is contiguous at `offset`: everything from
   // `offset` to the end of the segment holding it, without copying. Returns an
   // empty span when `offset` is at or past the end of the queue.
@@ -191,6 +194,7 @@ class MEDIA_EXPORT BorrowedSegmentedByteQueue final
                           base::ScopedClosureRunner release) override;
   void Pop(size_t count) override;
   size_t size() const override;
+  bool borrow_mode() const override { return true; }
   [[nodiscard]] base::span<const uint8_t> PeekContiguousData(
       size_t offset) const override;
   [[nodiscard]] std::optional<Segments> PeekSegmentedData(
@@ -259,6 +263,7 @@ class MEDIA_EXPORT OwnedSegmentedByteQueue final : public SegmentedByteQueue {
                           base::ScopedClosureRunner release) override;
   void Pop(size_t count) override;
   size_t size() const override;
+  bool borrow_mode() const override { return false; }
   [[nodiscard]] base::span<const uint8_t> PeekContiguousData(
       size_t offset) const override;
   [[nodiscard]] std::optional<Segments> PeekSegmentedData(

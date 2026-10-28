@@ -23,6 +23,7 @@
 #include "base/files/file_util.h"
 #include "base/files/memory_mapped_file.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/json/values_util.h"
 #include "base/metrics/metrics_hashes.h"
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/metrics/persistent_memory_allocator.h"
@@ -47,8 +48,10 @@
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "partition_alloc/buildflags.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -63,6 +66,16 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
         {{"memory-metrics-interval", "1"}, {"cpu-metrics-interval", "1"}});
   }
   ~CobaltMetricsBrowserTest() override = default;
+
+  void SetUp() override {
+    GlobalFeatures::SetUseInMemoryPrefStoreForTesting(true);
+    content::ContentBrowserTest::SetUp();
+  }
+
+  void TearDown() override {
+    content::ContentBrowserTest::TearDown();
+    GlobalFeatures::SetUseInMemoryPrefStoreForTesting(false);
+  }
 
   void SetUpOnMainThread() override {
     content::ContentBrowserTest::SetUpOnMainThread();
@@ -183,23 +196,25 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsMemoryMetrics) {
       "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.ArrayBuffer"));
   EXPECT_TRUE(
       check_non_zero_histogram("Memory.Experimental.Browser2.PartitionAlloc."
-                               "AllocatedObjects.ArrayBuffer"));
+                               "Partitions.ArrayBuffer"));
   EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.Buffer"));
   EXPECT_TRUE(check_histogram(
-      "Memory.Experimental.Browser2.PartitionAlloc.AllocatedObjects.Buffer"));
+      "Memory.Experimental.Browser2.PartitionAlloc.Partitions.Buffer"));
   EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.MaxCommittedSize.Buffer"));
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   EXPECT_TRUE(check_non_zero_histogram(
-      "Memory.Experimental.Browser2.Malloc.CommittedSize.Allocator"));
+      "Memory.Experimental.Browser2.Malloc.CommittedSize"));
   EXPECT_TRUE(check_non_zero_histogram(
-      "Memory.Experimental.Browser2.Malloc.AllocatedObjects.Allocator"));
+      "Memory.Experimental.Browser2.Malloc.MaxCommittedSize"));
+#endif
   EXPECT_TRUE(check_non_zero_histogram(
-      "Memory.Experimental.Browser2.Malloc.MaxCommittedSize.Allocator"));
+      "Memory.Experimental.Browser2.Malloc.AllocatedObjects"));
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.V8.AllocatedObjects");
   check_histogram("Memory.Experimental.Browser2.Skia");
-  check_histogram("Memory.Experimental.Browser2.Skia.Small.SkGlyphCache");
+  check_histogram("Memory.Experimental.Browser2.Small.Skia.SkGlyphCache");
   check_histogram("Memory.Experimental.Browser2.Small.FontCaches");
   check_histogram("Memory.Experimental.Browser2.Small.LevelDatabase");
   check_histogram("Memory.Experimental.Browser2.Small.UI");
@@ -316,19 +331,21 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
       "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.ArrayBuffer"));
   EXPECT_TRUE(
       check_non_zero_histogram("Memory.Experimental.Browser2.PartitionAlloc."
-                               "AllocatedObjects.ArrayBuffer"));
+                               "Partitions.ArrayBuffer"));
   EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.Buffer"));
   EXPECT_TRUE(check_histogram(
-      "Memory.Experimental.Browser2.PartitionAlloc.AllocatedObjects.Buffer"));
+      "Memory.Experimental.Browser2.PartitionAlloc.Partitions.Buffer"));
   EXPECT_TRUE(check_histogram(
       "Memory.Experimental.Browser2.PartitionAlloc.MaxCommittedSize.Buffer"));
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   EXPECT_TRUE(check_non_zero_histogram(
-      "Memory.Experimental.Browser2.Malloc.CommittedSize.Allocator"));
+      "Memory.Experimental.Browser2.Malloc.CommittedSize"));
   EXPECT_TRUE(check_non_zero_histogram(
-      "Memory.Experimental.Browser2.Malloc.AllocatedObjects.Allocator"));
+      "Memory.Experimental.Browser2.Malloc.MaxCommittedSize"));
+#endif
   EXPECT_TRUE(check_non_zero_histogram(
-      "Memory.Experimental.Browser2.Malloc.MaxCommittedSize.Allocator"));
+      "Memory.Experimental.Browser2.Malloc.AllocatedObjects"));
   check_histogram("Memory.Experimental.Browser2.V8");
   check_histogram("Memory.Experimental.Browser2.Skia");
 
@@ -495,8 +512,13 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   EXPECT_TRUE(
       local_state->FindPreference(metrics::prefs::kMetricsLastSeenPrefix +
                                   std::string("BrowserStabilityMetrics")));
-  EXPECT_TRUE(local_state->FindPreference(kLastLoggedProcessExitTimestampMs));
-  EXPECT_EQ(local_state->GetInt64(kLastLoggedProcessExitTimestampMs), -1);
+  // Check the registered default rather than the current value: on Android,
+  // CobaltBrowserMainParts asynchronously stores the prior-session exit
+  // timestamp during startup.
+  ASSERT_TRUE(local_state->FindPreference(kLastLoggedProcessExitTimestampMs));
+  EXPECT_EQ(base::ValueToInt64(local_state->GetDefaultPrefValue(
+                kLastLoggedProcessExitTimestampMs)),
+            std::optional<int64_t>(-1));
 }
 
 IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,

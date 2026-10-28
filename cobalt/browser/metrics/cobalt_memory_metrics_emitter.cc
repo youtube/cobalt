@@ -66,6 +66,7 @@ namespace cobalt {
 namespace {
 
 const char kEffectiveSize[] = "effective_size";
+const char kSize[] = "size";
 const char kAllocatedObjectsSize[] = "allocated_objects_size";
 
 constexpr int kKiB = 1024;
@@ -150,27 +151,6 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      kAllocatedObjectsSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
-    // ==========================================
-    // 1. Main Malloc Partition (General Heap under PA-E)
-    // ==========================================
-    {"malloc/partitions/allocator",
-     "Malloc.CommittedSize.Allocator",
-     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
-     "virtual_committed_size",
-     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
-     {}},
-    {"malloc/partitions/allocator",
-     "Malloc.AllocatedObjects.Allocator",
-     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
-     kAllocatedObjectsSize,
-     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
-     {}},
-    {"malloc/partitions/allocator",
-     "Malloc.MaxCommittedSize.Allocator",
-     CobaltMemoryMetricsEmitter::MetricSize::kLarge,
-     "max_committed_size",
-     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
-     {}},
     {"partition_alloc",
      "PartitionAlloc",
      CobaltMemoryMetricsEmitter::MetricSize::kLarge,
@@ -184,7 +164,7 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     // ==========================================
-    // 2. ArrayBuffer (V8 Typed Arrays / Media Caching)
+    // 1. ArrayBuffer (V8 Typed Arrays / Media Caching)
     // ==========================================
     {"partition_alloc/partitions/array_buffer",
      "PartitionAlloc.CommittedSize.ArrayBuffer",
@@ -193,14 +173,14 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
      {}},
     {"partition_alloc/partitions/array_buffer",
-     "PartitionAlloc.AllocatedObjects.ArrayBuffer",
+     "PartitionAlloc.Partitions.ArrayBuffer",
      CobaltMemoryMetricsEmitter::MetricSize::kLarge,
-     kAllocatedObjectsSize,
-     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     kSize,
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
 
     // ==========================================
-    // 3. Buffer (Standard Vectors / Layout / Blink Core)
+    // 2. Buffer (Standard Vectors / Layout / Blink Core)
     // ==========================================
     {"partition_alloc/partitions/buffer",
      "PartitionAlloc.CommittedSize.Buffer",
@@ -209,10 +189,10 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
      {}},
     {"partition_alloc/partitions/buffer",
-     "PartitionAlloc.AllocatedObjects.Buffer",
+     "PartitionAlloc.Partitions.Buffer",
      CobaltMemoryMetricsEmitter::MetricSize::kLarge,
-     kAllocatedObjectsSize,
-     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     kSize,
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"partition_alloc/partitions/buffer",
      "PartitionAlloc.MaxCommittedSize.Buffer",
@@ -230,7 +210,7 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
     {"skia/sk_glyph_cache",
      "Skia.SkGlyphCache",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
-     "size",
+     kSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
     {"sqlite",
@@ -262,7 +242,7 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
     {"malloc/partitions/allocator/thread_cache",
      "Malloc.ThreadCache",
      CobaltMemoryMetricsEmitter::MetricSize::kSmall,
-     "size",
+     kSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
      {}},
     {"malloc/partitions/allocator",

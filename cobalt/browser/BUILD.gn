@@ -120,6 +120,7 @@ source_set("browser") {
     "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//sql",
     "//starboard:starboard_group",
+    "//storage/browser",
   ]
 
   if (!cobalt_is_release_build) {
