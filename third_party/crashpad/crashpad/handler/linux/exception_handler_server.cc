@@ -36,9 +36,9 @@
 #include "util/linux/proc_task_reader.h"
 #include "util/linux/socket.h"
 
-#if !defined(__cpp_lib_to_underlying)
+#if BUILDFLAG(IS_COBALT) && !defined(__cpp_lib_to_underlying)
 #include "base/types/cxx23_to_underlying.h"
-#endif  // !defined(__cpp_lib_to_underlying)
+#endif  // BUILDFLAG(IS_COBALT) && !defined(__cpp_lib_to_underlying)
 
 namespace crashpad {
 
@@ -328,13 +328,13 @@ void ExceptionHandlerServer::Stop() {
 }
 
 void ExceptionHandlerServer::HandleEvent(Event* event, uint32_t event_type) {
-#if !defined(__cpp_lib_to_underlying)
+#if BUILDFLAG(IS_COBALT) && !defined(__cpp_lib_to_underlying)
   DCHECK_NE(base::to_underlying(event->type),
             base::to_underlying(Event::Type::kShutdown));
 #else
   DCHECK_NE(std::to_underlying(event->type),
             std::to_underlying(Event::Type::kShutdown));
-#endif  // !defined(__cpp_lib_to_underlying)
+#endif  // BUILDFLAG(IS_COBALT) && !defined(__cpp_lib_to_underlying)
 
   if (event_type & EPOLLERR) {
     LogSocketError(event->fd.get());

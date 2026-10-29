@@ -26,9 +26,9 @@
 #include "build/build_config.h"
 #include "util/file/directory_reader.h"
 
-#if !defined(__cpp_lib_to_underlying)
+#if BUILDFLAG(IS_COBALT) && !defined(__cpp_lib_to_underlying)
 #include "base/types/cxx23_to_underlying.h"
-#endif  // !defined(__cpp_lib_to_underlying)
+#endif  // BUILDFLAG(IS_COBALT) && !defined(__cpp_lib_to_underlying)
 
 namespace crashpad {
 
@@ -55,13 +55,13 @@ bool ReadThreadIDs(pid_t pid, std::vector<pid_t>* tids) {
 
     local_tids.push_back(tid);
   }
-#if !defined(__cpp_lib_to_underlying)
+#if BUILDFLAG(IS_COBALT) && !defined(__cpp_lib_to_underlying)
   DCHECK_EQ(base::to_underlying(result),
             base::to_underlying(DirectoryReader::Result::kNoMoreFiles));
 #else
   DCHECK_EQ(std::to_underlying(result),
             std::to_underlying(DirectoryReader::Result::kNoMoreFiles));
-#endif  // !defined(__cpp_lib_to_underlying)
+#endif  // BUILDFLAG(IS_COBALT) && !defined(__cpp_lib_to_underlying)
   DCHECK(!local_tids.empty());
 
   tids->swap(local_tids);
